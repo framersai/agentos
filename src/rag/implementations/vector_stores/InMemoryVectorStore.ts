@@ -37,7 +37,7 @@ import {
   MetadataScalarValue,
 } from '../../IVectorStore';
 import { InMemoryVectorStoreConfig } from '../../../config/VectorStoreConfiguration';
-import { GMIError } from '@agentos/core/utils/errors'; // Assuming a GMIError utility
+import { GMIError } from '@framers/agentos/utils/errors'; // Assuming a GMIError utility
 import { v4 as uuidv4 } from 'uuid';
 
 // Node.js built-in modules for optional file persistence

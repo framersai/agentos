@@ -34,7 +34,7 @@ import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVec
 // Import other IVectorStore implementations as they are created, e.g.:
 // import { PineconeVectorStore } from './implementations/vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './implementations/vector_stores/WeaviateVectorStore';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

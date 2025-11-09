@@ -32,7 +32,7 @@ import {
   ProviderEmbeddingOptions,
   ProviderEmbeddingResponse,
 } from '../core/llm/providers/IProvider';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors'; // Assuming a GMIError utility
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors'; // Assuming a GMIError utility
 
 /**
  * Represents a cached embedding entry.

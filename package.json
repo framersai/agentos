@@ -1,5 +1,5 @@
 {
-    "name":  "@agentos/core",
+    "name":  "@framers/agentos",
     "version":  "0.1.0",
     "description":  "Modular AgentOS orchestration library",
     "type":  "module",

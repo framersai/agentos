@@ -4,7 +4,7 @@
   "tsconfig": "tsconfig.build.json",
   "skipErrorChecking": true,
   "cleanOutputDir": false,
-  "name": "@agentos/core API",
+  "name": "@framers/agentos API",
   "navigationLinks": {
     "Project README": "../README.md"
   }
