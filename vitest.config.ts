@@ -9,7 +9,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@agentos\/core\/(.*)$/, replacement: `${srcDir}/$1` },
-      { find: '@agentos/core', replacement: srcDir },
+      { find: '@framers/agentos', replacement: srcDir },
       { find: '@prisma/client', replacement: path.resolve(__dirname, 'src/stubs/prismaClient.ts') },
     ],
   },
