@@ -53,6 +53,7 @@ export interface EnvironmentConfig {
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
   OPENROUTER_API_KEY?: string;
+  SERPER_API_KEY?: string;
   OLLAMA_BASE_URL?: string;
 
   // LemonSqueezy Integration
@@ -444,6 +445,12 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
     const modelProviderManagerConfig = createModelProviderManagerConfig(env);
 
     // Assemble final configuration
+    const extensionSecrets: Record<string, string> = {};
+    if (env.OPENAI_API_KEY) extensionSecrets['openai.apiKey'] = env.OPENAI_API_KEY;
+    if (env.OPENROUTER_API_KEY) extensionSecrets['openrouter.apiKey'] = env.OPENROUTER_API_KEY;
+    if (env.ANTHROPIC_API_KEY) extensionSecrets['anthropic.apiKey'] = env.ANTHROPIC_API_KEY;
+    if (env.SERPER_API_KEY) extensionSecrets['serper.apiKey'] = env.SERPER_API_KEY;
+
     const config: AgentOSConfig = {
       gmiManagerConfig,
       orchestratorConfig,
@@ -457,7 +464,8 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       prisma,
       authService,
       subscriptionService,
-      utilityAIService
+      utilityAIService,
+      extensionSecrets: Object.keys(extensionSecrets).length ? extensionSecrets : undefined,
     };
 
     console.log('AgentOS Config: Configuration created successfully');

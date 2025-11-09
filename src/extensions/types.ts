@@ -41,6 +41,23 @@ export interface ExtensionSourceMetadata {
  */
 export interface ExtensionLifecycleContext {
   logger?: ILogger;
+  /**
+   * Resolves a secret value registered with AgentOS / the host application.
+   * Returns `undefined` when a secret is not configured.
+   */
+  getSecret?: (secretId: string) => string | undefined;
+}
+
+/**
+ * Declares a dependency on a named secret (API key / credential).
+ */
+export interface ExtensionSecretRequirement {
+  /** Unique identifier matching the shared secret catalog. */
+  id: string;
+  /** When true the descriptor can still activate without this secret. */
+  optional?: boolean;
+  /** Optional context surfaced in tooling. */
+  description?: string;
 }
 
 /**
@@ -90,6 +107,11 @@ export interface ExtensionDescriptor<TPayload = unknown> {
    * removed.
    */
   onDeactivate?: (context: ExtensionLifecycleContext) => Promise<void> | void;
+  /**
+   * Declares the secrets (API keys, credentials) the descriptor needs in
+   * order to function.
+   */
+  requiredSecrets?: ExtensionSecretRequirement[];
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { JSONSchemaObject } from '../tools/ITool';
+import type { AgencySeatHistoryEntry } from '../agency/AgencyTypes';
 
 /**
  * High-level lifecycle states for a workflow instance.
@@ -75,6 +76,11 @@ export interface WorkflowTaskDefinition {
   handoff?: Record<string, unknown>;
 }
 
+export interface WorkflowDefinitionMetadata {
+  requiredSecrets?: string[];
+  [key: string]: unknown;
+}
+
 /**
  * Declarative descriptor for a workflow definition.
  */
@@ -89,7 +95,7 @@ export interface WorkflowDefinition {
   tasks: WorkflowTaskDefinition[];
   policyTags?: string[];
   requiresConversationContext?: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: WorkflowDefinitionMetadata;
 }
 
 /**
@@ -111,6 +117,15 @@ export interface WorkflowTaskInstance {
   metadata?: Record<string, unknown>;
 }
 
+export interface WorkflowAgencySeatSnapshot {
+  roleId: string;
+  gmiInstanceId: string;
+  personaId: string;
+  attachedAt?: string;
+  metadata?: Record<string, unknown>;
+  history?: AgencySeatHistoryEntry[];
+}
+
 /**
  * Runtime snapshot of a workflow instance.
  */
@@ -128,7 +143,7 @@ export interface WorkflowInstance {
   tasks: Record<string, WorkflowTaskInstance>;
   agencyState?: {
     agencyId: string;
-    seats: Record<string, string>;
+    seats: Record<string, WorkflowAgencySeatSnapshot>;
     metadata?: Record<string, unknown>;
   };
   metadata?: Record<string, unknown>;

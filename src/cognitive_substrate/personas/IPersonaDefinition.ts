@@ -357,4 +357,6 @@ export interface IPersonaDefinition {
     /** Initial task framing values (e.g., domain, complexity baseline). */
     initialTaskContext?: Partial<PersonaTaskContextDefaults>;
   };
+  /** Named secrets (API keys, credentials) this persona depends on. */
+  requiredSecrets?: string[];
 }

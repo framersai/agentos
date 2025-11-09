@@ -1,0 +1,40 @@
+import type { IPersonaDefinition } from '../IPersonaDefinition';
+
+import atlasSystemsArchitect from './atlas_systems_architect.json';
+import defaultAssistant from './default_assistant_persona.json';
+import defaultFreeAssistant from './default_free_assistant.json';
+import nerfGeneralist from './nerf_generalist.json';
+import vResearcher from './v_researcher.json';
+
+/**
+ * Deeply clones a persona definition to avoid accidental mutation of the
+ * source JSON objects bundled with the library.
+ */
+function clonePersona(definition: IPersonaDefinition): IPersonaDefinition {
+  return JSON.parse(JSON.stringify(definition)) as IPersonaDefinition;
+}
+
+const BUILT_IN_SOURCES: IPersonaDefinition[] = [
+  defaultAssistant as IPersonaDefinition,
+  defaultFreeAssistant as IPersonaDefinition,
+  atlasSystemsArchitect as IPersonaDefinition,
+  nerfGeneralist as IPersonaDefinition,
+  vResearcher as IPersonaDefinition,
+];
+
+/**
+ * Canonical catalogue of persona definitions shipped with AgentOS.
+ * Consumers can use this list to seed custom loaders or expose the
+ * default personas in local-first environments (e.g., the workbench UI).
+ */
+export const BUILT_IN_PERSONAS: IPersonaDefinition[] = BUILT_IN_SOURCES.map(clonePersona);
+
+/**
+ * Returns a cloned persona definition matching the provided identifier.
+ *
+ * @param personaId - Identifier declared inside the JSON definition.
+ */
+export function getBuiltInPersona(personaId: string): IPersonaDefinition | undefined {
+  const match = BUILT_IN_SOURCES.find((definition) => definition.id === personaId);
+  return match ? clonePersona(match) : undefined;
+}

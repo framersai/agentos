@@ -54,7 +54,12 @@ export class PersonaOverlayManager {
       personaId: args.persona.id,
       appliedRules: [...new Set([...(args.previousOverlay?.appliedRules ?? []), ...appliedRules])],
       patchedDefinition: patches,
-      metadata: args.previousOverlay?.metadata,
+      metadata: {
+        ...args.previousOverlay?.metadata,
+        previouslyActivated: true,
+        lastEvaluatedAt: new Date().toISOString(),
+        lastContextMetadata: args.context.metadata,
+      },
     };
   }
 
@@ -89,8 +94,67 @@ export class PersonaOverlayManager {
    * @param context - Signals captured during workflow execution.
    * @returns `true` when the rule should be applied.
    */
-  protected shouldApplyRule(_rule: PersonaEvolutionRule, _context: PersonaEvolutionContext): boolean {
-    // TODO: Evaluate triggers (string DSL or function) to decide applicability.
-    return false;
+  protected shouldApplyRule(rule: PersonaEvolutionRule, context: PersonaEvolutionContext): boolean {
+    if (!rule?.trigger) {
+      return false;
+    }
+
+    if (typeof rule.trigger === 'string') {
+      return this.matchesStringTrigger(rule.trigger, context);
+    }
+
+    return Object.entries(rule.trigger).every(([key, expected]) => {
+      const actual = this.readContextValue(context, key);
+      return actual === expected;
+    });
+  }
+
+  private matchesStringTrigger(trigger: string, context: PersonaEvolutionContext): boolean {
+    const normalized = trigger.toLowerCase();
+    switch (normalized) {
+      case 'always':
+        return true;
+      case 'first_activation':
+        return !context.metadata?.previouslyActivated;
+      case 'task_completed':
+        return context.metadata?.lastEvent === 'task_completed';
+      case 'on_error':
+      case 'error':
+        return (
+          context.metadata?.lastEvent === 'error' ||
+          context.reasoningSignals?.lastEvent === 'error' ||
+          context.metadata?.state === 'failed'
+        );
+      default:
+        return (
+          context.metadata?.lastEvent === normalized ||
+          context.metadata?.state === normalized ||
+          context.roleId === normalized
+        );
+    }
+  }
+
+  private readContextValue(context: PersonaEvolutionContext, key: string): unknown {
+    if (key.includes('.')) {
+      const [root, ...rest] = key.split('.');
+      const initial =
+        root === 'metadata'
+          ? context.metadata
+          : root === 'signals'
+          ? context.reasoningSignals
+          : (context as unknown as Record<string, unknown>)[root];
+      return rest.reduce((value: any, segment) => (value ? value[segment] : undefined), initial as any);
+    }
+
+    if (context.metadata && key in context.metadata) {
+      return context.metadata[key];
+    }
+    if (context.reasoningSignals && key in context.reasoningSignals) {
+      return context.reasoningSignals[key];
+    }
+    if (key in context) {
+      return (context as Record<string, unknown>)[key];
+    }
+    return undefined;
   }
 }
