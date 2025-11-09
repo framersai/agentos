@@ -1,0 +1,68 @@
+{
+    "name":  "@agentos/core",
+    "version":  "0.1.0",
+    "description":  "Modular AgentOS orchestration library",
+    "type":  "module",
+    "main":  "dist/index.js",
+    "module":  "dist/index.js",
+    "types":  "dist/index.d.ts",
+    "exports":  {
+                    ".":  "./dist/index.js",
+                    "./package.json":  "./package.json",
+                    "./*":  "./dist/*.js"
+                },
+    "files":  [
+                  "dist"
+              ],
+    "publishConfig":  {
+                          "access":  "public"
+                      },
+    "scripts":  {
+                    "clean":  "rimraf dist tsconfig.build.tsbuildinfo",
+                    "build":  "npm run clean \u0026\u0026 tsc -p tsconfig.build.json \u0026\u0026 tsc-alias -p tsconfig.build.json",
+                    "typecheck":  "tsc --noEmit",
+                    "lint":  "eslint \"src/**/*.{ts,js}\"",
+                    "test":  "vitest run",
+                    "dev:test":  "vitest",
+                    "docs:clean":  "rimraf docs/api ../../docs-generated/library ../../docs-generated/api",
+                    "docs":  "npm run docs:clean \u0026\u0026 pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json \u0026\u0026 pnpm --dir ../../ exec typedoc --options typedoc.json \u0026\u0026 pnpm --dir ../../ exec node scripts/generate-api-docs.js \u0026\u0026 pnpm --dir ../../ exec node apps/agentos-landing/scripts/copy-docs.js",
+                    "docs:watch":  "npm run docs:clean \u0026\u0026 pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json \u0026\u0026 pnpm --dir ../../ exec typedoc --options typedoc.json \u0026\u0026 pnpm --dir ../../ exec node scripts/generate-api-docs.js \u0026\u0026 concurrently \"pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json --watch\" \"pnpm --dir ../../ exec typedoc --options typedoc.json --watch\" \"pnpm --dir ../../ exec node apps/agentos-landing/scripts/copy-docs.js --watch\""
+                },
+    "keywords":  [
+                     "agentos",
+                     "orchestration",
+                     "typescript",
+                     "llm",
+                     "tools"
+                 ],
+    "author":  "Voice Chat Assistant Team",
+    "license":  "Apache-2.0",
+    "devDependencies":  {
+                            "@types/natural":  "^5.1.5",
+                            "@types/node":  "^20.12.12",
+                            "eslint":  "^9.11.0",
+                            "eslint-config-prettier":  "^9.1.0",
+                            "eslint-plugin-import":  "^2.29.1",
+                            "prettier":  "^3.3.2",
+                            "rimraf":  "^5.0.7",
+                            "ts-node":  "^10.9.2",
+                            "tsc-alias":  "^1.8.10",
+                            "tsconfig-paths":  "^4.2.0",
+                            "tsx":  "^4.20.0",
+                            "typedoc":  "^0.25.13",
+                            "typescript":  "^5.4.5",
+                            "vitest":  "^1.6.0"
+                        },
+    "dependencies":  {
+                         "@framers/sql-storage-adapter": "workspace:*",
+                         "ajv":  "^8.17.1",
+                         "ajv-formats":  "^3.0.1",
+        "lru-cache":  "^11.1.0",
+        "natural":  "^6.12.0",
+        "uuid":  "^11.1.0",
+        "axios":  "^1.7.7"
+    },
+    "peerDependencies":  {
+                             "typescript":  "\u003e=5.0.0"
+                         }
+}
