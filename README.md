@@ -107,3 +107,14 @@ While the package lives in this workspace:
 3. Document API changes in this README and, once the standalone repo is live, in its CHANGELOG.
 
 When the repo split is complete, contributions should go directly to [https://github.com/framersai/agentos](https://github.com/framersai/agentos).
+
+## Links
+- Website: https://frame.dev
+- AgentOS: https://agentos.sh
+- Marketplace: https://vca.chat
+- GitHub: https://github.com/framersai/agentos
+- npm: https://www.npmjs.com/package/@agentos/core
+## Contributing & Security
+- Contributing: ./\.github/CONTRIBUTING.md
+- Code of Conduct: ./\.github/CODE_OF_CONDUCT.md
+- Security Policy: ./\.github/SECURITY.md

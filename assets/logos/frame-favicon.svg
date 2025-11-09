@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Frame favicon</title>
+  <desc id="desc">Rounded square gradient icon with the letter F.</desc>
+  <defs>
+    <linearGradient id="frameFaviconGradient" x1="6" y1="6" x2="58" y2="58">
+      <stop offset="0" stop-color="#020617"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="52" height="52" rx="12" fill="url(#frameFaviconGradient)"/>
+  <path d="M36 20H22V44H30V38H38V30H30V28H36V20Z" fill="white"/>
+</svg>

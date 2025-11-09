@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Detect package manager
+        id: pm
+        run: |
+          if [ -f pnpm-lock.yaml ] || node -e "try{const s=Object.values(require('./package.json').scripts||{}).join(' '); process.exit(s.includes('pnpm')?0:1)}catch(e){process.exit(1)}"; then
+            echo "pm=pnpm" >> $GITHUB_OUTPUT
+          else
+            echo "pm=npm" >> $GITHUB_OUTPUT
+          fi
+      - name: Setup pnpm
+        if: steps.pm.outputs.pm == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Install
+        run: |
+          if [ "${{ steps.pm.outputs.pm }}" = "pnpm" ]; then
+            pnpm install --no-frozen-lockfile
+          elif [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+      - name: Lint
+        run: |
+          if [ "${{ steps.pm.outputs.pm }}" = "pnpm" ]; then
+            pnpm run -r lint --if-present || pnpm run lint --if-present
+          else
+            npm run lint --if-present
+          fi
+      - name: Test
+        run: |
+          if [ "${{ steps.pm.outputs.pm }}" = "pnpm" ]; then
+            pnpm run -r test --if-present || pnpm test --if-present
+          else
+            npm test --if-present
+          fi
+      - name: Coverage (Vitest, 60% lines minimum)
+        run: |
+          if [ -f vitest.config.ts ] || [ -f vitest.config.js ]; then
+            if [ "${{ steps.pm.outputs.pm }}" = "pnpm" ]; then
+              pnpm exec vitest run --coverage
+            else
+              npx vitest run --coverage
+            fi
+          else
+            echo "No vitest config found; skipping coverage check."
+          fi
+
+
