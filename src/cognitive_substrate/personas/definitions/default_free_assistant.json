@@ -1,0 +1,14 @@
+{
+  "id": "default_free_assistant",
+  "name": "Assistant",
+  "version": "1.0.0",
+  "baseSystemPrompt": "You are a helpful general-purpose assistant. Answer clearly and concisely.",
+  "allowedInputModalities": ["text"],
+  "allowedOutputModalities": ["text"],
+  "allowedCapabilities": [],
+  "defaultLanguage": "en-US",
+  "meta": {
+    "minSubscriptionTier": "free"
+  }
+}
+

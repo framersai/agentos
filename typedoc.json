@@ -1,0 +1,11 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs/api",
+  "tsconfig": "tsconfig.build.json",
+  "skipErrorChecking": true,
+  "cleanOutputDir": false,
+  "name": "@agentos/core API",
+  "navigationLinks": {
+    "Project README": "../README.md"
+  }
+}

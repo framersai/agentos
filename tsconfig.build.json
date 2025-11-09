@@ -1,0 +1,44 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "module": "ESNext",
+    "target": "ES2020",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "preserveSymlinks": true,
+    "allowSyntheticDefaultImports": true,
+    "emitDeclarationOnly": false,
+    "skipLibCheck": true,
+    "noEmitOnError": false
+  },
+  "include": [
+    "src/index.ts",
+    "src/api/**/*.ts",
+    "src/config/**/*.ts",
+    "src/core/**/*.ts",
+    "src/cognitive_substrate/**/*.ts",
+    "src/extensions/**/*.ts",
+    "src/rag/**/*.ts",
+    "src/logging/**/*.ts",
+    "src/services/**/*.ts",
+    "src/utils/**/*.ts",
+    "src/types/**/*.ts",
+    "src/stubs/**/*.ts"
+  ],
+  "exclude": [
+    "src/memory_lifecycle/**/*",
+    "src/rag/tests/**/*",
+    "src/server/**/*",
+    "src/server_integration/**/*",
+    "src/server_utils/**/*",
+    "src/examples/**/*",
+    "src/tests/**/*",
+    "src/cognitive_substrate/tests/**/*",
+    "src/core/ai_utilities/tests/**/*",
+    "src/core/audio/**/*"
+  ]
+}

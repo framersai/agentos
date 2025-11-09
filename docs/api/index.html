@@ -1,0 +1,84 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@agentos/core API</title><meta name="description" content="Documentation for @agentos/core API"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">@agentos/core API</a><div id="tsd-toolbar-links"><a href="../README.md">Project README</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>@agentos/core API</h1></div><div class="tsd-panel tsd-typography"><div align="center">
+<p><img src="media/agentos-primary-transparent-2x.png" alt="AgentOS"></p>
+<p><a href="https://www.npmjs.com/package/@agentos/core"><img src="https://img.shields.io/npm/v/@agentos/core?logo=npm" alt="NPM Version"></a>
+<a href="https://github.com/wearetheframers/agentos"><img src="https://img.shields.io/badge/GitHub-wearetheframers%2Fagentos-blue?logo=github" alt="GitHub"></a>
+<a href="https://agentos.sh"><img src="https://img.shields.io/badge/Website-agentos.sh-00d4ff" alt="Website"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></p>
+<h3 id="modular-orchestration-runtime-for-adaptive-ai-systems" class="tsd-anchor-link">Modular orchestration runtime for adaptive AI systems<a href="#modular-orchestration-runtime-for-adaptive-ai-systems" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><p><a href="https://agentos.sh/docs">Documentation</a> • <a href="https://github.com/wearetheframers/agentos">GitHub</a> • <a href="https://www.npmjs.com/package/@agentos/core">NPM</a></p>
+</div>
+<hr>
+<h1 id="agentoscore" class="tsd-anchor-link">@agentos/core<a href="#agentoscore" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1><blockquote>
+<p>Modular AgentOS runtime used by Voice Chat Assistant. Official home: <a href="https://github.com/wearetheframers/agentos">github.com/wearetheframers/agentos</a>.</p>
+</blockquote>
+<p>This package contains the Typescript implementation of the AgentOS orchestration stack (GMI manager, conversation/memory services, tool orchestrator, streaming manager, RAG helpers). It is developed inside the Voice Chat Assistant workspace and will be published as a standalone open-source package.</p>
+<hr>
+<h2 id="install" class="tsd-anchor-link">Install<a href="#install" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="bash"><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@agentos/core</span><br/><span class="hl-3"># or</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@agentos/core</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Until public releases begin, consume the package via the workspace (monorepo) or the GitHub repo.</p>
+<hr>
+<h2 id="scripts" class="tsd-anchor-link">Scripts<a href="#scripts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pnpm run build</code></td>
+<td>Cleans <code>dist/</code>, compiles <code>src/**</code> (ESM) with declaration maps.</td>
+</tr>
+<tr>
+<td><code>pnpm run test</code></td>
+<td>Executes Vitest tests (<code>tests/**/*.spec.ts</code>).</td>
+</tr>
+<tr>
+<td><code>pnpm run lint</code></td>
+<td>Placeholder for future ESLint config.</td>
+</tr>
+<tr>
+<td><code>pnpm run clean</code></td>
+<td>Removes the <code>dist/</code> directory.</td>
+</tr>
+<tr>
+<td><code>pnpm run docs</code></td>
+<td>Generates TypeDoc output under <code>docs/api</code>.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Tip: when working from the workspace root, run <code>npm --prefix packages/agentos run build</code> (this is already part of <code>npm run build:backend</code>).</p>
+</blockquote>
+<hr>
+<h2 id="usage" class="tsd-anchor-link">Usage<a href="#usage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">AgentOS</span><span class="hl-1">, </span><span class="hl-5">AgentOSConfig</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@agentos/core&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">agentos</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">AgentOS</span><span class="hl-1">();</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">agentos</span><span class="hl-1">.</span><span class="hl-0">initialize</span><span class="hl-1">(</span><span class="hl-5">agentOsConfig</span><span class="hl-1">);</span><br/><br/><span class="hl-4">for</span><span class="hl-1"> </span><span class="hl-4">await</span><span class="hl-1"> (</span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">chunk</span><span class="hl-1"> </span><span class="hl-6">of</span><span class="hl-1"> </span><span class="hl-5">agentos</span><span class="hl-1">.</span><span class="hl-0">processRequest</span><span class="hl-1">(</span><span class="hl-5">input</span><span class="hl-1">)) {</span><br/><span class="hl-1">  </span><span class="hl-3">// handle AgentOSResponseChunkType.* events</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Key exports (see <code>src/index.ts</code>):</p>
+<ul>
+<li><code>AgentOS</code>, <code>AgentOSOrchestrator</code></li>
+<li>Types: <code>AgentOSInput</code>, <code>AgentOSResponse</code>, cognitive substrate interfaces, tool/permission contracts</li>
+<li>Streaming helpers (<code>StreamingManager</code> / <code>IStreamClient</code>), conversation/memory services, tool orchestrator configs</li>
+<li>Error helpers: <code>GMIError</code>, <code>GMIErrorCode</code>, <code>createGMIErrorFromError</code></li>
+</ul>
+<h3 id="default-wiring" class="tsd-anchor-link">Default wiring<a href="#default-wiring" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><ul>
+<li>If no <code>utilityAIService</code> is provided in <code>AgentOSConfig</code>, the facade now spins up a lightweight <code>LLMUtilityAI</code> that implements both the <code>IUtilityAI</code> and <code>IPromptEngineUtilityAI</code> contracts. This keeps the package usable out of the box (prompt summarisation, RAG trimming, etc.).</li>
+<li>The <code>ToolOrchestrator</code> is initialised with an explicit <code>ToolPermissionManager</code> and <code>ToolExecutor</code>, so dynamic tool registration/enforcement rules are honoured even when the package is consumed outside the Voice Chat Assistant backend.</li>
+<li><code>AgentOS.processRequest</code> exposes responses as an async generator by registering a temporary in-memory stream client (<code>AsyncStreamClientBridge</code>). Consumers that do not want to run the Express router can interact with the AgentOS facade directly.</li>
+</ul>
+<p>Real deployments should supply their own auth/subscription services by implementing the interfaces in <code>src/services/user_auth/types.ts</code> (see VCA's adapters in <code>backend/src/integrations/agentos</code>). The package ships with minimal stubs for local testing.</p>
+<hr>
+<h2 id="tests-roadmap" class="tsd-anchor-link">Tests &amp; Roadmap<a href="#tests-roadmap" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><ul>
+<li>Vitest is configured (<code>pnpm --filter @agentos/core test</code>). Today's coverage is minimal; expect more unit + integration tests as the extraction work completes.</li>
+<li>API docs can be generated locally via <code>pnpm run docs</code>; artefacts land in <code>docs/api</code>.</li>
+<li>Documentation, CI, and publishing flows will migrate to the dedicated OSS repo (<a href="https://github.com/wearetheframers/agentos">wearetheframers/agentos</a>). This README serves as the single source of truth until the repo split is finalized (see <a href="media/AGENTOS_REINTEGRATION_NOTES.md">docs/AGENTOS_REINTEGRATION_NOTES.md</a>).</li>
+</ul>
+<hr>
+<h2 id="contributing" class="tsd-anchor-link">Contributing<a href="#contributing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><p>While the package lives in this workspace:</p>
+<ol>
+<li>Update code under <code>packages/agentos/src/**</code>.</li>
+<li>Run <code>pnpm --filter @agentos/core test</code> and <code>npm run build:backend</code> to ensure consumers still compile.</li>
+<li>Document API changes in this README and, once the standalone repo is live, in its CHANGELOG.</li>
+</ol>
+<p>When the repo split is complete, contributions should go directly to <a href="https://github.com/wearetheframers/agentos">https://github.com/wearetheframers/agentos</a>.</p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><ul><li><ul><li><a href="#modular-orchestration-runtime-for-adaptive-ai-systems"><span>Modular orchestration runtime for adaptive <wbr/>AI systems</span></a></li></ul></li></ul><a href="#agentoscore"><span>@agentos/core</span></a><ul><li><a href="#install"><span>Install</span></a></li><li><a href="#scripts"><span>Scripts</span></a></li><li><a href="#usage"><span>Usage</span></a></li><li><ul><li><a href="#default-wiring"><span>Default wiring</span></a></li></ul></li><li><a href="#tests-roadmap"><span>Tests &amp; <wbr/>Roadmap</span></a></li><li><a href="#contributing"><span>Contributing</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="../README.md" class="tsd-nav-link">Project README</a></nav><nav class="tsd-navigation"><a href="modules.html">@agentos/core API</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
