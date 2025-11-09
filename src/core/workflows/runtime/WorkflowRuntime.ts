@@ -13,7 +13,7 @@ import type { StreamingManager } from '../../streaming/StreamingManager';
 import type { IToolOrchestrator } from '../../tools/IToolOrchestrator';
 import type { ILogger } from '../../../logging/ILogger';
 import { AgencyRegistry } from '../../agency/AgencyRegistry';
-import type { AgencySession } from '../../agency/AgencyTypes';
+import type { AgencySeatState, AgencySession } from '../../agency/AgencyTypes';
 import {
   AgentOSResponseChunkType,
   type AgentOSAgencyUpdateChunk,
@@ -23,7 +23,9 @@ import {
   type GMIOutputChunk,
   GMIOutputChunkType,
   type GMITurnInput,
+  type CostAggregator,
 } from '../../../cognitive_substrate/IGMI';
+import type { PersonaEvolutionContext } from '../../../cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 import type { ToolExecutionRequestDetails } from '../../tools/ToolExecutor';
 import type { UserContext } from '../../../cognitive_substrate/IGMI';
 import type { ToolCallResult } from '../../../cognitive_substrate/IGMI';
@@ -280,19 +282,35 @@ export class WorkflowRuntime {
    * fully manages stream identifiers per Agency seat.
    */
   protected async emitAgencyUpdate(session: AgencySession): Promise<void> {
-    const seats = Object.values(session.seats).map((seat) => ({
-      roleId: seat.roleId,
-      gmiInstanceId: seat.gmiInstanceId,
-      personaId: seat.personaId,
-      metadata: seat.metadata,
-    }));
+    const seats = Object.values(session.seats).map((seat) => {
+      const latestHistory = seat.history?.[seat.history.length - 1];
+      const status = (latestHistory?.status ?? seat.metadata?.status ?? 'pending') as string;
+      return {
+        roleId: seat.roleId,
+        gmiInstanceId: seat.gmiInstanceId,
+        personaId: seat.personaId,
+        metadata: {
+          ...(seat.metadata ?? {}),
+          status,
+          lastOutputPreview: latestHistory?.outputPreview ?? seat.metadata?.lastOutputPreview,
+          history: seat.history,
+        },
+      };
+    });
+
+    const isFinal =
+      seats.length > 0 &&
+      seats.every((seat) => {
+        const status = (seat.metadata?.status as string | undefined) ?? 'pending';
+        return status === 'completed' || status === 'failed';
+      });
 
     const chunk: AgentOSAgencyUpdateChunk = {
       type: AgentOSResponseChunkType.AGENCY_UPDATE,
       streamId: session.conversationId,
       gmiInstanceId: `agency:${session.agencyId}`,
       personaId: `agency:${session.agencyId}`,
-      isFinal: false,
+      isFinal,
       timestamp: new Date().toISOString(),
       agency: {
         agencyId: session.agencyId,
@@ -349,22 +367,15 @@ export class WorkflowRuntime {
     const conversationId = instance.conversationId ?? instance.workflowId;
     const userId = instance.createdByUserId ?? 'system';
 
-    const agencySession = this.agencyRegistry.upsertAgency({
-      workflowId,
-      conversationId,
-    });
-
+    const agencySession = this.agencyRegistry.upsertAgency({ workflowId, conversationId });
     const roleDefinition = workflowDefinition.roles?.find((role) => role.roleId === roleId);
+    const priorSeatState = agencySession.seats[roleId];
     const agencyOptions: GMIAgencyContextOptions = {
       agencyId: agencySession.agencyId,
       roleId,
       workflowId,
       evolutionRules: roleDefinition?.evolutionRules ?? [],
-      evolutionContext: {
-        workflowId,
-        agencyId: agencySession.agencyId,
-        roleId,
-      },
+      evolutionContext: this.buildEvolutionContext(workflowId, agencySession.agencyId, roleId, priorSeatState),
     };
 
     const { gmi, conversationContext } = await this.deps.gmiManager.getOrCreateGMIForSession(
@@ -385,17 +396,16 @@ export class WorkflowRuntime {
       personaId,
       metadata: roleDefinition?.metadata,
     });
+    this.agencyRegistry.mergeSeatMetadata(agencySession.agencyId, roleId, {
+      status: 'running',
+      lastTaskId: taskId,
+      lastUpdatedAt: new Date().toISOString(),
+    });
 
-    await this.emitAgencyUpdate(this.agencyRegistry.getAgency(agencySession.agencyId)!);
-    const latestAgency = this.agencyRegistry.getAgency(agencySession.agencyId);
-    if (latestAgency) {
-      await this.deps.workflowEngine.updateWorkflowAgencyState(workflowId, {
-        agencyId: latestAgency.agencyId,
-        seats: Object.fromEntries(
-          Object.entries(latestAgency.seats).map(([role, seat]) => [role, seat.gmiInstanceId]),
-        ),
-        metadata: latestAgency.metadata,
-      });
+    const runningSession = this.agencyRegistry.getAgency(agencySession.agencyId);
+    if (runningSession) {
+      await this.emitAgencyUpdate(runningSession);
+      await this.syncWorkflowAgencyState(runningSession, workflowId);
     }
 
     const instructions =
@@ -417,18 +427,63 @@ export class WorkflowRuntime {
       timestamp: new Date(),
     };
 
-    const taskOutputText = await this.collectGmiResponse(gmi.processTurnStream(turnInput));
+    try {
+      const { text: taskOutputText } = await this.collectGmiResponse(gmi.processTurnStream(turnInput));
+      conversationContext.setMetadata?.('latestTaskOutput', taskOutputText);
 
-    conversationContext.setMetadata?.('latestTaskOutput', taskOutputText);
-
-    await this.deps.workflowEngine.applyTaskUpdates(workflowId, [
-      {
+      const outputPreview = this.buildOutputPreview(taskOutputText);
+      this.agencyRegistry.appendSeatHistory(agencySession.agencyId, roleId, {
         taskId,
-        status: WorkflowTaskStatus.COMPLETED,
-        completedAt: new Date().toISOString(),
-        output: { text: taskOutputText },
-      },
-    ]);
+        timestamp: new Date().toISOString(),
+        status: 'completed',
+        outputPreview,
+        metadata: { executor: 'gmi' },
+      });
+      this.agencyRegistry.mergeSeatMetadata(agencySession.agencyId, roleId, {
+        status: 'completed',
+        lastOutputPreview: outputPreview,
+        lastTaskId: taskId,
+        lastUpdatedAt: new Date().toISOString(),
+      });
+
+      const completedSession = this.agencyRegistry.getAgency(agencySession.agencyId);
+      if (completedSession) {
+        await this.emitAgencyUpdate(completedSession);
+        await this.syncWorkflowAgencyState(completedSession, workflowId);
+      }
+
+      await this.deps.workflowEngine.applyTaskUpdates(workflowId, [
+        {
+          taskId,
+          status: WorkflowTaskStatus.COMPLETED,
+          completedAt: new Date().toISOString(),
+          output: { text: taskOutputText },
+        },
+      ]);
+    } catch (error) {
+      const failureMessage = error instanceof Error ? error.message : String(error);
+      this.agencyRegistry.appendSeatHistory(agencySession.agencyId, roleId, {
+        taskId,
+        timestamp: new Date().toISOString(),
+        status: 'failed',
+        outputPreview: failureMessage,
+        metadata: { executor: 'gmi' },
+      });
+      this.agencyRegistry.mergeSeatMetadata(agencySession.agencyId, roleId, {
+        status: 'failed',
+        lastError: failureMessage,
+        lastTaskId: taskId,
+        lastUpdatedAt: new Date().toISOString(),
+      });
+
+      const failedSession = this.agencyRegistry.getAgency(agencySession.agencyId);
+      if (failedSession) {
+        await this.emitAgencyUpdate(failedSession);
+        await this.syncWorkflowAgencyState(failedSession, workflowId);
+      }
+
+      throw error;
+    }
   }
 
   private async executeToolTask(
@@ -556,8 +611,9 @@ export class WorkflowRuntime {
 
   private async collectGmiResponse(
     stream: AsyncGenerator<GMIOutputChunk, unknown, undefined>,
-  ): Promise<string> {
+  ): Promise<{ text: string; usage?: CostAggregator }> {
     let aggregated = '';
+    let usage: CostAggregator | undefined;
 
     for await (const chunk of stream) {
       switch (chunk.type) {
@@ -572,12 +628,71 @@ export class WorkflowRuntime {
           } else if (chunk.content && (chunk.content as any).finalResponseText) {
             aggregated += String((chunk.content as any).finalResponseText);
           }
+          if (chunk.content && typeof chunk.content === 'object' && (chunk.content as any).usage) {
+            usage = (chunk.content as any).usage as CostAggregator;
+          }
           break;
         default:
           break;
       }
     }
 
-    return aggregated;
+    return { text: aggregated, usage };
+  }
+
+  private buildOutputPreview(text: string, maxLength = 600): string {
+    if (!text) {
+      return '';
+    }
+    const normalized = text.trim();
+    return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}…` : normalized;
+  }
+
+  private buildEvolutionContext(
+    workflowId: string,
+    agencyId: string,
+    roleId: string,
+    seatState?: AgencySeatState,
+  ): PersonaEvolutionContext {
+    const history = seatState?.history ?? [];
+    const recentOutputs = history
+      .slice(-3)
+      .map((entry) =>
+        entry.outputPreview
+          ? { taskId: entry.taskId ?? 'unknown_task', output: entry.outputPreview }
+          : undefined,
+      )
+      .filter((entry): entry is { taskId: string; output: string } => Boolean(entry));
+
+    return {
+      workflowId,
+      agencyId,
+      roleId,
+      recentOutputs: recentOutputs.length > 0 ? recentOutputs : undefined,
+      metadata: {
+        lastEvent: history.at(-1)?.status,
+        seatMetadata: seatState?.metadata,
+      },
+    };
+  }
+
+  private async syncWorkflowAgencyState(session: AgencySession, workflowId: string): Promise<void> {
+    await this.deps.workflowEngine.updateWorkflowAgencyState(workflowId, {
+      agencyId: session.agencyId,
+      seats: Object.fromEntries(
+        Object.entries(session.seats).map(([role, seat]) => [
+          role,
+          {
+            roleId: role,
+            gmiInstanceId: seat.gmiInstanceId,
+            personaId: seat.personaId,
+            attachedAt: seat.attachedAt,
+            metadata: seat.metadata,
+            history: seat.history,
+          },
+        ]),
+      ),
+      metadata: session.metadata,
+    });
   }
 }

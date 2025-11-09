@@ -24,6 +24,7 @@ export { WorkflowEngine } from './core/workflows/WorkflowEngine';
 export { InMemoryWorkflowStore } from './core/workflows/storage/InMemoryWorkflowStore';
 export * from './core/agency/AgencyTypes';
 export { AgencyRegistry } from './core/agency/AgencyRegistry';
+export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
 export * from './extensions';

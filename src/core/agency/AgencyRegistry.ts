@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import type { ILogger } from '../../logging/ILogger';
 import type {
+  AgencySeatHistoryEntry,
   AgencySeatRegistrationArgs,
   AgencySeatState,
   AgencySession,
@@ -89,12 +90,14 @@ export class AgencyRegistry {
       throw new Error(`AgencyRegistry.registerSeat called with unknown agencyId '${args.agencyId}'.`);
     }
     const now = new Date().toISOString();
+    const existingSeat = session.seats[args.roleId];
     const seat: AgencySeatState = {
       roleId: args.roleId,
       gmiInstanceId: args.gmiInstanceId,
       personaId: args.personaId,
       metadata: args.metadata,
       attachedAt: now,
+      history: existingSeat?.history ?? [],
     };
     session.seats[args.roleId] = seat;
     session.updatedAt = now;
@@ -123,5 +126,59 @@ export class AgencyRegistry {
       workflowId: session.workflowId,
     });
     return true;
+  }
+
+  /**
+   * Appends a history entry to the specified seat and returns the updated state.
+   */
+  public appendSeatHistory(
+    agencyId: string,
+    roleId: string,
+    entry: AgencySeatHistoryEntry,
+    maxEntries = 20,
+  ): AgencySeatState | undefined {
+    return this.mutateSeat(agencyId, roleId, (seat) => {
+      const history = seat.history ? [...seat.history, entry] : [entry];
+      if (history.length > maxEntries) {
+        history.splice(0, history.length - maxEntries);
+      }
+      return { ...seat, history };
+    });
+  }
+
+  /**
+   * Merges metadata onto a seat without altering other properties.
+   */
+  public mergeSeatMetadata(
+    agencyId: string,
+    roleId: string,
+    metadata: Record<string, unknown>,
+  ): AgencySeatState | undefined {
+    return this.mutateSeat(agencyId, roleId, (seat) => ({
+      ...seat,
+      metadata: {
+        ...(seat.metadata ?? {}),
+        ...metadata,
+      },
+    }));
+  }
+
+  private mutateSeat(
+    agencyId: string,
+    roleId: string,
+    updater: (seat: AgencySeatState) => AgencySeatState,
+  ): AgencySeatState | undefined {
+    const session = this.agencies.get(agencyId);
+    if (!session) {
+      return undefined;
+    }
+    const seat = session.seats[roleId];
+    if (!seat) {
+      return undefined;
+    }
+    const updated = updater(seat);
+    session.seats[roleId] = updated;
+    session.updatedAt = new Date().toISOString();
+    return updated;
   }
 }

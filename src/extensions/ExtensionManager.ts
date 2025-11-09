@@ -27,6 +27,7 @@ const DEFAULT_EXTENSIONS_KIND_WORKFLOW_EXECUTOR = EXTENSION_KIND_WORKFLOW_EXECUT
 
 interface ExtensionManagerOptions {
   manifest?: ExtensionManifest;
+  secrets?: Record<string, string>;
 }
 
 /**
@@ -37,9 +38,17 @@ export class ExtensionManager {
   private readonly emitter = new EventEmitter();
   private readonly registries: Map<ExtensionKind, ExtensionRegistry<unknown>> = new Map();
   private readonly options: ExtensionManagerOptions;
+  private readonly secrets = new Map<string, string>();
 
   constructor(options: ExtensionManagerOptions = {}) {
     this.options = options;
+    if (options.secrets) {
+      for (const [key, value] of Object.entries(options.secrets)) {
+        if (value) {
+          this.secrets.set(key, value);
+        }
+      }
+    }
     this.ensureDefaultRegistries();
   }
 
@@ -161,19 +170,45 @@ export class ExtensionManager {
     ctx: ExtensionPackContext,
     lifecycleContext?: ExtensionLifecycleContext,
   ): Promise<void> {
+    if (descriptor.requiredSecrets?.length) {
+      const missing = descriptor.requiredSecrets.filter((req) => !this.resolveSecret(req.id));
+      const blocking = missing.filter((req) => !req.optional);
+      if (blocking.length > 0) {
+        console.warn(
+          `ExtensionManager: Skipping descriptor '${descriptor.id}' (${descriptor.kind}) because required secrets are missing: ${blocking
+            .map((req) => req.id)
+            .join(', ')}`,
+        );
+        return;
+      }
+    }
+
     const registry = this.getRegistry(descriptor.kind);
     const payloadDescriptor = {
       ...descriptor,
       priority: descriptor.priority ?? ctx.manifestEntry.priority ?? 0,
       source: descriptor.source ?? ctx.source,
     };
-    await registry.register(payloadDescriptor, lifecycleContext);
+    await registry.register(payloadDescriptor, this.enrichLifecycleContext(lifecycleContext));
     this.emitDescriptorEvent({
       type: 'descriptor:activated',
       timestamp: new Date().toISOString(),
       kind: descriptor.kind,
       descriptor: payloadDescriptor,
     });
+  }
+
+  private enrichLifecycleContext(
+    context?: ExtensionLifecycleContext,
+  ): ExtensionLifecycleContext {
+    return {
+      ...(context ?? {}),
+      getSecret: (id: string) => this.resolveSecret(id),
+    };
+  }
+
+  private resolveSecret(id: string): string | undefined {
+    return this.secrets.get(id);
   }
 
   private emitDescriptorEvent(event: ExtensionDescriptorEvent): void {

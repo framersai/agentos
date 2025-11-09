@@ -75,6 +75,7 @@ import {
   createGuardrailBlockedStream,
   wrapOutputGuardrails,
 } from '../core/guardrails/guardrailDispatcher';
+import type { IPersonaLoader } from '../cognitive_substrate/personas/IPersonaLoader';
 import {
   ExtensionManager,
   EXTENSION_KIND_GUARDRAIL,
@@ -229,6 +230,8 @@ export interface AgentOSConfig {
   subscriptionService: ISubscriptionService;
   /** Optional guardrail service implementation used for policy enforcement. */
   guardrailService?: IGuardrailService;
+  /** Optional map of secretId -> value for extension/tool credentials. */
+  extensionSecrets?: Record<string, string>;
   /**
    * Optional. An instance of a utility AI service.
    * This service should conform to {@link IUtilityAI} for general utility tasks.
@@ -248,6 +251,8 @@ export interface AgentOSConfig {
   workflowStore?: IWorkflowStore;
   /** Optional multilingual configuration enabling detection, negotiation, translation. */
   languageConfig?: import('../core/language').AgentOSLanguageConfig;
+  /** Optional custom persona loader (useful for browser/local runtimes). */
+  personaLoader?: IPersonaLoader;
   /**
    * Optional cross-platform storage adapter for client-side persistence.
    * Enables fully offline AgentOS in browsers (IndexedDB), desktop (SQLite), mobile (Capacitor).
@@ -377,7 +382,10 @@ export class AgentOS implements IAgentOS {
 
     this.logger.info('AgentOS initialization sequence started');
 
-    this.extensionManager = new ExtensionManager({ manifest: this.config.extensionManifest });
+    this.extensionManager = new ExtensionManager({
+      manifest: this.config.extensionManifest,
+      secrets: this.config.extensionSecrets,
+    });
     const extensionLifecycleContext: ExtensionLifecycleContext = { logger: this.logger };
     await this.extensionManager.loadManifest(extensionLifecycleContext);
     await this.registerConfigGuardrailService(extensionLifecycleContext);
@@ -447,8 +455,9 @@ export class AgentOS implements IAgentOS {
         this.promptEngine,
         this.modelProviderManager,
         this.utilityAIService, // Pass the potentially dual-role utility service
-        this.toolOrchestrator
-        // retrievalAugmentor would be passed here if AgentOS directly manages it
+        this.toolOrchestrator,
+        undefined,
+        this.config.personaLoader,
       );
       await this.gmiManager.initialize();
       console.log('AgentOS: GMIManager initialized.');

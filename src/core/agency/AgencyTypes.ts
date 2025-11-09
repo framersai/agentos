@@ -7,6 +7,15 @@ export interface AgencySeatState {
   personaId: string;
   attachedAt: string;
   metadata?: Record<string, unknown>;
+  history?: AgencySeatHistoryEntry[];
+}
+
+export interface AgencySeatHistoryEntry {
+  taskId?: string;
+  timestamp: string;
+  status?: 'pending' | 'running' | 'completed' | 'failed';
+  outputPreview?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**
