@@ -1,6 +1,12 @@
 ﻿<div align="center">
 
-![AgentOS](assets/agentos-primary-transparent-2x.png)
+<p align="center">
+  <a href="https://agentos.sh"><img src="assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="64" /></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://frame.dev" target="_blank" rel="noopener">
+    <img src="https://avatars.githubusercontent.com/u/184314983?s=400&u=02bc60d3f02d586a9ed526e394162651192670c1&v=4" alt="Frame.dev" width="120" style="border-radius: 12px;">
+  </a>
+</p>
 
 [![NPM Version](https://img.shields.io/npm/v/@framers/agentos?logo=npm)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://github.com/framersai/agentos/actions/workflows/ci.yml/badge.svg)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -13,14 +19,6 @@
 [Documentation](https://agentos.sh/docs) • [GitHub](https://github.com/framersai/agentos) • [NPM](https://www.npmjs.com/package/@framers/agentos)
 
 </div>
-
-<p align="center">
-  <a href="https://frame.dev" target="_blank" rel="noopener">
-    <img src="https://avatars.githubusercontent.com/u/184314983?s=400&u=02bc60d3f02d586a9ed526e394162651192670c1&v=4" alt="Frame.dev" width="120" style="border-radius: 12px;">
-  </a>
-  <br>
-  <small>by <a href="https://frame.dev" target="_blank" rel="noopener">Frame.dev</a></small>
-</p>
 
 ---
 
@@ -116,3 +114,11 @@ When the repo split is complete, contributions should go directly to [https://gi
 - Contributing: ./\.github/CONTRIBUTING.md
 - Code of Conduct: ./\.github/CODE_OF_CONDUCT.md
 - Security Policy: ./\.github/SECURITY.md
+
+<p align="center">
+  <a href="https://agentos.sh"><img src="assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="48" /></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://frame.dev" target="_blank" rel="noopener">
+    <img src="https://avatars.githubusercontent.com/u/184314983?s=200&u=02bc60d3f02d586a9ed526e394162651192670c1&v=4" alt="Frame.dev" width="72" style="border-radius: 12px;">
+  </a>
+</p>
