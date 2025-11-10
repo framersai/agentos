@@ -13,6 +13,15 @@ import {
   type IGuardrailService,
 } from './IGuardrailService';
 
+// Type guard to narrow services that implement evaluateOutput
+function hasEvaluateOutput(
+  svc: IGuardrailService,
+): svc is IGuardrailService & {
+  evaluateOutput: NonNullable<IGuardrailService['evaluateOutput']>;
+} {
+  return typeof (svc as IGuardrailService).evaluateOutput === 'function';
+}
+
 /**
  * Outcome of an input guardrail evaluation.
  */
@@ -146,7 +155,9 @@ export async function* wrapOutputGuardrails(
 
   // Separate guardrails by evaluation mode
   const streamingGuardrails = services.filter(
-    (svc) => svc.config?.evaluateStreamingChunks === true && typeof svc.evaluateOutput === 'function'
+    (svc): svc is IGuardrailService & {
+      evaluateOutput: NonNullable<IGuardrailService['evaluateOutput']>;
+    } => svc.config?.evaluateStreamingChunks === true && hasEvaluateOutput(svc),
   );
   const finalOnlyGuardrails = services.filter(
     (svc) => svc.config?.evaluateStreamingChunks !== true && typeof svc.evaluateOutput === 'function'
