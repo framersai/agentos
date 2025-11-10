@@ -15,11 +15,11 @@ function clonePersona(definition: IPersonaDefinition): IPersonaDefinition {
 }
 
 const BUILT_IN_SOURCES: IPersonaDefinition[] = [
-  defaultAssistant as IPersonaDefinition,
-  defaultFreeAssistant as IPersonaDefinition,
-  atlasSystemsArchitect as IPersonaDefinition,
-  nerfGeneralist as IPersonaDefinition,
-  vResearcher as IPersonaDefinition,
+  defaultAssistant as unknown as IPersonaDefinition,
+  defaultFreeAssistant as unknown as IPersonaDefinition,
+  atlasSystemsArchitect as unknown as IPersonaDefinition,
+  nerfGeneralist as unknown as IPersonaDefinition,
+  vResearcher as unknown as IPersonaDefinition,
 ];
 
 /**

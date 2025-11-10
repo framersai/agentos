@@ -19,15 +19,18 @@
     "src/index.ts",
     "src/api/**/*.ts",
     "src/config/**/*.ts",
+    "src/config/**/*.json",
     "src/core/**/*.ts",
     "src/cognitive_substrate/**/*.ts",
+    "src/cognitive_substrate/**/*.json",
     "src/extensions/**/*.ts",
     "src/rag/**/*.ts",
     "src/logging/**/*.ts",
     "src/services/**/*.ts",
     "src/utils/**/*.ts",
     "src/types/**/*.ts",
-    "src/stubs/**/*.ts"
+    "src/stubs/**/*.ts",
+    "src/**/*.json"
   ],
   "exclude": [
     "src/memory_lifecycle/**/*",
@@ -39,6 +42,9 @@
     "src/tests/**/*",
     "src/cognitive_substrate/tests/**/*",
     "src/core/ai_utilities/tests/**/*",
-    "src/core/audio/**/*"
+    "src/core/audio/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**"
   ]
 }

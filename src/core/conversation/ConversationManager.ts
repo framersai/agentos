@@ -15,7 +15,7 @@ import { ConversationContext, ConversationContextConfig } from './ConversationCo
 import { ConversationMessage as InternalConversationMessage, MessageRole, createConversationMessage } from './ConversationMessage';
 import { IUtilityAI } from '../ai_utilities/IUtilityAI';
 import { v4 as uuidv4 } from 'uuid';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 
 /**
@@ -274,6 +274,28 @@ export class ConversationManager {
     this.activeConversations.set(effectiveConversationId, newContext);
 
     return newContext;
+  }
+
+  /**
+   * Retrieves a ConversationContext if present in memory or persistent storage.
+   * Returns null when not found.
+   */
+  public async getConversation(conversationId: string): Promise<ConversationContext | null> {
+    this.ensureInitialized();
+    const inMemory = this.activeConversations.get(conversationId);
+    if (inMemory) {
+      return inMemory;
+    }
+    const loaded = await this.loadConversationFromDB(conversationId);
+    return loaded ?? null;
+  }
+
+  /**
+   * Lists minimal context info for a given session. Currently returns a single entry
+   * matching the provided sessionId if found in memory or storage.
+   */
+  public async listContextsForSession(sessionId: string): Promise<Array<{ sessionId: string; createdAt: number }>> {
+    return this.getConversationInfo(sessionId);
   }
 
   /**
@@ -686,3 +708,4 @@ export class ConversationManager {
     console.log(`ConversationManager (ID: ${this.managerId}): Shutdown complete. In-memory cache cleared.`);
   }
 }
+

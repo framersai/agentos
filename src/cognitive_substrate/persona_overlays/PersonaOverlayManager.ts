@@ -153,7 +153,7 @@ export class PersonaOverlayManager {
       return context.reasoningSignals[key];
     }
     if (key in context) {
-      return (context as Record<string, unknown>)[key];
+      return (context as unknown as Record<string, unknown>)[key];
     }
     return undefined;
   }
