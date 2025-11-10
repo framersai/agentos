@@ -116,6 +116,34 @@ export class ExtensionManager {
   }
 
   /**
+   * Directly loads a pack instance (typically produced by an inline factory)
+   * and registers all of its descriptors.
+   */
+  public async loadPackFromFactory(
+    pack: ExtensionPack,
+    identifier?: string,
+    options?: Record<string, unknown>,
+    lifecycleContext?: ExtensionLifecycleContext,
+  ): Promise<void> {
+    const entry: ExtensionPackManifestEntry = {
+      factory: async () => pack,
+      identifier,
+      options,
+    };
+
+    await this.registerPack(pack, entry, lifecycleContext);
+    this.emitPackEvent({
+      type: 'pack:loaded',
+      timestamp: new Date().toISOString(),
+      source: {
+        sourceName: pack.name,
+        sourceVersion: pack.version,
+        identifier,
+      },
+    });
+  }
+
+  /**
    * Provides the registry for a particular kind, creating it if necessary.
    */
   public getRegistry<TPayload>(kind: ExtensionKind): ExtensionRegistry<TPayload> {

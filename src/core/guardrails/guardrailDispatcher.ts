@@ -188,8 +188,9 @@ export async function* wrapOutputGuardrails(
 
         let evaluation: GuardrailEvaluationResult | null = null;
         try {
-          evaluation = await svc.evaluateOutput?.({ context, chunk: workingChunk });
+          const evalRes = await svc.evaluateOutput({ context, chunk: workingChunk });
           streamingEvaluationCounts.set(svcId, currentCount + 1);
+          evaluation = evalRes ?? null;
         } catch (error) {
           console.warn('[AgentOS][Guardrails] evaluateOutput (streaming) failed.', error);
         }

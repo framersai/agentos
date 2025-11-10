@@ -226,9 +226,7 @@ export class ExtensionLoader {
       });
       
       // Load into manager
-      await this.manager.loadFromManifest({
-        packs: [{ factory: () => pack }]
-      });
+      await this.manager.loadPackFromFactory(pack, packageName);
       
       this.loadedExtensions.set(packageName, pack);
       return pack;
