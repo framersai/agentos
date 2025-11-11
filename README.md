@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://agentos.sh"><img src="assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="64" /></a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://frame.dev" target="_blank" rel="noopener"><img src="assets/logos/frame-logo-green-transparent-4x.png" alt="Frame.dev" height="64" /></a>
+  <a href="https://frame.dev" target="_blank" rel="noopener"><img src="assets/logos/frame-logo.svg" alt="Frame.dev" height="64" /></a>
 </p>
 
 [![NPM Version](https://img.shields.io/npm/v/@framers/agentos?logo=npm)](https://www.npmjs.com/package/@framers/agentos)
