@@ -109,12 +109,14 @@ When the repo split is complete, contributions should go directly to [https://gi
 - GitHub: https://github.com/framersai/agentos
 - npm: https://www.npmjs.com/package/@framers/agentos
 ## Contributing & Security
-- Contributing: ./\.github/CONTRIBUTING.md
-- Code of Conduct: ./\.github/CODE_OF_CONDUCT.md
-- Security Policy: ./\.github/SECURITY.md
+- Contributing: https://github.com/manicinc/voice-chat-assistant/blob/master/.github/CONTRIBUTING.md
+- Code of Conduct: https://github.com/manicinc/voice-chat-assistant/blob/master/.github/CODE_OF_CONDUCT.md
+- Security Policy: https://github.com/manicinc/voice-chat-assistant/blob/master/.github/SECURITY.md
 
 <p align="center">
   <a href="https://agentos.sh"><img src="assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="48" /></a>
   &nbsp;&nbsp;&nbsp;
   <a href="https://frame.dev" target="_blank" rel="noopener"><img src="assets/logos/frame-logo-green-transparent-4x.png" alt="Frame.dev" height="48" /></a>
+  <br />
+  <sub>AgentOS product by <a href="https://frame.dev">Frame.dev</a></sub>
 </p>

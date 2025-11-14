@@ -38,7 +38,7 @@ import {
 } from '../../IVectorStore';
 import { InMemoryVectorStoreConfig } from '../../../config/VectorStoreConfiguration';
 import { GMIError } from '@framers/agentos/utils/errors'; // Assuming a GMIError utility
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../../../utils/uuid';
 
 // Node.js built-in modules for optional file persistence
 import * as fs from 'fs/promises';

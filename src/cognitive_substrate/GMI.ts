@@ -12,7 +12,7 @@
  * @see ../core/ai_utilities/IUtilityAI.ts for utility functions.
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../utils/uuid';
 import {
   IGMI,
   GMIBaseConfig,
@@ -60,7 +60,7 @@ import { IToolOrchestrator, ToolDefinitionForLLM } from '../core/tools/IToolOrch
 
 import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
 import { ConversationMessage, createConversationMessage, MessageRole } from '../core/conversation/ConversationMessage';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 
 const DEFAULT_MAX_CONVERSATION_HISTORY_TURNS = 20;
 const DEFAULT_SELF_REFLECTION_INTERVAL_TURNS = 5;
@@ -1203,3 +1203,4 @@ export class GMI implements IGMI {
     }
   }
 }
+

@@ -35,7 +35,7 @@ import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVec
 // import { PineconeVectorStore } from './implementations/vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './implementations/vector_stores/WeaviateVectorStore';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../utils/uuid';
 
 /**
  * Internal structure to hold information about a configured RAG Data Source.

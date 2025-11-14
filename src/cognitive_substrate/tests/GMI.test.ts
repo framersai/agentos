@@ -9,7 +9,7 @@ import { IProvider, ChatMessage, ModelCompletionResponse } from '../../core/llm/
 import { IUtilityAI, ParseJsonOptions, SummarizationOptions } from '../../core/ai_utilities/IUtilityAI';
 import { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import { IRetrievalAugmentor } from '../../rag/IRetrievalAugmentor';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 // --- Mock Dependencies ---
 const mockWorkingMemory: IWorkingMemory = {
@@ -227,3 +227,4 @@ describe('GMI Core Functionality', () => {
     // Add more shutdown assertions if other components have specific shutdown actions called by GMI
   });
 });
+

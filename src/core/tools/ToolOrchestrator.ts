@@ -28,7 +28,7 @@
  * @see ../../cognitive_substrate/IGMI.ts for GMI-related types like ToolCallRequest, ToolCallResult, UserContext.
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 import {
   IToolOrchestrator,
   ToolDefinitionForLLM,
@@ -38,7 +38,7 @@ import { IToolPermissionManager, PermissionCheckContext, PermissionCheckResult }
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallRequest, ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI'; // Added ToolCallRequest
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 
 /**
  * @class ToolOrchestrator
@@ -473,3 +473,4 @@ export class ToolOrchestrator implements IToolOrchestrator {
     console.log(`ToolOrchestrator (ID: ${this.orchestratorId}) shut down complete. All tools processed for shutdown and registry cleared.`);
   }
 }
+

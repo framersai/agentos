@@ -12,7 +12,7 @@
  * @see ../rag/IVectorStore.ts and ../rag/IVectorStoreManager.ts
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 import {
   IMemoryLifecycleManager,
   GMIResolverFunction,
@@ -29,7 +29,7 @@ import { IVectorStore, VectorDocument, MetadataFilter, RetrievedVectorDocument, 
 import { IGMI, MemoryLifecycleEvent, LifecycleAction, LifecycleActionResponse } from '../cognitive_substrate/IGMI';
 import { IUtilityAI, SummarizationOptions } from '../core/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 // import * as path from 'path'; // Only if dealing with file paths for archiveTargetId
 
 /**
@@ -637,4 +637,5 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
       }
   }
 }
+
 

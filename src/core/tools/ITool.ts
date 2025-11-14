@@ -8,7 +8,7 @@
  * @module backend/agentos/core/tools/ITool
  */
 
-import { GMIError } from '@agentos/core/utils/errors';
+import { GMIError } from '@framers/agentos/utils/errors';
 import { UserContext } from '../../cognitive_substrate/IGMI';
 
 /**

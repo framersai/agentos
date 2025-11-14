@@ -12,7 +12,7 @@
 
 import { ToolCallRequest as GMIToolCallRequest } from '../../cognitive_substrate/IGMI'; // Use the one from IGMI
 import { SentimentResult } from '../ai_utilities/IUtilityAI';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 
 /**
  * Represents the role of the entity that produced the message.

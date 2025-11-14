@@ -12,8 +12,8 @@
 
 import { ConversationMessage, MessageRole, createConversationMessage, MessageMetadata, ConversationToolCallRequest } from './ConversationMessage';
 import { IUtilityAI, SummarizationOptions } from '../ai_utilities/IUtilityAI';
-import { v4 as uuidv4 } from 'uuid';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors'; // Corrected path
+import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors'; // Corrected path
 
 // Constants for summarization logic
 const DEFAULT_MAX_HISTORY_MESSAGES = 100;

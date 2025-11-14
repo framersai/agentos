@@ -41,8 +41,8 @@ import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { ToolExecutionResult, ToolExecutionContext } from '../core/tools/ITool';
-import { v4 as uuidv4 } from 'uuid';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { StreamingManager, StreamId } from '../core/streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from '../core/orchestration/helpers';
 import type { WorkflowProgressUpdate } from '../core/workflows/WorkflowTypes';
@@ -947,3 +947,4 @@ export class AgentOSOrchestrator {
     console.log('AgentOSOrchestrator: Shutdown complete.');
   }
 }
+

@@ -19,7 +19,7 @@
  * @see ./IVectorStoreManager.ts
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 import {
   IRetrievalAugmentor,
   RagDocumentInput,
@@ -34,7 +34,7 @@ import { RetrievalAugmentorServiceConfig, RagCategoryBehavior } from '../config/
 import { IEmbeddingManager, EmbeddingRequest } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataFilter, MetadataValue } from './IVectorStore';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -781,3 +781,4 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     console.log(`RetrievalAugmentor (ID: ${this.augmenterId}) shut down.`);
   }
 }
+

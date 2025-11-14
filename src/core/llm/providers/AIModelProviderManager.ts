@@ -22,7 +22,7 @@ import { IProvider, ModelInfo } from './IProvider';
 import { OpenAIProvider, OpenAIProviderConfig } from './implementations/OpenAIProvider';
 import { OpenRouterProvider, OpenRouterProviderConfig } from './implementations/OpenRouterProvider';
 import { OllamaProvider, OllamaProviderConfig } from './implementations/OllamaProvider';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors'; // Corrected import path
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors'; // Corrected import path
 
 /**
  * Configuration for a single AI model provider entry within the manager.
@@ -323,3 +323,4 @@ export class AIModelProviderManager {
     console.log("AIModelProviderManager: Shutdown complete. All providers processed.");
   }
 }
+
