@@ -245,6 +245,33 @@ export interface AgentOSConfig {
   extensionManifest?: ExtensionManifest;
   /** Declarative overrides applied after packs are loaded. */
   extensionOverrides?: ExtensionOverrides;
+  /** 
+   * Optional registry configuration for loading extensions and personas from custom sources.
+   * Allows self-hosted registries and custom git repositories.
+   * 
+   * @example
+   * ```typescript
+   * registryConfig: {
+   *   registries: {
+   *     'extensions': {
+   *       type: 'github',
+   *       location: 'your-org/your-extensions',
+   *       branch: 'main',
+   *     },
+   *     'personas': {
+   *       type: 'github',
+   *       location: 'your-org/your-personas',
+   *       branch: 'main',
+   *     }
+   *   },
+   *   defaultRegistries: {
+   *     tool: 'extensions',
+   *     persona: 'personas',
+   *   }
+   * }
+   * ```
+   */
+  registryConfig?: import('../extensions/RegistryConfig').MultiRegistryConfig;
   /** Optional workflow engine configuration. */
   workflowEngineConfig?: WorkflowEngineConfig;
   /** Optional workflow store implementation. Defaults to the in-memory store if omitted. */
