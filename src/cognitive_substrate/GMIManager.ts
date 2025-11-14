@@ -209,6 +209,9 @@ export class GMIManager {
     if (!userId || userId === 'anonymous_user') {
       return null;
     }
+    if (!this.subscriptionService) {
+      return null;
+    }
     return this.subscriptionService.getUserSubscription(userId);
   }
 
@@ -228,6 +231,11 @@ export class GMIManager {
       return true;
     }
     if (!persona.minSubscriptionTier) {
+      return true;
+    }
+    // If no subscription service configured, allow all personas by default
+    if (!this.subscriptionService) {
+      console.warn(`[GMIManager] Persona '${persona.id}' requires tier '${persona.minSubscriptionTier}', but no subscription service is configured. Allowing access by default. Use @framers/agentos-extensions/auth to enable tier-based access.`);
       return true;
     }
     const userTier = await this.resolveUserTier(userId);
