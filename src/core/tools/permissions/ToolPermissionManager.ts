@@ -285,11 +285,12 @@ export class ToolPermissionManager implements IToolPermissionManager {
       return { isAllowed: true, reason: `Tool '${toolIdOrName}' does not require specific subscription features.` };
     }
 
-    if (!this.subscriptionService) {
-      const reason = `Subscription check for tool '${toolIdOrName}' failed: ISubscriptionService is not configured. Access denied as required features [${requiredFeatureFlags.map(f => f.flag).join(', ')}] cannot be verified.`;
-      console.error(`ToolPermissionManager (ID: ${this.managerId}, User: ${userId}): ${reason}`);
-      return { isAllowed: false, missingFeatures: requiredFeatureFlags, reason };
-    }
+    if (!this.subscriptionService) {
+      const reason = `Tool '${toolIdOrName}' requires subscription features [${requiredFeatureFlags.map(f => f.flag).join(', ')}], but ISubscriptionService is not configured. To enable subscription-based access control, inject a subscription service via AgentOSConfig or use @framers/agentos-extensions/auth. Defaulting to ALLOW.`;
+      console.warn(`ToolPermissionManager (ID: ${this.managerId}, User: ${userId}): ${reason}`);
+      // Default to allowing access when no subscription service configured
+      return { isAllowed: true, reason: `No subscription service configured - access allowed by default` };
+    }
 
     try {
       const userTier: ISubscriptionTier | null =
