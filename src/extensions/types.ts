@@ -134,6 +134,7 @@ export const EXTENSION_KIND_GUARDRAIL = 'guardrail';
 export const EXTENSION_KIND_RESPONSE_PROCESSOR = 'response-processor';
 export const EXTENSION_KIND_WORKFLOW = 'workflow';
 export const EXTENSION_KIND_WORKFLOW_EXECUTOR = 'workflow-executor';
+export const EXTENSION_KIND_PERSONA = 'persona';
 
 export type ToolDescriptor = ExtensionDescriptor<ITool> & { kind: typeof EXTENSION_KIND_TOOL };
 export type GuardrailDescriptor = ExtensionDescriptor<IGuardrailService> & { kind: typeof EXTENSION_KIND_GUARDRAIL };
@@ -158,5 +159,30 @@ export type WorkflowExtensionExecutor = (
 
 export type WorkflowExecutorDescriptor = ExtensionDescriptor<WorkflowExtensionExecutor> & {
   kind: typeof EXTENSION_KIND_WORKFLOW_EXECUTOR;
+};
+
+/**
+ * Persona registry source configuration
+ */
+export interface PersonaRegistrySource {
+  /** Type of source */
+  type: 'github' | 'npm' | 'file' | 'git' | 'url';
+  /** Location (URL, path, package name) */
+  location: string;
+  /** Optional branch for git sources */
+  branch?: string;
+  /** Optional authentication token */
+  token?: string;
+  /** Whether this is a verified/trusted source */
+  verified?: boolean;
+  /** Cache duration in milliseconds */
+  cacheDuration?: number;
+}
+
+/**
+ * Persona extension descriptor type
+ */
+export type PersonaDescriptor = ExtensionDescriptor<any> & {
+  kind: typeof EXTENSION_KIND_PERSONA;
 };
 
