@@ -8,17 +8,17 @@
  * @module backend/agentos/core/tools/ToolExecutor
  * @see ./ITool.ts for ITool, ToolExecutionResult, ToolExecutionContext.
  * @see ../cognitive_substrate/IGMI.ts for ToolCallRequest, UserContext.
- * @see @agentos/core/utils/errors.ts for GMIError, GMIErrorCode, createGMIErrorFromError.
+ * @see @framers/agentos/utils/errors.ts for GMIError, GMIErrorCode, createGMIErrorFromError.
  */
 
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 
 import { ITool, JSONSchemaObject, ToolExecutionResult, ToolExecutionContext } from './ITool';
 import { ToolCallRequest, UserContext } from '../../cognitive_substrate/IGMI';
 import type { IAuthService, ISubscriptionService } from '../../services/user_auth/types';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { ExtensionRegistry, EXTENSION_KIND_TOOL, ToolDescriptor } from '../../extensions';
 
 type AjvValidationError = {
@@ -448,3 +448,4 @@ export class ToolExecutor {
     return [];
   }
 }
+

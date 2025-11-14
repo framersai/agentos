@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 import type { AgentOSInput } from '../../api/types/AgentOSInput';
 import {
   AgentOSResponse,

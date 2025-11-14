@@ -7,7 +7,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@agentos/core/*": ["./*"],
+      "@framers/agentos/*": ["./*"],
       "@framers/agentos/*": ["./*"],
       "@prisma/client": ["./stubs/prismaClient.ts"],
       "dompurify": ["./stubs/dompurify.d.ts"]
@@ -21,3 +21,4 @@
     "node_modules"
   ]
 }
+

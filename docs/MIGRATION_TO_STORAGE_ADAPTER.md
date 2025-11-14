@@ -32,7 +32,7 @@ AgentOS has been fully migrated to use `@framers/sql-storage-adapter` for all da
 ### Client-Side (Browser)
 ```typescript
 import { createAgentOSStorage } from '@framers/sql-storage-adapter/agentos';
-import { AgentOS } from '@agentos/core';
+import { AgentOS } from '@framers/agentos';
 
 const storage = await createAgentOSStorage({ platform: 'web' });
 
@@ -49,7 +49,7 @@ await agentos.initialize({
 ### Server-Side (Multi-User)
 ```typescript
 import { createAgentOSStorage } from '@framers/sql-storage-adapter/agentos';
-import { AgentOS } from '@agentos/core';
+import { AgentOS } from '@framers/agentos';
 import { PrismaClient } from '@prisma/client';
 
 const storage = await createAgentOSStorage({ 
@@ -178,4 +178,5 @@ All tests have been updated to use StorageAdapter mocks instead of Prisma mocks.
 - [ ] Add integration tests for cross-platform compatibility
 - [ ] Document Prisma usage for auth/subscriptions only
 - [ ] Add migration utilities for existing Prisma databases
+
 

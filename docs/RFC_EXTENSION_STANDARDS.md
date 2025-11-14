@@ -123,7 +123,7 @@ import type {
   ToolExecutionContext, 
   ToolExecutionResult,
   JSONSchemaObject 
-} from '@agentos/core';
+} from '@framers/agentos';
 
 export class WebSearchTool implements ITool {
   readonly id = 'com.framers.ext.search.webSearch';
@@ -221,7 +221,7 @@ export class WebSearchTool implements ITool {
 ### Extension Pack Export
 ```typescript
 // src/index.ts
-import type { ExtensionPack, ExtensionPackContext } from '@agentos/core';
+import type { ExtensionPack, ExtensionPackContext } from '@framers/agentos';
 import { WebSearchTool } from './tools/webSearch';
 import { ResearchAggregatorTool } from './tools/researchAggregator';
 
@@ -288,7 +288,7 @@ describe('WebSearchTool', () => {
 Must test with actual AgentOS runtime:
 ```typescript
 // test/integration/extension.spec.ts
-import { AgentOS } from '@agentos/core';
+import { AgentOS } from '@framers/agentos';
 import createExtensionPack from '../../src';
 
 describe('Search Extension Integration', () => {
@@ -557,3 +557,4 @@ npm run build
 # Publish
 npm publish
 ```
+

@@ -235,8 +235,8 @@
       "defaultRetentionPolicy": "retain_voice_preferences_and_coding_context"
     }
   },
-  "metaPrompts": {
-    "voice_response_optimization": {
+  "metaPrompts": [
+    {
       "id": "voice_response_optimization",
       "description": "Optimizes responses for natural speech delivery and TTS compatibility",
       "promptTemplate": "Transform this response for optimal voice delivery: {{response_text}}. Consider: natural speech patterns, appropriate pauses, pronunciation clarity, and TTS compatibility. Maintain all technical accuracy while making it conversational.",
@@ -246,7 +246,7 @@
       "maxOutputTokens": 500,
       "temperature": 0.3
     },
-    "voice_command_intent_parsing": {
+    {
       "id": "voice_command_intent_parsing",
       "description": "Parses voice commands and extracts actionable intents",
       "promptTemplate": "Parse this voice command: '{{voice_input}}'. Extract the intent, parameters, and suggested actions. Consider context: {{conversation_context}}. Respond with JSON: {\"intent\": \"...\", \"confidence\": 0.0-1.0, \"parameters\": {...}, \"suggestedActions\": [...]}",
@@ -256,7 +256,7 @@
       "maxOutputTokens": 300,
       "temperature": 0.2
     },
-    "gmi_self_trait_adjustment": {
+    {
       "id": "gmi_self_trait_adjustment", 
       "description": "Analyzes recent voice interactions and adjusts personality traits for better user experience",
       "promptTemplate": "Analyze voice interaction evidence: {{evidence}}. Current mood: {{current_mood}}, user voice preference: {{voice_preference}}, interaction quality: {{interaction_quality}}. Suggest trait adjustments for better voice experience. Respond with JSON: {\"updatedGmiMood\": \"...\", \"updatedVoiceStyle\": \"...\", \"updatedResponseLength\": \"...\", \"adjustmentRationale\": \"...\"}",
@@ -266,7 +266,7 @@
       "maxOutputTokens": 400,
       "temperature": 0.3
     },
-    "coding_context_synthesis": {
+    {
       "id": "coding_context_synthesis",
       "description": "Synthesizes coding context for voice-optimized technical responses",
       "promptTemplate": "User coding query: '{{user_query}}'. Retrieved technical context: {{retrieved_context}}. Synthesize a voice-friendly response that explains the technical concept clearly, provides actionable code examples, and guides the user step-by-step. Optimize for spoken delivery.",
@@ -276,7 +276,7 @@
       "maxOutputTokens": 1200,
       "temperature": 0.4
     }
-  },
+  ],
   "minSubscriptionTier": "FREE",
   "isPublic": true,
   "isCreatorPersona": false,

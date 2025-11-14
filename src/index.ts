@@ -1,7 +1,7 @@
 /**
  * Barrel exports for the subset of AgentOS modules that external consumers
  * should generally import. Internal modules can still be reached via
- * `@agentos/core/<path>` thanks to the workspace exports map.
+ * `@framers/agentos/<path>` thanks to the workspace exports map.
  */
 
 export * from './api/AgentOS';
@@ -37,3 +37,4 @@ export { createLogger, setLoggerFactory, resetLoggerFactory } from './logging/lo
 export * from './types/rateLimitTypes';
 // Storage adapters
 export * from './core/storage';
+

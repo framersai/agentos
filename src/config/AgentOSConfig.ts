@@ -29,7 +29,7 @@ import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
 import { IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
 
 // Utility for error handling
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 /**
  * Environment-based configuration interface.
@@ -511,3 +511,4 @@ export async function createTestAgentOSConfig(): Promise<AgentOSConfig> {
   
   return createAgentOSConfig();
 }
+

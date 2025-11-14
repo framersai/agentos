@@ -12,10 +12,10 @@
 import * as fsPromises from 'fs/promises'; // Use fs/promises for async operations
 import * as fs from 'fs'; // For types like Dirent
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid'; // Added import for uuid
+import { uuidv4 } from '../../utils/uuid';
 import { IPersonaDefinition } from './IPersonaDefinition';
 import { IPersonaLoader, PersonaLoaderConfig } from './IPersonaLoader';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 /**
  * Configuration specific to the FileSystemPersonaLoader.

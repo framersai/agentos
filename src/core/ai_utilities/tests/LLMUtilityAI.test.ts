@@ -3,7 +3,7 @@ import { LLMUtilityAI, LLMUtilityAIConfig } from '../LLMUtilityAI';
 import { IUtilityAI, SummarizationOptions } from '../IUtilityAI';
 import { AIModelProviderManager } from '../../llm/providers/AIModelProviderManager';
 import { IProvider, ChatMessage, ModelCompletionResponse } from '../../llm/providers/IProvider';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 // Updated mock provider aligned with new IProvider interface
 const mockProvider: IProvider = {

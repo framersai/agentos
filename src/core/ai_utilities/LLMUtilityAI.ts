@@ -33,8 +33,8 @@ import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager'
 import { ModelCompletionOptions } from '../llm/providers/IProvider';
 import { IPromptEngineUtilityAI, ModelTargetInfo } from '../llm/IPromptEngine';
 import { ConversationMessage as Message, MessageRole } from '../conversation/ConversationMessage';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
-import { v4 as uuidv4 } from 'uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { uuidv4 } from '../../utils/uuid';
 import Ajv from 'ajv';
 
 type AjvValidationError = {
@@ -596,3 +596,4 @@ Text: "${text.substring(0, 1500)}..."`; // Send a substantial sample
     // Does not own llmProviderManager, so doesn't shut it down.
   }
 }
+

@@ -25,7 +25,7 @@ npm install @framers/sql-storage-adapter
 
 ```typescript
 import { createAgentOSStorage } from '@framers/sql-storage-adapter/agentos';
-import { AgentOS } from '@agentos/core';
+import { AgentOS } from '@framers/agentos';
 
 // Auto-detects platform (web → IndexedDB, electron → better-sqlite3, etc.)
 const storage = await createAgentOSStorage({
@@ -376,4 +376,5 @@ const storage = new IndexedDbAdapter({
 ---
 
 **TL;DR:** Use `createAgentOSStorage({ platform: 'auto' })` and AgentOS works offline everywhere. IndexedDB for web, better-sqlite3 for desktop, capacitor for mobile.
+
 

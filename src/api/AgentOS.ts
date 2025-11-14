@@ -36,7 +36,7 @@
  * @see {@link ./AgentOSOrchestrator.ts} for the orchestration logic.
  * @see {@link ../cognitive_substrate/GMIManager.ts} for GMI lifecycle management.
  * @see {@link ../core/streaming/StreamingManager.ts} for real-time data streaming.
- * @see {@link @agentos/core/utils/errors.ts} for custom error definitions.
+ * @see {@link @framers/agentos/utils/errors.ts} for custom error definitions.
  */
 
 import { IAgentOS } from './interfaces/IAgentOS';
@@ -64,8 +64,8 @@ import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { IPersonaDefinition } from '../cognitive_substrate/personas/IPersonaDefinition';
 import { StreamingManager, StreamingManagerConfig, StreamId } from '../core/streaming/StreamingManager';
 import { IStreamClient, StreamClientId } from '../core/streaming/IStreamClient';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors';
-import { v4 as uuidv4 } from 'uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { ILogger } from '../logging/ILogger';
 import { createLogger } from '../logging/loggerFactory';
 import type { IGuardrailService, GuardrailContext } from '../core/guardrails/IGuardrailService';
@@ -1506,4 +1506,5 @@ class AsyncStreamClientBridge implements IStreamClient {
     }
   }
 }
+
 

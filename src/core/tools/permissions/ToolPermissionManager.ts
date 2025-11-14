@@ -39,7 +39,7 @@
  * @see {@link ../ITool.ts} for `ITool` and `ToolDefinition` which include `requiredCapabilities`.
  * @see {@link ../../../cognitive_substrate/IGMI.ts} for `UserContext` definition.
  * @see {@link ../../../../services/user_auth/SubscriptionService.ts} for `ISubscriptionService` and `ISubscriptionTier`.
- * @see {@link @agentos/core/utils/errors.ts} for `GMIError` and `GMIErrorCode`.
+ * @see {@link @framers/agentos/utils/errors.ts} for `GMIError` and `GMIErrorCode`.
  */
 
 import {
@@ -52,8 +52,8 @@ import {
 import { ITool } from '../ITool';
 import { UserContext } from '../../../cognitive_substrate/IGMI';
 import type { IAuthService, ISubscriptionService, ISubscriptionTier } from '../../../services/user_auth/types';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors';
-import { v4 as uuidv4 } from 'uuid';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
 
 /**
  * @class ToolPermissionManager
@@ -396,3 +396,4 @@ export class ToolPermissionManager implements IToolPermissionManager {
     return { isAllowed: true, reason: successReason };
   }
 }
+

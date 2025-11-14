@@ -65,8 +65,8 @@ import { ToolOrchestrator as ConcreteToolOrchestrator } from '../tools/ToolOrche
 // import { ITool } from '../tools/ITool'; // ITool not directly used here, but good to keep if planned
 import { MessageRole } from '../conversation/ConversationMessage';
 import type { ConversationMessage } from '../conversation/ConversationMessage';
-import { v4 as uuidv4 } from 'uuid';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors';
+import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
 import { StreamingManager, StreamId } from '../streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from './helpers';
@@ -910,3 +910,4 @@ export class AgentOSOrchestrator {
     console.log("AgentOSOrchestrator: Shutdown complete. All active stream contexts cleared.");
   }
 }
+

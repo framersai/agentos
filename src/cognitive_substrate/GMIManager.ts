@@ -4,7 +4,7 @@
  * @module backend/agentos/cognitive_substrate/GMIManager
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../utils/uuid';
 import { IGMI, GMIBaseConfig, UserContext, ReasoningEntryType } from './IGMI';
 import { GMI } from './GMI';
 import { IPersonaDefinition } from './personas/IPersonaDefinition';
@@ -23,7 +23,7 @@ import { IWorkingMemory } from './memory/IWorkingMemory';
 import { InMemoryWorkingMemory } from './memory/InMemoryWorkingMemory';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@agentos/core/utils/errors';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { IPromptEngine } from '../core/llm/IPromptEngine';
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
@@ -681,3 +681,4 @@ export class GMIManager {
     }
   }
 }
+
