@@ -29,7 +29,6 @@ jobs:
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
 
       - name: Install
         run: pnpm install --no-frozen-lockfile
