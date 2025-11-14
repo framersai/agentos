@@ -10,10 +10,10 @@
  * @see ../../api/types/AgentOSResponse.ts For the data chunk structure.
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../../utils/uuid';
 import { AgentOSResponse, AgentOSErrorChunk, AgentOSResponseChunkType } from '../../api/types/AgentOSResponse';
 import { IStreamClient, StreamClientId } from './IStreamClient';
-import { GMIError, GMIErrorCode } from '@agentos/core/utils/errors'; // Corrected path
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors'; // Corrected path
 
 /**
  * Represents a unique identifier for a data stream.
@@ -403,9 +403,8 @@ export class StreamingManager implements IStreamingManager {
     const stream = this.activeStreams.get(streamId);
 
     if (!stream) {
-      // Optionally, log this or handle as a silent failure if streams can be short-lived
-      // For robustness, throwing an error is better to indicate a logic issue upstream.
-      throw new StreamError(`Stream with ID '${streamId}' not found. Cannot push chunk.`, GMIErrorCode.RESOURCE_NOT_FOUND, streamId);
+      console.warn(`StreamingManager (ID: ${this.managerId}): Attempted to push chunk to closed/non-existent stream '${streamId}'. Chunk type=${chunk.type}.`);
+      return;
     }
 
     stream.lastActivityAt = Date.now();
