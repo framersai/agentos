@@ -4,7 +4,7 @@
  * `@framers/agentos/<path>` thanks to the workspace exports map.
  */
 
-export * from './api/AgentOS';
+export * from './api/AgentOS.js';
 export * from './api/AgentOSOrchestrator';
 export * from './api/types/AgentOSInput';
 export * from './api/types/AgentOSResponse';

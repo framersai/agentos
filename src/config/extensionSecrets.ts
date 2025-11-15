@@ -1,4 +1,4 @@
-import secretCatalog from './extension-secrets.json';
+import secretCatalog from './extension-secrets.json' assert { type: 'json' };
 
 export interface ExtensionSecretDefinition {
   id: string;
