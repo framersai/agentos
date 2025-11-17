@@ -195,6 +195,9 @@ export async function* batchStream(
     }
 
     const chunk = providerResult.value;
+    if (!chunk) {
+      continue;
+    }
     if (state.chunks.length === 0) state.firstChunkAt = Date.now();
     accumulate(state, chunk);
 

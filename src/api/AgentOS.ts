@@ -1513,7 +1513,11 @@ class AsyncStreamClientBridge implements IStreamClient {
         if (result.done) {
           break;
         }
-        yield result.value;
+        const nextChunk = result.value;
+        if (!nextChunk) {
+          continue;
+        }
+        yield nextChunk;
       }
     } catch (error) {
         console.error(`AsyncStreamClientBridge (${this.id}): Error during consumption loop.`, error);
