@@ -1,11 +1,16 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "composite": true,
-    "rootDir": "src",
-    "baseUrl": "./src",
+    "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "src",
+    "baseUrl": "./src",
     "paths": {
       "@framers/agentos/*": ["./*"],
       "@prisma/client": ["./stubs/prismaClient.ts"],
