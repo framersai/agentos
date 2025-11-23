@@ -194,7 +194,7 @@ export async function* batchStream(
       return;
     }
 
-    const chunk = providerResult.value;
+    const chunk = providerResult.value as ModelCompletionResponse;
     if (!chunk) {
       continue;
     }
