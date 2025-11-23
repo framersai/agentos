@@ -8,7 +8,6 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@framers/agentos/*": ["./*"],
-      "@framers/agentos/*": ["./*"],
       "@prisma/client": ["./stubs/prismaClient.ts"],
       "dompurify": ["./stubs/dompurify.d.ts"]
     }
@@ -21,4 +20,3 @@
     "node_modules"
   ]
 }
-
