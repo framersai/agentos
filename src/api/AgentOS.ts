@@ -1513,7 +1513,7 @@ class AsyncStreamClientBridge implements IStreamClient {
         if (result.done) {
           break;
         }
-        const nextChunk = result.value;
+        const nextChunk = result.value as AgentOSResponse;
         if (!nextChunk) {
           continue;
         }
