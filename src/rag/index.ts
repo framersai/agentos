@@ -144,3 +144,4 @@ export { RetrievalAugmentor } from './RetrievalAugmentor.js';
 export { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore.js';
 export { SqlVectorStore, type SqlVectorStoreConfig } from './implementations/vector_stores/SqlVectorStore.js';
 
+
