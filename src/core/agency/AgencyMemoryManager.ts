@@ -32,7 +32,7 @@
 
 import type { ILogger } from '../../logging/ILogger';
 import type { IVectorStoreManager } from '../../rag/IVectorStoreManager';
-import type { RagDocumentInput, RagRetrievalOptions } from '../../rag/IRetrievalAugmentor';
+import type { IVectorStore, VectorDocument, MetadataFilter, RetrievedVectorDocument } from '../../rag/IVectorStore';
 import type {
   AgencySession,
   AgencyMemoryConfig,
@@ -58,6 +58,8 @@ export interface AgencyMemoryIngestInput {
   category?: 'communication' | 'finding' | 'decision' | 'summary' | 'context';
   /** Additional metadata */
   metadata?: Record<string, unknown>;
+  /** Optional pre-computed embedding */
+  embedding?: number[];
 }
 
 /**
@@ -117,6 +119,24 @@ export interface AgencyMemoryStats {
 // ============================================================================
 // AgencyMemoryManager Implementation
 // ============================================================================
+
+/** Default embedding dimension for agency memory */
+const DEFAULT_EMBEDDING_DIMENSION = 1536;
+
+/**
+ * Generates a simple hash-based embedding for text content.
+ * This is a placeholder - in production, use a proper embedding model.
+ */
+function generateSimpleEmbedding(text: string, dimension: number = DEFAULT_EMBEDDING_DIMENSION): number[] {
+  const embedding = new Array(dimension).fill(0);
+  for (let i = 0; i < text.length; i++) {
+    const charCode = text.charCodeAt(i);
+    embedding[i % dimension] += charCode / 1000;
+  }
+  // Normalize
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0)) || 1;
+  return embedding.map(val => val / magnitude);
+}
 
 /**
  * Manages shared RAG memory for Agency collectives.
@@ -217,27 +237,28 @@ export class AgencyMemoryManager {
       }
 
       // Create collection via default provider
-      const provider = await this.vectorStoreManager.getDefaultProvider();
+      const provider = this.vectorStoreManager.getDefaultProvider();
       if (!provider) {
         throw new Error('No default vector store provider available');
       }
 
-      // Ensure collection exists
-      const exists = await provider.collectionExists(collectionId);
-      if (!exists) {
-        await provider.createCollection({
-          name: collectionId,
-          metadata: {
+      // Ensure collection exists (if provider supports it)
+      if (provider.collectionExists && provider.createCollection) {
+        const exists = await provider.collectionExists(collectionId);
+        if (!exists) {
+          await provider.createCollection(collectionId, DEFAULT_EMBEDDING_DIMENSION, {
+            providerSpecificParams: {
+              agencyId: session.agencyId,
+              workflowId: session.workflowId,
+              type: 'agency-shared-memory',
+              createdAt: new Date().toISOString(),
+            },
+          });
+          this.logger?.info?.('Created agency shared memory collection', {
             agencyId: session.agencyId,
-            workflowId: session.workflowId,
-            type: 'agency-shared-memory',
-            createdAt: new Date().toISOString(),
-          },
-        });
-        this.logger?.info?.('Created agency shared memory collection', {
-          agencyId: session.agencyId,
-          collectionId,
-        });
+            collectionId,
+          });
+        }
       }
 
       this.initializedAgencies.add(session.agencyId);
@@ -247,15 +268,16 @@ export class AgencyMemoryManager {
         documentsAffected: 0,
         metadata: { collectionId, initialized: true },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error?.('Failed to initialize agency memory', {
         agencyId: session.agencyId,
-        error: error.message,
+        error: errorMessage,
       });
       return {
         success: false,
         documentsAffected: 0,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
@@ -312,7 +334,7 @@ export class AgencyMemoryManager {
     }
 
     try {
-      const provider = await this.vectorStoreManager.getDefaultProvider();
+      const provider = this.vectorStoreManager.getDefaultProvider();
       if (!provider) {
         throw new Error('No default vector store provider available');
       }
@@ -320,23 +342,26 @@ export class AgencyMemoryManager {
       const collectionId = this.getCollectionId(agencyId);
       const documentId = `agency-${agencyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+      // Generate or use provided embedding
+      const embedding = input.embedding || generateSimpleEmbedding(input.content);
+
+      // Create VectorDocument
+      const document: VectorDocument = {
+        id: documentId,
+        embedding,
+        textContent: input.content,
+        metadata: {
+          agencyId,
+          contributorGmiId: input.contributorGmiId,
+          contributorRoleId: input.contributorRoleId,
+          category: input.category || 'context',
+          ingestedAt: new Date().toISOString(),
+          ...(input.metadata as Record<string, string | number | boolean>),
+        },
+      };
+
       // Upsert document with agency-specific metadata
-      await provider.upsert(collectionId, {
-        documents: [
-          {
-            id: documentId,
-            content: input.content,
-            metadata: {
-              agencyId,
-              contributorGmiId: input.contributorGmiId,
-              contributorRoleId: input.contributorRoleId,
-              category: input.category || 'context',
-              ingestedAt: new Date().toISOString(),
-              ...input.metadata,
-            },
-          },
-        ],
-      });
+      await provider.upsert(collectionId, [document]);
 
       this.logger?.debug?.('Ingested document to agency shared memory', {
         agencyId,
@@ -349,15 +374,16 @@ export class AgencyMemoryManager {
         documentsAffected: 1,
         metadata: { documentId, collectionId },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error?.('Failed to ingest to agency shared memory', {
         agencyId,
-        error: error.message,
+        error: errorMessage,
       });
       return {
         success: false,
         documentsAffected: 0,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
@@ -421,7 +447,7 @@ export class AgencyMemoryManager {
     }
 
     try {
-      const provider = await this.vectorStoreManager.getDefaultProvider();
+      const provider = this.vectorStoreManager.getDefaultProvider();
       if (!provider) {
         throw new Error('No default vector store provider available');
       }
@@ -429,29 +455,32 @@ export class AgencyMemoryManager {
       const collectionId = this.getCollectionId(agencyId);
 
       // Build metadata filter
-      const metadataFilter: Record<string, unknown> = { agencyId };
+      const metadataFilter: MetadataFilter = { agencyId };
       if (options.fromRoles && options.fromRoles.length > 0) {
         metadataFilter.contributorRoleId = { $in: options.fromRoles };
       }
 
+      // Generate query embedding from query text
+      const queryEmbedding = generateSimpleEmbedding(options.query);
+
       // Execute query
-      const result = await provider.query(collectionId, {
-        queryText: options.query,
+      const result = await provider.query(collectionId, queryEmbedding, {
         topK: options.topK || 5,
         filter: metadataFilter,
         includeMetadata: true,
+        includeTextContent: true,
       });
 
       // Transform results
-      const chunks: AgencyMemoryChunk[] = result.results.map((r: any) => ({
-        chunkId: r.id,
-        documentId: r.id.split('_chunk_')[0] || r.id,
-        content: r.content || '',
-        score: r.score ?? 0,
-        contributorGmiId: (r.metadata?.contributorGmiId as string) || 'unknown',
-        contributorRoleId: (r.metadata?.contributorRoleId as string) || 'unknown',
-        category: (r.metadata?.category as string) || 'context',
-        metadata: r.metadata,
+      const chunks: AgencyMemoryChunk[] = result.documents.map((doc: RetrievedVectorDocument) => ({
+        chunkId: doc.id,
+        documentId: doc.id.split('_chunk_')[0] || doc.id,
+        content: doc.textContent || '',
+        score: doc.similarityScore ?? 0,
+        contributorGmiId: (doc.metadata?.contributorGmiId as string) || 'unknown',
+        contributorRoleId: (doc.metadata?.contributorRoleId as string) || 'unknown',
+        category: (doc.metadata?.category as string) || 'context',
+        metadata: doc.metadata as Record<string, unknown>,
       }));
 
       // Apply threshold filter
@@ -470,17 +499,18 @@ export class AgencyMemoryManager {
         totalResults: filteredChunks.length,
         processingTimeMs: Date.now() - startTime,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error?.('Failed to query agency shared memory', {
         agencyId,
-        error: error.message,
+        error: errorMessage,
       });
       return {
         success: false,
         chunks: [],
         totalResults: 0,
         processingTimeMs: Date.now() - startTime,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
@@ -501,18 +531,29 @@ export class AgencyMemoryManager {
     }
 
     try {
-      const provider = await this.vectorStoreManager.getDefaultProvider();
+      const provider = this.vectorStoreManager.getDefaultProvider();
       if (!provider) {
         return null;
       }
 
       const collectionId = this.getCollectionId(agencyId);
+      
+      // Check if getStats is available
+      if (!provider.getStats) {
+        return {
+          totalDocuments: 0,
+          totalChunks: 0,
+          documentsByRole: {},
+          documentsByCategory: {},
+        };
+      }
+
       const stats = await provider.getStats(collectionId);
 
       // TODO: Aggregate by role and category from metadata
       return {
-        totalDocuments: stats?.documentCount ?? 0,
-        totalChunks: stats?.vectorCount ?? 0,
+        totalDocuments: (stats?.documentCount as number) ?? 0,
+        totalChunks: (stats?.vectorCount as number) ?? 0,
         documentsByRole: {},
         documentsByCategory: {},
       };
@@ -537,15 +578,17 @@ export class AgencyMemoryManager {
     }
 
     try {
-      const provider = await this.vectorStoreManager.getDefaultProvider();
+      const provider = this.vectorStoreManager.getDefaultProvider();
       if (!provider) {
         throw new Error('No default vector store provider available');
       }
 
       const collectionId = this.getCollectionId(agencyId);
 
-      // Delete collection
-      await provider.deleteCollection(collectionId);
+      // Delete collection if provider supports it
+      if (provider.deleteCollection) {
+        await provider.deleteCollection(collectionId);
+      }
 
       this.initializedAgencies.delete(agencyId);
 
@@ -556,15 +599,16 @@ export class AgencyMemoryManager {
         documentsAffected: 0,
         metadata: { collectionDeleted: collectionId },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error?.('Failed to cleanup agency memory', {
         agencyId,
-        error: error.message,
+        error: errorMessage,
       });
       return {
         success: false,
         documentsAffected: 0,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
@@ -831,5 +875,3 @@ export class AgencyMemoryManager {
     return this.querySharedMemory(agencyId, queryOptions, config);
   }
 }
-
-
