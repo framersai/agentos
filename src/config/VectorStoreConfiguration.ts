@@ -12,6 +12,7 @@
 // This import is crucial. VectorStoreProviderConfig is the base for all specific provider configs.
 // It will be defined in `../rag/IVectorStore.ts`.
 import { VectorStoreProviderConfig } from '../rag/IVectorStore';
+import type { StorageResolutionOptions } from '@framers/sql-storage-adapter';
 
 /**
  * Specific configuration for an InMemoryVectorStore.
@@ -33,6 +34,42 @@ export interface InMemoryVectorStoreConfig extends VectorStoreProviderConfig {
   persistPath?: string;
   similarityMetric?: 'cosine' | 'euclidean' | 'dotproduct';
   defaultEmbeddingDimension?: number;
+}
+
+/**
+ * Specific configuration for SQL-backed VectorStore using @framers/sql-storage-adapter.
+ * This enables cross-platform vector storage with SQLite, PostgreSQL, IndexedDB, etc.
+ * 
+ * @interface SqlVectorStoreConfig
+ * @extends VectorStoreProviderConfig
+ * @property {'sql'} type - Identifier for the SQL vector store provider type.
+ * @property {StorageResolutionOptions} [storage] - Configuration for the underlying storage adapter.
+ * @property {number} [defaultEmbeddingDimension] - Default embedding dimension for collections.
+ * @property {'cosine' | 'euclidean' | 'dotproduct'} [similarityMetric='cosine'] - Default similarity metric.
+ * @property {boolean} [enableFullTextSearch=true] - Enable FTS5/tsvector for hybrid search.
+ * @property {string} [tablePrefix='agentos_rag_'] - Table name prefix for vector store tables.
+ * 
+ * @example
+ * ```typescript
+ * const sqlConfig: SqlVectorStoreConfig = {
+ *   id: 'sql-vector-store',
+ *   type: 'sql',
+ *   storage: {
+ *     filePath: './vectors.db',
+ *     priority: ['better-sqlite3', 'sqljs', 'indexeddb']
+ *   },
+ *   defaultEmbeddingDimension: 1536,
+ *   enableFullTextSearch: true
+ * };
+ * ```
+ */
+export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
+  type: 'sql';
+  storage?: StorageResolutionOptions;
+  defaultEmbeddingDimension?: number;
+  similarityMetric?: 'cosine' | 'euclidean' | 'dotproduct';
+  enableFullTextSearch?: boolean;
+  tablePrefix?: string;
 }
 
 /**
@@ -107,6 +144,7 @@ export interface WeaviateVectorStoreConfig extends VectorStoreProviderConfig {
  */
 export type AnyVectorStoreProviderConfig =
   | InMemoryVectorStoreConfig
+  | SqlVectorStoreConfig
   | LocalFileVectorStoreConfig
   | PineconeVectorStoreConfig
   | WeaviateVectorStoreConfig

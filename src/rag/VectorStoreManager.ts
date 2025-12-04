@@ -31,6 +31,7 @@ import {
   // Import other specific store configs like PineconeVectorStoreConfig if they are directly instantiated here.
 } from '../config/VectorStoreConfiguration';
 import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore';
+import { SqlVectorStore } from './implementations/vector_stores/SqlVectorStore';
 // Import other IVectorStore implementations as they are created, e.g.:
 // import { PineconeVectorStore } from './implementations/vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './implementations/vector_stores/WeaviateVectorStore';
@@ -174,6 +175,10 @@ export class VectorStoreManager implements IVectorStoreManager {
       case 'in_memory':
         // Type assertion is safe here due to the 'type' discriminant.
         return new InMemoryVectorStore();
+      case 'sql':
+        // SQL-backed vector store using @framers/sql-storage-adapter
+        // Supports SQLite, PostgreSQL, IndexedDB, and more
+        return new SqlVectorStore();
       // case 'pinecone':
       //   // Ensure PineconeVectorStoreConfig is imported and used
       //   return new PineconeVectorStore();
