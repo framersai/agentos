@@ -22,6 +22,7 @@ export * from './core/workflows/IWorkflowEngine';
 export * from './core/workflows/storage/IWorkflowStore';
 export { WorkflowEngine } from './core/workflows/WorkflowEngine';
 export { InMemoryWorkflowStore } from './core/workflows/storage/InMemoryWorkflowStore';
+// Agency (Multi-Agent Collectives)
 export * from './core/agency/AgencyTypes';
 export { AgencyRegistry } from './core/agency/AgencyRegistry';
 export { AgencyMemoryManager } from './core/agency/AgencyMemoryManager';
@@ -31,6 +32,18 @@ export type {
   AgencyMemoryQueryResult,
   AgencyMemoryStats,
 } from './core/agency/AgencyMemoryManager';
+export { AgentCommunicationBus } from './core/agency/AgentCommunicationBus';
+export type {
+  IAgentCommunicationBus,
+  AgentMessage,
+  AgentMessageType,
+  AgentRequest,
+  AgentResponse,
+  HandoffContext,
+  HandoffResult,
+} from './core/agency/IAgentCommunicationBus';
+// Planning Engine
+export * from './core/planning';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';

@@ -1,6 +1,12 @@
 /**
  * @file index.ts
  * @description Agency module exports - multi-GMI collective management.
+ *
+ * The Agency module provides infrastructure for multi-agent collaboration:
+ * - AgencyRegistry: Manages agency sessions and GMI seats
+ * - AgencyMemoryManager: Shared RAG memory for cross-GMI context
+ * - AgentCommunicationBus: Inter-agent messaging and coordination
+ *
  * @module AgentOS/Agency
  */
 
@@ -29,5 +35,25 @@ export type {
   AgencyMemoryQueryResult,
   AgencyMemoryStats,
 } from './AgencyMemoryManager';
+
+// Communication Bus
+export { AgentCommunicationBus, type AgentCommunicationBusConfig } from './AgentCommunicationBus';
+export type {
+  IAgentCommunicationBus,
+  AgentMessage,
+  AgentMessageType,
+  AgentRequest,
+  AgentResponse,
+  HandoffContext,
+  HandoffResult,
+  MessageHandler,
+  Unsubscribe,
+  SubscriptionOptions,
+  MessageTopic,
+  DeliveryStatus,
+  RoutingConfig,
+  BusStatistics,
+  MessagePriority,
+} from './IAgentCommunicationBus';
 
 
