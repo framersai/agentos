@@ -44,4 +44,6 @@ export { createLogger, setLoggerFactory, resetLoggerFactory } from './logging/lo
 export * from './types/rateLimitTypes';
 // Storage adapters
 export * from './core/storage';
+// RAG (Retrieval Augmented Generation)
+export * from './rag';
 
