@@ -12,3 +12,4 @@ export { InMemoryVectorStore } from './InMemoryVectorStore.js';
 // SQL-backed vector store (cross-platform persistence)
 export { SqlVectorStore, type SqlVectorStoreConfig } from './SqlVectorStore.js';
 
+
