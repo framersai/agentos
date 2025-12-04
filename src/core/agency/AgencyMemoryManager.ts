@@ -603,5 +603,233 @@ export class AgencyMemoryManager {
   public isInitialized(agencyId: string): boolean {
     return this.initializedAgencies.has(agencyId);
   }
+
+  // ==========================================================================
+  // Cross-GMI Context Sharing
+  // ==========================================================================
+
+  /**
+   * Broadcasts context from one GMI to all others in the agency.
+   * This is useful for sharing discoveries, decisions, or important updates.
+   *
+   * @param agencyId - Target agency
+   * @param input - Broadcast input
+   * @param config - Agency memory configuration
+   * @returns Operation result with broadcast metadata
+   *
+   * @example
+   * ```typescript
+   * await memoryManager.broadcastToAgency(agencyId, {
+   *   content: 'Found critical security vulnerability in auth module',
+   *   senderGmiId: 'security-analyst-gmi',
+   *   senderRoleId: 'security-analyst',
+   *   broadcastType: 'finding',
+   *   priority: 'high',
+   * });
+   * ```
+   */
+  public async broadcastToAgency(
+    agencyId: string,
+    input: {
+      content: string;
+      senderGmiId: string;
+      senderRoleId: string;
+      broadcastType: 'finding' | 'decision' | 'update' | 'request' | 'alert';
+      priority?: 'low' | 'normal' | 'high' | 'critical';
+      targetRoles?: string[];
+      metadata?: Record<string, unknown>;
+    },
+    config?: AgencyMemoryConfig,
+  ): Promise<AgencyMemoryOperationResult> {
+    const broadcastDoc: AgencyMemoryIngestInput = {
+      content: input.content,
+      contributorGmiId: input.senderGmiId,
+      contributorRoleId: input.senderRoleId,
+      category: input.broadcastType === 'finding' ? 'finding' : 
+                input.broadcastType === 'decision' ? 'decision' : 
+                'communication',
+      metadata: {
+        broadcastType: input.broadcastType,
+        priority: input.priority || 'normal',
+        targetRoles: input.targetRoles || [],
+        broadcastAt: new Date().toISOString(),
+        ...input.metadata,
+      },
+    };
+
+    this.logger?.info?.('Broadcasting to agency', {
+      agencyId,
+      senderRoleId: input.senderRoleId,
+      broadcastType: input.broadcastType,
+      priority: input.priority,
+    });
+
+    return this.ingestToSharedMemory(agencyId, broadcastDoc, config);
+  }
+
+  /**
+   * Gets recent context contributions from specific roles.
+   * Enables GMIs to selectively query context from collaborators.
+   *
+   * @param agencyId - Target agency
+   * @param options - Query options with role filtering
+   * @param config - Agency memory configuration
+   * @returns Query result filtered by contributor roles
+   *
+   * @example
+   * ```typescript
+   * // Get recent findings from the researcher role
+   * const findings = await memoryManager.getContextFromRoles(agencyId, {
+   *   fromRoles: ['researcher', 'analyst'],
+   *   categories: ['finding', 'summary'],
+   *   requestingGmiId: 'coordinator-gmi',
+   *   requestingRoleId: 'coordinator',
+   *   limit: 10,
+   * });
+   * ```
+   */
+  public async getContextFromRoles(
+    agencyId: string,
+    options: {
+      fromRoles: string[];
+      categories?: ('communication' | 'finding' | 'decision' | 'summary' | 'context')[];
+      requestingGmiId: string;
+      requestingRoleId: string;
+      limit?: number;
+      minScore?: number;
+    },
+    config?: AgencyMemoryConfig,
+  ): Promise<AgencyMemoryQueryResult> {
+    const queryOptions: AgencyMemoryQueryOptions = {
+      query: `Recent contributions from roles: ${options.fromRoles.join(', ')}`,
+      requestingGmiId: options.requestingGmiId,
+      requestingRoleId: options.requestingRoleId,
+      fromRoles: options.fromRoles,
+      topK: options.limit || 10,
+      threshold: options.minScore || 0,
+    };
+
+    return this.querySharedMemory(agencyId, queryOptions, config);
+  }
+
+  /**
+   * Shares a synthesis or summary across all GMIs in the agency.
+   * Typically used by coordinator or synthesizer roles.
+   *
+   * @param agencyId - Target agency
+   * @param summary - Summary content and metadata
+   * @param config - Agency memory configuration
+   * @returns Operation result
+   */
+  public async shareSynthesis(
+    agencyId: string,
+    summary: {
+      content: string;
+      synthesizerId: string;
+      synthesizerRoleId: string;
+      sourceRoles?: string[];
+      summaryType: 'interim' | 'final' | 'action_items' | 'consensus';
+      metadata?: Record<string, unknown>;
+    },
+    config?: AgencyMemoryConfig,
+  ): Promise<AgencyMemoryOperationResult> {
+    const synthesisDoc: AgencyMemoryIngestInput = {
+      content: summary.content,
+      contributorGmiId: summary.synthesizerId,
+      contributorRoleId: summary.synthesizerRoleId,
+      category: 'summary',
+      metadata: {
+        summaryType: summary.summaryType,
+        sourceRoles: summary.sourceRoles || [],
+        synthesizedAt: new Date().toISOString(),
+        ...summary.metadata,
+      },
+    };
+
+    this.logger?.info?.('Sharing synthesis to agency', {
+      agencyId,
+      synthesizerRoleId: summary.synthesizerRoleId,
+      summaryType: summary.summaryType,
+    });
+
+    return this.ingestToSharedMemory(agencyId, synthesisDoc, config);
+  }
+
+  /**
+   * Records a decision made by the agency for future reference.
+   *
+   * @param agencyId - Target agency
+   * @param decision - Decision details
+   * @param config - Agency memory configuration
+   * @returns Operation result
+   */
+  public async recordDecision(
+    agencyId: string,
+    decision: {
+      content: string;
+      decisionMakerId: string;
+      decisionMakerRoleId: string;
+      decisionType: 'consensus' | 'delegation' | 'escalation' | 'resolution';
+      affectedRoles?: string[];
+      rationale?: string;
+      metadata?: Record<string, unknown>;
+    },
+    config?: AgencyMemoryConfig,
+  ): Promise<AgencyMemoryOperationResult> {
+    const decisionContent = decision.rationale 
+      ? `${decision.content}\n\nRationale: ${decision.rationale}`
+      : decision.content;
+
+    const decisionDoc: AgencyMemoryIngestInput = {
+      content: decisionContent,
+      contributorGmiId: decision.decisionMakerId,
+      contributorRoleId: decision.decisionMakerRoleId,
+      category: 'decision',
+      metadata: {
+        decisionType: decision.decisionType,
+        affectedRoles: decision.affectedRoles || [],
+        decidedAt: new Date().toISOString(),
+        ...decision.metadata,
+      },
+    };
+
+    this.logger?.info?.('Recording agency decision', {
+      agencyId,
+      decisionMakerRoleId: decision.decisionMakerRoleId,
+      decisionType: decision.decisionType,
+    });
+
+    return this.ingestToSharedMemory(agencyId, decisionDoc, config);
+  }
+
+  /**
+   * Gets all decisions made by the agency.
+   *
+   * @param agencyId - Target agency
+   * @param options - Query options
+   * @param config - Agency memory configuration
+   * @returns Query result with decision chunks
+   */
+  public async getDecisions(
+    agencyId: string,
+    options: {
+      requestingGmiId: string;
+      requestingRoleId: string;
+      decisionTypes?: ('consensus' | 'delegation' | 'escalation' | 'resolution')[];
+      limit?: number;
+    },
+    config?: AgencyMemoryConfig,
+  ): Promise<AgencyMemoryQueryResult> {
+    const queryOptions: AgencyMemoryQueryOptions = {
+      query: 'Agency decisions and resolutions',
+      requestingGmiId: options.requestingGmiId,
+      requestingRoleId: options.requestingRoleId,
+      topK: options.limit || 20,
+      threshold: 0,
+    };
+
+    return this.querySharedMemory(agencyId, queryOptions, config);
+  }
 }
+
 
