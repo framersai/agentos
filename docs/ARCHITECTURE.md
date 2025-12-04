@@ -3664,6 +3664,192 @@ class AnalyticsEngine {
 
 ---
 
+## GMI RAG Memory Integration & Configuration
+
+### Overview
+
+The GMI (Generalized Mind Instance) integrates with the RAG system through configurable hooks that enable:
+- **Conversation Memory Persistence**: Store conversation summaries in RAG for long-term recall
+- **Context-Aware Retrieval**: Augment prompts with relevant historical context
+- **Memory Lifecycle Management**: Negotiate memory retention with the MemoryLifecycleManager
+- **Agency Shared Memory**: (Planned) Share knowledge across GMIs in an Agency
+
+### Configuration Hierarchy
+
+```
+Persona Definition
+├── memoryConfig
+│   ├── enabled: boolean
+│   ├── conversationContext  ← Working memory settings
+│   └── ragConfig            ← RAG integration settings
+│       ├── enabled: boolean (NOT default, must enable)
+│       ├── retrievalTriggers
+│       │   ├── onUserQuery: boolean
+│       │   ├── onIntentDetected: string[]
+│       │   └── onToolFailure: string[]
+│       ├── ingestionTriggers
+│       │   ├── onTurnSummary: boolean
+│       │   └── onExplicitUserCommand: string
+│       ├── ingestionProcessing
+│       │   └── summarization: { enabled, targetLength, method }
+│       ├── dataSources: PersonaRagDataSourceConfig[]
+│       └── defaultIngestionDataSourceId: string
+```
+
+### GMI RAG Hooks
+
+The GMI implements the following RAG integration points:
+
+```typescript
+// Hook 1: Retrieval Trigger (GMI.ts:479)
+private shouldTriggerRAGRetrieval(query: string): boolean {
+  const ragConfig = this.activePersona.memoryConfig?.ragConfig;
+  if (ragConfig?.retrievalTriggers?.onUserQuery) {
+    return true;
+  }
+  return false;
+}
+
+// Hook 2: Context Retrieval (GMI.ts:535-547)
+if (this.retrievalAugmentor && ragConfig?.enabled && isUserInitiatedTurn) {
+  if (this.shouldTriggerRAGRetrieval(currentQueryForRag)) {
+    const ragResult = await this.retrievalAugmentor.retrieveContext(
+      currentQueryForRag,
+      retrievalOptions
+    );
+    augmentedContextFromRAG = ragResult.augmentedContext;
+  }
+}
+
+// Hook 3: Post-Turn Ingestion (GMI.ts:850-905)
+private async performPostTurnIngestion(userInput: string, gmiResponse: string) {
+  if (!this.retrievalAugmentor || 
+      !ragConfig?.enabled || 
+      !ingestionTriggers?.onTurnSummary) {
+    return; // Must be explicitly enabled
+  }
+  // Summarize and ingest turn to RAG
+}
+
+// Hook 4: Memory Lifecycle Negotiation (GMI.ts:1090)
+public async onMemoryLifecycleEvent(event: MemoryLifecycleEvent): Promise<LifecycleActionResponse> {
+  // GMI can PREVENT_ACTION, ALLOW_ACTION, etc.
+}
+```
+
+### Enabling Conversation Memory RAG
+
+To enable conversation memory persistence to RAG:
+
+```json
+{
+  "id": "my-persona",
+  "memoryConfig": {
+    "enabled": true,
+    "ragConfig": {
+      "enabled": true,
+      "retrievalTriggers": {
+        "onUserQuery": true
+      },
+      "ingestionTriggers": {
+        "onTurnSummary": true
+      },
+      "ingestionProcessing": {
+        "summarization": {
+          "enabled": true,
+          "targetLength": "short",
+          "method": "abstractive_llm"
+        }
+      },
+      "dataSources": [{
+        "id": "persona-memory",
+        "dataSourceNameOrId": "conversation_summaries",
+        "isEnabled": true,
+        "defaultTopK": 5
+      }],
+      "defaultIngestionDataSourceId": "conversation_summaries"
+    },
+    "lifecycleConfig": {
+      "negotiationEnabled": true
+    }
+  }
+}
+```
+
+### RAG Memory Categories
+
+The `RagMemoryCategory` enum defines logical memory categories:
+
+| Category | Description | Use Case |
+|----------|-------------|----------|
+| `SHARED_KNOWLEDGE_BASE` | Global knowledge accessible to all | Documentation, FAQs |
+| `USER_EXPLICIT_MEMORY` | User-saved notes/preferences | "Remember this" commands |
+| `PERSONAL_LLM_EXPERIENCE` | GMI's learned patterns | Self-improvement |
+| `CONVERSATION_HISTORY` | Historical conversation summaries | Context recall |
+| `TASK_ARTIFACTS` | Outputs from completed tasks | Reference materials |
+
+### Agency Shared Memory (Planned)
+
+Future implementations will support agency-level RAG:
+
+```typescript
+interface AgencyMemoryConfig {
+  enabled: boolean;
+  sharedDataSourceIds: string[];
+  crossGMIContextSharing: boolean;
+  memoryVisibility: 'all_seats' | 'same_role' | 'explicit_grant';
+}
+```
+
+### Memory Flow Diagram
+
+```
+User Query
+    ↓
+┌─────────────────────────────────────────┐
+│ GMI.processTurnStream()                 │
+│                                         │
+│ 1. shouldTriggerRAGRetrieval(query)    │
+│    ↓ (if true)                         │
+│ 2. retrievalAugmentor.retrieveContext() │
+│    ↓                                    │
+│ 3. Inject into PromptComponents        │
+│    ↓                                    │
+│ 4. LLM generates response              │
+│    ↓                                    │
+│ 5. performPostTurnIngestion()          │
+│    ↓ (if ingestionTriggers.onTurnSummary)│
+│ 6. Summarize → Embed → Store in RAG    │
+└─────────────────────────────────────────┘
+         ↓
+   Response to User
+```
+
+### Integration with Memory Lifecycle Manager
+
+The `MemoryLifecycleManager` enforces retention policies:
+
+```typescript
+// Policy-driven eviction with GMI negotiation
+const policy: MemoryLifecyclePolicy = {
+  policyId: "conversation-cleanup",
+  retentionDays: 90,
+  appliesTo: {
+    categories: [RagMemoryCategory.CONVERSATION_HISTORY]
+  },
+  action: {
+    type: "summarize_and_delete",
+    summaryDataSourceId: "long_term_summaries"
+  },
+  gmiNegotiation: {
+    enabled: true,
+    defaultActionOnTimeout: "ALLOW_ACTION"
+  }
+};
+```
+
+---
+
 ## Conclusion
 
 AgentOS represents a paradigm shift in how we build and deploy AI agents. By treating agents as adaptive, learning entities with persistent personalities and sophisticated cognitive architectures, we enable a new class of AI applications that truly understand and adapt to their users.
