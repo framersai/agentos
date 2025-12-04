@@ -31,7 +31,7 @@
  */
 
 import type { ILogger } from '../../logging/ILogger';
-import type { IVectorStoreManager } from '../../rag/VectorStoreManager';
+import type { IVectorStoreManager } from '../../rag/IVectorStoreManager';
 import type { RagDocumentInput, RagRetrievalOptions } from '../../rag/IRetrievalAugmentor';
 import type {
   AgencySession,
@@ -443,7 +443,7 @@ export class AgencyMemoryManager {
       });
 
       // Transform results
-      const chunks: AgencyMemoryChunk[] = result.results.map((r) => ({
+      const chunks: AgencyMemoryChunk[] = result.results.map((r: any) => ({
         chunkId: r.id,
         documentId: r.id.split('_chunk_')[0] || r.id,
         content: r.content || '',
