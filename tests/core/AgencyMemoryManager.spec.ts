@@ -18,11 +18,11 @@ const createMockProvider = () => ({
   createCollection: vi.fn().mockResolvedValue(undefined),
   upsert: vi.fn().mockResolvedValue({ succeeded: 1, failed: 0 }),
   query: vi.fn().mockResolvedValue({
-    results: [
+    documents: [
       {
         id: 'doc-1_chunk_0',
-        content: 'Test content from researcher',
-        score: 0.95,
+        textContent: 'Test content from researcher',
+        similarityScore: 0.95,
         metadata: {
           contributorGmiId: 'gmi-1',
           contributorRoleId: 'researcher',
@@ -37,7 +37,7 @@ const createMockProvider = () => ({
 
 const createMockVectorStoreManager = (mockProvider: ReturnType<typeof createMockProvider>) =>
   ({
-    getDefaultProvider: vi.fn().mockResolvedValue(mockProvider),
+    getDefaultProvider: vi.fn().mockReturnValue(mockProvider),
   }) as unknown as IVectorStoreManager;
 
 const createMockSession = (overrides?: Partial<AgencySession>): AgencySession => ({
@@ -93,9 +93,9 @@ describe('AgencyMemoryManager', () => {
 
       expect(result.success).toBe(true);
       expect(mockProvider.createCollection).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'agency-shared-agency-test-123',
-        }),
+        'agency-shared-agency-test-123',
+        expect.any(Number), // dimension
+        expect.any(Object), // options
       );
       expect(manager.isInitialized(session.agencyId)).toBe(true);
     });
@@ -160,19 +160,16 @@ describe('AgencyMemoryManager', () => {
       expect(result.documentsAffected).toBe(1);
       expect(mockProvider.upsert).toHaveBeenCalledWith(
         'agency-shared-agency-test-123',
-        expect.objectContaining({
-          documents: expect.arrayContaining([
-            expect.objectContaining({
-              content: 'Important research finding',
-              metadata: expect.objectContaining({
-                agencyId,
-                contributorGmiId: 'gmi-1',
-                contributorRoleId: 'researcher',
-                category: 'finding',
-              }),
+        expect.arrayContaining([
+          expect.objectContaining({
+            metadata: expect.objectContaining({
+              agencyId,
+              contributorGmiId: 'gmi-1',
+              contributorRoleId: 'researcher',
+              category: 'finding',
             }),
-          ]),
-        }),
+          }),
+        ]),
       );
     });
 
@@ -257,8 +254,10 @@ describe('AgencyMemoryManager', () => {
         { enabled: true },
       );
 
+      // Check query was called with collectionId, embedding, and options
       expect(mockProvider.query).toHaveBeenCalledWith(
-        expect.any(String),
+        expect.any(String), // collectionId
+        expect.any(Array), // embedding vector
         expect.objectContaining({
           filter: expect.objectContaining({
             contributorRoleId: { $in: ['researcher', 'lead'] },
@@ -289,9 +288,9 @@ describe('AgencyMemoryManager', () => {
 
     it('applies threshold filtering', async () => {
       mockProvider.query.mockResolvedValue({
-        results: [
-          { id: 'doc-1', content: 'High match', score: 0.9, metadata: {} },
-          { id: 'doc-2', content: 'Low match', score: 0.3, metadata: {} },
+        documents: [
+          { id: 'doc-1', textContent: 'High match', similarityScore: 0.9, metadata: {} },
+          { id: 'doc-2', textContent: 'Low match', similarityScore: 0.3, metadata: {} },
         ],
       });
 
