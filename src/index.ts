@@ -46,6 +46,8 @@ export type {
 export * from './core/planning';
 // Human-in-the-Loop (HITL)
 export * from './core/hitl';
+// Structured Outputs (JSON Schema, Function Calling)
+export * from './core/structured';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
