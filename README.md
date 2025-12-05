@@ -9,7 +9,7 @@
 **Modular orchestration runtime for adaptive AI agents**
 
 [![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
-[![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/agentos-ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 
@@ -50,7 +50,7 @@ npm install @framers/agentos
 <tr>
 <td width="50%">
 
-### 🧠 Adaptive Intelligence
+### ◆ Adaptive Intelligence
 - **GMI Architecture** — Persistent agent identities with working memory
 - **Dynamic Personas** — Contextual personality adaptation
 - **Multi-model Support** — OpenAI, Anthropic, local models
@@ -58,7 +58,7 @@ npm install @framers/agentos
 </td>
 <td width="50%">
 
-### ⚡ Streaming-First Runtime
+### ◆ Streaming-First Runtime
 - **Token-level streaming** — Real-time response delivery
 - **Async generators** — Native TypeScript patterns
 - **WebSocket & SSE** — Multiple transport protocols
@@ -68,7 +68,7 @@ npm install @framers/agentos
 <tr>
 <td width="50%">
 
-### 🔧 Tool Orchestration
+### ◆ Tool Orchestration
 - **Permission management** — Fine-grained access control
 - **Dynamic registration** — Runtime tool discovery
 - **Guardrails** — Safety constraints and validation
@@ -76,7 +76,7 @@ npm install @framers/agentos
 </td>
 <td width="50%">
 
-### 📚 RAG & Memory
+### ◆ RAG & Memory
 - **Vector storage** — Semantic memory retrieval
 - **SQL adapters** — SQLite, PostgreSQL support
 - **Context optimization** — Automatic window management
@@ -86,7 +86,7 @@ npm install @framers/agentos
 <tr>
 <td width="50%">
 
-### 🤝 Multi-Agent Coordination
+### ◆ Multi-Agent Coordination
 - **Agency system** — Agent hierarchies and teams
 - **Message bus** — Inter-agent communication
 - **Handoffs** — Context transfer between agents
@@ -94,7 +94,7 @@ npm install @framers/agentos
 </td>
 <td width="50%">
 
-### 🛡️ Human-in-the-Loop
+### ◆ Human-in-the-Loop
 - **Approval workflows** — High-risk action gates
 - **Clarification requests** — Ambiguity resolution
 - **Escalation handling** — Human takeover paths
@@ -286,12 +286,12 @@ for await (const step of planner.execute(plan)) {
 
 ## Roadmap
 
-| Version | Features |
-|---------|----------|
-| **0.1** ✅ | Core runtime, GMI, streaming, tools, RAG |
-| **0.2** | Knowledge graphs, marketplace, visual planning |
-| **0.3** | Distributed agents, edge deployment |
-| **1.0** | Production hardening, enterprise features |
+| Version | Status | Features |
+|---------|--------|----------|
+| 0.1 | ✓ | Core runtime, GMI, streaming, tools, RAG |
+| 0.2 | → | Knowledge graphs, marketplace, visual planning |
+| 0.3 | ○ | Distributed agents, edge deployment |
+| 1.0 | ○ | Production hardening, enterprise features |
 
 See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
@@ -299,7 +299,7 @@ See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md) for details.
+We welcome contributions. See our [Contributing Guide](https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md) for details.
 
 ```bash
 # Clone and setup
@@ -317,10 +317,12 @@ pnpm run docs     # Generate documentation
 
 We use [Conventional Commits](https://www.conventionalcommits.org/):
 
-- `feat:` New features → minor version bump
-- `fix:` Bug fixes → patch version bump
-- `docs:` Documentation only
-- `BREAKING CHANGE:` → major version bump
+```
+feat:  New features → minor version bump
+fix:   Bug fixes → patch version bump
+docs:  Documentation only
+BREAKING CHANGE: → major version bump
+```
 
 ---
 
@@ -342,6 +344,6 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Built by [Frame.dev](https://frame.dev)** · [@framersai](https://github.com/framersai)
 
-[Website](https://agentos.sh) · [Documentation](https://agentos.sh/docs) · [Twitter](https://twitter.com/framersai) · [Discord](https://discord.gg/framersai)
+[Website](https://agentos.sh) · [Documentation](https://agentos.sh/docs) · [Twitter](https://twitter.com/framersai)
 
 </div>
