@@ -6,9 +6,11 @@
   <a href="https://frame.dev" target="_blank" rel="noopener"><img src="assets/logos/frame-logo.svg" alt="Frame.dev" height="64" /></a>
 </p>
 
-[![NPM Version](https://img.shields.io/npm/v/@framers/agentos?logo=npm)](https://www.npmjs.com/package/@framers/agentos)
-[![CI](https://github.com/framersai/agentos/actions/workflows/ci.yml/badge.svg)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
+[![NPM Version](https://img.shields.io/npm/v/@framers/agentos?logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
+[![CI](https://github.com/framersai/agentos/actions/workflows/agentos-ci.yml/badge.svg)](https://github.com/framersai/agentos/actions/workflows/agentos-ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-67%25-yellow)](https://github.com/framersai/agentos)
 [![codecov](https://codecov.io/gh/framersai/agentos/branch/master/graph/badge.svg)](https://codecov.io/gh/framersai/agentos)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Website](https://img.shields.io/badge/Website-agentos.sh-00d4ff)](https://agentos.sh)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
@@ -84,11 +86,18 @@ Real deployments should supply their own auth/subscription services by implement
 
 ---
 
-## Tests & Roadmap
+## Tests & Coverage
 
-- Vitest is configured (`pnpm --filter @framers/agentos test`). Today's coverage is minimal; expect more unit + integration tests as the extraction work completes.
-- API docs can be generated locally via `pnpm run docs`; artefacts land in `docs/api`.
-- Documentation, CI, and publishing flows will migrate to the dedicated OSS repo ([framersai/agentos](https://github.com/framersai/agentos)). This README serves as the single source of truth until the repo split is finalized (see [docs/AGENTOS_REINTEGRATION_NOTES.md](../../docs/AGENTOS_REINTEGRATION_NOTES.md)).
+- **Test Coverage**: ~67% statement coverage with 539+ tests
+- **Test Framework**: Vitest (`pnpm --filter @framers/agentos test`)
+- **Coverage Report**: Run `pnpm --filter @framers/agentos test -- --coverage`
+- **API Docs**: Generate locally via `pnpm run docs`; outputs to `docs/api`
+
+### CI/CD
+
+- GitHub Actions runs tests and coverage on every push
+- Automated npm publishing on version tags (`agentos-v*`)
+- Coverage reports uploaded to Codecov
 
 ---
 
