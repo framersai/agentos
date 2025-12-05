@@ -56,6 +56,8 @@ export * from './core/observability';
 export * from './core/evaluation';
 // Knowledge Graph
 export * from './core/knowledge';
+// Agent Marketplace
+export * from './core/marketplace';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
