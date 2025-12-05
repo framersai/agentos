@@ -1,24 +1,39 @@
 name: Release
 
+# MANUAL RELEASE ONLY - prevents accidental version bumps
+# To release: Actions → Release → Run workflow → Enter version
+
 on:
-  push:
-    branches: [master, main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 0.1.1, 0.2.0, 1.0.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (no publish)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
-    name: Semantic Release
+    name: Publish to npm
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
-      pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
+
+      - name: Validate version format
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Error: Invalid version format. Use semver (e.g., 0.1.1, 0.2.0-beta.1)"
+            exit 1
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,18 +41,63 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Test
-        run: npm run test
+        run: pnpm run test
 
-      - name: Semantic Release
+      - name: Update version in package.json
+        run: |
+          npm version ${{ inputs.version }} --no-git-tag-version
+          echo "Updated to version ${{ inputs.version }}"
+
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Dry run - would publish
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "DRY RUN - Would publish version ${{ inputs.version }}"
+          npm pack --dry-run
+
+      - name: Create git tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(release): ${{ inputs.version }}"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin HEAD:master --tags
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "v${{ inputs.version }}"
+          name: "@framers/agentos v${{ inputs.version }}"
+          body: |
+            ## @framers/agentos v${{ inputs.version }}
+            
+            Install:
+            ```bash
+            npm install @framers/agentos@${{ inputs.version }}
+            ```
+            
+            [View on npm](https://www.npmjs.com/package/@framers/agentos/v/${{ inputs.version }})
+          draft: false
+          prerelease: ${{ contains(inputs.version, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
