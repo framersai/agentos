@@ -50,6 +50,8 @@ export * from './core/hitl';
 export * from './core/structured';
 // Code Execution Sandbox
 export * from './core/sandbox';
+// Observability & Tracing
+export * from './core/observability';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
