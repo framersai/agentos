@@ -16,47 +16,47 @@
 
 ---
 
-## 📚 Documentation Index
+## Documentation Index
 
 ### Getting Started
-- [**README**](../README.md) - Installation and quick start
-- [**CHANGELOG**](../CHANGELOG.md) - Version history and release notes
+- [**README**](../README.md) — Installation and quick start
+- [**CHANGELOG**](../CHANGELOG.md) — Version history and release notes
 
 ### Architecture & Core Concepts
-- [**Architecture Overview**](./ARCHITECTURE.md) - Complete system architecture and design principles
-- [**Architecture Deep Dive**](./AGENTOS_ARCHITECTURE_DEEP_DIVE.md) - In-depth technical documentation
+- [**Architecture Overview**](./ARCHITECTURE.md) — Complete system architecture and design principles
+- [**Architecture Deep Dive**](./AGENTOS_ARCHITECTURE_DEEP_DIVE.md) — In-depth technical documentation
 
 ### Features & Capabilities
 
 #### Planning & Orchestration
-- [**Planning Engine**](./PLANNING_ENGINE.md) - Multi-step task planning and execution
-- [**Human-in-the-Loop**](./HUMAN_IN_THE_LOOP.md) - Approval workflows and human oversight
-- [**Agent Communication**](./AGENT_COMMUNICATION.md) - Inter-agent messaging and coordination
+- [**Planning Engine**](./PLANNING_ENGINE.md) — Multi-step task planning and execution
+- [**Human-in-the-Loop**](./HUMAN_IN_THE_LOOP.md) — Approval workflows and human oversight
+- [**Agent Communication**](./AGENT_COMMUNICATION.md) — Inter-agent messaging and coordination
 
 #### Memory & Storage
-- [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) - Vector storage and retrieval setup
-- [**SQL Storage Quickstart**](./SQL_STORAGE_QUICKSTART.md) - Database integration guide
-- [**Client-Side Storage**](./CLIENT_SIDE_STORAGE.md) - Browser-based persistence
-- [**Migration Guide**](./MIGRATION_TO_STORAGE_ADAPTER.md) - Upgrading storage backends
+- [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) — Vector storage and retrieval setup
+- [**SQL Storage Quickstart**](./SQL_STORAGE_QUICKSTART.md) — Database integration guide
+- [**Client-Side Storage**](./CLIENT_SIDE_STORAGE.md) — Browser-based persistence
+- [**Migration Guide**](./MIGRATION_TO_STORAGE_ADAPTER.md) — Upgrading storage backends
 
 #### AI & LLM
-- [**Structured Output**](./STRUCTURED_OUTPUT.md) - JSON schema validation and structured generation
-- [**Evaluation Framework**](./EVALUATION_FRAMEWORK.md) - Testing, scoring, and quality assurance
-- [**Cost Optimization**](./COST_OPTIMIZATION.md) - Token usage and API cost management
+- [**Structured Output**](./STRUCTURED_OUTPUT.md) — JSON schema validation and structured generation
+- [**Evaluation Framework**](./EVALUATION_FRAMEWORK.md) — Testing, scoring, and quality assurance
+- [**Cost Optimization**](./COST_OPTIMIZATION.md) — Token usage and API cost management
 
 #### Extensions & Customization
-- [**RFC Extension Standards**](./RFC_EXTENSION_STANDARDS.md) - Extension development guidelines
-- [**Recursive Self-Building Agents**](./RECURSIVE_SELF_BUILDING_AGENTS.md) - Advanced agent patterns
+- [**RFC Extension Standards**](./RFC_EXTENSION_STANDARDS.md) — Extension development guidelines
+- [**Recursive Self-Building Agents**](./RECURSIVE_SELF_BUILDING_AGENTS.md) — Advanced agent patterns
 
 ### Platform & Infrastructure
-- [**Platform Support**](./PLATFORM_SUPPORT.md) - Supported environments and requirements
+- [**Platform Support**](./PLATFORM_SUPPORT.md) — Supported environments and requirements
 
 ### API Reference
-- [**TypeDoc API**](./api/index.html) - Auto-generated API documentation
+- [**TypeDoc API**](./api/index.html) — Auto-generated API documentation
 
 ---
 
-## 🔗 Quick Links
+## Quick Links
 
 | Resource | Link |
 |----------|------|
@@ -68,7 +68,7 @@
 
 ---
 
-## 📖 How to Use This Documentation
+## How to Use This Documentation
 
 1. **New to AgentOS?** Start with the [README](../README.md) for installation and basic usage
 2. **Understanding the system?** Read the [Architecture Overview](./ARCHITECTURE.md)
@@ -79,6 +79,5 @@
 ---
 
 <p align="center">
-  <sub>Built by <a href="https://frame.dev">Frame.dev</a> • <a href="https://github.com/framersai">@framersai</a></sub>
+  <sub>Built by <a href="https://frame.dev">Frame.dev</a> · <a href="https://github.com/framersai">@framersai</a></sub>
 </p>
-
