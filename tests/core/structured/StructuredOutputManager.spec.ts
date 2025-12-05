@@ -16,12 +16,23 @@ import type { AIModelProviderManager } from '../../../src/core/llm/providers/AIM
 
 // Mock LLM Provider Manager
 const createMockLLMProvider = (response: { content?: string; toolCalls?: any[] }): AIModelProviderManager => {
-  return {
-    getCompletion: vi.fn().mockResolvedValue({
-      content: response.content,
-      toolCalls: response.toolCalls,
+  const mockProvider = {
+    generateCompletion: vi.fn().mockResolvedValue({
+      choices: [{
+        message: {
+          content: response.content,
+          tool_calls: response.toolCalls?.map((tc, i) => ({
+            id: `call-${i}`,
+            type: 'function',
+            function: tc.function,
+          })),
+        },
+      }],
       usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
     }),
+  };
+  return {
+    getProvider: vi.fn().mockReturnValue(mockProvider),
   } as unknown as AIModelProviderManager;
 };
 
@@ -492,16 +503,20 @@ describe('StructuredOutputManager', () => {
     });
 
     it('should retry on validation failure', async () => {
+      const mockGenerateCompletion = vi.fn()
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: JSON.stringify({ name: 'John', age: -5 }) } }],
+          usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+        })
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: JSON.stringify({ name: 'John', age: 30 }) } }],
+          usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+        });
+
       const mockProvider = {
-        getCompletion: vi.fn()
-          .mockResolvedValueOnce({
-            content: JSON.stringify({ name: 'John', age: -5 }),
-            usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-          })
-          .mockResolvedValueOnce({
-            content: JSON.stringify({ name: 'John', age: 30 }),
-            usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-          }),
+        getProvider: vi.fn().mockReturnValue({
+          generateCompletion: mockGenerateCompletion,
+        }),
       } as unknown as AIModelProviderManager;
 
       const manager = new StructuredOutputManager({
@@ -526,7 +541,7 @@ describe('StructuredOutputManager', () => {
 
       expect(result.success).toBe(true);
       expect(result.retryCount).toBe(1);
-      expect(mockProvider.getCompletion).toHaveBeenCalledTimes(2);
+      expect(mockGenerateCompletion).toHaveBeenCalledTimes(2);
     });
 
     it('should throw after max retries', async () => {

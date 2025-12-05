@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40.96% </span>
+                <span class="strong">44.52% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>102/249</span>
+                <span class='fraction'>118/265</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40.96% </span>
+                <span class="strong">44.52% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>102/249</span>
+                <span class='fraction'>118/265</span>
             </div>
         
             
@@ -312,7 +312,34 @@
 <a name='L247'></a><a href='#L247'>247</a>
 <a name='L248'></a><a href='#L248'>248</a>
 <a name='L249'></a><a href='#L249'>249</a>
-<a name='L250'></a><a href='#L250'>250</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -461,15 +488,20 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">31x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
@@ -580,13 +612,24 @@ import type {
   ExtensionPackContext,
   ExtensionPackManifestEntry,
 } from './manifest';
-import { EXTENSION_KIND_WORKFLOW_EXECUTOR } from './types';
+import {
+  EXTENSION_KIND_WORKFLOW_EXECUTOR,
+  EXTENSION_KIND_PLANNING_STRATEGY,
+  EXTENSION_KIND_HITL_HANDLER,
+  EXTENSION_KIND_COMM_CHANNEL,
+  EXTENSION_KIND_MEMORY_PROVIDER,
+} from './types';
 &nbsp;
 const DEFAULT_EXTENSIONS_KIND_TOOL = 'tool';
 const DEFAULT_EXTENSIONS_KIND_GUARDRAIL = 'guardrail';
 const DEFAULT_EXTENSIONS_KIND_RESPONSE = 'response-processor';
 const DEFAULT_EXTENSIONS_KIND_WORKFLOW = 'workflow';
 const DEFAULT_EXTENSIONS_KIND_WORKFLOW_EXECUTOR = EXTENSION_KIND_WORKFLOW_EXECUTOR;
+// New extension kinds (v1.1.0)
+const DEFAULT_EXTENSIONS_KIND_PLANNING = EXTENSION_KIND_PLANNING_STRATEGY;
+const DEFAULT_EXTENSIONS_KIND_HITL = EXTENSION_KIND_HITL_HANDLER;
+const DEFAULT_EXTENSIONS_KIND_COMM = EXTENSION_KIND_COMM_CHANNEL;
+const DEFAULT_EXTENSIONS_KIND_MEMORY = EXTENSION_KIND_MEMORY_PROVIDER;
 &nbsp;
 interface ExtensionManagerOptions {
   manifest?: ExtensionManifest;
@@ -724,6 +767,11 @@ export class ExtensionManager {
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_RESPONSE);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_WORKFLOW);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_WORKFLOW_EXECUTOR);
+    // New extension registries (v1.1.0)
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_PLANNING);
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_HITL);
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_COMM);
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_MEMORY);
   }
 &nbsp;
 <span class="fstat-no" title="function not covered" >  private async resolvePack(entry: ExtensionPackManifestEntry): Promise&lt;ExtensionPack | null&gt; {</span>
@@ -817,7 +865,7 @@ export class ExtensionManager {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-04T18:55:38.586Z
+                at 2025-12-05T07:58:30.283Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -24,7 +24,8 @@
  */
 
 import type { ILogger } from '../../logging/ILogger';
-import type { AIModelProviderManager, ChatMessage } from '../llm/providers/AIModelProviderManager';
+import type { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
+import type { ChatMessage } from '../llm/providers/IProvider';
 import type { ITool, ToolExecutionResult } from '../tools/ITool';
 import { uuidv4 } from '../../utils/uuid';
 import type {
@@ -45,7 +46,7 @@ import type {
   LoopProgress,
   ApprovalRequest,
   PlanValidationResult,
-  ValidationIssue,
+  PlanValidationIssue,
   ReflectionResult,
   PlanAdjustment,
   ExecutionState,
@@ -327,7 +328,7 @@ export class PlanningEngine implements IPlanningEngine {
    * @returns Validation result with any issues found
    */
   public async validatePlan(plan: ExecutionPlan): Promise<PlanValidationResult> {
-    const issues: ValidationIssue[] = [];
+    const issues: PlanValidationIssue[] = [];
     const suggestions: string[] = [];
 
     // Check for empty plan
@@ -933,9 +934,14 @@ export class PlanningEngine implements IPlanningEngine {
 
   private async callLLM(prompt: string, options?: { jsonMode?: boolean }): Promise<string> {
     const messages: ChatMessage[] = [{ role: 'user', content: prompt }];
+    const providerId = this.defaultProviderId ?? 'openai';
 
-    const response = await this.llmProvider.getChatCompletion(
-      this.defaultProviderId ?? 'openai',
+    const provider = this.llmProvider.getProvider(providerId);
+    if (!provider) {
+      throw new Error(`Provider "${providerId}" not found`);
+    }
+
+    const response = await provider.generateCompletion(
       this.defaultModelId,
       messages,
       {
@@ -945,7 +951,8 @@ export class PlanningEngine implements IPlanningEngine {
       },
     );
 
-    return response.content ?? '';
+    const content = response.choices?.[0]?.message?.content;
+    return typeof content === 'string' ? content : '';
   }
 }
 

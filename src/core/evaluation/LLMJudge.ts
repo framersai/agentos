@@ -7,7 +7,8 @@
  * @version 1.0.0
  */
 
-import type { AIModelProviderManager, ChatMessage } from '../llm/providers/AIModelProviderManager';
+import type { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
+import type { ChatMessage } from '../llm/providers/IProvider';
 import type { ScorerFunction } from './IEvaluator';
 
 /**
@@ -174,8 +175,13 @@ Please evaluate the ACTUAL OUTPUT against the criteria and provide your judgment
     ];
 
     try {
-      const completion = await this.llmProvider.getCompletion(
-        this.providerId || 'openai',
+      const providerId = this.providerId || 'openai';
+      const provider = this.llmProvider.getProvider(providerId);
+      if (!provider) {
+        throw new Error(`Provider "${providerId}" not found`);
+      }
+
+      const completion = await provider.generateCompletion(
         this.modelId,
         messages,
         {
@@ -184,7 +190,8 @@ Please evaluate the ACTUAL OUTPUT against the criteria and provide your judgment
         },
       );
 
-      const result = JSON.parse(completion.content || '{}');
+      const content = completion.choices?.[0]?.message?.content;
+      const result = JSON.parse(typeof content === 'string' ? content : '{}');
 
       return {
         score: result.overallScore ?? 0.5,

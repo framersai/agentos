@@ -8,43 +8,60 @@ import { PlanningEngine, type PlanningEngineConfig } from '../../../src/core/pla
 import type { AIModelProviderManager } from '../../../src/core/llm/providers/AIModelProviderManager';
 import type { ExecutionPlan, PlanStep } from '../../../src/core/planning/IPlanningEngine';
 
+// Mock generate completion function
+let mockGenerateCompletion: ReturnType<typeof vi.fn>;
+
 // Mock LLM Provider Manager
 const createMockLLMProvider = (): AIModelProviderManager => {
+  const mockResponse = {
+    choices: [{
+      message: {
+        content: JSON.stringify({
+          reasoning: 'Test reasoning',
+          steps: [
+            {
+              action: { type: 'reasoning', content: 'Step 1: Analyze the problem' },
+              reasoning: 'First we need to understand the problem',
+              expectedOutcome: 'Clear understanding of requirements',
+              dependsOn: [],
+              estimatedTokens: 500,
+              confidence: 0.85,
+            },
+            {
+              action: { type: 'tool_call', toolId: 'search', toolArgs: { query: 'test' } },
+              reasoning: 'Need to gather information',
+              expectedOutcome: 'Relevant information gathered',
+              dependsOn: ['step-0'],
+              estimatedTokens: 300,
+              confidence: 0.8,
+            },
+            {
+              action: { type: 'synthesis', content: 'Combine results' },
+              reasoning: 'Need to synthesize findings',
+              expectedOutcome: 'Coherent summary',
+              dependsOn: ['step-1'],
+              estimatedTokens: 400,
+              confidence: 0.9,
+            },
+          ],
+          overallConfidence: 0.85,
+        }),
+      },
+    }],
+  };
+  mockGenerateCompletion = vi.fn().mockResolvedValue(mockResponse);
+  const mockProvider = {
+    generateCompletion: mockGenerateCompletion,
+  };
   return {
-    getChatCompletion: vi.fn().mockResolvedValue({
-      content: JSON.stringify({
-        reasoning: 'Test reasoning',
-        steps: [
-          {
-            action: { type: 'reasoning', content: 'Step 1: Analyze the problem' },
-            reasoning: 'First we need to understand the problem',
-            expectedOutcome: 'Clear understanding of requirements',
-            dependsOn: [],
-            estimatedTokens: 500,
-            confidence: 0.85,
-          },
-          {
-            action: { type: 'tool_call', toolId: 'search', toolArgs: { query: 'test' } },
-            reasoning: 'Need to gather information',
-            expectedOutcome: 'Relevant information gathered',
-            dependsOn: ['step-0'],
-            estimatedTokens: 300,
-            confidence: 0.8,
-          },
-          {
-            action: { type: 'synthesis', content: 'Combine results' },
-            reasoning: 'Need to synthesize findings',
-            expectedOutcome: 'Coherent summary',
-            dependsOn: ['step-1'],
-            estimatedTokens: 400,
-            confidence: 0.9,
-          },
-        ],
-        overallConfidence: 0.85,
-      }),
-    }),
+    getProvider: vi.fn().mockReturnValue(mockProvider),
   } as unknown as AIModelProviderManager;
 };
+
+// Helper to create mock response with custom content
+const createMockResponse = (content: string) => ({
+  choices: [{ message: { content } }],
+});
 
 describe('PlanningEngine', () => {
   let engine: PlanningEngine;
@@ -161,17 +178,15 @@ describe('PlanningEngine', () => {
 
   describe('decomposeTask', () => {
     beforeEach(() => {
-      (mockLLMProvider.getChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        content: JSON.stringify({
-          reasoning: 'Breaking down the task',
-          subtasks: [
-            { description: 'Subtask 1', complexity: 3, dependsOn: [], parallelizable: true },
-            { description: 'Subtask 2', complexity: 5, dependsOn: [], parallelizable: false },
-            { description: 'Subtask 3', complexity: 2, dependsOn: ['subtask-0'], parallelizable: true },
-          ],
-          executionOrder: ['subtask-0', 'subtask-1', 'subtask-2'],
-        }),
-      });
+      mockGenerateCompletion.mockResolvedValueOnce(createMockResponse(JSON.stringify({
+        reasoning: 'Breaking down the task',
+        subtasks: [
+          { description: 'Subtask 1', complexity: 3, dependsOn: [], parallelizable: true },
+          { description: 'Subtask 2', complexity: 5, dependsOn: [], parallelizable: false },
+          { description: 'Subtask 3', complexity: 2, dependsOn: ['subtask-0'], parallelizable: true },
+        ],
+        executionOrder: ['subtask-0', 'subtask-1', 'subtask-2'],
+      })));
     });
 
     it('should decompose a complex task into subtasks', async () => {
@@ -215,9 +230,7 @@ describe('PlanningEngine', () => {
         status: 'ready',
       };
 
-      (mockLLMProvider.getChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        content: 'Reasoning output',
-      });
+      mockGenerateCompletion.mockResolvedValueOnce(createMockResponse('Reasoning output'));
 
       const result = await engine.executeStep(step);
 
@@ -250,23 +263,19 @@ describe('PlanningEngine', () => {
   describe('refinePlan', () => {
     beforeEach(() => {
       // Mock reflection response
-      (mockLLMProvider.getChatCompletion as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce({
-          content: JSON.stringify({
-            reasoning: 'Test',
-            steps: [{ action: { type: 'reasoning' }, reasoning: 'r', expectedOutcome: 'e', confidence: 0.8 }],
-            overallConfidence: 0.8,
-          }),
-        })
-        .mockResolvedValueOnce({
-          content: JSON.stringify({
-            insights: ['Step failed due to API error'],
-            issues: ['Retry needed'],
-            adjustments: [{ type: 'modify_step', targetStepId: 'step-0', reason: 'Update retry logic' }],
-            confidenceAdjustment: -0.1,
-            recommendation: 'adjust',
-          }),
-        });
+      mockGenerateCompletion
+        .mockResolvedValueOnce(createMockResponse(JSON.stringify({
+          reasoning: 'Test',
+          steps: [{ action: { type: 'reasoning' }, reasoning: 'r', expectedOutcome: 'e', confidence: 0.8 }],
+          overallConfidence: 0.8,
+        })))
+        .mockResolvedValueOnce(createMockResponse(JSON.stringify({
+          insights: ['Step failed due to API error'],
+          issues: ['Retry needed'],
+          adjustments: [{ type: 'modify_step', targetStepId: 'step-0', reason: 'Update retry logic' }],
+          confidenceAdjustment: -0.1,
+          recommendation: 'adjust',
+        })));
     });
 
     it('should refine plan based on feedback', async () => {

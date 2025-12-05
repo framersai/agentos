@@ -41,7 +41,7 @@ export type {
   LoopProgress,
   ApprovalRequest,
   PlanValidationResult,
-  ValidationIssue,
+  PlanValidationIssue,
   ReflectionResult,
   PlanAdjustment,
   ExecutionState,

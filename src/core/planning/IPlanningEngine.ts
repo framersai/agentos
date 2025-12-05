@@ -527,15 +527,15 @@ export interface PlanValidationResult {
   /** Whether plan is valid */
   isValid: boolean;
   /** Validation issues found */
-  issues: ValidationIssue[];
+  issues: PlanValidationIssue[];
   /** Suggestions for improvement */
   suggestions: string[];
 }
 
 /**
- * A single validation issue.
+ * A single plan validation issue.
  */
-export interface ValidationIssue {
+export interface PlanValidationIssue {
   /** Issue severity */
   severity: 'warning' | 'error';
   /** Step ID if issue is step-specific */
