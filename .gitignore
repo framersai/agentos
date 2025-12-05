@@ -5,3 +5,6 @@ tsconfig.build.tsbuildinfo
 **/*.d.ts.map
 
 node_modules/
+
+# Prisma generated client
+src/generated/
