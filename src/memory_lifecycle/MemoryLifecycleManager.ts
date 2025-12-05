@@ -286,7 +286,7 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
     for (const dsId of dsIdsToScan) {
       try {
         const { store, collectionName, dimension } = await this.vectorStoreManager.getStoreForDataSource(dsId);
-        let combinedFilter: MetadataFilter = { ...(policy.appliesTo.metadataFilter || {}) };
+        const combinedFilter: MetadataFilter = { ...(policy.appliesTo.metadataFilter || {}) };
 
         // Apply category filter (assuming 'category' metadata field)
         const targetCategories = enforcementFilter?.categories || policy.appliesTo.categories;

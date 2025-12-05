@@ -522,7 +522,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
     // 4. Query Vector Stores
     diagnostics.retrievalTimeMs = 0; // Sum up individual query times
-    let allRetrievedChunks: RagRetrievedChunk[] = [];
+    const allRetrievedChunks: RagRetrievedChunk[] = [];
     diagnostics.dataSourceHits = {};
 
     for (const dsId of effectiveDataSourceIds) {
@@ -727,7 +727,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
     const ingestionOptionsWithOverwrite = {
       ...options,
-      duplicateHandling: 'overwrite' as 'overwrite', // Force overwrite for update
+      duplicateHandling: 'overwrite' as const, // Force overwrite for update
     };
 
     return this.ingestDocuments(documents, ingestionOptionsWithOverwrite);

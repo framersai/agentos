@@ -710,7 +710,7 @@ The response should be comprehensive and directly address the user's original re
     internalActionDescription: string,
     isDirectDelegation: boolean = false
   ): Promise<AgentOutput> {
-    let finalOutput = { ...subAgentOutput }; // Start with a copy
+    const finalOutput = { ...subAgentOutput }; // Start with a copy
 
     // Add metadata about the source of this output
     finalOutput.metadata = {

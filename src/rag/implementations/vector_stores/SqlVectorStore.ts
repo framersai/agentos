@@ -554,7 +554,7 @@ export class SqlVectorStore implements IVectorStore {
     }
 
     // Build query with optional metadata filter
-    let query = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
+    const query = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
     const params: any[] = [collectionName];
 
     // Note: For more advanced filtering, we'd parse the MetadataFilter and generate SQL

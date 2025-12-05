@@ -202,7 +202,7 @@ export class WorkflowRuntime {
    * @param definitionId - Identifier of the workflow definition.
    * @param taskId - Identifier of the task ready for execution.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   private async enqueueTaskExecution(workflowId: string, definitionId: string, taskId: string): Promise<void> {
     const definition = this.getWorkflowDefinition(definitionId);
     if (!definition) {

@@ -286,7 +286,7 @@ export class ConversationContext {
   public clearHistory(options: { keepMetadata?: boolean; keepSystemMessages?: boolean; messagesToKeep?: ConversationMessage[] } = {}): void {
     const { keepMetadata = true, keepSystemMessages = true, messagesToKeep = [] } = options;
     
-    let preservedMessages: ConversationMessage[] = [...messagesToKeep];
+    const preservedMessages: ConversationMessage[] = [...messagesToKeep];
     if (keepSystemMessages) {
       this.messages.forEach(m => {
         if (m.role === MessageRole.SYSTEM && !preservedMessages.find(pm => pm.id === m.id)) {

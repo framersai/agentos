@@ -504,9 +504,9 @@ export class GMI implements IGMI {
 
     // Initialize aggregates for the final GMIOutput
     let aggregatedResponseText = "";
-    let aggregatedToolCalls: ToolCallRequest[] = [];
-    let aggregatedUiCommands: UICommand[] = [];
-    let aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
+    const aggregatedToolCalls: ToolCallRequest[] = [];
+    const aggregatedUiCommands: UICommand[] = [];
+    const aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
     let lastErrorForOutput: GMIOutput['error'] = undefined;
 
     try {
@@ -795,9 +795,9 @@ export class GMI implements IGMI {
     
     // Collect all chunks from processTurnStream to form a single GMIOutput
     let aggregatedResponseText = "";
-    let aggregatedToolCalls: ToolCallRequest[] = [];
-    let aggregatedUiCommands: UICommand[] = [];
-    let aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
+    const aggregatedToolCalls: ToolCallRequest[] = [];
+    const aggregatedUiCommands: UICommand[] = [];
+    const aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
     let lastErrorForOutput: GMIOutput['error'] = undefined;
 
     const stream = this.processTurnStream(systemTurnInput); // This now returns GMIOutput

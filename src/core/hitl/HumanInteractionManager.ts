@@ -8,7 +8,6 @@
  */
 
 import type { ILogger } from '../../logging/ILogger';
-import { uuidv4 } from '../../utils/uuid';
 import type {
   IHumanInteractionManager,
   PendingAction,
