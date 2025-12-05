@@ -333,9 +333,9 @@ export class Tracer implements ITracer {
 
   inject<T extends Record<string, string>>(carrier: T): T {
     if (this.currentContext) {
-      carrier['traceparent'] = `00-${this.currentContext.traceId}-${this.currentContext.spanId}-0${this.currentContext.traceFlags}`;
+      (carrier as Record<string, string>)['traceparent'] = `00-${this.currentContext.traceId}-${this.currentContext.spanId}-0${this.currentContext.traceFlags}`;
       if (this.currentContext.baggage) {
-        carrier['baggage'] = Object.entries(this.currentContext.baggage)
+        (carrier as Record<string, string>)['baggage'] = Object.entries(this.currentContext.baggage)
           .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
           .join(',');
       }

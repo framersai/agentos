@@ -302,11 +302,10 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
         timeoutId,
       });
 
-      // Send the request message
+      // Send the request message - extract only the fields needed
+      const { messageId: _mid, toAgentId: _tid, sentAt: _sat, ...requestData } = request;
       this.sendToAgent(targetAgentId, {
-        ...request,
-        messageId,
-        requiresAck: true,
+        ...requestData,
       }).catch((error) => {
         clearTimeout(timeoutId);
         this.pendingRequests.delete(messageId);
@@ -333,13 +332,15 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
       task: context.taskId,
     });
 
-    // Send handoff request
+    // Send handoff request - convert context to Record for type compatibility
     const response = await this.requestResponse(toAgentId, {
       type: 'task_delegation',
       fromAgentId,
-      content: context,
+      content: context as unknown as Record<string, unknown>,
       priority: 'high',
       timeoutMs: 60000,
+      messageId: `handoff-${Date.now()}`,
+      sentAt: new Date(),
     });
 
     if (response.status === 'success') {

@@ -92,10 +92,10 @@ export class KnowledgeGraph implements IKnowledgeGraph {
     // Generate embedding if not provided and embedding manager available
     if (!entity.embedding && this.embeddingManager) {
       try {
-        const embedResult = await this.embeddingManager.generateEmbedding(
-          `${entity.label} ${JSON.stringify(entity.properties)}`
-        );
-        entity.embedding = embedResult.embedding;
+        const embedResult = await this.embeddingManager.generateEmbeddings({
+          texts: `${entity.label} ${JSON.stringify(entity.properties)}`,
+        });
+        entity.embedding = embedResult.embeddings[0];
       } catch (error) {
         this.logger?.warn?.('Failed to generate entity embedding', { entityId: entity.id, error });
       }
@@ -294,10 +294,10 @@ export class KnowledgeGraph implements IKnowledgeGraph {
     // Generate embedding if not provided
     if (!memory.embedding && this.embeddingManager) {
       try {
-        const embedResult = await this.embeddingManager.generateEmbedding(
-          `${memory.summary} ${memory.description || ''}`
-        );
-        memory.embedding = embedResult.embedding;
+        const embedResult = await this.embeddingManager.generateEmbeddings({
+          texts: `${memory.summary} ${memory.description || ''}`,
+        });
+        memory.embedding = embedResult.embeddings[0];
       } catch (error) {
         this.logger?.warn?.('Failed to generate memory embedding', { memoryId: memory.id, error });
       }
@@ -369,12 +369,13 @@ export class KnowledgeGraph implements IKnowledgeGraph {
         .slice(0, topK);
     }
 
-    const queryEmbedding = await this.embeddingManager.generateEmbedding(query);
+    const queryEmbedResult = await this.embeddingManager.generateEmbeddings({ texts: query });
+    const queryEmbedding = queryEmbedResult.embeddings[0];
     const memoriesWithScores: Array<{ memory: EpisodicMemory; score: number }> = [];
 
     for (const memory of this.memories.values()) {
       if (memory.embedding) {
-        const score = this.cosineSimilarity(queryEmbedding.embedding, memory.embedding);
+        const score = this.cosineSimilarity(queryEmbedding, memory.embedding);
         memoriesWithScores.push({ memory, score });
       }
     }
@@ -532,7 +533,8 @@ export class KnowledgeGraph implements IKnowledgeGraph {
       return this.textBasedSearch(options);
     }
 
-    const queryEmbedding = await this.embeddingManager.generateEmbedding(options.query);
+    const queryEmbedResult = await this.embeddingManager.generateEmbeddings({ texts: options.query });
+    const queryEmbedding = queryEmbedResult.embeddings[0];
     const results: SemanticSearchResult[] = [];
 
     // Search entities
@@ -542,7 +544,7 @@ export class KnowledgeGraph implements IKnowledgeGraph {
         if (options.entityTypes?.length && !options.entityTypes.includes(entity.type)) continue;
         if (!entity.embedding) continue;
 
-        const similarity = this.cosineSimilarity(queryEmbedding.embedding, entity.embedding);
+        const similarity = this.cosineSimilarity(queryEmbedding, entity.embedding);
         if (similarity >= minSimilarity) {
           results.push({ item: entity, type: 'entity', similarity });
         }
@@ -554,7 +556,7 @@ export class KnowledgeGraph implements IKnowledgeGraph {
       for (const memory of this.memories.values()) {
         if (!memory.embedding) continue;
 
-        const similarity = this.cosineSimilarity(queryEmbedding.embedding, memory.embedding);
+        const similarity = this.cosineSimilarity(queryEmbedding, memory.embedding);
         if (similarity >= minSimilarity) {
           results.push({ item: memory, type: 'memory', similarity });
         }

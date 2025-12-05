@@ -29,6 +29,22 @@ import {
   StructuredOutputError,
 } from './IStructuredOutputManager';
 
+/** Standard JSON Schema type values */
+type JSONSchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null';
+
+/** Token usage type for structured output results */
+type TokenUsage = { promptTokens: number; completionTokens: number; totalTokens: number };
+
+/** Convert ModelUsage to TokenUsage */
+function convertUsage(usage?: { promptTokens?: number; completionTokens?: number; totalTokens: number }): TokenUsage | undefined {
+  if (!usage) return undefined;
+  return {
+    promptTokens: usage.promptTokens ?? 0,
+    completionTokens: usage.completionTokens ?? 0,
+    totalTokens: usage.totalTokens ?? 0,
+  };
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -310,21 +326,22 @@ export class StructuredOutputManager implements IStructuredOutputManager {
     }
 
     // Make LLM call
-    const completion = await this.llmProviderManager.getCompletion(
-      providerId,
-      modelId,
-      messages,
-      llmOptions,
-    );
+    const provider = this.llmProviderManager.getProvider(providerId);
+    if (!provider) {
+      throw new StructuredOutputError(`Provider "${providerId}" not found`, [], '', 0, strategy);
+    }
+    const completion = await provider.generateCompletion(modelId, messages, llmOptions);
+    const firstChoice = completion.choices?.[0];
 
     // Extract output based on strategy
     let rawOutput: string;
     let reasoning: string | undefined;
 
-    if (strategy === 'function_calling' && completion.toolCalls?.length) {
-      rawOutput = completion.toolCalls[0].function.arguments;
+    if (strategy === 'function_calling' && firstChoice?.message?.tool_calls?.length) {
+      rawOutput = firstChoice.message.tool_calls[0].function.arguments;
     } else {
-      rawOutput = completion.content || '';
+      const content = firstChoice?.message?.content;
+      rawOutput = typeof content === 'string' ? content : '';
 
       // Extract reasoning if present
       if (options.includeReasoning) {
@@ -357,7 +374,7 @@ export class StructuredOutputManager implements IStructuredOutputManager {
         reasoning,
         modelId,
         providerId,
-        tokenUsage: completion.usage,
+        tokenUsage: convertUsage(completion.usage),
       };
     }
 
@@ -381,7 +398,7 @@ export class StructuredOutputManager implements IStructuredOutputManager {
         reasoning,
         modelId,
         providerId,
-        tokenUsage: completion.usage,
+        tokenUsage: convertUsage(completion.usage),
       };
     }
 
@@ -400,7 +417,7 @@ export class StructuredOutputManager implements IStructuredOutputManager {
       reasoning,
       modelId,
       providerId,
-      tokenUsage: completion.usage,
+      tokenUsage: convertUsage(completion.usage),
     };
   }
 
@@ -484,22 +501,22 @@ export class StructuredOutputManager implements IStructuredOutputManager {
     }));
 
     // Make LLM call
-    const completion = await this.llmProviderManager.getCompletion(
-      providerId,
-      modelId,
-      messages,
-      {
-        tools,
-        toolChoice: options.toolChoice || 'auto',
-        temperature: 0.1,
-      },
-    );
+    const provider = this.llmProviderManager.getProvider(providerId);
+    if (!provider) {
+      throw new StructuredOutputError(`Provider "${providerId}" not found`, [], '', 0, 'function_calling');
+    }
+    const completion = await provider.generateCompletion(modelId, messages, {
+      tools,
+      toolChoice: options.toolChoice || 'auto',
+      temperature: 0.1,
+    });
+    const toolCalls = completion.choices?.[0]?.message?.tool_calls;
 
     // Process tool calls
     const calls: FunctionCallResult[] = [];
 
-    if (completion.toolCalls) {
-      for (const toolCall of completion.toolCalls) {
+    if (toolCalls) {
+      for (const toolCall of toolCalls) {
         const fn = options.functions.find(f => f.name === toolCall.function.name);
         const args = this.parseJSON(toolCall.function.arguments) as Record<string, unknown> || {};
 
@@ -532,11 +549,12 @@ export class StructuredOutputManager implements IStructuredOutputManager {
       }
     }
 
+    const textContent = completion.choices?.[0]?.message?.content;
     return {
       success: calls.every(c => c.argumentsValid && !c.executionError),
       calls,
-      textContent: completion.content || undefined,
-      tokenUsage: completion.usage,
+      textContent: typeof textContent === 'string' ? textContent : undefined,
+      tokenUsage: convertUsage(completion.usage),
       latencyMs: Date.now() - startTime,
       modelId,
       providerId,
