@@ -125,7 +125,7 @@ When the repo split is complete, contributions should go directly to [https://gi
 <p align="center">
   <a href="https://agentos.sh"><img src="assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="48" /></a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://frame.dev" target="_blank" rel="noopener"><img src="assets/logos/frame-logo-green-transparent-4x.png" alt="Frame.dev" height="48" /></a>
+  <a href="https://frame.dev" target="_blank" rel="noopener"><img src="assets/logos/frame-logo.svg" alt="Frame.dev" height="48" /></a>
   <br />
-  <sub>AgentOS product by <a href="https://frame.dev">Frame.dev</a></sub>
+  <sub>Built by <a href="https://frame.dev">Frame.dev</a> • <a href="https://github.com/framersai">@framersai</a></sub>
 </p>

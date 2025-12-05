@@ -44,6 +44,7 @@
     "@semantic-release/github": "^9.2.4",
     "@semantic-release/npm": "^12.0.1",
     "@semantic-release/release-notes-generator": "^14.0.1",
+    "conventional-changelog-conventionalcommits": "^7.0.2",
     "@types/natural": "^5.1.5",
     "@types/node": "^20.12.12",
     "eslint": "^9.11.0",

@@ -1,11 +1,72 @@
 {
+  "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
   "out": "docs/api",
   "tsconfig": "tsconfig.build.json",
   "skipErrorChecking": true,
-  "cleanOutputDir": false,
-  "name": "@framers/agentos API",
+  "cleanOutputDir": true,
+  "name": "@framers/agentos",
+  "readme": "README.md",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "categorizeByGroup": true,
+  "categoryOrder": ["*", "Other"],
+  "groupOrder": ["Classes", "Interfaces", "Functions", "Types", "Variables", "Enums"],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
   "navigationLinks": {
-    "Project README": "../README.md"
+    "Website": "https://agentos.sh",
+    "GitHub": "https://github.com/framersai/agentos",
+    "npm": "https://www.npmjs.com/package/@framers/agentos"
+  },
+  "sidebarLinks": {
+    "Architecture": "./ARCHITECTURE.md",
+    "Changelog": "./CHANGELOG.md",
+    "Planning Engine": "./PLANNING_ENGINE.md",
+    "Human-in-the-Loop": "./HUMAN_IN_THE_LOOP.md",
+    "Agent Communication": "./AGENT_COMMUNICATION.md",
+    "Evaluation Framework": "./EVALUATION_FRAMEWORK.md"
+  },
+  "plugin": [],
+  "theme": "default",
+  "lightHighlightTheme": "github-light",
+  "darkHighlightTheme": "github-dark",
+  "sort": ["source-order", "alphabetical"],
+  "kindSortOrder": [
+    "Reference",
+    "Project",
+    "Module",
+    "Namespace",
+    "Enum",
+    "EnumMember",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Constructor",
+    "Property",
+    "Variable",
+    "Function",
+    "Accessor",
+    "Method",
+    "Parameter",
+    "TypeParameter",
+    "TypeLiteral",
+    "CallSignature",
+    "ConstructorSignature",
+    "IndexSignature",
+    "GetSignature",
+    "SetSignature"
+  ],
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "@alpha": false,
+    "@beta": false
   }
 }
