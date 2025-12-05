@@ -48,6 +48,8 @@ export * from './core/planning';
 export * from './core/hitl';
 // Structured Outputs (JSON Schema, Function Calling)
 export * from './core/structured';
+// Code Execution Sandbox
+export * from './core/sandbox';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
