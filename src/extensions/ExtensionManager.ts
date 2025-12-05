@@ -17,13 +17,24 @@ import type {
   ExtensionPackContext,
   ExtensionPackManifestEntry,
 } from './manifest';
-import { EXTENSION_KIND_WORKFLOW_EXECUTOR } from './types';
+import {
+  EXTENSION_KIND_WORKFLOW_EXECUTOR,
+  EXTENSION_KIND_PLANNING_STRATEGY,
+  EXTENSION_KIND_HITL_HANDLER,
+  EXTENSION_KIND_COMM_CHANNEL,
+  EXTENSION_KIND_MEMORY_PROVIDER,
+} from './types';
 
 const DEFAULT_EXTENSIONS_KIND_TOOL = 'tool';
 const DEFAULT_EXTENSIONS_KIND_GUARDRAIL = 'guardrail';
 const DEFAULT_EXTENSIONS_KIND_RESPONSE = 'response-processor';
 const DEFAULT_EXTENSIONS_KIND_WORKFLOW = 'workflow';
 const DEFAULT_EXTENSIONS_KIND_WORKFLOW_EXECUTOR = EXTENSION_KIND_WORKFLOW_EXECUTOR;
+// New extension kinds (v1.1.0)
+const DEFAULT_EXTENSIONS_KIND_PLANNING = EXTENSION_KIND_PLANNING_STRATEGY;
+const DEFAULT_EXTENSIONS_KIND_HITL = EXTENSION_KIND_HITL_HANDLER;
+const DEFAULT_EXTENSIONS_KIND_COMM = EXTENSION_KIND_COMM_CHANNEL;
+const DEFAULT_EXTENSIONS_KIND_MEMORY = EXTENSION_KIND_MEMORY_PROVIDER;
 
 interface ExtensionManagerOptions {
   manifest?: ExtensionManifest;
@@ -161,6 +172,11 @@ export class ExtensionManager {
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_RESPONSE);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_WORKFLOW);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_WORKFLOW_EXECUTOR);
+    // New extension registries (v1.1.0)
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_PLANNING);
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_HITL);
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_COMM);
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_MEMORY);
   }
 
   private async resolvePack(entry: ExtensionPackManifestEntry): Promise<ExtensionPack | null> {

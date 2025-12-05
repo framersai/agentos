@@ -136,6 +136,12 @@ export const EXTENSION_KIND_WORKFLOW = 'workflow';
 export const EXTENSION_KIND_WORKFLOW_EXECUTOR = 'workflow-executor';
 export const EXTENSION_KIND_PERSONA = 'persona';
 
+// Planning & Communication extension kinds (v1.1.0)
+export const EXTENSION_KIND_PLANNING_STRATEGY = 'planning-strategy';
+export const EXTENSION_KIND_HITL_HANDLER = 'hitl-handler';
+export const EXTENSION_KIND_COMM_CHANNEL = 'communication-channel';
+export const EXTENSION_KIND_MEMORY_PROVIDER = 'memory-provider';
+
 export type ToolDescriptor = ExtensionDescriptor<ITool> & { kind: typeof EXTENSION_KIND_TOOL };
 export type GuardrailDescriptor = ExtensionDescriptor<IGuardrailService> & { kind: typeof EXTENSION_KIND_GUARDRAIL };
 export type WorkflowDescriptor = ExtensionDescriptor<WorkflowDescriptorPayload> & {
@@ -184,5 +190,121 @@ export interface PersonaRegistrySource {
  */
 export type PersonaDescriptor = ExtensionDescriptor<any> & {
   kind: typeof EXTENSION_KIND_PERSONA;
+};
+
+// ============================================================================
+// Planning, HITL, and Communication Extension Types (v1.1.0)
+// ============================================================================
+
+/**
+ * Planning strategy payload for custom planning algorithms.
+ * Strategies can override how plans are generated, refined, and executed.
+ */
+export interface PlanningStrategyPayload {
+  /** Unique strategy name (e.g., 'tree-of-thought', 'reflexion', 'custom-heuristic') */
+  name: string;
+  /** Strategy description */
+  description: string;
+  /** Priority order when multiple strategies match (higher = preferred) */
+  priority: number;
+  /** Optional condition function to determine if this strategy should be used */
+  shouldActivate?: (context: { goal: string; complexity: number; agentCapabilities: string[] }) => boolean;
+  /** The planning function to execute */
+  generatePlan: (goal: string, context: Record<string, unknown>) => Promise<unknown>;
+  /** Optional refinement function */
+  refinePlan?: (plan: unknown, feedback: unknown) => Promise<unknown>;
+}
+
+/**
+ * Planning strategy extension descriptor
+ */
+export type PlanningStrategyDescriptor = ExtensionDescriptor<PlanningStrategyPayload> & {
+  kind: typeof EXTENSION_KIND_PLANNING_STRATEGY;
+};
+
+/**
+ * HITL handler payload for custom human interaction handlers.
+ * Handlers receive human interaction requests and manage the approval/response flow.
+ */
+export interface HITLHandlerPayload {
+  /** Handler name (e.g., 'slack-approvals', 'email-notifications', 'ui-modal') */
+  name: string;
+  /** Handler description */
+  description: string;
+  /** Types of interactions this handler supports */
+  supportedTypes: ('approval' | 'clarification' | 'edit' | 'escalation' | 'checkpoint')[];
+  /** Handler function for sending notifications */
+  sendNotification: (notification: { type: string; requestId: string; summary: string; urgency: string }) => Promise<void>;
+  /** Optional function to check handler health/connectivity */
+  checkHealth?: () => Promise<{ healthy: boolean; message?: string }>;
+}
+
+/**
+ * HITL handler extension descriptor
+ */
+export type HITLHandlerDescriptor = ExtensionDescriptor<HITLHandlerPayload> & {
+  kind: typeof EXTENSION_KIND_HITL_HANDLER;
+};
+
+/**
+ * Communication channel payload for custom inter-agent messaging.
+ * Channels handle message transport between agents (e.g., Redis pub/sub, WebSocket).
+ */
+export interface CommunicationChannelPayload {
+  /** Channel name (e.g., 'redis-pubsub', 'websocket', 'in-memory') */
+  name: string;
+  /** Channel description */
+  description: string;
+  /** Whether this channel supports distributed communication */
+  distributed: boolean;
+  /** Initialize the channel */
+  initialize: (config: Record<string, unknown>) => Promise<void>;
+  /** Send a message */
+  send: (targetId: string, message: unknown) => Promise<void>;
+  /** Subscribe to messages */
+  subscribe: (targetId: string, handler: (message: unknown) => void) => () => void;
+  /** Broadcast to a group */
+  broadcast?: (groupId: string, message: unknown) => Promise<void>;
+  /** Cleanup/shutdown */
+  shutdown?: () => Promise<void>;
+}
+
+/**
+ * Communication channel extension descriptor
+ */
+export type CommunicationChannelDescriptor = ExtensionDescriptor<CommunicationChannelPayload> & {
+  kind: typeof EXTENSION_KIND_COMM_CHANNEL;
+};
+
+/**
+ * Memory provider payload for custom memory/storage backends.
+ * Providers handle storage and retrieval for agent memory (RAG, episodic, etc.).
+ */
+export interface MemoryProviderPayload {
+  /** Provider name (e.g., 'pinecone', 'weaviate', 'qdrant', 'sql') */
+  name: string;
+  /** Provider description */
+  description: string;
+  /** Memory types this provider supports */
+  supportedTypes: ('vector' | 'episodic' | 'semantic' | 'conversational')[];
+  /** Initialize the provider */
+  initialize: (config: Record<string, unknown>) => Promise<void>;
+  /** Store data */
+  store: (collectionId: string, data: unknown) => Promise<string>;
+  /** Query data */
+  query: (collectionId: string, query: unknown, options?: Record<string, unknown>) => Promise<unknown[]>;
+  /** Delete data */
+  delete?: (collectionId: string, ids: string[]) => Promise<void>;
+  /** Get provider statistics */
+  getStats?: () => Promise<{ collections: number; documents: number; size: number }>;
+  /** Cleanup/shutdown */
+  shutdown?: () => Promise<void>;
+}
+
+/**
+ * Memory provider extension descriptor
+ */
+export type MemoryProviderDescriptor = ExtensionDescriptor<MemoryProviderPayload> & {
+  kind: typeof EXTENSION_KIND_MEMORY_PROVIDER;
 };
 

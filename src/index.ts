@@ -44,6 +44,8 @@ export type {
 } from './core/agency/IAgentCommunicationBus';
 // Planning Engine
 export * from './core/planning';
+// Human-in-the-Loop (HITL)
+export * from './core/hitl';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
