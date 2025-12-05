@@ -234,7 +234,7 @@ export class ConversationManager {
     this.ensureInitialized();
     const effectiveConversationId = conversationId || `conv_${uuidv4()}`;
 
-    let context = this.activeConversations.get(effectiveConversationId);
+    const context = this.activeConversations.get(effectiveConversationId);
     if (context) {
       // Update context identifiers if provided and different. These setters should exist on ConversationContext or be handled via setMetadata.
       if (userId && context.getMetadata('userId') !== userId) context.setMetadata('userId', userId);

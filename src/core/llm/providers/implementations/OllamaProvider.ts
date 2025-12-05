@@ -490,7 +490,7 @@ export class OllamaProvider implements IProvider {
     // Ollama's /api/embeddings endpoint currently takes one prompt (text) at a time.
     // We need to batch these requests if multiple texts are provided.
     const embeddingsData: EmbeddingObject[] = [];
-    let totalPromptTokens = 0; // Ollama doesn't provide token counts for embeddings yet.
+    const totalPromptTokens = 0; // Ollama doesn't provide token counts for embeddings yet.
 
     for (let i = 0; i < texts.length; i++) {
       const text = texts[i];

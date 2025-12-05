@@ -545,7 +545,7 @@ export class OpenRouterProvider implements IProvider {
 
       const isFinal = !!choice.finish_reason;
       let finalUsage: ModelUsage | undefined;
-      let finalChoices: ModelCompletionChoice[] = [];
+      const finalChoices: ModelCompletionChoice[] = [];
 
       if (isFinal) {
         if (apiChunk.usage) {

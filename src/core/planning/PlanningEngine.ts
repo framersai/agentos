@@ -523,7 +523,7 @@ export class PlanningEngine implements IPlanningEngine {
 
     try {
       let output: unknown;
-      let tokensUsed = 0;
+      const tokensUsed = 0;
       const observations: string[] = [];
 
       switch (step.action.type) {

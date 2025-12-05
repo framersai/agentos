@@ -541,7 +541,7 @@ export class StatisticalUtilityAI implements IUtilityAI {
     const numSyllables = Math.max(1, words.reduce((sum, word) => sum + countSyllablesApprox(word), 0));
 
     let score = 0;
-    let interpretation = "Score interpretation unavailable for placeholder.";
+    const interpretation = "Score interpretation unavailable for placeholder.";
     let gradeLevel: string | undefined = "N/A";
 
     switch (options.formula) {
