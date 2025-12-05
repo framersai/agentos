@@ -3850,6 +3850,397 @@ const policy: MemoryLifecyclePolicy = {
 
 ---
 
+## 🆕 Planning Engine - Autonomous Goal Pursuit (v1.1.0)
+
+### Overview
+
+The **Planning Engine** enables GMIs and Agencies to perform complex, multi-step reasoning and autonomous goal pursuit. Unlike simpler agent frameworks that rely on single-turn LLM calls, the Planning Engine implements the **ReAct (Reasoning and Acting) pattern** for robust, self-correcting behavior.
+
+### Architecture
+
+```mermaid
+graph TD
+    A[GMI / Agency] --> B{IPlanningEngine}
+    B --> C[PlanningEngine]
+    C --> D[IPromptEngine]
+    C --> E[AIModelProviderManager]
+    C --> F[IToolOrchestrator]
+    C --> G[IRetrievalAugmentor]
+    
+    D -- Builds Prompts --> E
+    E -- LLM Calls --> H[LLM Providers]
+    F -- Executes Tools --> I[External Tools]
+    G -- Retrieves Context --> J[RAG System]
+    
+    C -- Manages Plans --> K[Plan Storage]
+    C -- Emits Progress --> A
+```
+
+### Core Concepts
+
+#### ExecutionPlan
+
+A structured representation of steps to achieve a goal:
+
+```typescript
+interface ExecutionPlan {
+  planId: string;
+  goal: string;
+  steps: PlanStep[];
+  dependencies: Map<string, string[]>;
+  estimatedTokens?: number;
+  confidenceScore?: number;
+  createdAt: string;
+  status: 'draft' | 'executing' | 'paused' | 'completed' | 'failed';
+}
+```
+
+#### PlanStep
+
+Atomic units of action within a plan:
+
+```typescript
+interface PlanStep {
+  stepId: string;
+  description: string;
+  actionType: 'tool_call' | 'gmi_action' | 'human_input' | 'sub_plan' | 'reflection' | 'communication';
+  toolId?: string;
+  toolArgs?: Record<string, unknown>;
+  dependsOn?: string[];
+  estimatedTokens?: number;
+  confidence?: number;
+}
+```
+
+### Key Capabilities
+
+1. **Plan Generation**: Convert high-level goals into multi-step execution plans
+2. **Task Decomposition**: Break complex tasks into manageable subtasks
+3. **Plan Refinement**: Adapt plans based on execution feedback
+4. **Autonomous Loops**: Continuous plan-execute-reflect cycles
+
+### Usage Example
+
+```typescript
+import { PlanningEngine } from '@framers/agentos/core/planning';
+
+const planningEngine = new PlanningEngine(
+  promptEngine,
+  llmProviderManager,
+  toolOrchestrator,
+  retrievalAugmentor
+);
+
+// Generate a plan
+const plan = await planningEngine.generatePlan(
+  'Research and summarize quantum computing advances',
+  planningContext
+);
+
+// Run autonomous loop
+const autonomousLoop = planningEngine.runAutonomousLoop(goal, context, {
+  maxCycles: 10,
+  humanInTheLoop: true,
+});
+
+for await (const chunk of autonomousLoop) {
+  console.log(`Progress: ${chunk.content}`);
+}
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agentos/planning/plans` | GET | List all plans |
+| `/api/agentos/planning/plans` | POST | Generate new plan |
+| `/api/agentos/planning/plans/:id` | GET | Get plan details |
+| `/api/agentos/planning/plans/:id/execute` | POST | Start execution |
+| `/api/agentos/planning/plans/:id/pause` | POST | Pause execution |
+| `/api/agentos/planning/plans/:id/refine` | POST | Refine with feedback |
+
+---
+
+## 🆕 Human-in-the-Loop (HITL) System (v1.1.0)
+
+### Overview
+
+The **Human-in-the-Loop Manager** enables structured collaboration between AI agents and human operators for:
+
+- High-stakes decisions requiring human judgment
+- Ambiguous situations needing clarification
+- Quality assurance and output review
+- Learning from human corrections
+
+### Architecture
+
+```mermaid
+graph TB
+    subgraph "Agent Layer"
+        GMI[GMI Instance]
+        AGENCY[Agency]
+    end
+    
+    subgraph "HITL Manager"
+        APPROVE[Approval Handler]
+        CLARIFY[Clarification Handler]
+        EDIT[Edit Review Handler]
+        ESC[Escalation Handler]
+        CP[Checkpoint Handler]
+        FB[Feedback Collector]
+    end
+    
+    subgraph "Notification Layer"
+        UI[Workbench UI]
+        SLACK[Slack Integration]
+        EMAIL[Email Notifications]
+        WEBHOOK[Webhooks]
+    end
+    
+    subgraph "Human Operators"
+        ADMIN[Admin]
+        REVIEWER[Reviewer]
+        SME[Subject Matter Expert]
+    end
+    
+    GMI --> APPROVE
+    GMI --> CLARIFY
+    GMI --> ESC
+    AGENCY --> APPROVE
+    AGENCY --> CP
+    
+    APPROVE --> UI
+    CLARIFY --> UI
+    ESC --> SLACK
+    CP --> EMAIL
+    
+    UI --> ADMIN
+    SLACK --> REVIEWER
+    EMAIL --> SME
+    
+    ADMIN --> FB
+    FB --> GMI
+```
+
+### Request Types
+
+#### 1. Approval Requests
+
+For high-risk actions requiring explicit human approval:
+
+```typescript
+interface PendingAction {
+  actionId: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  category: 'data_modification' | 'external_api' | 'financial' | 'communication';
+  context: Record<string, unknown>;
+  reversible: boolean;
+  potentialConsequences?: string[];
+}
+```
+
+#### 2. Clarification Requests
+
+For resolving ambiguous situations:
+
+```typescript
+interface ClarificationRequest {
+  requestId: string;
+  question: string;
+  clarificationType: 'ambiguity' | 'missing_info' | 'preference' | 'verification';
+  options?: ClarificationOption[];
+  allowFreeform: boolean;
+}
+```
+
+#### 3. Escalations
+
+For transferring control to humans:
+
+```typescript
+interface EscalationContext {
+  reason: 'low_confidence' | 'repeated_failures' | 'safety_concern' | 'ethical_concern';
+  explanation: string;
+  attemptedActions: string[];
+  recommendations?: string[];
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+}
+```
+
+### Usage Example
+
+```typescript
+import { HumanInteractionManager } from '@framers/agentos/core/hitl';
+
+const hitlManager = new HumanInteractionManager({
+  defaultTimeoutMs: 300000, // 5 minutes
+  notificationHandler: async (notification) => {
+    await slackClient.sendMessage(notification);
+  },
+});
+
+// Request approval before critical action
+const decision = await hitlManager.requestApproval({
+  actionId: 'delete-records',
+  description: 'Delete 5000 inactive user accounts',
+  severity: 'critical',
+  agentId: 'cleanup-agent',
+  context: { accountCount: 5000 },
+  reversible: false,
+});
+
+if (decision.approved) {
+  await executeAction();
+} else {
+  console.log(`Rejected: ${decision.rejectionReason}`);
+}
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agentos/hitl/approvals` | GET/POST | List/create approvals |
+| `/api/agentos/hitl/approvals/:id/approve` | POST | Approve action |
+| `/api/agentos/hitl/approvals/:id/reject` | POST | Reject action |
+| `/api/agentos/hitl/clarifications` | GET/POST | Clarification requests |
+| `/api/agentos/hitl/escalations` | GET/POST | Escalation handling |
+| `/api/agentos/hitl/feedback` | GET/POST | Feedback collection |
+| `/api/agentos/hitl/stats` | GET | HITL statistics |
+
+---
+
+## 🆕 Agent Communication Bus (v1.1.0)
+
+### Overview
+
+The **Agent Communication Bus** facilitates structured, asynchronous communication between GMIs within an Agency and across external systems. It provides standardized messaging patterns for multi-agent collaboration.
+
+### Architecture
+
+```mermaid
+graph LR
+    subgraph "Agency 1"
+        A1[Analyst GMI]
+        R1[Researcher GMI]
+        C1[Coordinator GMI]
+    end
+    
+    subgraph "Communication Bus"
+        SEND[Direct Send]
+        BROADCAST[Broadcast]
+        TOPIC[Topic Pub/Sub]
+        REQ[Request/Response]
+        HANDOFF[Handoff]
+    end
+    
+    subgraph "Agency 2"
+        A2[Specialist GMI]
+        R2[Reporter GMI]
+    end
+    
+    A1 --> SEND --> R1
+    C1 --> BROADCAST --> A1
+    C1 --> BROADCAST --> R1
+    R1 --> HANDOFF --> A2
+    A2 --> TOPIC --> R2
+```
+
+### Message Types
+
+```typescript
+type AgentMessageType =
+  | 'task_delegation'    // Assigning work to another agent
+  | 'status_update'      // Progress reports
+  | 'question'           // Queries between agents
+  | 'answer'             // Responses to queries
+  | 'finding'            // Sharing discoveries
+  | 'decision'           // Recording decisions
+  | 'critique'           // Providing feedback
+  | 'handoff'            // Transferring responsibility
+  | 'alert'              // Urgent notifications
+  | 'proposal'           // Suggesting approaches
+  | 'agreement'          // Confirming consensus
+  | 'disagreement';      // Expressing concerns
+```
+
+### Communication Patterns
+
+#### 1. Direct Messaging
+
+Send targeted messages to specific agents:
+
+```typescript
+await commBus.send({
+  messageId: uuid(),
+  senderGmiId: 'researcher-gmi-1',
+  targetGmiIdOrRole: 'analyst-gmi-2',
+  type: 'finding',
+  content: 'Discovered significant trend in dataset',
+  priority: 'high',
+});
+```
+
+#### 2. Broadcasting
+
+Send to all agents in an agency:
+
+```typescript
+await commBus.broadcast('agency-alpha', {
+  type: 'status_update',
+  content: 'Phase 1 complete, starting Phase 2',
+});
+```
+
+#### 3. Request/Response
+
+Query agents and await responses:
+
+```typescript
+const response = await commBus.requestResponse({
+  targetGmiIdOrRole: 'expert-agent',
+  type: 'question',
+  content: 'What is your analysis of the data?',
+  timeoutMs: 30000,
+});
+```
+
+#### 4. Structured Handoffs
+
+Transfer context between agents:
+
+```typescript
+const result = await commBus.handoff('current-agent', 'new-agent', {
+  taskSummary: 'Data analysis task',
+  currentState: { progress: 0.5 },
+  keyFindings: ['Finding 1', 'Finding 2'],
+  remainingWork: ['Analysis', 'Report'],
+  memoryReferences: ['rag-doc-1', 'rag-doc-2'],
+});
+```
+
+### Extension Points
+
+The communication system supports custom channels via extensions:
+
+```typescript
+// Register a distributed channel (e.g., Redis)
+extensionManager.registerExtension({
+  kind: 'communication-channel',
+  id: 'redis-pubsub',
+  payload: {
+    name: 'redis-pubsub',
+    distributed: true,
+    initialize: async (config) => { /* ... */ },
+    send: async (targetId, message) => { /* ... */ },
+    subscribe: (targetId, handler) => { /* ... */ },
+  },
+});
+```
+
+---
+
 ## Conclusion
 
 AgentOS represents a paradigm shift in how we build and deploy AI agents. By treating agents as adaptive, learning entities with persistent personalities and sophisticated cognitive architectures, we enable a new class of AI applications that truly understand and adapt to their users.
@@ -3864,6 +4255,10 @@ Key innovations include:
 - **Emergent Intelligence**: Multi-agent coordination that produces insights beyond individual capabilities
 - **Constitutional AI**: Principled safety through contextual understanding rather than rigid rules
 - **Performance Optimization**: Intelligent caching, batching, and resource management
+- **Planning Engine**: Autonomous multi-step reasoning with ReAct pattern for complex goal pursuit *(v1.1.0)*
+- **Human-in-the-Loop**: Structured collaboration between AI agents and human operators *(v1.1.0)*
+- **Agent Communication**: Asynchronous messaging, broadcasting, and handoffs between agents *(v1.1.0)*
+- **RAG Memory Integration**: Vector-based knowledge retrieval with cross-platform persistence *(v1.0.0)*
 
 Whether building specialized expert systems, collaborative multi-agent platforms, or adaptive personal assistants, AgentOS provides the foundation for creating AI agents that are not just tools, but genuine cognitive partners in solving complex problems and enhancing human capabilities.
 
