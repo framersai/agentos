@@ -52,6 +52,8 @@ export * from './core/structured';
 export * from './core/sandbox';
 // Observability & Tracing
 export * from './core/observability';
+// Evaluation Framework
+export * from './core/evaluation';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
