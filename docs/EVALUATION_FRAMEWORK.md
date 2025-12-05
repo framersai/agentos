@@ -235,9 +235,62 @@ const report = await evaluator.generateReport(run.runId, 'html');
 fs.writeFileSync('report.html', report);
 ```
 
-## Future Enhancements
+## LLM-as-Judge
 
-- **LLM-as-Judge**: Use GPT-4 for semantic grading
+For semantic evaluation using GPT-4 or other models:
+
+```typescript
+import { LLMJudge, CRITERIA_PRESETS } from '@framers/agentos';
+
+const judge = new LLMJudge({
+  llmProvider: aiModelProviderManager,
+  modelId: 'gpt-4-turbo',
+  temperature: 0.1,
+});
+
+// Single judgment
+const result = await judge.judge(
+  'What is photosynthesis?',
+  'Photosynthesis is how plants make food from sunlight.',
+  'Photosynthesis is the process by which plants convert light energy into chemical energy.'
+);
+
+console.log(`Score: ${result.score}`);
+console.log(`Reasoning: ${result.reasoning}`);
+console.log(`Feedback: ${result.feedback.join(', ')}`);
+
+// Use preset criteria
+const codeResult = await judge.judge(
+  'Write a function to reverse a string',
+  actualCode,
+  expectedCode,
+  CRITERIA_PRESETS.codeGeneration
+);
+
+// Compare two outputs
+const comparison = await judge.compare(
+  'Summarize this article',
+  summaryA,
+  summaryB,
+  CRITERIA_PRESETS.summarization
+);
+console.log(`Winner: ${comparison.winner}`);
+
+// Register as custom scorer
+evaluator.registerScorer('llm_judge', judge.createScorer());
+```
+
+### Available Criteria Presets
+
+| Preset | Use Case |
+|--------|----------|
+| `codeGeneration` | Evaluate generated code |
+| `summarization` | Evaluate summaries |
+| `questionAnswering` | Evaluate Q&A responses |
+| `creativeWriting` | Evaluate creative content |
+| `safety` | Evaluate for harmlessness |
+
+## Future Enhancements
 - **Human Evaluation UI**: Collect human judgments in agentos-workbench
 - **Persistent Storage**: Store runs in SQL database
 - **Regression Detection**: Automatic alerting on performance drops
