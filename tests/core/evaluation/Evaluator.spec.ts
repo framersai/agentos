@@ -229,6 +229,8 @@ describe('Evaluator', () => {
       ];
 
       await evaluator.runEvaluation('Run 1', testCases, async () => 'out');
+      // Small delay to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 10));
       await evaluator.runEvaluation('Run 2', testCases, async () => 'out');
 
       const runs = await evaluator.listRuns();
