@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { AgentOS, AgentOSConfig } from '../../../api/AgentOS';
 import { AgentOSInput } from '../../../api/types/AgentOSInput';
-import { StreamingManager } from '../../../core/streaming/StreamingManager';
 
 // Minimal mock / fixture helpers
 class MockStreamingManager extends StreamingManager {
@@ -15,12 +13,10 @@ class MockStreamingManager extends StreamingManager {
 // If full constructors are needed, expand accordingly (keeping test lightweight).
 
 describe('AgentOS Language Negotiation Integration', () => {
-  let agentOs: AgentOS;
-  let streamingManager: MockStreamingManager;
+  let agentOs: { processRequest: (input: AgentOSInput) => AsyncGenerator<any> };
 
   beforeAll(async () => {
     // Use lightweight mock AgentOS to focus on language metadata expectations.
-    streamingManager = new MockStreamingManager();
     const mockChunk = {
       metadata: { language: { sourceLanguage: 'es', targetLanguage: 'en', negotiationPath: ['es', 'en'] } },
       isFinal: true,
@@ -61,32 +57,3 @@ describe('AgentOS Language Negotiation Integration', () => {
 });
 
 // Helper to assemble a pared-down AgentOSConfig.
-function buildMinimalConfig(streamingManager: MockStreamingManager): AgentOSConfig {
-  // Many properties in AgentOSConfig are required; we stub with simple objects / minimal values.
-  // For missing complex subsystems (GMIManager, etc.), provide very small mocks if accessed.
-  const dummy: any = {};
-  return {
-    gmiManagerConfig: { /* minimal */ } as any,
-    orchestratorConfig: {},
-    promptEngineConfig: { /* minimal */ } as any,
-    toolOrchestratorConfig: { /* minimal */ } as any,
-    toolPermissionManagerConfig: { /* minimal */ } as any,
-    conversationManagerConfig: { /* minimal */ } as any,
-    streamingManagerConfig: { /* minimal */ } as any,
-    modelProviderManagerConfig: { /* minimal */ } as any,
-    defaultPersonaId: 'default-persona',
-    prisma: dummy,
-    authService: dummy,
-    subscriptionService: dummy,
-    languageConfig: {
-      defaultLanguage: 'en',
-      supportedLanguages: ['en', 'es', 'fr'],
-      fallbackLanguages: ['en'],
-      autoDetect: true,
-      preferSourceLanguageResponses: true,
-      enablePivotNormalization: false,
-      enableCaching: true,
-      enableCodeAwareTranslation: true,
-    }
-  } as AgentOSConfig;
-}
