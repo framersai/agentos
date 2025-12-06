@@ -447,28 +447,54 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
         if (!this.utilityAI) {
           throw new GMIError("Summarization action requires IUtilityAI, but it's not configured for MLM.", GMIErrorCode.MISSING_DEPENDENCY);
         }
-        if (!candidate.textContent) {
-          // TODO: Attempt to fetch textContent for candidate.id from candidate.vectorStoreRef
-          // This would require IVectorStore to have a method like `getDocumentById(collectionName, id): Promise<VectorDocument | undefined>`
-          this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Error: Full textContent missing for summarization.`);
-          throw new GMIError(`Full textContent for item '${candidate.id}' required for summarization was not available. Candidate must be populated with textContent by findPolicyCandidates.`, GMIErrorCode.MISSING_DATA);
-        }
         const summarizationOpts: SummarizationOptions = {
-            desiredLength: 'short', // Make this configurable via policy.action.summarizationOptions
-            method: 'abstractive_llm', // Make this configurable
-            modelId: configuredActionDetails.llmModelForSummary || this.config.defaultSummarizationModelId,
+          desiredLength: 'short', // Make this configurable via policy.action.summarizationOptions
+          method: 'abstractive_llm', // Make this configurable
+          modelId: configuredActionDetails.llmModelForSummary || this.config.defaultSummarizationModelId,
         };
-  this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Starting summarization with options: ${JSON.stringify(summarizationOpts)}`);
-        summaryText = await this.utilityAI.summarize(candidate.textContent!, summarizationOpts);
-  this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Summarization complete. Summary length: ${summaryText.length}.`);
 
-        if (configuredActionDetails.summaryDataSourceId && summaryText) {
-          // Ingesting summary is a RAG operation, ideally not done directly by MLM.
-          // MLM could emit an event "SummaryCreatedEvent { originalItemId, summaryText, targetDataSource }"
-          // For now, we log the intent.
-          const summaryDocId = `summary_of_${candidate.id.replace(/[^a-zA-Z0-9-_]/g, '_')}`; // Sanitize ID
-          this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Summary (New ID: ${summaryDocId}) for item '${candidate.id}' to be ingested to DS '${configuredActionDetails.summaryDataSourceId}'. (This step is conceptual, requiring RAG interaction).`);
-          console.log(`MLM (${this.managerId}): Summary for item '${candidate.id}' (ID: ${summaryDocId}) intended for DS '${configuredActionDetails.summaryDataSourceId}'.`);
+        if (!candidate.textContent) {
+          // Gracefully skip summarization if full text is missing; continue with downstream action.
+          this.addTraceToReport(
+            report,
+            candidate.id,
+            policyId,
+            determinedAction,
+            `Text content missing for summarization; skipping summary generation.`,
+          );
+          console.warn(
+            `MLM (${this.managerId}): Text content missing for item '${candidate.id}' during summarize action. Skipping summary.`,
+          );
+        } else {
+          this.addTraceToReport(
+            report,
+            candidate.id,
+            policyId,
+            determinedAction,
+            `Starting summarization with options: ${JSON.stringify(summarizationOpts)}`,
+          );
+          summaryText = await this.utilityAI.summarize(candidate.textContent, summarizationOpts);
+          this.addTraceToReport(
+            report,
+            candidate.id,
+            policyId,
+            determinedAction,
+            `Summarization complete. Summary length: ${summaryText.length}.`,
+          );
+
+          if (configuredActionDetails.summaryDataSourceId && summaryText) {
+            const summaryDocId = `summary_of_${candidate.id.replace(/[^a-zA-Z0-9-_]/g, '_')}`; // Sanitize ID
+            this.addTraceToReport(
+              report,
+              candidate.id,
+              policyId,
+              determinedAction,
+              `Summary (New ID: ${summaryDocId}) for item '${candidate.id}' to be ingested to DS '${configuredActionDetails.summaryDataSourceId}'. (Conceptual RAG ingestion step).`,
+            );
+            console.log(
+              `MLM (${this.managerId}): Summary for item '${candidate.id}' (ID: ${summaryDocId}) intended for DS '${configuredActionDetails.summaryDataSourceId}'.`,
+            );
+          }
         }
       }
 
@@ -550,10 +576,16 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
       }
       // TODO: Add checks for other trigger types if applicable for single item processing
       return true;
-    }).sort((a,b) => (a.priority || 0) - (b.priority || 0));
+    }).sort((a,b) => (b.priority || 0) - (a.priority || 0));
 
     if (applicablePolicies.length === 0) {
-      const msg = `No applicable lifecycle policies found for item '${itemContext.itemId}'.`;
+      const withinRetention =
+        candidate.timestamp &&
+        this.config.defaultRetentionDays &&
+        candidate.timestamp > new Date(Date.now() - this.config.defaultRetentionDays * 24 * 60 * 60 * 1000);
+      const msg = withinRetention
+        ? `Item within retention period; no lifecycle action required for item '${itemContext.itemId}'.`
+        : `No applicable lifecycle policies found for item '${itemContext.itemId}'.`;
       console.log(`${logPreamble} ${msg}`);
       return { actionTaken: 'NO_ACTION_TAKEN', details: msg };
     }

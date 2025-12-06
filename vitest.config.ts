@@ -16,9 +16,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['tests/**/*.spec.ts', 'src/**/*.spec.ts'],
+    include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
+    exclude: ['dist', 'coverage', 'node_modules'],
     coverage: {
-      reporter: ['text', 'html', 'lcov'],
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
       reportsDirectory: 'coverage',
       all: true,
       exclude: [
@@ -36,8 +37,6 @@ export default defineConfig({
         'src/core/llm/providers/AIModelProviderManager.ts',
         'src/core/llm/providers/errors/**',
         'src/core/agents/**',
-        'src/core/tools/**',
-        'src/core/conversation/**',
         'src/core/usage/**',
         'src/core/workflows/storage/**',
         'src/core/workflows/runtime/**',

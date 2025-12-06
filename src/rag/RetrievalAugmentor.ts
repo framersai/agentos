@@ -214,7 +214,10 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
                 throw new GMIError(`Pre-computed embedding for doc '${doc.id}' has dimension ${doc.embedding.length}, but model '${doc.embeddingModelId}' expects ${modelDim}.`, GMIErrorCode.VALIDATION_ERROR);
             }
         } else if (chunkContents.length > 0) {
-            const embeddingModelId = options?.embeddingModelId || this.config.defaultEmbeddingModelId;
+            const embeddingModelId =
+              options?.embeddingModelId ||
+              this.config.defaultEmbeddingModelId ||
+              this.config.defaultQueryEmbeddingModelId;
             if (!embeddingModelId) {
                 throw new GMIError(`No embeddingModelId specified for document '${doc.id}' and no default configured for ingestion.`, GMIErrorCode.CONFIG_ERROR, { documentId: doc.id });
             }

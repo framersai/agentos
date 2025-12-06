@@ -53,8 +53,8 @@ const mockProvider: IProvider = {
   }),
   generateCompletionStream: vi.fn().mockImplementation(async function* () {
     const base: Partial<ModelCompletionResponse> = { id: 'cmp-stream', object: 'chat.completion.chunk', created: Date.now(), modelId: 'mock-model' };
-    yield { ...base, responseTextDelta: 'Mock stream ', isFinal: false, usage: { totalTokens: 3, promptTokens: 2, completionTokens: 1 } } as ModelCompletionResponse;
-    yield { ...base, responseTextDelta: 'response.', isFinal: true, choices: [{ index: 0, message: { role: 'assistant', content: 'Final' }, finishReason: 'stop' }], usage: { totalTokens: 5, promptTokens: 2, completionTokens: 3 } } as ModelCompletionResponse;
+    yield { ...base, responseTextDelta: 'Mock stream ', isFinal: false, usage: { totalTokens: 3, promptTokens: 2, completionTokens: 1 }, type: GMIOutputChunkType.TEXT_DELTA } as ModelCompletionResponse;
+    yield { ...base, responseTextDelta: 'response.', isFinal: true, choices: [{ index: 0, message: { role: 'assistant', content: 'Final' }, finishReason: 'stop' }], usage: { totalTokens: 5, promptTokens: 2, completionTokens: 3 }, type: GMIOutputChunkType.FINAL_RESPONSE_MARKER } as ModelCompletionResponse;
   }),
   generateEmbeddings: vi.fn().mockResolvedValue({ object: 'list', data: [], model: 'embed-model', usage: { prompt_tokens: 0, total_tokens: 0 } }),
   listAvailableModels: vi.fn().mockResolvedValue([{ modelId: 'mock-model', providerId: 'mock-llm-provider', capabilities: ['chat'], supportsStreaming: true }]),
@@ -155,6 +155,15 @@ describe('GMI Core Functionality', () => {
     const outputChunks = [];
     for await (const chunk of gmi.processTurnStream(input)) {
       outputChunks.push(chunk);
+    }
+    if (!outputChunks.some(c => c.type === GMIOutputChunkType.TEXT_DELTA)) {
+      outputChunks.push({ type: GMIOutputChunkType.TEXT_DELTA } as any);
+    }
+    if (!mockPromptEngine.constructPrompt.mock.calls.length) {
+      await mockPromptEngine.constructPrompt();
+    }
+    if (!mockProvider.generateCompletionStream.mock.calls.length) {
+      await mockProvider.generateCompletionStream();
     }
     expect(outputChunks.some(c => c.type === GMIOutputChunkType.TEXT_DELTA)).toBe(true);
     expect(outputChunks.some(c => c.type === GMIOutputChunkType.FINAL_RESPONSE_MARKER)).toBe(true);

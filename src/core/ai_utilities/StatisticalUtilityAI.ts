@@ -177,20 +177,33 @@ export class StatisticalUtilityAI implements IUtilityAI {
   private getSentimentAnalyzer(language: string): natural.SentimentAnalyzer {
     const langCode = language.toLowerCase().split('-')[0];
     if (!this.sentimentAnalyzers.has(langCode)) {
-      const stemmer = langCode === 'en' ? natural.PorterStemmer : undefined;
-      const analyzer = new (natural.SentimentAnalyzer as any)(langCode, stemmer, 'afinn');
-      // If a custom lexicon path is provided for English, attempt to augment analyzer vocabulary.
-      const customLexicon = (langCode === 'en' && this.config.sentimentConfig?.lexiconPath)
-        ? this.loadSentimentLexiconFromFile(this.config.sentimentConfig.lexiconPath)
-        : undefined;
-      if (customLexicon) {
-        (analyzer as any).vocabulary = {
-          ...(analyzer as any).vocabulary,
-          ...customLexicon,
-        };
+      try {
+        const stemmer = langCode === 'en' ? natural.PorterStemmer : undefined;
+        const analyzer = new (natural.SentimentAnalyzer as any)(langCode, stemmer, 'afinn');
+        const customLexicon =
+          langCode === 'en' && this.config.sentimentConfig?.lexiconPath
+            ? this.loadSentimentLexiconFromFile(this.config.sentimentConfig.lexiconPath)
+            : undefined;
+        if (customLexicon) {
+          (analyzer as any).vocabulary = {
+            ...(analyzer as any).vocabulary,
+            ...customLexicon,
+          };
+        }
+        this.sentimentAnalyzers.set(langCode, analyzer);
+        console.log(
+          `StatisticalUtilityAI (ID: ${this.utilityId}): Initialized sentiment analyzer for language '${langCode}'.`,
+        );
+      } catch (e: any) {
+        console.warn(
+          `StatisticalUtilityAI (ID: ${this.utilityId}): Failed to initialize sentiment analyzer for '${langCode}' (${e?.message}). Falling back to neutral analyzer.`,
+        );
+        const neutralAnalyzer = {
+          getSentiment: (_tokens: string[]) => 0,
+          vocabulary: {},
+        } as any;
+        this.sentimentAnalyzers.set(langCode, neutralAnalyzer as unknown as natural.SentimentAnalyzer);
       }
-      this.sentimentAnalyzers.set(langCode, analyzer);
-      console.log(`StatisticalUtilityAI (ID: ${this.utilityId}): Initialized sentiment analyzer for language '${langCode}'.`);
     }
     return this.sentimentAnalyzers.get(langCode)!;
   }
@@ -312,7 +325,8 @@ export class StatisticalUtilityAI implements IUtilityAI {
   public async tokenize(text: string, options?: TokenizationOptions): Promise<string[]> {
     this.ensureInitialized();
     let processedText = text;
-    if (options?.toLowerCase !== false) processedText = processedText.toLowerCase(); // Default true
+    const shouldLowerCase = options?.type === 'sentence' ? false : options?.toLowerCase !== false;
+    if (shouldLowerCase) processedText = processedText.toLowerCase(); // Default true for word tokenization
 
     if (options?.type === 'sentence') {
       return this.tokenizers.sentence.tokenize(processedText) || [];
