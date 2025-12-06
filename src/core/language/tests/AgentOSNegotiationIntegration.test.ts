@@ -1,23 +1,15 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { AgentOSInput } from '../../../api/types/AgentOSInput';
 
-// Minimal mock / fixture helpers
-class MockStreamingManager extends StreamingManager {
-  public capturedChunks: any[] = [];
-  async pushToClient(_clientId: string, chunk: any) {
-    this.capturedChunks.push(chunk);
-  }
-}
-
-// For this integration we stub required services with minimal viable mocks.
-// If full constructors are needed, expand accordingly (keeping test lightweight).
+type LanguageMeta = { sourceLanguage: string; targetLanguage: string; negotiationPath: string[] };
+type MockChunk = { metadata: { language: LanguageMeta }; isFinal: boolean };
 
 describe('AgentOS Language Negotiation Integration', () => {
-  let agentOs: { processRequest: (input: AgentOSInput) => AsyncGenerator<any> };
+  let agentOs: { processRequest: (input: AgentOSInput) => AsyncGenerator<MockChunk> };
 
   beforeAll(async () => {
     // Use lightweight mock AgentOS to focus on language metadata expectations.
-    const mockChunk = {
+    const mockChunk: MockChunk = {
       metadata: { language: { sourceLanguage: 'es', targetLanguage: 'en', negotiationPath: ['es', 'en'] } },
       isFinal: true,
     };
@@ -33,13 +25,14 @@ describe('AgentOS Language Negotiation Integration', () => {
     const input: AgentOSInput = {
       userId: 'u1',
       sessionId: 's1',
+      // cspell:disable-next-line
       textInput: 'Hola, ¿cómo estás?',
       languageHint: undefined,
       detectedLanguages: [{ code: 'es', confidence: 0.92 }],
-    } as any;
+    } as AgentOSInput;
 
     // processRequest is an async iterable returning chunks
-    const chunks: any[] = [];
+    const chunks: MockChunk[] = [];
     for await (const chunk of agentOs.processRequest(input)) {
       chunks.push(chunk);
       if (chunk.isFinal) break; // stop early
