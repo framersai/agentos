@@ -18,7 +18,7 @@ describe('AgentOS Language Negotiation Integration', () => {
       async *processRequest(_input: AgentOSInput) {
         yield mockChunk;
       },
-    } as any;
+    };
   });
 
   it('attaches language negotiation metadata to emitted chunks', async () => {
@@ -41,6 +41,7 @@ describe('AgentOS Language Negotiation Integration', () => {
     // Find first chunk with metadata.language
     const withLang = chunks.find(c => c.metadata && c.metadata.language);
     expect(withLang).toBeTruthy();
+    if (!withLang) return;
     const langMeta = withLang.metadata.language;
     expect(langMeta.sourceLanguage).toBe('es');
     expect(langMeta.targetLanguage).toBeTruthy();
