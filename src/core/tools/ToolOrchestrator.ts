@@ -336,18 +336,30 @@ export class ToolOrchestrator implements IToolOrchestrator {
       console.log(`${logPrefix} Received tool call request. Arguments preview: ${argsPreview}`);
     }
 
+    if (this.config.globalDisabledTools?.includes(toolName)) {
+      const errorMsg = `Attempted to execute globally disabled tool '${toolName}'. Execution denied.`;
+      console.warn(`${logPrefix} ${errorMsg}`);
+      return {
+        toolCallId: llmProvidedCallId,
+        toolName,
+        output: null,
+        isError: true,
+        errorDetails: { message: errorMsg, code: GMIErrorCode.PERMISSION_DENIED, reason: "Tool is globally disabled." },
+      };
+    }
+
     const tool = await this.getTool(toolName);
-    if (!tool) {
-      const errorMsg = `Tool '${toolName}' not found in orchestrator's tool registry.`;
-      console.error(`${logPrefix} ${errorMsg}`);
-      return { toolCallId: llmProvidedCallId, toolName, output: null, isError: true, errorDetails: { message: errorMsg, code: GMIErrorCode.TOOL_NOT_FOUND } };
-    }
-    
-    if (this.config.globalDisabledTools?.includes(tool.name) || this.config.globalDisabledTools?.includes(tool.id)) {
-      const errorMsg = `Attempted to execute globally disabled tool '${toolName}' (ID: '${tool.id}'). Execution denied.`;
-      console.warn(`${logPrefix} ${errorMsg}`);
-      return { toolCallId: llmProvidedCallId, toolName, output: null, isError: true, errorDetails: { message: errorMsg, code: GMIErrorCode.PERMISSION_DENIED, reason: "Tool is globally disabled." } };
-    }
+    if (!tool) {
+      const errorMsg = `Tool '${toolName}' not found in orchestrator's tool registry.`;
+      console.error(`${logPrefix} ${errorMsg}`);
+      return { toolCallId: llmProvidedCallId, toolName, output: null, isError: true, errorDetails: { message: errorMsg, code: GMIErrorCode.TOOL_NOT_FOUND } };
+    }
+    
+    if (this.config.globalDisabledTools?.includes(tool.name) || this.config.globalDisabledTools?.includes(tool.id)) {
+      const errorMsg = `Attempted to execute globally disabled tool '${toolName}' (ID: '${tool.id}'). Execution denied.`;
+      console.warn(`${logPrefix} ${errorMsg}`);
+      return { toolCallId: llmProvidedCallId, toolName, output: null, isError: true, errorDetails: { message: errorMsg, code: GMIErrorCode.PERMISSION_DENIED, reason: "Tool is globally disabled." } };
+    }
 
     const permissionContext: PermissionCheckContext = { tool, personaId, personaCapabilities, userContext, gmiId };
     let permissionResult: PermissionCheckResult;

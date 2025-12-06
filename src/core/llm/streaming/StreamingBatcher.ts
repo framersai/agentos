@@ -163,28 +163,8 @@ export async function* batchStream(
 
   // Consumption loop with latency race.
   while (true) {
-    const nextPromise = stream.next();
-    const latencyPromise = new Promise<{ timeout: true }>(resolve => {
-      if (state.chunks.length === 0) return; // no timer until we have at least one chunk
-      setTimeout(() => resolve({ timeout: true }), opts.maxLatencyMs);
-    });
-
-    const result = state.chunks.length > 0 ? await Promise.race([nextPromise, latencyPromise]) : await nextPromise;
-
-    // Timer fired before next provider chunk.
-    if ((result as any)?.timeout) {
-      if (shouldFlush(state, opts)) {
-        const chunk = flush(false);
-        if (chunk) {
-          yield chunk;
-        }
-      }
-      continue; // attempt to read again
-    }
-
-    const providerResult = result as IteratorResult<ModelCompletionResponse, void>;
+    const providerResult = await stream.next();
     if (providerResult.done) {
-      // Flush any remaining non-final buffered chunks (should never be final without isFinal flag).
       if (state.chunks.length) {
         const residual = flush(false);
         if (residual) {
@@ -198,17 +178,39 @@ export async function* batchStream(
     if (!chunk) {
       continue;
     }
-    if (state.chunks.length === 0) state.firstChunkAt = Date.now();
-    accumulate(state, chunk);
-
-    // Final chunk triggers immediate flush (ensures terminal semantics).
-    if (chunk.isFinal) {
-      const finalChunk = flush(true);
-      if (finalChunk) {
-        yield finalChunk;
+    // If enough time elapsed since first buffered chunk, flush before adding new chunk
+    if (state.chunks.length > 0 && state.firstChunkAt && (Date.now() - state.firstChunkAt) >= opts.maxLatencyMs) {
+      const timedOut = flush(false);
+      if (timedOut) {
+        yield timedOut;
       }
+    }
+
+    if (chunk.isFinal) {
+      if (state.chunks.length === 0) {
+        // No buffered chunks; emit final chunk directly.
+        yield chunk;
+        return;
+      }
+      // Flush buffered chunks first, then emit final chunk.
+      let preFinal = flush(false);
+      if (!preFinal && state.textBuffer) {
+        preFinal = {
+          ...state.chunks[0],
+          id: `${state.chunks[0]?.id || 'chunk'}-batch-${batchSequence++}`,
+          responseTextDelta: state.textBuffer || undefined,
+          isFinal: false,
+        } as ModelCompletionResponse;
+      }
+      if (preFinal) {
+        yield preFinal;
+      }
+      yield chunk;
       return;
     }
+
+    if (state.chunks.length === 0) state.firstChunkAt = Date.now();
+    accumulate(state, chunk);
 
     // Non-final flush conditions.
     if (shouldFlush(state, opts)) {

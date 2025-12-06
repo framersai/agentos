@@ -30,7 +30,7 @@ import {
   ReadabilityResult,
 } from './IUtilityAI';
 import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
-import { ModelCompletionOptions } from '../llm/providers/IProvider';
+import { ModelCompletionOptions, ChatMessage } from '../llm/providers/IProvider';
 import { IPromptEngineUtilityAI, ModelTargetInfo } from '../llm/IPromptEngine';
 import { ConversationMessage as Message, MessageRole } from '../conversation/ConversationMessage';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
@@ -120,7 +120,9 @@ export class LLMUtilityAI implements IUtilityAI, IPromptEngineUtilityAI {
     this.ensureInitialized();
     const { modelId: effectiveModelId, providerId: effectiveProviderId } = this.getModelAndProvider(modelId, providerId);
     const provider = this.llmProviderManager.getProvider(effectiveProviderId);
-    if (!provider || typeof (provider as any).generate !== 'function') {
+    const canGenerate = provider && typeof (provider as any).generate === 'function';
+    const canGenerateCompletion = provider && typeof (provider as any).generateCompletion === 'function';
+    if (!canGenerate && !canGenerateCompletion) {
       throw new GMIError(
         `Provider '${effectiveProviderId}' is not initialized or does not support generation.`,
         GMIErrorCode.PROVIDER_NOT_FOUND
@@ -138,8 +140,32 @@ export class LLMUtilityAI implements IUtilityAI, IPromptEngineUtilityAI {
         // A more robust way is to use chat-like messages if IProvider.generate takes ModelChatMessage[]
     }
 
-    const fullPromptForGenerate = systemPrompt ? `${systemPrompt}\n\nUser: ${prompt}\n\nAssistant:` : prompt;
+    // Prefer generateCompletion (chat-style) if available; fall back to raw generate.
+    if (canGenerateCompletion) {
+      const messages: ChatMessage[] = [];
+      if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+      }
+      messages.push({ role: 'user', content: prompt });
 
+      const completionResult = await (provider as any).generateCompletion(
+        effectiveModelId,
+        messages,
+        finalOptions,
+      );
+      const choice = completionResult?.choices?.[0];
+      const content = choice?.message?.content ?? (choice as any)?.text;
+      if (!content) {
+        throw new GMIError(
+          `LLM call for ${taskHint} returned no content or failed.`,
+          GMIErrorCode.PROVIDER_ERROR,
+          { modelId: effectiveModelId },
+        );
+      }
+      return typeof content === 'string' ? content.trim() : String(content);
+    }
+
+    const fullPromptForGenerate = systemPrompt ? `${systemPrompt}\n\nUser: ${prompt}\n\nAssistant:` : prompt;
     const generator = provider as any;
     const result = await generator.generate(effectiveModelId, fullPromptForGenerate, finalOptions);
 
@@ -567,10 +593,14 @@ Text: "${text.substring(0, 1500)}..."`; // Send a substantial sample
       return { isHealthy: false, details: { message: `LLMUtilityAI (ID: ${this.utilityId}) not initialized.` } };
     }
     // Check if AIModelProviderManager is available and can provide a default provider
-    const providerManagerHealthy = this.llmProviderManager?.isInitialized ?? false;
-    const providerManagerDetails = providerManagerHealthy
-      ? { status: 'initialized' }
-      : { message: 'AIModelProviderManager not initialized.' };
+    const providerHealth = typeof this.llmProviderManager?.checkHealth === 'function'
+      ? await this.llmProviderManager.checkHealth()
+      : undefined;
+    const providerManagerHealthy =
+      providerHealth?.isOverallHealthy ??
+      (this.llmProviderManager as any)?.isInitialized ??
+      !!this.llmProviderManager;
+    const providerManagerDetails = providerHealth || (providerManagerHealthy ? { status: 'initialized' } : { message: 'AIModelProviderManager not initialized.' });
 
     return {
       isHealthy: providerManagerHealthy,

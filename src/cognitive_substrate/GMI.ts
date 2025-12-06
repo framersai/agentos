@@ -615,6 +615,7 @@ export class GMI implements IGMI {
         let currentIterationTextResponse = "";
         let currentIterationToolCallRequests: ToolCallRequest[] = [];
 
+        let textDeltaEmitted = false;
         for await (const chunk of provider.generateCompletionStream(modelTargetInfo.modelId, promptEngineResult.prompt as ChatMessage[], llmOptions)) {
           if (chunk.error) {
 
@@ -625,6 +626,7 @@ export class GMI implements IGMI {
             currentIterationTextResponse += chunk.responseTextDelta;
             aggregatedResponseText += chunk.responseTextDelta; // Aggregate for final output
             yield this.createOutputChunk(turnInput.interactionId, GMIOutputChunkType.TEXT_DELTA, chunk.responseTextDelta, { usage: chunk.usage });
+            textDeltaEmitted = true;
           }
 
           // Handle fully formed tool_calls if present in the chunk's message
@@ -654,6 +656,11 @@ export class GMI implements IGMI {
             }
           }
         } // End LLM stream
+
+        // Ensure at least one TEXT_DELTA is emitted for this turn if text was produced
+        if (!textDeltaEmitted && aggregatedResponseText) {
+          yield this.createOutputChunk(turnInput.interactionId, GMIOutputChunkType.TEXT_DELTA, aggregatedResponseText);
+        }
 
         this.conversationHistory.push({
           role: 'assistant',
@@ -861,13 +868,13 @@ export class GMI implements IGMI {
       const textToSummarize = `User: ${userInput}\n\nAssistant: ${gmiResponse}`;
       let documentContent = textToSummarize;
 
-      if (this.utilityAI && ingestionProcessingConfig?.summarization?.enabled) {
+      const summarizationEnabled = ingestionProcessingConfig?.summarization?.enabled !== false;
+      if (this.utilityAI && summarizationEnabled) {
         const summarizationOptions: SummarizationOptions = {
-          desiredLength: ingestionProcessingConfig.summarization.targetLength || 'short',
-          method: ingestionProcessingConfig.summarization.method || 'abstractive_llm',
-
-          modelId: ingestionProcessingConfig.summarization.modelId || this.activePersona.defaultModelId,
-          providerId: ingestionProcessingConfig.summarization.providerId || this.activePersona.defaultProviderId,
+          desiredLength: ingestionProcessingConfig?.summarization?.targetLength || 'short',
+          method: ingestionProcessingConfig?.summarization?.method || 'abstractive_llm',
+          modelId: ingestionProcessingConfig?.summarization?.modelId || this.activePersona.defaultModelId || this.config.defaultLlmModelId,
+          providerId: ingestionProcessingConfig?.summarization?.providerId || this.activePersona.defaultProviderId || this.config.defaultLlmProviderId,
         };
         this.addTraceEntry(ReasoningEntryType.RAG_INGESTION_DETAIL, "Summarizing turn for RAG ingestion.", { textLength: textToSummarize.length, options: summarizationOptions });
         documentContent = await this.utilityAI.summarize(textToSummarize, summarizationOptions);

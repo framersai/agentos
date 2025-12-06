@@ -64,7 +64,7 @@ const deletePolicy: MemoryLifecyclePolicy = {
   isEnabled: true,
   priority: 10,
   appliesTo: {
-    categories: ['conversation_history'] as any,
+    categories: ['conversation_history', 'general_log'] as any,
     dataSourceIds: ['test-ds-mlm'],
   },
   retentionDays: 30,
@@ -77,7 +77,7 @@ const summarizeDeletePolicy: MemoryLifecyclePolicy = {
     description: 'Summarizes and then deletes items.',
     isEnabled: true,
     priority: 5,
-    appliesTo: { dataSourceIds: ['test-ds-mlm'] },
+    appliesTo: { dataSourceIds: ['test-ds-mlm'], categories: ['summaries_only'] as any },
     action: {
         type: 'summarize_and_delete',
         llmModelForSummary: 'summary-model', // Conceptual
@@ -92,6 +92,7 @@ const baseMLMConfig: MemoryLifecycleManagerConfig = {
   policies: [deletePolicy, summarizeDeletePolicy],
   defaultCheckInterval: "PT1H",
   dryRunMode: false, // Set to false for action execution tests
+  defaultRetentionDays: 30,
   defaultGMINegotiationTimeoutMs: 1000,
   itemTimestampMetadataField: 'timestamp', // Assuming items have this metadata field
 };
