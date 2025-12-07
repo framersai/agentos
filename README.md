@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <a href="https://agentos.sh">
   <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
@@ -151,45 +151,91 @@ for await (const chunk of agent.processRequest({
 ### With Tools
 
 ```typescript
-import { AgentOS, ToolDescriptor } from '@framers/agentos';
-
-const searchTool: ToolDescriptor = {
-  name: 'web_search',
-  description: 'Search the web for information',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: { type: 'string', description: 'Search query' }
-    },
-    required: ['query']
-  },
-  execute: async ({ query }) => {
-    // Your search implementation
-    return { results: await performSearch(query) };
-  }
-};
+import { AgentOS } from '@framers/agentos';
 
 const agent = new AgentOS();
 await agent.initialize({
-  llmProvider: { /* ... */ },
-  tools: [searchTool]
+  llmProvider: {
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o'
+  },
+  tools: [{
+    name: 'get_weather',
+    description: 'Get current weather for a city',
+    parameters: {
+      type: 'object',
+      properties: {
+        city: { type: 'string' }
+      },
+      required: ['city']
+    },
+    execute: async ({ city }) => {
+      const res = await fetch(`https://api.weather.com/${city}`);
+      return res.json();
+    }
+  }]
+});
+
+// Tools are called automatically when the model decides to use them
+for await (const chunk of agent.processRequest({ message: 'Weather in Tokyo?' })) {
+  if (chunk.type === 'tool_call') console.log('Calling:', chunk.tool);
+  if (chunk.type === 'content') process.stdout.write(chunk.content);
+}
+```
+
+### Multiple Providers
+
+```typescript
+// OpenRouter for multi-model access
+await agent.initialize({
+  llmProvider: {
+    provider: 'openrouter',
+    apiKey: process.env.OPENROUTER_API_KEY,
+    model: 'anthropic/claude-3.5-sonnet'
+  }
+});
+
+// Local Ollama
+await agent.initialize({
+  llmProvider: {
+    provider: 'ollama',
+    baseUrl: 'http://localhost:11434',
+    model: 'llama3'
+  }
 });
 ```
 
-### With Memory
+### With RAG Memory
 
 ```typescript
-import { AgentOS, SqlStorageAdapter } from '@framers/agentos';
+import { AgentOS } from '@framers/agentos';
 
 const agent = new AgentOS();
 await agent.initialize({
-  llmProvider: { /* ... */ },
+  llmProvider: {
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o'
+  },
   memory: {
-    adapter: new SqlStorageAdapter({ dialect: 'sqlite', database: './agent.db' }),
-    enableRAG: true,
+    vectorStore: 'memory', // or 'sqlite', 'postgres'
     embeddingModel: 'text-embedding-3-small'
   }
 });
+
+// Ingest documents
+await agent.memory.ingest([
+  { content: 'AgentOS supports streaming responses...', metadata: { source: 'docs' } },
+  { content: 'GMIs maintain context across sessions...', metadata: { source: 'docs' } }
+]);
+
+// Queries automatically retrieve relevant context
+for await (const chunk of agent.processRequest({ 
+  message: 'How does streaming work?' 
+})) {
+  process.stdout.write(chunk.content);
+}
 ```
 
 ---
@@ -244,23 +290,34 @@ await agent.initialize({
 
 ## Examples
 
-### Multi-Agent Agency
+### Multi-Agent Collaboration
 
 ```typescript
-import { AgentOS, Agency } from '@framers/agentos';
+import { AgentOS, AgencyRegistry } from '@framers/agentos';
 
-const researcher = new AgentOS({ persona: 'researcher' });
-const writer = new AgentOS({ persona: 'writer' });
-const editor = new AgentOS({ persona: 'editor' });
+const llmConfig = {
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY,
+  model: 'gpt-4o'
+};
 
-const agency = new Agency({
-  agents: [researcher, writer, editor],
-  workflow: 'sequential'
-});
+// Create specialized agents
+const researcher = new AgentOS();
+await researcher.initialize({ llmProvider: llmConfig, persona: 'researcher' });
 
-const result = await agency.execute({
-  task: 'Write a blog post about AI agents',
-  steps: ['research', 'draft', 'edit']
+const writer = new AgentOS();
+await writer.initialize({ llmProvider: llmConfig, persona: 'writer' });
+
+// Register in agency for coordination
+const agency = new AgencyRegistry();
+agency.register('research', researcher);
+agency.register('writing', writer);
+
+// Agents communicate via message bus
+researcher.on('complete', async (findings) => {
+  await writer.processRequest({
+    message: `Write article based on: ${JSON.stringify(findings)}`
+  });
 });
 ```
 
@@ -270,15 +327,51 @@ const result = await agency.execute({
 import { AgentOS, PlanningEngine } from '@framers/agentos';
 
 const agent = new AgentOS();
-const planner = new PlanningEngine(agent);
-
-const plan = await planner.createPlan({
-  goal: 'Deploy a new feature to production',
-  constraints: ['Must pass all tests', 'Requires approval']
+await agent.initialize({
+  llmProvider: {
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o'
+  }
 });
 
+const planner = new PlanningEngine(agent);
+
+// Decompose complex goal into executable steps
+const plan = await planner.createPlan({
+  goal: 'Deploy feature to production',
+  constraints: ['All tests must pass', 'Requires code review']
+});
+
+console.log('Plan:', plan.steps.map(s => s.description));
+
+// Execute with progress tracking
 for await (const step of planner.execute(plan)) {
-  console.log(`Step ${step.index}: ${step.status}`);
+  console.log(`[${step.status}] ${step.description}`);
+  if (step.requiresApproval) {
+    await step.approve(); // Human-in-the-loop
+  }
+}
+```
+
+### Guardrails & Safety
+
+```typescript
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: '...', model: 'gpt-4o' },
+  guardrails: {
+    maxTokens: 4096,
+    blockedTopics: ['harmful_content', 'pii_exposure'],
+    requireApprovalFor: ['file_write', 'api_call', 'code_execution']
+  }
+});
+
+// Guardrails automatically intercept and validate
+for await (const chunk of agent.processRequest({ message: 'Delete all files' })) {
+  if (chunk.type === 'guardrail_blocked') {
+    console.log('Action blocked:', chunk.reason);
+  }
 }
 ```
 
