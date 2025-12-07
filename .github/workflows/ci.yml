@@ -31,11 +31,9 @@ jobs:
 
       - name: Lint
         run: pnpm run lint
-        continue-on-error: true
 
       - name: Test
         run: pnpm run test
 
       - name: Type check
         run: pnpm run typecheck
-        continue-on-error: true
