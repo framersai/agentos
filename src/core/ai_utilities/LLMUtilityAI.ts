@@ -593,8 +593,8 @@ Text: "${text.substring(0, 1500)}..."`; // Send a substantial sample
       return { isHealthy: false, details: { message: `LLMUtilityAI (ID: ${this.utilityId}) not initialized.` } };
     }
     // Check if AIModelProviderManager is available and can provide a default provider
-    const providerHealth = typeof this.llmProviderManager?.checkHealth === 'function'
-      ? await this.llmProviderManager.checkHealth()
+    const providerHealth = typeof (this.llmProviderManager as any)?.checkHealth === 'function'
+      ? await (this.llmProviderManager as any).checkHealth()
       : undefined;
     const providerManagerHealthy =
       providerHealth?.isOverallHealthy ??
