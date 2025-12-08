@@ -85,12 +85,6 @@ export interface AdaptiveVADConfig {
   // spectralConfig?: { zcrThreshold?: number; fluxThreshold?: number; };
 }
 
-// Declare emit and on methods more strongly for typed events
-export declare interface AdaptiveVAD {
-  on<U extends keyof VADEmitterEvents>(event: U, listener: VADEmitterEvents[U]): this;
-  emit<U extends keyof VADEmitterEvents>(event: U, ...args: Parameters<VADEmitterEvents[U]>): boolean;
-}
-
 /**
  * AdaptiveVAD - Detects speech in audio frames, adapting to environmental noise.
  */
@@ -116,6 +110,15 @@ export class AdaptiveVAD extends EventEmitter {
   private frameDurationMs: number; // This must be set, e.g., based on sampleRate and frameLength.
 
   private energyHistory: number[] = []; // For smoothing
+
+  // Strongly typed event helpers
+  public override on<U extends keyof VADEmitterEvents>(event: U, listener: VADEmitterEvents[U]): this {
+    return super.on(event, listener);
+  }
+
+  public override emit<U extends keyof VADEmitterEvents>(event: U, ...args: Parameters<VADEmitterEvents[U]>): boolean {
+    return super.emit(event, ...args);
+  }
 
   /**
    * Creates a new AdaptiveVAD instance.

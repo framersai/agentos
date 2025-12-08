@@ -76,11 +76,6 @@ export interface WebAudioProcessorEvents extends VADEmitterEvents {
   'raw_audio_frame': (frame: Float32Array, sampleRate: number) => void;
 }
 
-export declare interface AudioProcessor {
-  on<U extends keyof WebAudioProcessorEvents>(event: U, listener: WebAudioProcessorEvents[U]): this;
-  emit<U extends keyof WebAudioProcessorEvents>(event: U, ...args: Parameters<WebAudioProcessorEvents[U]>): boolean;
-}
-
 /**
  * AudioProcessor - Central client-side audio processing pipeline using Web Audio APIs.
  * Orchestrates EnvironmentalCalibrator (web-version) and AdaptiveVAD (logic-version).
@@ -104,6 +99,14 @@ export class AudioProcessor extends EventEmitter {
   private currentSpeechStartTimeMs: number | null = null;
 
   private internalState: AudioProcessorState;
+
+  public override on<U extends keyof WebAudioProcessorEvents>(event: U, listener: WebAudioProcessorEvents[U]): this {
+    return super.on(event, listener);
+  }
+
+  public override emit<U extends keyof WebAudioProcessorEvents>(event: U, ...args: Parameters<WebAudioProcessorEvents[U]>): boolean {
+    return super.emit(event, ...args);
+  }
 
   constructor(
     config: WebAudioProcessorConfig = {},

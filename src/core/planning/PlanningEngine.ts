@@ -545,11 +545,12 @@ export class PlanningEngine implements IPlanningEngine {
           }
           break;
 
-        case 'reasoning':
+        case 'reasoning': {
           const reasoningPrompt = `Reason through: ${step.action.content}\n\nPrevious context: ${JSON.stringify(context?.previousResults)}`;
           output = await this.callLLM(reasoningPrompt);
           observations.push('Reasoning step completed');
           break;
+        }
 
         case 'information_gathering':
           if (context?.retrieve && step.action.query) {
@@ -559,17 +560,19 @@ export class PlanningEngine implements IPlanningEngine {
           }
           break;
 
-        case 'synthesis':
+        case 'synthesis': {
           const synthesisPrompt = `Synthesize the following results into a coherent output:\n${JSON.stringify(context?.previousResults)}\n\nContext: ${step.action.content}`;
           output = await this.callLLM(synthesisPrompt);
           observations.push('Synthesis completed');
           break;
+        }
 
-        case 'validation':
+        case 'validation': {
           const validationPrompt = `Validate the following output against expected criteria:\nOutput: ${JSON.stringify(context?.previousResults)}\nCriteria: ${step.action.content}`;
           output = await this.callLLM(validationPrompt, { jsonMode: true });
           observations.push('Validation completed');
           break;
+        }
 
         default:
           output = { message: 'Step type not implemented', type: step.action.type };

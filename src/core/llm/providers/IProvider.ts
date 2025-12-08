@@ -49,33 +49,33 @@ export type MessageContentPart =
 
 
 /**
- * Generic type for message content, which can be simple text or
- * a structured array for multimodal inputs (e.g., text and image parts).
- */
+ * Generic type for message content, which can be simple text or
+ * a structured array for multimodal inputs (e.g., text and image parts).
+ */
 export type MessageContent = string | Array<MessageContentPart>;
 
 /**
- * Represents a single message in a conversation, conforming to a structure
- * widely adopted by chat-based LLM APIs.
- */
+ * Represents a single message in a conversation, conforming to a structure
+ * widely adopted by chat-based LLM APIs.
+ */
 export interface ChatMessage {
-  /** The role of the entity sending the message. */
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  /** The content of the message. Can be simple text or structured for multimodal inputs. */
-  content: MessageContent | null;
-  /** An optional name for the message author. */
-  name?: string;
-  /** Identifier for the tool call, present in 'tool' role messages that are responses to a tool call. */
-  tool_call_id?: string;
-  /** A list of tool calls requested by the assistant. */
-  tool_calls?: Array<{
-    id: string;
-    type: 'function';
-    function: {
-      name: string;
-      arguments: string;
-    };
-  }>;
+  /** The role of the entity sending the message. */
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  /** The content of the message. Can be simple text or structured for multimodal inputs. */
+  content: MessageContent | null;
+  /** An optional name for the message author. */
+  name?: string;
+  /** Identifier for the tool call, present in 'tool' role messages that are responses to a tool call. */
+  tool_call_id?: string;
+  /** A list of tool calls requested by the assistant. */
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
 }
 
 // ... (rest of IProvider.ts remains the same as provided by user initially)
@@ -83,84 +83,84 @@ export interface ChatMessage {
 
 
 /**
- * General options for model completion requests (both chat and legacy text completion, though chat is prioritized).
- * These options control aspects like creativity, response length, and penalties.
- */
+ * General options for model completion requests (both chat and legacy text completion, though chat is prioritized).
+ * These options control aspects like creativity, response length, and penalties.
+ */
 export interface ModelCompletionOptions {
   /** Identifier of the model to use for completion. */
   modelId?: string;
-  /**
-   * Controls randomness: lower values make the output more focused and deterministic.
-   * Higher values (e.g., 0.8) make it more random.
-   */
-  temperature?: number;
-  /**
-   * Nucleus sampling: the model considers only tokens with probabilities summing up to topP.
-   * Lower values (e.g., 0.1) mean more restricted, less random output.
-   */
-  topP?: number;
-  /**
-   * The maximum number of tokens to generate in the completion.
-   */
-  maxTokens?: number;
-  /**
-   * Positive values penalize new tokens based on whether they appear in the text so far,
-   * increasing the model's likelihood to talk about new topics.
-   */
-  presencePenalty?: number;
-  /**
-   * Positive values penalize new tokens based on their existing frequency in the text so far,
-   * decreasing the model's likelihood to repeat the same line verbatim.
-   */
-  frequencyPenalty?: number;
-  /** Sequences where the API will stop generating further tokens. */
-  stopSequences?: string[];
-  /** A unique identifier representing your end-user. */
-  userId?: string;
-  /** Allows overriding the default API key for a specific user or request. */
-  apiKeyOverride?: string;
-  /** For provider-specific parameters not covered by the common options. */
-  customModelParams?: Record<string, unknown>;
+  /**
+   * Controls randomness: lower values make the output more focused and deterministic.
+   * Higher values (e.g., 0.8) make it more random.
+   */
+  temperature?: number;
+  /**
+   * Nucleus sampling: the model considers only tokens with probabilities summing up to topP.
+   * Lower values (e.g., 0.1) mean more restricted, less random output.
+   */
+  topP?: number;
+  /**
+   * The maximum number of tokens to generate in the completion.
+   */
+  maxTokens?: number;
+  /**
+   * Positive values penalize new tokens based on whether they appear in the text so far,
+   * increasing the model's likelihood to talk about new topics.
+   */
+  presencePenalty?: number;
+  /**
+   * Positive values penalize new tokens based on their existing frequency in the text so far,
+   * decreasing the model's likelihood to repeat the same line verbatim.
+   */
+  frequencyPenalty?: number;
+  /** Sequences where the API will stop generating further tokens. */
+  stopSequences?: string[];
+  /** A unique identifier representing your end-user. */
+  userId?: string;
+  /** Allows overriding the default API key for a specific user or request. */
+  apiKeyOverride?: string;
+  /** For provider-specific parameters not covered by the common options. */
+  customModelParams?: Record<string, unknown>;
   /**
    * Optional AbortSignal for caller-driven cancellation. If aborted:
    *  - Streaming providers MUST emit a terminal chunk with `isFinal: true` and `error.type='abort'`.
    *  - Non-streaming calls SHOULD throw a cancellation error (or return error response if already partially processed).
    */
   abortSignal?: AbortSignal;
-  /** Indicates if a streaming response is expected. */
-  stream?: boolean;
-  /** Schemas of tools the model can call. */
-  tools?: Array<Record<string, unknown>>;
-  /** Controls how the model uses tools. */
-  toolChoice?: string | Record<string, unknown>;
-  /** Specifies the format of the response, e.g. for JSON mode. */
-  responseFormat?: { type: 'text' | 'json_object' | string };
+  /** Indicates if a streaming response is expected. */
+  stream?: boolean;
+  /** Schemas of tools the model can call. */
+  tools?: Array<Record<string, unknown>>;
+  /** Controls how the model uses tools. */
+  toolChoice?: string | Record<string, unknown>;
+  /** Specifies the format of the response, e.g. for JSON mode. */
+  responseFormat?: { type: 'text' | 'json_object' | string };
 }
 
 /**
- * Represents token usage information from a model call, including cost estimation.
- */
+ * Represents token usage information from a model call, including cost estimation.
+ */
 export interface ModelUsage {
-  promptTokens?: number;
-  completionTokens?: number;
-  totalTokens: number;
-  costUSD?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens: number;
+  costUSD?: number;
 }
 
 /**
- * Represents a single choice in a model's completion response.
- */
+ * Represents a single choice in a model's completion response.
+ */
 export interface ModelCompletionChoice {
-  index: number;
-  message: ChatMessage;
-  text?: string;
-  logprobs?: unknown;
-  finishReason: string | null;
+  index: number;
+  message: ChatMessage;
+  text?: string;
+  logprobs?: unknown;
+  finishReason: string | null;
 }
 
 /**
- * Represents the full response from a model completion call (non-streaming or a single chunk of a stream).
- */
+ * Represents the full response from a model completion call (non-streaming or a single chunk of a stream).
+ */
 export interface ModelCompletionResponse {
   /** Provider‑assigned unique identifier for the request or chunk series. */
   id: string;
@@ -208,75 +208,75 @@ export interface ModelCompletionResponse {
 }
 
 /**
- * Options for embedding generation requests at the provider level.
- */
+ * Options for embedding generation requests at the provider level.
+ */
 export interface ProviderEmbeddingOptions {
-  model?: string;
-  userId?: string;
-  apiKeyOverride?: string;
-  customModelParams?: Record<string, unknown>;
-  encodingFormat?: 'float' | 'base64';
-  dimensions?: number;
-  inputType?: 'search_document' | 'search_query' | 'classification' | 'clustering' | string;
+  model?: string;
+  userId?: string;
+  apiKeyOverride?: string;
+  customModelParams?: Record<string, unknown>;
+  encodingFormat?: 'float' | 'base64';
+  dimensions?: number;
+  inputType?: 'search_document' | 'search_query' | 'classification' | 'clustering' | string;
 }
 
 /**
- * Represents a single vector embedding object as returned by a provider.
- */
+ * Represents a single vector embedding object as returned by a provider.
+ */
 export interface EmbeddingObject {
-  object: 'embedding';
-  embedding: number[];
-  index: number;
+  object: 'embedding';
+  embedding: number[];
+  index: number;
 }
 
 /**
- * Represents the response from an embedding generation call from a provider.
- */
+ * Represents the response from an embedding generation call from a provider.
+ */
 export interface ProviderEmbeddingResponse {
-  object: 'list';
-  data: EmbeddingObject[];
-  model: string;
-  usage: {
-    prompt_tokens: number;
-    total_tokens: number;
-    costUSD?: number;
-  };
-  error?: {
-    message: string;
-    type?: string;
-    code?: string | number;
-    details?: unknown;
-  };
+  object: 'list';
+  data: EmbeddingObject[];
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    total_tokens: number;
+    costUSD?: number;
+  };
+  error?: {
+    message: string;
+    type?: string;
+    code?: string | number;
+    details?: unknown;
+  };
 }
 
 /**
- * Represents detailed information about a specific AI model available from a provider.
- */
+ * Represents detailed information about a specific AI model available from a provider.
+ */
 export interface ModelInfo {
-  modelId: string;
-  providerId: string;
-  displayName?: string;
-  description?: string;
-  capabilities: Array<'completion' | 'chat' | 'embeddings' | 'vision_input' | 'tool_use' | 'json_mode' | string>;
-  contextWindowSize?: number;
-  inputTokenLimit?: number;
-  outputTokenLimit?: number;
-  pricePer1MTokensInput?: number;
-  pricePer1MTokensOutput?: number;
-  pricePer1MTokensTotal?: number;
-  supportsStreaming?: boolean;
-  defaultTemperature?: number;
-  minSubscriptionTierLevel?: number;
-  isDefaultModel?: boolean;
-  embeddingDimension?: number;
-  lastUpdated?: string;
-  status?: 'active' | 'beta' | 'deprecated' | string;
+  modelId: string;
+  providerId: string;
+  displayName?: string;
+  description?: string;
+  capabilities: Array<'completion' | 'chat' | 'embeddings' | 'vision_input' | 'tool_use' | 'json_mode' | string>;
+  contextWindowSize?: number;
+  inputTokenLimit?: number;
+  outputTokenLimit?: number;
+  pricePer1MTokensInput?: number;
+  pricePer1MTokensOutput?: number;
+  pricePer1MTokensTotal?: number;
+  supportsStreaming?: boolean;
+  defaultTemperature?: number;
+  minSubscriptionTierLevel?: number;
+  isDefaultModel?: boolean;
+  embeddingDimension?: number;
+  lastUpdated?: string;
+  status?: 'active' | 'beta' | 'deprecated' | string;
 }
 
 /**
- * @interface IProvider
- * @description Defines the contract for an AI Model Provider.
- */
+ * @interface IProvider
+ * @description Defines the contract for an AI Model Provider.
+ */
 export interface IProvider {
   /** Unique provider identifier (e.g. 'openai', 'ollama', 'openrouter'). */
   readonly providerId: string;

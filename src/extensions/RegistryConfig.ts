@@ -111,26 +111,23 @@ export const DEFAULT_REGISTRY_CONFIG: MultiRegistryConfig = {
 /**
  * Parse GitHub repo URL into components
  */
-export function parseGitHubUrl(url: string): {
-  owner: string;
-  repo: string;
-  path?: string;
-  branch?: string;
-} | null {
+export function parseGitHubUrl(
+  url: string
+): { owner: string; repo: string; path?: string; branch?: string } | null {
   // Support formats:
   // - github.com/owner/repo
   // - github.com/owner/repo/tree/branch/path
   // - github.com/owner/repo/blob/branch/path/file
-  const match = url.match(
-    /github\.com\/([^\/]+)\/([^\/]+)(?:\/(?:tree|blob)\/([^\/]+)(?:\/(.+))?)?/
+  const match = /github\.com\/([^/]+)\/([^/]+)(?:\/(?:tree|blob)\/([^/]+)(?:\/(.+))?)?/.exec(
+    url
   );
-  
+
   if (!match) return null;
-  
+
   const [, owner, repo, branch, path] = match;
   return {
     owner,
-    repo: repo.replace(/\.git$/, ''),
+    repo: repo.replace(/\\.git$/, ''),
     branch,
     path,
   };

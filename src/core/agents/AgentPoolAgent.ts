@@ -288,7 +288,7 @@ export class AgentPoolAgent extends AgentCore implements IAgent {
           return await this.handleDirectDelegation(userInput, conversationContext);
         case AgentPoolStrategy.EXPLORATORY_GENERATION:
           return await this.handleExploratoryGeneration(userInput, conversationContext);
-        default:
+        default: {
           const errorMsg = `AgentPoolAgent '${this.name}': Unhandled or unknown strategy '${this.poolConfig.strategy}'.`;
           console.error(errorMsg);
           // Use the inherited error handler to explain this to the user via LLM
@@ -297,6 +297,7 @@ export class AgentPoolAgent extends AgentCore implements IAgent {
             conversationContext,
             true // This is fatal for the turn
           );
+        }
       }
     } catch (error: any) {
         const strategyErrorMsg = `Error executing strategy '${this.poolConfig.strategy}' in AgentPoolAgent '${this.name}': ${error.message}`;

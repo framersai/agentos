@@ -62,9 +62,11 @@ export type UserSession = PrismaModelRecord;
 export type Account = PrismaModelRecord;
 export type SubscriptionTier = PrismaModelRecord;
 
-// Minimal namespace to satisfy `Prisma.TransactionClient` references.
-export namespace Prisma {
-  export type TransactionClient = PrismaClient;
-  export type Conversation = PrismaModelRecord;
-  export type ConversationMessage = PrismaModelRecord;
-}
+// Minimal object to satisfy `Prisma.TransactionClient` references without namespaces.
+export const Prisma = {
+  TransactionClient: PrismaClient,
+  Conversation: {} as PrismaModelRecord,
+  ConversationMessage: {} as PrismaModelRecord,
+};
+
+export type PrismaTypes = typeof Prisma;

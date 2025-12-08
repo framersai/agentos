@@ -811,7 +811,7 @@ export class AgentOSOrchestrator {
           );
         }
         break;
-      case GMIOutputChunkType.ERROR:
+      case GMIOutputChunkType.ERROR: {
         const errDetails = gmiChunk.errorDetails || { message: gmiChunk.content };
         await this.pushErrorChunk(
           agentOSStreamId, personaId, gmiInstanceIdForChunks,
@@ -825,6 +825,7 @@ export class AgentOSOrchestrator {
           await this.dependencies.streamingManager.closeStream(agentOSStreamId, `GMI stream error: ${errDetails.message || String(gmiChunk.content)}`);
         }
         break;
+      }
       case GMIOutputChunkType.FINAL_RESPONSE_MARKER:
         // This chunk signals the end of GMI's streaming.
         // The actual final content should have been accumulated or is in this chunk's content/metadata.
@@ -834,24 +835,24 @@ export class AgentOSOrchestrator {
         // For now, if GMI explicitly sends this, we ensure the stream is marked for closure.
         // The main _processTurnInternal loop will handle the comprehensive AgentOSFinalResponseChunk.
         if (gmiChunk.isFinal) { // This marker SHOULD imply isFinal=true
-             if (this.config.enableConversationalPersistence && conversationContext) {
-                await this.dependencies.conversationManager.saveConversation(conversationContext);
-             }
-            // This is a simplified final response based *only* on this marker chunk.
-            // A more robust solution accumulates all data through the turn.
-            await this.pushChunkToStream(
-                agentOSStreamId, AgentOSResponseChunkType.FINAL_RESPONSE,
-                gmiInstanceIdForChunks, personaId, true,
-                {
-                    finalResponseText: typeof gmiChunk.content === 'string' ? gmiChunk.content : "Processing complete.",
-                    // other fields like usage, trace would need to be on the FINAL_RESPONSE_MARKER content
-                    // or aggregated throughout the turn.
-                    updatedConversationContext: conversationContext.toJSON(),
-                    activePersonaDetails: snapshotPersonaDetails(gmi.getPersona?.()),
-                }
-            );
-            this.activeStreamContexts.delete(agentOSStreamId);
-            await this.dependencies.streamingManager.closeStream(agentOSStreamId, "GMI processing complete (final marker).");
+          if (this.config.enableConversationalPersistence && conversationContext) {
+            await this.dependencies.conversationManager.saveConversation(conversationContext);
+          }
+          // This is a simplified final response based *only* on this marker chunk.
+          // A more robust solution accumulates all data through the turn.
+          await this.pushChunkToStream(
+            agentOSStreamId, AgentOSResponseChunkType.FINAL_RESPONSE,
+            gmiInstanceIdForChunks, personaId, true,
+            {
+              finalResponseText: typeof gmiChunk.content === 'string' ? gmiChunk.content : "Processing complete.",
+              // other fields like usage, trace would need to be on the FINAL_RESPONSE_MARKER content
+              // or aggregated throughout the turn.
+              updatedConversationContext: conversationContext.toJSON(),
+              activePersonaDetails: snapshotPersonaDetails(gmi.getPersona?.()),
+            }
+          );
+          this.activeStreamContexts.delete(agentOSStreamId);
+          await this.dependencies.streamingManager.closeStream(agentOSStreamId, "GMI processing complete (final marker).");
         }
         break;
       case GMIOutputChunkType.USAGE_UPDATE:

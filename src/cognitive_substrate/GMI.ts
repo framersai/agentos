@@ -328,7 +328,7 @@ export class GMI implements IGMI {
       case GMIInteractionType.MULTIMODAL_CONTENT:
         messageToAdd = { role: 'user', content: turnInput.content as any, name: turnInput.metadata?.userName || turnInput.userId };
         break;
-      case GMIInteractionType.TOOL_RESPONSE:
+      case GMIInteractionType.TOOL_RESPONSE: {
         const results = Array.isArray(turnInput.content) ? turnInput.content as ToolCallResult[] : [turnInput.content as ToolCallResult];
         results.forEach(result => {
           this.conversationHistory.push({
@@ -339,6 +339,7 @@ export class GMI implements IGMI {
           });
         });
         break;
+      }
       case GMIInteractionType.SYSTEM_MESSAGE:
         messageToAdd = { role: 'system', content: turnInput.content as string };
         break;

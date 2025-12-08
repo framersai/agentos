@@ -21,7 +21,7 @@
     "clean": "rimraf dist tsconfig.build.tsbuildinfo",
     "build": "npm run clean && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && node scripts/fix-esm-imports.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,js}\"",
+    "lint": "node scripts/strip-nbsp.mjs && eslint \"src/**/*.{ts,js}\"",
     "test": "vitest run",
     "dev:test": "vitest",
     "docs:clean": "rimraf docs/api ../../docs-generated/library ../../docs-generated/api",

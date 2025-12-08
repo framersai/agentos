@@ -59,11 +59,6 @@ export interface SilenceDetectorEvents {
   'post_speech_silence_started': () => void;
 }
 
-export declare interface SilenceDetector {
-  on<U extends keyof SilenceDetectorEvents>(event: U, listener: SilenceDetectorEvents[U]): this;
-  emit<U extends keyof SilenceDetectorEvents>(event: U, ...args: Parameters<SilenceDetectorEvents[U]>): boolean;
-}
-
 /**
  * SilenceDetector - Interprets VAD events to detect meaningful conversational silences.
  */
@@ -75,6 +70,14 @@ export class SilenceDetector extends EventEmitter {
   
   private significantPauseAlreadyEmitted: boolean = false;
   private silenceCheckIntervalTimer: NodeJS.Timeout | null = null;
+
+  public override on<U extends keyof SilenceDetectorEvents>(event: U, listener: SilenceDetectorEvents[U]): this {
+    return super.on(event, listener);
+  }
+
+  public override emit<U extends keyof SilenceDetectorEvents>(event: U, ...args: Parameters<SilenceDetectorEvents[U]>): boolean {
+    return super.emit(event, ...args);
+  }
 
   /**
    * Creates a new SilenceDetector instance.

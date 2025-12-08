@@ -29,7 +29,7 @@ interface UsageBucket extends UsageDimensions {
 }
 
 /** Result returned by summary queries. */
-export interface UsageSummary extends UsageBucket {}
+export type UsageSummary = UsageBucket;
 
 /** Persistence adapter contract enabling storage engines. */
 export interface IUsageLedgerPersistence {

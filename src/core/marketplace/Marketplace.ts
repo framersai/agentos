@@ -235,7 +235,7 @@ export class Marketplace implements IMarketplace {
 
   async getReviews(itemId: string, options?: { sortBy?: 'newest' | 'helpful' | 'rating'; limit?: number; offset?: number }): Promise<{ reviews: Review[]; total: number }> {
     const reviewIds = this.reviewsByItem.get(itemId) || new Set();
-    let reviews = Array.from(reviewIds).map(id => this.reviews.get(id)).filter((r): r is Review => !!r);
+    const reviews = Array.from(reviewIds).map(id => this.reviews.get(id)).filter((r): r is Review => !!r);
 
     const sortBy = options?.sortBy || 'newest';
     reviews.sort((a, b) => {
