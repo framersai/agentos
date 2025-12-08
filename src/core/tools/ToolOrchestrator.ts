@@ -37,7 +37,7 @@ import { ITool, JSONSchemaObject, ToolExecutionResult } from './ITool';
 import { IToolPermissionManager, PermissionCheckContext, PermissionCheckResult } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
-import { ToolCallRequest, ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI'; // Added ToolCallRequest
+import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 
 /**
