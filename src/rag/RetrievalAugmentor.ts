@@ -32,11 +32,8 @@ import {
 import { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
 import { IEmbeddingManager } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
-import { VectorDocument, QueryOptions as VectorStoreQueryOptions } from './IVectorStore';
+import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataValue } from './IVectorStore';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-
-/** Metadata value types supported in vector documents */
-type MetadataValue = string | number | boolean | string[] | number[] | null;
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
