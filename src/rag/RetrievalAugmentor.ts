@@ -28,13 +28,9 @@ import {
   RagRetrievalOptions,
   RagRetrievalResult,
   RagRetrievedChunk,
-  RagMemoryCategory,
-} from './IRetrievalAugmentor';
-import { RetrievalAugmentorServiceConfig, RagCategoryBehavior } from '../config/RetrievalAugmentorConfiguration';
-import { IEmbeddingManager, EmbeddingRequest } from './IEmbeddingManager';
-import { IVectorStoreManager } from './IVectorStoreManager';
-import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataFilter, MetadataValue } from './IVectorStore';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+  } from './IRetrievalAugmentor';
+import { RetrievalAugmentorServiceConfig, import { IEmbeddingManager, import { IVectorStoreManager } from './IVectorStoreManager';
+import { VectorDocument, QueryOptions as VectorStoreQueryOptions, import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -543,8 +539,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
         const finalQueryOptions: VectorStoreQueryOptions = {
             topK: options?.topK ?? retrievalOptsFromCat.topK ?? globalRetrievalOpts.topK ?? DEFAULT_TOP_K,
-            filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter, // Ensure MetadataFilter type compatibility
-            includeEmbedding: options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings,
+            filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter, // Ensure             includeEmbedding: options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings,
             includeMetadata: true, // Usually needed
             includeTextContent: true, // Usually needed for context
             minSimilarityScore: options?.strategyParams?.custom?.minSimilarityScore, // Example, specific to options

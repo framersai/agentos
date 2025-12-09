@@ -206,7 +206,7 @@ export class Marketplace implements IMarketplace {
       .slice(0, limit);
   }
 
-  async getTrending(type?: MarketplaceItemType, period: 'day' | 'week' | 'month' = 'week', limit = 10): Promise<MarketplaceItem[]> {
+  async getTrending(type?: MarketplaceItemType, _period: 'day' | 'week' | 'month' = 'week', limit = 10): Promise<MarketplaceItem[]> {
     let items = Array.from(this.items.values()).filter(i => i.status === 'published');
     if (type) items = items.filter(i => i.type === type);
 
@@ -582,7 +582,7 @@ export class Marketplace implements IMarketplace {
     }
   }
 
-  async getItemAnalytics(itemId: string, period?: 'day' | 'week' | 'month' | 'year'): Promise<{
+  async getItemAnalytics(itemId: string, _period?: 'day' | 'week' | 'month' | 'year'): Promise<{
     views: Array<{ date: string; count: number }>;
     downloads: Array<{ date: string; count: number }>;
     activeInstalls: number;

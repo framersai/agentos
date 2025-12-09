@@ -25,9 +25,7 @@ import {
   PolicyAction as ConfigPolicyActionDetails, // Renamed to avoid conflict in this file
 } from '../config/MemoryLifecycleManagerConfiguration';
 import { IVectorStoreManager } from '../rag/IVectorStoreManager';
-import { IVectorStore, VectorDocument, MetadataFilter, RetrievedVectorDocument, QueryOptions as VectorStoreQueryOptions } from '../rag/IVectorStore';
-import { IGMI, MemoryLifecycleEvent, LifecycleAction, LifecycleActionResponse } from '../cognitive_substrate/IGMI';
-import { IUtilityAI, SummarizationOptions } from '../core/ai_utilities/IUtilityAI';
+import { IVectorStore, import { import { IUtilityAI, SummarizationOptions } from '../core/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 // import * as path from 'path'; // Only if dealing with file paths for archiveTargetId
@@ -328,8 +326,7 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
                          `(e.g., scanByMetadata, or query with null embedding vector and strong filter support). ` +
                          `This implementation will yield no candidates for this policy run if such support isn't available and used.`);
             // Placeholder: If a store *could* do this with a special query:
-            // const queryOptions: VectorStoreQueryOptions = { filter: combinedFilter, topK: 10000, includeMetadata: true, includeTextContent: policy.action.type.startsWith('summarize_') };
-            // const result: QueryResult = await store.query(collectionName, [], queryOptions); // Pass empty/null vector?
+            // const queryOptions:             // const result: QueryResult = await store.query(collectionName, [], queryOptions); // Pass empty/null vector?
             // result.documents.forEach(doc => { /* convert to LifecycleCandidateItem */ });
         } else {
              console.warn(`MemoryLifecycleManager (${this.managerId}): Policy '${policy.policyId}' for DS '${dsId}' has no effective filters (age, category, metadata). Scanning all items is not feasible. Skipping candidate search for this policy on this data source.`);

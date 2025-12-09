@@ -40,7 +40,7 @@
  */
 
 import { IAgentOS } from './interfaces/IAgentOS';
-import { AgentOSInput, UserFeedbackPayload, ProcessingOptions } from './types/AgentOSInput';
+import { AgentOSInput, UserFeedbackPayload } from './types/AgentOSInput';
 import { AgentOSResponse, AgentOSErrorChunk, AgentOSResponseChunkType } from './types/AgentOSResponse';
 import { AgentOSOrchestrator, AgentOSOrchestratorDependencies, AgentOSOrchestratorConfig } from './AgentOSOrchestrator';
 import { GMIManager, GMIManagerConfig } from '../cognitive_substrate/GMIManager';
@@ -575,7 +575,7 @@ export class AgentOS implements IAgentOS {
     );
   }
 
-  private async initializeWorkflowRuntime(context: ExtensionLifecycleContext): Promise<void> {
+  private async initializeWorkflowRuntime(_context: ExtensionLifecycleContext): Promise<void> {
     this.workflowStore = this.config.workflowStore ?? new InMemoryWorkflowStore();
     this.workflowEngine = new WorkflowEngine();
 

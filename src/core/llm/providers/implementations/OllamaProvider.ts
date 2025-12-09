@@ -133,7 +133,7 @@ interface OllamaModelTag {
   modified_at: string;
   size: number; // Size in bytes
   digest: string;
-  details?: {
+  _details?: {
     parent_model: string;
     format: string;
     family: string;
@@ -207,7 +207,7 @@ export class OllamaProvider implements IProvider {
     } catch (error: unknown) {
       this.isInitialized = false;
       const axiosError = error as AxiosError;
-      const details = {
+      const _details = {
         baseURL: this.client.defaults.baseURL,
         status: axiosError.response?.status,
         data: axiosError.response?.data,
@@ -216,7 +216,7 @@ export class OllamaProvider implements IProvider {
         `OllamaProvider initialization failed: Could not connect to Ollama at ${this.client.defaults.baseURL}. Ensure Ollama is running and accessible. Error: ${axiosError.message}`,
         'INITIALIZATION_FAILED',
         axiosError.response?.status,
-        details
+        _details
       );
     }
   }
@@ -545,7 +545,7 @@ export class OllamaProvider implements IProvider {
 
       const modelInfos: ModelInfo[] = apiModels.map((model: OllamaModelTag) => {
         const capabilities: ModelInfo['capabilities'] = ['chat', 'completion']; // Base capabilities for most Ollama models
-        if (model.details?.families?.includes('clip') || model.name.includes('llava') || model.name.includes('bakllava')) {
+        if (model._details?.families?.includes('clip') || model.name.includes('llava') || model.name.includes('bakllava')) {
             capabilities.push('vision_input');
         }
         // Embedding capability is harder to infer universally, usually specific models.
@@ -556,8 +556,8 @@ export class OllamaProvider implements IProvider {
 
         // Rough estimation of context window based on common model families
         let contextWindow: number | undefined = 4096; // Default
-        const family = model.details?.family?.toLowerCase();
-        const paramSize = model.details?.parameter_size?.toLowerCase();
+        const family = model._details?.family?.toLowerCase();
+        const paramSize = model._details?.parameter_size?.toLowerCase();
 
         if (family) {
             if (family.includes("llama3") || family.includes("llama-3")) contextWindow = 8192;
@@ -577,7 +577,7 @@ export class OllamaProvider implements IProvider {
           modelId: model.name, // e.g., "llama3:latest", "mistral:7b-instruct-q4_0"
           providerId: this.providerId,
           displayName: model.name,
-          description: `Ollama model: ${model.details?.family || model.model} (${model.details?.parameter_size || 'size unknown'}), Format: ${model.details?.format || 'unknown'}`,
+          description: `Ollama model: ${model._details?.family || model.model} (${model._details?.parameter_size || 'size unknown'}), Format: ${model._details?.format || 'unknown'}`,
           capabilities,
           contextWindowSize: contextWindow,
           // Output/Input token limits are often the same as context window for Ollama models.
@@ -613,16 +613,16 @@ export class OllamaProvider implements IProvider {
     // Ollama's /api/show endpoint provides detailed info for a specific model
     try {
       const response = await this.client.post('/show', { name: modelId });
-      const detailedInfo = response.data as { modelfile?: string; parameters?: string; template?: string; details?: any };
-      const details = detailedInfo.details; // This structure can vary.
+      const detailedInfo = response.data as { modelfile?: string; parameters?: string; template?: string; _details?: any };
+      const _details = detailedInfo._details; // This structure can vary.
 
       // Attempt to map this to ModelInfo, might need more robust parsing
       const models = await this.listAvailableModels(); // Get the base info
       const baseInfo = models.find(m => m.modelId === modelId);
       if (!baseInfo) return undefined;
 
-      // Enrich with details from /show if possible
-      // For example, extract more specific parameter_size, quantization etc. from details if not already in baseInfo.description
+      // Enrich with _details from /show if possible
+      // For example, extract more specific parameter_size, quantization etc. from _details if not already in baseInfo.description
       // This is highly dependent on the output of /api/show for the specific model.
       // As a simple step, we'll return the info from listAvailableModels as it's more standardized.
       // A more advanced version would merge data from /show into the ModelInfo.
@@ -646,20 +646,20 @@ export class OllamaProvider implements IProvider {
   }
 
   /** @inheritdoc */
-  public async checkHealth(): Promise<{ isHealthy: boolean; details?: unknown }> {
+  public async checkHealth(): Promise<{ isHealthy: boolean; _details?: unknown }> {
     this.ensureInitialized(); // Ensures client is created
     try {
       const response = await this.client.get('/'); // Check base Ollama endpoint
       // Ollama returns "Ollama is running" with a 200 OK on its root path.
       if (response.status === 200 && typeof response.data === 'string' && response.data.includes("Ollama is running")) {
-        return { isHealthy: true, details: { message: response.data } };
+        return { isHealthy: true, _details: { message: response.data } };
       }
-      return { isHealthy: false, details: { status: response.status, data: response.data } };
+      return { isHealthy: false, _details: { status: response.status, data: response.data } };
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
       return {
         isHealthy: false,
-        details: {
+        _details: {
           message: `Ollama health check failed: ${axiosError.message}`,
           status: axiosError.response?.status,
           data: axiosError.response?.data,

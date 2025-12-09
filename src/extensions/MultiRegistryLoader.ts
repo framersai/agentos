@@ -1,6 +1,6 @@
 /**
  * @file Multi-registry loader for extensions and personas
- * @module extensions/MultiRegistryLoader
+ * @_module extensions/MultiRegistryLoader
  */
 
 import type {
@@ -99,7 +99,7 @@ export class MultiRegistryLoader {
   ): Promise<ExtensionPack | null> {
     try {
       const packageName = source.location;
-      const module = await import(packageName);
+      const _module = await import(packageName);
       
       const registryPath = `${packageName}/registry/${resourceId}`;
       const extensionModule = await import(registryPath);
@@ -163,8 +163,8 @@ export class MultiRegistryLoader {
   ): Promise<ExtensionPack | null> {
     try {
       const path = `${source.location}/registry/${resourceId}/index.js`;
-      const module = await import(path);
-      return module.default || module;
+      const _module = await import(path);
+      return _module.default || _module;
     } catch (error) {
       console.error(`Failed to load from file: ${source.location}`, error);
       return null;

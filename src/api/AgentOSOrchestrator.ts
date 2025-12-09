@@ -32,15 +32,10 @@ import {
   GMIInteractionType, // Added for GMITurnInput
   GMIOutputChunkType, // Added for comparisons
   UICommand, // For GMIOutput
-  AudioOutputConfig, // For GMIOutput
-  ImageOutputConfig, // For GMIOutput
-  CostAggregator, // For GMIOutput
-  ReasoningTraceEntry, // For GMIOutput
 } from '../cognitive_substrate/IGMI';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
-import { ToolExecutionResult, ToolExecutionContext } from '../core/tools/ITool';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { StreamingManager, StreamId } from '../core/streaming/StreamingManager';
@@ -699,7 +694,7 @@ export class AgentOSOrchestrator {
       agentOSStreamId: string,
       streamContext: ActiveStreamContext,
       gmiOutput: GMIOutput,
-      isContinuation: boolean // True if this GMIOutput is from an internal GMI continuation, false if from initial turn/tool result
+      _isContinuation: boolean // True if this GMIOutput is from an internal GMI continuation, false if from initial turn/tool result
   ): Promise<void> {
       const { gmi, personaId, conversationContext } = streamContext;
       const gmiInstanceIdForChunks = gmi.getGMIId();
@@ -873,6 +868,7 @@ export class AgentOSOrchestrator {
     const { gmi } = streamContext;
 
     const gmiInputMetadata: Record<string, any> = {
+        gmiId: gmi.getGMIId(),
         // Pass relevant options to GMI if it needs them
         processingOptions: options,
         // User API keys are handled by GMIManager when fetching/creating GMI,
