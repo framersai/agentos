@@ -28,9 +28,15 @@ import {
   RagRetrievalOptions,
   RagRetrievalResult,
   RagRetrievedChunk,
-  } from './IRetrievalAugmentor';
-import { RetrievalAugmentorServiceConfig, import { IEmbeddingManager, import { IVectorStoreManager } from './IVectorStoreManager';
-import { VectorDocument, QueryOptions as VectorStoreQueryOptions, import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+} from './IRetrievalAugmentor';
+import { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
+import { IEmbeddingManager } from './IEmbeddingManager';
+import { IVectorStoreManager } from './IVectorStoreManager';
+import { VectorDocument, QueryOptions as VectorStoreQueryOptions } from './IVectorStore';
+import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+
+/** Metadata value types supported in vector documents */
+type MetadataValue = string | number | boolean | string[] | number[] | null;
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -539,7 +545,8 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
         const finalQueryOptions: VectorStoreQueryOptions = {
             topK: options?.topK ?? retrievalOptsFromCat.topK ?? globalRetrievalOpts.topK ?? DEFAULT_TOP_K,
-            filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter, // Ensure             includeEmbedding: options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings,
+            filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter,
+            includeEmbedding: options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings,
             includeMetadata: true, // Usually needed
             includeTextContent: true, // Usually needed for context
             minSimilarityScore: options?.strategyParams?.custom?.minSimilarityScore, // Example, specific to options
@@ -779,4 +786,3 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     console.log(`RetrievalAugmentor (ID: ${this.augmenterId}) shut down.`);
   }
 }
-
