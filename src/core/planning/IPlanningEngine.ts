@@ -29,8 +29,7 @@
  * ```
  */
 
-import type { ITool, ToolExecutionResult } from '../tools/ITool';
-import type { ILogger } from '../../logging/ILogger';
+import type { ITool } from '../tools/ITool';
 
 // ============================================================================
 // Plan Types
