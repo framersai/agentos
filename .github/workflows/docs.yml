@@ -1,0 +1,106 @@
+name: Generate & Deploy Docs to agentos-live-docs
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'src/**'
+      - 'docs/**'
+      - 'typedoc.json'
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "docs"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript
+        run: pnpm build
+
+      - name: Generate TypeDoc documentation
+        run: pnpm exec typedoc --options typedoc.json
+
+      - name: Prepare docs for deployment
+        run: |
+          mkdir -p docs-deploy
+
+          # Copy generated API docs
+          cp -r docs/api docs-deploy/api
+
+          # Copy markdown docs
+          cp -r docs/*.md docs-deploy/ 2>/dev/null || true
+
+          # Copy README as index
+          cp README.md docs-deploy/
+
+          # Create simple index.html that redirects to API docs
+          cat > docs-deploy/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>@framers/agentos Documentation</title>
+            <meta http-equiv="refresh" content="0; url=api/index.html">
+            <style>
+              body { font-family: system-ui, sans-serif; padding: 2rem; }
+              a { color: #0066cc; }
+            </style>
+          </head>
+          <body>
+            <p>Redirecting to <a href="api/index.html">API Documentation</a>...</p>
+          </body>
+          </html>
+          EOF
+
+          # Create .nojekyll to prevent GitHub Pages from ignoring _* files
+          touch docs-deploy/.nojekyll
+
+      - name: Deploy to agentos-live-docs branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs-deploy
+          publish_branch: agentos-live-docs
+          force_orphan: true
+          commit_message: 'docs: auto-generate from ${{ github.sha }}'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
