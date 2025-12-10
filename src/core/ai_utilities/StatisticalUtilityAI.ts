@@ -142,7 +142,7 @@ export class StatisticalUtilityAI implements IUtilityAI {
     if (this.config.classifierConfig?.naiveBayes?.defaultModelId) {
         try {
             await this.loadTrainedModel(this.config.classifierConfig.naiveBayes.defaultModelId, 'naive_bayes');
-        } catch (e) {
+        } catch {
             console.warn(`StatisticalUtilityAI (ID: ${this.utilityId}): Failed to pre-load default Naive Bayes classifier '${this.config.classifierConfig.naiveBayes.defaultModelId}'. It may need training or explicit loading.`);
         }
     }

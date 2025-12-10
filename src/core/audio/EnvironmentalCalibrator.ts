@@ -124,6 +124,7 @@ export interface CalibrationEvents {
   'anomaly:detected': (type: string, details: any, profile: NoiseProfile | null) => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export declare interface EnvironmentalCalibrator {
   on<U extends keyof CalibrationEvents>(event: U, listener: CalibrationEvents[U]): this;
   emit<U extends keyof CalibrationEvents>(event: U, ...args: Parameters<CalibrationEvents[U]>): boolean;
@@ -133,6 +134,7 @@ export declare interface EnvironmentalCalibrator {
  * EnvironmentalCalibrator (Web Version) - Adapts to acoustic environment in real-time
  * using Web Audio APIs for initial calibration and processing raw frames for continuous updates.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class EnvironmentalCalibrator extends EventEmitter {
   private config: Required<CalibrationConfig>;
   private currentProfile: NoiseProfile | null = null;
@@ -529,7 +531,7 @@ class AnomalyDetector {
   detect(
     currentRMS: number,
     profile: NoiseProfile | null,
-    rmsHistory: number[]
+    _rmsHistory: number[]
   ): Array<{ type: string; details: any }> {
     if (!profile) return [];
     const anomalies = [];

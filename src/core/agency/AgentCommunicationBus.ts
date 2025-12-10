@@ -635,7 +635,7 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
     if (agencyId) {
       const agencyRoleMap = this.agencyRoles.get(agencyId);
       if (agencyRoleMap) {
-        for (const [roleId, agents] of agencyRoleMap.entries()) {
+        for (const [_roleId, agents] of agencyRoleMap.entries()) {
           const idx = agents.indexOf(agentId);
           if (idx >= 0) {
             agents.splice(idx, 1);

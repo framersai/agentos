@@ -19,10 +19,6 @@
 import { IAgentFactory, AgentDependencies, AgentClassConstructor } from './IAgentFactory';
 import { IAgent } from './IAgent';
 import { AgentConfig, AgentType } from './AgentCore'; // AgentConfig and AgentType
-import { IPromptEngine } from '../llm/IPromptEngine';
-import { IProvider } from '../llm/providers/IProvider';
-import { IUtilityAI } from '../ai_utilities/IUtilityAI';
-import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
 
 /**
  * Custom error class for issues specific to agent instantiation or configuration

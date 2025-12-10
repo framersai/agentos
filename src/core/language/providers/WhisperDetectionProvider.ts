@@ -7,7 +7,7 @@ export class WhisperDetectionProvider implements ILanguageDetectionProvider {
   public isInitialized = false;
   constructor(public readonly id: string, private params: WhisperParams) {}
   async initialize(): Promise<void> { this.isInitialized = true; }
-  async detect(text: string): Promise<DetectedLanguageResult[]> {
+  async detect(_text: string): Promise<DetectedLanguageResult[]> {
     // This stub simply returns empty; real implementation would call Whisper transcribe with language auto-detect on audio.
     // For textual fallback, we could incorporate a heuristic.
     return [];

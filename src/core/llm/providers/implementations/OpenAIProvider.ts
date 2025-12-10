@@ -32,7 +32,6 @@ import {
   ModelUsage,
   ProviderEmbeddingOptions,
   ProviderEmbeddingResponse,
-  EmbeddingObject,
 } from '../IProvider';
 import { OpenAIProviderError } from '../errors/OpenAIProviderError';
 // Assuming a fetch-like interface is available globally or polyfilled (e.g., node-fetch)
@@ -75,7 +74,7 @@ type OpenAIChatCompletionChoice = {
     logprobs?: unknown;
 };
 
-type OpenAIChatCompletionResponse = {
+type _OpenAIChatCompletionResponse = {
     id: string;
     object: string; // e.g., "chat.completion"
     created: number; // Unix timestamp
@@ -107,7 +106,7 @@ type OpenAIChatCompletionStreamChoice = {
     logprobs?: unknown;
 };
 
-type OpenAIChatCompletionStreamResponse = {
+type _OpenAIChatCompletionStreamResponse = {
     id: string;
     object: string; // e.g., "chat.completion.chunk"
     created: number;
@@ -127,7 +126,7 @@ type OpenAIEmbeddingAPIObject = {
     index: number;
 };
 
-type OpenAIEmbeddingResponse = {
+type _OpenAIEmbeddingResponse = {
     object: 'list';
   data: OpenAIEmbeddingAPIObject[];
     model: string; // Model ID used
@@ -144,12 +143,12 @@ type OpenAIModelAPIObject = {
     owned_by: string;
 };
 
-type OpenAIListModelsResponse = {
+type _OpenAIListModelsResponse = {
     object: 'list';
   data: OpenAIModelAPIObject[];
 };
 
-type OpenAIAPIErrorResponse = {
+type _OpenAIAPIErrorResponse = {
     error?: {
       message: string;
       type: string;
@@ -273,33 +272,33 @@ export class OpenAIProvider implements IProvider {
   private mapApiToModelInfo(apiModel: OpenAIAPITypes.ModelAPIObject): ModelInfo {
     const capabilities: ModelInfo['capabilities'] = [];
     let contextWindowSize: number | undefined;
-    let supportsTools = false;
-    let supportsVision = false;
+    let _supportsTools = false;
+    let _supportsVision = false;
     let isEmbeddingModel = false;
 
     // Infer capabilities and context window from model ID (common OpenAI patterns)
     if (apiModel.id.startsWith('gpt-4o')) {
         capabilities.push('chat', 'vision_input', 'tool_use', 'json_mode');
-        contextWindowSize = 128000; supportsTools = true; supportsVision = true;
+        contextWindowSize = 128000; _supportsTools = true; _supportsVision = true;
     } else if (apiModel.id.startsWith('gpt-4-turbo')) {
         capabilities.push('chat', 'tool_use', 'json_mode');
-        contextWindowSize = 128000; supportsTools = true;
-        if (apiModel.id.includes('-vision')) { capabilities.push('vision_input'); supportsVision = true;}
+        contextWindowSize = 128000; _supportsTools = true;
+        if (apiModel.id.includes('-vision')) { capabilities.push('vision_input'); _supportsVision = true;}
     } else if (apiModel.id.startsWith('gpt-4-32k')) {
         capabilities.push('chat', 'tool_use', 'json_mode');
-        contextWindowSize = 32768; supportsTools = true;
+        contextWindowSize = 32768; _supportsTools = true;
     } else if (apiModel.id.startsWith('gpt-4')) {
         capabilities.push('chat', 'tool_use', 'json_mode');
-        contextWindowSize = 8192; supportsTools = true;
+        contextWindowSize = 8192; _supportsTools = true;
     } else if (apiModel.id.startsWith('gpt-3.5-turbo-16k')) {
         capabilities.push('chat', 'tool_use', 'json_mode');
-        contextWindowSize = 16385; supportsTools = true;
+        contextWindowSize = 16385; _supportsTools = true;
     } else if (apiModel.id.startsWith('gpt-3.5-turbo')) {
         capabilities.push('chat', 'tool_use', 'json_mode');
         // context window for gpt-3.5-turbo can vary (e.g. 4096, 16385 for -0125)
         // Defaulting to a common value, but specific variants might differ.
         contextWindowSize = apiModel.id.includes('0125') || apiModel.id.includes('1106') ? 16385 : 4096;
-        supportsTools = true;
+        _supportsTools = true;
     } else if (apiModel.id.includes('embedding')) {
         capabilities.push('embeddings');
         isEmbeddingModel = true;
@@ -604,7 +603,7 @@ export class OpenAIProvider implements IProvider {
   private mapApiToCompletionResponse(
     apiResponse: OpenAIAPITypes.ChatCompletionResponse
   ): ModelCompletionResponse {
-    const choice = apiResponse.choices[0]; // Assuming N=1
+    const _choice = apiResponse.choices[0]; // Assuming N=1; kept for reference
     return {
       id: apiResponse.id,
       object: apiResponse.object,

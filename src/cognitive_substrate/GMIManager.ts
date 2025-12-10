@@ -5,7 +5,7 @@
  */
 
 import { uuidv4 } from '../utils/uuid';
-import { IGMI, GMIBaseConfig, UserContext, ReasoningEntryType } from './IGMI';
+import { IGMI, GMIBaseConfig, ReasoningEntryType } from './IGMI';
 import { GMI } from './GMI';
 import { IPersonaDefinition } from './personas/IPersonaDefinition';
 import { 
@@ -19,7 +19,6 @@ import {
 import { IPersonaLoader, PersonaLoaderConfig } from './personas/IPersonaLoader';
 import { PersonaLoader } from './personas/PersonaLoader';
 import type { IAuthService, ISubscriptionService, ISubscriptionTier } from '../services/user_auth/types';
-import { IWorkingMemory } from './memory/IWorkingMemory';
 import { InMemoryWorkingMemory } from './memory/InMemoryWorkingMemory';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
@@ -398,15 +397,15 @@ export class GMIManager {
 
   private stripSensitivePersonaData(persona: IPersonaDefinition): Partial<IPersonaDefinition> {
     const {
-      baseSystemPrompt,
-      defaultModelId,
-      defaultProviderId,
-      defaultModelCompletionOptions,
-      promptEngineConfigOverrides,
-      embeddedTools,
-      metaPrompts,
-      initialMemoryImprints,
-      contextualPromptElements,
+      baseSystemPrompt: _baseSystemPrompt,
+      defaultModelId: _defaultModelId,
+      defaultProviderId: _defaultProviderId,
+      defaultModelCompletionOptions: _defaultModelCompletionOptions,
+      promptEngineConfigOverrides: _promptEngineConfigOverrides,
+      embeddedTools: _embeddedTools,
+      metaPrompts: _metaPrompts,
+      initialMemoryImprints: _initialMemoryImprints,
+      contextualPromptElements: _contextualPromptElements,
       ...publicPersonaData
     } = persona;
 

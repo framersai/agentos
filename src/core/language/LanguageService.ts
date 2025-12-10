@@ -76,7 +76,7 @@ export class LanguageService implements ILanguageService {
     for (const p of this.translationProviders) { try { await p.initialize(); } catch {/* ignore */} }
     for (const p of this.detectionProviders) { try { if (!p.isInitialized) await p.initialize(); } catch {/* ignore */} }
     // Sort providers by priority if provided (future extension)
-    this.translationProviders.sort((a,b)=>0);
+    this.translationProviders.sort((_a, _b) => 0);
     if (this.config.enableCaching) {
       this.translationCache = new Map();
     }

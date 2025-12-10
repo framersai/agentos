@@ -32,7 +32,7 @@ import { IWorkingMemory } from '../../cognitive_substrate/memory/IWorkingMemory'
 import { ITool } from '../tools/ITool'; // Corrected import path
 import { VisionInputData, AudioInputData } from '../../cognitive_substrate/IGMI';
 import { ConversationMessage as Message } from '../conversation/ConversationMessage'; // Corrected import: Used alias
-import { ChatMessage, ModelCompletionOptions } from './providers/IProvider'; // Standardized ChatMessage from IProvider
+import { ChatMessage } from './providers/IProvider'; // Standardized ChatMessage from IProvider
 
 /**
  * Represents different types of contextual prompt elements that can be dynamically

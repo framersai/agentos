@@ -30,10 +30,8 @@ import {
   PromptEngineError,
   IPromptEngineUtilityAI,
   TokenEstimator,
-  VisionInputData, // Assuming VisionInputData is exported from IPromptEngine or IGMI via IPromptEngine
 } from './IPromptEngine';
 import {
-  IPersonaDefinition,
   ContextualPromptElement,
   ContextualPromptElementCriteria,
 } from '../../cognitive_substrate/personas/IPersonaDefinition';
@@ -782,7 +780,7 @@ export class PromptEngine implements IPromptEngine {
     return sum;
   }
 
-  private truncateMessages(messages: Message[], targetTokenCount: number, estimateFn: TokenEstimator): Message[] {
+  private truncateMessages(messages: Message[], targetTokenCount: number, _estimateFn: TokenEstimator): Message[] {
     let currentTokens = messages.reduce((sum, msg) => sum + (typeof msg.content === 'string' ? msg.content.length : (Array.isArray(msg.content) ? JSON.stringify(msg.content).length : 50)) , 0) / 4; // More robust rough estimate
     while(currentTokens > targetTokenCount && messages.length > 1) {
       const removedMsg = messages.shift();
@@ -895,7 +893,7 @@ export class PromptEngine implements IPromptEngine {
   }
 
   private createOpenAIChatTemplate(): PromptTemplateFunction {
-    return async (components, modelInfo, selectedElements, config, estimateTokenCountFn) => {
+    return async (components, _modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
       const messages: ChatMessage[] = [];
       if (components.systemPrompts && components.systemPrompts.length > 0) {
         const combinedSystemContent = components.systemPrompts.map(p => p.content).join("\n\n").trim();
@@ -964,7 +962,7 @@ export class PromptEngine implements IPromptEngine {
   }
 
   private createAnthropicMessagesTemplate(): PromptTemplateFunction {
-    return async (components, modelInfo, selectedElements, config, estimateTokenCountFn) => {
+    return async (components, _modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
       const messages: ChatMessage[] = [];
       let systemPrompt = '';
       if (components.systemPrompts && components.systemPrompts.length > 0) {
@@ -1029,7 +1027,7 @@ export class PromptEngine implements IPromptEngine {
   }
 
   private createGenericCompletionTemplate(): PromptTemplateFunction {
-    return async (components, modelInfo, selectedElements, config, estimateTokenCountFn) => {
+    return async (components, _modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
       let promptString = "";
       if (components.systemPrompts) promptString += components.systemPrompts.map(p=>p.content).join("\n") + "\n\n";
       if (components.conversationHistory) {

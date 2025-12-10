@@ -18,7 +18,6 @@ import {
   ModelUsage,
   ProviderEmbeddingOptions,
   ProviderEmbeddingResponse,
-  EmbeddingObject,
   ModelCompletionChoice,
 } from '../IProvider';
 import { OpenRouterProviderError } from '../errors/OpenRouterProviderError';

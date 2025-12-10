@@ -15,7 +15,6 @@ import {
   SummarizationOptions,
   ClassificationOptions,
   ClassificationResult,
-  ClassificationScore,
   KeywordExtractionOptions,
   TokenizationOptions,
   StemmingOptions,
