@@ -61,101 +61,101 @@ export interface OpenAIProviderConfig {
 
 // Simplified OpenAI API response structures (non-namespaced)
 type OpenAIChatCompletionChoice = {
-  index: number;
-  message: {
-    role: ChatMessage['role'];
-    content: string | null;
-    tool_calls?: Array<{
-      id: string;
-      type: 'function';
+    index: number;
+    message: {
+      role: ChatMessage['role'];
+      content: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: 'function';
       function: { name: string; arguments: string };
-    }>;
-  };
-  finish_reason: string | null;
-  logprobs?: unknown;
+      }>;
+    };
+    finish_reason: string | null;
+    logprobs?: unknown;
 };
 
 type OpenAIChatCompletionResponse = {
-  id: string;
-  object: string; // e.g., "chat.completion"
-  created: number; // Unix timestamp
-  model: string; // Model ID used
+    id: string;
+    object: string; // e.g., "chat.completion"
+    created: number; // Unix timestamp
+    model: string; // Model ID used
   choices: OpenAIChatCompletionChoice[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  system_fingerprint?: string;
+    usage?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    system_fingerprint?: string;
 };
 
 type OpenAIChatCompletionStreamChoiceDelta = {
-  role?: ChatMessage['role'];
-  content?: string;
-  tool_calls?: Array<{
-    index: number; // Required for accumulating tool calls
-    id?: string;
-    type?: 'function';
+    role?: ChatMessage['role'];
+    content?: string;
+    tool_calls?: Array<{
+      index: number; // Required for accumulating tool calls
+      id?: string;
+      type?: 'function';
     function?: { name?: string; arguments?: string };
-  }>;
+    }>;
 };
 
 type OpenAIChatCompletionStreamChoice = {
-  index: number;
+    index: number;
   delta: OpenAIChatCompletionStreamChoiceDelta;
-  finish_reason?: string | null;
-  logprobs?: unknown;
+    finish_reason?: string | null;
+    logprobs?: unknown;
 };
 
 type OpenAIChatCompletionStreamResponse = {
-  id: string;
-  object: string; // e.g., "chat.completion.chunk"
-  created: number;
-  model: string;
+    id: string;
+    object: string; // e.g., "chat.completion.chunk"
+    created: number;
+    model: string;
   choices: OpenAIChatCompletionStreamChoice[];
   usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  system_fingerprint?: string;
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    system_fingerprint?: string;
 };
 
 type OpenAIEmbeddingAPIObject = {
-  object: 'embedding';
-  embedding: number[];
-  index: number;
+    object: 'embedding';
+    embedding: number[];
+    index: number;
 };
 
 type OpenAIEmbeddingResponse = {
-  object: 'list';
+    object: 'list';
   data: OpenAIEmbeddingAPIObject[];
-  model: string; // Model ID used
-  usage: {
-    prompt_tokens: number;
-    total_tokens: number;
-  };
+    model: string; // Model ID used
+    usage: {
+      prompt_tokens: number;
+      total_tokens: number;
+    };
 };
 
 type OpenAIModelAPIObject = {
-  id: string;
-  object: 'model';
-  created: number; // Unix timestamp
-  owned_by: string;
+    id: string;
+    object: 'model';
+    created: number; // Unix timestamp
+    owned_by: string;
 };
 
 type OpenAIListModelsResponse = {
-  object: 'list';
+    object: 'list';
   data: OpenAIModelAPIObject[];
 };
 
 type OpenAIAPIErrorResponse = {
-  error?: {
-    message: string;
-    type: string;
-    param?: string | null;
-    code?: string | null;
-  };
+    error?: {
+      message: string;
+      type: string;
+      param?: string | null;
+      code?: string | null;
+    };
 };
 
 /**
