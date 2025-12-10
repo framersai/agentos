@@ -11,7 +11,7 @@
  */
 
 import { MemoryLifecycleManagerConfig } from '../config/MemoryLifecycleManagerConfiguration';
-import { IGMI, MemoryLifecycleEvent, LifecycleActionResponse, LifecycleAction } from '../cognitive_substrate/IGMI';
+import { IGMI, LifecycleAction } from '../cognitive_substrate/IGMI';
 import { IVectorStoreManager } from '../rag/IVectorStoreManager';
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';

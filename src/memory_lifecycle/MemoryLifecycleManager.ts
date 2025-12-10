@@ -25,9 +25,15 @@ import {
   PolicyAction as ConfigPolicyActionDetails, // Renamed to avoid conflict in this file
 } from '../config/MemoryLifecycleManagerConfiguration';
 import { IVectorStoreManager } from '../rag/IVectorStoreManager';
-import { IVectorStore, import { import { IUtilityAI, SummarizationOptions } from '../core/ai_utilities/IUtilityAI';
+import { IVectorStore, MetadataFilter } from '../rag/IVectorStore';
+import { IUtilityAI, SummarizationOptions } from '../core/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import {
+  MemoryLifecycleEvent,
+  LifecycleAction,
+  LifecycleActionResponse,
+} from '../cognitive_substrate/IGMI';
 // import * as path from 'path'; // Only if dealing with file paths for archiveTargetId
 
 /**
@@ -283,7 +289,7 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
 
     for (const dsId of dsIdsToScan) {
       try {
-        const { store, collectionName, dimension } = await this.vectorStoreManager.getStoreForDataSource(dsId);
+        await this.vectorStoreManager.getStoreForDataSource(dsId); // Validate data source exists
         const combinedFilter: MetadataFilter = { ...(policy.appliesTo.metadataFilter || {}) };
 
         // Apply category filter (assuming 'category' metadata field)
