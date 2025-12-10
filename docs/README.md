@@ -51,6 +51,10 @@
 ### Platform & Infrastructure
 - [**Platform Support**](./PLATFORM_SUPPORT.md) — Supported environments and requirements
 
+### Ecosystem
+- [**Ecosystem**](./ECOSYSTEM.md) — Related packages, extensions, and resources
+- [**Releasing**](./RELEASING.md) — Automated release process
+
 ### API Reference
 - [**TypeDoc API**](./api/index.html) — Auto-generated API documentation
 
