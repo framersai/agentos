@@ -636,7 +636,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
   public async deleteDocuments(
     documentIds: string[],
     dataSourceId?: string,
-    options?: { ignoreNotFound?: boolean },
+    _options?: { ignoreNotFound?: boolean },
   ): Promise<{
     successCount: number;
     failureCount: number;

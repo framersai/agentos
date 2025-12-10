@@ -27,8 +27,6 @@
 
 import {
   type StorageAdapter,
-  type StorageOpenOptions,
-  type StorageRunResult,
   resolveStorageAdapter,
   type StorageResolutionOptions,
 } from '@framers/sql-storage-adapter';

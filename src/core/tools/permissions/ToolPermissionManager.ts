@@ -49,8 +49,6 @@ import {
   ToolPermissionManagerConfig,
   FeatureFlag,
 } from './IToolPermissionManager';
-import { ITool } from '../ITool';
-import { UserContext } from '../../../cognitive_substrate/IGMI';
 import type { IAuthService, ISubscriptionService, ISubscriptionTier } from '../../../services/user_auth/types';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { uuidv4 } from '@framers/agentos/utils/uuid';

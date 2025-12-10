@@ -21,13 +21,11 @@ import {
 } from './IVectorStoreManager';
 import {
   IVectorStore,
-  VectorStoreProviderConfig,
 } from './IVectorStore';
 import {
   VectorStoreManagerConfig,
   RagDataSourceConfig,
   AnyVectorStoreProviderConfig,
-  InMemoryVectorStoreConfig,
   // Import other specific store configs like PineconeVectorStoreConfig if they are directly instantiated here.
 } from '../config/VectorStoreConfiguration';
 import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore';
