@@ -99,7 +99,7 @@ export class MultiRegistryLoader {
   ): Promise<ExtensionPack | null> {
     try {
       const packageName = source.location;
-      const _module = await import(packageName);
+      await import(packageName);
       
       const registryPath = `${packageName}/registry/${resourceId}`;
       const extensionModule = await import(registryPath);
@@ -147,8 +147,8 @@ export class MultiRegistryLoader {
    * Load from git repository (clone and load)
    */
   private async loadFromGit(
-    source: RegistrySource,
-    resourceId: string
+    _source: RegistrySource,
+    _resourceId: string
   ): Promise<ExtensionPack | null> {
     console.warn('Git source loading not yet implemented');
     return null;
