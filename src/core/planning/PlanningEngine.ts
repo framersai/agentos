@@ -26,25 +26,20 @@
 import type { ILogger } from '../../logging/ILogger';
 import type { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
 import type { ChatMessage } from '../llm/providers/IProvider';
-import type { ITool, ToolExecutionResult } from '../tools/ITool';
 import { uuidv4 } from '../../utils/uuid';
 import type {
   IPlanningEngine,
   ExecutionPlan,
   PlanStep,
   PlanStepResult,
-  PlanStepStatus,
-  PlanAction,
   PlanActionType,
   PlanningOptions,
   PlanningContext,
-  PlanningStrategy,
   TaskDecomposition,
   SubTask,
   ExecutionFeedback,
   AutonomousLoopOptions,
   LoopProgress,
-  ApprovalRequest,
   PlanValidationResult,
   PlanValidationIssue,
   ReflectionResult,
