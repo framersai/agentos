@@ -26,7 +26,7 @@
  * @module backend/agentos/core/orchestration/AgentOSOrchestrator
  */
 
-import { AgentOSInput, ProcessingOptions, UserFeedbackPayload } from '../../api/types/AgentOSInput';
+import { AgentOSInput, ProcessingOptions } from '../../api/types/AgentOSInput';
 import {
   AgentOSResponse,
   AgentOSResponseChunkType,
@@ -47,15 +47,11 @@ import {
   GMITurnInput,
   GMIOutputChunk,
   GMIOutput,
-  ToolCallRequest, // Explicitly import ToolCallRequest
+  ToolCallRequest,
   ToolResultPayload,
   GMIInteractionType,
   GMIOutputChunkType,
   UICommand,
-  AudioOutputConfig,
-  ImageOutputConfig,
-  CostAggregator,
-  ReasoningTraceEntry,
   VisionInputData,
   AudioInputData,
 } from '../../cognitive_substrate/IGMI';
@@ -67,7 +63,6 @@ import { MessageRole } from '../conversation/ConversationMessage';
 import type { ConversationMessage } from '../conversation/ConversationMessage';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
-import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
 import { StreamingManager, StreamId } from '../streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from './helpers';
 
@@ -695,7 +690,7 @@ export class AgentOSOrchestrator {
       agentOSStreamId: StreamId,
       streamContext: ActiveStreamContext,
       gmiOutput: GMIOutput,
-      isContinuationAfterTool: boolean
+      _isContinuationAfterTool: boolean
   ): Promise<void> {
       const { gmi, personaId, conversationContext } = streamContext;
       const gmiInstanceIdForChunks = gmi.getGMIId();
