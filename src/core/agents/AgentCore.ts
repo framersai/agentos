@@ -20,7 +20,7 @@
 import { IAgent, AgentOutput, AgentToolCall } from './IAgent';
 import { ConversationContext } from '../conversation/ConversationContext';
 import { IProvider, ModelCompletionOptions, ModelCompletionResponse, ChatMessage, MessageContent } from '../llm/providers/IProvider';
-import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult, FormattedPrompt } from '../llm/IPromptEngine';
+import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult } from '../llm/IPromptEngine';
 import type { Tool, ToolDefinition } from './tools/Tool';
 import type { ITool } from '../tools/ITool';
 import type { UIComponentSpecification } from '../ui/IUIComponent';
@@ -28,7 +28,7 @@ import { IUtilityAI } from '../ai_utilities/IUtilityAI';
 import { MessageRole } from '../conversation/ConversationMessage';
 import { AgentPoolConfig } from './AgentPoolConfig';
 import { IAgentFactory } from './IAgentFactory';
-import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager'; // For AgentDependencies
+// AIModelProviderManager import moved to IAgentFactory (used for AgentDependencies type)
 
 /**
  * Defines the type of an agent, used for categorization and potentially for
@@ -763,7 +763,7 @@ export abstract class AgentCore implements IAgent {
    * @param toolIds List of tool IDs.
    * @returns Array of ToolDefinitions.
    */
-  protected async getAvailableToolDefinitions(toolIds: string[]): Promise<ToolDefinition[] | undefined> {
+  protected async getAvailableToolDefinitions(_toolIds: string[]): Promise<ToolDefinition[] | undefined> {
       // This is a conceptual placeholder. In a real system, you'd fetch Tool instances
       // from a ToolRegistry or via the orchestrator, then get their definitions.
       // For AgentCore, it doesn't manage tools directly.

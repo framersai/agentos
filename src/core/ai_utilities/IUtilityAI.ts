@@ -161,7 +161,7 @@ export interface ReadabilityResult {
 
 // --- JSON Parsing Types ---
 /** Options for safe JSON parsing. */
-export interface ParseJsonOptions<T = any> {
+export interface ParseJsonOptions<_T = any> {
   /** If true, attempts to use an LLM to fix or extract JSON if standard parsing fails. */
   attemptFixWithLLM?: boolean;
   /** Model ID to use for LLM-based fixing. */

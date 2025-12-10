@@ -20,12 +20,12 @@
  */
 
 import { AgentCore, AgentConfig, AgentType, AgentCoreError } from './AgentCore';
-import { IAgent, AgentOutput, AgentToolCall } from './IAgent';
+import { IAgent, AgentOutput } from './IAgent';
 import { AgentPoolConfig, AgentPoolStrategy } from './AgentPoolConfig';
 import { ConversationContext } from '../conversation/ConversationContext';
 import { IProvider, ModelCompletionResponse } from '../llm/providers/IProvider';
 import { IPromptEngine, PromptComponents } from '../llm/IPromptEngine';
-import { Tool, ToolDefinition } from './tools/Tool';
+import { Tool } from './tools/Tool';
 import { IUtilityAI } from '../ai_utilities/IUtilityAI';
 import { IAgentFactory, AgentDependencies } from './IAgentFactory';
 import { MessageRole } from '../conversation/ConversationMessage'; // Ensure ConversationMessage is imported if used directly

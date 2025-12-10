@@ -10,7 +10,7 @@
  * @see ../ai_utilities/IUtilityAI.ts For IUtilityAI and SummarizationOptions definitions.
  */
 
-import { ConversationMessage, MessageRole, createConversationMessage, MessageMetadata, ConversationToolCallRequest } from './ConversationMessage';
+import { ConversationMessage, MessageRole, createConversationMessage, MessageMetadata } from './ConversationMessage';
 import { IUtilityAI, SummarizationOptions } from '../ai_utilities/IUtilityAI';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors'; // Corrected path

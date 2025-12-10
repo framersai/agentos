@@ -42,21 +42,17 @@ import {
 import {
   IPersonaDefinition,
   PersonaRagConfigIngestionTrigger, // Ensure this type definition exists and is correctly imported
-  MetaPromptDefinition,
-  // PersonaUtilityProcessingConfig, // This is defined in IPersonaDefinition.ts
-  PersonaMemoryConfig,
-  PersonaRagIngestionProcessingConfig,
 } from './personas/IPersonaDefinition';
 import { IWorkingMemory } from './memory/IWorkingMemory';
 import { IPromptEngine, PromptExecutionContext, PromptComponents, PromptEngineResult, ModelTargetInfo } from '../core/llm/IPromptEngine';
 import { IRetrievalAugmentor, RagRetrievalOptions, RagDocumentInput, RagIngestionOptions, RagMemoryCategory } from '../rag/IRetrievalAugmentor';
 
-import { ChatMessage, ModelCompletionOptions, ModelCompletionResponse, ModelUsage, IProvider } from '../core/llm/providers/IProvider';
+import { ChatMessage, ModelCompletionOptions } from '../core/llm/providers/IProvider';
 
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import { IUtilityAI, SummarizationOptions, ParseJsonOptions } from '../core/ai_utilities/IUtilityAI';
 
-import { IToolOrchestrator, ToolDefinitionForLLM } from '../core/tools/IToolOrchestrator';
+import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 
 import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
 import { ConversationMessage, createConversationMessage, MessageRole } from '../core/conversation/ConversationMessage';
@@ -759,7 +755,7 @@ export class GMI implements IGMI {
     toolCallId: string,
     toolName: string,
     resultPayload: ToolResultPayload,
-    userId: string,
+    _userId: string,
     // userApiKeys?: Record<string, string> // Not directly used by GMI, providers handle keys
   ): Promise<GMIOutput> {
     if (!this.isInitialized) {
@@ -802,11 +798,9 @@ export class GMI implements IGMI {
     };
     
     // Collect all chunks from processTurnStream to form a single GMIOutput
-    let aggregatedResponseText = "";
+    let _aggregatedResponseText = "";
     const aggregatedToolCalls: ToolCallRequest[] = [];
-    const aggregatedUiCommands: UICommand[] = [];
     const aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
-    let lastErrorForOutput: GMIOutput['error'] = undefined;
 
     const stream = this.processTurnStream(systemTurnInput); // This now returns GMIOutput
     const finalGmiOutputFromStream = await (async () => {
@@ -816,7 +810,7 @@ export class GMI implements IGMI {
             // Here, we mainly care about the final returned GMIOutput.
             // However, if processTurnStream itself aggregates, this loop might just be to exhaust it.
              if (chunk.type === GMIOutputChunkType.TEXT_DELTA && typeof chunk.content === 'string') {
-                aggregatedResponseText += chunk.content;
+                _aggregatedResponseText += chunk.content;
             }
             if (chunk.type === GMIOutputChunkType.TOOL_CALL_REQUEST && Array.isArray(chunk.content)) {
                 aggregatedToolCalls.push(...chunk.content);

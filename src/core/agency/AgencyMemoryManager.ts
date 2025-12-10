@@ -32,7 +32,7 @@
 
 import type { ILogger } from '../../logging/ILogger';
 import type { IVectorStoreManager } from '../../rag/IVectorStoreManager';
-import type { IVectorStore, VectorDocument, MetadataFilter, RetrievedVectorDocument } from '../../rag/IVectorStore';
+import type { VectorDocument, MetadataFilter, RetrievedVectorDocument } from '../../rag/IVectorStore';
 import type {
   AgencySession,
   AgencyMemoryConfig,

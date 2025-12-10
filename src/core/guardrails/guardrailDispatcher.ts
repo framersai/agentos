@@ -159,7 +159,7 @@ export async function* wrapOutputGuardrails(
       evaluateOutput: NonNullable<IGuardrailService['evaluateOutput']>;
     } => svc.config?.evaluateStreamingChunks === true && hasEvaluateOutput(svc),
   );
-  const finalOnlyGuardrails = services.filter(
+  const _finalOnlyGuardrails = services.filter(
     (svc) => svc.config?.evaluateStreamingChunks !== true && typeof svc.evaluateOutput === 'function'
   );
 

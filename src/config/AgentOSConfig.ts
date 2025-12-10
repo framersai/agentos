@@ -273,11 +273,11 @@ function createModelProviderManagerConfig(env: EnvironmentConfig): AIModelProvid
  * Creates a LemonSqueezy service instance (stub for now).
  * In a real implementation, this would be a proper service class.
  */
-function createLemonSqueezyService(env: EnvironmentConfig) {
+function _createLemonSqueezyService(_env: EnvironmentConfig) {
   return {
     initialize: async () => { /* implementation */ },
-    verifyWebhookSignature: (rawBody: string, signature: string) => true,
-    processWebhookEvent: async (eventName: string, data: any) => { /* implementation */ }
+    verifyWebhookSignature: (_rawBody: string, _signature: string) => true,
+    processWebhookEvent: async (_eventName: string, _data: any) => { /* implementation */ }
   };
 }
 

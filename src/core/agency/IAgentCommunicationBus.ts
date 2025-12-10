@@ -37,7 +37,7 @@
  * ```
  */
 
-import type { ILogger } from '../../logging/ILogger';
+// ILogger import removed - not currently used in this interface file
 
 // ============================================================================
 // Message Types

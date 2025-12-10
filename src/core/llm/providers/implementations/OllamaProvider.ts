@@ -614,7 +614,7 @@ export class OllamaProvider implements IProvider {
     try {
       const response = await this.client.post('/show', { name: modelId });
       const detailedInfo = response.data as { modelfile?: string; parameters?: string; template?: string; _details?: any };
-      const _details = detailedInfo._details; // This structure can vary.
+      // Note: detailedInfo._details is available but not currently used; future versions may enrich ModelInfo with it.
 
       // Attempt to map this to ModelInfo, might need more robust parsing
       const models = await this.listAvailableModels(); // Get the base info

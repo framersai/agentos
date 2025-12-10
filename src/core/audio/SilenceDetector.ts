@@ -108,7 +108,7 @@ export class SilenceDetector extends EventEmitter {
    * Handles the `speech_start` event from AdaptiveVAD.
    * @param {VADResult} vadResult - The VAD result associated with speech start.
    */
-  public handleSpeechStart(vadResult: VADResult): void {
+  public handleSpeechStart(_vadResult: VADResult): void {
     // console.debug("SilenceDetector: VAD Speech Start");
     this.vadIsCurrentlySpeaking = true;
     this.clearSilenceState(); // Reset silence tracking
@@ -120,7 +120,7 @@ export class SilenceDetector extends EventEmitter {
    * Call this for every frame VAD identifies as speech.
    * @param {VADResult} vadResult - The VAD result for the active voice frame.
    */
-  public handleVoiceActivity(vadResult: VADResult): void {
+  public handleVoiceActivity(_vadResult: VADResult): void {
     // console.debug("SilenceDetector: VAD Voice Activity");
     this.vadIsCurrentlySpeaking = true; // Reaffirm
     this.clearSilenceState(); // Ongoing speech resets any incipient silence
@@ -133,7 +133,7 @@ export class SilenceDetector extends EventEmitter {
    * Call this for every frame VAD identifies as non-speech.
    * @param {VADResult} vadResult - The VAD result for the non-speech frame.
    */
-  public handleNoVoiceActivity(vadResult: VADResult): void {
+  public handleNoVoiceActivity(_vadResult: VADResult): void {
     // console.debug("SilenceDetector: VAD No Voice Activity");
     if (this.vadIsCurrentlySpeaking) { // This means speech just transitioned to silence
         // This is the first moment of silence AFTER speech
@@ -161,7 +161,7 @@ export class SilenceDetector extends EventEmitter {
    * @param {VADResult} vadResult - The VAD result associated with speech end.
    * @param {number} speechDurationMs - The duration of the speech segment as determined by VAD.
    */
-  public handleSpeechEnd(vadResult: VADResult, speechDurationMs: number): void {
+  public handleSpeechEnd(_vadResult: VADResult, _speechDurationMs: number): void {
     // console.debug(`SilenceDetector: VAD Speech End. Duration: ${speechDurationMs}ms`);
     this.vadIsCurrentlySpeaking = false;
     this.lastSpeechEndTimeMs = Date.now(); // Mark when VAD confirmed speech segment end

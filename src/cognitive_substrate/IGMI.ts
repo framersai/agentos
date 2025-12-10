@@ -6,7 +6,7 @@
  * @module backend/agentos/cognitive_substrate/IGMI
  */
 
-import { IPersonaDefinition, MetaPromptDefinition } from './personas/IPersonaDefinition';
+import { IPersonaDefinition } from './personas/IPersonaDefinition';
 import { IWorkingMemory } from './memory/IWorkingMemory';
 import { IPromptEngine } from '../core/llm/IPromptEngine';
 import { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
@@ -15,7 +15,7 @@ import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderMan
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
 // Assuming IToolOrchestrator is correctly exported from this path
 import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
-import { ModelUsage, ChatMessage } from '../core/llm/providers/IProvider';
+import { ModelUsage } from '../core/llm/providers/IProvider';
 
 /**
  * Defines the possible moods a GMI can be in, influencing its behavior and responses.

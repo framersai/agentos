@@ -607,7 +607,7 @@ export class ConversationManager {
           } else {
             parsedContent = dbMsg.content;
           }
-        } catch (e) {
+        } catch {
           console.warn(`ConversationManager (ID: ${this.managerId}): Failed to parse content for message ${dbMsg.id} from DB as JSON, using as string.`);
           parsedContent = dbMsg.content;
         }
