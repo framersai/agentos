@@ -4,8 +4,7 @@
  */
 
 import { ExtensionManager } from './ExtensionManager';
-import { ExtensionRegistry } from './ExtensionRegistry';
-import { ExtensionManifest, ExtensionPack } from './manifest';
+import { ExtensionPack } from './manifest';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { exec } from 'child_process';
@@ -240,7 +239,7 @@ export class ExtensionLoader {
    * Install extension from npm
    */
   private async installFromNpm(packageName: string): Promise<void> {
-    const { stdout, stderr } = await execAsync(`npm install ${packageName}`);
+    const { stderr } = await execAsync(`npm install ${packageName}`);
     if (stderr && !stderr.includes('WARN')) {
       throw new Error(`Failed to install ${packageName}: ${stderr}`);
     }
@@ -271,7 +270,7 @@ export class ExtensionLoader {
   private async checkAndInstallMissing(): Promise<void> {
     console.log('🔍 Checking for missing extensions...');
     
-    for (const [packageName, metadata] of this.extensionMetadata) {
+    for (const [packageName] of this.extensionMetadata) {
       if (!this.loadedExtensions.has(packageName)) {
         console.log(`Missing extension: ${packageName}`);
         if (this.config.autoInstall) {
