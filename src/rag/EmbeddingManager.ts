@@ -28,7 +28,6 @@ import {
 } from '../config/EmbeddingManagerConfiguration';
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import {
-  IProvider,
   ProviderEmbeddingOptions,
   ProviderEmbeddingResponse,
 } from '../core/llm/providers/IProvider';
