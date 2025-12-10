@@ -18,7 +18,6 @@ import {
   SandboxConfig,
   ExecutionRequest,
   ExecutionResult,
-  ExecutionStatus,
   SecurityEvent,
   SandboxStats,
   SandboxError,
@@ -294,7 +293,6 @@ export class CodeSandbox implements ICodeSandbox {
 
       // Execute with timeout
       const result = await Promise.race([
-        // eslint-disable-next-line @typescript-eslint/no-implied-eval
         new Function(wrappedCode)(safeGlobals),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Execution timeout')), config.timeoutMs || 30000),
@@ -520,7 +518,7 @@ export class CodeSandbox implements ICodeSandbox {
     }
   }
 
-  private getSeverityForPattern(pattern: RegExp, language: SandboxLanguage): SecurityEvent['severity'] {
+  private getSeverityForPattern(pattern: RegExp, _language: SandboxLanguage): SecurityEvent['severity'] {
     const source = pattern.source.toLowerCase();
 
     // Critical patterns - check first as they're most dangerous
