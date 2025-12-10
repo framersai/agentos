@@ -1,6 +1,17 @@
 codecov:
   require_ci_to_pass: true
 
+ignore:
+  - "*.config.js"
+  - "*.config.ts"
+  - "*.config.mjs"
+  - "**/*.config.js"
+  - "**/*.config.ts"
+  - "**/*.config.mjs"
+  - "**/scripts/**"
+  - "**/dist/**"
+  - "**/node_modules/**"
+
 coverage:
   precision: 2
   round: down
@@ -29,8 +40,3 @@ comment:
   require_changes: no
   require_base: no
   require_head: yes
-
-
-
-
-
