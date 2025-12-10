@@ -165,6 +165,8 @@ export interface MemoryLifecycleManagerConfig {
   gmiOwnerIdMetadataField?: string;
   personaOwnerIdMetadataField?: string;
   itemTimestampMetadataField?: string;
+  /** Default retention days when no specific policy applies */
+  defaultRetentionDays?: number;
 }
 
 // Example Configuration:

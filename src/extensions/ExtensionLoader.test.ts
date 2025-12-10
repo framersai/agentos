@@ -5,16 +5,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExtensionLoader } from './ExtensionLoader';
 import { ExtensionManager } from './ExtensionManager';
-import { ExtensionRegistry } from './ExtensionRegistry';
 
 describe('ExtensionLoader', () => {
   let loader: ExtensionLoader;
   let manager: ExtensionManager;
-  let registry: ExtensionRegistry;
-  
+
   beforeEach(() => {
-    registry = new ExtensionRegistry();
-    manager = new ExtensionManager(registry);
+    manager = new ExtensionManager({});
     loader = new ExtensionLoader(manager, {
       loadCurated: true,
       loadCommunity: false,
