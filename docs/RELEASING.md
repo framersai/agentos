@@ -1,5 +1,7 @@
 # Releasing @framers/agentos
 
+> Last updated: 2024-12-10
+
 This document describes the release process for the AgentOS package.
 
 ---
