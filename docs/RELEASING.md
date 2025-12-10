@@ -6,157 +6,121 @@ This document describes the release process for the AgentOS package.
 
 ---
 
-## Release Process
+## Automated Releases
 
-Releases are **manual only** to prevent accidental version bumps. This ensures deliberate, tested releases.
+Releases are **fully automated** using [semantic-release](https://semantic-release.gitbook.io/). When you push commits to `master`, the release workflow analyzes your commit messages and automatically:
 
-### Prerequisites
+1. Determines the next version number
+2. Generates release notes
+3. Updates CHANGELOG.md
+4. Publishes to npm
+5. Creates a GitHub Release with the tag
 
-1. All tests passing on `master` branch
-2. CHANGELOG.md updated with release notes
-3. `NPM_TOKEN` secret configured in GitHub repository settings
+### How It Works
 
-### Steps to Release
+The version bump is determined by your commit messages following [Conventional Commits](https://www.conventionalcommits.org/):
 
-#### 1. Via GitHub Actions (Recommended)
+| Commit Type | Version Bump | Example |
+|-------------|--------------|---------|
+| `fix:` | Patch | `0.1.0` → `0.1.1` |
+| `feat:` | Minor | `0.1.0` → `0.2.0` |
+| `feat!:` or `BREAKING CHANGE:` | Major | `0.1.0` → `1.0.0` |
+| `perf:` | Patch | `0.1.0` → `0.1.1` |
+| `refactor:` | Patch | `0.1.0` → `0.1.1` |
+| `docs:`, `chore:`, `ci:`, `test:` | No release | — |
+
+### Commit Message Examples
+
+```bash
+# Patch release (0.1.0 → 0.1.1)
+git commit -m "fix: resolve memory leak in GMI manager"
+
+# Minor release (0.1.0 → 0.2.0)
+git commit -m "feat: add streaming support for tool calls"
+
+# Major release (0.1.0 → 1.0.0)
+git commit -m "feat!: redesign AgentOS initialization API
+
+BREAKING CHANGE: The initialize() method now requires a config object instead of positional arguments."
+
+# No release triggered
+git commit -m "docs: update README examples"
+git commit -m "chore: update dependencies"
+git commit -m "ci: fix workflow permissions"
+```
+
+---
+
+## Prerequisites
+
+For automated releases to work, ensure these secrets are configured in the repository:
+
+| Secret | Purpose |
+|--------|---------|
+| `NPM_TOKEN` | npm authentication for publishing |
+| `GITHUB_TOKEN` | Automatically provided by GitHub Actions |
+
+To set up `NPM_TOKEN`:
+1. Go to [npmjs.com](https://www.npmjs.com/) → Access Tokens → Generate New Token
+2. Choose "Automation" type
+3. Go to repo Settings → Secrets → Actions → New repository secret
+4. Name: `NPM_TOKEN`, Value: your token
+
+---
+
+## Manual Release (Optional)
+
+You can also trigger a release manually with a dry-run option:
 
 1. Go to [Actions → Release](https://github.com/framersai/agentos/actions/workflows/release.yml)
 2. Click **"Run workflow"**
-3. Enter the version number (e.g., `0.2.0`, `1.0.0`, `0.2.0-beta.1`)
-4. Optionally enable "Dry run" to test without publishing
-5. Click **"Run workflow"**
-
-The workflow will:
-- Validate the version format
-- Build and test the package
-- Update `package.json` version
-- Publish to npm
-- Create a git tag
-- Create a GitHub Release
-
-#### 2. Manual Release (Local)
-
-```bash
-cd packages/agentos
-
-# Ensure clean state
-git checkout master
-git pull origin master
-
-# Run tests
-pnpm test
-
-# Build
-pnpm build
-
-# Update version
-npm version 0.2.0 --no-git-tag-version
-
-# Publish
-npm publish --access public
-
-# Commit and tag
-git add package.json
-git commit -m "chore(release): 0.2.0"
-git tag -a v0.2.0 -m "Release v0.2.0"
-git push origin master --tags
-```
-
----
-
-## Versioning
-
-We follow [Semantic Versioning](https://semver.org/):
-
-| Change Type | Version Bump | Example |
-|------------|--------------|---------|
-| Bug fixes, patches | PATCH | `0.1.0` → `0.1.1` |
-| New features (backward compatible) | MINOR | `0.1.1` → `0.2.0` |
-| Breaking changes | MAJOR | `0.2.0` → `1.0.0` |
-| Pre-release | PRERELEASE | `0.2.0-beta.1` |
-
-### When to Bump
-
-- **PATCH** — Bug fixes, documentation, internal refactors
-- **MINOR** — New features, new APIs, deprecations (with warnings)
-- **MAJOR** — Breaking API changes, removed features, major rewrites
-
----
-
-## Pre-release Versions
-
-For testing or beta releases:
-
-```
-0.2.0-alpha.1   # Early development
-0.2.0-beta.1    # Feature complete, testing
-0.2.0-rc.1      # Release candidate
-```
-
-To publish a pre-release:
-1. Use version like `0.2.0-beta.1`
-2. The GitHub Release will be marked as "pre-release" automatically
-
----
-
-## Changelog
-
-Update `CHANGELOG.md` before releasing:
-
-```markdown
-## [0.2.0] - 2024-12-10
-
-### Features
-- New planning engine API
-- Added streaming support
-
-### Fixes
-- Fixed memory leak in GMI manager
-
-### Breaking Changes
-- Removed deprecated `oldMethod()` — use `newMethod()` instead
-```
+3. (Optional) Check "Dry run" to see what would be released without publishing
+4. Click **"Run workflow"**
 
 ---
 
 ## Troubleshooting
 
+### "No release published"
+
+This means semantic-release didn't find any commits that trigger a release. Only `feat:`, `fix:`, `perf:`, `refactor:`, and `revert:` commits trigger releases.
+
 ### npm publish fails with 401
 
-Ensure `NPM_TOKEN` is set in GitHub repository secrets:
-1. Go to repository Settings → Secrets → Actions
-2. Add `NPM_TOKEN` with your npm access token
+Ensure `NPM_TOKEN` is set correctly:
+1. Verify the token hasn't expired
+2. Verify the token has publish permissions
+3. Check the token is for the correct npm account
 
 ### Version already exists
 
-npm does not allow republishing the same version. Increment the version number.
+If a version was partially published, you may need to:
+1. Manually delete the git tag: `git push --delete origin v0.1.1`
+2. Re-run the release workflow
 
-### Tests failing in CI
+---
 
-Fix tests locally before releasing. Do not skip tests.
+## Release Configuration
+
+The release behavior is configured in `release.config.js`:
+
+```javascript
+// Commit types that trigger releases
+releaseRules: [
+  { type: 'feat', release: 'minor' },
+  { type: 'fix', release: 'patch' },
+  { type: 'perf', release: 'patch' },
+  { type: 'refactor', release: 'patch' },
+  { type: 'revert', release: 'patch' },
+  { breaking: true, release: 'major' },
+]
+```
 
 ---
 
 ## Related
 
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — Development guidelines
+- [Conventional Commits](https://www.conventionalcommits.org/) — Commit message format
+- [Semantic Release](https://semantic-release.gitbook.io/) — Release automation
 - [CHANGELOG.md](../CHANGELOG.md) — Release history
 - [GitHub Actions](https://github.com/framersai/agentos/actions) — CI/CD status
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
