@@ -437,7 +437,7 @@ export class Marketplace implements IMarketplace {
     return item;
   }
 
-  async publishVersion(itemId: string, version: string, options?: { changelog?: string; breaking?: boolean }): Promise<void> {
+  async publishVersion(itemId: string, version: string, _options?: { changelog?: string; breaking?: boolean }): Promise<void> {
     const item = this.items.get(itemId);
     if (!item) throw new Error(`Item not found: ${itemId}`);
 
