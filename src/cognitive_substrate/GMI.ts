@@ -801,6 +801,7 @@ export class GMI implements IGMI {
     let _aggregatedResponseText = "";
     const aggregatedToolCalls: ToolCallRequest[] = [];
     const aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
+    let _lastErrorForOutput: GMIOutput['error'] = undefined;
 
     const stream = this.processTurnStream(systemTurnInput); // This now returns GMIOutput
     const finalGmiOutputFromStream = await (async () => {
@@ -822,7 +823,7 @@ export class GMI implements IGMI {
                 if (chunk.usage.costUSD) aggregatedUsage.totalCostUSD = (aggregatedUsage.totalCostUSD || 0) + chunk.usage.costUSD;
             }
             if (chunk.type === GMIOutputChunkType.ERROR) {
-                 lastErrorForOutput = chunk.errorDetails || {code: GMIErrorCode.GMI_PROCESSING_ERROR, message: String(chunk.content)};
+                 _lastErrorForOutput = chunk.errorDetails || {code: GMIErrorCode.GMI_PROCESSING_ERROR, message: String(chunk.content)};
             }
         }
         // The actual final GMIOutput comes from the generator's return value

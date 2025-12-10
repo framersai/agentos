@@ -893,7 +893,7 @@ export class PromptEngine implements IPromptEngine {
   }
 
   private createOpenAIChatTemplate(): PromptTemplateFunction {
-    return async (components, _modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
+    return async (components, modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
       const messages: ChatMessage[] = [];
       if (components.systemPrompts && components.systemPrompts.length > 0) {
         const combinedSystemContent = components.systemPrompts.map(p => p.content).join("\n\n").trim();
@@ -962,7 +962,7 @@ export class PromptEngine implements IPromptEngine {
   }
 
   private createAnthropicMessagesTemplate(): PromptTemplateFunction {
-    return async (components, _modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
+    return async (components, modelInfo, _selectedElements, _config, _estimateTokenCountFn) => {
       const messages: ChatMessage[] = [];
       let systemPrompt = '';
       if (components.systemPrompts && components.systemPrompts.length > 0) {
