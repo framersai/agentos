@@ -15,9 +15,8 @@
  */
 
 import { IModelRouter, ModelRouteParams, ModelRouteResult } from './IModelRouter';
-import { IProvider, ModelInfo } from '../providers/IProvider';
+import { ModelInfo } from '../providers/IProvider';
 import { AIModelProviderManager } from '../providers/AIModelProviderManager';
-import { ProviderError } from '../providers/errors/ProviderError'; // Assuming base error class
 
 /**
  * Custom error class for ModelRouter specific operational errors.
