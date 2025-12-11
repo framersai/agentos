@@ -376,6 +376,54 @@ for await (const step of planner.executePlan(plan.id)) {
 }
 ```
 
+### Multi-Agent Collaboration
+
+```typescript
+import { AgentOS, AgencyRegistry, AgentCommunicationBus } from '@framers/agentos';
+
+// Create specialized agents
+const researcher = new AgentOS();
+await researcher.initialize({ llmProvider: llmConfig, persona: 'Research analyst' });
+
+const writer = new AgentOS();
+await writer.initialize({ llmProvider: llmConfig, persona: 'Technical writer' });
+
+// Register in agency with shared communication
+const agency = new AgencyRegistry();
+const bus = new AgentCommunicationBus();
+agency.register('researcher', researcher, { bus });
+agency.register('writer', writer, { bus });
+
+// Agents coordinate via message passing
+bus.on('research:complete', async ({ findings }) => {
+  await writer.processRequest({
+    message: `Write documentation based on: ${JSON.stringify(findings)}`
+  });
+});
+
+await researcher.processRequest({ message: 'Analyze the authentication module' });
+```
+
+### Non-Streaming Response
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' }
+});
+
+// Collect full response without streaming
+const chunks = [];
+for await (const chunk of agent.processRequest({ message: 'Explain OAuth 2.0 briefly' })) {
+  if (chunk.type === 'content') {
+    chunks.push(chunk.content);
+  }
+}
+const fullResponse = chunks.join('');
+```
+
 ---
 
 ## Roadmap
