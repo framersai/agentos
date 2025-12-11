@@ -424,6 +424,91 @@ for await (const chunk of agent.processRequest({ message: 'Explain OAuth 2.0 bri
 const fullResponse = chunks.join('');
 ```
 
+### Mood-Adaptive Responses
+
+```typescript
+import { AgentOS, GMIMood } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' },
+  persona: {
+    name: 'Support Agent',
+    moodAdaptation: {
+      enabled: true,
+      defaultMood: GMIMood.EMPATHETIC,
+      allowedMoods: [GMIMood.EMPATHETIC, GMIMood.FOCUSED, GMIMood.ANALYTICAL],
+      sensitivityFactor: 0.7,
+      // Mood-specific prompt modifiers
+      moodPrompts: {
+        [GMIMood.EMPATHETIC]: 'Prioritize understanding and emotional support.',
+        [GMIMood.FRUSTRATED]: 'Acknowledge difficulty, offer step-by-step guidance.',
+        [GMIMood.ANALYTICAL]: 'Provide detailed technical explanations with examples.'
+      }
+    }
+  }
+});
+
+// Agent automatically adapts tone based on conversation context
+for await (const chunk of agent.processRequest({
+  message: 'This is so frustrating, nothing works!'
+})) {
+  // Response adapts with empathetic tone, mood shifts to EMPATHETIC
+}
+```
+
+### Contextual Prompt Adaptation
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: llmConfig,
+  persona: {
+    name: 'Adaptive Tutor',
+    // Dynamic prompt elements injected based on runtime context
+    contextualPromptElements: [
+      {
+        id: 'beginner-guidance',
+        type: 'SYSTEM_INSTRUCTION_ADDON',
+        content: 'Explain concepts simply, avoid jargon, use analogies.',
+        criteria: { userSkillLevel: ['novice', 'beginner'] },
+        priority: 10
+      },
+      {
+        id: 'expert-mode',
+        type: 'SYSTEM_INSTRUCTION_ADDON',
+        content: 'Assume deep technical knowledge, be concise, skip basics.',
+        criteria: { userSkillLevel: ['expert', 'advanced'] },
+        priority: 10
+      },
+      {
+        id: 'debugging-context',
+        type: 'FEW_SHOT_EXAMPLE',
+        content: { role: 'assistant', content: 'Let\'s trace through step by step...' },
+        criteria: { taskHint: ['debugging', 'troubleshooting'] }
+      }
+    ],
+    // Meta-prompts for self-reflection and planning
+    metaPrompts: [
+      {
+        id: 'mid-conversation-check',
+        trigger: 'every_n_turns',
+        triggerConfig: { n: 5 },
+        prompt: 'Assess: Is the user making progress? Should I adjust my approach?'
+      }
+    ]
+  }
+});
+
+// Prompts automatically adapt based on user context and task
+await agent.updateUserContext({ skillLevel: 'expert' });
+for await (const chunk of agent.processRequest({ message: 'Explain monads' })) {
+  // Uses expert-mode prompt element, skips beginner explanations
+}
+```
+
 ---
 
 ## Roadmap
