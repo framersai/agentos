@@ -56,6 +56,14 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Verify NPM Token
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Token length: ${#NPM_TOKEN}"
+          echo "Token starts with: ${NPM_TOKEN:0:4}"
+          npm whoami --//registry.npmjs.org/:_authToken=$NPM_TOKEN
+
       - name: Semantic Release (Dry Run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
         env:
