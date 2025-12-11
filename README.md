@@ -291,87 +291,87 @@ for await (const chunk of agent.processRequest({
 
 ## Examples
 
-### Multi-Agent Collaboration
+### Structured Data Extraction
 
 ```typescript
-import { AgentOS, AgencyRegistry } from '@framers/agentos';
+import { AgentOS, StructuredOutputManager } from '@framers/agentos';
 
-const llmConfig = {
-  provider: 'openai',
-  apiKey: process.env.OPENAI_API_KEY,
-  model: 'gpt-4o'
-};
-
-// Create specialized agents
-const researcher = new AgentOS();
-await researcher.initialize({ llmProvider: llmConfig, persona: 'researcher' });
-
-const writer = new AgentOS();
-await writer.initialize({ llmProvider: llmConfig, persona: 'writer' });
-
-// Register in agency for coordination
-const agency = new AgencyRegistry();
-agency.register('research', researcher);
-agency.register('writing', writer);
-
-// Agents communicate via message bus
-researcher.on('complete', async (findings) => {
-  await writer.processRequest({
-    message: `Write article based on: ${JSON.stringify(findings)}`
-  });
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' }
 });
+
+// Extract typed data from unstructured text
+const structured = new StructuredOutputManager({ llmProviderManager: agent.llmProviderManager });
+const contact = await structured.generate({
+  prompt: 'Extract: "Meeting with Sarah Chen (sarah@startup.io) on Jan 15 re: Series A"',
+  schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      email: { type: 'string', format: 'email' },
+      date: { type: 'string' },
+      topic: { type: 'string' }
+    },
+    required: ['name', 'email']
+  },
+  schemaName: 'ContactInfo'
+});
+// → { name: 'Sarah Chen', email: 'sarah@startup.io', date: 'Jan 15', topic: 'Series A' }
 ```
 
-### Planning Engine
+### Human-in-the-Loop Approvals
+
+```typescript
+import { HumanInteractionManager } from '@framers/agentos';
+
+const hitl = new HumanInteractionManager({ defaultTimeoutMs: 300000 });
+
+// Gate high-risk operations with human approval
+const decision = await hitl.requestApproval({
+  action: {
+    type: 'database_mutation',
+    description: 'Archive 50K inactive accounts older than 2 years',
+    severity: 'high',
+    metadata: { affectedRows: 50000, table: 'users' }
+  },
+  alternatives: [
+    { action: 'soft_delete', description: 'Mark as inactive instead of archiving' },
+    { action: 'export_first', description: 'Export to CSV before archiving' }
+  ]
+});
+
+if (decision.approved) {
+  await executeArchive();
+} else if (decision.selectedAlternative) {
+  await executeAlternative(decision.selectedAlternative);
+}
+```
+
+### Autonomous Task Planning
 
 ```typescript
 import { AgentOS, PlanningEngine } from '@framers/agentos';
 
 const agent = new AgentOS();
 await agent.initialize({
-  llmProvider: {
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o'
-  }
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' }
 });
 
-const planner = new PlanningEngine(agent);
+const planner = new PlanningEngine({ llmProvider: agent.llmProviderManager, strategy: 'react' });
 
-// Decompose complex goal into executable steps
-const plan = await planner.createPlan({
-  goal: 'Deploy feature to production',
-  constraints: ['All tests must pass', 'Requires code review']
+// Decompose complex goals into executable steps with ReAct reasoning
+const plan = await planner.generatePlan({
+  goal: 'Migrate authentication from sessions to JWT',
+  constraints: ['Zero downtime', 'Backwards compatible for 30 days', 'Audit logging required'],
+  context: { currentStack: 'Express + Redis sessions', userCount: '50K' }
 });
 
-console.log('Plan:', plan.steps.map(s => s.description));
-
-// Execute with progress tracking
-for await (const step of planner.execute(plan)) {
-  console.log(`[${step.status}] ${step.description}`);
-  if (step.requiresApproval) {
-    await step.approve(); // Human-in-the-loop
-  }
-}
-```
-
-### Guardrails & Safety
-
-```typescript
-const agent = new AgentOS();
-await agent.initialize({
-  llmProvider: { provider: 'openai', apiKey: '...', model: 'gpt-4o' },
-  guardrails: {
-    maxTokens: 4096,
-    blockedTopics: ['harmful_content', 'pii_exposure'],
-    requireApprovalFor: ['file_write', 'api_call', 'code_execution']
-  }
-});
-
-// Guardrails automatically intercept and validate
-for await (const chunk of agent.processRequest({ message: 'Delete all files' })) {
-  if (chunk.type === 'guardrail_blocked') {
-    console.log('Action blocked:', chunk.reason);
+for await (const step of planner.executePlan(plan.id)) {
+  console.log(`[${step.status}] ${step.action}`);
+  if (step.requiresHumanApproval) {
+    const approved = await promptUser(step.description);
+    if (!approved) break;
   }
 }
 ```
