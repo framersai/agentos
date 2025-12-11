@@ -1,32 +1,23 @@
 name: Release
 
-# Automatic releases on push to master based on Conventional Commits
-# - feat: commits trigger minor version bump
-# - fix: commits trigger patch version bump
-# - feat!: or BREAKING CHANGE: trigger major version bump
-# - docs:, chore:, ci:, test: commits don't trigger releases
+# Manual release workflow - publishes version from package.json to npm
+# Trigger manually via workflow_dispatch
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (analyze but do not publish)'
+        description: 'Dry run (test but do not publish)'
         required: false
         type: boolean
         default: false
 
 jobs:
   release:
-    name: Semantic Release
+    name: Publish to npm
     runs-on: ubuntu-latest
-    # Only run if CI passes (this job depends on CI implicitly via branch protection)
     permissions:
       contents: write
-      issues: write
-      pull-requests: write
       id-token: write
 
     steps:
@@ -34,7 +25,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,18 +54,35 @@ jobs:
           echo "Token starts with: ${NPM_TOKEN:0:4}"
           npm whoami --//registry.npmjs.org/:_authToken=$NPM_TOKEN
 
-      - name: Semantic Release (Dry Run)
+      - name: Get package version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Publish (Dry Run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release --dry-run
+        run: npm publish --dry-run
 
-      - name: Semantic Release
+      - name: Publish to npm
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+
+      - name: Create Git Tag
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.pkg.outputs.version }}" -m "Release v${{ steps.pkg.outputs.version }}"
+          git push origin "v${{ steps.pkg.outputs.version }}"
+
+      - name: Create GitHub Release
         if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: |
+          gh release create "v${{ steps.pkg.outputs.version }}" \
+            --title "v${{ steps.pkg.outputs.version }}" \
+            --generate-notes
