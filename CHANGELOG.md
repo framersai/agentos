@@ -1,4 +1,4 @@
-## 1.0.0 (2025-12-11)
+## 0.1.0 (2025-12-11)
 
 * docs: add architecture deep dive and recursive self-building analysis ([ce2982b](https://github.com/framersai/agentos/commit/ce2982b))
 * docs: add changelog, typedoc config, docs index, semantic-release ([1df5e43](https://github.com/framersai/agentos/commit/1df5e43))
