@@ -276,17 +276,43 @@ for await (const chunk of agent.processRequest({
 
 ## Documentation
 
+### Core Concepts
+
 | Guide | Description |
 |-------|-------------|
 | [Architecture](./docs/ARCHITECTURE.md) | System design and component overview |
+| [Deep Dive](./docs/AGENTOS_ARCHITECTURE_DEEP_DIVE.md) | Detailed architecture walkthrough |
+| [Extensions](./docs/RFC_EXTENSION_STANDARDS.md) | Extension system and standards |
+| [Ecosystem](./docs/ECOSYSTEM.md) | Related repos and packages |
+
+### Agent Features
+
+| Guide | Description |
+|-------|-------------|
 | [Planning Engine](./docs/PLANNING_ENGINE.md) | Multi-step task planning and execution |
 | [Human-in-the-Loop](./docs/HUMAN_IN_THE_LOOP.md) | Approval workflows and oversight |
 | [Agent Communication](./docs/AGENT_COMMUNICATION.md) | Inter-agent messaging patterns |
-| [RAG Configuration](./docs/RAG_MEMORY_CONFIGURATION.md) | Memory and retrieval setup |
+| [Self-Building Agents](./docs/RECURSIVE_SELF_BUILDING_AGENTS.md) | Recursive agent construction |
 | [Structured Output](./docs/STRUCTURED_OUTPUT.md) | JSON schema validation |
 | [Evaluation Framework](./docs/EVALUATION_FRAMEWORK.md) | Testing and quality assurance |
-| [API Reference](./docs/api/index.html) | TypeDoc-generated API docs |
 
+### Storage & Memory
+
+| Guide | Description |
+|-------|-------------|
+| [RAG Configuration](./docs/RAG_MEMORY_CONFIGURATION.md) | Memory and retrieval setup |
+| [SQL Storage](./docs/SQL_STORAGE_QUICKSTART.md) | SQLite/PostgreSQL setup |
+| [Client-Side Storage](./docs/CLIENT_SIDE_STORAGE.md) | Browser storage options |
+| [Migration Guide](./docs/MIGRATION_TO_STORAGE_ADAPTER.md) | Upgrading storage adapters |
+
+### Operations
+
+| Guide | Description |
+|-------|-------------|
+| [Cost Optimization](./docs/COST_OPTIMIZATION.md) | Token usage and cost management |
+| [Platform Support](./docs/PLATFORM_SUPPORT.md) | Supported platforms and environments |
+| [Releasing](./docs/RELEASING.md) | How to publish new versions |
+| [API Reference](./docs/api/index.html) | TypeDoc-generated API docs |
 ---
 
 ## Examples
