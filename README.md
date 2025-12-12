@@ -1,0 +1,602 @@
+<div align="center">
+
+<a href="https://agentos.sh">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
+</a>
+
+# AgentOS
+
+**Modular orchestration runtime for adaptive AI agents**
+
+[![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
+[![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions)
+[![codecov](https://codecov.io/gh/framersai/agentos/graph/badge.svg)](https://codecov.io/gh/framersai/agentos)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
+
+[Website](https://agentos.sh) · [Documentation](https://agentos.sh/docs) · [npm](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos)
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Examples](#examples)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
+
+AgentOS is a TypeScript-first orchestration runtime for building **adaptive, emergent AI agents**. Unlike traditional agent frameworks that treat agents as stateless functions, AgentOS introduces **Generalized Mind Instances (GMIs)** — context-aware entities that learn, evolve, and maintain coherent personalities across interactions.
+
+```bash
+npm install @framers/agentos
+```
+
+---
+
+## Features
+
+<table>
+<tr>
+<td width="50%">
+
+### ◆ Adaptive Intelligence
+- **GMI Architecture** — Persistent agent identities with working memory
+- **Dynamic Personas** — Contextual personality adaptation
+- **Multi-model Support** — OpenAI, Anthropic, local models
+
+</td>
+<td width="50%">
+
+### ◆ Streaming-First Runtime
+- **Token-level streaming** — Real-time response delivery
+- **Async generators** — Native TypeScript patterns
+- **WebSocket & SSE** — Multiple transport protocols
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### ◆ Tool Orchestration
+- **Permission management** — Fine-grained access control
+- **Dynamic registration** — Runtime tool discovery
+- **Guardrails** — Safety constraints and validation
+
+</td>
+<td width="50%">
+
+### ◆ RAG & Memory
+- **Vector storage** — Semantic memory retrieval
+- **SQL adapters** — SQLite, PostgreSQL support
+- **Context optimization** — Automatic window management
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### ◆ Multi-Agent Coordination
+- **Agency system** — Agent hierarchies and teams
+- **Message bus** — Inter-agent communication
+- **Handoffs** — Context transfer between agents
+
+</td>
+<td width="50%">
+
+### ◆ Human-in-the-Loop
+- **Approval workflows** — High-risk action gates
+- **Clarification requests** — Ambiguity resolution
+- **Escalation handling** — Human takeover paths
+
+</td>
+</tr>
+</table>
+
+---
+
+## Installation
+
+```bash
+# npm
+npm install @framers/agentos
+
+# pnpm
+pnpm add @framers/agentos
+
+# yarn
+yarn add @framers/agentos
+```
+
+**Requirements:** Node.js 18+ · TypeScript 5.0+
+
+---
+
+## Quick Start
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+// Initialize
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: {
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o'
+  }
+});
+
+// Process requests with streaming
+for await (const chunk of agent.processRequest({
+  message: 'Help me analyze this data',
+  context: { userId: 'user-123' }
+})) {
+  if (chunk.type === 'content') {
+    process.stdout.write(chunk.content);
+  }
+}
+```
+
+### With Tools
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: {
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o'
+  },
+  tools: [{
+    name: 'get_weather',
+    description: 'Get current weather for a city',
+  parameters: {
+    type: 'object',
+    properties: {
+        city: { type: 'string' }
+    },
+      required: ['city']
+  },
+    execute: async ({ city }) => {
+      const res = await fetch(`https://api.weather.com/${city}`);
+      return res.json();
+    }
+  }]
+});
+
+// Tools are called automatically when the model decides to use them
+for await (const chunk of agent.processRequest({ message: 'Weather in Tokyo?' })) {
+  if (chunk.type === 'tool_call') console.log('Calling:', chunk.tool);
+  if (chunk.type === 'content') process.stdout.write(chunk.content);
+  }
+```
+
+### Multiple Providers
+
+```typescript
+// OpenRouter for multi-model access
+await agent.initialize({
+  llmProvider: {
+    provider: 'openrouter',
+    apiKey: process.env.OPENROUTER_API_KEY,
+    model: 'anthropic/claude-3.5-sonnet'
+  }
+});
+
+// Local Ollama
+await agent.initialize({
+  llmProvider: {
+    provider: 'ollama',
+    baseUrl: 'http://localhost:11434',
+    model: 'llama3'
+  }
+});
+```
+
+### With RAG Memory
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: {
+    provider: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    model: 'gpt-4o'
+  },
+  memory: {
+    vectorStore: 'memory', // or 'sqlite', 'postgres'
+    embeddingModel: 'text-embedding-3-small'
+  }
+});
+
+// Ingest documents
+await agent.memory.ingest([
+  { content: 'AgentOS supports streaming responses...', metadata: { source: 'docs' } },
+  { content: 'GMIs maintain context across sessions...', metadata: { source: 'docs' } }
+]);
+
+// Queries automatically retrieve relevant context
+for await (const chunk of agent.processRequest({ 
+  message: 'How does streaming work?' 
+})) {
+  process.stdout.write(chunk.content);
+}
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         AgentOS Runtime                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │   Request   │  │   Prompt    │  │  Streaming  │              │
+│  │   Router    │→ │   Engine    │→ │   Manager   │              │
+│  └─────────────┘  └─────────────┘  └─────────────┘              │
+│         ↓                ↓                ↓                      │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    GMI Manager                           │    │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │    │
+│  │  │ Working │  │ Context │  │ Persona │  │Learning │    │    │
+│  │  │ Memory  │  │ Manager │  │ Overlay │  │ Module  │    │    │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│         ↓                ↓                ↓                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │    Tool     │  │    RAG      │  │  Planning   │              │
+│  │Orchestrator │  │   Memory    │  │   Engine    │              │
+│  └─────────────┘  └─────────────┘  └─────────────┘              │
+│         ↓                ↓                ↓                      │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              LLM Provider Manager                        │    │
+│  │     OpenAI  │  Anthropic  │  Azure  │  Local Models     │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Documentation
+
+### Core Concepts
+
+| Guide | Description |
+|-------|-------------|
+| [Architecture](./docs/ARCHITECTURE.md) | System design and component overview |
+| [Deep Dive](./docs/AGENTOS_ARCHITECTURE_DEEP_DIVE.md) | Detailed architecture walkthrough |
+| [Extensions](./docs/RFC_EXTENSION_STANDARDS.md) | Extension system and standards |
+| [Ecosystem](./docs/ECOSYSTEM.md) | Related repos and packages |
+
+### Agent Features
+
+| Guide | Description |
+|-------|-------------|
+| [Planning Engine](./docs/PLANNING_ENGINE.md) | Multi-step task planning and execution |
+| [Human-in-the-Loop](./docs/HUMAN_IN_THE_LOOP.md) | Approval workflows and oversight |
+| [Agent Communication](./docs/AGENT_COMMUNICATION.md) | Inter-agent messaging patterns |
+| [Self-Building Agents](./docs/RECURSIVE_SELF_BUILDING_AGENTS.md) | Recursive agent construction |
+| [Structured Output](./docs/STRUCTURED_OUTPUT.md) | JSON schema validation |
+| [Evaluation Framework](./docs/EVALUATION_FRAMEWORK.md) | Testing and quality assurance |
+
+### Storage & Memory
+
+| Guide | Description |
+|-------|-------------|
+| [RAG Configuration](./docs/RAG_MEMORY_CONFIGURATION.md) | Memory and retrieval setup |
+| [SQL Storage](./docs/SQL_STORAGE_QUICKSTART.md) | SQLite/PostgreSQL setup |
+| [Client-Side Storage](./docs/CLIENT_SIDE_STORAGE.md) | Browser storage options |
+| [Migration Guide](./docs/MIGRATION_TO_STORAGE_ADAPTER.md) | Upgrading storage adapters |
+
+### Operations
+
+| Guide | Description |
+|-------|-------------|
+| [Cost Optimization](./docs/COST_OPTIMIZATION.md) | Token usage and cost management |
+| [Platform Support](./docs/PLATFORM_SUPPORT.md) | Supported platforms and environments |
+| [Releasing](./docs/RELEASING.md) | How to publish new versions |
+| [API Reference](./docs/api/index.html) | TypeDoc-generated API docs |
+---
+
+## Examples
+
+### Structured Data Extraction
+
+```typescript
+import { AgentOS, StructuredOutputManager } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' }
+});
+
+// Extract typed data from unstructured text
+const structured = new StructuredOutputManager({ llmProviderManager: agent.llmProviderManager });
+const contact = await structured.generate({
+  prompt: 'Extract: "Meeting with Sarah Chen (sarah@startup.io) on Jan 15 re: Series A"',
+  schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      email: { type: 'string', format: 'email' },
+      date: { type: 'string' },
+      topic: { type: 'string' }
+    },
+    required: ['name', 'email']
+  },
+  schemaName: 'ContactInfo'
+});
+// → { name: 'Sarah Chen', email: 'sarah@startup.io', date: 'Jan 15', topic: 'Series A' }
+```
+
+### Human-in-the-Loop Approvals
+
+```typescript
+import { HumanInteractionManager } from '@framers/agentos';
+
+const hitl = new HumanInteractionManager({ defaultTimeoutMs: 300000 });
+
+// Gate high-risk operations with human approval
+const decision = await hitl.requestApproval({
+  action: {
+    type: 'database_mutation',
+    description: 'Archive 50K inactive accounts older than 2 years',
+    severity: 'high',
+    metadata: { affectedRows: 50000, table: 'users' }
+  },
+  alternatives: [
+    { action: 'soft_delete', description: 'Mark as inactive instead of archiving' },
+    { action: 'export_first', description: 'Export to CSV before archiving' }
+  ]
+});
+
+if (decision.approved) {
+  await executeArchive();
+} else if (decision.selectedAlternative) {
+  await executeAlternative(decision.selectedAlternative);
+}
+```
+
+### Autonomous Task Planning
+
+```typescript
+import { AgentOS, PlanningEngine } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' }
+});
+
+const planner = new PlanningEngine({ llmProvider: agent.llmProviderManager, strategy: 'react' });
+
+// Decompose complex goals into executable steps with ReAct reasoning
+const plan = await planner.generatePlan({
+  goal: 'Migrate authentication from sessions to JWT',
+  constraints: ['Zero downtime', 'Backwards compatible for 30 days', 'Audit logging required'],
+  context: { currentStack: 'Express + Redis sessions', userCount: '50K' }
+});
+
+for await (const step of planner.executePlan(plan.id)) {
+  console.log(`[${step.status}] ${step.action}`);
+  if (step.requiresHumanApproval) {
+    const approved = await promptUser(step.description);
+    if (!approved) break;
+  }
+}
+```
+
+### Multi-Agent Collaboration
+
+```typescript
+import { AgentOS, AgencyRegistry, AgentCommunicationBus } from '@framers/agentos';
+
+// Create specialized agents
+const researcher = new AgentOS();
+await researcher.initialize({ llmProvider: llmConfig, persona: 'Research analyst' });
+
+const writer = new AgentOS();
+await writer.initialize({ llmProvider: llmConfig, persona: 'Technical writer' });
+
+// Register in agency with shared communication
+const agency = new AgencyRegistry();
+const bus = new AgentCommunicationBus();
+agency.register('researcher', researcher, { bus });
+agency.register('writer', writer, { bus });
+
+// Agents coordinate via message passing
+bus.on('research:complete', async ({ findings }) => {
+  await writer.processRequest({
+    message: `Write documentation based on: ${JSON.stringify(findings)}`
+  });
+});
+
+await researcher.processRequest({ message: 'Analyze the authentication module' });
+```
+
+### Non-Streaming Response
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' }
+});
+
+// Collect full response without streaming
+const chunks = [];
+for await (const chunk of agent.processRequest({ message: 'Explain OAuth 2.0 briefly' })) {
+  if (chunk.type === 'content') {
+    chunks.push(chunk.content);
+  }
+}
+const fullResponse = chunks.join('');
+```
+
+### Mood-Adaptive Responses
+
+```typescript
+import { AgentOS, GMIMood } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4o' },
+  persona: {
+    name: 'Support Agent',
+    moodAdaptation: {
+      enabled: true,
+      defaultMood: GMIMood.EMPATHETIC,
+      allowedMoods: [GMIMood.EMPATHETIC, GMIMood.FOCUSED, GMIMood.ANALYTICAL],
+      sensitivityFactor: 0.7,
+      // Mood-specific prompt modifiers
+      moodPrompts: {
+        [GMIMood.EMPATHETIC]: 'Prioritize understanding and emotional support.',
+        [GMIMood.FRUSTRATED]: 'Acknowledge difficulty, offer step-by-step guidance.',
+        [GMIMood.ANALYTICAL]: 'Provide detailed technical explanations with examples.'
+      }
+    }
+  }
+});
+
+// Agent automatically adapts tone based on conversation context
+for await (const chunk of agent.processRequest({
+  message: 'This is so frustrating, nothing works!'
+})) {
+  // Response adapts with empathetic tone, mood shifts to EMPATHETIC
+}
+```
+
+### Contextual Prompt Adaptation
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: llmConfig,
+  persona: {
+    name: 'Adaptive Tutor',
+    // Dynamic prompt elements injected based on runtime context
+    contextualPromptElements: [
+      {
+        id: 'beginner-guidance',
+        type: 'SYSTEM_INSTRUCTION_ADDON',
+        content: 'Explain concepts simply, avoid jargon, use analogies.',
+        criteria: { userSkillLevel: ['novice', 'beginner'] },
+        priority: 10
+      },
+      {
+        id: 'expert-mode',
+        type: 'SYSTEM_INSTRUCTION_ADDON',
+        content: 'Assume deep technical knowledge, be concise, skip basics.',
+        criteria: { userSkillLevel: ['expert', 'advanced'] },
+        priority: 10
+      },
+      {
+        id: 'debugging-context',
+        type: 'FEW_SHOT_EXAMPLE',
+        content: { role: 'assistant', content: 'Let\'s trace through step by step...' },
+        criteria: { taskHint: ['debugging', 'troubleshooting'] }
+      }
+    ],
+    // Meta-prompts for self-reflection and planning
+    metaPrompts: [
+      {
+        id: 'mid-conversation-check',
+        trigger: 'every_n_turns',
+        triggerConfig: { n: 5 },
+        prompt: 'Assess: Is the user making progress? Should I adjust my approach?'
+      }
+    ]
+  }
+});
+
+// Prompts automatically adapt based on user context and task
+await agent.updateUserContext({ skillLevel: 'expert' });
+for await (const chunk of agent.processRequest({ message: 'Explain monads' })) {
+  // Uses expert-mode prompt element, skips beginner explanations
+}
+```
+
+---
+
+## Roadmap
+
+| Version | Status | Features |
+|---------|--------|----------|
+| 0.1 | ✓ | Core runtime, GMI, streaming, tools, RAG |
+| 0.2 | → | Knowledge graphs, marketplace, visual planning |
+| 0.3 | ○ | Distributed agents, edge deployment |
+| 1.0 | ○ | Production hardening, enterprise features |
+
+See [CHANGELOG.md](./CHANGELOG.md) for release history.
+
+---
+
+## Contributing
+
+We welcome contributions. See our [Contributing Guide](https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md) for details.
+
+```bash
+# Clone and setup
+git clone https://github.com/framersai/agentos.git
+cd agentos
+pnpm install
+
+# Development
+pnpm run build    # Build the package
+pnpm run test     # Run tests
+pnpm run docs     # Generate documentation
+```
+
+### Commit Convention
+
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat:  New features → minor version bump
+fix:   Bug fixes → patch version bump
+docs:  Documentation only
+BREAKING CHANGE: → major version bump
+```
+
+---
+
+## License
+
+[Apache 2.0](./LICENSE) © [Framers](https://frame.dev)
+
+---
+
+<div align="center">
+
+<a href="https://agentos.sh">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
+</a>
+&nbsp;&nbsp;&nbsp;
+<a href="https://frame.dev">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/logos/frame-logo.svg" alt="Frame.dev" height="40" />
+</a>
+
+**Built by [Frame.dev](https://frame.dev)** · [@framersai](https://github.com/framersai)
+
+[Website](https://agentos.sh) · [Documentation](https://agentos.sh/docs) · [Twitter](https://twitter.com/framersai)
+
+</div>
