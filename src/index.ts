@@ -73,4 +73,10 @@ export * from './types/rateLimitTypes';
 export * from './core/storage';
 // RAG (Retrieval Augmented Generation)
 export * from './rag';
-
+// Extension Secrets Catalog
+export {
+  EXTENSION_SECRET_DEFINITIONS,
+  type ExtensionSecretDefinition,
+  getSecretDefinition,
+  resolveSecretForProvider,
+} from './config/extensionSecrets.js';
