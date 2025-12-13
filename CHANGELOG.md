@@ -1,3 +1,7 @@
+## <small>1.0.1 (2025-12-13)</small>
+
+* fix: trigger semantic-release with v0.1.1 tag baseline ([0a5733f](https://github.com/framersai/agentos/commit/0a5733f))
+
 ## 1.0.0 (2025-12-13)
 
 * fix: add EXTENSION_SECRET_DEFINITIONS export and fix atlas persona ([692e596](https://github.com/framersai/agentos/commit/692e596))
