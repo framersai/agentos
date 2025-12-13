@@ -1,3 +1,7 @@
+## <small>1.0.2 (2025-12-13)</small>
+
+* revert: set version back to 0.1.1 (1.0.1 was premature) ([e5af05f](https://github.com/framersai/agentos/commit/e5af05f))
+
 ## <small>1.0.1 (2025-12-13)</small>
 
 * fix: trigger semantic-release with v0.1.1 tag baseline ([0a5733f](https://github.com/framersai/agentos/commit/0a5733f))
