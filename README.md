@@ -430,6 +430,31 @@ bus.on('research:complete', async ({ findings }) => {
 await researcher.processRequest({ message: 'Analyze the authentication module' });
 ```
 
+### Guardrails: Mid-Stream Decision Override
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+import { CostCeilingGuardrail } from './guardrails/CostCeilingGuardrail';
+
+const costGuard = new CostCeilingGuardrail({
+  maxCostUsd: 0.05,  // 5 cents per request
+  inputTokenPricePer1k: 0.0001,
+  outputTokenPricePer1k: 0.0002,
+  budgetExceededText: 'Response exceeded cost ceiling. Please refine your request.'
+});
+
+const agent = new AgentOS();
+await agent.initialize({
+  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY },
+  guardrailService: costGuard
+});
+
+// Agent generates expensive response → guardrail intercepts → substitutes budget message
+// Agents can "change their mind" before delivery based on cost, content policy, or quality checks
+```
+
+See [Guardrails Usage Guide](../../backend/src/integrations/agentos/guardrails/GUARDRAILS_USAGE.md) for complete documentation.
+
 ### Non-Streaming Response
 
 ```typescript
