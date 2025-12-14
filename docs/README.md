@@ -32,6 +32,7 @@
 - [**Planning Engine**](./PLANNING_ENGINE.md) — Multi-step task planning and execution
 - [**Human-in-the-Loop**](./HUMAN_IN_THE_LOOP.md) — Approval workflows and human oversight
 - [**Agent Communication**](./AGENT_COMMUNICATION.md) — Inter-agent messaging and coordination
+- [**Guardrails System**](../../../backend/src/integrations/agentos/guardrails/GUARDRAILS_USAGE.md) — Mid-stream decision override and safety controls
 
 #### Memory & Storage
 - [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) — Vector storage and retrieval setup
