@@ -11,6 +11,7 @@ The Communication Bus provides:
 - **Request-Response**: Synchronous-style communication
 - **Pub/Sub**: Topic-based messaging
 - **Handoff**: Structured task transfer between agents
+- **Threading**: Conversation tracking with threadId/inReplyTo
 
 ## Architecture
 
@@ -42,6 +43,57 @@ The Communication Bus provides:
 │  └────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+## Implementation Details
+
+### Routing Architecture
+
+The bus uses a multi-layered routing system:
+
+- **sendToAgent()**: Direct 1:1 routing by agent ID
+- **sendToRole()**: Routes to agents by role (load-balanced if multiple)
+- **broadcast()**: All agents in agency except sender
+- **broadcastToRoles()**: Specific roles only
+
+### Load Balancing
+
+When multiple agents hold the same role, messages are distributed via **random selection**:
+
+```typescript
+const agentIds = agencyRoleMap?.get(targetRoleId) ?? [];
+const targetAgentId = this.routingConfig.enableLoadBalancing
+  ? agentIds[Math.floor(Math.random() * agentIds.length)]  // Random selection
+  : agentIds[0];                                             // First agent
+```
+
+### Delivery Guarantees
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **At-most-once** | Yes | No persisted queue; handler exceptions logged but no retry |
+| **At-least-once** | No | Handlers execute once per delivery attempt |
+| **Exactly-once** | No | No transaction support |
+| **Message persistence** | Limited | Circular buffer (100 msgs per agent) |
+
+### Priority System
+
+Four-tier priority: `low` < `normal` < `high` < `urgent`
+
+- Used for subscription filtering (`minPriority` option)
+- Messages delivered FIFO regardless of priority (no reordering)
+- Default: `'normal'` if not specified
+
+### Message Ordering
+
+- **Per-agent FIFO**: Strict ordering per subscription
+- **No global ordering**: Independent delivery per agent
+- **Threading**: Optional `threadId` and `inReplyTo` fields for conversation tracking
+
+### Error Handling
+
+- Handler errors are caught and logged, other handlers still execute
+- No subscribers: Returns `DeliveryStatus` with status `'failed'`
+- Request-response timeout: Returns `AgentResponse` with status `'timeout'` (default 30s)
 
 ## Message Types
 
@@ -297,6 +349,13 @@ interface HandoffContext {
 ```
 
 See `IAgentCommunicationBus.ts` for complete type definitions.
+
+## Related Documentation
+
+- [Architecture Overview](./ARCHITECTURE.md)
+- [Planning Engine](./PLANNING_ENGINE.md)
+- [Human-in-the-Loop](./HUMAN_IN_THE_LOOP.md)
+- [Guardrails Usage Guide](./GUARDRAILS_USAGE.md)
 
 
 
