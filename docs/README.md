@@ -24,7 +24,6 @@
 
 ### Architecture & Core Concepts
 - [**Architecture Overview**](./ARCHITECTURE.md) — Complete system architecture and design principles
-- [**Architecture Deep Dive**](./AGENTOS_ARCHITECTURE_DEEP_DIVE.md) — In-depth technical documentation
 
 ### Features & Capabilities
 
@@ -32,13 +31,12 @@
 - [**Planning Engine**](./PLANNING_ENGINE.md) — Multi-step task planning and execution
 - [**Human-in-the-Loop**](./HUMAN_IN_THE_LOOP.md) — Approval workflows and human oversight
 - [**Agent Communication**](./AGENT_COMMUNICATION.md) — Inter-agent messaging and coordination
-- [**Guardrails System**](../../../backend/src/integrations/agentos/guardrails/GUARDRAILS_USAGE.md) — Mid-stream decision override and safety controls
+- [**Guardrails System**](./GUARDRAILS_USAGE.md) — Mid-stream decision override and safety controls
 
 #### Memory & Storage
 - [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) — Vector storage and retrieval setup
 - [**SQL Storage Quickstart**](./SQL_STORAGE_QUICKSTART.md) — Database integration guide
 - [**Client-Side Storage**](./CLIENT_SIDE_STORAGE.md) — Browser-based persistence
-- [**Migration Guide**](./MIGRATION_TO_STORAGE_ADAPTER.md) — Upgrading storage backends
 
 #### AI & LLM
 - [**Structured Output**](./STRUCTURED_OUTPUT.md) — JSON schema validation and structured generation
@@ -77,9 +75,9 @@
 
 1. **New to AgentOS?** Start with the [README](../README.md) for installation and basic usage
 2. **Understanding the system?** Read the [Architecture Overview](./ARCHITECTURE.md)
-3. **Building features?** Check the relevant feature guide (Planning, HITL, etc.)
+3. **Building features?** Check the relevant feature guide (Planning, HITL, Guardrails, etc.)
 4. **API details?** Browse the [TypeDoc API Reference](./api/index.html)
-5. **Troubleshooting?** See [Platform Support](./PLATFORM_SUPPORT.md) and [Migration Guide](./MIGRATION_TO_STORAGE_ADAPTER.md)
+5. **Troubleshooting?** See [Platform Support](./PLATFORM_SUPPORT.md)
 
 ---
 
