@@ -1,4 +1,5 @@
 name: Generate & Deploy Docs to agentos-live-docs
+# Triggered on push to master or manually via workflow_dispatch
 
 on:
   push:
