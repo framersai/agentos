@@ -281,7 +281,7 @@ for await (const chunk of agent.processRequest({
 | Guide | Description |
 |-------|-------------|
 | [Architecture](./docs/ARCHITECTURE.md) | System design and component overview |
-| [Deep Dive](./docs/AGENTOS_ARCHITECTURE_DEEP_DIVE.md) | Detailed architecture walkthrough |
+| [Guardrails](./docs/GUARDRAILS_USAGE.md) | Safety controls and mid-stream intervention |
 | [Extensions](./docs/RFC_EXTENSION_STANDARDS.md) | Extension system and standards |
 | [Ecosystem](./docs/ECOSYSTEM.md) | Related repos and packages |
 
@@ -303,7 +303,6 @@ for await (const chunk of agent.processRequest({
 | [RAG Configuration](./docs/RAG_MEMORY_CONFIGURATION.md) | Memory and retrieval setup |
 | [SQL Storage](./docs/SQL_STORAGE_QUICKSTART.md) | SQLite/PostgreSQL setup |
 | [Client-Side Storage](./docs/CLIENT_SIDE_STORAGE.md) | Browser storage options |
-| [Migration Guide](./docs/MIGRATION_TO_STORAGE_ADAPTER.md) | Upgrading storage adapters |
 
 ### Operations
 
@@ -453,7 +452,7 @@ await agent.initialize({
 // Agents can "change their mind" before delivery based on cost, content policy, or quality checks
 ```
 
-See [Guardrails Usage Guide](../../backend/src/integrations/agentos/guardrails/GUARDRAILS_USAGE.md) for complete documentation.
+See [Guardrails Usage Guide](./docs/GUARDRAILS_USAGE.md) for complete documentation.
 
 ### Non-Streaming Response
 
