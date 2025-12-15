@@ -1,3 +1,29 @@
+## <small>1.0.3 (2025-12-15)</small>
+
+* fix: atlas persona schema and add orchestrator tests ([10533e0](https://github.com/framersai/agentos/commit/10533e0))
+* fix: improve test coverage for model selection options propagation ([1d86154](https://github.com/framersai/agentos/commit/1d86154))
+* fix: trigger release with improved model options test coverage ([18820fc](https://github.com/framersai/agentos/commit/18820fc)), closes [#1](https://github.com/framersai/agentos/issues/1)
+* fix(orchestration): Correctly propagate model selection options to GMI ([4342283](https://github.com/framersai/agentos/commit/4342283))
+* ci: disable semantic-release workflow ([4c44a1b](https://github.com/framersai/agentos/commit/4c44a1b))
+* ci: re-enable semantic-release workflow ([3dac31a](https://github.com/framersai/agentos/commit/3dac31a))
+* chore: trigger CI/CD for test coverage ([dae6b3f](https://github.com/framersai/agentos/commit/dae6b3f))
+* test: add cross-agent guardrails tests ([2a93c7f](https://github.com/framersai/agentos/commit/2a93c7f))
+* test: add tests for model selection options propagation in API AgentOSOrchestrator [skip release] ([5960167](https://github.com/framersai/agentos/commit/5960167))
+* Merge pull request #1 from Victor-Evogor/master ([99eeafa](https://github.com/framersai/agentos/commit/99eeafa)), closes [#1](https://github.com/framersai/agentos/issues/1)
+* docs: add comprehensive GUARDRAILS_USAGE.md ([a42d91d](https://github.com/framersai/agentos/commit/a42d91d))
+* docs: add guardrail examples and link to usage guide ([b955fd1](https://github.com/framersai/agentos/commit/b955fd1))
+* docs: cleanup docs/README.md links ([a4e90fc](https://github.com/framersai/agentos/commit/a4e90fc))
+* docs: expand AGENT_COMMUNICATION.md with implementation details [skip release] ([6033bdd](https://github.com/framersai/agentos/commit/6033bdd))
+* docs: expand PLANNING_ENGINE.md with implementation details ([ee98839](https://github.com/framersai/agentos/commit/ee98839))
+* docs: remove MIGRATION_TO_STORAGE_ADAPTER.md ([430c92a](https://github.com/framersai/agentos/commit/430c92a))
+* docs: remove redundant AGENTOS_ARCHITECTURE_DEEP_DIVE.md ([b4e0fe2](https://github.com/framersai/agentos/commit/b4e0fe2))
+* docs: update README with guardrails link and cleanup ([a322f4b](https://github.com/framersai/agentos/commit/a322f4b))
+* docs(guardrails): add TSDoc to guardrailDispatcher ([de0557d](https://github.com/framersai/agentos/commit/de0557d))
+* docs(guardrails): add TSDoc to IGuardrailService ([e973302](https://github.com/framersai/agentos/commit/e973302))
+* feat(guardrails): add crossAgentGuardrailDispatcher ([20fdf57](https://github.com/framersai/agentos/commit/20fdf57))
+* feat(guardrails): add guardrails module exports ([83480a6](https://github.com/framersai/agentos/commit/83480a6))
+* feat(guardrails): add ICrossAgentGuardrailService interface ([f4a19c0](https://github.com/framersai/agentos/commit/f4a19c0))
+
 ## <small>1.0.2 (2025-12-13)</small>
 
 * revert: set version back to 0.1.1 (1.0.1 was premature) ([e5af05f](https://github.com/framersai/agentos/commit/e5af05f))
