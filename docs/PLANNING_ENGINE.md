@@ -10,6 +10,7 @@ The Planning Engine provides sophisticated cognitive capabilities for autonomous
 - **Plan Generation**: Create multi-step execution plans with various strategies
 - **Self-Correction**: Refine plans based on execution feedback
 - **Autonomous Loops**: Pursue goals with minimal human intervention
+- **Agency Integration**: Distribute parallelizable work across GMIs
 
 ## Architecture
 
@@ -41,6 +42,29 @@ The Planning Engine provides sophisticated cognitive capabilities for autonomous
             └───────────────┘ └─────┘ └─────────────┘
 ```
 
+## Default Behavior
+
+When no strategy is explicitly selected, the PlanningEngine defaults to **ReAct** (Reasoning + Acting):
+
+```typescript
+const defaultOptions = {
+  maxSteps: 15,
+  maxIterations: 5,
+  minConfidence: 0.6,
+  allowToolUse: true,
+  strategy: 'react',           // <-- DEFAULT STRATEGY
+  enableCheckpoints: true,
+  checkpointFrequency: 5,
+  maxTotalTokens: 100000,
+  planningTimeoutMs: 60000,
+};
+```
+
+**Strategy Fallback Chain:**
+1. User-specified `options.strategy`
+2. Config default from `PlanningEngineConfig.defaultOptions.strategy`
+3. Built-in default: `'react'`
+
 ## Planning Strategies
 
 | Strategy | Description | Best For |
@@ -51,6 +75,49 @@ The Planning Engine provides sophisticated cognitive capabilities for autonomous
 | `least_to_most` | Decompose into simpler subproblems | Incrementally solvable tasks |
 | `self_consistency` | Generate multiple plans, vote on best | High-stakes decisions |
 | `reflexion` | Plan with self-reflection loops | Learning from mistakes |
+
+### Strategy Comparison
+
+| Strategy | Token Cost | Speed | Adaptability | Parallelizable | Best For |
+|----------|------------|-------|--------------|----------------|----------|
+| **react** | High | Slow | Very High | No | Dynamic, interactive tasks |
+| **plan_and_execute** | Low | Fast | Low | Yes | Predictable, batch operations |
+| **tree_of_thought** | Very High | Very Slow | High | Yes (branches) | Complex reasoning |
+| **least_to_most** | Medium | Medium | Medium | Yes | Hierarchical problems |
+| **self_consistency** | Very High | Very Slow | High | Yes | Critical decisions |
+| **reflexion** | Medium-High | Medium | High | No | Iterative improvement |
+
+### ReAct (Default)
+
+**How it works**: Interleaves reasoning and action in a continuous loop. At each step: Think → Act → Observe → Reflect.
+
+**Strengths**: Highly adaptive, self-correcting, transparent reasoning, good for unpredictable environments.
+
+**Weaknesses**: High token cost, slower execution, risk of context window exhaustion.
+
+### Plan-and-Execute
+
+**How it works**: Generates a complete plan upfront, validates it, then executes steps sequentially without replanning.
+
+**Strengths**: Predictable execution path, lower token cost, enables parallelization at Agency level.
+
+**Weaknesses**: Cannot adapt to unexpected outcomes, single point of failure if plan is wrong.
+
+### Tree-of-Thought
+
+**How it works**: Generates multiple reasoning branches, explores alternatives in parallel, and votes on the best solution.
+
+**Strengths**: Comprehensive exploration, higher accuracy from multiple perspectives.
+
+**Weaknesses**: Very expensive, slow to execute all branches.
+
+### Self-Consistency
+
+**How it works**: Generates multiple independent plans, executes all paths, aggregates results via voting.
+
+**Strengths**: Extremely robust, error resilient.
+
+**Weaknesses**: Extremely expensive, only justified for critical decisions.
 
 ## Usage
 
@@ -118,6 +185,88 @@ const refinedPlan = await engine.refinePlan(plan, {
 });
 ```
 
+## Task Execution Model
+
+### Sequential Execution with Dependencies
+
+The PlanningEngine executes steps **sequentially** with dependency-aware ordering:
+
+```typescript
+// Steps execute when all dependencies are satisfied
+private getNextReadyStep(plan: ExecutionPlan, state: ExecutionState): PlanStep | null {
+  for (const step of plan.steps) {
+    if (state.completedSteps.includes(step.stepId)) continue;
+    if (state.failedSteps.includes(step.stepId)) continue;
+
+    const depsmet = step.dependsOn.every((depId) =>
+      state.completedSteps.includes(depId)
+    );
+    if (depsmet) return step;
+  }
+  return null;
+}
+```
+
+### Parallel Processing via Agency Distribution
+
+While the PlanningEngine executes sequentially, **parallelization is achieved by distributing work across Agency GMIs**:
+
+```typescript
+// 1. Decompose task into subtasks
+const decomposition = await engine.decomposeTask(complexGoal, 3);
+
+// 2. Identify parallelizable subtasks
+const parallelizable = decomposition.subtasks.filter(s => s.parallelizable);
+
+// 3. Distribute across Agency GMIs
+for (const subtask of parallelizable) {
+  await communicationBus.sendToRole(agencyId, selectBestRole(subtask), {
+    type: 'task_delegation',
+    content: subtask,
+    priority: 'high',
+  });
+}
+```
+
+## Guardrails Integration
+
+Guardrails intercept at two points during plan execution:
+
+### Input Evaluation (Before Planning)
+
+```
+User Request → [Guardrails evaluateInput] → Sanitized Input → generatePlan()
+```
+
+### Output Evaluation (During Execution) - "Changing Mind"
+
+```
+Step Execution → Output Stream → [Guardrails evaluateOutput] → Client
+                                         ↓
+                              Can BLOCK mid-stream
+                              Can SANITIZE content
+```
+
+```typescript
+// Real-time streaming evaluation - "changing mind" mid-stream
+class CostCeilingGuardrail implements IGuardrailService {
+  config = { evaluateStreamingChunks: true };
+  private tokenCount = 0;
+
+  async evaluateOutput({ chunk }: GuardrailOutputPayload) {
+    if (chunk.type === 'TEXT_DELTA' && chunk.textDelta) {
+      this.tokenCount += Math.ceil(chunk.textDelta.length / 4);
+      if (this.tokenCount > 1000) {
+        return { action: GuardrailAction.BLOCK, reason: 'Token budget exceeded' };
+      }
+    }
+    return null;
+  }
+}
+```
+
+See [Guardrails Usage Guide](./GUARDRAILS_USAGE.md) for complete documentation.
+
 ## Integration with Agencies
 
 The Planning Engine integrates with AgentOS Agencies for multi-agent planning:
@@ -182,6 +331,13 @@ interface PlanStep {
 ```
 
 See `IPlanningEngine.ts` for complete type definitions.
+
+## Related Documentation
+
+- [Architecture Overview](./ARCHITECTURE.md)
+- [Guardrails Usage Guide](./GUARDRAILS_USAGE.md)
+- [Human-in-the-Loop](./HUMAN_IN_THE_LOOP.md)
+- [Agent Communication](./AGENT_COMMUNICATION.md)
 
 
 
