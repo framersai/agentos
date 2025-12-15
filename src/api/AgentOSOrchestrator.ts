@@ -870,7 +870,7 @@ export class AgentOSOrchestrator {
     const gmiInputMetadata: Record<string, any> = {
         gmiId: gmi.getGMIId(),
         // Pass relevant options to GMI if it needs them
-        processingOptions: options,
+        options: options,
         // User API keys are handled by GMIManager when fetching/creating GMI,
         // but can be passed in metadata if GMI needs them per-turn for some reason.
         userApiKeys: input.userApiKeys,
