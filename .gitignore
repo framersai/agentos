@@ -1,4 +1,5 @@
 dist/
+tsconfig.tsbuildinfo
 tsconfig.build.tsbuildinfo
 **/*.js
 !eslint.config.js
