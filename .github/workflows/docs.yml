@@ -1,5 +1,5 @@
 name: Generate & Deploy Docs to agentos-live-docs
-# Triggered on push to master or manually via workflow_dispatch
+# Triggered on push to master, releases, or manually via workflow_dispatch
 
 on:
   push:
@@ -10,7 +10,11 @@ on:
       - 'docs/**'
       - 'typedoc.json'
       - 'README.md'
+      - 'package.json'
+      - 'CHANGELOG.md'
       - '.github/workflows/docs.yml'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
