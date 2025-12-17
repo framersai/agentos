@@ -1,4 +1,4 @@
-## <small>1.0.3 (2025-12-15)</small>
+## <small>0.1.3 (2025-12-15)</small>
 
 * fix: atlas persona schema and add orchestrator tests ([10533e0](https://github.com/framersai/agentos/commit/10533e0))
 * fix: improve test coverage for model selection options propagation ([1d86154](https://github.com/framersai/agentos/commit/1d86154))
@@ -24,15 +24,7 @@
 * feat(guardrails): add guardrails module exports ([83480a6](https://github.com/framersai/agentos/commit/83480a6))
 * feat(guardrails): add ICrossAgentGuardrailService interface ([f4a19c0](https://github.com/framersai/agentos/commit/f4a19c0))
 
-## <small>1.0.2 (2025-12-13)</small>
-
-* revert: set version back to 0.1.1 (1.0.1 was premature) ([e5af05f](https://github.com/framersai/agentos/commit/e5af05f))
-
-## <small>1.0.1 (2025-12-13)</small>
-
-* fix: trigger semantic-release with v0.1.1 tag baseline ([0a5733f](https://github.com/framersai/agentos/commit/0a5733f))
-
-## 1.0.0 (2025-12-13)
+## <small>0.1.2 (2025-12-13)</small>
 
 * fix: add EXTENSION_SECRET_DEFINITIONS export and fix atlas persona ([692e596](https://github.com/framersai/agentos/commit/692e596))
 * fix: add missing pino dependency ([0f4afdc](https://github.com/framersai/agentos/commit/0f4afdc))

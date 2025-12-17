@@ -1,10 +1,10 @@
 /**
  * Semantic Release Configuration
  *
- * Automates versioning and releases based on Conventional Commits:
- * - fix: → patch (0.1.0 → 0.1.1)
- * - feat: → minor (0.1.0 → 0.2.0)
- * - feat!: or BREAKING CHANGE: → major (0.1.0 → 1.0.0)
+ * Conservative versioning for 0.x development:
+ * - fix: → patch (0.1.2 → 0.1.3)
+ * - feat: → patch (0.1.2 → 0.1.3) - conservative until 1.0
+ * - feat!: or BREAKING CHANGE: → minor (0.1.x → 0.2.0) - not major while 0.x
  * - perf:, refactor: → patch
  * - docs:, chore:, test:, ci: → no release
  */
@@ -17,12 +17,12 @@ export default {
     ['@semantic-release/commit-analyzer', {
       preset: 'conventionalcommits',
       releaseRules: [
-        { type: 'feat', release: 'minor' },
+        { type: 'feat', release: 'patch' },      // Conservative: feat = patch until 1.0
         { type: 'fix', release: 'patch' },
         { type: 'perf', release: 'patch' },
         { type: 'refactor', release: 'patch' },
         { type: 'revert', release: 'patch' },
-        { breaking: true, release: 'major' },
+        { breaking: true, release: 'minor' },   // BREAKING = minor while 0.x
         // These don't trigger releases: docs, style, chore, test, ci, build
       ],
       parserOpts: {
