@@ -25,8 +25,8 @@
     "test": "vitest run",
     "dev:test": "vitest",
     "docs:clean": "rimraf docs/api ../../docs-generated/library ../../docs-generated/api",
-    "docs": "npm run docs:clean && pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json && pnpm --dir ../../ exec typedoc --options typedoc.json && pnpm --dir ../../ exec node scripts/generate-api-docs.js && pnpm --dir ../../ exec node apps/agentos-landing/scripts/copy-docs.js",
-    "docs:watch": "npm run docs:clean && pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json && pnpm --dir ../../ exec typedoc --options typedoc.json && pnpm --dir ../../ exec node scripts/generate-api-docs.js && concurrently \"pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json --watch\" \"pnpm --dir ../../ exec typedoc --options typedoc.json --watch\" \"pnpm --dir ../../ exec node apps/agentos-landing/scripts/copy-docs.js --watch\""
+    "docs": "npm run docs:clean && pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json && pnpm --dir ../../ exec typedoc --options typedoc.json && pnpm --dir ../../ exec node scripts/generate-api-docs.js && pnpm --dir ../../ exec node apps/agentos.sh/scripts/copy-docs.js",
+    "docs:watch": "npm run docs:clean && pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json && pnpm --dir ../../ exec typedoc --options typedoc.json && pnpm --dir ../../ exec node scripts/generate-api-docs.js && concurrently \"pnpm --dir ../../ exec typedoc --options packages/agentos/typedoc.json --watch\" \"pnpm --dir ../../ exec typedoc --options typedoc.json --watch\" \"pnpm --dir ../../ exec node apps/agentos.sh/scripts/copy-docs.js --watch\""
   },
   "keywords": [
     "agentos",

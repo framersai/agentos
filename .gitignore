@@ -11,3 +11,9 @@ node_modules/
 
 # Prisma generated client
 src/generated/
+
+# Generated documentation
+docs/api/
+
+# Test coverage reports
+coverage/
