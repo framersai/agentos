@@ -25,12 +25,12 @@
     "npm": "https://www.npmjs.com/package/@framers/agentos"
   },
   "sidebarLinks": {
-    "Architecture": "./ARCHITECTURE.md",
-    "Changelog": "./CHANGELOG.md",
-    "Planning Engine": "./PLANNING_ENGINE.md",
-    "Human-in-the-Loop": "./HUMAN_IN_THE_LOOP.md",
-    "Agent Communication": "./AGENT_COMMUNICATION.md",
-    "Evaluation Framework": "./EVALUATION_FRAMEWORK.md"
+    "Architecture": "/ARCHITECTURE.md",
+    "Changelog": "/CHANGELOG.md",
+    "Planning Engine": "/PLANNING_ENGINE.md",
+    "Human-in-the-Loop": "/HUMAN_IN_THE_LOOP.md",
+    "Agent Communication": "/AGENT_COMMUNICATION.md",
+    "Evaluation Framework": "/EVALUATION_FRAMEWORK.md"
   },
   "plugin": [],
   "theme": "default",
