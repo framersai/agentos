@@ -1,3 +1,9 @@
+## <small>0.1.4 (2026-01-25)</small>
+
+* test(api): cover generator return final response ([758df4b](https://github.com/framersai/agentos/commit/758df4b))
+* fix(api): use generator return value for final response ([0f46ab8](https://github.com/framersai/agentos/commit/0f46ab8))
+* chore: add docs/api and coverage to .gitignore, fix path reference ([ef94f7a](https://github.com/framersai/agentos/commit/ef94f7a))
+
 ## <small>0.1.2 (2025-12-17)</small>
 
 * docs: add comprehensive GUARDRAILS_USAGE.md ([a42d91d](https://github.com/framersai/agentos/commit/a42d91d))
