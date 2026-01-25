@@ -7,11 +7,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AgentOSOrchestrator } from '../../src/api/AgentOSOrchestrator';
 import type { AgentOSInput, ProcessingOptions } from '../../src/api/types/AgentOSInput';
+import { AgentOSResponseChunkType } from '../../src/api/types/AgentOSResponse';
+import { GMIOutputChunkType } from '../../src/cognitive_substrate/IGMI';
 import type {
   GMITurnInput,
   IGMI,
   GMIOutputChunk,
-  GMIOutputChunkType,
 } from '../../src/cognitive_substrate/IGMI';
 import type { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import type { IToolOrchestrator } from '../../src/core/tools/IToolOrchestrator';
@@ -73,25 +74,26 @@ describe('AgentOSOrchestrator (API layer)', () => {
         // Capture the input for assertions
         capturedGMIInput = input;
         yield {
-          type: 'TEXT_DELTA' as GMIOutputChunkType,
+          type: GMIOutputChunkType.TEXT_DELTA,
           content: 'Hello',
           interactionId: 'interaction-1',
           timestamp: new Date(),
         } as GMIOutputChunk;
         yield {
-          type: 'FINAL_RESPONSE_MARKER' as GMIOutputChunkType,
+          type: GMIOutputChunkType.FINAL_RESPONSE_MARKER,
           content: { finalResponseText: 'Hello' },
           interactionId: 'interaction-1',
           timestamp: new Date(),
+          isFinal: true,
         } as GMIOutputChunk;
         return {
           isFinal: true,
-          finalResponseText: 'Hello',
+          responseText: 'Hello',
         };
       }),
       handleToolResult: vi.fn().mockImplementation(async function* () {
         yield {
-          type: 'TEXT_DELTA' as GMIOutputChunkType,
+          type: GMIOutputChunkType.TEXT_DELTA,
           content: 'Tool result processed',
           interactionId: 'interaction-1',
           timestamp: new Date(),
@@ -307,6 +309,48 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(capturedGMIInput?.metadata?.gmiId).toBe('gmi-1');
+    });
+
+    it('uses the AsyncGenerator return value for finalResponseText (not the FINAL_RESPONSE_MARKER content)', async () => {
+      // Simulate the real-world scenario: the marker content is a status string, while the
+      // actual assistant response is returned via the generator return value.
+      (mockGMI.processTurnStream as any).mockImplementation(async function* (_input: GMITurnInput) {
+        yield {
+          type: GMIOutputChunkType.TEXT_DELTA,
+          content: 'Here are three tips: ',
+          interactionId: 'interaction-1',
+          timestamp: new Date(),
+        } as GMIOutputChunk;
+        yield {
+          type: GMIOutputChunkType.FINAL_RESPONSE_MARKER,
+          content: 'Turn processing sequence complete.',
+          interactionId: 'interaction-1',
+          timestamp: new Date(),
+          isFinal: true,
+        } as GMIOutputChunk;
+        return {
+          isFinal: true,
+          responseText: 'Here are three tips: 1) Do X 2) Do Y 3) Do Z',
+        };
+      });
+
+      const input: AgentOSInput = {
+        userId: 'test-user',
+        sessionId: 'test-session',
+        textInput: 'Give me 3 tips',
+        selectedPersonaId: 'persona-1',
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const finalChunk = pushedChunks.find((c: any) => c.type === AgentOSResponseChunkType.FINAL_RESPONSE);
+
+      expect(finalChunk).toBeTruthy();
+      expect(finalChunk.finalResponseText).toBe('Here are three tips: 1) Do X 2) Do Y 3) Do Z');
+      expect(String(finalChunk.finalResponseText).toLowerCase()).not.toContain('turn processing sequence complete');
+      expect(mockStreamingManager.closeStream).toHaveBeenCalled();
     });
   });
 });
