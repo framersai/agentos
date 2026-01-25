@@ -74,6 +74,11 @@ jobs:
 
           # Copy markdown docs
           cp -r docs/*.md docs-deploy/ 2>/dev/null || true
+          cp -r docs/*.md docs-deploy/api/ 2>/dev/null || true
+
+          # Copy changelog (linked from TypeDoc sidebar)
+          cp CHANGELOG.md docs-deploy/ 2>/dev/null || true
+          cp CHANGELOG.md docs-deploy/api/ 2>/dev/null || true
 
           # Copy README as index
           cp README.md docs-deploy/
