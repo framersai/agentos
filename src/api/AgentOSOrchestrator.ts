@@ -470,42 +470,28 @@ export class AgentOSOrchestrator {
         }
 
 
-        for await (const gmiChunk of gmiStreamIterator) {
-          await this.transformAndPushGMIChunk(agentOSStreamId, streamContext, gmiChunk);
-          if (gmiChunk.type === GMIOutputChunkType.TOOL_CALL_REQUEST && gmiChunk.content) {
-            // GMI is requesting tools. Orchestrator will yield this, then await external tool results.
-            continueProcessing = false; // Stop this current GMI processing loop.
-            break; // Break from iterating gmiStreamIterator
-          }
-          if (gmiChunk.isFinal || gmiChunk.type === GMIOutputChunkType.FINAL_RESPONSE_MARKER) {
+        // Consume the async generator manually so we can capture its return value (GMIOutput).
+        // `for await...of` does not expose the generator return value, which caused placeholder
+        // FINAL_RESPONSE payloads (e.g. "Turn processing sequence complete.").
+        while (true) {
+          const { value, done } = await gmiStreamIterator.next();
+          if (done) {
+            lastGMIOutput = value;
             continueProcessing = false;
-            // The TReturn of processTurnStream will be captured if structure allows
-            // break; // Not strictly needed if isFinal means generator ends
+            break;
+          }
+
+          const gmiChunk = value;
+          await this.transformAndPushGMIChunk(agentOSStreamId, streamContext, gmiChunk);
+
+          // NOTE: Tool calls may be executed internally by the GMI/tool orchestrator. Do not stop
+          // streaming on TOOL_CALL_REQUEST; treat it as informational for observers/UI.
+          if (gmiChunk.isFinal || gmiChunk.type === GMIOutputChunkType.FINAL_RESPONSE_MARKER) {
+            // Still keep consuming to capture the generator's return value.
+            continueProcessing = false;
           }
         }
         
-        // Capture the TReturn (GMIOutput) from the processTurnStream generator
-        // This is tricky with for...await...of.
-        // We'll assume the *last* chunk processing or a FINAL_RESPONSE_MARKER helps form `lastGMIOutput`.
-        // Or, better, GMI.processTurnStream should be consumed differently to get TReturn.
-        // For now, if continueProcessing is true, it implies gmiStreamIterator finished without tool_calls or explicit final marker.
-        // If it *did* have a FINAL_RESPONSE_MARKER or isFinal:true, continueProcessing would be false.
-        if (continueProcessing) { // Stream ended without tool request or explicit final chunk.
-            // This means the generator completed, and its return value (GMIOutput) should be used.
-            // However, getting TReturn from for...await...of is not direct.
-            // Let's assume GMI.ts ensures its last yielded chunk conveys finality or the structure of the return value.
-            // Or, the loop naturally ends and `lastGMIOutput` should be based on aggregation.
-            // This part is complex without knowing exactly how TReturn is retrieved alongside yielded values.
-            // For this iteration, we'll assume if the loop finishes and continueProcessing is true, it's effectively the end of this GMI cycle.
-            // lastGMIOutput should have been formed by the *last state of aggregation* if the GMI is well-behaved.
-            // The GMI.processTurnStream itself *returns* GMIOutput. This is what we need.
-            // TODO: Refactor to correctly get the TReturn from gmiStreamIterator.
-            // A simplified approach: if the loop finishes and no tool calls are pending, we assume the interaction for this step is done.
-            // The generation of the AgentOSFinalResponseChunk should use the accumulated state.
-            // For now, if we reach here, it means the stream finished. We consider it implicitly final for this iteration.
-            continueProcessing = false;
-        }
-
         if (!continueProcessing) break; // Exit the while loop
       } // End while
 
@@ -554,6 +540,7 @@ export class AgentOSOrchestrator {
           activePersonaDetails: snapshotPersonaDetails(gmi?.getPersona?.()),
         }
       );
+      await this.dependencies.streamingManager.closeStream(agentOSStreamId, "Processing complete.");
 
     } catch (error: any) {
       const gmiErr = GMIError.wrap?.(error, GMIErrorCode.GMI_PROCESSING_ERROR, `Error in orchestrateTurn for stream ${agentOSStreamId}`) ||
@@ -563,9 +550,10 @@ export class AgentOSOrchestrator {
           agentOSStreamId, currentPersonaId, gmiInstanceIdForChunks,
           gmiErr.code, gmiErr.message, gmiErr.details
       );
+      await this.dependencies.streamingManager.closeStream(agentOSStreamId, "Error during turn processing.");
     } finally {
-      // Don't close stream here, AgentOS will close it when client disconnects or request ends.
-      // Or StreamingManager handles timeouts.
+      // Stream is closed explicitly in the success/error paths; this finally block always
+      // clears internal state to avoid leaks.
       this.activeStreamContexts.delete(agentOSStreamId);
       console.log(`AgentOSOrchestrator: Finished processing for AgentOS Stream ${agentOSStreamId}. Context removed.`);
     }
@@ -822,33 +810,8 @@ export class AgentOSOrchestrator {
         break;
       }
       case GMIOutputChunkType.FINAL_RESPONSE_MARKER:
-        // This chunk signals the end of GMI's streaming.
-        // The actual final content should have been accumulated or is in this chunk's content/metadata.
-        // The calling loop should now construct and send AgentOSFinalResponseChunk.
-        // This chunk itself typically doesn't map directly to an AgentOSResponse other than triggering finalization.
-        // However, AgentOS.ts expects a final response from the generator.
-        // For now, if GMI explicitly sends this, we ensure the stream is marked for closure.
-        // The main _processTurnInternal loop will handle the comprehensive AgentOSFinalResponseChunk.
-        if (gmiChunk.isFinal) { // This marker SHOULD imply isFinal=true
-          if (this.config.enableConversationalPersistence && conversationContext) {
-            await this.dependencies.conversationManager.saveConversation(conversationContext);
-          }
-          // This is a simplified final response based *only* on this marker chunk.
-          // A more robust solution accumulates all data through the turn.
-          await this.pushChunkToStream(
-            agentOSStreamId, AgentOSResponseChunkType.FINAL_RESPONSE,
-            gmiInstanceIdForChunks, personaId, true,
-            {
-              finalResponseText: typeof gmiChunk.content === 'string' ? gmiChunk.content : "Processing complete.",
-              // other fields like usage, trace would need to be on the FINAL_RESPONSE_MARKER content
-              // or aggregated throughout the turn.
-              updatedConversationContext: conversationContext.toJSON(),
-              activePersonaDetails: snapshotPersonaDetails(gmi.getPersona?.()),
-            }
-          );
-          this.activeStreamContexts.delete(agentOSStreamId);
-          await this.dependencies.streamingManager.closeStream(agentOSStreamId, "GMI processing complete (final marker).");
-        }
+        // Marker chunk emitted at end-of-stream. Do not surface to clients as a response.
+        // The real final response is the AsyncGenerator return value (GMIOutput), handled by _processTurnInternal.
         break;
       case GMIOutputChunkType.USAGE_UPDATE:
         // TODO: Could send a specific AgentOSMetadataUpdateChunk if defined, or log.
@@ -944,4 +907,3 @@ export class AgentOSOrchestrator {
     console.log('AgentOSOrchestrator: Shutdown complete.');
   }
 }
-
