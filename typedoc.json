@@ -1,6 +1,8 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["src/index.ts"],
+  "entryPoints": [
+    "src/index.ts"
+  ],
   "out": "docs/api",
   "tsconfig": "tsconfig.build.json",
   "skipErrorChecking": true,
@@ -13,8 +15,18 @@
   "excludeInternal": true,
   "excludeExternals": true,
   "categorizeByGroup": true,
-  "categoryOrder": ["*", "Other"],
-  "groupOrder": ["Classes", "Interfaces", "Functions", "Types", "Variables", "Enums"],
+  "categoryOrder": [
+    "*",
+    "Other"
+  ],
+  "groupOrder": [
+    "Classes",
+    "Interfaces",
+    "Functions",
+    "Types",
+    "Variables",
+    "Enums"
+  ],
   "navigation": {
     "includeCategories": true,
     "includeGroups": true
@@ -25,18 +37,21 @@
     "npm": "https://www.npmjs.com/package/@framers/agentos"
   },
   "sidebarLinks": {
-    "Architecture": "/ARCHITECTURE.md",
-    "Changelog": "/CHANGELOG.md",
-    "Planning Engine": "/PLANNING_ENGINE.md",
-    "Human-in-the-Loop": "/HUMAN_IN_THE_LOOP.md",
-    "Agent Communication": "/AGENT_COMMUNICATION.md",
-    "Evaluation Framework": "/EVALUATION_FRAMEWORK.md"
+    "Architecture": "/docs/ARCHITECTURE.html",
+    "Changelog": "/docs/CHANGELOG.html",
+    "Planning Engine": "/docs/PLANNING_ENGINE.html",
+    "Human-in-the-Loop": "/docs/HUMAN_IN_THE_LOOP.html",
+    "Agent Communication": "/docs/AGENT_COMMUNICATION.html",
+    "Evaluation Framework": "/docs/EVALUATION_FRAMEWORK.html"
   },
   "plugin": [],
   "theme": "default",
   "lightHighlightTheme": "github-light",
   "darkHighlightTheme": "github-dark",
-  "sort": ["source-order", "alphabetical"],
+  "sort": [
+    "source-order",
+    "alphabetical"
+  ],
   "kindSortOrder": [
     "Reference",
     "Project",
