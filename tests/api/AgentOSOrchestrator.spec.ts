@@ -154,6 +154,13 @@ describe('AgentOSOrchestrator (API layer)', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
         }
       );
     });

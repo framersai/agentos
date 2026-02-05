@@ -3,7 +3,18 @@
  * Tests vector store provider management, data source routing, and lifecycle.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Mock SqlVectorStore to avoid requiring the optional @framers/sql-storage-adapter peer dependency
+vi.mock('../../src/rag/implementations/vector_stores/SqlVectorStore', () => ({
+  SqlVectorStore: class MockSqlVectorStore {
+    constructor() {}
+    async initialize() {}
+    async shutdown() {}
+    isInitialized() { return true; }
+    async checkHealth() { return { isHealthy: true }; }
+  },
+}));
 import { VectorStoreManager } from '../../src/rag/VectorStoreManager';
 import type { VectorStoreManagerConfig, RagDataSourceConfig } from '../../src/config/VectorStoreConfiguration';
 

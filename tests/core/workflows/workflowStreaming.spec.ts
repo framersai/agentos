@@ -24,6 +24,13 @@ describe('AgentOSOrchestrator workflow broadcasting', () => {
           getActiveStreamIds: vi.fn(),
         } as any,
         workflowEngine: {} as any,
+        modelProviderManager: {
+          getProvider: vi.fn(),
+          getProviderForModel: vi.fn(),
+          getModelInfo: vi.fn(),
+          listProviders: vi.fn().mockReturnValue([]),
+          listModels: vi.fn().mockReturnValue([]),
+        } as any,
       },
     );
 
