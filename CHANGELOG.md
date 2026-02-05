@@ -1,3 +1,10 @@
+## <small>0.1.5 (2026-02-05)</small>
+
+* fix(tests): resolve test failures with proper mocks ([ce8e2bf](https://github.com/framersai/agentos/commit/ce8e2bf))
+* docs: fix sidebar links for markdown pages ([451ab8c](https://github.com/framersai/agentos/commit/451ab8c))
+* docs: update sidebar links to point to .html instead of .md ([d11c2ce](https://github.com/framersai/agentos/commit/d11c2ce))
+* ci(docs): ship changelog + markdown pages ([be2a7bd](https://github.com/framersai/agentos/commit/be2a7bd))
+
 ## <small>0.1.4 (2026-01-25)</small>
 
 * test(api): cover generator return final response ([758df4b](https://github.com/framersai/agentos/commit/758df4b))
