@@ -158,8 +158,8 @@ export class ExtensionLoader {
     console.log('📦 Loading curated extensions...');
     
     const curatedPackages = [
-      '@framers/agentos-research-web-search',
-      '@framers/agentos-integrations-telegram'
+      '@framers/agentos-ext-web-search',
+      '@framers/agentos-ext-telegram'
     ];
     
     for (const packageName of curatedPackages) {
