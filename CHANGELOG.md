@@ -1,3 +1,9 @@
+## <small>0.1.6 (2026-02-06)</small>
+
+* refactor: rename extension packages to @framers/agentos-ext-* convention ([233e9a4](https://github.com/framersai/agentos/commit/233e9a4))
+* refactor: rename extension packages to @framers/agentos-ext-* convention ([a6e40ac](https://github.com/framersai/agentos/commit/a6e40ac))
+* refactor: rename extension packages to @framers/agentos-ext-* convention ([64b03b7](https://github.com/framersai/agentos/commit/64b03b7))
+
 ## <small>0.1.5 (2026-02-05)</small>
 
 * fix(tests): resolve test failures with proper mocks ([ce8e2bf](https://github.com/framersai/agentos/commit/ce8e2bf))
