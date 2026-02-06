@@ -16,7 +16,7 @@ vi.mock('fs/promises', () => ({
         {
           id: 'web-search',
           name: 'Web Search',
-          package: '@framers/agentos-research-web-search',
+          package: '@framers/agentos-ext-web-search',
           version: '1.0.0',
           category: 'research',
           description: 'Web search',
@@ -223,4 +223,3 @@ describe('ExtensionLoader', () => {
     });
   });
 });
-
