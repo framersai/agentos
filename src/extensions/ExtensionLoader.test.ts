@@ -26,11 +26,11 @@ describe('ExtensionLoader', () => {
     
     it('should respect whitelist configuration', () => {
       const customLoader = new ExtensionLoader(manager, {
-        whitelist: ['@framers/agentos-research-web-search']
+        whitelist: ['@framers/agentos-ext-web-search']
       });
       
       // @ts-ignore - accessing private method for testing
-      const shouldLoad = customLoader.shouldLoadExtension('@framers/agentos-research-web-search');
+      const shouldLoad = customLoader.shouldLoadExtension('@framers/agentos-ext-web-search');
       expect(shouldLoad).toBe(true);
       
       // @ts-ignore
@@ -93,7 +93,7 @@ describe('ExtensionLoader', () => {
   describe('extension metadata', () => {
     it('should infer category from package name', () => {
       // @ts-ignore - accessing private method
-      const category = loader.inferCategory('@framers/agentos-research-web-search');
+      const category = loader.inferCategory('@framers/agentos-ext-web-search');
       expect(category).toBe('research');
       
       // @ts-ignore
@@ -105,7 +105,7 @@ describe('ExtensionLoader', () => {
       process.env.TELEGRAM_BOT_TOKEN = 'test-token';
       
       // @ts-ignore - accessing private method
-      const options = loader.getExtensionOptions('@framers/agentos-integrations-telegram');
+      const options = loader.getExtensionOptions('@framers/agentos-ext-telegram');
       expect(options.botToken).toBe('test-token');
       
       delete process.env.TELEGRAM_BOT_TOKEN;
