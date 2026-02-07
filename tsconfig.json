@@ -3,6 +3,7 @@
     "composite": true,
     "rootDir": "src",
     "baseUrl": "./src",
+    "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "target": "ES2020",

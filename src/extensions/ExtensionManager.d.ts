@@ -15,6 +15,7 @@ export declare class ExtensionManager {
     private readonly registries;
     private readonly options;
     private readonly secrets;
+    private readonly loadedPacks;
     constructor(options?: ExtensionManagerOptions);
     /**
       * Loads packs defined in the manifest, registering their descriptors in the
@@ -36,6 +37,13 @@ export declare class ExtensionManager {
      * Provides the registry for a particular kind, creating it if necessary.
      */
     getRegistry<TPayload>(kind: ExtensionKind): ExtensionRegistry<TPayload>;
+    /**
+     * Deactivates all loaded descriptors and extension packs.
+     *
+     * This is intentionally best-effort: one failing deactivation should not
+     * prevent other packs/descriptors from shutting down.
+     */
+    shutdown(context?: ExtensionLifecycleContext): Promise<void>;
     private ensureDefaultRegistries;
     private resolvePack;
     private registerPack;

@@ -53,6 +53,7 @@ export class ExtensionManager {
   private readonly registries: Map<ExtensionKind, ExtensionRegistry<unknown>> = new Map();
   private readonly options: ExtensionManagerOptions;
   private readonly secrets = new Map<string, string>();
+  private readonly loadedPacks: ExtensionPack[] = [];
 
   constructor(options: ExtensionManagerOptions = {}) {
     this.options = options;
@@ -169,6 +170,32 @@ export class ExtensionManager {
     return registry;
   }
 
+  /**
+   * Deactivates all loaded descriptors and extension packs.
+   *
+   * This is intentionally best-effort: one failing deactivation should not
+   * prevent other packs/descriptors from shutting down.
+   */
+  public async shutdown(context?: ExtensionLifecycleContext): Promise<void> {
+    const lifecycleContext = this.enrichLifecycleContext(context);
+
+    for (const registry of this.registries.values()) {
+      await registry.clear(lifecycleContext).catch((err) => {
+        console.warn(`ExtensionManager: Failed clearing registry during shutdown`, err);
+      });
+    }
+
+    for (const pack of [...this.loadedPacks].reverse()) {
+      try {
+        await pack.onDeactivate?.(lifecycleContext);
+      } catch (err) {
+        console.warn(`ExtensionManager: Pack '${pack.name}' onDeactivate failed`, err);
+      }
+    }
+
+    this.loadedPacks.length = 0;
+  }
+
   private ensureDefaultRegistries(): void {
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_TOOL);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_GUARDRAIL);
@@ -201,6 +228,18 @@ export class ExtensionManager {
     entry: ExtensionPackManifestEntry,
     lifecycleContext?: ExtensionLifecycleContext,
   ): Promise<void> {
+    const enrichedLifecycleContext = this.enrichLifecycleContext(lifecycleContext);
+
+    let packActivated = false;
+    try {
+      // Pack-level lifecycle hook (used by several curated packs for initialization).
+      await pack.onActivate?.(enrichedLifecycleContext);
+      packActivated = true;
+    } catch (err) {
+      // Treat activation failure as pack load failure.
+      throw err;
+    }
+
     const ctx: ExtensionPackContext = {
       manifestEntry: entry,
       source: {
@@ -211,8 +250,21 @@ export class ExtensionManager {
       options: entry.options,
     };
 
-    for (const descriptor of pack.descriptors) {
-      await this.registerDescriptor(descriptor, ctx, lifecycleContext);
+    try {
+      for (const descriptor of pack.descriptors) {
+        await this.registerDescriptor(descriptor, ctx, lifecycleContext);
+      }
+      this.loadedPacks.push(pack);
+    } catch (err) {
+      // Best-effort cleanup to avoid leaking resources for partially-registered packs.
+      if (packActivated) {
+        try {
+          await pack.onDeactivate?.(enrichedLifecycleContext);
+        } catch (cleanupErr) {
+          console.warn(`ExtensionManager: Pack '${pack.name}' onDeactivate failed after registration error`, cleanupErr);
+        }
+      }
+      throw err;
     }
   }
 

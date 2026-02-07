@@ -41,6 +41,18 @@ export interface ExtensionLifecycleContext {
     getSecret?: (secretId: string) => string | undefined;
 }
 /**
+ * Context passed to extension-pack factory helpers (e.g. `createExtensionPack()`).
+ *
+ * AgentOS itself loads packs via manifest factories; this type exists to provide
+ * a common shape for extension packages that expose a `createExtensionPack(context)`
+ * function for direct, programmatic consumption.
+ */
+export interface ExtensionContext<TOptions = Record<string, unknown>> extends ExtensionLifecycleContext {
+    options?: TOptions;
+    onActivate?: () => Promise<void> | void;
+    onDeactivate?: () => Promise<void> | void;
+}
+/**
  * Declares a dependency on a named secret (API key / credential).
  */
 export interface ExtensionSecretRequirement {

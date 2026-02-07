@@ -1453,6 +1453,10 @@ export class AgentOS implements IAgentOS {
         await this.modelProviderManager.shutdown();
         console.log('AgentOS: AIModelProviderManager shut down.');
       }
+      if (this.extensionManager?.shutdown) {
+        await this.extensionManager.shutdown({ logger: this.logger });
+        console.log('AgentOS: ExtensionManager shut down.');
+      }
       // Other services like authService, subscriptionService, prisma might not have explicit async shutdown methods
       // if they manage connections passively or are handled by process exit.
 

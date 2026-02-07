@@ -70,6 +70,8 @@ export * from './core/guardrails';
 export * from './extensions';
 // Messaging Channels (external platform adapters)
 export * from './channels';
+// Voice Calls (telephony providers)
+export * from './voice';
 // Multilingual exports
 export * from './core/language/interfaces';
 export * from './core/language/LanguageService';

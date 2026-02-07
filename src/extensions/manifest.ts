@@ -1,4 +1,4 @@
-import type { ExtensionDescriptor, ExtensionSourceMetadata } from './types';
+import type { ExtensionDescriptor, ExtensionLifecycleContext, ExtensionSourceMetadata } from './types';
 
 export type ExtensionPackResolver =
   | { package: string; version?: string }
@@ -47,8 +47,11 @@ export interface ExtensionPackContext {
   options?: Record<string, unknown>;
 }
 
+
 export interface ExtensionPack {
   name: string;
   version?: string;
   descriptors: ExtensionDescriptor[];
+  onActivate?: ((context: ExtensionLifecycleContext) => Promise<void> | void) | (() => Promise<void> | void);
+  onDeactivate?: ((context: ExtensionLifecycleContext) => Promise<void> | void) | (() => Promise<void> | void);
 }
