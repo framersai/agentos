@@ -1,3 +1,7 @@
+## <small>0.1.12 (2026-02-07)</small>
+
+* feat: add 7 P3 channel platforms for OpenClaw parity ([5a988ce](https://github.com/framersai/agentos/commit/5a988ce))
+
 ## <small>0.1.11 (2026-02-07)</small>
 
 * feat: append-only persistence, skills system, provenance hooks ([73f9afb](https://github.com/framersai/agentos/commit/73f9afb))
