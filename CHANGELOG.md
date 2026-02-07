@@ -1,3 +1,8 @@
+## <small>0.1.8 (2026-02-07)</small>
+
+* fix: add ExtensionPack onActivate/onDeactivate union type for backwards compat ([c8c64e9](https://github.com/framersai/agentos/commit/c8c64e9))
+* docs: add extensions-registry package to ecosystem guide ([eeb0b6a](https://github.com/framersai/agentos/commit/eeb0b6a))
+
 ## <small>0.1.7 (2026-02-07)</small>
 
 * feat: channel system, extension secrets, messaging types, docs ([63487ed](https://github.com/framersai/agentos/commit/63487ed))
