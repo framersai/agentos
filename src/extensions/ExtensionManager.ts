@@ -61,6 +61,16 @@ export class ExtensionManager {
   private readonly overrides?: ExtensionOverrides;
   private readonly secrets = new Map<string, string>();
   private readonly loadedPacks: ExtensionPack[] = [];
+  private readonly loadedPackKeys = new Set<string>();
+  private readonly loadedPackRecords: Array<{
+    key: string;
+    name: string;
+    version?: string;
+    identifier?: string;
+    packageName?: string;
+    module?: string;
+    loadedAt: string;
+  }> = [];
 
   constructor(options: ExtensionManagerOptions = {}) {
     this.options = options;
@@ -87,44 +97,7 @@ export class ExtensionManager {
     }
 
     for (const entry of manifest.packs) {
-      if (entry.enabled === false) {
-        continue;
-      }
-
-      try {
-        this.hydrateSecretsFromPackEntry(entry);
-        const pack = await this.resolvePack(entry, context);
-        if (!pack) {
-          continue;
-        }
-
-        await this.registerPack(pack, entry, context);
-        this.emitPackEvent({
-          type: 'pack:loaded',
-          timestamp: new Date().toISOString(),
-          source: {
-            sourceName: pack.name,
-            sourceVersion: pack.version,
-            identifier: entry.identifier,
-          },
-        });
-      } catch (error) {
-        const sourceName =
-          'package' in entry
-            ? entry.package
-            : 'module' in entry
-            ? entry.module
-            : entry.identifier ?? 'inline-pack';
-        this.emitPackEvent({
-          type: 'pack:failed',
-          timestamp: new Date().toISOString(),
-          source: {
-            sourceName,
-            identifier: entry.identifier,
-          },
-          error: error instanceof Error ? error : new Error(String(error)),
-        });
-      }
+      await this.loadPackEntry(entry, context);
     }
   }
 
@@ -155,17 +128,158 @@ export class ExtensionManager {
       options,
     };
 
-    this.hydrateSecretsFromPackEntry(entry);
-    await this.registerPack(pack, entry, lifecycleContext);
-    this.emitPackEvent({
-      type: 'pack:loaded',
-      timestamp: new Date().toISOString(),
-      source: {
-        sourceName: pack.name,
-        sourceVersion: pack.version,
-        identifier,
-      },
-    });
+    const outcome = await this.loadPackEntry(entry, lifecycleContext);
+    if (!outcome.loaded) {
+      if (outcome.skipped && outcome.reason === 'already_loaded') {
+        return;
+      }
+      const err = outcome.skipped ? new Error(outcome.reason || 'Unknown extension pack load failure') : outcome.error;
+      throw err;
+    }
+  }
+
+  /**
+   * Load a single manifest entry at runtime, applying the same resolution,
+   * secret hydration, registration, and event emission logic as {@link loadManifest}.
+   *
+   * This enables schema-on-demand / lazy-loading flows where an agent can
+   * enable an extension pack mid-session.
+   */
+  public async loadPackEntry(
+    entry: ExtensionPackManifestEntry,
+    lifecycleContext?: ExtensionLifecycleContext,
+  ): Promise<
+    | { loaded: true; key: string; pack: { name: string; version?: string; identifier?: string } }
+    | { loaded: false; skipped: true; reason: 'disabled' | 'already_loaded' | 'unresolved'; key?: string }
+    | { loaded: false; skipped: false; reason: 'failed'; key?: string; error: Error; sourceName: string }
+  > {
+    if (entry.enabled === false) {
+      return { loaded: false, skipped: true, reason: 'disabled' };
+    }
+
+    const preKey = this.resolvePackKey(entry);
+    if (preKey && this.loadedPackKeys.has(preKey)) {
+      return { loaded: false, skipped: true, reason: 'already_loaded', key: preKey };
+    }
+
+    try {
+      this.hydrateSecretsFromPackEntry(entry);
+      const pack = await this.resolvePack(entry, lifecycleContext);
+      if (!pack) {
+        return { loaded: false, skipped: true, reason: 'unresolved', key: preKey ?? undefined };
+      }
+
+      const key = this.resolvePackKey(entry, pack);
+      if (key && this.loadedPackKeys.has(key)) {
+        return { loaded: false, skipped: true, reason: 'already_loaded', key };
+      }
+
+      await this.registerPack(pack, entry, lifecycleContext);
+
+      if (key) {
+        this.loadedPackKeys.add(key);
+        this.loadedPackRecords.push({
+          key,
+          name: pack.name,
+          version: pack.version ?? undefined,
+          identifier: entry.identifier,
+          packageName: 'package' in entry ? entry.package : undefined,
+          module: 'module' in entry ? entry.module : undefined,
+          loadedAt: new Date().toISOString(),
+        });
+      }
+
+      this.emitPackEvent({
+        type: 'pack:loaded',
+        timestamp: new Date().toISOString(),
+        source: {
+          sourceName: pack.name,
+          sourceVersion: pack.version,
+          identifier: entry.identifier,
+        },
+      });
+
+      return {
+        loaded: true,
+        key: key ?? pack.name,
+        pack: { name: pack.name, version: pack.version ?? undefined, identifier: entry.identifier ?? undefined },
+      };
+    } catch (error) {
+      const sourceName =
+        'package' in entry
+          ? entry.package
+          : 'module' in entry
+          ? entry.module
+          : entry.identifier ?? 'inline-pack';
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.emitPackEvent({
+        type: 'pack:failed',
+        timestamp: new Date().toISOString(),
+        source: {
+          sourceName,
+          identifier: entry.identifier,
+        },
+        error: err,
+      });
+      return { loaded: false, skipped: false, reason: 'failed', key: preKey ?? undefined, error: err, sourceName };
+    }
+  }
+
+  /**
+   * Convenience: load an extension pack by npm package name at runtime.
+   */
+  public async loadPackFromPackage(
+    packageName: string,
+    options?: Record<string, unknown>,
+    identifier?: string,
+    lifecycleContext?: ExtensionLifecycleContext,
+  ): Promise<
+    | { loaded: true; key: string; pack: { name: string; version?: string; identifier?: string } }
+    | { loaded: false; skipped: true; reason: 'disabled' | 'already_loaded' | 'unresolved'; key?: string }
+    | { loaded: false; skipped: false; reason: 'failed'; key?: string; error: Error; sourceName: string }
+  > {
+    const entry: ExtensionPackManifestEntry = {
+      package: packageName,
+      identifier: identifier ?? `runtime:${packageName}`,
+      options,
+    };
+    return this.loadPackEntry(entry, lifecycleContext);
+  }
+
+  /**
+   * Convenience: load an extension pack by local module specifier at runtime.
+   */
+  public async loadPackFromModule(
+    moduleSpecifier: string,
+    options?: Record<string, unknown>,
+    identifier?: string,
+    lifecycleContext?: ExtensionLifecycleContext,
+  ): Promise<
+    | { loaded: true; key: string; pack: { name: string; version?: string; identifier?: string } }
+    | { loaded: false; skipped: true; reason: 'disabled' | 'already_loaded' | 'unresolved'; key?: string }
+    | { loaded: false; skipped: false; reason: 'failed'; key?: string; error: Error; sourceName: string }
+  > {
+    const entry: ExtensionPackManifestEntry = {
+      module: moduleSpecifier,
+      identifier: identifier ?? `runtime:${moduleSpecifier}`,
+      options,
+    };
+    return this.loadPackEntry(entry, lifecycleContext);
+  }
+
+  /**
+   * List pack metadata for packs loaded during this process lifetime.
+   */
+  public listLoadedPacks(): Array<{
+    key: string;
+    name: string;
+    version?: string;
+    identifier?: string;
+    packageName?: string;
+    module?: string;
+    loadedAt: string;
+  }> {
+    return [...this.loadedPackRecords];
   }
 
   /**
@@ -204,6 +318,8 @@ export class ExtensionManager {
     }
 
     this.loadedPacks.length = 0;
+    this.loadedPackKeys.clear();
+    this.loadedPackRecords.length = 0;
   }
 
   private ensureDefaultRegistries(): void {
@@ -221,6 +337,22 @@ export class ExtensionManager {
     this.getRegistry(EXTENSION_KIND_MESSAGING_CHANNEL);
     // Provenance & Audit (v1.2.0)
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_PROVENANCE);
+  }
+
+  private resolvePackKey(entry: ExtensionPackManifestEntry, pack?: ExtensionPack): string | null {
+    if (entry.identifier && String(entry.identifier).trim()) {
+      return `id:${String(entry.identifier).trim()}`;
+    }
+    if ('package' in entry && typeof entry.package === 'string' && entry.package.trim()) {
+      return `pkg:${entry.package.trim()}`;
+    }
+    if ('module' in entry && typeof entry.module === 'string' && entry.module.trim()) {
+      return `mod:${entry.module.trim()}`;
+    }
+    if (pack?.name && typeof pack.name === 'string' && pack.name.trim()) {
+      return `name:${pack.name.trim()}`;
+    }
+    return null;
   }
 
   private async resolvePack(

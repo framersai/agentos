@@ -43,7 +43,7 @@
  * }));
  *
  * const reranked = await service.rerankChunks(query, chunks, {
- *   modelId: 'rerank-english-v3.0',
+ *   modelId: 'rerank-v3.5',
  *   topN: 5
  * });
  * ```

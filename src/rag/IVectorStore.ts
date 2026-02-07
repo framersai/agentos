@@ -292,6 +292,30 @@ export interface IVectorStore {
   ): Promise<QueryResult>;
 
   /**
+   * Optional: Hybrid retrieval combining dense vector similarity with lexical search.
+   *
+   * This is typically implemented using a store-native full-text index (e.g., SQLite FTS5),
+   * or a store-side BM25 implementation, then fusing dense and lexical rankings (e.g., RRF).
+   *
+   * If not implemented, callers should fall back to `query()` (dense similarity).
+   */
+  hybridSearch?(
+    collectionName: string,
+    queryEmbedding: number[],
+    queryText: string,
+    options?: QueryOptions & {
+      /** Weight of dense retrieval (0..1). Default: implementation-defined. */
+      alpha?: number;
+      /** Fusion method used to combine rankings. Default: implementation-defined. */
+      fusion?: 'rrf' | 'weighted';
+      /** RRF k constant when `fusion='rrf'`. Default: implementation-defined. */
+      rrfK?: number;
+      /** Number of lexical candidates to consider before fusion. Default: implementation-defined. */
+      lexicalTopK?: number;
+    },
+  ): Promise<QueryResult>;
+
+  /**
    * Deletes documents from a specified collection by their IDs or by a metadata filter.
    *
    * @async

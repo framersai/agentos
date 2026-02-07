@@ -88,6 +88,32 @@ export class GraphRAGEngine implements IGraphRAGEngine {
     }
   }
 
+  private async resolveEmbeddingDimension(): Promise<number> {
+    const configured = this.config.embeddingDimension;
+    if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
+      return configured;
+    }
+
+    if (!this.embeddingManager) {
+      return 1536;
+    }
+
+    try {
+      const resp = await this.embeddingManager.generateEmbeddings({
+        texts: 'dimension probe',
+        modelId: this.config.embeddingModelId,
+      });
+      const embedding = resp?.embeddings?.[0];
+      if (Array.isArray(embedding) && embedding.length > 0) {
+        return embedding.length;
+      }
+    } catch {
+      // Fall back to a sensible default.
+    }
+
+    return 1536;
+  }
+
   async initialize(config: GraphRAGConfig): Promise<void> {
     if (this.isInitialized) {
       console.warn(`[GraphRAGEngine:${config.engineId}] Re-initializing.`);
@@ -116,8 +142,9 @@ export class GraphRAGEngine implements IGraphRAGEngine {
     }
 
     // Initialize vector store collections
-    if (this.vectorStore && this.embeddingManager) {
-      const dim = this.config.maxSummaryTokens ? 1536 : 1536; // default OpenAI dimension
+    if (this.vectorStore && (this.embeddingManager || typeof this.config.embeddingDimension === 'number')) {
+      const dim = await this.resolveEmbeddingDimension();
+      this.config.embeddingDimension = dim;
       try {
         if (this.vectorStore.createCollection) {
           const entityColExists = await this.vectorStore.collectionExists?.(this.config.entityCollectionName!);

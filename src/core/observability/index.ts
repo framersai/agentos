@@ -29,5 +29,18 @@ export {
   type TracerConfig,
 } from './Tracer';
 
-
+export type { AgentOSObservabilityConfig, AgentOSObservabilityState, ActiveTraceMetadata } from './otel';
+export {
+  configureAgentOSObservability,
+  getAgentOSObservabilityState,
+  isAgentOSTracingEnabled,
+  shouldIncludeTraceIdsInAgentOSLogs,
+  shouldIncludeTraceInAgentOSResponses,
+  startAgentOSSpan,
+  runWithSpanContext,
+  withAgentOSSpan,
+  recordExceptionOnActiveSpan,
+  getActiveSpanContext,
+  getActiveTraceMetadata,
+} from './otel';
 

@@ -650,68 +650,233 @@ export class SqlVectorStore implements IVectorStore {
     collectionName: string,
     queryEmbedding: number[],
     queryText: string,
-    options?: QueryOptions & { alpha?: number }
+    options?: QueryOptions & { alpha?: number; fusion?: 'rrf' | 'weighted'; rrfK?: number; lexicalTopK?: number }
   ): Promise<QueryResult> {
     this.ensureInitialized();
 
-    const alpha = options?.alpha ?? 0.7; // Default: 70% vector similarity
+    const alphaRaw = options?.alpha ?? 0.7;
+    const alpha = Number.isFinite(alphaRaw) ? Math.max(0, Math.min(1, alphaRaw)) : 0.7;
     const topK = options?.topK ?? 10;
 
-    // Get vector search results
-    const vectorResults = await this.query(collectionName, queryEmbedding, {
-      ...options,
-      topK: topK * 3, // Get more candidates for merging
-      includeTextContent: true,
-    });
+    const fusion = options?.fusion === 'weighted' ? 'weighted' : 'rrf';
+    const rrfK = Number.isFinite(options?.rrfK) ? Math.max(1, options!.rrfK!) : 60;
+    const lexicalTopK =
+      Number.isFinite(options?.lexicalTopK) ? Math.max(1, options!.lexicalTopK!) : topK * 3;
+    const denseTopK = topK * 3;
 
-    // Normalize vector scores to [0, 1]
-    const maxVectorScore = Math.max(...vectorResults.documents.map(d => d.similarityScore), 0.001);
-    const vectorScoreMap = new Map<string, number>();
-    for (const doc of vectorResults.documents) {
-      vectorScoreMap.set(doc.id, doc.similarityScore / maxVectorScore);
+    const collection = await this.getCollectionMetadata(collectionName);
+    if (queryEmbedding.length !== collection.dimension) {
+      throw new GMIError(
+        `Query embedding dimension ${queryEmbedding.length} does not match collection dimension ${collection.dimension}.`,
+        GMIErrorCode.VALIDATION_ERROR,
+        { expected: collection.dimension, got: queryEmbedding.length }
+      );
     }
 
-    // Compute keyword scores using simple term matching
-    const queryTerms = queryText.toLowerCase().split(/\s+/).filter(t => t.length > 2);
-    const keywordScoreMap = new Map<string, number>();
+    // Load all documents in the collection (this store computes similarity in application code).
+    const rows = await this.adapter.all<DocumentRow>(
+      `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`,
+      [collectionName],
+    );
 
-    for (const doc of vectorResults.documents) {
-      if (!doc.textContent) continue;
-      
-      const content = doc.textContent.toLowerCase();
-      let matchCount = 0;
-      for (const term of queryTerms) {
-        if (content.includes(term)) {
-          matchCount++;
+    const tokenize = (text: string): string[] =>
+      text
+        .toLowerCase()
+        .split(/[^a-z0-9_]+/g)
+        .filter((t) => t.length > 2);
+
+    const queryTerms = tokenize(queryText);
+    const queryTermSet = new Set(queryTerms);
+
+    type ScoredDoc = {
+      id: string;
+      embedding: number[];
+      textContent?: string;
+      metadata?: Record<string, MetadataValue>;
+      denseScore: number;
+      bm25Score: number;
+    };
+
+    const scored: ScoredDoc[] = [];
+    const termDocFreq = new Map<string, number>(); // df per term
+    let totalDocLength = 0;
+
+    // First pass: dense score + collect BM25 stats (doc length + df for query terms)
+    for (const row of rows) {
+      const embedding = JSON.parse(row.embedding_blob) as number[];
+      const metadata = row.metadata_json ? (JSON.parse(row.metadata_json) as Record<string, MetadataValue>) : undefined;
+
+      if (options?.filter && !this.matchesFilter(metadata, options.filter)) continue;
+
+      let denseScore: number;
+      switch (collection.similarityMetric) {
+        case 'euclidean':
+          denseScore = -this.euclideanDistance(queryEmbedding, embedding);
+          break;
+        case 'dotproduct':
+          denseScore = this.dotProduct(queryEmbedding, embedding);
+          break;
+        case 'cosine':
+        default:
+          denseScore = this.cosineSimilarity(queryEmbedding, embedding);
+          break;
+      }
+
+      // Allow dense thresholding without suppressing lexical-only matches.
+      if (options?.minSimilarityScore !== undefined && denseScore < options.minSimilarityScore) {
+        denseScore = Number.NEGATIVE_INFINITY;
+      }
+
+      const textContent = row.text_content ?? undefined;
+      let docLength = 0;
+      let uniqueTermsInDoc: Set<string> | null = null;
+      if (textContent && queryTermSet.size > 0) {
+        const tokens = tokenize(textContent);
+        docLength = tokens.length;
+        totalDocLength += docLength;
+
+        uniqueTermsInDoc = new Set<string>();
+        for (const token of tokens) {
+          if (queryTermSet.has(token)) uniqueTermsInDoc.add(token);
+        }
+        for (const term of uniqueTermsInDoc) {
+          termDocFreq.set(term, (termDocFreq.get(term) ?? 0) + 1);
         }
       }
-      const keywordScore = queryTerms.length > 0 ? matchCount / queryTerms.length : 0;
-      keywordScoreMap.set(doc.id, keywordScore);
-    }
 
-    // Combine scores using reciprocal rank fusion or weighted average
-    const combinedResults: RetrievedVectorDocument[] = [];
-    for (const doc of vectorResults.documents) {
-      const vectorScore = vectorScoreMap.get(doc.id) ?? 0;
-      const keywordScore = keywordScoreMap.get(doc.id) ?? 0;
-      const combinedScore = alpha * vectorScore + (1 - alpha) * keywordScore;
-
-      combinedResults.push({
-        ...doc,
-        similarityScore: combinedScore,
+      scored.push({
+        id: row.id,
+        embedding,
+        textContent,
+        metadata: options?.includeMetadata !== false ? metadata : undefined,
+        denseScore,
+        bm25Score: 0,
       });
     }
 
-    // Sort by combined score and return top K
-    combinedResults.sort((a, b) => b.similarityScore - a.similarityScore);
+    const N = scored.length;
+    const avgdl = N > 0 ? totalDocLength / Math.max(1, N) : 0;
+    const k1 = 1.2;
+    const b = 0.75;
+
+    // Second pass: compute BM25 for query terms
+    if (queryTerms.length > 0 && N > 0 && avgdl > 0) {
+      const idfCache = new Map<string, number>();
+      for (const term of queryTermSet) {
+        const df = termDocFreq.get(term) ?? 0;
+        const idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
+        idfCache.set(term, idf);
+      }
+
+      for (const doc of scored) {
+        if (!doc.textContent) continue;
+        const tokens = tokenize(doc.textContent);
+        const dl = tokens.length;
+        if (dl === 0) continue;
+
+        const tf = new Map<string, number>();
+        for (const token of tokens) {
+          if (queryTermSet.has(token)) tf.set(token, (tf.get(token) ?? 0) + 1);
+        }
+
+        let score = 0;
+        for (const term of queryTermSet) {
+          const f = tf.get(term) ?? 0;
+          if (f === 0) continue;
+          const idf = idfCache.get(term) ?? 0;
+          const denom = f + k1 * (1 - b + b * (dl / avgdl));
+          score += idf * ((f * (k1 + 1)) / denom);
+        }
+        doc.bm25Score = score;
+      }
+    }
+
+    // Build ranked lists for fusion.
+    const denseRanked = scored
+      .filter((d) => Number.isFinite(d.denseScore) && d.denseScore !== Number.NEGATIVE_INFINITY)
+      .sort((a, b) => b.denseScore - a.denseScore)
+      .slice(0, denseTopK);
+
+    const lexicalRanked = scored
+      .filter((d) => d.bm25Score > 0)
+      .sort((a, b) => b.bm25Score - a.bm25Score)
+      .slice(0, lexicalTopK);
+
+    const denseRank = new Map<string, number>();
+    denseRanked.forEach((d, idx) => denseRank.set(d.id, idx + 1));
+    const lexRank = new Map<string, number>();
+    lexicalRanked.forEach((d, idx) => lexRank.set(d.id, idx + 1));
+
+    const candidateIds = new Set<string>();
+    denseRanked.forEach((d) => candidateIds.add(d.id));
+    lexicalRanked.forEach((d) => candidateIds.add(d.id));
+
+    const docById = new Map<string, ScoredDoc>();
+    scored.forEach((d) => docById.set(d.id, d));
+
+    const fused: Array<{ doc: ScoredDoc; fusedScore: number }> = [];
+
+    if (fusion === 'weighted') {
+      const denseScores = denseRanked.map((d) => d.denseScore);
+      const lexScores = lexicalRanked.map((d) => d.bm25Score);
+      const denseMin = denseScores.length ? Math.min(...denseScores) : 0;
+      const denseMax = denseScores.length ? Math.max(...denseScores) : 1;
+      const lexMax = lexScores.length ? Math.max(...lexScores) : 1;
+
+      for (const id of candidateIds) {
+        const doc = docById.get(id);
+        if (!doc) continue;
+        const dense = denseRank.has(id)
+          ? (doc.denseScore - denseMin) / Math.max(1e-9, denseMax - denseMin)
+          : 0;
+        const lex = lexRank.has(id) ? doc.bm25Score / Math.max(1e-9, lexMax) : 0;
+        fused.push({ doc, fusedScore: alpha * dense + (1 - alpha) * lex });
+      }
+    } else {
+      for (const id of candidateIds) {
+        const doc = docById.get(id);
+        if (!doc) continue;
+        const dr = denseRank.get(id);
+        const lr = lexRank.get(id);
+        const dense = dr ? alpha * (1 / (rrfK + dr)) : 0;
+        const lex = lr ? (1 - alpha) * (1 / (rrfK + lr)) : 0;
+        fused.push({ doc, fusedScore: dense + lex });
+      }
+    }
+
+    fused.sort((a, b) => b.fusedScore - a.fusedScore);
+
+    const documents: RetrievedVectorDocument[] = fused.slice(0, topK).map(({ doc, fusedScore }) => {
+      const out: RetrievedVectorDocument = {
+        id: doc.id,
+        embedding: options?.includeEmbedding ? doc.embedding : [],
+        similarityScore: fusedScore,
+      };
+
+      if (options?.includeTextContent && doc.textContent) {
+        out.textContent = doc.textContent;
+      }
+
+      if (options?.includeMetadata !== false && doc.metadata) {
+        out.metadata = doc.metadata;
+      }
+
+      return out;
+    });
 
     return {
-      documents: combinedResults.slice(0, topK),
+      documents,
       queryId: `sql-hybrid-${uuidv4()}`,
       stats: {
+        fusion,
         vectorWeight: alpha,
-        keywordWeight: 1 - alpha,
+        lexicalWeight: 1 - alpha,
+        rrfK: fusion === 'rrf' ? rrfK : undefined,
         queryTerms: queryTerms.length,
+        corpusSize: N,
+        denseCandidates: denseRanked.length,
+        lexicalCandidates: lexicalRanked.length,
+        returnedCount: documents.length,
       },
     };
   }
@@ -1031,4 +1196,3 @@ export class SqlVectorStore implements IVectorStore {
     return true;
   }
 }
-

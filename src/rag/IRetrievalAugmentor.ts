@@ -171,7 +171,7 @@ export interface RagRetrievalOptions {
   rerankerConfig?: {
     /** Enable cross-encoder reranking. Default: false */
     enabled?: boolean;
-    /** Reranker model ID (e.g., 'rerank-english-v3.0', 'cross-encoder/ms-marco-MiniLM-L-6-v2') */
+    /** Reranker model ID (e.g., 'rerank-v3.5', 'cross-encoder/ms-marco-MiniLM-L-6-v2') */
     modelId?: string;
     /** Provider ID ('cohere', 'local') */
     providerId?: string;

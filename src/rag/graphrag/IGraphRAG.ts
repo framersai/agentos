@@ -163,6 +163,13 @@ export interface GraphRAGConfig {
   generateEntityEmbeddings?: boolean;
   /** Embedding model ID to use */
   embeddingModelId?: string;
+  /**
+   * Embedding dimension for the selected embedding model.
+   *
+   * Optional: when omitted and an `embeddingManager` is available, the engine will
+   * probe the embedding dimension at runtime by generating a tiny embedding once.
+   */
+  embeddingDimension?: number;
   /** Maximum tokens for community summaries */
   maxSummaryTokens?: number;
   /** Vector store provider ID for entity embeddings */

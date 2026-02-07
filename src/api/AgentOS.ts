@@ -75,6 +75,7 @@ import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { ILogger } from '../logging/ILogger';
 import { createLogger } from '../logging/loggerFactory';
+import { configureAgentOSObservability, type AgentOSObservabilityConfig } from '../core/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../core/guardrails/IGuardrailService';
 import { GuardrailAction } from '../core/guardrails/IGuardrailService';
 import {
@@ -95,6 +96,7 @@ import {
   type ExtensionEvent,
   type ExtensionEventListener,
 } from '../extensions';
+import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
 import { WorkflowRuntime } from '../core/workflows/runtime/WorkflowRuntime';
 import { AgencyRegistry } from '../core/agency/AgencyRegistry';
 import type { WorkflowDescriptor } from '../extensions/types';
@@ -408,6 +410,24 @@ export interface AgentOSConfig {
   /** Optional map of secretId -> value for extension/tool credentials. */
   extensionSecrets?: Record<string, string>;
   /**
+   * Optional: enable schema-on-demand meta tools for lazy tool schema loading.
+   *
+   * When enabled, AgentOS registers three meta tools:
+   * - `extensions_list`
+   * - `extensions_enable` (side effects)
+   * - `extensions_status`
+   *
+   * These tools allow an agent to load additional extension packs at runtime,
+   * so newly-enabled tool schemas appear in the next `listAvailableTools()` call.
+   */
+  schemaOnDemandTools?: {
+    enabled?: boolean;
+    /** Allow enabling packs by explicit npm package name (source='package'). Default: true. */
+    allowPackages?: boolean;
+    /** Allow enabling packs by local module specifier/path (source='module'). Default: false. */
+    allowModules?: boolean;
+  };
+  /**
    * Optional. An instance of a utility AI service.
    * This service should conform to {@link IUtilityAI} for general utility tasks.
    * If the {@link PromptEngine} is used and requires specific utility functions (like advanced
@@ -479,10 +499,16 @@ export interface AgentOSConfig {
    * 
    * **Graceful Degradation:**
    * - If omitted, AgentOS falls back to Prisma (server-side only).
-   * - If provided, AgentOS uses storageAdapter for conversations, Prisma only for auth/subscriptions.
-   * - Recommended: Always provide storageAdapter for cross-platform compatibility.
-   */
+  * - If provided, AgentOS uses storageAdapter for conversations, Prisma only for auth/subscriptions.
+  * - Recommended: Always provide storageAdapter for cross-platform compatibility.
+  */
   storageAdapter?: StorageAdapter;
+
+  /**
+   * Optional observability config for tracing, metrics, and log correlation.
+   * Default: disabled (opt-in).
+   */
+  observability?: AgentOSObservabilityConfig;
 }
 
 
@@ -558,6 +584,9 @@ export class AgentOS implements IAgentOS {
     // Make the configuration immutable after validation to prevent runtime changes.
     this.config = Object.freeze({ ...config });
 
+    // Observability is opt-in (config + env). Safe no-op if OTEL is not installed by host.
+    configureAgentOSObservability(this.config.observability);
+
     // Initialize LanguageService early if configured so downstream orchestration can use it.
     if (config.languageConfig) {
       try {
@@ -596,6 +625,23 @@ export class AgentOS implements IAgentOS {
     const extensionLifecycleContext: ExtensionLifecycleContext = { logger: this.logger };
     await this.extensionManager.loadManifest(extensionLifecycleContext);
     await this.registerConfigGuardrailService(extensionLifecycleContext);
+
+    if (this.config.schemaOnDemandTools?.enabled === true) {
+      const pack = createSchemaOnDemandPack({
+        extensionManager: this.extensionManager,
+        options: {
+          allowPackages: this.config.schemaOnDemandTools.allowPackages,
+          allowModules: this.config.schemaOnDemandTools.allowModules,
+        },
+      });
+      await this.extensionManager.loadPackFromFactory(
+        pack,
+        'schema-on-demand',
+        undefined,
+        extensionLifecycleContext,
+      );
+      this.logger.info('[AgentOS] Schema-on-demand tools enabled');
+    }
 
     let storageAdapter = this.config.storageAdapter;
     if (storageAdapter) {

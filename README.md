@@ -126,117 +126,155 @@ yarn add @framers/agentos
 ## Quick Start
 
 ```typescript
-import { AgentOS } from '@framers/agentos';
+import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
+import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 
-// Initialize
+// Initialize (local/dev defaults)
 const agent = new AgentOS();
-await agent.initialize({
-  llmProvider: {
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o'
-  }
-});
+await agent.initialize(await createTestAgentOSConfig());
 
 // Process requests with streaming
 for await (const chunk of agent.processRequest({
-  message: 'Help me analyze this data',
-  context: { userId: 'user-123' }
+  userId: 'user-123',
+  sessionId: 'session-123',
+  textInput: 'Help me analyze this data',
 })) {
-  if (chunk.type === 'content') {
-    process.stdout.write(chunk.content);
+  if (chunk.type === AgentOSResponseChunkType.TEXT_DELTA) {
+    process.stdout.write(chunk.textDelta);
   }
 }
 ```
 
-### With Tools
+### With Tools (Extension Packs)
 
 ```typescript
-import { AgentOS } from '@framers/agentos';
+import {
+  AgentOS,
+  AgentOSResponseChunkType,
+  EXTENSION_KIND_TOOL,
+  type ExtensionManifest,
+  type ExtensionPack,
+  type ITool,
+} from '@framers/agentos';
+import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+
+const helloTool: ITool = {
+  id: 'hello-tool',
+  name: 'hello',
+  displayName: 'Hello',
+  description: 'Return a greeting.',
+  category: 'utility',
+  hasSideEffects: false,
+  inputSchema: {
+    type: 'object',
+    properties: { name: { type: 'string' } },
+    required: ['name'],
+  },
+  execute: async (args, _ctx) => {
+    const name = typeof args.name === 'string' ? args.name : String(args.name);
+    return { success: true, output: { text: `Hello, ${name}!` } };
+  },
+};
+
+const manifest: ExtensionManifest = {
+  packs: [
+    {
+      factory: async () =>
+        ({
+          name: 'local-tools',
+          descriptors: [{ id: helloTool.id, kind: EXTENSION_KIND_TOOL, payload: helloTool }],
+        }) satisfies ExtensionPack,
+    },
+  ],
+};
 
 const agent = new AgentOS();
-await agent.initialize({
-  llmProvider: {
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o'
-  },
-  tools: [{
-    name: 'get_weather',
-    description: 'Get current weather for a city',
-  parameters: {
-    type: 'object',
-    properties: {
-        city: { type: 'string' }
-    },
-      required: ['city']
-  },
-    execute: async ({ city }) => {
-      const res = await fetch(`https://api.weather.com/${city}`);
-      return res.json();
-    }
-  }]
-});
+const base = await createTestAgentOSConfig();
+await agent.initialize({ ...base, extensionManifest: manifest });
 
 // Tools are called automatically when the model decides to use them
-for await (const chunk of agent.processRequest({ message: 'Weather in Tokyo?' })) {
-  if (chunk.type === 'tool_call') console.log('Calling:', chunk.tool);
-  if (chunk.type === 'content') process.stdout.write(chunk.content);
-  }
+for await (const chunk of agent.processRequest({
+  userId: 'user-123',
+  sessionId: 'session-123',
+  textInput: 'Say hello to Ada.',
+})) {
+  if (chunk.type === AgentOSResponseChunkType.TEXT_DELTA) process.stdout.write(chunk.textDelta);
+}
 ```
 
 ### Multiple Providers
 
 ```typescript
-// OpenRouter for multi-model access
-await agent.initialize({
-  llmProvider: {
-    provider: 'openrouter',
-    apiKey: process.env.OPENROUTER_API_KEY,
-    model: 'anthropic/claude-3.5-sonnet'
-  }
-});
+import { AgentOS } from '@framers/agentos';
+import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 
-// Local Ollama
+const agent = new AgentOS();
+const base = await createTestAgentOSConfig();
+
 await agent.initialize({
-  llmProvider: {
-    provider: 'ollama',
-    baseUrl: 'http://localhost:11434',
-    model: 'llama3'
-  }
+  ...base,
+  modelProviderManagerConfig: {
+    providers: [
+      { providerId: 'openai', enabled: true, isDefault: true, config: { apiKey: process.env.OPENAI_API_KEY } },
+      { providerId: 'openrouter', enabled: true, config: { apiKey: process.env.OPENROUTER_API_KEY } },
+      { providerId: 'ollama', enabled: true, config: { baseUrl: 'http://localhost:11434' } },
+    ],
+  },
+  gmiManagerConfig: {
+    ...base.gmiManagerConfig,
+    defaultGMIBaseConfigDefaults: {
+      ...(base.gmiManagerConfig.defaultGMIBaseConfigDefaults ?? {}),
+      defaultLlmProviderId: 'openai',
+      defaultLlmModelId: 'gpt-4o',
+    },
+  },
 });
 ```
 
-### With RAG Memory
+### RAG (RetrievalAugmentor)
 
-```typescript
+AgentOS supports embedding-based retrieval via `IRetrievalAugmentor` (vector RAG, optional GraphRAG). You can either:
+
+- pass a ready augmentor via `AgentOSConfig.retrievalAugmentor`, or
+- let AgentOS initialize it via `AgentOSConfig.ragConfig`
+
+See `docs/RAG_MEMORY_CONFIGURATION.md` for full setup details.
+
+```ts
 import { AgentOS } from '@framers/agentos';
+import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 
-const agent = new AgentOS();
-await agent.initialize({
-  llmProvider: {
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o'
+const agentos = new AgentOS();
+const base = await createTestAgentOSConfig();
+await agentos.initialize({
+  ...base,
+  ragConfig: {
+    embeddingManagerConfig: {
+      embeddingModels: [
+        { modelId: 'text-embedding-3-small', providerId: 'openai', dimension: 1536, isDefault: true },
+      ],
+    },
+    vectorStoreManagerConfig: {
+      managerId: 'rag-vsm',
+      providers: [{ id: 'sql-store', type: 'sql', storage: { filePath: './data/agentos_vectors.db' } }],
+      defaultProviderId: 'sql-store',
+      defaultEmbeddingDimension: 1536,
+    },
+    dataSourceConfigs: [
+      {
+        dataSourceId: 'voice_conversation_summaries',
+        displayName: 'Conversation Summaries',
+        vectorStoreProviderId: 'sql-store',
+        actualNameInProvider: 'voice_conversation_summaries',
+        embeddingDimension: 1536,
+      },
+    ],
+    retrievalAugmentorConfig: {
+      defaultDataSourceId: 'voice_conversation_summaries',
+      categoryBehaviors: [],
+    },
   },
-  memory: {
-    vectorStore: 'memory', // or 'sqlite', 'postgres'
-    embeddingModel: 'text-embedding-3-small'
-  }
 });
-
-// Ingest documents
-await agent.memory.ingest([
-  { content: 'AgentOS supports streaming responses...', metadata: { source: 'docs' } },
-  { content: 'GMIs maintain context across sessions...', metadata: { source: 'docs' } }
-]);
-
-// Queries automatically retrieve relevant context
-for await (const chunk of agent.processRequest({ 
-  message: 'How does streaming work?' 
-})) {
-  process.stdout.write(chunk.content);
-}
 ```
 
 ### Immutability & Provenance (Optional)
@@ -363,6 +401,7 @@ Supported platforms: `telegram`, `whatsapp`, `discord`, `slack`, `webchat`, `sig
 | Guide | Description |
 |-------|-------------|
 | [Cost Optimization](./docs/COST_OPTIMIZATION.md) | Token usage and cost management |
+| [Observability](./docs/OBSERVABILITY.md) | OpenTelemetry spans and trace/log correlation (opt-in) |
 | [Platform Support](./docs/PLATFORM_SUPPORT.md) | Supported platforms and environments |
 | [Releasing](./docs/RELEASING.md) | How to publish new versions |
 | [API Reference](./docs/api/index.html) | TypeDoc-generated API docs |

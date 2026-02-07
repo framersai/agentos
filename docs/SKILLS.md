@@ -52,10 +52,12 @@ console.log(snapshot.prompt);
 - `@framers/agentos-skills` — static catalog + bundled `registry/curated/*/SKILL.md`
 - `@framers/agentos-skills-registry` — helpers to load bundled skills and build snapshots
 
-Currently bundled curated skills (as of this repo snapshot):
+The curated bundle currently includes **16+ skills** (developer tools, productivity, information, communication, etc.). See `@framers/agentos-skills/registry.json` for the canonical list.
 
-- `git`
-- `github`
+`@framers/agentos-skills-registry` supports two usage modes:
+
+- Lightweight catalog queries (no `@framers/agentos` peer dependency)
+- Factory helpers that **lazy-load** `@framers/agentos/skills` only when called (to build a `SkillRegistry` or snapshot)
 
 If you’ve installed `@framers/agentos-ext-skills`, agents can inspect these via `skills_read` and enable them into a local skills directory via `skills_enable`.
 

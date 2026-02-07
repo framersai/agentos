@@ -118,7 +118,7 @@ export interface RetrievalAugmentorServiceConfig {
   defaultRerankerProviderId?: string;
   /**
    * Default reranker model ID when reranking is enabled but no model specified.
-   * Examples: 'rerank-english-v3.0' (Cohere), 'cross-encoder/ms-marco-MiniLM-L-6-v2' (local)
+   * Examples: 'rerank-v3.5' (Cohere), 'cross-encoder/ms-marco-MiniLM-L-6-v2' (local)
    */
   defaultRerankerModelId?: string;
 }

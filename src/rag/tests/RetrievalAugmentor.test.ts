@@ -22,6 +22,7 @@ const mockVectorStore: IVectorStore = {
   initialize: vi.fn().mockResolvedValue(undefined),
   upsert: vi.fn().mockResolvedValue({ upsertedCount: 1, upsertedIds: ['doc1_chunk_0'] }),
   query: vi.fn().mockResolvedValue({ documents: [{ id: 'doc1_chunk_0', embedding: [0.1,0.2,0.3], similarityScore: 0.9, textContent: 'Test content' }] }),
+  hybridSearch: vi.fn().mockResolvedValue({ documents: [{ id: 'doc1_chunk_0', embedding: [0.1,0.2,0.3], similarityScore: 0.95, textContent: 'Hybrid content' }] }),
   delete: vi.fn().mockResolvedValue({ deletedCount: 1 }),
   checkHealth: vi.fn().mockResolvedValue({ isHealthy: true }),
   shutdown: vi.fn().mockResolvedValue(undefined),
@@ -92,6 +93,37 @@ describe('RetrievalAugmentor Functionality', () => {
     expect(result.augmentedContext).toBeDefined();
     expect(mockEmbeddingManager.generateEmbeddings).toHaveBeenCalledWith(expect.objectContaining({ texts: queryText }));
     expect(mockVectorStore.query).toHaveBeenCalled();
+  });
+
+  it('should use hybridSearch when strategy is hybrid', async () => {
+    const queryText = 'test query';
+    const result = await augmentor.retrieveContext(queryText, {
+      targetDataSourceIds: ['test-ds-1'],
+      topK: 1,
+      strategy: 'hybrid',
+    });
+
+    expect(result.queryText).toBe(queryText);
+    expect((mockVectorStore as any).hybridSearch).toHaveBeenCalled();
+  });
+
+  it('should request embeddings and more candidates when strategy is mmr', async () => {
+    const queryText = 'test query';
+    await augmentor.retrieveContext(queryText, {
+      targetDataSourceIds: ['test-ds-1'],
+      topK: 2,
+      strategy: 'mmr',
+      strategyParams: { mmrLambda: 0.6 },
+    });
+
+    expect(mockVectorStore.query).toHaveBeenCalledWith(
+      'test-collection',
+      expect.any(Array),
+      expect.objectContaining({
+        includeEmbedding: true,
+        topK: 10, // 2 * 5 candidate multiplier
+      }),
+    );
   });
 
   // Add more tests:

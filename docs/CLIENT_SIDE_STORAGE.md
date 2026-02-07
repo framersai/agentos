@@ -370,11 +370,10 @@ const storage = new IndexedDbAdapter({
 ## Next Steps
 
 1. **Try the demo:** See `apps/agentos-client` for a working example
-2. **Read the Platform Strategy:** [PLATFORM_STRATEGY.md](../../sql-storage-adapter/docs/PLATFORM_STRATEGY.md)
+2. **Read the Platform Strategy:** [PLATFORM_STRATEGY.md](../../sql-storage-adapter/PLATFORM_STRATEGY.md)
 3. **Contribute:** Submit issues/PRs for improvements
 
 ---
 
 **TL;DR:** Use `createAgentOSStorage({ platform: 'auto' })` and AgentOS works offline everywhere. IndexedDB for web, better-sqlite3 for desktop, capacitor for mobile.
-
 

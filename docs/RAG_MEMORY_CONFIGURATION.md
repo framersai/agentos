@@ -1,658 +1,270 @@
-# RAG & Memory Configuration
+# RAG and Memory Configuration
 
-## Overview
+AgentOS supports two complementary ways to add long-term context to a model call:
 
-AgentOS provides a flexible memory system combining:
+1. **Prompt-injected long-term memory** via `longTermMemoryRetriever` (returns pre-formatted text).
+2. **Embedding-based RAG** via `IRetrievalAugmentor` (retrieves context from vector stores and can ingest new memories).
 
-- **Working Memory** — Short-term context within a conversation
-- **Vector Store** — Semantic search over documents and history
-- **Persistent Storage** — SQLite, PostgreSQL, or IndexedDB backends
+This document focuses on the embedding-based path (RetrievalAugmentor), and how it interacts with persona `memoryConfig.ragConfig`.
 
-## Quick Start
+## What Exists Today (API Reality)
 
-### Basic RAG Setup
+- `AgentOS` does **not** currently expose convenience methods like `agent.memory.ingest()` or `agent.memory.search()`.
+- The concrete RAG APIs live under `@framers/agentos/rag`:
+  - `EmbeddingManager`
+  - `VectorStoreManager`
+  - `RetrievalAugmentor`
+  - Optional: `GraphRAGEngine` (TypeScript-native)
 
-```typescript
+If you want a high-level “memory service” API, implement it as a thin wrapper around `IRetrievalAugmentor` (or expose it as a tool).
+
+## Enabling RAG In AgentOS
+
+There are two supported ways to provide an augmentor to GMIs.
+
+### Option A: Provide a ready `retrievalAugmentor` instance
+
+You construct and initialize the augmentor yourself, then pass it into `AgentOS.initialize()`:
+
+```ts
 import { AgentOS } from '@framers/agentos';
-import { EmbeddingManager } from '@framers/agentos/rag';
+import { EmbeddingManager, VectorStoreManager, RetrievalAugmentor } from '@framers/agentos/rag';
+import { AIModelProviderManager } from '@framers/agentos/core/llm/providers/AIModelProviderManager';
 
-const agent = new AgentOS();
-await agent.initialize({
-  llmProvider: {
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o'
+// 1) Provider manager (must support embeddings for your chosen embedding model)
+const providers = new AIModelProviderManager();
+await providers.initialize({
+  providers: [
+    {
+      providerId: 'openai',
+      enabled: true,
+      isDefault: true,
+      config: { apiKey: process.env.OPENAI_API_KEY },
+    },
+  ],
+});
+
+// 2) Embeddings
+const embeddingManager = new EmbeddingManager();
+await embeddingManager.initialize(
+  {
+    embeddingModels: [
+      { modelId: 'text-embedding-3-small', providerId: 'openai', dimension: 1536, isDefault: true },
+    ],
   },
-  memory: {
-    vectorStore: 'memory',  // In-memory for dev
-    embeddingModel: 'text-embedding-3-small',
-    chunkSize: 512,
-    chunkOverlap: 50
-  }
-});
-```
+  providers,
+);
 
-### Ingest Documents
-
-```typescript
-// Ingest text content
-await agent.memory.ingest([
-  { content: 'AgentOS is a TypeScript runtime for AI agents...', metadata: { source: 'docs', topic: 'intro' } },
-  { content: 'GMIs maintain persistent identity across sessions...', metadata: { source: 'docs', topic: 'gmi' } }
-]);
-
-// Ingest from files
-await agent.memory.ingestFile('./knowledge-base.pdf');
-await agent.memory.ingestFile('./api-reference.md');
-
-// Ingest from URLs
-await agent.memory.ingestUrl('https://docs.example.com/guide');
-```
-
-### Query with Context
-
-```typescript
-// RAG context is automatically injected into prompts
-for await (const chunk of agent.processRequest({
-  message: 'How do GMIs work?',
-  retrievalOptions: {
-    topK: 5,
-    minScore: 0.7
-  }
-})) {
-  process.stdout.write(chunk.content);
-}
-
-// Manual retrieval
-const results = await agent.memory.search('streaming responses', { topK: 3 });
-console.log(results.map(r => r.content));
-```
-
-## Vector Store Options
-
-| Store | Use Case | Persistence |
-|-------|----------|-------------|
-| `memory` | Development, testing | None (RAM only) |
-| `sqlite` | Desktop apps, local dev | File-based |
-| `postgres` | Production deployments | Database |
-| `supabase` | Edge/serverless | Cloud |
-
-### SQLite Vector Store
-
-```typescript
-await agent.initialize({
-  memory: {
-    vectorStore: 'sqlite',
-    sqlitePath: './vectors.db',
-    embeddingModel: 'text-embedding-3-small'
-  }
-});
-```
-
-### PostgreSQL with pgvector
-
-```typescript
-await agent.initialize({
-  memory: {
-    vectorStore: 'postgres',
-    connectionString: process.env.DATABASE_URL,
-    tableName: 'embeddings',
-    embeddingModel: 'text-embedding-3-small',
-    dimensions: 1536
-  }
-});
-```
-
-## Embedding Models
-
-| Model | Provider | Dimensions | Best For |
-|-------|----------|------------|----------|
-| `text-embedding-3-small` | OpenAI | 1536 | General purpose |
-| `text-embedding-3-large` | OpenAI | 3072 | Higher accuracy |
-| `nomic-embed-text` | Ollama | 768 | Local/private |
-| `mxbai-embed-large` | Ollama | 1024 | Local high-quality |
-
-### Custom Embedding Provider
-
-```typescript
-import { EmbeddingManager, IEmbeddingProvider } from '@framers/agentos/rag';
-
-const customProvider: IEmbeddingProvider = {
-  embed: async (text: string) => {
-    const response = await myEmbeddingAPI(text);
-    return response.embedding;
+// 3) Vector stores + data sources
+const vectorStoreManager = new VectorStoreManager();
+await vectorStoreManager.initialize(
+  {
+    managerId: 'rag-vsm',
+    providers: [
+      {
+        id: 'sql-store',
+        type: 'sql',
+        storage: { filePath: './data/agentos_vectors.db', priority: ['better-sqlite3', 'sqljs'] },
+      },
+    ],
+    defaultProviderId: 'sql-store',
+    defaultEmbeddingDimension: 1536,
   },
-  dimensions: 768
-};
+  [
+    {
+      dataSourceId: 'voice_conversation_summaries',
+      displayName: 'Conversation Summaries',
+      vectorStoreProviderId: 'sql-store',
+      actualNameInProvider: 'voice_conversation_summaries',
+      embeddingDimension: 1536,
+      isDefaultIngestionSource: true,
+      isDefaultQuerySource: true,
+    },
+  ],
+);
 
-const embeddingManager = new EmbeddingManager({
-  provider: customProvider
+// 4) Retrieval augmentor
+const rag = new RetrievalAugmentor();
+await rag.initialize(
+  {
+    defaultDataSourceId: 'voice_conversation_summaries',
+    categoryBehaviors: [],
+  },
+  embeddingManager,
+  vectorStoreManager,
+);
+
+// 5) Pass into AgentOS
+const agentos = new AgentOS();
+await agentos.initialize({
+  // ...your normal AgentOSConfig...
+  retrievalAugmentor: rag,
+  manageRetrievalAugmentorLifecycle: true,
 });
 ```
 
-## Chunking Strategies
+### Option B: Let AgentOS create the RAG subsystem (`ragConfig`)
 
-```typescript
-await agent.initialize({
-  memory: {
-    chunking: {
-      strategy: 'recursive',  // 'fixed', 'sentence', 'recursive', 'semantic'
-      chunkSize: 512,
-      chunkOverlap: 50,
-      separators: ['\n\n', '\n', '. ', ' ']
-    }
-  }
-});
-```
+If you don’t want to manage instantiation, use `AgentOSConfig.ragConfig`. AgentOS will create:
+`EmbeddingManager` → `VectorStoreManager` → `RetrievalAugmentor`, and pass the augmentor into GMIs.
 
-| Strategy | Description | Best For |
-|----------|-------------|----------|
-| `fixed` | Split at exact character count | Uniform chunks |
-| `sentence` | Split at sentence boundaries | Natural text |
-| `recursive` | Split hierarchically by separators | Structured docs |
-| `semantic` | Split by topic/meaning | Long documents |
+```ts
+import { AgentOS } from '@framers/agentos';
 
-## Context Window Management
-
-AgentOS automatically manages context to fit model limits:
-
-```typescript
-await agent.initialize({
-  memory: {
-    contextWindow: {
-      maxTokens: 8000,        // Reserve for RAG context
-      reserveForResponse: 2000,
-      overflowStrategy: 'truncate_oldest'  // or 'summarize'
-    }
-  }
-});
-```
-
-### Summarization on Overflow
-
-```typescript
-// When context exceeds limits, older content is summarized
-await agent.initialize({
-  memory: {
-    contextWindow: {
-      maxTokens: 8000,
-      overflowStrategy: 'summarize',
-      summarizationModel: 'gpt-4o-mini'
-    }
-  }
-});
-```
-
-## Conversation Memory
-
-Separate from RAG, conversation memory tracks dialog history:
-
-```typescript
-// Conversation history is automatically maintained
-const response1 = await agent.processRequest({ 
-  message: 'My name is Alice',
-  conversationId: 'conv-123'
-});
-
-const response2 = await agent.processRequest({ 
-  message: 'What is my name?',  // Agent remembers: "Alice"
-  conversationId: 'conv-123'
-});
-
-// Access conversation history
-const history = await agent.getConversationHistory('conv-123');
-```
-
-### Persistent Sessions
-
-```typescript
-// Sessions persist across restarts with SQL storage
-await agent.initialize({
-  memory: {
-    persistence: {
-      adapter: 'sqlite',
-      path: './conversations.db'
-    }
-  }
-});
-
-// Resume previous conversation
-const response = await agent.processRequest({
-  message: 'Continue where we left off',
-  conversationId: 'conv-123'  // Loads history from DB
-});
-```
-
-## Hybrid Search
-
-Combine vector similarity with keyword matching:
-
-```typescript
-const results = await agent.memory.search('TypeScript agent framework', {
-  topK: 10,
-  hybridSearch: {
-    enabled: true,
-    keywordWeight: 0.3,  // 30% BM25, 70% vector
-    rerank: true
-  }
-});
-```
-
-## Cross-Encoder Reranking (Optional)
-
-Reranking uses a cross-encoder model to re-score retrieved documents for higher relevance.
-**Disabled by default** due to added latency (~100-500ms for 50 docs).
-
-### When to Enable
-
-| Use Case | Recommendation |
-|----------|----------------|
-| Real-time chat | **Disabled** — latency sensitive |
-| Background analysis | **Enabled** — accuracy matters more |
-| Batch processing | **Enabled** — no user waiting |
-| Knowledge-intensive tasks | **Enabled** — reduces hallucination |
-
-### Configuration
-
-```typescript
-await agent.initialize({
-  memory: {
-    // ... other config ...
-    rerankerServiceConfig: {
-      providers: [
-        { providerId: 'cohere', apiKey: process.env.COHERE_API_KEY },
-        { providerId: 'local', defaultModelId: 'cross-encoder/ms-marco-MiniLM-L-6-v2' }
+const agentos = new AgentOS();
+await agentos.initialize({
+  // ...your normal AgentOSConfig...
+  ragConfig: {
+    embeddingManagerConfig: {
+      embeddingModels: [
+        { modelId: 'text-embedding-3-small', providerId: 'openai', dimension: 1536, isDefault: true },
       ],
-      defaultProviderId: 'local'
+    },
+    vectorStoreManagerConfig: {
+      managerId: 'rag-vsm',
+      providers: [
+        { id: 'sql-store', type: 'sql', storage: { filePath: './data/agentos_vectors.db' } },
+      ],
+      defaultProviderId: 'sql-store',
+      defaultEmbeddingDimension: 1536,
+    },
+    dataSourceConfigs: [
+      {
+        dataSourceId: 'voice_conversation_summaries',
+        displayName: 'Conversation Summaries',
+        vectorStoreProviderId: 'sql-store',
+        actualNameInProvider: 'voice_conversation_summaries',
+        embeddingDimension: 1536,
+        isDefaultIngestionSource: true,
+        isDefaultQuerySource: true,
+      },
+    ],
+    retrievalAugmentorConfig: {
+      defaultDataSourceId: 'voice_conversation_summaries',
+      categoryBehaviors: [],
+    },
+  },
+});
+```
+
+Notes:
+- If `retrievalAugmentor` is provided, it takes precedence over `ragConfig`.
+- `ragConfig.manageLifecycle` defaults to `true`.
+- `ragConfig.bindToStorageAdapter` defaults to `true` and will inject AgentOS’ `storageAdapter` into **SQL vector store providers that did not specify `adapter` or `storage`**.
+
+## Persona `memoryConfig.ragConfig` (Triggers and Data Sources)
+
+RAG retrieval/ingestion in the GMI is driven by persona configuration. At minimum:
+
+- `memoryConfig.ragConfig.enabled = true`
+- `retrievalTriggers.onUserQuery = true` to retrieve on user turns
+- `ingestionTriggers.onTurnSummary = true` to ingest post-turn summaries
+- `defaultIngestionDataSourceId` set to a data source you configured in the RAG subsystem
+
+Minimal example (persona JSON):
+
+```json
+{
+  "memoryConfig": {
+    "enabled": true,
+    "ragConfig": {
+      "enabled": true,
+      "retrievalTriggers": { "onUserQuery": true },
+      "ingestionTriggers": { "onTurnSummary": true },
+      "defaultRetrievalTopK": 5,
+      "defaultIngestionDataSourceId": "voice_conversation_summaries",
+      "dataSources": [
+        {
+          "id": "voice_conversation_summaries",
+          "dataSourceNameOrId": "voice_conversation_summaries",
+          "isEnabled": true,
+          "displayName": "Conversation Summaries"
+        }
+      ]
     }
   }
-});
-
-// Register provider implementations after initialization
-import { CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
-
-agent.registerRerankerProvider(new CohereReranker({
-  providerId: 'cohere',
-  apiKey: process.env.COHERE_API_KEY!
-}));
-
-agent.registerRerankerProvider(new LocalCrossEncoderReranker({
-  providerId: 'local',
-  defaultModelId: 'cross-encoder/ms-marco-MiniLM-L-6-v2'
-}));
+}
 ```
 
-### Per-Request Usage
+### Ingestion summarization is opt-in
 
-```typescript
-// Enable reranking for specific queries
-const results = await agent.memory.search('complex technical question', {
-  topK: 20,  // Retrieve more, reranker will filter
-  rerankerConfig: {
-    enabled: true,
-    providerId: 'cohere',  // or 'local'
-    modelId: 'rerank-english-v3.0',
-    topN: 5  // Return top 5 after reranking
-  }
-});
-```
+Turn-summary ingestion can be cheap by storing raw text. Summarization is enabled only when:
 
-### Global Default (for Analysis Personas)
-
-```typescript
-// Enable reranking by default for batch/analysis workloads
-await agent.initialize({
-  memory: {
-    globalDefaultRetrievalOptions: {
-      rerankerConfig: {
-        enabled: true,
-        topN: 5
+```json
+{
+  "memoryConfig": {
+    "ragConfig": {
+      "ingestionProcessing": {
+        "summarization": { "enabled": true }
       }
     }
   }
-});
+}
 ```
 
-### Providers
+## Manual Ingest and Retrieve
 
-| Provider | Model | Latency | Cost |
-|----------|-------|---------|------|
-| Cohere | `rerank-english-v3.0` | ~100ms/50 docs | $0.10/1K queries |
-| Cohere | `rerank-multilingual-v3.0` | ~150ms/50 docs | $0.10/1K queries |
-| Local | `cross-encoder/ms-marco-MiniLM-L-6-v2` | ~200ms/50 docs | Free (self-hosted) |
-| Local | `BAAI/bge-reranker-base` | ~300ms/50 docs | Free (self-hosted) |
+You can use the augmentor directly (useful for knowledge-base ingestion pipelines):
 
-### How It Works
+```ts
+await rag.ingestDocuments(
+  [
+    { id: 'doc-1', content: 'AgentOS is a TypeScript runtime for AI agents.' },
+    { id: 'doc-2', content: 'GMIs maintain persistent identity across sessions.' },
+  ],
+  { targetDataSourceId: 'voice_conversation_summaries' },
+);
 
-1. **Initial retrieval** — Fast bi-encoder vector search returns top-K candidates
-2. **Reranking** — Cross-encoder scores each (query, document) pair
-3. **Final selection** — Results sorted by cross-encoder score, top-N returned
-
-Cross-encoders jointly encode the query and document together, enabling richer
-semantic understanding than bi-encoder similarity. The trade-off is latency:
-cross-encoders are ~10-100x slower than bi-encoders, hence their use as a
-second-stage reranker rather than primary retrieval.
-
-## Memory Lifecycle
-
-```typescript
-// Clear all memory
-await agent.memory.clear();
-
-// Delete specific documents
-await agent.memory.delete({ source: 'outdated-docs' });
-
-// Export for backup
-const dump = await agent.memory.export();
-await fs.writeFile('memory-backup.json', JSON.stringify(dump));
-
-// Import from backup
-const backup = JSON.parse(await fs.readFile('memory-backup.json'));
-await agent.memory.import(backup);
+const result = await rag.retrieveContext('How do GMIs work?', { topK: 5 });
+console.log(result.augmentedContext);
 ```
 
-### Immutability Notes (Sealed Agents)
+## Vector Store Providers In This Repo
+
+AgentOS currently ships these vector-store implementations:
+
+- `InMemoryVectorStore` (ephemeral, dev/testing)
+- `SqlVectorStore` (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
+- `HnswlibVectorStore` (ANN search via `hnswlib-node`, optional peer dependency)
+
+If you want “true” large-scale vector DB behavior (tens of millions of vectors, filtered search at scale, etc.), add a provider implementation and wire it into `VectorStoreManager`.
+
+## GraphRAG (Optional)
+
+`GraphRAGEngine` exists as a TypeScript-native implementation (graphology + Louvain community detection). It is not automatically used by GMIs by default; treat it as an advanced subsystem you opt into when your problem benefits from entity/relationship structure.
+
+- If you use non-OpenAI embedding models (e.g., Ollama), set `GraphRAGConfig.embeddingDimension`, or provide an `embeddingManager` so the engine can probe the embedding dimension at runtime.
+
+## Immutability Notes (Sealed Agents)
 
 If you run with an append-only / sealed storage policy, avoid hard deletes of memory or history.
-Prefer append-only **tombstones/redactions** so retrieval can ignore forgotten items while the audit trail remains verifiable.
+Prefer append-only tombstones/redactions so retrieval can ignore forgotten items while the audit trail remains verifiable.
 
-## Performance Tips
+## Practical Guidance
 
-1. **Batch ingestion** — Use `ingest([...])` not multiple `ingest()` calls
-2. **Appropriate chunk size** — 256-1024 tokens works best for most cases
-3. **Filter before search** — Use metadata filters to narrow scope
-4. **Cache embeddings** — Enable caching for repeated queries
+- Default recommendation: start with **vector (dense) retrieval**, then add **keyword (BM25/FTS)** for recall, then add a **reranker** only where it’s worth the latency/cost.
+- GraphRAG tends to pay off when questions depend on multi-hop relationships and “global summaries” (org structures, timelines, dependency graphs), not for everyday chat retrieval.
 
-```typescript
-await agent.initialize({
-  memory: {
-    caching: {
-      enabled: true,
-      maxSize: 10000,  // Cache up to 10k embeddings
-      ttlMs: 3600000   // 1 hour TTL
-    }
-  }
-});
-```
+## Retrieval Strategies (Implemented)
 
-## HNSW Vector Store (hnswlib-node)
+`RetrievalAugmentor.retrieveContext()` supports `RagRetrievalOptions.strategy`:
 
-For high-performance approximate nearest neighbor search, AgentOS provides an HNSW-based vector store
-powered by `hnswlib-node` (native C++ bindings). This replaces the default linear-scan approach
-with O(log n) queries.
+- `similarity`: Dense similarity search (bi-encoder) via `IVectorStore.query()`.
+- `hybrid`: Dense + lexical fusion via `IVectorStore.hybridSearch()` when the store implements it.
+  - `SqlVectorStore.hybridSearch()` performs BM25-style lexical scoring and fuses dense + lexical rankings (default: RRF).
+- `mmr`: Maximal Marginal Relevance diversification. The augmentor requests embeddings for candidates and then selects a diverse top-K set using `strategyParams.mmrLambda` (0..1).
 
-### When to Use
+Notes:
+- If a store does not implement `hybridSearch()`, AgentOS falls back to dense `query()`.
+- For `mmr`, embeddings are used internally even if `includeEmbeddings=false`; embeddings are stripped from the output unless explicitly requested.
 
-| Scenario | Recommendation |
-|----------|----------------|
-| < 10K documents | InMemory or SQL (linear scan is fast enough) |
-| 10K - 1M documents | **HnswlibVectorStore** (2-10ms queries) |
-| > 1M documents, cloud | Pinecone, Qdrant, or pgvector |
-| Offline / edge / local | **HnswlibVectorStore** |
+## Reranking (Cross-Encoder)
 
-### Setup
+If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS will:
 
-```typescript
-import { VectorStoreManager } from '@framers/agentos/rag';
+- Initialize `RerankerService`
+- Auto-register built-in reranker providers declared in config:
+  - `cohere` (requires `apiKey`)
+  - `local` (offline cross-encoder, requires installing `@xenova/transformers`)
 
-const vsm = new VectorStoreManager();
-await vsm.initialize(
-  {
-    managerId: 'main-vsm',
-    providers: [{
-      id: 'hnsw-store',
-      type: 'hnswlib',
-      defaultEmbeddingDimension: 1536,
-      similarityMetric: 'cosine',  // 'cosine' | 'euclidean' | 'dotproduct'
-      hnswM: 16,                   // Max connections per node (default: 16)
-      hnswEfConstruction: 200,     // Construction quality (default: 200)
-      hnswEfSearch: 100,           // Search quality (default: 100)
-    }],
-    defaultProviderId: 'hnsw-store',
-  },
-  [{ dataSourceId: 'docs', vectorStoreProviderId: 'hnsw-store', actualNameInProvider: 'documents' }]
-);
-```
-
-### Standalone Usage
-
-```typescript
-import { HnswlibVectorStore } from '@framers/agentos/rag';
-
-const store = new HnswlibVectorStore();
-await store.initialize({
-  id: 'my-store',
-  type: 'hnswlib',
-  similarityMetric: 'cosine',
-  defaultEmbeddingDimension: 1536,
-});
-
-await store.createCollection('documents', 1536);
-
-await store.upsert('documents', [
-  { id: 'doc-1', embedding: [...], textContent: 'Hello world', metadata: { source: 'test' } },
-]);
-
-const results = await store.query('documents', queryEmbedding, {
-  topK: 10,
-  minSimilarityScore: 0.7,
-  includeMetadata: true,
-  includeTextContent: true,
-  filter: { source: 'test' },
-});
-```
-
-### HNSW Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `hnswM` | 16 | Max connections per node. Higher = better recall, more memory |
-| `hnswEfConstruction` | 200 | Build-time quality. Higher = better index, slower build |
-| `hnswEfSearch` | 100 | Query-time quality. Higher = better recall, slower query |
-| `similarityMetric` | `cosine` | Distance function: `cosine`, `euclidean`, `dotproduct` |
-
-### Performance Characteristics
-
-| Documents | Query Latency | Memory | Build Time |
-|-----------|--------------|--------|------------|
-| 10K | 1-2ms | ~100MB | ~1s |
-| 100K | 2-10ms | ~1GB | ~10s |
-| 1M | 10-50ms | ~8GB | ~100s |
-
-### Dependencies
-
-`hnswlib-node` is an **optional peer dependency**. Install it only if using the HNSW store:
-
-```bash
-pnpm add hnswlib-node
-```
-
-### Metadata Filtering
-
-HnswlibVectorStore supports rich metadata filters applied post-retrieval:
-
-```typescript
-const results = await store.query('col', embedding, {
-  filter: {
-    category: 'docs',                    // exact match (shorthand for $eq)
-    score: { $gt: 80 },                  // numeric comparison ($gt, $gte, $lt, $lte)
-    status: { $ne: 'archived' },         // not equal
-    tags: { $contains: 'important' },    // array contains
-    name: { $in: ['Alice', 'Bob'] },     // in set
-    title: { $textSearch: 'guide' },     // case-insensitive substring
-  },
-});
-```
-
----
-
-## GraphRAG (Graph-Based Retrieval Augmented Generation)
-
-AgentOS includes a TypeScript-native GraphRAG engine inspired by Microsoft's GraphRAG research.
-It combines entity extraction, graph-based community detection (Louvain algorithm), hierarchical
-summarization, and dual search modes (global + local) — all without Python dependencies.
-
-### Architecture
-
-```
-Documents  ──►  Entity Extraction  ──►  Graph Construction  ──►  Community Detection
-                (LLM or pattern)         (graphology)             (Louvain algorithm)
-                                                                        │
-                                                                        ▼
-Query  ──►  Global Search (community summaries)         Community Summarization
-       ──►  Local Search  (entity + graph traversal)         (LLM-generated)
-```
-
-### When to Use
-
-| Question Type | Best RAG Mode |
-|---------------|---------------|
-| "What is X?" (specific fact) | Standard vector RAG |
-| "Tell me about X" (entity context) | **GraphRAG Local Search** |
-| "What are the main themes?" (broad) | **GraphRAG Global Search** |
-| "How does X relate to Y?" (multi-hop) | **GraphRAG Local Search** |
-
-### Setup
-
-```typescript
-import { GraphRAGEngine } from '@framers/agentos/rag';
-import { HnswlibVectorStore } from '@framers/agentos/rag';
-import { EmbeddingManager } from '@framers/agentos/rag';
-
-// Initialize dependencies
-const vectorStore = new HnswlibVectorStore();
-await vectorStore.initialize({ id: 'graphrag-vs', type: 'hnswlib' });
-
-const embeddingManager = new EmbeddingManager();
-await embeddingManager.initialize(embeddingConfig, aiProviderManager);
-
-// Initialize GraphRAG engine
-const graphRAG = new GraphRAGEngine({
-  vectorStore,
-  embeddingManager,
-  llmProvider: {
-    generateText: async (prompt, opts) => {
-      // Route to your LLM provider
-      return await myLLM.generate(prompt, opts);
-    },
-  },
-  persistenceAdapter: sqlAdapter, // @framers/sql-storage-adapter instance
-});
-
-await graphRAG.initialize({
-  engineId: 'my-graphrag',
-  entityTypes: ['person', 'organization', 'location', 'concept', 'technology'],
-  maxCommunityLevels: 3,
-  minCommunitySize: 2,
-  communityResolution: 1.0,
-  generateEntityEmbeddings: true,
-});
-```
-
-### Ingesting Documents
-
-```typescript
-const result = await graphRAG.ingestDocuments([
-  { id: 'doc-1', content: 'Alice is a researcher at MIT...', metadata: { source: 'bio' } },
-  { id: 'doc-2', content: 'Bob collaborates with Alice on NLP projects...' },
-]);
-
-console.log(result);
-// {
-//   entitiesExtracted: 5,
-//   relationshipsExtracted: 3,
-//   communitiesDetected: 2,
-//   documentsProcessed: 2,
-// }
-```
-
-### Global Search
-
-Best for broad questions where the answer spans many documents:
-
-```typescript
-const result = await graphRAG.globalSearch('What are the main research themes?', {
-  topK: 5,
-  communityLevels: [0, 1],
-  minRelevance: 0.5,
-});
-
-console.log(result.answer);           // LLM-synthesized answer from community summaries
-console.log(result.communitySummaries); // Matched community summaries with relevance scores
-```
-
-### Local Search
-
-Best for specific entity questions with relationship context:
-
-```typescript
-const result = await graphRAG.localSearch('Tell me about Alice', {
-  topK: 10,
-  includeEntities: true,
-  includeRelationships: true,
-});
-
-console.log(result.entities);        // Matched entities with relevance scores
-console.log(result.relationships);   // Related relationships (1-hop graph expansion)
-console.log(result.communityContext); // Community context for matched entities
-console.log(result.augmentedContext); // Pre-built context string for LLM consumption
-```
-
-### Inspecting the Graph
-
-```typescript
-// Get all entities
-const entities = await graphRAG.getEntities({ type: 'person', limit: 50 });
-
-// Get relationships for an entity
-const rels = await graphRAG.getRelationships(entities[0].id);
-
-// Get community hierarchy
-const communities = await graphRAG.getCommunities(0); // Level 0 = most granular
-
-// Get statistics
-const stats = await graphRAG.getStats();
-// { totalEntities, totalRelationships, totalCommunities, communityLevels, documentsIngested }
-```
-
-### Persistence
-
-GraphRAG persists its graph to SQL via `@framers/sql-storage-adapter`:
-
-| Table | Contents |
-|-------|----------|
-| `graphrag_entities` | Extracted entities with embeddings |
-| `graphrag_relationships` | Entity relationships with weights |
-| `graphrag_communities` | Community hierarchy with summaries |
-| `graphrag_ingested_documents` | Track of processed documents |
-
-Data is loaded on `initialize()` and persisted on `shutdown()`. Use a custom `tablePrefix`
-in the config to namespace multiple GraphRAG instances.
-
-### Dependencies
-
-GraphRAG requires these **optional peer dependencies**:
-
-```bash
-pnpm add graphology graphology-communities-louvain graphology-types
-# Optional: for HNSW-backed entity search
-pnpm add hnswlib-node
-```
-
-### Entity Extraction Modes
-
-| Mode | Trigger | Quality | Cost |
-|------|---------|---------|------|
-| **LLM-driven** | `llmProvider` injected | High (structured extraction) | LLM API calls |
-| **Pattern-based** | No `llmProvider` | Medium (proper noun regex) | Free |
-
-The engine falls back to pattern-based extraction automatically if the LLM call fails.
-
----
-
-## See Also
-
-- [Architecture Overview](./ARCHITECTURE.md)
-- [Client-Side Storage](./CLIENT_SIDE_STORAGE.md)
-- [SQL Storage Quickstart](./SQL_STORAGE_QUICKSTART.md)
-- [Cost Optimization](./COST_OPTIMIZATION.md) — Tips for managing reranker API costs
+Reranking is **still opt-in per request** via `RagRetrievalOptions.rerankerConfig.enabled=true`.

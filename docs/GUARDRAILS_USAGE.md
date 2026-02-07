@@ -17,6 +17,7 @@ User Input → [Input Guardrails] → Orchestration → [Output Guardrails] → 
 
 ```typescript
 import { AgentOS } from '@framers/agentos';
+import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 import {
   IGuardrailService,
   GuardrailAction,
@@ -41,9 +42,10 @@ class ContentFilter implements IGuardrailService {
 
 // Initialize with guardrail
 const agent = new AgentOS();
+const base = await createTestAgentOSConfig();
 await agent.initialize({
-  llmProvider: { provider: 'openai', apiKey: process.env.OPENAI_API_KEY },
-  guardrailService: new ContentFilter(),
+  ...base,
+  guardrailService: new ContentFilter(), // Optional config-scoped guardrail
 });
 ```
 
@@ -299,10 +301,8 @@ const guardrails = [
   new CostCeilingGuardrail(),      // Third: enforce budget
 ];
 
-await agent.initialize({
-  llmProvider: llmConfig,
-  guardrailService: guardrails,  // Array of guardrails
-});
+// AgentOSConfig.guardrailService is a single guardrail instance. To use multiple,
+// register them as extension-pack descriptors (recommended) or wrap them in a composite.
 ```
 
 **Evaluation Order:**

@@ -36,6 +36,8 @@ import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataValue 
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { RerankerService, type RerankerServiceOptions } from './reranking/RerankerService';
 import type { RerankerRequestConfig } from './reranking/IRerankerService';
+import { CohereReranker } from './reranking/providers/CohereReranker';
+import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncoderReranker';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -96,7 +98,40 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
       this.rerankerService = new RerankerService({
         config: config.rerankerServiceConfig,
       });
-      console.log(`RetrievalAugmentor (ID: ${this.augmenterId}): RerankerService initialized with providers: [${config.rerankerServiceConfig.providers.map(p => p.providerId).join(', ')}]`);
+
+      // Auto-register built-in provider implementations when declared in config.
+      // Custom providers can still be registered via `registerRerankerProvider()`.
+      const autoRegistered: string[] = [];
+      for (const providerConfig of config.rerankerServiceConfig.providers) {
+        try {
+          if (providerConfig.providerId === 'cohere') {
+            const apiKey = (providerConfig as any)?.apiKey;
+            if (typeof apiKey === 'string' && apiKey.trim()) {
+              this.rerankerService.registerProvider(new CohereReranker(providerConfig as any));
+              autoRegistered.push('cohere');
+            } else {
+              console.warn(
+                `RetrievalAugmentor (ID: ${this.augmenterId}): Cohere reranker declared but missing apiKey. Skipping auto-registration.`,
+              );
+            }
+          } else if (providerConfig.providerId === 'local') {
+            this.rerankerService.registerProvider(new LocalCrossEncoderReranker(providerConfig as any));
+            autoRegistered.push('local');
+          }
+        } catch (e: any) {
+          console.warn(
+            `RetrievalAugmentor (ID: ${this.augmenterId}): Failed to auto-register reranker provider '${providerConfig.providerId}': ${String(
+              e?.message ?? e,
+            )}`,
+          );
+        }
+      }
+
+      console.log(
+        `RetrievalAugmentor (ID: ${this.augmenterId}): RerankerService initialized (configured: [${config.rerankerServiceConfig.providers
+          .map((p) => p.providerId)
+          .join(', ')}], auto-registered: [${autoRegistered.join(', ')}])`,
+      );
     }
 
     // Validate category behaviors - ensure targetDataSourceIds exist if specified in mapping
@@ -536,6 +571,63 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     return this.rerankerService.rerankChunks(queryText, chunks, requestConfig);
   }
 
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
+    let dot = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    const denom = Math.sqrt(normA) * Math.sqrt(normB);
+    return denom === 0 ? 0 : dot / denom;
+  }
+
+  private applyMMR(
+    chunks: RagRetrievedChunk[],
+    topK: number,
+    lambda: number,
+  ): RagRetrievedChunk[] {
+    if (chunks.length <= 1) return chunks.slice(0, topK);
+
+    const candidates = chunks.slice(0, Math.min(chunks.length, Math.max(topK * 5, topK)));
+    const selected: RagRetrievedChunk[] = [];
+    const remaining = [...candidates];
+
+    // Start from the most relevant chunk.
+    selected.push(remaining.shift()!);
+
+    while (selected.length < topK && remaining.length > 0) {
+      let bestIdx = 0;
+      let bestScore = Number.NEGATIVE_INFINITY;
+
+      for (let i = 0; i < remaining.length; i++) {
+        const candidate = remaining[i];
+        const relevance = candidate.relevanceScore ?? 0;
+
+        let maxSim = 0;
+        if (candidate.embedding && candidate.embedding.length > 0) {
+          for (const already of selected) {
+            if (!already.embedding || already.embedding.length === 0) continue;
+            maxSim = Math.max(maxSim, this.cosineSimilarity(candidate.embedding, already.embedding));
+          }
+        }
+
+        const mmrScore = lambda * relevance - (1 - lambda) * maxSim;
+        if (mmrScore > bestScore) {
+          bestScore = mmrScore;
+          bestIdx = i;
+        }
+      }
+
+      selected.push(remaining.splice(bestIdx, 1)[0]);
+    }
+
+    return selected;
+  }
+
   /**
    * @inheritdoc
    */
@@ -626,18 +718,44 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
         const retrievalOptsFromCat = categoryBehavior?.defaultRetrievalOptions || {};
         const globalRetrievalOpts = this.config.globalDefaultRetrievalOptions || {};
 
+        const effectiveStrategy =
+          options?.strategy ??
+          retrievalOptsFromCat.strategy ??
+          globalRetrievalOpts.strategy ??
+          'similarity';
+
+        const effectiveStrategyParams = {
+          ...(globalRetrievalOpts.strategyParams ?? {}),
+          ...(retrievalOptsFromCat.strategyParams ?? {}),
+          ...(options?.strategyParams ?? {}),
+        };
+
+        const topKRequested = options?.topK ?? retrievalOptsFromCat.topK ?? globalRetrievalOpts.topK ?? DEFAULT_TOP_K;
+
+        const includeEmbeddingsRequested =
+          options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings;
+        const includeEmbeddingsForRetrieval = Boolean(includeEmbeddingsRequested) || effectiveStrategy === 'mmr';
+
         const finalQueryOptions: VectorStoreQueryOptions = {
-            topK: options?.topK ?? retrievalOptsFromCat.topK ?? globalRetrievalOpts.topK ?? DEFAULT_TOP_K,
-            filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter,
-            includeEmbedding: options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings,
-            includeMetadata: true, // Usually needed
-            includeTextContent: true, // Usually needed for context
-            minSimilarityScore: options?.strategyParams?.custom?.minSimilarityScore, // Example, specific to options
-            // Map other options as needed
+          topK: effectiveStrategy === 'mmr' ? Math.max(topKRequested * 5, topKRequested) : topKRequested,
+          filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter,
+          includeEmbedding: includeEmbeddingsForRetrieval,
+          includeMetadata: true,
+          includeTextContent: true,
+          minSimilarityScore: options?.strategyParams?.custom?.minSimilarityScore,
         };
         
         const dsQueryStartTime = Date.now();
-        const queryResult = await store.query(collectionName, queryEmbedding, finalQueryOptions);
+        const queryResult =
+          effectiveStrategy === 'hybrid' && typeof store.hybridSearch === 'function'
+            ? await store.hybridSearch(collectionName, queryEmbedding, queryText, {
+                ...finalQueryOptions,
+                alpha: effectiveStrategyParams.hybridAlpha ?? 0.7,
+                fusion: effectiveStrategyParams.custom?.fusion,
+                rrfK: effectiveStrategyParams.custom?.rrfK,
+                lexicalTopK: effectiveStrategyParams.custom?.lexicalTopK,
+              })
+            : await store.query(collectionName, queryEmbedding, finalQueryOptions);
         diagnostics.retrievalTimeMs += (Date.now() - dsQueryStartTime);
 
         if(diagnostics.dataSourceHits) diagnostics.dataSourceHits[dsId] = queryResult.documents.length;
@@ -651,7 +769,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
             source: doc.metadata?.source as string,
             metadata: doc.metadata,
             relevanceScore: doc.similarityScore,
-            embedding: doc.embedding,
+            embedding: includeEmbeddingsForRetrieval ? doc.embedding : undefined,
           });
         });
       } catch (error: any) {
@@ -668,7 +786,17 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     const overallTopK = options?.topK ?? this.config.globalDefaultRetrievalOptions?.topK ?? DEFAULT_TOP_K;
     let processedChunks = allRetrievedChunks.slice(0, overallTopK * effectiveDataSourceIds.size); // Take more initially if merging from many
     processedChunks.sort((a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0));
-    processedChunks = processedChunks.slice(0, overallTopK);
+    processedChunks = processedChunks.slice(0, Math.max(overallTopK, 1));
+
+    // MMR diversification (optional)
+    const strategyUsed = options?.strategy ?? this.config.globalDefaultRetrievalOptions?.strategy ?? 'similarity';
+    if (strategyUsed === 'mmr') {
+      const lambdaRaw = options?.strategyParams?.mmrLambda ?? 0.7;
+      const lambda = Number.isFinite(lambdaRaw) ? Math.max(0, Math.min(1, lambdaRaw)) : 0.7;
+      processedChunks = this.applyMMR(processedChunks, overallTopK, lambda);
+    } else {
+      processedChunks = processedChunks.slice(0, overallTopK);
+    }
 
 
     // Cross-encoder reranking step (optional)
@@ -687,7 +815,16 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
         }
       }
     }
-    diagnostics.strategyUsed = options?.strategy || 'similarity';
+    diagnostics.strategyUsed = strategyUsed;
+
+    // Strip embeddings unless explicitly requested by caller.
+    const includeEmbeddingsOutput =
+      options?.includeEmbeddings ?? this.config.globalDefaultRetrievalOptions?.includeEmbeddings ?? false;
+    if (!includeEmbeddingsOutput) {
+      processedChunks.forEach((c) => {
+        delete (c as any).embedding;
+      });
+    }
 
 
     // 6. Format Context

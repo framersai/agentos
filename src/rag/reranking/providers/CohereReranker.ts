@@ -44,6 +44,11 @@ interface CohereRerankResponse {
  * Available Cohere reranker models.
  */
 export const COHERE_RERANKER_MODELS = [
+  // Latest models (recommended by Cohere docs)
+  'rerank-v4.0-pro',
+  'rerank-v4.0-fast',
+  'rerank-v3.5',
+  // Legacy model names (still supported)
   'rerank-english-v3.0',
   'rerank-multilingual-v3.0',
   'rerank-english-v2.0',
@@ -65,12 +70,12 @@ export type CohereRerankerModel = (typeof COHERE_RERANKER_MODELS)[number];
  * const reranker = new CohereReranker({
  *   providerId: 'cohere',
  *   apiKey: process.env.COHERE_API_KEY!,
- *   defaultModelId: 'rerank-english-v3.0'
+ *   defaultModelId: 'rerank-v3.5'
  * });
  *
  * const result = await reranker.rerank(
  *   { query: 'machine learning', documents: [...] },
- *   { providerId: 'cohere', modelId: 'rerank-english-v3.0', topN: 5 }
+ *   { providerId: 'cohere', modelId: 'rerank-v3.5', topN: 5 }
  * );
  * ```
  */
@@ -86,7 +91,7 @@ export class CohereReranker implements IRerankerProvider {
     // Allow empty apiKey for graceful isAvailable() checks
     this.apiKey = config.apiKey || '';
     this.baseUrl = config.baseUrl ?? 'https://api.cohere.ai';
-    this.defaultModelId = config.defaultModelId ?? 'rerank-english-v3.0';
+    this.defaultModelId = config.defaultModelId ?? 'rerank-v3.5';
     this.defaultTimeoutMs = config.defaultTimeoutMs ?? 30000;
   }
 
