@@ -49,6 +49,9 @@ type SqlOperation = 'INSERT' | 'UPDATE' | 'DELETE' | 'CREATE' | 'ALTER' | 'DROP'
 function detectSqlOperation(statement: string): SqlOperation {
   const trimmed = statement.trim().toUpperCase();
   if (trimmed.startsWith('INSERT')) return 'INSERT';
+  // SQLite supports `REPLACE INTO ...` which is semantically an upsert (delete + insert).
+  // Treat as INSERT for event mapping, but enforce in sealed mode as a mutation.
+  if (trimmed.startsWith('REPLACE')) return 'INSERT';
   if (trimmed.startsWith('UPDATE')) return 'UPDATE';
   if (trimmed.startsWith('DELETE')) return 'DELETE';
   if (trimmed.startsWith('CREATE')) return 'CREATE';
@@ -57,12 +60,31 @@ function detectSqlOperation(statement: string): SqlOperation {
   return 'UNKNOWN';
 }
 
+function isUpsertLikeMutation(statement: string): boolean {
+  const upper = statement.trim().toUpperCase();
+
+  // `REPLACE INTO ...` (SQLite) overwrites existing rows.
+  if (upper.startsWith('REPLACE')) return true;
+
+  // `INSERT OR REPLACE INTO ...` (SQLite) overwrites existing rows.
+  if (/INSERT\s+OR\s+REPLACE\s+INTO\s+/i.test(statement)) return true;
+
+  // `INSERT ... ON CONFLICT ... DO UPDATE` (SQLite/Postgres) mutates existing rows.
+  if (/ON\s+CONFLICT[\s\S]*DO\s+UPDATE/i.test(statement)) return true;
+
+  return false;
+}
+
 function extractTableFromStatement(statement: string): string | undefined {
   const trimmed = statement.trim();
 
   // INSERT INTO <table>
   const insertMatch = trimmed.match(/INSERT\s+(?:OR\s+\w+\s+)?INTO\s+(\S+)/i);
   if (insertMatch) return insertMatch[1];
+
+  // REPLACE INTO <table>
+  const replaceMatch = trimmed.match(/REPLACE\s+INTO\s+(\S+)/i);
+  if (replaceMatch) return replaceMatch[1];
 
   // UPDATE <table>
   const updateMatch = trimmed.match(/UPDATE\s+(\S+)/i);
@@ -167,9 +189,10 @@ export function createProvenanceHooks(
 
       switch (mode) {
         case 'sealed':
-          if (operation === 'UPDATE' || operation === 'DELETE') {
+          const isUpsert = operation === 'INSERT' && isUpsertLikeMutation(context.statement);
+          if (operation === 'UPDATE' || operation === 'DELETE' || isUpsert) {
             throw new ProvenanceViolationError(
-              `${operation} operations are forbidden in sealed mode on table '${table}'`,
+              `${isUpsert ? 'UPSERT' : operation} operations are forbidden in sealed mode on table '${table}'`,
               { code: 'SEALED_MUTATION_BLOCKED', table, operation },
             );
           }

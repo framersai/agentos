@@ -239,6 +239,37 @@ for await (const chunk of agent.processRequest({
 }
 ```
 
+### Immutability & Provenance (Optional)
+
+AgentOS includes an optional provenance system that can:
+- enforce storage immutability policies (`mutable`, `revisioned`, `sealed`)
+- record a signed, tamper-evident event ledger
+- optionally anchor Merkle roots to external systems (WORM, Rekor, OpenTimestamps, Ethereum, Solana)
+
+```typescript
+import { profiles } from '@framers/agentos/provenance';
+import { createProvenancePack } from '@framers/agentos/extensions/packs/provenance-pack';
+
+// Pick a profile:
+// - mutableDev(): normal app semantics, no signing
+// - revisionedVerified(): edits allowed, but revisions/tombstones are tracked + signed
+// - sealedAutonomous(): append-only storage policy for protected tables + signed ledger
+const provenanceConfig = profiles.sealedAutonomous();
+
+const provenancePack = createProvenancePack(
+  provenanceConfig,
+  storageAdapter,
+  'agent-001',   // signing identity
+  'agentos_',    // optional table prefix
+);
+
+// Add the pack to your extension manifest, then initialize AgentOS.
+```
+
+**Key rotation:** keep tool API keys out of the immutable spec (env vars or a secret store). Rotate keys and restart without changing the agent identity/history.
+
+**Sealed conversation persistence:** when using `sealed` storage policy with SQL conversation persistence, set `ConversationManagerConfig.appendOnlyPersistence=true` so conversation history remains append-only (no UPDATE/DELETE/UPSERT on protected tables).
+
 ---
 
 ## Architecture

@@ -310,6 +310,8 @@ export class ExtensionLoader {
    * Infer category from package name
    */
   private inferCategory(packageName: string): string {
+    // Treat web search/scraping extensions as "research".
+    if (packageName.includes('web-search') || packageName.includes('web-scraper') || packageName.includes('web_scraper')) return 'research';
     if (packageName.includes('research')) return 'research';
     if (packageName.includes('integration')) return 'integrations';
     if (packageName.includes('productivity')) return 'productivity';

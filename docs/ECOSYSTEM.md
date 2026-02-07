@@ -85,6 +85,33 @@ npm install @framers/agentos-extensions
 
 ---
 
+### [@framers/agentos-skills-registry](https://github.com/framersai/agentos-skills)
+**Curated Skills Registry** — Helpers to load bundled `SKILL.md` prompt modules into a `SkillRegistry` and build prompt snapshots.
+
+```bash
+npm install @framers/agentos-skills-registry
+```
+
+---
+
+### [@framers/agentos-skills](https://github.com/framersai/agentos-skills)
+**Skills Catalog** — Static `registry.json` catalog of curated skills (bundled `SKILL.md` folders).
+
+```bash
+npm install @framers/agentos-skills
+```
+
+---
+
+### [@framers/agentos-ext-skills](https://github.com/framersai/agentos-skills)
+**Skills Tools Extension** — Tools for skill discovery + enablement (`skills_list`, `skills_read`, `skills_enable`).
+
+```bash
+npm install @framers/agentos-ext-skills
+```
+
+---
+
 ## Applications
 
 ### [agentos.sh](https://github.com/framersai/agentos.sh)

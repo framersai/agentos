@@ -72,6 +72,8 @@ export * from './extensions';
 export * from './channels';
 // Voice Calls (telephony providers)
 export * from './voice';
+// Skills (SKILL.md prompt modules)
+export * from './skills';
 // Multilingual exports
 export * from './core/language/interfaces';
 export * from './core/language/LanguageService';

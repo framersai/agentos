@@ -35,6 +35,14 @@ export interface ConversationManagerConfig {
   maxActiveConversationsInMemory?: number;
   inactivityTimeoutMs?: number;
   persistenceEnabled?: boolean;
+  /**
+   * When enabled, persistence becomes append-only:
+   * - `conversations` and `conversation_messages` rows are never updated or deleted
+   * - new messages are inserted once and subsequent saves are idempotent
+   *
+   * This is intended to support provenance "sealed" mode / immutability guarantees.
+   */
+  appendOnlyPersistence?: boolean;
 }
 
 /**
@@ -161,12 +169,13 @@ export class ConversationManager {
       console.warn(`ConversationManager (ID: ${this.managerId}) already initialized. Consider if re-initialization is intended and its effects on state.`);
     }
 
+    // Avoid spreading `config` last because `undefined` values would override defaults.
     this.config = {
       defaultConversationContextConfig: config.defaultConversationContextConfig || {},
       maxActiveConversationsInMemory: config.maxActiveConversationsInMemory ?? 1000,
       inactivityTimeoutMs: config.inactivityTimeoutMs ?? 3600000, // 1 hour
       persistenceEnabled: config.persistenceEnabled ?? true, // Default to true
-      ...config, // Spread last to ensure explicit config values override defaults if provided
+      appendOnlyPersistence: config.appendOnlyPersistence ?? false,
     };
 
     this.utilityAIService = utilityAIService;
@@ -189,7 +198,9 @@ export class ConversationManager {
     }
 
     this.initialized = true;
-    console.log(`ConversationManager (ID: ${this.managerId}) initialized. Persistence: ${this.config.persistenceEnabled}. Max in-memory: ${this.config.maxActiveConversationsInMemory}.`);
+    console.log(
+      `ConversationManager (ID: ${this.managerId}) initialized. Persistence: ${this.config.persistenceEnabled}. Append-only: ${this.config.appendOnlyPersistence}. Max in-memory: ${this.config.maxActiveConversationsInMemory}.`
+    );
   }
 
   /**
@@ -324,6 +335,13 @@ export class ConversationManager {
    */
   public async deleteConversation(conversationId: string): Promise<void> {
     this.ensureInitialized();
+    if (this.config.appendOnlyPersistence) {
+      throw new GMIError(
+        `Conversation deletion is disabled when appendOnlyPersistence is enabled.`,
+        GMIErrorCode.METHOD_NOT_SUPPORTED,
+        { conversationId, managerId: this.managerId }
+      );
+    }
     this.activeConversations.delete(conversationId);
 
     if (this.config.persistenceEnabled && this.storageAdapter) {
@@ -388,6 +406,20 @@ export class ConversationManager {
     }
     if (this.config.persistenceEnabled && this.storageAdapter) {
       try {
+        if (this.config.appendOnlyPersistence) {
+          const row = await this.storageAdapter.get<{ last_ts: number | null }>(
+            'SELECT MAX(timestamp) AS last_ts FROM conversation_messages WHERE conversation_id = ?',
+            [conversationId]
+          );
+          if (row?.last_ts != null) {
+            return row.last_ts;
+          }
+          const convo = await this.storageAdapter.get<{ created_at: number }>(
+            'SELECT created_at FROM conversations WHERE id = ?',
+            [conversationId]
+          );
+          return convo?.created_at;
+        }
         const convo = await this.storageAdapter.get<{ updated_at: number }>(
           'SELECT updated_at FROM conversations WHERE id = ?',
           [conversationId]
@@ -476,12 +508,31 @@ export class ConversationManager {
         };
 
         // Upsert conversation (cross-platform compatible)
-        // Check if exists first, then INSERT or UPDATE
-        const existing = await tx.get<{ created_at: number }>('SELECT created_at FROM conversations WHERE id = ?', [conversationData.id]);
+        // Check if exists first, then INSERT or UPDATE (unless append-only).
+        const existing = await tx.get<{ created_at: number }>(
+          'SELECT created_at FROM conversations WHERE id = ?',
+          [conversationData.id]
+        );
         const finalCreatedAt = existing?.created_at || conversationData.created_at;
-        
-        if (existing) {
-          // Update existing (works on all databases)
+
+        if (!existing) {
+          await tx.run(
+            `INSERT INTO conversations (id, user_id, gmi_instance_id, title, language, session_details, is_archived, tags, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              conversationData.id,
+              conversationData.user_id,
+              conversationData.gmi_instance_id,
+              conversationData.title,
+              conversationData.language,
+              conversationData.session_details,
+              conversationData.is_archived,
+              conversationData.tags,
+              finalCreatedAt,
+              conversationData.updated_at,
+            ]
+          );
+        } else if (!this.config.appendOnlyPersistence) {
           await tx.run(
             `UPDATE conversations SET
              user_id = ?, gmi_instance_id = ?, title = ?, language = ?, session_details = ?,
@@ -499,50 +550,116 @@ export class ConversationManager {
               conversationData.id,
             ]
           );
-        } else {
-          // Insert new (works on all databases)
-          await tx.run(
-            `INSERT INTO conversations (id, user_id, gmi_instance_id, title, language, session_details, is_archived, tags, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              conversationData.id,
-              conversationData.user_id,
-              conversationData.gmi_instance_id,
-              conversationData.title,
-              conversationData.language,
-              conversationData.session_details,
-              conversationData.is_archived,
-              conversationData.tags,
-              finalCreatedAt,
-              conversationData.updated_at,
-            ]
-          );
         }
 
-        // Upsert messages (INSERT OR REPLACE preserves history for provenance/revisioned modes)
         if (contextJSON.messages && contextJSON.messages.length > 0) {
           for (const msg of contextJSON.messages) {
             const messageId = (msg as any).id || `msg_${uuidv4()}`;
-            await tx.run(
-              `INSERT OR REPLACE INTO conversation_messages (
-                id, conversation_id, role, content, timestamp, tool_calls, tool_call_id,
-                multimodal_data, audio_url, audio_transcript, voice_settings, metadata
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                messageId,
-                context.sessionId,
-                msg.role.toString(),
-                typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-                msg.timestamp,
-                msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
-                (msg as any).tool_call_id || null,
-                (msg as any).multimodalData ? JSON.stringify((msg as any).multimodalData) : null,
-                (msg as any).audioUrl || null,
-                (msg as any).audioTranscript || null,
-                (msg as any).voiceSettings ? JSON.stringify((msg as any).voiceSettings) : null,
-                JSON.stringify((msg as any).metadata || {}),
-              ]
-            );
+
+            // Append-only persistence: insert each message once; never update.
+            if (this.config.appendOnlyPersistence) {
+              const existingMsg = await tx.get<{ id: string }>(
+                'SELECT id FROM conversation_messages WHERE id = ?',
+                [messageId]
+              );
+              if (existingMsg) {
+                continue;
+              }
+              await tx.run(
+                `INSERT INTO conversation_messages (
+                  id, conversation_id, role, content, timestamp, tool_calls, tool_call_id,
+                  multimodal_data, audio_url, audio_transcript, voice_settings, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  messageId,
+                  context.sessionId,
+                  msg.role.toString(),
+                  typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                  msg.timestamp,
+                  msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
+                  (msg as any).tool_call_id || null,
+                  (msg as any).multimodalData ? JSON.stringify((msg as any).multimodalData) : null,
+                  (msg as any).audioUrl || null,
+                  (msg as any).audioTranscript || null,
+                  (msg as any).voiceSettings ? JSON.stringify((msg as any).voiceSettings) : null,
+                  JSON.stringify((msg as any).metadata || {}),
+                ]
+              );
+              continue;
+            }
+
+            // Mutable/revisioned persistence: upsert-like behavior.
+            // Prefer SQLite's INSERT OR REPLACE when available; otherwise fall back to SELECT+UPDATE.
+            if (tx.kind !== 'postgres') {
+              await tx.run(
+                `INSERT OR REPLACE INTO conversation_messages (
+                  id, conversation_id, role, content, timestamp, tool_calls, tool_call_id,
+                  multimodal_data, audio_url, audio_transcript, voice_settings, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  messageId,
+                  context.sessionId,
+                  msg.role.toString(),
+                  typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                  msg.timestamp,
+                  msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
+                  (msg as any).tool_call_id || null,
+                  (msg as any).multimodalData ? JSON.stringify((msg as any).multimodalData) : null,
+                  (msg as any).audioUrl || null,
+                  (msg as any).audioTranscript || null,
+                  (msg as any).voiceSettings ? JSON.stringify((msg as any).voiceSettings) : null,
+                  JSON.stringify((msg as any).metadata || {}),
+                ]
+              );
+            } else {
+              const existingPgMsg = await tx.get<{ id: string }>(
+                'SELECT id FROM conversation_messages WHERE id = ?',
+                [messageId]
+              );
+              if (!existingPgMsg) {
+                await tx.run(
+                  `INSERT INTO conversation_messages (
+                    id, conversation_id, role, content, timestamp, tool_calls, tool_call_id,
+                    multimodal_data, audio_url, audio_transcript, voice_settings, metadata
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [
+                    messageId,
+                    context.sessionId,
+                    msg.role.toString(),
+                    typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                    msg.timestamp,
+                    msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
+                    (msg as any).tool_call_id || null,
+                    (msg as any).multimodalData ? JSON.stringify((msg as any).multimodalData) : null,
+                    (msg as any).audioUrl || null,
+                    (msg as any).audioTranscript || null,
+                    (msg as any).voiceSettings ? JSON.stringify((msg as any).voiceSettings) : null,
+                    JSON.stringify((msg as any).metadata || {}),
+                  ]
+                );
+              } else {
+                await tx.run(
+                  `UPDATE conversation_messages SET
+                    conversation_id = ?, role = ?, content = ?, timestamp = ?, tool_calls = ?, tool_call_id = ?,
+                    multimodal_data = ?, audio_url = ?, audio_transcript = ?, voice_settings = ?, metadata = ?
+                   WHERE id = ?`,
+                  [
+                    context.sessionId,
+                    msg.role.toString(),
+                    typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                    msg.timestamp,
+                    msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
+                    (msg as any).tool_call_id || null,
+                    (msg as any).multimodalData ? JSON.stringify((msg as any).multimodalData) : null,
+                    (msg as any).audioUrl || null,
+                    (msg as any).audioTranscript || null,
+                    (msg as any).voiceSettings ? JSON.stringify((msg as any).voiceSettings) : null,
+                    JSON.stringify((msg as any).metadata || {}),
+                    messageId,
+                  ]
+                );
+              }
+            }
           }
         }
       });
@@ -705,4 +822,3 @@ export class ConversationManager {
     console.log(`ConversationManager (ID: ${this.managerId}): Shutdown complete. In-memory cache cleared.`);
   }
 }
-

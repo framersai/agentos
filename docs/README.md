@@ -37,6 +37,7 @@
 - [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) — Vector storage and retrieval setup
 - [**SQL Storage Quickstart**](./SQL_STORAGE_QUICKSTART.md) — Database integration guide
 - [**Client-Side Storage**](./CLIENT_SIDE_STORAGE.md) — Browser-based persistence
+- [**Provenance & Immutability**](./PROVENANCE_IMMUTABILITY.md) — Sealed storage policy, signed ledger, and anchoring
 
 #### AI & LLM
 - [**Structured Output**](./STRUCTURED_OUTPUT.md) — JSON schema validation and structured generation
@@ -46,6 +47,7 @@
 #### Extensions & Customization
 - [**RFC Extension Standards**](./RFC_EXTENSION_STANDARDS.md) — Extension development guidelines
 - [**Recursive Self-Building Agents**](./RECURSIVE_SELF_BUILDING_AGENTS.md) — Advanced agent patterns
+- [**Skills (SKILL.md)**](./SKILLS.md) — Prompt modules loaded from directories/registries
 
 ### Platform & Infrastructure
 - [**Platform Support**](./PLATFORM_SUPPORT.md) — Supported environments and requirements

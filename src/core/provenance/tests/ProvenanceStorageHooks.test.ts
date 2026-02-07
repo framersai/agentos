@@ -206,7 +206,13 @@ describe('ProvenanceStorageHooks', () => {
 
   describe('table extraction', () => {
     it('should extract table from INSERT statement', async () => {
-      const config = profiles.sealedAutonomous();
+      const config: ProvenanceSystemConfig = {
+        ...profiles.sealedAutonomous(),
+        storagePolicy: {
+          mode: 'sealed',
+          protectedTables: ['my_table'],
+        },
+      };
       const hooks = createProvenanceHooks(config);
 
       const ctx = makeContext('INSERT INTO my_table (col1) VALUES (?)');
@@ -214,13 +220,18 @@ describe('ProvenanceStorageHooks', () => {
       expect(result).toBe(ctx); // my_table is protected but INSERT is allowed
     });
 
-    it('should extract table from INSERT OR REPLACE', async () => {
-      const config = profiles.sealedAutonomous();
+    it('should block INSERT OR REPLACE in sealed mode (upsert mutation)', async () => {
+      const config: ProvenanceSystemConfig = {
+        ...profiles.sealedAutonomous(),
+        storagePolicy: {
+          mode: 'sealed',
+          protectedTables: ['my_table'],
+        },
+      };
       const hooks = createProvenanceHooks(config);
 
       const ctx = makeContext('INSERT OR REPLACE INTO my_table (col1) VALUES (?)');
-      const result = await hooks.onBeforeWrite!(ctx);
-      expect(result).toBe(ctx);
+      await expect(hooks.onBeforeWrite!(ctx)).rejects.toThrow(ProvenanceViolationError);
     });
 
     it('should use affectedTables from context when available', async () => {

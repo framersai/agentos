@@ -7,9 +7,15 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
     "./package.json": "./package.json",
-    "./*": "./dist/*.js"
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
   },
   "files": [
     "dist"
@@ -70,7 +76,8 @@
     "lru-cache": "^11.1.0",
     "natural": "^6.12.0",
     "pino": "^9.14.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "yaml": "^2.8.1"
   },
   "peerDependencies": {
     "@framers/sql-storage-adapter": ">=0.4.0",
