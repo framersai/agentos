@@ -1,3 +1,7 @@
+## <small>0.1.7 (2026-02-07)</small>
+
+* feat: channel system, extension secrets, messaging types, docs ([63487ed](https://github.com/framersai/agentos/commit/63487ed))
+
 ## <small>0.1.6 (2026-02-06)</small>
 
 * refactor: rename extension packages to @framers/agentos-ext-* convention ([233e9a4](https://github.com/framersai/agentos/commit/233e9a4))
