@@ -1,3 +1,7 @@
+## <small>0.1.10 (2026-02-07)</small>
+
+* fix: remove marketing copy from architecture docs ([6feb377](https://github.com/framersai/agentos/commit/6feb377))
+
 ## <small>0.1.9 (2026-02-07)</small>
 
 * fix: make ExtensionPackContext fields optional, add logger/getSecret ([991ca25](https://github.com/framersai/agentos/commit/991ca25))
