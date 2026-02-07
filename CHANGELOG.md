@@ -1,3 +1,7 @@
+## <small>0.1.9 (2026-02-07)</small>
+
+* fix: make ExtensionPackContext fields optional, add logger/getSecret ([991ca25](https://github.com/framersai/agentos/commit/991ca25))
+
 ## <small>0.1.8 (2026-02-07)</small>
 
 * fix: add ExtensionPack onActivate/onDeactivate union type for backwards compat ([c8c64e9](https://github.com/framersai/agentos/commit/c8c64e9))
