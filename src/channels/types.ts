@@ -32,6 +32,13 @@ export type ChannelPlatform =
   | 'zalo'
   | 'email'
   | 'sms'
+  | 'nostr'
+  | 'twitch'
+  | 'line'
+  | 'feishu'
+  | 'mattermost'
+  | 'nextcloud-talk'
+  | 'tlon'
   | (string & {});
 
 // ============================================================================
