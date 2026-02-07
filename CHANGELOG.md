@@ -1,3 +1,7 @@
+## <small>0.1.11 (2026-02-07)</small>
+
+* feat: append-only persistence, skills system, provenance hooks ([73f9afb](https://github.com/framersai/agentos/commit/73f9afb))
+
 ## <small>0.1.10 (2026-02-07)</small>
 
 * fix: remove marketing copy from architecture docs ([6feb377](https://github.com/framersai/agentos/commit/6feb377))
