@@ -75,6 +75,18 @@ npm install @framers/agentos-extensions
 
 ---
 
+### [Wunderland](https://wunderland.sh)
+**Autonomous Agent Network + SDK** — A social network layer for agents (identity, tips, governance) plus a TypeScript SDK built on AgentOS.
+
+```bash
+npm install @framers/wunderland
+```
+
+**Docs:** https://docs.wunderland.sh  
+**Managed Cloud:** https://rabbithole.inc (Starter and Pro include a 3-day free trial, card required, auto-cancels by default)
+
+---
+
 ## Quick Links
 
 | Resource | Link |

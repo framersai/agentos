@@ -1636,7 +1636,12 @@ class AdvancedRAGSystem implements IRAGSystem {
     
     return reranked;
   }
-  
+
+  // NOTE: AgentOS provides pluggable reranker providers:
+  // - CohereReranker: Cloud-based via Cohere Rerank API
+  // - LocalCrossEncoderReranker: On-device via @xenova/transformers
+  // See RAG_MEMORY_CONFIGURATION.md for configuration details.
+
   async buildKnowledgeGraph(documents: Document[]): Promise<KnowledgeGraph> {
     const graph = new KnowledgeGraph();
     
@@ -4241,6 +4246,129 @@ extensionManager.registerExtension({
 
 ---
 
+## HNSW Vector Search & GraphRAG Engine
+
+### HNSW Vector Store (`HnswlibVectorStore`)
+
+AgentOS provides an HNSW-based `IVectorStore` implementation using `hnswlib-node` (C++ bindings).
+This replaces linear-scan cosine similarity with O(log n) approximate nearest neighbor search.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 HnswlibVectorStore                       │
+│  implements IVectorStore                                 │
+├─────────────────────────────────────────────────────────┤
+│  Collections                                             │
+│  ┌─────────────────────┐  ┌─────────────────────┐       │
+│  │ Collection "docs"   │  │ Collection "memory"  │      │
+│  │ ┌─────────────────┐ │  │ ┌─────────────────┐ │      │
+│  │ │ HNSW Index      │ │  │ │ HNSW Index      │ │      │
+│  │ │ (hnswlib-node)  │ │  │ │ (hnswlib-node)  │ │      │
+│  │ │ O(log n) search │ │  │ │ O(log n) search │ │      │
+│  │ └─────────────────┘ │  │ └─────────────────┘ │      │
+│  │ ┌─────────────────┐ │  │ ┌─────────────────┐ │      │
+│  │ │ Metadata Store  │ │  │ │ Metadata Store  │ │      │
+│  │ │ (in-memory Map) │ │  │ │ (in-memory Map) │ │      │
+│  │ └─────────────────┘ │  │ └─────────────────┘ │      │
+│  └─────────────────────┘  └─────────────────────┘       │
+├─────────────────────────────────────────────────────────┤
+│  Post-retrieval: Metadata filtering ($eq, $gt, $in...)  │
+│  Dynamic index resizing on capacity overflow             │
+│  Similarity: cosine | euclidean | dotproduct             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key characteristics:**
+- 2-10ms queries at 100K documents (vs 500-2000ms for linear scan)
+- In-process, zero infrastructure — runs anywhere Node.js runs
+- Dynamic index resizing when document count exceeds capacity
+- Full `IVectorStore` contract: `upsert`, `query`, `delete`, `createCollection`, `checkHealth`
+- Optional peer dependency: only loaded when configured as `type: 'hnswlib'`
+
+**File:** `packages/agentos/src/rag/implementations/vector_stores/HnswlibVectorStore.ts`
+
+### GraphRAG Engine (`GraphRAGEngine`)
+
+TypeScript-native GraphRAG implementation inspired by Microsoft's GraphRAG research.
+Combines entity extraction, community detection, hierarchical summarization, and dual search modes.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        GraphRAGEngine                                │
+│  implements IGraphRAGEngine                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                  Ingestion Pipeline                            │   │
+│  │                                                                │   │
+│  │  Documents ──► Entity Extraction ──► Deduplication            │   │
+│  │                (LLM or pattern)       (case-insensitive)       │   │
+│  │                      │                                         │   │
+│  │                      ▼                                         │   │
+│  │              Graph Construction ──► Community Detection        │   │
+│  │               (graphology)          (Louvain algorithm)        │   │
+│  │                                          │                     │   │
+│  │                                          ▼                     │   │
+│  │                                   Hierarchy Building           │   │
+│  │                                   (meta-graph Louvain)         │   │
+│  │                                          │                     │   │
+│  │                                          ▼                     │   │
+│  │                                   Community Summarization      │   │
+│  │                                   (LLM-generated)              │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌────────────────────────┐  ┌───────────────────────────────────┐  │
+│  │    Global Search        │  │       Local Search                │  │
+│  │                         │  │                                   │  │
+│  │  Query ──► Embed        │  │  Query ──► Embed                 │  │
+│  │        ──► Search       │  │        ──► Entity vector search  │  │
+│  │            community    │  │        ──► 1-hop graph expansion │  │
+│  │            summaries    │  │        ──► Community context      │  │
+│  │        ──► LLM synth    │  │        ──► Augmented context     │  │
+│  └────────────────────────┘  └───────────────────────────────────┘  │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                    Persistence Layer                           │   │
+│  │   sql-storage-adapter (SQLite / PostgreSQL / IndexedDB)       │   │
+│  │   Tables: entities, relationships, communities, ingested_docs │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                  Injected Dependencies                        │   │
+│  │  IVectorStore ─ IEmbeddingManager ─ LLMProvider ─ SQL Adapter│   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Community Detection (Louvain via graphology):**
+1. Build undirected graph of entities (nodes) and relationships (edges)
+2. Run Louvain algorithm to cluster tightly-connected nodes into communities
+3. Build hierarchical meta-graph: communities become nodes, cross-community edges become weights
+4. Run Louvain again at each level for coarser clustering
+5. LLM generates natural language summary per community
+
+**Search Modes:**
+- **Global Search**: Queries community summary embeddings, synthesizes answer across matched communities. Best for "What are the main themes?" style questions.
+- **Local Search**: Queries entity embeddings, expands 1-hop via graph traversal, includes community context. Best for "Tell me about X" style questions.
+
+**Entity Extraction:**
+- LLM-driven (when `llmProvider` injected): Structured JSON extraction with entity types and relationships
+- Pattern-based fallback: Proper noun regex with sentence co-occurrence relationship detection
+
+**Files:**
+- `packages/agentos/src/rag/graphrag/IGraphRAG.ts` — Interfaces and types
+- `packages/agentos/src/rag/graphrag/GraphRAGEngine.ts` — Implementation (~1400 lines)
+- `packages/agentos/src/rag/graphrag/index.ts` — Barrel exports
+
+**Dependencies (optional peer):**
+- `graphology` — Graph data structure
+- `graphology-communities-louvain` — Louvain community detection
+- `hnswlib-node` — HNSW index for entity/community embedding search
+
+See [RAG_MEMORY_CONFIGURATION.md](./RAG_MEMORY_CONFIGURATION.md) for usage examples and configuration.
+
+---
+
 ## Conclusion
 
 AgentOS represents a paradigm shift in how we build and deploy AI agents. By treating agents as adaptive, learning entities with persistent personalities and sophisticated cognitive architectures, we enable a new class of AI applications that truly understand and adapt to their users.
@@ -4259,6 +4387,8 @@ Key innovations include:
 - **Human-in-the-Loop**: Structured collaboration between AI agents and human operators *(v1.1.0)*
 - **Agent Communication**: Asynchronous messaging, broadcasting, and handoffs between agents *(v1.1.0)*
 - **RAG Memory Integration**: Vector-based knowledge retrieval with cross-platform persistence *(v1.0.0)*
+- **HNSW Vector Search**: O(log n) approximate nearest neighbor search via hnswlib-node *(v1.2.0)*
+- **GraphRAG Engine**: TypeScript-native entity extraction, Louvain community detection, hierarchical summarization, and global/local search *(v1.2.0)*
 
 Whether building specialized expert systems, collaborative multi-agent platforms, or adaptive personal assistants, AgentOS provides the foundation for creating AI agents that are not just tools, but genuine cognitive partners in solving complex problems and enhancing human capabilities.
 

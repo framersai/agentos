@@ -907,11 +907,14 @@ export class PromptEngine implements IPromptEngine {
           if (msg.role === MessageRole.ASSISTANT) role = 'assistant';
           else if (msg.role === MessageRole.SYSTEM) role = 'system';
           else if (msg.role === MessageRole.TOOL) role = 'tool';
+          else if (msg.role === MessageRole.SUMMARY) role = 'system';
 
     const chatMsg: ChatMessage = { role, content: null };
 
           if (typeof msg.content === 'string') {
-            chatMsg.content = msg.content;
+            chatMsg.content = msg.role === MessageRole.SUMMARY
+              ? `Conversation summary (older context):\n${msg.content}`
+              : msg.content;
           } else if (Array.isArray(msg.content)) {
             chatMsg.content = msg.content as MessageContentPart[]; // Use MessageContentPart
           } else if (msg.content === null && msg.tool_calls) {
@@ -973,6 +976,12 @@ export class PromptEngine implements IPromptEngine {
         components.conversationHistory.forEach(msg => {
           let role: 'user' | 'assistant' = 'user';
           if (msg.role === MessageRole.ASSISTANT) role = 'assistant';
+
+          if (msg.role === MessageRole.SUMMARY) {
+            const summaryText = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+            systemPrompt = [systemPrompt, `Conversation summary (older context):\n${summaryText}`].filter(Boolean).join('\n\n');
+            return;
+          }
 
           if (msg.role === MessageRole.USER || msg.role === MessageRole.ASSISTANT) {
             const contentParts: MessageContentPart[] = []; // Use MessageContentPart

@@ -11,6 +11,7 @@
  */
 
 import { VisionInputData, AudioInputData } from '../../cognitive_substrate/IGMI';
+import type { AgentOSMemoryControl } from '../../core/conversation/LongTermMemoryPolicy';
 
 /**
  * Defines the structure for user-provided feedback on a GMI's performance or a specific message.
@@ -73,6 +74,8 @@ export interface AgencyInvocationRequest {
 
 export interface AgentOSInput {
   userId: string;
+  /** Optional organization context used for org-scoped memory + multi-tenant routing. */
+  organizationId?: string;
   sessionId: string;
   textInput: string | null;
   visionInputs?: VisionInputData[];
@@ -87,6 +90,11 @@ export interface AgentOSInput {
   userApiKeys?: Record<string, string>;
   userFeedback?: UserFeedbackPayload;
   conversationId?: string;
+  /**
+   * Optional memory control input. Stored in conversation metadata so settings persist across turns.
+   * Use this to disable long-term memory for a conversation or enable user/org scope when desired.
+   */
+  memoryControl?: AgentOSMemoryControl;
   workflowRequest?: WorkflowInvocationRequest;
   agencyRequest?: AgencyInvocationRequest;
   options?: ProcessingOptions;

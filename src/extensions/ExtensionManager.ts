@@ -23,6 +23,8 @@ import {
   EXTENSION_KIND_HITL_HANDLER,
   EXTENSION_KIND_COMM_CHANNEL,
   EXTENSION_KIND_MEMORY_PROVIDER,
+  EXTENSION_KIND_MESSAGING_CHANNEL,
+  EXTENSION_KIND_PROVENANCE,
 } from './types';
 
 const DEFAULT_EXTENSIONS_KIND_TOOL = 'tool';
@@ -35,6 +37,7 @@ const DEFAULT_EXTENSIONS_KIND_PLANNING = EXTENSION_KIND_PLANNING_STRATEGY;
 const DEFAULT_EXTENSIONS_KIND_HITL = EXTENSION_KIND_HITL_HANDLER;
 const DEFAULT_EXTENSIONS_KIND_COMM = EXTENSION_KIND_COMM_CHANNEL;
 const DEFAULT_EXTENSIONS_KIND_MEMORY = EXTENSION_KIND_MEMORY_PROVIDER;
+const DEFAULT_EXTENSIONS_KIND_PROVENANCE = EXTENSION_KIND_PROVENANCE;
 
 interface ExtensionManagerOptions {
   manifest?: ExtensionManifest;
@@ -177,6 +180,10 @@ export class ExtensionManager {
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_HITL);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_COMM);
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_MEMORY);
+    // Messaging Channels — external human-facing platforms (v1.3.0)
+    this.getRegistry(EXTENSION_KIND_MESSAGING_CHANNEL);
+    // Provenance & Audit (v1.2.0)
+    this.getRegistry(DEFAULT_EXTENSIONS_KIND_PROVENANCE);
   }
 
   private async resolvePack(entry: ExtensionPackManifestEntry): Promise<ExtensionPack | null> {

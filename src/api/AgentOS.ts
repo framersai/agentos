@@ -59,6 +59,8 @@ import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
 import { LLMUtilityAI } from '../core/ai_utilities/LLMUtilityAI';
 import { ConversationManager, ConversationManagerConfig } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
+import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
+import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
 import type { PrismaClient } from '@prisma/client';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { IPersonaDefinition } from '../cognitive_substrate/personas/IPersonaDefinition';
@@ -79,6 +81,7 @@ import type { IPersonaLoader } from '../cognitive_substrate/personas/IPersonaLoa
 import {
   ExtensionManager,
   EXTENSION_KIND_GUARDRAIL,
+  EXTENSION_KIND_PROVENANCE,
   EXTENSION_KIND_TOOL,
   EXTENSION_KIND_WORKFLOW,
   type ExtensionLifecycleContext,
@@ -109,6 +112,110 @@ import type {
   WorkflowTaskUpdate,
 } from '../core/workflows/storage/IWorkflowStore';
 import { InMemoryWorkflowStore } from '../core/workflows/storage/InMemoryWorkflowStore';
+
+type StorageWriteHookContext = {
+  readonly operation: 'run' | 'batch';
+  statement: string;
+  parameters?: unknown;
+  affectedTables?: string[];
+  readonly inTransaction?: boolean;
+  operationId: string;
+  startTime: number;
+  adapterKind?: string;
+  metadata?: Record<string, unknown>;
+};
+
+type StorageWriteHookResult = StorageWriteHookContext | undefined | void;
+
+type StorageWriteHooks = {
+  onBeforeWrite?: (context: StorageWriteHookContext) => Promise<StorageWriteHookResult>;
+  onAfterWrite?: (context: StorageWriteHookContext, result: { changes: number; lastInsertRowid?: unknown }) => Promise<void>;
+};
+
+function wrapStorageAdapterWithWriteHooks(
+  adapter: StorageAdapter,
+  hooks: StorageWriteHooks,
+  options?: { inTransaction?: boolean; logger?: ILogger },
+): StorageAdapter {
+  const inTransaction = options?.inTransaction === true;
+
+  const runWithHooks: StorageAdapter['run'] = async (statement, parameters) => {
+    const startTime = Date.now();
+    const operationId = uuidv4();
+    const context: StorageWriteHookContext = {
+      operation: 'run',
+      statement,
+      parameters,
+      inTransaction,
+      operationId,
+      startTime,
+      adapterKind: adapter.kind,
+    };
+
+    if (hooks.onBeforeWrite) {
+      const hookResult = await hooks.onBeforeWrite(context);
+      if (hookResult === undefined) {
+        return { changes: 0, lastInsertRowid: null };
+      }
+      Object.assign(context, hookResult);
+    }
+
+    const result = await adapter.run(context.statement, context.parameters as any);
+    try {
+      await hooks.onAfterWrite?.(context, result);
+    } catch (error: any) {
+      options?.logger?.error?.('[AgentOS][StorageHooks] onAfterWrite failed', { error: error?.message ?? error });
+    }
+
+    return result;
+  };
+
+  return {
+    kind: adapter.kind,
+    capabilities: adapter.capabilities,
+    open: (opts) => adapter.open(opts),
+    close: () => adapter.close(),
+    exec: (script) => adapter.exec(script),
+    get: (statement, parameters) => adapter.get(statement, parameters),
+    all: (statement, parameters) => adapter.all(statement, parameters),
+    run: runWithHooks,
+    transaction: async <T>(fn: (trx: StorageAdapter) => Promise<T>): Promise<T> => {
+      return adapter.transaction(async (trx) => {
+        const wrappedTrx = wrapStorageAdapterWithWriteHooks(trx, hooks, { inTransaction: true, logger: options?.logger });
+        return fn(wrappedTrx);
+      });
+    },
+    batch: adapter.batch
+      ? async (operations) => {
+          const results: any[] = [];
+          const errors: Array<{ index: number; error: Error }> = [];
+          let successful = 0;
+          let failed = 0;
+
+          for (let i = 0; i < operations.length; i += 1) {
+            const op = operations[i];
+            try {
+              const result = await runWithHooks(op.statement, op.parameters);
+              results.push(result);
+              successful += 1;
+            } catch (error: any) {
+              results.push({ changes: 0, lastInsertRowid: null });
+              failed += 1;
+              errors.push({ index: i, error: error instanceof Error ? error : new Error(String(error)) });
+            }
+          }
+
+          return {
+            successful,
+            failed,
+            results,
+            errors: errors.length > 0 ? errors : undefined,
+          } as any;
+        }
+      : undefined,
+    prepare: adapter.prepare ? ((statement) => adapter.prepare!(statement)) : undefined,
+  };
+}
 
 /**
  * @class AgentOSServiceError
@@ -193,6 +300,16 @@ export interface AgentOSConfig {
   gmiManagerConfig: GMIManagerConfig;
   /** Configuration for the {@link AgentOSOrchestrator}. */
   orchestratorConfig: AgentOSOrchestratorConfig;
+  /**
+   * Optional sink for persisting rolling-memory outputs (`summary_markdown` + `memory_json`)
+   * into an external long-term store (RAG / knowledge graph / database).
+   */
+  rollingSummaryMemorySink?: IRollingSummaryMemorySink;
+  /**
+   * Optional retriever for injecting durable long-term memory context into prompts
+   * (e.g. user/org/persona memories stored in a RAG/KG).
+   */
+  longTermMemoryRetriever?: ILongTermMemoryRetriever;
   /** Configuration for the {@link PromptEngine}. */
   promptEngineConfig: PromptEngineConfig;
   /** Configuration for the {@link ToolOrchestrator}. */
@@ -417,6 +534,22 @@ export class AgentOS implements IAgentOS {
     await this.extensionManager.loadManifest(extensionLifecycleContext);
     await this.registerConfigGuardrailService(extensionLifecycleContext);
 
+    let storageAdapter = this.config.storageAdapter;
+    if (storageAdapter) {
+      try {
+        const provenanceDescriptor = this.extensionManager
+          .getRegistry<any>(EXTENSION_KIND_PROVENANCE)
+          .getActive('provenance-system');
+        const provenanceHooks = (provenanceDescriptor as any)?.payload?.result?.hooks;
+        if (provenanceHooks) {
+          storageAdapter = wrapStorageAdapterWithWriteHooks(storageAdapter, provenanceHooks, { logger: this.logger });
+          this.logger.info('[AgentOS][Provenance] Storage write hooks enabled');
+        }
+      } catch (error: any) {
+        this.logger.warn?.('[AgentOS][Provenance] Failed to apply storage write hooks', { error: error?.message ?? error });
+      }
+    }
+
     try {
       await this.initializeWorkflowRuntime(extensionLifecycleContext);
       // Initialize AI Model Provider Manager
@@ -464,7 +597,7 @@ export class AgentOS implements IAgentOS {
       await this.conversationManager.initialize(
         this.config.conversationManagerConfig,
         this.utilityAIService, // General IUtilityAI for conversation tasks
-        this.config.storageAdapter // Use storageAdapter instead of Prisma
+        storageAdapter // Use storageAdapter instead of Prisma
       );
       console.log('AgentOS: ConversationManager initialized.');
 
@@ -497,6 +630,9 @@ export class AgentOS implements IAgentOS {
         toolOrchestrator: this.toolOrchestrator,
         conversationManager: this.conversationManager,
         streamingManager: this.streamingManager,
+        modelProviderManager: this.modelProviderManager,
+        rollingSummaryMemorySink: this.config.rollingSummaryMemorySink,
+        longTermMemoryRetriever: this.config.longTermMemoryRetriever,
       };
       this.agentOSOrchestrator = new AgentOSOrchestrator();
       await this.agentOSOrchestrator.initialize(this.config.orchestratorConfig, orchestratorDependencies);
@@ -1537,5 +1673,3 @@ class AsyncStreamClientBridge implements IStreamClient {
     }
   }
 }
-
-

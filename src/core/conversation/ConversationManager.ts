@@ -519,15 +519,12 @@ export class ConversationManager {
           );
         }
 
-        // Delete old messages
-        await tx.run('DELETE FROM conversation_messages WHERE conversation_id = ?', [context.sessionId]);
-
-        // Insert new messages
+        // Upsert messages (INSERT OR REPLACE preserves history for provenance/revisioned modes)
         if (contextJSON.messages && contextJSON.messages.length > 0) {
           for (const msg of contextJSON.messages) {
             const messageId = (msg as any).id || `msg_${uuidv4()}`;
             await tx.run(
-              `INSERT INTO conversation_messages (
+              `INSERT OR REPLACE INTO conversation_messages (
                 id, conversation_id, role, content, timestamp, tool_calls, tool_call_id,
                 multimodal_data, audio_url, audio_transcript, voice_settings, metadata
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

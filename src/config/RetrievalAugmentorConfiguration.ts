@@ -17,6 +17,7 @@ import {
   RagRetrievalOptions, // Assuming this is defined in IRetrievalAugmentor.ts
   RagIngestionOptions, // Assuming this is defined in IRetrievalAugmentor.ts
 } from '../rag/IRetrievalAugmentor';
+import type { RerankerServiceConfig } from '../rag/reranking/IRerankerService';
 
 /**
  * Defines default behaviors and mappings for different RAG memory categories.
@@ -100,6 +101,26 @@ export interface RetrievalAugmentorServiceConfig {
     maxConcurrentQueries?: number;
     queryTimeoutMs?: number;
   };
+  /**
+   * Cross-encoder reranker service configuration.
+   *
+   * When configured, enables optional reranking of retrieved chunks using
+   * cross-encoder models. Reranking is disabled by default and must be
+   * explicitly enabled per-request via `rerankerConfig.enabled: true`.
+   *
+   * @see RerankerServiceConfig for provider configuration details
+   */
+  rerankerServiceConfig?: RerankerServiceConfig;
+  /**
+   * Default reranker provider ID when reranking is enabled but no provider specified.
+   * Common values: 'cohere', 'local'
+   */
+  defaultRerankerProviderId?: string;
+  /**
+   * Default reranker model ID when reranking is enabled but no model specified.
+   * Examples: 'rerank-english-v3.0' (Cohere), 'cross-encoder/ms-marco-MiniLM-L-6-v2' (local)
+   */
+  defaultRerankerModelId?: string;
 }
 
 // Example of how categoryBehaviors might be configured:

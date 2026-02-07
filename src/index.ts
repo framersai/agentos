@@ -15,6 +15,9 @@ export * from './core/llm/IPromptEngine';
 export * from './config/ToolOrchestratorConfig';
 export * from './core/tools/permissions/IToolPermissionManager';
 export * from './core/conversation/ConversationManager';
+export * from './core/conversation/IRollingSummaryMemorySink';
+export * from './core/conversation/ILongTermMemoryRetriever';
+export * from './core/conversation/LongTermMemoryPolicy';
 export * from './core/streaming/StreamingManager';
 export * from './core/llm/providers/AIModelProviderManager';
 export * from './core/workflows/WorkflowTypes';
@@ -59,9 +62,14 @@ export * from './core/knowledge';
 // Agent Marketplace
 export * from './core/marketplace';
 export * from './cognitive_substrate/personas/definitions';
+export * from './cognitive_substrate/personas/IPersonaDefinition';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
+// Guardrails
+export * from './core/guardrails';
 export * from './extensions';
+// Messaging Channels (external platform adapters)
+export * from './channels';
 // Multilingual exports
 export * from './core/language/interfaces';
 export * from './core/language/LanguageService';
@@ -73,6 +81,8 @@ export * from './types/rateLimitTypes';
 export * from './core/storage';
 // RAG (Retrieval Augmented Generation)
 export * from './rag';
+// Provenance, Audit & Immutability
+export * from './core/provenance';
 // Extension Secrets Catalog
 export {
   EXTENSION_SECRET_DEFINITIONS,

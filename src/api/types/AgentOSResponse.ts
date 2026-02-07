@@ -33,6 +33,7 @@ export enum AgentOSResponseChunkType {
   METADATA_UPDATE = 'metadata_update',
   WORKFLOW_UPDATE = 'workflow_update',
   AGENCY_UPDATE = 'agency_update',
+  PROVENANCE_EVENT = 'provenance_event',
 }
 
 /**
@@ -115,6 +116,11 @@ export interface AgentOSUICommandChunk extends AgentOSResponseChunk {
 export interface AgentOSFinalResponseChunk extends AgentOSResponseChunk {
   type: AgentOSResponseChunkType.FINAL_RESPONSE;
   finalResponseText: string | null;
+  /**
+   * Plain-text rendering of `finalResponseText` intended for voice/TTS and logs.
+   * When omitted, clients can derive it by stripping Markdown.
+   */
+  finalResponseTextPlain?: string | null;
   finalToolCalls?: ToolCallRequest[]; // Using ToolCallRequest consistently
   finalUiCommands?: UICommand[];
   audioOutput?: AudioOutputConfig;
@@ -180,6 +186,21 @@ export interface AgentOSAgencyUpdateChunk extends AgentOSResponseChunk {
 }
 
 /**
+ * @typedef {Object} AgentOSProvenanceEventChunk
+ * Broadcasts provenance events (signed ledger entries) to streaming clients.
+ * @augments {AgentOSResponseChunk}
+ */
+export interface AgentOSProvenanceEventChunk extends AgentOSResponseChunk {
+  type: AgentOSResponseChunkType.PROVENANCE_EVENT;
+  eventType: string;
+  eventId: string;
+  sequence: number;
+  hash: string;
+  signature?: string;
+  payload?: Record<string, unknown>;
+}
+
+/**
  * @typedef {AgentOSTextDeltaChunk | AgentOSSystemProgressChunk | AgentOSToolCallRequestChunk | AgentOSToolResultEmissionChunk | AgentOSUICommandChunk | AgentOSFinalResponseChunk | AgentOSErrorChunk | AgentOSMetadataUpdateChunk} AgentOSResponse
  * Union type representing any possible chunk that can be streamed from AgentOS.
  */
@@ -193,4 +214,5 @@ export type AgentOSResponse =
   | AgentOSErrorChunk
   | AgentOSMetadataUpdateChunk
   | AgentOSWorkflowUpdateChunk
-  | AgentOSAgencyUpdateChunk;
+  | AgentOSAgencyUpdateChunk
+  | AgentOSProvenanceEventChunk;

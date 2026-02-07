@@ -57,6 +57,7 @@ import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
 import { ConversationMessage, createConversationMessage, MessageRole } from '../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
+import { GMIEventType, GMIEvent, SentimentHistoryState, createGMIEvent } from './GMIEvent.js';
 
 const DEFAULT_MAX_CONVERSATION_HISTORY_TURNS = 20;
 const DEFAULT_SELF_REFLECTION_INTERVAL_TURNS = 5;
@@ -95,6 +96,11 @@ export class GMI implements IGMI {
   // Self-Reflection Control
   private selfReflectionIntervalTurns: number;
   private turnsSinceLastReflection: number;
+
+  // Sentiment & Event Tracking
+  private pendingGMIEvents: Set<GMIEventType> = new Set();
+  private eventHistory: GMIEvent[] = []; // Last 20 events for debugging
+  private metaPromptTriggerCounters: Map<string, number> = new Map();
 
   /**
    * Constructs a GMI instance.
@@ -521,10 +527,27 @@ export class GMI implements IGMI {
       }
       this.updateConversationHistory(turnInput);
 
+      // Analyze sentiment of user input only when sentiment tracking is enabled
+      if (this.activePersona.sentimentTracking?.enabled) {
+        const lastMsg = this.conversationHistory.length > 0
+          ? this.conversationHistory[this.conversationHistory.length - 1]
+          : null;
+        if (lastMsg?.role === 'user' && lastMsg?.content) {
+          const userInputText = typeof lastMsg.content === 'string'
+            ? lastMsg.content
+            : JSON.stringify(lastMsg.content);
+          await this.analyzeTurnSentiment(turnId, userInputText);
+        }
+      }
+
       let safetyBreak = 0;
       main_processing_loop: while (safetyBreak < 5) {
         safetyBreak++;
         let augmentedContextFromRAG = "";
+        const injectedLongTermMemoryContext =
+          typeof turnInput.metadata?.longTermMemoryContext === 'string'
+            ? turnInput.metadata.longTermMemoryContext.trim()
+            : "";
 
         const lastMessage = this.conversationHistory.length > 0 ? this.conversationHistory[this.conversationHistory.length - 1] : null;
         const isUserInitiatedTurn = lastMessage?.role === 'user';
@@ -553,11 +576,36 @@ export class GMI implements IGMI {
                     ? [{ content: this.activePersona.baseSystemPrompt, priority: 1}]
                     : [];
 
+        const systemPrompts = [...baseSystemPrompts];
+        const rollingSummaryText = typeof turnInput.metadata?.rollingSummary?.text === 'string'
+          ? turnInput.metadata.rollingSummary.text.trim()
+          : '';
+        if (rollingSummaryText) {
+          systemPrompts.push({
+            content: `Rolling Memory Summary (compressed)\n${rollingSummaryText}`,
+            priority: 50,
+          });
+        }
+        const promptProfileInstructions = typeof turnInput.metadata?.promptProfile?.systemInstructions === 'string'
+          ? turnInput.metadata.promptProfile.systemInstructions.trim()
+          : '';
+        if (promptProfileInstructions) {
+          systemPrompts.push({
+            content: promptProfileInstructions,
+            priority: 60,
+          });
+        }
+
+        const durableHistoryForPrompt =
+          Array.isArray(turnInput.metadata?.conversationHistoryForPrompt) && turnInput.metadata?.conversationHistoryForPrompt.length > 0
+            ? (turnInput.metadata?.conversationHistoryForPrompt as ConversationMessage[])
+            : null;
+
         const promptComponents: PromptComponents = {
-          systemPrompts: baseSystemPrompts,
-          conversationHistory: this.buildConversationHistoryForPrompt(),
+          systemPrompts,
+          conversationHistory: durableHistoryForPrompt ?? this.buildConversationHistoryForPrompt(),
           userInput: isUserInitiatedTurn && typeof lastMessage?.content === 'string' ? lastMessage.content : null,
-          retrievedContext: augmentedContextFromRAG,
+          retrievedContext: [augmentedContextFromRAG, injectedLongTermMemoryContext].filter(Boolean).join("\n\n---\n\n"),
           // tools: this.activePersona.embeddedTools, // If ITool[] and PromptComponents.tools takes ITool[]
         };
 
@@ -700,17 +748,8 @@ export class GMI implements IGMI {
         aggregatedResponseText
       );
 
-      this.turnsSinceLastReflection++;
-      const reflectionMetaPrompt = this.activePersona.metaPrompts?.find(mp => mp.id === 'gmi_self_trait_adjustment');
-      if (reflectionMetaPrompt?.trigger?.type === 'turn_interval' &&
-          this.turnsSinceLastReflection >= (reflectionMetaPrompt.trigger.intervalTurns || this.selfReflectionIntervalTurns)) {
-        this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_TRIGGERED, `Interval reached.`);
-        this._triggerAndProcessSelfReflection().catch(err => {
-            console.error(`GMI (ID: ${this.gmiId}): Background self-reflection error:`, err);
-            this.addTraceEntry(ReasoningEntryType.ERROR, "Self-reflection background process failed.", { error: (err as Error).message });
-        });
-        this.turnsSinceLastReflection = 0;
-      }
+      // Check and trigger all metaprompts (turn_interval, event_based, manual)
+      await this.checkAndTriggerMetaprompts(turnId);
 
       // Prepare the final GMIOutput for the generator's return value
       const finalTurnOutput: GMIOutput = {
@@ -904,6 +943,867 @@ export class GMI implements IGMI {
       const gmiError = createGMIErrorFromError(error, GMIErrorCode.RAG_INGESTION_FAILED, undefined, "Error during post-turn RAG ingestion.");
       this.addTraceEntry(ReasoningEntryType.ERROR, gmiError.message, gmiError.toPlainObject());
       console.error(`GMI (ID: ${this.gmiId}): RAG Ingestion Error - ${gmiError.message}`, gmiError.details);
+    }
+  }
+
+  /**
+   * Analyzes sentiment of user input and updates sentiment history.
+   * Triggers event detection based on sentiment patterns.
+   *
+   * @param turnId - Current turn identifier
+   * @param userInput - User's input text
+   * @private
+   */
+  private async analyzeTurnSentiment(turnId: string, userInput: string): Promise<void> {
+    // Skip if input is not a string or is empty
+    if (!userInput || typeof userInput !== 'string') {
+      return;
+    }
+
+    try {
+      // Analyze sentiment using configurable method from sentimentTracking config
+      const stConfig = this.activePersona.sentimentTracking;
+      const sentimentResult = await this.utilityAI.analyzeSentiment(userInput, {
+        method: stConfig?.method || 'lexicon_based',
+        modelId: stConfig?.modelId || this.activePersona.defaultModelId,
+        providerId: stConfig?.providerId || this.activePersona.defaultProviderId,
+        language: (this.currentUserContext.language as string) || 'en',
+      });
+
+      // Update UserContext with current sentiment
+      this.currentUserContext.currentSentiment = sentimentResult.polarity;
+      await this.workingMemory.set('currentUserContext', this.currentUserContext);
+
+      // Get or initialize sentiment history
+      let sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
+        'gmi_sentiment_history'
+      );
+
+      if (!sentimentHistory) {
+        sentimentHistory = {
+          trends: [],
+          consecutiveFrustration: 0,
+          consecutiveConfusion: 0,
+          consecutiveSatisfaction: 0,
+        };
+      }
+
+      // Add to sentiment trends
+      const trend = {
+        turnId,
+        timestamp: new Date(),
+        score: sentimentResult.score,
+        polarity: sentimentResult.polarity,
+        intensity: sentimentResult.intensity || 0,
+        context: userInput.substring(0, 100), // First 100 chars
+      };
+
+      sentimentHistory.trends.push(trend);
+
+      // Keep only last N trends (configurable sliding window)
+      const historyWindow = stConfig?.historyWindow || 10;
+      if (sentimentHistory.trends.length > historyWindow) {
+        sentimentHistory.trends.shift();
+      }
+
+      // Update consecutive counters based on configurable thresholds
+      const frustrationThreshold = stConfig?.frustrationThreshold ?? -0.3;
+      const satisfactionThreshold = stConfig?.satisfactionThreshold ?? 0.3;
+
+      if (sentimentResult.score < frustrationThreshold) {
+        // Negative sentiment
+        sentimentHistory.consecutiveFrustration++;
+        sentimentHistory.consecutiveConfusion = 0;
+        sentimentHistory.consecutiveSatisfaction = 0;
+      } else if (sentimentResult.score > satisfactionThreshold) {
+        // Positive sentiment
+        sentimentHistory.consecutiveSatisfaction++;
+        sentimentHistory.consecutiveFrustration = 0;
+        sentimentHistory.consecutiveConfusion = 0;
+      } else {
+        // Neutral sentiment (or close to it)
+        sentimentHistory.consecutiveConfusion++;
+        sentimentHistory.consecutiveFrustration = 0;
+        sentimentHistory.consecutiveSatisfaction = 0;
+      }
+
+      sentimentHistory.lastAnalyzedTurnId = turnId;
+
+      // Store updated sentiment history
+      await this.workingMemory.set('gmi_sentiment_history', sentimentHistory);
+
+      this.addTraceEntry(
+        ReasoningEntryType.DEBUG,
+        'Turn sentiment analyzed',
+        {
+          sentiment: {
+            score: sentimentResult.score,
+            polarity: sentimentResult.polarity,
+            intensity: sentimentResult.intensity,
+          },
+          consecutiveCounters: {
+            frustration: sentimentHistory.consecutiveFrustration,
+            confusion: sentimentHistory.consecutiveConfusion,
+            satisfaction: sentimentHistory.consecutiveSatisfaction,
+          },
+        }
+      );
+
+      // Detect and emit events based on sentiment patterns
+      await this.detectAndEmitEvents(turnId, userInput, sentimentResult, sentimentHistory);
+
+    } catch (error: any) {
+      // Don't fail the turn if sentiment analysis fails - log and continue
+      console.error(`GMI (ID: ${this.gmiId}): Sentiment analysis error:`, error);
+      this.addTraceEntry(
+        ReasoningEntryType.WARNING,
+        'Sentiment analysis failed',
+        { error: error.message }
+      );
+    }
+  }
+
+  /**
+   * Detects emotional patterns and emits appropriate GMI events.
+   *
+   * @param turnId - Current turn identifier
+   * @param userInput - User's input text
+   * @param sentimentResult - Sentiment analysis result
+   * @param sentimentHistory - Historical sentiment data
+   * @private
+   */
+  private async detectAndEmitEvents(
+    turnId: string,
+    userInput: string,
+    sentimentResult: { score: number; polarity: 'positive' | 'negative' | 'neutral'; intensity?: number; negativeTokens?: any[] },
+    sentimentHistory: SentimentHistoryState
+  ): Promise<void> {
+    // Read configurable thresholds
+    const stConfig = this.activePersona.sentimentTracking;
+    const frustThreshold = stConfig?.frustrationThreshold ?? -0.3;
+    const satisThreshold = stConfig?.satisfactionThreshold ?? 0.3;
+    const consecutiveRequired = stConfig?.consecutiveTurnsForTrigger ?? 2;
+
+    // Frustration detection
+    if (
+      (sentimentResult.score < frustThreshold && (sentimentResult.intensity || 0) > 0.6) ||
+      sentimentHistory.consecutiveFrustration >= consecutiveRequired
+    ) {
+      this.emitEvent(
+        createGMIEvent(
+          GMIEventType.USER_FRUSTRATED,
+          turnId,
+          sentimentHistory.consecutiveFrustration >= 2 ? 'high' : 'medium',
+          {
+            sentimentScore: sentimentResult.score,
+            sentimentPolarity: sentimentResult.polarity,
+            sentimentIntensity: sentimentResult.intensity,
+            consecutiveTurns: sentimentHistory.consecutiveFrustration,
+            triggeredBy: 'sentiment',
+          }
+        )
+      );
+    }
+
+    // Confusion detection (keyword-based + sentiment)
+    const confusionKeywords = [
+      'confused',
+      "don't understand",
+      "dont understand",
+      'unclear',
+      'what do you mean',
+      'explain',
+      'clarify',
+      'huh',
+      '??',
+      "doesn't make sense",
+      "doesnt make sense",
+      'not sure',
+    ];
+
+    const lowerInput = userInput.toLowerCase();
+    const hasConfusionKeyword = confusionKeywords.some((keyword) =>
+      lowerInput.includes(keyword)
+    );
+    const triggerKeywords = hasConfusionKeyword
+      ? confusionKeywords.filter((keyword) => lowerInput.includes(keyword))
+      : [];
+
+    if (
+      hasConfusionKeyword ||
+      (sentimentResult.polarity === 'neutral' &&
+        sentimentResult.negativeTokens &&
+        sentimentResult.negativeTokens.length > 2)
+    ) {
+      this.emitEvent(
+        createGMIEvent(
+          GMIEventType.USER_CONFUSED,
+          turnId,
+          sentimentHistory.consecutiveConfusion >= 2 ? 'high' : 'medium',
+          {
+            triggeredBy: hasConfusionKeyword ? 'keyword' : 'sentiment',
+            consecutiveTurns: sentimentHistory.consecutiveConfusion,
+            evidencePreview: userInput.substring(0, 100),
+            triggerKeywords: hasConfusionKeyword ? triggerKeywords : undefined,
+          }
+        )
+      );
+    }
+
+    // Satisfaction detection
+    if (
+      (sentimentResult.score > satisThreshold && (sentimentResult.intensity || 0) > 0.5) ||
+      sentimentHistory.consecutiveSatisfaction >= (consecutiveRequired + 1)
+    ) {
+      this.emitEvent(
+        createGMIEvent(
+          GMIEventType.USER_SATISFIED,
+          turnId,
+          'low',
+          {
+            sentimentScore: sentimentResult.score,
+            sentimentPolarity: sentimentResult.polarity,
+            sentimentIntensity: sentimentResult.intensity,
+            consecutiveTurns: sentimentHistory.consecutiveSatisfaction,
+            triggeredBy: 'sentiment',
+          }
+        )
+      );
+    }
+
+    // Error threshold detection (check reasoning trace for recent errors)
+    const recentErrors = this.reasoningTrace.entries
+      .slice(-10)
+      .filter((entry) => entry.type === ReasoningEntryType.ERROR);
+
+    if (recentErrors.length >= 2) {
+      this.emitEvent(
+        createGMIEvent(
+          GMIEventType.ERROR_THRESHOLD_EXCEEDED,
+          turnId,
+          'high',
+          {
+            triggeredBy: 'error',
+            errorCount: recentErrors.length,
+            consecutiveTurns: recentErrors.length,
+          }
+        )
+      );
+    }
+
+    // Low engagement detection (consecutive neutral with short responses)
+    const recentUserMessages = this.conversationHistory
+      .slice(-5)
+      .filter((msg) => msg.role === 'user');
+
+    const avgLength = recentUserMessages.length > 0
+      ? recentUserMessages.reduce(
+          (sum, msg) => sum + String(msg.content).length,
+          0
+        ) / recentUserMessages.length
+      : 0;
+
+    if (sentimentHistory.consecutiveConfusion >= 4 && avgLength < 50) {
+      this.emitEvent(
+        createGMIEvent(
+          GMIEventType.LOW_ENGAGEMENT,
+          turnId,
+          'medium',
+          {
+            triggeredBy: 'pattern',
+            consecutiveTurns: sentimentHistory.consecutiveConfusion,
+            evidencePreview: `Avg response length: ${avgLength.toFixed(0)} chars`,
+          }
+        )
+      );
+    }
+  }
+
+  /**
+   * Emits a GMI event and stores it in event history.
+   *
+   * @param event - The event to emit
+   * @private
+   */
+  private emitEvent(event: GMIEvent): void {
+    // Add to pending events (will be consumed by trigger checking)
+    this.pendingGMIEvents.add(event.eventType);
+
+    // Add to event history for debugging (circular buffer, max 20)
+    this.eventHistory.push(event);
+    if (this.eventHistory.length > 20) {
+      this.eventHistory.shift();
+    }
+
+    this.addTraceEntry(
+      ReasoningEntryType.DEBUG,
+      `GMI Event Emitted: ${event.eventType}`,
+      {
+        event: {
+          eventType: event.eventType,
+          turnId: event.turnId,
+          severity: event.severity,
+          metadata: event.metadata,
+        },
+      }
+    );
+  }
+
+  /**
+   * Checks all metaprompt triggers (turn_interval, event_based, manual) and executes triggered ones.
+   *
+   * @param turnId - Current turn identifier
+   * @private
+   */
+  private async checkAndTriggerMetaprompts(turnId: string): Promise<void> {
+    if (!this.activePersona.metaPrompts || this.activePersona.metaPrompts.length === 0) {
+      return;
+    }
+
+    const triggeredMetaPrompts: import('./personas/IPersonaDefinition').MetaPromptDefinition[] = [];
+
+    for (const metaPrompt of this.activePersona.metaPrompts) {
+      if (!metaPrompt.trigger) continue;
+
+      if (metaPrompt.trigger.type === 'turn_interval') {
+        // Existing turn_interval logic
+        const counter = await this.getMetapromptTurnCounter(metaPrompt.id);
+        if (counter >= metaPrompt.trigger.intervalTurns) {
+          triggeredMetaPrompts.push(metaPrompt);
+          await this.resetMetapromptTurnCounter(metaPrompt.id);
+        } else {
+          await this.incrementMetapromptTurnCounter(metaPrompt.id);
+        }
+      } else if (metaPrompt.trigger.type === 'event_based') {
+        // NEW: Event-based trigger checking
+        const eventName = metaPrompt.trigger.eventName;
+        if (this.pendingGMIEvents.has(eventName as GMIEventType)) {
+          triggeredMetaPrompts.push(metaPrompt);
+          // Consume the event (remove from pending)
+          this.pendingGMIEvents.delete(eventName as GMIEventType);
+        }
+      } else if (metaPrompt.trigger.type === 'manual') {
+        // NEW: Manual trigger checking
+        // Check for manual trigger flag in working memory
+        const manualFlag = await this.workingMemory.get<boolean>(
+          `manual_trigger_${metaPrompt.id}`
+        );
+        if (manualFlag) {
+          triggeredMetaPrompts.push(metaPrompt);
+          // Clear the flag
+          await this.workingMemory.delete(`manual_trigger_${metaPrompt.id}`);
+        }
+      }
+    }
+
+    if (triggeredMetaPrompts.length > 0) {
+      this.addTraceEntry(
+        ReasoningEntryType.SELF_REFLECTION_TRIGGERED,
+        `${triggeredMetaPrompts.length} metaprompt(s) triggered`,
+        { ids: triggeredMetaPrompts.map((m) => m.id), turnId }
+      );
+
+      // Execute metaprompts (background task, don't block turn)
+      this.executeMetaprompts(triggeredMetaPrompts).catch((err) => {
+        console.error(`GMI (ID: ${this.gmiId}): Metaprompt execution error:`, err);
+        this.addTraceEntry(
+          ReasoningEntryType.ERROR,
+          'Metaprompt execution failed',
+          { error: (err as Error).message }
+        );
+      });
+    }
+  }
+
+  /**
+   * Gets the turn counter for a specific metaprompt.
+   *
+   * @param metapromptId - Metaprompt identifier
+   * @returns Current counter value
+   * @private
+   */
+  private async getMetapromptTurnCounter(metapromptId: string): Promise<number> {
+    const counter = this.metaPromptTriggerCounters.get(metapromptId);
+    if (counter !== undefined) {
+      return counter;
+    }
+
+    // Try loading from working memory (for persistence across GMI instances)
+    const storedCounter = await this.workingMemory.get<number>(
+      `metaprompt_turn_counter_${metapromptId}`
+    );
+    return storedCounter || 0;
+  }
+
+  /**
+   * Increments the turn counter for a specific metaprompt.
+   *
+   * @param metapromptId - Metaprompt identifier
+   * @private
+   */
+  private async incrementMetapromptTurnCounter(metapromptId: string): Promise<void> {
+    const current = await this.getMetapromptTurnCounter(metapromptId);
+    const newValue = current + 1;
+    this.metaPromptTriggerCounters.set(metapromptId, newValue);
+    await this.workingMemory.set(`metaprompt_turn_counter_${metapromptId}`, newValue);
+  }
+
+  /**
+   * Resets the turn counter for a specific metaprompt to zero.
+   *
+   * @param metapromptId - Metaprompt identifier
+   * @private
+   */
+  private async resetMetapromptTurnCounter(metapromptId: string): Promise<void> {
+    this.metaPromptTriggerCounters.set(metapromptId, 0);
+    await this.workingMemory.set(`metaprompt_turn_counter_${metapromptId}`, 0);
+  }
+
+  /**
+   * Executes multiple metaprompts in parallel or sequence.
+   * Replaces the single-metaprompt _triggerAndProcessSelfReflection().
+   *
+   * @param metaPrompts - Array of metaprompts to execute
+   * @private
+   */
+  private async executeMetaprompts(
+    metaPrompts: import('./personas/IPersonaDefinition').MetaPromptDefinition[]
+  ): Promise<void> {
+    if (metaPrompts.length === 0) return;
+
+    const previousState = this.state;
+    this.state = GMIPrimeState.REFLECTING;
+
+    this.addTraceEntry(
+      ReasoningEntryType.SELF_REFLECTION_START,
+      `Executing ${metaPrompts.length} metaprompt(s)`,
+      { ids: metaPrompts.map((m) => m.id) }
+    );
+
+    try {
+      // Execute metaprompts in parallel using Promise.allSettled
+      // This allows all to run even if some fail
+      const results = await Promise.allSettled(
+        metaPrompts.map((mp) => this.executeMetapromptHandler(mp))
+      );
+
+      // Log any failures
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          this.addTraceEntry(
+            ReasoningEntryType.ERROR,
+            `Metaprompt '${metaPrompts[idx].id}' failed: ${result.reason}`,
+            { error: result.reason }
+          );
+        }
+      });
+    } catch (error: any) {
+      const gmiError = createGMIErrorFromError(
+        error,
+        GMIErrorCode.GMI_PROCESSING_ERROR,
+        undefined,
+        'Error during metaprompt execution'
+      );
+      this.addTraceEntry(
+        ReasoningEntryType.ERROR,
+        gmiError.message,
+        gmiError.toPlainObject()
+      );
+    } finally {
+      // Restore state
+      const disallowedStates = new Set([
+        GMIPrimeState.IDLE,
+        GMIPrimeState.INITIALIZING,
+      ]);
+      this.state = disallowedStates.has(previousState)
+        ? GMIPrimeState.READY
+        : previousState;
+
+      this.addTraceEntry(
+        ReasoningEntryType.SELF_REFLECTION_COMPLETE,
+        'Metaprompt execution cycle complete'
+      );
+    }
+  }
+
+  /**
+   * Routes a metaprompt to its appropriate handler based on ID.
+   *
+   * @param metaPrompt - Metaprompt definition to execute
+   * @private
+   */
+  private async executeMetapromptHandler(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    // Handler routing map
+    switch (metaPrompt.id) {
+      case 'gmi_self_trait_adjustment':
+        return this.handleTraitAdjustment(metaPrompt);
+      case 'gmi_frustration_recovery':
+        return this.handleFrustrationRecovery(metaPrompt);
+      case 'gmi_confusion_clarification':
+        return this.handleConfusionClarification(metaPrompt);
+      case 'gmi_satisfaction_reinforcement':
+        return this.handleSatisfactionReinforcement(metaPrompt);
+      case 'gmi_error_recovery':
+        return this.handleErrorRecovery(metaPrompt);
+      case 'gmi_engagement_boost':
+        return this.handleEngagementBoost(metaPrompt);
+      default:
+        // Generic handler for custom metaprompts
+        return this.handleGenericMetaprompt(metaPrompt);
+    }
+  }
+
+  /**
+   * Handler for trait adjustment metaprompt (existing self-reflection logic).
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleTraitAdjustment(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    // Gather evidence for self-reflection
+    const evidenceHistory = this.conversationHistory.slice(-10);
+    const evidenceTrace = this.reasoningTrace.entries.slice(-20);
+
+    const evidence = {
+      recentHistory: evidenceHistory,
+      recentReasoning: evidenceTrace,
+      currentMood: this.currentGmiMood,
+      userContext: this.currentUserContext,
+      taskContext: this.currentTaskContext,
+    };
+
+    const variables = {
+      evidence: JSON.stringify(evidence).substring(0, 4000), // Limit size
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Handler for frustration recovery metaprompt.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleFrustrationRecovery(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
+      'gmi_sentiment_history'
+    );
+    const recentErrors = this.reasoningTrace.entries
+      .slice(-10)
+      .filter((e) => e.type === ReasoningEntryType.ERROR);
+
+    const variables = {
+      current_sentiment: this.currentUserContext.currentSentiment || 'negative',
+      sentiment_score: (sentimentHistory?.trends[sentimentHistory.trends.length - 1]?.score || -0.5).toString(),
+      consecutive_frustration: (sentimentHistory?.consecutiveFrustration || 1).toString(),
+      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_errors: JSON.stringify(recentErrors.map((e) => e.message)),
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Handler for confusion clarification metaprompt.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleConfusionClarification(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
+      'gmi_sentiment_history'
+    );
+
+    // Get the last event for confusion keywords
+    const lastConfusionEvent = this.eventHistory
+      .slice()
+      .reverse()
+      .find((e) => e.eventType === GMIEventType.USER_CONFUSED);
+
+    const variables = {
+      current_sentiment: this.currentUserContext.currentSentiment || 'neutral',
+      consecutive_confusion: (sentimentHistory?.consecutiveConfusion || 1).toString(),
+      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      confusion_keywords: lastConfusionEvent?.metadata.triggerKeywords
+        ? JSON.stringify(lastConfusionEvent.metadata.triggerKeywords)
+        : '[]',
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Handler for satisfaction reinforcement metaprompt.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleSatisfactionReinforcement(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
+      'gmi_sentiment_history'
+    );
+
+    const variables = {
+      current_sentiment: this.currentUserContext.currentSentiment || 'positive',
+      sentiment_score: (sentimentHistory?.trends[sentimentHistory.trends.length - 1]?.score || 0.5).toString(),
+      consecutive_satisfaction: (sentimentHistory?.consecutiveSatisfaction || 1).toString(),
+      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Handler for error recovery metaprompt.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleErrorRecovery(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    const recentErrors = this.reasoningTrace.entries
+      .slice(-10)
+      .filter((e) => e.type === ReasoningEntryType.ERROR);
+
+    const variables = {
+      recent_errors: JSON.stringify(recentErrors.map((e) => ({ message: e.message, details: e.details }))),
+      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Handler for engagement boost metaprompt.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleEngagementBoost(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
+      'gmi_sentiment_history'
+    );
+
+    const variables = {
+      consecutive_neutral: (sentimentHistory?.consecutiveConfusion || 4).toString(),
+      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Generic handler for custom metaprompts not in the preset list.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @private
+   */
+  private async handleGenericMetaprompt(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
+  ): Promise<void> {
+    // Generic handler that provides all available context
+    const variables = {
+      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_reasoning: JSON.stringify(this.reasoningTrace.entries.slice(-10)),
+      current_mood: this.currentGmiMood,
+      user_skill: this.currentUserContext.skillLevel || 'unknown',
+      task_complexity: this.currentTaskContext.complexity || 'unknown',
+      current_sentiment: this.currentUserContext.currentSentiment || 'neutral',
+    };
+
+    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
+    await this.applyMetapromptUpdates(response, metaPrompt.id);
+  }
+
+  /**
+   * Executes a metaprompt with variable substitution.
+   *
+   * @param metaPrompt - Metaprompt definition
+   * @param variables - Variables to substitute in the template
+   * @returns Parsed JSON response from LLM
+   * @private
+   */
+  private async executeMetapromptWithVariables(
+    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition,
+    variables: Record<string, string>
+  ): Promise<any> {
+    // Extract template
+    let template: string;
+    if (typeof metaPrompt.promptTemplate === 'string') {
+      template = metaPrompt.promptTemplate;
+    } else {
+      template = metaPrompt.promptTemplate.template;
+    }
+
+    // Substitute variables
+    let finalPrompt = template;
+    for (const [key, value] of Object.entries(variables)) {
+      finalPrompt = finalPrompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    }
+
+    // Get model and provider info
+    const modelId = metaPrompt.modelId || this.activePersona.defaultModelId;
+    const providerId = metaPrompt.providerId || this.activePersona.defaultProviderId;
+
+    if (!modelId || !providerId) {
+      throw new GMIError(
+        'No model or provider specified for metaprompt',
+        GMIErrorCode.CONFIGURATION_ERROR
+      );
+    }
+
+    // Call LLM
+    this.addTraceEntry(
+      ReasoningEntryType.DEBUG,
+      `Executing metaprompt '${metaPrompt.id}'`,
+      { modelId, providerId }
+    );
+
+    const completionOptions: ModelCompletionOptions = {
+      temperature: metaPrompt.temperature ?? 0.3,
+      maxTokens: metaPrompt.maxOutputTokens ?? 512,
+      responseFormat: { type: 'json_object' },
+    };
+
+    const provider = this.llmProviderManager.getProvider(providerId);
+    if (!provider) {
+      throw new GMIError(
+        `Provider '${providerId}' not found for metaprompt '${metaPrompt.id}'.`,
+        GMIErrorCode.LLM_PROVIDER_UNAVAILABLE,
+      );
+    }
+
+    const result = await provider.generateCompletion(
+      modelId,
+      [{ role: 'user', content: finalPrompt }],
+      completionOptions,
+    );
+
+    const responseContent = result.choices?.[0]?.message?.content;
+    if (!responseContent || typeof responseContent !== 'string') {
+      throw new GMIError(
+        `Metaprompt '${metaPrompt.id}' returned no valid content.`,
+        GMIErrorCode.LLM_PROVIDER_ERROR,
+        { response: result },
+      );
+    }
+
+    // Parse JSON with LLM-based recovery
+    const parseOptions: ParseJsonOptions = {
+      attemptFixWithLLM: true,
+      llmModelIdForFix: modelId,
+      llmProviderIdForFix: providerId,
+    };
+
+    const parsedResponse = await this.utilityAI.parseJsonSafe(
+      responseContent,
+      parseOptions
+    );
+
+    return parsedResponse;
+  }
+
+  /**
+   * Applies metaprompt updates to GMI state (mood, user skill, task complexity, memory).
+   *
+   * @param updates - Parsed updates from metaprompt response
+   * @param metapromptId - ID of the metaprompt that generated these updates
+   * @private
+   */
+  private async applyMetapromptUpdates(updates: any, metapromptId: string): Promise<void> {
+    if (!updates) return;
+
+    let stateChanged = false;
+
+    // Mood update
+    if (updates.updatedGmiMood && this.currentGmiMood !== updates.updatedGmiMood) {
+      // Validate that the mood is a valid GMIMood value
+      const validMoods = Object.values(GMIMood);
+      if (validMoods.includes(updates.updatedGmiMood.toUpperCase())) {
+        this.currentGmiMood = updates.updatedGmiMood.toUpperCase() as GMIMood;
+        await this.workingMemory.set('currentGmiMood', this.currentGmiMood);
+        stateChanged = true;
+      }
+    }
+
+    // User skill level update
+    if (updates.updatedUserSkillLevel &&
+        this.currentUserContext.skillLevel !== updates.updatedUserSkillLevel) {
+      this.currentUserContext.skillLevel = updates.updatedUserSkillLevel;
+      await this.workingMemory.set('currentUserContext', this.currentUserContext);
+      stateChanged = true;
+    }
+
+    // Task complexity update
+    if (updates.updatedTaskComplexity &&
+        this.currentTaskContext.complexity !== updates.updatedTaskComplexity) {
+      this.currentTaskContext.complexity = updates.updatedTaskComplexity;
+      await this.workingMemory.set('currentTaskContext', this.currentTaskContext);
+      stateChanged = true;
+    }
+
+    // Memory imprints
+    if (updates.newMemoryImprints && Array.isArray(updates.newMemoryImprints)) {
+      for (const imprint of updates.newMemoryImprints) {
+        if (imprint.key) {
+          await this.workingMemory.set(imprint.key, imprint.value);
+        }
+      }
+      if (updates.newMemoryImprints.length > 0) {
+        stateChanged = true;
+      }
+    }
+
+    // Log state change
+    if (stateChanged) {
+      this.addTraceEntry(
+        ReasoningEntryType.STATE_CHANGE,
+        `GMI state updated by metaprompt '${metapromptId}'`,
+        {
+          newMood: this.currentGmiMood,
+          newUserSkill: this.currentUserContext.skillLevel,
+          newTaskComplexity: this.currentTaskContext.complexity,
+          rationale: updates.adjustmentRationale || updates.recoveryStrategy || updates.clarificationStrategy || updates.engagementStrategy || updates.mitigationStrategy,
+        }
+      );
     }
   }
 
@@ -1206,4 +2106,3 @@ export class GMI implements IGMI {
     }
   }
 }
-

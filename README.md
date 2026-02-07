@@ -285,6 +285,25 @@ for await (const chunk of agent.processRequest({
 | [Extensions](./docs/RFC_EXTENSION_STANDARDS.md) | Extension system and standards |
 | [Ecosystem](./docs/ECOSYSTEM.md) | Related repos and packages |
 
+### Messaging Channels
+
+| Guide | Description |
+|-------|-------------|
+| [Channel Types](./src/channels/types.ts) | `ChannelPlatform`, `ChannelMessage`, `MessageContent`, `ChannelCapability` |
+| [IChannelAdapter](./src/channels/IChannelAdapter.ts) | Adapter interface for external messaging platforms |
+| [ChannelRouter](./src/channels/ChannelRouter.ts) | Inbound/outbound message routing |
+
+AgentOS v0.1.3+ introduces `EXTENSION_KIND_MESSAGING_CHANNEL` for external human-facing messaging platforms. Channel extensions register an `IChannelAdapter` that handles bidirectional messaging:
+
+```typescript
+import type { IChannelAdapter, ChannelMessage, MessageContent } from '@framers/agentos';
+
+// Channel adapters are registered via extension packs:
+// { id: 'telegramChannel', kind: 'messaging-channel', payload: adapter }
+```
+
+Supported platforms: `telegram`, `whatsapp`, `discord`, `slack`, `webchat`, `signal`, `imessage`, `google_chat`, `teams`, `matrix`, `zalo`, `email`, `sms`.
+
 ### Agent Features
 
 | Guide | Description |

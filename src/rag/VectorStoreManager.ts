@@ -30,6 +30,7 @@ import {
 } from '../config/VectorStoreConfiguration';
 import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore';
 import { SqlVectorStore } from './implementations/vector_stores/SqlVectorStore';
+import { HnswlibVectorStore } from './implementations/vector_stores/HnswlibVectorStore';
 // Import other IVectorStore implementations as they are created, e.g.:
 // import { PineconeVectorStore } from './implementations/vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './implementations/vector_stores/WeaviateVectorStore';
@@ -177,6 +178,10 @@ export class VectorStoreManager implements IVectorStoreManager {
         // SQL-backed vector store using @framers/sql-storage-adapter
         // Supports SQLite, PostgreSQL, IndexedDB, and more
         return new SqlVectorStore();
+      case 'hnswlib':
+        // HNSW-based vector store using hnswlib-node for fast ANN search
+        // O(log n) queries, in-process, file-based persistence
+        return new HnswlibVectorStore();
       // case 'pinecone':
       //   // Ensure PineconeVectorStoreConfig is imported and used
       //   return new PineconeVectorStore();

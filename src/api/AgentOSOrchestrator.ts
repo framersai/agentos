@@ -19,6 +19,7 @@ import {
   AgentOSToolCallRequestChunk,
   AgentOSToolResultEmissionChunk,
   AgentOSUICommandChunk,
+  AgentOSMetadataUpdateChunk,
   AgentOSWorkflowUpdateChunk,
 } from './types/AgentOSResponse';
 import { GMIManager } from '../cognitive_substrate/GMIManager';
@@ -35,12 +36,92 @@ import {
 } from '../cognitive_substrate/IGMI';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
+import { MessageRole } from '../core/conversation/ConversationMessage';
 import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { StreamingManager, StreamId } from '../core/streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from '../core/orchestration/helpers';
 import type { WorkflowProgressUpdate } from '../core/workflows/WorkflowTypes';
+import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
+import {
+  DEFAULT_PROMPT_PROFILE_CONFIG,
+  selectPromptProfile,
+  type PromptProfileConfig,
+  type PromptProfileConversationState,
+} from '../core/prompting/PromptProfileRouter';
+import {
+  DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG,
+  maybeCompactConversationMessages,
+  type RollingSummaryCompactionConfig,
+  type RollingSummaryCompactionResult,
+} from '../core/conversation/RollingSummaryCompactor';
+import type { IRollingSummaryMemorySink, RollingSummaryMemoryUpdate } from '../core/conversation/IRollingSummaryMemorySink';
+import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
+import {
+  DEFAULT_LONG_TERM_MEMORY_POLICY,
+  hasAnyLongTermMemoryScope,
+  LONG_TERM_MEMORY_POLICY_METADATA_KEY,
+  resolveLongTermMemoryPolicy,
+  type ResolvedLongTermMemoryPolicy,
+} from '../core/conversation/LongTermMemoryPolicy';
+
+export interface RollingSummaryCompactionProfileDefinition {
+  config: RollingSummaryCompactionConfig;
+  systemPrompt?: string;
+}
+
+export interface RollingSummaryCompactionProfilesConfig {
+  defaultProfileId: string;
+  defaultProfileByMode?: Record<string, string>;
+  profiles: Record<string, RollingSummaryCompactionProfileDefinition>;
+}
+
+function normalizeMode(value: string): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function pickByMode(map: Record<string, string> | undefined, mode: string): string | null {
+  if (!map || Object.keys(map).length === 0) return null;
+  const modeNorm = normalizeMode(mode);
+  const exact = map[modeNorm];
+  if (exact) return exact;
+  const patternMatch = Object.entries(map)
+    .map(([key, value]) => ({ key: normalizeMode(key), value }))
+    .filter(({ key }) => key && (modeNorm === key || modeNorm.startsWith(key) || modeNorm.includes(key)))
+    .sort((a, b) => b.key.length - a.key.length)[0];
+  return patternMatch?.value ?? null;
+}
+
+function renderPlainText(markdown: string): string {
+  let text = String(markdown ?? '');
+  if (!text.trim()) return '';
+
+  text = text.replace(/\r\n/g, '\n');
+  // Fenced code blocks: keep inner content, drop fences.
+  text = text.replace(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/g, '$1');
+  // Inline code.
+  text = text.replace(/`([^`]+)`/g, '$1');
+  // Images + links.
+  text = text.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  // Headings + blockquotes.
+  text = text.replace(/^\s{0,3}#{1,6}\s+/gm, '');
+  text = text.replace(/^\s{0,3}>\s?/gm, '');
+  // Emphasis / strike-through.
+  text = text.replace(/(\*\*|__)(.*?)\1/g, '$2');
+  text = text.replace(/(\*|_)(.*?)\1/g, '$2');
+  text = text.replace(/~~(.*?)~~/g, '$1');
+  // Horizontal rules.
+  text = text.replace(/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/gm, '');
+  // Basic HTML tags.
+  text = text.replace(/<\/?[^>]+>/g, '');
+
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  return text.trim();
+}
 
 /**
  * @typedef {Object} AgentOSOrchestratorConfig
@@ -56,6 +137,31 @@ export interface AgentOSOrchestratorConfig {
   maxToolCallIterations?: number;
   defaultAgentTurnTimeoutMs?: number;
   enableConversationalPersistence?: boolean;
+
+  /**
+   * Optional prompt-profile routing config. If omitted, a small default router is used.
+   * Set to `null` to disable prompt-profile routing entirely.
+   */
+  promptProfileConfig?: PromptProfileConfig | null;
+
+  /**
+   * Optional rolling-summary compaction config. If omitted, a conservative default is used (disabled).
+   * Set to `null` to disable rolling-summary compaction entirely.
+   */
+  rollingSummaryCompactionConfig?: RollingSummaryCompactionConfig | null;
+
+  /**
+   * Optional rolling-summary compaction profiles. When provided, the orchestrator selects a compaction
+   * profile per-turn based on `mode` (customFlags.mode or persona id) and uses it instead of the
+   * single `rollingSummaryCompactionConfig`.
+   */
+  rollingSummaryCompactionProfilesConfig?: RollingSummaryCompactionProfilesConfig | null;
+
+  /** Optional system prompt override for rolling-summary compaction. */
+  rollingSummarySystemPrompt?: string;
+
+  /** Optional metadata key to store rolling-summary state under (defaults to `rollingSummaryState`). */
+  rollingSummaryStateKey?: string;
 }
 
 /**
@@ -73,6 +179,17 @@ export interface AgentOSOrchestratorDependencies {
   toolOrchestrator: IToolOrchestrator;
   conversationManager: ConversationManager;
   streamingManager: StreamingManager;
+  modelProviderManager: AIModelProviderManager;
+  /**
+   * Optional sink for persisting rolling-memory outputs (`summary_markdown` + `memory_json`)
+   * into a long-term store (RAG / knowledge graph / database).
+   */
+  rollingSummaryMemorySink?: IRollingSummaryMemorySink;
+  /**
+   * Optional long-term memory retriever. When provided, AgentOS can inject
+   * durable memories (user/persona/org) into prompts on a cadence.
+   */
+  longTermMemoryRetriever?: ILongTermMemoryRetriever;
 }
 
 /**
@@ -92,6 +209,11 @@ interface ActiveStreamContext {
   languageNegotiation?: any; // multilingual negotiation metadata
   // Iterator is managed within the orchestrateTurn method directly
 }
+
+type LongTermMemoryRetrievalState = {
+  lastReviewedUserTurn: number;
+  lastReviewedAt?: number;
+};
 
 
 /**
@@ -138,9 +260,9 @@ export class AgentOSOrchestrator {
       return;
     }
 
-    if (!dependencies.gmiManager || !dependencies.toolOrchestrator || !dependencies.conversationManager || !dependencies.streamingManager) {
+    if (!dependencies.gmiManager || !dependencies.toolOrchestrator || !dependencies.conversationManager || !dependencies.streamingManager || !dependencies.modelProviderManager) {
       throw new GMIError(
-        'AgentOSOrchestrator: Missing essential dependencies (gmiManager, toolOrchestrator, conversationManager, streamingManager).',
+        'AgentOSOrchestrator: Missing essential dependencies (gmiManager, toolOrchestrator, conversationManager, streamingManager, modelProviderManager).',
         GMIErrorCode.CONFIGURATION_ERROR,
       );
     }
@@ -149,6 +271,15 @@ export class AgentOSOrchestrator {
       maxToolCallIterations: config.maxToolCallIterations ?? 5,
       defaultAgentTurnTimeoutMs: config.defaultAgentTurnTimeoutMs ?? 120000,
       enableConversationalPersistence: config.enableConversationalPersistence ?? true,
+      promptProfileConfig: config.promptProfileConfig === null
+        ? null
+        : (config.promptProfileConfig ?? DEFAULT_PROMPT_PROFILE_CONFIG),
+      rollingSummaryCompactionConfig: config.rollingSummaryCompactionConfig === null
+        ? null
+        : { ...DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG, ...(config.rollingSummaryCompactionConfig ?? {}) },
+      rollingSummaryCompactionProfilesConfig: config.rollingSummaryCompactionProfilesConfig ?? null,
+      rollingSummarySystemPrompt: config.rollingSummarySystemPrompt ?? '',
+      rollingSummaryStateKey: config.rollingSummaryStateKey ?? 'rollingSummaryState',
     };
     this.dependencies = dependencies;
     this.initialized = true;
@@ -258,6 +389,12 @@ export class AgentOSOrchestrator {
           ...baseChunk,
           workflow: data.workflow,
         } as AgentOSWorkflowUpdateChunk;
+        break;
+      case AgentOSResponseChunkType.METADATA_UPDATE:
+        chunk = {
+          ...baseChunk,
+          updates: data.updates,
+        } as AgentOSMetadataUpdateChunk;
         break;
       default:
         console.error(
@@ -402,6 +539,8 @@ export class AgentOSOrchestrator {
     let conversationContext: ConversationContext | undefined;
     let currentPersonaId = input.selectedPersonaId;
     let gmiInstanceIdForChunks = 'gmi_pending_init';
+    let organizationIdForMemory: string | undefined;
+    let longTermMemoryPolicy: ResolvedLongTermMemoryPolicy | null = null;
 
     try {
       const gmiResult = await this.dependencies.gmiManager.getOrCreateGMIForSession(
@@ -433,6 +572,430 @@ export class AgentOSOrchestrator {
       );
 
       const gmiInput = this.constructGMITurnInput(agentOSStreamId, input, streamContext);
+
+      // --- Org context + long-term memory policy (persisted per conversation) ---
+      if (conversationContext) {
+        const inboundOrg =
+          typeof input.organizationId === 'string' ? input.organizationId.trim() : '';
+        // SECURITY NOTE: do not persist organizationId in conversation metadata. The org context
+        // should be asserted by the trusted caller each request (after membership checks).
+        organizationIdForMemory = inboundOrg || undefined;
+
+        const rawPrevPolicy = conversationContext.getMetadata(LONG_TERM_MEMORY_POLICY_METADATA_KEY);
+        const prevPolicy =
+          rawPrevPolicy && typeof rawPrevPolicy === 'object'
+            ? (rawPrevPolicy as ResolvedLongTermMemoryPolicy)
+            : null;
+        const inputPolicy = input.memoryControl?.longTermMemory ?? null;
+
+        longTermMemoryPolicy = resolveLongTermMemoryPolicy({
+          previous: prevPolicy,
+          input: inputPolicy,
+          defaults: DEFAULT_LONG_TERM_MEMORY_POLICY,
+        });
+
+        // Only write back when the client supplies overrides or no prior policy exists.
+        if (inputPolicy || !prevPolicy) {
+          conversationContext.setMetadata(LONG_TERM_MEMORY_POLICY_METADATA_KEY, longTermMemoryPolicy);
+        }
+      } else {
+        organizationIdForMemory =
+          typeof input.organizationId === 'string' ? input.organizationId.trim() : undefined;
+        longTermMemoryPolicy = resolveLongTermMemoryPolicy({
+          defaults: DEFAULT_LONG_TERM_MEMORY_POLICY,
+        });
+      }
+
+      (gmiInput.metadata ??= {} as any).organizationId = organizationIdForMemory ?? null;
+      (gmiInput.metadata as any).longTermMemoryPolicy = longTermMemoryPolicy;
+
+      // Persist inbound user/system message to ConversationContext BEFORE any LLM call so persona switches
+      // and restarts preserve memory, even if the LLM fails.
+      if (this.config.enableConversationalPersistence && conversationContext) {
+        try {
+          if (gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string') {
+            conversationContext.addMessage({
+              role: MessageRole.USER,
+              content: gmiInput.content,
+              name: input.userId,
+              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_input' },
+            });
+          } else if (gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT) {
+            conversationContext.addMessage({
+              role: MessageRole.USER,
+              content: JSON.stringify(gmiInput.content),
+              name: input.userId,
+              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_input_multimodal' },
+            });
+          } else if (gmiInput.type === GMIInteractionType.SYSTEM_MESSAGE) {
+            conversationContext.addMessage({
+              role: MessageRole.SYSTEM,
+              content: typeof gmiInput.content === 'string' ? gmiInput.content : JSON.stringify(gmiInput.content),
+              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_input_system' },
+            });
+          }
+          await this.dependencies.conversationManager.saveConversation(conversationContext);
+        } catch (persistError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Failed to persist inbound message to ConversationContext for stream ${agentOSStreamId}.`,
+            persistError,
+          );
+        }
+      }
+
+      // Build conversationHistoryForPrompt after compaction/routing so it can reflect rolling-summary trimming.
+
+      const modeForRouting =
+        typeof input.options?.customFlags?.mode === 'string' && input.options.customFlags.mode.trim()
+          ? input.options.customFlags.mode.trim()
+          : currentPersonaId;
+
+      // --- Rolling summary compaction (text + JSON metadata) ---
+      let rollingSummaryResult: RollingSummaryCompactionResult | null = null;
+      let rollingSummaryProfileId: string | null = null;
+      let rollingSummaryConfigForTurn: RollingSummaryCompactionConfig | null = this.config.rollingSummaryCompactionConfig;
+      let rollingSummarySystemPromptForTurn: string | undefined = this.config.rollingSummarySystemPrompt;
+
+      if (this.config.rollingSummaryCompactionProfilesConfig) {
+        const profilesConfig = this.config.rollingSummaryCompactionProfilesConfig;
+        const picked =
+          pickByMode(profilesConfig.defaultProfileByMode, modeForRouting) ??
+          profilesConfig.defaultProfileId;
+        rollingSummaryProfileId = picked;
+        const profile = profilesConfig.profiles?.[picked];
+        if (profile?.config) {
+          rollingSummaryConfigForTurn = profile.config;
+        }
+        if (profile?.systemPrompt) {
+          rollingSummarySystemPromptForTurn = profile.systemPrompt;
+        }
+      }
+
+      if (conversationContext && rollingSummaryConfigForTurn) {
+        try {
+          const llmCaller = async (call: {
+            providerId?: string;
+            modelId: string;
+            messages: any[];
+            options: any;
+          }): Promise<string> => {
+            const providerIdResolved =
+              call.providerId ||
+              this.dependencies.modelProviderManager.getProviderForModel(call.modelId)?.providerId ||
+              this.dependencies.modelProviderManager.getDefaultProvider()?.providerId;
+            if (!providerIdResolved) {
+              throw new Error(`No provider resolved for rolling-summary model '${call.modelId}'.`);
+            }
+            const provider = this.dependencies.modelProviderManager.getProvider(providerIdResolved);
+            if (!provider) {
+              throw new Error(`Provider '${providerIdResolved}' not found for rolling-summary compaction.`);
+            }
+            const response = await provider.generateCompletion(call.modelId, call.messages, call.options);
+            const choice = response?.choices?.[0];
+            const responseContent = choice?.message?.content ?? choice?.text ?? '';
+            if (typeof responseContent === 'string') return responseContent.trim();
+            if (Array.isArray(responseContent)) {
+              return responseContent
+                .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
+                .filter(Boolean)
+                .join('\n')
+                .trim();
+            }
+            return String(responseContent ?? '').trim();
+          };
+
+          const stateKey = this.config.rollingSummaryStateKey;
+          const compaction = await maybeCompactConversationMessages({
+            messages: conversationContext.getAllMessages() as any,
+            sessionMetadata: conversationContext.getAllMetadata() as any,
+            config: rollingSummaryConfigForTurn,
+            llmCaller: ({ providerId, modelId, messages, options }) =>
+              llmCaller({ providerId, modelId, messages, options }),
+            systemPrompt: rollingSummarySystemPromptForTurn,
+            stateKey,
+          });
+
+          rollingSummaryResult = compaction;
+          if (compaction.updatedSessionMetadata && Object.prototype.hasOwnProperty.call(compaction.updatedSessionMetadata, stateKey)) {
+            conversationContext.setMetadata(stateKey, (compaction.updatedSessionMetadata as any)[stateKey]);
+          }
+        } catch (compactionError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Rolling summary compaction failed for stream ${agentOSStreamId} (continuing without it).`,
+            compactionError,
+          );
+        }
+      }
+
+      if (!gmiInput.metadata) {
+        gmiInput.metadata = {};
+      }
+      const rollingSummaryEnabled = Boolean(rollingSummaryConfigForTurn?.enabled);
+      const rollingSummaryText =
+        rollingSummaryEnabled && typeof rollingSummaryResult?.summaryText === 'string'
+          ? rollingSummaryResult.summaryText.trim()
+          : '';
+      (gmiInput.metadata as any).rollingSummary =
+        rollingSummaryEnabled && rollingSummaryText
+          ? { text: rollingSummaryText, json: rollingSummaryResult?.summaryJson ?? undefined }
+          : null;
+
+      // --- Prompt-profile routing (concise/deep/planner/reviewer) ---
+      let promptProfileSelection: ReturnType<typeof selectPromptProfile>['result'] | null = null;
+      if (conversationContext && this.config.promptProfileConfig) {
+        try {
+          const rawPrev = conversationContext.getMetadata('promptProfileState');
+          const previousState: PromptProfileConversationState | null =
+            rawPrev && typeof rawPrev === 'object' && typeof (rawPrev as any).presetId === 'string'
+              ? (rawPrev as PromptProfileConversationState)
+              : null;
+
+          const userMessageForRouting =
+            gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
+              ? gmiInput.content
+              : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
+                ? JSON.stringify(gmiInput.content)
+                : '';
+
+          const selection = selectPromptProfile(
+            this.config.promptProfileConfig,
+            {
+              conversationId: conversationContext.sessionId,
+              mode: modeForRouting,
+              userMessage: userMessageForRouting,
+              didCompact: Boolean(rollingSummaryResult?.didCompact),
+            },
+            previousState,
+          );
+          promptProfileSelection = selection.result;
+          conversationContext.setMetadata('promptProfileState', selection.nextState);
+        } catch (routerError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Prompt-profile routing failed for stream ${agentOSStreamId} (continuing without it).`,
+            routerError,
+          );
+        }
+      }
+
+      (gmiInput.metadata as any).promptProfile = promptProfileSelection
+        ? {
+            id: promptProfileSelection.presetId,
+            systemInstructions: promptProfileSelection.systemInstructions,
+            reason: promptProfileSelection.reason,
+          }
+        : null;
+
+      // --- Long-term memory retrieval (user/persona/org) ---
+      let longTermMemoryContextText: string | null = null;
+      let longTermMemoryRetrievalDiagnostics: Record<string, unknown> | undefined;
+
+      if (
+        conversationContext &&
+        this.dependencies.longTermMemoryRetriever &&
+        Boolean(longTermMemoryPolicy?.enabled) &&
+        (Boolean(longTermMemoryPolicy?.scopes?.user) ||
+          Boolean(longTermMemoryPolicy?.scopes?.persona) ||
+          Boolean(longTermMemoryPolicy?.scopes?.organization))
+      ) {
+        try {
+          const queryText =
+            gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
+              ? gmiInput.content.trim()
+              : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
+                ? JSON.stringify(gmiInput.content).trim()
+                : '';
+
+          const userTurnCount = (conversationContext.getAllMessages() as any[]).filter(
+            (m) => m?.role === MessageRole.USER,
+          ).length;
+
+          const cadenceTurns =
+            typeof (this.config.promptProfileConfig as any)?.routing?.reviewEveryNTurns === 'number'
+              ? Number((this.config.promptProfileConfig as any).routing.reviewEveryNTurns)
+              : 6;
+          const forceOnCompaction =
+            typeof (this.config.promptProfileConfig as any)?.routing?.forceReviewOnCompaction === 'boolean'
+              ? Boolean((this.config.promptProfileConfig as any).routing.forceReviewOnCompaction)
+              : true;
+
+          const rawState = conversationContext.getMetadata('longTermMemoryRetrievalState');
+          const prevState: LongTermMemoryRetrievalState | null =
+            rawState &&
+            typeof rawState === 'object' &&
+            typeof (rawState as any).lastReviewedUserTurn === 'number'
+              ? (rawState as LongTermMemoryRetrievalState)
+              : null;
+
+          const shouldReview =
+            !prevState ||
+            (cadenceTurns > 0 && userTurnCount - prevState.lastReviewedUserTurn >= cadenceTurns) ||
+            (forceOnCompaction && Boolean(rollingSummaryResult?.didCompact));
+
+          if (shouldReview && queryText.length > 0) {
+            const retrievalResult = await this.dependencies.longTermMemoryRetriever.retrieveLongTermMemory({
+              userId: streamContext.userId,
+              organizationId: organizationIdForMemory,
+              conversationId: streamContext.conversationId,
+              personaId: currentPersonaId,
+              mode: modeForRouting,
+              queryText,
+              memoryPolicy: longTermMemoryPolicy ?? DEFAULT_LONG_TERM_MEMORY_POLICY,
+              maxContextChars: 2800,
+              topKByScope: { user: 6, persona: 6, organization: 6 },
+            });
+
+            if (retrievalResult?.contextText && retrievalResult.contextText.trim()) {
+              longTermMemoryContextText = retrievalResult.contextText.trim();
+              longTermMemoryRetrievalDiagnostics = retrievalResult.diagnostics;
+            }
+
+            conversationContext.setMetadata('longTermMemoryRetrievalState', {
+              lastReviewedUserTurn: userTurnCount,
+              lastReviewedAt: Date.now(),
+            } satisfies LongTermMemoryRetrievalState);
+          }
+        } catch (retrievalError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Long-term memory retrieval failed for stream ${agentOSStreamId} (continuing without it).`,
+            retrievalError,
+          );
+        }
+      }
+
+      (gmiInput.metadata as any).longTermMemoryContext =
+        typeof longTermMemoryContextText === 'string' && longTermMemoryContextText.length > 0
+          ? longTermMemoryContextText
+          : null;
+
+      // Provide a durable history snapshot for prompt construction so persona switches share memory.
+      // When rolling-summary compaction is enabled and a summary exists, trim history to:
+      // - keep the configured head messages verbatim
+      // - keep only messages after `summaryUptoTimestamp` (unsummarized tail)
+      if (conversationContext) {
+        const excludeRoles = new Set<MessageRole>([MessageRole.ERROR, MessageRole.THOUGHT]);
+        const useTrimmedHistory =
+          rollingSummaryEnabled &&
+          typeof rollingSummaryResult?.summaryUptoTimestamp === 'number' &&
+          rollingSummaryText.length > 0;
+
+        const rawHistory = useTrimmedHistory
+          ? (conversationContext.getAllMessages() as any[])
+          : (conversationContext.getHistory(undefined, [MessageRole.ERROR, MessageRole.THOUGHT]) as any[]);
+
+        let historyForPrompt = rawHistory.filter((m) => m && !excludeRoles.has(m.role)) as any[];
+
+        const last = historyForPrompt[historyForPrompt.length - 1];
+        if (last?.role === MessageRole.USER) {
+          const content = typeof last.content === 'string' ? last.content.trim() : '';
+          const inbound =
+            gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
+              ? gmiInput.content.trim()
+              : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
+                ? JSON.stringify(gmiInput.content).trim()
+                : '';
+          if (content && inbound && content === inbound) {
+            historyForPrompt = historyForPrompt.slice(0, -1);
+          }
+        }
+
+        if (useTrimmedHistory) {
+          const headCount = Math.max(0, rollingSummaryConfigForTurn?.headMessagesToKeep ?? 0);
+          const head = historyForPrompt.slice(0, Math.min(headCount, historyForPrompt.length));
+          const afterSummary = historyForPrompt.filter((m: any) => m && m.timestamp > (rollingSummaryResult as any).summaryUptoTimestamp);
+          const merged: any[] = [];
+          const seen = new Set<string>();
+          for (const msg of [...head, ...afterSummary]) {
+            const id = typeof msg?.id === 'string' ? msg.id : '';
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            merged.push(msg);
+          }
+          historyForPrompt = merged;
+        }
+
+        (gmiInput.metadata as any).conversationHistoryForPrompt = historyForPrompt as any[];
+      }
+
+      // Persist any compaction/router metadata updates prior to the main LLM call.
+      if (this.config.enableConversationalPersistence && conversationContext) {
+        try {
+          await this.dependencies.conversationManager.saveConversation(conversationContext);
+        } catch (metadataPersistError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Failed to persist conversation metadata updates for stream ${agentOSStreamId}.`,
+            metadataPersistError,
+          );
+        }
+      }
+
+      // Best-effort: persist structured rolling memory (`memory_json`) to an external store for retrieval.
+      if (
+        rollingSummaryEnabled &&
+        rollingSummaryResult?.didCompact &&
+        typeof rollingSummaryResult.summaryText === 'string' &&
+        this.dependencies.rollingSummaryMemorySink &&
+        Boolean(longTermMemoryPolicy?.enabled) &&
+        hasAnyLongTermMemoryScope(longTermMemoryPolicy ?? DEFAULT_LONG_TERM_MEMORY_POLICY)
+      ) {
+        const update: RollingSummaryMemoryUpdate = {
+          userId: streamContext.userId,
+          organizationId: organizationIdForMemory,
+          sessionId: streamContext.sessionId,
+          conversationId: streamContext.conversationId,
+          personaId: currentPersonaId,
+          mode: modeForRouting,
+          profileId: rollingSummaryProfileId,
+          memoryPolicy: longTermMemoryPolicy ?? undefined,
+          summaryText: rollingSummaryResult.summaryText,
+          summaryJson: rollingSummaryResult.summaryJson ?? null,
+          summaryUptoTimestamp: rollingSummaryResult.summaryUptoTimestamp ?? null,
+          summaryUpdatedAt: rollingSummaryResult.summaryUpdatedAt ?? null,
+        };
+        void this.dependencies.rollingSummaryMemorySink
+          .upsertRollingSummaryMemory(update)
+          .catch((error: any) => {
+            console.warn(
+              `AgentOSOrchestrator: Rolling summary sink failed for stream ${agentOSStreamId} (continuing).`,
+              error,
+            );
+          });
+      }
+
+      // Emit routing + memory metadata as a first-class chunk for clients.
+      await this.pushChunkToStream(
+        agentOSStreamId,
+        AgentOSResponseChunkType.METADATA_UPDATE,
+        gmiInstanceIdForChunks,
+        currentPersonaId,
+        false,
+        {
+          updates: {
+            promptProfile: promptProfileSelection,
+            organizationId: organizationIdForMemory ?? null,
+            longTermMemoryPolicy,
+            longTermMemoryRetrieval: longTermMemoryContextText
+              ? {
+                  didRetrieve: true,
+                  contextChars: longTermMemoryContextText.length,
+                  diagnostics: longTermMemoryRetrievalDiagnostics,
+                }
+              : { didRetrieve: false },
+            rollingSummary: rollingSummaryResult
+              ? {
+                  profileId: rollingSummaryProfileId,
+                  enabled: rollingSummaryResult.enabled,
+                  didCompact: rollingSummaryResult.didCompact,
+                  summaryText: rollingSummaryResult.summaryText,
+                  summaryJson: rollingSummaryResult.summaryJson,
+                  summaryUptoTimestamp: rollingSummaryResult.summaryUptoTimestamp,
+                  summaryUpdatedAt: rollingSummaryResult.summaryUpdatedAt,
+                  reason: rollingSummaryResult.reason,
+                }
+              : null,
+          },
+        },
+      );
+
       let currentToolCallIteration = 0;
       let continueProcessing = true;
       let lastGMIOutput: GMIOutput | undefined; // To store the result from handleToolResult or final processTurnStream result
@@ -510,10 +1073,6 @@ export class AgentOSOrchestrator {
       // For now, this relies on the fact that the last interaction with GMI (processTurnStream or handleToolResult)
       // updated the conversation context, and we generate a final response summary.
 
-      if (this.config.enableConversationalPersistence && conversationContext) {
-          await this.dependencies.conversationManager.saveConversation(conversationContext);
-      }
-
       // Send a final response chunk if not already implicitly sent by an error or final GMI chunk transform.
       // This part needs careful consideration of what `lastGMIOutput` represents here.
       // It should represent the *actual* TReturn from the GMI's processing.
@@ -524,11 +1083,42 @@ export class AgentOSOrchestrator {
           responseText: gmi ? 'Processing complete.' : 'Processing ended.',
         };
 
+      // Persist assistant output into ConversationContext for durable memory / prompt reconstruction.
+      if (this.config.enableConversationalPersistence && conversationContext) {
+        try {
+          if (typeof finalGMIStateForResponse.responseText === 'string' && finalGMIStateForResponse.responseText.trim()) {
+            conversationContext.addMessage({
+              role: MessageRole.ASSISTANT,
+              content: finalGMIStateForResponse.responseText,
+              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_output' },
+            });
+          } else if (finalGMIStateForResponse.toolCalls && finalGMIStateForResponse.toolCalls.length > 0) {
+            conversationContext.addMessage({
+              role: MessageRole.ASSISTANT,
+              content: null,
+              tool_calls: finalGMIStateForResponse.toolCalls as any,
+              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_output_tool_calls' },
+            });
+          }
+
+          await this.dependencies.conversationManager.saveConversation(conversationContext);
+        } catch (persistError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Failed to persist assistant output to ConversationContext for stream ${agentOSStreamId}.`,
+            persistError,
+          );
+        }
+      }
+
       await this.pushChunkToStream(
         agentOSStreamId, AgentOSResponseChunkType.FINAL_RESPONSE,
         gmiInstanceIdForChunks, currentPersonaId, true,
         {
           finalResponseText: finalGMIStateForResponse.responseText ?? null,
+          finalResponseTextPlain:
+            typeof finalGMIStateForResponse.responseText === 'string'
+              ? renderPlainText(finalGMIStateForResponse.responseText)
+              : null,
           finalToolCalls: finalGMIStateForResponse.toolCalls,
           finalUiCommands: finalGMIStateForResponse.uiCommands,
           audioOutput: finalGMIStateForResponse.audioOutput,
@@ -611,6 +1201,25 @@ export class AgentOSOrchestrator {
         { toolCallId, toolName, toolResult: toolOutput, isSuccess, errorMessage }
       );
 
+      // Persist tool result into ConversationContext for durable memory / prompt reconstruction.
+      if (this.config.enableConversationalPersistence && conversationContext) {
+        try {
+          conversationContext.addMessage({
+            role: MessageRole.TOOL,
+            content: typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput),
+            tool_call_id: toolCallId,
+            name: toolName,
+            metadata: { agentPersonaId: personaId, source: 'agentos_tool_result', isSuccess },
+          });
+          await this.dependencies.conversationManager.saveConversation(conversationContext);
+        } catch (persistError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Failed to persist tool result to ConversationContext for stream ${agentOSStreamId}.`,
+            persistError,
+          );
+        }
+      }
+
       // GMI processes the tool result and gives a *final output for that step*
       const gmiOutputAfterTool: GMIOutput = await gmi.handleToolResult(
         toolCallId,
@@ -633,7 +1242,28 @@ export class AgentOSOrchestrator {
         // The orchestrator now waits for another external call to `orchestrateToolResult` for these new calls.
       } else if (gmiOutputAfterTool.isFinal) {
          if (this.config.enableConversationalPersistence && conversationContext) {
-            await this.dependencies.conversationManager.saveConversation(conversationContext);
+            try {
+              if (typeof gmiOutputAfterTool.responseText === 'string' && gmiOutputAfterTool.responseText.trim()) {
+                conversationContext.addMessage({
+                  role: MessageRole.ASSISTANT,
+                  content: gmiOutputAfterTool.responseText,
+                  metadata: { agentPersonaId: personaId, source: 'agentos_output' },
+                });
+              } else if (gmiOutputAfterTool.toolCalls && gmiOutputAfterTool.toolCalls.length > 0) {
+                conversationContext.addMessage({
+                  role: MessageRole.ASSISTANT,
+                  content: null,
+                  tool_calls: gmiOutputAfterTool.toolCalls as any,
+                  metadata: { agentPersonaId: personaId, source: 'agentos_output_tool_calls' },
+                });
+              }
+              await this.dependencies.conversationManager.saveConversation(conversationContext);
+            } catch (persistError: any) {
+              console.warn(
+                `AgentOSOrchestrator: Failed to persist assistant output after tool result for stream ${agentOSStreamId}.`,
+                persistError,
+              );
+            }
          }
         // If it's final and no more tool calls, the interaction for this GMI processing cycle might be done.
         // Push a final response marker or the already pushed final data from processGMIOutput takes precedence.

@@ -97,7 +97,174 @@ describe('RetrievalAugmentor Functionality', () => {
   // Add more tests:
   // - Ingestion with different chunking strategies (once implemented)
   // - Retrieval with metadata filters
-  // - Retrieval with MMR or reranking (once implemented)
   // - Error handling during ingestion and retrieval
   // - deleteDocuments and updateDocuments
+});
+
+describe('RetrievalAugmentor Reranking', () => {
+  let augmentor: RetrievalAugmentor;
+  let mockRerankerProvider: any;
+
+  const configWithReranking: RetrievalAugmentorServiceConfig = {
+    ...mockConfig,
+    rerankerServiceConfig: {
+      providers: [{ providerId: 'mock-reranker', defaultModelId: 'test-model' }],
+      defaultProviderId: 'mock-reranker',
+    },
+    defaultRerankerProviderId: 'mock-reranker',
+    defaultRerankerModelId: 'test-model',
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    mockRerankerProvider = {
+      providerId: 'mock-reranker',
+      rerank: vi.fn().mockImplementation(async (input: any) => ({
+        results: input.documents.map((doc: any, idx: number) => ({
+          id: doc.id,
+          content: doc.content,
+          relevanceScore: 1 - idx * 0.1, // Assign new scores
+          originalScore: doc.originalScore,
+          metadata: doc.metadata,
+        })),
+      })),
+      isAvailable: vi.fn().mockResolvedValue(true),
+    };
+
+    augmentor = new RetrievalAugmentor();
+    await augmentor.initialize(configWithReranking, mockEmbeddingManager, mockVectorStoreManager);
+    augmentor.registerRerankerProvider(mockRerankerProvider);
+  });
+
+  it('should skip reranking when not enabled', async () => {
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      // rerankerConfig not enabled
+    });
+
+    expect(mockRerankerProvider.rerank).not.toHaveBeenCalled();
+    expect(result.diagnostics?.rerankingTimeMs).toBeUndefined();
+  });
+
+  it('should apply reranking when enabled', async () => {
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      rerankerConfig: {
+        enabled: true,
+      },
+    });
+
+    expect(mockRerankerProvider.rerank).toHaveBeenCalled();
+    expect(result.diagnostics?.rerankingTimeMs).toBeDefined();
+    expect(result.diagnostics?.messages).toContainEqual(
+      expect.stringContaining('Reranking applied'),
+    );
+  });
+
+  it('should use specified provider for reranking', async () => {
+    await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      rerankerConfig: {
+        enabled: true,
+        providerId: 'mock-reranker',
+        modelId: 'custom-model',
+      },
+    });
+
+    expect(mockRerankerProvider.rerank).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        providerId: 'mock-reranker',
+        modelId: 'custom-model',
+      }),
+    );
+  });
+
+  it('should apply topN after reranking', async () => {
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      topK: 10, // Get more initially
+      rerankerConfig: {
+        enabled: true,
+        topN: 3, // Reranker returns top 3
+      },
+    });
+
+    expect(mockRerankerProvider.rerank).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        topN: 3,
+      }),
+    );
+  });
+
+  it('should handle reranking errors gracefully', async () => {
+    mockRerankerProvider.rerank.mockRejectedValueOnce(new Error('Reranker API error'));
+
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      rerankerConfig: {
+        enabled: true,
+      },
+    });
+
+    // Should return results without reranking
+    expect(result.retrievedChunks.length).toBeGreaterThanOrEqual(0);
+    expect(result.diagnostics?.messages).toContainEqual(
+      expect.stringContaining('Reranking failed'),
+    );
+  });
+
+  it('should warn when reranking enabled but service not configured', async () => {
+    const augmentorNoReranker = new RetrievalAugmentor();
+    await augmentorNoReranker.initialize(mockConfig, mockEmbeddingManager, mockVectorStoreManager);
+
+    const result = await augmentorNoReranker.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      rerankerConfig: {
+        enabled: true,
+      },
+    });
+
+    expect(result.diagnostics?.messages).toContainEqual(
+      expect.stringContaining('RerankerService not configured'),
+    );
+  });
+});
+
+describe('RetrievalAugmentor registerRerankerProvider', () => {
+  it('should throw error when RerankerService not configured', async () => {
+    const augmentor = new RetrievalAugmentor();
+    await augmentor.initialize(mockConfig, mockEmbeddingManager, mockVectorStoreManager);
+
+    expect(() => {
+      augmentor.registerRerankerProvider({
+        providerId: 'test',
+        rerank: vi.fn(),
+        isAvailable: vi.fn(),
+      });
+    }).toThrow('RerankerService not configured');
+  });
+
+  it('should register provider when RerankerService is configured', async () => {
+    const configWithReranking: RetrievalAugmentorServiceConfig = {
+      ...mockConfig,
+      rerankerServiceConfig: {
+        providers: [{ providerId: 'test' }],
+        defaultProviderId: 'test',
+      },
+    };
+
+    const augmentor = new RetrievalAugmentor();
+    await augmentor.initialize(configWithReranking, mockEmbeddingManager, mockVectorStoreManager);
+
+    const mockProvider = {
+      providerId: 'test',
+      rerank: vi.fn(),
+      isAvailable: vi.fn().mockResolvedValue(true),
+    };
+
+    expect(() => augmentor.registerRerankerProvider(mockProvider)).not.toThrow();
+  });
 });

@@ -155,12 +155,33 @@ export interface RagRetrievalOptions {
     hybridAlpha?: number;
     custom?: Record<string, any>;
   };
-  /** Reranker configuration stub (future pluggable). */
+  /**
+   * Cross-encoder reranking configuration.
+   *
+   * When enabled, retrieved chunks are re-scored using a cross-encoder model
+   * for improved relevance ranking. **Disabled by default** due to added latency.
+   *
+   * Recommended use cases:
+   * - Background analysis tasks (accuracy over speed)
+   * - Batch processing (no user waiting)
+   * - Knowledge-intensive tasks (reduces hallucination)
+   *
+   * NOT recommended for real-time chat (latency sensitive).
+   */
   rerankerConfig?: {
+    /** Enable cross-encoder reranking. Default: false */
     enabled?: boolean;
+    /** Reranker model ID (e.g., 'rerank-english-v3.0', 'cross-encoder/ms-marco-MiniLM-L-6-v2') */
     modelId?: string;
+    /** Provider ID ('cohere', 'local') */
     providerId?: string;
+    /** Number of top results to return after reranking */
     topN?: number;
+    /** Max documents to send to reranker (limits cost/latency). Default: 100 */
+    maxDocuments?: number;
+    /** Request timeout in ms. Default: 30000 */
+    timeoutMs?: number;
+    /** Provider-specific parameters */
     params?: Record<string, any>;
   };
   /** Include chunk embeddings in the response. */

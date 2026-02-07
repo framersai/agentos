@@ -7,6 +7,7 @@ import type {
   WorkflowTaskDefinition,
   WorkflowTaskStatus,
 } from '../core/workflows/WorkflowTypes';
+import type { MessagingChannelPayload } from './MessagingChannelPayload';
 
 /**
  * Represents the broad category an extension descriptor belongs to.
@@ -142,6 +143,12 @@ export const EXTENSION_KIND_HITL_HANDLER = 'hitl-handler';
 export const EXTENSION_KIND_COMM_CHANNEL = 'communication-channel';
 export const EXTENSION_KIND_MEMORY_PROVIDER = 'memory-provider';
 
+// Messaging Channels — external human-facing platforms (v1.3.0)
+export const EXTENSION_KIND_MESSAGING_CHANNEL = 'messaging-channel';
+
+// Provenance & Audit (v1.2.0)
+export const EXTENSION_KIND_PROVENANCE = 'provenance';
+
 export type ToolDescriptor = ExtensionDescriptor<ITool> & { kind: typeof EXTENSION_KIND_TOOL };
 export type GuardrailDescriptor = ExtensionDescriptor<IGuardrailService> & { kind: typeof EXTENSION_KIND_GUARDRAIL };
 export type WorkflowDescriptor = ExtensionDescriptor<WorkflowDescriptorPayload> & {
@@ -166,6 +173,16 @@ export type WorkflowExtensionExecutor = (
 export type WorkflowExecutorDescriptor = ExtensionDescriptor<WorkflowExtensionExecutor> & {
   kind: typeof EXTENSION_KIND_WORKFLOW_EXECUTOR;
 };
+
+/**
+ * Messaging channel extension descriptor — wraps an IChannelAdapter for
+ * external human-facing messaging platforms (Telegram, WhatsApp, Discord, etc.).
+ */
+export type MessagingChannelDescriptor = ExtensionDescriptor<MessagingChannelPayload> & {
+  kind: typeof EXTENSION_KIND_MESSAGING_CHANNEL;
+};
+
+export type { MessagingChannelPayload } from './MessagingChannelPayload';
 
 /**
  * Persona registry source configuration

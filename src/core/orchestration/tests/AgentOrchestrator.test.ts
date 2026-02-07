@@ -25,6 +25,7 @@ describe('AgentOSOrchestrator', () => {
   let mockToolOrchestrator: ToolOrchestrator;
   let mockConversationManager: ConversationManager;
   let mockStreamingManager: StreamingManager;
+  let mockModelProviderManager: any;
   let mockGMI: IGMI;
   let mockConversationContext: ConversationContext;
 
@@ -126,6 +127,12 @@ describe('AgentOSOrchestrator', () => {
       endStream: vi.fn().mockResolvedValue(undefined),
       closeStream: vi.fn().mockResolvedValue(undefined),
     } as unknown as StreamingManager;
+
+    mockModelProviderManager = {
+      getProviderForModel: vi.fn().mockReturnValue(undefined),
+      getDefaultProvider: vi.fn().mockReturnValue(undefined),
+      getProvider: vi.fn().mockReturnValue(undefined),
+    };
   });
 
   afterEach(() => {
@@ -144,6 +151,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).resolves.toBeUndefined();
@@ -156,6 +164,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).rejects.toThrow(GMIError);
@@ -169,6 +178,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: undefined as any,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).rejects.toThrow(GMIError);
@@ -182,6 +192,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: undefined as any,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).rejects.toThrow(GMIError);
@@ -195,6 +206,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: undefined as any,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).rejects.toThrow(GMIError);
@@ -208,6 +220,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -230,6 +243,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(partialConfig, dependencies)).resolves.toBeUndefined();
@@ -245,6 +259,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).resolves.toBeUndefined();
@@ -261,6 +276,7 @@ describe('AgentOSOrchestrator', () => {
         toolOrchestrator: mockToolOrchestrator,
         conversationManager: mockConversationManager,
         streamingManager: mockStreamingManager,
+        modelProviderManager: mockModelProviderManager,
       };
 
       await expect(orchestrator.initialize(config, dependencies)).resolves.toBeUndefined();
@@ -277,6 +293,7 @@ describe('AgentOSOrchestrator', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
         },
       );
     });
@@ -364,6 +381,114 @@ describe('AgentOSOrchestrator', () => {
     });
   });
 
+  describe('Long-Term Memory Policy', () => {
+    let mockRollingSummaryMemorySink: { upsertRollingSummaryMemory: ReturnType<typeof vi.fn> };
+
+    beforeEach(async () => {
+      mockRollingSummaryMemorySink = {
+        upsertRollingSummaryMemory: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const mockProvider = {
+        generateCompletion: vi.fn().mockResolvedValue({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  summary_markdown: '- summary',
+                  memory_json: {
+                    facts: [{ text: 'User prefers TypeScript', confidence: 0.8, sources: ['msg-1'] }],
+                    preferences: [],
+                    people: [],
+                    projects: [],
+                    decisions: [],
+                    open_loops: [],
+                    todo: [],
+                    tags: ['typescript'],
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+      };
+
+      mockModelProviderManager.getProviderForModel = vi.fn().mockReturnValue({ providerId: 'mock' });
+      mockModelProviderManager.getDefaultProvider = vi.fn().mockReturnValue({ providerId: 'mock' });
+      mockModelProviderManager.getProvider = vi.fn().mockReturnValue(mockProvider);
+
+      vi.mocked(mockConversationContext.getAllMessages).mockReturnValue([
+        { id: 'msg-1', role: 'user', content: 'Hello', timestamp: 1 } as any,
+      ]);
+
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 1,
+          rollingSummaryCompactionConfig: {
+            enabled: true,
+            modelId: 'mock-model',
+            cooldownMs: 0,
+            headMessagesToKeep: 0,
+            tailMessagesToKeep: 0,
+            minMessagesToSummarize: 1,
+            maxMessagesToSummarizePerPass: 10,
+            maxOutputTokens: 128,
+            temperature: 0,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
+          rollingSummaryMemorySink: mockRollingSummaryMemorySink as any,
+        },
+      );
+    });
+
+    it('should not call rollingSummaryMemorySink when long-term memory is disabled', async () => {
+      const input: AgentOSInput = {
+        userId: 'user-1',
+        sessionId: 'session-1',
+        selectedPersonaId: 'persona-1',
+        textInput: 'Hello',
+        memoryControl: { longTermMemory: { enabled: false } },
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      expect(mockRollingSummaryMemorySink.upsertRollingSummaryMemory).not.toHaveBeenCalled();
+    });
+
+    it('should pass organizationId + resolved policy into rollingSummaryMemorySink', async () => {
+      const input: AgentOSInput = {
+        userId: 'user-1',
+        organizationId: 'org-1',
+        sessionId: 'session-1',
+        selectedPersonaId: 'persona-1',
+        textInput: 'Hello',
+        memoryControl: {
+          longTermMemory: {
+            enabled: true,
+            scopes: { conversation: true, user: true },
+          },
+        },
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      expect(mockRollingSummaryMemorySink.upsertRollingSummaryMemory).toHaveBeenCalled();
+      const firstCall = mockRollingSummaryMemorySink.upsertRollingSummaryMemory.mock.calls[0]?.[0];
+      expect(firstCall.organizationId).toBe('org-1');
+      expect(firstCall.memoryPolicy?.enabled).toBe(true);
+      expect(firstCall.memoryPolicy?.scopes?.user).toBe(true);
+      expect(firstCall.memoryPolicy?.scopes?.conversation).toBe(true);
+    });
+  });
+
   describe('Tool Calling', () => {
     beforeEach(async () => {
       await orchestrator.initialize(
@@ -373,6 +498,7 @@ describe('AgentOSOrchestrator', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
         },
       );
     });
@@ -442,6 +568,7 @@ describe('AgentOSOrchestrator', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
         },
       );
     });
@@ -487,6 +614,7 @@ describe('AgentOSOrchestrator', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
         },
       );
 
@@ -512,6 +640,7 @@ describe('AgentOSOrchestrator', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
         },
       );
 
@@ -536,6 +665,7 @@ describe('AgentOSOrchestrator', () => {
           toolOrchestrator: mockToolOrchestrator,
           conversationManager: mockConversationManager,
           streamingManager: mockStreamingManager,
+          modelProviderManager: mockModelProviderManager,
         },
       );
 
@@ -550,6 +680,7 @@ describe('AgentOSOrchestrator', () => {
             toolOrchestrator: mockToolOrchestrator,
             conversationManager: mockConversationManager,
             streamingManager: mockStreamingManager,
+            modelProviderManager: mockModelProviderManager,
           },
         ),
       ).resolves.toBeUndefined();

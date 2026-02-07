@@ -12,6 +12,9 @@ export { InMemoryVectorStore } from './InMemoryVectorStore.js';
 // SQL-backed vector store (cross-platform persistence)
 export { SqlVectorStore, type SqlVectorStoreConfig } from './SqlVectorStore.js';
 
+// HNSW-based vector store (fast ANN search via hnswlib-node)
+export { HnswlibVectorStore, type HnswlibVectorStoreConfig } from './HnswlibVectorStore.js';
+
 
 
 

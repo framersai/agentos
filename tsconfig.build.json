@@ -30,6 +30,7 @@
     "src/utils/**/*.ts",
     "src/types/**/*.ts",
     "src/stubs/**/*.ts",
+    "src/channels/**/*.ts",
     "src/**/*.json"
   ],
   "exclude": [

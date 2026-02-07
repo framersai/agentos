@@ -15,7 +15,12 @@
     "paths": {
       "@framers/agentos/*": ["./*"],
       "@prisma/client": ["./stubs/prismaClient.ts"],
-      "dompurify": ["./stubs/dompurify.d.ts"]
+      "dompurify": ["./stubs/dompurify.d.ts"],
+      "@framers/sql-storage-adapter": ["../../sql-storage-adapter/dist/index.d.ts"],
+      "@framers/sql-storage-adapter/*": ["../../sql-storage-adapter/dist/*"],
+      "graphology": ["./stubs/graphology.d.ts"],
+      "graphology-communities-louvain": ["./stubs/graphology-communities-louvain.d.ts"],
+      "hnswlib-node": ["./stubs/hnswlib-node.d.ts"]
     }
   },
   "include": [

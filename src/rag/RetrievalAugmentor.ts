@@ -34,6 +34,8 @@ import { IEmbeddingManager } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataValue } from './IVectorStore';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { RerankerService, type RerankerServiceOptions } from './reranking/RerankerService';
+import type { RerankerRequestConfig } from './reranking/IRerankerService';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -51,6 +53,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
   private config!: RetrievalAugmentorServiceConfig;
   private embeddingManager!: IEmbeddingManager;
   private vectorStoreManager!: IVectorStoreManager;
+  private rerankerService?: RerankerService;
   private isInitialized: boolean = false;
 
   /**
@@ -88,6 +91,14 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     this.embeddingManager = embeddingManager;
     this.vectorStoreManager = vectorStoreManager;
 
+    // Initialize RerankerService if configured
+    if (config.rerankerServiceConfig) {
+      this.rerankerService = new RerankerService({
+        config: config.rerankerServiceConfig,
+      });
+      console.log(`RetrievalAugmentor (ID: ${this.augmenterId}): RerankerService initialized with providers: [${config.rerankerServiceConfig.providers.map(p => p.providerId).join(', ')}]`);
+    }
+
     // Validate category behaviors - ensure targetDataSourceIds exist if specified in mapping
     for (const behavior of this.config.categoryBehaviors) {
         for (const dsId of behavior.targetDataSourceIds) {
@@ -122,6 +133,43 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
         GMIErrorCode.NOT_INITIALIZED,
       );
     }
+  }
+
+  /**
+   * Register a reranker provider with the RerankerService.
+   *
+   * Call this after initialization to add reranker providers (e.g., CohereReranker,
+   * LocalCrossEncoderReranker) that will be available for reranking operations.
+   *
+   * @param provider - A reranker provider instance implementing IRerankerProvider
+   * @throws {GMIError} If RerankerService is not configured
+   *
+   * @example
+   * ```typescript
+   * import { CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
+   *
+   * // After initialization
+   * augmentor.registerRerankerProvider(new CohereReranker({
+   *   providerId: 'cohere',
+   *   apiKey: process.env.COHERE_API_KEY!
+   * }));
+   *
+   * augmentor.registerRerankerProvider(new LocalCrossEncoderReranker({
+   *   providerId: 'local',
+   *   defaultModelId: 'cross-encoder/ms-marco-MiniLM-L-6-v2'
+   * }));
+   * ```
+   */
+  public registerRerankerProvider(provider: import('./reranking/IRerankerService').IRerankerProvider): void {
+    if (!this.rerankerService) {
+      throw new GMIError(
+        'Cannot register reranker provider: RerankerService not configured. Set rerankerServiceConfig in RetrievalAugmentorServiceConfig.',
+        GMIErrorCode.CONFIG_ERROR,
+        { augmenterId: this.augmenterId },
+      );
+    }
+    this.rerankerService.registerProvider(provider);
+    console.log(`RetrievalAugmentor (ID: ${this.augmenterId}): Registered reranker provider '${provider.providerId}'`);
   }
 
   /**
@@ -451,6 +499,44 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
   }
 
   /**
+   * Applies cross-encoder reranking to retrieved chunks.
+   *
+   * @param queryText - The user query
+   * @param chunks - Retrieved chunks to rerank
+   * @param rerankerConfig - Reranking configuration from request options
+   * @returns Reranked chunks sorted by cross-encoder relevance scores
+   * @private
+   */
+  private async _applyReranking(
+    queryText: string,
+    chunks: RagRetrievedChunk[],
+    rerankerConfig: NonNullable<RagRetrievalOptions['rerankerConfig']>,
+  ): Promise<RagRetrievedChunk[]> {
+    if (!this.rerankerService) {
+      throw new GMIError(
+        'Reranker service not initialized but reranking was requested',
+        GMIErrorCode.CONFIG_ERROR,
+        { augmenterId: this.augmenterId },
+      );
+    }
+
+    if (chunks.length === 0) {
+      return [];
+    }
+
+    const requestConfig: Partial<RerankerRequestConfig> = {
+      providerId: rerankerConfig.providerId || this.config.defaultRerankerProviderId,
+      modelId: rerankerConfig.modelId || this.config.defaultRerankerModelId,
+      topN: rerankerConfig.topN,
+      maxDocuments: rerankerConfig.maxDocuments,
+      timeoutMs: rerankerConfig.timeoutMs,
+      params: rerankerConfig.params,
+    };
+
+    return this.rerankerService.rerankChunks(queryText, chunks, requestConfig);
+  }
+
+  /**
    * @inheritdoc
    */
   public async retrieveContext(
@@ -585,13 +671,21 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     processedChunks = processedChunks.slice(0, overallTopK);
 
 
-    // Placeholder for re-ranking step
+    // Cross-encoder reranking step (optional)
     if (options?.rerankerConfig?.enabled) {
-      diagnostics.messages?.push("Re-ranking step configured but not fully implemented in this version.");
-      // Re-ranking logic would go here using options.rerankerConfig
-      // const rerankStartTime = Date.now();
-      // processedChunks = await this._applyReranking(queryText, processedChunks, options.rerankerConfig);
-      // diagnostics.rerankingTimeMs = Date.now() - rerankStartTime;
+      if (!this.rerankerService) {
+        diagnostics.messages?.push("Reranking requested but RerankerService not configured. Skipping reranking step.");
+      } else {
+        try {
+          const rerankStartTime = Date.now();
+          processedChunks = await this._applyReranking(queryText, processedChunks, options.rerankerConfig);
+          diagnostics.rerankingTimeMs = Date.now() - rerankStartTime;
+          diagnostics.messages?.push(`Reranking applied with provider '${options.rerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default'}' in ${diagnostics.rerankingTimeMs}ms`);
+        } catch (rerankError: any) {
+          console.error(`RetrievalAugmentor (ID: ${this.augmenterId}): Reranking failed. Returning results without reranking. Error: ${rerankError.message}`, rerankError);
+          diagnostics.messages?.push(`Reranking failed: ${rerankError.message}. Results returned without reranking.`);
+        }
+      }
     }
     diagnostics.strategyUsed = options?.strategy || 'similarity';
 

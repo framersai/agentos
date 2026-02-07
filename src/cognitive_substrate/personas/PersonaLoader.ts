@@ -16,6 +16,7 @@ import { uuidv4 } from '../../utils/uuid';
 import { IPersonaDefinition } from './IPersonaDefinition';
 import { IPersonaLoader, PersonaLoaderConfig } from './IPersonaLoader';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { mergeMetapromptPresets } from './metaprompt_presets.js';
 
 /**
  * Configuration specific to the FileSystemPersonaLoader.
@@ -174,6 +175,32 @@ export class PersonaLoader implements IPersonaLoader {
         if (!personaDefinition.id || !personaDefinition.name || !personaDefinition.baseSystemPrompt || !personaDefinition.version) {
           console.warn(`PersonaLoader (ID: ${this.loaderId}): Skipping file '${filePath}' due to missing required fields (id, name, version, baseSystemPrompt).`);
           continue;
+        }
+
+        // Only merge sentiment-aware preset metaprompts when explicitly enabled
+        const sentimentConfig = personaDefinition.sentimentTracking;
+        if (sentimentConfig?.enabled && sentimentConfig.presets && sentimentConfig.presets.length > 0) {
+          // Map short preset names to full metaprompt IDs
+          const presetNameToId: Record<string, string> = {
+            'frustration_recovery': 'gmi_frustration_recovery',
+            'confusion_clarification': 'gmi_confusion_clarification',
+            'satisfaction_reinforcement': 'gmi_satisfaction_reinforcement',
+            'error_recovery': 'gmi_error_recovery',
+            'engagement_boost': 'gmi_engagement_boost',
+          };
+
+          const requestedIds = sentimentConfig.presets.includes('all')
+            ? undefined // undefined = include all presets
+            : sentimentConfig.presets
+                .filter((p): p is Exclude<typeof p, 'all'> => p !== 'all')
+                .map((p) => presetNameToId[p])
+                .filter(Boolean);
+
+          personaDefinition.metaPrompts = mergeMetapromptPresets(
+            personaDefinition.metaPrompts,
+            requestedIds
+          );
+          console.log(`PersonaLoader (ID: ${this.loaderId}): Merged ${personaDefinition.metaPrompts.length} metaprompts (${requestedIds ? requestedIds.length + ' presets' : 'all presets'} + custom) for persona '${personaDefinition.id}'.`);
         }
 
         if (this.loadedPersonas.has(personaDefinition.id)) {

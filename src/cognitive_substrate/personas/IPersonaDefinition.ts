@@ -215,6 +215,108 @@ export interface PersonaMemoryConfig {
 }
 
 /**
+ * Configuration for sentiment-aware metaprompt tracking.
+ * Controls whether the GMI analyzes user sentiment and triggers
+ * event-based metaprompts in response to detected emotional states.
+ *
+ * @interface SentimentTrackingConfig
+ *
+ * @example
+ * // Minimal: enable with defaults
+ * sentimentTracking: { enabled: true }
+ *
+ * @example
+ * // Full: LLM-based analysis with custom thresholds
+ * sentimentTracking: {
+ *   enabled: true,
+ *   method: 'llm',
+ *   historyWindow: 10,
+ *   frustrationThreshold: -0.3,
+ *   satisfactionThreshold: 0.3,
+ *   consecutiveTurnsForTrigger: 2,
+ *   presets: ['frustration_recovery', 'confusion_clarification'],
+ * }
+ */
+export interface SentimentTrackingConfig {
+    /**
+     * Master switch: enables/disables sentiment analysis on user input.
+     * When false (default), no sentiment analysis runs and no events are emitted.
+     * Turn_interval metaprompts (like gmi_self_trait_adjustment) still work regardless.
+     * @default false
+     */
+    enabled: boolean;
+
+    /**
+     * Sentiment analysis method.
+     * - 'lexicon_based': Fast (~10-50ms), no LLM cost, basic accuracy (VADER-style)
+     * - 'llm': Uses LLM call, higher accuracy, ~500-1000ms latency, costs tokens
+     * - 'trained_classifier': Uses trained ML model (if available)
+     * @default 'lexicon_based'
+     */
+    method?: 'lexicon_based' | 'llm' | 'trained_classifier';
+
+    /**
+     * Model ID for LLM-based or trained_classifier methods.
+     * Falls back to persona defaultModelId if not specified.
+     */
+    modelId?: string;
+
+    /**
+     * Provider ID for LLM-based methods.
+     * Falls back to persona defaultProviderId if not specified.
+     */
+    providerId?: string;
+
+    /**
+     * Number of recent turns to keep in sentiment history (sliding window).
+     * Higher = better pattern detection, slightly more memory.
+     * @default 10
+     */
+    historyWindow?: number;
+
+    /**
+     * Sentiment score threshold below which frustration is detected.
+     * Score range: -1 (very negative) to 1 (very positive).
+     * @default -0.3
+     */
+    frustrationThreshold?: number;
+
+    /**
+     * Sentiment score threshold above which satisfaction is detected.
+     * @default 0.3
+     */
+    satisfactionThreshold?: number;
+
+    /**
+     * Number of consecutive turns with same sentiment pattern before triggering event.
+     * Prevents over-triggering on single outlier messages.
+     * @default 2
+     */
+    consecutiveTurnsForTrigger?: number;
+
+    /**
+     * Which preset metaprompts to enable. Options:
+     * - 'frustration_recovery': Responds to user frustration
+     * - 'confusion_clarification': Responds to user confusion
+     * - 'satisfaction_reinforcement': Responds to user satisfaction
+     * - 'error_recovery': Responds to error accumulation
+     * - 'engagement_boost': Responds to low engagement
+     * - 'all': Enables all presets
+     *
+     * Only listed presets will be merged. Omit to enable none (use custom metaPrompts instead).
+     * @default [] (no presets auto-merged)
+     */
+    presets?: Array<
+      | 'frustration_recovery'
+      | 'confusion_clarification'
+      | 'satisfaction_reinforcement'
+      | 'error_recovery'
+      | 'engagement_boost'
+      | 'all'
+    >;
+}
+
+/**
  * Defines a meta-prompt for GMI self-regulation.
  * @interface MetaPromptDefinition
  */
@@ -332,6 +434,12 @@ export interface IPersonaDefinition {
 
   /** System or self-reflective prompts guiding meta-cognition, self-correction, or planning loops. */
   metaPrompts?: MetaPromptDefinition[];
+  /**
+   * Sentiment tracking configuration. Controls whether the GMI analyzes user emotional state
+   * and triggers event-based metaprompts (frustration recovery, confusion clarification, etc.).
+   * Opt-in: disabled by default. Turn_interval metaprompts (like self-reflection) always work regardless.
+   */
+  sentimentTracking?: SentimentTrackingConfig;
   /** Dynamic contextual prompt elements evaluated per turn for fine-grained adaptation. */
   contextualPromptElements?: ContextualPromptElement[];
 

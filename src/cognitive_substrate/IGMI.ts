@@ -200,6 +200,21 @@ export interface GMITurnInput {
     userApiKeys?: Record<string, string>; // Added for GMI.ts usage
     userFeedback?: any; // Added for GMI.ts usage
     explicitPersonaSwitchId?: string; // Added for GMI.ts usage
+    /**
+     * Optional conversation history snapshot to use for prompt construction.
+     * When provided, the GMI should prefer this over any internal ephemeral history so
+     * persona switches share conversation memory.
+     */
+    conversationHistoryForPrompt?: any[];
+    /**
+     * Optional rolling summary block (text + structured metadata) maintained by ConversationContext
+     * and injected into prompts for long conversations.
+     */
+    rollingSummary?: { text?: string; json?: any } | null;
+    /**
+     * Optional prompt-profile selection for this turn (e.g., concise/deep_dive/planner/reviewer).
+     */
+    promptProfile?: { id: string; systemInstructions?: string; reason?: string } | null;
   };
 }
 

@@ -163,6 +163,15 @@ export interface AgentConfig {
   metaSystemPromptForUnexpectedSituations?: string;
 
   /**
+   * Optional provenance system configuration.
+   * Controls storage immutability, signed event logging, and autonomy enforcement.
+   * Use `profiles.mutableDev()`, `profiles.revisionedVerified()`, or
+   * `profiles.sealedAutonomous()` for preset configurations.
+   * @optional
+   */
+  provenanceConfig?: import('../provenance/types.js').ProvenanceSystemConfig;
+
+  /**
    * Allows for adding any other agent-specific custom settings or metadata.
    * This provides an extension point for future or specialized agent properties.
    * @type {{ [key: string]: any }}

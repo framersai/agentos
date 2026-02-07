@@ -66,6 +66,15 @@ const mockProvider: IProvider = {
 const mockLlmProviderManager: AIModelProviderManager = {
   initialize: vi.fn().mockResolvedValue(undefined),
   getProvider: vi.fn().mockReturnValue(mockProvider),
+  getProviderForModel: vi.fn().mockReturnValue({ providerId: 'mock-llm-provider' }),
+  getDefaultProvider: vi.fn().mockReturnValue({ providerId: 'mock-llm-provider' }),
+  getModelInfo: vi.fn().mockResolvedValue({
+    modelId: 'mock-model',
+    providerId: 'mock-llm-provider',
+    contextWindowSize: 8192,
+    capabilities: ['chat'],
+    supportsStreaming: true,
+  }),
   listProviderIds: vi.fn().mockReturnValue(['mock-llm-provider']),
   checkHealth: vi.fn().mockResolvedValue({ isOverallHealthy: true, providerStatus: { 'mock-llm-provider': { isHealthy: true } } }),
   shutdownAll: vi.fn().mockResolvedValue(undefined),
@@ -175,6 +184,29 @@ describe('GMI Core Functionality', () => {
     expect(mockProvider.generateCompletionStream).toHaveBeenCalled();
   });
 
+  it('should inject longTermMemoryContext into retrievedContext', async () => {
+    const longTermMemoryContext = '## User Memory\n- [preferences] Prefers TypeScript';
+    const input: GMITurnInput = {
+      interactionId: 'turn-ltm-1',
+      userId: 'user-test',
+      type: GMIInteractionType.TEXT,
+      content: 'What should we do next?',
+      metadata: {
+        longTermMemoryContext,
+      } as any,
+    };
+
+    for await (const _chunk of gmi.processTurnStream(input)) {
+      // exhaust stream
+    }
+
+    const constructCalls = (mockPromptEngine.constructPrompt as any).mock.calls as any[];
+    expect(constructCalls.length).toBeGreaterThan(0);
+    const promptComponents = constructCalls[constructCalls.length - 1][0];
+    expect(promptComponents.retrievedContext).toContain('User Memory');
+    expect(promptComponents.retrievedContext).toContain('Prefers TypeScript');
+  });
+
   it('performPostTurnIngestion should call utilityAI.summarize if RAG ingestion is enabled', async () => {
     const ragEnabledPersona: IPersonaDefinition = {
       ...mockPersona,
@@ -240,4 +272,3 @@ describe('GMI Core Functionality', () => {
     // Add more shutdown assertions if other components have specific shutdown actions called by GMI
   });
 });
-
