@@ -289,7 +289,7 @@ export class ExtensionManager {
     const registry = this.getRegistry(descriptor.kind);
     const payloadDescriptor = {
       ...descriptor,
-      priority: descriptor.priority ?? ctx.manifestEntry.priority ?? 0,
+      priority: descriptor.priority ?? ctx.manifestEntry?.priority ?? 0,
       source: descriptor.source ?? ctx.source,
     };
     await registry.register(payloadDescriptor, this.enrichLifecycleContext(lifecycleContext));

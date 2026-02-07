@@ -42,9 +42,11 @@ export interface DescriptorOverride {
 }
 
 export interface ExtensionPackContext {
-  manifestEntry: ExtensionPackManifestEntry;
-  source: ExtensionSourceMetadata;
+  manifestEntry?: ExtensionPackManifestEntry;
+  source?: ExtensionSourceMetadata;
   options?: Record<string, unknown>;
+  logger?: import('../logging/ILogger').ILogger;
+  getSecret?: (secretId: string) => string | undefined;
 }
 
 
