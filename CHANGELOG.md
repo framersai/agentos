@@ -1,3 +1,7 @@
+## <small>0.1.13 (2026-02-07)</small>
+
+* feat: add AutonomyGuard + PolicyProfiles tests, skills ecosystem improvements ([36a99eb](https://github.com/framersai/agentos/commit/36a99eb))
+
 ## <small>0.1.12 (2026-02-07)</small>
 
 * feat: add 7 P3 channel platforms for OpenClaw parity ([5a988ce](https://github.com/framersai/agentos/commit/5a988ce))
