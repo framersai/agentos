@@ -216,6 +216,7 @@ describe('GMI Core Functionality', () => {
           enabled: true,
           ingestionTriggers: { onTurnSummary: true },
           defaultIngestionDataSourceId: 'test-ds',
+          ingestionProcessing: { summarization: { enabled: true } },
           // Add conceptual summarization config path if GMI uses it
           retrievedContextProcessing: { engine: 'llm', llmConfig: { modelId: 'summarizer-model' } }
         }

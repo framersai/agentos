@@ -52,6 +52,13 @@ console.log(snapshot.prompt);
 - `@framers/agentos-skills` — static catalog + bundled `registry/curated/*/SKILL.md`
 - `@framers/agentos-skills-registry` — helpers to load bundled skills and build snapshots
 
+Currently bundled curated skills (as of this repo snapshot):
+
+- `git`
+- `github`
+
+If you’ve installed `@framers/agentos-ext-skills`, agents can inspect these via `skills_read` and enable them into a local skills directory via `skills_enable`.
+
 ## Agentic discovery (optional)
 
 If you want agents to **discover and enable** curated skills at runtime (HITL-gated), add:

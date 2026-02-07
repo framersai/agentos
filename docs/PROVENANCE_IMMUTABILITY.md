@@ -8,6 +8,8 @@ AgentOS can optionally run with a provenance system that provides:
 
 This is designed to support both centralized deployments (policy + audit trail) and decentralized / trust-minimized verification (public anchors).
 
+For a complete "immutable after setup" agent design (toolset pinning, secret rotation, soft-forget memory), see [Immutable Agents](./IMMUTABLE_AGENTS.md).
+
 ## Terminology
 
 - **Policy (immutability)**: what the runtime is *allowed* to do.
@@ -40,7 +42,7 @@ Append-only semantics on protected tables.
 - upsert-style mutations should be avoided on protected tables
 - ledger events are signed and can be externally anchored
 
-Use this for “immutable after setup” agents where identity/history should not be editable.
+Use this for "immutable after setup" agents where identity/history should not be editable.
 
 ## Append-Only Conversation Persistence
 
@@ -51,6 +53,19 @@ In this monorepo:
 - `ConversationManagerConfig.appendOnlyPersistence=true` makes the built-in `ConversationManager` insert-only for `conversations` + `conversation_messages` and disables deletion.
 - `backend/src/integrations/agentos/agentos.integration.ts` automatically enables `appendOnlyPersistence` when a sealed provenance profile is active.
 
+## Toolset Pinning (Recommended)
+
+If an agent is "immutable after setup", the **tool surface area** should be immutable too.
+
+Recommended pattern:
+
+- choose tools/extensions during setup
+- **disable dynamic tool registration** in sealed mode
+- compute a **canonical toolset manifest hash** at seal time (tool IDs + package versions)
+- store the manifest + hash as sealed metadata (and optionally verify it on startup)
+
+This makes it detectable if a "sealed" agent is running against a different toolset after a deploy/upgrade.
+
 ## Key Rotation (Tool API Keys)
 
 **Do not store tool API keys inside the immutable spec.** Instead:
@@ -60,8 +75,21 @@ In this monorepo:
 
 With this separation:
 
-- the agent’s *identity/spec/history* can remain sealed and verifiable
+- the agent's *identity/spec/history* can remain sealed and verifiable
 - keys can be rotated without changing the sealed agent spec
+
+## "Forget/Delete" Semantics For Sealed Agents
+
+Sealed mode is append-only. Hard deletes make history unverifiable.
+
+Recommended "forget" mechanism: **soft-forget via redactions**:
+
+- memory items have stable IDs/hashes
+- "forget" appends a **redaction event** referencing the memory hash
+- retrievers filter redacted hashes so the model stops seeing them
+- the underlying data may remain stored (auditability). If you need real deletion later, add **crypto-shredding** (encrypt-at-rest and delete the key).
+
+If you want humans *not* to control memory deletion, avoid admin delete endpoints/UI. Optionally expose an **agent-only** tool that can redact its own memory.
 
 ## External Anchors (Optional)
 

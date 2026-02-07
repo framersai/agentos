@@ -14,6 +14,10 @@ import type {
   ExtensionPack,
   ExtensionPackManifestEntry,
 } from '../../src/extensions/manifest';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 
 function createTestPack(name = 'test-pack', descriptors: ExtensionDescriptor[] = []): ExtensionPack {
   return {
@@ -44,6 +48,29 @@ function createTestDescriptor(id: string, kind: string = 'tool'): ExtensionDescr
       execute: vi.fn(),
     },
   };
+}
+
+async function createTempExtensionModule(): Promise<{ dir: string; entry: string }> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-ext-pack-'));
+  const entry = path.join(dir, 'pack.mjs');
+  const contents = `
+    export function createExtensionPack() {
+      return {
+        name: 'temp-pack',
+        version: '0.0.0',
+        descriptors: [
+          {
+            id: 'temp-tool',
+            kind: 'tool',
+            payload: { name: 'temp-tool', description: 'temp', execute: async () => ({ success: true }) },
+          },
+        ],
+      };
+    }
+    export default createExtensionPack;
+  `;
+  await fs.writeFile(entry, contents, 'utf8');
+  return { dir, entry };
 }
 
 describe('ExtensionManager', () => {
@@ -178,6 +205,120 @@ describe('ExtensionManager', () => {
       expect(listener).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: 'pack:loaded' })
       );
+    });
+
+    it('should resolve a pack from a module entry', async () => {
+      const temp = await createTempExtensionModule();
+      try {
+        const manifest: ExtensionManifest = {
+          packs: [{ module: temp.entry, identifier: 'temp-module-pack' } as ExtensionPackManifestEntry],
+        };
+        const mgr = new ExtensionManager({ manifest });
+        await mgr.loadManifest();
+
+        const toolRegistry = mgr.getRegistry<any>('tool');
+        expect(toolRegistry.getActive('temp-tool')).toBeDefined();
+      } finally {
+        await fs.rm(temp.dir, { recursive: true, force: true });
+      }
+    });
+
+    it('should resolve a pack from a package entry (file URL specifier)', async () => {
+      const temp = await createTempExtensionModule();
+      try {
+        const manifest: ExtensionManifest = {
+          packs: [{ package: pathToFileURL(temp.entry).href, identifier: 'temp-package-pack' } as ExtensionPackManifestEntry],
+        };
+        const mgr = new ExtensionManager({ manifest });
+        await mgr.loadManifest();
+
+        const toolRegistry = mgr.getRegistry<any>('tool');
+        expect(toolRegistry.getActive('temp-tool')).toBeDefined();
+      } finally {
+        await fs.rm(temp.dir, { recursive: true, force: true });
+      }
+    });
+
+    it('should apply overrides to skip a descriptor', async () => {
+      const pack = createTestPack('override-pack', [createTestDescriptor('override-tool', 'tool')]);
+      const manifest: ExtensionManifest = {
+        packs: [{ factory: async () => pack, identifier: 'override-pack' }],
+      };
+      const mgr = new ExtensionManager({
+        manifest,
+        overrides: { tools: { 'override-tool': { enabled: false } } },
+      });
+
+      await mgr.loadManifest();
+      const toolRegistry = mgr.getRegistry<any>('tool');
+      expect(toolRegistry.getActive('override-tool')).toBeUndefined();
+    });
+
+    it('should hydrate required secrets from pack options.secrets', async () => {
+      const pack: ExtensionPack = {
+        name: 'secret-pack',
+        version: '0.0.0',
+        descriptors: [
+          {
+            id: 'secret-tool',
+            kind: 'tool',
+            payload: { name: 'secret-tool', description: 'secret', execute: vi.fn() },
+            requiredSecrets: [{ id: 'giphy.apiKey' }],
+          } as any,
+        ],
+      };
+
+      const manifest: ExtensionManifest = {
+        packs: [
+          {
+            factory: async () => pack,
+            identifier: 'secret-pack',
+            options: { secrets: { 'giphy.apiKey': 'test-key' } },
+          },
+        ],
+      };
+
+      const mgr = new ExtensionManager({ manifest });
+      await mgr.loadManifest();
+
+      const toolRegistry = mgr.getRegistry<any>('tool');
+      expect(toolRegistry.getActive('secret-tool')).toBeDefined();
+    });
+
+    it('should resolve required secrets from environment variables (secret catalog mapping)', async () => {
+      const prev = process.env.GIPHY_API_KEY;
+      process.env.GIPHY_API_KEY = 'env-key';
+
+      try {
+        const pack: ExtensionPack = {
+          name: 'env-secret-pack',
+          version: '0.0.0',
+          descriptors: [
+            {
+              id: 'env-secret-tool',
+              kind: 'tool',
+              payload: { name: 'env-secret-tool', description: 'secret', execute: vi.fn() },
+              requiredSecrets: [{ id: 'giphy.apiKey' }],
+            } as any,
+          ],
+        };
+
+        const manifest: ExtensionManifest = {
+          packs: [{ factory: async () => pack, identifier: 'env-secret-pack' }],
+        };
+
+        const mgr = new ExtensionManager({ manifest });
+        await mgr.loadManifest();
+
+        const toolRegistry = mgr.getRegistry<any>('tool');
+        expect(toolRegistry.getActive('env-secret-tool')).toBeDefined();
+      } finally {
+        if (prev === undefined) {
+          delete process.env.GIPHY_API_KEY;
+        } else {
+          process.env.GIPHY_API_KEY = prev;
+        }
+      }
     });
   });
 
@@ -481,4 +622,3 @@ describe('ExtensionManager', () => {
     });
   });
 });
-

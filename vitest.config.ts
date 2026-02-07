@@ -7,6 +7,8 @@ const srcDir = path.resolve(__dirname, 'src');
 
 export default defineConfig({
   resolve: {
+    // Prefer TypeScript sources over any co-located compiled JS artifacts.
+    extensions: ['.ts', '.tsx', '.mts', '.js', '.jsx', '.mjs', '.cjs', '.json'],
     alias: [
       { find: /^@agentos\/core\/(.*)$/, replacement: `${srcDir}/$1` },
       { find: '@framers/agentos', replacement: srcDir },

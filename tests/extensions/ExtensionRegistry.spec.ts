@@ -302,7 +302,7 @@ describe('ExtensionRegistry', () => {
       expect(onDeactivate3).toHaveBeenCalled();
     });
 
-    it('should call onDeactivate in reverse order', async () => {
+    it('should deactivate superseded descriptors during registration and the active descriptor during clear', async () => {
       const order: number[] = [];
       const onDeactivate1 = vi.fn(() => { order.push(1); return Promise.resolve(); });
       const onDeactivate2 = vi.fn(() => { order.push(2); return Promise.resolve(); });
@@ -314,8 +314,9 @@ describe('ExtensionRegistry', () => {
 
       await registry.clear();
 
-      // Should be called in reverse order (3, 2, 1)
-      expect(order).toEqual([3, 2, 1]);
+      // When a descriptor is superseded by a newer one, it is deactivated immediately.
+      // The final active descriptor is deactivated when the registry is cleared.
+      expect(order).toEqual([1, 2, 3]);
     });
 
     it('should pass context to onDeactivate', async () => {
@@ -363,5 +364,44 @@ describe('ExtensionRegistry', () => {
       expect(registry.getActive('test-tool')).toBeUndefined();
     });
   });
-});
 
+  describe('priority behavior', () => {
+    it('should keep the highest-priority descriptor active regardless of registration order', async () => {
+      const high = createTestDescriptor('test-tool', 100);
+      high.payload.name = 'high';
+      const low = createTestDescriptor('test-tool', 10);
+      low.payload.name = 'low';
+
+      await registry.register(high);
+      await registry.register(low);
+
+      const active = registry.getActive('test-tool');
+      expect(active?.payload.name).toBe('high');
+      expect(active?.resolvedPriority).toBe(100);
+    });
+
+    it('should activate a lower-priority descriptor after unregistering the active one', async () => {
+      const onActivateHigh = vi.fn();
+      const onActivateLow = vi.fn();
+      const onDeactivateHigh = vi.fn();
+
+      const high = createTestDescriptor('test-tool', 100, { onActivate: onActivateHigh, onDeactivate: onDeactivateHigh });
+      high.payload.name = 'high';
+      const low = createTestDescriptor('test-tool', 10, { onActivate: onActivateLow });
+      low.payload.name = 'low';
+
+      await registry.register(high);
+      await registry.register(low);
+
+      expect(onActivateHigh).toHaveBeenCalledTimes(1);
+      expect(onActivateLow).toHaveBeenCalledTimes(0);
+      expect(registry.getActive('test-tool')?.payload.name).toBe('high');
+
+      await registry.unregister('test-tool');
+
+      expect(onDeactivateHigh).toHaveBeenCalledTimes(1);
+      expect(onActivateLow).toHaveBeenCalledTimes(1);
+      expect(registry.getActive('test-tool')?.payload.name).toBe('low');
+    });
+  });
+});

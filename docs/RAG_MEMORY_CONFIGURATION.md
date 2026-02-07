@@ -351,6 +351,11 @@ const backup = JSON.parse(await fs.readFile('memory-backup.json'));
 await agent.memory.import(backup);
 ```
 
+### Immutability Notes (Sealed Agents)
+
+If you run with an append-only / sealed storage policy, avoid hard deletes of memory or history.
+Prefer append-only **tombstones/redactions** so retrieval can ignore forgotten items while the audit trail remains verifiable.
+
 ## Performance Tips
 
 1. **Batch ingestion** — Use `ingest([...])` not multiple `ingest()` calls

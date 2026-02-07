@@ -10,6 +10,8 @@ import type {
  */
 interface DescriptorStackEntry<TPayload> {
   descriptors: ActiveExtensionDescriptor<TPayload>[];
+  nextStackIndex: number;
+  active?: ActiveExtensionDescriptor<TPayload>;
 }
 
 /**
@@ -31,14 +33,25 @@ export class ExtensionRegistry<TPayload = unknown> {
   ): Promise<void> {
     const stack = this.getOrCreateStack(descriptor.id);
     const resolvedPriority = descriptor.priority ?? 0;
+    const prevActive = stack.active ?? this.computeActive(stack);
     const activeDescriptor: ActiveExtensionDescriptor<TPayload> = {
       ...descriptor,
       resolvedPriority,
-      stackIndex: stack.descriptors.length,
+      stackIndex: stack.nextStackIndex++,
     };
 
     stack.descriptors.push(activeDescriptor);
-    await descriptor.onActivate?.(context ?? {});
+
+    const nextActive = this.computeActive(stack);
+    if (prevActive !== nextActive) {
+      await prevActive?.onDeactivate?.(context ?? {});
+      await nextActive?.onActivate?.(context ?? {});
+    } else if (!prevActive && nextActive) {
+      // First descriptor registered in this stack.
+      await nextActive.onActivate?.(context ?? {});
+    }
+
+    stack.active = nextActive;
   }
 
   /**
@@ -51,18 +64,31 @@ export class ExtensionRegistry<TPayload = unknown> {
       return false;
     }
 
-    const current = stack.descriptors.pop();
-    if (current) {
-      await current.onDeactivate?.(context ?? {});
+    const prevActive = stack.active ?? this.computeActive(stack);
+    if (!prevActive) {
+      // No active descriptor, but the stack has descriptors; treat as best-effort.
+      const last = stack.descriptors.pop();
+      if (last) {
+        await last.onDeactivate?.(context ?? {});
+      }
+    } else {
+      const idx = stack.descriptors.findIndex((d) => d.stackIndex === prevActive.stackIndex);
+      if (idx >= 0) {
+        stack.descriptors.splice(idx, 1);
+      }
+      await prevActive.onDeactivate?.(context ?? {});
     }
 
-    const next = stack.descriptors.at(-1);
-    if (!next) {
+    if (stack.descriptors.length === 0) {
       this.stacks.delete(id);
       return true;
     }
 
-    await next.onActivate?.(context ?? {});
+    const nextActive = this.computeActive(stack);
+    if (nextActive) {
+      await nextActive.onActivate?.(context ?? {});
+    }
+    stack.active = nextActive;
     return true;
   }
 
@@ -71,7 +97,7 @@ export class ExtensionRegistry<TPayload = unknown> {
    */
   public getActive(id: string): ActiveExtensionDescriptor<TPayload> | undefined {
     const stack = this.stacks.get(id);
-    return stack?.descriptors.at(-1);
+    return stack?.active ?? (stack ? this.computeActive(stack) : undefined);
   }
 
   /**
@@ -80,8 +106,9 @@ export class ExtensionRegistry<TPayload = unknown> {
   public listActive(): ActiveExtensionDescriptor<TPayload>[] {
     const result: ActiveExtensionDescriptor<TPayload>[] = [];
     for (const entry of this.stacks.values()) {
-      const active = entry.descriptors.at(-1);
+      const active = entry.active ?? this.computeActive(entry);
       if (active) {
+        entry.active = active;
         result.push(active);
       }
     }
@@ -93,7 +120,11 @@ export class ExtensionRegistry<TPayload = unknown> {
    */
   public listHistory(id: string): ActiveExtensionDescriptor<TPayload>[] {
     const stack = this.stacks.get(id);
-    return stack ? [...stack.descriptors] : [];
+    if (!stack) {
+      return [];
+    }
+    // History is ordered by insertion (stackIndex ascending) for debuggability.
+    return [...stack.descriptors].sort((a, b) => a.stackIndex - b.stackIndex);
   }
 
   /**
@@ -111,7 +142,7 @@ export class ExtensionRegistry<TPayload = unknown> {
     if (existing) {
       return existing;
     }
-    const entry: DescriptorStackEntry<TPayload> = { descriptors: [] };
+    const entry: DescriptorStackEntry<TPayload> = { descriptors: [], nextStackIndex: 0 };
     this.stacks.set(id, entry);
     return entry;
   }
@@ -121,10 +152,33 @@ export class ExtensionRegistry<TPayload = unknown> {
     if (!stack) {
       return;
     }
-    const descriptors = [...stack.descriptors].reverse();
-    for (const descriptor of descriptors) {
-      await descriptor.onDeactivate?.(context ?? {});
+    const active = stack.active ?? this.computeActive(stack);
+    if (active) {
+      await active.onDeactivate?.(context ?? {});
     }
     this.stacks.delete(id);
+  }
+
+  private computeActive(
+    stack: DescriptorStackEntry<TPayload>,
+  ): ActiveExtensionDescriptor<TPayload> | undefined {
+    let active: ActiveExtensionDescriptor<TPayload> | undefined;
+    for (const descriptor of stack.descriptors) {
+      if (!active) {
+        active = descriptor;
+        continue;
+      }
+      if (descriptor.resolvedPriority > active.resolvedPriority) {
+        active = descriptor;
+        continue;
+      }
+      if (
+        descriptor.resolvedPriority === active.resolvedPriority &&
+        descriptor.stackIndex > active.stackIndex
+      ) {
+        active = descriptor;
+      }
+    }
+    return active;
   }
 }

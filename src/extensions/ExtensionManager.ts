@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events';
+import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { ExtensionRegistry } from './ExtensionRegistry';
 import type {
@@ -16,6 +18,8 @@ import type {
   ExtensionPack,
   ExtensionPackContext,
   ExtensionPackManifestEntry,
+  ExtensionOverrides,
+  DescriptorOverride,
 } from './manifest';
 import {
   EXTENSION_KIND_WORKFLOW_EXECUTOR,
@@ -26,6 +30,7 @@ import {
   EXTENSION_KIND_MESSAGING_CHANNEL,
   EXTENSION_KIND_PROVENANCE,
 } from './types';
+import { getSecretDefinition } from '../config/extensionSecrets';
 
 const DEFAULT_EXTENSIONS_KIND_TOOL = 'tool';
 const DEFAULT_EXTENSIONS_KIND_GUARDRAIL = 'guardrail';
@@ -42,6 +47,7 @@ const DEFAULT_EXTENSIONS_KIND_PROVENANCE = EXTENSION_KIND_PROVENANCE;
 interface ExtensionManagerOptions {
   manifest?: ExtensionManifest;
   secrets?: Record<string, string>;
+  overrides?: ExtensionOverrides;
 }
 
 /**
@@ -52,6 +58,7 @@ export class ExtensionManager {
   private readonly emitter = new EventEmitter();
   private readonly registries: Map<ExtensionKind, ExtensionRegistry<unknown>> = new Map();
   private readonly options: ExtensionManagerOptions;
+  private readonly overrides?: ExtensionOverrides;
   private readonly secrets = new Map<string, string>();
   private readonly loadedPacks: ExtensionPack[] = [];
 
@@ -64,13 +71,14 @@ export class ExtensionManager {
         }
       }
     }
+    this.overrides = mergeOverrides(options.manifest?.overrides, options.overrides);
     this.ensureDefaultRegistries();
   }
 
   /**
     * Loads packs defined in the manifest, registering their descriptors in the
-    * appropriate registries. This method currently supports factory-based packs;
-    * package/module resolution will be introduced in a follow-up iteration.
+    * appropriate registries. Supports factory-based packs as well as resolving
+    * packs from `package` and `module` manifest entries.
     */
   public async loadManifest(context?: ExtensionLifecycleContext): Promise<void> {
     const manifest = this.options.manifest;
@@ -84,7 +92,8 @@ export class ExtensionManager {
       }
 
       try {
-        const pack = await this.resolvePack(entry);
+        this.hydrateSecretsFromPackEntry(entry);
+        const pack = await this.resolvePack(entry, context);
         if (!pack) {
           continue;
         }
@@ -146,6 +155,7 @@ export class ExtensionManager {
       options,
     };
 
+    this.hydrateSecretsFromPackEntry(entry);
     await this.registerPack(pack, entry, lifecycleContext);
     this.emitPackEvent({
       type: 'pack:loaded',
@@ -213,14 +223,61 @@ export class ExtensionManager {
     this.getRegistry(DEFAULT_EXTENSIONS_KIND_PROVENANCE);
   }
 
-  private async resolvePack(entry: ExtensionPackManifestEntry): Promise<ExtensionPack | null> {
+  private async resolvePack(
+    entry: ExtensionPackManifestEntry,
+    lifecycleContext?: ExtensionLifecycleContext,
+  ): Promise<ExtensionPack | null> {
     if ('factory' in entry && typeof entry.factory === 'function') {
-      const pack = await entry.factory();
-      return pack;
+      return await entry.factory();
     }
 
-    // Package and module resolution will be implemented in a subsequent phase.
+    const ctx = this.enrichLifecycleContext(lifecycleContext);
+
+    if ('package' in entry && typeof entry.package === 'string' && entry.package.trim()) {
+      const mod = await import(entry.package);
+      return this.resolvePackFromModule(mod, entry, ctx);
+    }
+
+    if ('module' in entry && typeof entry.module === 'string' && entry.module.trim()) {
+      const spec = normalizeModuleSpecifier(entry.module);
+      const mod = await import(spec);
+      return this.resolvePackFromModule(mod, entry, ctx);
+    }
+
     return null;
+  }
+
+  private resolvePackFromModule(
+    mod: any,
+    entry: ExtensionPackManifestEntry,
+    lifecycleContext: ExtensionLifecycleContext,
+  ): ExtensionPack {
+    const factory = mod?.createExtensionPack ?? mod?.default?.createExtensionPack ?? mod?.default;
+    if (typeof factory === 'function') {
+      const packContext: ExtensionPackContext = {
+        manifestEntry: entry,
+        options: entry.options,
+        logger: lifecycleContext.logger,
+        getSecret: lifecycleContext.getSecret,
+      };
+      return factory(packContext) as ExtensionPack;
+    }
+
+    const candidate = mod?.default ?? mod;
+    if (
+      candidate &&
+      typeof candidate === 'object' &&
+      typeof candidate.name === 'string' &&
+      Array.isArray(candidate.descriptors)
+    ) {
+      return candidate as ExtensionPack;
+    }
+
+    const source =
+      'package' in entry ? entry.package : 'module' in entry ? entry.module : entry.identifier ?? 'unknown';
+    throw new Error(
+      `ExtensionManager: Failed to resolve pack from ${source} — expected createExtensionPack() or a default ExtensionPack export.`,
+    );
   }
 
   private async registerPack(
@@ -248,6 +305,8 @@ export class ExtensionManager {
         identifier: entry.identifier,
       },
       options: entry.options,
+      logger: enrichedLifecycleContext.logger,
+      getSecret: enrichedLifecycleContext.getSecret,
     };
 
     try {
@@ -273,6 +332,14 @@ export class ExtensionManager {
     ctx: ExtensionPackContext,
     lifecycleContext?: ExtensionLifecycleContext,
   ): Promise<void> {
+    const override = this.resolveOverride(descriptor.kind, descriptor.id);
+    if (override?.enabled === false) {
+      ctx.logger?.info?.(
+        `ExtensionManager: Skipping descriptor '${descriptor.id}' (${descriptor.kind}) due to override`,
+      );
+      return;
+    }
+
     if (descriptor.requiredSecrets?.length) {
       const missing = descriptor.requiredSecrets.filter((req) => !this.resolveSecret(req.id));
       const blocking = missing.filter((req) => !req.optional);
@@ -289,7 +356,7 @@ export class ExtensionManager {
     const registry = this.getRegistry(descriptor.kind);
     const payloadDescriptor = {
       ...descriptor,
-      priority: descriptor.priority ?? ctx.manifestEntry?.priority ?? 0,
+      priority: override?.priority ?? descriptor.priority ?? ctx.manifestEntry?.priority ?? 0,
       source: descriptor.source ?? ctx.source,
     };
     await registry.register(payloadDescriptor, this.enrichLifecycleContext(lifecycleContext));
@@ -311,7 +378,57 @@ export class ExtensionManager {
   }
 
   private resolveSecret(id: string): string | undefined {
-    return this.secrets.get(id);
+    const direct = this.secrets.get(id);
+    if (direct) {
+      return direct;
+    }
+
+    // Fall back to environment variables for known secret ids.
+    const definition = getSecretDefinition(id);
+    const envVar = definition?.envVar;
+    const envValue = envVar && typeof process !== 'undefined' ? process.env?.[envVar] : undefined;
+    if (typeof envValue === 'string' && envValue.trim()) {
+      return envValue;
+    }
+
+    return undefined;
+  }
+
+  private resolveOverride(kind: ExtensionKind, id: string): DescriptorOverride | undefined {
+    if (!this.overrides) {
+      return undefined;
+    }
+
+    // Overrides are currently supported for tools, guardrails, and response processors.
+    if (kind === DEFAULT_EXTENSIONS_KIND_TOOL) {
+      return this.overrides.tools?.[id];
+    }
+    if (kind === DEFAULT_EXTENSIONS_KIND_GUARDRAIL) {
+      return this.overrides.guardrails?.[id];
+    }
+    if (kind === DEFAULT_EXTENSIONS_KIND_RESPONSE) {
+      return this.overrides.responses?.[id];
+    }
+
+    return undefined;
+  }
+
+  private hydrateSecretsFromPackEntry(entry: ExtensionPackManifestEntry): void {
+    const opts = entry.options as Record<string, unknown> | undefined;
+    const secrets = opts?.secrets;
+    if (!secrets || typeof secrets !== 'object' || Array.isArray(secrets)) {
+      return;
+    }
+
+    for (const [key, value] of Object.entries(secrets as Record<string, unknown>)) {
+      if (typeof value !== 'string') continue;
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      // Allow explicit ExtensionManager.secrets to win over per-pack secrets.
+      if (!this.secrets.has(key)) {
+        this.secrets.set(key, trimmed);
+      }
+    }
   }
 
   private emitDescriptorEvent(event: ExtensionDescriptorEvent): void {
@@ -321,4 +438,42 @@ export class ExtensionManager {
   private emitPackEvent(event: ExtensionPackEvent): void {
     this.emitter.emit('event', event);
   }
+}
+
+function mergeOverrides(base?: ExtensionOverrides, extra?: ExtensionOverrides): ExtensionOverrides | undefined {
+  if (!base && !extra) {
+    return undefined;
+  }
+
+  const merged: ExtensionOverrides = {
+    tools: { ...(base?.tools ?? {}) },
+    guardrails: { ...(base?.guardrails ?? {}) },
+    responses: { ...(base?.responses ?? {}) },
+  };
+
+  for (const [key, value] of Object.entries(extra?.tools ?? {})) {
+    merged.tools![key] = { ...(merged.tools![key] ?? {}), ...value };
+  }
+  for (const [key, value] of Object.entries(extra?.guardrails ?? {})) {
+    merged.guardrails![key] = { ...(merged.guardrails![key] ?? {}), ...value };
+  }
+  for (const [key, value] of Object.entries(extra?.responses ?? {})) {
+    merged.responses![key] = { ...(merged.responses![key] ?? {}), ...value };
+  }
+
+  return merged;
+}
+
+function normalizeModuleSpecifier(raw: string): string {
+  const spec = raw.trim();
+  if (!spec) return spec;
+  if (spec.startsWith('file://')) return spec;
+
+  // Support workspace-relative paths for convenience.
+  if (spec.startsWith('.') || spec.startsWith('/')) {
+    const abs = path.isAbsolute(spec) ? spec : path.resolve(process.cwd(), spec);
+    return pathToFileURL(abs).href;
+  }
+
+  return spec;
 }

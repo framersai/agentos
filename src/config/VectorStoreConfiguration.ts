@@ -12,7 +12,7 @@
 // This import is crucial. VectorStoreProviderConfig is the base for all specific provider configs.
 // It will be defined in `../rag/IVectorStore.ts`.
 import { VectorStoreProviderConfig } from '../rag/IVectorStore';
-import type { StorageResolutionOptions } from '@framers/sql-storage-adapter';
+import type { StorageAdapter, StorageResolutionOptions } from '@framers/sql-storage-adapter';
 import type { HnswlibVectorStoreConfig } from '../rag/implementations/vector_stores/HnswlibVectorStore';
 
 /**
@@ -67,6 +67,11 @@ export interface InMemoryVectorStoreConfig extends VectorStoreProviderConfig {
 export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
   type: 'sql';
   storage?: StorageResolutionOptions;
+  /**
+   * Pre-initialized storage adapter instance.
+   * If provided, `storage` is ignored and the store uses this adapter directly.
+   */
+  adapter?: StorageAdapter;
   defaultEmbeddingDimension?: number;
   similarityMetric?: 'cosine' | 'euclidean' | 'dotproduct';
   enableFullTextSearch?: boolean;

@@ -151,30 +151,19 @@
     "enabled": true,
     "ragConfig": {
       "enabled": true,
-      "defaultRetrievalStrategy": "hybrid_semantic_keyword",
+      "defaultRetrievalStrategy": "hybrid_search",
       "defaultRetrievalTopK": 5,
-      "retrievalTriggers": { 
-        "condition": "ON_EVERY_USER_MESSAGE",
-        "voiceCommandTriggers": true,
-        "contextualTriggers": true
+      "retrievalTriggers": {
+        "onUserQuery": true
       },
-      "ingestionEnabled": true,
-      "ingestionTriggers": { 
-        "onTurnSummary": true,
-        "onCodeGeneration": true,
-        "onProblemSolution": true
+      "ingestionTriggers": {
+        "onTurnSummary": true
       },
       "defaultIngestionDataSourceId": "voice_conversation_summaries",
-      "defaultRetrievalCategories": [
-        "CODING_KNOWLEDGE", 
-        "SYSTEM_DESIGN_PATTERNS", 
-        "USER_PREFERENCES", 
-        "CONVERSATION_HISTORY",
-        "VOICE_COMMANDS"
-      ],
       "dataSources": [
         {
           "id": "coding_knowledge_base",
+          "dataSourceNameOrId": "coding_knowledge_base",
           "isEnabled": true,
           "displayName": "Coding Knowledge & Best Practices",
           "defaultTopK": 3,
@@ -182,6 +171,7 @@
         },
         {
           "id": "system_design_patterns",
+          "dataSourceNameOrId": "system_design_patterns",
           "isEnabled": true,
           "displayName": "System Design Patterns & Architecture",
           "defaultTopK": 2,
@@ -189,6 +179,7 @@
         },
         {
           "id": "voice_conversation_summaries",
+          "dataSourceNameOrId": "voice_conversation_summaries",
           "isEnabled": true,
           "displayName": "Voice Conversation Context",
           "defaultTopK": 2,
@@ -196,6 +187,7 @@
         },
         {
           "id": "user_preferences_store",
+          "dataSourceNameOrId": "user_preferences_store",
           "isEnabled": true,
           "displayName": "User Preferences & Settings",
           "defaultTopK": 1,

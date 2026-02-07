@@ -7,6 +7,9 @@
  * skill snapshots for agent context.
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import type {
   SkillEntry,
   SkillSnapshot,
@@ -32,6 +35,9 @@ export interface SkillRegistryOptions {
   /** Workspace directory containing skills */
   workspaceDir?: string;
 
+  /** Managed/global skills directory (e.g., ~/.codex/skills). */
+  managedSkillsDir?: string;
+
   /** Additional skill directories to scan */
   extraDirs?: string[];
 
@@ -47,7 +53,7 @@ export interface SkillRegistryOptions {
  */
 export class SkillRegistry {
   private readonly entries: Map<string, SkillEntry> = new Map();
-  private readonly config?: SkillsConfig;
+  private config?: SkillsConfig;
   private snapshotVersion = 1;
 
   constructor(config?: SkillsConfig) {
@@ -65,14 +71,25 @@ export class SkillRegistry {
    */
   register(entry: SkillEntry): boolean {
     const name = entry.skill.name;
+    const skillKey = entry.metadata?.skillKey ?? name;
 
     if (this.entries.has(name)) {
       console.warn(`[SkillRegistry] Skill '${name}' already registered, skipping`);
       return false;
     }
 
+    // If an allowlist is configured, only apply it to bundled skills.
+    const allowBundled = normalizeAllowlist(this.config?.allowBundled);
+    if (allowBundled && entry.source === 'bundled') {
+      if (!allowBundled.includes(skillKey) && !allowBundled.includes(name)) {
+        console.log(`[SkillRegistry] Bundled skill '${name}' blocked by allowBundled, skipping`);
+        return false;
+      }
+    }
+
     // Check if skill is enabled in config
-    if (this.config?.entries?.[name]?.enabled === false) {
+    const skillConfig = this.config?.entries?.[skillKey] ?? this.config?.entries?.[name];
+    if (skillConfig?.enabled === false) {
       console.log(`[SkillRegistry] Skill '${name}' disabled in config, skipping`);
       return false;
     }
@@ -144,14 +161,26 @@ export class SkillRegistry {
     let count = 0;
 
     for (const dir of dirs) {
-      const entries = await loadSkillsFromDir(dir);
-      for (const entry of entries) {
-        if (this.register(entry)) {
-          count++;
-        }
-      }
+      count += await this.loadFromDir(dir);
     }
 
+    return count;
+  }
+
+  /**
+   * Load skills from a single directory, optionally tagging the source.
+   */
+  async loadFromDir(dir: string, options?: { source?: string }): Promise<number> {
+    let count = 0;
+    const entries = await loadSkillsFromDir(dir);
+    for (const entry of entries) {
+      if (options?.source) {
+        entry.source = options.source;
+      }
+      if (this.register(entry)) {
+        count++;
+      }
+    }
     return count;
   }
 
@@ -161,21 +190,33 @@ export class SkillRegistry {
   async reload(options: SkillRegistryOptions): Promise<number> {
     this.clear();
 
-    const dirs: string[] = [];
+    if (options.config) {
+      this.config = options.config;
+    }
+
+    // Load in high → low precedence order (first registered wins):
+    // workspace > managed > bundled > extra.
+    let count = 0;
 
     if (options.workspaceDir) {
-      dirs.push(options.workspaceDir);
+      count += await this.loadFromDir(options.workspaceDir, { source: 'workspace' });
+    }
+
+    if (options.managedSkillsDir) {
+      count += await this.loadFromDir(options.managedSkillsDir, { source: 'managed' });
     }
 
     if (options.bundledSkillsDir) {
-      dirs.push(options.bundledSkillsDir);
+      count += await this.loadFromDir(options.bundledSkillsDir, { source: 'bundled' });
     }
 
     if (options.extraDirs) {
-      dirs.push(...options.extraDirs);
+      for (const dir of options.extraDirs) {
+        count += await this.loadFromDir(dir, { source: 'extra' });
+      }
     }
 
-    return this.loadFromDirs(dirs);
+    return count;
   }
 
   // ============================================================================
@@ -221,12 +262,28 @@ export class SkillRegistry {
     platform?: string;
     eligibility?: SkillEligibilityContext;
     filter?: string[];
+    /**
+     * If true, apply OpenClaw-style eligibility gating (OS/bins/anyBins/env/config).
+     * This is useful for "only show runnable skills" behavior.
+     */
+    strict?: boolean;
+    /** Optional config object used to evaluate `requires.config` paths. */
+    runtimeConfig?: Record<string, unknown>;
   }): SkillSnapshot {
     let entries = this.listAll();
 
     // Apply platform filter
     if (options?.platform) {
       entries = filterByPlatform(entries, options.platform);
+    }
+
+    if (options?.strict) {
+      const platform = (options.platform && String(options.platform).trim()) || process.platform;
+      entries = entries.filter((entry) => shouldIncludeSkillEntry(entry, {
+        platform,
+        skillsConfig: this.config,
+        runtimeConfig: options.runtimeConfig,
+      }));
     }
 
     // Apply eligibility filter
@@ -418,3 +475,117 @@ function truncateDescription(desc: string): string {
   return desc.slice(0, DESCRIPTION_MAX_LENGTH - 3) + '...';
 }
 
+function normalizeAllowlist(input: unknown): string[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  const normalized = input.map((entry) => String(entry).trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function isTruthy(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+}
+
+function resolveConfigPath(config: Record<string, unknown> | undefined, pathStr: string): unknown {
+  if (!config) return undefined;
+  const parts = pathStr.split('.').filter(Boolean);
+  let current: unknown = config;
+  for (const part of parts) {
+    if (typeof current !== 'object' || current === null) return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function isConfigPathTruthy(config: Record<string, unknown> | undefined, pathStr: string): boolean {
+  return isTruthy(resolveConfigPath(config, pathStr));
+}
+
+function normalizePlatformName(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower === 'darwin' || lower === 'macos' || lower === 'mac') return 'darwin';
+  if (lower === 'win32' || lower === 'windows') return 'win32';
+  if (lower === 'linux') return 'linux';
+  return lower;
+}
+
+function hasBinary(bin: string): boolean {
+  // Local PATH-only check (no shell).
+  // Mirrors OpenClaw's behavior and is safe to call in hot paths.
+  const pathEnv = process.env.PATH ?? '';
+  const parts = pathEnv.split(path.delimiter).filter(Boolean);
+
+  const candidates =
+    process.platform === 'win32' ? [bin, `${bin}.exe`, `${bin}.cmd`, `${bin}.bat`] : [bin];
+
+  for (const part of parts) {
+    for (const candidateName of candidates) {
+      const candidate = path.join(part, candidateName);
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
+      } catch {
+        // keep scanning
+      }
+    }
+  }
+
+  return false;
+}
+
+function shouldIncludeSkillEntry(
+  entry: SkillEntry,
+  opts: {
+    platform: string;
+    skillsConfig?: SkillsConfig;
+    runtimeConfig?: Record<string, unknown>;
+  },
+): boolean {
+  const name = entry.skill.name;
+  const skillKey = entry.metadata?.skillKey ?? name;
+  const skillConfig = opts.skillsConfig?.entries?.[skillKey] ?? opts.skillsConfig?.entries?.[name];
+
+  if (skillConfig?.enabled === false) return false;
+
+  const osList = entry.metadata?.os ?? [];
+  if (osList.length > 0) {
+    const platform = normalizePlatformName(opts.platform);
+    const allowed = osList.some((p) => normalizePlatformName(p) === platform);
+    if (!allowed) return false;
+  }
+
+  if (entry.metadata?.always === true) {
+    return true;
+  }
+
+  const requires = entry.metadata?.requires;
+  const requiredBins = requires?.bins ?? [];
+  const requiredAnyBins = requires?.anyBins ?? [];
+  const requiredEnv = requires?.env ?? [];
+  const requiredConfig = requires?.config ?? [];
+
+  for (const bin of requiredBins) {
+    if (!hasBinary(bin)) return false;
+  }
+
+  if (requiredAnyBins.length > 0) {
+    const ok = requiredAnyBins.some((bin) => hasBinary(bin));
+    if (!ok) return false;
+  }
+
+  for (const envName of requiredEnv) {
+    if (process.env[envName]) continue;
+    if (skillConfig?.env?.[envName]) continue;
+    if (skillConfig?.apiKey && entry.metadata?.primaryEnv === envName) continue;
+    return false;
+  }
+
+  for (const cfgPath of requiredConfig) {
+    if (!isConfigPathTruthy(opts.runtimeConfig, cfgPath)) return false;
+  }
+
+  return true;
+}

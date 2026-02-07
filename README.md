@@ -270,6 +270,10 @@ const provenancePack = createProvenancePack(
 
 **Sealed conversation persistence:** when using `sealed` storage policy with SQL conversation persistence, set `ConversationManagerConfig.appendOnlyPersistence=true` so conversation history remains append-only (no UPDATE/DELETE/UPSERT on protected tables).
 
+**Toolset pinning (recommended):** treat the enabled toolset as part of the sealed spec. Disable dynamic tool registration and (optionally) store a toolset manifest hash at seal time so you can verify you’re running the same tools/versions later.
+
+**“Forgetting” memory in sealed mode:** avoid hard deletes. Prefer append-only **redaction/tombstone** events that remove items from retrieval while keeping an auditable trail.
+
 ---
 
 ## Architecture

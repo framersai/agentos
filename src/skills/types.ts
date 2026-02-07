@@ -202,6 +202,9 @@ export interface SkillEntry {
 
   /** Source directory path */
   sourcePath?: string;
+
+  /** Optional source tag indicating where the skill was loaded from (e.g., "bundled", "workspace"). */
+  source?: string;
 }
 
 /**

@@ -61,6 +61,11 @@ import { ConversationManager, ConversationManagerConfig } from '../core/conversa
 import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
+import type { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
+import type { IVectorStoreManager } from '../rag/IVectorStoreManager';
+import type { EmbeddingManagerConfig } from '../config/EmbeddingManagerConfiguration';
+import type { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
+import type { RagDataSourceConfig, VectorStoreManagerConfig } from '../config/VectorStoreConfiguration';
 import type { PrismaClient } from '@prisma/client';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { IPersonaDefinition } from '../cognitive_substrate/personas/IPersonaDefinition';
@@ -310,6 +315,59 @@ export interface AgentOSConfig {
    * (e.g. user/org/persona memories stored in a RAG/KG).
    */
   longTermMemoryRetriever?: ILongTermMemoryRetriever;
+  /**
+   * Optional retrieval augmentor enabling vector-based RAG and/or GraphRAG.
+   * When provided, it is passed into GMIs via the GMIManager.
+   *
+   * Notes:
+   * - This is separate from `longTermMemoryRetriever`, which injects pre-formatted
+   *   memory text into prompts.
+   * - The augmentor instance is typically shared across GMIs; do not shut it down
+   *   from individual GMIs.
+   */
+  retrievalAugmentor?: IRetrievalAugmentor;
+  /**
+   * If true, AgentOS will call `retrievalAugmentor.shutdown()` during `AgentOS.shutdown()`.
+   * Default: false (caller manages lifecycle).
+   */
+  manageRetrievalAugmentorLifecycle?: boolean;
+  /**
+   * Optional configuration for AgentOS-managed RAG subsystem initialization.
+   *
+   * When provided and enabled, AgentOS will:
+   * - Initialize an {@link EmbeddingManager} with {@link EmbeddingManagerConfig}
+   * - Initialize a {@link VectorStoreManager} with {@link VectorStoreManagerConfig} + {@link RagDataSourceConfig}
+   * - Initialize a {@link RetrievalAugmentor} with {@link RetrievalAugmentorServiceConfig}
+   * - Pass the resulting {@link IRetrievalAugmentor} into GMIs via the {@link GMIManager}
+   *
+   * Notes:
+   * - If `retrievalAugmentor` is provided, it takes precedence and this config is ignored.
+   * - By default, when AgentOS creates the RAG subsystem it also manages lifecycle and will
+   *   shut it down during {@link AgentOS.shutdown}.
+   */
+  ragConfig?: {
+    /** Enable or disable AgentOS-managed RAG initialization. Default: true. */
+    enabled?: boolean;
+    /** Embedding manager configuration (must include at least one embedding model). */
+    embeddingManagerConfig: EmbeddingManagerConfig;
+    /** Vector store manager configuration (providers). */
+    vectorStoreManagerConfig: VectorStoreManagerConfig;
+    /** Logical data sources mapped onto vector store providers. */
+    dataSourceConfigs: RagDataSourceConfig[];
+    /** Retrieval augmentor configuration (category behaviors, defaults). */
+    retrievalAugmentorConfig: RetrievalAugmentorServiceConfig;
+    /**
+     * If true, AgentOS will shut down the augmentor and any owned vector store providers
+     * during {@link AgentOS.shutdown}. Default: true.
+     */
+    manageLifecycle?: boolean;
+    /**
+     * When true (default), AgentOS injects its `storageAdapter` into SQL vector-store providers
+     * that did not specify `adapter` or `storage`. This keeps vector persistence colocated with
+     * the host database by default.
+     */
+    bindToStorageAdapter?: boolean;
+  };
   /** Configuration for the {@link PromptEngine}. */
   promptEngineConfig: PromptEngineConfig;
   /** Configuration for the {@link ToolOrchestrator}. */
@@ -462,6 +520,10 @@ export class AgentOS implements IAgentOS {
   private workflowRuntime?: WorkflowRuntime;
   private agencyRegistry?: AgencyRegistry;
 
+  private retrievalAugmentor?: IRetrievalAugmentor;
+  private ragVectorStoreManager?: IVectorStoreManager;
+  private manageRetrievalAugmentorLifecycle: boolean = false;
+
   private authService!: IAuthService;
 
   private subscriptionService!: ISubscriptionService;
@@ -529,6 +591,7 @@ export class AgentOS implements IAgentOS {
     this.extensionManager = new ExtensionManager({
       manifest: this.config.extensionManifest,
       secrets: this.config.extensionSecrets,
+      overrides: this.config.extensionOverrides,
     });
     const extensionLifecycleContext: ExtensionLifecycleContext = { logger: this.logger };
     await this.extensionManager.loadManifest(extensionLifecycleContext);
@@ -557,6 +620,7 @@ export class AgentOS implements IAgentOS {
       await this.modelProviderManager.initialize(this.config.modelProviderManagerConfig);
       console.log('AgentOS: AIModelProviderManager initialized.');
       await this.ensureUtilityAIService();
+      await this.initializeRagSubsystem(storageAdapter);
 
       // Initialize Prompt Engine
       this.promptEngine = new PromptEngine();
@@ -616,7 +680,7 @@ export class AgentOS implements IAgentOS {
         this.modelProviderManager,
         this.utilityAIService, // Pass the potentially dual-role utility service
         this.toolOrchestrator,
-        undefined,
+        this.retrievalAugmentor,
         this.config.personaLoader,
       );
       await this.gmiManager.initialize();
@@ -1444,6 +1508,14 @@ export class AgentOS implements IAgentOS {
         await (this.toolOrchestrator as any).shutdown();
         console.log('AgentOS: ToolOrchestrator shut down.');
       }
+      if (this.manageRetrievalAugmentorLifecycle && this.retrievalAugmentor?.shutdown) {
+        await this.retrievalAugmentor.shutdown();
+        console.log('AgentOS: RetrievalAugmentor shut down.');
+      }
+      if (this.manageRetrievalAugmentorLifecycle && this.ragVectorStoreManager?.shutdownAllProviders) {
+        await this.ragVectorStoreManager.shutdownAllProviders();
+        console.log('AgentOS: VectorStore providers shut down.');
+      }
       // PromptEngine might have a cleanup method like clearCache
       if (this.promptEngine && typeof this.promptEngine.clearCache === 'function') {
           await this.promptEngine.clearCache();
@@ -1469,6 +1541,67 @@ export class AgentOS implements IAgentOS {
       throw serviceError; // Re-throw to indicate shutdown was problematic.
     } finally {
         this.initialized = false; // Mark as uninitialized regardless of shutdown errors.
+    }
+  }
+
+  private async initializeRagSubsystem(storageAdapter?: StorageAdapter): Promise<void> {
+    // Prefer caller-provided augmentor instance.
+    if (this.config.retrievalAugmentor) {
+      this.retrievalAugmentor = this.config.retrievalAugmentor;
+      this.manageRetrievalAugmentorLifecycle = this.config.manageRetrievalAugmentorLifecycle === true;
+      return;
+    }
+
+    const ragConfig = this.config.ragConfig;
+    if (!ragConfig || ragConfig.enabled === false) {
+      return;
+    }
+
+    try {
+      const { EmbeddingManager } = await import('../rag/EmbeddingManager');
+      const { VectorStoreManager } = await import('../rag/VectorStoreManager');
+      const { RetrievalAugmentor } = await import('../rag/RetrievalAugmentor');
+
+      const embeddingManager = new EmbeddingManager();
+      await embeddingManager.initialize(ragConfig.embeddingManagerConfig, this.modelProviderManager);
+
+      const bindToStorageAdapter =
+        ragConfig.bindToStorageAdapter === undefined ? true : ragConfig.bindToStorageAdapter === true;
+
+      const patchedVectorStoreConfig: VectorStoreManagerConfig = {
+        ...ragConfig.vectorStoreManagerConfig,
+        providers: ragConfig.vectorStoreManagerConfig.providers.map((provider) => {
+          if (
+            bindToStorageAdapter &&
+            storageAdapter &&
+            (provider as any)?.type === 'sql' &&
+            !(provider as any).adapter &&
+            !(provider as any).storage
+          ) {
+            return { ...(provider as any), adapter: storageAdapter };
+          }
+          return provider;
+        }),
+      };
+
+      const vectorStoreManager = new VectorStoreManager();
+      await vectorStoreManager.initialize(patchedVectorStoreConfig, ragConfig.dataSourceConfigs);
+
+      const retrievalAugmentor = new RetrievalAugmentor();
+      await retrievalAugmentor.initialize(
+        ragConfig.retrievalAugmentorConfig,
+        embeddingManager,
+        vectorStoreManager,
+      );
+
+      this.retrievalAugmentor = retrievalAugmentor;
+      this.ragVectorStoreManager = vectorStoreManager;
+      this.manageRetrievalAugmentorLifecycle = ragConfig.manageLifecycle !== false;
+      console.log('AgentOS: RAG subsystem initialized.');
+    } catch (error: any) {
+      this.logger.error('AgentOS: Failed to initialize RAG subsystem; continuing without retrieval augmentor.', {
+        error: error?.message ?? error,
+      });
     }
   }
 }

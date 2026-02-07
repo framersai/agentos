@@ -903,7 +903,8 @@ export class GMI implements IGMI {
       const textToSummarize = `User: ${userInput}\n\nAssistant: ${gmiResponse}`;
       let documentContent = textToSummarize;
 
-      const summarizationEnabled = ingestionProcessingConfig?.summarization?.enabled !== false;
+      // Summarization is an explicit opt-in; ingestion can be cheap even when enabled.
+      const summarizationEnabled = ingestionProcessingConfig?.summarization?.enabled === true;
       if (this.utilityAI && summarizationEnabled) {
         const summarizationOptions: SummarizationOptions = {
           desiredLength: ingestionProcessingConfig?.summarization?.targetLength || 'short',
@@ -2089,11 +2090,9 @@ export class GMI implements IGMI {
     this.addTraceEntry(ReasoningEntryType.LIFECYCLE, "GMI shutting down.");
     try {
       await this.workingMemory?.close?.();
-      await this.retrievalAugmentor?.shutdown?.();
-      await this.toolOrchestrator?.shutdown?.();
-
-      // await this.promptEngine?.shutdown?.(); 
-      await (this.utilityAI as any)?.shutdown?.(); // Assuming IUtilityAI might have an optional shutdown
+      // Shared dependencies (tool orchestrator, retrieval augmentor, utility AI, etc.) are owned by
+      // the host (AgentOS/GMIManager) and may be shared across GMIs. Do not shut them down here,
+      // otherwise deactivating one idle GMI can break other active sessions.
     } catch (error: any) {
         const shutdownError = createGMIErrorFromError(error, GMIErrorCode.INTERNAL_SERVER_ERROR, undefined, "Error during GMI component shutdown.");
         this.addTraceEntry(ReasoningEntryType.ERROR, shutdownError.message, shutdownError.toPlainObject());
