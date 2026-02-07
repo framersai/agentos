@@ -1,10 +1,6 @@
 # AgentOS: The Complete Adaptive Intelligence Framework - Full Technical Documentation
 
-## Revolutionary AI Beyond Traditional Boundaries
-
-While conventional AI agent frameworks treat agents as stateless functions that process inputs and generate outputs, AgentOS introduces a fundamentally different paradigm: **Generalized Mind Instances (GMIs)** - adaptive, context-aware entities that learn, evolve, and maintain coherent personalities across interactions. Unlike frameworks that merely wrap LLM calls with tool access, AgentOS creates genuine cognitive architectures with working memory, dynamic persona adaptation, and emergent collaborative intelligence. The framework doesn't just execute tasks; it understands context, adapts to users, and orchestrates multi-agent collaborations that produce insights beyond what any single agent could achieve.
-
-What sets AgentOS apart is its **Adaptive Prompting Engine** - a sophisticated system that dynamically constructs prompts based on real-time context analysis, user skill assessment, and conversation flow. Instead of static system prompts, AgentOS continuously evolves its approach, selecting from contextual elements, adjusting communication styles, and optimizing token usage for each unique interaction. This isn't merely prompt engineering; it's prompt intelligence - a living system that learns from every interaction and adapts its cognitive approach accordingly.
+For deployments that need immutability guarantees and auditability, see [Provenance & Immutability](./PROVENANCE_IMMUTABILITY.md) for `sealed`/`revisioned` storage policy enforcement, signed event ledgers, and optional external anchoring.
 
 ---
 
