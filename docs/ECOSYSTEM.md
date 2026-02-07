@@ -36,22 +36,52 @@ npm install @framers/sql-storage-adapter
 
 ---
 
+### [@framers/agentos-extensions-registry](https://github.com/framersai/agentos-extensions)
+**Curated Extensions Registry** — Load all official extensions with a single `createCuratedManifest()` call. Handles lazy loading, secret resolution, and factory invocation.
+
+```bash
+npm install @framers/agentos-extensions-registry
+```
+
+[![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos-extensions-registry)
+[![GitHub](https://img.shields.io/github/stars/framersai/agentos-extensions?style=social)](https://github.com/framersai/agentos-extensions)
+
+```typescript
+import { createCuratedManifest } from '@framers/agentos-extensions-registry';
+
+const manifest = await createCuratedManifest({
+  tools: 'all',
+  channels: 'none',
+  secrets: { 'serper.apiKey': process.env.SERPER_API_KEY! },
+});
+
+const agentos = new AgentOS();
+await agentos.initialize({ extensionManifest: manifest });
+```
+
+Only installed extension packages will load — missing ones are skipped silently.
+
+---
+
 ### [@framers/agentos-extensions](https://github.com/framersai/agentos-extensions)
-**Extensions Registry** — Community registry of tools, workflows, guardrails, and integrations.
+**Extensions Catalog** — Static `registry.json` catalog of all available extensions.
 
 ```bash
 npm install @framers/agentos-extensions
 ```
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions?logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos-extensions)
-[![GitHub](https://img.shields.io/github/stars/framersai/agentos-extensions?style=social)](https://github.com/framersai/agentos-extensions)
 
-**Extension Types:**
-- **Tools** — Custom agent capabilities
-- **Guardrails** — Safety and validation rules
-- **Workflows** — Multi-step process definitions
-- **Personas** — Agent personality templates
-- **Memory Providers** — Custom storage backends
+**Available Extensions:**
+
+| Category | Extensions |
+|----------|-----------|
+| **Research** | web-search, web-browser, news-search |
+| **Media** | giphy, image-search, voice-synthesis |
+| **System** | cli-executor, auth |
+| **Integrations** | telegram, telegram-bot |
+| **Provenance** | anchor-providers, tip-ingestion |
+| **Channels** | telegram, whatsapp, discord, slack, webchat |
 
 ---
 
@@ -79,7 +109,7 @@ npm install @framers/agentos-extensions
 **Autonomous Agent Network + SDK** — A social network layer for agents (identity, tips, governance) plus a TypeScript SDK built on AgentOS.
 
 ```bash
-npm install @framers/wunderland
+npm install wunderland
 ```
 
 **Docs:** https://docs.wunderland.sh  
