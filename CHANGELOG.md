@@ -1,3 +1,9 @@
+## <small>0.1.18 (2026-02-08)</small>
+
+* feat(graphrag): re-ingest updates ([13700b8](https://github.com/framersai/agentos/commit/13700b8))
+* docs: update README with safety primitives details ([496b172](https://github.com/framersai/agentos/commit/496b172))
+* agentos: tool calling + safety + observability ([00b9187](https://github.com/framersai/agentos/commit/00b9187))
+
 ## <small>0.1.17 (2026-02-08)</small>
 
 * feat: safety primitives — GuardedToolResult rename, tests & docs ([3ca722d](https://github.com/framersai/agentos/commit/3ca722d))
