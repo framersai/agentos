@@ -10,7 +10,7 @@ export * from './api/types/AgentOSInput';
 export * from './api/types/AgentOSResponse';
 export * from './cognitive_substrate/IGMI';
 export * from './cognitive_substrate/GMIManager';
-export * from './core/tools/ITool';
+export type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from './core/tools/ITool';
 export * from './core/llm/IPromptEngine';
 export * from './config/ToolOrchestratorConfig';
 export * from './core/tools/permissions/IToolPermissionManager';
