@@ -18,7 +18,7 @@ export interface ToolExecutionGuardConfig {
   circuitBreakerConfig?: Partial<Omit<CircuitBreakerConfig, 'name'>>;
 }
 
-export interface ToolExecutionResult<T = unknown> {
+export interface GuardedToolResult<T = unknown> {
   success: boolean;
   result?: T;
   error?: string;
@@ -67,7 +67,7 @@ export class ToolExecutionGuard {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  async execute<T>(toolName: string, fn: () => Promise<T>): Promise<ToolExecutionResult<T>> {
+  async execute<T>(toolName: string, fn: () => Promise<T>): Promise<GuardedToolResult<T>> {
     const stats = this.getOrCreateStats(toolName);
     stats.totalCalls++;
     const start = Date.now();

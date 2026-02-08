@@ -17,4 +17,4 @@ export { CostGuard, CostCapExceededError } from './CostGuard.js';
 export type { CostGuardConfig, CostCapType, CostRecord, CostSnapshot } from './CostGuard.js';
 
 export { ToolExecutionGuard, ToolTimeoutError } from './ToolExecutionGuard.js';
-export type { ToolExecutionGuardConfig, ToolExecutionResult, ToolHealthReport } from './ToolExecutionGuard.js';
+export type { ToolExecutionGuardConfig, GuardedToolResult, ToolHealthReport } from './ToolExecutionGuard.js';
