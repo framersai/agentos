@@ -1,3 +1,7 @@
+## <small>0.1.19 (2026-02-08)</small>
+
+* fix: add ./rag and ./config/* exports to package.json ([27dba19](https://github.com/framersai/agentos/commit/27dba19))
+
 ## <small>0.1.18 (2026-02-08)</small>
 
 * feat(graphrag): re-ingest updates ([13700b8](https://github.com/framersai/agentos/commit/13700b8))
