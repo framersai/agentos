@@ -19,7 +19,8 @@ const jsonResponse = (obj: unknown, status = 200): Response =>
 describe('QdrantVectorStore', () => {
   let store: QdrantVectorStore;
   let calls: FetchCall[];
-  let fetchStub: ReturnType<typeof vi.fn>;
+  // Explicitly type as `any` to avoid vitest Mock generic variance issues in `tsc --noEmit`.
+  let fetchStub: any;
 
   const makeDoc = (
     id: string,
@@ -204,4 +205,3 @@ describe('QdrantVectorStore', () => {
     expect(del).toBeTruthy();
   });
 });
-
