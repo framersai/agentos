@@ -39,6 +39,7 @@ import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
+import type { ActionSeverity, IHumanInteractionManager, PendingAction } from '../hitl/IHumanInteractionManager';
 
 /**
  * @class ToolOrchestrator
@@ -78,6 +79,11 @@ export class ToolOrchestrator implements IToolOrchestrator {
   private toolExecutor!: ToolExecutor;
 
   /**
+   * Optional human-in-the-loop manager used to gate risky tool executions.
+   */
+  private hitlManager?: IHumanInteractionManager;
+
+  /**
    * A flag indicating whether the orchestrator has been successfully initialized and is ready for operation.
    * @private
    * @type {boolean}
@@ -102,6 +108,13 @@ export class ToolOrchestrator implements IToolOrchestrator {
       persistRegistry: false, 
       persistencePath: undefined, 
     },
+    hitl: {
+      enabled: false,
+      requireApprovalForSideEffects: true,
+      defaultSideEffectsSeverity: 'high',
+      approvalTimeoutMs: undefined,
+      autoApproveWhenNoManager: false,
+    },
     customParameters: {}, 
   };
 
@@ -123,6 +136,7 @@ export class ToolOrchestrator implements IToolOrchestrator {
     permissionManager: IToolPermissionManager,
     toolExecutor: ToolExecutor,
     initialTools?: ITool[],
+    hitlManager?: IHumanInteractionManager,
   ): Promise<void> {
     if (this.isInitialized) {
       console.warn(
@@ -138,7 +152,11 @@ export class ToolOrchestrator implements IToolOrchestrator {
         toolRegistrySettings: {
             ...baseConfig.toolRegistrySettings,
             ...(config?.toolRegistrySettings || {}),
-        }
+        },
+        hitl: {
+          ...baseConfig.hitl,
+          ...(config?.hitl || {}),
+        },
     });
 
     if (!permissionManager) {
@@ -150,12 +168,15 @@ export class ToolOrchestrator implements IToolOrchestrator {
 
     this.permissionManager = permissionManager;
     this.toolExecutor = toolExecutor;
+    this.hitlManager = hitlManager;
 
     if (initialTools && initialTools.length > 0) {
       console.log(`ToolOrchestrator (ID: ${this.orchestratorId}): Registering ${initialTools.length} initial tool(s)...`);
       for (const tool of initialTools) {
         try {
-          await this.registerTool(tool);
+          // Initial tools are part of bootstrapping and should be registered even if
+          // dynamic registration is disabled. We also allow this while uninitialized.
+          await this.registerInitialTool(tool);
         } catch (registrationError: any) {
             const errorMsg = `Failed to register initial tool '${tool.name || tool.id}': ${registrationError.message}`;
             console.error(`ToolOrchestrator (ID: ${this.orchestratorId}): ${errorMsg}`, registrationError.details || registrationError);
@@ -167,6 +188,37 @@ export class ToolOrchestrator implements IToolOrchestrator {
     console.log(
       `ToolOrchestrator (ID: ${this.orchestratorId}) initialized. Registered tools: ${this.toolExecutor.listAvailableTools().length}. Logging tool calls: ${this.config.logToolCalls}.`,
     );
+  }
+
+  private async registerInitialTool(tool: ITool): Promise<void> {
+    if (!tool || typeof tool.name !== 'string' || !tool.name.trim() || typeof tool.id !== 'string' || !tool.id.trim()) {
+      throw new GMIError(
+        "Tool registration failed: The provided tool object is invalid or missing required 'id' or 'name' properties.",
+        GMIErrorCode.INVALID_ARGUMENT,
+        { receivedToolDetails: { id: (tool as any)?.id, name: (tool as any)?.name } },
+      );
+    }
+
+    if (this.config.globalDisabledTools?.includes(tool.name) || this.config.globalDisabledTools?.includes(tool.id)) {
+      console.warn(
+        `ToolOrchestrator (ID: ${this.orchestratorId}): Registering tool '${tool.name}' (ID: '${tool.id}'), but it is listed as globally disabled. It may not be executable.`,
+      );
+    }
+
+    await this.toolExecutor.registerTool(tool);
+    console.log(
+      `ToolOrchestrator (ID: ${this.orchestratorId}): Tool '${tool.name}' (ID: '${tool.id}', Version: ${tool.version || 'N/A'}) successfully registered.`,
+    );
+  }
+
+  private classifySideEffectCategory(tool: ITool): PendingAction['category'] {
+    const raw = String(tool.category || '').toLowerCase();
+    if (raw.includes('finance') || raw.includes('billing') || raw.includes('payment')) return 'financial';
+    if (raw.includes('comm') || raw.includes('email') || raw.includes('sms')) return 'communication';
+    if (raw.includes('file') || raw.includes('storage') || raw.includes('db') || raw.includes('data')) return 'data_modification';
+    if (raw.includes('network') || raw.includes('api') || raw.includes('web')) return 'external_api';
+    if (raw.includes('system') || raw.includes('admin')) return 'system';
+    return 'other';
   }
 
   /**
@@ -378,6 +430,108 @@ export class ToolOrchestrator implements IToolOrchestrator {
       return { toolCallId: llmProvidedCallId, toolName, output: null, isError: true, errorDetails: { message: errorMsg, code: GMIErrorCode.PERMISSION_DENIED, details: permissionResult.details } };
     }
 
+    // Optional HITL gating for side-effect tools.
+    const hitlConfig = this.config.hitl;
+    const requiresSideEffectsApproval =
+      Boolean(hitlConfig?.enabled) &&
+      (hitlConfig?.requireApprovalForSideEffects ?? true) &&
+      tool.hasSideEffects === true;
+
+    if (requiresSideEffectsApproval) {
+      if (!this.hitlManager) {
+        const autoApprove = Boolean(hitlConfig?.autoApproveWhenNoManager);
+        if (!autoApprove) {
+          const errorMsg =
+            `Tool '${toolName}' has side effects and requires approval, but no HITL manager is configured.`;
+          console.warn(`${logPrefix} ${errorMsg}`);
+          return {
+            toolCallId: llmProvidedCallId,
+            toolName,
+            output: null,
+            isError: true,
+            errorDetails: {
+              message: errorMsg,
+              code: GMIErrorCode.PERMISSION_DENIED,
+              reason: 'HITL manager missing',
+              details: { hitlEnabled: true, toolHasSideEffects: true },
+            },
+          };
+        }
+      } else {
+        const actionId = `tool:${gmiId}:${personaId}:${toolName}:${llmProvidedCallId || uuidv4()}`;
+        const severity = (hitlConfig?.defaultSideEffectsSeverity ?? 'high') as ActionSeverity;
+
+        const argsPreview = (() => {
+          try {
+            const raw = JSON.stringify(toolCallRequest.arguments);
+            return raw.length > 800 ? raw.slice(0, 800) + '...' : raw;
+          } catch {
+            return '[unserializable args]';
+          }
+        })();
+
+        const pending: PendingAction = {
+          actionId,
+          description: `Execute tool '${toolName}' (side effects)`,
+          severity,
+          category: this.classifySideEffectCategory(tool),
+          agentId: personaId,
+          context: {
+            toolName: tool.name,
+            toolId: tool.id,
+            toolCategory: tool.category,
+            toolRequiredCapabilities: tool.requiredCapabilities,
+            argsPreview,
+            userContext: { userId: userContext?.userId },
+            gmiId,
+            personaId,
+            llmProvidedCallId,
+          },
+          reversible: false,
+          requestedAt: new Date(),
+          timeoutMs: hitlConfig?.approvalTimeoutMs,
+        };
+
+        if (this.config.logToolCalls) {
+          console.log(`${logPrefix} Awaiting human approval (actionId='${actionId}', severity='${severity}').`);
+        }
+
+        try {
+          const decision = await this.hitlManager.requestApproval(pending);
+          if (!decision.approved) {
+            const errorMsg = decision.rejectionReason || `Human rejected tool '${toolName}'.`;
+            console.warn(`${logPrefix} ${errorMsg}`);
+            return {
+              toolCallId: llmProvidedCallId,
+              toolName,
+              output: null,
+              isError: true,
+              errorDetails: {
+                message: errorMsg,
+                code: GMIErrorCode.PERMISSION_DENIED,
+                reason: 'HITL rejected',
+                details: decision,
+              },
+            };
+          }
+        } catch (hitlError: any) {
+          const errorMsg = `Approval request failed: ${hitlError?.message ?? String(hitlError)}`;
+          console.warn(`${logPrefix} ${errorMsg}`);
+          return {
+            toolCallId: llmProvidedCallId,
+            toolName,
+            output: null,
+            isError: true,
+            errorDetails: {
+              message: errorMsg,
+              code: GMIErrorCode.PERMISSION_DENIED,
+              reason: 'HITL error',
+            },
+          };
+        }
+      }
+    }
+
     if (this.config.logToolCalls) {
       console.log(`${logPrefix} Permissions granted for tool '${toolName}'. Delegating execution to ToolExecutor.`);
     }
@@ -485,4 +639,3 @@ export class ToolOrchestrator implements IToolOrchestrator {
     console.log(`ToolOrchestrator (ID: ${this.orchestratorId}) shut down complete. All tools processed for shutdown and registry cleared.`);
   }
 }
-

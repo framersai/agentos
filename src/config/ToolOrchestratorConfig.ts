@@ -31,6 +31,33 @@ export interface ToolRegistrySettings {
   persistencePath?: string;
 }
 
+export interface ToolOrchestratorHITLConfig {
+  /**
+   * Enable HITL gating inside the ToolOrchestrator.
+   * Default: false.
+   */
+  enabled?: boolean;
+  /**
+   * If true, tools with `tool.hasSideEffects === true` require an approval before execution.
+   * Default: true (when HITL is enabled).
+   */
+  requireApprovalForSideEffects?: boolean;
+  /**
+   * Default severity for side-effect tool approvals.
+   * Default: 'high'.
+   */
+  defaultSideEffectsSeverity?: 'low' | 'medium' | 'high' | 'critical';
+  /**
+   * Optional per-approval timeout (ms). If omitted, the HITL manager's default timeout is used.
+   */
+  approvalTimeoutMs?: number;
+  /**
+   * If true, ToolOrchestrator will execute side-effect tools even if no HITL manager was provided.
+   * Default: false.
+   */
+  autoApproveWhenNoManager?: boolean;
+}
+
 /**
  * @interface ToolOrchestratorConfig
  * @description Configuration options for the ToolOrchestrator.
@@ -67,5 +94,6 @@ export interface ToolOrchestratorConfig {
   logToolCalls?: boolean;
   globalDisabledTools?: string[];
   toolRegistrySettings?: ToolRegistrySettings;
+  hitl?: ToolOrchestratorHITLConfig;
   customParameters?: Record<string, any>;
 }

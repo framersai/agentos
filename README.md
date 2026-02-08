@@ -193,8 +193,6 @@ await agent.initialize(await createTestAgentOSConfig());
 ```bash
 # Required
 DATABASE_URL=file:./data/agentos.db
-JWT_SECRET=your-secret
-API_KEY_ENCRYPTION_KEY_HEX=64-char-hex
 
 # LLM Providers (at least one)
 OPENAI_API_KEY=sk-...

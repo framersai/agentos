@@ -80,8 +80,8 @@ export class GMIManager {
   private readonly personaOverlayManager: PersonaOverlayManager;
   private readonly agencySeatOverlays: Map<string, PersonaStateOverlay>;
 
-  private authService: IAuthService;
-  private subscriptionService: ISubscriptionService;
+  private authService?: IAuthService;
+  private subscriptionService?: ISubscriptionService;
   private conversationManager: ConversationManager;
 
   private promptEngine: IPromptEngine;
@@ -95,8 +95,8 @@ export class GMIManager {
 
   constructor(
     config: GMIManagerConfig,
-    subscriptionService: ISubscriptionService,
-    authService: IAuthService,
+    subscriptionService: ISubscriptionService | undefined,
+    authService: IAuthService | undefined,
     conversationManager: ConversationManager,
     promptEngine: IPromptEngine,
     llmProviderManager: AIModelProviderManager,
@@ -141,8 +141,6 @@ export class GMIManager {
     const check = (service: any, name: string, code: GMIErrorCode = GMIErrorCode.DEPENDENCY_ERROR) => {
         if (!service) throw new GMIManagerError(`${name} dependency is missing.`, code, { service: name });
     };
-    check(this.subscriptionService, 'ISubscriptionService');
-    check(this.authService, 'IAuthService');
     check(this.conversationManager, 'ConversationManager');
     check(this.promptEngine, 'IPromptEngine');
     check(this.llmProviderManager, 'AIModelProviderManager');
@@ -215,7 +213,7 @@ export class GMIManager {
   }
 
   private async resolveTierByName(tierName: string): Promise<ISubscriptionTier | null> {
-    if (!tierName) {
+    if (!tierName || !this.subscriptionService) {
       return null;
     }
     if (this.subscriptionService.listTiers) {

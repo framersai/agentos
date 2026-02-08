@@ -1635,7 +1635,7 @@ class AdvancedRAGSystem implements IRAGSystem {
 
   // NOTE: AgentOS provides pluggable reranker providers:
   // - CohereReranker: Cloud-based via Cohere Rerank API
-  // - LocalCrossEncoderReranker: On-device via @xenova/transformers
+  // - LocalCrossEncoderReranker: On-device via Transformers.js (@huggingface/transformers preferred, or @xenova/transformers)
   // See RAG_MEMORY_CONFIGURATION.md for configuration details.
 
   async buildKnowledgeGraph(documents: Document[]): Promise<KnowledgeGraph> {

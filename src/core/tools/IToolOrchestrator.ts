@@ -16,6 +16,7 @@ import { IToolPermissionManager } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
+import type { IHumanInteractionManager } from '../hitl/IHumanInteractionManager';
 
 /**
  * Represents the information about a tool that is suitable for an LLM
@@ -62,6 +63,7 @@ export interface IToolOrchestrator {
     permissionManager: IToolPermissionManager,
     toolExecutor: ToolExecutor,
     initialTools?: ITool[],
+    hitlManager?: IHumanInteractionManager,
   ): Promise<void>;
 
   /**

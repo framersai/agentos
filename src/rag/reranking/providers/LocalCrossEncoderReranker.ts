@@ -128,8 +128,15 @@ export class LocalCrossEncoderReranker implements IRerankerProvider {
 
   private async _doInitialize(modelId: string): Promise<void> {
     try {
-      // Dynamic import to avoid bundling issues and allow optional dependency
-      const { pipeline, env } = await import('@xenova/transformers');
+      // Dynamic import to avoid bundling issues and allow optional dependency.
+      // Prefer `@huggingface/transformers` (Transformers.js v3+) but support `@xenova/transformers` for back-compat.
+      const { pipeline, env } = await (async () => {
+        try {
+          return await import('@huggingface/transformers');
+        } catch {
+          return await import('@xenova/transformers');
+        }
+      })();
 
       // Configure cache directory if specified
       if (this.config.cacheDir) {
@@ -152,8 +159,9 @@ export class LocalCrossEncoderReranker implements IRerankerProvider {
     } catch (error) {
       if (error instanceof Error && error.message.includes('Cannot find module')) {
         throw new Error(
-          'LocalCrossEncoderReranker: @xenova/transformers is not installed. ' +
-            'Install it with: pnpm add @xenova/transformers',
+          "LocalCrossEncoderReranker: Transformers.js is not installed. " +
+            "Install it with: pnpm add @huggingface/transformers (preferred) " +
+            "or pnpm add @xenova/transformers",
         );
       }
       throw error;
@@ -166,10 +174,15 @@ export class LocalCrossEncoderReranker implements IRerankerProvider {
   public async isAvailable(): Promise<boolean> {
     try {
       // Check if transformers.js is available
-      await import('@xenova/transformers');
+      await import('@huggingface/transformers');
       return true;
     } catch {
-      return false;
+      try {
+        await import('@xenova/transformers');
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 

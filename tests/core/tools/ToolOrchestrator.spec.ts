@@ -214,8 +214,36 @@ describe('ToolOrchestrator', () => {
     expect(health.details?.toolExecutorStatus?.isHealthy).toBe(false);
     expect(health.details?.permissionManagerStatus?.isHealthy).toBe(true);
   });
+
+  it('requires HITL approval for side-effect tools when enabled', async () => {
+    const sideEffectTool = buildEchoTool({ hasSideEffects: true });
+
+    const hitlManager = {
+      requestApproval: vi.fn(async () => ({
+        actionId: 'approval-1',
+        approved: false,
+        rejectionReason: 'no',
+        decidedBy: 'user',
+        decidedAt: new Date(),
+      })),
+    } as any;
+
+    const orch = new ToolOrchestrator();
+    const toolExecutor = createToolExecutor();
+    await orch.initialize(
+      { hitl: { enabled: true } },
+      createPermissionManager(),
+      toolExecutor,
+      [sideEffectTool],
+      hitlManager,
+    );
+
+    const result = await orch.processToolCall(makeRequest('echo'));
+    expect(result.isError).toBe(true);
+    expect(String(result.errorDetails?.reason || result.errorDetails?.message || '')).toContain('HITL');
+    expect(hitlManager.requestApproval).toHaveBeenCalledTimes(1);
+    expect((toolExecutor as any).executeTool).toHaveBeenCalledTimes(0);
+  });
 });
-
-
 
 

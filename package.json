@@ -8,13 +8,76 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./config/extension-secrets.json": "./dist/config/extension-secrets.json",
+    "./skills": {
+      "import": "./dist/skills.js",
+      "default": "./dist/skills.js",
+      "types": "./dist/skills.d.ts"
+    },
+    "./core/guardrails": {
+      "import": "./dist/core/guardrails/index.js",
+      "default": "./dist/core/guardrails/index.js",
+      "types": "./dist/core/guardrails/index.d.ts"
+    },
+    "./core/guardrails/index": {
+      "import": "./dist/core/guardrails/index.js",
+      "default": "./dist/core/guardrails/index.js",
+      "types": "./dist/core/guardrails/index.d.ts"
+    },
+    "./core/safety": {
+      "import": "./dist/core/safety/index.js",
+      "default": "./dist/core/safety/index.js",
+      "types": "./dist/core/safety/index.d.ts"
+    },
+    "./core/safety/index": {
+      "import": "./dist/core/safety/index.js",
+      "default": "./dist/core/safety/index.js",
+      "types": "./dist/core/safety/index.d.ts"
+    },
+    "./core/safety/*": {
+      "import": "./dist/core/safety/*.js",
+      "default": "./dist/core/safety/*.js",
+      "types": "./dist/core/safety/*.d.ts"
+    },
+    "./core/tools": {
+      "import": "./dist/core/tools/index.js",
+      "default": "./dist/core/tools/index.js",
+      "types": "./dist/core/tools/index.d.ts"
+    },
+    "./core/tools/index": {
+      "import": "./dist/core/tools/index.js",
+      "default": "./dist/core/tools/index.js",
+      "types": "./dist/core/tools/index.d.ts"
+    },
+    "./core/tools/*": {
+      "import": "./dist/core/tools/*.js",
+      "default": "./dist/core/tools/*.js",
+      "types": "./dist/core/tools/*.d.ts"
     },
     "./package.json": "./package.json",
     "./*": {
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.js"
+      "import": "./dist/*.js",
+      "default": "./dist/*.js",
+      "types": "./dist/*.d.ts"
+    },
+    "./*/*": {
+      "import": "./dist/*/*.js",
+      "default": "./dist/*/*.js",
+      "types": "./dist/*/*.d.ts"
+    },
+    "./*/*/*": {
+      "import": "./dist/*/*/*.js",
+      "default": "./dist/*/*/*.js",
+      "types": "./dist/*/*/*.d.ts"
+    },
+    "./*/*/*/*": {
+      "import": "./dist/*/*/*/*.js",
+      "default": "./dist/*/*/*/*.js",
+      "types": "./dist/*/*/*/*.d.ts"
     }
   },
   "files": [

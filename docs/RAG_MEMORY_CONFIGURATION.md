@@ -226,8 +226,34 @@ AgentOS currently ships these vector-store implementations:
 - `InMemoryVectorStore` (ephemeral, dev/testing)
 - `SqlVectorStore` (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
 - `HnswlibVectorStore` (ANN search via `hnswlib-node`, optional peer dependency)
+- `QdrantVectorStore` (remote/self-hosted Qdrant via HTTP; optional BM25 sparse vectors + hybrid fusion)
 
 If you want “true” large-scale vector DB behavior (tens of millions of vectors, filtered search at scale, etc.), add a provider implementation and wire it into `VectorStoreManager`.
+
+### Qdrant Provider (Remote or Self-Hosted)
+
+`QdrantVectorStore` lets you point AgentOS at a Qdrant instance (local Docker or managed cloud) without changing any higher-level RAG code.
+
+Example `VectorStoreManager` provider config:
+
+```ts
+import type { VectorStoreManagerConfig } from '@framers/agentos/config/VectorStoreConfiguration';
+
+const vsmConfig: VectorStoreManagerConfig = {
+  managerId: 'rag-vsm',
+  providers: [
+    {
+      id: 'qdrant-main',
+      type: 'qdrant',
+      url: process.env.QDRANT_URL!,
+      apiKey: process.env.QDRANT_API_KEY,
+      enableBm25: true,
+    },
+  ],
+  defaultProviderId: 'qdrant-main',
+  defaultEmbeddingDimension: 1536,
+};
+```
 
 ## GraphRAG (Optional)
 
@@ -265,6 +291,6 @@ If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS 
 - Initialize `RerankerService`
 - Auto-register built-in reranker providers declared in config:
   - `cohere` (requires `apiKey`)
-  - `local` (offline cross-encoder, requires installing `@xenova/transformers`)
+  - `local` (offline cross-encoder, requires installing Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`)
 
 Reranking is **still opt-in per request** via `RagRetrievalOptions.rerankerConfig.enabled=true`.

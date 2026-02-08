@@ -52,6 +52,8 @@
 
 ### Platform & Infrastructure
 - [**Platform Support**](./PLATFORM_SUPPORT.md) — Supported environments and requirements
+- [**Observability (OpenTelemetry)**](./OBSERVABILITY.md) — Tracing, metrics, and log correlation/export (opt-in)
+- [**Logging (Pino + OpenTelemetry)**](./LOGGING.md) — Structured logs, trace correlation, and OTEL LogRecord export (opt-in)
 
 ### Ecosystem
 - [**Ecosystem**](./ECOSYSTEM.md) — Related packages, extensions, and resources

@@ -7,3 +7,8 @@ declare module '@xenova/transformers' {
   export const pipeline: any;
 }
 
+declare module '@huggingface/transformers' {
+  // Minimal surface needed by LocalCrossEncoderReranker.
+  export const env: any;
+  export const pipeline: any;
+}

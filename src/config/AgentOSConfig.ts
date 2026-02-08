@@ -21,10 +21,6 @@ import { StreamingManagerConfig } from '../core/streaming/StreamingManager';
 import { AIModelProviderManagerConfig, ProviderConfigEntry } from '../core/llm/providers/AIModelProviderManager';
 import { PersonaLoaderConfig } from '../cognitive_substrate/personas/IPersonaLoader';
 
-// Service implementations
-import { AuthService } from '../services/user_auth/AuthService';
-import { SubscriptionService } from '../services/user_auth/SubscriptionService';
-import type { IAuthService, ISubscriptionService } from '../services/user_auth/types';
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
 import { IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
 
@@ -38,11 +34,6 @@ import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 export interface EnvironmentConfig {
   // Database
   DATABASE_URL: string;
-
-  // Authentication & Security
-  JWT_SECRET: string;
-  JWT_EXPIRES_IN?: string;
-  API_KEY_ENCRYPTION_KEY_HEX: string;
 
   // OAuth Configuration
   GOOGLE_CLIENT_ID?: string;
@@ -92,31 +83,8 @@ export function validateEnvironmentConfig(env: Partial<EnvironmentConfig>): Conf
   const warnings: string[] = [];
 
   // Required variables
-  const required = [
-    'DATABASE_URL',
-    'JWT_SECRET',
-    'API_KEY_ENCRYPTION_KEY_HEX'
-  ];
-
-  for (const key of required) {
-    if (!env[key as keyof EnvironmentConfig]) {
-      errors.push(`Missing required environment variable: ${key}`);
-    }
-  }
-
-  // Validate JWT_SECRET strength
-  if (env.JWT_SECRET && env.JWT_SECRET.length < 32) {
-    errors.push('JWT_SECRET must be at least 32 characters long');
-  }
-
-  // Validate API_KEY_ENCRYPTION_KEY_HEX format
-  if (env.API_KEY_ENCRYPTION_KEY_HEX) {
-    if (env.API_KEY_ENCRYPTION_KEY_HEX.length !== 64) {
-      errors.push('API_KEY_ENCRYPTION_KEY_HEX must be exactly 64 characters (32 bytes in hex)');
-    }
-    if (!/^[0-9a-fA-F]+$/.test(env.API_KEY_ENCRYPTION_KEY_HEX)) {
-      errors.push('API_KEY_ENCRYPTION_KEY_HEX must contain only hexadecimal characters');
-    }
+  if (!env.DATABASE_URL) {
+    errors.push('Missing required environment variable: DATABASE_URL');
   }
 
   // Warnings for missing optional but recommended variables
@@ -144,9 +112,6 @@ export function validateEnvironmentConfig(env: Partial<EnvironmentConfig>): Conf
 export function getEnvironmentConfig(): EnvironmentConfig {
   const env: Partial<EnvironmentConfig> = {
     DATABASE_URL: process.env.DATABASE_URL,
-    JWT_SECRET: process.env.JWT_SECRET,
-    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
-    API_KEY_ENCRYPTION_KEY_HEX: process.env.API_KEY_ENCRYPTION_KEY_HEX,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
@@ -282,37 +247,6 @@ function _createLemonSqueezyService(_env: EnvironmentConfig) {
 }
 
 /**
- * Creates and initializes the AuthService instance.
- * 
- * @param prisma - Prisma client instance
- * @param env - Environment configuration
- * @returns Initialized AuthService
- */
-async function createAuthService(): Promise<IAuthService> {
-  const authService = new AuthService();
-  if (typeof authService.initialize === 'function') {
-    await authService.initialize();
-  }
-  return authService;
-}
-
-/**
- * Creates and initializes the SubscriptionService instance.
- * 
- * @param prisma - Prisma client instance
- * @param authService - Initialized auth service
- * @param env - Environment configuration
- * @returns Initialized SubscriptionService
- */
-async function createSubscriptionService(): Promise<ISubscriptionService> {
-  const subscriptionService = new SubscriptionService();
-  if (typeof subscriptionService.initialize === 'function') {
-    await subscriptionService.initialize();
-  }
-  return subscriptionService;
-}
-
-/**
  * Creates a utility AI service instance if enabled.
  * This is a placeholder - implement based on your UtilityAI implementation.
  * 
@@ -349,8 +283,6 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
     const defaultPersonaId = env.DEFAULT_PERSONA_ID || 'v_researcher';
 
     // Create and initialize services
-    const authService = await createAuthService();
-    const subscriptionService = await createSubscriptionService();
     const utilityAIService = await createUtilityAIService(env);
 
     // Create individual component configurations
@@ -462,8 +394,6 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       modelProviderManagerConfig,
       defaultPersonaId,
       prisma,
-      authService,
-      subscriptionService,
       utilityAIService,
       extensionSecrets: Object.keys(extensionSecrets).length ? extensionSecrets : undefined,
     };
@@ -501,12 +431,6 @@ export async function createTestAgentOSConfig(): Promise<AgentOSConfig> {
   // Set minimal test environment
   if (!process.env.DATABASE_URL) {
     process.env.DATABASE_URL = 'file:./test.db';
-  }
-  if (!process.env.JWT_SECRET) {
-    process.env.JWT_SECRET = 'test-jwt-secret-for-development-only-minimum-32-chars';
-  }
-  if (!process.env.API_KEY_ENCRYPTION_KEY_HEX) {
-    process.env.API_KEY_ENCRYPTION_KEY_HEX = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   }
   
   return createAgentOSConfig();

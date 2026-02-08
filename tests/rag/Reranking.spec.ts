@@ -18,6 +18,30 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // Mock transformers.js for local model tests
+vi.mock('@huggingface/transformers', () => {
+  // Create mock model that returns relevance scores
+  const mockModel = vi.fn().mockImplementation(async () => ({
+    logits: { data: new Float32Array([0.9, 0.7, 0.5, 0.3, 0.1]), dims: [5, 1] },
+  }));
+
+  return {
+    pipeline: vi.fn().mockResolvedValue(mockModel),
+    AutoTokenizer: {
+      from_pretrained: vi.fn().mockResolvedValue({
+        encode: vi.fn().mockReturnValue({ input_ids: { data: [1, 2, 3] } }),
+      }),
+    },
+    AutoModelForSequenceClassification: {
+      from_pretrained: vi.fn().mockResolvedValue({
+        forward: vi.fn().mockResolvedValue({
+          logits: { data: new Float32Array([0.9, 0.7, 0.5, 0.3, 0.1]), dims: [5, 1] },
+        }),
+      }),
+    },
+    env: { allowLocalModels: true, useBrowserCache: false },
+  };
+});
+
 vi.mock('@xenova/transformers', () => {
   // Create mock model that returns relevance scores
   const mockModel = vi.fn().mockImplementation(async () => ({

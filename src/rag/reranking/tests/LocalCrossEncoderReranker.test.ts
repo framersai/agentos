@@ -7,13 +7,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LocalCrossEncoderReranker, LOCAL_RERANKER_MODELS } from '../providers/LocalCrossEncoderReranker';
 import type { RerankerInput, RerankerRequestConfig } from '../IRerankerService';
 
-// Mock @xenova/transformers
+// Mock Transformers.js (preferred: @huggingface/transformers, fallback: @xenova/transformers)
 const pipelineInstanceMock = vi.fn();
 const pipelineMock = vi.fn();
 const envMock: any = {
   cacheDir: undefined,
   backends: { onnx: { wasm: { numThreads: 1 } } },
 };
+
+vi.mock('@huggingface/transformers', () => ({
+  pipeline: pipelineMock,
+  env: envMock,
+}));
 
 vi.mock('@xenova/transformers', () => ({
   pipeline: pipelineMock,
