@@ -15,6 +15,8 @@ export { SqlVectorStore, type SqlVectorStoreConfig } from './SqlVectorStore.js';
 // HNSW-based vector store (fast ANN search via hnswlib-node)
 export { HnswlibVectorStore, type HnswlibVectorStoreConfig } from './HnswlibVectorStore.js';
 
+// Qdrant vector store (remote/self-hosted via HTTP API)
+export { QdrantVectorStore, type QdrantVectorStoreConfig } from './QdrantVectorStore.js';
 
 
 

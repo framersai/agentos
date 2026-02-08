@@ -144,6 +144,7 @@ export { RetrievalAugmentor } from './RetrievalAugmentor.js';
 export { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore.js';
 export { SqlVectorStore, type SqlVectorStoreConfig } from './implementations/vector_stores/SqlVectorStore.js';
 export { HnswlibVectorStore, type HnswlibVectorStoreConfig } from './implementations/vector_stores/HnswlibVectorStore.js';
+export { QdrantVectorStore, type QdrantVectorStoreConfig } from './implementations/vector_stores/QdrantVectorStore.js';
 
 // ============================================================================
 // GraphRAG
@@ -160,5 +161,4 @@ export type {
   GlobalSearchResult,
   LocalSearchResult,
 } from './graphrag/index.js';
-
 

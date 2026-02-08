@@ -87,6 +87,8 @@ export * from './core/storage';
 export * from './rag';
 // Provenance, Audit & Immutability
 export * from './core/provenance';
+// Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)
+export * from './core/safety';
 // Extension Secrets Catalog
 export {
   EXTENSION_SECRET_DEFINITIONS,

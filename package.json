@@ -74,6 +74,7 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.201.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "axios": "^1.7.7",

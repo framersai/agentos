@@ -31,6 +31,7 @@ import {
 import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore';
 import { SqlVectorStore } from './implementations/vector_stores/SqlVectorStore';
 import { HnswlibVectorStore } from './implementations/vector_stores/HnswlibVectorStore';
+import { QdrantVectorStore } from './implementations/vector_stores/QdrantVectorStore';
 // Import other IVectorStore implementations as they are created, e.g.:
 // import { PineconeVectorStore } from './implementations/vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './implementations/vector_stores/WeaviateVectorStore';
@@ -182,6 +183,9 @@ export class VectorStoreManager implements IVectorStoreManager {
         // HNSW-based vector store using hnswlib-node for fast ANN search
         // O(log n) queries, in-process, file-based persistence
         return new HnswlibVectorStore();
+      case 'qdrant':
+        // Qdrant vector store via HTTP (self-hosted or cloud)
+        return new QdrantVectorStore();
       // case 'pinecone':
       //   // Ensure PineconeVectorStoreConfig is imported and used
       //   return new PineconeVectorStore();

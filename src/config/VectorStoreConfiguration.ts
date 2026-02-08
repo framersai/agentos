@@ -14,6 +14,7 @@
 import { VectorStoreProviderConfig } from '../rag/IVectorStore';
 import type { StorageAdapter, StorageResolutionOptions } from '@framers/sql-storage-adapter';
 import type { HnswlibVectorStoreConfig } from '../rag/implementations/vector_stores/HnswlibVectorStore';
+import type { QdrantVectorStoreConfig } from '../rag/implementations/vector_stores/QdrantVectorStore';
 
 /**
  * Specific configuration for an InMemoryVectorStore.
@@ -155,7 +156,7 @@ export type AnyVectorStoreProviderConfig =
   | PineconeVectorStoreConfig
   | WeaviateVectorStoreConfig
   | HnswlibVectorStoreConfig
-  // Example: | QdrantVectorStoreConfig
+  | QdrantVectorStoreConfig
   // Example: | MilvusVectorStoreConfig
   | VectorStoreProviderConfig; // Fallback for generic or user-defined providers not yet typed explicitly.
 

@@ -40,6 +40,25 @@ export interface AgentOSObservabilityConfig {
      * Default: false.
      */
     includeTraceIds?: boolean;
+
+    /**
+     * When enabled, AgentOS will emit OpenTelemetry LogRecords using `@opentelemetry/api-logs`.
+     *
+     * This is still opt-in because it can increase CPU/network usage and may result in double-ingestion
+     * if you already ship stdout logs separately.
+     *
+     * Note: This does not start OpenTelemetry. Your host app must install/start an OTEL SDK and
+     * configure a logs exporter (e.g. `OTEL_LOGS_EXPORTER=otlp` in NodeSDK).
+     *
+     * Default: false.
+     */
+    exportToOtel?: boolean;
+
+    /**
+     * OpenTelemetry logger name used for AgentOS LogRecords.
+     * Default: "@framers/agentos".
+     */
+    otelLoggerName?: string;
   };
 
   metrics?: {
@@ -64,6 +83,8 @@ export type AgentOSObservabilityState = Readonly<{
   includeTraceIdsInLogs: boolean;
   metricsEnabled: boolean;
   meterName: string;
+  exportOtelLogs: boolean;
+  otelLoggerName: string;
 }>;
 
 function readEnv(name: string): string | undefined {
@@ -92,6 +113,7 @@ function resolveState(config?: AgentOSObservabilityConfig): AgentOSObservability
   const envTraceInResponses = parseEnvBoolean(readEnv('AGENTOS_TRACE_IDS_IN_RESPONSES'));
   const envIncludeTraceIdsInLogs = parseEnvBoolean(readEnv('AGENTOS_LOG_TRACE_IDS'));
   const envMetricsEnabled = parseEnvBoolean(readEnv('AGENTOS_METRICS_ENABLED'));
+  const envExportOtelLogs = parseEnvBoolean(readEnv('AGENTOS_OTEL_LOGS_ENABLED'));
 
   const tracerNameRaw = config?.tracing?.tracerName ?? readEnv('AGENTOS_OTEL_TRACER_NAME');
   const tracerName =
@@ -100,6 +122,12 @@ function resolveState(config?: AgentOSObservabilityConfig): AgentOSObservability
   const meterNameRaw = config?.metrics?.meterName ?? readEnv('AGENTOS_OTEL_METER_NAME');
   const meterName =
     typeof meterNameRaw === 'string' && meterNameRaw.trim() ? meterNameRaw.trim() : '@framers/agentos';
+
+  const otelLoggerNameRaw = config?.logging?.otelLoggerName ?? readEnv('AGENTOS_OTEL_LOGGER_NAME');
+  const otelLoggerName =
+    typeof otelLoggerNameRaw === 'string' && otelLoggerNameRaw.trim()
+      ? otelLoggerNameRaw.trim()
+      : '@framers/agentos';
 
   // Config wins over env. If config.enabled is explicitly false, hard-disable all.
   if (config?.enabled === false) {
@@ -110,6 +138,8 @@ function resolveState(config?: AgentOSObservabilityConfig): AgentOSObservability
       includeTraceIdsInLogs: false,
       metricsEnabled: false,
       meterName,
+      exportOtelLogs: false,
+      otelLoggerName,
     };
   }
 
@@ -153,6 +183,13 @@ function resolveState(config?: AgentOSObservabilityConfig): AgentOSObservability
             ? envEnabled
             : false;
 
+  const exportOtelLogs =
+    typeof config?.logging?.exportToOtel === 'boolean'
+      ? config.logging.exportToOtel
+      : typeof envExportOtelLogs === 'boolean'
+        ? envExportOtelLogs
+        : false;
+
   return {
     tracingEnabled,
     tracerName,
@@ -160,6 +197,8 @@ function resolveState(config?: AgentOSObservabilityConfig): AgentOSObservability
     includeTraceIdsInLogs,
     metricsEnabled,
     meterName,
+    exportOtelLogs,
+    otelLoggerName,
   };
 }
 
@@ -184,6 +223,14 @@ export function isAgentOSMetricsEnabled(): boolean {
 
 export function shouldIncludeTraceIdsInAgentOSLogs(): boolean {
   return state.includeTraceIdsInLogs;
+}
+
+export function shouldExportAgentOSLogsToOtel(): boolean {
+  return state.exportOtelLogs;
+}
+
+export function getAgentOSOtelLoggerName(): string {
+  return state.otelLoggerName;
 }
 
 export function shouldIncludeTraceInAgentOSResponses(): boolean {
