@@ -1,3 +1,8 @@
+## <small>0.1.14 (2026-02-08)</small>
+
+* fix: provide fallback for optional personaId in pushErrorChunk call ([d779a7e](https://github.com/framersai/agentos/commit/d779a7e))
+* feat: enhanced RAG pipeline, observability, schema-on-demand extension ([b6e98e4](https://github.com/framersai/agentos/commit/b6e98e4))
+
 ## <small>0.1.13 (2026-02-07)</small>
 
 * feat: add AutonomyGuard + PolicyProfiles tests, skills ecosystem improvements ([36a99eb](https://github.com/framersai/agentos/commit/36a99eb))
