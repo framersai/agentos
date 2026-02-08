@@ -151,9 +151,14 @@ for await (const chunk of agent.processRequest({
 
 ### Safety & Guardrails
 - **Input/output guardrails** — Block, modify, or escalate based on content
-- **Cost ceiling** — Per-request token budget enforcement
+- **Circuit breaker** — Three-state (closed/open/half-open) wrapper for LLM calls with configurable thresholds
+- **Cost guard** — Per-agent session and daily spending caps ($1/session, $5/day defaults)
+- **Stuck detection** — Detects repeated outputs, repeated errors, and oscillation patterns
+- **Action deduplication** — Hash-based recent action tracking with LRU eviction
+- **Tool execution guard** — Per-tool timeout (30s default) with circuit breakers
 - **Cross-agent guardrails** — Monitor agent-to-agent interactions
-- **Circuit breaker** — Automatic backoff on provider failures
+
+See [`docs/SAFETY_PRIMITIVES.md`](docs/SAFETY_PRIMITIVES.md) for full API reference.
 
 ### Structured Output
 - **JSON schema validation** — Extract typed data from unstructured text
