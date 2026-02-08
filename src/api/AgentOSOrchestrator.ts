@@ -1266,7 +1266,7 @@ export class AgentOSOrchestrator {
                      new GMIError(`Error in orchestrateTurn for stream ${agentOSStreamId}: ${error.message}`, GMIErrorCode.GMI_PROCESSING_ERROR, error);
       console.error(`AgentOSOrchestrator: Error during _processTurnInternal for stream ${agentOSStreamId}:`, gmiErr);
       await this.pushErrorChunk(
-          agentOSStreamId, currentPersonaId, gmiInstanceIdForChunks,
+          agentOSStreamId, currentPersonaId ?? 'unknown_persona', gmiInstanceIdForChunks,
           gmiErr.code, gmiErr.message, gmiErr.details
       );
       await this.dependencies.streamingManager.closeStream(agentOSStreamId, "Error during turn processing.");
