@@ -52,7 +52,7 @@ console.log(snapshot.prompt);
 - `@framers/agentos-skills` — static catalog + bundled `registry/curated/*/SKILL.md`
 - `@framers/agentos-skills-registry` — helpers to load bundled skills and build snapshots
 
-The curated bundle currently includes **16+ skills** (developer tools, productivity, information, communication, etc.). See `@framers/agentos-skills/registry.json` for the canonical list.
+The curated bundle currently includes **18 skills** (developer tools, productivity, information, communication, etc.). See `@framers/agentos-skills/registry.json` for the canonical list.
 
 `@framers/agentos-skills-registry` supports two usage modes:
 
