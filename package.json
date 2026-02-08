@@ -43,6 +43,21 @@
       "default": "./dist/core/safety/*.js",
       "types": "./dist/core/safety/*.d.ts"
     },
+    "./rag": {
+      "import": "./dist/rag/index.js",
+      "default": "./dist/rag/index.js",
+      "types": "./dist/rag/index.d.ts"
+    },
+    "./rag/*": {
+      "import": "./dist/rag/*.js",
+      "default": "./dist/rag/*.js",
+      "types": "./dist/rag/*.d.ts"
+    },
+    "./config/*": {
+      "import": "./dist/config/*.js",
+      "default": "./dist/config/*.js",
+      "types": "./dist/config/*.d.ts"
+    },
     "./core/tools": {
       "import": "./dist/core/tools/index.js",
       "default": "./dist/core/tools/index.js",
