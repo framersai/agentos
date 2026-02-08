@@ -49,6 +49,23 @@ interface PersistenceAdapter {
   get<T = unknown>(statement: string, parameters?: any[]): Promise<T | null>;
 }
 
+type DocumentEntityContribution = {
+  entityId: string;
+  name: string;
+  type: string;
+  description: string;
+  frequency: number;
+};
+
+type DocumentRelationshipContribution = {
+  relationshipId: string;
+  sourceEntityId: string;
+  targetEntityId: string;
+  type: string;
+  description: string;
+  weight: number;
+};
+
 // =============================================================================
 // GraphRAGEngine
 // =============================================================================
@@ -62,6 +79,9 @@ export class GraphRAGEngine implements IGraphRAGEngine {
   private relationships: Map<string, GraphRelationship> = new Map();
   private communities: Map<string, GraphCommunity> = new Map();
   private ingestedDocumentIds: Set<string> = new Set();
+  private ingestedDocumentHashes: Map<string, string> = new Map();
+  private documentEntityContributions: Map<string, Map<string, DocumentEntityContribution>> = new Map();
+  private documentRelationshipContributions: Map<string, Map<string, DocumentRelationshipContribution>> = new Map();
 
   // Graph structure (graphology)
   private graph!: Graph;
@@ -112,6 +132,34 @@ export class GraphRAGEngine implements IGraphRAGEngine {
     }
 
     return 1536;
+  }
+
+  private async hashDocumentContent(content: string): Promise<string> {
+    const text = content ?? '';
+    const bytes = new TextEncoder().encode(text);
+
+    // Prefer WebCrypto for edge/browser compatibility.
+    const subtle = (globalThis as any)?.crypto?.subtle as any;
+    if (subtle?.digest) {
+      const digest = await subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    // Fallback: Node.js crypto (dynamic import so bundlers can tree-shake it for browsers).
+    try {
+      const cryptoMod = await import('crypto');
+      return cryptoMod.createHash('sha256').update(text).digest('hex');
+    } catch {
+      // Last-resort: non-cryptographic hash (collision-resistant enough for "skip exact duplicates").
+      let hash = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+    }
   }
 
   async initialize(config: GraphRAGConfig): Promise<void> {
@@ -191,29 +239,124 @@ export class GraphRAGEngine implements IGraphRAGEngine {
 
     let totalEntities = 0;
     let totalRelationships = 0;
+    const touchedEntityIds = new Set<string>();
+    const touchedRelationshipIds = new Set<string>();
+    const entitiesNeedingEmbedding = new Set<string>();
 
     // Step 1: Extract entities and relationships from each document
     for (const doc of documents) {
-      if (this.ingestedDocumentIds.has(doc.id)) continue;
+      const contentHash = await this.hashDocumentContent(doc.content);
+      const wasIngested = this.ingestedDocumentIds.has(doc.id);
+      const previousHash = this.ingestedDocumentHashes.get(doc.id);
+
+      // Skip exact duplicates (same docId + same content hash).
+      if (wasIngested && previousHash && previousHash === contentHash) {
+        continue;
+      }
+
+      // If this documentId was ingested before but changed, remove prior contributions first.
+      if (wasIngested) {
+        try {
+          const removed = await this.removeDocumentContributions(doc.id);
+          for (const id of removed.touchedEntityIds) touchedEntityIds.add(id);
+          for (const id of removed.touchedRelationshipIds) touchedRelationshipIds.add(id);
+          for (const id of removed.entitiesNeedingEmbedding) entitiesNeedingEmbedding.add(id);
+        } catch (error) {
+          // Safety: do not double-count if we cannot reliably subtract the previous doc's contributions.
+          console.warn(
+            `[GraphRAGEngine] Skipping update for document '${doc.id}' because previous contribution records are missing. ` +
+              `Rebuild the GraphRAG index to enable updates. Error: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          continue;
+        }
+      }
 
       const extraction = await this.extractEntitiesAndRelationships(doc.id, doc.content);
       totalEntities += extraction.entities.length;
       totalRelationships += extraction.relationships.length;
 
-      // Merge into graph
+      // Merge into graph, tracking canonical IDs so relationships always point at the
+      // deduplicated entity IDs (otherwise edges can get dropped on merge).
+      const extractedToCanonicalEntityId = new Map<string, string>();
+      const docEntityContribs = new Map<string, DocumentEntityContribution>();
+
       for (const entity of extraction.entities) {
-        this.mergeEntity(entity);
+        const canonical = this.mergeEntity(entity);
+        extractedToCanonicalEntityId.set(entity.id, canonical.id);
+        touchedEntityIds.add(canonical.id);
+        entitiesNeedingEmbedding.add(canonical.id);
+
+        const frequency = Number.isFinite(entity.frequency) ? entity.frequency : 1;
+        const prev = docEntityContribs.get(canonical.id);
+        if (prev) {
+          prev.frequency += frequency;
+          if (!prev.description && entity.description) prev.description = entity.description;
+          if (prev.type === 'concept' && entity.type && entity.type !== 'concept') {
+            prev.type = entity.type;
+          }
+        } else {
+          docEntityContribs.set(canonical.id, {
+            entityId: canonical.id,
+            name: canonical.name,
+            type: entity.type || canonical.type,
+            description: entity.description || '',
+            frequency,
+          });
+        }
       }
       for (const rel of extraction.relationships) {
-        this.mergeRelationship(rel);
+        const sourceEntityId = extractedToCanonicalEntityId.get(rel.sourceEntityId) ?? rel.sourceEntityId;
+        const targetEntityId = extractedToCanonicalEntityId.get(rel.targetEntityId) ?? rel.targetEntityId;
+        if (!sourceEntityId || !targetEntityId || sourceEntityId === targetEntityId) continue;
+
+        const canonicalRel = this.mergeRelationship({
+          ...rel,
+          sourceEntityId,
+          targetEntityId,
+        });
+        if (!canonicalRel) continue;
+
+        touchedRelationshipIds.add(canonicalRel.id);
+
+        const docRelContribs =
+          this.documentRelationshipContributions.get(doc.id) ?? new Map<string, DocumentRelationshipContribution>();
+        const weight = Number.isFinite(rel.weight) ? rel.weight : 1.0;
+        const prev = docRelContribs.get(canonicalRel.id);
+        if (prev) {
+          prev.weight += weight;
+          if (!prev.description && rel.description) prev.description = rel.description;
+        } else {
+          docRelContribs.set(canonicalRel.id, {
+            relationshipId: canonicalRel.id,
+            sourceEntityId: canonicalRel.sourceEntityId,
+            targetEntityId: canonicalRel.targetEntityId,
+            type: canonicalRel.type,
+            description: rel.description || '',
+            weight,
+          });
+        }
+        this.documentRelationshipContributions.set(doc.id, docRelContribs);
+      }
+
+      this.documentEntityContributions.set(doc.id, docEntityContribs);
+      if (!this.documentRelationshipContributions.has(doc.id)) {
+        this.documentRelationshipContributions.set(doc.id, new Map());
       }
 
       this.ingestedDocumentIds.add(doc.id);
+      this.ingestedDocumentHashes.set(doc.id, contentHash);
+    }
+
+    for (const entityId of touchedEntityIds) {
+      this.recomputeEntityAggregates(entityId);
+    }
+    for (const relId of touchedRelationshipIds) {
+      this.recomputeRelationshipAggregates(relId);
     }
 
     // Step 2: Generate entity embeddings
     if (this.embeddingManager && this.vectorStore && this.config.generateEntityEmbeddings) {
-      await this.generateEntityEmbeddings();
+      await this.generateEntityEmbeddings(entitiesNeedingEmbedding);
     }
 
     // Step 3: Detect communities using Louvain
@@ -411,7 +554,7 @@ ${content.slice(0, 8000)}`;
   // Entity & Relationship Merging (deduplication)
   // ===========================================================================
 
-  private mergeEntity(entity: GraphEntity): void {
+  private mergeEntity(entity: GraphEntity): GraphEntity {
     // Check if entity with same name already exists (case-insensitive)
     const normalizedName = entity.name.toLowerCase().trim();
     let existing: GraphEntity | undefined;
@@ -432,25 +575,27 @@ ${content.slice(0, 8000)}`;
           existing.sourceDocumentIds.push(docId);
         }
       }
-      if (entity.description && !existing.description.includes(entity.description)) {
-        existing.description = `${existing.description} ${entity.description}`.trim();
+      if (existing.type === 'concept' && entity.type && entity.type !== 'concept') {
+        existing.type = entity.type;
       }
 
       // Update graph node
       if (!this.graph.hasNode(existing.id)) {
         this.graph.addNode(existing.id, { name: existing.name, type: existing.type });
       }
+      return existing;
     } else {
       // Add new entity
       this.entities.set(entity.id, entity);
       this.graph.addNode(entity.id, { name: entity.name, type: entity.type });
+      return entity;
     }
   }
 
-  private mergeRelationship(rel: GraphRelationship): void {
+  private mergeRelationship(rel: GraphRelationship): GraphRelationship | null {
     // Ensure both entities exist in graph
     if (!this.graph.hasNode(rel.sourceEntityId) || !this.graph.hasNode(rel.targetEntityId)) {
-      return;
+      return null;
     }
 
     // Check for existing edge between same entities
@@ -475,17 +620,32 @@ ${content.slice(0, 8000)}`;
           existing.sourceDocumentIds.push(docId);
         }
       }
+      try {
+        (this.graph as any).setEdgeAttribute?.(existing.id, 'weight', existing.weight);
+      } catch {
+        // Best-effort: edge weight updates improve community detection but are not required.
+      }
+      return existing;
     } else {
       this.relationships.set(rel.id, rel);
       try {
-        this.graph.addEdge(rel.sourceEntityId, rel.targetEntityId, {
-          id: rel.id,
-          type: rel.type,
-          weight: rel.weight,
-        });
+        (this.graph as any).addEdgeWithKey?.(
+          rel.id,
+          rel.sourceEntityId,
+          rel.targetEntityId,
+          { id: rel.id, type: rel.type, weight: rel.weight },
+        );
+        if (!(this.graph as any).addEdgeWithKey) {
+          this.graph.addEdge(rel.sourceEntityId, rel.targetEntityId, {
+            id: rel.id,
+            type: rel.type,
+            weight: rel.weight,
+          });
+        }
       } catch {
         // Edge may already exist in undirected graph
       }
+      return rel;
     }
   }
 
@@ -493,12 +653,13 @@ ${content.slice(0, 8000)}`;
   // Entity Embeddings
   // ===========================================================================
 
-  private async generateEntityEmbeddings(): Promise<void> {
+  private async generateEntityEmbeddings(forceEntityIds?: Set<string>): Promise<void> {
     if (!this.embeddingManager || !this.vectorStore) return;
 
     const entitiesToEmbed: GraphEntity[] = [];
     for (const entity of this.entities.values()) {
-      if (!entity.embedding) {
+      if (!entity.embedding || (forceEntityIds && forceEntityIds.has(entity.id))) {
+        entity.embedding = undefined;
         entitiesToEmbed.push(entity);
       }
     }
@@ -744,6 +905,16 @@ ${content.slice(0, 8000)}`;
 
   private async generateCommunitySummaries(): Promise<void> {
     if (!this.llmProvider) return;
+
+    // Community IDs are ephemeral (recomputed on each ingest). Keep the vector
+    // collection clean so stale communities don't crowd out new hits.
+    if (this.vectorStore && this.config.communityCollectionName) {
+      try {
+        await this.vectorStore.delete(this.config.communityCollectionName, undefined, { deleteAll: true });
+      } catch {
+        // Best-effort only.
+      }
+    }
 
     // Summarize from leaf communities upward
     const levels = new Set(Array.from(this.communities.values()).map(c => c.level));
@@ -1166,14 +1337,19 @@ Provide a comprehensive answer based on the information above.`,
     this.relationships.clear();
     this.communities.clear();
     this.ingestedDocumentIds.clear();
+    this.ingestedDocumentHashes.clear();
+    this.documentEntityContributions.clear();
+    this.documentRelationshipContributions.clear();
     this.graph = new Graph({ multi: false, type: 'undirected' });
 
     if (this.persistenceAdapter) {
       await this.persistenceAdapter.exec(`
+        DELETE FROM ${this.tablePrefix}document_relationships;
+        DELETE FROM ${this.tablePrefix}document_entities;
         DELETE FROM ${this.tablePrefix}entities;
         DELETE FROM ${this.tablePrefix}relationships;
         DELETE FROM ${this.tablePrefix}communities;
-        DELETE FROM ${this.tablePrefix}community_entities;
+        DELETE FROM ${this.tablePrefix}ingested_documents;
       `);
     }
   }
@@ -1239,7 +1415,29 @@ Provide a comprehensive answer based on the information above.`,
 
       CREATE TABLE IF NOT EXISTS ${this.tablePrefix}ingested_documents (
         document_id TEXT PRIMARY KEY,
-        ingested_at TEXT NOT NULL
+        ingested_at TEXT NOT NULL,
+        content_hash TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS ${this.tablePrefix}document_entities (
+        document_id TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        entity_name TEXT,
+        entity_type TEXT,
+        description TEXT,
+        frequency INTEGER NOT NULL,
+        PRIMARY KEY (document_id, entity_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS ${this.tablePrefix}document_relationships (
+        document_id TEXT NOT NULL,
+        relationship_id TEXT NOT NULL,
+        source_entity_id TEXT NOT NULL,
+        target_entity_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT,
+        weight REAL NOT NULL,
+        PRIMARY KEY (document_id, relationship_id)
       );
 
       CREATE INDEX IF NOT EXISTS idx_${this.tablePrefix}entities_type
@@ -1257,6 +1455,15 @@ Provide a comprehensive answer based on the information above.`,
       CREATE INDEX IF NOT EXISTS idx_${this.tablePrefix}communities_level
         ON ${this.tablePrefix}communities(level);
     `);
+
+    // Migration: add content_hash to existing tables if needed.
+    try {
+      await this.persistenceAdapter.exec(
+        `ALTER TABLE ${this.tablePrefix}ingested_documents ADD COLUMN content_hash TEXT;`,
+      );
+    } catch {
+      // ignore duplicate column / unsupported
+    }
   }
 
   private async loadFromPersistence(): Promise<void> {
@@ -1302,11 +1509,19 @@ Provide a comprehensive answer based on the information above.`,
       this.relationships.set(rel.id, rel);
       if (this.graph.hasNode(rel.sourceEntityId) && this.graph.hasNode(rel.targetEntityId)) {
         try {
-          this.graph.addEdge(rel.sourceEntityId, rel.targetEntityId, {
-            id: rel.id,
-            type: rel.type,
-            weight: rel.weight,
-          });
+          (this.graph as any).addEdgeWithKey?.(
+            rel.id,
+            rel.sourceEntityId,
+            rel.targetEntityId,
+            { id: rel.id, type: rel.type, weight: rel.weight },
+          );
+          if (!(this.graph as any).addEdgeWithKey) {
+            this.graph.addEdge(rel.sourceEntityId, rel.targetEntityId, {
+              id: rel.id,
+              type: rel.type,
+              weight: rel.weight,
+            });
+          }
         } catch {
           // Edge may already exist
         }
@@ -1334,17 +1549,89 @@ Provide a comprehensive answer based on the information above.`,
       this.communities.set(community.id, community);
     }
 
-    // Load ingested document IDs
-    const docRows = await this.persistenceAdapter.all<any>(
-      `SELECT document_id FROM ${this.tablePrefix}ingested_documents`,
-    );
-    for (const row of docRows) {
-      this.ingestedDocumentIds.add(row.document_id);
+    // Load ingested document IDs (and content hashes when available)
+    try {
+      const docRows = await this.persistenceAdapter.all<any>(
+        `SELECT document_id, content_hash FROM ${this.tablePrefix}ingested_documents`,
+      );
+      for (const row of docRows) {
+        this.ingestedDocumentIds.add(row.document_id);
+        if (row.content_hash) {
+          this.ingestedDocumentHashes.set(row.document_id, String(row.content_hash));
+        }
+      }
+    } catch {
+      const docRows = await this.persistenceAdapter.all<any>(
+        `SELECT document_id FROM ${this.tablePrefix}ingested_documents`,
+      );
+      for (const row of docRows) {
+        this.ingestedDocumentIds.add(row.document_id);
+      }
+    }
+
+    // Load per-document contribution tables (if present).
+    try {
+      const docEntityRows = await this.persistenceAdapter.all<any>(
+        `SELECT document_id, entity_id, entity_name, entity_type, description, frequency FROM ${this.tablePrefix}document_entities`,
+      );
+      for (const row of docEntityRows) {
+        const docId = String(row.document_id);
+        const entityId = String(row.entity_id);
+        const map = this.documentEntityContributions.get(docId) ?? new Map<string, DocumentEntityContribution>();
+        map.set(entityId, {
+          entityId,
+          name: row.entity_name ? String(row.entity_name) : '',
+          type: row.entity_type ? String(row.entity_type) : 'concept',
+          description: row.description ? String(row.description) : '',
+          frequency: Number(row.frequency ?? 1),
+        });
+        this.documentEntityContributions.set(docId, map);
+      }
+
+      const docRelRows = await this.persistenceAdapter.all<any>(
+        `SELECT document_id, relationship_id, source_entity_id, target_entity_id, type, description, weight FROM ${this.tablePrefix}document_relationships`,
+      );
+      for (const row of docRelRows) {
+        const docId = String(row.document_id);
+        const relationshipId = String(row.relationship_id);
+        const map =
+          this.documentRelationshipContributions.get(docId) ??
+          new Map<string, DocumentRelationshipContribution>();
+        map.set(relationshipId, {
+          relationshipId,
+          sourceEntityId: String(row.source_entity_id),
+          targetEntityId: String(row.target_entity_id),
+          type: String(row.type),
+          description: row.description ? String(row.description) : '',
+          weight: Number(row.weight ?? 1.0),
+        });
+        this.documentRelationshipContributions.set(docId, map);
+      }
+    } catch {
+      // Older persistence states may not have these tables; updates will require a rebuild.
     }
   }
 
   private async persistAll(): Promise<void> {
     if (!this.persistenceAdapter) return;
+
+    // Keep persistence consistent with in-memory state (communities are recomputed with fresh IDs each ingest).
+    await this.persistenceAdapter.exec(`
+      DELETE FROM ${this.tablePrefix}document_relationships;
+      DELETE FROM ${this.tablePrefix}document_entities;
+      DELETE FROM ${this.tablePrefix}communities;
+      DELETE FROM ${this.tablePrefix}relationships;
+      DELETE FROM ${this.tablePrefix}entities;
+      DELETE FROM ${this.tablePrefix}ingested_documents;
+    `);
+
+    // Persist ingested document IDs + content hashes first.
+    for (const docId of this.ingestedDocumentIds) {
+      await this.persistenceAdapter.run(
+        `INSERT INTO ${this.tablePrefix}ingested_documents (document_id, ingested_at, content_hash) VALUES (?, ?, ?)`,
+        [docId, new Date().toISOString(), this.ingestedDocumentHashes.get(docId) ?? null],
+      );
+    }
 
     // Persist entities
     for (const entity of this.entities.values()) {
@@ -1409,12 +1696,255 @@ Provide a comprehensive answer based on the information above.`,
       );
     }
 
-    // Persist ingested document IDs
-    for (const docId of this.ingestedDocumentIds) {
-      await this.persistenceAdapter.run(
-        `INSERT OR IGNORE INTO ${this.tablePrefix}ingested_documents (document_id, ingested_at) VALUES (?, ?)`,
-        [docId, new Date().toISOString()],
-      );
+    // Persist per-document contribution tables (used for safe re-ingest updates).
+    for (const [docId, entityMap] of this.documentEntityContributions) {
+      for (const contrib of entityMap.values()) {
+        await this.persistenceAdapter.run(
+          `INSERT INTO ${this.tablePrefix}document_entities (document_id, entity_id, entity_name, entity_type, description, frequency)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            docId,
+            contrib.entityId,
+            contrib.name ?? null,
+            contrib.type ?? null,
+            contrib.description ?? null,
+            contrib.frequency,
+          ],
+        );
+      }
     }
+
+    for (const [docId, relMap] of this.documentRelationshipContributions) {
+      for (const contrib of relMap.values()) {
+        await this.persistenceAdapter.run(
+          `INSERT INTO ${this.tablePrefix}document_relationships (document_id, relationship_id, source_entity_id, target_entity_id, type, description, weight)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            docId,
+            contrib.relationshipId,
+            contrib.sourceEntityId,
+            contrib.targetEntityId,
+            contrib.type,
+            contrib.description ?? null,
+            contrib.weight,
+          ],
+        );
+      }
+    }
+  }
+
+  private recomputeEntityAggregates(entityId: string): void {
+    const entity = this.entities.get(entityId);
+    if (!entity) return;
+
+    // Frequency, type, and description are derived from per-document contributions.
+    let frequency = 0;
+    const typeCounts = new Map<string, number>();
+    const descriptions: string[] = [];
+    const seenDescriptions = new Set<string>();
+
+    for (const docId of entity.sourceDocumentIds) {
+      const contrib = this.documentEntityContributions.get(docId)?.get(entityId);
+      if (!contrib) continue;
+      const f = Number.isFinite(contrib.frequency) ? contrib.frequency : 1;
+      frequency += f;
+
+      const t = (contrib.type || 'concept').toLowerCase();
+      typeCounts.set(t, (typeCounts.get(t) ?? 0) + f);
+
+      const desc = (contrib.description || '').trim();
+      if (desc && !seenDescriptions.has(desc)) {
+        seenDescriptions.add(desc);
+        descriptions.push(desc);
+      }
+    }
+
+    entity.frequency = Math.max(0, frequency);
+
+    if (typeCounts.size > 0) {
+      let bestType = entity.type;
+      let bestScore = -1;
+      for (const [t, score] of typeCounts) {
+        if (score > bestScore) {
+          bestType = t;
+          bestScore = score;
+        }
+      }
+      entity.type = bestType;
+    }
+
+    entity.description = descriptions.slice(0, 5).join(' ').trim();
+    entity.updatedAt = new Date().toISOString();
+  }
+
+  private recomputeRelationshipAggregates(relationshipId: string): void {
+    const rel = this.relationships.get(relationshipId);
+    if (!rel) return;
+
+    const descriptions: string[] = [];
+    const seen = new Set<string>();
+    for (const docId of rel.sourceDocumentIds) {
+      const contrib = this.documentRelationshipContributions.get(docId)?.get(relationshipId);
+      if (!contrib) continue;
+      const desc = (contrib.description || '').trim();
+      if (desc && !seen.has(desc)) {
+        seen.add(desc);
+        descriptions.push(desc);
+      }
+    }
+    if (descriptions.length > 0) {
+      rel.description = descriptions.slice(0, 5).join(' ').trim();
+    }
+
+    try {
+      (this.graph as any).setEdgeAttribute?.(relationshipId, 'weight', rel.weight);
+    } catch {
+      // ignore
+    }
+  }
+
+  private async hydrateDocumentContributionsFromPersistence(documentId: string): Promise<void> {
+    if (!this.persistenceAdapter) return;
+
+    if (!this.documentEntityContributions.has(documentId)) {
+      try {
+        const rows = await this.persistenceAdapter.all<any>(
+          `SELECT entity_id, entity_name, entity_type, description, frequency FROM ${this.tablePrefix}document_entities WHERE document_id = ?`,
+          [documentId],
+        );
+        const map = new Map<string, DocumentEntityContribution>();
+        for (const row of rows) {
+          const entityId = String(row.entity_id);
+          map.set(entityId, {
+            entityId,
+            name: row.entity_name ? String(row.entity_name) : '',
+            type: row.entity_type ? String(row.entity_type) : 'concept',
+            description: row.description ? String(row.description) : '',
+            frequency: Number(row.frequency ?? 1),
+          });
+        }
+        this.documentEntityContributions.set(documentId, map);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!this.documentRelationshipContributions.has(documentId)) {
+      try {
+        const rows = await this.persistenceAdapter.all<any>(
+          `SELECT relationship_id, source_entity_id, target_entity_id, type, description, weight FROM ${this.tablePrefix}document_relationships WHERE document_id = ?`,
+          [documentId],
+        );
+        const map = new Map<string, DocumentRelationshipContribution>();
+        for (const row of rows) {
+          const relationshipId = String(row.relationship_id);
+          map.set(relationshipId, {
+            relationshipId,
+            sourceEntityId: String(row.source_entity_id),
+            targetEntityId: String(row.target_entity_id),
+            type: String(row.type),
+            description: row.description ? String(row.description) : '',
+            weight: Number(row.weight ?? 1.0),
+          });
+        }
+        this.documentRelationshipContributions.set(documentId, map);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private async removeDocumentContributions(documentId: string): Promise<{
+    touchedEntityIds: Set<string>;
+    touchedRelationshipIds: Set<string>;
+    entitiesNeedingEmbedding: Set<string>;
+  }> {
+    await this.hydrateDocumentContributionsFromPersistence(documentId);
+
+    const touchedEntityIds = new Set<string>();
+    const touchedRelationshipIds = new Set<string>();
+    const entitiesNeedingEmbedding = new Set<string>();
+
+    const entityContribs = this.documentEntityContributions.get(documentId);
+    const relContribs = this.documentRelationshipContributions.get(documentId);
+
+    if (!entityContribs && !relContribs) {
+      throw new Error(`No contribution records found for document '${documentId}'.`);
+    }
+
+    // Remove relationship contributions first (edges depend on nodes).
+    if (relContribs) {
+      for (const contrib of relContribs.values()) {
+        const rel = this.relationships.get(contrib.relationshipId);
+        if (!rel) continue;
+
+        rel.weight = (Number.isFinite(rel.weight) ? rel.weight : 0) - contrib.weight;
+        rel.sourceDocumentIds = rel.sourceDocumentIds.filter((id) => id !== documentId);
+        touchedRelationshipIds.add(rel.id);
+
+        if (rel.weight <= 0 || rel.sourceDocumentIds.length === 0) {
+          this.relationships.delete(rel.id);
+          try {
+            (this.graph as any).dropEdge?.(rel.id);
+          } catch {
+            // ignore
+          }
+        } else {
+          try {
+            (this.graph as any).setEdgeAttribute?.(rel.id, 'weight', rel.weight);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+
+    if (entityContribs) {
+      for (const contrib of entityContribs.values()) {
+        const entity = this.entities.get(contrib.entityId);
+        if (!entity) continue;
+
+        entity.frequency = (Number.isFinite(entity.frequency) ? entity.frequency : 0) - contrib.frequency;
+        entity.sourceDocumentIds = entity.sourceDocumentIds.filter((id) => id !== documentId);
+        touchedEntityIds.add(entity.id);
+        entitiesNeedingEmbedding.add(entity.id);
+
+        if (entity.frequency <= 0 || entity.sourceDocumentIds.length === 0) {
+          // Drop any relationships involving this entity.
+          for (const [relId, rel] of this.relationships) {
+            if (rel.sourceEntityId === entity.id || rel.targetEntityId === entity.id) {
+              this.relationships.delete(relId);
+              touchedRelationshipIds.add(relId);
+              try {
+                (this.graph as any).dropEdge?.(relId);
+              } catch {
+                // ignore
+              }
+            }
+          }
+
+          this.entities.delete(entity.id);
+          try {
+            (this.graph as any).dropNode?.(entity.id);
+          } catch {
+            // ignore
+          }
+
+          if (this.vectorStore && this.config.entityCollectionName) {
+            try {
+              await this.vectorStore.delete(this.config.entityCollectionName, [entity.id]);
+            } catch {
+              // Best-effort only.
+            }
+          }
+        }
+      }
+    }
+
+    this.documentEntityContributions.delete(documentId);
+    this.documentRelationshipContributions.delete(documentId);
+    this.ingestedDocumentHashes.delete(documentId);
+
+    return { touchedEntityIds, touchedRelationshipIds, entitiesNeedingEmbedding };
   }
 }

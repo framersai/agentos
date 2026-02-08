@@ -240,12 +240,36 @@ describe('GraphRAGEngine', () => {
       expect(result.relationshipsExtracted).toBeGreaterThanOrEqual(1);
     });
 
-    it('should skip already-ingested documents', async () => {
+    it('should skip already-ingested documents when content is unchanged', async () => {
       await engine.ingestDocuments([{ id: 'doc-1', content: 'John Smith is here.' }]);
       const result = await engine.ingestDocuments([{ id: 'doc-1', content: 'John Smith is here.' }]);
 
       // Second ingestion should skip the duplicate doc
       expect(result.entitiesExtracted).toBe(0);
+    });
+
+    it('should update when re-ingesting the same documentId with different content', async () => {
+      await engine.ingestDocuments([
+        { id: 'doc-1', content: 'Alice works at Acme Corporation.' },
+      ]);
+
+      let entities = await engine.getEntities();
+      let names = entities.map(e => e.name);
+      expect(names).toContain('Alice');
+      expect(names).toContain('Acme Corporation');
+
+      const result = await engine.ingestDocuments([
+        { id: 'doc-1', content: 'Bob studies at Beta University.' },
+      ]);
+
+      expect(result.entitiesExtracted).toBeGreaterThan(0);
+
+      entities = await engine.getEntities();
+      names = entities.map(e => e.name);
+      expect(names).toContain('Bob');
+      expect(names).toContain('Beta University');
+      expect(names).not.toContain('Alice');
+      expect(names).not.toContain('Acme Corporation');
     });
 
     it('should deduplicate entities by name (case-insensitive)', async () => {
