@@ -1,3 +1,7 @@
+## <small>0.1.17 (2026-02-08)</small>
+
+* feat: safety primitives — GuardedToolResult rename, tests & docs ([3ca722d](https://github.com/framersai/agentos/commit/3ca722d))
+
 ## <small>0.1.16 (2026-02-08)</small>
 
 * fix: remove all 47 stale .d.ts files from src/ that duplicate .ts sources ([bdf3a56](https://github.com/framersai/agentos/commit/bdf3a56))
