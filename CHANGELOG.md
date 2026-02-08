@@ -1,3 +1,8 @@
+## <small>0.1.20 (2026-02-08)</small>
+
+* fix: add explicit exports for rag/reranking, rag/graphrag, core/hitl ([d90340d](https://github.com/framersai/agentos/commit/d90340d))
+* feat(graphrag): support document removal ([cca2f52](https://github.com/framersai/agentos/commit/cca2f52))
+
 ## <small>0.1.19 (2026-02-08)</small>
 
 * fix: add ./rag and ./config/* exports to package.json ([27dba19](https://github.com/framersai/agentos/commit/27dba19))
