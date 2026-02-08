@@ -1,3 +1,7 @@
+## <small>0.1.15 (2026-02-08)</small>
+
+* fix: update skills count from 16+ to 18 ([a50185e](https://github.com/framersai/agentos/commit/a50185e))
+
 ## <small>0.1.14 (2026-02-08)</small>
 
 * fix: provide fallback for optional personaId in pushErrorChunk call ([d779a7e](https://github.com/framersai/agentos/commit/d779a7e))
