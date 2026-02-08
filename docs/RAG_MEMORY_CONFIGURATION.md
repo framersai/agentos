@@ -260,6 +260,8 @@ const vsmConfig: VectorStoreManagerConfig = {
 `GraphRAGEngine` exists as a TypeScript-native implementation (graphology + Louvain community detection). It is not automatically used by GMIs by default; treat it as an advanced subsystem you opt into when your problem benefits from entity/relationship structure.
 
 - If you use non-OpenAI embedding models (e.g., Ollama), set `GraphRAGConfig.embeddingDimension`, or provide an `embeddingManager` so the engine can probe the embedding dimension at runtime.
+- `GraphRAGEngine.ingestDocuments()` supports update semantics when you re-ingest the same `documentId` with new content (it subtracts prior per-document contributions before applying the new extraction).
+- To keep a GraphRAG index consistent with deletes or category moves, call `GraphRAGEngine.removeDocuments([documentId, ...])`.
 
 ## Immutability Notes (Sealed Agents)
 
