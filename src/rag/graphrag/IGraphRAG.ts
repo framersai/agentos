@@ -204,6 +204,18 @@ export interface IGraphRAGEngine {
   }>;
 
   /**
+   * Remove one or more previously-ingested documents from the graph.
+   *
+   * This subtracts the document's entity/relationship contributions and recomputes
+   * communities. It is used to keep GraphRAG in sync when a source document is
+   * deleted or moved out of indexed categories.
+   */
+  removeDocuments(documentIds: string[]): Promise<{
+    documentsRemoved: number;
+    communitiesDetected: number;
+  }>;
+
+  /**
    * Global search: answers broad questions using community summaries.
    * Best for "What are the main themes?" type questions.
    */

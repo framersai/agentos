@@ -272,6 +272,26 @@ describe('GraphRAGEngine', () => {
       expect(names).not.toContain('Acme Corporation');
     });
 
+    it('should remove documents and subtract their contributions', async () => {
+      await engine.ingestDocuments([{ id: 'doc-1', content: 'Alice works at Acme Corporation.' }]);
+
+      let entities = await engine.getEntities();
+      let names = entities.map((e) => e.name);
+      expect(names).toContain('Alice');
+      expect(names).toContain('Acme Corporation');
+
+      const removed = await engine.removeDocuments(['doc-1']);
+      expect(removed.documentsRemoved).toBe(1);
+
+      entities = await engine.getEntities();
+      names = entities.map((e) => e.name);
+      expect(names).not.toContain('Alice');
+      expect(names).not.toContain('Acme Corporation');
+
+      const stats = await engine.getStats();
+      expect(stats.documentsIngested).toBe(0);
+    });
+
     it('should deduplicate entities by name (case-insensitive)', async () => {
       await engine.ingestDocuments([
         { id: 'doc-1', content: 'John Smith works here.' },

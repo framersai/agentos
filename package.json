@@ -48,6 +48,16 @@
       "default": "./dist/rag/index.js",
       "types": "./dist/rag/index.d.ts"
     },
+    "./rag/reranking": {
+      "import": "./dist/rag/reranking/index.js",
+      "default": "./dist/rag/reranking/index.js",
+      "types": "./dist/rag/reranking/index.d.ts"
+    },
+    "./rag/graphrag": {
+      "import": "./dist/rag/graphrag/index.js",
+      "default": "./dist/rag/graphrag/index.js",
+      "types": "./dist/rag/graphrag/index.d.ts"
+    },
     "./rag/*": {
       "import": "./dist/rag/*.js",
       "default": "./dist/rag/*.js",

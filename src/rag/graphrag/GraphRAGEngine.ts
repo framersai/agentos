@@ -380,6 +380,65 @@ export class GraphRAGEngine implements IGraphRAGEngine {
     };
   }
 
+  async removeDocuments(documentIds: string[]): Promise<{
+    documentsRemoved: number;
+    communitiesDetected: number;
+  }> {
+    this.ensureInitialized();
+
+    const touchedEntityIds = new Set<string>();
+    const touchedRelationshipIds = new Set<string>();
+    const entitiesNeedingEmbedding = new Set<string>();
+    let documentsRemoved = 0;
+
+    for (const rawId of documentIds) {
+      const documentId = String(rawId || '').trim();
+      if (!documentId) continue;
+      if (!this.ingestedDocumentIds.has(documentId)) continue;
+
+      try {
+        const removed = await this.removeDocumentContributions(documentId);
+        documentsRemoved += 1;
+        for (const id of removed.touchedEntityIds) touchedEntityIds.add(id);
+        for (const id of removed.touchedRelationshipIds) touchedRelationshipIds.add(id);
+        for (const id of removed.entitiesNeedingEmbedding) entitiesNeedingEmbedding.add(id);
+        this.ingestedDocumentIds.delete(documentId);
+        this.ingestedDocumentHashes.delete(documentId);
+      } catch (error) {
+        console.warn(
+          `[GraphRAGEngine] Failed to remove document '${documentId}' contributions: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    if (documentsRemoved === 0) {
+      return { documentsRemoved: 0, communitiesDetected: this.communities.size };
+    }
+
+    for (const entityId of touchedEntityIds) {
+      this.recomputeEntityAggregates(entityId);
+    }
+    for (const relId of touchedRelationshipIds) {
+      this.recomputeRelationshipAggregates(relId);
+    }
+
+    if (this.embeddingManager && this.vectorStore && this.config.generateEntityEmbeddings) {
+      await this.generateEntityEmbeddings(entitiesNeedingEmbedding);
+    }
+
+    const communitiesDetected = await this.detectCommunities();
+    if (this.llmProvider) {
+      await this.generateCommunitySummaries();
+    }
+    if (this.persistenceAdapter) {
+      await this.persistAll();
+    }
+
+    return { documentsRemoved, communitiesDetected };
+  }
+
   // ===========================================================================
   // Entity & Relationship Extraction
   // ===========================================================================
