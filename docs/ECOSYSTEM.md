@@ -85,20 +85,20 @@ npm install @framers/agentos-extensions
 
 ---
 
-### [@framers/agentos-skills-registry](https://github.com/framersai/agentos-skills)
-**Curated Skills Registry** — Helpers to load bundled `SKILL.md` prompt modules into a `SkillRegistry` and build prompt snapshots.
+### [@framers/agentos-skills-registry](https://github.com/framersai/agentos-skills-registry)
+**Curated Skills Registry** — 18 SKILL.md prompt modules + typed catalog + lazy-loading factories for `SkillRegistry` and snapshots.
 
 ```bash
 npm install @framers/agentos-skills-registry
 ```
 
----
+```typescript
+// Lightweight catalog queries (zero peer deps)
+import { searchSkills, getSkillsByCategory } from '@framers/agentos-skills-registry/catalog';
 
-### [@framers/agentos-skills](https://github.com/framersai/agentos-skills)
-**Skills Catalog** — Static `registry.json` catalog of curated skills (bundled `SKILL.md` folders).
-
-```bash
-npm install @framers/agentos-skills
+// Full registry with lazy-loaded @framers/agentos
+import { createCuratedSkillSnapshot } from '@framers/agentos-skills-registry';
+const snapshot = await createCuratedSkillSnapshot({ skills: ['github', 'weather'] });
 ```
 
 ---
