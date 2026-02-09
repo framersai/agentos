@@ -1,6 +1,6 @@
 # Releasing @framers/agentos
 
-> Last updated: 2024-12-10
+> Last updated: 2026-02-09
 
 This document describes the release process for the AgentOS package.
 
@@ -18,13 +18,17 @@ Releases are **fully automated** using [semantic-release](https://semantic-relea
 
 ### How It Works
 
-The version bump is determined by your commit messages following [Conventional Commits](https://www.conventionalcommits.org/):
+The version bump is determined by your commit messages following [Conventional Commits](https://www.conventionalcommits.org/).
+
+AgentOS uses **conservative versioning while still 0.x**:
+- `feat:` releases are treated as **patch** (not minor) until 1.0
+- breaking changes bump **minor** (0.x → 0.(x+1).0), not 1.0
 
 | Commit Type | Version Bump | Example |
 |-------------|--------------|---------|
 | `fix:` | Patch | `0.1.0` → `0.1.1` |
-| `feat:` | Minor | `0.1.0` → `0.2.0` |
-| `feat!:` or `BREAKING CHANGE:` | Major | `0.1.0` → `1.0.0` |
+| `feat:` | Patch | `0.1.0` → `0.1.1` |
+| `feat!:` or `BREAKING CHANGE:` | Minor | `0.1.0` → `0.2.0` |
 | `perf:` | Patch | `0.1.0` → `0.1.1` |
 | `refactor:` | Patch | `0.1.0` → `0.1.1` |
 | `docs:`, `chore:`, `ci:`, `test:` | No release | — |
@@ -35,10 +39,10 @@ The version bump is determined by your commit messages following [Conventional C
 # Patch release (0.1.0 → 0.1.1)
 git commit -m "fix: resolve memory leak in GMI manager"
 
-# Minor release (0.1.0 → 0.2.0)
+# Patch release (0.1.0 → 0.1.1)
 git commit -m "feat: add streaming support for tool calls"
 
-# Major release (0.1.0 → 1.0.0)
+# Minor release (0.1.0 → 0.2.0)
 git commit -m "feat!: redesign AgentOS initialization API
 
 BREAKING CHANGE: The initialize() method now requires a config object instead of positional arguments."
@@ -107,12 +111,12 @@ The release behavior is configured in `release.config.js`:
 ```javascript
 // Commit types that trigger releases
 releaseRules: [
-  { type: 'feat', release: 'minor' },
+  { type: 'feat', release: 'patch' },      // Conservative: feat = patch until 1.0
   { type: 'fix', release: 'patch' },
   { type: 'perf', release: 'patch' },
   { type: 'refactor', release: 'patch' },
   { type: 'revert', release: 'patch' },
-  { breaking: true, release: 'major' },
+  { breaking: true, release: 'minor' },   // BREAKING = minor while 0.x
 ]
 ```
 
