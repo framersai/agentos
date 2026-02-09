@@ -56,10 +56,35 @@ interface HnswCollection {
   /** Maps document ID (string) → internal HNSW label (number) */
   idToLabel: Map<string, number>;
   /** Stores metadata and text content per document */
-  metadata: Map<string, { metadata?: Record<string, MetadataValue>; textContent?: string; embedding: number[] }>;
+  metadata: Map<string, { metadata?: Record<string, MetadataValue>; textContent?: string }>;
   nextLabel: number;
   maxElements: number;
 }
+
+type PersistedCollectionEntry = {
+  name: string;
+  fileBase: string;
+  dimension: number;
+  similarityMetric: 'cosine' | 'euclidean' | 'dotproduct';
+};
+
+type PersistedManifestV1 = {
+  version: 1;
+  collections: PersistedCollectionEntry[];
+};
+
+type PersistedCollectionMetaV1 = {
+  version: 1;
+  name: string;
+  dimension: number;
+  similarityMetric: 'cosine' | 'euclidean' | 'dotproduct';
+  nextLabel: number;
+  maxElements: number;
+  labelToId: Array<[number, string]>;
+  metadata: Array<
+    [string, { metadata?: Record<string, MetadataValue>; textContent?: string }]
+  >;
+};
 
 /**
  * Vector store implementation using hnswlib-node for fast ANN search.
@@ -84,10 +109,28 @@ export class HnswlibVectorStore implements IVectorStore {
   private defaultDimension: number = 1536;
   private defaultMetric: 'cosine' | 'euclidean' | 'dotproduct' = 'cosine';
 
+  // Optional file-based persistence (best-effort).
+  private persistDirectory?: string;
+  private persistManifestPath?: string;
+  private persisted: Map<string, PersistedCollectionEntry> = new Map();
+  private dirtyCollections: Set<string> = new Set();
+  private flushTimer: any = null;
+  private nodeFs?: typeof import('node:fs/promises');
+  private nodePath?: typeof import('node:path');
+
   async initialize(config: VectorStoreProviderConfig): Promise<void> {
     if (this.isInitialized) {
       console.warn(`[HnswlibVectorStore:${this.providerId}] Re-initializing.`);
       this.collections.clear();
+      this.dirtyCollections.clear();
+      if (this.flushTimer) {
+        try {
+          clearTimeout(this.flushTimer);
+        } catch {
+          // Ignore.
+        }
+        this.flushTimer = null;
+      }
     }
 
     this.config = config as HnswlibVectorStoreConfig;
@@ -111,6 +154,14 @@ export class HnswlibVectorStore implements IVectorStore {
     this.defaultDimension = this.config.defaultEmbeddingDimension ?? 1536;
     this.defaultMetric = this.config.similarityMetric ?? 'cosine';
 
+    this.persistDirectory = this.config.persistDirectory?.trim() || undefined;
+    if (this.persistDirectory) {
+      await this.ensurePersistenceReady();
+    } else {
+      this.persistManifestPath = undefined;
+      this.persisted.clear();
+    }
+
     this.isInitialized = true;
   }
 
@@ -122,6 +173,280 @@ export class HnswlibVectorStore implements IVectorStore {
         undefined,
         'HnswlibVectorStore',
       );
+    }
+  }
+
+  private async getFs(): Promise<typeof import('node:fs/promises')> {
+    if (this.nodeFs) return this.nodeFs;
+    this.nodeFs = await import('node:fs/promises');
+    return this.nodeFs;
+  }
+
+  private async getPath(): Promise<typeof import('node:path')> {
+    if (this.nodePath) return this.nodePath;
+    this.nodePath = await import('node:path');
+    return this.nodePath;
+  }
+
+  private fnv1a32(text: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
+  private deriveFileBase(collectionName: string): string {
+    const encoded = encodeURIComponent(collectionName).replace(/%/g, '_');
+    if (encoded.length <= 120) return encoded;
+    return `${encoded.slice(0, 80)}_${this.fnv1a32(collectionName)}`;
+  }
+
+  private isMetric(value: unknown): value is 'cosine' | 'euclidean' | 'dotproduct' {
+    return value === 'cosine' || value === 'euclidean' || value === 'dotproduct';
+  }
+
+  private async ensurePersistenceReady(): Promise<void> {
+    if (!this.persistDirectory) return;
+
+    const fs = await this.getFs();
+    const path = await this.getPath();
+
+    await fs.mkdir(this.persistDirectory, { recursive: true });
+    this.persistManifestPath = path.join(this.persistDirectory, 'hnswlib.manifest.json');
+
+    this.persisted.clear();
+
+    try {
+      const raw = await fs.readFile(this.persistManifestPath, 'utf8');
+      const parsed = JSON.parse(raw) as PersistedManifestV1;
+      if (parsed?.version !== 1 || !Array.isArray(parsed.collections)) return;
+
+      for (const entry of parsed.collections) {
+        const name = typeof entry?.name === 'string' ? entry.name : '';
+        const fileBase = typeof entry?.fileBase === 'string' ? entry.fileBase : '';
+        const dimension = typeof entry?.dimension === 'number' ? entry.dimension : 0;
+        const similarityMetric = entry?.similarityMetric;
+        if (!name || !fileBase) continue;
+        if (!Number.isFinite(dimension) || dimension <= 0) continue;
+        if (!this.isMetric(similarityMetric)) continue;
+
+        this.persisted.set(name, { name, fileBase, dimension, similarityMetric });
+      }
+    } catch {
+      // Ignore; persistence is best-effort.
+    }
+  }
+
+  private async writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
+    const fs = await this.getFs();
+    const path = await this.getPath();
+    const dir = path.dirname(filePath);
+    await fs.mkdir(dir, { recursive: true });
+
+    const tmpPath = `${filePath}.tmp`;
+    await fs.writeFile(tmpPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    try {
+      await fs.rename(tmpPath, filePath);
+    } catch {
+      try {
+        await fs.rm(filePath, { force: true });
+      } catch {
+        // Ignore.
+      }
+      await fs.rename(tmpPath, filePath);
+    }
+  }
+
+  private async persistManifest(): Promise<void> {
+    if (!this.persistDirectory || !this.persistManifestPath) return;
+    const manifest: PersistedManifestV1 = {
+      version: 1,
+      collections: Array.from(this.persisted.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    };
+    await this.writeJsonAtomic(this.persistManifestPath, manifest);
+  }
+
+  private async getPersistPaths(entry: PersistedCollectionEntry): Promise<{ indexPath: string; metaPath: string }> {
+    if (!this.persistDirectory) {
+      throw new GMIError(
+        'Persistence is not enabled for this HnswlibVectorStore.',
+        GMIErrorCode.VALIDATION_ERROR,
+        undefined,
+        'HnswlibVectorStore',
+      );
+    }
+    const path = await this.getPath();
+    return {
+      indexPath: path.join(this.persistDirectory, `${entry.fileBase}.hnsw`),
+      metaPath: path.join(this.persistDirectory, `${entry.fileBase}.meta.json`),
+    };
+  }
+
+  private markDirty(collectionName: string): void {
+    if (!this.persistDirectory) return;
+    this.dirtyCollections.add(collectionName);
+    if (this.flushTimer) return;
+
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      void this.flushPersistence();
+    }, 2000);
+  }
+
+  private async flushPersistence(): Promise<void> {
+    if (!this.persistDirectory) return;
+
+    const toFlush = Array.from(this.dirtyCollections);
+    this.dirtyCollections.clear();
+
+    for (const collectionName of toFlush) {
+      const collection = this.collections.get(collectionName);
+      if (!collection) continue;
+      try {
+        await this.persistCollection(collection);
+      } catch {
+        // Ignore; persistence is best-effort.
+      }
+    }
+
+    try {
+      await this.persistManifest();
+    } catch {
+      // Ignore.
+    }
+  }
+
+  private async persistCollection(collection: HnswCollection): Promise<void> {
+    if (!this.persistDirectory) return;
+
+    let entry = this.persisted.get(collection.name);
+    if (!entry) {
+      entry = {
+        name: collection.name,
+        fileBase: this.deriveFileBase(collection.name),
+        dimension: collection.dimension,
+        similarityMetric: collection.similarityMetric,
+      };
+      this.persisted.set(collection.name, entry);
+    }
+
+    const fs = await this.getFs();
+    const { indexPath, metaPath } = await this.getPersistPaths(entry);
+
+    const tmpIndexPath = `${indexPath}.tmp`;
+    try {
+      await collection.index.writeIndex(tmpIndexPath);
+      try {
+        await fs.rename(tmpIndexPath, indexPath);
+      } catch {
+        try {
+          await fs.rm(indexPath, { force: true });
+        } catch {
+          // Ignore.
+        }
+        await fs.rename(tmpIndexPath, indexPath);
+      }
+    } catch {
+      try {
+        await fs.rm(tmpIndexPath, { force: true });
+      } catch {
+        // Ignore.
+      }
+    }
+
+    const meta: PersistedCollectionMetaV1 = {
+      version: 1,
+      name: collection.name,
+      dimension: collection.dimension,
+      similarityMetric: collection.similarityMetric,
+      nextLabel: collection.nextLabel,
+      maxElements: collection.maxElements,
+      labelToId: Array.from(collection.labelToId.entries()),
+      metadata: Array.from(collection.metadata.entries()).map(([id, doc]) => [
+        id,
+        { metadata: doc.metadata, textContent: doc.textContent },
+      ]),
+    };
+    await this.writeJsonAtomic(metaPath, meta);
+  }
+
+  private async loadPersistedCollection(entry: PersistedCollectionEntry): Promise<HnswCollection> {
+    if (!this.persistDirectory) {
+      throw new GMIError(
+        'Persistence is not enabled for this HnswlibVectorStore.',
+        GMIErrorCode.VALIDATION_ERROR,
+        undefined,
+        'HnswlibVectorStore',
+      );
+    }
+
+    const fs = await this.getFs();
+    const { indexPath, metaPath } = await this.getPersistPaths(entry);
+
+    const raw = await fs.readFile(metaPath, 'utf8');
+    const parsed = JSON.parse(raw) as PersistedCollectionMetaV1;
+    if (parsed?.version !== 1) {
+      throw new Error(`Unsupported metadata version for collection '${entry.name}'.`);
+    }
+
+    const metric = this.isMetric(parsed.similarityMetric) ? parsed.similarityMetric : entry.similarityMetric;
+    const spaceType = this.getSpaceType(metric);
+
+    const index = new this.HierarchicalNSW(spaceType, entry.dimension);
+    await index.readIndex(indexPath);
+    index.setEf(this.hnswEfSearch);
+
+    const labelToId = new Map<number, string>(
+      Array.isArray(parsed.labelToId) ? parsed.labelToId : [],
+    );
+    const idToLabel = new Map<string, number>();
+    for (const [label, id] of labelToId.entries()) {
+      idToLabel.set(id, label);
+    }
+
+    const metadata = new Map<string, { metadata?: Record<string, MetadataValue>; textContent?: string }>();
+    if (Array.isArray(parsed.metadata)) {
+      for (const [id, doc] of parsed.metadata) {
+        if (!id) continue;
+        metadata.set(id, { metadata: doc?.metadata, textContent: doc?.textContent });
+      }
+    }
+
+    const nextLabel = Number.isFinite(parsed.nextLabel) ? parsed.nextLabel : Math.max(0, ...labelToId.keys()) + 1;
+    const maxElements = Number.isFinite(parsed.maxElements) ? parsed.maxElements : Math.max(10_000, nextLabel);
+
+    return {
+      name: entry.name,
+      dimension: entry.dimension,
+      similarityMetric: metric,
+      index,
+      labelToId,
+      idToLabel,
+      metadata,
+      nextLabel,
+      maxElements,
+    };
+  }
+
+  private async getExistingCollection(collectionName: string): Promise<HnswCollection | null> {
+    const loaded = this.collections.get(collectionName);
+    if (loaded) return loaded;
+
+    const entry = this.persisted.get(collectionName);
+    if (!entry) return null;
+
+    try {
+      const collection = await this.loadPersistedCollection(entry);
+      this.collections.set(collectionName, collection);
+      return collection;
+    } catch (error) {
+      console.warn(
+        `[HnswlibVectorStore:${this.providerId}] Failed to load persisted collection '${collectionName}':`,
+        error,
+      );
+      return null;
     }
   }
 
@@ -154,13 +479,18 @@ export class HnswlibVectorStore implements IVectorStore {
       );
     }
 
-    if (this.collections.has(collectionName) && !options?.overwriteIfExists) {
+    const exists = this.collections.has(collectionName) || this.persisted.has(collectionName);
+    if (exists && !options?.overwriteIfExists) {
       throw new GMIError(
         `Collection '${collectionName}' already exists.`,
         GMIErrorCode.ALREADY_EXISTS,
         { collectionName },
         'HnswlibVectorStore',
       );
+    }
+
+    if (exists && options?.overwriteIfExists) {
+      await this.deleteCollection(collectionName);
     }
 
     const metric = options?.providerSpecificParams?.similarityMetric as
@@ -186,26 +516,62 @@ export class HnswlibVectorStore implements IVectorStore {
       nextLabel: 0,
       maxElements: initialMaxElements,
     });
+
+    if (this.persistDirectory) {
+      if (!this.persisted.has(collectionName)) {
+        this.persisted.set(collectionName, {
+          name: collectionName,
+          fileBase: this.deriveFileBase(collectionName),
+          dimension,
+          similarityMetric: metric,
+        });
+        try {
+          await this.persistManifest();
+        } catch {
+          // Ignore; persistence is best-effort.
+        }
+      }
+    }
   }
 
   async deleteCollection(collectionName: string): Promise<void> {
     this.ensureInitialized();
     this.collections.delete(collectionName);
+
+    if (this.persistDirectory) {
+      const entry = this.persisted.get(collectionName);
+      if (entry) {
+        try {
+          const fs = await this.getFs();
+          const { indexPath, metaPath } = await this.getPersistPaths(entry);
+          await fs.rm(indexPath, { force: true });
+          await fs.rm(metaPath, { force: true });
+        } catch {
+          // Ignore; best-effort.
+        }
+        this.persisted.delete(collectionName);
+        this.dirtyCollections.delete(collectionName);
+        try {
+          await this.persistManifest();
+        } catch {
+          // Ignore.
+        }
+      }
+    }
   }
 
   async collectionExists(collectionName: string): Promise<boolean> {
     this.ensureInitialized();
-    return this.collections.has(collectionName);
+    return this.collections.has(collectionName) || this.persisted.has(collectionName);
   }
 
   private async ensureCollection(collectionName: string, dimension?: number): Promise<HnswCollection> {
-    let collection = this.collections.get(collectionName);
-    if (!collection) {
-      const dim = dimension ?? this.defaultDimension;
-      await this.createCollection(collectionName, dim);
-      collection = this.collections.get(collectionName)!;
-    }
-    return collection;
+    const existing = await this.getExistingCollection(collectionName);
+    if (existing) return existing;
+
+    const dim = dimension ?? this.defaultDimension;
+    await this.createCollection(collectionName, dim);
+    return this.collections.get(collectionName)!;
   }
 
   private resizeIfNeeded(collection: HnswCollection): void {
@@ -250,7 +616,6 @@ export class HnswlibVectorStore implements IVectorStore {
           collection.metadata.set(doc.id, {
             metadata: doc.metadata,
             textContent: doc.textContent,
-            embedding: doc.embedding,
           });
         } else {
           // Insert new
@@ -262,7 +627,6 @@ export class HnswlibVectorStore implements IVectorStore {
           collection.metadata.set(doc.id, {
             metadata: doc.metadata,
             textContent: doc.textContent,
-            embedding: doc.embedding,
           });
         }
 
@@ -273,6 +637,10 @@ export class HnswlibVectorStore implements IVectorStore {
           message: error instanceof Error ? error.message : String(error),
         });
       }
+    }
+
+    if (upsertedIds.length > 0) {
+      this.markDirty(collectionName);
     }
 
     return {
@@ -290,7 +658,7 @@ export class HnswlibVectorStore implements IVectorStore {
   ): Promise<QueryResult> {
     this.ensureInitialized();
 
-    const collection = this.collections.get(collectionName);
+    const collection = await this.getExistingCollection(collectionName);
     if (!collection) {
       return {
         documents: [],
@@ -367,9 +735,10 @@ export class HnswlibVectorStore implements IVectorStore {
         continue;
       }
 
+      const embedding = options?.includeEmbedding ? collection.index.getPoint(label) : [];
       const retrievedDoc: RetrievedVectorDocument = {
         id: docId,
-        embedding: options?.includeEmbedding ? docData.embedding : [],
+        embedding: Array.isArray(embedding) ? embedding : [],
         similarityScore,
       };
 
@@ -406,7 +775,7 @@ export class HnswlibVectorStore implements IVectorStore {
   ): Promise<DeleteResult> {
     this.ensureInitialized();
 
-    const collection = this.collections.get(collectionName);
+    const collection = await this.getExistingCollection(collectionName);
     if (!collection) {
       return { deletedCount: 0 };
     }
@@ -426,6 +795,7 @@ export class HnswlibVectorStore implements IVectorStore {
       collection.nextLabel = 0;
       collection.maxElements = 10000;
 
+      this.markDirty(collectionName);
       return { deletedCount: count };
     }
 
@@ -471,6 +841,9 @@ export class HnswlibVectorStore implements IVectorStore {
       }
     }
 
+    if (deletedCount > 0) {
+      this.markDirty(collectionName);
+    }
     return { deletedCount };
   }
 
@@ -493,6 +866,21 @@ export class HnswlibVectorStore implements IVectorStore {
   }
 
   async shutdown(): Promise<void> {
+    if (this.flushTimer) {
+      try {
+        clearTimeout(this.flushTimer);
+      } catch {
+        // Ignore.
+      }
+      this.flushTimer = null;
+    }
+
+    try {
+      await this.flushPersistence();
+    } catch {
+      // Ignore; best-effort.
+    }
+
     this.collections.clear();
     this.isInitialized = false;
   }
@@ -501,7 +889,7 @@ export class HnswlibVectorStore implements IVectorStore {
     this.ensureInitialized();
 
     if (collectionName) {
-      const collection = this.collections.get(collectionName);
+      const collection = await this.getExistingCollection(collectionName);
       if (!collection) {
         return { error: `Collection '${collectionName}' not found.` };
       }
@@ -517,8 +905,13 @@ export class HnswlibVectorStore implements IVectorStore {
       };
     }
 
+    const collectionNames = new Set<string>([
+      ...this.persisted.keys(),
+      ...this.collections.keys(),
+    ]);
+
     return {
-      totalCollections: this.collections.size,
+      totalCollections: collectionNames.size,
       totalDocuments: Array.from(this.collections.values()).reduce(
         (sum, col) => sum + col.idToLabel.size, 0,
       ),

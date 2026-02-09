@@ -225,7 +225,7 @@ AgentOS currently ships these vector-store implementations:
 
 - `InMemoryVectorStore` (ephemeral, dev/testing)
 - `SqlVectorStore` (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
-- `HnswlibVectorStore` (ANN search via `hnswlib-node`, optional peer dependency)
+- `HnswlibVectorStore` (ANN search via `hnswlib-node`, optional peer dependency; optional file persistence via `persistDirectory`)
 - `QdrantVectorStore` (remote/self-hosted Qdrant via HTTP; optional BM25 sparse vectors + hybrid fusion)
 
 If you want “true” large-scale vector DB behavior (tens of millions of vectors, filtered search at scale, etc.), add a provider implementation and wire it into `VectorStoreManager`.
@@ -260,8 +260,39 @@ const vsmConfig: VectorStoreManagerConfig = {
 `GraphRAGEngine` exists as a TypeScript-native implementation (graphology + Louvain community detection). It is not automatically used by GMIs by default; treat it as an advanced subsystem you opt into when your problem benefits from entity/relationship structure.
 
 - If you use non-OpenAI embedding models (e.g., Ollama), set `GraphRAGConfig.embeddingDimension`, or provide an `embeddingManager` so the engine can probe the embedding dimension at runtime.
+- `GraphRAGEngine` can run without embeddings and/or without an LLM:
+  - No embeddings: falls back to text matching (lower quality; no vector search).
+  - No LLM: falls back to pattern-based extraction (no model calls).
 - `GraphRAGEngine.ingestDocuments()` supports update semantics when you re-ingest the same `documentId` with new content (it subtracts prior per-document contributions before applying the new extraction).
-- To keep a GraphRAG index consistent with deletes or category moves, call `GraphRAGEngine.removeDocuments([documentId, ...])`.
+- To keep a GraphRAG index consistent with deletes or category/collection moves, call `GraphRAGEngine.removeDocuments([documentId, ...])`.
+
+Minimal lifecycle example:
+
+```ts
+import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
+
+const engine = new GraphRAGEngine({
+  // Optional:
+  // - vectorStore
+  // - embeddingManager
+  // - llmProvider
+  // - persistenceAdapter
+});
+
+await engine.initialize({ engineId: 'graphrag-demo' });
+
+// Ingest (or update) using a stable documentId.
+await engine.ingestDocuments([{ id: 'doc-1', content: 'Alice founded Wonderland Inc.' }]);
+await engine.ingestDocuments([{ id: 'doc-1', content: 'Bob founded Wonderland Inc.' }]); // update
+
+// Delete or move out of GraphRAG policy scope.
+await engine.removeDocuments(['doc-1']);
+```
+
+Troubleshooting updates:
+
+- If you see warnings about missing previous contribution records, you upgraded from an older persistence format.
+  - Fix: rebuild the GraphRAG index (clear its persisted state and re-ingest documents).
 
 ## Immutability Notes (Sealed Agents)
 
@@ -296,3 +327,14 @@ If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS 
   - `local` (offline cross-encoder, requires installing Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`)
 
 Reranking is **still opt-in per request** via `RagRetrievalOptions.rerankerConfig.enabled=true`.
+
+## Multimodal RAG (Image + Audio)
+
+AgentOS’ core RAG APIs are text-first. The recommended multimodal pattern is:
+
+- Persist asset metadata (and optionally bytes).
+- Derive a **text representation** (caption/transcript/OCR/etc).
+- Index that text as a normal RAG document (so the same vector/BM25/rerank pipeline applies).
+- Optionally add modality embeddings (image-to-image / audio-to-audio) as an acceleration path.
+
+See [MULTIMODAL_RAG.md](./MULTIMODAL_RAG.md) for the reference implementation and HTTP API.

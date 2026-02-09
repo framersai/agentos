@@ -4,6 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 // Mock hnswlib-node before importing HnswlibVectorStore
 const mockIndex = {
@@ -13,6 +16,17 @@ const mockIndex = {
   searchKnn: vi.fn(),
   markDelete: vi.fn(),
   resizeIndex: vi.fn(),
+  getPoint: vi.fn(),
+  readIndex: vi.fn(async (filename: string) => {
+    // Validate the file exists (persistence path).
+    await fs.readFile(filename);
+    return true;
+  }),
+  writeIndex: vi.fn(async (filename: string) => {
+    // Create a tiny placeholder index file so fs.rename can succeed.
+    await fs.writeFile(filename, 'mock-index');
+    return true;
+  }),
 };
 
 vi.mock('hnswlib-node', () => ({
@@ -407,6 +421,86 @@ describe('HnswlibVectorStore', () => {
       );
       const result = await store.upsert('big', docs);
       expect(result.upsertedCount).toBe(50);
+    });
+  });
+
+  // ===========================================================================
+  // Persistence (best-effort)
+  // ===========================================================================
+
+  describe('persistence', () => {
+    it('persists manifest + metadata and can load on next initialize', async () => {
+      const persistDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-hnswlib-'));
+
+      const persistStore = new HnswlibVectorStore();
+      await persistStore.initialize({
+        id: 'persist-hnsw',
+        type: 'hnswlib',
+        persistDirectory: persistDir,
+      } as any);
+
+      await persistStore.upsert(
+        'persist-col',
+        [makeDoc('doc1', [0.1, 0.2, 0.3], { category: 'test', score: 42 }, 'Hello world')],
+        { overwrite: true },
+      );
+
+      await persistStore.shutdown();
+
+      // Verify the manifest and metadata were written.
+      const manifestPath = path.join(persistDir, 'hnswlib.manifest.json');
+      const manifestRaw = await fs.readFile(manifestPath, 'utf8');
+      const manifest = JSON.parse(manifestRaw) as any;
+      expect(manifest.version).toBe(1);
+      expect(Array.isArray(manifest.collections)).toBe(true);
+      expect(manifest.collections.some((c: any) => c.name === 'persist-col')).toBe(true);
+
+      const entry = manifest.collections.find((c: any) => c.name === 'persist-col');
+      expect(typeof entry.fileBase).toBe('string');
+
+      const metaPath = path.join(persistDir, `${entry.fileBase}.meta.json`);
+      const indexPath = path.join(persistDir, `${entry.fileBase}.hnsw`);
+
+      const metaRaw = await fs.readFile(metaPath, 'utf8');
+      const meta = JSON.parse(metaRaw) as any;
+      expect(meta.version).toBe(1);
+      expect(meta.name).toBe('persist-col');
+      expect(meta.dimension).toBe(3);
+      expect(Array.isArray(meta.labelToId)).toBe(true);
+      expect(meta.labelToId.some((pair: any) => pair[1] === 'doc1')).toBe(true);
+      expect(Array.isArray(meta.metadata)).toBe(true);
+      expect(meta.metadata.some((pair: any) => pair[0] === 'doc1')).toBe(true);
+
+      // Index file exists (content mocked).
+      await fs.readFile(indexPath);
+
+      // Reload and query.
+      const store2 = new HnswlibVectorStore();
+      await store2.initialize({
+        id: 'persist-hnsw-2',
+        type: 'hnswlib',
+        persistDirectory: persistDir,
+      } as any);
+
+      mockIndex.searchKnn.mockReturnValue({
+        neighbors: [0],
+        distances: [0.05],
+      });
+
+      const result = await store2.query('persist-col', [0.1, 0.2, 0.3], {
+        topK: 5,
+        includeMetadata: true,
+        includeTextContent: true,
+      } satisfies QueryOptions);
+
+      expect(result.documents).toHaveLength(1);
+      expect(result.documents[0].id).toBe('doc1');
+      expect(result.documents[0].metadata).toEqual({ category: 'test', score: 42 });
+      expect(result.documents[0].textContent).toBe('Hello world');
+
+      await store2.shutdown();
+
+      await fs.rm(persistDir, { recursive: true, force: true });
     });
   });
 });
