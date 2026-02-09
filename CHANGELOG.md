@@ -1,3 +1,10 @@
+## <small>0.1.21 (2026-02-09)</small>
+
+* feat(rag): add HNSW persistence + multimodal guide ([9a45d84](https://github.com/framersai/agentos/commit/9a45d84))
+* docs: document GraphRAG updates + deletions ([a9b7f56](https://github.com/framersai/agentos/commit/a9b7f56))
+* docs: update skills references to consolidated registry package ([7d344f3](https://github.com/framersai/agentos/commit/7d344f3))
+* test: relax fetch mock typing ([b8647a2](https://github.com/framersai/agentos/commit/b8647a2))
+
 ## <small>0.1.20 (2026-02-08)</small>
 
 * fix: add explicit exports for rag/reranking, rag/graphrag, core/hitl ([d90340d](https://github.com/framersai/agentos/commit/d90340d))
