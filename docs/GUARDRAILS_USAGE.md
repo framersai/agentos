@@ -365,8 +365,207 @@ interface GuardrailEvaluationResult {
 5. **Test edge cases** - Test with partial PII, edge cases in streaming chunks
 6. **Consider latency** - Each streaming evaluation adds latency to user experience
 
+## Folder-Level Permissions & Safe Guardrails
+
+In addition to content guardrails, Wunderland provides **folder-level permission guardrails** that validate filesystem access before tool execution. This prevents agents from accessing sensitive system files or directories outside their permitted scope.
+
+### Overview
+
+Safe Guardrails intercept tool calls (like `file_read`, `file_write`, `shell_execute`) and validate filesystem paths against folder permission rules **before execution**.
+
+```
+Tool Call → Safe Guardrails → Folder Permission Check → Allow/Deny → Execution
+```
+
+### Quick Example
+
+```json
+{
+  "security": {
+    "tier": "balanced",
+    "folderPermissions": {
+      "defaultPolicy": "deny",
+      "inheritFromTier": true,
+      "rules": [
+        { "pattern": "~/workspace/**", "read": true, "write": true },
+        { "pattern": "/tmp/**", "read": true, "write": true },
+        { "pattern": "/var/log/**", "read": true, "write": false },
+        { "pattern": "!/sensitive/*", "read": false, "write": false }
+      ]
+    }
+  }
+}
+```
+
+### Folder Permission Rules
+
+Each rule supports glob patterns with first-match-wins evaluation:
+
+| Pattern | Matches | Example |
+|---------|---------|---------|
+| `~/workspace/**` | All files under workspace recursively | `~/workspace/data/file.txt` |
+| `/tmp/*` | Direct children of /tmp | `/tmp/test.txt` |
+| `!/sensitive/*` | Negation: blocks all files | `/sensitive/data.json` (blocked) |
+| `/var/log/**` | System logs recursively | `/var/log/system/app.log` |
+
+### Security Tier Defaults
+
+Each security tier includes default folder permissions:
+
+**Dangerous** - Allow everything:
+```json
+{
+  "defaultPolicy": "allow",
+  "rules": []
+}
+```
+
+**Balanced** - Workspace + tmp + read-only logs:
+```json
+{
+  "defaultPolicy": "deny",
+  "rules": [
+    { "pattern": "~/workspace/**", "read": true, "write": true },
+    { "pattern": "/tmp/**", "read": true, "write": true },
+    { "pattern": "/var/log/**", "read": true, "write": false }
+  ]
+}
+```
+
+**Paranoid** - Workspace only:
+```json
+{
+  "defaultPolicy": "deny",
+  "rules": [
+    { "pattern": "~/workspace/**", "read": true, "write": true }
+  ]
+}
+```
+
+### Violation Handling
+
+When an agent attempts unauthorized access, Safe Guardrails:
+
+1. **Blocks the tool call** and returns an error
+2. **Logs the violation** to `~/.wunderland/security/violations.log`
+3. **Sends notifications** (webhooks/email) for high/critical severity
+4. **Assesses severity** based on attempted path:
+   - **Critical**: `/etc`, `/root`, `/boot`, `passwd`, `shadow`
+   - **High**: `/usr`, `/var`, `/sys`, `.ssh`, credentials
+   - **Medium**: Write operations
+   - **Low**: Read operations
+
+### Audit Log Format
+
+```json
+{"timestamp":"2026-02-09T10:30:00Z","level":"SECURITY_VIOLATION","agentId":"agent-123","toolId":"file_write","operation":"file_write","attemptedPath":"/etc/passwd","reason":"Path /etc not in allowed folders","severity":"critical"}
+```
+
+### Shell Command Parsing
+
+Safe Guardrails extract paths from shell commands:
+
+```typescript
+// Agent tries: shell_execute({ command: "rm -rf /etc/config" })
+// Guardrails extract: ["/etc/config"]
+// Result: BLOCKED - /etc not permitted
+```
+
+Supported commands: `rm`, `cp`, `mv`, `cat`, `touch`, `mkdir`, `rmdir`, `chmod`, `chown`
+
+### Read-Only vs Read-Write
+
+Separate read and write permissions per folder:
+
+```json
+{
+  "rules": [
+    { "pattern": "/data/public/**", "read": true, "write": false },
+    { "pattern": "~/workspace/**", "read": true, "write": true }
+  ]
+}
+```
+
+- Agent can **read** from `/data/public/` but **cannot write**
+- Agent has **full access** to `~/workspace/`
+
+### Configuration in agent.config.json
+
+```json
+{
+  "seedId": "seed_research_bot",
+  "displayName": "Research Bot",
+  "security": {
+    "tier": "balanced",
+    "permissionSet": "autonomous",
+    "folderPermissions": {
+      "defaultPolicy": "deny",
+      "inheritFromTier": true,
+      "rules": [
+        {
+          "pattern": "~/workspace/**",
+          "read": true,
+          "write": true,
+          "description": "Agent workspace - full access"
+        },
+        {
+          "pattern": "/home/user/docs/**",
+          "read": true,
+          "write": false,
+          "description": "Read-only document access"
+        },
+        {
+          "pattern": "!/home/user/docs/sensitive/*",
+          "read": false,
+          "write": false,
+          "description": "Block sensitive subdirectory"
+        }
+      ]
+    }
+  }
+}
+```
+
+### Notification Configuration
+
+Configure webhooks or email alerts for violations:
+
+```typescript
+const guardrails = new SafeGuardrails({
+  auditLogPath: '~/.wunderland/security/violations.log',
+  notificationWebhooks: ['https://hooks.slack.com/...'],
+  emailConfig: {
+    to: 'security@example.com',
+    smtpHost: 'smtp.example.com',
+    smtpPort: 587
+  },
+  enableAuditLogging: true,
+  enableNotifications: true
+});
+```
+
+### Querying Violations
+
+```typescript
+// Query recent violations
+const violations = await auditLogger.queryViolations({
+  agentId: 'agent-123',
+  startTime: new Date('2026-02-08'),
+  endTime: new Date('2026-02-09'),
+  severity: 'critical'
+});
+
+// Get statistics
+const stats = await guardrails.getViolationStats('agent-123', {
+  start: new Date('2026-02-01'),
+  end: new Date('2026-02-09')
+});
+// { total: 15, bySeverity: { critical: 3, high: 7, medium: 5 }, byTool: { file_write: 8, shell_execute: 7 } }
+```
+
 ## Related Documentation
 
 - [Architecture Overview](./ARCHITECTURE.md)
 - [Human-in-the-Loop](./HUMAN_IN_THE_LOOP.md)
 - [Agent Communication](./AGENT_COMMUNICATION.md)
+- [Safety Primitives](./SAFETY_PRIMITIVES.md)

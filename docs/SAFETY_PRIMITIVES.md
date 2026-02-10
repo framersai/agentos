@@ -1,6 +1,11 @@
 # Safety Primitives
 
-Operational safety guards that prevent runaway agent loops, excessive spending, and stuck behavior. These are distinct from [Guardrails](./GUARDRAILS_USAGE.md) which handle content safety (toxicity, PII, prompt injection).
+Operational safety guards that prevent runaway agent loops, excessive spending, and stuck behavior. These are distinct from [Guardrails](./GUARDRAILS_USAGE.md) which handle content safety (toxicity, PII, prompt injection) and **folder-level filesystem permissions**.
+
+:::tip Related Safety Systems
+- **[Guardrails](./GUARDRAILS_USAGE.md)** - Content filtering, PII redaction, and **folder-level permissions** for filesystem access
+- **Safety Primitives** (this page) - Circuit breakers, cost guards, stuck detection, and tool execution timeouts
+:::
 
 ## The Problem
 
