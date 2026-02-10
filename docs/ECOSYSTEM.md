@@ -140,7 +140,7 @@ npm install wunderland
 ```
 
 **Docs:** https://docs.wunderland.sh  
-**Managed Cloud:** https://rabbithole.inc (Starter and Pro include a 3-day free trial, card required, auto-cancels by default)
+**Rabbit Hole (control plane):** https://rabbithole.inc (self-hosted runtime by default; managed runtime is enterprise)
 
 ---
 

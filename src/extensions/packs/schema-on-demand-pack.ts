@@ -104,8 +104,7 @@ async function getCuratedExtensionsCatalog(): Promise<{ curated?: CuratedExtensi
     return {
       curated: undefined,
       note:
-        `Curated extension catalog unavailable. Install ${EXT_REGISTRY_MODULE} ` +
-        `to enable curated discovery (or use source='package' with an explicit package name).`,
+        `Curated extension catalog unavailable. Install ${EXT_REGISTRY_MODULE} to enable curated discovery.`,
     };
   }
 
@@ -135,15 +134,29 @@ function diffAdded(before: string[], after: string[]): string[] {
 
 export interface SchemaOnDemandPackOptions {
   /**
-   * When true, allow loading arbitrary npm packages via source='package'.
-   * Default: true (because explicit package names are already gated by tool permissions).
+   * When true, allow enabling packs via `source='package'`.
+   *
+   * Default: true in non-production, false in production.
+   *
+   * Note: when `officialRegistryOnly` is enabled (default), package names must
+   * still be present in the installed `@framers/agentos-extensions-registry` catalog.
    */
   allowPackages?: boolean;
   /**
-   * When true, allow loading local module specifiers via source='module'.
-   * Default: false (prefer package installs or curated catalog).
+   * When true, allow enabling packs via `source='module'` with a local module specifier/path.
+   *
+   * Default: false.
    */
   allowModules?: boolean;
+  /**
+   * When true, only allow loading extension packs present in the official
+   * `@framers/agentos-extensions-registry` catalog.
+   *
+   * This blocks arbitrary npm imports (typosquatting/supply-chain).
+   *
+   * Default: true.
+   */
+  officialRegistryOnly?: boolean;
 }
 
 /**
@@ -158,8 +171,10 @@ export function createSchemaOnDemandPack(opts: {
 }): ExtensionPack {
   const manager = opts.extensionManager;
   const options = opts.options ?? {};
-  const allowPackages = options.allowPackages !== false;
+  const allowPackages =
+    typeof options.allowPackages === 'boolean' ? options.allowPackages : process.env.NODE_ENV !== 'production';
   const allowModules = options.allowModules === true;
+  const officialRegistryOnly = options.officialRegistryOnly !== false;
 
   const extensionsListTool: ITool<ExtensionsListInput, ExtensionsListOutput> = {
     id: 'agentos-extensions-list-v1',
@@ -271,23 +286,17 @@ export function createSchemaOnDemandPack(opts: {
       let packageName: string | undefined;
       let moduleSpecifier: string | undefined;
 
-      if (source === 'package') {
-        if (!allowPackages) {
-          return { success: false, error: "Package loading is disabled by SchemaOnDemandPackOptions.allowPackages=false" };
-        }
-        packageName = raw;
-      } else if (source === 'module') {
+      if (source === 'module') {
         if (!allowModules) {
           return { success: false, error: "Module loading is disabled by SchemaOnDemandPackOptions.allowModules=false" };
         }
         moduleSpecifier = raw;
-      } else {
-        // curated (default)
-        if (raw.startsWith('@')) {
-          // Treat explicit npm packages as an escape hatch.
-          if (!allowPackages) {
-            return { success: false, error: "Package loading is disabled by SchemaOnDemandPackOptions.allowPackages=false" };
-          }
+      } else if (source === 'package') {
+        if (!allowPackages) {
+          return { success: false, error: "Package loading is disabled by SchemaOnDemandPackOptions.allowPackages=false" };
+        }
+
+        if (!officialRegistryOnly) {
           packageName = raw;
         } else {
           const { curated, note } = await getCuratedExtensionsCatalog();
@@ -295,13 +304,26 @@ export function createSchemaOnDemandPack(opts: {
             return { success: false, error: note || 'Curated extension catalog unavailable.' };
           }
 
-          const match = curated.find((c) => c.name === raw || c.packageName === raw);
+          const match = curated.find((c) => c.packageName === raw || c.name === raw);
           if (!match) {
-            return { success: false, error: `Unknown curated extension: ${raw}` };
+            return { success: false, error: `Package is not in the official registry: ${raw}` };
           }
 
           packageName = match.packageName;
         }
+      } else {
+        // curated (default)
+        const { curated, note } = await getCuratedExtensionsCatalog();
+        if (!curated) {
+          return { success: false, error: note || 'Curated extension catalog unavailable.' };
+        }
+
+        const match = curated.find((c) => c.name === raw || c.packageName === raw);
+        if (!match) {
+          return { success: false, error: `Unknown curated extension: ${raw}` };
+        }
+
+        packageName = match.packageName;
       }
 
       const identifier = (input?.identifier && String(input.identifier).trim()) || undefined;

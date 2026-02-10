@@ -138,6 +138,9 @@ schemaOnDemandTools: {
   allowPackages: false,
   // Default: false (prefer curated packages).
   allowModules: false,
+  // Default: true. When enabled, `extensions_enable` only loads packs present in
+  // the installed @framers/agentos-extensions-registry catalog.
+  officialRegistryOnly: true,
 }
 ```
 

@@ -425,10 +425,20 @@ export interface AgentOSConfig {
    */
   schemaOnDemandTools?: {
     enabled?: boolean;
-    /** Allow enabling packs by explicit npm package name (source='package'). Default: true. */
+    /**
+     * Allow enabling packs by explicit npm package name (source='package').
+     * Default: true in non-production, false in production.
+     */
     allowPackages?: boolean;
     /** Allow enabling packs by local module specifier/path (source='module'). Default: false. */
     allowModules?: boolean;
+    /**
+     * When true, only allow extension packs present in the official
+     * `@framers/agentos-extensions-registry` catalog (if installed).
+     *
+     * Default: true.
+     */
+    officialRegistryOnly?: boolean;
   };
   /**
    * Optional. An instance of a utility AI service.
@@ -640,6 +650,7 @@ export class AgentOS implements IAgentOS {
         options: {
           allowPackages,
           allowModules: this.config.schemaOnDemandTools.allowModules,
+          officialRegistryOnly: this.config.schemaOnDemandTools.officialRegistryOnly,
         },
       });
       await this.extensionManager.loadPackFromFactory(
