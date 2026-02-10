@@ -1,3 +1,9 @@
+## <small>0.1.22 (2026-02-10)</small>
+
+* feat: expand README, fix schema-on-demand pack, update ecosystem docs ([d2d6b26](https://github.com/framersai/agentos/commit/d2d6b26))
+* docs: add folder-level permissions & safe guardrails to docs ([97ec2f0](https://github.com/framersai/agentos/commit/97ec2f0))
+* docs(releasing): align docs with conservative 0.x rules ([ebeb8e6](https://github.com/framersai/agentos/commit/ebeb8e6))
+
 ## <small>0.1.21 (2026-02-09)</small>
 
 * feat(rag): add HNSW persistence + multimodal guide ([9a45d84](https://github.com/framersai/agentos/commit/9a45d84))
