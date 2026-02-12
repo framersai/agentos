@@ -1,3 +1,8 @@
+## <small>0.1.23 (2026-02-12)</small>
+
+* feat: add per-agent workspace directory helpers ([f4f8617](https://github.com/framersai/agentos/commit/f4f8617))
+* chore: bump version to 0.1.23 (workspace exports in dist) ([d9d342c](https://github.com/framersai/agentos/commit/d9d342c))
+
 ## <small>0.1.22 (2026-02-10)</small>
 
 * feat: expand README, fix schema-on-demand pack, update ecosystem docs ([d2d6b26](https://github.com/framersai/agentos/commit/d2d6b26))
