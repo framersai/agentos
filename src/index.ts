@@ -61,6 +61,8 @@ export * from './core/evaluation';
 export * from './core/knowledge';
 // Agent Marketplace
 export * from './core/marketplace';
+// Per-agent workspace helpers
+export * from './core/workspace';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/personas/IPersonaDefinition';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
