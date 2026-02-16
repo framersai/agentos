@@ -9,6 +9,7 @@
  */
 
 import type { MetadataValue } from '../IVectorStore.js';
+import type { RAGAuditCollector } from '../audit/RAGAuditCollector.js';
 
 // =============================================================================
 // Entity & Relationship Types
@@ -100,6 +101,8 @@ export interface GraphRAGSearchOptions {
   includeRelationships?: boolean;
   /** Metadata filter for source documents */
   metadataFilter?: Record<string, MetadataValue>;
+  /** Optional audit collector for transparent RAG operation tracking. */
+  auditCollector?: RAGAuditCollector;
 }
 
 export interface GlobalSearchResult {

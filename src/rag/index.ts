@@ -162,3 +162,19 @@ export type {
   LocalSearchResult,
 } from './graphrag/index.js';
 
+// ============================================================================
+// Audit Trail
+// ============================================================================
+
+export type {
+  RAGAuditTrail,
+  RAGOperationEntry,
+  RAGSourceAttribution,
+} from './audit/index.js';
+
+export {
+  RAGAuditCollector,
+  RAGOperationHandle,
+  type RAGAuditCollectorOptions,
+} from './audit/index.js';
+

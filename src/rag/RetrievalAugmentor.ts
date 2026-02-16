@@ -38,6 +38,7 @@ import { RerankerService, type RerankerServiceOptions } from './reranking/Rerank
 import type { RerankerRequestConfig } from './reranking/IRerankerService';
 import { CohereReranker } from './reranking/providers/CohereReranker';
 import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncoderReranker';
+import { RAGAuditCollector } from './audit/RAGAuditCollector';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -639,6 +640,11 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     const diagnostics: RagRetrievalResult['diagnostics'] = { messages: [] };
     const startTime = Date.now();
 
+    // Audit trail collector (opt-in, zero overhead when disabled)
+    const collector = options?.includeAudit
+      ? new RAGAuditCollector({ requestId: uuidv4(), query: queryText })
+      : undefined;
+
     // 1. Determine Embedding Model
     const embeddingInfo = await this.embeddingManager.getEmbeddingModelInfo();
     const queryEmbeddingModelId =
@@ -652,12 +658,26 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
     // 2. Embed Query
     const embeddingStartTime = Date.now();
+    const embeddingAuditOp = collector?.startOperation('embedding');
     const queryEmbeddingResponse = await this.embeddingManager.generateEmbeddings({
       texts: queryText,
       modelId: queryEmbeddingModelId,
       userId: options?.userId,
     });
     diagnostics.embeddingTimeMs = Date.now() - embeddingStartTime;
+
+    // Audit: record embedding operation
+    if (embeddingAuditOp) {
+      // Estimate embedding tokens (~4 chars per token)
+      const estimatedTokens = Math.ceil(queryText.length / 4);
+      embeddingAuditOp.setTokenUsage({
+        embeddingTokens: estimatedTokens,
+        llmPromptTokens: 0,
+        llmCompletionTokens: 0,
+        totalTokens: estimatedTokens,
+      });
+      embeddingAuditOp.complete(queryEmbeddingResponse.embeddings?.length ?? 0);
+    }
 
     if (!queryEmbeddingResponse.embeddings || queryEmbeddingResponse.embeddings.length === 0 || !queryEmbeddingResponse.embeddings[0] || queryEmbeddingResponse.embeddings[0].length === 0) {
       diagnostics.messages?.push("Failed to generate query embedding or embedding was empty.");
@@ -744,7 +764,18 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
           includeTextContent: true,
           minSimilarityScore: options?.strategyParams?.custom?.minSimilarityScore,
         };
-        
+
+        // Audit: start vector query operation
+        const vectorAuditOp = collector?.startOperation('vector_query');
+        vectorAuditOp?.setRetrievalMethod({
+          strategy: effectiveStrategy as 'similarity' | 'mmr' | 'hybrid',
+          topK: topKRequested,
+          hybridAlpha: effectiveStrategy === 'hybrid' ? (effectiveStrategyParams.hybridAlpha ?? 0.7) : undefined,
+          mmrLambda: effectiveStrategy === 'mmr' ? (effectiveStrategyParams.mmrLambda ?? 0.7) : undefined,
+        });
+        vectorAuditOp?.setDataSourceIds([dsId]);
+        vectorAuditOp?.setCollectionIds([collectionName]);
+
         const dsQueryStartTime = Date.now();
         const queryResult =
           effectiveStrategy === 'hybrid' && typeof store.hybridSearch === 'function'
@@ -760,8 +791,9 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
         if(diagnostics.dataSourceHits) diagnostics.dataSourceHits[dsId] = queryResult.documents.length;
 
+        const dsChunks: RagRetrievedChunk[] = [];
         queryResult.documents.forEach((doc: any) => {
-          allRetrievedChunks.push({
+          const chunk: RagRetrievedChunk = {
             id: doc.id,
             content: doc.textContent || "",
             originalDocumentId: doc.metadata?.originalDocumentId as string || doc.id,
@@ -770,8 +802,24 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
             metadata: doc.metadata,
             relevanceScore: doc.similarityScore,
             embedding: includeEmbeddingsForRetrieval ? doc.embedding : undefined,
-          });
+          };
+          dsChunks.push(chunk);
+          allRetrievedChunks.push(chunk);
         });
+
+        // Audit: record vector query results and complete
+        if (vectorAuditOp) {
+          vectorAuditOp.addSources(dsChunks.map(c => ({
+            id: c.id,
+            originalDocumentId: c.originalDocumentId,
+            content: c.content,
+            relevanceScore: c.relevanceScore,
+            dataSourceId: c.dataSourceId,
+            source: c.source,
+            metadata: c.metadata as Record<string, unknown>,
+          })));
+          vectorAuditOp.complete(dsChunks.length);
+        }
       } catch (error: any) {
         console.error(`RetrievalAugmentor (ID: ${this.augmenterId}): Error querying data source '${dsId}'. Error: ${error.message}`, error);
         diagnostics.messages?.push(`Error querying data source '${dsId}': ${error.message}`);
@@ -805,10 +853,22 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
         diagnostics.messages?.push("Reranking requested but RerankerService not configured. Skipping reranking step.");
       } else {
         try {
+          const rerankAuditOp = collector?.startOperation('rerank');
           const rerankStartTime = Date.now();
+          const docsBeforeRerank = processedChunks.length;
           processedChunks = await this._applyReranking(queryText, processedChunks, options.rerankerConfig);
           diagnostics.rerankingTimeMs = Date.now() - rerankStartTime;
           diagnostics.messages?.push(`Reranking applied with provider '${options.rerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default'}' in ${diagnostics.rerankingTimeMs}ms`);
+
+          // Audit: record reranking operation
+          if (rerankAuditOp) {
+            rerankAuditOp.setRerankDetails({
+              providerId: options.rerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default',
+              modelId: options.rerankerConfig.modelId || this.config.defaultRerankerModelId || 'default',
+              documentsReranked: docsBeforeRerank,
+            });
+            rerankAuditOp.complete(processedChunks.length);
+          }
         } catch (rerankError: any) {
           console.error(`RetrievalAugmentor (ID: ${this.augmenterId}): Reranking failed. Returning results without reranking. Error: ${rerankError.message}`, rerankError);
           diagnostics.messages?.push(`Reranking failed: ${rerankError.message}. Results returned without reranking.`);
@@ -852,12 +912,16 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
     diagnostics.messages?.push(`Total retrieval pipeline took ${Date.now() - startTime}ms.`);
 
+    // Finalize audit trail if requested
+    const auditTrail = collector?.finalize();
+
     return {
       queryText,
       retrievedChunks: processedChunks,
       augmentedContext,
       queryEmbedding,
       diagnostics,
+      auditTrail,
     };
   }
 

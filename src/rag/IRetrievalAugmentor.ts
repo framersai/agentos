@@ -11,6 +11,7 @@ import { IEmbeddingManager } from './IEmbeddingManager';
 import { MetadataFilter, MetadataValue } from './IVectorStore';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
+import type { RAGAuditTrail } from './audit/RAGAuditTypes';
 
 /**
  * Logical buckets that the RAG system can target.  These allow integrators to map different
@@ -192,6 +193,8 @@ export interface RagRetrievalOptions {
   tokenBudgetForContext?: number;
   /** Caller identity for logging/billing. */
   userId?: string;
+  /** When true, generates a RAGAuditTrail with per-operation transparency. */
+  includeAudit?: boolean;
 }
 
 /**
@@ -203,6 +206,8 @@ export interface RagRetrievalResult {
   augmentedContext: string;
   queryEmbedding?: number[];
   diagnostics?: RagRetrievalDiagnostics;
+  /** Full audit trail when `includeAudit` was set on the retrieval options. */
+  auditTrail?: RAGAuditTrail;
 }
 
 /**

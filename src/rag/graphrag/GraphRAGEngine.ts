@@ -1172,6 +1172,33 @@ Provide a comprehensive answer based on the information above.`,
       );
       const synthesisTimeMs = Date.now() - synthesisStart;
 
+      // Audit: record graph global search with LLM synthesis
+      if (options?.auditCollector) {
+        const auditOp = options.auditCollector.startOperation('graph_global');
+        auditOp.setGraphDetails({
+          entitiesMatched: 0,
+          communitiesSearched: this.communities.size,
+          traversalTimeMs: Date.now() - startTime,
+        });
+        auditOp.addSources(matchedCommunities.map(c => ({
+          id: c.communityId,
+          originalDocumentId: c.communityId,
+          content: c.summary,
+          relevanceScore: c.relevanceScore,
+          source: `community:${c.title}`,
+        })));
+        // Estimate LLM tokens for synthesis (~4 chars per token)
+        const promptChars = summaryContext.length + query.length + 100;
+        const completionChars = answer.length;
+        auditOp.setTokenUsage({
+          embeddingTokens: 0,
+          llmPromptTokens: Math.ceil(promptChars / 4),
+          llmCompletionTokens: Math.ceil(completionChars / 4),
+          totalTokens: Math.ceil((promptChars + completionChars) / 4),
+        });
+        auditOp.complete(matchedCommunities.length);
+      }
+
       return {
         query,
         answer,
@@ -1188,6 +1215,24 @@ Provide a comprehensive answer based on the information above.`,
     answer = matchedCommunities
       .map(c => `${c.title}: ${c.summary}`)
       .join('\n\n');
+
+    // Audit: record graph global search
+    if (options?.auditCollector) {
+      const auditOp = options.auditCollector.startOperation('graph_global');
+      auditOp.setGraphDetails({
+        entitiesMatched: 0,
+        communitiesSearched: this.communities.size,
+        traversalTimeMs: Date.now() - startTime,
+      });
+      auditOp.addSources(matchedCommunities.map(c => ({
+        id: c.communityId,
+        originalDocumentId: c.communityId,
+        content: c.summary,
+        relevanceScore: c.relevanceScore,
+        source: `community:${c.title}`,
+      })));
+      auditOp.complete(matchedCommunities.length);
+    }
 
     return {
       query,
@@ -1330,6 +1375,24 @@ Provide a comprehensive answer based on the information above.`,
       '## Community Context',
       commContext,
     ].join('\n');
+
+    // Audit: record graph local search
+    if (options?.auditCollector) {
+      const auditOp = options.auditCollector.startOperation('graph_local');
+      auditOp.setGraphDetails({
+        entitiesMatched: matchedEntities.length,
+        communitiesSearched: seenCommunities.size,
+        traversalTimeMs: graphTraversalTimeMs,
+      });
+      auditOp.addSources(matchedEntities.map(e => ({
+        id: e.id,
+        originalDocumentId: e.sourceDocumentIds[0] ?? e.id,
+        content: `${e.name} (${e.type}): ${e.description}`,
+        relevanceScore: e.relevanceScore,
+        source: `entity:${e.name}`,
+      })));
+      auditOp.complete(matchedEntities.length);
+    }
 
     return {
       query,
