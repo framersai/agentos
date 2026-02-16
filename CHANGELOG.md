@@ -1,3 +1,7 @@
+## <small>0.1.24 (2026-02-16)</small>
+
+* feat: RAG audit trail — types, collector, pipeline instrumentation, tests ([e40fe00](https://github.com/framersai/agentos/commit/e40fe00))
+
 ## <small>0.1.23 (2026-02-12)</small>
 
 * feat: add per-agent workspace directory helpers ([f4f8617](https://github.com/framersai/agentos/commit/f4f8617))
