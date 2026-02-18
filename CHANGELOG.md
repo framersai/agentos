@@ -1,3 +1,7 @@
+## <small>0.1.25 (2026-02-18)</small>
+
+* feat(channels): expand platform types and secrets schema ([badf375](https://github.com/framersai/agentos/commit/badf375))
+
 ## <small>0.1.24 (2026-02-16)</small>
 
 * feat: RAG audit trail — types, collector, pipeline instrumentation, tests ([e40fe00](https://github.com/framersai/agentos/commit/e40fe00))
