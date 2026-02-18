@@ -1,6 +1,7 @@
 import type { ILogger } from '../logging/ILogger';
 import type { IGuardrailService } from '../core/guardrails/IGuardrailService';
 import type { ITool } from '../core/tools/ITool';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type {
   WorkflowDescriptorPayload,
   WorkflowInstance,
@@ -159,6 +160,9 @@ export const EXTENSION_KIND_MEMORY_PROVIDER = 'memory-provider';
 // Messaging Channels — external human-facing platforms (v1.3.0)
 export const EXTENSION_KIND_MESSAGING_CHANNEL = 'messaging-channel';
 
+// HTTP Handlers — webhook endpoints (host-provided server) (v1.4.0)
+export const EXTENSION_KIND_HTTP_HANDLER = 'http-handler';
+
 // Provenance & Audit (v1.2.0)
 export const EXTENSION_KIND_PROVENANCE = 'provenance';
 
@@ -166,6 +170,15 @@ export type ToolDescriptor = ExtensionDescriptor<ITool> & { kind: typeof EXTENSI
 export type GuardrailDescriptor = ExtensionDescriptor<IGuardrailService> & { kind: typeof EXTENSION_KIND_GUARDRAIL };
 export type WorkflowDescriptor = ExtensionDescriptor<WorkflowDescriptorPayload> & {
   kind: typeof EXTENSION_KIND_WORKFLOW;
+};
+
+export type HttpHandlerPayload = (
+  req: IncomingMessage,
+  res: ServerResponse,
+) => Promise<boolean> | boolean;
+
+export type HttpHandlerDescriptor = ExtensionDescriptor<HttpHandlerPayload> & {
+  kind: typeof EXTENSION_KIND_HTTP_HANDLER;
 };
 
 export interface WorkflowExtensionExecutionContext {

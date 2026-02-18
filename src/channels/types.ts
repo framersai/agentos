@@ -39,6 +39,12 @@ export type ChannelPlatform =
   | 'mattermost'
   | 'nextcloud-talk'
   | 'tlon'
+  | 'twitter'
+  | 'instagram'
+  | 'reddit'
+  | 'pinterest'
+  | 'tiktok'
+  | 'youtube'
   | (string & {});
 
 // ============================================================================
@@ -70,6 +76,15 @@ export type ChannelCapability =
   | 'mentions'
   | 'editing'
   | 'deletion'
+  | 'stories'
+  | 'reels'
+  | 'hashtags'
+  | 'polls'
+  | 'carousel'
+  | 'engagement_metrics'
+  | 'scheduling'
+  | 'dm_automation'
+  | 'content_discovery'
   | (string & {});
 
 // ============================================================================
@@ -129,7 +144,11 @@ export type MessageContentBlock =
   | { type: 'sticker'; stickerId: string; url?: string }
   | { type: 'location'; latitude: number; longitude: number; name?: string }
   | { type: 'button_group'; buttons: MessageButton[] }
-  | { type: 'embed'; title: string; description?: string; url?: string; color?: string; fields?: { name: string; value: string; inline?: boolean }[] };
+  | { type: 'embed'; title: string; description?: string; url?: string; color?: string; fields?: { name: string; value: string; inline?: boolean }[] }
+  | { type: 'poll'; question: string; options: string[]; durationHours?: number }
+  | { type: 'story'; mediaUrl: string; caption?: string; stickers?: string[] }
+  | { type: 'reel'; videoUrl: string; caption?: string; audio?: string; hashtags?: string[] }
+  | { type: 'carousel'; items: { url: string; caption?: string; mimeType?: string }[] };
 
 /** Interactive button in a message. */
 export interface MessageButton {
