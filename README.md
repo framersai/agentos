@@ -211,7 +211,7 @@ for await (const chunk of agent.processRequest({
 |                                                                    |
 |  +-------------------+  +-------------------+  +----------------+  |
 |  | Extension Manager |  | Channel Router    |  | Call Manager   |  |
-|  | (12+ kinds)       |  | (20 platforms)    |  | (Voice/Tel.)   |  |
+|  | (12+ kinds)       |  | (28 platforms)    |  | (Voice/Tel.)   |  |
 |  +-------------------+  +-------------------+  +----------------+  |
 |                                                                    |
 |  +-------------------+  +-------------------+  +----------------+  |

@@ -39,6 +39,8 @@ export type ChannelPlatform =
   | 'mattermost'
   | 'nextcloud-talk'
   | 'tlon'
+  | 'irc'
+  | 'zalouser'
   | 'twitter'
   | 'instagram'
   | 'reddit'
