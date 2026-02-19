@@ -1,3 +1,7 @@
+## <small>0.1.27 (2026-02-19)</small>
+
+* fix: resolve all lint errors and warnings from CI #186 ([9a5ba08](https://github.com/framersai/agentos/commit/9a5ba08)), closes [#186](https://github.com/framersai/agentos/issues/186)
+
 ## <small>0.1.26 (2026-02-19)</small>
 
 * feat: 28-channel parity — add IRC + Zalo Personal types, Telegram forum-topic routing ([ff33916](https://github.com/framersai/agentos/commit/ff33916)), closes [chatId#topicId](https://github.com/chatId/issues/topicId)
