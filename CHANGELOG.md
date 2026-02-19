@@ -1,3 +1,7 @@
+## <small>0.1.26 (2026-02-19)</small>
+
+* feat: 28-channel parity — add IRC + Zalo Personal types, Telegram forum-topic routing ([ff33916](https://github.com/framersai/agentos/commit/ff33916)), closes [chatId#topicId](https://github.com/chatId/issues/topicId)
+
 ## <small>0.1.25 (2026-02-18)</small>
 
 * feat(channels): expand platform types and secrets schema ([badf375](https://github.com/framersai/agentos/commit/badf375))
