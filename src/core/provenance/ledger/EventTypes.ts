@@ -6,7 +6,6 @@
  * @module AgentOS/Provenance/Ledger
  */
 
-import type { ProvenanceEventType } from '../types.js';
 
 // =============================================================================
 // Event Payload Interfaces

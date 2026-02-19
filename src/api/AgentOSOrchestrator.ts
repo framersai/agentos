@@ -1601,7 +1601,7 @@ export class AgentOSOrchestrator {
     streamContext: ActiveStreamContext,
     gmiChunk: GMIOutputChunk
   ): Promise<void> {
-    const { gmi, personaId, conversationContext } = streamContext;
+    const { gmi, personaId } = streamContext;
     const gmiInstanceIdForChunks = gmi.getGMIId();
 
     switch (gmiChunk.type) {

@@ -6,7 +6,7 @@
  * @module AgentOS/Provenance/Enforcement
  */
 
-import type { AutonomyConfig, ProvenanceSystemConfig } from '../types.js';
+import type { AutonomyConfig } from '../types.js';
 import { ProvenanceViolationError } from '../types.js';
 import type { SignedEventLedger } from '../ledger/SignedEventLedger.js';
 

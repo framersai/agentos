@@ -450,10 +450,6 @@ export function mergeMetapromptPresets(
     ? ALL_METAPROMPT_PRESETS.filter((preset) => includePresets.includes(preset.id))
     : ALL_METAPROMPT_PRESETS;
 
-  // Create a map of persona metaprompts by ID for quick lookup
-  const personaMap = new Map(
-    personaMetaPrompts.map((mp) => [mp.id, mp])
-  );
 
   // Merge: persona metaprompts override presets
   const mergedMap = new Map<string, MetaPromptDefinition>();

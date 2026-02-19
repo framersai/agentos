@@ -20,7 +20,6 @@ import type {
   ChannelConnectionInfo,
   ChannelEventHandler,
   ChannelEventType,
-  ChannelMessage,
   ChannelPlatform,
   ChannelSendResult,
   MessageContent,

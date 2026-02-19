@@ -420,14 +420,9 @@ export class ExtensionManager {
     const enrichedLifecycleContext = this.enrichLifecycleContext(lifecycleContext);
 
     let packActivated = false;
-    try {
-      // Pack-level lifecycle hook (used by several curated packs for initialization).
-      await pack.onActivate?.(enrichedLifecycleContext);
-      packActivated = true;
-    } catch (err) {
-      // Treat activation failure as pack load failure.
-      throw err;
-    }
+    // Pack-level lifecycle hook (used by several curated packs for initialization).
+    await pack.onActivate?.(enrichedLifecycleContext);
+    packActivated = true;
 
     const ctx: ExtensionPackContext = {
       manifestEntry: entry,

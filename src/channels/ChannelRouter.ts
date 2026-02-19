@@ -16,7 +16,6 @@
 import type { IChannelAdapter } from './IChannelAdapter.js';
 import type {
   ChannelBindingConfig,
-  ChannelEvent,
   ChannelInfo,
   ChannelMessage,
   ChannelPlatform,
@@ -157,7 +156,7 @@ export class ChannelRouter {
    */
   listAdapters(): ChannelInfo[] {
     const result: ChannelInfo[] = [];
-    for (const [key, adapter] of this.adapters) {
+    for (const [_key, adapter] of this.adapters) {
       const conn = adapter.getConnectionInfo();
       result.push({
         platform: adapter.platform,

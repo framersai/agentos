@@ -188,7 +188,7 @@ export function createProvenanceHooks(
       const mode = config.storagePolicy.mode;
 
       switch (mode) {
-        case 'sealed':
+        case 'sealed': {
           const isUpsert = operation === 'INSERT' && isUpsertLikeMutation(context.statement);
           if (operation === 'UPDATE' || operation === 'DELETE' || isUpsert) {
             throw new ProvenanceViolationError(
@@ -197,6 +197,7 @@ export function createProvenanceHooks(
             );
           }
           break;
+        }
 
         case 'revisioned':
           if (operation === 'UPDATE' && revisionManager) {

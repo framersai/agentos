@@ -34,7 +34,7 @@ import { IEmbeddingManager } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataValue } from './IVectorStore';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-import { RerankerService, type RerankerServiceOptions } from './reranking/RerankerService';
+import { RerankerService } from './reranking/RerankerService';
 import type { RerankerRequestConfig } from './reranking/IRerankerService';
 import { CohereReranker } from './reranking/providers/CohereReranker';
 import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncoderReranker';

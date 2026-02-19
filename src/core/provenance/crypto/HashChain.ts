@@ -7,7 +7,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { SignedEvent, ProvenanceEventType } from '../types.js';
+import type { ProvenanceEventType } from '../types.js';
 
 // =============================================================================
 // HashChain

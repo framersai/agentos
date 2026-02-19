@@ -76,7 +76,6 @@ export class ToolExecutionGuard {
     if (stats.breaker) {
       const state = stats.breaker.getState();
       if (state === 'open') {
-        const cbStats = stats.breaker.getStats();
         stats.failures++;
         return {
           success: false,
