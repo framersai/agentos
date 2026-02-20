@@ -1,3 +1,8 @@
+## <small>0.1.28 (2026-02-20)</small>
+
+* fix: resolve CI build errors in channel adapters ([144bd14](https://github.com/framersai/agentos/commit/144bd14))
+* feat: P0+P1 channel adapters for 13 messaging platforms ([5e546df](https://github.com/framersai/agentos/commit/5e546df))
+
 ## <small>0.1.27 (2026-02-19)</small>
 
 * fix: resolve all lint errors and warnings from CI #186 ([9a5ba08](https://github.com/framersai/agentos/commit/9a5ba08)), closes [#186](https://github.com/framersai/agentos/issues/186)
