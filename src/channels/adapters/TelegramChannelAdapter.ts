@@ -40,7 +40,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific parameters for Telegram connections. */
-export interface TelegramAuthParams extends Record<string, string> {
+export interface TelegramAuthParams extends Record<string, string | undefined> {
   /** Bot token from BotFather. If provided, overrides credential. */
   botToken?: string;
   /** Webhook URL. If not provided, long polling is used. */

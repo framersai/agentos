@@ -42,7 +42,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific parameters for Slack connections. */
-export interface SlackAuthParams extends Record<string, string> {
+export interface SlackAuthParams extends Record<string, string | undefined> {
   /** Bot token (xoxb-*). If provided, overrides credential. */
   botToken?: string;
   /** Signing secret for verifying Slack requests. */

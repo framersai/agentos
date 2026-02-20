@@ -77,7 +77,7 @@ interface EventSubscription {
  *   inside {@link ChannelAuthConfig}. Defaults to `Record<string, string>`.
  */
 export abstract class BaseChannelAdapter<
-  TAuthParams extends Record<string, string> = Record<string, string>,
+  TAuthParams extends Record<string, string | undefined> = Record<string, string>,
 > implements IChannelAdapter
 {
   // ── Identity (must be set by subclass constructor) ──

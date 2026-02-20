@@ -42,7 +42,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific parameters for Discord connections. */
-export interface DiscordAuthParams extends Record<string, string> {
+export interface DiscordAuthParams extends Record<string, string | undefined> {
   /** Bot token. If provided, overrides credential. */
   botToken?: string;
   /** Discord application ID. */

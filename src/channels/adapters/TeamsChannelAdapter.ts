@@ -52,7 +52,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific authentication parameters for Microsoft Teams. */
-export interface TeamsAuthParams extends Record<string, string> {
+export interface TeamsAuthParams extends Record<string, string | undefined> {
   /** Bot application password (client secret). */
   appPassword: string;
   /** Azure AD tenant ID. Optional for multi-tenant bots. */
@@ -417,9 +417,11 @@ export class TeamsChannelAdapter extends BaseChannelAdapter<TeamsAuthParams> {
           textParts.push(block.text);
           break;
 
-        case 'rich_text':
-          // Rich text is sent as HTML in Teams
-          textParts.push(block.text);
+        case 'embed':
+          // Rich text / embeds sent as HTML in Teams
+          if ('text' in block && typeof block.text === 'string') {
+            textParts.push(block.text);
+          }
           break;
 
         case 'image':

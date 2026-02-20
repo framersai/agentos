@@ -62,7 +62,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific parameters for WhatsApp connections. */
-export interface WhatsAppAuthParams extends Record<string, string> {
+export interface WhatsAppAuthParams extends Record<string, string | undefined> {
   /** Provider backend: 'twilio' or 'cloud-api'. Defaults to 'twilio'. */
   provider?: string;
 

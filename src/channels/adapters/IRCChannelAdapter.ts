@@ -43,7 +43,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific parameters for IRC connections. */
-export interface IRCAuthParams extends Record<string, string> {
+export interface IRCAuthParams extends Record<string, string | undefined> {
   /** IRC server hostname. */
   host: string;
   /** Server port (default: '6697' for TLS). */

@@ -45,7 +45,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific authentication parameters for Reddit. */
-export interface RedditAuthParams extends Record<string, string> {
+export interface RedditAuthParams extends Record<string, string | undefined> {
   /** OAuth2 client secret. */
   clientSecret: string;
   /** Reddit account username for the bot. */

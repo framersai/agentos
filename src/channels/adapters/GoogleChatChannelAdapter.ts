@@ -46,7 +46,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific authentication parameters for Google Chat. */
-export interface GoogleChatAuthParams extends Record<string, string> {
+export interface GoogleChatAuthParams extends Record<string, string | undefined> {
   /**
    * Inline JSON credentials for the service account.
    * Provide this OR use `credential` as a path to the key file.
@@ -433,9 +433,11 @@ export class GoogleChatChannelAdapter extends BaseChannelAdapter<GoogleChatAuthP
           textParts.push(block.text);
           break;
 
-        case 'rich_text':
-          // Google Chat supports a subset of HTML-like formatting
-          textParts.push(block.text);
+        case 'embed':
+          // Google Chat supports a subset of HTML-like formatting via embeds
+          if ('text' in block && typeof block.text === 'string') {
+            textParts.push(block.text);
+          }
           break;
 
         case 'image':

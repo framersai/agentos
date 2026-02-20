@@ -48,7 +48,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific authentication parameters for Signal. */
-export interface SignalAuthParams extends Record<string, string> {
+export interface SignalAuthParams extends Record<string, string | undefined> {
   /** Path to the signal-cli binary. Default: 'signal-cli'. */
   signalCliPath?: string;
   /** Path to signal-cli config/data directory. */

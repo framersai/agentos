@@ -55,7 +55,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific parameters for WebChat connections. */
-export interface WebChatAuthParams extends Record<string, string> {
+export interface WebChatAuthParams extends Record<string, string | undefined> {
   /** API key for authenticating WebSocket clients. Optional. */
   apiKey?: string;
   /** Comma-separated CORS origins (default: '*'). */

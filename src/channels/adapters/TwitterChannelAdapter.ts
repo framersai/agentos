@@ -46,7 +46,7 @@ import { BaseChannelAdapter } from './BaseChannelAdapter.js';
 // ============================================================================
 
 /** Platform-specific authentication parameters for Twitter API v2. */
-export interface TwitterAuthParams extends Record<string, string> {
+export interface TwitterAuthParams extends Record<string, string | undefined> {
   /** Consumer / API key. */
   apiKey: string;
   /** Consumer / API secret. */
