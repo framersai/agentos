@@ -1,3 +1,7 @@
+## <small>0.1.29 (2026-02-21)</small>
+
+* fix: remove userApiKeys from conversation metadata ([f774f4b](https://github.com/framersai/agentos/commit/f774f4b))
+
 ## <small>0.1.28 (2026-02-20)</small>
 
 * fix: resolve CI build errors in channel adapters ([144bd14](https://github.com/framersai/agentos/commit/144bd14))
