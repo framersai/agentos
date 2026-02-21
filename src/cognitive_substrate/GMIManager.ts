@@ -549,7 +549,6 @@ export class GMIManager {
 
     if (preferredModelId) currentConversationContext.setMetadata('preferredModelId', preferredModelId);
     if (preferredProviderId) currentConversationContext.setMetadata('preferredProviderId', preferredProviderId);
-    if (userApiKeys) currentConversationContext.setMetadata('userApiKeys', userApiKeys);
     if (currentConversationContext.getMetadata('userId') !== userId) currentConversationContext.setMetadata('userId', userId);
     if (currentConversationContext.getMetadata('gmiInstanceId') !== gmi.gmiId) currentConversationContext.setMetadata('gmiInstanceId', gmi.gmiId);
     if (currentConversationContext.getMetadata('activePersonaId') !== gmi.getPersona().id) currentConversationContext.setMetadata('activePersonaId', gmi.getPersona().id);
@@ -686,4 +685,3 @@ export class GMIManager {
     }
   }
 }
-
