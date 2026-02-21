@@ -299,10 +299,64 @@ Troubleshooting updates:
 If you run with an append-only / sealed storage policy, avoid hard deletes of memory or history.
 Prefer append-only tombstones/redactions so retrieval can ignore forgotten items while the audit trail remains verifiable.
 
+## Combined Vector + GraphRAG Search
+
+The HTTP API supports running vector retrieval and GraphRAG in a single request via `includeGraphRag: true`. This combines:
+
+1. **Vector + BM25 hybrid** — standard chunk retrieval with Reciprocal Rank Fusion
+2. **GraphRAG local search** — entity/relationship/community traversal
+
+The response includes both `chunks` (ranked vector results) and `graphContext` (entities, relationships, community context) in one payload.
+
+```bash
+curl -s -X POST http://localhost:3001/api/agentos/rag/query \
+  -H ‘content-type: application/json’ \
+  -d ‘{“query”:”agent security model”,”includeGraphRag”:true,”topK”:5}’ | jq
+```
+
+CLI: `wunderland rag query “agent security model” --graph`
+
+When to use combined search:
+- Questions requiring both textual similarity AND relational/structural context
+- Queries about how entities relate to each other (e.g., “how does X affect Y”)
+- When you want chunk-level evidence plus knowledge graph context in a single call
+
+## Debug Pipeline Tracing
+
+Set `debug: true` in the query request (or use `--debug` CLI flag) to get a step-by-step trace of the retrieval pipeline. Each step reports timing and relevant metrics:
+
+| Step | Data |
+|------|------|
+| `query_received` | query text, preset, topK, vectorProvider, collectionIds |
+| `variants_resolved` | base query, variant count, variant texts |
+| `vector_search` | provider (sql/hnswlib/qdrant), candidate count, latency, embedding model |
+| `keyword_search` | enabled, match count, latency |
+| `fusion` | strategy (RRF), vector/keyword/merged counts |
+| `graphrag` | entities found, relationships, communities, search time |
+| `pipeline_complete` | total latency, results returned |
+
+Enable globally via `AGENTOS_RAG_DEBUG=true` environment variable, or per-request with the `debug` flag.
+
+CLI: `wunderland rag query “security tiers” --debug`
+
+## HNSW Vector Store Configuration
+
+When using `AGENTOS_RAG_VECTOR_PROVIDER=hnswlib`, the following environment variables configure the HNSW index:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENTOS_RAG_HNSWLIB_M` | `16` | Max number of connections per node (higher = better recall, more memory) |
+| `AGENTOS_RAG_HNSWLIB_EF_CONSTRUCTION` | `200` | Construction-time search depth (higher = better index quality, slower build) |
+| `AGENTOS_RAG_HNSWLIB_EF_SEARCH` | `100` | Query-time search depth (higher = better recall, slower query) |
+| `AGENTOS_RAG_HNSWLIB_PERSIST_DIR` | `./db_data/agentos_rag_hnswlib` | Directory for persisted HNSW index files |
+
+The health endpoint (`/api/agentos/rag/health`) reports the active `vectorProvider` and HNSW params when applicable.
+
 ## Practical Guidance
 
 - Default recommendation: start with **vector (dense) retrieval**, then add **keyword (BM25/FTS)** for recall, then add a **reranker** only where it’s worth the latency/cost.
 - GraphRAG tends to pay off when questions depend on multi-hop relationships and “global summaries” (org structures, timelines, dependency graphs), not for everyday chat retrieval.
+- Use `--debug` to understand pipeline behavior and identify bottlenecks before tuning parameters.
 
 ## Retrieval Strategies (Implemented)
 
