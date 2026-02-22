@@ -365,6 +365,46 @@ export class ToolOrchestrator implements IToolOrchestrator {
 
     return availableToolsLLM;
   }
+
+  /**
+   * Lists only the tools that appear in a CapabilityDiscoveryResult.
+   * Filters the full tool registry to only include tools whose names
+   * match capabilities in the Tier 1 or Tier 2 results.
+   *
+   * This dramatically reduces the tool list sent to the LLM,
+   * preventing context rot from unused tool schemas.
+   */
+  public async listDiscoveredTools(
+    discoveryResult: import('../../discovery/types').CapabilityDiscoveryResult,
+    context?: {
+      personaId?: string;
+      personaCapabilities?: string[];
+      userContext?: UserContext;
+    },
+  ): Promise<ToolDefinitionForLLM[]> {
+    this.ensureInitialized();
+
+    // Collect tool names from Tier 1 and Tier 2 results
+    const discoveredToolNames = new Set<string>();
+    for (const item of discoveryResult.tier1) {
+      if (item.capability.kind === 'tool') {
+        discoveredToolNames.add(item.capability.name);
+      }
+    }
+    for (const item of discoveryResult.tier2) {
+      if (item.capability.kind === 'tool') {
+        discoveredToolNames.add(item.capability.name);
+      }
+    }
+
+    // Always include the discover_capabilities meta-tool
+    discoveredToolNames.add('discover_capabilities');
+
+    // Get all available tools and filter to discovered ones
+    const allTools = await this.listAvailableTools(context);
+    return allTools.filter((tool) => discoveredToolNames.has(tool.name));
+  }
+
 /**
    * @inheritdoc
    */

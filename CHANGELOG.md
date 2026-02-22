@@ -1,3 +1,17 @@
+## [0.1.30] - 2026-02-21
+
+### Added
+- **Capability Discovery Engine** — Semantic, tiered capability discovery system that reduces context tokens by ~90% (from ~20,000 to ~1,850 tokens)
+  - `CapabilityDiscoveryEngine`: Main orchestrator coordinating index, graph, and assembler
+  - `CapabilityIndex`: Vector index over tools, skills, extensions, and channels using IEmbeddingManager + IVectorStore
+  - `CapabilityGraph`: Graphology-based relationship graph with DEPENDS_ON, COMPOSED_WITH, SAME_CATEGORY, TAGGED_WITH edges
+  - `CapabilityContextAssembler`: Token-budgeted three-tier context builder (Tier 0: always, Tier 1: retrieved, Tier 2: full)
+  - `CapabilityEmbeddingStrategy`: Intent-oriented embedding text construction
+  - `CapabilityManifestScanner`: File-based CAPABILITY.yaml discovery with hot-reload
+  - `createDiscoverCapabilitiesTool()`: Meta-tool factory for agent self-discovery (~80 tokens)
+- `IToolOrchestrator.listDiscoveredTools()` — Filter tool list to only discovery-relevant tools
+- `PromptBuilder.buildCapabilitiesSection()` — Render tiered discovery context in system prompts
+
 ## <small>0.1.29 (2026-02-21)</small>
 
 * fix: remove userApiKeys from conversation metadata ([f774f4b](https://github.com/framersai/agentos/commit/f774f4b))

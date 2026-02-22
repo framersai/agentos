@@ -88,6 +88,11 @@
       "default": "./dist/core/tools/*.js",
       "types": "./dist/core/tools/*.d.ts"
     },
+    "./discovery": {
+      "import": "./dist/discovery/index.js",
+      "default": "./dist/discovery/index.js",
+      "types": "./dist/discovery/index.d.ts"
+    },
     "./package.json": "./package.json",
     "./*": {
       "import": "./dist/*.js",

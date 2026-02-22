@@ -17,6 +17,7 @@ import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import type { IHumanInteractionManager } from '../hitl/IHumanInteractionManager';
+import type { CapabilityDiscoveryResult } from '../../discovery/types';
 
 /**
  * Represents the information about a tool that is suitable for an LLM
@@ -124,6 +125,26 @@ export interface IToolOrchestrator {
    * This will include success/failure status, output, or error information.
    */
   processToolCall(requestDetails: ToolExecutionRequestDetails): Promise<ToolCallResult>;
+
+  /**
+   * Lists only the tools that appear in a CapabilityDiscoveryResult.
+   * Provides a filtered tool list for the LLM, dramatically reducing context
+   * compared to listAvailableTools() which returns ALL registered tools.
+   *
+   * @async
+   * @param {CapabilityDiscoveryResult} discoveryResult - The tiered discovery result
+   *   containing Tier 1 and Tier 2 capability matches.
+   * @param {object} [context] - Optional filtering context (same as listAvailableTools).
+   * @returns {Promise<ToolDefinitionForLLM[]>} Only the tool definitions matching discovered capabilities.
+   */
+  listDiscoveredTools?(
+    discoveryResult: CapabilityDiscoveryResult,
+    context?: {
+      personaId?: string;
+      personaCapabilities?: string[];
+      userContext?: UserContext;
+    },
+  ): Promise<ToolDefinitionForLLM[]>;
 
   /**
    * Checks the health of the ToolOrchestrator and its critical dependencies.
