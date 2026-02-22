@@ -1,0 +1,442 @@
+/**
+ * @fileoverview Core types for the Capability Discovery Engine.
+ * @module @framers/agentos/discovery/types
+ *
+ * Provides unified type definitions for normalizing tools, skills, extensions,
+ * and channels into a searchable, tiered capability discovery system.
+ *
+ * Key concepts:
+ * - CapabilityDescriptor: Unified shape for any capability in the system
+ * - Three-tier context budgeting: Always → Retrieved summaries → Full details
+ * - ICapabilityGraph: Abstraction for relationship graphs (graphology now, Neo4j later)
+ */
+
+import type { JSONSchemaObject } from '../core/tools/ITool.js';
+
+// ============================================================================
+// CAPABILITY DESCRIPTOR
+// ============================================================================
+
+/**
+ * Kind discriminator for capability descriptors.
+ */
+export type CapabilityKind = 'tool' | 'skill' | 'extension' | 'channel' | 'voice' | 'productivity';
+
+/**
+ * Reference back to the original source of a capability.
+ * Used for lazy loading of full schemas/content.
+ */
+export type CapabilitySourceRef =
+  | { type: 'tool'; toolName: string }
+  | { type: 'skill'; skillName: string; skillPath?: string }
+  | { type: 'extension'; packageName: string; extensionId: string }
+  | { type: 'channel'; platform: string }
+  | { type: 'manifest'; manifestPath: string; entryId: string };
+
+/**
+ * Unified representation of any capability in the system.
+ * Normalizes tools, skills, extensions, and channels into a single
+ * searchable shape for the discovery engine.
+ */
+export interface CapabilityDescriptor {
+  /**
+   * Globally unique ID.
+   * Convention: `${kind}:${name}` (e.g., "tool:web-search", "skill:github", "channel:telegram")
+   */
+  id: string;
+
+  /** Kind discriminator */
+  kind: CapabilityKind;
+
+  /** Machine-readable name (e.g., "web-search", "github", "telegram") */
+  name: string;
+
+  /** Human-readable display name */
+  displayName: string;
+
+  /**
+   * Natural language description.
+   * This is the primary text used for embedding generation — it should
+   * describe WHEN and WHY to use this capability, not just what it does.
+   */
+  description: string;
+
+  /** Category for coarse filtering (e.g., "information", "developer-tools", "communication") */
+  category: string;
+
+  /** Tags for additional matching signals */
+  tags: string[];
+
+  /** Required secret IDs (e.g., ["SERPER_API_KEY", "OPENAI_API_KEY"]) */
+  requiredSecrets: string[];
+
+  /** Required tool/binary dependencies (e.g., ["gh", "git"]) */
+  requiredTools: string[];
+
+  /** Whether this capability is currently available (installed, secrets present) */
+  available: boolean;
+
+  /** Whether this capability has side effects on external systems */
+  hasSideEffects?: boolean;
+
+  /**
+   * Full input/output schema (Tier 2 data — NOT embedded, loaded on demand).
+   * For tools: the JSON Schema inputSchema + outputSchema.
+   */
+  fullSchema?: JSONSchemaObject;
+
+  /**
+   * Full SKILL.md content or detailed documentation (Tier 2 data — NOT embedded, loaded on demand).
+   */
+  fullContent?: string;
+
+  /** Reference back to the original source for lazy loading */
+  sourceRef: CapabilitySourceRef;
+}
+
+// ============================================================================
+// TIER SYSTEM
+// ============================================================================
+
+/**
+ * Tier classification for context budget management.
+ *
+ * Tier 0: Always in context (~150 tokens) — category summaries only
+ * Tier 1: Retrieved on relevance (~200 tokens) — name + description + key params
+ * Tier 2: Deep pull (~1500 tokens) — full schema + examples + relationship context
+ */
+export enum CapabilityTier {
+  /** Always in context: category summaries */
+  TIER_0_ALWAYS = 0,
+  /** Retrieved on relevance: name + description + key params */
+  TIER_1_SUMMARY = 1,
+  /** Deep pull: full schema + examples + relationship context */
+  TIER_2_FULL = 2,
+}
+
+// ============================================================================
+// DISCOVERY RESULT
+// ============================================================================
+
+/**
+ * A Tier 1 search result with relevance scoring.
+ */
+export interface Tier1Result {
+  capability: CapabilityDescriptor;
+  relevanceScore: number;
+  /** Compact summary text (~30-50 tokens per capability) */
+  summaryText: string;
+}
+
+/**
+ * A Tier 2 full-detail result.
+ */
+export interface Tier2Result {
+  capability: CapabilityDescriptor;
+  /** Full schema/content text for injection into context */
+  fullText: string;
+}
+
+/**
+ * Token budget tracking for a discovery result.
+ */
+export interface TokenEstimate {
+  tier0Tokens: number;
+  tier1Tokens: number;
+  tier2Tokens: number;
+  totalTokens: number;
+}
+
+/**
+ * Performance diagnostics for a discovery query.
+ */
+export interface DiscoveryDiagnostics {
+  queryTimeMs: number;
+  embeddingTimeMs: number;
+  graphTraversalTimeMs: number;
+  candidatesScanned: number;
+  capabilitiesRetrieved: number;
+}
+
+/**
+ * Complete result of a capability discovery query.
+ * Contains all three tiers of context, plus diagnostics.
+ */
+export interface CapabilityDiscoveryResult {
+  /** Tier 0: always-present category summaries */
+  tier0: string;
+  /** Tier 1: retrieved capability summaries with scores */
+  tier1: Tier1Result[];
+  /** Tier 2: full details for top-selected capabilities */
+  tier2: Tier2Result[];
+  /** Token budget tracking */
+  tokenEstimate: TokenEstimate;
+  /** Discovery diagnostics */
+  diagnostics: DiscoveryDiagnostics;
+}
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+/**
+ * Configuration for the Capability Discovery Engine.
+ */
+export interface CapabilityDiscoveryConfig {
+  /** Maximum tokens for Tier 0 context. @default 200 */
+  tier0TokenBudget: number;
+  /** Maximum tokens for Tier 1 retrievals. @default 800 */
+  tier1TokenBudget: number;
+  /** Maximum tokens for Tier 2 full pulls. @default 2000 */
+  tier2TokenBudget: number;
+  /** Number of Tier 1 candidates to retrieve. @default 5 */
+  tier1TopK: number;
+  /** Number of Tier 2 candidates to fully expand. @default 2 */
+  tier2TopK: number;
+  /** Minimum relevance score for Tier 1 inclusion (0-1). @default 0.3 */
+  tier1MinRelevance: number;
+  /** Whether to use graph relationships for re-ranking. @default true */
+  useGraphReranking: boolean;
+  /** Vector store collection name for capability embeddings. @default 'capability_index' */
+  collectionName: string;
+  /** Embedding model ID to use (undefined = use default). */
+  embeddingModelId?: string;
+  /** Graph-based boost factor for related capabilities (0-1). @default 0.15 */
+  graphBoostFactor: number;
+}
+
+/**
+ * Default configuration values.
+ */
+export const DEFAULT_DISCOVERY_CONFIG: Readonly<CapabilityDiscoveryConfig> = {
+  tier0TokenBudget: 200,
+  tier1TokenBudget: 800,
+  tier2TokenBudget: 2000,
+  tier1TopK: 5,
+  tier2TopK: 2,
+  tier1MinRelevance: 0.3,
+  useGraphReranking: true,
+  collectionName: 'capability_index',
+  graphBoostFactor: 0.15,
+};
+
+// ============================================================================
+// CAPABILITY GRAPH INTERFACE
+// ============================================================================
+
+/**
+ * Edge types in the capability relationship graph.
+ */
+export type CapabilityEdgeType =
+  | 'DEPENDS_ON'      // Skill requires a tool (from requiredTools)
+  | 'COMPOSED_WITH'   // Capabilities that co-occur in presets
+  | 'SAME_CATEGORY'   // Capabilities sharing a category (weak signal)
+  | 'TAGGED_WITH';    // Capabilities sharing tags (weighted by overlap count)
+
+/**
+ * A relationship edge between two capabilities.
+ */
+export interface CapabilityEdge {
+  sourceId: string;
+  targetId: string;
+  type: CapabilityEdgeType;
+  weight: number;
+}
+
+/**
+ * A related capability returned from graph traversal.
+ */
+export interface RelatedCapability {
+  id: string;
+  weight: number;
+  relationType: CapabilityEdgeType;
+}
+
+/**
+ * Abstraction for capability relationship graphs.
+ * Implemented by graphology now; can be swapped for Neo4j later.
+ */
+export interface ICapabilityGraph {
+  /**
+   * Build the graph from capability descriptors and preset co-occurrence data.
+   */
+  buildGraph(
+    capabilities: CapabilityDescriptor[],
+    presetCoOccurrences?: PresetCoOccurrence[],
+  ): void;
+
+  /**
+   * Get capabilities related to a given capability (1-hop neighbors).
+   */
+  getRelated(capabilityId: string): RelatedCapability[];
+
+  /**
+   * Get the subgraph for a set of capability IDs.
+   */
+  getSubgraph(capabilityIds: string[]): {
+    nodes: string[];
+    edges: CapabilityEdge[];
+  };
+
+  /** Number of nodes in the graph. */
+  nodeCount(): number;
+
+  /** Number of edges in the graph. */
+  edgeCount(): number;
+
+  /** Clear the graph. */
+  clear(): void;
+}
+
+/**
+ * Co-occurrence data from agent presets.
+ * Captures which capabilities are suggested together.
+ */
+export interface PresetCoOccurrence {
+  presetName: string;
+  capabilityIds: string[];
+}
+
+// ============================================================================
+// INDEX INTERFACE
+// ============================================================================
+
+/**
+ * A scored search result from the capability index.
+ */
+export interface CapabilitySearchResult {
+  descriptor: CapabilityDescriptor;
+  score: number;
+}
+
+/**
+ * Sources for building the capability index.
+ */
+export interface CapabilityIndexSources {
+  /** Tool descriptors (from ToolOrchestrator or ITool[]) */
+  tools?: Array<{
+    id: string;
+    name: string;
+    displayName: string;
+    description: string;
+    category?: string;
+    inputSchema: JSONSchemaObject;
+    outputSchema?: JSONSchemaObject;
+    requiredCapabilities?: string[];
+    hasSideEffects?: boolean;
+  }>;
+
+  /** Skill entries (from SkillRegistry) */
+  skills?: Array<{
+    name: string;
+    description: string;
+    content: string;
+    category?: string;
+    tags?: string[];
+    requiredSecrets?: string[];
+    requiredTools?: string[];
+    sourcePath?: string;
+    metadata?: {
+      primaryEnv?: string;
+      requires?: { bins?: string[] };
+    };
+  }>;
+
+  /** Extension catalog entries */
+  extensions?: Array<{
+    id: string;
+    name: string;
+    displayName: string;
+    description: string;
+    category: string;
+    requiredSecrets?: string[];
+    available?: boolean;
+  }>;
+
+  /** Channel catalog entries */
+  channels?: Array<{
+    platform: string;
+    displayName: string;
+    description: string;
+    tier?: string;
+    capabilities?: string[];
+  }>;
+
+  /** File-based manifest entries */
+  manifests?: CapabilityDescriptor[];
+}
+
+// ============================================================================
+// MANIFEST FILE FORMAT
+// ============================================================================
+
+/**
+ * Structure of a CAPABILITY.yaml manifest file.
+ */
+export interface CapabilityManifestFile {
+  id: string;
+  kind: CapabilityKind;
+  name: string;
+  displayName: string;
+  description: string;
+  category: string;
+  tags?: string[];
+  requiredSecrets?: string[];
+  requiredTools?: string[];
+  hasSideEffects?: boolean;
+  inputSchema?: JSONSchemaObject;
+  skillContent?: string;
+}
+
+// ============================================================================
+// DISCOVERY ENGINE INTERFACE
+// ============================================================================
+
+/**
+ * Options for a discovery query.
+ */
+export interface DiscoveryQueryOptions {
+  /** Override default config for this query */
+  config?: Partial<CapabilityDiscoveryConfig>;
+  /** Filter by capability kind */
+  kind?: CapabilityKind | 'any';
+  /** Filter by category */
+  category?: string;
+  /** Only include available capabilities */
+  onlyAvailable?: boolean;
+}
+
+/**
+ * The main Capability Discovery Engine interface.
+ */
+export interface ICapabilityDiscoveryEngine {
+  /**
+   * Initialize the engine: build index + graph from all sources.
+   */
+  initialize(sources: CapabilityIndexSources): Promise<void>;
+
+  /**
+   * Discover capabilities relevant to a user message.
+   * Returns a tiered, token-budgeted result.
+   */
+  discover(
+    userMessage: string,
+    options?: DiscoveryQueryOptions,
+  ): Promise<CapabilityDiscoveryResult>;
+
+  /**
+   * Get full detail for a specific capability (Tier 2 pull).
+   */
+  getCapabilityDetail(id: string): CapabilityDescriptor | undefined;
+
+  /**
+   * Refresh the index incrementally (e.g., after manifest file changes).
+   */
+  refreshIndex(sources?: Partial<CapabilityIndexSources>): Promise<void>;
+
+  /** Whether the engine is initialized. */
+  isInitialized(): boolean;
+
+  /** Get all registered capability IDs. */
+  listCapabilityIds(): string[];
+}
