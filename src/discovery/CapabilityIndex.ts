@@ -16,7 +16,7 @@
  */
 
 import type { IEmbeddingManager } from '../rag/IEmbeddingManager.js';
-import type { IVectorStore, VectorDocument } from '../rag/IVectorStore.js';
+import type { IVectorStore, VectorDocument, MetadataFilter } from '../rag/IVectorStore.js';
 import type {
   CapabilityDescriptor,
   CapabilityKind,
@@ -178,7 +178,7 @@ export class CapabilityIndex {
     const queryEmbedding = queryResponse.embeddings[0];
 
     // Build metadata filter
-    const metadataFilter: Record<string, unknown> = {};
+    const metadataFilter: MetadataFilter = {};
     if (filters?.kind && filters.kind !== 'any') {
       metadataFilter.kind = filters.kind;
     }

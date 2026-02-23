@@ -160,7 +160,7 @@ export class CapabilityGraph implements ICapabilityGraph {
 
     const related: RelatedCapability[] = [];
 
-    this.graph.forEachEdge(capabilityId, (_edge, attrs, source, target) => {
+    this.graph.forEachEdge(capabilityId, (_edge: string, attrs: Record<string, unknown>, source: string, target: string) => {
       const neighborId = source === capabilityId ? target : source;
       related.push({
         id: neighborId,
@@ -187,7 +187,7 @@ export class CapabilityGraph implements ICapabilityGraph {
     const edges: CapabilityEdge[] = [];
 
     for (const nodeId of nodeSet) {
-      this.graph.forEachEdge(nodeId, (_edge, attrs, source, target) => {
+      this.graph.forEachEdge(nodeId, (_edge: string, attrs: Record<string, unknown>, source: string, target: string) => {
         // Only include edges where both endpoints are in the subgraph
         if (nodeSet.has(source) && nodeSet.has(target)) {
           // Avoid duplicates (undirected graph)
