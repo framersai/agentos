@@ -1,3 +1,12 @@
+## <small>0.1.30 (2026-02-23)</small>
+
+* fix: include discovery/ in tsconfig.build.json and fix type errors ([3ddf297](https://github.com/framersai/agentos/commit/3ddf297))
+* docs(discovery): add CAPABILITY_DISCOVERY.md architecture documentation ([3550f33](https://github.com/framersai/agentos/commit/3550f33))
+* docs(rag): document combined vector+GraphRAG search, debug tracing, HNSW config ([1f3e2ea](https://github.com/framersai/agentos/commit/1f3e2ea))
+* feat(discovery): add Capability Discovery Engine — semantic, tiered capability discovery ([790364c](https://github.com/framersai/agentos/commit/790364c))
+* feat(discovery): integrate with ToolOrchestrator, update CHANGELOG and exports ([dff5cb0](https://github.com/framersai/agentos/commit/dff5cb0))
+* test(discovery): add unit tests for all discovery module components ([c69962e](https://github.com/framersai/agentos/commit/c69962e))
+
 ## [0.1.30] - 2026-02-21
 
 ### Added
