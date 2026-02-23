@@ -422,6 +422,7 @@ export class TeamsChannelAdapter extends BaseChannelAdapter<TeamsAuthParams> {
           if ('text' in block && typeof block.text === 'string') {
             textParts.push(block.text);
           }
+          attachments.push(this.buildAdaptiveCardEmbed(block));
           break;
 
         case 'image':
@@ -454,10 +455,6 @@ export class TeamsChannelAdapter extends BaseChannelAdapter<TeamsAuthParams> {
         case 'button_group':
           // Build an Adaptive Card with actions
           attachments.push(this.buildAdaptiveCardWithButtons(block.buttons));
-          break;
-
-        case 'embed':
-          attachments.push(this.buildAdaptiveCardEmbed(block));
           break;
 
         case 'poll':

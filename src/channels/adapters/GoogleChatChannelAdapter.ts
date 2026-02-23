@@ -438,6 +438,7 @@ export class GoogleChatChannelAdapter extends BaseChannelAdapter<GoogleChatAuthP
           if ('text' in block && typeof block.text === 'string') {
             textParts.push(block.text);
           }
+          cards.push(this.buildEmbedCard(block));
           break;
 
         case 'image':
@@ -470,10 +471,6 @@ export class GoogleChatChannelAdapter extends BaseChannelAdapter<GoogleChatAuthP
               }],
             }],
           });
-          break;
-
-        case 'embed':
-          cards.push(this.buildEmbedCard(block));
           break;
 
         case 'poll':
