@@ -1,3 +1,7 @@
+## <small>0.1.31 (2026-02-23)</small>
+
+* fix(lint): merge duplicate 'embed' case labels in channel adapters ([047b33a](https://github.com/framersai/agentos/commit/047b33a))
+
 ## <small>0.1.30 (2026-02-23)</small>
 
 * fix: include discovery/ in tsconfig.build.json and fix type errors ([3ddf297](https://github.com/framersai/agentos/commit/3ddf297))
