@@ -42,7 +42,7 @@ import { OpenAIProviderError } from '../errors/OpenAIProviderError';
  * Configuration specific to the OpenAIProvider.
  */
 export interface OpenAIProviderConfig {
-  /** The API key for accessing OpenAI services. Can be overridden by `apiKeyOverride` in request options. */
+  /** The API key for accessing OpenAI services. Can be overridden by `apiKeyOverride` in request options. Can be empty when oauthFlow is provided. */
   apiKey: string;
   /** Base URL for the OpenAI API. Defaults to "https://api.openai.com/v1". Useful for proxies. */
   baseURL?: string;
@@ -56,6 +56,8 @@ export interface OpenAIProviderConfig {
   customHeaders?: Record<string, string>;
   /** Default model ID to use if not specified in a request. E.g., "gpt-4o-mini". */
   defaultModelId?: string;
+  /** Optional OAuth flow for subscription-based auth (e.g. ChatGPT Plus/Pro). When set, apiKey is derived dynamically from OAuth tokens. */
+  oauthFlow?: { getAccessToken(): Promise<string> };
 }
 
 // Simplified OpenAI API response structures (non-namespaced)
@@ -207,9 +209,9 @@ export class OpenAIProvider implements IProvider {
 
   /** @inheritdoc */
   public async initialize(config: OpenAIProviderConfig): Promise<void> {
-    if (!config.apiKey) {
+    if (!config.apiKey && !config.oauthFlow) {
       throw new OpenAIProviderError(
-        'API key is required for OpenAIProvider initialization.',
+        'API key or OAuth flow is required for OpenAIProvider initialization.',
         'INIT_FAILED_MISSING_API_KEY'
       );
     }
@@ -247,10 +249,11 @@ export class OpenAIProvider implements IProvider {
    * @throws {OpenAIProviderError} If fetching or parsing models fails.
    */
   private async refreshAvailableModels(): Promise<void> {
+    const apiKey = await this.getApiKey();
     const response = await this.makeApiRequest<OpenAIAPITypes.ListModelsResponse>(
       '/models',
       'GET',
-      this.config.apiKey
+      apiKey
     );
 
     this.availableModelsCache.clear();
@@ -346,21 +349,22 @@ export class OpenAIProvider implements IProvider {
   }
 
   /**
-   * Resolves the API key to use for a request, prioritizing per-request override, then user-specific, then system default.
+   * Resolves the API key to use for a request, prioritizing per-request override, then OAuth flow, then system default.
    * @private
    * @param {string | undefined} apiKeyOverride - API key provided directly in request options.
-   * @returns {string} The API key to use.
+   * @returns {Promise<string>} The API key to use.
    * @throws {OpenAIProviderError} If no API key is available.
    */
-  private getApiKey(apiKeyOverride?: string): string {
-    const keyToUse = apiKeyOverride || this.config.apiKey;
-    if (!keyToUse) {
-      throw new OpenAIProviderError(
-        'No OpenAI API key available for the request.',
-        'API_KEY_MISSING'
-      );
+  private async getApiKey(apiKeyOverride?: string): Promise<string> {
+    if (apiKeyOverride) return apiKeyOverride;
+    if (this.config.oauthFlow) {
+      return await this.config.oauthFlow.getAccessToken();
     }
-    return keyToUse;
+    if (this.config.apiKey) return this.config.apiKey;
+    throw new OpenAIProviderError(
+      'No OpenAI API key available for the request.',
+      'API_KEY_MISSING'
+    );
   }
 
   /** @inheritdoc */

@@ -93,6 +93,11 @@
       "default": "./dist/discovery/index.js",
       "types": "./dist/discovery/index.d.ts"
     },
+    "./auth": {
+      "import": "./dist/core/llm/auth/index.js",
+      "default": "./dist/core/llm/auth/index.js",
+      "types": "./dist/core/llm/auth/index.d.ts"
+    },
     "./package.json": "./package.json",
     "./*": {
       "import": "./dist/*.js",
