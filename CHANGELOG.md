@@ -1,3 +1,7 @@
+## <small>0.1.32 (2026-02-24)</small>
+
+* feat(auth): add OAuth authentication module for LLM providers ([b72a33f](https://github.com/framersai/agentos/commit/b72a33f))
+
 ## <small>0.1.31 (2026-02-23)</small>
 
 * fix(lint): merge duplicate 'embed' case labels in channel adapters ([047b33a](https://github.com/framersai/agentos/commit/047b33a))
