@@ -86,7 +86,7 @@
 | Property | Value |
 |----------|-------|
 | Package | `@framers/agentos` |
-| Version | `0.1.21` |
+| Version | `0.1.32` |
 | Language | TypeScript 5.4+ / Node.js 18+ |
 | Source files | 260+ TypeScript files across 25 top-level directories |
 | Export paths | 112 package.json export entries |
@@ -112,6 +112,7 @@
 | `@framers/sql-storage-adapter` | SQL-backed vector store and persistence |
 | `graphology` + `graphology-communities-louvain` | GraphRAG community detection |
 | `hnswlib-node` | HNSW-based approximate nearest neighbor search |
+| `neo4j-driver` | Neo4j-backed vector + GraphRAG persistence |
 
 ---
 
@@ -636,10 +637,11 @@ A complete RAG pipeline with pluggable vector stores, embedding management, and 
 | `SqlVectorStore` | `@framers/agentos/rag` | Production (SQLite/Postgres via `@framers/sql-storage-adapter`) |
 | `HnswlibVectorStore` | `@framers/agentos/rag` | High-performance local ANN search |
 | `QdrantVectorStore` | `@framers/agentos/rag` | Cloud-hosted vector database |
+| `Neo4jVectorStore` | `@framers/agentos/rag` | Neo4j 5.x native vector indexes with shared connection pooling |
 
 **GraphRAG:**
 
-The `GraphRAGEngine` (at `src/rag/graphrag/`) extends traditional RAG with knowledge graph capabilities:
+AgentOS supports both in-memory `GraphRAGEngine` and persistent `Neo4jGraphRAGEngine` (at `src/rag/graphrag/`) for knowledge-graph-enhanced retrieval:
 
 - Entity and relationship extraction from documents
 - Community detection via Louvain algorithm (requires `graphology` peer dependency)
@@ -648,6 +650,7 @@ The `GraphRAGEngine` (at `src/rag/graphrag/`) extends traditional RAG with knowl
 
 ```typescript
 import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
+import { Neo4jGraphRAGEngine } from '@framers/agentos/rag/graphrag';
 import type { GraphRAGConfig, GraphEntity, GraphRelationship } from '@framers/agentos/rag/graphrag';
 ```
 

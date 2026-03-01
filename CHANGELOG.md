@@ -1,3 +1,8 @@
+## [Unreleased]
+
+### Added
+- feat(memory): Neo4j-backed memory providers for RAG (`Neo4jVectorStore`, `Neo4jGraphRAGEngine`) plus adaptive task-outcome telemetry hooks.
+
 ## <small>0.1.32 (2026-02-24)</small>
 
 * feat(auth): add OAuth authentication module for LLM providers ([b72a33f](https://github.com/framersai/agentos/commit/b72a33f))
