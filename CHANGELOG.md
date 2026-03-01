@@ -1,3 +1,9 @@
+## <small>0.1.33 (2026-03-01)</small>
+
+* fix(build): avoid unused ts-expect-error in optional neo4j import ([f9cc8b1](https://github.com/framersai/agentos/commit/f9cc8b1))
+* docs(rag): document neo4j memory providers and unreleased notes ([214bc0d](https://github.com/framersai/agentos/commit/214bc0d))
+* feat(memory): add neo4j stores and adaptive task-outcome telemetry ([536c249](https://github.com/framersai/agentos/commit/536c249))
+
 ## [Unreleased]
 
 ### Added
