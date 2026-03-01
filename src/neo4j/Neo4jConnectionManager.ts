@@ -47,7 +47,7 @@ export class Neo4jConnectionManager {
     if (this.driver) return; // Already initialized
 
     try {
-      // @ts-expect-error -- neo4j-driver is an optional peer dependency
+      // @ts-ignore -- neo4j-driver is an optional peer dependency
       this.neo4jModule = await import('neo4j-driver');
     } catch {
       throw new Error(
