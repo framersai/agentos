@@ -359,5 +359,704 @@ describe('AgentOSOrchestrator (API layer)', () => {
       expect(String(finalChunk.finalResponseText).toLowerCase()).not.toContain('turn processing sequence complete');
       expect(mockStreamingManager.closeStream).toHaveBeenCalled();
     });
+
+    it('applies single-tenant default organization routing when organizationId is omitted', async () => {
+      await orchestrator.shutdown();
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          tenantRouting: {
+            mode: 'single_tenant',
+            defaultOrganizationId: 'org-default',
+            strictOrganizationIsolation: true,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+        }
+      );
+
+      const input: AgentOSInput = {
+        userId: 'test-user',
+        sessionId: 'test-session',
+        textInput: 'Hello',
+        selectedPersonaId: 'persona-1',
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(capturedGMIInput?.metadata?.organizationId).toBe('org-default');
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const tenantUpdateChunk = pushedChunks.find(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.tenantRouting,
+      );
+      expect(tenantUpdateChunk?.updates?.tenantRouting?.mode).toBe('single_tenant');
+      expect(tenantUpdateChunk?.updates?.tenantRouting?.defaultOrganizationId).toBe('org-default');
+    });
+
+    it('uses aggressive long-term-memory recall defaults when retriever is present', async () => {
+      const mockLongTermMemoryRetriever = {
+        retrieveLongTermMemory: vi.fn().mockResolvedValue({
+          contextText: '## User Memory\n- remembers preferences',
+          diagnostics: { hits: 1 },
+        }),
+      };
+      mockConversationContext.getAllMessages = vi.fn().mockReturnValue([
+        { id: 'u-1', role: 'user', content: 'first', timestamp: 1 },
+        { id: 'u-2', role: 'user', content: 'second', timestamp: 2 },
+      ]);
+
+      await orchestrator.shutdown();
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          longTermMemoryRetriever: mockLongTermMemoryRetriever as any,
+        }
+      );
+
+      const input: AgentOSInput = {
+        userId: 'test-user',
+        sessionId: 'test-session',
+        textInput: 'recall what we decided',
+        selectedPersonaId: 'persona-1',
+        memoryControl: {
+          longTermMemory: {
+            scopes: { user: true },
+          },
+        },
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      expect(mockLongTermMemoryRetriever.retrieveLongTermMemory).toHaveBeenCalled();
+      const retrieveInput = mockLongTermMemoryRetriever.retrieveLongTermMemory.mock.calls[0]?.[0];
+      expect(retrieveInput.maxContextChars).toBe(4200);
+      expect(retrieveInput.topKByScope).toEqual({ user: 8, persona: 8, organization: 8 });
+
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const recallUpdateChunk = pushedChunks.find(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.longTermMemoryRecall,
+      );
+      expect(recallUpdateChunk?.updates?.longTermMemoryRecall?.profile).toBe('aggressive');
+      expect(recallUpdateChunk?.updates?.longTermMemoryRecall?.cadenceTurns).toBe(2);
+    });
+
+    it('emits taskOutcome metadata for final turn evaluation', async () => {
+      (mockGMI.processTurnStream as any).mockImplementation(async function* (input: GMITurnInput) {
+        capturedGMIInput = input;
+        yield {
+          type: GMIOutputChunkType.TEXT_DELTA,
+          content: 'Long answer',
+          interactionId: 'interaction-1',
+          timestamp: new Date(),
+        } as GMIOutputChunk;
+        yield {
+          type: GMIOutputChunkType.FINAL_RESPONSE_MARKER,
+          content: { finalResponseText: 'Long answer' },
+          interactionId: 'interaction-1',
+          timestamp: new Date(),
+          isFinal: true,
+        } as GMIOutputChunk;
+        return {
+          isFinal: true,
+          responseText:
+            'This response fully addresses the request with concrete implementation details and next actions.',
+        };
+      });
+
+      const input: AgentOSInput = {
+        userId: 'test-user',
+        sessionId: 'task-outcome-session',
+        textInput: 'Please complete the task',
+        selectedPersonaId: 'persona-1',
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const taskOutcomeChunk = pushedChunks.find(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcome,
+      );
+
+      expect(taskOutcomeChunk).toBeTruthy();
+      expect(taskOutcomeChunk.updates.taskOutcome.status).toBe('success');
+      expect(taskOutcomeChunk.updates.taskOutcome.score).toBeGreaterThan(0.8);
+    });
+
+    it('emits rolling taskOutcomeKpi payload with running success stats', async () => {
+      await orchestrator.shutdown();
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 10,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+        }
+      );
+
+      (mockGMI.processTurnStream as any).mockImplementation(async function* () {
+        yield {
+          type: GMIOutputChunkType.TEXT_DELTA,
+          content: 'Done.',
+          interactionId: 'interaction-1',
+          timestamp: new Date(),
+        } as GMIOutputChunk;
+        yield {
+          type: GMIOutputChunkType.FINAL_RESPONSE_MARKER,
+          content: { finalResponseText: 'Done.' },
+          interactionId: 'interaction-1',
+          timestamp: new Date(),
+          isFinal: true,
+        } as GMIOutputChunk;
+        return {
+          isFinal: true,
+          responseText:
+            'Completed successfully with a full response payload that exceeds the success threshold.',
+        };
+      });
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'kpi-session-1',
+        textInput: 'first task',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 90));
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'kpi-session-2',
+        textInput: 'second task',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 90));
+
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const kpiChunks = pushedChunks.filter(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcomeKpi,
+      );
+      expect(kpiChunks.length).toBeGreaterThanOrEqual(2);
+      const lastKpi = kpiChunks[kpiChunks.length - 1].updates.taskOutcomeKpi;
+      expect(lastKpi.scopeKey).toBe('global');
+      expect(lastKpi.sampleCount).toBe(2);
+      expect(lastKpi.successCount).toBe(2);
+      expect(lastKpi.failedCount).toBe(0);
+      expect(lastKpi.successRate).toBe(1);
+      expect(lastKpi.weightedSuccessRate).toBeGreaterThan(0.8);
+    });
+
+    it('adapts discovered tool selection to all tools when rolling success degrades', async () => {
+      await orchestrator.shutdown();
+      const mockTurnPlanner = {
+        plannerId: 'planner-test',
+        isDiscoveryAvailable: vi.fn().mockReturnValue(true),
+        planTurn: vi.fn().mockImplementation(async () => ({
+          policy: {
+            plannerVersion: 'planner-test',
+            toolFailureMode: 'fail_open',
+            toolSelectionMode: 'discovered',
+          },
+          capability: {
+            enabled: true,
+            query: 'test',
+            kind: 'any',
+            onlyAvailable: true,
+            selectedToolNames: ['web-search'],
+          },
+          diagnostics: {
+            planningLatencyMs: 1,
+            discoveryAttempted: true,
+            discoveryApplied: true,
+            discoveryAttempts: 1,
+            usedFallback: false,
+          },
+        })),
+      };
+
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 20,
+          },
+          adaptiveExecution: {
+            enabled: true,
+            minSamples: 3,
+            minWeightedSuccessRate: 0.8,
+            forceAllToolsWhenDegraded: true,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          turnPlanner: mockTurnPlanner as any,
+        }
+      );
+
+      for (let i = 0; i < 3; i += 1) {
+        await orchestrator.orchestrateTurn({
+          userId: 'test-user',
+          sessionId: `adaptive-seed-${i}`,
+          textInput: `seed ${i}`,
+          selectedPersonaId: 'persona-1',
+          options: {
+            customFlags: { taskOutcome: 'failed' },
+          },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 90));
+      }
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'adaptive-final',
+        textInput: 'should adapt',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(capturedGMIInput?.metadata?.executionPolicy?.toolSelectionMode).toBe('all');
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const planningChunks = pushedChunks.filter(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning,
+      );
+      const planningChunk = planningChunks[planningChunks.length - 1];
+      expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.applied).toBe(true);
+    });
+
+    it('forces fail_open under degraded KPI when fail_closed was not explicitly requested', async () => {
+      await orchestrator.shutdown();
+      const mockTurnPlanner = {
+        plannerId: 'planner-test',
+        isDiscoveryAvailable: vi.fn().mockReturnValue(true),
+        planTurn: vi.fn().mockImplementation(async () => ({
+          policy: {
+            plannerVersion: 'planner-test',
+            toolFailureMode: 'fail_closed',
+            toolSelectionMode: 'all',
+          },
+          capability: {
+            enabled: true,
+            query: 'test',
+            kind: 'any',
+            onlyAvailable: true,
+            selectedToolNames: ['web-search'],
+          },
+          diagnostics: {
+            planningLatencyMs: 1,
+            discoveryAttempted: true,
+            discoveryApplied: true,
+            discoveryAttempts: 1,
+            usedFallback: false,
+          },
+        })),
+      };
+
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 20,
+          },
+          adaptiveExecution: {
+            enabled: true,
+            minSamples: 3,
+            minWeightedSuccessRate: 0.8,
+            forceAllToolsWhenDegraded: true,
+            forceFailOpenWhenDegraded: true,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          turnPlanner: mockTurnPlanner as any,
+        }
+      );
+
+      for (let i = 0; i < 3; i += 1) {
+        await orchestrator.orchestrateTurn({
+          userId: 'test-user',
+          sessionId: `adaptive-fail-open-seed-${i}`,
+          textInput: `seed ${i}`,
+          selectedPersonaId: 'persona-1',
+          options: {
+            customFlags: { taskOutcome: 'failed' },
+          },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 90));
+      }
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'adaptive-fail-open-final',
+        textInput: 'should force fail_open',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(capturedGMIInput?.metadata?.executionPolicy?.toolFailureMode).toBe('fail_open');
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const planningChunks = pushedChunks.filter(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning,
+      );
+      const planningChunk = planningChunks[planningChunks.length - 1];
+      expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.forcedToolFailureMode).toBe(true);
+    });
+
+    it('preserves explicit fail_closed request override under degraded KPI', async () => {
+      await orchestrator.shutdown();
+      const mockTurnPlanner = {
+        plannerId: 'planner-test',
+        isDiscoveryAvailable: vi.fn().mockReturnValue(true),
+        planTurn: vi.fn().mockImplementation(async () => ({
+          policy: {
+            plannerVersion: 'planner-test',
+            toolFailureMode: 'fail_closed',
+            toolSelectionMode: 'all',
+          },
+          capability: {
+            enabled: true,
+            query: 'test',
+            kind: 'any',
+            onlyAvailable: true,
+            selectedToolNames: ['web-search'],
+          },
+          diagnostics: {
+            planningLatencyMs: 1,
+            discoveryAttempted: true,
+            discoveryApplied: true,
+            discoveryAttempts: 1,
+            usedFallback: false,
+          },
+        })),
+      };
+
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 20,
+          },
+          adaptiveExecution: {
+            enabled: true,
+            minSamples: 3,
+            minWeightedSuccessRate: 0.8,
+            forceAllToolsWhenDegraded: true,
+            forceFailOpenWhenDegraded: true,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          turnPlanner: mockTurnPlanner as any,
+        }
+      );
+
+      for (let i = 0; i < 3; i += 1) {
+        await orchestrator.orchestrateTurn({
+          userId: 'test-user',
+          sessionId: `adaptive-preserve-closed-seed-${i}`,
+          textInput: `seed ${i}`,
+          selectedPersonaId: 'persona-1',
+          options: {
+            customFlags: { taskOutcome: 'failed' },
+          },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 90));
+      }
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'adaptive-preserve-closed-final',
+        textInput: 'keep explicit fail_closed',
+        selectedPersonaId: 'persona-1',
+        options: {
+          customFlags: {
+            toolFailureMode: 'fail_closed',
+          },
+        },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(capturedGMIInput?.metadata?.executionPolicy?.toolFailureMode).toBe('fail_closed');
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const planningChunks = pushedChunks.filter(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning,
+      );
+      const planningChunk = planningChunks[planningChunks.length - 1];
+      expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.applied).toBe(false);
+      expect(
+        planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.preservedRequestedFailClosed,
+      ).toBe(true);
+      expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.forcedToolFailureMode).toBeFalsy();
+    });
+
+    it('loads persisted KPI windows and applies adaptive execution on first turn', async () => {
+      await orchestrator.shutdown();
+      const mockTurnPlanner = {
+        plannerId: 'planner-test',
+        isDiscoveryAvailable: vi.fn().mockReturnValue(true),
+        planTurn: vi.fn().mockImplementation(async () => ({
+          policy: {
+            plannerVersion: 'planner-test',
+            toolFailureMode: 'fail_open',
+            toolSelectionMode: 'discovered',
+          },
+          capability: {
+            enabled: true,
+            query: 'test',
+            kind: 'any',
+            onlyAvailable: true,
+            selectedToolNames: ['web-search'],
+          },
+          diagnostics: {
+            planningLatencyMs: 1,
+            discoveryAttempted: true,
+            discoveryApplied: true,
+            discoveryAttempts: 1,
+            usedFallback: false,
+          },
+        })),
+      };
+      const mockTelemetryStore = {
+        loadWindows: vi.fn().mockResolvedValue({
+          global: [
+            { status: 'failed', score: 0, timestamp: 100 },
+            { status: 'failed', score: 0, timestamp: 200 },
+            { status: 'failed', score: 0, timestamp: 300 },
+          ],
+        }),
+        saveWindow: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 20,
+          },
+          adaptiveExecution: {
+            enabled: true,
+            minSamples: 3,
+            minWeightedSuccessRate: 0.8,
+            forceAllToolsWhenDegraded: true,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          turnPlanner: mockTurnPlanner as any,
+          taskOutcomeTelemetryStore: mockTelemetryStore as any,
+        }
+      );
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'persisted-kpi-seed',
+        textInput: 'should adapt immediately',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(mockTelemetryStore.loadWindows).toHaveBeenCalled();
+      expect(capturedGMIInput?.metadata?.executionPolicy?.toolSelectionMode).toBe('all');
+    });
+
+    it('persists KPI window updates via taskOutcomeTelemetryStore', async () => {
+      await orchestrator.shutdown();
+      const mockTelemetryStore = {
+        loadWindows: vi.fn().mockResolvedValue({}),
+        saveWindow: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 10,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          taskOutcomeTelemetryStore: mockTelemetryStore as any,
+        }
+      );
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'persist-kpi-1',
+        textInput: 'complete this',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(mockTelemetryStore.saveWindow).toHaveBeenCalled();
+      const [scopeKey, entries] = mockTelemetryStore.saveWindow.mock.calls[0];
+      expect(scopeKey).toBe('global');
+      expect(Array.isArray(entries)).toBe(true);
+      expect(entries.length).toBeGreaterThan(0);
+    });
+
+    it('emits taskOutcomeAlert when weighted success drops below threshold', async () => {
+      await orchestrator.shutdown();
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+          taskOutcomeTelemetry: {
+            enabled: true,
+            scope: 'global',
+            rollingWindowSize: 20,
+            emitAlerts: true,
+            alertBelowWeightedSuccessRate: 0.9,
+            alertMinSamples: 2,
+            alertCooldownMs: 0,
+          },
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+        }
+      );
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'alert-seed-1',
+        textInput: 'seed fail 1',
+        selectedPersonaId: 'persona-1',
+        options: { customFlags: { taskOutcome: 'failed' } },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 90));
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'alert-seed-2',
+        textInput: 'seed fail 2',
+        selectedPersonaId: 'persona-1',
+        options: { customFlags: { taskOutcome: 'failed' } },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 90));
+
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const alertChunk = pushedChunks.find(
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcomeAlert,
+      );
+      expect(alertChunk).toBeTruthy();
+      expect(alertChunk.updates.taskOutcomeAlert.sampleCount).toBeGreaterThanOrEqual(2);
+      expect(alertChunk.updates.taskOutcomeAlert.value).toBeLessThan(0.9);
+    });
   });
 });

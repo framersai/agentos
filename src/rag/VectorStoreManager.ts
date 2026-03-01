@@ -186,13 +186,12 @@ export class VectorStoreManager implements IVectorStoreManager {
       case 'qdrant':
         // Qdrant vector store via HTTP (self-hosted or cloud)
         return new QdrantVectorStore();
-      // case 'pinecone':
-      //   // Ensure PineconeVectorStoreConfig is imported and used
-      //   return new PineconeVectorStore();
-      // case 'weaviate':
-      //   // Ensure WeaviateVectorStoreConfig is imported and used
-      //   return new WeaviateVectorStore();
-      // Add cases for other supported vector store types
+      case 'neo4j':
+        // Neo4j vector store via native vector indexes (requires neo4j-driver)
+        // Dynamic import to keep neo4j-driver optional
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { Neo4jVectorStore } = require('./implementations/vector_stores/Neo4jVectorStore');
+        return new Neo4jVectorStore();
       default:
         throw new GMIError(
           `Unsupported vector store provider type: '${providerConfig.type}' for provider ID '${providerConfig.id}'.`,

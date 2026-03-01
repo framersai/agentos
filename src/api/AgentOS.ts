@@ -42,7 +42,12 @@
 import { IAgentOS } from './interfaces/IAgentOS';
 import { AgentOSInput, UserFeedbackPayload } from './types/AgentOSInput';
 import { AgentOSResponse, AgentOSErrorChunk, AgentOSResponseChunkType } from './types/AgentOSResponse';
-import { AgentOSOrchestrator, AgentOSOrchestratorDependencies, AgentOSOrchestratorConfig } from './AgentOSOrchestrator';
+import {
+  AgentOSOrchestrator,
+  type AgentOSOrchestratorDependencies,
+  type AgentOSOrchestratorConfig,
+  type ITaskOutcomeTelemetryStore,
+} from './AgentOSOrchestrator';
 import { GMIManager, GMIManagerConfig } from '../cognitive_substrate/GMIManager';
 import { AIModelProviderManager, AIModelProviderManagerConfig } from '../core/llm/providers/AIModelProviderManager';
 import { PromptEngine } from '../core/llm/PromptEngine';
@@ -88,6 +93,7 @@ import type { IPersonaLoader } from '../cognitive_substrate/personas/IPersonaLoa
 import {
   ExtensionManager,
   EXTENSION_KIND_GUARDRAIL,
+  EXTENSION_KIND_MESSAGING_CHANNEL,
   EXTENSION_KIND_PROVENANCE,
   EXTENSION_KIND_TOOL,
   EXTENSION_KIND_WORKFLOW,
@@ -100,6 +106,24 @@ import {
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
 import { WorkflowRuntime } from '../core/workflows/runtime/WorkflowRuntime';
 import { AgencyRegistry } from '../core/agency/AgencyRegistry';
+import {
+  AgentOSTurnPlanner,
+  type ITurnPlanner,
+  type TurnPlannerConfig,
+} from '../core/orchestration/TurnPlanner';
+import {
+  CapabilityDiscoveryEngine,
+  createDiscoverCapabilitiesTool,
+} from '../discovery';
+import type {
+  CapabilityDescriptor,
+  CapabilityDiscoveryConfig,
+  CapabilityIndexSources,
+  ICapabilityDiscoveryEngine,
+  PresetCoOccurrence,
+} from '../discovery/types';
+import { EmbeddingManager } from '../rag/EmbeddingManager';
+import { InMemoryVectorStore } from '../rag/implementations/vector_stores/InMemoryVectorStore';
 import type { WorkflowDescriptor } from '../extensions/types';
 import { WorkflowEngine } from '../core/workflows/WorkflowEngine';
 import type {
@@ -120,6 +144,7 @@ import type {
   WorkflowTaskUpdate,
 } from '../core/workflows/storage/IWorkflowStore';
 import { InMemoryWorkflowStore } from '../core/workflows/storage/InMemoryWorkflowStore';
+import type { MessagingChannelPayload } from '../extensions/MessagingChannelPayload';
 
 type StorageWriteHookContext = {
   readonly operation: 'run' | 'batch';
@@ -297,6 +322,58 @@ export class AgentOSServiceError extends GMIError {
   }
 }
 
+export interface AgentOSCapabilityDiscoverySources {
+  skills?: CapabilityIndexSources['skills'];
+  extensions?: CapabilityIndexSources['extensions'];
+  channels?: CapabilityIndexSources['channels'];
+  manifests?: CapabilityDescriptor[];
+  presetCoOccurrences?: PresetCoOccurrence[];
+}
+
+export interface AgentOSTurnPlanningConfig extends TurnPlannerConfig {
+  discovery?: NonNullable<TurnPlannerConfig['discovery']> & {
+    /**
+     * Optional pre-built discovery engine. If provided, AgentOS uses this and
+     * skips auto-initialization.
+     */
+    engine?: ICapabilityDiscoveryEngine;
+    /**
+     * When true, AgentOS automatically creates a capability discovery engine
+     * using active tools/extensions/channels.
+     */
+    autoInitializeEngine?: boolean;
+    /**
+     * Register the `discover_capabilities` meta-tool after engine initialization.
+     */
+    registerMetaTool?: boolean;
+    /**
+     * Optional override for discovery embedding model.
+     */
+    embeddingModelId?: string;
+    /**
+     * Optional embedding dimension override.
+     */
+    embeddingDimension?: number;
+    /**
+     * Optional low-level discovery engine tuning.
+     */
+    config?: Partial<CapabilityDiscoveryConfig>;
+    /**
+     * Optional explicit capability sources to merge with runtime-derived sources.
+     */
+    sources?: AgentOSCapabilityDiscoverySources;
+  };
+}
+
+const DISCOVERY_EMBEDDING_DEFAULTS: Record<
+  string,
+  { modelId: string; dimension: number }
+> = {
+  openai: { modelId: 'text-embedding-3-small', dimension: 1536 },
+  openrouter: { modelId: 'openai/text-embedding-3-small', dimension: 1536 },
+  ollama: { modelId: 'nomic-embed-text', dimension: 768 },
+};
+
 /**
  * @interface AgentOSConfig
  * @description Defines the comprehensive configuration structure required to initialize and operate
@@ -318,6 +395,11 @@ export interface AgentOSConfig {
    * (e.g. user/org/persona memories stored in a RAG/KG).
    */
   longTermMemoryRetriever?: ILongTermMemoryRetriever;
+  /**
+   * Optional persistence store for task outcome KPI windows.
+   * When provided, rolling task-outcome telemetry survives orchestrator restarts.
+   */
+  taskOutcomeTelemetryStore?: ITaskOutcomeTelemetryStore;
   /**
    * Optional retrieval augmentor enabling vector-based RAG and/or GraphRAG.
    * When provided, it is passed into GMIs via the GMIManager.
@@ -441,6 +523,13 @@ export interface AgentOSConfig {
     officialRegistryOnly?: boolean;
   };
   /**
+   * Optional per-turn planning configuration.
+   * Defaults:
+   * - `defaultToolFailureMode = fail_open`
+   * - discovery-driven tool selection enabled when discovery is available.
+   */
+  turnPlanning?: AgentOSTurnPlanningConfig;
+  /**
    * Optional. An instance of a utility AI service.
    * This service should conform to {@link IUtilityAI} for general utility tasks.
    * If the {@link PromptEngine} is used and requires specific utility functions (like advanced
@@ -558,6 +647,9 @@ export class AgentOS implements IAgentOS {
   private workflowExtensionListener?: ExtensionEventListener;
   private workflowRuntime?: WorkflowRuntime;
   private agencyRegistry?: AgencyRegistry;
+  private turnPlanner?: ITurnPlanner;
+  private discoveryEmbeddingManager?: EmbeddingManager;
+  private discoveryVectorStore?: InMemoryVectorStore;
 
   private retrievalAugmentor?: IRetrievalAugmentor;
   private ragVectorStoreManager?: IVectorStoreManager;
@@ -722,6 +814,7 @@ export class AgentOS implements IAgentOS {
         this.config.hitlManager
       );
       console.log('AgentOS: ToolOrchestrator initialized.');
+      await this.initializeTurnPlanner();
 
       // Initialize Conversation Manager
       this.conversationManager = new ConversationManager();
@@ -762,8 +855,10 @@ export class AgentOS implements IAgentOS {
         conversationManager: this.conversationManager,
         streamingManager: this.streamingManager,
         modelProviderManager: this.modelProviderManager,
+        turnPlanner: this.turnPlanner,
         rollingSummaryMemorySink: this.config.rollingSummaryMemorySink,
         longTermMemoryRetriever: this.config.longTermMemoryRetriever,
+        taskOutcomeTelemetryStore: this.config.taskOutcomeTelemetryStore,
       };
       this.agentOSOrchestrator = new AgentOSOrchestrator();
       await this.agentOSOrchestrator.initialize(this.config.orchestratorConfig, orchestratorDependencies);
@@ -998,6 +1093,214 @@ export class AgentOS implements IAgentOS {
       this.logger.error('Failed to generate workflow progress update', { workflowId, error });
     }
   }
+
+  private async initializeTurnPlanner(): Promise<void> {
+    const turnPlanningConfig = this.config.turnPlanning;
+    if (turnPlanningConfig?.enabled === false) {
+      this.turnPlanner = undefined;
+      return;
+    }
+
+    let discoveryEngine: ICapabilityDiscoveryEngine | undefined =
+      turnPlanningConfig?.discovery?.engine;
+
+    if (!discoveryEngine && turnPlanningConfig?.discovery?.enabled !== false) {
+      try {
+        discoveryEngine = await this.initializeCapabilityDiscoveryEngine(
+          turnPlanningConfig ?? {},
+        );
+      } catch (error: any) {
+        this.logger.warn('Capability discovery initialization failed; planner will continue without discovery', {
+          error: error?.message ?? error,
+        });
+      }
+    }
+
+    this.turnPlanner = new AgentOSTurnPlanner(
+      turnPlanningConfig,
+      discoveryEngine,
+      this.logger.child?.({ component: 'TurnPlanner' }) ?? this.logger,
+    );
+    this.logger.info('AgentOS turn planner initialized', {
+      discoveryEnabled: Boolean(discoveryEngine?.isInitialized?.()),
+      defaultToolFailureMode: turnPlanningConfig?.defaultToolFailureMode ?? 'fail_open',
+      defaultToolSelectionMode:
+        turnPlanningConfig?.discovery?.defaultToolSelectionMode ?? 'discovered',
+    });
+  }
+
+  private async initializeCapabilityDiscoveryEngine(
+    turnPlanningConfig: AgentOSTurnPlanningConfig,
+  ): Promise<ICapabilityDiscoveryEngine | undefined> {
+    const discoveryConfig = turnPlanningConfig.discovery;
+    if (discoveryConfig?.enabled === false) {
+      return undefined;
+    }
+    if (discoveryConfig?.autoInitializeEngine === false) {
+      return undefined;
+    }
+
+    const defaultProvider =
+      this.modelProviderManager.getDefaultProvider() ??
+      this.modelProviderManager.getProvider(
+        this.config.modelProviderManagerConfig.providers.find((p) => p.enabled)?.providerId || '',
+      );
+    const providerId = defaultProvider?.providerId;
+    if (!providerId) {
+      this.logger.warn('Capability discovery disabled: no model provider available');
+      return undefined;
+    }
+
+    const embeddingDefaults = DISCOVERY_EMBEDDING_DEFAULTS[providerId];
+    if (!embeddingDefaults) {
+      this.logger.warn('Capability discovery disabled: no embedding defaults for provider', {
+        providerId,
+      });
+      return undefined;
+    }
+
+    const embeddingModelId =
+      discoveryConfig?.embeddingModelId ?? embeddingDefaults.modelId;
+    const embeddingDimension =
+      discoveryConfig?.embeddingDimension ?? embeddingDefaults.dimension;
+
+    const embeddingManager = new EmbeddingManager();
+    await embeddingManager.initialize(
+      {
+        embeddingModels: [
+          {
+            modelId: embeddingModelId,
+            providerId,
+            dimension: embeddingDimension,
+            isDefault: true,
+          },
+        ],
+        defaultModelId: embeddingModelId,
+        enableCache: true,
+        cacheMaxSize: 500,
+        cacheTTLSeconds: 3600,
+      },
+      this.modelProviderManager,
+    );
+
+    const vectorStore = new InMemoryVectorStore();
+    await vectorStore.initialize({
+      id: 'agentos-capability-discovery',
+      type: 'in_memory',
+    });
+
+    const engine = new CapabilityDiscoveryEngine(
+      embeddingManager,
+      vectorStore,
+      discoveryConfig?.config,
+    );
+    const sources = this.buildCapabilityIndexSources(discoveryConfig?.sources);
+    await engine.initialize(sources, discoveryConfig?.sources?.presetCoOccurrences);
+
+    if (discoveryConfig?.registerMetaTool !== false) {
+      const existing = await this.toolOrchestrator.getTool('discover_capabilities');
+      if (!existing) {
+        await this.toolOrchestrator.registerTool(createDiscoverCapabilitiesTool(engine));
+      }
+    }
+
+    this.discoveryEmbeddingManager = embeddingManager;
+    this.discoveryVectorStore = vectorStore;
+
+    this.logger.info('Capability discovery engine initialized', {
+      providerId,
+      embeddingModelId,
+      indexedCapabilities: engine.listCapabilityIds().length,
+    });
+
+    return engine;
+  }
+
+  private buildCapabilityIndexSources(
+    overrides?: AgentOSCapabilityDiscoverySources,
+  ): CapabilityIndexSources {
+    const titleCase = (value: string): string =>
+      value
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const toolRegistry = this.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
+    const tools: NonNullable<CapabilityIndexSources['tools']> = toolRegistry
+      .listActive()
+      .map((descriptor) => descriptor.payload)
+      .filter(Boolean)
+      .map((tool) => ({
+        id: tool.id || `tool:${tool.name}`,
+        name: tool.name,
+        displayName: tool.displayName || titleCase(tool.name),
+        description: tool.description || '',
+        category: tool.category || 'general',
+        inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
+        requiredCapabilities: tool.requiredCapabilities,
+        hasSideEffects: tool.hasSideEffects,
+      }));
+
+    const loadedPacks = this.extensionManager.listLoadedPacks();
+    const packExtensions: NonNullable<CapabilityIndexSources['extensions']> =
+      loadedPacks.map((pack) => ({
+        id: `extension:${pack.key}`,
+        name: pack.name,
+        displayName: titleCase(pack.name),
+        description: `Extension pack${pack.version ? ` v${pack.version}` : ''}`,
+        category: 'extensions',
+        available: true,
+      }));
+
+    const workflowRegistry =
+      this.extensionManager.getRegistry<WorkflowDescriptorPayload>(EXTENSION_KIND_WORKFLOW);
+    const workflowExtensions: NonNullable<CapabilityIndexSources['extensions']> =
+      workflowRegistry.listActive().map((descriptor) => ({
+        id: `workflow:${descriptor.payload.definition.id}`,
+        name: descriptor.payload.definition.id,
+        displayName:
+          descriptor.payload.definition.displayName ||
+          titleCase(descriptor.payload.definition.id),
+        description:
+          descriptor.payload.definition.description ||
+          'Workflow automation capability',
+        category: 'workflow',
+        requiredSecrets: descriptor.payload.definition.metadata?.requiredSecrets,
+        available: true,
+      }));
+
+    const messagingRegistry =
+      this.extensionManager.getRegistry<MessagingChannelPayload>(
+        EXTENSION_KIND_MESSAGING_CHANNEL,
+      );
+    const channels: NonNullable<CapabilityIndexSources['channels']> = messagingRegistry
+      .listActive()
+      .map((descriptor) => descriptor.payload)
+      .filter(Boolean)
+      .map((channel) => ({
+        platform: channel.platform,
+        displayName: channel.displayName || titleCase(channel.platform),
+        description: `${channel.displayName || titleCase(channel.platform)} messaging channel`,
+        capabilities: Array.isArray(channel.capabilities)
+          ? channel.capabilities.map((cap) => String(cap))
+          : [],
+      }));
+
+    return {
+      tools,
+      extensions: [
+        ...packExtensions,
+        ...workflowExtensions,
+        ...(overrides?.extensions ?? []),
+      ],
+      channels: [...channels, ...(overrides?.channels ?? [])],
+      skills: overrides?.skills,
+      manifests: overrides?.manifests,
+    };
+  }
+
   private getActiveGuardrailServices(): IGuardrailService[] {
     const services: IGuardrailService[] = [];
 
@@ -1574,6 +1877,15 @@ export class AgentOS implements IAgentOS {
         await (this.toolOrchestrator as any).shutdown();
         console.log('AgentOS: ToolOrchestrator shut down.');
       }
+      if (this.discoveryVectorStore?.shutdown) {
+        await this.discoveryVectorStore.shutdown();
+        this.discoveryVectorStore = undefined;
+      }
+      if (this.discoveryEmbeddingManager?.shutdown) {
+        await this.discoveryEmbeddingManager.shutdown();
+        this.discoveryEmbeddingManager = undefined;
+      }
+      this.turnPlanner = undefined;
       if (this.manageRetrievalAugmentorLifecycle && this.retrievalAugmentor?.shutdown) {
         await this.retrievalAugmentor.shutdown();
         console.log('AgentOS: RetrievalAugmentor shut down.');

@@ -9,6 +9,7 @@
  */
 
 export { GraphRAGEngine } from './GraphRAGEngine.js';
+export { Neo4jGraphRAGEngine } from './Neo4jGraphRAGEngine.js';
 
 export type {
   IGraphRAGEngine,

@@ -35,6 +35,7 @@
     "src/stubs/**/*.ts",
     "src/channels/**/*.ts",
     "src/discovery/**/*.ts",
+    "src/neo4j/**/*.ts",
     "src/voice/**/*.ts",
     "src/**/*.json"
   ],

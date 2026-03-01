@@ -59,6 +59,7 @@ export { DEFAULT_DISCOVERY_CONFIG } from './types.js';
 export { CapabilityDiscoveryEngine } from './CapabilityDiscoveryEngine.js';
 export { CapabilityIndex } from './CapabilityIndex.js';
 export { CapabilityGraph } from './CapabilityGraph.js';
+export { Neo4jCapabilityGraph } from './Neo4jCapabilityGraph.js';
 export { CapabilityContextAssembler } from './CapabilityContextAssembler.js';
 export { CapabilityEmbeddingStrategy } from './CapabilityEmbeddingStrategy.js';
 export { CapabilityManifestScanner } from './CapabilityManifestScanner.js';

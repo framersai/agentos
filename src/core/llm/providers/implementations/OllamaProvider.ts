@@ -38,9 +38,12 @@ import { OllamaProviderError } from '../errors/OllamaProviderError';
 export interface OllamaProviderConfig {
   /**
    * The base URL of the Ollama API.
+   * Accepts both `baseURL` and `baseUrl` for compatibility.
    * @example "http://localhost:11434" (Ollama's default)
    */
-  baseURL: string;
+  baseURL?: string;
+  /** Alias for baseURL (camelCase variant accepted by callers). */
+  baseUrl?: string;
   /**
    * Default model ID to use if not specified in a request (e.g., "llama3:latest").
    * This model must be available in the connected Ollama instance.
@@ -55,18 +58,29 @@ export interface OllamaProviderConfig {
    * Optional API key if the Ollama instance is secured (not common for local instances).
    * Currently, Ollama itself does not use API keys for authentication.
    */
-  apiKey?: string; // Placeholder for future Ollama versions or secured proxies
+  apiKey?: string;
 }
 
 // --- Ollama Specific API Types ---
 
 /**
  * Represents the structure of a chat message as expected by Ollama's /api/chat.
+ * Ollama supports tool calling since v0.3 (mid-2024) for compatible models
+ * (qwen2.5, qwen3, llama3.1+, mistral, command-r+, etc.).
  */
 interface OllamaChatMessage {
   role: ChatMessage['role'];
   content: string;
   images?: string[]; // Base64 encoded images, if the model supports vision
+  /** Tool calls requested by the assistant (present on assistant messages). */
+  tool_calls?: Array<{
+    id?: string;
+    type?: 'function';
+    function: {
+      name: string;
+      arguments: Record<string, unknown> | string;
+    };
+  }>;
 }
 
 /**
@@ -75,21 +89,27 @@ interface OllamaChatMessage {
 interface OllamaChatResponseChunk {
   model: string;
   created_at: string;
-  message?: { // Present in each stream chunk containing a message delta
+  message?: {
     role: ChatMessage['role'];
     content: string;
-    // Ollama does not yet officially support tool_calls in the same way as OpenAI.
-    // This might be added in future versions or specific model implementations.
+    /** Tool calls returned by Ollama for tool-capable models. */
+    tool_calls?: Array<{
+      id?: string;
+      type?: 'function';
+      function: {
+        name: string;
+        /** Ollama returns arguments as an object (not a JSON string like OpenAI). */
+        arguments: Record<string, unknown> | string;
+      };
+    }>;
   };
-  done: boolean; // True for the final non-streaming response or the final stream chunk
-  // Usage stats from Ollama, often present in the final chunk of a stream or in non-streaming response
+  done: boolean;
   total_duration?: number;
   load_duration?: number;
-  prompt_eval_count?: number; // Tokens in the prompt
+  prompt_eval_count?: number;
   prompt_eval_duration?: number;
-  eval_count?: number;       // Tokens in the completion
+  eval_count?: number;
   eval_duration?: number;
-  // Error field might appear in a chunk if an error occurs mid-stream or for a request.
   error?: string;
 }
 
@@ -176,20 +196,26 @@ export class OllamaProvider implements IProvider {
 
   /** @inheritdoc */
   public async initialize(config: OllamaProviderConfig): Promise<void> {
-    if (!config.baseURL) {
+    // Normalize: accept both baseURL and baseUrl (camelCase variant from callers)
+    const resolvedBaseURL = config.baseURL || config.baseUrl;
+    if (!resolvedBaseURL) {
       throw new OllamaProviderError(
         'Ollama baseURL is required for initialization.',
         'INIT_FAILED_MISSING_BASEURL'
       );
     }
+    // Strip /v1 suffix if present — callers may pass the OpenAI-compatible URL,
+    // but OllamaProvider uses the native Ollama API (/api/tags, /api/generate).
+    const normalizedBaseURL = resolvedBaseURL.replace(/\/v1\/?$/, '');
     this.config = {
       requestTimeout: 60000, // Default 60 seconds
       ...config,
+      baseURL: normalizedBaseURL,
     };
     this.defaultModelId = config.defaultModelId;
 
     this.client = axios.create({
-      baseURL: this.config.baseURL.endsWith('/api') ? this.config.baseURL : `${this.config.baseURL}/api`,
+      baseURL: normalizedBaseURL.endsWith('/api') ? normalizedBaseURL : `${normalizedBaseURL}/api`,
       timeout: this.config.requestTimeout,
       headers: {
         'Content-Type': 'application/json',
@@ -200,8 +226,9 @@ export class OllamaProvider implements IProvider {
     });
 
     try {
-      // Verify connection by attempting to list local models or check base endpoint.
-      await this.client.get('/'); // Ollama's base endpoint should return "Ollama is running"
+      // Verify connection — Ollama's root endpoint (/) returns "Ollama is running".
+      // We use the raw baseURL (not /api) since /api/ returns 404.
+      await axios.get(normalizedBaseURL);
       this.isInitialized = true;
       console.log(`OllamaProvider initialized successfully. Base URL: ${this.client.defaults.baseURL}. Default model: ${this.defaultModelId || 'Not set'}`);
     } catch (error: unknown) {
@@ -241,25 +268,45 @@ export class OllamaProvider implements IProvider {
    */
   private mapToOllamaMessages(messages: ChatMessage[]): OllamaChatMessage[] {
     return messages.map(msg => {
+      // Handle tool role messages (tool execution results)
+      if (msg.role === 'tool') {
+        const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content ?? '');
+        return { role: 'tool' as const, content };
+      }
+
+      // Handle assistant messages with tool_calls
+      if (msg.role === 'assistant' && msg.tool_calls?.length) {
+        const ollamaMsg: OllamaChatMessage = {
+          role: 'assistant',
+          content: typeof msg.content === 'string' ? msg.content : (msg.content ? JSON.stringify(msg.content) : ''),
+          tool_calls: msg.tool_calls.map(tc => ({
+            id: tc.id,
+            type: tc.type,
+            function: {
+              name: tc.function.name,
+              // Ollama expects arguments as an object; OpenAI sends them as a JSON string
+              arguments: typeof tc.function.arguments === 'string'
+                ? (() => { try { return JSON.parse(tc.function.arguments); } catch { return tc.function.arguments; } })()
+                : tc.function.arguments,
+            },
+          })),
+        };
+        return ollamaMsg;
+      }
+
       if (typeof msg.content !== 'string') {
-        // Ollama primarily supports text content. Vision models might take base64 images.
-        // For non-string content, we attempt to serialize or take the text part if multimodal.
-        // This part needs careful handling based on specific Ollama model capabilities.
-        console.warn(`OllamaProvider: Message content for role ${msg.role} is not a simple string. Attempting to use text part or serialize.`);
         if (Array.isArray(msg.content)) {
             const textPart = msg.content.find(isTextContentPart);
-            // TODO: Handle image_url parts for vision-enabled Ollama models by converting to base64.
             return {
                 role: msg.role,
-                content: textPart?.text ?? JSON.stringify(msg.content), // Fallback to JSON string
+                content: textPart?.text ?? JSON.stringify(msg.content),
             };
         }
-        return { role: msg.role, content: JSON.stringify(msg.content) }; // Fallback
+        return { role: msg.role, content: JSON.stringify(msg.content) };
       }
       return {
         role: msg.role,
         content: msg.content,
-        // images: msg.images_base64_if_supported_and_present // Handle multimodal if applicable
       };
     });
   }
@@ -273,21 +320,23 @@ export class OllamaProvider implements IProvider {
     this.ensureInitialized();
     const ollamaMessages = this.mapToOllamaMessages(messages);
 
+    // Build tools array for Ollama (OpenAI-compatible format)
+    const ollamaTools = this.mapToolsForOllama(options.tools);
+
     const payload: Record<string, unknown> = {
       model: modelId,
       messages: ollamaMessages,
-      stream: false, // For non-streaming
-      options: { // Ollama nests model parameters under 'options'
+      stream: false,
+      options: {
         ...(options.temperature !== undefined && { temperature: options.temperature }),
         ...(options.topP !== undefined && { top_p: options.topP }),
-        ...(options.maxTokens !== undefined && { num_predict: options.maxTokens }), // Ollama uses 'num_predict'
+        ...(options.maxTokens !== undefined && { num_predict: options.maxTokens }),
         ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
         ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
         ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
       },
       format: options.responseFormat?.type === 'json_object' ? 'json' : undefined,
-      // Ollama's tool support is not standardized like OpenAI's.
-      // Pass custom params if any are known for specific Ollama models.
+      ...(ollamaTools.length > 0 && { tools: ollamaTools }),
       ...(options.customModelParams || {}),
     };
 
@@ -310,11 +359,15 @@ export class OllamaProvider implements IProvider {
         promptTokens,
         completionTokens,
         totalTokens: promptTokens + completionTokens,
-        costUSD: 0, // Local models typically have no direct per-token cost.
+        costUSD: 0,
       };
 
+      // Normalize tool_calls: Ollama returns arguments as objects, IProvider expects JSON strings
+      const normalizedToolCalls = this.normalizeToolCalls(data.message?.tool_calls);
+      const hasToolCalls = normalizedToolCalls.length > 0;
+
       return {
-        id: `ollama-${modelId}-${Date.now()}`, // Generate a unique ID
+        id: `ollama-${modelId}-${Date.now()}`,
         object: 'chat.completion',
         created: data.created_at ? new Date(data.created_at).getTime() / 1000 : Math.floor(Date.now() / 1000),
         modelId: data.model || modelId,
@@ -323,8 +376,9 @@ export class OllamaProvider implements IProvider {
           message: {
             role: data.message.role,
             content: data.message.content,
+            ...(hasToolCalls && { tool_calls: normalizedToolCalls }),
           },
-          finishReason: data.done ? 'stop' : 'length', // Best guess for non-streaming
+          finishReason: hasToolCalls ? 'tool_calls' : (data.done ? 'stop' : 'length'),
         }] : [],
         usage,
       };
@@ -350,6 +404,7 @@ export class OllamaProvider implements IProvider {
   ): AsyncGenerator<ModelCompletionResponse, void, undefined> {
     this.ensureInitialized();
     const ollamaMessages = this.mapToOllamaMessages(messages);
+    const ollamaTools = this.mapToolsForOllama(options.tools);
 
     const payload: Record<string, unknown> = {
       model: modelId,
@@ -364,6 +419,7 @@ export class OllamaProvider implements IProvider {
         ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
       },
       format: options.responseFormat?.type === 'json_object' ? 'json' : undefined,
+      ...(ollamaTools.length > 0 && { tools: ollamaTools }),
       ...(options.customModelParams || {}),
     };
 
@@ -385,8 +441,9 @@ export class OllamaProvider implements IProvider {
 
     const stream = responseStream.data as NodeJS.ReadableStream & { destroy?: () => void };
     let accumulatedContent = "";
+    const accumulatedToolCalls: ChatMessage['tool_calls'] & Array<any> = [];
     let finalUsage: ModelUsage | undefined;
-    let responseId = `ollama-stream-${modelId}-${Date.now()}`; // Initial ID
+    let responseId = `ollama-stream-${modelId}-${Date.now()}`;
 
     const abortSignal = options.abortSignal;
     if (abortSignal?.aborted) {
@@ -425,6 +482,14 @@ export class OllamaProvider implements IProvider {
             const deltaContent = parsedChunk.message?.content || "";
             if (deltaContent) accumulatedContent += deltaContent;
 
+            // Handle tool_calls in stream chunks
+            const chunkToolCalls = parsedChunk.message?.tool_calls;
+            const normalizedChunkToolCalls = this.normalizeToolCalls(chunkToolCalls);
+            const hasChunkToolCalls = normalizedChunkToolCalls.length > 0;
+            if (hasChunkToolCalls) {
+              accumulatedToolCalls.push(...normalizedChunkToolCalls);
+            }
+
             const isFinalChunk = parsedChunk.done;
             if (isFinalChunk) {
               const promptTokens = parsedChunk.prompt_eval_count || 0;
@@ -437,6 +502,8 @@ export class OllamaProvider implements IProvider {
               };
             }
 
+            const hasAnyToolCalls = accumulatedToolCalls.length > 0;
+
             yield {
               id: responseId,
               object: 'chat.completion.chunk',
@@ -444,18 +511,19 @@ export class OllamaProvider implements IProvider {
               modelId: parsedChunk.model || modelId,
               choices: parsedChunk.message ? [{
                 index: 0,
-                message: { // Role usually not in delta, content is the delta
-                  role: parsedChunk.message.role || 'assistant', // Or infer from previous state
-                  content: accumulatedContent, // Full accumulated content for this chunk's choice
+                message: {
+                  role: parsedChunk.message.role || 'assistant',
+                  content: accumulatedContent,
+                  ...(isFinalChunk && hasAnyToolCalls && { tool_calls: accumulatedToolCalls }),
                 },
-                finishReason: isFinalChunk ? 'stop' : null,
+                finishReason: isFinalChunk ? (hasAnyToolCalls ? 'tool_calls' : 'stop') : null,
               }] : [],
               responseTextDelta: deltaContent,
               isFinal: isFinalChunk,
               usage: isFinalChunk ? finalUsage : undefined,
             };
 
-            if (isFinalChunk) return; // End stream explicitly
+            if (isFinalChunk) return;
           } catch (parseError: unknown) {
             console.warn('OllamaProvider: Could not parse stream chunk JSON:', jsonObjStr, parseError);
             // Optionally yield an error chunk or decide to continue
@@ -544,32 +612,38 @@ export class OllamaProvider implements IProvider {
       const apiModels = (response.data as OllamaListTagsResponse).models;
 
       const modelInfos: ModelInfo[] = apiModels.map((model: OllamaModelTag) => {
-        const capabilities: ModelInfo['capabilities'] = ['chat', 'completion']; // Base capabilities for most Ollama models
+        const capabilities: ModelInfo['capabilities'] = ['chat', 'completion'];
         if (model._details?.families?.includes('clip') || model.name.includes('llava') || model.name.includes('bakllava')) {
             capabilities.push('vision_input');
         }
-        // Embedding capability is harder to infer universally, usually specific models.
-        // Assume any model *can* be used with /api/embeddings, but quality varies.
-        // For AgentOS, we might want to explicitly tag known good embedding models.
-        // capabilities.push('embeddings');
 
+        // Tool calling support — Ollama supports tools for most modern chat models.
+        // Models that support tool calling include qwen2.5+, qwen3, llama3.1+, mistral,
+        // command-r+, phi3+, granite3, firefunction, hermes, etc.
+        // We add tool_use for all chat models; Ollama gracefully ignores tools for
+        // models that don't support them.
+        capabilities.push('tool_use');
 
-        // Rough estimation of context window based on common model families
-        let contextWindow: number | undefined = 4096; // Default
+        let contextWindow: number | undefined = 4096;
         const family = model._details?.family?.toLowerCase();
         const paramSize = model._details?.parameter_size?.toLowerCase();
 
         if (family) {
-            if (family.includes("llama3") || family.includes("llama-3")) contextWindow = 8192;
+            if (family.includes("qwen3") || family.includes("qwen2.5")) contextWindow = 32768;
+            else if (family.includes("qwen2")) contextWindow = 32768;
+            else if (family.includes("llama3") || family.includes("llama-3")) contextWindow = 8192;
             else if (family.includes("llama2") || family.includes("llama-2")) contextWindow = 4096;
             else if (family.includes("codellama")) contextWindow = 16000;
-            else if (family.includes("mistral") && (paramSize?.includes("7b") || paramSize?.includes("8x7b"))) contextWindow = 32768; // Mistral-7B, Mixtral-8x7B
+            else if (family.includes("mistral") && (paramSize?.includes("7b") || paramSize?.includes("8x7b"))) contextWindow = 32768;
+            else if (family.includes("phi4") || family.includes("phi-4")) contextWindow = 16384;
             else if (family.includes("phi3") || family.includes("phi-3")) {
                 if (paramSize?.includes("mini") && (paramSize?.includes("128k") || model.name.includes("128k"))) contextWindow = 131072;
                 else if (paramSize?.includes("mini") && (paramSize?.includes("4k") || model.name.includes("4k"))) contextWindow = 4096;
-                else if (paramSize?.includes("small")) contextWindow = 8192; // Phi-3 Small
-                else if (paramSize?.includes("medium")) contextWindow = 131072; // Phi-3 Medium (can be 4k or 128k variant)
+                else if (paramSize?.includes("small")) contextWindow = 8192;
+                else if (paramSize?.includes("medium")) contextWindow = 131072;
             }
+            else if (family.includes("gemma2") || family.includes("gemma-2")) contextWindow = 8192;
+            else if (family.includes("command-r")) contextWindow = 131072;
         }
 
 
@@ -668,10 +742,59 @@ export class OllamaProvider implements IProvider {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // Tool calling helpers
+  // --------------------------------------------------------------------------
+
+  /**
+   * Convert AgentOS tool definitions to Ollama's expected format.
+   * Ollama uses the same schema as OpenAI: { type: 'function', function: { name, description, parameters } }
+   */
+  private mapToolsForOllama(tools?: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+    if (!tools || tools.length === 0) return [];
+    return tools.filter(t => {
+      // Accept both { type: 'function', function: { name, ... } } and { name, description, inputSchema }
+      const fn = (t as any)?.function;
+      return fn?.name || (t as any)?.name;
+    }).map(t => {
+      const fn = (t as any)?.function;
+      if (fn?.name) return t; // Already in OpenAI format
+      // Convert from AgentOS ITool format
+      return {
+        type: 'function',
+        function: {
+          name: (t as any).name,
+          description: (t as any).description ?? '',
+          parameters: (t as any).inputSchema ?? (t as any).parameters ?? { type: 'object' },
+        },
+      };
+    });
+  }
+
+  /**
+   * Normalize Ollama tool_calls to IProvider ChatMessage format.
+   * Ollama returns arguments as objects; IProvider expects JSON strings with stable IDs.
+   */
+  private normalizeToolCalls(
+    toolCalls?: Array<{ id?: string; type?: string; function: { name: string; arguments: Record<string, unknown> | string } }>,
+  ): NonNullable<ChatMessage['tool_calls']> {
+    if (!toolCalls || !Array.isArray(toolCalls) || toolCalls.length === 0) return [];
+    let callIndex = 0;
+    return toolCalls.map(tc => {
+      const args = tc.function?.arguments;
+      return {
+        id: tc.id || `call_ollama_${Date.now()}_${callIndex++}`,
+        type: 'function' as const,
+        function: {
+          name: tc.function?.name || 'unknown',
+          arguments: typeof args === 'string' ? args : JSON.stringify(args ?? {}),
+        },
+      };
+    });
+  }
+
   /** @inheritdoc */
   public async shutdown(): Promise<void> {
-    // For OllamaProvider using Axios, there are no persistent connections to explicitly close.
-    // Marking as uninitialized is sufficient.
     this.isInitialized = false;
     console.log('OllamaProvider shutdown complete.');
   }

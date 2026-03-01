@@ -260,6 +260,117 @@ const prompt = promptBuilder.build({ capabilityContext, ...otherInputs });
 const response = await provider.complete({ prompt, tools });
 ```
 
+### AgentOS Turn Planner (Core Integration)
+
+AgentOS now supports a first-class turn planner that runs before each GMI turn:
+
+- Sets tool failure policy (`fail_open` or `fail_closed`)
+- Applies dynamic tool selection (`discovered` or `all`)
+- Injects discovery context into prompt metadata
+
+Default behavior is success-rate optimized:
+
+- `defaultToolFailureMode: "fail_open"`
+- discovery enabled
+- fallback to full toolset when discovery fails or yields no tool matches
+
+```typescript
+await agentos.initialize({
+  // ...
+  turnPlanning: {
+    enabled: true,
+    defaultToolFailureMode: 'fail_open',
+    allowRequestOverrides: true,
+    discovery: {
+      enabled: true,
+      autoInitializeEngine: true,
+      registerMetaTool: true,
+      onlyAvailable: true,
+      defaultToolSelectionMode: 'discovered',
+      includePromptContext: true,
+      maxRetries: 1,
+      retryBackoffMs: 150,
+    },
+  },
+});
+```
+
+Per-request overrides can be provided via `options.customFlags`:
+
+- `toolFailureMode`: `fail_open` | `fail_closed`
+- `toolSelectionMode`: `all` | `discovered`
+- `capabilityDiscoveryKind`: `tool` | `skill` | `extension` | `channel` | `any`
+
+Runtime metadata updates now also include `executionLifecycle` transitions:
+
+- `planned` -> `executing`
+- `degraded` (if discovery fallback is applied in fail-open mode)
+- `recovered` (optional, when turn completes successfully after degradation)
+- `completed` or `errored`
+
+AgentOS also emits `taskOutcome` in metadata updates at the end of each turn:
+
+- `status`: `success` | `partial` | `failed`
+- `score`: normalized score in `[0, 1]`
+- `source`: `heuristic` or `request_override`
+
+When task outcome telemetry is enabled (default), AgentOS also emits `taskOutcomeKpi`
+as a rolling stream payload (windowed success stats):
+
+- `scopeKey`: aggregation key (global / org / org+persona)
+- `sampleCount`, `successCount`, `partialCount`, `failedCount`
+- `successRate`
+- `averageScore` / `weightedSuccessRate`
+
+`taskOutcome` can be overridden per request via `options.customFlags`:
+
+- `taskOutcome`: `success` | `partial` | `failed` | numeric `0..1`
+- `taskSuccess`: boolean
+
+Task outcome telemetry can be configured under `orchestratorConfig.taskOutcomeTelemetry`:
+
+- `enabled` (default `true`)
+- `rollingWindowSize` (default `100`)
+- `scope`: `global` | `organization` | `organization_persona` (default)
+- `emitAlerts` (default `true`)
+- `alertBelowWeightedSuccessRate` (default `0.55`)
+- `alertMinSamples` (default `8`)
+- `alertCooldownMs` (default `60000`)
+
+When alerting is enabled and KPI degrades, metadata updates include `taskOutcomeAlert`
+with severity/reason/threshold/value so clients can trigger automated remediation.
+
+To persist KPI windows across restarts, provide `taskOutcomeTelemetryStore` in
+orchestrator dependencies. The store contract is:
+
+- `loadWindows(): Promise<Record<string, TaskOutcomeKpiWindowEntry[]>>`
+- `saveWindow(scopeKey, entries): Promise<void>`
+
+AgentOS includes a built-in SQL implementation:
+
+```ts
+import { SqlTaskOutcomeTelemetryStore } from '@framers/agentos';
+
+const taskOutcomeTelemetryStore = new SqlTaskOutcomeTelemetryStore({
+  // Uses @framers/sql-storage-adapter resolution rules.
+  priority: ['better-sqlite3', 'sqljs'],
+  database: './data/agentos_task_outcomes.db',
+});
+```
+
+Adaptive recovery can be configured under `orchestratorConfig.adaptiveExecution`:
+
+- `enabled` (default `true`)
+- `minSamples` (default `5`)
+- `minWeightedSuccessRate` (default `0.7`)
+- `forceAllToolsWhenDegraded` (default `true`)
+- `forceFailOpenWhenDegraded` (default `true`)
+
+When enabled, if rolling task KPI degrades below threshold, AgentOS can automatically
+switch turn policy from `toolSelectionMode=discovered` to `toolSelectionMode=all` to
+recover task success rate. It can also force `toolFailureMode=fail_open` unless the
+request explicitly pinned `toolFailureMode=fail_closed` via `options.customFlags`.
+
 ---
 
 ## Configuration

@@ -75,6 +75,7 @@ import {
   startAgentOSSpan,
   withAgentOSSpan,
 } from '../core/observability/otel';
+import type { ITurnPlanner, TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
 
 export interface RollingSummaryCompactionProfileDefinition {
   config: RollingSummaryCompactionConfig;
@@ -86,6 +87,272 @@ export interface RollingSummaryCompactionProfilesConfig {
   defaultProfileByMode?: Record<string, string>;
   profiles: Record<string, RollingSummaryCompactionProfileDefinition>;
 }
+
+export type LongTermMemoryRecallProfile =
+  | 'aggressive'
+  | 'balanced'
+  | 'conservative';
+
+export interface AgentOSLongTermMemoryRecallConfig {
+  /**
+   * Recall profile used to seed defaults.
+   * - aggressive: higher retrieval frequency + larger context budget
+   * - balanced: middle ground
+   * - conservative: lower retrieval frequency + smaller context budget
+   *
+   * Default: `aggressive`
+   */
+  profile?: LongTermMemoryRecallProfile;
+  /**
+   * Retrieve durable memory every N user turns.
+   * Default depends on `profile`.
+   */
+  cadenceTurns?: number;
+  /**
+   * Force memory retrieval on rolling-summary compaction turns.
+   * Default depends on `profile`.
+   */
+  forceOnCompaction?: boolean;
+  /**
+   * Character budget for retrieved long-term memory context.
+   * Default depends on `profile`.
+   */
+  maxContextChars?: number;
+  /**
+   * Per-scope retrieval caps.
+   * Default depends on `profile`.
+   */
+  topKByScope?: Partial<Record<'user' | 'persona' | 'organization', number>>;
+}
+
+export type TenantRoutingMode = 'multi_tenant' | 'single_tenant';
+
+export interface AgentOSTenantRoutingConfig {
+  /**
+   * Tenant routing mode.
+   * - multi_tenant: trust inbound `organizationId` as request-scoped context
+   * - single_tenant: collapse to a single org context for all turns
+   *
+   * Default: `multi_tenant`
+   */
+  mode?: TenantRoutingMode;
+  /**
+   * Optional default org ID used in `single_tenant` mode when request omits `organizationId`.
+   */
+  defaultOrganizationId?: string;
+  /**
+   * In `single_tenant` mode, reject mismatched `organizationId` values when a
+   * default org is configured.
+   *
+   * Default: false
+   */
+  strictOrganizationIsolation?: boolean;
+}
+
+export type TaskOutcomeTelemetryScope =
+  | 'global'
+  | 'organization'
+  | 'organization_persona';
+
+export interface AgentOSTaskOutcomeTelemetryConfig {
+  /**
+   * Enables streaming task-outcome KPI aggregates.
+   *
+   * Default: true
+   */
+  enabled?: boolean;
+  /**
+   * Number of recent outcomes retained per scope.
+   *
+   * Default: 100
+   */
+  rollingWindowSize?: number;
+  /**
+   * Scope used for KPI window aggregation.
+   * - global: all turns
+   * - organization: separate window per organization
+   * - organization_persona: separate window per org+persona
+   *
+   * Default: organization_persona
+   */
+  scope?: TaskOutcomeTelemetryScope;
+  /**
+   * Enables low-success alert emission in metadata updates.
+   *
+   * Default: true
+   */
+  emitAlerts?: boolean;
+  /**
+   * Minimum weighted success rate required to avoid emitting alerts.
+   *
+   * Default: 0.55
+   */
+  alertBelowWeightedSuccessRate?: number;
+  /**
+   * Minimum samples required before alert evaluation starts.
+   *
+   * Default: 8
+   */
+  alertMinSamples?: number;
+  /**
+   * Minimum time between repeated alerts for the same scope key (milliseconds).
+   *
+   * Default: 60000
+   */
+  alertCooldownMs?: number;
+}
+
+export interface AgentOSAdaptiveExecutionConfig {
+  /**
+   * Enables adaptive execution policy adjustments based on rolling task outcomes.
+   *
+   * Default: true
+   */
+  enabled?: boolean;
+  /**
+   * Minimum sample count before adaptive rules can apply.
+   *
+   * Default: 5
+   */
+  minSamples?: number;
+  /**
+   * Minimum weighted success rate required to keep discovery-only tool selection.
+   * If current rolling KPI drops below this threshold, orchestrator can force `toolSelectionMode = all`.
+   *
+   * Default: 0.7
+   */
+  minWeightedSuccessRate?: number;
+  /**
+   * When true, downgrade discovered-only tool selection to full toolset under poor KPI conditions.
+   *
+   * Default: true
+   */
+  forceAllToolsWhenDegraded?: boolean;
+  /**
+   * When true, force fail-open execution mode (`toolFailureMode = fail_open`) under poor KPI conditions.
+   * Explicit per-request `toolFailureMode = fail_closed` overrides are preserved.
+   *
+   * Default: true
+   */
+  forceFailOpenWhenDegraded?: boolean;
+}
+
+type ResolvedLongTermMemoryRecallConfig = {
+  profile: LongTermMemoryRecallProfile;
+  cadenceTurns: number;
+  forceOnCompaction: boolean;
+  maxContextChars: number;
+  topKByScope: Record<'user' | 'persona' | 'organization', number>;
+};
+
+type ResolvedTenantRoutingConfig = {
+  mode: TenantRoutingMode;
+  defaultOrganizationId?: string;
+  strictOrganizationIsolation: boolean;
+};
+
+type ResolvedTaskOutcomeTelemetryConfig = {
+  enabled: boolean;
+  rollingWindowSize: number;
+  scope: TaskOutcomeTelemetryScope;
+  emitAlerts: boolean;
+  alertBelowWeightedSuccessRate: number;
+  alertMinSamples: number;
+  alertCooldownMs: number;
+};
+
+type ResolvedAdaptiveExecutionConfig = {
+  enabled: boolean;
+  minSamples: number;
+  minWeightedSuccessRate: number;
+  forceAllToolsWhenDegraded: boolean;
+  forceFailOpenWhenDegraded: boolean;
+};
+
+type TaskOutcomeStatus = 'success' | 'partial' | 'failed';
+
+type TaskOutcomeAssessment = {
+  status: TaskOutcomeStatus;
+  score: number;
+  reason: string;
+  source: 'heuristic' | 'request_override';
+};
+
+type TaskOutcomeKpiSummary = {
+  scopeKey: string;
+  scopeMode: TaskOutcomeTelemetryScope;
+  windowSize: number;
+  sampleCount: number;
+  successCount: number;
+  partialCount: number;
+  failedCount: number;
+  successRate: number;
+  averageScore: number;
+  weightedSuccessRate: number;
+  timestamp: string;
+};
+
+type TaskOutcomeKpiAlert = {
+  scopeKey: string;
+  severity: 'warning' | 'critical';
+  reason: string;
+  threshold: number;
+  value: number;
+  sampleCount: number;
+  timestamp: string;
+};
+
+type TaskOutcomeKpiWindowEntry = {
+  status: TaskOutcomeStatus;
+  score: number;
+  timestamp: number;
+};
+
+type AdaptiveExecutionDecision = {
+  applied: boolean;
+  reason?: string;
+  kpi?: TaskOutcomeKpiSummary | null;
+  actions?: {
+    forcedToolSelectionMode?: boolean;
+    forcedToolFailureMode?: boolean;
+    preservedRequestedFailClosed?: boolean;
+  };
+};
+
+export interface ITaskOutcomeTelemetryStore {
+  /**
+   * Load persisted KPI windows keyed by telemetry scope key.
+   */
+  loadWindows(): Promise<Record<string, TaskOutcomeKpiWindowEntry[]>>;
+  /**
+   * Persist a single KPI window snapshot.
+   */
+  saveWindow(scopeKey: string, entries: TaskOutcomeKpiWindowEntry[]): Promise<void>;
+}
+
+const RECALL_PROFILE_DEFAULTS: Record<
+  LongTermMemoryRecallProfile,
+  Omit<ResolvedLongTermMemoryRecallConfig, 'profile'>
+> = {
+  aggressive: {
+    cadenceTurns: 2,
+    forceOnCompaction: true,
+    maxContextChars: 4200,
+    topKByScope: { user: 8, persona: 8, organization: 8 },
+  },
+  balanced: {
+    cadenceTurns: 4,
+    forceOnCompaction: true,
+    maxContextChars: 3200,
+    topKByScope: { user: 6, persona: 6, organization: 6 },
+  },
+  conservative: {
+    cadenceTurns: 8,
+    forceOnCompaction: false,
+    maxContextChars: 2200,
+    topKByScope: { user: 4, persona: 4, organization: 4 },
+  },
+};
 
 function normalizeMode(value: string): string {
   return (value || '').trim().toLowerCase();
@@ -133,6 +400,252 @@ function renderPlainText(markdown: string): string {
   return text.trim();
 }
 
+function normalizeTaskOutcomeOverride(
+  customFlags: Record<string, any> | undefined,
+): TaskOutcomeAssessment | null {
+  if (!customFlags) return null;
+
+  const read = (keys: string[]): unknown => {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(customFlags, key)) return customFlags[key];
+    }
+    return undefined;
+  };
+
+  const raw = read(['taskOutcome', 'task_outcome', 'taskSuccess', 'task_success']);
+  if (typeof raw === 'boolean') {
+    return {
+      status: raw ? 'success' : 'failed',
+      score: raw ? 1 : 0,
+      reason: raw ? 'Caller marked task successful.' : 'Caller marked task failed.',
+      source: 'request_override',
+    };
+  }
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const score = Math.max(0, Math.min(1, raw));
+    return {
+      status: score >= 0.8 ? 'success' : score >= 0.4 ? 'partial' : 'failed',
+      score,
+      reason: 'Caller supplied numeric task outcome score.',
+      source: 'request_override',
+    };
+  }
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+
+  const normalized = raw.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+  if (
+    normalized === 'success' ||
+    normalized === 'succeeded' ||
+    normalized === 'done' ||
+    normalized === 'completed' ||
+    normalized === 'true'
+  ) {
+    return {
+      status: 'success',
+      score: 1,
+      reason: 'Caller marked task successful.',
+      source: 'request_override',
+    };
+  }
+  if (
+    normalized === 'partial' ||
+    normalized === 'incomplete' ||
+    normalized === 'needs_followup'
+  ) {
+    return {
+      status: 'partial',
+      score: 0.5,
+      reason: 'Caller marked task partially completed.',
+      source: 'request_override',
+    };
+  }
+  if (
+    normalized === 'failed' ||
+    normalized === 'failure' ||
+    normalized === 'error' ||
+    normalized === 'false'
+  ) {
+    return {
+      status: 'failed',
+      score: 0,
+      reason: 'Caller marked task failed.',
+      source: 'request_override',
+    };
+  }
+  return null;
+}
+
+function normalizeRequestedToolFailureMode(
+  customFlags: Record<string, any> | undefined,
+): ToolFailureMode | null {
+  if (!customFlags) return null;
+  const read = (keys: string[]): unknown => {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(customFlags, key)) return customFlags[key];
+    }
+    return undefined;
+  };
+
+  const raw = read(['toolFailureMode', 'tool_failure_mode', 'failureMode', 'failMode']);
+  if (typeof raw !== 'string') return null;
+  const normalized = raw.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+  if (normalized === 'fail_open' || normalized === 'open') return 'fail_open';
+  if (normalized === 'fail_closed' || normalized === 'closed') return 'fail_closed';
+  return null;
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(min, Math.min(max, Math.trunc(num)));
+}
+
+function normalizeOrganizationId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function resolveLongTermMemoryRecallConfig(
+  config: AgentOSLongTermMemoryRecallConfig | undefined,
+): ResolvedLongTermMemoryRecallConfig {
+  const profile: LongTermMemoryRecallProfile =
+    config?.profile === 'balanced' || config?.profile === 'conservative'
+      ? config.profile
+      : 'aggressive';
+
+  const defaults = RECALL_PROFILE_DEFAULTS[profile];
+  return {
+    profile,
+    cadenceTurns: clampInteger(config?.cadenceTurns, defaults.cadenceTurns, 1, 100),
+    forceOnCompaction:
+      typeof config?.forceOnCompaction === 'boolean'
+        ? config.forceOnCompaction
+        : defaults.forceOnCompaction,
+    maxContextChars: clampInteger(config?.maxContextChars, defaults.maxContextChars, 300, 12000),
+    topKByScope: {
+      user: clampInteger(config?.topKByScope?.user, defaults.topKByScope.user, 1, 50),
+      persona: clampInteger(config?.topKByScope?.persona, defaults.topKByScope.persona, 1, 50),
+      organization: clampInteger(
+        config?.topKByScope?.organization,
+        defaults.topKByScope.organization,
+        1,
+        50,
+      ),
+    },
+  };
+}
+
+function resolveTenantRoutingConfig(
+  config: AgentOSTenantRoutingConfig | undefined,
+): ResolvedTenantRoutingConfig {
+  return {
+    mode: config?.mode === 'single_tenant' ? 'single_tenant' : 'multi_tenant',
+    defaultOrganizationId: normalizeOrganizationId(config?.defaultOrganizationId),
+    strictOrganizationIsolation: Boolean(config?.strictOrganizationIsolation),
+  };
+}
+
+function resolveTaskOutcomeTelemetryConfig(
+  config: AgentOSTaskOutcomeTelemetryConfig | undefined,
+): ResolvedTaskOutcomeTelemetryConfig {
+  const scope: TaskOutcomeTelemetryScope =
+    config?.scope === 'global' || config?.scope === 'organization'
+      ? config.scope
+      : 'organization_persona';
+  return {
+    enabled: config?.enabled !== false,
+    rollingWindowSize: clampInteger(config?.rollingWindowSize, 100, 5, 5000),
+    scope,
+    emitAlerts: config?.emitAlerts !== false,
+    alertBelowWeightedSuccessRate: Math.max(
+      0,
+      Math.min(1, Number(config?.alertBelowWeightedSuccessRate ?? 0.55)),
+    ),
+    alertMinSamples: clampInteger(config?.alertMinSamples, 8, 1, 10000),
+    alertCooldownMs: clampInteger(config?.alertCooldownMs, 60000, 0, 86400000),
+  };
+}
+
+function resolveAdaptiveExecutionConfig(
+  config: AgentOSAdaptiveExecutionConfig | undefined,
+): ResolvedAdaptiveExecutionConfig {
+  return {
+    enabled: config?.enabled !== false,
+    minSamples: clampInteger(config?.minSamples, 5, 1, 1000),
+    minWeightedSuccessRate: Math.max(
+      0,
+      Math.min(1, Number(config?.minWeightedSuccessRate ?? 0.7)),
+    ),
+    forceAllToolsWhenDegraded: config?.forceAllToolsWhenDegraded !== false,
+    forceFailOpenWhenDegraded: config?.forceFailOpenWhenDegraded !== false,
+  };
+}
+
+function sanitizeKpiEntry(raw: any): TaskOutcomeKpiWindowEntry | null {
+  const status = raw?.status;
+  const validStatus: TaskOutcomeStatus | null =
+    status === 'success' || status === 'partial' || status === 'failed' ? status : null;
+  if (!validStatus) return null;
+
+  const scoreNum = Number(raw?.score);
+  const timestampNum = Number(raw?.timestamp);
+  if (!Number.isFinite(scoreNum) || !Number.isFinite(timestampNum)) return null;
+
+  return {
+    status: validStatus,
+    score: Math.max(0, Math.min(1, scoreNum)),
+    timestamp: Math.max(0, Math.trunc(timestampNum)),
+  };
+}
+
+function evaluateTaskOutcome(args: {
+  finalOutput: GMIOutput;
+  didForceTerminate: boolean;
+  degraded: boolean;
+  customFlags?: Record<string, any>;
+}): TaskOutcomeAssessment {
+  const override = normalizeTaskOutcomeOverride(args.customFlags);
+  if (override) return override;
+
+  if (args.didForceTerminate || args.finalOutput.error) {
+    return {
+      status: 'failed',
+      score: 0,
+      reason: args.didForceTerminate
+        ? 'Turn force-terminated due to iteration cap.'
+        : 'Final response contains an error payload.',
+      source: 'heuristic',
+    };
+  }
+
+  const text = typeof args.finalOutput.responseText === 'string'
+    ? args.finalOutput.responseText.trim()
+    : '';
+  if (text.length >= 48) {
+    return {
+      status: 'success',
+      score: args.degraded ? 0.85 : 0.95,
+      reason: 'Final response was produced without terminal errors.',
+      source: 'heuristic',
+    };
+  }
+  if (text.length > 0 || (args.finalOutput.toolCalls?.length ?? 0) > 0) {
+    return {
+      status: 'partial',
+      score: args.degraded ? 0.5 : 0.6,
+      reason: 'Turn completed but produced a limited final response.',
+      source: 'heuristic',
+    };
+  }
+  return {
+    status: 'failed',
+    score: 0.1,
+    reason: 'No usable final response was produced.',
+    source: 'heuristic',
+  };
+}
+
 /**
  * @typedef {Object} AgentOSOrchestratorConfig
  * Configuration options for the AgentOSOrchestrator.
@@ -172,6 +685,27 @@ export interface AgentOSOrchestratorConfig {
 
   /** Optional metadata key to store rolling-summary state under (defaults to `rollingSummaryState`). */
   rollingSummaryStateKey?: string;
+
+  /**
+   * Controls long-term memory retrieval cadence and depth.
+   * Default profile is intentionally aggressive to maximize recall.
+   */
+  longTermMemoryRecall?: AgentOSLongTermMemoryRecallConfig;
+
+  /**
+   * Controls request-time organization routing behavior.
+   */
+  tenantRouting?: AgentOSTenantRoutingConfig;
+
+  /**
+   * Controls rolling KPI emission for task outcomes.
+   */
+  taskOutcomeTelemetry?: AgentOSTaskOutcomeTelemetryConfig;
+
+  /**
+   * Controls adaptive execution policy adjustments derived from rolling task outcomes.
+   */
+  adaptiveExecution?: AgentOSAdaptiveExecutionConfig;
 }
 
 /**
@@ -190,6 +724,7 @@ export interface AgentOSOrchestratorDependencies {
   conversationManager: ConversationManager;
   streamingManager: StreamingManager;
   modelProviderManager: AIModelProviderManager;
+  turnPlanner?: ITurnPlanner;
   /**
    * Optional sink for persisting rolling-memory outputs (`summary_markdown` + `memory_json`)
    * into a long-term store (RAG / knowledge graph / database).
@@ -200,6 +735,11 @@ export interface AgentOSOrchestratorDependencies {
    * durable memories (user/persona/org) into prompts on a cadence.
    */
   longTermMemoryRetriever?: ILongTermMemoryRetriever;
+  /**
+   * Optional persistence store for task outcome KPI windows.
+   * Use this to make rolling success-rate telemetry survive orchestrator restarts.
+   */
+  taskOutcomeTelemetryStore?: ITaskOutcomeTelemetryStore;
 }
 
 /**
@@ -225,6 +765,27 @@ type LongTermMemoryRetrievalState = {
   lastReviewedAt?: number;
 };
 
+type TurnExecutionLifecyclePhase =
+  | 'planned'
+  | 'executing'
+  | 'degraded'
+  | 'recovered'
+  | 'completed'
+  | 'errored';
+
+type ResolvedAgentOSOrchestratorConfig =
+  Required<
+    Omit<
+      AgentOSOrchestratorConfig,
+      'longTermMemoryRecall' | 'tenantRouting' | 'taskOutcomeTelemetry' | 'adaptiveExecution'
+    >
+  > & {
+    longTermMemoryRecall: ResolvedLongTermMemoryRecallConfig;
+    tenantRouting: ResolvedTenantRoutingConfig;
+    taskOutcomeTelemetry: ResolvedTaskOutcomeTelemetryConfig;
+    adaptiveExecution: ResolvedAdaptiveExecutionConfig;
+  };
+
 
 /**
  * @class AgentOSOrchestrator
@@ -237,8 +798,10 @@ type LongTermMemoryRetrievalState = {
  */
 export class AgentOSOrchestrator {
   private initialized: boolean = false;
-  private config!: Required<AgentOSOrchestratorConfig>;
+  private config!: ResolvedAgentOSOrchestratorConfig;
   private dependencies!: AgentOSOrchestratorDependencies;
+  private taskOutcomeKpiWindows = new Map<string, TaskOutcomeKpiWindowEntry[]>();
+  private taskOutcomeAlertState = new Map<string, number>();
 
   /**
    * A map to hold ongoing stream contexts.
@@ -290,8 +853,35 @@ export class AgentOSOrchestrator {
       rollingSummaryCompactionProfilesConfig: config.rollingSummaryCompactionProfilesConfig ?? null,
       rollingSummarySystemPrompt: config.rollingSummarySystemPrompt ?? '',
       rollingSummaryStateKey: config.rollingSummaryStateKey ?? 'rollingSummaryState',
+      longTermMemoryRecall: resolveLongTermMemoryRecallConfig(config.longTermMemoryRecall),
+      tenantRouting: resolveTenantRoutingConfig(config.tenantRouting),
+      taskOutcomeTelemetry: resolveTaskOutcomeTelemetryConfig(config.taskOutcomeTelemetry),
+      adaptiveExecution: resolveAdaptiveExecutionConfig(config.adaptiveExecution),
     };
+    this.taskOutcomeKpiWindows.clear();
+    this.taskOutcomeAlertState.clear();
     this.dependencies = dependencies;
+    if (dependencies.taskOutcomeTelemetryStore && this.config.taskOutcomeTelemetry.enabled) {
+      try {
+        const persisted = await dependencies.taskOutcomeTelemetryStore.loadWindows();
+        const cap = this.config.taskOutcomeTelemetry.rollingWindowSize;
+        for (const [scopeKey, rawEntries] of Object.entries(persisted ?? {})) {
+          if (!Array.isArray(rawEntries)) continue;
+          const normalized = rawEntries
+            .map((entry) => sanitizeKpiEntry(entry))
+            .filter((entry): entry is TaskOutcomeKpiWindowEntry => Boolean(entry))
+            .sort((a, b) => a.timestamp - b.timestamp);
+          if (normalized.length === 0) continue;
+          const trimmed = normalized.slice(Math.max(0, normalized.length - cap));
+          this.taskOutcomeKpiWindows.set(scopeKey, trimmed);
+        }
+      } catch (error: any) {
+        console.warn(
+          'AgentOSOrchestrator: Failed to load persisted task outcome telemetry windows; continuing with empty windows.',
+          error,
+        );
+      }
+    }
     this.initialized = true;
     console.log('AgentOSOrchestrator initialized.');
   }
@@ -305,6 +895,251 @@ export class AgentOSOrchestrator {
     if (!this.initialized) {
       throw new GMIError('AgentOSOrchestrator is not initialized. Call initialize() first.', GMIErrorCode.NOT_INITIALIZED);
     }
+  }
+
+  private resolveOrganizationContext(inputOrganizationId: unknown): string | undefined {
+    const inbound = normalizeOrganizationId(inputOrganizationId);
+    const tenantConfig = this.config.tenantRouting;
+
+    if (tenantConfig.mode === 'single_tenant') {
+      const fallback = tenantConfig.defaultOrganizationId;
+      if (
+        tenantConfig.strictOrganizationIsolation &&
+        inbound &&
+        fallback &&
+        inbound !== fallback
+      ) {
+        throw new GMIError(
+          `organizationId '${inbound}' does not match configured single-tenant org '${fallback}'.`,
+          GMIErrorCode.VALIDATION_ERROR,
+          {
+            mode: tenantConfig.mode,
+            inboundOrganizationId: inbound,
+            configuredOrganizationId: fallback,
+          },
+        );
+      }
+      const resolved = inbound ?? fallback;
+      if (tenantConfig.strictOrganizationIsolation && !resolved) {
+        throw new GMIError(
+          'Single-tenant mode requires an organizationId or tenantRouting.defaultOrganizationId.',
+          GMIErrorCode.VALIDATION_ERROR,
+          { mode: tenantConfig.mode },
+        );
+      }
+      return resolved;
+    }
+
+    return inbound;
+  }
+
+  private resolveTaskOutcomeScopeKey(args: {
+    organizationId?: string;
+    personaId?: string;
+  }): string {
+    const scope = this.config.taskOutcomeTelemetry.scope;
+    const org = normalizeOrganizationId(args.organizationId) ?? 'none';
+    const persona = normalizeOrganizationId(args.personaId) ?? 'unknown';
+
+    if (scope === 'global') return 'global';
+    if (scope === 'organization') return `org:${org}`;
+    return `org:${org}|persona:${persona}`;
+  }
+
+  private updateTaskOutcomeKpi(args: {
+    outcome: TaskOutcomeAssessment;
+    organizationId?: string;
+    personaId?: string;
+  }): TaskOutcomeKpiSummary | null {
+    const telemetry = this.config.taskOutcomeTelemetry;
+    if (!telemetry.enabled) return null;
+
+    const scopeKey = this.resolveTaskOutcomeScopeKey({
+      organizationId: args.organizationId,
+      personaId: args.personaId,
+    });
+    const now = Date.now();
+    const window = this.taskOutcomeKpiWindows.get(scopeKey) ?? [];
+    window.push({
+      status: args.outcome.status,
+      score: Math.max(0, Math.min(1, Number(args.outcome.score) || 0)),
+      timestamp: now,
+    });
+
+    const cap = telemetry.rollingWindowSize;
+    if (window.length > cap) {
+      window.splice(0, window.length - cap);
+    }
+    this.taskOutcomeKpiWindows.set(scopeKey, window);
+    if (this.dependencies.taskOutcomeTelemetryStore) {
+      const snapshot = window.map((entry) => ({ ...entry }));
+      void this.dependencies.taskOutcomeTelemetryStore
+        .saveWindow(scopeKey, snapshot)
+        .catch((error: any) => {
+          console.warn(
+            `AgentOSOrchestrator: Failed to persist task outcome telemetry window for scope '${scopeKey}'.`,
+            error,
+          );
+        });
+    }
+
+    return this.summarizeTaskOutcomeWindow(scopeKey);
+  }
+
+  private getCurrentTaskOutcomeKpi(args: {
+    organizationId?: string;
+    personaId?: string;
+  }): TaskOutcomeKpiSummary | null {
+    if (!this.config.taskOutcomeTelemetry.enabled) return null;
+    const scopeKey = this.resolveTaskOutcomeScopeKey({
+      organizationId: args.organizationId,
+      personaId: args.personaId,
+    });
+    return this.summarizeTaskOutcomeWindow(scopeKey);
+  }
+
+  private summarizeTaskOutcomeWindow(scopeKey: string): TaskOutcomeKpiSummary | null {
+    const telemetry = this.config.taskOutcomeTelemetry;
+    const window = this.taskOutcomeKpiWindows.get(scopeKey) ?? [];
+    if (window.length === 0) return null;
+    const now = Date.now();
+
+    let successCount = 0;
+    let partialCount = 0;
+    let failedCount = 0;
+    let scoreSum = 0;
+
+    for (const entry of window) {
+      if (entry.status === 'success') successCount += 1;
+      else if (entry.status === 'partial') partialCount += 1;
+      else failedCount += 1;
+      scoreSum += entry.score;
+    }
+
+    const sampleCount = window.length;
+    const successRate = sampleCount > 0 ? successCount / sampleCount : 0;
+    const averageScore = sampleCount > 0 ? scoreSum / sampleCount : 0;
+
+    return {
+      scopeKey,
+      scopeMode: telemetry.scope,
+      windowSize: telemetry.rollingWindowSize,
+      sampleCount,
+      successCount,
+      partialCount,
+      failedCount,
+      successRate,
+      averageScore,
+      weightedSuccessRate: averageScore,
+      timestamp: new Date(now).toISOString(),
+    };
+  }
+
+  private maybeApplyAdaptiveExecutionPolicy(args: {
+    turnPlan: TurnPlan | null;
+    organizationId?: string;
+    personaId?: string;
+    requestCustomFlags?: Record<string, any>;
+  }): AdaptiveExecutionDecision {
+    const adaptive = this.config.adaptiveExecution;
+    if (!adaptive.enabled || !args.turnPlan) return { applied: false };
+
+    const kpi = this.getCurrentTaskOutcomeKpi({
+      organizationId: args.organizationId,
+      personaId: args.personaId,
+    });
+    if (!kpi) return { applied: false, kpi };
+    if (kpi.sampleCount < adaptive.minSamples) return { applied: false, kpi };
+    if (kpi.weightedSuccessRate >= adaptive.minWeightedSuccessRate) return { applied: false, kpi };
+    const reasons: string[] = [
+      `weightedSuccessRate=${kpi.weightedSuccessRate.toFixed(3)} below threshold=${adaptive.minWeightedSuccessRate.toFixed(3)}`,
+    ];
+    let forcedToolSelectionMode = false;
+    let forcedToolFailureMode = false;
+    let preservedRequestedFailClosed = false;
+
+    if (
+      adaptive.forceAllToolsWhenDegraded &&
+      args.turnPlan.policy.toolSelectionMode === 'discovered'
+    ) {
+      args.turnPlan.policy.toolSelectionMode = 'all';
+      forcedToolSelectionMode = true;
+      reasons.push('toolSelectionMode switched discovered -> all');
+    }
+
+    if (adaptive.forceFailOpenWhenDegraded && args.turnPlan.policy.toolFailureMode !== 'fail_open') {
+      const requestedFailureMode = normalizeRequestedToolFailureMode(args.requestCustomFlags);
+      if (requestedFailureMode === 'fail_closed') {
+        preservedRequestedFailClosed = true;
+        reasons.push('preserved explicit request override toolFailureMode=fail_closed');
+      } else {
+        const before = args.turnPlan.policy.toolFailureMode;
+        args.turnPlan.policy.toolFailureMode = 'fail_open';
+        forcedToolFailureMode = true;
+        reasons.push(`toolFailureMode switched ${before} -> fail_open`);
+      }
+    }
+
+    if (!forcedToolSelectionMode && !forcedToolFailureMode) {
+      return {
+        applied: false,
+        reason: preservedRequestedFailClosed
+          ? 'Adaptive execution detected degraded KPI but preserved explicit fail-closed request override.'
+          : undefined,
+        kpi,
+        actions: preservedRequestedFailClosed
+          ? {
+              preservedRequestedFailClosed: true,
+            }
+          : undefined,
+      };
+    }
+
+    args.turnPlan.capability.fallbackApplied = true;
+    args.turnPlan.capability.fallbackReason = `Adaptive fallback applied: ${reasons.join('; ')}.`;
+    args.turnPlan.diagnostics.usedFallback = true;
+
+    return {
+      applied: true,
+      reason: args.turnPlan.capability.fallbackReason,
+      kpi,
+      actions: {
+        forcedToolSelectionMode,
+        forcedToolFailureMode,
+        preservedRequestedFailClosed: preservedRequestedFailClosed || undefined,
+      },
+    };
+  }
+
+  private maybeBuildTaskOutcomeAlert(kpi: TaskOutcomeKpiSummary | null): TaskOutcomeKpiAlert | null {
+    const telemetry = this.config.taskOutcomeTelemetry;
+    if (!telemetry.enabled || !telemetry.emitAlerts || !kpi) return null;
+    if (kpi.sampleCount < telemetry.alertMinSamples) return null;
+    if (kpi.weightedSuccessRate >= telemetry.alertBelowWeightedSuccessRate) return null;
+
+    const now = Date.now();
+    const lastAlertAt = this.taskOutcomeAlertState.get(kpi.scopeKey) ?? 0;
+    if (telemetry.alertCooldownMs > 0 && now - lastAlertAt < telemetry.alertCooldownMs) {
+      return null;
+    }
+    this.taskOutcomeAlertState.set(kpi.scopeKey, now);
+
+    const severity: 'warning' | 'critical' =
+      kpi.weightedSuccessRate < telemetry.alertBelowWeightedSuccessRate * 0.6
+        ? 'critical'
+        : 'warning';
+
+    return {
+      scopeKey: kpi.scopeKey,
+      severity,
+      reason:
+        `Weighted success rate ${kpi.weightedSuccessRate.toFixed(3)} below alert threshold ` +
+        `${telemetry.alertBelowWeightedSuccessRate.toFixed(3)}.`,
+      threshold: telemetry.alertBelowWeightedSuccessRate,
+      value: kpi.weightedSuccessRate,
+      sampleCount: kpi.sampleCount,
+      timestamp: new Date(now).toISOString(),
+    };
   }
 
   /**
@@ -510,6 +1345,33 @@ export class AgentOSOrchestrator {
     );
   }
 
+  private async emitExecutionLifecycleUpdate(args: {
+    streamId: StreamId;
+    gmiInstanceId: string;
+    personaId: string;
+    phase: TurnExecutionLifecyclePhase;
+    status: 'ok' | 'degraded' | 'error';
+    details?: Record<string, unknown>;
+  }): Promise<void> {
+    await this.pushChunkToStream(
+      args.streamId,
+      AgentOSResponseChunkType.METADATA_UPDATE,
+      args.gmiInstanceId,
+      args.personaId,
+      false,
+      {
+        updates: {
+          executionLifecycle: {
+            phase: args.phase,
+            status: args.status,
+            timestamp: new Date().toISOString(),
+            ...(args.details ? { details: args.details } : null),
+          },
+        },
+      },
+    );
+  }
+
   /**
    * Orchestrates a full logical turn for a user request.
    * This involves managing GMI interaction, tool calls, and streaming responses.
@@ -596,6 +1458,7 @@ export class AgentOSOrchestrator {
     const turnStartedAt = Date.now();
     let turnMetricsStatus: 'ok' | 'error' = 'ok';
     let turnMetricsPersonaId: string | undefined = input.selectedPersonaId;
+    let turnMetricsTaskOutcome: TaskOutcomeAssessment | undefined;
     let turnMetricsUsage:
       | {
           totalTokens?: number;
@@ -614,6 +1477,7 @@ export class AgentOSOrchestrator {
     let organizationIdForMemory: string | undefined;
     let longTermMemoryPolicy: ResolvedLongTermMemoryPolicy | null = null;
     let didForceTerminate = false;
+    let lifecycleDegraded = false;
 
     try {
       if (!selectedPersonaId) {
@@ -661,14 +1525,85 @@ export class AgentOSOrchestrator {
       );
 
       const gmiInput = this.constructGMITurnInput(agentOSStreamId, input, streamContext);
+      let turnPlan: TurnPlan | null = null;
+      const resolvedOrganizationId = this.resolveOrganizationContext(input.organizationId);
+
+      if (this.dependencies.turnPlanner) {
+        const planningMessage =
+          gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
+            ? gmiInput.content
+            : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
+              ? JSON.stringify(gmiInput.content)
+              : '';
+        try {
+          turnPlan = await this.dependencies.turnPlanner.planTurn({
+            userId: input.userId,
+            organizationId: resolvedOrganizationId,
+            sessionId: input.sessionId,
+            conversationId: input.conversationId,
+            persona: gmi.getPersona(),
+            userMessage: planningMessage,
+            options: input.options,
+          });
+        } catch (planningError: any) {
+          throw new GMIError(
+            `Turn planning failed before execution: ${planningError?.message || String(planningError)}`,
+            GMIErrorCode.PROCESSING_ERROR,
+            { streamId: agentOSStreamId, planningError },
+          );
+        }
+      }
+      const adaptiveExecution = this.maybeApplyAdaptiveExecutionPolicy({
+        turnPlan,
+        organizationId: resolvedOrganizationId,
+        personaId: currentPersonaId,
+        requestCustomFlags: input.options?.customFlags,
+      });
+      const adaptiveExecutionPayload =
+        adaptiveExecution.applied || adaptiveExecution.kpi || adaptiveExecution.actions
+          ? {
+              applied: adaptiveExecution.applied,
+              reason: adaptiveExecution.reason,
+              kpi: adaptiveExecution.kpi,
+              actions: adaptiveExecution.actions,
+            }
+          : undefined;
+      await this.emitExecutionLifecycleUpdate({
+        streamId: agentOSStreamId,
+        gmiInstanceId: gmiInstanceIdForChunks,
+        personaId: currentPersonaId,
+        phase: 'planned',
+        status: 'ok',
+        details: turnPlan
+          ? {
+              plannerVersion: turnPlan.policy.plannerVersion,
+              toolFailureMode: turnPlan.policy.toolFailureMode,
+              toolSelectionMode: turnPlan.policy.toolSelectionMode,
+              adaptiveExecution: adaptiveExecutionPayload,
+            }
+          : { plannerVersion: 'none' },
+      });
+      if (turnPlan?.capability.fallbackApplied || adaptiveExecution.applied) {
+        lifecycleDegraded = true;
+        await this.emitExecutionLifecycleUpdate({
+          streamId: agentOSStreamId,
+          gmiInstanceId: gmiInstanceIdForChunks,
+          personaId: currentPersonaId,
+          phase: 'degraded',
+          status: 'degraded',
+          details: {
+            reason: turnPlan?.capability.fallbackReason || adaptiveExecution.reason || 'fallback applied',
+            discoveryAttempts: turnPlan?.diagnostics.discoveryAttempts,
+            adaptiveExecution: adaptiveExecutionPayload,
+          },
+        });
+      }
 
       // --- Org context + long-term memory policy (persisted per conversation) ---
+      organizationIdForMemory = resolvedOrganizationId;
       if (conversationContext) {
-        const inboundOrg =
-          typeof input.organizationId === 'string' ? input.organizationId.trim() : '';
         // SECURITY NOTE: do not persist organizationId in conversation metadata. The org context
         // should be asserted by the trusted caller each request (after membership checks).
-        organizationIdForMemory = inboundOrg || undefined;
 
         const rawPrevPolicy = conversationContext.getMetadata(LONG_TERM_MEMORY_POLICY_METADATA_KEY);
         const prevPolicy =
@@ -688,11 +1623,14 @@ export class AgentOSOrchestrator {
           conversationContext.setMetadata(LONG_TERM_MEMORY_POLICY_METADATA_KEY, longTermMemoryPolicy);
         }
       } else {
-        organizationIdForMemory =
-          typeof input.organizationId === 'string' ? input.organizationId.trim() : undefined;
         longTermMemoryPolicy = resolveLongTermMemoryPolicy({
           defaults: DEFAULT_LONG_TERM_MEMORY_POLICY,
         });
+      }
+
+      if (turnPlan) {
+        (gmiInput.metadata ??= {} as any).executionPolicy = turnPlan.policy;
+        (gmiInput.metadata as any).capabilityDiscovery = turnPlan.capability;
       }
 
       (gmiInput.metadata ??= {} as any).organizationId = organizationIdForMemory ?? null;
@@ -882,6 +1820,8 @@ export class AgentOSOrchestrator {
       // --- Long-term memory retrieval (user/persona/org) ---
       let longTermMemoryContextText: string | null = null;
       let longTermMemoryRetrievalDiagnostics: Record<string, unknown> | undefined;
+      let longTermMemoryShouldReview = false;
+      let longTermMemoryReviewReason: string | null = null;
 
       if (
         conversationContext &&
@@ -903,14 +1843,9 @@ export class AgentOSOrchestrator {
             (m) => m?.role === MessageRole.USER,
           ).length;
 
-          const cadenceTurns =
-            typeof (this.config.promptProfileConfig as any)?.routing?.reviewEveryNTurns === 'number'
-              ? Number((this.config.promptProfileConfig as any).routing.reviewEveryNTurns)
-              : 6;
-          const forceOnCompaction =
-            typeof (this.config.promptProfileConfig as any)?.routing?.forceReviewOnCompaction === 'boolean'
-              ? Boolean((this.config.promptProfileConfig as any).routing.forceReviewOnCompaction)
-              : true;
+          const recallConfig = this.config.longTermMemoryRecall;
+          const cadenceTurns = recallConfig.cadenceTurns;
+          const forceOnCompaction = recallConfig.forceOnCompaction;
 
           const rawState = conversationContext.getMetadata('longTermMemoryRetrievalState');
           const prevState: LongTermMemoryRetrievalState | null =
@@ -920,10 +1855,22 @@ export class AgentOSOrchestrator {
               ? (rawState as LongTermMemoryRetrievalState)
               : null;
 
-          const shouldReview =
-            !prevState ||
-            (cadenceTurns > 0 && userTurnCount - prevState.lastReviewedUserTurn >= cadenceTurns) ||
-            (forceOnCompaction && Boolean(rollingSummaryResult?.didCompact));
+          const turnsSinceReview = prevState
+            ? Math.max(0, userTurnCount - prevState.lastReviewedUserTurn)
+            : Number.POSITIVE_INFINITY;
+          const dueToCadence = !prevState || turnsSinceReview >= cadenceTurns;
+          const dueToCompaction = forceOnCompaction && Boolean(rollingSummaryResult?.didCompact);
+          const shouldReview = dueToCadence || dueToCompaction;
+          longTermMemoryShouldReview = shouldReview;
+          if (shouldReview) {
+            longTermMemoryReviewReason = !prevState
+              ? 'initial_review'
+              : dueToCompaction
+                ? 'forced_on_compaction'
+                : 'cadence_due';
+          } else {
+            longTermMemoryReviewReason = 'cadence_not_due';
+          }
 
           if (shouldReview && queryText.length > 0) {
             const retrievalResult = await this.dependencies.longTermMemoryRetriever.retrieveLongTermMemory({
@@ -934,8 +1881,8 @@ export class AgentOSOrchestrator {
               mode: modeForRouting,
               queryText,
               memoryPolicy: longTermMemoryPolicy ?? DEFAULT_LONG_TERM_MEMORY_POLICY,
-              maxContextChars: 2800,
-              topKByScope: { user: 6, persona: 6, organization: 6 },
+              maxContextChars: recallConfig.maxContextChars,
+              topKByScope: recallConfig.topKByScope,
             });
 
             if (retrievalResult?.contextText && retrievalResult.contextText.trim()) {
@@ -947,13 +1894,18 @@ export class AgentOSOrchestrator {
               lastReviewedUserTurn: userTurnCount,
               lastReviewedAt: Date.now(),
             } satisfies LongTermMemoryRetrievalState);
+          } else if (shouldReview && queryText.length === 0) {
+            longTermMemoryReviewReason = 'empty_query';
           }
         } catch (retrievalError: any) {
           console.warn(
             `AgentOSOrchestrator: Long-term memory retrieval failed for stream ${agentOSStreamId} (continuing without it).`,
             retrievalError,
           );
+          longTermMemoryReviewReason = 'retrieval_error';
         }
+      } else {
+        longTermMemoryReviewReason = 'retriever_not_applicable';
       }
 
       (gmiInput.metadata as any).longTermMemoryContext =
@@ -1071,14 +2023,44 @@ export class AgentOSOrchestrator {
           updates: {
             promptProfile: promptProfileSelection,
             organizationId: organizationIdForMemory ?? null,
+            tenantRouting: {
+              mode: this.config.tenantRouting.mode,
+              strictOrganizationIsolation: this.config.tenantRouting.strictOrganizationIsolation,
+              defaultOrganizationId: this.config.tenantRouting.defaultOrganizationId ?? null,
+            },
             longTermMemoryPolicy,
+            longTermMemoryRecall: this.config.longTermMemoryRecall,
+            taskOutcomeTelemetry: this.config.taskOutcomeTelemetry,
+            adaptiveExecution: this.config.adaptiveExecution,
+            turnPlanning: turnPlan
+              ? {
+                  policy: turnPlan.policy,
+                  diagnostics: turnPlan.diagnostics,
+                  adaptiveExecution: adaptiveExecutionPayload ?? null,
+                  discovery: {
+                    enabled: turnPlan.capability.enabled,
+                    kind: turnPlan.capability.kind,
+                    selectedToolNames: turnPlan.capability.selectedToolNames,
+                    fallbackApplied: turnPlan.capability.fallbackApplied,
+                    fallbackReason: turnPlan.capability.fallbackReason,
+                    tokenEstimate: turnPlan.capability.result?.tokenEstimate,
+                    diagnostics: turnPlan.capability.result?.diagnostics,
+                  },
+                }
+              : null,
             longTermMemoryRetrieval: longTermMemoryContextText
               ? {
+                  shouldReview: longTermMemoryShouldReview,
+                  reviewReason: longTermMemoryReviewReason,
                   didRetrieve: true,
                   contextChars: longTermMemoryContextText.length,
                   diagnostics: longTermMemoryRetrievalDiagnostics,
                 }
-              : { didRetrieve: false },
+              : {
+                  shouldReview: longTermMemoryShouldReview,
+                  reviewReason: longTermMemoryReviewReason,
+                  didRetrieve: false,
+                },
             rollingSummary: rollingSummaryResult
               ? {
                   profileId: rollingSummaryProfileId,
@@ -1098,6 +2080,17 @@ export class AgentOSOrchestrator {
       let currentToolCallIteration = 0;
       let continueProcessing = true;
       let lastGMIOutput: GMIOutput | undefined; // To store the result from handleToolResult or final processTurnStream result
+
+      await this.emitExecutionLifecycleUpdate({
+        streamId: agentOSStreamId,
+        gmiInstanceId: gmiInstanceIdForChunks,
+        personaId: currentPersonaId,
+        phase: 'executing',
+        status: lifecycleDegraded ? 'degraded' : 'ok',
+        details: {
+          maxToolCallIterations: this.config.maxToolCallIterations,
+        },
+      });
 
       while (continueProcessing && currentToolCallIteration < this.config.maxToolCallIterations) {
         currentToolCallIteration++;
@@ -1204,6 +2197,73 @@ export class AgentOSOrchestrator {
       if (didForceTerminate || Boolean(finalGMIStateForResponse.error)) {
         turnMetricsStatus = 'error';
       }
+      const taskOutcome = evaluateTaskOutcome({
+        finalOutput: finalGMIStateForResponse,
+        didForceTerminate,
+        degraded: lifecycleDegraded,
+        customFlags: input.options?.customFlags,
+      });
+      turnMetricsTaskOutcome = taskOutcome;
+      const taskOutcomeKpi = this.updateTaskOutcomeKpi({
+        outcome: taskOutcome,
+        organizationId: organizationIdForMemory,
+        personaId: currentPersonaId,
+      });
+      const taskOutcomeAlert = this.maybeBuildTaskOutcomeAlert(taskOutcomeKpi);
+      await this.pushChunkToStream(
+        agentOSStreamId,
+        AgentOSResponseChunkType.METADATA_UPDATE,
+        gmiInstanceIdForChunks,
+        currentPersonaId,
+        false,
+        {
+          updates: {
+            taskOutcome,
+            taskOutcomeKpi,
+            taskOutcomeAlert,
+          },
+        },
+      );
+      if (turnMetricsStatus === 'error') {
+        await this.emitExecutionLifecycleUpdate({
+          streamId: agentOSStreamId,
+          gmiInstanceId: gmiInstanceIdForChunks,
+          personaId: currentPersonaId,
+          phase: 'errored',
+          status: 'error',
+          details: {
+            didForceTerminate,
+            hasFinalError: Boolean(finalGMIStateForResponse.error),
+            taskOutcomeStatus: taskOutcome.status,
+            taskOutcomeScore: taskOutcome.score,
+          },
+        });
+      } else {
+        if (lifecycleDegraded) {
+          await this.emitExecutionLifecycleUpdate({
+            streamId: agentOSStreamId,
+            gmiInstanceId: gmiInstanceIdForChunks,
+            personaId: currentPersonaId,
+            phase: 'recovered',
+            status: 'ok',
+            details: {
+              recovery: 'Turn completed with fallback path.',
+            },
+          });
+        }
+        await this.emitExecutionLifecycleUpdate({
+          streamId: agentOSStreamId,
+          gmiInstanceId: gmiInstanceIdForChunks,
+          personaId: currentPersonaId,
+          phase: 'completed',
+          status: 'ok',
+          details: {
+            toolIterations: currentToolCallIteration,
+            taskOutcomeStatus: taskOutcome.status,
+            taskOutcomeScore: taskOutcome.score,
+          },
+        });
+      }
 
       // Persist assistant output into ConversationContext for durable memory / prompt reconstruction.
       if (this.config.enableConversationalPersistence && conversationContext) {
@@ -1264,7 +2324,46 @@ export class AgentOSOrchestrator {
       recordExceptionOnActiveSpan(error, `Error in orchestrateTurn for stream ${agentOSStreamId}`);
       const gmiErr = GMIError.wrap?.(error, GMIErrorCode.GMI_PROCESSING_ERROR, `Error in orchestrateTurn for stream ${agentOSStreamId}`) ||
                      new GMIError(`Error in orchestrateTurn for stream ${agentOSStreamId}: ${error.message}`, GMIErrorCode.GMI_PROCESSING_ERROR, error);
+      turnMetricsTaskOutcome = {
+        status: 'failed',
+        score: 0,
+        reason: `Exception before completion: ${gmiErr.code}`,
+        source: 'heuristic',
+      };
+      const taskOutcomeKpi = this.updateTaskOutcomeKpi({
+        outcome: turnMetricsTaskOutcome,
+        organizationId: organizationIdForMemory,
+        personaId: currentPersonaId,
+      });
+      const taskOutcomeAlert = this.maybeBuildTaskOutcomeAlert(taskOutcomeKpi);
       console.error(`AgentOSOrchestrator: Error during _processTurnInternal for stream ${agentOSStreamId}:`, gmiErr);
+      await this.pushChunkToStream(
+        agentOSStreamId,
+        AgentOSResponseChunkType.METADATA_UPDATE,
+        gmiInstanceIdForChunks,
+        currentPersonaId ?? 'unknown_persona',
+        false,
+        {
+          updates: {
+            taskOutcome: turnMetricsTaskOutcome,
+            taskOutcomeKpi,
+            taskOutcomeAlert,
+          },
+        },
+      );
+      await this.emitExecutionLifecycleUpdate({
+        streamId: agentOSStreamId,
+        gmiInstanceId: gmiInstanceIdForChunks,
+        personaId: currentPersonaId ?? 'unknown_persona',
+        phase: 'errored',
+        status: 'error',
+        details: {
+          code: gmiErr.code,
+          message: gmiErr.message,
+          taskOutcomeStatus: turnMetricsTaskOutcome.status,
+          taskOutcomeScore: turnMetricsTaskOutcome.score,
+        },
+      });
       await this.pushErrorChunk(
           agentOSStreamId, currentPersonaId ?? 'unknown_persona', gmiInstanceIdForChunks,
           gmiErr.code, gmiErr.message, gmiErr.details
@@ -1276,6 +2375,8 @@ export class AgentOSOrchestrator {
         status: turnMetricsStatus,
         personaId: turnMetricsPersonaId,
         usage: turnMetricsUsage,
+        taskOutcomeStatus: turnMetricsTaskOutcome?.status,
+        taskOutcomeScore: turnMetricsTaskOutcome?.score,
       });
 
       // Stream is closed explicitly in the success/error paths; this finally block always
@@ -1752,6 +2853,8 @@ export class AgentOSOrchestrator {
         }
     }
     this.activeStreamContexts.clear();
+    this.taskOutcomeKpiWindows.clear();
+    this.taskOutcomeAlertState.clear();
     this.initialized = false;
     console.log('AgentOSOrchestrator: Shutdown complete.');
   }

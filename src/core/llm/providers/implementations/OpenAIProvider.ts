@@ -374,7 +374,7 @@ export class OpenAIProvider implements IProvider {
     options: ModelCompletionOptions
   ): Promise<ModelCompletionResponse> {
     this.ensureInitialized();
-    const apiKey = this.getApiKey(options.apiKeyOverride);
+    const apiKey = await this.getApiKey(options.apiKeyOverride);
 
     const requestBody = this.buildChatCompletionPayload(modelId, messages, options, false);
 
@@ -395,7 +395,7 @@ export class OpenAIProvider implements IProvider {
     options: ModelCompletionOptions
   ): AsyncGenerator<ModelCompletionResponse, void, undefined> {
     this.ensureInitialized();
-    const apiKey = this.getApiKey(options.apiKeyOverride);
+    const apiKey = await this.getApiKey(options.apiKeyOverride);
 
     const requestBody = this.buildChatCompletionPayload(modelId, messages, options, true);
 
@@ -473,7 +473,7 @@ export class OpenAIProvider implements IProvider {
     if (!texts || texts.length === 0) {
       throw new OpenAIProviderError('Input texts array cannot be empty for embeddings.', 'EMBEDDING_NO_INPUT');
     }
-    const apiKey = this.getApiKey(options?.apiKeyOverride);
+    const apiKey = await this.getApiKey(options?.apiKeyOverride);
 
     const payload: Record<string, unknown> = {
       model: modelId,

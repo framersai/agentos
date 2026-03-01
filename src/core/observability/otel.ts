@@ -263,6 +263,7 @@ type AgentOSMetricsInstruments = Readonly<{
   turnTokensPrompt: ReturnType<ReturnType<typeof metrics.getMeter>['createHistogram']>;
   turnTokensCompletion: ReturnType<ReturnType<typeof metrics.getMeter>['createHistogram']>;
   turnCostUsd: ReturnType<ReturnType<typeof metrics.getMeter>['createHistogram']>;
+  turnTaskSuccessScore: ReturnType<ReturnType<typeof metrics.getMeter>['createHistogram']>;
   toolResults: ReturnType<ReturnType<typeof metrics.getMeter>['createCounter']>;
   toolResultDurationMs: ReturnType<ReturnType<typeof metrics.getMeter>['createHistogram']>;
 }>;
@@ -301,6 +302,11 @@ function getMetricInstruments(): AgentOSMetricsInstruments | null {
       description: 'Total cost (USD) per turn (when available).',
       unit: 'USD',
     }),
+    turnTaskSuccessScore: meter.createHistogram('agentos.turn.task_success_score', {
+      description:
+        'Heuristic or caller-provided task outcome score in [0, 1] for each turn.',
+      unit: '1',
+    }),
     toolResults: meter.createCounter('agentos.tool_results', {
       description: 'Number of tool-result handoffs processed by AgentOS.',
       unit: '1',
@@ -318,6 +324,8 @@ export type AgentOSTurnMetricInput = Readonly<{
   durationMs: number;
   status: 'ok' | 'error';
   personaId?: string;
+  taskOutcomeStatus?: 'success' | 'partial' | 'failed';
+  taskOutcomeScore?: number;
   usage?: {
     totalTokens?: number;
     promptTokens?: number;
@@ -333,6 +341,7 @@ export function recordAgentOSTurnMetrics(input: AgentOSTurnMetricInput): void {
   const baseAttributes = sanitizeAttributes({
     status: input.status,
     persona_id: input.personaId ?? '',
+    task_outcome: input.taskOutcomeStatus ?? '',
   });
 
   try {
@@ -342,6 +351,14 @@ export function recordAgentOSTurnMetrics(input: AgentOSTurnMetricInput): void {
   }
   try {
     inst.turnDurationMs.record(Math.max(0, input.durationMs), baseAttributes);
+  } catch {
+    // ignore
+  }
+  try {
+    if (typeof input.taskOutcomeScore === 'number' && Number.isFinite(input.taskOutcomeScore)) {
+      const normalized = Math.max(0, Math.min(1, input.taskOutcomeScore));
+      inst.turnTaskSuccessScore.record(normalized, baseAttributes);
+    }
   } catch {
     // ignore
   }

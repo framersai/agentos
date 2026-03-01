@@ -355,6 +355,23 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       }
     };
 
+    const turnPlanning = {
+      enabled: true,
+      defaultToolFailureMode: 'fail_open' as const,
+      allowRequestOverrides: true,
+      discovery: {
+        enabled: true,
+        autoInitializeEngine: true,
+        registerMetaTool: true,
+        onlyAvailable: true,
+        defaultKind: 'any' as const,
+        includePromptContext: true,
+        defaultToolSelectionMode: 'discovered' as const,
+        maxRetries: 1,
+        retryBackoffMs: 150,
+      },
+    };
+
     const conversationManagerConfig: ConversationManagerConfig = {
       defaultConversationContextConfig: {
         maxHistoryLengthMessages: 100,
@@ -395,6 +412,7 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       defaultPersonaId,
       prisma,
       utilityAIService,
+      turnPlanning,
       extensionSecrets: Object.keys(extensionSecrets).length ? extensionSecrets : undefined,
     };
 
@@ -435,4 +453,3 @@ export async function createTestAgentOSConfig(): Promise<AgentOSConfig> {
   
   return createAgentOSConfig();
 }
-

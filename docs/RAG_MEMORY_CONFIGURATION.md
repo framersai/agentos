@@ -152,6 +152,63 @@ Notes:
 - `ragConfig.manageLifecycle` defaults to `true`.
 - `ragConfig.bindToStorageAdapter` defaults to `true` and will inject AgentOS’ `storageAdapter` into **SQL vector store providers that did not specify `adapter` or `storage`**.
 
+## Long-Term Memory Recall (Aggressive Default)
+
+Prompt-injected durable memory retrieval (`longTermMemoryRetriever`) is controlled by `orchestratorConfig.longTermMemoryRecall`.
+
+Default profile is intentionally **aggressive** for higher recall and task success:
+
+- `profile: "aggressive"`
+- `cadenceTurns: 2`
+- `forceOnCompaction: true`
+- `maxContextChars: 4200`
+- `topKByScope: { user: 8, persona: 8, organization: 8 }`
+
+Example:
+
+```ts
+await agentos.initialize({
+  // ...
+  orchestratorConfig: {
+    longTermMemoryRecall: {
+      profile: 'aggressive',     // default
+      // Optional explicit overrides:
+      cadenceTurns: 2,
+      forceOnCompaction: true,
+      maxContextChars: 4200,
+      topKByScope: { user: 8, persona: 8, organization: 8 },
+    },
+  },
+});
+```
+
+If you need lower token usage, switch to:
+
+- `profile: "balanced"`
+- `profile: "conservative"`
+
+## Single-Tenant vs Multi-Tenant Routing
+
+`organizationId` routing behavior is controlled by `orchestratorConfig.tenantRouting`:
+
+- `multi_tenant` (default): uses request-scoped `organizationId` when provided.
+- `single_tenant`: collapses all turns to one org context (optional strict mode).
+
+```ts
+await agentos.initialize({
+  // ...
+  orchestratorConfig: {
+    tenantRouting: {
+      mode: 'single_tenant',
+      defaultOrganizationId: 'acme-org',
+      strictOrganizationIsolation: true,
+    },
+  },
+});
+```
+
+With strict single-tenant isolation enabled, mismatched `organizationId` values are rejected.
+
 ## Persona `memoryConfig.ragConfig` (Triggers and Data Sources)
 
 RAG retrieval/ingestion in the GMI is driven by persona configuration. At minimum:

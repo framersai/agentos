@@ -215,6 +215,27 @@ export interface GMITurnInput {
      * Optional prompt-profile selection for this turn (e.g., concise/deep_dive/planner/reviewer).
      */
     promptProfile?: { id: string; systemInstructions?: string; reason?: string } | null;
+    /**
+     * Optional planner-selected execution policy for this turn.
+     */
+    executionPolicy?: {
+      plannerVersion?: string;
+      toolFailureMode?: 'fail_open' | 'fail_closed';
+      toolSelectionMode?: 'all' | 'discovered';
+    } | null;
+    /**
+     * Optional capability discovery payload for this turn.
+     * `result` is intentionally `any` to avoid hard-coupling the GMI contract to
+     * a specific discovery-engine type.
+     */
+    capabilityDiscovery?: {
+      query?: string;
+      kind?: string;
+      selectedToolNames?: string[];
+      promptContext?: string;
+      fallbackReason?: string;
+      result?: any;
+    } | null;
   };
 }
 

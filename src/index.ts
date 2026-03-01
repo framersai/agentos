@@ -20,6 +20,8 @@ export * from './core/conversation/ILongTermMemoryRetriever';
 export * from './core/conversation/LongTermMemoryPolicy';
 export * from './core/streaming/StreamingManager';
 export * from './core/llm/providers/AIModelProviderManager';
+export * from './core/orchestration/TurnPlanner';
+export * from './core/orchestration/SqlTaskOutcomeTelemetryStore';
 export * from './core/workflows/WorkflowTypes';
 export * from './core/workflows/IWorkflowEngine';
 export * from './core/workflows/storage/IWorkflowStore';

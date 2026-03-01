@@ -595,6 +595,16 @@ export class GMI implements IGMI {
             priority: 60,
           });
         }
+        const discoveryPromptContext =
+          typeof turnInput.metadata?.capabilityDiscovery?.promptContext === 'string'
+            ? turnInput.metadata.capabilityDiscovery.promptContext.trim()
+            : '';
+        if (discoveryPromptContext) {
+          systemPrompts.push({
+            content: `Capability Discovery Context\n${discoveryPromptContext}`,
+            priority: 55,
+          });
+        }
 
         const durableHistoryForPrompt =
           Array.isArray(turnInput.metadata?.conversationHistoryForPrompt) && turnInput.metadata?.conversationHistoryForPrompt.length > 0
@@ -639,11 +649,38 @@ export class GMI implements IGMI {
             throw new GMIError(`LLM Provider '${modelTargetInfo.providerId}' not found or not initialized.`, GMIErrorCode.LLM_PROVIDER_UNAVAILABLE);
         }
 
-        const toolsForLLM = await this.toolOrchestrator.listAvailableTools({
+        const plannedToolFailureMode =
+          turnInput.metadata?.executionPolicy?.toolFailureMode === 'fail_closed'
+            ? 'fail_closed'
+            : 'fail_open';
+        const plannedToolSelectionMode =
+          turnInput.metadata?.executionPolicy?.toolSelectionMode === 'discovered'
+            ? 'discovered'
+            : 'all';
+        const capabilityDiscoveryResult = turnInput.metadata?.capabilityDiscovery?.result;
+
+        let toolsForLLM = await this.toolOrchestrator.listAvailableTools({
           personaId: this.activePersona.id,
           personaCapabilities: this.activePersona.allowedCapabilities || [],
           userContext: this.currentUserContext,
         });
+        if (
+          plannedToolSelectionMode === 'discovered' &&
+          capabilityDiscoveryResult &&
+          typeof this.toolOrchestrator.listDiscoveredTools === 'function'
+        ) {
+          const discoveredTools = await this.toolOrchestrator.listDiscoveredTools(
+            capabilityDiscoveryResult,
+            {
+              personaId: this.activePersona.id,
+              personaCapabilities: this.activePersona.allowedCapabilities || [],
+              userContext: this.currentUserContext,
+            },
+          );
+          if (discoveredTools.length > 0) {
+            toolsForLLM = discoveredTools;
+          }
+        }
         
         const llmOptions: ModelCompletionOptions = {
           temperature: (turnInput.metadata?.options?.temperature as number) ?? this.activePersona.defaultModelCompletionOptions?.temperature ?? 0.7,
@@ -733,6 +770,17 @@ export class GMI implements IGMI {
             const result = await this.toolOrchestrator.processToolCall(requestDetails);
             toolExecutionResults.push(result);
             this.addTraceEntry(ReasoningEntryType.TOOL_EXECUTION_RESULT, `Tool '${toolCallReq.name}' result. Success: ${!result.isError}`, { result });
+            if (result.isError && plannedToolFailureMode === 'fail_closed') {
+              throw new GMIError(
+                `Tool '${toolCallReq.name}' failed and execution policy is fail_closed.`,
+                GMIErrorCode.TOOL_ERROR,
+                {
+                  toolCallId: toolCallReq.id,
+                  toolName: toolCallReq.name,
+                  errorDetails: result.errorDetails,
+                },
+              );
+            }
           }
           toolExecutionResults.forEach(tcResult => this.updateConversationHistoryWithToolResult(tcResult));
           currentIterationTextResponse = ""; // Reset for next iteration if any

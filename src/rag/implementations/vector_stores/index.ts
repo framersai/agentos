@@ -18,5 +18,8 @@ export { HnswlibVectorStore, type HnswlibVectorStoreConfig } from './HnswlibVect
 // Qdrant vector store (remote/self-hosted via HTTP API)
 export { QdrantVectorStore, type QdrantVectorStoreConfig } from './QdrantVectorStore.js';
 
+// Neo4j vector store (native vector indexes via neo4j-driver)
+export { Neo4jVectorStore, type Neo4jVectorStoreConfig } from './Neo4jVectorStore.js';
+
 
 

@@ -193,6 +193,7 @@
     "graphology-communities-louvain": ">=2.0.0",
     "graphology-types": ">=0.24.0",
     "hnswlib-node": ">=3.0.0",
+    "neo4j-driver": ">=5.0.0",
     "typescript": ">=5.0.0"
   },
   "peerDependenciesMeta": {
@@ -209,6 +210,9 @@
       "optional": true
     },
     "hnswlib-node": {
+      "optional": true
+    },
+    "neo4j-driver": {
       "optional": true
     }
   }
