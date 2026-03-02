@@ -77,9 +77,9 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     // 1. Build the vector index (normalizes sources + embeds + stores)
     await this.index.buildIndex(sources);
 
-    // 2. Build the relationship graph
+    // 2. Build the relationship graph (async — graphology loaded lazily)
     const allCapabilities = this.index.getAllCapabilities();
-    this.graph.buildGraph(allCapabilities, presetCoOccurrences);
+    await this.graph.buildGraph(allCapabilities, presetCoOccurrences);
 
     this.indexVersion++;
     this.initialized = true;
@@ -199,9 +199,9 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
       await this.index.upsertCapability(desc);
     }
 
-    // Rebuild graph with all capabilities
+    // Rebuild graph with all capabilities (async — graphology loaded lazily)
     const allCapabilities = this.index.getAllCapabilities();
-    this.graph.buildGraph(allCapabilities);
+    await this.graph.buildGraph(allCapabilities);
 
     this.indexVersion++;
     this.assembler.invalidateCache();

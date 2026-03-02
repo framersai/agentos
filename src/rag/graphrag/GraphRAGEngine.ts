@@ -16,8 +16,41 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import Graph from 'graphology';
-import louvain from 'graphology-communities-louvain';
+
+// Lazy-loaded graphology (optional peer dependency)
+type GraphInstance = import('graphology').default;
+type GraphConstructor = new (opts?: Record<string, unknown>) => GraphInstance;
+let _GraphCtor: GraphConstructor | undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _louvain: ((graph: any, options?: any) => Record<string, number>) | undefined;
+
+async function resolveGraph(): Promise<GraphConstructor> {
+  if (_GraphCtor) return _GraphCtor;
+  try {
+    const mod = await import('graphology');
+    _GraphCtor = (mod.default ?? mod) as unknown as GraphConstructor;
+    return _GraphCtor;
+  } catch {
+    throw new Error(
+      'graphology is required for GraphRAGEngine but was not found. ' +
+        'Install it: npm install graphology graphology-types',
+    );
+  }
+}
+
+async function resolveLouvain(): Promise<NonNullable<typeof _louvain>> {
+  if (_louvain) return _louvain;
+  try {
+    const mod = await import('graphology-communities-louvain');
+    _louvain = (mod.default ?? mod) as unknown as NonNullable<typeof _louvain>;
+    return _louvain;
+  } catch {
+    throw new Error(
+      'graphology-communities-louvain is required for community detection but was not found. ' +
+        'Install it: npm install graphology-communities-louvain',
+    );
+  }
+}
 
 import type {
   IGraphRAGEngine,
@@ -83,8 +116,8 @@ export class GraphRAGEngine implements IGraphRAGEngine {
   private documentEntityContributions: Map<string, Map<string, DocumentEntityContribution>> = new Map();
   private documentRelationshipContributions: Map<string, Map<string, DocumentRelationshipContribution>> = new Map();
 
-  // Graph structure (graphology)
-  private graph!: Graph;
+  // Graph structure (graphology — lazy-loaded)
+  private graph!: GraphInstance;
 
   // External dependencies (injected)
   private vectorStore?: IVectorStore;
@@ -181,7 +214,8 @@ export class GraphRAGEngine implements IGraphRAGEngine {
     };
 
     this.tablePrefix = this.config.tablePrefix ?? 'graphrag_';
-    this.graph = new Graph({ multi: false, type: 'undirected' });
+    const GraphCtor = await resolveGraph();
+    this.graph = new GraphCtor({ multi: false, type: 'undirected' });
 
     // Initialize persistence schema if adapter available
     if (this.persistenceAdapter) {
@@ -774,8 +808,9 @@ ${content.slice(0, 8000)}`;
 
     this.communities.clear();
 
-    // Run Louvain community detection
-    const communityAssignments = louvain(this.graph, {
+    // Run Louvain community detection (lazy-loaded)
+    const louvainFn = await resolveLouvain();
+    const communityAssignments = louvainFn(this.graph, {
       resolution: this.config.communityResolution ?? 1.0,
       getEdgeWeight: 'weight',
     });
@@ -856,8 +891,9 @@ ${content.slice(0, 8000)}`;
 
       if (prevLevelCommunities.length <= 1) break;
 
-      // Build a meta-graph of communities
-      const metaGraph = new Graph({ multi: false, type: 'undirected' });
+      // Build a meta-graph of communities (reuse already-resolved constructor)
+      const MetaGraphCtor = await resolveGraph();
+      const metaGraph = new MetaGraphCtor({ multi: false, type: 'undirected' });
       for (const comm of prevLevelCommunities) {
         metaGraph.addNode(comm.id);
       }
@@ -892,8 +928,9 @@ ${content.slice(0, 8000)}`;
 
       if (metaGraph.order < 2 || metaGraph.size === 0) break;
 
-      // Run Louvain on meta-graph
-      const metaCommunities = louvain(metaGraph, {
+      // Run Louvain on meta-graph (lazy-loaded)
+      const metaLouvain = await resolveLouvain();
+      const metaCommunities = metaLouvain(metaGraph, {
         resolution: (this.config.communityResolution ?? 1.0) * 0.5, // Coarser at higher levels
       });
 
@@ -1462,7 +1499,8 @@ Provide a comprehensive answer based on the information above.`,
     this.ingestedDocumentHashes.clear();
     this.documentEntityContributions.clear();
     this.documentRelationshipContributions.clear();
-    this.graph = new Graph({ multi: false, type: 'undirected' });
+    const ClearGraphCtor = await resolveGraph();
+    this.graph = new ClearGraphCtor({ multi: false, type: 'undirected' });
 
     if (this.persistenceAdapter) {
       await this.persistenceAdapter.exec(`

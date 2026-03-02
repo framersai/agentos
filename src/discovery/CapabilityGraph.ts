@@ -21,8 +21,6 @@
  * - TAGGED_WITH: Shared tags (weighted by overlap count, ≥2 tags)
  */
 
-import Graph from 'graphology';
-
 import type {
   CapabilityDescriptor,
   CapabilityEdge,
@@ -32,15 +30,38 @@ import type {
   RelatedCapability,
 } from './types.js';
 
+// Lazy-loaded graphology (optional peer dependency)
+type GraphClass = import('graphology').default;
+let _GraphCtor: (new (opts?: Record<string, unknown>) => GraphClass) | undefined;
+
+async function resolveGraphology(): Promise<new (opts?: Record<string, unknown>) => GraphClass> {
+  if (_GraphCtor) return _GraphCtor;
+  try {
+    const mod = await import('graphology');
+    _GraphCtor = (mod.default ?? mod) as unknown as typeof _GraphCtor;
+    return _GraphCtor!;
+  } catch {
+    throw new Error(
+      'graphology is required for CapabilityGraph but was not found. ' +
+        'Install it: npm install graphology graphology-types',
+    );
+  }
+}
+
 // ============================================================================
 // GRAPHOLOGY-BASED CAPABILITY GRAPH
 // ============================================================================
 
 export class CapabilityGraph implements ICapabilityGraph {
-  private graph: Graph;
+  private graph: GraphClass | null = null;
 
-  constructor() {
-    this.graph = new Graph({ multi: false, type: 'undirected' });
+  private ensureGraph(): GraphClass {
+    if (!this.graph) {
+      throw new Error(
+        'CapabilityGraph not initialized. Call buildGraph() first.',
+      );
+    }
+    return this.graph;
   }
 
   // ============================================================================
@@ -57,10 +78,16 @@ export class CapabilityGraph implements ICapabilityGraph {
    * 4. Add TAGGED_WITH edges (shared tags, ≥2 overlap)
    * 5. Add SAME_CATEGORY edges (weak signal)
    */
-  buildGraph(
+  async buildGraph(
     capabilities: CapabilityDescriptor[],
     presetCoOccurrences?: PresetCoOccurrence[],
-  ): void {
+  ): Promise<void> {
+    // Lazy-load graphology on first use
+    const GraphCtor = await resolveGraphology();
+    if (!this.graph) {
+      this.graph = new GraphCtor({ multi: false, type: 'undirected' });
+    }
+
     // Clear any existing graph
     this.graph.clear();
 
@@ -89,7 +116,7 @@ export class CapabilityGraph implements ICapabilityGraph {
     // 3. Add COMPOSED_WITH edges from preset co-occurrence
     if (presetCoOccurrences) {
       for (const preset of presetCoOccurrences) {
-        const validIds = preset.capabilityIds.filter((id) => this.graph.hasNode(id));
+        const validIds = preset.capabilityIds.filter((id) => this.graph!.hasNode(id));
         for (let i = 0; i < validIds.length; i++) {
           for (let j = i + 1; j < validIds.length; j++) {
             this.safeAddEdge(validIds[i], validIds[j], 'COMPOSED_WITH', 0.5);
@@ -156,11 +183,13 @@ export class CapabilityGraph implements ICapabilityGraph {
    * Returns neighbors with edge weights, sorted by weight descending.
    */
   getRelated(capabilityId: string): RelatedCapability[] {
-    if (!this.graph.hasNode(capabilityId)) return [];
+    if (!this.graph) return [];
+    const g = this.ensureGraph();
+    if (!g.hasNode(capabilityId)) return [];
 
     const related: RelatedCapability[] = [];
 
-    this.graph.forEachEdge(capabilityId, (_edge: string, attrs: Record<string, unknown>, source: string, target: string) => {
+    g.forEachEdge(capabilityId, (_edge: string, attrs: Record<string, unknown>, source: string, target: string) => {
       const neighborId = source === capabilityId ? target : source;
       related.push({
         id: neighborId,
@@ -183,11 +212,12 @@ export class CapabilityGraph implements ICapabilityGraph {
     nodes: string[];
     edges: CapabilityEdge[];
   } {
-    const nodeSet = new Set(capabilityIds.filter((id) => this.graph.hasNode(id)));
+    const g = this.ensureGraph();
+    const nodeSet = new Set(capabilityIds.filter((id) => g.hasNode(id)));
     const edges: CapabilityEdge[] = [];
 
     for (const nodeId of nodeSet) {
-      this.graph.forEachEdge(nodeId, (_edge: string, attrs: Record<string, unknown>, source: string, target: string) => {
+      g.forEachEdge(nodeId, (_edge: string, attrs: Record<string, unknown>, source: string, target: string) => {
         // Only include edges where both endpoints are in the subgraph
         if (nodeSet.has(source) && nodeSet.has(target)) {
           // Avoid duplicates (undirected graph)
@@ -262,15 +292,15 @@ export class CapabilityGraph implements ICapabilityGraph {
   // ============================================================================
 
   nodeCount(): number {
-    return this.graph.order;
+    return this.graph?.order ?? 0;
   }
 
   edgeCount(): number {
-    return this.graph.size;
+    return this.graph?.size ?? 0;
   }
 
   clear(): void {
-    this.graph.clear();
+    this.graph?.clear();
   }
 
   // ============================================================================
@@ -287,28 +317,29 @@ export class CapabilityGraph implements ICapabilityGraph {
     type: CapabilityEdgeType,
     weight: number,
   ): void {
-    if (!this.graph.hasNode(source) || !this.graph.hasNode(target)) return;
+    const g = this.ensureGraph();
+    if (!g.hasNode(source) || !g.hasNode(target)) return;
     if (source === target) return;
 
     try {
-      const existingEdge = this.graph.edge(source, target);
+      const existingEdge = g.edge(source, target);
       if (existingEdge) {
         // Edge exists — keep the one with higher weight or stronger type
-        const existing = this.graph.getEdgeAttributes(existingEdge) as {
+        const existing = g.getEdgeAttributes(existingEdge) as {
           type: CapabilityEdgeType;
           weight: number;
         };
         if (weight > existing.weight) {
-          this.graph.setEdgeAttribute(existingEdge, 'weight', weight);
-          this.graph.setEdgeAttribute(existingEdge, 'type', type);
+          g.setEdgeAttribute(existingEdge, 'weight', weight);
+          g.setEdgeAttribute(existingEdge, 'type', type);
         }
       } else {
-        this.graph.addEdge(source, target, { type, weight });
+        g.addEdge(source, target, { type, weight });
       }
     } catch {
       // Edge might already exist in the other direction for undirected
       try {
-        this.graph.addEdge(source, target, { type, weight });
+        g.addEdge(source, target, { type, weight });
       } catch {
         // Silently ignore — edge already exists
       }

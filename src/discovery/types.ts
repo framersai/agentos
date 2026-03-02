@@ -263,7 +263,7 @@ export interface ICapabilityGraph {
   buildGraph(
     capabilities: CapabilityDescriptor[],
     presetCoOccurrences?: PresetCoOccurrence[],
-  ): void;
+  ): void | Promise<void>;
 
   /**
    * Get capabilities related to a given capability (1-hop neighbors).
