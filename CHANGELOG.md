@@ -1,3 +1,7 @@
+## <small>0.1.34 (2026-03-02)</small>
+
+* fix: lazy-load graphology to prevent crash when optional peer dep missing ([9ab5e61](https://github.com/framersai/agentos/commit/9ab5e61))
+
 ## <small>0.1.33 (2026-03-01)</small>
 
 * fix(build): avoid unused ts-expect-error in optional neo4j import ([f9cc8b1](https://github.com/framersai/agentos/commit/f9cc8b1))
