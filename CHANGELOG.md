@@ -1,3 +1,7 @@
+## <small>0.1.35 (2026-03-02)</small>
+
+* fix: lint errors + bump to 0.1.34 ([67d55a6](https://github.com/framersai/agentos/commit/67d55a6))
+
 ## <small>0.1.34 (2026-03-02)</small>
 
 * fix: lazy-load graphology to prevent crash when optional peer dep missing ([9ab5e61](https://github.com/framersai/agentos/commit/9ab5e61))
