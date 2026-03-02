@@ -27,7 +27,6 @@ import type {
   CapabilitySearchResult,
   Tier1Result,
   Tier2Result,
-  TokenEstimate,
 } from './types.js';
 import { DEFAULT_DISCOVERY_CONFIG } from './types.js';
 import { CapabilityEmbeddingStrategy } from './CapabilityEmbeddingStrategy.js';

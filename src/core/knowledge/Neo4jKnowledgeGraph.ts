@@ -26,7 +26,6 @@ import type {
   RelationId,
   EntityType,
   RelationType,
-  KnowledgeSource,
   KnowledgeQueryOptions,
   TraversalOptions,
   TraversalResult,
@@ -707,7 +706,7 @@ export class Neo4jKnowledgeGraph implements IKnowledgeGraph {
   // ============ Knowledge Extraction ============
 
   async extractFromText(
-    text: string,
+    _text: string,
     _options?: { extractRelations?: boolean; entityTypes?: EntityType[] },
   ): Promise<{ entities: KnowledgeEntity[]; relations: KnowledgeRelation[] }> {
     // Extraction requires LLM — this is a placeholder.

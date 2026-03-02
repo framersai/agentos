@@ -22,7 +22,6 @@ import type {
   CapabilityDiscoveryResult,
   CapabilityDescriptor,
   CapabilityIndexSources,
-  CapabilityKind,
   DiscoveryQueryOptions,
   ICapabilityDiscoveryEngine,
   PresetCoOccurrence,

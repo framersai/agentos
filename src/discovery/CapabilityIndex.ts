@@ -22,7 +22,6 @@ import type {
   CapabilityKind,
   CapabilitySearchResult,
   CapabilityIndexSources,
-  CapabilityDiscoveryConfig,
 } from './types.js';
 import { CapabilityEmbeddingStrategy } from './CapabilityEmbeddingStrategy.js';
 
