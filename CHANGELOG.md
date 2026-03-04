@@ -1,3 +1,7 @@
+## <small>0.1.38 (2026-03-04)</small>
+
+* feat(config): add github.token to extension secrets ([d505070](https://github.com/framersai/agentos/commit/d505070))
+
 ## <small>0.1.37 (2026-03-04)</small>
 
 * fix: resolve CapabilityGraph test failures and lint warnings ([f9e6c08](https://github.com/framersai/agentos/commit/f9e6c08))
