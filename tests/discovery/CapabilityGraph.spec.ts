@@ -96,13 +96,13 @@ describe('CapabilityGraph', () => {
   // =========================================================================
 
   describe('buildGraph', () => {
-    it('adds all capabilities as nodes', () => {
-      graph.buildGraph([webSearch, newsSearch, summarize]);
+    it('adds all capabilities as nodes', async () => {
+      await graph.buildGraph([webSearch, newsSearch, summarize]);
       expect(graph.nodeCount()).toBe(3);
     });
 
-    it('adds DEPENDS_ON edges for skills with requiredTools', () => {
-      graph.buildGraph([webSearch, summarize]);
+    it('adds DEPENDS_ON edges for skills with requiredTools', async () => {
+      await graph.buildGraph([webSearch, summarize]);
 
       // summarize depends on web-search
       const related = graph.getRelated('skill:summarize');
@@ -112,7 +112,7 @@ describe('CapabilityGraph', () => {
       expect(dependsOn!.weight).toBe(1.0);
     });
 
-    it('adds COMPOSED_WITH edges from preset co-occurrences', () => {
+    it('adds COMPOSED_WITH edges from preset co-occurrences', async () => {
       const presets: PresetCoOccurrence[] = [
         {
           presetName: 'researcher',
@@ -120,7 +120,7 @@ describe('CapabilityGraph', () => {
         },
       ];
 
-      graph.buildGraph([webSearch, summarize], presets);
+      await graph.buildGraph([webSearch, summarize], presets);
 
       const related = graph.getRelated('tool:web-search');
       // Should have both DEPENDS_ON (from summarize.requiredTools) and/or COMPOSED_WITH
@@ -133,7 +133,7 @@ describe('CapabilityGraph', () => {
       expect(composedEdge!.weight).toBe(1.0);
     });
 
-    it('adds COMPOSED_WITH edges from presets for unrelated capabilities', () => {
+    it('adds COMPOSED_WITH edges from presets for unrelated capabilities', async () => {
       // Use capabilities with no shared tags so COMPOSED_WITH wins
       const toolA = makeDescriptor({
         id: 'tool:image-gen',
@@ -157,7 +157,7 @@ describe('CapabilityGraph', () => {
         },
       ];
 
-      graph.buildGraph([toolA, toolB], presets);
+      await graph.buildGraph([toolA, toolB], presets);
 
       const related = graph.getRelated('tool:image-gen');
       const composed = related.find((r) => r.id === 'tool:code-review');
@@ -166,9 +166,9 @@ describe('CapabilityGraph', () => {
       expect(composed!.weight).toBe(0.5);
     });
 
-    it('adds TAGGED_WITH edges for capabilities sharing >= 2 tags', () => {
+    it('adds TAGGED_WITH edges for capabilities sharing >= 2 tags', async () => {
       // webSearch and newsSearch share 'search' and 'web' tags (2 overlap)
-      graph.buildGraph([webSearch, newsSearch]);
+      await graph.buildGraph([webSearch, newsSearch]);
 
       const related = graph.getRelated('tool:web-search');
       const taggedWith = related.find(
@@ -181,7 +181,7 @@ describe('CapabilityGraph', () => {
       expect(taggedWith!.weight).toBe(0.6);
     });
 
-    it('does not add TAGGED_WITH for < 2 shared tags', () => {
+    it('does not add TAGGED_WITH for < 2 shared tags', async () => {
       const toolA = makeDescriptor({
         id: 'tool:a',
         name: 'a',
@@ -195,16 +195,16 @@ describe('CapabilityGraph', () => {
         tags: ['only-one-shared'],
       });
 
-      graph.buildGraph([toolA, toolB]);
+      await graph.buildGraph([toolA, toolB]);
 
       const related = graph.getRelated('tool:a');
       const taggedWith = related.find((r) => r.relationType === 'TAGGED_WITH');
       expect(taggedWith).toBeUndefined();
     });
 
-    it('adds SAME_CATEGORY edges for same-kind capabilities in same category', () => {
+    it('adds SAME_CATEGORY edges for same-kind capabilities in same category', async () => {
       // webSearch and newsSearch are both tool:information
-      graph.buildGraph([webSearch, newsSearch]);
+      await graph.buildGraph([webSearch, newsSearch]);
 
       const related = graph.getRelated('tool:web-search');
       const neighbor = related.find((r) => r.id === 'tool:news-search');
@@ -212,7 +212,7 @@ describe('CapabilityGraph', () => {
       // Due to tag overlap, the edge type may be TAGGED_WITH (higher weight wins)
     });
 
-    it('skips category edges for groups > 8', () => {
+    it('skips category edges for groups > 8', async () => {
       // Create 10 tools in the same category
       const manyTools = Array.from({ length: 10 }, (_, i) =>
         makeDescriptor({
@@ -223,13 +223,13 @@ describe('CapabilityGraph', () => {
         }),
       );
 
-      graph.buildGraph(manyTools);
+      await graph.buildGraph(manyTools);
 
       // With no tags and >8 in same kind+category, there should be no SAME_CATEGORY edges
       expect(graph.edgeCount()).toBe(0);
     });
 
-    it('adds SAME_CATEGORY edges for groups of exactly 8', () => {
+    it('adds SAME_CATEGORY edges for groups of exactly 8', async () => {
       const tools = Array.from({ length: 8 }, (_, i) =>
         makeDescriptor({
           id: `tool:tool-${i}`,
@@ -239,7 +239,7 @@ describe('CapabilityGraph', () => {
         }),
       );
 
-      graph.buildGraph(tools);
+      await graph.buildGraph(tools);
 
       // C(8,2) = 28 edges
       expect(graph.edgeCount()).toBe(28);
@@ -251,14 +251,14 @@ describe('CapabilityGraph', () => {
   // =========================================================================
 
   describe('getRelated', () => {
-    it('returns empty for unknown node', () => {
-      graph.buildGraph([webSearch]);
+    it('returns empty for unknown node', async () => {
+      await graph.buildGraph([webSearch]);
       const related = graph.getRelated('tool:nonexistent');
       expect(related).toEqual([]);
     });
 
-    it('returns neighbors sorted by weight descending', () => {
-      graph.buildGraph([webSearch, newsSearch, summarize]);
+    it('returns neighbors sorted by weight descending', async () => {
+      await graph.buildGraph([webSearch, newsSearch, summarize]);
 
       const related = graph.getRelated('tool:web-search');
       // Verify sorted by weight descending
@@ -273,8 +273,8 @@ describe('CapabilityGraph', () => {
   // =========================================================================
 
   describe('getSubgraph', () => {
-    it('returns only edges within the node set', () => {
-      graph.buildGraph([webSearch, newsSearch, summarize]);
+    it('returns only edges within the node set', async () => {
+      await graph.buildGraph([webSearch, newsSearch, summarize]);
 
       // Subgraph of webSearch and newsSearch only
       const sub = graph.getSubgraph(['tool:web-search', 'tool:news-search']);
@@ -296,8 +296,8 @@ describe('CapabilityGraph', () => {
       expect(hasSummarize).toBe(false);
     });
 
-    it('filters out unknown node IDs', () => {
-      graph.buildGraph([webSearch]);
+    it('filters out unknown node IDs', async () => {
+      await graph.buildGraph([webSearch]);
       const sub = graph.getSubgraph(['tool:web-search', 'tool:nonexistent']);
       expect(sub.nodes).toHaveLength(1);
       expect(sub.nodes).toContain('tool:web-search');
@@ -309,8 +309,8 @@ describe('CapabilityGraph', () => {
   // =========================================================================
 
   describe('rerank', () => {
-    it('boosts co-present capabilities', () => {
-      graph.buildGraph([webSearch, newsSearch, summarize]);
+    it('boosts co-present capabilities', async () => {
+      await graph.buildGraph([webSearch, newsSearch, summarize]);
 
       const results = [
         { id: 'tool:web-search', score: 0.8 },
@@ -328,8 +328,8 @@ describe('CapabilityGraph', () => {
       expect(reranked.some((r) => r.boosted)).toBe(true);
     });
 
-    it('pulls in DEPENDS_ON neighbors not in original results', () => {
-      graph.buildGraph([webSearch, summarize]);
+    it('pulls in DEPENDS_ON neighbors not in original results', async () => {
+      await graph.buildGraph([webSearch, summarize]);
 
       // Only summarize is in results, but it DEPENDS_ON web-search
       const results = [{ id: 'skill:summarize', score: 0.9 }];
@@ -342,8 +342,8 @@ describe('CapabilityGraph', () => {
       expect(wsResult!.boosted).toBe(true);
     });
 
-    it('returns results sorted by score descending', () => {
-      graph.buildGraph([webSearch, newsSearch, summarize]);
+    it('returns results sorted by score descending', async () => {
+      await graph.buildGraph([webSearch, newsSearch, summarize]);
 
       const results = [
         { id: 'tool:web-search', score: 0.5 },
@@ -363,8 +363,8 @@ describe('CapabilityGraph', () => {
   // =========================================================================
 
   describe('clear', () => {
-    it('resets to 0 nodes and edges', () => {
-      graph.buildGraph([webSearch, newsSearch, summarize]);
+    it('resets to 0 nodes and edges', async () => {
+      await graph.buildGraph([webSearch, newsSearch, summarize]);
       expect(graph.nodeCount()).toBeGreaterThan(0);
 
       graph.clear();

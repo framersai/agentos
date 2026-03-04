@@ -20,7 +20,6 @@
 import type {
   RAGAuditTrail,
   RAGOperationEntry,
-  RAGSourceAttribution,
 } from './RAGAuditTypes.js';
 
 let _idCounter = 0;

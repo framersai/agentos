@@ -90,7 +90,7 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
     'polls',
   ] as const;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   private client: any | undefined;
 
   /** Whether we're using snoowrap or raw fetch. */
@@ -162,7 +162,7 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
         name: me.name,
         id: me.id,
       };
-    } catch (importErr) {
+    } catch (_importErr) {
       // snoowrap not available — use raw Reddit API
       console.warn(
         '[Reddit] snoowrap not installed, using raw Reddit API. ' +
@@ -280,12 +280,12 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
     subreddit: string,
     title: string,
     body: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     imageBlock: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     pollBlock: any,
   ): Promise<ChannelSendResult> {
-    let submission: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    let submission: any;  
 
     if (imageBlock && imageBlock.type === 'image') {
       // Link post with image URL
@@ -463,7 +463,7 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
     await this.authenticateRaw(this.storedAuth.credential, params);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   private async redditApiRequest(method: string, path: string, body?: any): Promise<any> {
     if (!this.usingSnoowrap) {
       await this.ensureAccessToken();
@@ -524,10 +524,10 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
     subreddit: string,
     title: string,
     body: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     imageBlock: any,
   ): Promise<ChannelSendResult> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const payload: any = {
       sr: subreddit,
       title,
@@ -569,14 +569,14 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
 
   private async pollInbox(): Promise<void> {
     try {
-      let messages: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+      let messages: any[];  
 
       if (this.usingSnoowrap && this.client) {
         const inbox = await this.client.getUnreadMessages();
         messages = Array.isArray(inbox) ? inbox : [];
       } else {
         const result = await this.redditApiRequest('GET', '/message/unread?limit=25');
-        messages = result?.data?.children?.map((c: any) => c.data) ?? []; // eslint-disable-line @typescript-eslint/no-explicit-any
+        messages = result?.data?.children?.map((c: any) => c.data) ?? [];  
       }
 
       for (const msg of messages) {

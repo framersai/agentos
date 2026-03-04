@@ -148,7 +148,7 @@ export class Neo4jCapabilityGraph implements ICapabilityGraph {
     }
   }
 
-  getRelated(capabilityId: string): RelatedCapability[] {
+  getRelated(_capabilityId: string): RelatedCapability[] {
     // Synchronous interface but Neo4j is async — use cached promise pattern
     // This is a design limitation; callers should use getRelatedAsync when possible.
     // For now, return empty and populate via async path.
@@ -179,7 +179,7 @@ export class Neo4jCapabilityGraph implements ICapabilityGraph {
     }));
   }
 
-  getSubgraph(capabilityIds: string[]): { nodes: string[]; edges: CapabilityEdge[] } {
+  getSubgraph(_capabilityIds: string[]): { nodes: string[]; edges: CapabilityEdge[] } {
     // Same synchronous limitation — return empty for sync calls
     return { nodes: [], edges: [] };
   }

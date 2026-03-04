@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 type GraphInstance = import('graphology').default;
 type GraphConstructor = new (opts?: Record<string, unknown>) => GraphInstance;
 let _GraphCtor: GraphConstructor | undefined;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let _louvain: ((graph: any, options?: any) => Record<string, number>) | undefined;
 
 async function resolveGraph(): Promise<GraphConstructor> {
@@ -570,7 +570,7 @@ ${content.slice(0, 8000)}`;
         .filter(Boolean) as GraphRelationship[];
 
       return { entities, relationships, sourceDocumentId: documentId };
-    } catch (error) {
+    } catch (_error) {
       // Fallback to pattern extraction on any LLM error
       return this.patternExtract(documentId, content);
     }
@@ -1137,7 +1137,7 @@ Respond with a clear, informative summary of what this group represents and its 
         texts: query,
         modelId: this.config.embeddingModelId,
       });
-      const embeddingTimeMs = Date.now() - embeddingStart;
+      const _embeddingTimeMs = Date.now() - embeddingStart;
 
       const queryEmbedding = queryEmbedResult.embeddings[0];
       if (queryEmbedding) {
@@ -1302,7 +1302,7 @@ Provide a comprehensive answer based on the information above.`,
         texts: query,
         modelId: this.config.embeddingModelId,
       });
-      const embeddingTimeMs = Date.now() - embeddingStart;
+      const _embeddingTimeMs = Date.now() - embeddingStart;
 
       const queryEmbedding = queryEmbedResult.embeddings[0];
       if (queryEmbedding) {
