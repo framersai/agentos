@@ -1,3 +1,7 @@
+## <small>0.1.37 (2026-03-04)</small>
+
+* fix: resolve CapabilityGraph test failures and lint warnings ([f9e6c08](https://github.com/framersai/agentos/commit/f9e6c08))
+
 ## <small>0.1.36 (2026-03-04)</small>
 
 * fix(config): add Twitter/X env var aliases to extension-secrets.json ([8ac68ef](https://github.com/framersai/agentos/commit/8ac68ef))
