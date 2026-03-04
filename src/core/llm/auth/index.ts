@@ -14,3 +14,17 @@ export type {
 export { FileTokenStore } from './FileTokenStore.js';
 export { OpenAIOAuthFlow } from './OpenAIOAuthFlow.js';
 export type { OpenAIOAuthFlowOptions } from './OpenAIOAuthFlow.js';
+
+// Browser-based OAuth 2.0 flows
+export { BrowserOAuthFlow } from './BrowserOAuthFlow.js';
+export type { BrowserOAuthConfig, BrowserOAuthFlowOptions } from './BrowserOAuthFlow.js';
+export { TwitterOAuthFlow } from './TwitterOAuthFlow.js';
+export type { TwitterOAuthFlowOptions } from './TwitterOAuthFlow.js';
+export { InstagramOAuthFlow } from './InstagramOAuthFlow.js';
+export type { InstagramOAuthFlowOptions } from './InstagramOAuthFlow.js';
+
+// Utilities
+export { isTokenValid, openBrowser } from './utils.js';
+export { startCallbackServer } from './callback-server.js';
+export type { CallbackResult, CallbackServerOptions } from './callback-server.js';
+export { generateCodeVerifier, generateCodeChallenge, generateState } from './pkce.js';

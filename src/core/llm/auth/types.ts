@@ -12,6 +12,8 @@ export interface OAuthTokenSet {
   refreshToken?: string;
   /** Unix epoch milliseconds when the access token expires. */
   expiresAt: number;
+  /** Provider-specific metadata (e.g., igUserId for Instagram). */
+  metadata?: Record<string, string>;
 }
 
 /** Provider-specific OAuth configuration. */

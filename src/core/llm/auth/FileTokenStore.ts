@@ -36,6 +36,7 @@ export class FileTokenStore implements IOAuthTokenStore {
         accessToken: data.accessToken,
         refreshToken: typeof data.refreshToken === 'string' ? data.refreshToken : undefined,
         expiresAt: data.expiresAt,
+        metadata: typeof data.metadata === 'object' && data.metadata !== null ? data.metadata : undefined,
       };
     } catch {
       return null;
