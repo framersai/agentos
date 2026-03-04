@@ -1,3 +1,8 @@
+## <small>0.1.39 (2026-03-04)</small>
+
+* feat(auth): add browser-based OAuth 2.0 flows for Twitter/X and Instagram ([75af64d](https://github.com/framersai/agentos/commit/75af64d))
+* feat(config): add Twitter OAuth and Meta OAuth extension secrets ([6036de2](https://github.com/framersai/agentos/commit/6036de2))
+
 ## <small>0.1.38 (2026-03-04)</small>
 
 * feat(config): add github.token to extension secrets ([d505070](https://github.com/framersai/agentos/commit/d505070))
