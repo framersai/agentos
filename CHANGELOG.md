@@ -1,3 +1,7 @@
+## <small>0.1.36 (2026-03-04)</small>
+
+* fix(config): add Twitter/X env var aliases to extension-secrets.json ([8ac68ef](https://github.com/framersai/agentos/commit/8ac68ef))
+
 ## <small>0.1.35 (2026-03-02)</small>
 
 * fix: lint errors + bump to 0.1.34 ([67d55a6](https://github.com/framersai/agentos/commit/67d55a6))
