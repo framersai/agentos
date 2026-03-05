@@ -47,6 +47,18 @@ export type ChannelPlatform =
   | 'pinterest'
   | 'tiktok'
   | 'youtube'
+  | 'linkedin'
+  | 'facebook'
+  | 'threads'
+  | 'bluesky'
+  | 'mastodon'
+  | 'devto'
+  | 'hashnode'
+  | 'medium'
+  | 'wordpress'
+  | 'farcaster'
+  | 'lemmy'
+  | 'google-business'
   | (string & {});
 
 // ============================================================================
