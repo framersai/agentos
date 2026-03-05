@@ -21,3 +21,10 @@ export {
   type PlatformConstraints,
   type AdaptedContent,
 } from './ContentAdaptationEngine';
+
+// Shared HTTP base class for channel service implementations
+export {
+  SocialAbstractService,
+  type SocialRequestOptions,
+  type SocialServiceConfig,
+} from './SocialAbstractService';

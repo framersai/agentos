@@ -212,7 +212,7 @@ for await (const chunk of agent.processRequest({
 |                                                                    |
 |  +-------------------+  +-------------------+  +----------------+  |
 |  | Extension Manager |  | Channel Router    |  | Call Manager   |  |
-|  | (12+ kinds)       |  | (28 platforms)    |  | (Voice/Tel.)   |  |
+|  | (12+ kinds)       |  | (40 platforms)    |  | (Voice/Tel.)   |  |
 |  +-------------------+  +-------------------+  +----------------+  |
 |                                                                    |
 |  +-------------------+  +-------------------+  +----------------+  |
@@ -761,18 +761,18 @@ See [`docs/HUMAN_IN_THE_LOOP.md`](docs/HUMAN_IN_THE_LOOP.md) for the full HITL s
 
 **Location:** `src/channels/`
 
-Unified adapters for 20 external messaging platforms.
+Unified adapters for 40 external messaging and social platforms.
 
-**20 supported platforms:**
+**40 supported platforms:**
 
 | Priority | Platforms |
 |----------|-----------|
-| **P0** (Core) | Telegram, WhatsApp, Discord, Slack, Webchat |
-| **P1** | Signal, iMessage, Google Chat, Microsoft Teams |
-| **P2** | Matrix, Zalo, Email, SMS |
-| **P3** | Nostr, Twitch, Line, Feishu, Mattermost, Nextcloud Talk, Tlon |
+| **P0** (Core + Social) | Telegram, WhatsApp, Discord, Slack, Webchat, Twitter/X, Instagram, Reddit, YouTube, LinkedIn, Facebook, Threads, Bluesky |
+| **P1** | Signal, iMessage, Google Chat, Microsoft Teams, Pinterest, TikTok, Mastodon, Dev.to, Hashnode, Medium, WordPress |
+| **P2** | Matrix, Zalo, Email, SMS, Farcaster, Lemmy, Google Business |
+| **P3** | Nostr, Twitch, Line, Feishu, Mattermost, Nextcloud Talk, Tlon, IRC, Zalo Personal |
 
-**21 capability flags:**
+**29 capability flags:**
 
 Each adapter declares its capabilities, allowing consumers to check before attempting unsupported actions:
 
@@ -781,6 +781,8 @@ text, rich_text, images, video, audio, voice_notes, documents,
 stickers, reactions, threads, typing_indicator, read_receipts,
 group_chat, channels, buttons, inline_keyboard, embeds,
 mentions, editing, deletion
+stories, reels, hashtags, polls, carousel,
+engagement_metrics, scheduling, dm_automation, content_discovery
 ```
 
 **IChannelAdapter** -- Unified interface for bidirectional messaging:

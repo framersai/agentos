@@ -22,6 +22,10 @@ export { TwitterOAuthFlow } from './TwitterOAuthFlow.js';
 export type { TwitterOAuthFlowOptions } from './TwitterOAuthFlow.js';
 export { InstagramOAuthFlow } from './InstagramOAuthFlow.js';
 export type { InstagramOAuthFlowOptions } from './InstagramOAuthFlow.js';
+export { LinkedInOAuthFlow } from './LinkedInOAuthFlow.js';
+export type { LinkedInOAuthFlowOptions } from './LinkedInOAuthFlow.js';
+export { FacebookOAuthFlow } from './FacebookOAuthFlow.js';
+export type { FacebookOAuthFlowOptions } from './FacebookOAuthFlow.js';
 
 // Utilities
 export { isTokenValid, openBrowser } from './utils.js';
