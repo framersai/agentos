@@ -1,3 +1,7 @@
+## <small>0.1.40 (2026-03-05)</small>
+
+* feat(social-posting): add SocialPostManager, ContentAdaptationEngine, and new ChannelPlatform types ([c26feb6](https://github.com/framersai/agentos/commit/c26feb6))
+
 ## <small>0.1.39 (2026-03-04)</small>
 
 * feat(auth): add browser-based OAuth 2.0 flows for Twitter/X and Instagram ([75af64d](https://github.com/framersai/agentos/commit/75af64d))
