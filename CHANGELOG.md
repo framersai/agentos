@@ -1,3 +1,8 @@
+## <small>0.1.41 (2026-03-08)</small>
+
+* feat(auth): browser-based PKCE OAuth for OpenAI + API key exchange ([a9177ea](https://github.com/framersai/agentos/commit/a9177ea))
+* Add social abstract service, OAuth flows, and expanded secret catalog ([bad9841](https://github.com/framersai/agentos/commit/bad9841))
+
 ## <small>0.1.40 (2026-03-05)</small>
 
 * feat(social-posting): add SocialPostManager, ContentAdaptationEngine, and new ChannelPlatform types ([c26feb6](https://github.com/framersai/agentos/commit/c26feb6))
