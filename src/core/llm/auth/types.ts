@@ -12,6 +12,8 @@ export interface OAuthTokenSet {
   refreshToken?: string;
   /** Unix epoch milliseconds when the access token expires. */
   expiresAt: number;
+  /** OpenID Connect id_token (used for API key exchange in OpenAI OAuth). */
+  idToken?: string;
   /** Provider-specific metadata (e.g., igUserId for Instagram). */
   metadata?: Record<string, string>;
 }
