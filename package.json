@@ -188,7 +188,7 @@
     "yaml": "^2.8.1"
   },
   "peerDependencies": {
-    "@framers/sql-storage-adapter": ">=0.4.0",
+    "@framers/sql-storage-adapter": ">=0.5.0",
     "graphology": ">=0.25.0",
     "graphology-communities-louvain": ">=2.0.0",
     "graphology-types": ">=0.24.0",
