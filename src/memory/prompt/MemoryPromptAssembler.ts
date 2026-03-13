@@ -89,7 +89,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
 
   // Compute per-section budgets
   const wmBudget = Math.floor(budget * alloc.workingMemory);
-  const semanticBudget = Math.floor(budget * alloc.semanticRecall);
+  let semanticBudget = Math.floor(budget * alloc.semanticRecall);
   const episodicBudget = Math.floor(budget * alloc.recentEpisodic);
   const prospectiveBudget = Math.floor(budget * alloc.prospectiveAlerts);
   const graphBudget = Math.floor(budget * alloc.graphAssociations);
