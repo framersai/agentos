@@ -1,3 +1,9 @@
+## <small>0.1.42 (2026-03-13)</small>
+
+* fix(build): add src/memory/**/*.ts to tsconfig.build.json include list ([a5c61d2](https://github.com/framersai/agentos/commit/a5c61d2))
+* feat(memory): add cognitive memory system — episodic, semantic, procedural, prospective traces ([d4c6ba7](https://github.com/framersai/agentos/commit/d4c6ba7))
+* chore(deps): bump sql-storage-adapter peer dep to >=0.5.0 ([911bc3e](https://github.com/framersai/agentos/commit/911bc3e))
+
 ## <small>0.1.41 (2026-03-08)</small>
 
 * feat(auth): browser-based PKCE OAuth for OpenAI + API key exchange ([a9177ea](https://github.com/framersai/agentos/commit/a9177ea))
