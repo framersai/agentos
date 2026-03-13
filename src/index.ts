@@ -89,6 +89,8 @@ export * from './types/rateLimitTypes';
 export * from './core/storage';
 // RAG (Retrieval Augmented Generation)
 export * from './rag';
+// Cognitive Memory System
+export * from './memory';
 // Provenance, Audit & Immutability
 export * from './core/provenance';
 // Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)

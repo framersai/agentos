@@ -897,9 +897,19 @@ export class OpenAIProvider implements IProvider {
         }
         // Exponential backoff for retries not handled by 429
         const delay = Math.min(30000, (1000 * (2 ** attempt)) + Math.random() * 1000); // Add jitter
-        console.warn(`OpenAIProvider: Request attempt ${attempt + 1} failed. Retrying in ${delay.toFixed(0)}ms. Error: ${lastError.message}`);
+        // Keep retry logs concise — network errors are common and the stack trace is noise
+        const isNetwork = lastError instanceof OpenAIProviderError && lastError.code === 'NETWORK_ERROR';
+        const shortMsg = isNetwork ? 'Network unreachable' : lastError.message;
+        console.warn(`[LLM] Retry ${attempt + 1}/${this.config.maxRetries! - 1} in ${(delay / 1000).toFixed(1)}s — ${shortMsg}`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
+    }
+    // For network errors, replace the cryptic cause chain with a clean message
+    if (lastError instanceof OpenAIProviderError && lastError.code === 'NETWORK_ERROR') {
+      throw new OpenAIProviderError(
+        `Network error: unable to reach ${this.config.baseURL}. Check your internet connection.`,
+        'NETWORK_ERROR',
+      );
     }
     throw lastError; // Throw the last encountered error after all retries
   }

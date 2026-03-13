@@ -3851,7 +3851,74 @@ const policy: MemoryLifecyclePolicy = {
 
 ---
 
-## 🆕 Planning Engine - Autonomous Goal Pursuit (v1.1.0)
+## Cognitive Memory System
+
+The **Cognitive Memory System** replaces flat key-value memory with a personality-modulated, decay-aware memory architecture grounded in cognitive science. It sits alongside the existing RAG subsystem and integrates into the GMI turn loop.
+
+### Core Model
+
+Memory traces follow the Ebbinghaus forgetting curve:
+
+```
+S(t) = S₀ * e^(-dt / stability)
+```
+
+where `S₀` is the initial encoding strength (set by personality, arousal, and content features) and `stability` grows with each successful retrieval (spaced repetition). Traces below a pruning threshold are soft-deleted during consolidation.
+
+### Architecture Summary
+
+```
+CognitiveMemoryManager (orchestrator)
+  ├── EncodingModel         — HEXACO traits → encoding weights, Yerkes-Dodson, flashbulb memories
+  ├── DecayModel            — Ebbinghaus curve, spaced repetition, interference management
+  ├── CognitiveWorkingMemory — Baddeley's slot model (7±2, personality-modulated)
+  ├── MemoryStore           — IVectorStore + IKnowledgeGraph unified persistence
+  ├── MemoryPromptAssembler — Token-budgeted 6-section prompt assembly
+  ├── IMemoryGraph          — Graphology / KnowledgeGraph adapter with 8 edge types
+  ├── SpreadingActivation   — Anderson's ACT-R BFS with Hebbian learning
+  ├── MemoryObserver        — Personality-biased background note extraction
+  ├── MemoryReflector       — LLM-driven consolidation of notes into long-term traces
+  ├── ProspectiveMemoryManager — Time/event/context-triggered future intentions
+  └── ConsolidationPipeline — 5-step periodic maintenance (decay, replay, schema, conflicts, reinforcement)
+```
+
+### Memory Types and Scopes
+
+Four memory types (Tulving's taxonomy): `episodic`, `semantic`, `procedural`, `prospective`. Four scopes controlling visibility: `thread`, `user`, `persona`, `organization`.
+
+### Retrieval Scoring
+
+Retrieval combines six weighted signals into a composite score:
+
+| Signal | Weight | Source |
+|--------|--------|--------|
+| Strength (decay) | 0.25 | Ebbinghaus curve |
+| Similarity | 0.35 | Vector cosine similarity |
+| Recency | 0.10 | Exponential recency boost |
+| Emotional congruence | 0.15 | Mood-congruent recall bias |
+| Graph activation | 0.10 | Spreading activation |
+| Importance | 0.05 | Provenance confidence |
+
+### GMI Integration Points
+
+1. **After user message**: `encode()` creates a MemoryTrace with personality-modulated strength
+2. **Before prompt construction**: `assembleForPrompt()` retrieves and formats memory within a token budget
+3. **After response**: `observe()` feeds the response to the observer buffer for background consolidation
+
+### Batch 2 Modules
+
+Advanced modules activate when their config is provided and degrade gracefully (no-op) when absent:
+
+- **Observer/Reflector**: Extract observation notes from conversation, consolidate into long-term traces via LLM
+- **Memory Graph**: 8 edge types with spreading activation (Anderson's ACT-R) and Hebbian learning
+- **Prospective Memory**: Register time/event/context triggers for future intentions
+- **Consolidation Pipeline**: Hourly sweep — prune decayed traces, create co-activation edges, merge clusters into schemas, resolve contradictions, reinforce spaced repetition targets
+
+For full details, see [Cognitive Memory System](./COGNITIVE_MEMORY.md).
+
+---
+
+## Planning Engine - Autonomous Goal Pursuit (v1.1.0)
 
 ### Overview
 

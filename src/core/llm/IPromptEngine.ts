@@ -135,6 +135,8 @@ export interface PromptComponents {
   toolSchemas?: Array<Record<string, unknown>>;
   /** Retrieved context from a RAG system, to be incorporated into the prompt. */
   retrievedContext?: string | Array<{ source: string; content: string; relevance?: number; type?: string }>;
+  /** Assembled cognitive memory context (personality-affected, token-budgeted). Merged with retrievedContext by the prompt template. */
+  assembledMemoryContext?: import('../../memory/types.js').AssembledMemoryContext;
   /** Task-specific data or parameters that need to be included in the prompt. */
   taskSpecificData?: Record<string, unknown>;
   /** Additional custom components that templates might use. */

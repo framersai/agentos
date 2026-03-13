@@ -165,6 +165,8 @@ export interface GMIBaseConfig {
   utilityAI: IUtilityAI;
   toolOrchestrator: IToolOrchestrator;
   retrievalAugmentor?: IRetrievalAugmentor;
+  /** Cognitive memory system (personality-affected encoding/retrieval with Ebbinghaus decay). */
+  cognitiveMemory?: import('../memory/CognitiveMemoryManager.js').ICognitiveMemoryManager;
   defaultLlmProviderId?: string;
   defaultLlmModelId?: string;
   customSettings?: Record<string, any>;

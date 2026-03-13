@@ -390,10 +390,15 @@ export class EmbeddingManager implements IEmbeddingManager {
 
         } catch (error: any) {
           const errorMessage = error instanceof GMIError ? error.message : (error.message || 'Unknown error during batch embedding generation.');
-          console.error(
-            `EmbeddingManager: Error embedding batch with model '${selectedModelConfig.modelId}' via provider '${provider.providerId}': ${errorMessage}`,
-            error instanceof GMIError ? error.details : error,
-          );
+          // Log concisely — don't dump full error objects with stack traces for expected failures like network errors
+          const isNetworkError = /fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|network/i.test(errorMessage);
+          if (isNetworkError) {
+            console.warn(`[Embeddings] Network error — embedding batch skipped (model: ${selectedModelConfig.modelId})`);
+          } else {
+            console.error(
+              `[Embeddings] Error embedding batch with model '${selectedModelConfig.modelId}' via provider '${provider.providerId}': ${errorMessage}`,
+            );
+          }
           // Mark all texts attempted in this failed provider call as errored
           providerFetchIndexToOriginalIndexMap.forEach(originalTextIndex => {
             // Only add error if not already successfully processed (e.g., from cache)

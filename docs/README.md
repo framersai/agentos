@@ -37,6 +37,7 @@
 - [**Safety Primitives**](./SAFETY_PRIMITIVES.md) — Circuit breakers, cost guards, stuck detection, and tool execution guards
 
 #### Memory & Storage
+- [**Cognitive Memory System**](./COGNITIVE_MEMORY.md) — Personality-modulated memory with Ebbinghaus decay, Baddeley's working memory, spreading activation, and HEXACO-driven encoding
 - [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) — Vector storage and retrieval setup
 - [**SQL Storage Quickstart**](./SQL_STORAGE_QUICKSTART.md) — Database integration guide
 - [**Client-Side Storage**](./CLIENT_SIDE_STORAGE.md) — Browser-based persistence
