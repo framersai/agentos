@@ -1,3 +1,7 @@
+## <small>0.1.44 (2026-03-13)</small>
+
+* feat(memory): enhance cognitive memory — typed taxonomy, scope hydration, prospective API ([833adb0](https://github.com/framersai/agentos/commit/833adb0))
+
 ## <small>0.1.43 (2026-03-13)</small>
 
 * fix(memory): resolve lint errors — prefer-const and no-misleading-character-class ([e7e93a9](https://github.com/framersai/agentos/commit/e7e93a9))
