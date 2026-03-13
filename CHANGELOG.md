@@ -1,3 +1,8 @@
+## <small>0.1.43 (2026-03-13)</small>
+
+* fix(memory): resolve lint errors — prefer-const and no-misleading-character-class ([e7e93a9](https://github.com/framersai/agentos/commit/e7e93a9))
+* fix(memory): revert semanticBudget to let — it is reassigned downstream ([10931e8](https://github.com/framersai/agentos/commit/10931e8))
+
 ## <small>0.1.42 (2026-03-13)</small>
 
 * fix(build): add src/memory/**/*.ts to tsconfig.build.json include list ([a5c61d2](https://github.com/framersai/agentos/commit/a5c61d2))
