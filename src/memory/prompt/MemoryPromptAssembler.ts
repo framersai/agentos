@@ -88,12 +88,12 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
   const style = selectFormattingStyle(input.traits);
 
   // Compute per-section budgets
-  let wmBudget = Math.floor(budget * alloc.workingMemory);
-  let semanticBudget = Math.floor(budget * alloc.semanticRecall);
-  let episodicBudget = Math.floor(budget * alloc.recentEpisodic);
-  let prospectiveBudget = Math.floor(budget * alloc.prospectiveAlerts);
-  let graphBudget = Math.floor(budget * alloc.graphAssociations);
-  let observationBudget = Math.floor(budget * alloc.observationNotes);
+  const wmBudget = Math.floor(budget * alloc.workingMemory);
+  const semanticBudget = Math.floor(budget * alloc.semanticRecall);
+  const episodicBudget = Math.floor(budget * alloc.recentEpisodic);
+  const prospectiveBudget = Math.floor(budget * alloc.prospectiveAlerts);
+  const graphBudget = Math.floor(budget * alloc.graphAssociations);
+  const observationBudget = Math.floor(budget * alloc.observationNotes);
 
   const sections: string[] = [];
   const includedIds: string[] = [];

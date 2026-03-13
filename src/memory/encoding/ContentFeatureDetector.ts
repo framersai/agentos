@@ -42,7 +42,7 @@ const EMOTION_PATTERNS = [
   /\blove\b|\bhate\b|\bfear\b/i,
   /\bthank/i, /\bsorry\b/i, /\bgrateful\b/i,
   /\bdisappoint/i, /\bdeligh/i, /\bupset\b/i,
-  /[!]{2,}/, /[😀-🙏🤣😂❤️😍😊🥺😭😘🤔😅😩🥰😡💀]/u,
+  /[!]{2,}/, /(?:\u{1F600}|\u{1F64F}|\u{1F923}|\u{1F602}|\u{2764}\u{FE0F}|\u{1F60D}|\u{1F60A}|\u{1F97A}|\u{1F62D}|\u{1F618}|\u{1F914}|\u{1F605}|\u{1F629}|\u{1F970}|\u{1F621}|\u{1F480})/u,
 ];
 
 const SOCIAL_PATTERNS = [
