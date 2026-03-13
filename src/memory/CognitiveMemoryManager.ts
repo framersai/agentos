@@ -20,16 +20,13 @@ import type {
   MemoryHealthReport,
   ContentFeatures,
 } from './types.js';
-import type {
-  CognitiveMemoryConfig,
-  PADState,
-  HexacoTraits,
-} from './config.js';
-import { DEFAULT_ENCODING_CONFIG, DEFAULT_DECAY_CONFIG, DEFAULT_BUDGET_ALLOCATION } from './config.js';
+import type { CognitiveMemoryConfig, PADState, HexacoTraits } from './config.js';
 import {
-  computeEncodingStrength,
-  buildEmotionalContext,
-} from './encoding/EncodingModel.js';
+  DEFAULT_ENCODING_CONFIG,
+  DEFAULT_DECAY_CONFIG,
+  DEFAULT_BUDGET_ALLOCATION,
+} from './config.js';
+import { computeEncodingStrength, buildEmotionalContext } from './encoding/EncodingModel.js';
 import {
   createFeatureDetector,
   type IContentFeatureDetector,
@@ -37,7 +34,10 @@ import {
 import { computeCurrentStrength } from './decay/DecayModel.js';
 import { MemoryStore } from './store/MemoryStore.js';
 import { CognitiveWorkingMemory } from './working/CognitiveWorkingMemory.js';
-import { assembleMemoryContext, type MemoryAssemblerInput } from './prompt/MemoryPromptAssembler.js';
+import {
+  assembleMemoryContext,
+  type MemoryAssemblerInput,
+} from './prompt/MemoryPromptAssembler.js';
 
 // Batch 2 imports
 import type { IMemoryGraph, ActivatedNode } from './graph/IMemoryGraph.js';
@@ -45,8 +45,14 @@ import { GraphologyMemoryGraph } from './graph/GraphologyMemoryGraph.js';
 import { KnowledgeGraphMemoryGraph } from './graph/KnowledgeGraphMemoryGraph.js';
 import { MemoryObserver, type ObservationNote } from './observation/MemoryObserver.js';
 import { MemoryReflector } from './observation/MemoryReflector.js';
-import { ProspectiveMemoryManager, type ProspectiveMemoryItem } from './prospective/ProspectiveMemoryManager.js';
-import { ConsolidationPipeline, type ConsolidationResult } from './consolidation/ConsolidationPipeline.js';
+import {
+  ProspectiveMemoryManager,
+  type ProspectiveMemoryItem,
+} from './prospective/ProspectiveMemoryManager.js';
+import {
+  ConsolidationPipeline,
+  type ConsolidationResult,
+} from './consolidation/ConsolidationPipeline.js';
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -68,14 +74,14 @@ export interface ICognitiveMemoryManager {
       contentSentiment?: number;
       tags?: string[];
       entities?: string[];
-    },
+    }
   ): Promise<MemoryTrace>;
 
   /** Retrieve relevant memories for a query. Called before prompt construction. */
   retrieve(
     query: string,
     mood: PADState,
-    options?: CognitiveRetrievalOptions,
+    options?: CognitiveRetrievalOptions
   ): Promise<CognitiveRetrievalResult>;
 
   /** Assemble memory context for prompt injection within a token budget. */
@@ -83,14 +89,36 @@ export interface ICognitiveMemoryManager {
     query: string,
     tokenBudget: number,
     mood: PADState,
-    options?: CognitiveRetrievalOptions,
+    options?: CognitiveRetrievalOptions
   ): Promise<AssembledMemoryContext>;
 
   /** Feed a message to the observer (Batch 2). Returns notes if threshold reached. */
-  observe?(role: 'user' | 'assistant' | 'system' | 'tool', content: string, mood?: PADState): Promise<ObservationNote[] | null>;
+  observe?(
+    role: 'user' | 'assistant' | 'system' | 'tool',
+    content: string,
+    mood?: PADState
+  ): Promise<ObservationNote[] | null>;
 
   /** Check prospective memory triggers (Batch 2). */
-  checkProspective?(context: { now?: number; events?: string[]; queryText?: string; queryEmbedding?: number[] }): Promise<ProspectiveMemoryItem[]>;
+  checkProspective?(context: {
+    now?: number;
+    events?: string[];
+    queryText?: string;
+    queryEmbedding?: number[];
+  }): Promise<ProspectiveMemoryItem[]>;
+
+  /** Register a new prospective reminder/intention. */
+  registerProspective?(
+    input: Omit<ProspectiveMemoryItem, 'id' | 'triggered' | 'createdAt' | 'cueEmbedding'> & {
+      cueText?: string;
+    }
+  ): Promise<ProspectiveMemoryItem>;
+
+  /** List active prospective reminders. */
+  listProspective?(): Promise<ProspectiveMemoryItem[]>;
+
+  /** Remove a prospective reminder. */
+  removeProspective?(id: string): Promise<boolean>;
 
   /** Run consolidation cycle (Batch 2). */
   runConsolidation?(): Promise<ConsolidationResult>;
@@ -154,7 +182,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     // Feature detector
     this.featureDetector = createFeatureDetector(
       config.featureDetectionStrategy,
-      config.featureDetectionLlmInvoker,
+      config.featureDetectionLlmInvoker
     );
 
     // --- Batch 2: Memory Graph ---
@@ -215,7 +243,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       contentSentiment?: number;
       tags?: string[];
       entities?: string[];
-    } = {},
+    } = {}
   ): Promise<MemoryTrace> {
     this.ensureInitialized();
 
@@ -231,7 +259,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       this.config.traits,
       features,
       options.contentSentiment ?? 0,
-      encodingConfig,
+      encodingConfig
     );
 
     // Build emotional context
@@ -292,7 +320,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   async retrieve(
     query: string,
     mood: PADState,
-    options: CognitiveRetrievalOptions = {},
+    options: CognitiveRetrievalOptions = {}
   ): Promise<CognitiveRetrievalResult> {
     this.ensureInitialized();
 
@@ -316,15 +344,26 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
           if (match) {
             match.scoreBreakdown.graphActivationScore = node.activation;
             // Re-compute composite score with graph activation
-            const w = { strength: 0.25, similarity: 0.35, recency: 0.10, emotionalCongruence: 0.15, graphActivation: 0.10, importance: 0.05 };
-            match.retrievalScore = Math.max(0, Math.min(1,
-              w.strength * match.scoreBreakdown.strengthScore +
-              w.similarity * match.scoreBreakdown.similarityScore +
-              w.recency * match.scoreBreakdown.recencyScore +
-              w.emotionalCongruence * match.scoreBreakdown.emotionalCongruenceScore +
-              w.graphActivation * node.activation +
-              w.importance * match.scoreBreakdown.importanceScore,
-            ));
+            const w = {
+              strength: 0.25,
+              similarity: 0.35,
+              recency: 0.1,
+              emotionalCongruence: 0.15,
+              graphActivation: 0.1,
+              importance: 0.05,
+            };
+            match.retrievalScore = Math.max(
+              0,
+              Math.min(
+                1,
+                w.strength * match.scoreBreakdown.strengthScore +
+                  w.similarity * match.scoreBreakdown.similarityScore +
+                  w.recency * match.scoreBreakdown.recencyScore +
+                  w.emotionalCongruence * match.scoreBreakdown.emotionalCongruenceScore +
+                  w.graphActivation * node.activation +
+                  w.importance * match.scoreBreakdown.importanceScore
+              )
+            );
           }
         }
 
@@ -335,7 +374,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         const retrievedIds = scored.slice(0, 5).map((t) => t.id);
         await this.graph.recordCoActivation(
           retrievedIds,
-          this.config.graph?.hebbianLearningRate ?? 0.1,
+          this.config.graph?.hebbianLearningRate ?? 0.1
         );
       } catch {
         // Graph operations are non-critical
@@ -373,7 +412,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     query: string,
     tokenBudget: number,
     mood: PADState,
-    options: CognitiveRetrievalOptions = {},
+    options: CognitiveRetrievalOptions = {}
   ): Promise<AssembledMemoryContext> {
     this.ensureInitialized();
 
@@ -390,7 +429,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       try {
         const resp = await this.config.embeddingManager.generateEmbeddings({ texts: query });
         queryEmbedding = resp.embeddings[0];
-      } catch { /* non-critical */ }
+      } catch {
+        /* non-critical */
+      }
 
       const triggered = await this.prospective.check({
         queryText: query,
@@ -410,10 +451,14 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         for (const node of activated) {
           const trace = this.store.getTrace(node.memoryId);
           if (trace) {
-            graphContext.push(`[associated, activation=${node.activation.toFixed(2)}] ${trace.content.substring(0, 150)}`);
+            graphContext.push(
+              `[associated, activation=${node.activation.toFixed(2)}] ${trace.content.substring(0, 150)}`
+            );
           }
         }
-      } catch { /* non-critical */ }
+      } catch {
+        /* non-critical */
+      }
     }
 
     const input: MemoryAssemblerInput = {
@@ -437,7 +482,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   async observe(
     role: 'user' | 'assistant' | 'system' | 'tool',
     content: string,
-    mood?: PADState,
+    mood?: PADState
   ): Promise<ObservationNote[] | null> {
     if (!this.observer) return null;
 
@@ -461,7 +506,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
               sourceType: traceData.provenance.sourceType,
               tags: traceData.tags,
               entities: traceData.entities,
-            },
+            }
           );
         }
 
@@ -487,6 +532,25 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   }): Promise<ProspectiveMemoryItem[]> {
     if (!this.prospective) return [];
     return this.prospective.check(context);
+  }
+
+  async registerProspective(
+    input: Omit<ProspectiveMemoryItem, 'id' | 'triggered' | 'createdAt' | 'cueEmbedding'> & {
+      cueText?: string;
+    }
+  ): Promise<ProspectiveMemoryItem> {
+    if (!this.prospective) {
+      throw new Error('Prospective memory is not initialized.');
+    }
+    return this.prospective.register(input);
+  }
+
+  async listProspective(): Promise<ProspectiveMemoryItem[]> {
+    return this.prospective?.getActive() ?? [];
+  }
+
+  async removeProspective(id: string): Promise<boolean> {
+    return this.prospective?.remove(id) ?? false;
   }
 
   // =========================================================================

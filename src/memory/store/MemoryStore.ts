@@ -10,7 +10,12 @@
  * @module agentos/memory/store/MemoryStore
  */
 
-import type { IVectorStore, VectorDocument, QueryOptions, MetadataFilter } from '../../rag/IVectorStore.js';
+import type {
+  IVectorStore,
+  VectorDocument,
+  QueryOptions,
+  MetadataFilter,
+} from '../../rag/IVectorStore.js';
 import type { IEmbeddingManager } from '../../rag/IEmbeddingManager.js';
 import type { IKnowledgeGraph } from '../../core/knowledge/IKnowledgeGraph.js';
 import type {
@@ -23,7 +28,11 @@ import type {
 } from '../types.js';
 import type { PADState, DecayConfig } from '../config.js';
 import { DEFAULT_DECAY_CONFIG } from '../config.js';
-import { computeCurrentStrength, updateOnRetrieval, type RetrievalUpdateResult } from '../decay/DecayModel.js';
+import {
+  computeCurrentStrength,
+  updateOnRetrieval,
+  type RetrievalUpdateResult,
+} from '../decay/DecayModel.js';
 import {
   scoreAndRankTraces,
   detectPartiallyRetrieved,
@@ -52,6 +61,10 @@ export interface MemoryStoreConfig {
 
 function collectionName(prefix: string, scope: MemoryScope, scopeId: string): string {
   return `${prefix}_${scope}_${scopeId}`;
+}
+
+function scopeKey(scope: MemoryScope, scopeId: string): string {
+  return `${scope}:${scopeId}`;
 }
 
 function traceToMetadata(trace: MemoryTrace): Record<string, any> {
@@ -103,7 +116,8 @@ function metadataToTracePartial(metadata: Record<string, any>): Partial<MemoryTr
     createdAt: metadata.createdAt as number,
     isActive: metadata.isActive === 1,
     tags: typeof metadata.tags === 'string' ? metadata.tags.split(',').filter(Boolean) : [],
-    entities: typeof metadata.entities === 'string' ? metadata.entities.split(',').filter(Boolean) : [],
+    entities:
+      typeof metadata.entities === 'string' ? metadata.entities.split(',').filter(Boolean) : [],
   };
 }
 
@@ -116,6 +130,8 @@ export class MemoryStore {
   private decay: DecayConfig;
   /** Cache of full MemoryTrace objects by ID. */
   private traceCache: Map<string, MemoryTrace> = new Map();
+  /** Track concrete scopes we have seen, so retrieval never falls back to a fake wildcard scope. */
+  private knownScopes: Map<string, { scope: MemoryScope; scopeId: string }> = new Map();
 
   constructor(config: MemoryStoreConfig) {
     this.config = config;
@@ -175,6 +191,7 @@ export class MemoryStore {
 
     // Cache
     this.traceCache.set(trace.id, trace);
+    this.registerScope(trace.scope, trace.scopeId);
   }
 
   // =========================================================================
@@ -187,13 +204,16 @@ export class MemoryStore {
   async query(
     queryText: string,
     currentMood: PADState,
-    options: CognitiveRetrievalOptions = {},
+    options: CognitiveRetrievalOptions = {}
   ): Promise<{ scored: ScoredMemoryTrace[]; partial: PartiallyRetrievedTrace[] }> {
     const now = Date.now();
     const topK = options.topK ?? 20;
 
     // Determine which collections to search
-    const scopes = options.scopes ?? [{ scope: 'user' as MemoryScope, scopeId: '*' }];
+    const scopes = options.scopes?.length ? options.scopes : this.getKnownScopes();
+    if (scopes.length === 0) {
+      return { scored: [], partial: [] };
+    }
 
     // Generate query embedding
     const embeddingResponse = await this.config.embeddingManager.generateEmbeddings({
@@ -230,15 +250,24 @@ export class MemoryStore {
           const tracePartial = metadataToTracePartial(result.metadata ?? {});
           const cached = this.traceCache.get(result.id);
 
-          const trace: MemoryTrace = cached ?? {
-            id: result.id,
-            content: result.textContent ?? '',
-            structuredData: undefined,
-            associatedTraceIds: [],
-            reinforcementInterval: 3_600_000,
-            updatedAt: Date.now(),
-            ...tracePartial,
-          } as MemoryTrace;
+          const trace: MemoryTrace =
+            cached ??
+            ({
+              id: result.id,
+              content: result.textContent ?? '',
+              structuredData: undefined,
+              associatedTraceIds: [],
+              reinforcementInterval: 3_600_000,
+              updatedAt: Date.now(),
+              ...tracePartial,
+            } as MemoryTrace);
+
+          if (!cached) {
+            this.traceCache.set(trace.id, trace);
+          }
+          if (trace.scope && trace.scopeId) {
+            this.registerScope(trace.scope, trace.scopeId);
+          }
 
           allCandidates.push({
             trace,
@@ -296,12 +325,14 @@ export class MemoryStore {
       const embeddingResponse = await this.config.embeddingManager.generateEmbeddings({
         texts: trace.content,
       });
-      await this.config.vectorStore.upsert(collection, [{
-        id: trace.id,
-        textContent: trace.content,
-        embedding: embeddingResponse.embeddings[0],
-        metadata: traceToMetadata(trace),
-      }]);
+      await this.config.vectorStore.upsert(collection, [
+        {
+          id: trace.id,
+          textContent: trace.content,
+          embedding: embeddingResponse.embeddings[0],
+          metadata: traceToMetadata(trace),
+        },
+      ]);
     } catch {
       // Non-critical update
     }
@@ -316,11 +347,7 @@ export class MemoryStore {
   /**
    * Get all traces for a scope (for consolidation pipeline).
    */
-  async getByScope(
-    scope: MemoryScope,
-    scopeId: string,
-    type?: MemoryType,
-  ): Promise<MemoryTrace[]> {
+  async getByScope(scope: MemoryScope, scopeId: string, type?: MemoryType): Promise<MemoryTrace[]> {
     // Return from cache + filter
     const results: MemoryTrace[] = [];
     for (const trace of this.traceCache.values()) {
@@ -367,5 +394,14 @@ export class MemoryStore {
       if (trace.isActive) count++;
     }
     return count;
+  }
+
+  private registerScope(scope: MemoryScope, scopeId: string): void {
+    if (!scopeId) return;
+    this.knownScopes.set(scopeKey(scope, scopeId), { scope, scopeId });
+  }
+
+  private getKnownScopes(): Array<{ scope: MemoryScope; scopeId: string }> {
+    return [...this.knownScopes.values()];
   }
 }

@@ -57,7 +57,8 @@ export interface ExtensionLifecycleContext {
  * a common shape for extension packages that expose a `createExtensionPack(context)`
  * function for direct, programmatic consumption.
  */
-export interface ExtensionContext<TOptions = Record<string, unknown>> extends ExtensionLifecycleContext {
+export interface ExtensionContext<TOptions = Record<string, unknown>>
+  extends ExtensionLifecycleContext {
   options?: TOptions;
   onActivate?: () => Promise<void> | void;
   onDeactivate?: () => Promise<void> | void;
@@ -167,14 +168,16 @@ export const EXTENSION_KIND_HTTP_HANDLER = 'http-handler';
 export const EXTENSION_KIND_PROVENANCE = 'provenance';
 
 export type ToolDescriptor = ExtensionDescriptor<ITool> & { kind: typeof EXTENSION_KIND_TOOL };
-export type GuardrailDescriptor = ExtensionDescriptor<IGuardrailService> & { kind: typeof EXTENSION_KIND_GUARDRAIL };
+export type GuardrailDescriptor = ExtensionDescriptor<IGuardrailService> & {
+  kind: typeof EXTENSION_KIND_GUARDRAIL;
+};
 export type WorkflowDescriptor = ExtensionDescriptor<WorkflowDescriptorPayload> & {
   kind: typeof EXTENSION_KIND_WORKFLOW;
 };
 
 export type HttpHandlerPayload = (
   req: IncomingMessage,
-  res: ServerResponse,
+  res: ServerResponse
 ) => Promise<boolean> | boolean;
 
 export type HttpHandlerDescriptor = ExtensionDescriptor<HttpHandlerPayload> & {
@@ -193,7 +196,7 @@ export interface WorkflowExtensionExecutionResult {
 }
 
 export type WorkflowExtensionExecutor = (
-  context: WorkflowExtensionExecutionContext,
+  context: WorkflowExtensionExecutionContext
 ) => Promise<WorkflowExtensionExecutionResult> | WorkflowExtensionExecutionResult;
 
 export type WorkflowExecutorDescriptor = ExtensionDescriptor<WorkflowExtensionExecutor> & {
@@ -251,7 +254,11 @@ export interface PlanningStrategyPayload {
   /** Priority order when multiple strategies match (higher = preferred) */
   priority: number;
   /** Optional condition function to determine if this strategy should be used */
-  shouldActivate?: (context: { goal: string; complexity: number; agentCapabilities: string[] }) => boolean;
+  shouldActivate?: (context: {
+    goal: string;
+    complexity: number;
+    agentCapabilities: string[];
+  }) => boolean;
   /** The planning function to execute */
   generatePlan: (goal: string, context: Record<string, unknown>) => Promise<unknown>;
   /** Optional refinement function */
@@ -277,7 +284,12 @@ export interface HITLHandlerPayload {
   /** Types of interactions this handler supports */
   supportedTypes: ('approval' | 'clarification' | 'edit' | 'escalation' | 'checkpoint')[];
   /** Handler function for sending notifications */
-  sendNotification: (notification: { type: string; requestId: string; summary: string; urgency: string }) => Promise<void>;
+  sendNotification: (notification: {
+    type: string;
+    requestId: string;
+    summary: string;
+    urgency: string;
+  }) => Promise<void>;
   /** Optional function to check handler health/connectivity */
   checkHealth?: () => Promise<{ healthy: boolean; message?: string }>;
 }
@@ -321,7 +333,8 @@ export type CommunicationChannelDescriptor = ExtensionDescriptor<CommunicationCh
 
 /**
  * Memory provider payload for custom memory/storage backends.
- * Providers handle storage and retrieval for agent memory (RAG, episodic, etc.).
+ * Providers handle storage and retrieval for agent memory, including
+ * vector/conversational backends and cognitive memory systems.
  */
 export interface MemoryProviderPayload {
   /** Provider name (e.g., 'pinecone', 'weaviate', 'qdrant', 'sql') */
@@ -329,13 +342,24 @@ export interface MemoryProviderPayload {
   /** Provider description */
   description: string;
   /** Memory types this provider supports */
-  supportedTypes: ('vector' | 'episodic' | 'semantic' | 'conversational')[];
+  supportedTypes: (
+    | 'vector'
+    | 'conversational'
+    | 'episodic'
+    | 'semantic'
+    | 'procedural'
+    | 'prospective'
+  )[];
   /** Initialize the provider */
   initialize: (config: Record<string, unknown>) => Promise<void>;
   /** Store data */
   store: (collectionId: string, data: unknown) => Promise<string>;
   /** Query data */
-  query: (collectionId: string, query: unknown, options?: Record<string, unknown>) => Promise<unknown[]>;
+  query: (
+    collectionId: string,
+    query: unknown,
+    options?: Record<string, unknown>
+  ) => Promise<unknown[]>;
   /** Delete data */
   delete?: (collectionId: string, ids: string[]) => Promise<void>;
   /** Get provider statistics */

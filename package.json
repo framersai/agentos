@@ -18,6 +18,11 @@
       "default": "./dist/skills.js",
       "types": "./dist/skills.d.ts"
     },
+    "./memory": {
+      "import": "./dist/memory/index.js",
+      "default": "./dist/memory/index.js",
+      "types": "./dist/memory/index.d.ts"
+    },
     "./core/guardrails": {
       "import": "./dist/core/guardrails/index.js",
       "default": "./dist/core/guardrails/index.js",
@@ -92,6 +97,11 @@
       "import": "./dist/discovery/index.js",
       "default": "./dist/discovery/index.js",
       "types": "./dist/discovery/index.d.ts"
+    },
+    "./memory/index": {
+      "import": "./dist/memory/index.js",
+      "default": "./dist/memory/index.js",
+      "types": "./dist/memory/index.d.ts"
     },
     "./auth": {
       "import": "./dist/core/llm/auth/index.js",

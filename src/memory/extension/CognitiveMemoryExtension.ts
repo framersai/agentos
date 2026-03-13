@@ -12,6 +12,85 @@ import {
   type MemoryProviderPayload,
   type MemoryProviderDescriptor,
 } from '../../extensions/types.js';
+import type { CognitiveRetrievalOptions } from '../types.js';
+import type { PADState } from '../config.js';
+import type { ICognitiveMemoryManager } from '../CognitiveMemoryManager.js';
+
+type RuntimeCognitiveMemoryManager = Pick<
+  ICognitiveMemoryManager,
+  'encode' | 'retrieve' | 'shutdown'
+> & {
+  getStore?: () => {
+    softDelete?: (traceId: string) => Promise<void> | void;
+  };
+};
+
+type CognitiveMemoryStoreInput = {
+  input: string;
+  mood?: PADState;
+  gmiMood?: string;
+  options?: Parameters<ICognitiveMemoryManager['encode']>[3];
+};
+
+type CognitiveMemoryQueryInput = {
+  text?: string;
+  query?: string;
+  mood?: PADState;
+};
+
+const NEUTRAL_PAD: PADState = {
+  valence: 0,
+  arousal: 0,
+  dominance: 0,
+};
+
+function isRuntimeManager(value: unknown): value is RuntimeCognitiveMemoryManager {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as RuntimeCognitiveMemoryManager).encode === 'function' &&
+    typeof (value as RuntimeCognitiveMemoryManager).retrieve === 'function'
+  );
+}
+
+function parseStoreInput(data: unknown): CognitiveMemoryStoreInput {
+  if (typeof data === 'string') {
+    return { input: data };
+  }
+  if (typeof data !== 'object' || data === null) {
+    throw new Error(
+      'Cognitive memory store() expects a string or { input, mood?, gmiMood?, options? }.'
+    );
+  }
+  const parsed = data as Partial<CognitiveMemoryStoreInput>;
+  if (typeof parsed.input !== 'string' || !parsed.input.trim()) {
+    throw new Error('Cognitive memory store() requires a non-empty input string.');
+  }
+  return {
+    input: parsed.input,
+    mood: parsed.mood,
+    gmiMood: parsed.gmiMood,
+    options: parsed.options,
+  };
+}
+
+function parseQueryInput(query: unknown): { text: string; mood: PADState } {
+  if (typeof query === 'string') {
+    return { text: query, mood: NEUTRAL_PAD };
+  }
+  if (typeof query !== 'object' || query === null) {
+    throw new Error('Cognitive memory query() expects a string or { text|query, mood? }.');
+  }
+  const parsed = query as CognitiveMemoryQueryInput;
+  const text = parsed.text ?? parsed.query;
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new Error('Cognitive memory query() requires a non-empty query string.');
+  }
+  return {
+    text,
+    mood: parsed.mood ?? NEUTRAL_PAD,
+  };
+}
 
 /**
  * Create a MemoryProviderDescriptor for the cognitive memory system.
@@ -21,29 +100,65 @@ import {
  * manager, etc.) injected at activation time.
  */
 export function createCognitiveMemoryDescriptor(
-  overrides?: Partial<MemoryProviderPayload>,
+  overrides?: Partial<MemoryProviderPayload>
 ): MemoryProviderDescriptor {
+  let manager: RuntimeCognitiveMemoryManager | null = null;
+
   const payload: MemoryProviderPayload = {
     name: 'cognitive-memory',
     description:
       'Cognitive science-grounded memory system with personality-affected ' +
       'encoding/retrieval, Ebbinghaus decay, mood-congruent recall, and ' +
       'Baddeley working memory slots.',
-    supportedTypes: ['vector', 'episodic', 'semantic', 'conversational'],
-    initialize: async (_config: Record<string, unknown>) => {
-      // Actual initialization happens via CognitiveMemoryManager.initialize()
-      // This hook is for the extension lifecycle
+    supportedTypes: ['episodic', 'semantic', 'procedural', 'prospective'],
+    initialize: async (config: Record<string, unknown>) => {
+      const candidate = config.manager;
+      if (!isRuntimeManager(candidate)) {
+        throw new Error(
+          'Cognitive memory provider requires initialize({ manager }) with encode()/retrieve() methods.'
+        );
+      }
+      manager = candidate;
     },
-    store: async (_collectionId: string, _data: unknown) => {
-      // Delegates to CognitiveMemoryManager.encode()
-      return '';
+    store: async (_collectionId: string, data: unknown) => {
+      if (!manager) {
+        throw new Error('Cognitive memory provider not initialized.');
+      }
+      const input = parseStoreInput(data);
+      const trace = await manager.encode(
+        input.input,
+        input.mood ?? NEUTRAL_PAD,
+        input.gmiMood ?? '',
+        input.options
+      );
+      return trace.id;
     },
-    query: async (_collectionId: string, _query: unknown, _options?: Record<string, unknown>) => {
-      // Delegates to CognitiveMemoryManager.retrieve()
-      return [];
+    query: async (_collectionId: string, query: unknown, options?: Record<string, unknown>) => {
+      if (!manager) {
+        throw new Error('Cognitive memory provider not initialized.');
+      }
+      const input = parseQueryInput(query);
+      const result = await manager.retrieve(
+        input.text,
+        input.mood,
+        (options as CognitiveRetrievalOptions | undefined) ?? {}
+      );
+      return result.retrieved as unknown[];
+    },
+    delete: async (_collectionId: string, ids: string[]) => {
+      if (!manager) {
+        throw new Error('Cognitive memory provider not initialized.');
+      }
+      const store = manager.getStore?.();
+      if (!store?.softDelete) {
+        throw new Error('Cognitive memory provider does not expose delete support.');
+      }
+      await Promise.all(ids.map((id) => Promise.resolve(store.softDelete?.(id))));
     },
     shutdown: async () => {
-      // Delegates to CognitiveMemoryManager.shutdown()
+      if (!manager) return;
+      await manager.shutdown();
+      manager = null;
     },
     ...overrides,
   };
