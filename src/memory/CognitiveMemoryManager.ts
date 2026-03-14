@@ -54,6 +54,11 @@ import {
   type ConsolidationResult,
 } from './consolidation/ConsolidationPipeline.js';
 
+// Batch 3: Infinite Context
+import { ContextWindowManager } from './context/ContextWindowManager.js';
+import type { ContextMessage, CompactionEntry } from './context/types.js';
+import type { ContextWindowStats } from './context/ContextWindowManager.js';
+
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------
@@ -153,6 +158,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   private prospective: ProspectiveMemoryManager | null = null;
   private consolidation: ConsolidationPipeline | null = null;
 
+  // Batch 3: Infinite Context (optional)
+  private contextWindow: ContextWindowManager | null = null;
+
   async initialize(config: CognitiveMemoryConfig): Promise<void> {
     this.config = config;
 
@@ -222,6 +230,47 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       });
       // Auto-start periodic consolidation
       this.consolidation.start();
+    }
+
+    // --- Batch 3: Infinite Context Window ---
+    if (config.infiniteContext?.enabled && config.maxContextTokens) {
+      const llmInvoker = config.infiniteContext.llmInvoker
+        ?? config.reflector?.llmInvoker
+        ?? config.observer?.llmInvoker
+        ?? config.featureDetectionLlmInvoker;
+
+      if (llmInvoker) {
+        // Wrap the (system, user) invoker into a single-prompt invoker.
+        const singlePromptInvoker = (prompt: string) =>
+          llmInvoker('You are a conversation summarizer.', prompt);
+
+        this.contextWindow = new ContextWindowManager({
+          maxContextTokens: config.maxContextTokens,
+          infiniteContext: config.infiniteContext,
+          llmInvoker: singlePromptInvoker,
+          observer: this.observer ?? undefined,
+          reflector: this.reflector ?? undefined,
+          onTracesCreated: async (traces) => {
+            for (const partial of traces) {
+              if (partial.content) {
+                const mood = config.moodProvider();
+                await this.encode(
+                  partial.content,
+                  mood,
+                  'neutral',
+                  {
+                    type: partial.type ?? 'semantic',
+                    scope: partial.scope ?? 'user',
+                    sourceType: 'reflection',
+                    tags: partial.tags,
+                    entities: partial.entities,
+                  },
+                );
+              }
+            }
+          },
+        });
+      }
     }
 
     this.initialized = true;
@@ -622,6 +671,70 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       tracesPerType: tracesPerType as Record<MemoryType, number>,
       tracesPerScope: tracesPerScope as Record<MemoryScope, number>,
     };
+  }
+
+  // =========================================================================
+  // Batch 3: Infinite Context Window
+  // =========================================================================
+
+  /**
+   * Track a conversation message for context window management.
+   * Call for every user/assistant/system/tool message in the conversation.
+   */
+  trackMessage(role: 'user' | 'assistant' | 'system' | 'tool', content: string): void {
+    this.contextWindow?.addMessage(role, content);
+  }
+
+  /**
+   * Run context window compaction if needed. Call BEFORE assembling the LLM prompt.
+   * Returns the (potentially compacted) message list for the conversation.
+   * If infinite context is disabled, returns null (caller should use original messages).
+   */
+  async compactIfNeeded(
+    systemPromptTokens: number,
+    memoryBudgetTokens: number,
+  ): Promise<ContextMessage[] | null> {
+    if (!this.contextWindow?.enabled) return null;
+    const mood = this.config.moodProvider();
+    const emotionalContext = buildEmotionalContext(
+      { valence: mood.valence, arousal: mood.arousal, dominance: mood.dominance },
+      'neutral',
+    );
+    return this.contextWindow.beforeTurn(
+      systemPromptTokens,
+      memoryBudgetTokens,
+      emotionalContext,
+    );
+  }
+
+  /** Get the rolling summary chain text for prompt injection. */
+  getSummaryContext(): string {
+    return this.contextWindow?.getSummaryContext() ?? '';
+  }
+
+  /** Get context window transparency stats. */
+  getContextWindowStats(): ContextWindowStats | null {
+    return this.contextWindow?.getStats() ?? null;
+  }
+
+  /** Get full transparency report (for agent self-inspection or UI). */
+  getContextTransparencyReport(): string | null {
+    return this.contextWindow?.formatTransparencyReport() ?? null;
+  }
+
+  /** Get compaction history for audit/UI. */
+  getCompactionHistory(): readonly CompactionEntry[] {
+    return this.contextWindow?.getCompactionHistory() ?? [];
+  }
+
+  /** Search compaction history for a keyword. */
+  searchCompactionHistory(keyword: string): CompactionEntry[] {
+    return this.contextWindow?.searchHistory(keyword) ?? [];
+  }
+
+  /** Get the context window manager (for advanced usage). */
+  getContextWindowManager(): ContextWindowManager | null {
+    return this.contextWindow;
   }
 
   // =========================================================================

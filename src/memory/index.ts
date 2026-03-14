@@ -129,3 +129,26 @@ export type { ProspectiveMemoryItem, ProspectiveTriggerType } from './prospectiv
 // --- Consolidation Pipeline (Batch 2) ---
 export { ConsolidationPipeline } from './consolidation/ConsolidationPipeline.js';
 export type { ConsolidationResult, ConsolidationPipelineConfig } from './consolidation/ConsolidationPipeline.js';
+
+// --- Infinite Context Window (Batch 3) ---
+export { ContextWindowManager } from './context/ContextWindowManager.js';
+export type { ContextWindowManagerConfig, ContextWindowStats } from './context/ContextWindowManager.js';
+export { CompactionEngine } from './context/CompactionEngine.js';
+export { CompactionLog } from './context/CompactionLog.js';
+export type { CompactionLogStats } from './context/CompactionLog.js';
+export { RollingSummaryChain } from './context/RollingSummaryChain.js';
+export { SlidingSummaryStrategy } from './context/strategies/SlidingSummaryStrategy.js';
+export { HierarchicalStrategy } from './context/strategies/HierarchicalStrategy.js';
+export { HybridStrategy } from './context/strategies/HybridStrategy.js';
+export type {
+  InfiniteContextConfig,
+  CompactionStrategy,
+  TransparencyLevel,
+  ContextMessage,
+  CompactionEntry,
+  SummaryChainNode,
+  CompactionInput,
+  CompactionResult,
+  ICompactionStrategy,
+} from './context/types.js';
+export { DEFAULT_INFINITE_CONTEXT_CONFIG } from './context/types.js';

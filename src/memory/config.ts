@@ -8,6 +8,7 @@ import type { IKnowledgeGraph } from '../core/knowledge/IKnowledgeGraph.js';
 import type { IVectorStore } from '../rag/IVectorStore.js';
 import type { IEmbeddingManager } from '../rag/IEmbeddingManager.js';
 import type { MemoryBudgetAllocation } from './types.js';
+import type { InfiniteContextConfig } from './context/types.js';
 
 // ---------------------------------------------------------------------------
 // PAD state (inlined to avoid circular dep with wunderland)
@@ -122,6 +123,8 @@ export interface CognitiveMemoryPersonaConfig {
   reflector?: Partial<ReflectorConfig>;
   /** Memory graph config (Batch 2). */
   graph?: Partial<MemoryGraphConfig>;
+  /** Infinite context config (Batch 3). */
+  infiniteContext?: Partial<InfiniteContextConfig>;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +162,12 @@ export interface CognitiveMemoryConfig {
   reflector?: Partial<ReflectorConfig>;
   graph?: Partial<MemoryGraphConfig>;
   consolidation?: Partial<ConsolidationConfig>;
+
+  // --- Batch 3: Infinite Context (optional, no-op when absent) ---
+  /** Infinite context window config. Enables transparent compaction for forever conversations. */
+  infiniteContext?: Partial<InfiniteContextConfig>;
+  /** Max context window size in tokens (required for infinite context). */
+  maxContextTokens?: number;
 
   // --- Vector store collection prefix ---
   /** @default 'cogmem' */
