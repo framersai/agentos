@@ -1,3 +1,8 @@
+## <small>0.1.46 (2026-03-14)</small>
+
+* fix: add logo assets and fix README image URLs ([3609985](https://github.com/framersai/agentos/commit/3609985))
+* docs: fix README logos, remove stale file counts, add speech module ([1eec2cf](https://github.com/framersai/agentos/commit/1eec2cf))
+
 ## <small>0.1.45 (2026-03-14)</small>
 
 * feat(memory): add infinite context window system (Batch 3) ([f12587b](https://github.com/framersai/agentos/commit/f12587b))
