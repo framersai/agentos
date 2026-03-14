@@ -74,7 +74,7 @@ export class HybridStrategy implements ICompactionStrategy {
 
     // ── Phase 1: Extract observation notes via MemoryObserver ────────
 
-    let observationNotes: ObservationNote[] = [];
+    const observationNotes: ObservationNote[] = [];
     if (this.observer) {
       // Feed all compactable messages through the observer.
       for (const msg of toCompact) {

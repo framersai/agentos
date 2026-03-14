@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://agentos.sh">
-  <img src="https://raw.githubusercontent.com/manicinc/voice-chat-assistant/master/logos/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
 </a>
 
 # AgentOS
@@ -1667,11 +1667,11 @@ See the [Contributing Guide](https://github.com/framersai/agentos/blob/master/CO
 <div align="center">
 
 <a href="https://agentos.sh">
-  <img src="https://raw.githubusercontent.com/manicinc/voice-chat-assistant/master/logos/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
 </a>
 &nbsp;&nbsp;&nbsp;
 <a href="https://frame.dev">
-  <img src="https://raw.githubusercontent.com/manicinc/voice-chat-assistant/master/logos/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
 </a>
 
 **Built by [Frame.dev](https://frame.dev)** · [@framersai](https://github.com/framersai)
