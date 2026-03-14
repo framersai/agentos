@@ -371,7 +371,7 @@ In addition to content guardrails, Wunderland provides **folder-level permission
 
 ### Overview
 
-Safe Guardrails intercept tool calls (like `file_read`, `file_write`, `shell_execute`) and validate filesystem paths against folder permission rules **before execution**.
+Safe Guardrails intercept tool calls (like `file_read`, `file_write`, `read_document`, `create_pdf`, `create_spreadsheet`, `create_document`, `shell_execute`) and validate filesystem paths against folder permission rules **before execution**.
 
 ```
 Tool Call → Safe Guardrails → Folder Permission Check → Allow/Deny → Execution
