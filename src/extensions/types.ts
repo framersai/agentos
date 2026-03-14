@@ -9,6 +9,12 @@ import type {
   WorkflowTaskStatus,
 } from '../core/workflows/WorkflowTypes';
 import type { MessagingChannelPayload } from './MessagingChannelPayload';
+import type {
+  SpeechToTextProvider,
+  SpeechVadProvider,
+  TextToSpeechProvider,
+  WakeWordProvider,
+} from '../speech/types';
 
 /**
  * Represents the broad category an extension descriptor belongs to.
@@ -157,6 +163,10 @@ export const EXTENSION_KIND_PLANNING_STRATEGY = 'planning-strategy';
 export const EXTENSION_KIND_HITL_HANDLER = 'hitl-handler';
 export const EXTENSION_KIND_COMM_CHANNEL = 'communication-channel';
 export const EXTENSION_KIND_MEMORY_PROVIDER = 'memory-provider';
+export const EXTENSION_KIND_STT_PROVIDER = 'stt-provider';
+export const EXTENSION_KIND_TTS_PROVIDER = 'tts-provider';
+export const EXTENSION_KIND_VAD_PROVIDER = 'vad-provider';
+export const EXTENSION_KIND_WAKE_WORD_PROVIDER = 'wake-word-provider';
 
 // Messaging Channels — external human-facing platforms (v1.3.0)
 export const EXTENSION_KIND_MESSAGING_CHANNEL = 'messaging-channel';
@@ -373,4 +383,20 @@ export interface MemoryProviderPayload {
  */
 export type MemoryProviderDescriptor = ExtensionDescriptor<MemoryProviderPayload> & {
   kind: typeof EXTENSION_KIND_MEMORY_PROVIDER;
+};
+
+export type SttProviderDescriptor = ExtensionDescriptor<SpeechToTextProvider> & {
+  kind: typeof EXTENSION_KIND_STT_PROVIDER;
+};
+
+export type TtsProviderDescriptor = ExtensionDescriptor<TextToSpeechProvider> & {
+  kind: typeof EXTENSION_KIND_TTS_PROVIDER;
+};
+
+export type VadProviderDescriptor = ExtensionDescriptor<SpeechVadProvider> & {
+  kind: typeof EXTENSION_KIND_VAD_PROVIDER;
+};
+
+export type WakeWordProviderDescriptor = ExtensionDescriptor<WakeWordProvider> & {
+  kind: typeof EXTENSION_KIND_WAKE_WORD_PROVIDER;
 };

@@ -49,9 +49,9 @@ console.log(snapshot.prompt);
 
 ## Curated registry (optional)
 
-- `@framers/agentos-skills-registry` — 18 curated SKILL.md files + typed catalog + helpers to load and build snapshots
+- `@framers/agentos-skills-registry` — 40 curated SKILL.md files + typed catalog + helpers to load and build snapshots
 
-The curated bundle currently includes **18 skills** (developer tools, productivity, information, communication, etc.). See `@framers/agentos-skills-registry/registry.json` for the canonical list.
+The curated bundle currently includes **40 skills** spanning developer tools, productivity, information, communication, memory, and voice. See `@framers/agentos-skills-registry/registry.json` for the canonical list.
 
 `@framers/agentos-skills-registry` supports two usage modes:
 

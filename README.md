@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://agentos.sh">
-  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
+  <img src="https://raw.githubusercontent.com/manicinc/voice-chat-assistant/master/logos/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
 </a>
 
 # AgentOS
@@ -86,10 +86,7 @@
 | Property | Value |
 |----------|-------|
 | Package | `@framers/agentos` |
-| Version | `0.1.32` |
 | Language | TypeScript 5.4+ / Node.js 18+ |
-| Source files | 260+ TypeScript files across 25 top-level directories |
-| Export paths | 112 package.json export entries |
 | License | Apache 2.0 |
 
 **Runtime dependencies:**
@@ -390,7 +387,9 @@ The LLM layer abstracts multiple AI model providers behind a unified interface.
 |----------|------|--------|
 | OpenAI | `providers/implementations/OpenAIProvider.ts` | GPT-4o, GPT-4o-mini, o1, o3, etc. |
 | Ollama | `providers/implementations/OllamaProvider.ts` | Any locally-hosted model (Llama, Mistral, etc.) |
-| OpenRouter | `providers/implementations/OpenRouterProvider.ts` | 100+ models from any provider via unified API |
+| OpenRouter | `providers/implementations/OpenRouterProvider.ts` | 200+ models from any provider via unified API |
+
+> **Note:** Anthropic (Claude) and Google Gemini are supported at the **Wunderland runtime** level via their respective APIs. In AgentOS, use OpenRouter to access these models, or use Wunderland's higher-level `createWunderlandSeed()` API which handles provider routing natively.
 
 **Additional components:**
 
@@ -1002,7 +1001,7 @@ await agent.initialize({
       { providerId: 'anthropic', enabled: true,
         config: { apiKey: process.env.ANTHROPIC_API_KEY } },
       { providerId: 'ollama', enabled: true,
-        config: { baseUrl: 'http://localhost:11434' } },
+        config: { baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434' } },
     ],
   },
   gmiManagerConfig: {
@@ -1033,8 +1032,9 @@ for await (const chunk of agent.processRequest({
 # Required: at least one LLM provider
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
 OPENROUTER_API_KEY=sk-or-...
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_BASE_URL=http://localhost:11434    # local or remote URL
 
 # Database
 DATABASE_URL=file:./data/agentos.db
@@ -1667,11 +1667,11 @@ See the [Contributing Guide](https://github.com/framersai/agentos/blob/master/CO
 <div align="center">
 
 <a href="https://agentos.sh">
-  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
+  <img src="https://raw.githubusercontent.com/manicinc/voice-chat-assistant/master/logos/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
 </a>
 &nbsp;&nbsp;&nbsp;
 <a href="https://frame.dev">
-  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/logos/frame-logo.svg" alt="Frame.dev" height="40" />
+  <img src="https://raw.githubusercontent.com/manicinc/voice-chat-assistant/master/logos/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
 </a>
 
 **Built by [Frame.dev](https://frame.dev)** · [@framersai](https://github.com/framersai)

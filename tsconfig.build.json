@@ -37,6 +37,7 @@
     "src/discovery/**/*.ts",
     "src/memory/**/*.ts",
     "src/neo4j/**/*.ts",
+    "src/speech/**/*.ts",
     "src/voice/**/*.ts",
     "src/**/*.json"
   ],
@@ -50,7 +51,6 @@
     "src/tests/**/*",
     "src/cognitive_substrate/tests/**/*",
     "src/core/ai_utilities/tests/**/*",
-    "src/core/audio/**/*",
     "**/*.test.ts",
     "**/*.spec.ts",
     "**/__tests__/**"

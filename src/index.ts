@@ -76,6 +76,8 @@ export * from './extensions';
 export * from './channels';
 // Voice Calls (telephony providers)
 export * from './voice';
+// Unified speech runtime (STT/TTS/VAD/wake-word)
+export * from './speech';
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports

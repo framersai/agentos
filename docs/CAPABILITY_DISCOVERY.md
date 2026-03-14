@@ -6,7 +6,7 @@
 
 ## Overview
 
-Traditional agent frameworks dump every registered tool schema into the system prompt. At scale (20+ tools, 18 skills, 20 channels), this creates ~20,000 tokens of static context that the model must parse every turn — most of it irrelevant. Research calls this **context rot** (Chroma 2025): degrading output quality as irrelevant context accumulates.
+Traditional agent frameworks dump every registered tool schema into the system prompt. At scale (20+ tools, 40 skills, 20 channels), this creates ~20,000 tokens of static context that the model must parse every turn — most of it irrelevant. Research calls this **context rot** (Chroma 2025): degrading output quality as irrelevant context accumulates.
 
 The Capability Discovery Engine solves this with a **three-tier context model**:
 

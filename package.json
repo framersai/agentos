@@ -23,6 +23,11 @@
       "default": "./dist/memory/index.js",
       "types": "./dist/memory/index.d.ts"
     },
+    "./speech": {
+      "import": "./dist/speech/index.js",
+      "default": "./dist/speech/index.js",
+      "types": "./dist/speech/index.d.ts"
+    },
     "./core/guardrails": {
       "import": "./dist/core/guardrails/index.js",
       "default": "./dist/core/guardrails/index.js",
@@ -102,6 +107,11 @@
       "import": "./dist/memory/index.js",
       "default": "./dist/memory/index.js",
       "types": "./dist/memory/index.d.ts"
+    },
+    "./speech/index": {
+      "import": "./dist/speech/index.js",
+      "default": "./dist/speech/index.js",
+      "types": "./dist/speech/index.d.ts"
     },
     "./auth": {
       "import": "./dist/core/llm/auth/index.js",
