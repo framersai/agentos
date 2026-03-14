@@ -1,3 +1,8 @@
+## <small>0.1.45 (2026-03-14)</small>
+
+* feat(memory): add infinite context window system (Batch 3) ([f12587b](https://github.com/framersai/agentos/commit/f12587b))
+* docs: add document tools to guardrails usage overview ([ba43843](https://github.com/framersai/agentos/commit/ba43843))
+
 ## <small>0.1.44 (2026-03-13)</small>
 
 * feat(memory): enhance cognitive memory — typed taxonomy, scope hydration, prospective API ([833adb0](https://github.com/framersai/agentos/commit/833adb0))
