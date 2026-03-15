@@ -1,3 +1,8 @@
+## <small>0.1.47 (2026-03-15)</small>
+
+* fix: downgrade embedding batch errors to console.debug ([197f21e](https://github.com/framersai/agentos/commit/197f21e))
+* chore(release): v0.1.47 — add speech + memory subpath exports ([8a8b441](https://github.com/framersai/agentos/commit/8a8b441))
+
 ## <small>0.1.46 (2026-03-14)</small>
 
 * fix: add logo assets and fix README image URLs ([3609985](https://github.com/framersai/agentos/commit/3609985))
