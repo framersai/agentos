@@ -1,3 +1,8 @@
+## <small>0.1.48 (2026-03-15)</small>
+
+* feat: add HyDE (Hypothetical Document Embedding) retriever ([bf621b4](https://github.com/framersai/agentos/commit/bf621b4))
+* chore: linter fixes — OllamaProvider, CapabilityIndex, SpeechRuntime ([15cc6f0](https://github.com/framersai/agentos/commit/15cc6f0))
+
 ## <small>0.1.47 (2026-03-15)</small>
 
 * fix: downgrade embedding batch errors to console.debug ([197f21e](https://github.com/framersai/agentos/commit/197f21e))
