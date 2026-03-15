@@ -137,6 +137,16 @@ export { VectorStoreManager } from './VectorStoreManager.js';
 export { EmbeddingManager } from './EmbeddingManager.js';
 export { RetrievalAugmentor } from './RetrievalAugmentor.js';
 
+// HyDE (Hypothetical Document Embedding) Retriever
+export {
+  HydeRetriever,
+  type HydeConfig,
+  type HydeLlmCaller,
+  type HydeRetrievalResult,
+  DEFAULT_HYDE_CONFIG,
+  resolveHydeConfig,
+} from './HydeRetriever.js';
+
 // ============================================================================
 // Vector Store Implementations
 // ============================================================================

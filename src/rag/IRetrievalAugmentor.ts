@@ -189,6 +189,21 @@ export interface RagRetrievalOptions {
   includeEmbeddings?: boolean;
   /** Query embedding model override. */
   queryEmbeddingModelId?: string;
+  /**
+   * HyDE (Hypothetical Document Embedding) configuration.
+   * When enabled, generates a hypothetical answer before embedding for
+   * improved retrieval quality. Adds one LLM call per retrieval.
+   */
+  hyde?: {
+    /** Enable HyDE for this retrieval. Default: false. */
+    enabled?: boolean;
+    /** Initial similarity threshold for adaptive thresholding. Default: 0.7. */
+    initialThreshold?: number;
+    /** Minimum threshold to step down to. Default: 0.3. */
+    minThreshold?: number;
+    /** Pre-generated hypothesis (skip LLM call if provided). */
+    hypothesis?: string;
+  };
   /** Advisory token/character budget for final context construction. */
   tokenBudgetForContext?: number;
   /** Caller identity for logging/billing. */
