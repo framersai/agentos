@@ -24,9 +24,19 @@ import type {
 
 export class SpeechRuntime {
   private readonly registry: SpeechProviderRegistry;
+  private readonly preferredSttProviderId: string | undefined;
+  private readonly preferredTtsProviderId: string | undefined;
 
   constructor(config: SpeechRuntimeConfig = {}) {
     this.registry = new SpeechProviderRegistry();
+    this.preferredSttProviderId =
+      typeof config.preferredSttProviderId === 'string' && config.preferredSttProviderId.trim()
+        ? config.preferredSttProviderId.trim()
+        : undefined;
+    this.preferredTtsProviderId =
+      typeof config.preferredTtsProviderId === 'string' && config.preferredTtsProviderId.trim()
+        ? config.preferredTtsProviderId.trim()
+        : undefined;
     this.registry.registerVadProvider(new BuiltInAdaptiveVadProvider());
     if (config.autoRegisterFromEnv !== false) {
       const env = config.env ?? process.env;
@@ -150,6 +160,10 @@ export class SpeechRuntime {
   }
 
   private resolveDefaultSttProvider(): SpeechToTextProvider | undefined {
+    if (this.preferredSttProviderId) {
+      const preferred = this.registry.getSttProvider(this.preferredSttProviderId);
+      if (preferred) return preferred;
+    }
     return (
       this.registry.getSttProvider('openai-whisper') ??
       (this.registry.list('stt')[0] as SpeechToTextProvider | undefined)
@@ -157,6 +171,10 @@ export class SpeechRuntime {
   }
 
   private resolveDefaultTtsProvider(): TextToSpeechProvider | undefined {
+    if (this.preferredTtsProviderId) {
+      const preferred = this.registry.getTtsProvider(this.preferredTtsProviderId);
+      if (preferred) return preferred;
+    }
     return (
       this.registry.getTtsProvider('openai-tts') ??
       this.registry.getTtsProvider('elevenlabs') ??
@@ -181,9 +199,10 @@ export function createSpeechRuntime(config: SpeechRuntimeConfig = {}): SpeechRun
 }
 
 export function createSpeechRuntimeFromEnv(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = process.env,
+  config: Omit<SpeechRuntimeConfig, 'env'> = {}
 ): SpeechRuntime {
-  return new SpeechRuntime({ autoRegisterFromEnv: true, env });
+  return new SpeechRuntime({ ...config, autoRegisterFromEnv: config.autoRegisterFromEnv ?? true, env });
 }
 
 export function getDefaultSpeechProviderId(kind: 'stt' | 'tts'): string | undefined {

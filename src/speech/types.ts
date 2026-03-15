@@ -315,6 +315,8 @@ export interface SpeechRuntimeSessionConfig extends SpeechSessionConfig {
 export interface SpeechRuntimeConfig {
   autoRegisterFromEnv?: boolean;
   env?: Record<string, string | undefined>;
+  preferredSttProviderId?: string;
+  preferredTtsProviderId?: string;
 }
 
 // Backward-compatible aliases for the Rabbithole backend speech contracts.

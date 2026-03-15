@@ -41,4 +41,52 @@ describe('SpeechRuntime', () => {
 
     expect(runtime.getProvider('test-tts')).toBeDefined();
   });
+
+  it('prefers configured provider ids before hardcoded defaults', async () => {
+    const calls: string[] = [];
+    const runtime = new SpeechRuntime({
+      autoRegisterFromEnv: false,
+      preferredSttProviderId: 'deepgram',
+      preferredTtsProviderId: 'elevenlabs',
+    });
+
+    runtime.registerSttProvider({
+      id: 'openai-whisper',
+      getProviderName: () => 'OpenAI Whisper',
+      transcribe: async () => {
+        calls.push('openai-whisper');
+        return { text: 'openai', cost: 0 };
+      },
+    });
+    runtime.registerSttProvider({
+      id: 'deepgram',
+      getProviderName: () => 'Deepgram',
+      transcribe: async () => {
+        calls.push('deepgram');
+        return { text: 'deepgram', cost: 0 };
+      },
+    });
+    runtime.registerTtsProvider({
+      id: 'openai-tts',
+      getProviderName: () => 'OpenAI TTS',
+      synthesize: async () => {
+        calls.push('openai-tts');
+        return { audioBuffer: Buffer.from('openai'), mimeType: 'audio/mpeg', cost: 0 };
+      },
+    });
+    runtime.registerTtsProvider({
+      id: 'elevenlabs',
+      getProviderName: () => 'ElevenLabs',
+      synthesize: async () => {
+        calls.push('elevenlabs');
+        return { audioBuffer: Buffer.from('elevenlabs'), mimeType: 'audio/mpeg', cost: 0 };
+      },
+    });
+
+    const session = runtime.createSession();
+    await session.speak('hello');
+    await session.transcribeAudio(Buffer.from('wav'));
+
+    expect(calls).toEqual(['elevenlabs', 'deepgram']);
+  });
 });

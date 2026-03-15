@@ -76,10 +76,15 @@ export class CapabilityIndex {
       texts: embeddingTexts,
       modelId: this.embeddingModelId,
     });
+    const usableEmbeddings = embeddingResponse.embeddings.filter((embedding) => Array.isArray(embedding) && embedding.length > 0);
+    if (usableEmbeddings.length === 0) {
+      this.built = true;
+      return;
+    }
 
     // 5. Create collection if the store supports it
     if (this.vectorStore.createCollection) {
-      const dimension = embeddingResponse.embeddings[0]?.length;
+      const dimension = usableEmbeddings[0]?.length;
       if (dimension) {
         const exists = this.vectorStore.collectionExists
           ? await this.vectorStore.collectionExists(this.collectionName)
@@ -93,17 +98,19 @@ export class CapabilityIndex {
     }
 
     // 6. Upsert into vector store
-    const documents: VectorDocument[] = descriptors.map((desc, i) => ({
-      id: desc.id,
-      embedding: embeddingResponse.embeddings[i],
-      metadata: {
-        kind: desc.kind,
-        name: desc.name,
-        category: desc.category,
-        available: desc.available,
-      },
-      textContent: embeddingTexts[i],
-    }));
+    const documents: VectorDocument[] = descriptors
+      .map((desc, i) => ({
+        id: desc.id,
+        embedding: embeddingResponse.embeddings[i],
+        metadata: {
+          kind: desc.kind,
+          name: desc.name,
+          category: desc.category,
+          available: desc.available,
+        },
+        textContent: embeddingTexts[i],
+      }))
+      .filter((doc) => Array.isArray(doc.embedding) && doc.embedding.length > 0);
 
     await this.vectorStore.upsert(this.collectionName, documents);
 
@@ -121,10 +128,14 @@ export class CapabilityIndex {
       texts: text,
       modelId: this.embeddingModelId,
     });
+    const embedding = response.embeddings[0];
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      return;
+    }
 
     const doc: VectorDocument = {
       id: cap.id,
-      embedding: response.embeddings[0],
+      embedding,
       metadata: {
         kind: cap.kind,
         name: cap.name,
@@ -175,6 +186,9 @@ export class CapabilityIndex {
       modelId: this.embeddingModelId,
     });
     const queryEmbedding = queryResponse.embeddings[0];
+    if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+      return [];
+    }
 
     // Build metadata filter
     const metadataFilter: MetadataFilter = {};

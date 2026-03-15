@@ -334,10 +334,10 @@ export class OllamaProvider implements IProvider {
         ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
         ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
         ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
+        ...(options.customModelParams || {}),
       },
       format: options.responseFormat?.type === 'json_object' ? 'json' : undefined,
       ...(ollamaTools.length > 0 && { tools: ollamaTools }),
-      ...(options.customModelParams || {}),
     };
 
     try {
@@ -417,10 +417,10 @@ export class OllamaProvider implements IProvider {
         ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
         ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
         ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
+        ...(options.customModelParams || {}),
       },
       format: options.responseFormat?.type === 'json_object' ? 'json' : undefined,
       ...(ollamaTools.length > 0 && { tools: ollamaTools }),
-      ...(options.customModelParams || {}),
     };
 
     let responseStream;
