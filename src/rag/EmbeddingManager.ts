@@ -393,9 +393,9 @@ export class EmbeddingManager implements IEmbeddingManager {
           // Log concisely — don't dump full error objects with stack traces for expected failures like network errors
           const isNetworkError = /fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|network/i.test(errorMessage);
           if (isNetworkError) {
-            console.warn(`[Embeddings] Network error — embedding batch skipped (model: ${selectedModelConfig.modelId})`);
+            console.debug(`[Embeddings] Network error — embedding batch skipped (model: ${selectedModelConfig.modelId})`);
           } else {
-            console.error(
+            console.debug(
               `[Embeddings] Error embedding batch with model '${selectedModelConfig.modelId}' via provider '${provider.providerId}': ${errorMessage}`,
             );
           }
