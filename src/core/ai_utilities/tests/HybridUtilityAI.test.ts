@@ -80,7 +80,7 @@ describe('HybridUtilityAI', () => {
     });
 
     it('classifyText delegates to llm', async () => {
-      await hybrid.classifyText('text', { categories: ['a', 'b'] });
+      await hybrid.classifyText('text', { candidateClasses: ['a', 'b'] });
       expect(llmMock.classifyText).toHaveBeenCalled();
       expect(statMock.classifyText).not.toHaveBeenCalled();
     });
@@ -132,7 +132,7 @@ describe('HybridUtilityAI', () => {
     });
 
     it('calculateReadability delegates to stat', async () => {
-      await hybrid.calculateReadability('text', { metrics: ['fleschKincaid'] });
+      await hybrid.calculateReadability('text', { formula: 'flesch_kincaid_reading_ease' });
       expect(statMock.calculateReadability).toHaveBeenCalled();
       expect(llmMock.calculateReadability).not.toHaveBeenCalled();
     });
@@ -190,7 +190,7 @@ describe('HybridUtilityAI', () => {
     });
 
     it('classifyText falls back to stat', async () => {
-      await hybrid.classifyText('text', { categories: ['x'] });
+      await hybrid.classifyText('text', { candidateClasses: ['x'] });
       expect(statMock.classifyText).toHaveBeenCalled();
     });
 

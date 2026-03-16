@@ -94,7 +94,7 @@ describe('evaluateTaskOutcome', () => {
       finalOutput: {
         ...baseFinalOutput,
         responseText: '',
-        toolCalls: [{ id: 't1', type: 'function', function: { name: 'test', arguments: '{}' } }],
+        toolCalls: [{ id: 't1', name: 'test', arguments: {} }],
       },
       didForceTerminate: false,
       degraded: false,
