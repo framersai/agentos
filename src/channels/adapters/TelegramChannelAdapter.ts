@@ -163,10 +163,20 @@ export class TelegramChannelAdapter extends BaseChannelAdapter<TelegramAuthParam
       }
       await this.bot.launch({ webhook: webhookConfig });
     } else {
-      // Long polling mode
-      await this.bot.launch();
+      // Long polling mode — clear any stale webhook first, then launch
+      // with dropPendingUpdates to avoid 409 conflicts from prior sessions
+      await this.launchPollingWithRetry();
     }
     this.launched = true;
+
+    // Ensure clean shutdown on process exit to prevent 409 on next start
+    const gracefulStop = () => {
+      if (this.bot && this.launched) {
+        try { this.bot.stop('Process exit'); } catch { /* best effort */ }
+      }
+    };
+    process.once('SIGINT', gracefulStop);
+    process.once('SIGTERM', gracefulStop);
 
     // Fetch bot info for platformInfo
     try {
@@ -228,6 +238,51 @@ export class TelegramChannelAdapter extends BaseChannelAdapter<TelegramAuthParam
       messageId: lastMessageId,
       timestamp: lastTimestamp,
     };
+  }
+
+  /**
+   * Launch polling with retry logic to handle 409 Conflict errors.
+   *
+   * The 409 occurs when Telegram sees two getUpdates long-polls for the same token.
+   * This happens during restarts — the old session lingers ~30s on Telegram's side.
+   *
+   * Strategy:
+   * 1. Delete any stale webhook (webhook + polling = instant 409)
+   * 2. Launch with dropPendingUpdates to skip queued messages
+   * 3. On 409, wait and retry up to 3 times with increasing backoff
+   */
+  private async launchPollingWithRetry(maxRetries = 3): Promise<void> {
+    // Step 1: Clear stale webhook (polling and webhook can't coexist)
+    try {
+      const telegram = this.bot.telegram ?? this.bot.api;
+      if (telegram?.deleteWebhook) {
+        await telegram.deleteWebhook({ drop_pending_updates: true });
+      }
+    } catch {
+      // Non-fatal — webhook may not be set
+    }
+
+    // Step 2: Launch with retries
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.bot.launch({ dropPendingUpdates: true });
+        return; // Success
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const is409 = msg.includes('409') || msg.includes('Conflict');
+
+        if (is409 && attempt < maxRetries) {
+          const backoffMs = attempt * 2000; // 2s, 4s, 6s
+          console.debug(
+            `[Telegram] 409 Conflict on attempt ${attempt}/${maxRetries}. ` +
+            `Old polling session still active. Retrying in ${backoffMs}ms...`
+          );
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        } else {
+          throw err; // Non-409 error or exhausted retries
+        }
+      }
+    }
   }
 
   protected async doShutdown(): Promise<void> {
