@@ -1,3 +1,8 @@
+## <small>0.1.49 (2026-03-16)</small>
+
+* fix(hyde): adaptive threshold counting, config validation, quiet logs ([7dae907](https://github.com/framersai/agentos/commit/7dae907))
+* test: add HyDE retriever unit tests (409 lines) ([dc72810](https://github.com/framersai/agentos/commit/dc72810))
+
 ## <small>0.1.48 (2026-03-15)</small>
 
 * feat: add HyDE (Hypothetical Document Embedding) retriever ([bf621b4](https://github.com/framersai/agentos/commit/bf621b4))
