@@ -1,3 +1,20 @@
+## <small>0.1.50 (2026-03-16)</small>
+
+* feat: add barrel exports for 6 core subsystems ([6075721](https://github.com/framersai/agentos/commit/6075721))
+* feat: add core/tools barrel export (fixes published path) ([6ca59dd](https://github.com/framersai/agentos/commit/6ca59dd))
+* feat: add domain-organized barrel for core subsystems ([42b819c](https://github.com/framersai/agentos/commit/42b819c))
+* feat: extract TaskOutcomeTelemetryManager delegate class ([7dee359](https://github.com/framersai/agentos/commit/7dee359))
+* feat: implement HybridUtilityAI (was empty placeholder) ([189f090](https://github.com/framersai/agentos/commit/189f090))
+* fix: correct test type mismatches against actual interfaces ([9e038bc](https://github.com/framersai/agentos/commit/9e038bc))
+* refactor: extract 4 turn-phase helpers + wire StreamChunkEmitter ([006934c](https://github.com/framersai/agentos/commit/006934c))
+* refactor: extract AgentOSServiceError and AsyncStreamClientBridge ([8764f53](https://github.com/framersai/agentos/commit/8764f53))
+* refactor: extract orchestrator config types to OrchestratorConfig.ts ([c3ad19e](https://github.com/framersai/agentos/commit/c3ad19e))
+* refactor: extract StreamChunkEmitter delegate from orchestrator ([a9b6444](https://github.com/framersai/agentos/commit/a9b6444))
+* refactor: remove dead code from AgentOSOrchestrator ([f966c76](https://github.com/framersai/agentos/commit/f966c76))
+* refactor: wire TaskOutcomeTelemetryManager into orchestrator ([d80bd95](https://github.com/framersai/agentos/commit/d80bd95))
+* test: add 122 tests for extracted modules ([0023ce0](https://github.com/framersai/agentos/commit/0023ce0))
+* chore(release): v0.1.50 — HyDE retriever, quiet EmbeddingManager ([68eea3c](https://github.com/framersai/agentos/commit/68eea3c))
+
 ## <small>0.1.49 (2026-03-16)</small>
 
 * fix(hyde): adaptive threshold counting, config validation, quiet logs ([7dae907](https://github.com/framersai/agentos/commit/7dae907))
