@@ -20,6 +20,7 @@ import {
   type ResolvedTaskOutcomeTelemetryConfig,
   type ResolvedAdaptiveExecutionConfig,
 } from './TaskOutcomeTelemetryManager';
+import { StreamChunkEmitter } from './StreamChunkEmitter';
 import {
   AgentOSResponse,
   AgentOSResponseChunkType,
@@ -473,6 +474,7 @@ export class AgentOSOrchestrator {
   private config!: ResolvedAgentOSOrchestratorConfig;
   private dependencies!: AgentOSOrchestratorDependencies;
   private telemetry!: TaskOutcomeTelemetryManager;
+  private chunks!: StreamChunkEmitter;
 
   /**
    * A map to hold ongoing stream contexts.
@@ -530,6 +532,10 @@ export class AgentOSOrchestrator {
       adaptiveExecution: resolveAdaptiveExecutionConfig(config.adaptiveExecution),
     };
     this.dependencies = dependencies;
+    this.chunks = new StreamChunkEmitter(
+      dependencies.streamingManager,
+      this.activeStreamContexts as Map<string, any>,
+    );
     this.telemetry = new TaskOutcomeTelemetryManager(
       this.config.taskOutcomeTelemetry,
       this.config.adaptiveExecution,
@@ -589,140 +595,8 @@ export class AgentOSOrchestrator {
 
   // Task outcome telemetry methods delegated to this.telemetry (TaskOutcomeTelemetryManager)
 
-  /**
-   * Helper method to create and push response chunks via StreamingManager.
-   * @private
-   */
-  private async pushChunkToStream(
-    streamId: StreamId,
-    type: AgentOSResponseChunkType,
-    gmiInstanceId: string,
-    personaId: string,
-    isFinal: boolean,
-    data: any
-  ): Promise<void> {
-    const baseChunk: Record<string, any> = {
-      type,
-      streamId,
-      gmiInstanceId,
-      personaId,
-      isFinal,
-      timestamp: new Date().toISOString(),
-    };
-
-    if (data && typeof data === 'object' && 'metadata' in data && data.metadata) {
-      baseChunk.metadata = data.metadata;
-    }
-    const ctx = this.activeStreamContexts.get(streamId);
-    if (ctx?.languageNegotiation) {
-      baseChunk.metadata = baseChunk.metadata || {};
-      if (!baseChunk.metadata.language) baseChunk.metadata.language = ctx.languageNegotiation;
-    }
-
-    if (
-      shouldIncludeTraceInAgentOSResponses() &&
-      (type === AgentOSResponseChunkType.METADATA_UPDATE ||
-        type === AgentOSResponseChunkType.FINAL_RESPONSE ||
-        type === AgentOSResponseChunkType.ERROR)
-    ) {
-      const traceMeta = getActiveTraceMetadata();
-      if (traceMeta) {
-        baseChunk.metadata = baseChunk.metadata || {};
-        baseChunk.metadata.trace = traceMeta;
-      }
-    }
-
-    let chunk: AgentOSResponse;
-
-    switch (type) {
-      case AgentOSResponseChunkType.TEXT_DELTA:
-        chunk = { ...baseChunk, textDelta: data.textDelta } as AgentOSTextDeltaChunk;
-        break;
-      case AgentOSResponseChunkType.SYSTEM_PROGRESS:
-        chunk = {
-          ...baseChunk,
-          message: data.message,
-          progressPercentage: data.progressPercentage,
-          statusCode: data.statusCode,
-        } as AgentOSSystemProgressChunk;
-        break;
-      case AgentOSResponseChunkType.TOOL_CALL_REQUEST:
-        chunk = {
-          ...baseChunk,
-          toolCalls: data.toolCalls,
-          rationale: data.rationale,
-        } as AgentOSToolCallRequestChunk;
-        break;
-      case AgentOSResponseChunkType.TOOL_RESULT_EMISSION:
-        chunk = {
-          ...baseChunk,
-          toolCallId: data.toolCallId,
-          toolName: data.toolName,
-          toolResult: data.toolResult,
-          isSuccess: data.isSuccess,
-          errorMessage: data.errorMessage,
-        } as AgentOSToolResultEmissionChunk;
-        break;
-      case AgentOSResponseChunkType.UI_COMMAND:
-        chunk = { ...baseChunk, uiCommands: data.uiCommands } as AgentOSUICommandChunk;
-        break;
-      case AgentOSResponseChunkType.ERROR:
-        chunk = {
-          ...baseChunk,
-          code: data.code,
-          message: data.message,
-          details: data.details,
-        } as AgentOSErrorChunk;
-        break;
-      case AgentOSResponseChunkType.FINAL_RESPONSE:
-        chunk = {
-          ...baseChunk,
-          finalResponseText: data.finalResponseText,
-          finalToolCalls: data.finalToolCalls,
-          finalUiCommands: data.finalUiCommands,
-          audioOutput: data.audioOutput,
-          imageOutput: data.imageOutput,
-          usage: normalizeUsage(data.usage),
-          reasoningTrace: data.reasoningTrace,
-          error: data.error,
-          updatedConversationContext: data.updatedConversationContext,
-          activePersonaDetails: data.activePersonaDetails,
-        } as AgentOSFinalResponseChunk;
-        break;
-      case AgentOSResponseChunkType.WORKFLOW_UPDATE:
-        chunk = {
-          ...baseChunk,
-          workflow: data.workflow,
-        } as AgentOSWorkflowUpdateChunk;
-        break;
-      case AgentOSResponseChunkType.METADATA_UPDATE:
-        chunk = {
-          ...baseChunk,
-          updates: data.updates,
-        } as AgentOSMetadataUpdateChunk;
-        break;
-      default:
-        console.error(
-          `AgentOSOrchestrator: Unknown chunk type encountered in pushChunkToStream: ${type}`,
-        );
-        chunk = {
-          ...baseChunk,
-          type: AgentOSResponseChunkType.ERROR,
-          code: GMIErrorCode.INTERNAL_SERVER_ERROR,
-          message: `Unknown chunk type: ${type}`,
-          details: data,
-        } as AgentOSErrorChunk;
-    }
-    try {
-      await this.dependencies.streamingManager.pushChunk(streamId, chunk);
-    } catch (pushError: any) {
-      // Gracefully handle attempts to push after a stream is closed or missing
-      console.error(
-        `AgentOSOrchestrator: Failed to push chunk to stream ${streamId}. Type: ${type}. Error: ${pushError?.message}`,
-        pushError
-      );
-    }
-  }
+  // pushChunkToStream, pushErrorChunk, emitExecutionLifecycleUpdate
+  // delegated to this.chunks (StreamChunkEmitter)
 
   public async broadcastWorkflowUpdate(update: WorkflowProgressUpdate): Promise<void> {
     this.ensureInitialized();
@@ -755,7 +629,7 @@ export class AgentOSOrchestrator {
           conversationId: update.workflow.conversationId,
           status: update.workflow.status,
         };
-        await this.pushChunkToStream(
+        await this.chunks.pushChunk(
           streamId,
           AgentOSResponseChunkType.WORKFLOW_UPDATE,
           gmiId,
@@ -770,54 +644,6 @@ export class AgentOSOrchestrator {
     );
   }
 
-  /**
-   * Helper method to create and push error chunks.
-   * @private
-   */
-  private async pushErrorChunk(
-    streamId: StreamId,
-    personaId: string,
-    gmiInstanceId: string = 'unknown_gmi_instance',
-    code: GMIErrorCode | string,
-    message: string,
-    details?: any
-  ): Promise<void> {
-    await this.pushChunkToStream(
-      streamId,
-      AgentOSResponseChunkType.ERROR,
-      gmiInstanceId,
-      personaId,
-      true, // Errors are usually final for the current operation
-      { code: code.toString(), message, details }
-    );
-  }
-
-  private async emitExecutionLifecycleUpdate(args: {
-    streamId: StreamId;
-    gmiInstanceId: string;
-    personaId: string;
-    phase: TurnExecutionLifecyclePhase;
-    status: 'ok' | 'degraded' | 'error';
-    details?: Record<string, unknown>;
-  }): Promise<void> {
-    await this.pushChunkToStream(
-      args.streamId,
-      AgentOSResponseChunkType.METADATA_UPDATE,
-      args.gmiInstanceId,
-      args.personaId,
-      false,
-      {
-        updates: {
-          executionLifecycle: {
-            phase: args.phase,
-            status: args.status,
-            timestamp: new Date().toISOString(),
-            ...(args.details ? { details: args.details } : null),
-          },
-        },
-      },
-    );
-  }
 
   /**
    * Orchestrates a full logical turn for a user request.
@@ -866,7 +692,7 @@ export class AgentOSOrchestrator {
           criticalError,
         );
         try {
-          await this.pushErrorChunk(
+          await this.chunks.pushError(
             agentOSStreamId,
             input.selectedPersonaId || 'unknown_persona',
             'orchestrator_critical',
@@ -965,7 +791,7 @@ export class AgentOSOrchestrator {
       };
       this.activeStreamContexts.set(agentOSStreamId, streamContext);
 
-      await this.pushChunkToStream(
+      await this.chunks.pushChunk(
         agentOSStreamId, AgentOSResponseChunkType.SYSTEM_PROGRESS,
         gmiInstanceIdForChunks, currentPersonaId, false,
         { message: `Initializing persona ${currentPersonaId}... GMI: ${gmiInstanceIdForChunks}`, progressPercentage: 10 }
@@ -1015,7 +841,7 @@ export class AgentOSOrchestrator {
               actions: adaptiveExecution.actions,
             }
           : undefined;
-      await this.emitExecutionLifecycleUpdate({
+      await this.chunks.emitLifecycleUpdate({
         streamId: agentOSStreamId,
         gmiInstanceId: gmiInstanceIdForChunks,
         personaId: currentPersonaId,
@@ -1032,7 +858,7 @@ export class AgentOSOrchestrator {
       });
       if (turnPlan?.capability.fallbackApplied || adaptiveExecution.applied) {
         lifecycleDegraded = true;
-        await this.emitExecutionLifecycleUpdate({
+        await this.chunks.emitLifecycleUpdate({
           streamId: agentOSStreamId,
           gmiInstanceId: gmiInstanceIdForChunks,
           personaId: currentPersonaId,
@@ -1460,7 +1286,7 @@ export class AgentOSOrchestrator {
       }
 
       // Emit routing + memory metadata as a first-class chunk for clients.
-      await this.pushChunkToStream(
+      await this.chunks.pushChunk(
         agentOSStreamId,
         AgentOSResponseChunkType.METADATA_UPDATE,
         gmiInstanceIdForChunks,
@@ -1528,7 +1354,7 @@ export class AgentOSOrchestrator {
       let continueProcessing = true;
       let lastGMIOutput: GMIOutput | undefined; // To store the result from handleToolResult or final processTurnStream result
 
-      await this.emitExecutionLifecycleUpdate({
+      await this.chunks.emitLifecycleUpdate({
         streamId: agentOSStreamId,
         gmiInstanceId: gmiInstanceIdForChunks,
         personaId: currentPersonaId,
@@ -1609,7 +1435,7 @@ export class AgentOSOrchestrator {
       if (currentToolCallIteration >= this.config.maxToolCallIterations && continueProcessing) {
         console.warn(`AgentOSOrchestrator: Max tool call iterations reached for stream ${agentOSStreamId}. Forcing termination.`);
         didForceTerminate = true;
-        await this.pushErrorChunk(
+        await this.chunks.pushError(
           agentOSStreamId, currentPersonaId, gmiInstanceIdForChunks,
           GMIErrorCode.RATE_LIMIT_EXCEEDED, // Or a more specific code
           'Agent reached maximum tool call iterations.',
@@ -1657,7 +1483,7 @@ export class AgentOSOrchestrator {
         personaId: currentPersonaId,
       });
       const taskOutcomeAlert = this.telemetry.maybeBuildAlert(taskOutcomeKpi);
-      await this.pushChunkToStream(
+      await this.chunks.pushChunk(
         agentOSStreamId,
         AgentOSResponseChunkType.METADATA_UPDATE,
         gmiInstanceIdForChunks,
@@ -1672,7 +1498,7 @@ export class AgentOSOrchestrator {
         },
       );
       if (turnMetricsStatus === 'error') {
-        await this.emitExecutionLifecycleUpdate({
+        await this.chunks.emitLifecycleUpdate({
           streamId: agentOSStreamId,
           gmiInstanceId: gmiInstanceIdForChunks,
           personaId: currentPersonaId,
@@ -1687,7 +1513,7 @@ export class AgentOSOrchestrator {
         });
       } else {
         if (lifecycleDegraded) {
-          await this.emitExecutionLifecycleUpdate({
+          await this.chunks.emitLifecycleUpdate({
             streamId: agentOSStreamId,
             gmiInstanceId: gmiInstanceIdForChunks,
             personaId: currentPersonaId,
@@ -1698,7 +1524,7 @@ export class AgentOSOrchestrator {
             },
           });
         }
-        await this.emitExecutionLifecycleUpdate({
+        await this.chunks.emitLifecycleUpdate({
           streamId: agentOSStreamId,
           gmiInstanceId: gmiInstanceIdForChunks,
           personaId: currentPersonaId,
@@ -1744,7 +1570,7 @@ export class AgentOSOrchestrator {
         }
       }
 
-      await this.pushChunkToStream(
+      await this.chunks.pushChunk(
         agentOSStreamId, AgentOSResponseChunkType.FINAL_RESPONSE,
         gmiInstanceIdForChunks, currentPersonaId, true,
         {
@@ -1784,7 +1610,7 @@ export class AgentOSOrchestrator {
       });
       const taskOutcomeAlert = this.telemetry.maybeBuildAlert(taskOutcomeKpi);
       console.error(`AgentOSOrchestrator: Error during _processTurnInternal for stream ${agentOSStreamId}:`, gmiErr);
-      await this.pushChunkToStream(
+      await this.chunks.pushChunk(
         agentOSStreamId,
         AgentOSResponseChunkType.METADATA_UPDATE,
         gmiInstanceIdForChunks,
@@ -1798,7 +1624,7 @@ export class AgentOSOrchestrator {
           },
         },
       );
-      await this.emitExecutionLifecycleUpdate({
+      await this.chunks.emitLifecycleUpdate({
         streamId: agentOSStreamId,
         gmiInstanceId: gmiInstanceIdForChunks,
         personaId: currentPersonaId ?? 'unknown_persona',
@@ -1811,7 +1637,7 @@ export class AgentOSOrchestrator {
           taskOutcomeScore: turnMetricsTaskOutcome.score,
         },
       });
-      await this.pushErrorChunk(
+      await this.chunks.pushError(
           agentOSStreamId, currentPersonaId ?? 'unknown_persona', gmiInstanceIdForChunks,
           gmiErr.code, gmiErr.message, gmiErr.details
       );
@@ -1888,7 +1714,7 @@ export class AgentOSOrchestrator {
 
         try {
           // Emit the tool result itself as a chunk
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
             agentOSStreamId,
             AgentOSResponseChunkType.TOOL_RESULT_EMISSION,
             gmiInstanceIdForChunks,
@@ -1943,7 +1769,7 @@ export class AgentOSOrchestrator {
 
           // If GMIOutput indicates further tool calls are needed by the GMI
           if (gmiOutputAfterTool.toolCalls && gmiOutputAfterTool.toolCalls.length > 0) {
-            await this.pushChunkToStream(
+            await this.chunks.pushChunk(
               agentOSStreamId,
               AgentOSResponseChunkType.TOOL_CALL_REQUEST,
               gmiInstanceIdForChunks,
@@ -1989,7 +1815,7 @@ export class AgentOSOrchestrator {
             }
             // If it's final and no more tool calls, the interaction for this GMI processing cycle might be done.
             // Push a final response marker or the already pushed final data from processGMIOutput takes precedence.
-            await this.pushChunkToStream(
+            await this.chunks.pushChunk(
               agentOSStreamId,
               AgentOSResponseChunkType.FINAL_RESPONSE,
               gmiInstanceIdForChunks,
@@ -2032,7 +1858,7 @@ export class AgentOSOrchestrator {
             `AgentOSOrchestrator: Critical error processing tool result for stream ${agentOSStreamId}:`,
             gmiErr,
           );
-          await this.pushErrorChunk(
+          await this.chunks.pushError(
             agentOSStreamId,
             personaId,
             gmiInstanceIdForChunks,
@@ -2081,21 +1907,21 @@ export class AgentOSOrchestrator {
       const gmiInstanceIdForChunks = gmi.getGMIId();
 
       if (gmiOutput.responseText) {
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
               agentOSStreamId, AgentOSResponseChunkType.TEXT_DELTA,
               gmiInstanceIdForChunks, personaId, false, // text delta is not final by itself
               { textDelta: gmiOutput.responseText }
           );
       }
       if (gmiOutput.uiCommands && gmiOutput.uiCommands.length > 0) {
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
               agentOSStreamId, AgentOSResponseChunkType.UI_COMMAND,
               gmiInstanceIdForChunks, personaId, false,
               { uiCommands: gmiOutput.uiCommands }
           );
       }
       if (gmiOutput.error) {
-          await this.pushErrorChunk(
+          await this.chunks.pushError(
               agentOSStreamId, personaId, gmiInstanceIdForChunks,
               gmiOutput.error.code, gmiOutput.error.message, gmiOutput.error.details
           );
@@ -2119,7 +1945,7 @@ export class AgentOSOrchestrator {
               });
            }
           // This is a final response without further tool calls
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
               agentOSStreamId, AgentOSResponseChunkType.FINAL_RESPONSE,
               gmiInstanceIdForChunks, personaId, true,
               {
@@ -2155,7 +1981,7 @@ export class AgentOSOrchestrator {
     switch (gmiChunk.type) {
       case GMIOutputChunkType.TEXT_DELTA:
         if (gmiChunk.content && typeof gmiChunk.content === 'string') {
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
             agentOSStreamId, AgentOSResponseChunkType.TEXT_DELTA,
             gmiInstanceIdForChunks, personaId, gmiChunk.isFinal ?? false,
             { textDelta: gmiChunk.content }
@@ -2165,7 +1991,7 @@ export class AgentOSOrchestrator {
       case GMIOutputChunkType.SYSTEM_MESSAGE: // Was SystemProgress
         if (gmiChunk.content && typeof gmiChunk.content === 'object') {
           const progressContent = gmiChunk.content as { message: string; progressPercentage?: number; statusCode?: string };
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
             agentOSStreamId, AgentOSResponseChunkType.SYSTEM_PROGRESS,
             gmiInstanceIdForChunks, personaId, gmiChunk.isFinal ?? false,
             progressContent
@@ -2175,7 +2001,7 @@ export class AgentOSOrchestrator {
       case GMIOutputChunkType.TOOL_CALL_REQUEST:
         if (gmiChunk.content && Array.isArray(gmiChunk.content)) {
           const toolCalls = gmiChunk.content as ToolCallRequest[];
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
             agentOSStreamId, AgentOSResponseChunkType.TOOL_CALL_REQUEST,
             gmiInstanceIdForChunks, personaId, false, // Tool call request is not final for the AgentOS turn
             { toolCalls, rationale: gmiChunk.metadata?.rationale || "Agent requires tool execution." }
@@ -2184,7 +2010,7 @@ export class AgentOSOrchestrator {
         break;
       case GMIOutputChunkType.UI_COMMAND:
         if (gmiChunk.content && Array.isArray(gmiChunk.content)) {
-          await this.pushChunkToStream(
+          await this.chunks.pushChunk(
             agentOSStreamId, AgentOSResponseChunkType.UI_COMMAND,
             gmiInstanceIdForChunks, personaId, gmiChunk.isFinal ?? false,
             { uiCommands: gmiChunk.content as UICommand[] }
@@ -2193,7 +2019,7 @@ export class AgentOSOrchestrator {
         break;
       case GMIOutputChunkType.ERROR: {
         const errDetails = gmiChunk.errorDetails || { message: gmiChunk.content };
-        await this.pushErrorChunk(
+        await this.chunks.pushError(
           agentOSStreamId, personaId, gmiInstanceIdForChunks,
           errDetails.code || GMIErrorCode.GMI_PROCESSING_ERROR,
           errDetails.message || String(gmiChunk.content) || 'Unknown GMI processing error.',
