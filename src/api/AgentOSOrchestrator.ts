@@ -21,6 +21,10 @@ import {
   type ResolvedAdaptiveExecutionConfig,
 } from './TaskOutcomeTelemetryManager';
 import { StreamChunkEmitter } from './StreamChunkEmitter';
+import { executeRollingSummaryPhase, type RollingSummaryPhaseResult } from './turn-phases/rolling-summary';
+import { executePromptProfilePhase } from './turn-phases/prompt-profile';
+import { executeLongTermMemoryPhase } from './turn-phases/long-term-memory';
+import { assembleConversationHistory } from './turn-phases/conversation-history';
 import {
   AgentOSResponse,
   AgentOSResponseChunkType,
@@ -955,132 +959,37 @@ export class AgentOSOrchestrator {
           ? input.options.customFlags.mode.trim()
           : currentPersonaId;
 
-      // --- Rolling summary compaction (text + JSON metadata) ---
-      let rollingSummaryResult: RollingSummaryCompactionResult | null = null;
-      let rollingSummaryProfileId: string | null = null;
-      let rollingSummaryConfigForTurn: RollingSummaryCompactionConfig | null = this.config.rollingSummaryCompactionConfig;
-      let rollingSummarySystemPromptForTurn: string | undefined = this.config.rollingSummarySystemPrompt;
-
-      if (this.config.rollingSummaryCompactionProfilesConfig) {
-        const profilesConfig = this.config.rollingSummaryCompactionProfilesConfig;
-        const picked =
-          pickByMode(profilesConfig.defaultProfileByMode, modeForRouting) ??
-          profilesConfig.defaultProfileId;
-        rollingSummaryProfileId = picked;
-        const profile = profilesConfig.profiles?.[picked];
-        if (profile?.config) {
-          rollingSummaryConfigForTurn = profile.config;
-        }
-        if (profile?.systemPrompt) {
-          rollingSummarySystemPromptForTurn = profile.systemPrompt;
-        }
-      }
-
-      if (conversationContext && rollingSummaryConfigForTurn) {
-        try {
-          const llmCaller = async (call: {
-            providerId?: string;
-            modelId: string;
-            messages: any[];
-            options: any;
-          }): Promise<string> => {
-            const providerIdResolved =
-              call.providerId ||
-              this.dependencies.modelProviderManager.getProviderForModel(call.modelId)?.providerId ||
-              this.dependencies.modelProviderManager.getDefaultProvider()?.providerId;
-            if (!providerIdResolved) {
-              throw new Error(`No provider resolved for rolling-summary model '${call.modelId}'.`);
-            }
-            const provider = this.dependencies.modelProviderManager.getProvider(providerIdResolved);
-            if (!provider) {
-              throw new Error(`Provider '${providerIdResolved}' not found for rolling-summary compaction.`);
-            }
-            const response = await provider.generateCompletion(call.modelId, call.messages, call.options);
-            const choice = response?.choices?.[0];
-            const responseContent = choice?.message?.content ?? choice?.text ?? '';
-            if (typeof responseContent === 'string') return responseContent.trim();
-            if (Array.isArray(responseContent)) {
-              return responseContent
-                .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
-                .filter(Boolean)
-                .join('\n')
-                .trim();
-            }
-            return String(responseContent ?? '').trim();
-          };
-
-          const stateKey = this.config.rollingSummaryStateKey;
-          const compaction = await maybeCompactConversationMessages({
-            messages: conversationContext.getAllMessages() as any,
-            sessionMetadata: conversationContext.getAllMetadata() as any,
-            config: rollingSummaryConfigForTurn,
-            llmCaller: ({ providerId, modelId, messages, options }) =>
-              llmCaller({ providerId, modelId, messages, options }),
-            systemPrompt: rollingSummarySystemPromptForTurn,
-            stateKey,
-          });
-
-          rollingSummaryResult = compaction;
-          if (compaction.updatedSessionMetadata && Object.prototype.hasOwnProperty.call(compaction.updatedSessionMetadata, stateKey)) {
-            conversationContext.setMetadata(stateKey, (compaction.updatedSessionMetadata as any)[stateKey]);
-          }
-        } catch (compactionError: any) {
-          console.warn(
-            `AgentOSOrchestrator: Rolling summary compaction failed for stream ${agentOSStreamId} (continuing without it).`,
-            compactionError,
-          );
-        }
-      }
+      // --- Rolling summary compaction (delegated to turn-phases/rolling-summary) ---
+      const rollingSummaryPhase = await executeRollingSummaryPhase({
+        conversationContext,
+        modeForRouting,
+        streamId: agentOSStreamId,
+        rollingSummaryCompactionConfig: this.config.rollingSummaryCompactionConfig,
+        rollingSummaryCompactionProfilesConfig: this.config.rollingSummaryCompactionProfilesConfig,
+        rollingSummarySystemPrompt: this.config.rollingSummarySystemPrompt,
+        rollingSummaryStateKey: this.config.rollingSummaryStateKey,
+        modelProviderManager: this.dependencies.modelProviderManager,
+      });
+      const { result: rollingSummaryResult, profileId: rollingSummaryProfileId, configForTurn: rollingSummaryConfigForTurn } = rollingSummaryPhase;
+      const rollingSummaryEnabled = rollingSummaryPhase.enabled;
+      const rollingSummaryText = rollingSummaryPhase.summaryText;
 
       if (!gmiInput.metadata) {
         gmiInput.metadata = {};
       }
-      const rollingSummaryEnabled = Boolean(rollingSummaryConfigForTurn?.enabled);
-      const rollingSummaryText =
-        rollingSummaryEnabled && typeof rollingSummaryResult?.summaryText === 'string'
-          ? rollingSummaryResult.summaryText.trim()
-          : '';
       (gmiInput.metadata as any).rollingSummary =
         rollingSummaryEnabled && rollingSummaryText
           ? { text: rollingSummaryText, json: rollingSummaryResult?.summaryJson ?? undefined }
           : null;
 
-      // --- Prompt-profile routing (concise/deep/planner/reviewer) ---
-      let promptProfileSelection: ReturnType<typeof selectPromptProfile>['result'] | null = null;
-      if (conversationContext && this.config.promptProfileConfig) {
-        try {
-          const rawPrev = conversationContext.getMetadata('promptProfileState');
-          const previousState: PromptProfileConversationState | null =
-            rawPrev && typeof rawPrev === 'object' && typeof (rawPrev as any).presetId === 'string'
-              ? (rawPrev as PromptProfileConversationState)
-              : null;
-
-          const userMessageForRouting =
-            gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
-              ? gmiInput.content
-              : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
-                ? JSON.stringify(gmiInput.content)
-                : '';
-
-          const selection = selectPromptProfile(
-            this.config.promptProfileConfig,
-            {
-              conversationId: conversationContext.sessionId,
-              mode: modeForRouting,
-              userMessage: userMessageForRouting,
-              didCompact: Boolean(rollingSummaryResult?.didCompact),
-            },
-            previousState,
-          );
-          promptProfileSelection = selection.result;
-          conversationContext.setMetadata('promptProfileState', selection.nextState);
-        } catch (routerError: any) {
-          console.warn(
-            `AgentOSOrchestrator: Prompt-profile routing failed for stream ${agentOSStreamId} (continuing without it).`,
-            routerError,
-          );
-        }
-      }
+      // --- Prompt-profile routing (delegated to turn-phases/prompt-profile) ---
+      const promptProfileSelection = executePromptProfilePhase({
+        conversationContext,
+        promptProfileConfig: this.config.promptProfileConfig,
+        modeForRouting,
+        gmiInput,
+        didCompact: Boolean(rollingSummaryResult?.didCompact),
+      });
 
       (gmiInput.metadata as any).promptProfile = promptProfileSelection
         ? {
@@ -1090,149 +999,42 @@ export class AgentOSOrchestrator {
           }
         : null;
 
-      // --- Long-term memory retrieval (user/persona/org) ---
-      let longTermMemoryContextText: string | null = null;
-      let longTermMemoryRetrievalDiagnostics: Record<string, unknown> | undefined;
-      let longTermMemoryShouldReview = false;
-      let longTermMemoryReviewReason: string | null = null;
-
-      if (
-        conversationContext &&
-        this.dependencies.longTermMemoryRetriever &&
-        Boolean(longTermMemoryPolicy?.enabled) &&
-        (Boolean(longTermMemoryPolicy?.scopes?.user) ||
-          Boolean(longTermMemoryPolicy?.scopes?.persona) ||
-          Boolean(longTermMemoryPolicy?.scopes?.organization))
-      ) {
-        try {
-          const queryText =
-            gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
-              ? gmiInput.content.trim()
-              : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
-                ? JSON.stringify(gmiInput.content).trim()
-                : '';
-
-          const userTurnCount = (conversationContext.getAllMessages() as any[]).filter(
-            (m) => m?.role === MessageRole.USER,
-          ).length;
-
-          const recallConfig = this.config.longTermMemoryRecall;
-          const cadenceTurns = recallConfig.cadenceTurns;
-          const forceOnCompaction = recallConfig.forceOnCompaction;
-
-          const rawState = conversationContext.getMetadata('longTermMemoryRetrievalState');
-          const prevState: LongTermMemoryRetrievalState | null =
-            rawState &&
-            typeof rawState === 'object' &&
-            typeof (rawState as any).lastReviewedUserTurn === 'number'
-              ? (rawState as LongTermMemoryRetrievalState)
-              : null;
-
-          const turnsSinceReview = prevState
-            ? Math.max(0, userTurnCount - prevState.lastReviewedUserTurn)
-            : Number.POSITIVE_INFINITY;
-          const dueToCadence = !prevState || turnsSinceReview >= cadenceTurns;
-          const dueToCompaction = forceOnCompaction && Boolean(rollingSummaryResult?.didCompact);
-          const shouldReview = dueToCadence || dueToCompaction;
-          longTermMemoryShouldReview = shouldReview;
-          if (shouldReview) {
-            longTermMemoryReviewReason = !prevState
-              ? 'initial_review'
-              : dueToCompaction
-                ? 'forced_on_compaction'
-                : 'cadence_due';
-          } else {
-            longTermMemoryReviewReason = 'cadence_not_due';
-          }
-
-          if (shouldReview && queryText.length > 0) {
-            const retrievalResult = await this.dependencies.longTermMemoryRetriever.retrieveLongTermMemory({
-              userId: streamContext.userId,
-              organizationId: organizationIdForMemory,
-              conversationId: streamContext.conversationId,
-              personaId: currentPersonaId,
-              mode: modeForRouting,
-              queryText,
-              memoryPolicy: longTermMemoryPolicy ?? DEFAULT_LONG_TERM_MEMORY_POLICY,
-              maxContextChars: recallConfig.maxContextChars,
-              topKByScope: recallConfig.topKByScope,
-            });
-
-            if (retrievalResult?.contextText && retrievalResult.contextText.trim()) {
-              longTermMemoryContextText = retrievalResult.contextText.trim();
-              longTermMemoryRetrievalDiagnostics = retrievalResult.diagnostics;
-            }
-
-            conversationContext.setMetadata('longTermMemoryRetrievalState', {
-              lastReviewedUserTurn: userTurnCount,
-              lastReviewedAt: Date.now(),
-            } satisfies LongTermMemoryRetrievalState);
-          } else if (shouldReview && queryText.length === 0) {
-            longTermMemoryReviewReason = 'empty_query';
-          }
-        } catch (retrievalError: any) {
-          console.warn(
-            `AgentOSOrchestrator: Long-term memory retrieval failed for stream ${agentOSStreamId} (continuing without it).`,
-            retrievalError,
-          );
-          longTermMemoryReviewReason = 'retrieval_error';
-        }
-      } else {
-        longTermMemoryReviewReason = 'retriever_not_applicable';
-      }
+      // --- Long-term memory retrieval (delegated to turn-phases/long-term-memory) ---
+      const longTermMemoryPhase = await executeLongTermMemoryPhase({
+        conversationContext,
+        longTermMemoryRetriever: this.dependencies.longTermMemoryRetriever,
+        longTermMemoryPolicy,
+        gmiInput,
+        streamId: agentOSStreamId,
+        userId: streamContext.userId,
+        organizationId: organizationIdForMemory,
+        conversationId: streamContext.conversationId,
+        personaId: currentPersonaId,
+        modeForRouting,
+        recallConfig: this.config.longTermMemoryRecall,
+        didCompact: Boolean(rollingSummaryResult?.didCompact),
+      });
+      const longTermMemoryContextText = longTermMemoryPhase.contextText;
+      const longTermMemoryRetrievalDiagnostics = longTermMemoryPhase.diagnostics;
+      const longTermMemoryShouldReview = longTermMemoryPhase.shouldReview;
+      const longTermMemoryReviewReason = longTermMemoryPhase.reviewReason;
 
       (gmiInput.metadata as any).longTermMemoryContext =
         typeof longTermMemoryContextText === 'string' && longTermMemoryContextText.length > 0
           ? longTermMemoryContextText
           : null;
 
-      // Provide a durable history snapshot for prompt construction so persona switches share memory.
-      // When rolling-summary compaction is enabled and a summary exists, trim history to:
-      // - keep the configured head messages verbatim
-      // - keep only messages after `summaryUptoTimestamp` (unsummarized tail)
-      if (conversationContext) {
-        const excludeRoles = new Set<MessageRole>([MessageRole.ERROR, MessageRole.THOUGHT]);
-        const useTrimmedHistory =
-          rollingSummaryEnabled &&
-          typeof rollingSummaryResult?.summaryUptoTimestamp === 'number' &&
-          rollingSummaryText.length > 0;
-
-        const rawHistory = useTrimmedHistory
-          ? (conversationContext.getAllMessages() as any[])
-          : (conversationContext.getHistory(undefined, [MessageRole.ERROR, MessageRole.THOUGHT]) as any[]);
-
-        let historyForPrompt = rawHistory.filter((m) => m && !excludeRoles.has(m.role)) as any[];
-
-        const last = historyForPrompt[historyForPrompt.length - 1];
-        if (last?.role === MessageRole.USER) {
-          const content = typeof last.content === 'string' ? last.content.trim() : '';
-          const inbound =
-            gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
-              ? gmiInput.content.trim()
-              : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
-                ? JSON.stringify(gmiInput.content).trim()
-                : '';
-          if (content && inbound && content === inbound) {
-            historyForPrompt = historyForPrompt.slice(0, -1);
-          }
-        }
-
-        if (useTrimmedHistory) {
-          const headCount = Math.max(0, rollingSummaryConfigForTurn?.headMessagesToKeep ?? 0);
-          const head = historyForPrompt.slice(0, Math.min(headCount, historyForPrompt.length));
-          const afterSummary = historyForPrompt.filter((m: any) => m && m.timestamp > (rollingSummaryResult as any).summaryUptoTimestamp);
-          const merged: any[] = [];
-          const seen = new Set<string>();
-          for (const msg of [...head, ...afterSummary]) {
-            const id = typeof msg?.id === 'string' ? msg.id : '';
-            if (!id || seen.has(id)) continue;
-            seen.add(id);
-            merged.push(msg);
-          }
-          historyForPrompt = merged;
-        }
-
-        (gmiInput.metadata as any).conversationHistoryForPrompt = historyForPrompt as any[];
+      // --- Conversation history assembly (delegated to turn-phases/conversation-history) ---
+      const historyForPrompt = assembleConversationHistory({
+        conversationContext,
+        gmiInput,
+        rollingSummaryEnabled,
+        rollingSummaryResult,
+        rollingSummaryText,
+        rollingSummaryConfigForTurn,
+      });
+      if (historyForPrompt) {
+        (gmiInput.metadata as any).conversationHistoryForPrompt = historyForPrompt;
       }
 
       // Persist any compaction/router metadata updates prior to the main LLM call.
