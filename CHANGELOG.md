@@ -1,3 +1,7 @@
+## <small>0.1.51 (2026-03-16)</small>
+
+* fix(telegram): resolve 409 Conflict from stale polling sessions ([ec30f23](https://github.com/framersai/agentos/commit/ec30f23))
+
 ## <small>0.1.50 (2026-03-16)</small>
 
 * feat: add barrel exports for 6 core subsystems ([6075721](https://github.com/framersai/agentos/commit/6075721))
