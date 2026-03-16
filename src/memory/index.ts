@@ -92,7 +92,11 @@ export type { MemoryAssemblerInput } from './prompt/MemoryPromptAssembler.js';
 export { formatMemoryTrace, formatMemoryTraces } from './prompt/MemoryFormatters.js';
 export type { FormattingStyle } from './prompt/MemoryFormatters.js';
 
-// --- Orchestrator ---
+// --- High-level facade ---
+export { AgentMemory } from './AgentMemory.js';
+export type { RecallResult, RememberResult, SearchOptions } from './AgentMemory.js';
+
+// --- Orchestrator (advanced) ---
 export { CognitiveMemoryManager } from './CognitiveMemoryManager.js';
 export type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 
