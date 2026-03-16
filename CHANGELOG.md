@@ -1,3 +1,7 @@
+## <small>0.1.52 (2026-03-16)</small>
+
+* feat(memory): add AgentMemory high-level facade ([9eae701](https://github.com/framersai/agentos/commit/9eae701)), closes [hi#level](https://github.com/hi/issues/level)
+
 ## <small>0.1.51 (2026-03-16)</small>
 
 * fix(telegram): resolve 409 Conflict from stale polling sessions ([ec30f23](https://github.com/framersai/agentos/commit/ec30f23))
