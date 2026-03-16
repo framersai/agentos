@@ -11,6 +11,7 @@
 import { AgentOSInput, ProcessingOptions } from './types/AgentOSInput';
 import {
   TaskOutcomeTelemetryManager,
+  evaluateTaskOutcome,
   resolveTaskOutcomeTelemetryConfig,
   resolveAdaptiveExecutionConfig,
   type TaskOutcomeAssessment,
@@ -111,16 +112,10 @@ export type {
 } from './types/OrchestratorConfig';
 
 import type {
-  RollingSummaryCompactionProfilesConfig,
   LongTermMemoryRecallProfile,
   AgentOSLongTermMemoryRecallConfig,
   TenantRoutingMode,
   AgentOSTenantRoutingConfig,
-  TaskOutcomeTelemetryScope,
-  AgentOSTaskOutcomeTelemetryConfig,
-  AgentOSAdaptiveExecutionConfig,
-  TaskOutcomeKpiWindowEntry,
-  ITaskOutcomeTelemetryStore,
   AgentOSOrchestratorConfig,
   AgentOSOrchestratorDependencies,
 } from './types/OrchestratorConfig';
@@ -175,22 +170,6 @@ const RECALL_PROFILE_DEFAULTS: Record<
   },
 };
 
-function normalizeMode(value: string): string {
-  return (value || '').trim().toLowerCase();
-}
-
-function pickByMode(map: Record<string, string> | undefined, mode: string): string | null {
-  if (!map || Object.keys(map).length === 0) return null;
-  const modeNorm = normalizeMode(mode);
-  const exact = map[modeNorm];
-  if (exact) return exact;
-  const patternMatch = Object.entries(map)
-    .map(([key, value]) => ({ key: normalizeMode(key), value }))
-    .filter(({ key }) => key && (modeNorm === key || modeNorm.startsWith(key) || modeNorm.includes(key)))
-    .sort((a, b) => b.key.length - a.key.length)[0];
-  return patternMatch?.value ?? null;
-}
-
 function renderPlainText(markdown: string): string {
   let text = String(markdown ?? '');
   if (!text.trim()) return '';
@@ -221,99 +200,8 @@ function renderPlainText(markdown: string): string {
   return text.trim();
 }
 
-function normalizeTaskOutcomeOverride(
-  customFlags: Record<string, any> | undefined,
-): TaskOutcomeAssessment | null {
-  if (!customFlags) return null;
-
-  const read = (keys: string[]): unknown => {
-    for (const key of keys) {
-      if (Object.prototype.hasOwnProperty.call(customFlags, key)) return customFlags[key];
-    }
-    return undefined;
-  };
-
-  const raw = read(['taskOutcome', 'task_outcome', 'taskSuccess', 'task_success']);
-  if (typeof raw === 'boolean') {
-    return {
-      status: raw ? 'success' : 'failed',
-      score: raw ? 1 : 0,
-      reason: raw ? 'Caller marked task successful.' : 'Caller marked task failed.',
-      source: 'request_override',
-    };
-  }
-  if (typeof raw === 'number' && Number.isFinite(raw)) {
-    const score = Math.max(0, Math.min(1, raw));
-    return {
-      status: score >= 0.8 ? 'success' : score >= 0.4 ? 'partial' : 'failed',
-      score,
-      reason: 'Caller supplied numeric task outcome score.',
-      source: 'request_override',
-    };
-  }
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-
-  const normalized = raw.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
-  if (
-    normalized === 'success' ||
-    normalized === 'succeeded' ||
-    normalized === 'done' ||
-    normalized === 'completed' ||
-    normalized === 'true'
-  ) {
-    return {
-      status: 'success',
-      score: 1,
-      reason: 'Caller marked task successful.',
-      source: 'request_override',
-    };
-  }
-  if (
-    normalized === 'partial' ||
-    normalized === 'incomplete' ||
-    normalized === 'needs_followup'
-  ) {
-    return {
-      status: 'partial',
-      score: 0.5,
-      reason: 'Caller marked task partially completed.',
-      source: 'request_override',
-    };
-  }
-  if (
-    normalized === 'failed' ||
-    normalized === 'failure' ||
-    normalized === 'error' ||
-    normalized === 'false'
-  ) {
-    return {
-      status: 'failed',
-      score: 0,
-      reason: 'Caller marked task failed.',
-      source: 'request_override',
-    };
-  }
-  return null;
-}
-
-function normalizeRequestedToolFailureMode(
-  customFlags: Record<string, any> | undefined,
-): ToolFailureMode | null {
-  if (!customFlags) return null;
-  const read = (keys: string[]): unknown => {
-    for (const key of keys) {
-      if (Object.prototype.hasOwnProperty.call(customFlags, key)) return customFlags[key];
-    }
-    return undefined;
-  };
-
-  const raw = read(['toolFailureMode', 'tool_failure_mode', 'failureMode', 'failMode']);
-  if (typeof raw !== 'string') return null;
-  const normalized = raw.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
-  if (normalized === 'fail_open' || normalized === 'open') return 'fail_open';
-  if (normalized === 'fail_closed' || normalized === 'closed') return 'fail_closed';
-  return null;
-}
+// normalizeTaskOutcomeOverride, normalizeRequestedToolFailureMode
+// moved to TaskOutcomeTelemetryManager
 
 function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
   const num = Number(value);
@@ -367,55 +255,8 @@ function resolveTenantRoutingConfig(
   };
 }
 
-// resolveTaskOutcomeTelemetryConfig, resolveAdaptiveExecutionConfig, sanitizeKpiEntry
+// evaluateTaskOutcome, resolveTaskOutcomeTelemetryConfig, resolveAdaptiveExecutionConfig
 // imported from TaskOutcomeTelemetryManager
-
-function evaluateTaskOutcome(args: {
-  finalOutput: GMIOutput;
-  didForceTerminate: boolean;
-  degraded: boolean;
-  customFlags?: Record<string, any>;
-}): TaskOutcomeAssessment {
-  const override = normalizeTaskOutcomeOverride(args.customFlags);
-  if (override) return override;
-
-  if (args.didForceTerminate || args.finalOutput.error) {
-    return {
-      status: 'failed',
-      score: 0,
-      reason: args.didForceTerminate
-        ? 'Turn force-terminated due to iteration cap.'
-        : 'Final response contains an error payload.',
-      source: 'heuristic',
-    };
-  }
-
-  const text = typeof args.finalOutput.responseText === 'string'
-    ? args.finalOutput.responseText.trim()
-    : '';
-  if (text.length >= 48) {
-    return {
-      status: 'success',
-      score: args.degraded ? 0.85 : 0.95,
-      reason: 'Final response was produced without terminal errors.',
-      source: 'heuristic',
-    };
-  }
-  if (text.length > 0 || (args.finalOutput.toolCalls?.length ?? 0) > 0) {
-    return {
-      status: 'partial',
-      score: args.degraded ? 0.5 : 0.6,
-      reason: 'Turn completed but produced a limited final response.',
-      source: 'heuristic',
-    };
-  }
-  return {
-    status: 'failed',
-    score: 0.1,
-    reason: 'No usable final response was produced.',
-    source: 'heuristic',
-  };
-}
 
 // AgentOSOrchestratorConfig and AgentOSOrchestratorDependencies imported from types/OrchestratorConfig.ts
 
