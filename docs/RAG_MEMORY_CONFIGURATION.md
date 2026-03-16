@@ -51,6 +51,62 @@ const health = await memory.health();
 const raw = memory.raw;
 ```
 
+## Observational Memory
+
+Observational memory is a background system that compresses long-running conversation history into dense, searchable memory traces. Instead of keeping the entire conversation in context, the system progressively distills it through three tiers:
+
+```
+Recent Messages (raw conversation turns)
+  → Observations (concise notes extracted by MemoryObserver)
+    → Reflections (long-term memory traces produced by MemoryReflector)
+```
+
+### How It Works
+
+1. **ObservationBuffer** accumulates every message fed via `observe()`. It tracks approximate token count (~4 chars/token).
+2. **MemoryObserver** activates when the buffer reaches **30,000 tokens**. It sends buffered messages to a cheap LLM, which extracts typed observation notes (`factual`, `emotional`, `commitment`, `preference`, `creative`, `correction`). The LLM prompt is biased by the agent's HEXACO personality traits — high Emotionality focuses on tone shifts, high Conscientiousness on deadlines, high Openness on creative tangents.
+3. **MemoryReflector** accumulates observation notes. When they exceed **40,000 tokens**, it consolidates them into long-term `MemoryTrace` objects with 5-40x compression. Conflict resolution is personality-driven: high Honesty prefers newer information and supersedes old traces; high Agreeableness keeps both versions.
+
+### Integration with RAG
+
+Reflection traces are encoded into the vector store via `CognitiveMemoryManager.encode()`, making them searchable through the standard RAG pipeline. When HyDE is enabled, a query like "what did we decide about deployment?" generates a hypothetical answer, and that embedding finds relevant reflection traces alongside regular memories.
+
+Superseded traces are soft-deleted so they no longer surface in retrieval results.
+
+### API
+
+The high-level entry point is `AgentMemory.observe()`:
+
+```ts
+// Feed every conversation turn to the observer
+await memory.observe('user', userMessage);
+await memory.observe('assistant', assistantResponse);
+```
+
+Internally, `CognitiveMemoryManager.observe()` orchestrates the full pipeline: buffer → observer → reflector → encode traces → soft-delete superseded.
+
+### Configuration
+
+Enable observational memory in `CognitiveMemoryConfig`:
+
+```ts
+await memory.initialize({
+  // ... core config ...
+  observer: {
+    activationThresholdTokens: 30_000, // trigger observation extraction
+    llmInvoker,                         // (system, user) => Promise<string>
+  },
+  reflector: {
+    activationThresholdTokens: 40_000, // trigger reflection consolidation
+    llmInvoker,
+  },
+});
+```
+
+Both thresholds can be tuned. Lower thresholds produce more frequent, finer-grained observations at higher LLM cost. Higher thresholds batch more context but risk losing detail.
+
+In persona JSON, the observer/reflector activate automatically when `memoryConfig.enabled = true` and an `llmInvoker` is available. No additional persona-level config is required.
+
 ## Low-Level RAG Primitives
 
 The concrete RAG APIs live under `@framers/agentos/rag`:
