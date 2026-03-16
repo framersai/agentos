@@ -148,15 +148,15 @@ export class EmbeddingManager implements IEmbeddingManager {
         max: cacheMaxSize,
         ttl: cacheTTLSeconds * 1000, // Convert TTL to milliseconds
       });
-      console.log(
+      console.debug(
         `EmbeddingManager: Cache enabled (maxSize: ${cacheMaxSize}, ttl: ${cacheTTLSeconds}s).`,
       );
     } else {
-      console.log('EmbeddingManager: Cache is disabled by configuration.');
+      console.debug('EmbeddingManager: Cache is disabled by configuration.');
     }
 
     this.initialized = true;
-    console.log(
+    console.debug(
       `EmbeddingManager initialized successfully with ${this.availableModels.size} embedding model(s). Default model: '${this.defaultModel?.modelId}'.`,
     );
   }
@@ -537,13 +537,11 @@ export class EmbeddingManager implements IEmbeddingManager {
    */
   public async shutdown(): Promise<void> {
     if (!this.initialized) {
-      console.log('EmbeddingManager: Shutdown called but not initialized. No action taken.');
+      console.debug('EmbeddingManager: Shutdown called but not initialized. No action taken.');
       return;
     }
     (this.cache as any)?.clear?.();
-    // Actual provider shutdown is handled by AIModelProviderManager if it's a shared resource.
-    // This manager only clears its own state.
     this.initialized = false;
-    console.log('EmbeddingManager shutdown complete. Cache cleared.');
+    console.debug('EmbeddingManager shutdown complete. Cache cleared.');
   }
 }

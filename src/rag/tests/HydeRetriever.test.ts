@@ -60,6 +60,30 @@ describe('resolveHydeConfig', () => {
     expect(config.minThreshold).toBe(DEFAULT_HYDE_CONFIG.minThreshold);
     expect(config.adaptiveThreshold).toBe(DEFAULT_HYDE_CONFIG.adaptiveThreshold);
   });
+
+  it('sanitizes invalid threshold settings', () => {
+    const config = resolveHydeConfig({
+      initialThreshold: 1.4,
+      minThreshold: 0.9,
+      thresholdStep: 0,
+      maxHypothesisTokens: -5,
+    });
+
+    expect(config.initialThreshold).toBe(1);
+    expect(config.minThreshold).toBe(0.9);
+    expect(config.thresholdStep).toBe(DEFAULT_HYDE_CONFIG.thresholdStep);
+    expect(config.maxHypothesisTokens).toBe(DEFAULT_HYDE_CONFIG.maxHypothesisTokens);
+  });
+
+  it('clamps minThreshold down to initialThreshold when misconfigured', () => {
+    const config = resolveHydeConfig({
+      initialThreshold: 0.4,
+      minThreshold: 0.8,
+    });
+
+    expect(config.initialThreshold).toBe(0.4);
+    expect(config.minThreshold).toBe(0.4);
+  });
 });
 
 describe('HydeRetriever', () => {
@@ -111,6 +135,29 @@ describe('HydeRetriever', () => {
       );
       expect(result.hypothesis).toBe('This is a hypothetical answer');
       expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('injects token and granularity guidance into the system prompt', async () => {
+      const retriever = new HydeRetriever({
+        config: {
+          enabled: true,
+          maxHypothesisTokens: 64,
+          fullAnswerGranularity: false,
+        },
+        llmCaller,
+        embeddingManager,
+      });
+
+      await retriever.generateHypothesis('What is RAG?');
+
+      expect(llmCaller).toHaveBeenCalledWith(
+        expect.stringContaining('Keep the answer under 64 tokens.'),
+        'What is RAG?',
+      );
+      expect(llmCaller).toHaveBeenCalledWith(
+        expect.stringContaining('shortest hypothetical answer'),
+        'What is RAG?',
+      );
     });
 
     it('trims whitespace from LLM response', async () => {
@@ -293,6 +340,33 @@ describe('HydeRetriever', () => {
         'my-collection',
         [0.1, 0.2, 0.3],
         expect.objectContaining({ topK: 3 }),
+      );
+    });
+
+    it('does not let queryOptions override adaptive minSimilarityScore', async () => {
+      const vectorStore = createMockVectorStore({ documents: [] });
+
+      const retriever = new HydeRetriever({
+        config: {
+          enabled: true,
+          adaptiveThreshold: false,
+          initialThreshold: 0.7,
+        },
+        llmCaller,
+        embeddingManager,
+      });
+
+      await retriever.retrieve({
+        query: 'test',
+        vectorStore,
+        collectionName: 'my-collection',
+        queryOptions: { minSimilarityScore: 0.95, topK: 2 } as Partial<QueryOptions>,
+      });
+
+      expect(vectorStore.query).toHaveBeenCalledWith(
+        'my-collection',
+        [0.1, 0.2, 0.3],
+        expect.objectContaining({ minSimilarityScore: 0.7, topK: 2 }),
       );
     });
 

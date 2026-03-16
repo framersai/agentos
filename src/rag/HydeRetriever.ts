@@ -53,9 +53,38 @@ export const DEFAULT_HYDE_CONFIG: Required<HydeConfig> = {
   fullAnswerGranularity: true,
 };
 
+function clampUnitInterval(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(1, Math.max(0, value));
+}
+
 /** Merge partial config with defaults. */
 export function resolveHydeConfig(partial?: Partial<HydeConfig>): Required<HydeConfig> {
-  return { ...DEFAULT_HYDE_CONFIG, ...partial };
+  const merged = { ...DEFAULT_HYDE_CONFIG, ...partial };
+  const initialThreshold = clampUnitInterval(
+    merged.initialThreshold,
+    DEFAULT_HYDE_CONFIG.initialThreshold,
+  );
+  const minThreshold = Math.min(
+    initialThreshold,
+    clampUnitInterval(merged.minThreshold, DEFAULT_HYDE_CONFIG.minThreshold),
+  );
+  const thresholdStep =
+    typeof merged.thresholdStep === 'number' && Number.isFinite(merged.thresholdStep) && merged.thresholdStep > 0
+      ? merged.thresholdStep
+      : DEFAULT_HYDE_CONFIG.thresholdStep;
+  const maxHypothesisTokens =
+    typeof merged.maxHypothesisTokens === 'number' && Number.isFinite(merged.maxHypothesisTokens) && merged.maxHypothesisTokens > 0
+      ? Math.floor(merged.maxHypothesisTokens)
+      : DEFAULT_HYDE_CONFIG.maxHypothesisTokens;
+
+  return {
+    ...merged,
+    initialThreshold,
+    minThreshold,
+    thresholdStep,
+    maxHypothesisTokens,
+  };
 }
 
 // ── LLM Caller ─────────────────────────────────────────────────────────────
@@ -111,13 +140,26 @@ export class HydeRetriever {
     return this.config.enabled;
   }
 
+  private buildHypothesisSystemPrompt(): string {
+    const instructions: string[] = [this.config.hypothesisSystemPrompt];
+    if (this.config.fullAnswerGranularity) {
+      instructions.push(
+        'Return a concise but complete hypothetical answer in natural language prose, not just keywords or bullet fragments.',
+      );
+    } else {
+      instructions.push('Return only the shortest hypothetical answer needed for semantic retrieval.');
+    }
+    instructions.push(`Keep the answer under ${this.config.maxHypothesisTokens} tokens.`);
+    return instructions.join(' ');
+  }
+
   /**
    * Generate a hypothetical answer for a query.
    */
   async generateHypothesis(query: string): Promise<{ hypothesis: string; latencyMs: number }> {
     const start = Date.now();
     const hypothesis = await this.llmCaller(
-      this.config.hypothesisSystemPrompt,
+      this.buildHypothesisSystemPrompt(),
       query,
     );
     return {
@@ -179,12 +221,16 @@ export class HydeRetriever {
     let queryResult: QueryResult = { documents: [] };
 
     while (threshold >= this.config.minThreshold) {
+      const {
+        minSimilarityScore: _ignoredMinSimilarityScore,
+        ...extraQueryOptions
+      } = opts.queryOptions ?? {};
       const queryOpts: QueryOptions = {
-        topK: opts.queryOptions?.topK ?? 5,
+        topK: extraQueryOptions.topK ?? 5,
         minSimilarityScore: threshold,
         includeTextContent: true,
         includeMetadata: true,
-        ...opts.queryOptions,
+        ...extraQueryOptions,
       };
 
       queryResult = await opts.vectorStore.query(
@@ -198,7 +244,11 @@ export class HydeRetriever {
       }
 
       // Step down threshold
-      threshold = Math.round((threshold - this.config.thresholdStep) * 100) / 100;
+      const nextThreshold = Math.round((threshold - this.config.thresholdStep) * 100) / 100;
+      if (nextThreshold < this.config.minThreshold) {
+        break;
+      }
+      threshold = nextThreshold;
       steps++;
     }
 
