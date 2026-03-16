@@ -77,165 +77,37 @@ import {
 } from '../core/observability/otel';
 import type { ITurnPlanner, TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
 
-export interface RollingSummaryCompactionProfileDefinition {
-  config: RollingSummaryCompactionConfig;
-  systemPrompt?: string;
-}
+// Public config types extracted to types/OrchestratorConfig.ts
+export type {
+  RollingSummaryCompactionProfileDefinition,
+  RollingSummaryCompactionProfilesConfig,
+  LongTermMemoryRecallProfile,
+  AgentOSLongTermMemoryRecallConfig,
+  TenantRoutingMode,
+  AgentOSTenantRoutingConfig,
+  TaskOutcomeTelemetryScope,
+  AgentOSTaskOutcomeTelemetryConfig,
+  AgentOSAdaptiveExecutionConfig,
+  TaskOutcomeKpiWindowEntry,
+  ITaskOutcomeTelemetryStore,
+  AgentOSOrchestratorConfig,
+  AgentOSOrchestratorDependencies,
+} from './types/OrchestratorConfig';
 
-export interface RollingSummaryCompactionProfilesConfig {
-  defaultProfileId: string;
-  defaultProfileByMode?: Record<string, string>;
-  profiles: Record<string, RollingSummaryCompactionProfileDefinition>;
-}
-
-export type LongTermMemoryRecallProfile =
-  | 'aggressive'
-  | 'balanced'
-  | 'conservative';
-
-export interface AgentOSLongTermMemoryRecallConfig {
-  /**
-   * Recall profile used to seed defaults.
-   * - aggressive: higher retrieval frequency + larger context budget
-   * - balanced: middle ground
-   * - conservative: lower retrieval frequency + smaller context budget
-   *
-   * Default: `aggressive`
-   */
-  profile?: LongTermMemoryRecallProfile;
-  /**
-   * Retrieve durable memory every N user turns.
-   * Default depends on `profile`.
-   */
-  cadenceTurns?: number;
-  /**
-   * Force memory retrieval on rolling-summary compaction turns.
-   * Default depends on `profile`.
-   */
-  forceOnCompaction?: boolean;
-  /**
-   * Character budget for retrieved long-term memory context.
-   * Default depends on `profile`.
-   */
-  maxContextChars?: number;
-  /**
-   * Per-scope retrieval caps.
-   * Default depends on `profile`.
-   */
-  topKByScope?: Partial<Record<'user' | 'persona' | 'organization', number>>;
-}
-
-export type TenantRoutingMode = 'multi_tenant' | 'single_tenant';
-
-export interface AgentOSTenantRoutingConfig {
-  /**
-   * Tenant routing mode.
-   * - multi_tenant: trust inbound `organizationId` as request-scoped context
-   * - single_tenant: collapse to a single org context for all turns
-   *
-   * Default: `multi_tenant`
-   */
-  mode?: TenantRoutingMode;
-  /**
-   * Optional default org ID used in `single_tenant` mode when request omits `organizationId`.
-   */
-  defaultOrganizationId?: string;
-  /**
-   * In `single_tenant` mode, reject mismatched `organizationId` values when a
-   * default org is configured.
-   *
-   * Default: false
-   */
-  strictOrganizationIsolation?: boolean;
-}
-
-export type TaskOutcomeTelemetryScope =
-  | 'global'
-  | 'organization'
-  | 'organization_persona';
-
-export interface AgentOSTaskOutcomeTelemetryConfig {
-  /**
-   * Enables streaming task-outcome KPI aggregates.
-   *
-   * Default: true
-   */
-  enabled?: boolean;
-  /**
-   * Number of recent outcomes retained per scope.
-   *
-   * Default: 100
-   */
-  rollingWindowSize?: number;
-  /**
-   * Scope used for KPI window aggregation.
-   * - global: all turns
-   * - organization: separate window per organization
-   * - organization_persona: separate window per org+persona
-   *
-   * Default: organization_persona
-   */
-  scope?: TaskOutcomeTelemetryScope;
-  /**
-   * Enables low-success alert emission in metadata updates.
-   *
-   * Default: true
-   */
-  emitAlerts?: boolean;
-  /**
-   * Minimum weighted success rate required to avoid emitting alerts.
-   *
-   * Default: 0.55
-   */
-  alertBelowWeightedSuccessRate?: number;
-  /**
-   * Minimum samples required before alert evaluation starts.
-   *
-   * Default: 8
-   */
-  alertMinSamples?: number;
-  /**
-   * Minimum time between repeated alerts for the same scope key (milliseconds).
-   *
-   * Default: 60000
-   */
-  alertCooldownMs?: number;
-}
-
-export interface AgentOSAdaptiveExecutionConfig {
-  /**
-   * Enables adaptive execution policy adjustments based on rolling task outcomes.
-   *
-   * Default: true
-   */
-  enabled?: boolean;
-  /**
-   * Minimum sample count before adaptive rules can apply.
-   *
-   * Default: 5
-   */
-  minSamples?: number;
-  /**
-   * Minimum weighted success rate required to keep discovery-only tool selection.
-   * If current rolling KPI drops below this threshold, orchestrator can force `toolSelectionMode = all`.
-   *
-   * Default: 0.7
-   */
-  minWeightedSuccessRate?: number;
-  /**
-   * When true, downgrade discovered-only tool selection to full toolset under poor KPI conditions.
-   *
-   * Default: true
-   */
-  forceAllToolsWhenDegraded?: boolean;
-  /**
-   * When true, force fail-open execution mode (`toolFailureMode = fail_open`) under poor KPI conditions.
-   * Explicit per-request `toolFailureMode = fail_closed` overrides are preserved.
-   *
-   * Default: true
-   */
-  forceFailOpenWhenDegraded?: boolean;
-}
+import type {
+  RollingSummaryCompactionProfilesConfig,
+  LongTermMemoryRecallProfile,
+  AgentOSLongTermMemoryRecallConfig,
+  TenantRoutingMode,
+  AgentOSTenantRoutingConfig,
+  TaskOutcomeTelemetryScope,
+  AgentOSTaskOutcomeTelemetryConfig,
+  AgentOSAdaptiveExecutionConfig,
+  TaskOutcomeKpiWindowEntry,
+  ITaskOutcomeTelemetryStore,
+  AgentOSOrchestratorConfig,
+  AgentOSOrchestratorDependencies,
+} from './types/OrchestratorConfig';
 
 type ResolvedLongTermMemoryRecallConfig = {
   profile: LongTermMemoryRecallProfile;
@@ -302,11 +174,7 @@ type TaskOutcomeKpiAlert = {
   timestamp: string;
 };
 
-type TaskOutcomeKpiWindowEntry = {
-  status: TaskOutcomeStatus;
-  score: number;
-  timestamp: number;
-};
+// TaskOutcomeKpiWindowEntry imported from types/OrchestratorConfig.ts
 
 type AdaptiveExecutionDecision = {
   applied: boolean;
@@ -319,16 +187,7 @@ type AdaptiveExecutionDecision = {
   };
 };
 
-export interface ITaskOutcomeTelemetryStore {
-  /**
-   * Load persisted KPI windows keyed by telemetry scope key.
-   */
-  loadWindows(): Promise<Record<string, TaskOutcomeKpiWindowEntry[]>>;
-  /**
-   * Persist a single KPI window snapshot.
-   */
-  saveWindow(scopeKey: string, entries: TaskOutcomeKpiWindowEntry[]): Promise<void>;
-}
+// ITaskOutcomeTelemetryStore imported from types/OrchestratorConfig.ts
 
 const RECALL_PROFILE_DEFAULTS: Record<
   LongTermMemoryRecallProfile,
@@ -646,101 +505,7 @@ function evaluateTaskOutcome(args: {
   };
 }
 
-/**
- * @typedef {Object} AgentOSOrchestratorConfig
- * Configuration options for the AgentOSOrchestrator.
- * @property {number} [maxToolCallIterations=5] - The maximum number of sequential
- * tool calls allowed within a single logical turn to prevent infinite loops.
- * @property {number} [defaultAgentTurnTimeoutMs=120000] - Default timeout for a
- * single GMI processing step (e.g., initial turn or tool result processing).
- * @property {boolean} [enableConversationalPersistence=true] - If true, conversation
- * context will be saved and loaded from persistent storage.
- */
-export interface AgentOSOrchestratorConfig {
-  maxToolCallIterations?: number;
-  defaultAgentTurnTimeoutMs?: number;
-  enableConversationalPersistence?: boolean;
-
-  /**
-   * Optional prompt-profile routing config. If omitted, a small default router is used.
-   * Set to `null` to disable prompt-profile routing entirely.
-   */
-  promptProfileConfig?: PromptProfileConfig | null;
-
-  /**
-   * Optional rolling-summary compaction config. If omitted, a conservative default is used (disabled).
-   * Set to `null` to disable rolling-summary compaction entirely.
-   */
-  rollingSummaryCompactionConfig?: RollingSummaryCompactionConfig | null;
-
-  /**
-   * Optional rolling-summary compaction profiles. When provided, the orchestrator selects a compaction
-   * profile per-turn based on `mode` (customFlags.mode or persona id) and uses it instead of the
-   * single `rollingSummaryCompactionConfig`.
-   */
-  rollingSummaryCompactionProfilesConfig?: RollingSummaryCompactionProfilesConfig | null;
-
-  /** Optional system prompt override for rolling-summary compaction. */
-  rollingSummarySystemPrompt?: string;
-
-  /** Optional metadata key to store rolling-summary state under (defaults to `rollingSummaryState`). */
-  rollingSummaryStateKey?: string;
-
-  /**
-   * Controls long-term memory retrieval cadence and depth.
-   * Default profile is intentionally aggressive to maximize recall.
-   */
-  longTermMemoryRecall?: AgentOSLongTermMemoryRecallConfig;
-
-  /**
-   * Controls request-time organization routing behavior.
-   */
-  tenantRouting?: AgentOSTenantRoutingConfig;
-
-  /**
-   * Controls rolling KPI emission for task outcomes.
-   */
-  taskOutcomeTelemetry?: AgentOSTaskOutcomeTelemetryConfig;
-
-  /**
-   * Controls adaptive execution policy adjustments derived from rolling task outcomes.
-   */
-  adaptiveExecution?: AgentOSAdaptiveExecutionConfig;
-}
-
-/**
- * @typedef {Object} AgentOSOrchestratorDependencies
- * Defines the dependencies required by the AgentOSOrchestrator.
- * These are typically injected during its initialization.
- * @property {GMIManager} gmiManager - Manager for GMI instances and persona definitions.
- * @property {ToolOrchestrator} toolOrchestrator - Orchestrates the execution of tools.
- * @property {ConversationManager} conversationManager - Manages loading and saving
- * of persistent conversation contexts.
- * @property {StreamingManager} streamingManager - Manages streaming responses to clients.
- */
-export interface AgentOSOrchestratorDependencies {
-  gmiManager: GMIManager;
-  toolOrchestrator: IToolOrchestrator;
-  conversationManager: ConversationManager;
-  streamingManager: StreamingManager;
-  modelProviderManager: AIModelProviderManager;
-  turnPlanner?: ITurnPlanner;
-  /**
-   * Optional sink for persisting rolling-memory outputs (`summary_markdown` + `memory_json`)
-   * into a long-term store (RAG / knowledge graph / database).
-   */
-  rollingSummaryMemorySink?: IRollingSummaryMemorySink;
-  /**
-   * Optional long-term memory retriever. When provided, AgentOS can inject
-   * durable memories (user/persona/org) into prompts on a cadence.
-   */
-  longTermMemoryRetriever?: ILongTermMemoryRetriever;
-  /**
-   * Optional persistence store for task outcome KPI windows.
-   * Use this to make rolling success-rate telemetry survive orchestrator restarts.
-   */
-  taskOutcomeTelemetryStore?: ITaskOutcomeTelemetryStore;
-}
+// AgentOSOrchestratorConfig and AgentOSOrchestratorDependencies imported from types/OrchestratorConfig.ts
 
 /**
  * Internal state for managing an active stream of GMI interaction.
