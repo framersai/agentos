@@ -10,6 +10,17 @@
 
 import { AgentOSInput, ProcessingOptions } from './types/AgentOSInput';
 import {
+  TaskOutcomeTelemetryManager,
+  resolveTaskOutcomeTelemetryConfig,
+  resolveAdaptiveExecutionConfig,
+  type TaskOutcomeAssessment,
+  type TaskOutcomeKpiSummary,
+  type TaskOutcomeKpiAlert,
+  type AdaptiveExecutionDecision,
+  type ResolvedTaskOutcomeTelemetryConfig,
+  type ResolvedAdaptiveExecutionConfig,
+} from './TaskOutcomeTelemetryManager';
+import {
   AgentOSResponse,
   AgentOSResponseChunkType,
   AgentOSTextDeltaChunk,
@@ -123,69 +134,15 @@ type ResolvedTenantRoutingConfig = {
   strictOrganizationIsolation: boolean;
 };
 
-type ResolvedTaskOutcomeTelemetryConfig = {
-  enabled: boolean;
-  rollingWindowSize: number;
-  scope: TaskOutcomeTelemetryScope;
-  emitAlerts: boolean;
-  alertBelowWeightedSuccessRate: number;
-  alertMinSamples: number;
-  alertCooldownMs: number;
-};
-
-type ResolvedAdaptiveExecutionConfig = {
-  enabled: boolean;
-  minSamples: number;
-  minWeightedSuccessRate: number;
-  forceAllToolsWhenDegraded: boolean;
-  forceFailOpenWhenDegraded: boolean;
-};
+// ResolvedTaskOutcomeTelemetryConfig, ResolvedAdaptiveExecutionConfig,
+// TaskOutcomeAssessment, TaskOutcomeKpiSummary, TaskOutcomeKpiAlert,
+// AdaptiveExecutionDecision — imported from TaskOutcomeTelemetryManager
 
 type TaskOutcomeStatus = 'success' | 'partial' | 'failed';
 
-type TaskOutcomeAssessment = {
-  status: TaskOutcomeStatus;
-  score: number;
-  reason: string;
-  source: 'heuristic' | 'request_override';
-};
-
-type TaskOutcomeKpiSummary = {
-  scopeKey: string;
-  scopeMode: TaskOutcomeTelemetryScope;
-  windowSize: number;
-  sampleCount: number;
-  successCount: number;
-  partialCount: number;
-  failedCount: number;
-  successRate: number;
-  averageScore: number;
-  weightedSuccessRate: number;
-  timestamp: string;
-};
-
-type TaskOutcomeKpiAlert = {
-  scopeKey: string;
-  severity: 'warning' | 'critical';
-  reason: string;
-  threshold: number;
-  value: number;
-  sampleCount: number;
-  timestamp: string;
-};
-
 // TaskOutcomeKpiWindowEntry imported from types/OrchestratorConfig.ts
 
-type AdaptiveExecutionDecision = {
-  applied: boolean;
-  reason?: string;
-  kpi?: TaskOutcomeKpiSummary | null;
-  actions?: {
-    forcedToolSelectionMode?: boolean;
-    forcedToolFailureMode?: boolean;
-    preservedRequestedFailClosed?: boolean;
-  };
-};
+// AdaptiveExecutionDecision imported from TaskOutcomeTelemetryManager
 
 // ITaskOutcomeTelemetryStore imported from types/OrchestratorConfig.ts
 
@@ -405,58 +362,8 @@ function resolveTenantRoutingConfig(
   };
 }
 
-function resolveTaskOutcomeTelemetryConfig(
-  config: AgentOSTaskOutcomeTelemetryConfig | undefined,
-): ResolvedTaskOutcomeTelemetryConfig {
-  const scope: TaskOutcomeTelemetryScope =
-    config?.scope === 'global' || config?.scope === 'organization'
-      ? config.scope
-      : 'organization_persona';
-  return {
-    enabled: config?.enabled !== false,
-    rollingWindowSize: clampInteger(config?.rollingWindowSize, 100, 5, 5000),
-    scope,
-    emitAlerts: config?.emitAlerts !== false,
-    alertBelowWeightedSuccessRate: Math.max(
-      0,
-      Math.min(1, Number(config?.alertBelowWeightedSuccessRate ?? 0.55)),
-    ),
-    alertMinSamples: clampInteger(config?.alertMinSamples, 8, 1, 10000),
-    alertCooldownMs: clampInteger(config?.alertCooldownMs, 60000, 0, 86400000),
-  };
-}
-
-function resolveAdaptiveExecutionConfig(
-  config: AgentOSAdaptiveExecutionConfig | undefined,
-): ResolvedAdaptiveExecutionConfig {
-  return {
-    enabled: config?.enabled !== false,
-    minSamples: clampInteger(config?.minSamples, 5, 1, 1000),
-    minWeightedSuccessRate: Math.max(
-      0,
-      Math.min(1, Number(config?.minWeightedSuccessRate ?? 0.7)),
-    ),
-    forceAllToolsWhenDegraded: config?.forceAllToolsWhenDegraded !== false,
-    forceFailOpenWhenDegraded: config?.forceFailOpenWhenDegraded !== false,
-  };
-}
-
-function sanitizeKpiEntry(raw: any): TaskOutcomeKpiWindowEntry | null {
-  const status = raw?.status;
-  const validStatus: TaskOutcomeStatus | null =
-    status === 'success' || status === 'partial' || status === 'failed' ? status : null;
-  if (!validStatus) return null;
-
-  const scoreNum = Number(raw?.score);
-  const timestampNum = Number(raw?.timestamp);
-  if (!Number.isFinite(scoreNum) || !Number.isFinite(timestampNum)) return null;
-
-  return {
-    status: validStatus,
-    score: Math.max(0, Math.min(1, scoreNum)),
-    timestamp: Math.max(0, Math.trunc(timestampNum)),
-  };
-}
+// resolveTaskOutcomeTelemetryConfig, resolveAdaptiveExecutionConfig, sanitizeKpiEntry
+// imported from TaskOutcomeTelemetryManager
 
 function evaluateTaskOutcome(args: {
   finalOutput: GMIOutput;
@@ -565,8 +472,7 @@ export class AgentOSOrchestrator {
   private initialized: boolean = false;
   private config!: ResolvedAgentOSOrchestratorConfig;
   private dependencies!: AgentOSOrchestratorDependencies;
-  private taskOutcomeKpiWindows = new Map<string, TaskOutcomeKpiWindowEntry[]>();
-  private taskOutcomeAlertState = new Map<string, number>();
+  private telemetry!: TaskOutcomeTelemetryManager;
 
   /**
    * A map to hold ongoing stream contexts.
@@ -623,30 +529,13 @@ export class AgentOSOrchestrator {
       taskOutcomeTelemetry: resolveTaskOutcomeTelemetryConfig(config.taskOutcomeTelemetry),
       adaptiveExecution: resolveAdaptiveExecutionConfig(config.adaptiveExecution),
     };
-    this.taskOutcomeKpiWindows.clear();
-    this.taskOutcomeAlertState.clear();
     this.dependencies = dependencies;
-    if (dependencies.taskOutcomeTelemetryStore && this.config.taskOutcomeTelemetry.enabled) {
-      try {
-        const persisted = await dependencies.taskOutcomeTelemetryStore.loadWindows();
-        const cap = this.config.taskOutcomeTelemetry.rollingWindowSize;
-        for (const [scopeKey, rawEntries] of Object.entries(persisted ?? {})) {
-          if (!Array.isArray(rawEntries)) continue;
-          const normalized = rawEntries
-            .map((entry) => sanitizeKpiEntry(entry))
-            .filter((entry): entry is TaskOutcomeKpiWindowEntry => Boolean(entry))
-            .sort((a, b) => a.timestamp - b.timestamp);
-          if (normalized.length === 0) continue;
-          const trimmed = normalized.slice(Math.max(0, normalized.length - cap));
-          this.taskOutcomeKpiWindows.set(scopeKey, trimmed);
-        }
-      } catch (error: any) {
-        console.warn(
-          'AgentOSOrchestrator: Failed to load persisted task outcome telemetry windows; continuing with empty windows.',
-          error,
-        );
-      }
-    }
+    this.telemetry = new TaskOutcomeTelemetryManager(
+      this.config.taskOutcomeTelemetry,
+      this.config.adaptiveExecution,
+      dependencies.taskOutcomeTelemetryStore,
+    );
+    await this.telemetry.loadPersistedWindows();
     this.initialized = true;
     console.log('AgentOSOrchestrator initialized.');
   }
@@ -698,214 +587,7 @@ export class AgentOSOrchestrator {
     return inbound;
   }
 
-  private resolveTaskOutcomeScopeKey(args: {
-    organizationId?: string;
-    personaId?: string;
-  }): string {
-    const scope = this.config.taskOutcomeTelemetry.scope;
-    const org = normalizeOrganizationId(args.organizationId) ?? 'none';
-    const persona = normalizeOrganizationId(args.personaId) ?? 'unknown';
-
-    if (scope === 'global') return 'global';
-    if (scope === 'organization') return `org:${org}`;
-    return `org:${org}|persona:${persona}`;
-  }
-
-  private updateTaskOutcomeKpi(args: {
-    outcome: TaskOutcomeAssessment;
-    organizationId?: string;
-    personaId?: string;
-  }): TaskOutcomeKpiSummary | null {
-    const telemetry = this.config.taskOutcomeTelemetry;
-    if (!telemetry.enabled) return null;
-
-    const scopeKey = this.resolveTaskOutcomeScopeKey({
-      organizationId: args.organizationId,
-      personaId: args.personaId,
-    });
-    const now = Date.now();
-    const window = this.taskOutcomeKpiWindows.get(scopeKey) ?? [];
-    window.push({
-      status: args.outcome.status,
-      score: Math.max(0, Math.min(1, Number(args.outcome.score) || 0)),
-      timestamp: now,
-    });
-
-    const cap = telemetry.rollingWindowSize;
-    if (window.length > cap) {
-      window.splice(0, window.length - cap);
-    }
-    this.taskOutcomeKpiWindows.set(scopeKey, window);
-    if (this.dependencies.taskOutcomeTelemetryStore) {
-      const snapshot = window.map((entry) => ({ ...entry }));
-      void this.dependencies.taskOutcomeTelemetryStore
-        .saveWindow(scopeKey, snapshot)
-        .catch((error: any) => {
-          console.warn(
-            `AgentOSOrchestrator: Failed to persist task outcome telemetry window for scope '${scopeKey}'.`,
-            error,
-          );
-        });
-    }
-
-    return this.summarizeTaskOutcomeWindow(scopeKey);
-  }
-
-  private getCurrentTaskOutcomeKpi(args: {
-    organizationId?: string;
-    personaId?: string;
-  }): TaskOutcomeKpiSummary | null {
-    if (!this.config.taskOutcomeTelemetry.enabled) return null;
-    const scopeKey = this.resolveTaskOutcomeScopeKey({
-      organizationId: args.organizationId,
-      personaId: args.personaId,
-    });
-    return this.summarizeTaskOutcomeWindow(scopeKey);
-  }
-
-  private summarizeTaskOutcomeWindow(scopeKey: string): TaskOutcomeKpiSummary | null {
-    const telemetry = this.config.taskOutcomeTelemetry;
-    const window = this.taskOutcomeKpiWindows.get(scopeKey) ?? [];
-    if (window.length === 0) return null;
-    const now = Date.now();
-
-    let successCount = 0;
-    let partialCount = 0;
-    let failedCount = 0;
-    let scoreSum = 0;
-
-    for (const entry of window) {
-      if (entry.status === 'success') successCount += 1;
-      else if (entry.status === 'partial') partialCount += 1;
-      else failedCount += 1;
-      scoreSum += entry.score;
-    }
-
-    const sampleCount = window.length;
-    const successRate = sampleCount > 0 ? successCount / sampleCount : 0;
-    const averageScore = sampleCount > 0 ? scoreSum / sampleCount : 0;
-
-    return {
-      scopeKey,
-      scopeMode: telemetry.scope,
-      windowSize: telemetry.rollingWindowSize,
-      sampleCount,
-      successCount,
-      partialCount,
-      failedCount,
-      successRate,
-      averageScore,
-      weightedSuccessRate: averageScore,
-      timestamp: new Date(now).toISOString(),
-    };
-  }
-
-  private maybeApplyAdaptiveExecutionPolicy(args: {
-    turnPlan: TurnPlan | null;
-    organizationId?: string;
-    personaId?: string;
-    requestCustomFlags?: Record<string, any>;
-  }): AdaptiveExecutionDecision {
-    const adaptive = this.config.adaptiveExecution;
-    if (!adaptive.enabled || !args.turnPlan) return { applied: false };
-
-    const kpi = this.getCurrentTaskOutcomeKpi({
-      organizationId: args.organizationId,
-      personaId: args.personaId,
-    });
-    if (!kpi) return { applied: false, kpi };
-    if (kpi.sampleCount < adaptive.minSamples) return { applied: false, kpi };
-    if (kpi.weightedSuccessRate >= adaptive.minWeightedSuccessRate) return { applied: false, kpi };
-    const reasons: string[] = [
-      `weightedSuccessRate=${kpi.weightedSuccessRate.toFixed(3)} below threshold=${adaptive.minWeightedSuccessRate.toFixed(3)}`,
-    ];
-    let forcedToolSelectionMode = false;
-    let forcedToolFailureMode = false;
-    let preservedRequestedFailClosed = false;
-
-    if (
-      adaptive.forceAllToolsWhenDegraded &&
-      args.turnPlan.policy.toolSelectionMode === 'discovered'
-    ) {
-      args.turnPlan.policy.toolSelectionMode = 'all';
-      forcedToolSelectionMode = true;
-      reasons.push('toolSelectionMode switched discovered -> all');
-    }
-
-    if (adaptive.forceFailOpenWhenDegraded && args.turnPlan.policy.toolFailureMode !== 'fail_open') {
-      const requestedFailureMode = normalizeRequestedToolFailureMode(args.requestCustomFlags);
-      if (requestedFailureMode === 'fail_closed') {
-        preservedRequestedFailClosed = true;
-        reasons.push('preserved explicit request override toolFailureMode=fail_closed');
-      } else {
-        const before = args.turnPlan.policy.toolFailureMode;
-        args.turnPlan.policy.toolFailureMode = 'fail_open';
-        forcedToolFailureMode = true;
-        reasons.push(`toolFailureMode switched ${before} -> fail_open`);
-      }
-    }
-
-    if (!forcedToolSelectionMode && !forcedToolFailureMode) {
-      return {
-        applied: false,
-        reason: preservedRequestedFailClosed
-          ? 'Adaptive execution detected degraded KPI but preserved explicit fail-closed request override.'
-          : undefined,
-        kpi,
-        actions: preservedRequestedFailClosed
-          ? {
-              preservedRequestedFailClosed: true,
-            }
-          : undefined,
-      };
-    }
-
-    args.turnPlan.capability.fallbackApplied = true;
-    args.turnPlan.capability.fallbackReason = `Adaptive fallback applied: ${reasons.join('; ')}.`;
-    args.turnPlan.diagnostics.usedFallback = true;
-
-    return {
-      applied: true,
-      reason: args.turnPlan.capability.fallbackReason,
-      kpi,
-      actions: {
-        forcedToolSelectionMode,
-        forcedToolFailureMode,
-        preservedRequestedFailClosed: preservedRequestedFailClosed || undefined,
-      },
-    };
-  }
-
-  private maybeBuildTaskOutcomeAlert(kpi: TaskOutcomeKpiSummary | null): TaskOutcomeKpiAlert | null {
-    const telemetry = this.config.taskOutcomeTelemetry;
-    if (!telemetry.enabled || !telemetry.emitAlerts || !kpi) return null;
-    if (kpi.sampleCount < telemetry.alertMinSamples) return null;
-    if (kpi.weightedSuccessRate >= telemetry.alertBelowWeightedSuccessRate) return null;
-
-    const now = Date.now();
-    const lastAlertAt = this.taskOutcomeAlertState.get(kpi.scopeKey) ?? 0;
-    if (telemetry.alertCooldownMs > 0 && now - lastAlertAt < telemetry.alertCooldownMs) {
-      return null;
-    }
-    this.taskOutcomeAlertState.set(kpi.scopeKey, now);
-
-    const severity: 'warning' | 'critical' =
-      kpi.weightedSuccessRate < telemetry.alertBelowWeightedSuccessRate * 0.6
-        ? 'critical'
-        : 'warning';
-
-    return {
-      scopeKey: kpi.scopeKey,
-      severity,
-      reason:
-        `Weighted success rate ${kpi.weightedSuccessRate.toFixed(3)} below alert threshold ` +
-        `${telemetry.alertBelowWeightedSuccessRate.toFixed(3)}.`,
-      threshold: telemetry.alertBelowWeightedSuccessRate,
-      value: kpi.weightedSuccessRate,
-      sampleCount: kpi.sampleCount,
-      timestamp: new Date(now).toISOString(),
-    };
-  }
+  // Task outcome telemetry methods delegated to this.telemetry (TaskOutcomeTelemetryManager)
 
   /**
    * Helper method to create and push response chunks via StreamingManager.
@@ -1318,7 +1000,7 @@ export class AgentOSOrchestrator {
           );
         }
       }
-      const adaptiveExecution = this.maybeApplyAdaptiveExecutionPolicy({
+      const adaptiveExecution = this.telemetry.maybeApplyAdaptivePolicy({
         turnPlan,
         organizationId: resolvedOrganizationId,
         personaId: currentPersonaId,
@@ -1969,12 +1651,12 @@ export class AgentOSOrchestrator {
         customFlags: input.options?.customFlags,
       });
       turnMetricsTaskOutcome = taskOutcome;
-      const taskOutcomeKpi = this.updateTaskOutcomeKpi({
+      const taskOutcomeKpi = this.telemetry.updateKpi({
         outcome: taskOutcome,
         organizationId: organizationIdForMemory,
         personaId: currentPersonaId,
       });
-      const taskOutcomeAlert = this.maybeBuildTaskOutcomeAlert(taskOutcomeKpi);
+      const taskOutcomeAlert = this.telemetry.maybeBuildAlert(taskOutcomeKpi);
       await this.pushChunkToStream(
         agentOSStreamId,
         AgentOSResponseChunkType.METADATA_UPDATE,
@@ -2095,12 +1777,12 @@ export class AgentOSOrchestrator {
         reason: `Exception before completion: ${gmiErr.code}`,
         source: 'heuristic',
       };
-      const taskOutcomeKpi = this.updateTaskOutcomeKpi({
+      const taskOutcomeKpi = this.telemetry.updateKpi({
         outcome: turnMetricsTaskOutcome,
         organizationId: organizationIdForMemory,
         personaId: currentPersonaId,
       });
-      const taskOutcomeAlert = this.maybeBuildTaskOutcomeAlert(taskOutcomeKpi);
+      const taskOutcomeAlert = this.telemetry.maybeBuildAlert(taskOutcomeKpi);
       console.error(`AgentOSOrchestrator: Error during _processTurnInternal for stream ${agentOSStreamId}:`, gmiErr);
       await this.pushChunkToStream(
         agentOSStreamId,
@@ -2618,8 +2300,8 @@ export class AgentOSOrchestrator {
         }
     }
     this.activeStreamContexts.clear();
-    this.taskOutcomeKpiWindows.clear();
-    this.taskOutcomeAlertState.clear();
+    this.telemetry?.kpiWindows.clear();
+    this.telemetry?.alertState.clear();
     this.initialized = false;
     console.log('AgentOSOrchestrator: Shutdown complete.');
   }
