@@ -1,22 +1,67 @@
 # RAG and Memory Configuration
 
-AgentOS supports two complementary ways to add long-term context to a model call:
+AgentOS provides two levels of memory API:
 
-1. **Prompt-injected long-term memory** via `longTermMemoryRetriever` (returns pre-formatted text).
-2. **Embedding-based RAG** via `IRetrievalAugmentor` (retrieves context from vector stores and can ingest new memories).
+1. **`AgentMemory`** — High-level facade with simple `remember()`, `recall()`, `observe()`, `search()` methods. No knowledge of PAD mood models or HEXACO traits required.
+2. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `GraphRAGEngine` for custom pipelines.
 
-This document focuses on the embedding-based path (RetrievalAugmentor), and how it interacts with persona `memoryConfig.ragConfig`.
+## High-Level API: AgentMemory
 
-## What Exists Today (API Reality)
+```ts
+import { AgentMemory } from '@framers/agentos';
 
-- `AgentOS` does **not** currently expose convenience methods like `agent.memory.ingest()` or `agent.memory.search()`.
-- The concrete RAG APIs live under `@framers/agentos/rag`:
-  - `EmbeddingManager`
-  - `VectorStoreManager`
-  - `RetrievalAugmentor`
-  - Optional: `GraphRAGEngine` (TypeScript-native)
+// Wrap an existing CognitiveMemoryManager (e.g., in wunderland)
+const memory = AgentMemory.wrap(existingManager);
 
-If you want a high-level “memory service” API, implement it as a thin wrapper around `IRetrievalAugmentor` (or expose it as a tool).
+// Or create standalone
+const memory = new AgentMemory();
+await memory.initialize(cognitiveMemoryConfig);
+
+// Store information
+await memory.remember(“User prefers dark mode”);
+await memory.remember(“Deploy by Friday”, { type: 'prospective', tags: ['deadline'] });
+
+// Recall relevant memories (uses HyDE when enabled)
+const results = await memory.recall(“what does the user prefer?”);
+for (const m of results.memories) {
+  console.log(m.content, m.retrievalScore);
+}
+
+// Observe conversation turns (observational memory)
+await memory.observe('user', “Can you help me debug this?”);
+await memory.observe('assistant', “Sure! The issue is in your useEffect...”);
+
+// Get assembled context for prompt injection
+const context = await memory.getContext(“TMJ treatment”, { tokenBudget: 2000 });
+
+// Set reminders (prospective memory)
+await memory.remind({
+  content: “Remind about deploy deadline”,
+  triggerType: 'time',
+  triggerAt: Date.now() + 3600000,
+});
+
+// Consolidation (merge, strengthen, decay)
+await memory.consolidate();
+
+// Health diagnostics
+const health = await memory.health();
+
+// Access underlying CognitiveMemoryManager for advanced usage
+const raw = memory.raw;
+```
+
+## Low-Level RAG Primitives
+
+The concrete RAG APIs live under `@framers/agentos/rag`:
+
+- **`EmbeddingManager`** — Text → vector embeddings (OpenAI, Ollama, custom providers)
+- **`VectorStoreManager`** — HNSW/InMemory vector storage with similarity search
+- **`RetrievalAugmentor`** — Orchestrates embedding + search + context assembly
+- **`HydeRetriever`** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
+- **`GraphRAGEngine`** — TypeScript-native graph-based RAG with knowledge graph traversal
+
+For most use cases, prefer `AgentMemory` over direct RAG primitive usage.
 
 ## Enabling RAG In AgentOS
 
