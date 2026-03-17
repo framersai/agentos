@@ -103,6 +103,24 @@ const snapshot = await createCuratedSkillSnapshot({ skills: ['github', 'weather'
 
 ---
 
+### [@framers/agentos-skills](https://github.com/framersai/agentos-skills)
+**Skills Runtime** — Standalone runtime for loading, parsing, filtering, and snapshotting SKILL.md skills.
+
+```bash
+npm install @framers/agentos-skills
+```
+
+```typescript
+import { SkillRegistry, resolveDefaultSkillsDirs } from '@framers/agentos-skills';
+
+const registry = new SkillRegistry();
+await registry.loadFromDirs(resolveDefaultSkillsDirs());
+
+const snapshot = registry.buildSnapshot({ platform: process.platform, strict: true });
+```
+
+---
+
 ### [@framers/agentos-ext-skills](https://github.com/framersai/agentos-skills)
 **Skills Tools Extension** — Tools for skill discovery + enablement (`skills_list`, `skills_read`, `skills_enable`).
 

@@ -325,7 +325,7 @@ export class SkillRegistry {
 
     const sections = entries.map((entry) => {
       const { skill, metadata } = entry;
-      const emoji = metadata?.emoji || '📦';
+      const emoji = metadata?.emoji || '\u{1F4E6}';
       const header = `## ${emoji} ${skill.name}`;
       const desc = skill.description ? `\n${skill.description}\n` : '';
       const content = skill.content ? `\n${skill.content}` : '';
