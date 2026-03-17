@@ -1,3 +1,10 @@
+## <small>0.1.53 (2026-03-17)</small>
+
+* fix: codex audit — barrel exports, type fixes, AgentOS cleanup ([fc1918f](https://github.com/framersai/agentos/commit/fc1918f))
+* docs: add all guide links to TypeDoc sidebar ([bacb388](https://github.com/framersai/agentos/commit/bacb388))
+* docs: add observational memory section to RAG guide ([80a47e3](https://github.com/framersai/agentos/commit/80a47e3))
+* docs: update RAG guide — document AgentMemory facade, HydeRetriever ([bad35ab](https://github.com/framersai/agentos/commit/bad35ab))
+
 ## <small>0.1.52 (2026-03-16)</small>
 
 * feat(memory): add AgentMemory high-level facade ([9eae701](https://github.com/framersai/agentos/commit/9eae701)), closes [hi#level](https://github.com/hi/issues/level)
