@@ -1,3 +1,8 @@
+## <small>0.1.54 (2026-03-17)</small>
+
+* fix: update SkillRegistry emoji encoding + add ecosystem doc ([9f30ce2](https://github.com/framersai/agentos/commit/9f30ce2))
+* docs(skills): clarify skills barrel export + relationship to @framers/agentos-skills ([fa0a66b](https://github.com/framersai/agentos/commit/fa0a66b))
+
 ## <small>0.1.53 (2026-03-17)</small>
 
 * fix: codex audit — barrel exports, type fixes, AgentOS cleanup ([fc1918f](https://github.com/framersai/agentos/commit/fc1918f))
