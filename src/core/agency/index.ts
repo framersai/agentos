@@ -1,6 +1,5 @@
 /**
- * @file index.ts
- * @description Agency module exports - multi-GMI collective management.
+ * Agency module exports for multi-GMI collective management.
  *
  * The Agency module provides infrastructure for multi-agent collaboration:
  * - AgencyRegistry: Manages agency sessions and GMI seats
@@ -55,7 +54,6 @@ export type {
   BusStatistics,
   MessagePriority,
 } from './IAgentCommunicationBus';
-
 
 
 

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json",
+  "tagDefinitions": [
+    {
+      "tagName": "@fileoverview",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@interface",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@property",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@class",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@typedef",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@augments",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@enum",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@default",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@type",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@template",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@module",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@extends",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@file",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@description",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@classdesc",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@implements",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@async",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@optional",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@export",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@constructor",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@static",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@generator",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@private",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@yields",
+      "syntaxKind": "block"
+    },
+    {
+      "tagName": "@abstract",
+      "syntaxKind": "modifier"
+    },
+    {
+      "tagName": "@protected",
+      "syntaxKind": "modifier"
+    }
+  ],
+  "supportForTags": {
+    "@fileoverview": true,
+    "@interface": true,
+    "@property": true,
+    "@class": true,
+    "@typedef": true,
+    "@augments": true,
+    "@enum": true,
+    "@default": true,
+    "@type": true,
+    "@template": true,
+    "@module": true,
+    "@extends": true,
+    "@file": true,
+    "@description": true,
+    "@classdesc": true,
+    "@implements": true,
+    "@async": true,
+    "@optional": true,
+    "@export": true,
+    "@constructor": true,
+    "@static": true,
+    "@generator": true,
+    "@private": true,
+    "@yields": true,
+    "@abstract": true,
+    "@protected": true
+  }
+}

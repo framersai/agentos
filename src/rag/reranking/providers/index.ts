@@ -1,6 +1,7 @@
 /**
- * @fileoverview Reranker provider implementations.
- * @module backend/agentos/rag/reranking/providers
+ * Reranker provider implementations.
+ *
+ * @module @framers/agentos/rag/reranking/providers
  */
 
 export { CohereReranker, type CohereRerankerConfig, COHERE_RERANKER_MODELS, type CohereRerankerModel } from './CohereReranker';

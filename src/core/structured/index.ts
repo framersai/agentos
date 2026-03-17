@@ -1,6 +1,5 @@
 /**
- * @file Structured Output Module Index
- * @description Exports for the Structured Output Manager in AgentOS.
+ * Exports for the Structured Output Manager in AgentOS.
  *
  * The Structured Output module provides:
  * - JSON Schema validation for LLM outputs
@@ -55,6 +54,5 @@ export {
   StructuredOutputManager,
   type StructuredOutputManagerConfig,
 } from './StructuredOutputManager';
-
 
 

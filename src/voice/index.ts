@@ -1,5 +1,6 @@
 /**
- * @fileoverview Barrel exports for the AgentOS Voice Call System.
+ * Barrel exports for the AgentOS voice call system.
+ *
  * @module @framers/agentos/voice
  */
 

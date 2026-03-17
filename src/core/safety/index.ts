@@ -1,7 +1,8 @@
 /**
- * @module safety
- * @description Agent safety primitives — circuit breaker, action deduplication,
+ * Agent safety primitives: circuit breaker, action deduplication,
  * stuck detection, cost guards, and tool execution guards.
+ *
+ * @module safety
  */
 
 export { CircuitBreaker, CircuitOpenError } from './CircuitBreaker.js';

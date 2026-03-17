@@ -1,6 +1,7 @@
 /**
+ * Tool interfaces, orchestrator, executor, and permission helpers.
+ *
  * @module tools
- * @description Tool interfaces, orchestrator, executor, and permission helpers.
  */
 
 export {

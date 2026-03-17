@@ -1,5 +1,6 @@
 /**
- * @fileoverview Barrel exports for the AgentOS Channel System.
+ * Barrel exports for the AgentOS Channel System.
+ *
  * @module @framers/agentos/channels
  */
 

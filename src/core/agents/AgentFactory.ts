@@ -123,9 +123,8 @@ export class AgentFactory implements IAgentFactory {
   }
 
   /**
-   * @inheritdoc
-   * Initializes the `AgentFactory` by loading agent configurations and mapping agent types
-   * to their respective class constructors.
+   * Initializes the factory with agent configurations and agent class mappings.
+   *
    * @throws {AgentFactoryError} If `agentConfigs` or `agentClassMap` is null/undefined.
    */
   public async initialize(
@@ -162,10 +161,9 @@ export class AgentFactory implements IAgentFactory {
   }
 
   /**
-   * @inheritdoc
    * Dynamically registers an agent type and its constructor with the factory.
-   * This allows for adding new agent implementations at runtime or via a plugin system.
-   * @throws {AgentFactoryError} If `agentType` or `constructor` is invalid, or if an agent type is already registered and overwrite is not intended.
+   *
+   * @throws {AgentFactoryError} If `agentType` or `constructor` is invalid.
    */
   public async registerAgentClass(agentType: string, constructor: AgentClassConstructor<any>): Promise<void> {
     this.ensureInitialized();
@@ -185,11 +183,9 @@ export class AgentFactory implements IAgentFactory {
   }
 
   /**
-   * @inheritdoc
-   * Retrieves (and typically creates and initializes) an agent instance by its ID.
-   * It resolves the agent's primary LLM provider using the `AIModelProviderManager` from `dependencies`.
-   * @throws {AgentFactoryError} If critical errors occur during instantiation, such as missing configuration,
-   * unregistered class, or failure to resolve the LLM provider.
+   * Retrieves and initializes an agent instance by its ID.
+   *
+   * @throws {AgentFactoryError} If critical errors occur during instantiation.
    */
   public async getAgent(agentId: string, dependencies: AgentDependencies): Promise<IAgent | undefined> {
     this.ensureInitialized();
@@ -290,8 +286,8 @@ export class AgentFactory implements IAgentFactory {
   }
 
   /**
-   * @inheritdoc
-   * Lists all available agent configurations known to the factory.
+   * Lists all agent configurations known to the factory.
+   *
    * Returns deep copies of the configurations to prevent external modification.
    */
   public async listAvailableAgentConfigs(): Promise<Readonly<AgentConfig[]>> {

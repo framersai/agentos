@@ -1,5 +1,5 @@
 /**
- * @fileoverview Domain-organized barrel for all core subsystems.
+ * Domain-organized barrel for all core subsystems.
  *
  * Subsystems are grouped into 7 domains for navigability:
  *

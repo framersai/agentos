@@ -1,6 +1,5 @@
 /**
- * @file HITL Module Index
- * @description Human-in-the-Loop (HITL) module exports for AgentOS.
+ * Human-in-the-Loop (HITL) module exports for AgentOS.
  *
  * The HITL module enables structured collaboration between AI agents
  * and human operators for:
@@ -41,6 +40,5 @@ export {
   HumanInteractionManager,
   type HumanInteractionManagerConfig,
 } from './HumanInteractionManager';
-
 
 

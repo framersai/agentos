@@ -1,6 +1,6 @@
 /**
- * @file index.ts
- * @description Public API for the AgentOS Provenance System.
+ * Public API for the AgentOS Provenance System.
+ *
  * Re-exports all types, classes, and utilities for external consumption.
  *
  * Built-in anchor providers: {@link NoneProvider}, {@link CompositeAnchorProvider}.

@@ -352,9 +352,9 @@ export interface AgentOSConfig {
    * Optional configuration for AgentOS-managed RAG subsystem initialization.
    *
    * When provided and enabled, AgentOS will:
-   * - Initialize an {@link EmbeddingManager} with {@link EmbeddingManagerConfig}
-   * - Initialize a {@link VectorStoreManager} with {@link VectorStoreManagerConfig} + {@link RagDataSourceConfig}
-   * - Initialize a {@link RetrievalAugmentor} with {@link RetrievalAugmentorServiceConfig}
+   * - Initialize an `EmbeddingManager` with `EmbeddingManagerConfig`
+   * - Initialize a `VectorStoreManager` with `VectorStoreManagerConfig` and `RagDataSourceConfig`
+   * - Initialize a `RetrievalAugmentor` with `RetrievalAugmentorServiceConfig`
    * - Pass the resulting {@link IRetrievalAugmentor} into GMIs via the {@link GMIManager}
    *
    * Notes:
@@ -385,13 +385,13 @@ export interface AgentOSConfig {
      */
     bindToStorageAdapter?: boolean;
   };
-  /** Configuration for the {@link PromptEngine}. */
+  /** Configuration for the prompt engine. */
   promptEngineConfig: PromptEngineConfig;
-  /** Configuration for the {@link ToolOrchestrator}. */
+  /** Configuration for the tool orchestrator. */
   toolOrchestratorConfig: ToolOrchestratorConfig;
   /** Optional human-in-the-loop manager for approvals/clarifications. */
   hitlManager?: IHumanInteractionManager;
-  /** Configuration for the {@link ToolPermissionManager}. */
+  /** Configuration for the tool permission manager. */
   toolPermissionManagerConfig: ToolPermissionManagerConfig;
   /** Configuration for the {@link ConversationManager}. */
   conversationManagerConfig: ConversationManagerConfig;
@@ -418,9 +418,9 @@ export interface AgentOSConfig {
    * ```
    */
   prisma: PrismaClient;
-  /** Optional authentication service, conforming to {@link IAuthService}. Provide via the auth extension or your own adapter. */
+  /** Optional authentication service implementing `IAuthService`. Provide via the auth extension or your own adapter. */
   authService?: IAuthService;
-  /** Optional subscription service, conforming to {@link ISubscriptionService}. Provide via the auth extension or your own adapter. */
+  /** Optional subscription service implementing `ISubscriptionService`. Provide via the auth extension or your own adapter. */
   subscriptionService?: ISubscriptionService;
   /** Optional guardrail service implementation used for policy enforcement. */
   guardrailService?: IGuardrailService;
@@ -463,8 +463,8 @@ export interface AgentOSConfig {
   turnPlanning?: AgentOSTurnPlanningConfig;
   /**
    * Optional. An instance of a utility AI service.
-   * This service should conform to {@link IUtilityAI} for general utility tasks.
-   * If the {@link PromptEngine} is used and requires specific utility functions (like advanced
+   * This service should conform to `IUtilityAI` for general utility tasks.
+   * If the prompt engine is used and requires specific utility functions (like advanced
    * summarization for prompt construction), this service *must* also fulfill the contract
    * of {@link IPromptEngineUtilityAI}.
    * It's recommended that the concrete class for this service implements both interfaces if needed.

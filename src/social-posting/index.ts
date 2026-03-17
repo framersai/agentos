@@ -1,5 +1,6 @@
 /**
- * @fileoverview Social Posting module — barrel exports.
+ * Social Posting module barrel exports.
+ *
  * @module @framers/agentos/social-posting
  *
  * Provides the post lifecycle engine ({@link SocialPostManager}) and

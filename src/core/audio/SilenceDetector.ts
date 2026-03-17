@@ -106,7 +106,7 @@ export class SilenceDetector extends EventEmitter {
 
   /**
    * Handles the `speech_start` event from AdaptiveVAD.
-   * @param {VADResult} vadResult - The VAD result associated with speech start.
+   * @param {VADResult} _vadResult - The VAD result associated with speech start.
    */
   public handleSpeechStart(_vadResult: VADResult): void {
     // console.debug("SilenceDetector: VAD Speech Start");
@@ -118,7 +118,7 @@ export class SilenceDetector extends EventEmitter {
   /**
    * Handles the `voice_activity` event from AdaptiveVAD.
    * Call this for every frame VAD identifies as speech.
-   * @param {VADResult} vadResult - The VAD result for the active voice frame.
+   * @param {VADResult} _vadResult - The VAD result for the active voice frame.
    */
   public handleVoiceActivity(_vadResult: VADResult): void {
     // console.debug("SilenceDetector: VAD Voice Activity");
@@ -131,7 +131,7 @@ export class SilenceDetector extends EventEmitter {
   /**
    * Handles the `no_voice_activity` event from AdaptiveVAD.
    * Call this for every frame VAD identifies as non-speech.
-   * @param {VADResult} vadResult - The VAD result for the non-speech frame.
+   * @param {VADResult} _vadResult - The VAD result for the non-speech frame.
    */
   public handleNoVoiceActivity(_vadResult: VADResult): void {
     // console.debug("SilenceDetector: VAD No Voice Activity");
@@ -158,8 +158,8 @@ export class SilenceDetector extends EventEmitter {
   /**
    * Handles the `speech_end` event from AdaptiveVAD.
    * This signifies VAD has determined a speech segment is over due to its internal pause limits.
-   * @param {VADResult} vadResult - The VAD result associated with speech end.
-   * @param {number} speechDurationMs - The duration of the speech segment as determined by VAD.
+   * @param {VADResult} _vadResult - The VAD result associated with speech end.
+   * @param {number} _speechDurationMs - The duration of the speech segment as determined by VAD.
    */
   public handleSpeechEnd(_vadResult: VADResult, _speechDurationMs: number): void {
     // console.debug(`SilenceDetector: VAD Speech End. Duration: ${speechDurationMs}ms`);

@@ -37,6 +37,7 @@
     "src/discovery/**/*.ts",
     "src/memory/**/*.ts",
     "src/neo4j/**/*.ts",
+    "src/social-posting/**/*.ts",
     "src/speech/**/*.ts",
     "src/voice/**/*.ts",
     "src/**/*.json"

@@ -320,15 +320,20 @@ export interface PromptEngineConfig {
   };
   /**
    * Optional tool schema registration manifest enabling per-persona and per-model enable/disable semantics.
+   *
    * Structure:
-   *  - key: personaId (string)
-   *  - value: {
-   *       enabledToolIds: string[];            // Tools explicitly allowed for this persona (intersection with runtime tool list)
-   *       disabledToolIds?: string[];          // Tools explicitly disallowed (takes precedence over enabledToolIds)
-   *       modelOverrides?: {                   // Per model ID fine-grained overrides
-   *         [modelId: string]: string[];       // Exact list of tool IDs allowed for that model when persona active
-   *       };
-   *    }
+   * ```ts
+   * {
+   *   [personaId: string]: {
+   *     enabledToolIds: string[];
+   *     disabledToolIds?: string[];
+   *     modelOverrides?: {
+   *       [modelId: string]: string[];
+   *     };
+   *   };
+   * }
+   * ```
+   *
    * Resolution Order when filtering tools for prompt construction:
    *   1. If personaId present in manifest:
    *      a. If modelOverrides[modelId] exists => allowed set = that array (disabledToolIds still removes).

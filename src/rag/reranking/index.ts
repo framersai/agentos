@@ -1,11 +1,11 @@
 /**
- * @fileoverview Cross-encoder reranking module for AgentOS RAG pipeline.
+ * Cross-encoder reranking module for the AgentOS RAG pipeline.
  *
  * This module provides pluggable reranking capabilities using cross-encoder models
  * to improve retrieval relevance. Supports both local models (via transformers.js)
  * and cloud APIs (Cohere).
  *
- * @module backend/agentos/rag/reranking
+ * @module @framers/agentos/rag/reranking
  *
  * @example Basic usage with local model
  * ```typescript

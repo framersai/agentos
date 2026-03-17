@@ -1,5 +1,6 @@
 /**
- * @fileoverview Capability Discovery Engine — barrel exports.
+ * Capability Discovery Engine barrel exports.
+ *
  * @module @framers/agentos/discovery
  *
  * Smart, tiered capability discovery for AgentOS agents.

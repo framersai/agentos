@@ -328,10 +328,7 @@ export abstract class AgentCore implements IAgent {
   }
 
   /**
-   * Abstract method that concrete agent classes **must** implement.
-   * This method defines the agent's primary logic for processing a turn of interaction,
-   * taking user input and conversation context to produce an output.
-   * @inheritdoc
+   * Abstract method that concrete agent classes must implement to process a turn.
    */
   public abstract processTurn(
     userInput: string | null,
@@ -340,15 +337,10 @@ export abstract class AgentCore implements IAgent {
   ): Promise<AgentOutput>;
 
   /**
-   * Handles results from tool calls that this agent previously requested.
-   * The base implementation provides a default behavior: it attempts to use the agent's LLM
-   * to generate a conversational explanation or summary of the tool's output, especially
-   * if the output is complex or unexpected.
+   * Handles results from tool calls requested by this agent.
    *
-   * Concrete agents that require more specific handling of tool results (e.g., directly using
-   * structured tool output in their logic) **should override** this method.
+   * Subclasses can override this when they need tool-specific handling logic.
    *
-   * @inheritdoc
    * @throws {AgentCoreError} If adding the tool result to context fails or if the LLM call for explanation fails.
    */
   public async handleToolResult(
@@ -440,9 +432,7 @@ export abstract class AgentCore implements IAgent {
   }
 
   /**
-   * @inheritdoc
-   * Default implementation. Subclasses can override for custom setup logic.
-   * Ensures that configuration is applied and logs initialization.
+   * Initializes the agent with optional configuration overrides.
    */
   public async initialize(config?: Record<string, any>): Promise<void> {
     if (this.isInitialized && !config) {
@@ -461,9 +451,7 @@ export abstract class AgentCore implements IAgent {
   }
 
   /**
-   * @inheritdoc
-   * Default implementation. Subclasses should override if they maintain specific internal state
-   * that needs to be reset between conversations or sessions.
+   * Resets any agent-specific state between conversations or sessions.
    */
   public reset(): void {
     this.ensureInitialized(); // Should be initialized to be reset
@@ -472,10 +460,11 @@ export abstract class AgentCore implements IAgent {
   }
 
   /**
-   * @inheritdoc
    * Provides a default implementation for handling internal agent errors.
+   *
    * This method leverages the agent's primary LLM to generate a user-friendly explanation
    * of the error and potentially ask for user guidance.
+   *
    * @throws {AgentCoreError} If the LLM call for error explanation itself fails.
    */
   public async handleInternalAgentError(
@@ -769,7 +758,7 @@ export abstract class AgentCore implements IAgent {
    * whose definitions can be fetched. This detail depends on how tools are managed globally.
    * For now, this is a placeholder and might require a `ToolRegistry` dependency.
    *
-   * @param toolIds List of tool IDs.
+   * @param _toolIds List of tool IDs.
    * @returns Array of ToolDefinitions.
    */
   protected async getAvailableToolDefinitions(_toolIds: string[]): Promise<ToolDefinition[] | undefined> {

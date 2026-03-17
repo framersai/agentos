@@ -1,6 +1,6 @@
 /**
- * @file Observability Module Index
- * @description Exports for tracing and observability.
+ * Exports for tracing and observability.
+ *
  * @module AgentOS/Observability
  */
 
@@ -43,4 +43,3 @@ export {
   getActiveSpanContext,
   getActiveTraceMetadata,
 } from './otel';
-

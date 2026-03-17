@@ -1,10 +1,20 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": [
-    "src/index.ts"
+    "src/core/index.ts",
+    "src/memory/index.ts",
+    "src/rag/index.ts",
+    "src/discovery/index.ts",
+    "src/extensions/index.ts",
+    "src/channels/index.ts",
+    "src/skills/index.ts",
+    "src/speech/index.ts",
+    "src/voice/index.ts",
+    "src/social-posting/index.ts",
+    "src/neo4j/index.ts"
   ],
-  "out": "docs/api",
-  "json": "../../docs-generated/library/public/docs.json",
+  "out": "docs/api/modules",
+  "json": "../../docs-generated/library/modules/docs.json",
   "tsconfig": "tsconfig.build.json",
   "exclude": [
     "**/*.test.ts",
@@ -13,9 +23,9 @@
     "**/tests/**"
   ],
   "skipErrorChecking": true,
-  "cleanOutputDir": true,
-  "name": "@framers/agentos",
-  "readme": "README.md",
+  "cleanOutputDir": false,
+  "name": "@framers/agentos Module API",
+  "readme": "none",
   "includeVersion": true,
   "excludePrivate": true,
   "excludeProtected": false,
@@ -42,22 +52,6 @@
     "Website": "https://agentos.sh",
     "GitHub": "https://github.com/framersai/agentos",
     "npm": "https://www.npmjs.com/package/@framers/agentos"
-  },
-  "sidebarLinks": {
-    "Architecture": "/docs/ARCHITECTURE.html",
-    "Cognitive Memory": "/docs/COGNITIVE_MEMORY.html",
-    "RAG & Memory": "/docs/RAG_MEMORY_CONFIGURATION.html",
-    "Capability Discovery": "/docs/CAPABILITY_DISCOVERY.html",
-    "Tool Calling": "/docs/TOOL_CALLING_AND_LOADING.html",
-    "Skills": "/docs/SKILLS.html",
-    "Voice TTS/STT": "/docs/VOICE_TTS_STT.html",
-    "Safety Primitives": "/docs/SAFETY_PRIMITIVES.html",
-    "Guardrails": "/docs/GUARDRAILS_USAGE.html",
-    "Observability": "/docs/OBSERVABILITY.html",
-    "Planning Engine": "/docs/PLANNING_ENGINE.html",
-    "Human-in-the-Loop": "/docs/HUMAN_IN_THE_LOOP.html",
-    "Agent Communication": "/docs/AGENT_COMMUNICATION.html",
-    "Changelog": "/docs/CHANGELOG.html"
   },
   "plugin": [],
   "theme": "default",

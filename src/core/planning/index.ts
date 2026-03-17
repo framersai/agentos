@@ -1,6 +1,5 @@
 /**
- * @file Planning Module Index
- * @description Exports for the AgentOS Planning Engine module.
+ * Exports for the AgentOS Planning Engine module.
  *
  * The Planning Engine provides autonomous goal pursuit, task decomposition,
  * and self-correcting execution plans using cognitive patterns like ReAct.
@@ -52,4 +51,3 @@ export type {
 
 // Implementation
 export { PlanningEngine, type PlanningEngineConfig } from './PlanningEngine';
-

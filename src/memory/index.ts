@@ -1,5 +1,6 @@
 /**
- * @fileoverview Barrel exports for the Cognitive Memory System.
+ * Barrel exports for the Cognitive Memory System.
+ *
  * @module agentos/memory
  */
 

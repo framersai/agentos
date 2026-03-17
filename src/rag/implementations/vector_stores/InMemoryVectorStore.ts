@@ -157,8 +157,7 @@ export class InMemoryVectorStore implements IVectorStore {
   }
 
   /**
-   * @inheritdoc
-   * For InMemoryVectorStore, `createCollection` ensures a named collection space is ready.
+   * Creates or replaces an in-memory collection.
    */
   public async createCollection(
     collectionName: string,

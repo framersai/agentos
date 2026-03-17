@@ -1,6 +1,6 @@
 /**
- * @file Sandbox Module Index
- * @description Exports for the Code Execution Sandbox.
+ * Exports for the code execution sandbox.
+ *
  * @module AgentOS/Sandbox
  */
 
@@ -19,6 +19,5 @@ export type {
 
 export { SandboxError } from './ICodeSandbox';
 export { CodeSandbox } from './CodeSandbox';
-
 
 
