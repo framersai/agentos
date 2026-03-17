@@ -1,5 +1,11 @@
 /**
- * @fileoverview Skills module exports
+ * @fileoverview Skills module exports.
+ *
+ * The canonical skills runtime also exists as the standalone package
+ * `@framers/agentos-skills` for consumers who don't want the full
+ * AgentOS dependency. This barrel keeps the `@framers/agentos/skills`
+ * import path working for backward compatibility.
+ *
  * @module @framers/agentos/skills
  */
 
