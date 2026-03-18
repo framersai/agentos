@@ -1,3 +1,7 @@
+## <small>0.1.55 (2026-03-18)</small>
+
+* fix: quote mermaid labels with parentheses (Docusaurus parse error) ([b11a0ff](https://github.com/framersai/agentos/commit/b11a0ff))
+
 ## <small>0.1.54 (2026-03-17)</small>
 
 * fix: update SkillRegistry emoji encoding + add ecosystem doc ([9f30ce2](https://github.com/framersai/agentos/commit/9f30ce2))
