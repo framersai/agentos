@@ -36,14 +36,14 @@ Key idea: the **derived text** is the canonical retrieval surface. Modality embe
 ```mermaid
 flowchart LR
   Q[Query text] -->|RAG query| T[(derived text documents)]
-  QI[Query image] -->|offline embedding (optional)| V
-  QI -->|fallback: caption then text query| T
-  QA[Query audio] -->|offline embedding (optional)| V
-  QA -->|fallback: transcribe then text query| T
-  T -->|rank chunks| G[Group by assetId]
-  V -->|nearest neighbors| G
+  QI[Query image] -->|"offline embedding (optional)"| V
+  QI -->|"fallback: caption then text query"| T
+  QA[Query audio] -->|"offline embedding (optional)"| V
+  QA -->|"fallback: transcribe then text query"| T
+  T -->|"rank chunks"| G[Group by assetId]
+  V -->|"nearest neighbors"| G
   G --> A[(media_assets)]
-  A --> OUT[Results (+ optional bytes)]
+  A --> OUT["Results (+ optional bytes)"]
 ```
 
 ## Data Model (Reference Backend)
