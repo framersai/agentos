@@ -169,6 +169,10 @@
   ],
   "author": "Voice Chat Assistant Team",
   "license": "Apache-2.0",
+  "optionalDependencies": {
+    "compromise": "^14.15.0",
+    "@huggingface/transformers": "^3.8.1"
+  },
   "devDependencies": {
     "@eslint/js": "^9.11.0",
     "@opentelemetry/context-async-hooks": "^2.0.1",
@@ -206,6 +210,7 @@
     "axios": "^1.7.7",
     "lru-cache": "^11.1.0",
     "natural": "^6.12.0",
+    "openredaction": "^1.1.2",
     "pino": "^9.14.0",
     "uuid": "^11.1.0",
     "yaml": "^2.8.1"
