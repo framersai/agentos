@@ -8,3 +8,5 @@ export * from './manifest';
 export * from './RegistryConfig';
 export { MultiRegistryLoader } from './MultiRegistryLoader';
 export { ExtensionLoader } from './ExtensionLoader';
+// PII Redaction extension pack
+export { createPiiRedactionPack, createExtensionPack as createPiiExtensionPack } from './packs/pii-redaction';
