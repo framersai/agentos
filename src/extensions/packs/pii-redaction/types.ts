@@ -152,7 +152,7 @@ export interface PiiEntity {
    * - `'llm'` — Tier 2 LLM judge
    * - `'denylist'` — explicit denylist rule
    */
-  source: 'regex' | 'ner' | 'llm' | 'denylist';
+  source: 'regex' | 'nlp-prefilter' | 'ner-model' | 'ner' | 'llm' | 'denylist';
 
   /**
    * Arbitrary key-value metadata attached by the recogniser that produced
