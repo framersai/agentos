@@ -107,7 +107,9 @@ class CostCeilingGuardrail implements IGuardrailService {
 
 ### Example 2: Real-Time PII Redaction
 
-Redact sensitive information as it streams:
+Redact sensitive information as it streams.
+
+#### Simple regex-only approach
 
 ```typescript
 class PIIRedactionGuardrail implements IGuardrailService {
@@ -149,6 +151,32 @@ class PIIRedactionGuardrail implements IGuardrailService {
     return null;
   }
 }
+```
+
+#### Full PII Redaction Extension (recommended)
+
+Uses a four-tier pipeline (regex + NLP + NER + LLM-as-judge) for higher accuracy across 50+ country ID formats, names, and context-dependent PII:
+
+```typescript
+import { createPiiRedactionPack } from '@framers/agentos/extensions/packs/pii-redaction';
+
+// Full PII redaction with 4-tier detection pipeline
+const piiPack = createPiiRedactionPack({
+  confidenceThreshold: 0.5,
+  redactionStyle: 'placeholder',
+  enableNerModel: true,
+  llmJudge: {
+    provider: 'anthropic',
+    model: 'claude-haiku-4-5-20251001',
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  },
+});
+
+const agent = new AgentOS();
+await agent.initialize({
+  ...config,
+  manifest: { packs: [{ factory: () => piiPack }] },
+});
 ```
 
 ### Example 3: Content Policy Mid-Stream
