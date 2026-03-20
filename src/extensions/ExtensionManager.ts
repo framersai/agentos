@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { ExtensionRegistry } from './ExtensionRegistry';
+import { SharedServiceRegistry } from './SharedServiceRegistry';
 import type {
   ExtensionDescriptor,
   ExtensionKind,
@@ -68,6 +69,7 @@ export class ExtensionManager {
   private readonly options: ExtensionManagerOptions;
   private readonly overrides?: ExtensionOverrides;
   private readonly secrets = new Map<string, string>();
+  private readonly services = new SharedServiceRegistry();
   private readonly loadedPacks: ExtensionPack[] = [];
   private readonly loadedPackKeys = new Set<string>();
   private readonly loadedPackRecords: Array<{
@@ -328,6 +330,9 @@ export class ExtensionManager {
     this.loadedPacks.length = 0;
     this.loadedPackKeys.clear();
     this.loadedPackRecords.length = 0;
+    await this.services.releaseAll().catch((err) => {
+      console.warn(`ExtensionManager: Failed releasing shared services during shutdown`, err);
+    });
   }
 
   private ensureDefaultRegistries(): void {
@@ -403,6 +408,7 @@ export class ExtensionManager {
         options: entry.options,
         logger: lifecycleContext.logger,
         getSecret: lifecycleContext.getSecret,
+        services: lifecycleContext.services,
       };
       return factory(packContext) as ExtensionPack;
     }
@@ -446,6 +452,7 @@ export class ExtensionManager {
       options: entry.options,
       logger: enrichedLifecycleContext.logger,
       getSecret: enrichedLifecycleContext.getSecret,
+      services: enrichedLifecycleContext.services,
     };
 
     try {
@@ -513,6 +520,7 @@ export class ExtensionManager {
     return {
       ...(context ?? {}),
       getSecret: (id: string) => this.resolveSecret(id),
+      services: context?.services ?? this.services,
     };
   }
 

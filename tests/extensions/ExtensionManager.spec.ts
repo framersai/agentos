@@ -366,6 +366,75 @@ describe('ExtensionManager', () => {
       await manager.loadPackFromFactory(pack, 'test-pack', {}, context);
       // Should not throw
     });
+
+    it('should inject a shared service registry into lifecycle hooks', async () => {
+      const onActivate = vi.fn();
+      const pack = createTestPack('services-pack');
+      pack.onActivate = onActivate;
+
+      await manager.loadPackFromFactory(pack, 'services-pack');
+
+      expect(onActivate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          services: expect.objectContaining({
+            getOrCreate: expect.any(Function),
+            releaseAll: expect.any(Function),
+          }),
+        }),
+      );
+    });
+
+    it('should pass the shared service registry to createExtensionPack(context)', async () => {
+      const capturedServices: unknown[] = [];
+      const pack: ExtensionPack = {
+        name: 'context-pack',
+        version: '1.0.0',
+        descriptors: [],
+      };
+      const manifest: ExtensionManifest = {
+        packs: [
+          {
+            factory: () => pack,
+            identifier: 'context-pack',
+          },
+        ],
+      };
+      const mgr = new ExtensionManager({ manifest });
+      const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-ext-services-'));
+
+      try {
+        const entry = path.join(temp, 'pack.mjs');
+        await fs.writeFile(
+          entry,
+          `
+            export function createExtensionPack(context) {
+              globalThis.__agentosSharedServices = globalThis.__agentosSharedServices || [];
+              globalThis.__agentosSharedServices.push(context.services);
+              return {
+                name: 'module-context-pack',
+                version: '1.0.0',
+                descriptors: [],
+              };
+            }
+          `,
+          'utf8',
+        );
+
+        await mgr.loadPackFromModule(entry);
+        capturedServices.push(...((globalThis as any).__agentosSharedServices ?? []));
+      } finally {
+        delete (globalThis as any).__agentosSharedServices;
+        await fs.rm(temp, { recursive: true, force: true });
+      }
+
+      expect(capturedServices).toHaveLength(1);
+      expect(capturedServices[0]).toEqual(
+        expect.objectContaining({
+          getOrCreate: expect.any(Function),
+          releaseAll: expect.any(Function),
+        }),
+      );
+    });
   });
 
   describe('getRegistry', () => {
@@ -619,6 +688,29 @@ describe('ExtensionManager', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('shutdown', () => {
+    it('releases shared services during shutdown', async () => {
+      const onDeactivate = vi.fn();
+      const pack: ExtensionPack = {
+        name: 'shutdown-pack',
+        version: '1.0.0',
+        descriptors: [],
+        onActivate: async (context) => {
+          await context.services?.getOrCreate(
+            'agentos:test:shutdown',
+            async () => ({ ok: true }),
+            { dispose: onDeactivate },
+          );
+        },
+      };
+
+      await manager.loadPackFromFactory(pack, 'shutdown-pack');
+      await manager.shutdown();
+
+      expect(onDeactivate).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { ExtensionDescriptor, ExtensionLifecycleContext, ExtensionSourceMetadata } from './types';
+import type { ISharedServiceRegistry } from './ISharedServiceRegistry';
 
 export type ExtensionPackResolver =
   | { package: string; version?: string }
@@ -47,8 +48,8 @@ export interface ExtensionPackContext {
   options?: Record<string, unknown>;
   logger?: import('../logging/ILogger').ILogger;
   getSecret?: (secretId: string) => string | undefined;
+  services?: ISharedServiceRegistry;
 }
-
 
 export interface ExtensionPack {
   name: string;

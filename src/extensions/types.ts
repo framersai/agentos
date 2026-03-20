@@ -9,6 +9,7 @@ import type {
   WorkflowTaskStatus,
 } from '../core/workflows/WorkflowTypes';
 import type { MessagingChannelPayload } from './MessagingChannelPayload';
+import type { ISharedServiceRegistry } from './ISharedServiceRegistry';
 import type {
   SpeechToTextProvider,
   SpeechVadProvider,
@@ -54,6 +55,10 @@ export interface ExtensionLifecycleContext {
    * Returns `undefined` when a secret is not configured.
    */
   getSecret?: (secretId: string) => string | undefined;
+  /**
+   * Shared singleton registry for lazy-loading heavyweight extension services.
+   */
+  services?: ISharedServiceRegistry;
 }
 
 /**
