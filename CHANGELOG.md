@@ -1,3 +1,22 @@
+## <small>0.1.56 (2026-03-20)</small>
+
+* feat: add ISharedServiceRegistry + wire into ExtensionManager ([e9ff33c](https://github.com/framersai/agentos/commit/e9ff33c))
+* feat(pii): add barrel export + package.json exports path for PII pack ([1cd9b51](https://github.com/framersai/agentos/commit/1cd9b51))
+* feat(pii): add core PII types, entity types, and config interfaces ([7b740f0](https://github.com/framersai/agentos/commit/7b740f0))
+* feat(pii): add createPiiRedactionPack factory with guardrail + tools ([bba05f1](https://github.com/framersai/agentos/commit/bba05f1))
+* feat(pii): add EntityMerger with overlap resolution and allow/denylist ([0daf331](https://github.com/framersai/agentos/commit/0daf331))
+* feat(pii): add IEntityRecognizer internal interface ([ea6116e](https://github.com/framersai/agentos/commit/ea6116e))
+* feat(pii): add LlmJudgeRecognizer (Tier 4) with CoT prompt and LRU cache ([58050d0](https://github.com/framersai/agentos/commit/58050d0))
+* feat(pii): add NerModelRecognizer (Tier 3) with HuggingFace transformers ([d1d8d64](https://github.com/framersai/agentos/commit/d1d8d64))
+* feat(pii): add NlpPrefilterRecognizer (Tier 2) with compromise ([c7ecc9b](https://github.com/framersai/agentos/commit/c7ecc9b))
+* feat(pii): add PiiDetectionPipeline with 4-tier gating and context enhancement ([fba6878](https://github.com/framersai/agentos/commit/fba6878))
+* feat(pii): add PiiRedactionGuardrail with streaming sentence-boundary buffer ([56bd1e1](https://github.com/framersai/agentos/commit/56bd1e1))
+* feat(pii): add PiiScanTool and PiiRedactTool ([21a4fd4](https://github.com/framersai/agentos/commit/21a4fd4))
+* feat(pii): add RedactionEngine with 4 redaction styles ([a99de2a](https://github.com/framersai/agentos/commit/a99de2a))
+* feat(pii): add RegexRecognizer (Tier 1) with openredaction ([e8ade47](https://github.com/framersai/agentos/commit/e8ade47))
+* docs: update guardrails with PII redaction extension example + shared services ([a4d6ace](https://github.com/framersai/agentos/commit/a4d6ace))
+* chore: add openredaction + optional NLP deps for PII extension ([d3ca7f5](https://github.com/framersai/agentos/commit/d3ca7f5))
+
 ## <small>0.1.55 (2026-03-18)</small>
 
 * fix: quote mermaid labels with parentheses (Docusaurus parse error) ([b11a0ff](https://github.com/framersai/agentos/commit/b11a0ff))
