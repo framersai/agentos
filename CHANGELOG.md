@@ -1,3 +1,8 @@
+## <small>0.1.58 (2026-03-21)</small>
+
+* fix(lint): resolve 2 prefer-const errors in ParallelGuardrailDispatcher ([56468b0](https://github.com/framersai/agentos/commit/56468b0))
+* docs: update import paths to @framers/agentos-ext-* packages, promote PII extension as primary examp ([95d6ede](https://github.com/framersai/agentos/commit/95d6ede))
+
 ## <small>0.1.57 (2026-03-21)</small>
 
 * refactor: move 5 guardrail extension packs to agentos-extensions/registry/curated/safety/ ([7599983](https://github.com/framersai/agentos/commit/7599983))
