@@ -242,6 +242,40 @@ export interface GuardrailConfig {
    * @default undefined (no limit)
    */
   maxStreamingEvaluations?: number;
+
+  /**
+   * Whether this guardrail may return SANITIZE actions that modify content.
+   *
+   * When true, this guardrail runs in Phase 1 (sequential) of the parallel
+   * dispatcher — it sees and can modify text produced by prior sanitizers.
+   * Each sanitizer receives the cumulative sanitized text from all preceding
+   * sanitizers in registration order.
+   *
+   * When false or omitted, this guardrail runs in Phase 2 (parallel) on
+   * the already-sanitized text from Phase 1. It may return BLOCK, FLAG, or
+   * ALLOW. If a Phase 2 guardrail returns SANITIZE, the action is
+   * **downgraded to FLAG** with a warning logged, because concurrent
+   * sanitization would produce non-deterministic results.
+   *
+   * @default false
+   */
+  canSanitize?: boolean;
+
+  /**
+   * Maximum time in milliseconds to wait for this guardrail's evaluation.
+   *
+   * If exceeded, the evaluation is abandoned (fail-open), a warning is
+   * logged, and the guardrail contributes nothing to the result. Prevents
+   * a slow guardrail (e.g., LLM-based) from blocking the entire pipeline.
+   *
+   * **Safety note:** Do NOT set timeoutMs on safety-critical guardrails
+   * (e.g., CSAM detection, compliance-mandatory filters) because fail-open
+   * on timeout means content passes unchecked. Only use on guardrails
+   * where a missed evaluation is acceptable.
+   *
+   * @default undefined (no timeout — wait indefinitely)
+   */
+  timeoutMs?: number;
 }
 
 /**
