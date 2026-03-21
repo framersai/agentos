@@ -22,15 +22,15 @@ This keeps redaction deterministic while still allowing heavyweight classifiers 
 
 ## Built-in Guardrail Packs
 
-AgentOS ships five official guardrail extension packs as standalone packages (`@framers/agentos-ext-*`):
+AgentOS ships five official guardrail extension packs as standalone packages:
 
-| Pack | Import Path | Guardrail ID | Tool IDs | Purpose |
-|------|-------------|--------------|----------|---------|
-| PII Redaction | `@framers/agentos-ext-pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
-| ML Classifiers | `@framers/agentos-ext-ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
-| Topicality | `@framers/agentos-ext-topicality` | `topicality-guardrail` | `check_topic` | Topic matching and session drift detection |
-| Code Safety | `@framers/agentos-ext-code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code and tool-argument security scanning |
-| Grounding Guard | `@framers/agentos-ext-grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
+| Pack | Package | What It Does |
+|------|---------|-------------|
+| **PII Redaction** | `@framers/agentos-ext-pii-redaction` | Four-tier PII detection (regex + NLP + NER + LLM). Tools: `pii_scan`, `pii_redact` |
+| **ML Classifiers** | `@framers/agentos-ext-ml-classifiers` | Toxicity, injection, jailbreak via ONNX BERT models. Tool: `classify_content` |
+| **Topicality** | `@framers/agentos-ext-topicality` | Embedding-based topic enforcement + drift detection. Tool: `check_topic` |
+| **Code Safety** | `@framers/agentos-ext-code-safety` | OWASP Top 10 code scanning (25 regex rules). Tool: `scan_code` |
+| **Grounding Guard** | `@framers/agentos-ext-grounding-guard` | RAG-grounded hallucination detection via NLI. Tool: `check_grounding` |
 
 ## Quick Start
 
