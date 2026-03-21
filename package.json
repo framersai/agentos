@@ -38,31 +38,6 @@
       "default": "./dist/core/guardrails/index.js",
       "types": "./dist/core/guardrails/index.d.ts"
     },
-    "./extensions/packs/pii-redaction": {
-      "import": "./dist/extensions/packs/pii-redaction/index.js",
-      "default": "./dist/extensions/packs/pii-redaction/index.js",
-      "types": "./dist/extensions/packs/pii-redaction/index.d.ts"
-    },
-    "./extensions/packs/ml-classifiers": {
-      "import": "./dist/extensions/packs/ml-classifiers/index.js",
-      "default": "./dist/extensions/packs/ml-classifiers/index.js",
-      "types": "./dist/extensions/packs/ml-classifiers/index.d.ts"
-    },
-    "./extensions/packs/topicality": {
-      "import": "./dist/extensions/packs/topicality/index.js",
-      "default": "./dist/extensions/packs/topicality/index.js",
-      "types": "./dist/extensions/packs/topicality/index.d.ts"
-    },
-    "./extensions/packs/code-safety": {
-      "import": "./dist/extensions/packs/code-safety/index.js",
-      "default": "./dist/extensions/packs/code-safety/index.js",
-      "types": "./dist/extensions/packs/code-safety/index.d.ts"
-    },
-    "./extensions/packs/grounding-guard": {
-      "import": "./dist/extensions/packs/grounding-guard/index.js",
-      "default": "./dist/extensions/packs/grounding-guard/index.js",
-      "types": "./dist/extensions/packs/grounding-guard/index.d.ts"
-    },
     "./core/safety": {
       "import": "./dist/core/safety/index.js",
       "default": "./dist/core/safety/index.js",
