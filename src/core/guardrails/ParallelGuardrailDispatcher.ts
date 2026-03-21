@@ -500,13 +500,13 @@ export class ParallelGuardrailDispatcher {
               continue;
             }
 
-            let { evaluation, registrationIndex } = result.value;
-            if (!evaluation) {
+            const { evaluation: rawEvaluation, registrationIndex } = result.value;
+            if (!rawEvaluation) {
               continue;
             }
 
             // Downgrade SANITIZE → FLAG in Phase 2
-            evaluation = downgradePhase2Sanitize(evaluation, registrationIndex);
+            const evaluation = downgradePhase2Sanitize(rawEvaluation, registrationIndex);
             outputEvaluations.push(evaluation);
 
             // BLOCK terminates the stream immediately
@@ -605,13 +605,13 @@ export class ParallelGuardrailDispatcher {
               continue;
             }
 
-            let { evaluation, registrationIndex } = result.value;
-            if (!evaluation) {
+            const { evaluation: rawEvaluation, registrationIndex } = result.value;
+            if (!rawEvaluation) {
               continue;
             }
 
             // Downgrade SANITIZE → FLAG in Phase 2
-            evaluation = downgradePhase2Sanitize(evaluation, registrationIndex);
+            const evaluation = downgradePhase2Sanitize(rawEvaluation, registrationIndex);
             outputEvaluations.push(evaluation);
 
             // BLOCK terminates the stream
