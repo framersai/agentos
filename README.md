@@ -558,11 +558,11 @@ type ExtensionPackResolver =
 
 | Pack | Import Path | Guardrail ID | Tool IDs | Purpose |
 |------|-------------|--------------|----------|---------|
-| PII Redaction | `@framers/agentos/extensions/packs/pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
-| ML Classifiers | `@framers/agentos/extensions/packs/ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
-| Topicality | `@framers/agentos/extensions/packs/topicality` | `topicality-guardrail` | `check_topic` | On-topic enforcement and session drift detection |
-| Code Safety | `@framers/agentos/extensions/packs/code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code risk scanning across fenced code and tool args |
-| Grounding Guard | `@framers/agentos/extensions/packs/grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
+| PII Redaction | `@framers/agentos-ext-pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
+| ML Classifiers | `@framers/agentos-ext-ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
+| Topicality | `@framers/agentos-ext-topicality` | `topicality-guardrail` | `check_topic` | On-topic enforcement and session drift detection |
+| Code Safety | `@framers/agentos-ext-code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code risk scanning across fenced code and tool args |
+| Grounding Guard | `@framers/agentos-ext-grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
 
 ---
 
@@ -1616,11 +1616,11 @@ import { SkillRegistry, SkillLoader } from '@framers/agentos/skills';
 
 // Extension runtime helpers and built-in guardrail packs
 import { SharedServiceRegistry } from '@framers/agentos';
-import { createPiiRedactionPack } from '@framers/agentos/extensions/packs/pii-redaction';
-import { createMLClassifierPack } from '@framers/agentos/extensions/packs/ml-classifiers';
-import { createTopicalityPack } from '@framers/agentos/extensions/packs/topicality';
-import { createCodeSafetyPack } from '@framers/agentos/extensions/packs/code-safety';
-import { createGroundingGuardPack } from '@framers/agentos/extensions/packs/grounding-guard';
+import { createPiiRedactionPack } from '@framers/agentos-ext-pii-redaction';
+import { createMLClassifierPack } from '@framers/agentos-ext-ml-classifiers';
+import { createTopicalityPack } from '@framers/agentos-ext-topicality';
+import { createCodeSafetyPack } from '@framers/agentos-ext-code-safety';
+import { createGroundingGuardPack } from '@framers/agentos-ext-grounding-guard';
 
 // Deep imports (wildcard exports)
 import { SomeType } from '@framers/agentos/core/safety/CircuitBreaker';

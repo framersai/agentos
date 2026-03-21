@@ -22,15 +22,15 @@ This keeps redaction deterministic while still allowing heavyweight classifiers 
 
 ## Built-in Guardrail Packs
 
-AgentOS ships five built-in extension packs that can be imported directly from `@framers/agentos/extensions/packs/*`:
+AgentOS ships five official guardrail extension packs as standalone packages (`@framers/agentos-ext-*`):
 
 | Pack | Import Path | Guardrail ID | Tool IDs | Purpose |
 |------|-------------|--------------|----------|---------|
-| PII Redaction | `@framers/agentos/extensions/packs/pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
-| ML Classifiers | `@framers/agentos/extensions/packs/ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
-| Topicality | `@framers/agentos/extensions/packs/topicality` | `topicality-guardrail` | `check_topic` | Topic matching and session drift detection |
-| Code Safety | `@framers/agentos/extensions/packs/code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code and tool-argument security scanning |
-| Grounding Guard | `@framers/agentos/extensions/packs/grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
+| PII Redaction | `@framers/agentos-ext-pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
+| ML Classifiers | `@framers/agentos-ext-ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
+| Topicality | `@framers/agentos-ext-topicality` | `topicality-guardrail` | `check_topic` | Topic matching and session drift detection |
+| Code Safety | `@framers/agentos-ext-code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code and tool-argument security scanning |
+| Grounding Guard | `@framers/agentos-ext-grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
 
 ## Quick Start
 
@@ -126,66 +126,16 @@ class CostCeilingGuardrail implements IGuardrailService {
 
 ### Example 2: Real-Time PII Redaction
 
-Redact sensitive information as it streams.
-
-#### Simple regex-only approach
+AgentOS provides a first-class PII redaction extension with four-tier detection (regex + NLP + NER + LLM-as-judge), covering 50+ country ID formats, person names, organizations, and context-dependent PII. See the [PII Redaction extension docs](/docs/extensions/built-in/pii-redaction) for full configuration reference.
 
 ```typescript
-class PIIRedactionGuardrail implements IGuardrailService {
-  config = {
-    evaluateStreamingChunks: true,
-    maxStreamingEvaluations: 200,
-    canSanitize: true,
-  };
+import { createPiiRedactionPack } from '@framers/agentos-ext-pii-redaction';
 
-  private readonly patterns = [
-    { regex: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: '[SSN REDACTED]' },
-    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL REDACTED]' },
-    { regex: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g, replacement: '[CARD REDACTED]' },
-  ];
-
-  async evaluateOutput({ chunk }: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null> {
-    if (chunk.type !== 'TEXT_DELTA' || !chunk.textDelta) {
-      return null;
-    }
-
-    let text = chunk.textDelta;
-    let modified = false;
-
-    for (const { regex, replacement } of this.patterns) {
-      const newText = text.replace(regex, replacement);
-      if (newText !== text) {
-        text = newText;
-        modified = true;
-      }
-    }
-
-    if (modified) {
-      return {
-        action: GuardrailAction.SANITIZE,
-        modifiedText: text,
-        reasonCode: 'PII_REDACTED',
-      };
-    }
-
-    return null;
-  }
-}
-```
-
-#### Full PII Redaction Extension (recommended)
-
-Uses a four-tier pipeline (regex + NLP + NER + LLM-as-judge) for higher accuracy across 50+ country ID formats, names, and context-dependent PII:
-
-```typescript
-import { createPiiRedactionPack } from '@framers/agentos/extensions/packs/pii-redaction';
-
-// Full PII redaction with 4-tier detection pipeline
 const piiPack = createPiiRedactionPack({
   confidenceThreshold: 0.5,
-  redactionStyle: 'placeholder',
-  enableNerModel: true,
-  llmJudge: {
+  redactionStyle: 'placeholder',  // also: 'mask', 'hash', 'category-tag'
+  enableNerModel: true,            // BERT NER for person/org/location names
+  llmJudge: {                      // optional: resolve ambiguous cases
     provider: 'anthropic',
     model: 'claude-haiku-4-5-20251001',
     apiKey: process.env.ANTHROPIC_API_KEY,
@@ -198,6 +148,46 @@ await agent.initialize({
   manifest: { packs: [{ factory: () => piiPack }] },
 });
 ```
+
+The extension provides two agent-callable tools (`pii_scan` and `pii_redact`) and a streaming guardrail that automatically redacts PII from input and output. It sets `canSanitize: true` so it runs in Phase 1 (sequential) of the parallel dispatcher.
+
+#### Custom regex-only PII guardrail
+
+If you only need simple regex patterns (no NER, no LLM), you can write a lightweight custom guardrail instead. This demonstrates the `IGuardrailService` interface with `SANITIZE` action:
+
+```typescript
+class SimpleRegexPiiGuardrail implements IGuardrailService {
+  config = {
+    evaluateStreamingChunks: true,
+    canSanitize: true,  // Phase 1: runs before parallel classifiers
+  };
+
+  private readonly patterns = [
+    { regex: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: '[SSN REDACTED]' },
+    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL REDACTED]' },
+    { regex: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g, replacement: '[CARD REDACTED]' },
+  ];
+
+  async evaluateOutput({ chunk }: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null> {
+    if (chunk.type !== 'TEXT_DELTA' || !chunk.textDelta) return null;
+
+    let text = chunk.textDelta;
+    let modified = false;
+
+    for (const { regex, replacement } of this.patterns) {
+      const newText = text.replace(regex, replacement);
+      if (newText !== text) { text = newText; modified = true; }
+    }
+
+    if (modified) {
+      return { action: GuardrailAction.SANITIZE, modifiedText: text, reasonCode: 'PII_REDACTED' };
+    }
+    return null;
+  }
+}
+```
+
+> **Note:** For production use, the `@framers/agentos-ext-pii-redaction` extension is strongly recommended over custom regex. It catches names, organizations, locations, and 50+ country-specific ID formats that regex alone misses.
 
 ### Example 3: Content Policy Mid-Stream
 
@@ -349,11 +339,11 @@ class QualityGateGuardrail implements ICrossAgentGuardrailService {
 Multiple guardrails are dispatched in two phases: sanitizers first, then parallel classifiers:
 
 ```typescript
-import { createPiiRedactionPack } from '@framers/agentos/extensions/packs/pii-redaction';
-import { createMLClassifierPack } from '@framers/agentos/extensions/packs/ml-classifiers';
-import { createTopicalityPack, TOPIC_PRESETS } from '@framers/agentos/extensions/packs/topicality';
-import { createCodeSafetyPack } from '@framers/agentos/extensions/packs/code-safety';
-import { createGroundingGuardPack } from '@framers/agentos/extensions/packs/grounding-guard';
+import { createPiiRedactionPack } from '@framers/agentos-ext-pii-redaction';
+import { createMLClassifierPack } from '@framers/agentos-ext-ml-classifiers';
+import { createTopicalityPack, TOPIC_PRESETS } from '@framers/agentos-ext-topicality';
+import { createCodeSafetyPack } from '@framers/agentos-ext-code-safety';
+import { createGroundingGuardPack } from '@framers/agentos-ext-grounding-guard';
 
 const piiPack = createPiiRedactionPack({
   redactionStyle: 'placeholder',
