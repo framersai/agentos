@@ -186,6 +186,14 @@ export interface GuardrailOutputPayload {
 
   /** The response chunk to evaluate */
   chunk: AgentOSResponse;
+
+  /**
+   * RAG source chunks retrieved for this request.
+   * Available to output guardrails for grounding verification.
+   * Persists across all chunks in a stream (not just the final chunk).
+   * Undefined when no RAG retrieval was performed.
+   */
+  ragSources?: import('../../rag').RagRetrievedChunk[];
 }
 
 /**

@@ -130,6 +130,14 @@ export interface AgentOSFinalResponseChunk extends AgentOSResponseChunk {
   error?: { code: string; message: string; details?: any };
   updatedConversationContext?: ConversationContext;
   activePersonaDetails?: Partial<IPersonaDefinition>;
+
+  /**
+   * RAG source chunks that were used to generate this response.
+   * Populated by the GMI when RAG retrieval was performed.
+   * Used by grounding guardrails to verify response faithfulness.
+   * Undefined when no RAG retrieval was performed.
+   */
+  ragSources?: import('../../rag').RagRetrievedChunk[];
 }
 
 /**

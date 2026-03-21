@@ -105,6 +105,9 @@ export interface GuardrailOutputOptions {
 
   /** Input evaluations to attach to first output chunk */
   inputEvaluations?: GuardrailEvaluationResult[] | null;
+
+  /** RAG sources to thread through to output guardrails for grounding verification */
+  ragSources?: import('../../rag').RagRetrievedChunk[];
 }
 
 /**

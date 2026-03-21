@@ -440,7 +440,7 @@ export class ParallelGuardrailDispatcher {
 
           const timeoutMs = svc.config?.timeoutMs;
           const evaluation = await callWithTimeout(
-            () => svc.evaluateOutput!({ context, chunk: workingChunk }),
+            () => svc.evaluateOutput!({ context, chunk: workingChunk, ragSources: options.ragSources }),
             timeoutMs,
           );
 
@@ -481,7 +481,7 @@ export class ParallelGuardrailDispatcher {
 
             const timeoutMs = svc.config?.timeoutMs;
             return callWithTimeout(
-              () => svc.evaluateOutput!({ context, chunk: workingChunk }),
+              () => svc.evaluateOutput!({ context, chunk: workingChunk, ragSources: options.ragSources }),
               timeoutMs,
             ).then((evaluation) => {
               streamingEvaluationCounts.set(svcId, currentCount + 1);
@@ -545,7 +545,7 @@ export class ParallelGuardrailDispatcher {
 
           const timeoutMs = svc.config?.timeoutMs;
           const evaluation = await callWithTimeout(
-            () => svc.evaluateOutput!({ context, chunk: workingChunk }),
+            () => svc.evaluateOutput!({ context, chunk: workingChunk, ragSources: options.ragSources }),
             timeoutMs,
           );
 
@@ -589,7 +589,7 @@ export class ParallelGuardrailDispatcher {
 
             const timeoutMs = svc.config?.timeoutMs;
             return callWithTimeout(
-              () => svc.evaluateOutput!({ context, chunk: workingChunk }),
+              () => svc.evaluateOutput!({ context, chunk: workingChunk, ragSources: options.ragSources }),
               timeoutMs,
             ).then((evaluation) => ({ evaluation, registrationIndex }));
           });
