@@ -58,6 +58,11 @@
       "default": "./dist/extensions/packs/code-safety/index.js",
       "types": "./dist/extensions/packs/code-safety/index.d.ts"
     },
+    "./extensions/packs/grounding-guard": {
+      "import": "./dist/extensions/packs/grounding-guard/index.js",
+      "default": "./dist/extensions/packs/grounding-guard/index.js",
+      "types": "./dist/extensions/packs/grounding-guard/index.d.ts"
+    },
     "./core/safety": {
       "import": "./dist/core/safety/index.js",
       "default": "./dist/core/safety/index.js",

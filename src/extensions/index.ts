@@ -13,3 +13,4 @@ export { createPiiRedactionPack, createExtensionPack as createPiiExtensionPack }
 export { createMLClassifierPack, createExtensionPack as createMLClassifierExtensionPack } from './packs/ml-classifiers';
 export { createTopicalityPack, createExtensionPack as createTopicalityExtensionPack } from './packs/topicality';
 export { createCodeSafetyPack, createExtensionPack as createCodeSafetyExtensionPack } from './packs/code-safety';
+export { createGroundingGuardPack, createExtensionPack as createGroundingGuardExtensionPack } from './packs/grounding-guard';
