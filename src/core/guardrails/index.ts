@@ -66,6 +66,9 @@ export {
   wrapOutputGuardrails,
 } from './guardrailDispatcher';
 
+// Two-phase parallel guardrail dispatcher
+export { ParallelGuardrailDispatcher } from './ParallelGuardrailDispatcher';
+
 // Cross-agent guardrail interface and types
 export {
   type CrossAgentOutputPayload,

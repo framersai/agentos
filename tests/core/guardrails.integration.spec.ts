@@ -13,6 +13,7 @@ import type { StreamId } from '../../src/core/streaming/StreamingManager';
 import type { ILogger } from '../../src/logging/ILogger';
 import {
   GuardrailAction,
+  type GuardrailConfig,
   type GuardrailEvaluationResult,
   type GuardrailInputPayload,
   type GuardrailOutputPayload,
@@ -80,12 +81,24 @@ class TestGuardrailService implements IGuardrailService {
   public readonly receivedInputPayloads: GuardrailInputPayload[] = [];
   public readonly receivedOutputPayloads: GuardrailOutputPayload[] = [];
 
+  /**
+   * GuardrailConfig — set canSanitize when the service returns SANITIZE
+   * so the ParallelGuardrailDispatcher runs it in Phase 1 (sequential).
+   */
+  public config?: GuardrailConfig;
+
   constructor(
     private readonly options: {
       inputEvaluation?: GuardrailEvaluationResult | null;
       outputEvaluation?: GuardrailEvaluationResult | null;
+      /** Mark as sanitizer so Phase 1 handles SANITIZE correctly. */
+      canSanitize?: boolean;
     },
-  ) {}
+  ) {
+    if (options.canSanitize) {
+      this.config = { canSanitize: true };
+    }
+  }
 
   public async evaluateInput(payload: GuardrailInputPayload): Promise<GuardrailEvaluationResult | null> {
     this.receivedInputPayloads.push(payload);
@@ -171,6 +184,7 @@ describe('AgentOS.processRequest guardrail integration', () => {
     const orchestrator = new StubOrchestrator(streamingManager, streamId, [finalChunk]);
 
     const guardrailService = new TestGuardrailService({
+      canSanitize: true,
       inputEvaluation: {
         action: GuardrailAction.SANITIZE,
         modifiedText: 'clean input',
@@ -203,6 +217,7 @@ describe('AgentOS.processRequest guardrail integration', () => {
     const orchestrator = new StubOrchestrator(streamingManager, streamId, [finalChunk]);
 
     const guardrailService = new TestGuardrailService({
+      canSanitize: true,
       outputEvaluation: {
         action: GuardrailAction.SANITIZE,
         modifiedText: 'policy compliant text',
