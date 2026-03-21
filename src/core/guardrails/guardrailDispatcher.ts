@@ -45,10 +45,30 @@ import {
 } from './IGuardrailService';
 
 /**
- * Type guard to check if a guardrail service implements evaluateOutput.
- * @internal
+ * Normalize a service input (single, array, or undefined) into a flat array.
+ *
+ * Filters out falsy entries so callers never need null-checks.
+ *
+ * @param service - Single guardrail, array of guardrails, or undefined
+ * @returns Non-empty array of valid guardrail services
  */
-function hasEvaluateOutput(
+export function normalizeServices(
+  service: IGuardrailService | IGuardrailService[] | undefined,
+): IGuardrailService[] {
+  return Array.isArray(service)
+    ? service.filter(Boolean)
+    : service
+    ? [service]
+    : [];
+}
+
+/**
+ * Type guard to check if a guardrail service implements evaluateOutput.
+ *
+ * @param svc - The guardrail service to inspect
+ * @returns `true` when `svc.evaluateOutput` is a callable function
+ */
+export function hasEvaluateOutput(
   svc: IGuardrailService,
 ): svc is IGuardrailService & {
   evaluateOutput: NonNullable<IGuardrailService['evaluateOutput']>;
@@ -89,9 +109,11 @@ export interface GuardrailOutputOptions {
 
 /**
  * Metadata entry attached to response chunks.
- * @internal
+ *
+ * Compact representation of a {@link GuardrailEvaluationResult} that gets
+ * embedded into chunk `metadata.guardrail.input[]` / `metadata.guardrail.output[]`.
  */
-interface GuardrailMetadataEntry {
+export interface GuardrailMetadataEntry {
   action: GuardrailAction;
   reason?: string;
   reasonCode?: string;
@@ -133,11 +155,7 @@ export async function evaluateInputGuardrails(
   input: AgentOSInput,
   context: GuardrailContext,
 ): Promise<GuardrailInputOutcome> {
-  const services = Array.isArray(service)
-    ? service.filter(Boolean)
-    : service
-    ? [service]
-    : [];
+  const services = normalizeServices(service);
 
   if (services.length === 0) {
     return { sanitizedInput: input, evaluations: [] };
@@ -277,11 +295,7 @@ export async function* wrapOutputGuardrails(
   stream: AsyncGenerator<AgentOSResponse, void, undefined>,
   options: GuardrailOutputOptions,
 ): AsyncGenerator<AgentOSResponse, void, undefined> {
-  const services = Array.isArray(service)
-    ? service.filter(Boolean)
-    : service
-    ? [service]
-    : [];
+  const services = normalizeServices(service);
 
   // Separate guardrails by evaluation mode
   const streamingGuardrails = services.filter(
@@ -420,7 +434,17 @@ export async function* wrapOutputGuardrails(
   }
 }
 
-function serializeEvaluation(evaluation: GuardrailEvaluationResult): GuardrailMetadataEntry {
+/**
+ * Convert a full {@link GuardrailEvaluationResult} into the compact
+ * {@link GuardrailMetadataEntry} shape that gets embedded in chunk metadata.
+ *
+ * Strips heavy fields (`details`, `modifiedText`) that are not needed
+ * for downstream telemetry / observability.
+ *
+ * @param evaluation - The evaluation to serialize
+ * @returns A lightweight metadata entry suitable for chunk embedding
+ */
+export function serializeEvaluation(evaluation: GuardrailEvaluationResult): GuardrailMetadataEntry {
   return {
     action: evaluation.action,
     reason: evaluation.reason,
@@ -429,7 +453,18 @@ function serializeEvaluation(evaluation: GuardrailEvaluationResult): GuardrailMe
   };
 }
 
-function withGuardrailMetadata(
+/**
+ * Attach guardrail evaluation metadata to a response chunk.
+ *
+ * Merges new input/output evaluation entries into any existing
+ * `metadata.guardrail` structure on the chunk. The result is a
+ * shallow-cloned chunk — the original is never mutated.
+ *
+ * @param chunk   - The response chunk to annotate
+ * @param entry   - Input and/or output metadata entries to merge
+ * @returns A new chunk with guardrail metadata merged in
+ */
+export function withGuardrailMetadata(
   chunk: AgentOSResponse,
   entry: {
     input?: GuardrailMetadataEntry | GuardrailMetadataEntry[];
