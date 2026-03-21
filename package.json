@@ -48,6 +48,11 @@
       "default": "./dist/extensions/packs/ml-classifiers/index.js",
       "types": "./dist/extensions/packs/ml-classifiers/index.d.ts"
     },
+    "./extensions/packs/topicality": {
+      "import": "./dist/extensions/packs/topicality/index.js",
+      "default": "./dist/extensions/packs/topicality/index.js",
+      "types": "./dist/extensions/packs/topicality/index.d.ts"
+    },
     "./core/safety": {
       "import": "./dist/core/safety/index.js",
       "default": "./dist/core/safety/index.js",

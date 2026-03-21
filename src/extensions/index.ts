@@ -11,3 +11,4 @@ export { ExtensionLoader } from './ExtensionLoader';
 // PII Redaction extension pack
 export { createPiiRedactionPack, createExtensionPack as createPiiExtensionPack } from './packs/pii-redaction';
 export { createMLClassifierPack, createExtensionPack as createMLClassifierExtensionPack } from './packs/ml-classifiers';
+export { createTopicalityPack, createExtensionPack as createTopicalityExtensionPack } from './packs/topicality';
