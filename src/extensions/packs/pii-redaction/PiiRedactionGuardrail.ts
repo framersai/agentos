@@ -167,9 +167,14 @@ export class PiiRedactionGuardrail implements IGuardrailService {
       options.maxStreamingEvaluations ?? DEFAULT_MAX_STREAMING_EVALUATIONS;
 
     // Build the GuardrailConfig from pack options.
+    // canSanitize must be true here because PII redaction actively rewrites
+    // the input/output text via GuardrailAction.SANITIZE.  The parallel
+    // dispatcher uses this flag to serialise sanitising guardrails so their
+    // mutated text is visible to subsequent guardrails in the chain.
     this.config = {
       evaluateStreamingChunks: options.evaluateStreamingChunks ?? false,
       maxStreamingEvaluations: this.maxStreamingEvaluations,
+      canSanitize: true, // PII redaction modifies text via SANITIZE action
     };
   }
 
