@@ -548,6 +548,22 @@ type ExtensionPackResolver =
 3. `ExtensionManager` provides runtime access: `getTools()`, `getGuardrails()`, `getWorkflows()`, etc.
 4. `MultiRegistryLoader` supports loading from multiple remote registries
 
+**Lifecycle context and shared services:**
+
+- `ExtensionLifecycleContext.getSecret(secretId)` gives packs host-resolved secrets at activation time
+- `ExtensionLifecycleContext.services` provides a shared `ISharedServiceRegistry` for lazy singleton reuse across packs
+- heavyweight dependencies such as NLP pipelines, ONNX models, embedding functions, and NLI models should be loaded through the shared registry rather than per-descriptor globals
+
+**Built-in guardrail packs exported by `@framers/agentos`:**
+
+| Pack | Import Path | Guardrail ID | Tool IDs | Purpose |
+|------|-------------|--------------|----------|---------|
+| PII Redaction | `@framers/agentos/extensions/packs/pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
+| ML Classifiers | `@framers/agentos/extensions/packs/ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
+| Topicality | `@framers/agentos/extensions/packs/topicality` | `topicality-guardrail` | `check_topic` | On-topic enforcement and session drift detection |
+| Code Safety | `@framers/agentos/extensions/packs/code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code risk scanning across fenced code and tool args |
+| Grounding Guard | `@framers/agentos/extensions/packs/grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
+
 ---
 
 ### Planning Engine
@@ -692,24 +708,32 @@ See [`docs/SAFETY_PRIMITIVES.md`](docs/SAFETY_PRIMITIVES.md) for the full safety
 Content-level input/output filtering:
 
 ```typescript
-enum GuardrailAction {
-  ALLOW    = 'allow',     // Pass through unchanged
-  FLAG     = 'flag',      // Pass through but log for review
-  SANITIZE = 'sanitize',  // Replace with modified content (e.g., PII redaction)
-  BLOCK    = 'block',     // Reject entirely, terminate stream
-}
-
 interface IGuardrailService {
-  evaluateInput?(input: AgentOSInput, context: GuardrailContext): Promise<GuardrailEvaluationResult>;
-  evaluateOutput?(output: string, context: GuardrailContext): Promise<GuardrailEvaluationResult>;
+  config?: {
+    evaluateStreamingChunks?: boolean;
+    maxStreamingEvaluations?: number;
+    canSanitize?: boolean;
+    timeoutMs?: number;
+  };
+
+  evaluateInput?(payload: GuardrailInputPayload): Promise<GuardrailEvaluationResult | null>;
+  evaluateOutput?(payload: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null>;
 }
 ```
 
-Guardrails run at two points in the request lifecycle:
-1. **Pre-processing** -- `evaluateInput()` inspects user input before it reaches the LLM
-2. **Post-processing** -- `evaluateOutput()` inspects the LLM response before streaming to the client
+`GuardrailOutputPayload` also carries `ragSources?: RagRetrievedChunk[]`, which enables grounding-aware output checks against retrieved context.
 
-Multiple guardrails can be composed via the extension system, and each receives full context (user ID, session ID, persona ID, custom metadata) for context-aware policy decisions.
+Guardrails run at two points in the request lifecycle:
+1. **Pre-processing** -- `evaluateInput()` inspects user input before orchestration
+2. **Post-processing** -- `evaluateOutput()` inspects streaming chunks and/or the final response before emission
+
+When multiple guardrails are registered, AgentOS uses a **two-phase dispatcher**:
+1. **Phase 1 (sequential sanitizers)** -- guardrails with `config.canSanitize === true` run in registration order so each sanitizer sees the cumulative sanitized text
+2. **Phase 2 (parallel classifiers)** -- all remaining guardrails run concurrently with worst-action aggregation (`BLOCK > FLAG > ALLOW`)
+
+`ParallelGuardrailDispatcher` powers both input evaluation and output stream wrapping, with per-guardrail `timeoutMs` fail-open behavior for slow or degraded classifiers.
+
+Multiple guardrails can be composed via the extension system, and each receives full context (user ID, session ID, persona ID, conversation ID, metadata) for context-aware policy decisions.
 
 See [`docs/GUARDRAILS_USAGE.md`](docs/GUARDRAILS_USAGE.md) for implementation patterns.
 
@@ -1435,13 +1459,19 @@ await agent.initialize({
 import {
   AgentOS,
   type IGuardrailService,
-  type GuardrailContext,
   GuardrailAction,
+  type GuardrailInputPayload,
+  type GuardrailOutputPayload,
 } from '@framers/agentos';
 import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 
 const piiGuardrail: IGuardrailService = {
-  async evaluateInput(input, context) {
+  config: {
+    evaluateStreamingChunks: true,
+    canSanitize: true,
+  },
+
+  async evaluateInput({ input }: GuardrailInputPayload) {
     // Check for SSN patterns in user input
     const ssnPattern = /\b\d{3}-\d{2}-\d{4}\b/g;
     if (input.textInput && ssnPattern.test(input.textInput)) {
@@ -1455,8 +1485,15 @@ const piiGuardrail: IGuardrailService = {
     return { action: GuardrailAction.ALLOW };
   },
 
-  async evaluateOutput(output, context) {
-    if (output.toLowerCase().includes('password')) {
+  async evaluateOutput({ chunk }: GuardrailOutputPayload) {
+    const text =
+      chunk.type === 'TEXT_DELTA'
+        ? chunk.textDelta ?? ''
+        : chunk.type === 'FINAL_RESPONSE'
+          ? chunk.finalResponseText ?? ''
+          : '';
+
+    if (text.toLowerCase().includes('password')) {
       return {
         action: GuardrailAction.BLOCK,
         reason: 'Output contains potentially sensitive credential information',
@@ -1557,6 +1594,7 @@ import { CircuitBreaker, CostGuard, StuckDetector } from '@framers/agentos/core/
 
 // Guardrails
 import { GuardrailAction } from '@framers/agentos/core/guardrails';
+import { ParallelGuardrailDispatcher } from '@framers/agentos/core/guardrails';
 
 // Tools
 import type { ITool, ToolExecutionResult } from '@framers/agentos/core/tools';
@@ -1570,6 +1608,14 @@ import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
 
 // Skills
 import { SkillRegistry, SkillLoader } from '@framers/agentos/skills';
+
+// Extension runtime helpers and built-in guardrail packs
+import { SharedServiceRegistry } from '@framers/agentos';
+import { createPiiRedactionPack } from '@framers/agentos/extensions/packs/pii-redaction';
+import { createMLClassifierPack } from '@framers/agentos/extensions/packs/ml-classifiers';
+import { createTopicalityPack } from '@framers/agentos/extensions/packs/topicality';
+import { createCodeSafetyPack } from '@framers/agentos/extensions/packs/code-safety';
+import { createGroundingGuardPack } from '@framers/agentos/extensions/packs/grounding-guard';
 
 // Deep imports (wildcard exports)
 import { SomeType } from '@framers/agentos/core/safety/CircuitBreaker';

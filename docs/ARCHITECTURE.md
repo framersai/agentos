@@ -226,6 +226,55 @@ interface DataFlowArchitecture {
 
 ---
 
+## Current Extension & Guardrail Runtime
+
+The current shipping extension runtime is centered on three core pieces:
+
+1. **`ExtensionManifest` / `ExtensionPack`** for declarative loading
+2. **`ExtensionManager`** for descriptor activation and runtime access
+3. **`ISharedServiceRegistry`** for lazy singleton reuse across packs
+
+```typescript
+interface ExtensionLifecycleContext {
+  logger?: ILogger;
+  getSecret?: (secretId: string) => string | undefined;
+  services?: ISharedServiceRegistry;
+}
+
+interface ExtensionPack {
+  name: string;
+  version?: string;
+  descriptors: ExtensionDescriptor[];
+  onActivate?: (context: ExtensionLifecycleContext) => Promise<void> | void;
+  onDeactivate?: (context: ExtensionLifecycleContext) => Promise<void> | void;
+}
+```
+
+Heavyweight extension dependencies such as NLP pipelines, ONNX classifiers, embedding functions, and NLI models should be loaded through `context.services.getOrCreate(...)` so multiple packs can share a single lazy-loaded instance inside one agent runtime.
+
+### Guardrail Dispatch Model
+
+The current guardrail runtime uses `ParallelGuardrailDispatcher` with a two-phase execution model:
+
+1. **Phase 1 (sequential sanitizers)** — guardrails with `config.canSanitize === true` run in registration order and can chain `SANITIZE` results deterministically
+2. **Phase 2 (parallel classifiers)** — all remaining guardrails run concurrently with worst-action aggregation (`BLOCK > FLAG > ALLOW`)
+
+`GuardrailOutputPayload` also carries `ragSources?: RagRetrievedChunk[]` so grounding-aware guardrails can verify claims against retrieved evidence during output evaluation.
+
+### Built-in Guardrail Packs
+
+AgentOS currently exports five built-in guardrail packs directly from `@framers/agentos/extensions/packs/*`:
+
+- `pii-redaction`
+- `ml-classifiers`
+- `topicality`
+- `code-safety`
+- `grounding-guard`
+
+These packs are implemented inside the main AgentOS package and do not depend on Wunderland.
+
+---
+
 ## Persona Definition System - Complete Implementation
 
 ### The Heart of AgentOS Intelligence
@@ -2691,19 +2740,27 @@ class ToolCapabilityAnalyzer {
 
 ```typescript
 interface IGuardrailService {
-  // Evaluation
-  evaluateInput(input: GuardrailInput): Promise<GuardrailResult>;
-  evaluateOutput(output: GuardrailOutput): Promise<GuardrailResult>;
-  evaluateStream(stream: AsyncGenerator<string>): AsyncGenerator<GuardrailStreamResult>;
-  
-  // Constitutional AI
-  applyConstitution(content: string, context: ConstitutionalContext): Promise<ConstitutionalResult>;
-  
-  // Policy management
-  addPolicy(policy: GuardrailPolicy): void;
-  removePolicy(policyId: string): void;
-  updatePolicy(policyId: string, updates: Partial<GuardrailPolicy>): void;
+  config?: {
+    evaluateStreamingChunks?: boolean;
+    maxStreamingEvaluations?: number;
+    canSanitize?: boolean;
+    timeoutMs?: number;
+  };
+
+  evaluateInput?(payload: GuardrailInputPayload): Promise<GuardrailEvaluationResult | null>;
+  evaluateOutput?(payload: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null>;
 }
+```
+
+The concrete runtime implementation is extension-driven and centered on:
+
+- `ParallelGuardrailDispatcher` for two-phase sanitization/classification dispatch
+- `GuardrailOutputPayload.ragSources` for grounding-aware output checks
+- built-in guardrail packs loaded through the extension system
+
+The class below is a **conceptual policy-layer sketch**, not the exact public API surface exported by the current runtime.
+
+```typescript
 
 class AdvancedGuardrailService implements IGuardrailService {
   private inputGuardrails: GuardrailChain;

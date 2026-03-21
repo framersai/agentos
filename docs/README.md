@@ -33,7 +33,7 @@
 - [**Agent Communication**](./AGENT_COMMUNICATION.md) — Inter-agent messaging and coordination
 
 #### Safety & Security
-- [**Guardrails System**](./GUARDRAILS_USAGE.md) — Content filtering, PII redaction, and folder-level filesystem permissions
+- [**Guardrails System**](./GUARDRAILS_USAGE.md) — Two-phase guardrail dispatch, built-in packs (PII, ML classifiers, topicality, code safety, grounding), and folder-level filesystem permissions
 - [**Safety Primitives**](./SAFETY_PRIMITIVES.md) — Circuit breakers, cost guards, stuck detection, and tool execution guards
 
 #### Memory & Storage

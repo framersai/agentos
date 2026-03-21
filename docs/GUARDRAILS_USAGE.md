@@ -13,6 +13,25 @@ Guardrails intercept content at two points:
 User Input → [Input Guardrails] → Orchestration → [Output Guardrails] → Client
 ```
 
+When multiple guardrails are active, AgentOS uses a **two-phase dispatcher**:
+
+1. **Phase 1 (sequential sanitizers)** - Guardrails with `config.canSanitize === true` run in registration order so each sanitizer sees the cumulative sanitized text
+2. **Phase 2 (parallel classifiers)** - All remaining guardrails run concurrently via `Promise.allSettled`, with worst-action aggregation (`BLOCK > FLAG > ALLOW`)
+
+This keeps redaction deterministic while still allowing heavyweight classifiers and grounding checks to run in parallel.
+
+## Built-in Guardrail Packs
+
+AgentOS ships five built-in extension packs that can be imported directly from `@framers/agentos/extensions/packs/*`:
+
+| Pack | Import Path | Guardrail ID | Tool IDs | Purpose |
+|------|-------------|--------------|----------|---------|
+| PII Redaction | `@framers/agentos/extensions/packs/pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
+| ML Classifiers | `@framers/agentos/extensions/packs/ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
+| Topicality | `@framers/agentos/extensions/packs/topicality` | `topicality-guardrail` | `check_topic` | Topic matching and session drift detection |
+| Code Safety | `@framers/agentos/extensions/packs/code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code and tool-argument security scanning |
+| Grounding Guard | `@framers/agentos/extensions/packs/grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
+
 ## Quick Start
 
 ```typescript
@@ -115,7 +134,8 @@ Redact sensitive information as it streams.
 class PIIRedactionGuardrail implements IGuardrailService {
   config = {
     evaluateStreamingChunks: true,
-    maxStreamingEvaluations: 200
+    maxStreamingEvaluations: 200,
+    canSanitize: true,
   };
 
   private readonly patterns = [
@@ -310,6 +330,12 @@ class QualityGateGuardrail implements ICrossAgentGuardrailService {
 |--------|------|---------|-------------|
 | `evaluateStreamingChunks` | `boolean` | `false` | Evaluate TEXT_DELTA chunks (real-time) vs only FINAL_RESPONSE |
 | `maxStreamingEvaluations` | `number` | `undefined` | Rate limit streaming evaluations per request |
+| `canSanitize` | `boolean` | `false` | Run this guardrail in Phase 1 so SANITIZE results chain deterministically |
+| `timeoutMs` | `number` | `undefined` | Per-guardrail timeout. On timeout/error the dispatcher fails open for that guardrail |
+
+### Output Payload Extras
+
+`GuardrailOutputPayload` includes `ragSources?: RagRetrievedChunk[]` for output-time grounding checks. This field is populated when the response was generated with RAG retrieval, and is what the grounding guard uses to compare claims against retrieved evidence.
 
 ### Performance Considerations
 
@@ -320,24 +346,56 @@ class QualityGateGuardrail implements ICrossAgentGuardrailService {
 
 ## Using Multiple Guardrails
 
-Multiple guardrails are evaluated in sequence. Each can modify the content before passing to the next:
+Multiple guardrails are dispatched in two phases: sanitizers first, then parallel classifiers:
 
 ```typescript
-const guardrails = [
-  new PIIRedactionGuardrail(),     // First: redact PII
-  new ContentPolicyGuardrail(),    // Second: check policy
-  new CostCeilingGuardrail(),      // Third: enforce budget
-];
+import { createPiiRedactionPack } from '@framers/agentos/extensions/packs/pii-redaction';
+import { createMLClassifierPack } from '@framers/agentos/extensions/packs/ml-classifiers';
+import { createTopicalityPack, TOPIC_PRESETS } from '@framers/agentos/extensions/packs/topicality';
+import { createCodeSafetyPack } from '@framers/agentos/extensions/packs/code-safety';
+import { createGroundingGuardPack } from '@framers/agentos/extensions/packs/grounding-guard';
 
-// AgentOSConfig.guardrailService is a single guardrail instance. To use multiple,
-// register them as extension-pack descriptors (recommended) or wrap them in a composite.
+const piiPack = createPiiRedactionPack({
+  redactionStyle: 'placeholder',
+  confidenceThreshold: 0.5,
+});
+
+const mlPack = createMLClassifierPack({
+  guardrailScope: 'both',
+});
+
+const topicalityPack = createTopicalityPack({
+  allowedTopics: TOPIC_PRESETS.customerSupport,
+  forbiddenTopics: TOPIC_PRESETS.commonUnsafe,
+  guardrailScope: 'input',
+});
+
+const codeSafetyPack = createCodeSafetyPack();
+
+const groundingPack = createGroundingGuardPack({
+  contradictionAction: 'flag',
+});
+
+await agent.initialize({
+  ...config,
+  manifest: {
+    packs: [
+      { factory: () => piiPack },
+      { factory: () => mlPack },
+      { factory: () => topicalityPack },
+      { factory: () => codeSafetyPack },
+      { factory: () => groundingPack },
+    ],
+  },
+});
 ```
 
 **Evaluation Order:**
-1. Input guardrails run in array order before orchestration
-2. If any returns `BLOCK`, processing stops
-3. If any returns `SANITIZE`, modified input passes to next guardrail
-4. Output guardrails wrap the stream in array order
+1. Phase 1 sanitizers run first in registration order
+2. If any sanitizer returns `BLOCK`, processing stops immediately
+3. Sanitized text from Phase 1 becomes the input to all Phase 2 guardrails
+4. Phase 2 guardrails run concurrently, and the worst action wins
+5. `SANITIZE` returned from Phase 2 is downgraded to `FLAG` to preserve deterministic output
 
 ## API Reference
 
@@ -383,6 +441,10 @@ interface GuardrailEvaluationResult {
   modifiedText?: string | null;  // For SANITIZE action
 }
 ```
+
+### Shared Heavyweight Services
+
+Extension packs that need expensive resources (NER models, ONNX classifiers, embedding functions, NLI pipelines) should load them through `ExtensionLifecycleContext.services`, which is an `ISharedServiceRegistry`. The extension manager provides a shared registry instance so one agent can reuse the same heavyweight dependency across multiple packs instead of loading it once per guardrail.
 
 ## Best Practices
 
