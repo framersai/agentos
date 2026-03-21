@@ -224,14 +224,26 @@ describe('createTopicalityPack', () => {
       await expect(pack.onDeactivate!()).resolves.toBeUndefined();
     });
 
-    it('clears drift tracker sessions on deactivate', async () => {
+    it('clears the guardrail drift tracker sessions on deactivate', async () => {
       const pack = createTopicalityPack({
+        allowedTopics: [BILLING_TOPIC],
         enableDriftDetection: true,
         embeddingFn: mockEmbeddingFn,
       });
 
-      // Deactivation should not throw (drift tracker clear is called).
+      const guardrail = pack.descriptors.find((d) => d.id === 'topicality-guardrail')!
+        .payload as any;
+
+      await guardrail.evaluateInput({
+        context: { userId: 'u1', sessionId: 's1' },
+        input: { textInput: 'Need help with my invoice' },
+      });
+
+      expect(guardrail.driftTracker).toBeTruthy();
+      expect(guardrail.driftTracker.sessions.size).toBe(1);
+
       await expect(pack.onDeactivate!()).resolves.toBeUndefined();
+      expect(guardrail.driftTracker.sessions.size).toBe(0);
     });
 
     it('handles deactivation when drift detection is disabled', async () => {

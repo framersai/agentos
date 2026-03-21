@@ -203,6 +203,17 @@ export class TopicalityGuardrail implements IGuardrailService {
     }
   }
 
+  /**
+   * Clears any session-level drift-tracking state held by this guardrail.
+   *
+   * Called by the topicality pack's `onDeactivate` hook so long-lived agents
+   * do not retain per-session EMA state after the pack is removed or the
+   * agent shuts down.
+   */
+  clearSessionState(): void {
+    this.driftTracker?.clear();
+  }
+
   // -------------------------------------------------------------------------
   // IGuardrailService — evaluateInput
   // -------------------------------------------------------------------------

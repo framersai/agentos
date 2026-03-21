@@ -43,7 +43,6 @@ import { EXTENSION_KIND_GUARDRAIL, EXTENSION_KIND_TOOL } from '../../types';
 import type { TopicalityPackOptions } from './types';
 import { TopicalityGuardrail } from './TopicalityGuardrail';
 import { CheckTopicTool } from './tools/CheckTopicTool';
-import { TopicDriftTracker } from './TopicDriftTracker';
 
 // ---------------------------------------------------------------------------
 // Re-exports — allow single-import for consumers
@@ -109,12 +108,6 @@ export function createTopicalityPack(options?: TopicalityPackOptions): Extension
    * The on-demand topic checking tool exposed to agents and workflows.
    */
   let tool: CheckTopicTool;
-
-  /**
-   * Reference to the drift tracker inside the guardrail, so that
-   * `onDeactivate` can clear session state.
-   */
-  let driftTracker: TopicDriftTracker | null = null;
 
   // -------------------------------------------------------------------------
   // Embedding function resolution
@@ -190,17 +183,6 @@ export function createTopicalityPack(options?: TopicalityPackOptions): Extension
       forbiddenThreshold,
     );
 
-    // ------------------------------------------------------------------
-    // 3. Track drift tracker reference for cleanup.
-    //    The guardrail creates its own tracker internally; we create a
-    //    separate reference here for the onDeactivate hook.
-    // ------------------------------------------------------------------
-    const driftEnabled = opts.enableDriftDetection !== false;
-    if (driftEnabled) {
-      driftTracker = new TopicDriftTracker(opts.drift);
-    } else {
-      driftTracker = null;
-    }
   }
 
   // Initial build — makes the pack usable immediately without activation.
@@ -279,10 +261,7 @@ export function createTopicalityPack(options?: TopicalityPackOptions): Extension
      * Clears drift tracker session state to release memory.
      */
     onDeactivate: async (): Promise<void> => {
-      // Clear drift tracker sessions.
-      if (driftTracker) {
-        driftTracker.clear();
-      }
+      guardrail.clearSessionState();
     },
   };
 }
