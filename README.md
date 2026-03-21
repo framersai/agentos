@@ -1509,6 +1509,11 @@ const config = await createTestAgentOSConfig();
 await agent.initialize({ ...config, guardrailService: piiGuardrail });
 ```
 
+> **For production PII redaction**, use the built-in `createPiiRedactionPack()` extension
+> instead of hand-rolled regex. It provides four-tier detection (regex + NLP + BERT NER +
+> LLM-as-judge), streaming support, and configurable redaction styles. See
+> [GUARDRAILS_USAGE.md](docs/GUARDRAILS_USAGE.md) for full examples.
+
 ### Channel Adapters
 
 ```typescript
