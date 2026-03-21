@@ -16,6 +16,7 @@ import {
   tokenize,
   normalizeText,
   estimateTokens,
+  cosineSimilarity,
 } from '../../../src/core/utils/text-utils';
 
 // ---------------------------------------------------------------------------
@@ -236,5 +237,66 @@ describe('estimateTokens', () => {
     const short = estimateTokens('abcd');        // exactly 1 token
     const long = estimateTokens('abcd'.repeat(10)); // exactly 10 tokens
     expect(long).toBe(short * 10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cosineSimilarity
+// ---------------------------------------------------------------------------
+
+describe('cosineSimilarity', () => {
+  it('returns 1.0 for identical unit vectors', () => {
+    // Two identical unit vectors point in exactly the same direction.
+    expect(cosineSimilarity([1, 0, 0], [1, 0, 0])).toBeCloseTo(1.0);
+    expect(cosineSimilarity([0, 1, 0], [0, 1, 0])).toBeCloseTo(1.0);
+  });
+
+  it('returns 1.0 for identical non-unit (parallel) vectors', () => {
+    // [2, 4] and [1, 2] are scalar multiples — direction is the same.
+    expect(cosineSimilarity([2, 4], [1, 2])).toBeCloseTo(1.0);
+  });
+
+  it('returns 0 for orthogonal vectors', () => {
+    // Orthogonal basis vectors have zero dot product.
+    expect(cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0);
+    expect(cosineSimilarity([1, 0, 0], [0, 1, 0])).toBeCloseTo(0);
+  });
+
+  it('returns -1.0 for opposite vectors', () => {
+    // Vectors pointing in exactly opposite directions.
+    expect(cosineSimilarity([1, 0], [-1, 0])).toBeCloseTo(-1.0);
+    expect(cosineSimilarity([3, 0], [-3, 0])).toBeCloseTo(-1.0);
+  });
+
+  it('returns 0 for vectors of different dimensions', () => {
+    // Mismatched lengths are meaningless; return the safe neutral value.
+    expect(cosineSimilarity([1, 2, 3], [1, 2])).toBe(0);
+    expect(cosineSimilarity([1], [1, 2, 3])).toBe(0);
+  });
+
+  it('returns 0 for empty vectors', () => {
+    // Empty arrays have no defined angle; return the safe neutral value.
+    expect(cosineSimilarity([], [])).toBe(0);
+  });
+
+  it('returns 0 when either vector is the zero vector', () => {
+    // A zero vector has no direction — cosine similarity is undefined.
+    expect(cosineSimilarity([0, 0, 0], [1, 2, 3])).toBe(0);
+    expect(cosineSimilarity([1, 2, 3], [0, 0, 0])).toBe(0);
+    expect(cosineSimilarity([0, 0], [0, 0])).toBe(0);
+  });
+
+  it('handles higher-dimensional real-valued vectors', () => {
+    // A vector compared with itself must always yield exactly 1.0.
+    const v = [0.1, 0.5, 0.3, 0.8, 0.2];
+    expect(cosineSimilarity(v, v)).toBeCloseTo(1.0);
+  });
+
+  it('produces a value strictly between -1 and 1 for non-extremal vectors', () => {
+    // Vectors at a 45-degree angle should give cos(45°) ≈ 0.707.
+    const result = cosineSimilarity([1, 0], [1, 1]);
+    expect(result).toBeGreaterThan(0);
+    expect(result).toBeLessThan(1);
+    expect(result).toBeCloseTo(Math.SQRT1_2, 5); // √2/2 ≈ 0.70711
   });
 });

@@ -207,3 +207,69 @@ export function estimateTokens(text: string): number {
   }
   return Math.ceil(text.length / 4);
 }
+
+// ---------------------------------------------------------------------------
+// Vector similarity
+// ---------------------------------------------------------------------------
+
+/**
+ * Computes the cosine similarity between two numeric vectors.
+ *
+ * Cosine similarity measures the cosine of the angle between two vectors in
+ * an inner-product space.  It ranges from **-1.0** (perfectly opposite
+ * directions) to **1.0** (perfectly identical directions), with **0** meaning
+ * the vectors are orthogonal (no linear similarity).
+ *
+ * This single implementation consolidates 6+ duplicate `cosineSimilarity`
+ * helpers that previously existed across the AgentOS codebase (discovery,
+ * social-posting, rag, etc.), providing a single well-tested source of truth.
+ *
+ * ### Edge-case behaviour
+ * | Condition | Return value | Reason |
+ * |---|---|---|
+ * | Empty arrays | `0` | Division by zero is undefined; 0 is the safe neutral value. |
+ * | Mismatched dimensions | `0` | Meaningless to compare vectors in different spaces. |
+ * | Either vector is the zero vector | `0` | Magnitude is 0, denominator would be 0. |
+ *
+ * @example
+ * ```typescript
+ * // Identical unit vectors → 1
+ * cosineSimilarity([1, 0], [1, 0]);  // → 1.0
+ *
+ * // Orthogonal vectors → 0
+ * cosineSimilarity([1, 0], [0, 1]);  // → 0
+ *
+ * // Opposite unit vectors → -1
+ * cosineSimilarity([1, 0], [-1, 0]); // → -1.0
+ *
+ * // Non-unit but parallel vectors → 1
+ * cosineSimilarity([2, 4], [1, 2]);  // → 1.0
+ * ```
+ *
+ * @param a - First numeric vector (any dimension ≥ 1).
+ * @param b - Second numeric vector — must have the same length as `a`.
+ * @returns Cosine similarity in the range `[-1, 1]`.
+ *   Returns `0` for mismatched dimensions, empty arrays, or zero-magnitude vectors.
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  // Guard: vectors must be non-empty and share the same dimensionality.
+  if (a.length !== b.length || a.length === 0) return 0;
+
+  // Accumulate dot product and squared norms in a single pass for efficiency.
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];    // contribution to the dot product
+    normA += a[i] * a[i];  // squared magnitude of a
+    normB += b[i] * b[i];  // squared magnitude of b
+  }
+
+  // Denominator is the product of the two vector magnitudes.
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+
+  // Guard: if either vector is the zero vector the denominator is 0.
+  // Cosine similarity is undefined in that case; return 0 as the neutral value.
+  return denom === 0 ? 0 : dot / denom;
+}
