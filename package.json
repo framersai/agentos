@@ -53,6 +53,11 @@
       "default": "./dist/extensions/packs/topicality/index.js",
       "types": "./dist/extensions/packs/topicality/index.d.ts"
     },
+    "./extensions/packs/code-safety": {
+      "import": "./dist/extensions/packs/code-safety/index.js",
+      "default": "./dist/extensions/packs/code-safety/index.js",
+      "types": "./dist/extensions/packs/code-safety/index.d.ts"
+    },
     "./core/safety": {
       "import": "./dist/core/safety/index.js",
       "default": "./dist/core/safety/index.js",
