@@ -64,7 +64,7 @@ Only installed extension packages will load — missing ones are skipped silentl
 ---
 
 ### [@framers/agentos-extensions](https://github.com/framersai/agentos-extensions)
-**Extensions Catalog** — Static `registry.json` catalog of all available extensions.
+**Extension Source** — Implementations, templates, and manifests for tools, channel adapters, and integrations. The `agentos-extensions-registry` package catalogs and loads these.
 
 ```bash
 npm install @framers/agentos-extensions
