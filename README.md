@@ -28,7 +28,7 @@
 | **@framers/agentos-extensions** | Official extension registry (45+ extensions) | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions) · [GitHub](https://github.com/framersai/agentos-extensions) |
 | **@framers/agentos-extensions-registry** | Curated manifest builder | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions-registry) · [GitHub](https://github.com/framersai/agentos-extensions-registry) |
 | **@framers/agentos-skills-registry** | 28+ curated SKILL.md files | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills-registry) · [GitHub](https://github.com/framersai/agentos-skills-registry) |
-| **@framers/agentos-ext-skills** | Skills extension pack | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-skills) · [GitHub](https://github.com/framersai/agentos-ext-skills) |
+| **@framers/agentos-ext-skills** | Skills runtime loader (reads SKILL.md → agent prompt) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-skills) · [GitHub](https://github.com/framersai/agentos-ext-skills) |
 
 ### Guardrail Extensions
 
