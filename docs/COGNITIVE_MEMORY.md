@@ -830,3 +830,19 @@ All source lives in `packages/agentos/src/memory/`:
 | `observation/ObservationBuffer.ts` | `ObservationBuffer` |
 | `prospective/ProspectiveMemoryManager.ts` | `ProspectiveMemoryManager`, `ProspectiveMemoryItem` |
 | `consolidation/ConsolidationPipeline.ts` | `ConsolidationPipeline`, `ConsolidationResult` |
+
+---
+
+## Relationship to Persistent Working Memory
+
+AgentOS provides two complementary working memory systems:
+
+| | Baddeley Cognitive Working Memory | Persistent Markdown Working Memory |
+|---|---|---|
+| Purpose | In-session attention modeling | Cross-session user context |
+| Lifespan | Single session (in-memory) | Persists on disk (~/.wunderland/agents/{id}/working-memory.md) |
+| Updates | Automatic activation decay | Agent calls `update_working_memory` tool |
+| Format | Capacity-limited slots (7±2) | Free-form markdown template |
+| Budget | 15% of prompt tokens | 5% of prompt tokens |
+
+Both are injected into the system prompt simultaneously. The persistent memory appears as `## Persistent Memory` before the cognitive slots. See [Persistent Working Memory](./WORKING_MEMORY.md) for details.
