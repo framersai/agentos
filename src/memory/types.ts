@@ -233,6 +233,7 @@ export interface MemoryBudgetAllocation {
   prospectiveAlerts: number;
   graphAssociations: number;
   observationNotes: number;
+  persistentMemory: number;
 }
 
 export interface AssembledMemoryContext {

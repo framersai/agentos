@@ -72,6 +72,8 @@ export interface MemoryAssemblerInput {
   graphContext?: string[];
   /** Observation notes (Batch 2). */
   observationNotes?: string[];
+  /** Persistent markdown memory (MEMORY.md contents). */
+  persistentMemoryText?: string;
 }
 
 /**
@@ -88,6 +90,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
   const style = selectFormattingStyle(input.traits);
 
   // Compute per-section budgets
+  const pmBudget = Math.floor(budget * alloc.persistentMemory);
   const wmBudget = Math.floor(budget * alloc.workingMemory);
   let semanticBudget = Math.floor(budget * alloc.semanticRecall);
   const episodicBudget = Math.floor(budget * alloc.recentEpisodic);
@@ -98,6 +101,17 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
   const sections: string[] = [];
   const includedIds: string[] = [];
   let totalTokens = 0;
+
+  // --- Persistent Memory (MEMORY.md) ---
+  if (input.persistentMemoryText && pmBudget > 0) {
+    let pmText = input.persistentMemoryText;
+    const maxChars = pmBudget * 4;
+    if (pmText.length > maxChars) {
+      pmText = pmText.slice(0, maxChars) + '\n<!-- truncated -->';
+    }
+    sections.push(`## Persistent Memory\n\n${pmText}`);
+    totalTokens += Math.min(estimateTokens(input.persistentMemoryText), pmBudget);
+  }
 
   // --- Working Memory ---
   const wmText = input.workingMemoryText ?? '';

@@ -194,9 +194,10 @@ export const DEFAULT_DECAY_CONFIG: DecayConfig = {
 
 export const DEFAULT_BUDGET_ALLOCATION: MemoryBudgetAllocation = {
   workingMemory: 0.15,
-  semanticRecall: 0.45,
+  semanticRecall: 0.40,
   recentEpisodic: 0.25,
   prospectiveAlerts: 0.05,
   graphAssociations: 0.05,
   observationNotes: 0.05,
+  persistentMemory: 0.05,
 };
