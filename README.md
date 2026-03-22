@@ -20,37 +20,6 @@
 
 ---
 
-## Ecosystem
-
-| Package | Description | Links |
-|---------|-------------|-------|
-| **@framers/agentos** | Core orchestration runtime | [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos) |
-| **@framers/agentos-extensions** | Official extension registry (45+ extensions) | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions) · [GitHub](https://github.com/framersai/agentos-extensions) |
-| **@framers/agentos-extensions-registry** | Curated manifest builder | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions-registry) · [GitHub](https://github.com/framersai/agentos-extensions-registry) |
-| **@framers/agentos-skills-registry** | 28+ curated SKILL.md files | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills-registry) · [GitHub](https://github.com/framersai/agentos-skills-registry) |
-| **@framers/agentos-ext-skills** | Skills runtime loader (reads SKILL.md → agent prompt) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-skills) · [GitHub](https://github.com/framersai/agentos-ext-skills) |
-
-### Guardrail Extensions
-
-| Package | What It Does | Links |
-|---------|-------------|-------|
-| **@framers/agentos-ext-pii-redaction** | Four-tier PII detection (regex + NLP + NER + LLM) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-pii-redaction?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-pii-redaction) · [Docs](https://docs.agentos.sh/extensions/built-in/pii-redaction) |
-| **@framers/agentos-ext-ml-classifiers** | Toxicity, injection, jailbreak via ONNX BERT | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-ml-classifiers?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-ml-classifiers) · [Docs](https://docs.agentos.sh/extensions/built-in/ml-classifiers) |
-| **@framers/agentos-ext-topicality** | Embedding-based topic enforcement + drift detection | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-topicality?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-topicality) · [Docs](https://docs.agentos.sh/extensions/built-in/topicality) |
-| **@framers/agentos-ext-code-safety** | OWASP Top 10 code scanning (25 regex rules) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-code-safety?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-code-safety) · [Docs](https://docs.agentos.sh/extensions/built-in/code-safety) |
-| **@framers/agentos-ext-grounding-guard** | RAG-grounded hallucination detection via NLI | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-grounding-guard?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-grounding-guard) · [Docs](https://docs.agentos.sh/extensions/built-in/grounding-guard) |
-
-### Apps & Tools
-
-| Project | Description | Links |
-|---------|-------------|-------|
-| **Wunderland CLI** | Agent runtime CLI (`wunderland start/chat/seal`) | [GitHub](https://github.com/framersai/wunderland) · [wunderland.sh](https://wunderland.sh) |
-| **RabbitHole** | Agent management dashboard (Next.js) | [GitHub](https://github.com/framersai/rabbithole) · [rabbithole.dev](https://rabbithole.dev) |
-| **docs.agentos.sh** | Documentation site (Docusaurus) | [GitHub](https://github.com/framersai/agentos-live-docs) · [docs.agentos.sh](https://docs.agentos.sh) |
-| **Frame.dev** | Parent organization | [frame.dev](https://frame.dev) |
-
----
-
 ## Table of Contents
 
 - [Overview](#overview)
@@ -141,6 +110,29 @@
 | `graphology` + `graphology-communities-louvain` | GraphRAG community detection |
 | `hnswlib-node` | HNSW-based approximate nearest neighbor search |
 | `neo4j-driver` | Neo4j-backed vector + GraphRAG persistence |
+
+---
+
+## Ecosystem
+
+| Package | Description | Links |
+|---------|-------------|-------|
+| **@framers/agentos** | Core orchestration runtime | [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos) |
+| **@framers/agentos-extensions** | Official extension registry (45+ extensions) | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions) · [GitHub](https://github.com/framersai/agentos-extensions) |
+| **@framers/agentos-extensions-registry** | Curated manifest builder | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions-registry) · [GitHub](https://github.com/framersai/agentos-extensions-registry) |
+| **@framers/agentos-skills-registry** | 28+ curated SKILL.md files | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills-registry) · [GitHub](https://github.com/framersai/agentos-skills-registry) |
+| **@framers/agentos-ext-skills** | Skills runtime loader (reads SKILL.md → agent prompt) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-skills) · [GitHub](https://github.com/framersai/agentos-ext-skills) |
+| **docs.agentos.sh** | Documentation site (Docusaurus) | [GitHub](https://github.com/framersai/agentos-live-docs) · [docs.agentos.sh](https://docs.agentos.sh) |
+
+### Guardrail Extensions
+
+| Package | What It Does | Links |
+|---------|-------------|-------|
+| **@framers/agentos-ext-pii-redaction** | Four-tier PII detection (regex + NLP + NER + LLM) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-pii-redaction?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-pii-redaction) · [Docs](https://docs.agentos.sh/extensions/built-in/pii-redaction) |
+| **@framers/agentos-ext-ml-classifiers** | Toxicity, injection, jailbreak via ONNX BERT | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-ml-classifiers?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-ml-classifiers) · [Docs](https://docs.agentos.sh/extensions/built-in/ml-classifiers) |
+| **@framers/agentos-ext-topicality** | Embedding-based topic enforcement + drift detection | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-topicality?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-topicality) · [Docs](https://docs.agentos.sh/extensions/built-in/topicality) |
+| **@framers/agentos-ext-code-safety** | OWASP Top 10 code scanning (25 regex rules) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-code-safety?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-code-safety) · [Docs](https://docs.agentos.sh/extensions/built-in/code-safety) |
+| **@framers/agentos-ext-grounding-guard** | RAG-grounded hallucination detection via NLI | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-grounding-guard?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-grounding-guard) · [Docs](https://docs.agentos.sh/extensions/built-in/grounding-guard) |
 
 ---
 
