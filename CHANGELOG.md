@@ -1,3 +1,14 @@
+## <small>0.1.59 (2026-03-22)</small>
+
+* refactor: rename @framers/agentos-ext-skills to @framers/agentos-skills ([7ae18a7](https://github.com/framersai/agentos/commit/7ae18a7))
+* docs: add comprehensive Creating Custom Guardrails authoring guide ([0ee68e5](https://github.com/framersai/agentos/commit/0ee68e5))
+* docs: add ecosystem table with all packages and links ([9464cb8](https://github.com/framersai/agentos/commit/9464cb8))
+* docs: agentos-extensions is "Extension source" not "Extensions Catalog" ([bdec7af](https://github.com/framersai/agentos/commit/bdec7af))
+* docs: clarify agentos-ext-skills description in ecosystem table ([4401372](https://github.com/framersai/agentos/commit/4401372))
+* docs: move ecosystem after overview, remove external apps ([a2f06c1](https://github.com/framersai/agentos/commit/a2f06c1))
+* docs: simplify guardrails table to 3 columns to fix overflow on docs site ([f25178e](https://github.com/framersai/agentos/commit/f25178e))
+* docs: update factory function names from create*Pack to create*Guardrail ([2bb37f8](https://github.com/framersai/agentos/commit/2bb37f8))
+
 ## <small>0.1.58 (2026-03-21)</small>
 
 * fix(lint): resolve 2 prefer-const errors in ParallelGuardrailDispatcher ([56468b0](https://github.com/framersai/agentos/commit/56468b0))
