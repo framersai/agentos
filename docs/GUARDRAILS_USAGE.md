@@ -129,9 +129,9 @@ class CostCeilingGuardrail implements IGuardrailService {
 AgentOS provides a first-class PII redaction extension with four-tier detection (regex + NLP + NER + LLM-as-judge), covering 50+ country ID formats, person names, organizations, and context-dependent PII. See the [PII Redaction extension docs](/docs/extensions/built-in/pii-redaction) for full configuration reference.
 
 ```typescript
-import { createPiiRedactionPack } from '@framers/agentos-ext-pii-redaction';
+import { createPiiRedactionGuardrail } from '@framers/agentos-ext-pii-redaction';
 
-const piiPack = createPiiRedactionPack({
+const piiPack = createPiiRedactionGuardrail({
   confidenceThreshold: 0.5,
   redactionStyle: 'placeholder',  // also: 'mask', 'hash', 'category-tag'
   enableNerModel: true,            // BERT NER for person/org/location names
@@ -339,30 +339,30 @@ class QualityGateGuardrail implements ICrossAgentGuardrailService {
 Multiple guardrails are dispatched in two phases: sanitizers first, then parallel classifiers:
 
 ```typescript
-import { createPiiRedactionPack } from '@framers/agentos-ext-pii-redaction';
-import { createMLClassifierPack } from '@framers/agentos-ext-ml-classifiers';
-import { createTopicalityPack, TOPIC_PRESETS } from '@framers/agentos-ext-topicality';
-import { createCodeSafetyPack } from '@framers/agentos-ext-code-safety';
-import { createGroundingGuardPack } from '@framers/agentos-ext-grounding-guard';
+import { createPiiRedactionGuardrail } from '@framers/agentos-ext-pii-redaction';
+import { createMLClassifierGuardrail } from '@framers/agentos-ext-ml-classifiers';
+import { createTopicalityGuardrail, TOPIC_PRESETS } from '@framers/agentos-ext-topicality';
+import { createCodeSafetyGuardrail } from '@framers/agentos-ext-code-safety';
+import { createGroundingGuardrail } from '@framers/agentos-ext-grounding-guard';
 
-const piiPack = createPiiRedactionPack({
+const piiPack = createPiiRedactionGuardrail({
   redactionStyle: 'placeholder',
   confidenceThreshold: 0.5,
 });
 
-const mlPack = createMLClassifierPack({
+const mlPack = createMLClassifierGuardrail({
   guardrailScope: 'both',
 });
 
-const topicalityPack = createTopicalityPack({
+const topicalityPack = createTopicalityGuardrail({
   allowedTopics: TOPIC_PRESETS.customerSupport,
   forbiddenTopics: TOPIC_PRESETS.commonUnsafe,
   guardrailScope: 'input',
 });
 
-const codeSafetyPack = createCodeSafetyPack();
+const codeSafetyPack = createCodeSafetyGuardrail();
 
-const groundingPack = createGroundingGuardPack({
+const groundingPack = createGroundingGuardrail({
   contradictionAction: 'flag',
 });
 

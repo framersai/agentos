@@ -1509,7 +1509,7 @@ const config = await createTestAgentOSConfig();
 await agent.initialize({ ...config, guardrailService: piiGuardrail });
 ```
 
-> **For production PII redaction**, use the built-in `createPiiRedactionPack()` extension
+> **For production PII redaction**, use the built-in `createPiiRedactionGuardrail()` extension
 > instead of hand-rolled regex. It provides four-tier detection (regex + NLP + BERT NER +
 > LLM-as-judge), streaming support, and configurable redaction styles. See
 > [GUARDRAILS_USAGE.md](docs/GUARDRAILS_USAGE.md) for full examples.
@@ -1616,11 +1616,11 @@ import { SkillRegistry, SkillLoader } from '@framers/agentos/skills';
 
 // Extension runtime helpers and built-in guardrail packs
 import { SharedServiceRegistry } from '@framers/agentos';
-import { createPiiRedactionPack } from '@framers/agentos-ext-pii-redaction';
-import { createMLClassifierPack } from '@framers/agentos-ext-ml-classifiers';
-import { createTopicalityPack } from '@framers/agentos-ext-topicality';
-import { createCodeSafetyPack } from '@framers/agentos-ext-code-safety';
-import { createGroundingGuardPack } from '@framers/agentos-ext-grounding-guard';
+import { createPiiRedactionGuardrail } from '@framers/agentos-ext-pii-redaction';
+import { createMLClassifierGuardrail } from '@framers/agentos-ext-ml-classifiers';
+import { createTopicalityGuardrail } from '@framers/agentos-ext-topicality';
+import { createCodeSafetyGuardrail } from '@framers/agentos-ext-code-safety';
+import { createGroundingGuardrail } from '@framers/agentos-ext-grounding-guard';
 
 // Deep imports (wildcard exports)
 import { SomeType } from '@framers/agentos/core/safety/CircuitBreaker';
