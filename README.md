@@ -170,112 +170,84 @@ for await (const chunk of agent.processRequest({
 
 ### Architecture Diagram
 
-```
-+===================================================================+
-|                       AgentOS Runtime                              |
-+===================================================================+
-|                                                                    |
-|  +---------------------+     +----------------------+              |
-|  |    AgentOS (API)    |---->| AgentOSOrchestrator  |              |
-|  |  (Service Facade)   |     |  (Delegation Hub)    |              |
-|  +---------------------+     +----------+-----------+              |
-|           |                              |                         |
-|           v                              v                         |
-|  +------------------+          +-------------------+               |
-|  | StreamingManager |          |   PromptEngine    |               |
-|  | (Async Gen Mgmt) |          | (Dynamic Prompts) |               |
-|  +------------------+          +-------------------+               |
-|           |                              |                         |
-|           +----------+-------------------+                         |
-|                      |                                             |
-|                      v                                             |
-|  +=========================================================+      |
-|  |                  GMI Manager                             |      |
-|  |  (Generalized Modular Intelligence Lifecycle)            |      |
-|  |                                                          |      |
-|  |  +-----------+  +-----------+  +-----------+  +-------+  |      |
-|  |  | Working   |  |  Context  |  |  Persona  |  |Learning| |      |
-|  |  | Memory    |  |  Manager  |  |  Overlay  |  | Module | |      |
-|  |  +-----------+  +-----------+  +-----------+  +-------+  |      |
-|  |                                                          |      |
-|  |  +-----------+  +-----------+  +-----------+             |      |
-|  |  | Episodic  |  | Semantic  |  |Procedural |             |      |
-|  |  | Memory    |  |  Memory   |  |  Memory   |             |      |
-|  |  +-----------+  +-----------+  +-----------+             |      |
-|  +=========================================================+      |
-|           |              |              |                          |
-|           v              v              v                          |
-|  +--------------+  +----------+  +--------------+  +-----------+  |
-|  |    Tool      |  |   RAG    |  |   Planning   |  | Workflow  |  |
-|  | Orchestrator |  |  Memory  |  |    Engine     |  |  Engine   |  |
-|  +--------------+  +----------+  +--------------+  +-----------+  |
-|      |    |             |              |                           |
-|      |    |             v              v                           |
-|      |    |       +-----------+  +-----------+                    |
-|      |    |       | Embedding |  |   ReAct    |                   |
-|      |    |       |  Manager  |  |  Reasoner  |                   |
-|      |    |       +-----------+  +-----------+                    |
-|      |    |             |                                          |
-|      v    v             v                                          |
-|  +=========================================================+      |
-|  |            LLM Provider Manager                          |      |
-|  |                                                          |      |
-|  |   +--------+ +----------+ +-------+ +--------+ +------+ |      |
-|  |   | OpenAI | |Anthropic | | Azure | | Ollama | |OpenR.| |      |
-|  |   +--------+ +----------+ +-------+ +--------+ +------+ |      |
-|  +=========================================================+      |
-|                                                                    |
-|  +---------+  +----------+  +----------+  +-----------+            |
-|  |Guardrail|  | Circuit  |  |   Cost   |  |   Stuck   |           |
-|  | Service |  | Breaker  |  |  Guard   |  | Detector  |           |
-|  +---------+  +----------+  +----------+  +-----------+            |
-|                                                                    |
-|  +-------------------+  +-------------------+  +----------------+  |
-|  | Extension Manager |  | Channel Router    |  | Call Manager   |  |
-|  | (12+ kinds)       |  | (40 platforms)    |  | (Voice/Tel.)   |  |
-|  +-------------------+  +-------------------+  +----------------+  |
-|                                                                    |
-|  +-------------------+  +-------------------+  +----------------+  |
-|  |  Observability    |  |   HITL Manager    |  | Skill Registry |  |
-|  |  (OpenTelemetry)  |  | (Approval/Escal.) |  | (SKILL.md)     |  |
-|  +-------------------+  +-------------------+  +----------------+  |
-|                                                                    |
-+====================================================================+
+```mermaid
+graph TB
+    subgraph Runtime["AgentOS Runtime"]
+        API["AgentOS API<br/><i>Service Facade</i>"] --> Orch["AgentOSOrchestrator<br/><i>Delegation Hub</i>"]
+        API --> Stream["StreamingManager<br/><i>Async Gen Mgmt</i>"]
+        Orch --> Prompt["PromptEngine<br/><i>Dynamic Prompts</i>"]
+
+        subgraph GMI["GMI Manager — Generalized Modular Intelligence"]
+            WM["Working<br/>Memory"] ~~~ CM["Context<br/>Manager"] ~~~ PO["Persona<br/>Overlay"] ~~~ LM["Learning<br/>Module"]
+            EM["Episodic<br/>Memory"] ~~~ SM["Semantic<br/>Memory"] ~~~ PM["Procedural<br/>Memory"]
+        end
+
+        Stream --> GMI
+        Prompt --> GMI
+
+        GMI --> Tools["Tool<br/>Orchestrator"]
+        GMI --> RAG["RAG<br/>Memory"]
+        GMI --> Plan["Planning<br/>Engine"]
+        GMI --> WF["Workflow<br/>Engine"]
+
+        RAG --> Embed["Embedding<br/>Manager"]
+        Plan --> ReAct["ReAct<br/>Reasoner"]
+
+        subgraph LLM["LLM Provider Manager"]
+            OAI["OpenAI"] ~~~ Anth["Anthropic"] ~~~ Az["Azure"] ~~~ Oll["Ollama"] ~~~ OR["OpenRouter"]
+        end
+
+        Tools --> LLM
+        Embed --> LLM
+        ReAct --> LLM
+
+        Guard["Guardrail<br/>Service"] ~~~ CB["Circuit<br/>Breaker"] ~~~ CG["Cost<br/>Guard"] ~~~ SD["Stuck<br/>Detector"]
+        Ext["Extension Manager<br/><i>12+ kinds</i>"] ~~~ Chan["Channel Router<br/><i>37 platforms</i>"] ~~~ Call["Call Manager<br/><i>Voice/Tel.</i>"]
+        Obs["Observability<br/><i>OpenTelemetry</i>"] ~~~ HITL["HITL Manager<br/><i>Approval/Escal.</i>"] ~~~ Skill["Skill Registry<br/><i>SKILL.md</i>"]
+    end
+
+    style Runtime fill:#0e0e18,stroke:#c9a227,stroke-width:2px,color:#f2f2fa
+    style GMI fill:#151520,stroke:#00f5ff,stroke-width:1px,color:#f2f2fa
+    style LLM fill:#151520,stroke:#8b5cf6,stroke-width:1px,color:#f2f2fa
 ```
 
 ### Request Lifecycle
 
 A single `processRequest()` call flows through these stages:
 
-```
-User Input (AgentOSInput)
-    |
-    v
-[1] Input Guardrails ---- evaluateInput() ----> BLOCK / SANITIZE / ALLOW
-    |
-    v
-[2] Context Assembly ----- ConversationManager + RAG retrieval
-    |
-    v
-[3] Prompt Construction -- PromptEngine builds system + contextual elements
-    |
-    v
-[4] GMI Processing ------- Working memory, persona overlay, adaptation
-    |
-    v
-[5] LLM Call ------------- AIModelProviderManager dispatches to provider
-    |                      (with circuit breaker + cost guard)
-    v
-[6] Tool Execution? ------ ToolOrchestrator validates, executes, loops back to [5]
-    |                      (with ToolExecutionGuard + permission checks)
-    v
-[7] Output Guardrails ---- evaluateOutput() ----> BLOCK / SANITIZE / ALLOW
-    |
-    v
-[8] Streaming Response --- AsyncGenerator<AgentOSResponse> yields chunks
-    |
-    v
-[9] Post-Processing ------ Memory persistence, cost aggregation, telemetry
+```mermaid
+flowchart TD
+    Input["User Input<br/><code>AgentOSInput</code>"] --> G1
+
+    G1["1 · Input Guardrails<br/><i>evaluateInput()</i>"]
+    G1 -->|ALLOW| Ctx
+    G1 -.->|BLOCK / SANITIZE| Reject1["⛔ Rejected"]
+
+    Ctx["2 · Context Assembly<br/><i>ConversationManager + RAG</i>"] --> Prompt
+    Prompt["3 · Prompt Construction<br/><i>PromptEngine</i>"] --> GMI
+    GMI["4 · GMI Processing<br/><i>Working memory · Persona · Adaptation</i>"] --> LLM
+
+    LLM["5 · LLM Call<br/><i>Provider Manager + Circuit Breaker</i>"] --> ToolCheck
+
+    ToolCheck{"Tool call?"}
+    ToolCheck -->|Yes| ToolExec["6 · Tool Execution<br/><i>ToolOrchestrator + Permission Guard</i>"]
+    ToolExec -->|Loop| LLM
+    ToolCheck -->|No| G2
+
+    G2["7 · Output Guardrails<br/><i>evaluateOutput()</i>"]
+    G2 -->|ALLOW| Stream
+    G2 -.->|BLOCK / SANITIZE| Reject2["⛔ Rejected"]
+
+    Stream["8 · Streaming Response<br/><i>AsyncGenerator yields chunks</i>"] --> Post
+    Post["9 · Post-Processing<br/><i>Memory · Cost · Telemetry</i>"]
+
+    style Input fill:#1c1c28,stroke:#c9a227,color:#f2f2fa
+    style G1 fill:#1c1c28,stroke:#ef4444,color:#f2f2fa
+    style G2 fill:#1c1c28,stroke:#ef4444,color:#f2f2fa
+    style LLM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
+    style ToolCheck fill:#1c1c28,stroke:#00f5ff,color:#f2f2fa
+    style ToolExec fill:#1c1c28,stroke:#00f5ff,color:#f2f2fa
+    style Post fill:#1c1c28,stroke:#10b981,color:#f2f2fa
 ```
 
 ### Layer Breakdown
