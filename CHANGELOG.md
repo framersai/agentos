@@ -1,3 +1,13 @@
+## <small>0.1.60 (2026-03-22)</small>
+
+* feat(memory): add MarkdownWorkingMemory — persistent .md file for agent context ([0ed30c4](https://github.com/framersai/agentos/commit/0ed30c4))
+* feat(memory): add update_working_memory and read_working_memory tools ([3fe1840](https://github.com/framersai/agentos/commit/3fe1840))
+* feat(memory): export MarkdownWorkingMemory and tools from barrel ([1117e23](https://github.com/framersai/agentos/commit/1117e23))
+* feat(memory): inject persistent markdown memory into prompt assembler ([4ed34d1](https://github.com/framersai/agentos/commit/4ed34d1))
+* docs: add sql-storage-adapter as persistence layer in README ([71fbfa8](https://github.com/framersai/agentos/commit/71fbfa8))
+* docs: convert all remaining ASCII diagrams to Mermaid ([c95afb1](https://github.com/framersai/agentos/commit/c95afb1))
+* docs: replace ASCII architecture diagrams with Mermaid ([d5f9937](https://github.com/framersai/agentos/commit/d5f9937))
+
 ## <small>0.1.59 (2026-03-22)</small>
 
 * refactor: rename @framers/agentos-ext-skills to @framers/agentos-skills ([7ae18a7](https://github.com/framersai/agentos/commit/7ae18a7))
