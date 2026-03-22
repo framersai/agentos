@@ -157,3 +157,9 @@ export type {
   ICompactionStrategy,
 } from './context/types.js';
 export { DEFAULT_INFINITE_CONTEXT_CONFIG } from './context/types.js';
+
+// --- Persistent Markdown Working Memory ---
+export { MarkdownWorkingMemory } from './working/MarkdownWorkingMemory.js';
+export type { WriteResult } from './working/MarkdownWorkingMemory.js';
+export { UpdateWorkingMemoryTool } from './working/UpdateWorkingMemoryTool.js';
+export { ReadWorkingMemoryTool } from './working/ReadWorkingMemoryTool.js';
