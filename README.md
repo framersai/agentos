@@ -307,31 +307,19 @@ enum AgentOSResponseChunkType {
 
 The Generalized Modular Intelligence (GMI) is the core agent instance -- the "brain" of each agent. A single AgentOS runtime can manage multiple GMI instances via `GMIManager`.
 
-```
-+================================================================+
-|                         GMI Instance                            |
-|                                                                 |
-|  +-------------------+     +----------------------------+       |
-|  | PersonaOverlay    |     |       Context Manager      |       |
-|  | Manager           |     | (Dynamic prompt elements,  |       |
-|  | (Personality      |     |  user context, session)    |       |
-|  |  switching)       |     +----------------------------+       |
-|  +-------------------+                                          |
-|                                                                 |
-|  +-------------------+     +----------------------------+       |
-|  | Working Memory    |     |    Adaptation Manager      |       |
-|  | (Current session  |     | (Learning rate, style      |       |
-|  |  state, tool ctx) |     |  drift, tone adaptation)   |       |
-|  +-------------------+     +----------------------------+       |
-|                                                                 |
-|  +-----------------------------------------------------------+ |
-|  |                  Multi-Layer Memory                        | |
-|  |  +----------+  +----------+  +-----------+  +-----------+ | |
-|  |  | Episodic |  | Semantic |  | Procedural|  | Long-Term | | |
-|  |  | (Events) |  | (Facts)  |  | (Skills)  |  | (Archive) | | |
-|  |  +----------+  +----------+  +-----------+  +-----------+ | |
-|  +-----------------------------------------------------------+ |
-+================================================================+
+```mermaid
+graph TB
+    subgraph GMI["GMI Instance"]
+        PO["PersonaOverlay Manager<br/><i>Personality switching</i>"] ~~~ CTX["Context Manager<br/><i>Dynamic prompts · User context · Session</i>"]
+        WM["Working Memory<br/><i>Current session state · Tool context</i>"] ~~~ AM["Adaptation Manager<br/><i>Learning rate · Style drift · Tone</i>"]
+        subgraph Mem["Multi-Layer Memory"]
+            Ep["Episodic<br/><i>Events</i>"] ~~~ Sem["Semantic<br/><i>Facts</i>"] ~~~ Proc["Procedural<br/><i>Skills</i>"] ~~~ LT["Long-Term<br/><i>Archive</i>"]
+        end
+        PO --> Mem
+        WM --> Mem
+    end
+    style GMI fill:#0e0e18,stroke:#c9a227,stroke-width:2px,color:#f2f2fa
+    style Mem fill:#151520,stroke:#00f5ff,stroke-width:1px,color:#f2f2fa
 ```
 
 **Key components:**
@@ -358,22 +346,14 @@ The Generalized Modular Intelligence (GMI) is the core agent instance -- the "br
 
 The LLM layer abstracts multiple AI model providers behind a unified interface.
 
-```
-+-----------------------------------------------------------+
-|              AIModelProviderManager                         |
-|  (Provider registry, routing, fallback, model switching)   |
-+-----------------------------------------------------------+
-        |              |              |              |
-        v              v              v              v
-+----------+   +----------+   +----------+   +----------+
-|  OpenAI  |   |  Ollama  |   | OpenRouter|  | (Custom) |
-| Provider |   | Provider |   | Provider  |  | Provider |
-+----------+   +----------+   +----------+   +----------+
-    |                |              |
-    v                v              v
- gpt-4o         llama3.2      claude-3.5
- gpt-4o-mini    mistral       gemini-pro
- o1-preview     codellama     command-r+
+```mermaid
+graph TD
+    PM["AIModelProviderManager<br/><i>Provider registry · Routing · Fallback · Model switching</i>"]
+    PM --> OAI["OpenAI Provider<br/><code>gpt-4o · gpt-4o-mini · o1</code>"]
+    PM --> Oll["Ollama Provider<br/><code>llama3.2 · mistral · codellama</code>"]
+    PM --> OR["OpenRouter Provider<br/><code>claude-3.5 · gemini-pro · command-r+</code>"]
+    PM --> Custom["Custom Provider<br/><i>IProvider interface</i>"]
+    style PM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
 ```
 
 **Provider implementations:**
@@ -414,19 +394,13 @@ for await (const chunk of agent.processRequest({
 
 Tools are the primary mechanism for agents to interact with the outside world. Every tool implements the `ITool` interface.
 
-```
-+-----------------------------------------------------------+
-|                    ToolOrchestrator                         |
-|  (Discovery, selection, validation, execution pipeline)    |
-+-----------------------------------------------------------+
-        |                |                |
-        v                v                v
-+---------------+ +---------------+ +-------------------+
-| ToolExecutor  | | ToolPermission| | ToolExecution     |
-| (Validation,  | | Manager       | | Guard             |
-|  invocation,  | | (RBAC, per-   | | (Timeout 30s,     |
-|  result wrap) | |  user access) | |  circuit breaker)  |
-+---------------+ +---------------+ +-------------------+
+```mermaid
+graph TD
+    TO["ToolOrchestrator<br/><i>Discovery · Selection · Validation · Execution</i>"]
+    TO --> TE["ToolExecutor<br/><i>Validation · Invocation · Result wrap</i>"]
+    TO --> TP["ToolPermission Manager<br/><i>RBAC · Per-user access</i>"]
+    TO --> TG["ToolExecution Guard<br/><i>Timeout 30s · Circuit breaker</i>"]
+    style TO fill:#1c1c28,stroke:#00f5ff,color:#f2f2fa
 ```
 
 **ITool interface (abbreviated):**
@@ -567,20 +541,15 @@ type ExtensionPackResolver =
 
 The planning engine enables multi-step task decomposition and execution using ReAct (Reasoning + Acting) patterns.
 
-```
-+-----------------------------------------------------------+
-|                    PlanningEngine                           |
-|  (Task decomposition, step sequencing, execution loop)     |
-+-----------------------------------------------------------+
-        |
-        v
-+-----------------------------------------------------------+
-|  IPlanningEngine Interface                                 |
-|                                                            |
-|  createPlan(goal, context) -> Plan                         |
-|  executePlan(plan) -> AsyncGenerator<PlanStepResult>        |
-|  revisePlan(plan, feedback) -> Plan                         |
-+-----------------------------------------------------------+
+```mermaid
+graph TD
+    PE["PlanningEngine<br/><i>Task decomposition · Step sequencing · Execution loop</i>"]
+    PE --> IF["IPlanningEngine Interface"]
+    IF --- M1["createPlan(goal, context) → Plan"]
+    IF --- M2["executePlan(plan) → AsyncGenerator‹PlanStepResult›"]
+    IF --- M3["revisePlan(plan, feedback) → Plan"]
+    style PE fill:#1c1c28,stroke:#10b981,color:#f2f2fa
+    style IF fill:#151520,stroke:#c9a227,color:#f2f2fa
 ```
 
 Plans are composed of typed steps that the agent executes sequentially, with the ability to revise the plan based on intermediate results. The planning engine integrates with:
@@ -613,30 +582,18 @@ Manages session state, message history, and long-term memory persistence.
 
 A complete RAG pipeline with pluggable vector stores, embedding management, and document ingestion.
 
-```
-+-----------------------------------------------------------+
-|                  RetrievalAugmentor                         |
-|  (Orchestrates ingestion, retrieval, document management)  |
-+-----------------------------------------------------------+
-        |                               |
-        v                               v
-+-------------------+         +---------------------+
-|  EmbeddingManager |         | VectorStoreManager  |
-|  (Model selection,|         | (Multi-provider     |
-|   caching, batch) |         |  vector storage)    |
-+-------------------+         +---------------------+
-        |                               |
-        v                               v
-+-------------------+         +---------------------+
-| LLM Provider      |         | IVectorStore impls  |
-| (embedding models)|         +---------------------+
-+-------------------+             |    |    |    |
-                       +----------+    |    |    +-----------+
-                       v               v    v               v
-                +-----------+  +--------+  +--------+  +---------+
-                | InMemory  |  |  SQL   |  | HNSW   |  | Qdrant  |
-                | (dev)     |  | (prod) |  | (local)|  | (cloud) |
-                +-----------+  +--------+  +--------+  +---------+
+```mermaid
+graph TD
+    RA["RetrievalAugmentor<br/><i>Ingestion · Retrieval · Document management</i>"]
+    RA --> EM["EmbeddingManager<br/><i>Model selection · Caching · Batch</i>"]
+    RA --> VSM["VectorStoreManager<br/><i>Multi-provider vector storage</i>"]
+    EM --> LLM["LLM Provider<br/><i>Embedding models</i>"]
+    VSM --> Mem["InMemory<br/><i>dev</i>"]
+    VSM --> SQL["SQL<br/><i>prod</i>"]
+    VSM --> HNSW["HNSW<br/><i>local ANN</i>"]
+    VSM --> Qd["Qdrant<br/><i>cloud</i>"]
+    style RA fill:#1c1c28,stroke:#c9a227,color:#f2f2fa
+    style VSM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
 ```
 
 **Vector store implementations:**
@@ -897,26 +854,18 @@ Enables teams of agents to collaborate on shared goals.
 - **AgentCommunicationBus** -- Inter-agent message passing with typed events and handoffs
 - **AgencyMemoryManager** -- Shared memory space with vector search for agency-wide knowledge
 
-```
-+-----------------------------------------------------------+
-|                    AgencyRegistry                          |
-+-----------------------------------------------------------+
-    |               |               |               |
-    v               v               v               v
-+--------+    +--------+    +--------+    +--------+
-| Agent  |    | Agent  |    | Agent  |    | Agent  |
-|  (GMI) |    |  (GMI) |    |  (GMI) |    |  (GMI) |
-| Resrch |    | Writer |    | Review |    | Deploy |
-+--------+    +--------+    +--------+    +--------+
-    |               |               |               |
-    +-------+-------+-------+-------+-------+-------+
-            |                               |
-            v                               v
-   +------------------+          +--------------------+
-   | Communication    |          | Agency Memory      |
-   | Bus (events,     |          | Manager (shared    |
-   | handoffs, sync)  |          | vector memory)     |
-   +------------------+          +--------------------+
+```mermaid
+graph TD
+    AR["AgencyRegistry"]
+    AR --> A1["Agent (GMI)<br/><b>Researcher</b>"]
+    AR --> A2["Agent (GMI)<br/><b>Writer</b>"]
+    AR --> A3["Agent (GMI)<br/><b>Reviewer</b>"]
+    AR --> A4["Agent (GMI)<br/><b>Deployer</b>"]
+    A1 & A2 & A3 & A4 --> Bus["Communication Bus<br/><i>Events · Handoffs · Sync</i>"]
+    A1 & A2 & A3 & A4 --> Mem["Agency Memory Manager<br/><i>Shared vector memory</i>"]
+    style AR fill:#1c1c28,stroke:#c9a227,color:#f2f2fa
+    style Bus fill:#151520,stroke:#00f5ff,color:#f2f2fa
+    style Mem fill:#151520,stroke:#8b5cf6,color:#f2f2fa
 ```
 
 See [`docs/AGENT_COMMUNICATION.md`](docs/AGENT_COMMUNICATION.md) for the full multi-agent specification.
