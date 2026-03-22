@@ -606,6 +606,25 @@ graph TD
 | `QdrantVectorStore` | `@framers/agentos/rag` | Cloud-hosted vector database |
 | `Neo4jVectorStore` | `@framers/agentos/rag` | Neo4j 5.x native vector indexes with shared connection pooling |
 
+> **Database Persistence: [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter)**
+>
+> All SQL-backed storage in AgentOS — including `SqlVectorStore`, conversation persistence, and memory archival — is powered by the `@framers/sql-storage-adapter` package. It provides a unified interface across 7 database backends with automatic runtime detection:
+>
+> | Adapter | Runtime | Use Case |
+> |---------|---------|----------|
+> | `better-sqlite3` | Node.js | Production (default) |
+> | `pg` | Node.js | PostgreSQL for cloud deployments |
+> | `sql.js` | Browser/WASM | Client-side storage |
+> | `capacitor` | Mobile | iOS/Android via Capacitor |
+> | `electron` | Desktop | Electron apps with IPC bridge |
+> | `indexeddb` | Browser | Fallback browser storage |
+> | `memory` | Any | Testing and development |
+>
+> ```typescript
+> import { createDatabase } from '@framers/sql-storage-adapter';
+> const db = await createDatabase(); // auto-detects best adapter
+> ```
+
 **GraphRAG:**
 
 AgentOS supports both in-memory `GraphRAGEngine` and persistent `Neo4jGraphRAGEngine` (at `src/rag/graphrag/`) for knowledge-graph-enhanced retrieval:
