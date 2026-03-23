@@ -1,3 +1,7 @@
+## <small>0.1.66 (2026-03-23)</small>
+
+* feat(orchestration): add ICheckpointStore interface and InMemoryCheckpointStore ([8a64e8f](https://github.com/framersai/agentos/commit/8a64e8f))
+
 ## <small>0.1.65 (2026-03-23)</small>
 
 * feat(orchestration): add GraphEvent types and EventEmitter ([f948644](https://github.com/framersai/agentos/commit/f948644))
