@@ -12,3 +12,5 @@ export { GraphValidator } from './Validator.js';
 export type { ValidationResult } from './Validator.js';
 export { GraphCompiler } from './GraphCompiler.js';
 export type { GraphCompilerInput } from './GraphCompiler.js';
+export { MissionCompiler } from './MissionCompiler.js';
+export type { MissionConfig, SimplePlan } from './MissionCompiler.js';
