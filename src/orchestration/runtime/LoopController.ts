@@ -1,0 +1,310 @@
+/**
+ * @file LoopController.ts
+ * @description Reusable, configurable ReAct (Reason + Act) loop controller for AgentOS.
+ *
+ * Extracted from the GMI implementation to provide a generic orchestration primitive
+ * that supports parallel/sequential tool dispatch, configurable failure modes, and
+ * iteration limits. Yields structured {@link LoopEvent}s for observability.
+ *
+ * @example
+ * ```typescript
+ * const controller = new LoopController();
+ * for await (const event of controller.execute(config, context)) {
+ *   if (event.type === 'text_delta') process.stdout.write(event.content);
+ * }
+ * ```
+ */
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * Configuration that governs a single LoopController execution.
+ */
+export interface LoopConfig {
+  /** Maximum number of ReAct iterations before the loop is forcibly terminated. */
+  maxIterations: number;
+
+  /**
+   * When `true`, all tool calls within a single iteration are dispatched in
+   * parallel via `Promise.allSettled`. When `false`, they execute sequentially.
+   */
+  parallelTools: boolean;
+
+  /**
+   * Determines how tool errors are handled:
+   * - `'fail_open'`  — emit a `tool_error` event and continue the loop.
+   * - `'fail_closed'` — throw immediately, aborting the loop.
+   */
+  failureMode: 'fail_open' | 'fail_closed';
+
+  /**
+   * Optional per-loop timeout in milliseconds. Currently reserved for
+   * future implementation via AbortController; not enforced in v1.
+   */
+  timeout?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+
+/**
+ * Execution context provided to the LoopController by the caller.
+ * Abstracts away the underlying LLM/GMI implementation so the loop logic
+ * remains provider-agnostic.
+ */
+export interface LoopContext {
+  /**
+   * Async generator that streams chunks during a single LLM inference pass.
+   * Must return a {@link LoopOutput} as its generator return value (the value
+   * passed to the final `done: true` result from `.next()`).
+   */
+  generateStream: () => AsyncGenerator<LoopChunk, LoopOutput, undefined>;
+
+  /**
+   * Execute a single tool call and return its result.
+   * Implementations should never throw — instead return a result with
+   * `success: false` and a populated `error` field.
+   */
+  executeTool: (toolCall: ToolCallRequest) => Promise<ToolCallResult>;
+
+  /**
+   * Feed tool results back into the conversation so the next `generateStream`
+   * call has access to them. Typically appends tool messages to the message list.
+   */
+  addToolResults: (results: ToolCallResult[]) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Tool call request / result
+// ---------------------------------------------------------------------------
+
+/**
+ * A single tool invocation requested by the LLM.
+ */
+export interface ToolCallRequest {
+  /** Unique identifier for this tool call within a response (matches the tool result). */
+  id: string;
+
+  /** Name of the tool to invoke. */
+  name: string;
+
+  /** Parsed arguments to pass to the tool. */
+  arguments: Record<string, unknown>;
+}
+
+/**
+ * The outcome of executing a {@link ToolCallRequest}.
+ */
+export interface ToolCallResult {
+  /** Matches the originating {@link ToolCallRequest.id}. */
+  id: string;
+
+  /** Name of the tool that was called. */
+  name: string;
+
+  /** Whether the tool executed without error. */
+  success: boolean;
+
+  /** Serialisable output returned by the tool on success. */
+  output?: unknown;
+
+  /** Human-readable error message when `success` is `false`. */
+  error?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Streaming chunks
+// ---------------------------------------------------------------------------
+
+/**
+ * A single chunk emitted by `generateStream` during inference.
+ * Each chunk carries either a text fragment or a set of tool call requests.
+ */
+export interface LoopChunk {
+  /**
+   * - `'text_delta'` — incremental text from the assistant.
+   * - `'tool_call_request'` — the LLM has decided to call one or more tools.
+   */
+  type: 'text_delta' | 'tool_call_request';
+
+  /** Present when `type === 'text_delta'`. */
+  content?: string;
+
+  /** Present when `type === 'tool_call_request'`. */
+  toolCalls?: ToolCallRequest[];
+}
+
+/**
+ * The final return value of `generateStream` (carried in the generator's
+ * `return` slot, i.e. `{ done: true, value: LoopOutput }`).
+ */
+export interface LoopOutput {
+  /** Accumulated assistant text for this iteration. */
+  responseText: string;
+
+  /**
+   * All tool calls requested in this iteration. An empty array signals that
+   * the LLM is done and the loop should terminate.
+   */
+  toolCalls: ToolCallRequest[];
+
+  /**
+   * The LLM finish reason (e.g. `'stop'`, `'tool_calls'`, `'length'`).
+   * Informational; not used for loop-control decisions.
+   */
+  finishReason: string;
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated union of all events emitted by {@link LoopController.execute}.
+ * Consumers can switch on `event.type` to handle each case.
+ */
+export type LoopEvent =
+  | { type: 'text_delta'; content: string }
+  | { type: 'tool_call_request'; toolCalls: ToolCallRequest[] }
+  | { type: 'tool_result'; toolName: string; result: ToolCallResult }
+  | { type: 'tool_error'; toolName: string; error: string }
+  | { type: 'max_iterations_reached'; iteration: number }
+  | { type: 'loop_complete'; totalIterations: number };
+
+// ---------------------------------------------------------------------------
+// LoopController
+// ---------------------------------------------------------------------------
+
+/**
+ * Configurable ReAct loop controller.
+ *
+ * Drives a generate → act → observe cycle, delegating LLM inference and
+ * tool execution to the caller-provided {@link LoopContext}. The loop
+ * terminates when:
+ *
+ * 1. The LLM returns no tool calls (natural stop), or
+ * 2. `maxIterations` is exceeded, or
+ * 3. A tool fails and `failureMode` is `'fail_closed'`.
+ *
+ * All intermediate events are yielded so callers can stream output to the
+ * user or record an audit trace.
+ */
+export class LoopController {
+  /**
+   * Execute the ReAct loop and yield {@link LoopEvent}s.
+   *
+   * @param config - Loop behaviour configuration.
+   * @param context - Callbacks to the underlying LLM/tool layer.
+   * @yields {LoopEvent} Structured events for each phase of the loop.
+   * @throws {Error} Only when `failureMode === 'fail_closed'` and a tool fails.
+   */
+  async *execute(
+    config: LoopConfig,
+    context: LoopContext,
+  ): AsyncGenerator<LoopEvent> {
+    let iteration = 0;
+
+    while (iteration < config.maxIterations) {
+      iteration++;
+
+      // ------------------------------------------------------------------
+      // Generate phase: consume the streaming generator chunk by chunk,
+      // yielding events as they arrive.  The final LoopOutput is captured
+      // from the generator's return value (done === true).
+      // ------------------------------------------------------------------
+      const gen = context.generateStream();
+      let gmiOutput: LoopOutput | undefined;
+
+      while (true) {
+        const { value, done } = await gen.next();
+
+        if (done) {
+          // The generator's return value is the LoopOutput summary.
+          gmiOutput = value as LoopOutput;
+          break;
+        }
+
+        // Yield chunk events to the caller.
+        const chunk = value as LoopChunk;
+
+        if (chunk.type === 'text_delta' && chunk.content) {
+          yield { type: 'text_delta', content: chunk.content };
+        }
+
+        if (chunk.type === 'tool_call_request' && chunk.toolCalls) {
+          yield { type: 'tool_call_request', toolCalls: chunk.toolCalls };
+        }
+      }
+
+      // Natural termination: no tool calls requested.
+      if (!gmiOutput || gmiOutput.toolCalls.length === 0) {
+        yield { type: 'loop_complete', totalIterations: iteration };
+        return;
+      }
+
+      // ------------------------------------------------------------------
+      // Act phase: execute tool calls (parallel or sequential).
+      // ------------------------------------------------------------------
+      const toolCalls = gmiOutput.toolCalls;
+      let results: ToolCallResult[];
+
+      if (config.parallelTools) {
+        // Dispatch all tool calls simultaneously; collect all outcomes even
+        // if some reject, so we can still feed partial results back.
+        const settled = await Promise.allSettled(
+          toolCalls.map((tc) => context.executeTool(tc)),
+        );
+
+        results = settled.map((s, i) => {
+          if (s.status === 'fulfilled') return s.value;
+
+          // Convert a rejected promise into a failed ToolCallResult so
+          // downstream handling is uniform.
+          return {
+            id: toolCalls[i].id,
+            name: toolCalls[i].name,
+            success: false,
+            error: String(s.reason),
+          };
+        });
+      } else {
+        // Sequential execution — preserves order and stops early on
+        // fail_closed errors (handled in the yield loop below).
+        results = [];
+        for (const tc of toolCalls) {
+          const result = await context.executeTool(tc);
+          results.push(result);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Observe phase: yield results, handle failures per failureMode.
+      // ------------------------------------------------------------------
+      for (const result of results) {
+        if (result.success) {
+          yield { type: 'tool_result', toolName: result.name, result };
+        } else {
+          const errorMsg = result.error ?? 'unknown error';
+          yield { type: 'tool_error', toolName: result.name, error: errorMsg };
+
+          if (config.failureMode === 'fail_closed') {
+            throw new Error(
+              `Tool ${result.name} failed (fail_closed): ${errorMsg}`,
+            );
+          }
+          // fail_open: continue — the error is already yielded above.
+        }
+      }
+
+      // Feed all results (successes and failures) back into the conversation
+      // so the LLM has full context on the next iteration.
+      context.addToolResults(results);
+    }
+
+    // Exceeded maxIterations without a natural stop.
+    yield { type: 'max_iterations_reached', iteration: config.maxIterations };
+  }
+}
