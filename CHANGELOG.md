@@ -1,3 +1,11 @@
+## <small>0.1.61 (2026-03-23)</small>
+
+* fix(test): correct import path in MarkdownWorkingMemory.spec.ts ([53bb6ac](https://github.com/framersai/agentos/commit/53bb6ac))
+* docs: add memory auto-ingest pipeline guide ([0644faf](https://github.com/framersai/agentos/commit/0644faf))
+* docs: add persistent markdown working memory guide ([a41447f](https://github.com/framersai/agentos/commit/a41447f))
+* docs: add persistent working memory cross-reference to cognitive memory guide ([4520ee1](https://github.com/framersai/agentos/commit/4520ee1))
+* test(memory): add unit tests for working memory tools ([c9f670c](https://github.com/framersai/agentos/commit/c9f670c))
+
 ## <small>0.1.60 (2026-03-22)</small>
 
 * feat(memory): add MarkdownWorkingMemory — persistent .md file for agent context ([0ed30c4](https://github.com/framersai/agentos/commit/0ed30c4))
