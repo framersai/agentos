@@ -1,3 +1,9 @@
+## <small>0.1.64 (2026-03-23)</small>
+
+* feat(orchestration): add CompiledExecutionGraph IR types ([0e13ac6](https://github.com/framersai/agentos/commit/0e13ac6))
+* docs: update README tagline and overview for AgentOS rebrand ([bf24204](https://github.com/framersai/agentos/commit/bf24204))
+* ci: trigger docs rebuild after release ([e890865](https://github.com/framersai/agentos/commit/e890865))
+
 ## <small>0.1.63 (2026-03-23)</small>
 
 * fix(api): cast finishReason to union type ([de7cf97](https://github.com/framersai/agentos/commit/de7cf97))
