@@ -77,6 +77,9 @@ export {
   shouldObserveAgent,
 } from './ICrossAgentGuardrailService';
 
+// Sentence boundary buffer for streaming evaluation
+export { SentenceBoundaryBuffer } from './SentenceBoundaryBuffer';
+
 // Cross-agent guardrail dispatcher
 export {
   type CrossAgentEvaluationResult,

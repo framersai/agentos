@@ -284,6 +284,20 @@ export interface GuardrailConfig {
    * @default undefined (no timeout — wait indefinitely)
    */
   timeoutMs?: number;
+
+  /**
+   * Streaming evaluation mode.
+   *
+   * - `'per-chunk'` — evaluate every TEXT_DELTA individually (default behavior).
+   * - `'sentence-buffered'` — accumulate chunks and evaluate at sentence
+   *   boundaries using {@link SentenceBoundaryBuffer}. The previous sentence
+   *   is included as overlap context for safety evaluation.
+   *
+   * Only applies when {@link evaluateStreamingChunks} is `true`.
+   *
+   * @default 'per-chunk'
+   */
+  streamingMode?: 'per-chunk' | 'sentence-buffered';
 }
 
 /**
