@@ -88,37 +88,44 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
 
     // Accumulate usage
     if (response.usage) {
-      totalUsage.promptTokens += response.usage.prompt_tokens ?? 0;
-      totalUsage.completionTokens += response.usage.completion_tokens ?? 0;
-      totalUsage.totalTokens += response.usage.total_tokens ?? 0;
+      totalUsage.promptTokens += response.usage.promptTokens ?? 0;
+      totalUsage.completionTokens += response.usage.completionTokens ?? 0;
+      totalUsage.totalTokens += response.usage.totalTokens ?? 0;
     }
 
     const choice = response.choices?.[0];
     if (!choice) break;
 
-    // If assistant returned text, we're done
-    if (choice.message?.content && !choice.message?.tool_calls?.length) {
+    const content = choice.message?.content;
+    const textContent = typeof content === 'string' ? content : (content as any)?.text ?? '';
+    const toolCallsInChoice = choice.message?.tool_calls ?? [];
+
+    // If assistant returned text with no tool calls, we're done
+    if (textContent && toolCallsInChoice.length === 0) {
       return {
-        text: choice.message.content,
+        text: textContent,
         usage: totalUsage,
         toolCalls: allToolCalls,
-        finishReason: (choice.finish_reason as any) ?? 'stop',
+        finishReason: choice.finishReason ?? 'stop',
       };
     }
 
     // Tool calls
-    if (choice.message?.tool_calls?.length) {
+    if (toolCallsInChoice.length > 0) {
       messages.push({
         role: 'assistant',
-        content: choice.message.content ?? null,
-        tool_calls: choice.message.tool_calls,
-      });
+        content: textContent || null,
+        tool_calls: toolCallsInChoice,
+      } as any);
 
-      for (const tc of choice.message.tool_calls) {
-        const tool = toolMap.get(tc.function.name);
+      for (const tc of toolCallsInChoice) {
+        const fnName = (tc as any).function?.name ?? (tc as any).name ?? '';
+        const fnArgs = (tc as any).function?.arguments ?? '{}';
+        const tcId = (tc as any).id ?? '';
+        const tool = toolMap.get(fnName);
         const record: ToolCallRecord = {
-          name: tc.function.name,
-          args: JSON.parse(tc.function.arguments ?? '{}'),
+          name: fnName,
+          args: JSON.parse(typeof fnArgs === 'string' ? fnArgs : JSON.stringify(fnArgs)),
         };
 
         if (tool) {
@@ -128,25 +135,25 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             record.error = result.success ? undefined : result.error;
             messages.push({
               role: 'tool',
-              tool_call_id: tc.id,
+              tool_call_id: tcId,
               content: JSON.stringify(result.output ?? result.error ?? ''),
-            });
+            } as any);
           } catch (err: any) {
             record.error = err?.message;
-            messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ error: err?.message }) });
+            messages.push({ role: 'tool', tool_call_id: tcId, content: JSON.stringify({ error: err?.message }) } as any);
           }
         }
         allToolCalls.push(record);
       }
-      continue; // Loop for next step
+      continue;
     }
 
     // No content and no tool calls — done
     return {
-      text: choice.message?.content ?? '',
+      text: textContent,
       usage: totalUsage,
       toolCalls: allToolCalls,
-      finishReason: (choice.finish_reason as any) ?? 'stop',
+      finishReason: choice.finishReason ?? 'stop',
     };
   }
 
