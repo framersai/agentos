@@ -104,3 +104,14 @@ export {
   getSecretDefinition,
   resolveSecretForProvider,
 } from './config/extensionSecrets.js';
+
+// --- High-Level API (AI SDK style) ---
+export { generateText } from './api/generateText.js';
+export type { GenerateTextOptions, GenerateTextResult, Message, ToolCallRecord, TokenUsage } from './api/generateText.js';
+export { streamText } from './api/streamText.js';
+export type { StreamTextResult, StreamPart } from './api/streamText.js';
+export { agent } from './api/agent.js';
+export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
+export { parseModelString, resolveProvider } from './api/model.js';
+export { adaptTools } from './api/tool-adapter.js';
+export type { ToolDefinitionMap } from './api/tool-adapter.js';
