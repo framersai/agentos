@@ -6,7 +6,7 @@
 
 # AgentOS
 
-**Modular orchestration runtime for adaptive AI agents**
+**Open-source TypeScript runtime for production AI agents — multimodal RAG, multi-agent orchestration, 37 channel adapters, 5-tier guardrails, 21 LLM providers.**
 
 [![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions)
@@ -79,7 +79,7 @@
 
 ## Overview
 
-`@framers/agentos` is a TypeScript-first AI agent orchestration library that provides a complete runtime for building, deploying, and managing adaptive AI agents. It handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
+`@framers/agentos` is an open-source TypeScript AI agent runtime for building, deploying, and managing production AI agents. It provides multimodal RAG with cognitive memory (Ebbinghaus decay), multi-agent orchestration, 37 channel adapters, 5-tier guardrails with prompt injection defense, 21 LLM providers, and 40 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
 
 **Key facts:**
 
