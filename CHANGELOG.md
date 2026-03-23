@@ -1,3 +1,8 @@
+## <small>0.1.67 (2026-03-23)</small>
+
+* feat(orchestration): add NodeScheduler with topological sort and cycle detection ([90fffbf](https://github.com/framersai/agentos/commit/90fffbf))
+* feat(orchestration): add StateManager with partition management and reducers ([08db90e](https://github.com/framersai/agentos/commit/08db90e))
+
 ## <small>0.1.66 (2026-03-23)</small>
 
 * feat(orchestration): add ICheckpointStore interface and InMemoryCheckpointStore ([8a64e8f](https://github.com/framersai/agentos/commit/8a64e8f))
