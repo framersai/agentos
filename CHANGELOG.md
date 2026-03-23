@@ -1,3 +1,7 @@
+## <small>0.1.65 (2026-03-23)</small>
+
+* feat(orchestration): add GraphEvent types and EventEmitter ([f948644](https://github.com/framersai/agentos/commit/f948644))
+
 ## <small>0.1.64 (2026-03-23)</small>
 
 * feat(orchestration): add CompiledExecutionGraph IR types ([0e13ac6](https://github.com/framersai/agentos/commit/0e13ac6))
