@@ -1,3 +1,7 @@
+## <small>0.1.62 (2026-03-23)</small>
+
+* feat: add multi-agent workflow example with parallel + sequential DAG execution ([348570a](https://github.com/framersai/agentos/commit/348570a))
+
 ## <small>0.1.61 (2026-03-23)</small>
 
 * fix(test): correct import path in MarkdownWorkingMemory.spec.ts ([53bb6ac](https://github.com/framersai/agentos/commit/53bb6ac))
