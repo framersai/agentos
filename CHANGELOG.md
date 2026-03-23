@@ -1,3 +1,16 @@
+## <small>0.1.63 (2026-03-23)</small>
+
+* fix(api): cast finishReason to union type ([de7cf97](https://github.com/framersai/agentos/commit/de7cf97))
+* fix(api): use camelCase ModelCompletionResponse fields (finishReason, promptTokens) ([7479f34](https://github.com/framersai/agentos/commit/7479f34))
+* fix(api): use correct IProvider method signatures (generateCompletion/generateCompletionStream) ([6d63c7d](https://github.com/framersai/agentos/commit/6d63c7d))
+* feat(api): add agent() factory with sessions and multi-turn memory ([69dc854](https://github.com/framersai/agentos/commit/69dc854))
+* feat(api): add generateText — stateless text generation with tool support ([7d4d708](https://github.com/framersai/agentos/commit/7d4d708))
+* feat(api): add model string parser with env key resolution ([75b2810](https://github.com/framersai/agentos/commit/75b2810))
+* feat(api): add streamText — stateless streaming with async iterables ([6347aa6](https://github.com/framersai/agentos/commit/6347aa6))
+* feat(api): add tool adapter for Zod/JSON Schema/ITool normalization ([eb4c324](https://github.com/framersai/agentos/commit/eb4c324))
+* feat(api): export generateText, streamText, agent from package root ([8898a9e](https://github.com/framersai/agentos/commit/8898a9e))
+* feat(guardrails): add sentence boundary buffering for streaming evaluation ([5a92dd3](https://github.com/framersai/agentos/commit/5a92dd3))
+
 ## <small>0.1.62 (2026-03-23)</small>
 
 * feat: add multi-agent workflow example with parallel + sequential DAG execution ([348570a](https://github.com/framersai/agentos/commit/348570a))
