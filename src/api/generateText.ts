@@ -106,7 +106,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         text: textContent,
         usage: totalUsage,
         toolCalls: allToolCalls,
-        finishReason: choice.finishReason ?? 'stop',
+        finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
       };
     }
 
@@ -153,7 +153,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       text: textContent,
       usage: totalUsage,
       toolCalls: allToolCalls,
-      finishReason: choice.finishReason ?? 'stop',
+      finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
     };
   }
 
