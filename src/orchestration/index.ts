@@ -20,3 +20,7 @@ export * from './events/index.js';
 export * from './checkpoint/index.js';
 // Runtime
 export * from './runtime/index.js';
+// Builders (public API)
+export * from './builders/index.js';
+// Compiler (advanced use)
+export * from './compiler/index.js';
