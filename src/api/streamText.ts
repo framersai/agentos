@@ -53,28 +53,34 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         }))
       : undefined;
 
-    const stream = await provider.streamChatCompletion({
-      model: resolved.modelId,
-      messages: messages as any,
-      tools: toolSchemas,
-      temperature: opts.temperature,
-      max_tokens: opts.maxTokens,
-    });
+    const stream = provider.generateCompletionStream(
+      resolved.modelId,
+      messages as any,
+      {
+        tools: toolSchemas,
+        temperature: opts.temperature,
+        maxTokens: opts.maxTokens,
+      } as any,
+    );
 
     const usage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
     for await (const chunk of stream) {
-      const delta = chunk.choices?.[0]?.delta;
-      if (delta?.content) {
-        fullText += delta.content;
-        const part: StreamPart = { type: 'text', text: delta.content };
+      // ModelCompletionResponse uses responseTextDelta for streaming
+      const textDelta = (chunk as any).responseTextDelta
+        ?? chunk.choices?.[0]?.message?.content
+        ?? '';
+      if (textDelta) {
+        fullText += textDelta;
+        const part: StreamPart = { type: 'text', text: textDelta };
         parts.push(part);
         yield part;
       }
-      if (chunk.usage) {
-        usage.promptTokens += chunk.usage.prompt_tokens ?? 0;
-        usage.completionTokens += chunk.usage.completion_tokens ?? 0;
-        usage.totalTokens += chunk.usage.total_tokens ?? 0;
+      if ((chunk as any).usage) {
+        const u = (chunk as any).usage;
+        usage.promptTokens += u.promptTokens ?? u.prompt_tokens ?? 0;
+        usage.completionTokens += u.completionTokens ?? u.completion_tokens ?? 0;
+        usage.totalTokens += u.totalTokens ?? u.total_tokens ?? 0;
       }
     }
 

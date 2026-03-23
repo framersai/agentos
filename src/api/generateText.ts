@@ -76,13 +76,15 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
   const maxSteps = opts.maxSteps ?? 1;
 
   for (let step = 0; step < maxSteps; step++) {
-    const response = await provider.generateChatCompletion({
-      model: resolved.modelId,
-      messages: messages as any,
-      tools: toolSchemas,
-      temperature: opts.temperature,
-      max_tokens: opts.maxTokens,
-    });
+    const response = await provider.generateCompletion(
+      resolved.modelId,
+      messages as any,
+      {
+        tools: toolSchemas,
+        temperature: opts.temperature,
+        maxTokens: opts.maxTokens,
+      } as any,
+    );
 
     // Accumulate usage
     if (response.usage) {
