@@ -1,3 +1,7 @@
+## <small>0.1.69 (2026-03-23)</small>
+
+* feat(orchestration): add GraphRuntime with execute, stream, resume, and conditional edges ([00a51e6](https://github.com/framersai/agentos/commit/00a51e6))
+
 ## <small>0.1.68 (2026-03-23)</small>
 
 * feat(orchestration): add LoopController with configurable ReAct loop ([db43313](https://github.com/framersai/agentos/commit/db43313))
