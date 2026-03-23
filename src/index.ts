@@ -78,6 +78,7 @@ export * from './channels';
 export * from './voice';
 // Unified speech runtime (STT/TTS/VAD/wake-word)
 export * from './speech';
+export * from './core/images';
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports
@@ -93,6 +94,8 @@ export * from './core/storage';
 export * from './rag';
 // Cognitive Memory System
 export * from './memory';
+// Orchestration Layer (IR, Events, Checkpoint, Runtime)
+export * from './orchestration/index.js';
 // Provenance, Audit & Immutability
 export * from './core/provenance';
 // Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)
@@ -112,6 +115,8 @@ export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
+export { generateImage } from './api/generateImage.js';
+export type { GenerateImageOptions, GenerateImageResult } from './api/generateImage.js';
 export { parseModelString, resolveProvider } from './api/model.js';
 export { adaptTools } from './api/tool-adapter.js';
 export type { ToolDefinitionMap } from './api/tool-adapter.js';
