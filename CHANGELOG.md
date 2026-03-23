@@ -1,3 +1,8 @@
+## <small>0.1.68 (2026-03-23)</small>
+
+* feat(orchestration): add LoopController with configurable ReAct loop ([db43313](https://github.com/framersai/agentos/commit/db43313))
+* feat(orchestration): add NodeExecutor with type-based dispatch and timeout ([7a9b6f7](https://github.com/framersai/agentos/commit/7a9b6f7))
+
 ## <small>0.1.67 (2026-03-23)</small>
 
 * feat(orchestration): add NodeScheduler with topological sort and cycle detection ([90fffbf](https://github.com/framersai/agentos/commit/90fffbf))
