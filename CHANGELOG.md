@@ -1,3 +1,17 @@
+## <small>0.1.70 (2026-03-24)</small>
+
+* fix(build): add orchestration directory to tsconfig.build.json include ([25bcdcb](https://github.com/framersai/agentos/commit/25bcdcb))
+* fix(build): resolve CI errors — stub generateImage, rename GraphMemoryScope, fix EventEmitter type n ([89266b6](https://github.com/framersai/agentos/commit/89266b6))
+* docs: add unified orchestration layer guides (AgentGraph, workflow, mission, checkpointing) ([96437bf](https://github.com/framersai/agentos/commit/96437bf))
+* docs(api): add comprehensive JSDoc to high-level API functions and rename tool-adapter to toolAdapte ([029d4a8](https://github.com/framersai/agentos/commit/029d4a8)), closes [hi#level](https://github.com/hi/issues/level)
+* test(orchestration): add integration tests, compiler tests, and node builder tests ([c4a7eac](https://github.com/framersai/agentos/commit/c4a7eac))
+* feat(orchestration): add AgentGraph builder with all edge types and compilation ([e56bdbb](https://github.com/framersai/agentos/commit/e56bdbb))
+* feat(orchestration): add mission() API with goal interpolation, anchors, and PlanningEngine bridge ([769b5be](https://github.com/framersai/agentos/commit/769b5be))
+* feat(orchestration): add SchemaLowering and GraphValidator ([e2695a9](https://github.com/framersai/agentos/commit/e2695a9))
+* feat(orchestration): add typed node builder factories ([bb2762e](https://github.com/framersai/agentos/commit/bb2762e))
+* feat(orchestration): add workflow() DSL with step, branch, parallel, and DAG enforcement ([76f3eb0](https://github.com/framersai/agentos/commit/76f3eb0))
+* feat(orchestration): complete unified orchestration layer — all 4 phases ([cef73ce](https://github.com/framersai/agentos/commit/cef73ce))
+
 ## <small>0.1.69 (2026-03-23)</small>
 
 * feat(orchestration): add GraphRuntime with execute, stream, resume, and conditional edges ([00a51e6](https://github.com/framersai/agentos/commit/00a51e6))
