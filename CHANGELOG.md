@@ -1,3 +1,16 @@
+## <small>0.1.72 (2026-03-24)</small>
+
+* chore: update package.json with image provider dependencies ([96a58d3](https://github.com/framersai/agentos/commit/96a58d3))
+* feat(api): expose generateImage and image provider config on AgentOS ([74fde7d](https://github.com/framersai/agentos/commit/74fde7d))
+* feat(images): add image generation provider abstraction (OpenAI, Stability, Replicate, OpenRouter) ([dd6df60](https://github.com/framersai/agentos/commit/dd6df60))
+* feat(providers): add Ollama image generation and provider tests ([9f6b6f8](https://github.com/framersai/agentos/commit/9f6b6f8))
+* refactor(gmi): update GMI interfaces for image generation support ([d817ec0](https://github.com/framersai/agentos/commit/d817ec0))
+* refactor(memory): update memory exports and store interfaces ([1cca340](https://github.com/framersai/agentos/commit/1cca340))
+* docs: add high-level API guide and runnable examples ([a66861a](https://github.com/framersai/agentos/commit/a66861a)), closes [hi#level](https://github.com/hi/issues/level)
+* docs: update README and ecosystem docs for high-level API and image generation ([12a60ab](https://github.com/framersai/agentos/commit/12a60ab)), closes [hi#level](https://github.com/hi/issues/level)
+* test(api): add agent, streamText, generateImage, and docs-alignment tests ([f1b29ef](https://github.com/framersai/agentos/commit/f1b29ef))
+* fix(api): restore generateImage imports now that core/images exists ([1efde67](https://github.com/framersai/agentos/commit/1efde67))
+
 ## <small>0.1.71 (2026-03-24)</small>
 
 * fix(lint): const instead of let, remove unused eslint-disable directives ([a827082](https://github.com/framersai/agentos/commit/a827082))
