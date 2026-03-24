@@ -6,23 +6,17 @@
  * dispatches the request to the appropriate image provider implementation
  * (e.g. OpenAI DALL-E, Stability AI, Replicate).
  */
+import { createImageProvider } from '../core/images/index.js';
+import type {
+  GeneratedImage,
+  ImageGenerationResult,
+  ImageProviderOptionBag,
+  ImageResponseFormat,
+  ImageBackground,
+  ImageModality,
+  ImageOutputFormat,
+} from '../core/images/IImageProvider.js';
 import { parseModelString, resolveMediaProvider } from './model.js';
-
-// Inline type stubs — will be replaced by imports from '../core/images/' once that module is implemented
-/** A single generated image with optional URL and base64 data. */
-export interface GeneratedImage { url?: string; b64_json?: string; revised_prompt?: string }
-/** Result from an image provider. */
-interface ImageGenerationResult { modelId: string; providerId: string; created: number; text?: string; images: GeneratedImage[]; usage?: { promptTokens?: number; totalTokens?: number } }
-/** Provider-specific option bag. */
-type ImageProviderOptionBag = Record<string, unknown>;
-/** Response format: URL or base64. */
-type ImageResponseFormat = 'url' | 'b64_json';
-/** Background style. */
-type ImageBackground = 'transparent' | 'opaque' | 'auto';
-/** Image modality. */
-type ImageModality = 'image' | 'text';
-/** Output file format. */
-type ImageOutputFormat = 'png' | 'jpeg' | 'webp' | 'gif';
 
 /**
  * Options for a {@link generateImage} call.
@@ -111,11 +105,37 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
     baseUrl: opts.baseUrl,
   });
 
-  // TODO: Wire to core/images/ module once implemented.
-  // For now, throw a descriptive error so callers know the provider layer isn't ready.
-  throw new Error(
-    `generateImage() is not yet wired to a provider backend. ` +
-    `Resolved: ${resolved.providerId}:${resolved.modelId}. ` +
-    `The core/images/ module needs to be implemented first.`
-  );
+  const provider = createImageProvider(resolved.providerId);
+  await provider.initialize({
+    apiKey: resolved.apiKey,
+    baseURL: resolved.baseUrl,
+    defaultModelId: resolved.modelId,
+  });
+
+  const result = await provider.generateImage({
+    modelId: resolved.modelId,
+    prompt: opts.prompt,
+    modalities: opts.modalities,
+    n: opts.n,
+    size: opts.size,
+    aspectRatio: opts.aspectRatio,
+    quality: opts.quality,
+    background: opts.background,
+    outputFormat: opts.outputFormat,
+    outputCompression: opts.outputCompression,
+    responseFormat: opts.responseFormat,
+    userId: opts.userId,
+    seed: opts.seed,
+    negativePrompt: opts.negativePrompt,
+    providerOptions: opts.providerOptions,
+  });
+
+  return {
+    model: result.modelId,
+    provider: result.providerId,
+    created: result.created,
+    text: result.text,
+    images: result.images,
+    usage: result.usage,
+  };
 }
