@@ -1,3 +1,7 @@
+## <small>0.1.80 (2026-03-24)</small>
+
+* feat(orchestration): implement real gmi/subgraph execution, expression eval, discovery/personality r ([cdd908c](https://github.com/framersai/agentos/commit/cdd908c))
+
 ## <small>0.1.79 (2026-03-24)</small>
 
 * fix(lint): exclude stale .js from lint, suppress this-alias in VoicePipeline ([5c0527c](https://github.com/framersai/agentos/commit/5c0527c))
