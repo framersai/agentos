@@ -49,13 +49,24 @@ stateDiagram-v2
 # Basic voice mode (Whisper STT + OpenAI TTS)
 wunderland chat --voice
 
-# SOTA setup with Deepgram + ElevenLabs
-wunderland start my-agent --voice \
+# Deepgram + ElevenLabs
+wunderland chat --voice \
   --voice-stt deepgram \
   --voice-tts elevenlabs \
-  --voice-endpointing semantic \
   --voice-diarization
 ```
+
+Install the matching streaming voice packs and set the required API keys before
+using `--voice`:
+
+- `@framers/agentos-ext-streaming-stt-whisper` + `OPENAI_API_KEY`
+- `@framers/agentos-ext-streaming-stt-deepgram` + `DEEPGRAM_API_KEY`
+- `@framers/agentos-ext-streaming-tts-openai` + `OPENAI_API_KEY`
+- `@framers/agentos-ext-streaming-tts-elevenlabs` + `ELEVENLABS_API_KEY`
+
+`semantic` endpointing also requires an LLM callback to be wired into the
+pipeline; when that callback is absent, Wunderland falls back to heuristic
+endpointing.
 
 ### Configuration
 
