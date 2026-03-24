@@ -41,6 +41,7 @@
     "src/speech/**/*.ts",
     "src/voice/**/*.ts",
     "src/orchestration/**/*.ts",
+    "src/voice-pipeline/**/*.ts",
     "src/**/*.json"
   ],
   "exclude": [

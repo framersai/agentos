@@ -93,7 +93,7 @@ export class AzureSpeechSTTProvider implements SpeechToTextProvider {
         'Ocp-Apim-Subscription-Key': key,
         'Content-Type': 'audio/wav',
       },
-      body: audio.data instanceof Buffer ? new Uint8Array(audio.data) : audio.data,
+      body: audio.data as unknown as BodyInit,
     });
 
     if (!response.ok) {
