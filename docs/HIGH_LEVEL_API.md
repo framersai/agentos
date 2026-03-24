@@ -17,18 +17,42 @@ Use the high-level API when you want the fastest path to text generation, stream
 | `agent()` | Lightweight multi-turn sessions with in-memory history | Does not replace the full AgentOS runtime |
 | `AgentOS` | Personas, extensions, workflows, multi-agent orchestration, guardrails, HITL, runtime lifecycle | More setup, more control |
 
+## Provider Defaults
+
+When you supply `provider` without an explicit `model`, AgentOS resolves the default model
+for the requested task automatically:
+
+| Provider | Text default | Image default | Embedding default |
+|----------|-------------|---------------|-------------------|
+| `openai` | `gpt-4o` | `gpt-image-1` | `text-embedding-3-small` |
+| `anthropic` | `claude-sonnet-4-20250514` | — | — |
+| `ollama` | `llama3.2` | `stable-diffusion` | `nomic-embed-text` |
+| `openrouter` | `openai/gpt-4o` | — | — |
+| `gemini` | `gemini-2.5-flash` | — | — |
+| `stability` | — | `stable-diffusion-xl-1024-v1-0` | — |
+| `replicate` | — | `black-forest-labs/flux-1.1-pro` | — |
+
+When neither `provider` nor `model` is given, the first set API key env var is used
+(`OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `OPENROUTER_API_KEY` → `GEMINI_API_KEY` → `OLLAMA_BASE_URL`).
+
+The legacy `model: 'provider:model'` format is fully supported alongside the new style.
+
 ## `generateText()`
 
 ```ts
 import { generateText } from '@framers/agentos';
 
+// Provider-first (recommended): AgentOS picks the default model for the provider.
 const { text, usage } = await generateText({
-  model: 'openai:gpt-4.1-mini',
+  provider: 'openai',
   prompt: 'Summarize the TCP three-way handshake in 3 bullets.',
 });
 
 console.log(text);
 console.log(usage.totalTokens);
+
+// Legacy format — still supported:
+// const { text } = await generateText({ model: 'openai:gpt-4.1-mini', prompt: '...' });
 ```
 
 ## `streamText()`
@@ -37,7 +61,7 @@ console.log(usage.totalTokens);
 import { streamText } from '@framers/agentos';
 
 const result = streamText({
-  model: 'openai:gpt-4.1-mini',
+  provider: 'openai',
   prompt: 'Stream a short explanation of how TLS differs from TCP.',
 });
 
@@ -53,8 +77,9 @@ console.log(await result.text);
 ```ts
 import { generateImage } from '@framers/agentos';
 
+// Provider-first: resolves to gpt-image-1 by default for openai.
 const result = await generateImage({
-  model: 'openai:gpt-image-1.5',
+  provider: 'openai',
   prompt: 'A cinematic neon city skyline reflected in rain at night.',
   outputFormat: 'png',
 });
@@ -154,7 +179,7 @@ await generateImage({
 import { agent } from '@framers/agentos';
 
 const researcher = agent({
-  model: 'openai:gpt-4.1-mini',
+  provider: 'openai',
   instructions: 'You are a concise research assistant.',
   maxSteps: 4,
 });

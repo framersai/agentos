@@ -160,15 +160,17 @@ Use the streamlined APIs when you want AI SDK-style text generation, image gener
 ```typescript
 import { agent, generateImage, generateText, streamText } from '@framers/agentos';
 
+// Provider-first: set provider, AgentOS picks the best default model automatically.
+// Requires OPENAI_API_KEY (or the matching env var) to be set.
 const quick = await generateText({
-  model: 'openai:gpt-4.1-mini',
+  provider: 'openai',
   prompt: 'Explain how TCP handshakes work in 3 bullets.',
 });
 
 console.log(quick.text);
 
 const live = streamText({
-  model: 'openai:gpt-4.1-mini',
+  provider: 'openai',
   prompt: 'Stream a short explanation of SYN, SYN-ACK, ACK.',
 });
 
@@ -177,14 +179,14 @@ for await (const delta of live.textStream) {
 }
 
 const image = await generateImage({
-  model: 'openai:gpt-image-1.5',
+  provider: 'openai',
   prompt: 'A cinematic neon city skyline reflected in rain at night.',
 });
 
 console.log(image.images[0]?.mimeType);
 
 const assistant = agent({
-  model: 'openai:gpt-4.1-mini',
+  provider: 'openai',
   instructions: 'You are a concise networking tutor.',
   maxSteps: 3,
 });
@@ -192,6 +194,9 @@ const assistant = agent({
 const session = assistant.session('tcp-demo');
 const reply = await session.send('Now compare TCP and UDP.');
 console.log(reply.text);
+
+// Legacy format — still supported:
+// const result = await generateText({ model: 'openai:gpt-4o', prompt: '...' });
 ```
 
 Built-in image providers: `openai`, `openrouter`, `stability`, and `replicate`.
