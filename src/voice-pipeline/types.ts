@@ -424,7 +424,7 @@ export interface IEndpointDetector extends EventEmitter {
    * - `'hybrid'` — silence + linguistic completeness signals.
    * - `'semantic'` — small LM scoring utterance completeness.
    */
-  readonly mode: 'silence' | 'hybrid' | 'semantic';
+  readonly mode: 'acoustic' | 'heuristic' | 'semantic';
 
   /**
    * Push a VAD event from the upstream voice activity detector.
@@ -864,7 +864,7 @@ export interface VoicePipelineConfig {
   /**
    * Endpoint detection strategy. Defaults to `'hybrid'` when omitted.
    */
-  endpointing?: 'silence' | 'hybrid' | 'semantic';
+  endpointing?: 'acoustic' | 'heuristic' | 'semantic';
 
   /**
    * Enable speaker diarization for multi-speaker scenarios. Disabled by default.

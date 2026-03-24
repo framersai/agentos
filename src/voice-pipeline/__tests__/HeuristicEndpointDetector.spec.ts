@@ -49,11 +49,8 @@ describe('HeuristicEndpointDetector', () => {
   // Basic identity
   // -------------------------------------------------------------------------
 
-  it('has mode "heuristic" at runtime (exposed as "hybrid" interface value)', () => {
-    // The interface constrains the type to 'silence' | 'hybrid' | 'semantic'.
-    // The implementation uses 'hybrid' to satisfy the interface; this test
-    // documents that intentional decision.
-    expect(detector.mode).toBe('hybrid');
+  it('has mode "heuristic"', () => {
+    expect(detector.mode).toBe('heuristic');
   });
 
   // -------------------------------------------------------------------------

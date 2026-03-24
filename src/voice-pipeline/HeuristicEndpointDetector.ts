@@ -105,9 +105,7 @@ export class HeuristicEndpointDetector
    * Typed as `'hybrid'` to satisfy {@link IEndpointDetector.mode}; consumers
    * that need to distinguish heuristic detectors may inspect `instanceof`.
    */
-  // We expose 'heuristic' at runtime for consumers, using a wider string type
-  // internally to avoid a cast on every read.
-  readonly mode: IEndpointDetector['mode'] = 'hybrid';
+  readonly mode: IEndpointDetector['mode'] = 'heuristic';
 
   /** Resolved silence timeout in milliseconds. */
   private readonly silenceTimeoutMs: number;
