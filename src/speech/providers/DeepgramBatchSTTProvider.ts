@@ -138,7 +138,7 @@ export class DeepgramBatchSTTProvider implements SpeechToTextProvider {
         Authorization: `Token ${this.config.apiKey}`,
         'Content-Type': contentType,
       },
-      body: audio.data,
+      body: audio.data instanceof Buffer ? new Uint8Array(audio.data) : audio.data,
     });
 
     if (!response.ok) {

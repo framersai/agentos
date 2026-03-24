@@ -13,8 +13,8 @@ export type {
   LoopConfig,
   LoopContext,
   LoopEvent,
-  ToolCallRequest,
-  ToolCallResult,
+  LoopToolCallRequest,
+  LoopToolCallResult,
 } from './LoopController.js';
 export { NodeExecutor } from './NodeExecutor.js';
 export type { NodeExecutionResult } from './NodeExecutor.js';

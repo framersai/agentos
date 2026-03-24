@@ -68,13 +68,13 @@ export interface LoopContext {
    * Implementations should never throw — instead return a result with
    * `success: false` and a populated `error` field.
    */
-  executeTool: (toolCall: ToolCallRequest) => Promise<ToolCallResult>;
+  executeTool: (toolCall: LoopToolCallRequest) => Promise<LoopToolCallResult>;
 
   /**
    * Feed tool results back into the conversation so the next `generateStream`
    * call has access to them. Typically appends tool messages to the message list.
    */
-  addToolResults: (results: ToolCallResult[]) => void;
+  addToolResults: (results: LoopToolCallResult[]) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ export interface LoopContext {
 /**
  * A single tool invocation requested by the LLM.
  */
-export interface ToolCallRequest {
+export interface LoopToolCallRequest {
   /** Unique identifier for this tool call within a response (matches the tool result). */
   id: string;
 
@@ -96,10 +96,10 @@ export interface ToolCallRequest {
 }
 
 /**
- * The outcome of executing a {@link ToolCallRequest}.
+ * The outcome of executing a {@link LoopToolCallRequest}.
  */
-export interface ToolCallResult {
-  /** Matches the originating {@link ToolCallRequest.id}. */
+export interface LoopToolCallResult {
+  /** Matches the originating {@link LoopToolCallRequest.id}. */
   id: string;
 
   /** Name of the tool that was called. */
@@ -134,7 +134,7 @@ export interface LoopChunk {
   content?: string;
 
   /** Present when `type === 'tool_call_request'`. */
-  toolCalls?: ToolCallRequest[];
+  toolCalls?: LoopToolCallRequest[];
 }
 
 /**
@@ -149,7 +149,7 @@ export interface LoopOutput {
    * All tool calls requested in this iteration. An empty array signals that
    * the LLM is done and the loop should terminate.
    */
-  toolCalls: ToolCallRequest[];
+  toolCalls: LoopToolCallRequest[];
 
   /**
    * The LLM finish reason (e.g. `'stop'`, `'tool_calls'`, `'length'`).
@@ -168,8 +168,8 @@ export interface LoopOutput {
  */
 export type LoopEvent =
   | { type: 'text_delta'; content: string }
-  | { type: 'tool_call_request'; toolCalls: ToolCallRequest[] }
-  | { type: 'tool_result'; toolName: string; result: ToolCallResult }
+  | { type: 'tool_call_request'; toolCalls: LoopToolCallRequest[] }
+  | { type: 'tool_result'; toolName: string; result: LoopToolCallResult }
   | { type: 'tool_error'; toolName: string; error: string }
   | { type: 'max_iterations_reached'; iteration: number }
   | { type: 'loop_complete'; totalIterations: number };
@@ -249,7 +249,7 @@ export class LoopController {
       // Act phase: execute tool calls (parallel or sequential).
       // ------------------------------------------------------------------
       const toolCalls = gmiOutput.toolCalls;
-      let results: ToolCallResult[];
+      let results: LoopToolCallResult[];
 
       if (config.parallelTools) {
         // Dispatch all tool calls simultaneously; collect all outcomes even
@@ -261,7 +261,7 @@ export class LoopController {
         results = settled.map((s, i) => {
           if (s.status === 'fulfilled') return s.value;
 
-          // Convert a rejected promise into a failed ToolCallResult so
+          // Convert a rejected promise into a failed LoopToolCallResult so
           // downstream handling is uniform.
           return {
             id: toolCalls[i].id,

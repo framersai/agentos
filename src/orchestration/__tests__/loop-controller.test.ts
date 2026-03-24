@@ -18,8 +18,8 @@ import type {
   LoopContext,
   LoopChunk,
   LoopOutput,
-  ToolCallRequest,
-  ToolCallResult,
+  LoopToolCallRequest,
+  LoopToolCallResult,
 } from '../runtime/LoopController.js';
 
 // ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ function createMockContext(
   toolCallsPerIteration = 1,
 ) {
   let calls = 0;
-  const addedResults: ToolCallResult[][] = [];
+  const addedResults: LoopToolCallResult[][] = [];
 
   const context: LoopContext = {
     generateStream: async function* () {
@@ -75,7 +75,7 @@ function createMockContext(
 
       if (calls <= toolCallIterations) {
         // Build N tool calls for this iteration.
-        const tc: ToolCallRequest[] = Array.from(
+        const tc: LoopToolCallRequest[] = Array.from(
           { length: toolCallsPerIteration },
           (_, j) => ({
             id: `tc-${calls}-${j}`,
@@ -100,7 +100,7 @@ function createMockContext(
       } satisfies LoopOutput;
     },
 
-    executeTool: vi.fn<[ToolCallRequest], Promise<ToolCallResult>>().mockImplementation(
+    executeTool: vi.fn<[LoopToolCallRequest], Promise<LoopToolCallResult>>().mockImplementation(
       async (tc) => ({
         id: tc.id,
         name: tc.name,
@@ -109,7 +109,7 @@ function createMockContext(
       }),
     ),
 
-    addToolResults: vi.fn((results: ToolCallResult[]) => {
+    addToolResults: vi.fn((results: LoopToolCallResult[]) => {
       addedResults.push(results);
     }),
   };
@@ -198,7 +198,7 @@ describe('LoopController', () => {
       name: 'test_tool',
       success: false,
       error: 'something went wrong',
-    } satisfies ToolCallResult);
+    } satisfies LoopToolCallResult);
 
     const controller = new LoopController();
     const config = baseConfig({ failureMode: 'fail_closed' });
@@ -221,7 +221,7 @@ describe('LoopController', () => {
       name: 'test_tool',
       success: false,
       error: 'transient error',
-    } satisfies ToolCallResult);
+    } satisfies LoopToolCallResult);
 
     const events = await collectEvents(baseConfig({ failureMode: 'fail_open' }), context);
 
@@ -246,7 +246,7 @@ describe('LoopController', () => {
 
     // Override executeTool to track concurrent invocations
     (context.executeTool as ReturnType<typeof vi.fn>).mockImplementation(
-      async (tc: ToolCallRequest): Promise<ToolCallResult> => {
+      async (tc: LoopToolCallRequest): Promise<LoopToolCallResult> => {
         const idx = dispatchOrder.length;
         dispatchOrder.push(idx);
 
