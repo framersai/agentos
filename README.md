@@ -6,7 +6,7 @@
 
 # AgentOS
 
-**Open-source TypeScript runtime for production AI agents — multimodal RAG, multi-agent orchestration, 37 channel adapters, 5-tier guardrails, 21 LLM providers.**
+**Open-source TypeScript runtime for production AI agents — unified graph orchestration (AgentGraph / workflow / mission), multimodal RAG, 37 channel adapters, 5-tier guardrails, 21 LLM providers.**
 
 [![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions)
@@ -43,7 +43,7 @@
   - [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
   - [Channels System](#channels-system)
   - [Voice and Telephony](#voice-and-telephony)
-  - [Workflows](#workflows)
+  - [Unified Orchestration Layer](#unified-orchestration-layer)
   - [Multi-Agent Coordination](#multi-agent-coordination)
   - [Observability](#observability)
   - [Skills](#skills)
@@ -908,29 +908,73 @@ Voice providers are registered via `EXTENSION_KIND_TOOL` with the `voice-call-pr
 
 ---
 
-### Workflows
+### Unified Orchestration Layer
 
-**Location:** `src/core/workflows/`
+**Location:** `src/orchestration/`
 
-Declarative multi-step workflows with persistence and monitoring.
+Three authoring APIs compile to one `CompiledExecutionGraph` IR executed by a single `GraphRuntime`. Persistent checkpointing enables time-travel debugging and fault recovery.
 
-- **WorkflowEngine** -- Instantiates and executes workflow definitions
-- **IWorkflowStore** -- Persistence interface for workflow state (supports SQL and in-memory backends)
-- **WorkflowTypes** -- Type definitions for workflow definitions, instances, tasks, and progress updates
+| API | Level | Use case |
+|-----|-------|----------|
+| **`AgentGraph`** | Low-level | Explicit nodes, edges, cycles, subgraphs — full graph control |
+| **`workflow()`** | Mid-level | Deterministic DAG chains with step/branch/parallel — Zod-typed I/O |
+| **`mission()`** | High-level | Intent-driven — declare goal + constraints, PlanningEngine decides steps |
 
-Workflows integrate with the IAgentOS interface:
+**Differentiators vs LangGraph / Mastra:** memory-aware state, capability discovery routing, personality-driven edges, inter-step guardrails, streaming at every node transition.
 
 ```typescript
-// List available workflow definitions
+import { AgentGraph, toolNode, gmiNode, START, END } from '@framers/agentos/orchestration';
+import { z } from 'zod';
+
+// Low-level: explicit graph with conditional routing
+const graph = new AgentGraph({
+  input: z.object({ topic: z.string() }),
+  scratch: z.object({ confidence: z.number().default(0) }),
+  artifacts: z.object({ summary: z.string() }),
+})
+  .addNode('search', toolNode('web_search'))
+  .addNode('evaluate', gmiNode({ instructions: 'Evaluate quality', executionMode: 'single_turn' }))
+  .addNode('summarize', gmiNode({ instructions: 'Write summary', executionMode: 'single_turn' }))
+  .addEdge(START, 'search')
+  .addEdge('search', 'evaluate')
+  .addConditionalEdge('evaluate', (s) => s.scratch.confidence > 0.8 ? 'summarize' : 'search')
+  .addEdge('summarize', END)
+  .compile();
+
+const result = await graph.invoke({ topic: 'quantum computing' });
+
+// Mid-level: deterministic workflow
+import { workflow } from '@framers/agentos/orchestration';
+
+const flow = workflow('onboarding')
+  .input(z.object({ email: z.string() }))
+  .returns(z.object({ userId: z.string() }))
+  .step('validate', { tool: 'email_validator' })
+  .then('create', { tool: 'user_service' })
+  .compile();
+
+// High-level: intent-driven
+import { mission } from '@framers/agentos/orchestration';
+
+const researcher = mission('research')
+  .input(z.object({ topic: z.string() }))
+  .goal('Research {topic} and produce a cited summary')
+  .returns(z.object({ summary: z.string() }))
+  .planner({ strategy: 'plan_and_execute', maxSteps: 8 })
+  .compile();
+
+const plan = await researcher.explain({ topic: 'AI safety' }); // preview plan without executing
+```
+
+See [`docs/UNIFIED_ORCHESTRATION.md`](docs/UNIFIED_ORCHESTRATION.md), [`docs/AGENT_GRAPH.md`](docs/AGENT_GRAPH.md), [`docs/WORKFLOW_DSL.md`](docs/WORKFLOW_DSL.md), [`docs/MISSION_API.md`](docs/MISSION_API.md), [`docs/CHECKPOINTING.md`](docs/CHECKPOINTING.md).
+
+#### Legacy WorkflowEngine
+
+The original `WorkflowEngine` (`src/core/workflows/`) continues to work for existing consumers. The new orchestration layer is opt-in and runs alongside it.
+
+```typescript
 const definitions = agent.listWorkflowDefinitions();
-
-// Start a workflow instance
-const instance = await agent.startWorkflow('data-pipeline-v1', input, {
-  context: { source: 'scheduled' },
-  roleAssignments: { analyst: 'gmi-123', reviewer: 'gmi-456' },
-});
-
-// Monitor progress
+const instance = await agent.startWorkflow('data-pipeline-v1', input);
 const status = await agent.getWorkflow(instance.workflowId);
 ```
 
