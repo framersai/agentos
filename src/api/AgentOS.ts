@@ -545,6 +545,63 @@ export interface AgentOSConfig {
   observability?: AgentOSObservabilityConfig;
 }
 
+export interface AgentOSActiveConversationSnapshot {
+  sessionId: string;
+  userId?: string;
+  gmiInstanceId?: string;
+  activePersonaId?: string;
+  createdAt: number;
+  lastActiveAt?: number;
+  messageCount: number;
+}
+
+export interface AgentOSActiveGMISnapshot {
+  gmiId: string;
+  personaId: string;
+  state: string;
+  createdAt: string;
+  hasCognitiveMemory: boolean;
+  reasoningTraceEntries: number;
+  workingMemoryKeys: number;
+  cognitiveMemory?: {
+    totalTraces: number;
+    activeTraces: number;
+    workingMemorySlots: number;
+    workingMemoryCapacity: number;
+    prospectiveCount: number;
+  };
+}
+
+export interface AgentOSRuntimeSnapshot {
+  initialized: boolean;
+  services: {
+    conversationManager: boolean;
+    extensionManager: boolean;
+    toolOrchestrator: boolean;
+    modelProviderManager: boolean;
+    retrievalAugmentor: boolean;
+    workflowEngine: boolean;
+  };
+  providers: {
+    configured: string[];
+    defaultProvider?: string | null;
+  };
+  extensions: {
+    loadedPacks: string[];
+    toolCount: number;
+    workflowCount: number;
+    guardrailCount: number;
+  };
+  conversations: {
+    activeCount: number;
+    items: AgentOSActiveConversationSnapshot[];
+  };
+  gmis: {
+    activeCount: number;
+    items: AgentOSActiveGMISnapshot[];
+  };
+}
+
 
 /**
  * @class AgentOS
@@ -1293,6 +1350,123 @@ export class AgentOS implements IAgentOS {
         { serviceName: 'AgentOS', operationAttemptedWhileUninitialized: true }
       );
     }
+  }
+
+  public async getRuntimeSnapshot(): Promise<AgentOSRuntimeSnapshot> {
+    this.ensureInitialized();
+
+    const activeConversations =
+      (this.conversationManager as any)?.activeConversations instanceof Map
+        ? Array.from(((this.conversationManager as any).activeConversations as Map<string, ConversationContext>).values())
+        : [];
+
+    const conversationItems: AgentOSActiveConversationSnapshot[] = activeConversations.map((context) => {
+      const history = context.getHistory();
+      const lastActiveAt = history.reduce((latest, message) => {
+        const timestamp = typeof message.timestamp === 'number' ? message.timestamp : 0;
+        return Math.max(latest, timestamp);
+      }, 0);
+
+      return {
+        sessionId: context.sessionId,
+        userId: context.getMetadata('userId'),
+        gmiInstanceId: context.getMetadata('gmiInstanceId'),
+        activePersonaId: context.getMetadata('activePersonaId'),
+        createdAt: context.createdAt,
+        lastActiveAt: lastActiveAt || context.getMetadata('_lastAccessed'),
+        messageCount: history.length,
+      };
+    });
+
+    const gmiItems: AgentOSActiveGMISnapshot[] = [];
+    for (const gmi of this.gmiManager.activeGMIs.values()) {
+      const cognitiveMemory = gmi.getCognitiveMemoryManager?.();
+      const workingMemorySnapshot = await gmi.getWorkingMemorySnapshot().catch(() => ({}));
+      const prospectiveCount = cognitiveMemory?.listProspective
+        ? (await cognitiveMemory.listProspective().catch(() => [])).length
+        : 0;
+
+      gmiItems.push({
+        gmiId: gmi.gmiId,
+        personaId: gmi.getPersona().id,
+        state: gmi.getCurrentState(),
+        createdAt: gmi.creationTimestamp.toISOString(),
+        hasCognitiveMemory: Boolean(cognitiveMemory),
+        reasoningTraceEntries: gmi.getReasoningTrace().entries.length,
+        workingMemoryKeys: Object.keys(workingMemorySnapshot).length,
+        cognitiveMemory: cognitiveMemory
+          ? {
+              totalTraces: cognitiveMemory.getStore().getTraceCount(),
+              activeTraces: cognitiveMemory.getStore().getActiveTraceCount(),
+              workingMemorySlots: cognitiveMemory.getWorkingMemory().getSlotCount(),
+              workingMemoryCapacity: cognitiveMemory.getWorkingMemory().getCapacity(),
+              prospectiveCount,
+            }
+          : undefined,
+      });
+    }
+
+    const providerIds = this.config.modelProviderManagerConfig.providers
+      .filter((provider) => provider.enabled !== false)
+      .map((provider) => provider.providerId);
+    const toolRegistry = this.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
+    const workflowRegistry = this.extensionManager.getRegistry<WorkflowDescriptorPayload>(EXTENSION_KIND_WORKFLOW);
+    const guardrailRegistry = this.extensionManager.getRegistry<IGuardrailService>(EXTENSION_KIND_GUARDRAIL);
+
+    return {
+      initialized: this.initialized,
+      services: {
+        conversationManager: Boolean(this.conversationManager),
+        extensionManager: Boolean(this.extensionManager),
+        toolOrchestrator: Boolean(this.toolOrchestrator),
+        modelProviderManager: Boolean(this.modelProviderManager),
+        retrievalAugmentor: Boolean(this.retrievalAugmentor),
+        workflowEngine: Boolean(this.workflowEngine),
+      },
+      providers: {
+        configured: providerIds,
+        defaultProvider: this.modelProviderManager.getDefaultProvider()?.providerId ?? null,
+      },
+      extensions: {
+        loadedPacks: this.extensionManager.listLoadedPacks().map((pack) => pack.key),
+        toolCount: toolRegistry.listActive().length,
+        workflowCount: workflowRegistry.listActive().length,
+        guardrailCount: guardrailRegistry.listActive().length,
+      },
+      conversations: {
+        activeCount: conversationItems.length,
+        items: conversationItems,
+      },
+      gmis: {
+        activeCount: gmiItems.length,
+        items: gmiItems,
+      },
+    };
+  }
+
+  public getConversationManager(): ConversationManager {
+    this.ensureInitialized();
+    return this.conversationManager;
+  }
+
+  public getGMIManager(): GMIManager {
+    this.ensureInitialized();
+    return this.gmiManager;
+  }
+
+  public getExtensionManager(): ExtensionManager {
+    this.ensureInitialized();
+    return this.extensionManager;
+  }
+
+  public getToolOrchestrator(): IToolOrchestrator {
+    this.ensureInitialized();
+    return this.toolOrchestrator;
+  }
+
+  public getModelProviderManager(): AIModelProviderManager {
+    this.ensureInitialized();
+    return this.modelProviderManager;
   }
 
   /**

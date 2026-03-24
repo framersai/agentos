@@ -12,7 +12,7 @@ import { AgentOSInput, UserFeedbackPayload } from '../types/AgentOSInput';
 import { AgentOSResponse } from '../types/AgentOSResponse';
 import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
-import { AgentOSConfig } from '../AgentOS';
+import type { AgentOSConfig, AgentOSRuntimeSnapshot } from '../AgentOS';
 import type {
   WorkflowDefinition,
   WorkflowInstance,
@@ -20,6 +20,11 @@ import type {
   WorkflowStatus,
 } from '../../core/workflows/WorkflowTypes';
 import type { WorkflowQueryOptions, WorkflowTaskUpdate } from '../../core/workflows/storage/IWorkflowStore';
+import type { ConversationManager } from '../../core/conversation/ConversationManager';
+import type { GMIManager } from '../../cognitive_substrate/GMIManager';
+import type { ExtensionManager } from '../../extensions';
+import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
+import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 
 /**
  * @interface IAgentOS
@@ -148,6 +153,20 @@ export interface IAgentOS {
    * @throws {Error} If AgentOS is not initialized or if a database error occurs.
    */
   getConversationHistory(conversationId: string, userId: string): Promise<ConversationContext | null>;
+
+  /**
+   * Returns a serializable runtime/devtools snapshot of the initialized AgentOS instance.
+   */
+  getRuntimeSnapshot(): Promise<AgentOSRuntimeSnapshot>;
+
+  /**
+   * Explicit runtime getters for devtools integrations such as AgentOS Workbench.
+   */
+  getConversationManager(): ConversationManager;
+  getGMIManager(): GMIManager;
+  getExtensionManager(): ExtensionManager;
+  getToolOrchestrator(): IToolOrchestrator;
+  getModelProviderManager(): AIModelProviderManager;
 
   /**
    * Receives and processes explicit user feedback.
