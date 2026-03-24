@@ -622,7 +622,7 @@ export class CompiledWorkflow {
   /**
    * Resume a previously interrupted workflow run from its latest checkpoint.
    *
-   * @param checkpointId - The run identifier returned when the original run was interrupted.
+   * @param checkpointId - Either the original run id or an exact checkpoint id.
    * @returns The final `GraphState.artifacts` value after resumption completes.
    */
   async resume(checkpointId: string): Promise<unknown> {

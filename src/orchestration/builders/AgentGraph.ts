@@ -393,10 +393,10 @@ export class CompiledAgentGraph<TState extends GraphState = GraphState> {
    * The `patch` argument is accepted for API compatibility with future resume-with-patch
    * support; it is not forwarded to the runtime in the current implementation.
    *
-   * @param checkpointId - The run id returned by the original `stream()` call.
+   * @param checkpointId - Either the original run id or an exact checkpoint id.
    * @param patch        - Reserved for future use: optional partial state override.
    * @returns The final `GraphState.artifacts` value after resumption completes.
-   * @throws {Error} When no checkpoint exists for the given `checkpointId`.
+   * @throws {Error} When no checkpoint exists for the given identifier.
    */
   async resume(checkpointId: string, patch?: Partial<TState>): Promise<unknown> {
     // `patch` is not yet forwarded — tracked for implementation in a future PR.

@@ -295,7 +295,7 @@ export class CompiledMission {
   /**
    * Resume a previously interrupted run from its latest checkpoint.
    *
-   * @param checkpointId - Id of the checkpoint to restore (from `GraphState.checkpointId`).
+   * @param checkpointId - Either the original run id or an exact checkpoint id.
    * @param _patch       - Optional partial `GraphState` to merge before resuming (reserved).
    * @returns The final `GraphState.artifacts` value once execution completes.
    */
