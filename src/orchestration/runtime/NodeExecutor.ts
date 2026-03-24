@@ -132,6 +132,20 @@ export interface NodeExecutorDeps {
   createSubgraphRuntime?: (graph: CompiledExecutionGraph) => {
     invoke(graph: CompiledExecutionGraph, input: unknown): Promise<unknown>;
   };
+
+  /**
+   * Executes an extension method by ID. When absent, extension nodes return a placeholder.
+   *
+   * @param extensionId - The registered extension identifier.
+   * @param method      - The method name to invoke on the extension.
+   * @param input       - Input data passed to the extension method.
+   * @returns Promise resolving to the extension's output.
+   */
+  extensionExecutor?: (
+    extensionId: string,
+    method: string,
+    input: unknown,
+  ) => Promise<{ success: boolean; output?: unknown; error?: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,8 +230,7 @@ export class NodeExecutor {
         return this.executeGmi(config, state);
 
       case 'extension':
-        // Extension execution is wired by `GraphRuntime` once the extension manager is available.
-        return { success: true, output: 'extension-placeholder' };
+        return this.executeExtension(config, state);
 
       case 'subgraph':
         return this.executeSubgraph(config, state);
@@ -474,6 +487,42 @@ export class NodeExecutor {
       return {
         success: false,
         error: `Subgraph execution failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+
+  /**
+   * Executes an extension method via the injected `extensionExecutor`.
+   *
+   * @param config - Extension executor config with extensionId and method name.
+   * @param state  - Current graph state passed as input to the extension.
+   */
+  private async executeExtension(
+    config: { type: 'extension'; extensionId: string; method: string },
+    state: Partial<GraphState>,
+  ): Promise<NodeExecutionResult> {
+    if (!this.deps.extensionExecutor) {
+      return { success: true, output: 'extension-not-configured' };
+    }
+
+    try {
+      const result = await this.deps.extensionExecutor(
+        config.extensionId,
+        config.method,
+        { input: state.input, scratch: state.scratch },
+      );
+      return {
+        success: result.success,
+        output: result.output,
+        error: result.error,
+        scratchUpdate: result.output && typeof result.output === 'object'
+          ? result.output as Record<string, unknown>
+          : undefined,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Extension ${config.extensionId}.${config.method} failed: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
   }
