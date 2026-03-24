@@ -1,3 +1,7 @@
+## <small>0.1.71 (2026-03-24)</small>
+
+* fix(lint): const instead of let, remove unused eslint-disable directives ([a827082](https://github.com/framersai/agentos/commit/a827082))
+
 ## <small>0.1.70 (2026-03-24)</small>
 
 * fix(build): add orchestration directory to tsconfig.build.json include ([25bcdcb](https://github.com/framersai/agentos/commit/25bcdcb))
