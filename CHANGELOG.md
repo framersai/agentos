@@ -1,3 +1,7 @@
+## <small>0.1.83 (2026-03-24)</small>
+
+* feat(orchestration): implement real extension node execution via extensionExecutor dep ([4782a63](https://github.com/framersai/agentos/commit/4782a63))
+
 ## <small>0.1.82 (2026-03-24)</small>
 
 * fix(ci): update generateText test to match new provider-defaults error message ([4212cb0](https://github.com/framersai/agentos/commit/4212cb0))
