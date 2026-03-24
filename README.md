@@ -920,6 +920,8 @@ Voice providers are registered via `EXTENSION_KIND_TOOL` with the `voice-call-pr
 
 Three authoring APIs compile to one `CompiledExecutionGraph` IR executed by a single `GraphRuntime`. Persistent checkpointing enables time-travel debugging and fault recovery.
 
+Current status: the builders, IR, checkpoints, and base runtime are real. Some advanced routes are still partial in the shared runtime: discovery edges need discovery wiring, personality edges need a trait source, and `extension` / `subgraph` execution still requires a higher-level bridge runtime.
+
 | API | Level | Use case |
 |-----|-------|----------|
 | **`AgentGraph`** | Low-level | Explicit nodes, edges, cycles, subgraphs — full graph control |

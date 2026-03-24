@@ -86,6 +86,8 @@ wf.step('fetch', { tool: 'web_search' })
   },
 
   // Failure handling
+  // Note: `retryPolicy` is part of the compiled IR today, but automatic retry
+  // execution is still being wired into the shared runtime.
   onFailure: 'retry',
   retryPolicy: { maxAttempts: 3, backoff: 'exponential', backoffMs: 500 },
 
@@ -222,6 +224,7 @@ const onboarding = workflow('user-onboarding')
       pro: {
         tool: 'provision_pro_tier',
         effectClass: 'write',
+        // Declared now, runtime-managed retries still pending.
         retryPolicy: { maxAttempts: 3, backoff: 'exponential', backoffMs: 1000 },
       },
       enterprise: {

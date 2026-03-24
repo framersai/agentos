@@ -2,6 +2,13 @@
 
 The AgentOS Unified Orchestration Layer gives you one runtime, three authoring APIs, and five capabilities no other framework offers.
 
+> Runtime status note:
+> The compiled IR, builders, checkpointing, and base graph runtime are real and usable today.
+> Some advanced routing/execution paths are still partial in the shared runtime:
+> discovery edges currently fall back when capability discovery is not wired,
+> personality edges still use default branch behavior unless a trait source is injected,
+> and `extension` / `subgraph` execution requires a bridge runtime rather than the bare `NodeExecutor`.
+
 ## The Problem It Solves
 
 Before this layer, AgentOS had all the right primitives — a ReAct loop, a DAG workflow engine, a planning engine, capability discovery, cognitive memory, personality modeling, and guardrails — but they were fragmented across disconnected runtimes:
@@ -140,7 +147,7 @@ gmiNode(
 
 ### 2. Capability Discovery Routing
 
-Edges can resolve their target at runtime via semantic search over the capability registry:
+Edges can declare discovery intent and route via semantic search over the capability registry:
 
 ```typescript
 graph.addDiscoveryEdge('router', {
@@ -152,7 +159,7 @@ graph.addDiscoveryEdge('router', {
 
 ### 3. Personality-Driven Routing
 
-Agent HEXACO/PAD personality traits influence routing decisions without any conditional logic in your code:
+Agent HEXACO/PAD personality traits can influence routing decisions without any conditional logic in your code:
 
 ```typescript
 graph.addPersonalityEdge('draft', {

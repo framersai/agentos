@@ -1,6 +1,10 @@
 # Checkpointing and Time-Travel
 
-The AgentOS Unified Orchestration Layer has built-in support for persistent checkpoints, automatic resume after failure, and time-travel debugging via the `ICheckpointStore` interface.
+The AgentOS Unified Orchestration Layer has built-in support for checkpoints, resume after failure, and time-travel debugging via the `ICheckpointStore` interface.
+
+> Status note:
+> `InMemoryCheckpointStore` is implemented and used by default.
+> `SqliteCheckpointStore` is still planned, not shipped in this package yet.
 
 ## ICheckpointStore
 
@@ -11,6 +15,7 @@ import type { ICheckpointStore, Checkpoint, CheckpointMetadata } from '@framers/
 
 interface ICheckpointStore {
   save(checkpoint: Checkpoint): Promise<void>;
+  get(checkpointId: string): Promise<Checkpoint | null>;
   load(runId: string, nodeId?: string): Promise<Checkpoint | null>;
   latest(runId: string): Promise<Checkpoint | null>;
   list(graphId: string, options?: { limit?: number; runId?: string }): Promise<CheckpointMetadata[]>;
@@ -26,22 +31,15 @@ interface ICheckpointStore {
 | Store | Import path | Use case |
 |---|---|---|
 | `InMemoryCheckpointStore` | `@framers/agentos/orchestration/checkpoint` | Development, testing, ephemeral runs |
-| `SqliteCheckpointStore` | `@framers/agentos/orchestration/checkpoint` | Local agents, CLI, Workbench |
 | Custom | Implement `ICheckpointStore` | Postgres, Redis, object storage, or any durable backend |
 
 ```typescript
 import {
   InMemoryCheckpointStore,
-  SqliteCheckpointStore,
 } from '@framers/agentos/orchestration/checkpoint';
 
 // In-memory (default when no store is specified)
 const graph = new AgentGraph(...).compile();
-
-// SQLite (recommended for local persistence)
-const graph = new AgentGraph(...).compile({
-  checkpointStore: new SqliteCheckpointStore('./runs.db'),
-});
 ```
 
 ## What Gets Saved
@@ -78,6 +76,7 @@ interface Checkpoint {
   }>;
 
   visitedNodes: string[]; // Nodes completed at checkpoint time
+  skippedNodes?: string[]; // Branches bypassed by routing decisions
   pendingEdges: string[]; // Edges emitted but not yet executed
 }
 ```
@@ -135,18 +134,19 @@ toolNode('create_record', {}, { effectClass: 'write' })
 ```typescript
 // With AgentGraph
 const graph = new AgentGraph(...).compile({
-  checkpointStore: new SqliteCheckpointStore('./runs.db'),
+  checkpointStore: new InMemoryCheckpointStore(),
 });
 
-// Capture the checkpoint id during streaming
+// Capture the latest checkpoint id during streaming
 let lastCheckpointId: string | undefined;
 for await (const event of graph.stream(input)) {
-  if (event.type === 'node_end') {
+  if (event.type === 'checkpoint_saved') {
     lastCheckpointId = event.checkpointId; // present when a checkpoint was saved
   }
 }
 
-// Resume after crash / human approval / timeout
+// Resume after crash / human approval / timeout.
+// You can pass either the run id or an exact checkpoint id.
 const result = await graph.resume(lastCheckpointId!);
 ```
 
@@ -162,7 +162,7 @@ const result = await missionCompiled.resume(checkpointId);
 `fork()` creates a new run branching from any past checkpoint, with optional state overrides. The original run is untouched.
 
 ```typescript
-const store = new SqliteCheckpointStore('./runs.db');
+const store = new InMemoryCheckpointStore();
 
 // List checkpoints for a graph to find the right branch point
 const checkpoints = await store.list('my-graph-id', { runId: 'run-abc' });

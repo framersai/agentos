@@ -2,6 +2,12 @@
 
 `AgentGraph` is the lowest-level authoring API in the Unified Orchestration Layer. It exposes explicit node and edge management, supports cycles, subgraph composition, and four edge types including the AgentOS-exclusive discovery and personality edges.
 
+> Current runtime note:
+> `AgentGraph` compilation is complete, but some advanced execution paths are still bridge-dependent today.
+> The base runtime executes `tool`, `router`, `guardrail`, and `human` nodes directly.
+> `gmi`, `extension`, and `subgraph` execution require a higher-level runtime bridge,
+> and discovery/personality edges are still partial unless those integrations are wired.
+
 Use `AgentGraph` when you need full control: complex conditional routing, agent loops that cycle back, memory-driven state machines, or subgraph composition. For linear pipelines, see [workflow()](./workflow-dsl.md). For goal-driven orchestration, see [mission()](./mission-api.md).
 
 ## Quick Start
@@ -98,6 +104,7 @@ toolNode(
   'web_search',
   {
     timeout: 10_000,
+    // Accepted by the IR today; shared-runtime retries are still being wired.
     retryPolicy: { maxAttempts: 3, backoff: 'exponential', backoffMs: 500 },
   },
   {
@@ -148,6 +155,8 @@ guardrailNode(['pii-redaction', 'content-safety'], {
 
 Embeds a previously compiled `CompiledExecutionGraph` as a single node. Input and output fields are mapped between the parent and child graphs.
 
+At the moment, this is a compile-time authoring primitive. Executing subgraphs requires a runtime bridge that knows how to resolve and invoke nested graphs.
+
 ```typescript
 import { subgraphNode } from '@framers/agentos/orchestration';
 
@@ -183,7 +192,7 @@ The function must return a valid node id. The returned id is not validated at co
 
 ### Discovery Edge
 
-Target is resolved at runtime via semantic search over the capability registry. A transient `toolNode` is instantiated with the discovered capability and executed, then the run continues along the original graph's outgoing edges.
+Target is resolved at runtime via semantic search over the capability registry. In the shared runtime today, this remains partial: when discovery is not wired, execution follows the declared fallback target.
 
 ```typescript
 graph.addDiscoveryEdge('plan', {
@@ -193,16 +202,16 @@ graph.addDiscoveryEdge('plan', {
 });
 ```
 
-**Runtime semantics:**
+**Runtime semantics (target state):**
 1. `CapabilityDiscoveryEngine.discover(query, { kind })` is called
 2. The top-1 result is selected
-3. A transient `toolNode` is instantiated and executed
-4. Execution fans through to the source node's other outgoing edges
-5. If no results: route to `fallbackTarget`, or emit `DISCOVERY_NO_RESULTS` error
+3. A transient executable node is instantiated
+4. Execution continues through the resolved target
+5. If no results: route to `fallbackTarget`, or emit `DISCOVERY_NO_RESULTS`
 
 ### Personality Edge
 
-Routes based on the agent's current HEXACO/PAD trait value. No conditional logic required in your code — the runtime reads the agent's personality state and routes accordingly.
+Routes based on the agent's current HEXACO/PAD trait value. No conditional logic required in your code once a personality source is wired into the runtime.
 
 ```typescript
 graph.addPersonalityEdge('draft', {
