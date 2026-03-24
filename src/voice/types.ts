@@ -187,7 +187,8 @@ export type NormalizedCallEvent =
   | NormalizedCallError
   | NormalizedTranscript
   | NormalizedSpeechStart
-  | NormalizedMediaStreamConnected;
+  | NormalizedMediaStreamConnected
+  | NormalizedDtmfReceived;
 
 interface NormalizedEventBase {
   /** Provider-assigned event ID for idempotency. */
@@ -239,6 +240,15 @@ export interface NormalizedSpeechStart extends NormalizedEventBase {
 export interface NormalizedMediaStreamConnected extends NormalizedEventBase {
   kind: 'media-stream-connected';
   streamSid: string;
+}
+
+/** DTMF digit received during a call. */
+export interface NormalizedDtmfReceived extends NormalizedEventBase {
+  kind: 'call-dtmf';
+  /** The digit pressed: '0'-'9', '*', '#' */
+  digit: string;
+  /** How long the key was pressed (ms), if available from provider */
+  durationMs?: number;
 }
 
 // ============================================================================

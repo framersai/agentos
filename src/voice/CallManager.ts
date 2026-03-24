@@ -48,6 +48,7 @@ export type CallManagerEventType =
   | 'call:error'
   | 'call:transcript'
   | 'call:speech-start'
+  | 'call:dtmf'
   | 'media:connected';
 
 export interface CallManagerEvent {
@@ -387,6 +388,16 @@ export class CallManager {
           callId: call.callId,
           call,
           data: { streamSid: event.streamSid },
+        });
+        break;
+
+      case 'call-dtmf':
+        // DTMF does NOT trigger a state transition — call stays in current state
+        this.emit({
+          type: 'call:dtmf',
+          callId: call.callId,
+          call,
+          data: { digit: event.digit, durationMs: event.durationMs },
         });
         break;
     }
