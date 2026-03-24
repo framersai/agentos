@@ -195,6 +195,44 @@ export interface SpeechProviderCatalogEntry {
   defaultModel?: string;
   defaultVoice?: string;
   features?: readonly string[];
+  available?: boolean;
+}
+
+/** Configuration for the speech provider resolver. */
+export interface SpeechResolverConfig {
+  stt?: {
+    preferred?: string[];
+    fallback?: boolean;
+  };
+  tts?: {
+    preferred?: string[];
+    voice?: string;
+    fallback?: boolean;
+  };
+  wakeWord?: {
+    provider?: string;
+    keywords?: string[];
+    sensitivity?: number;
+  };
+}
+
+/** Requirements for provider resolution. */
+export interface ProviderRequirements {
+  streaming?: boolean;
+  local?: boolean;
+  features?: string[];
+  preferredIds?: string[];
+}
+
+/** A registered provider with metadata. */
+export interface ProviderRegistration {
+  id: string;
+  kind: SpeechProviderKind;
+  provider: SpeechToTextProvider | TextToSpeechProvider | SpeechVadProvider | WakeWordProvider;
+  catalogEntry: SpeechProviderCatalogEntry;
+  isConfigured: boolean;
+  priority: number;
+  source: 'core' | 'extension';
 }
 
 export type SpeechSessionMode = 'manual' | 'vad' | 'wake-word';

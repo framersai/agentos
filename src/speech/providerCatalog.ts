@@ -53,6 +53,16 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     features: ['cloud', 'streaming'],
   },
   {
+    id: 'deepgram-batch',
+    kind: 'stt',
+    label: 'Deepgram Batch',
+    envVars: ['DEEPGRAM_API_KEY'],
+    local: false,
+    streaming: false,
+    description: 'Batch speech-to-text via Deepgram REST API.',
+    features: ['cloud', 'diarization', 'timestamps'],
+  },
+  {
     id: 'assemblyai',
     kind: 'stt',
     label: 'AssemblyAI',
@@ -79,7 +89,7 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     envVars: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'],
     local: false,
     description: 'Azure speech recognition for batch and live transcription.',
-    streaming: true,
+    streaming: false,
     features: ['cloud', 'streaming'],
   },
   {
@@ -109,6 +119,7 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     local: true,
     description: 'Local/offline ASR via NVIDIA NeMo.',
     features: ['local', 'offline'],
+    available: false,
   },
   {
     id: 'openai-tts',
@@ -181,6 +192,7 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     streaming: true,
     description: 'Local XTTS / Coqui speech synthesis.',
     features: ['local', 'tts', 'voice-cloning'],
+    available: false,
   },
   {
     id: 'bark',
@@ -190,6 +202,7 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     local: true,
     description: 'Local Bark expressive speech synthesis.',
     features: ['local', 'tts'],
+    available: false,
   },
   {
     id: 'styletts2',
@@ -199,6 +212,7 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     local: true,
     description: 'Local StyleTTS2 expressive speech synthesis.',
     features: ['local', 'tts'],
+    available: false,
   },
   {
     id: 'agentos-adaptive-vad',
