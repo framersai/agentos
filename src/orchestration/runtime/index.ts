@@ -9,7 +9,13 @@
 export { StateManager } from './StateManager.js';
 export { NodeScheduler } from './NodeScheduler.js';
 export { LoopController } from './LoopController.js';
-export type { LoopConfig, LoopContext, LoopEvent } from './LoopController.js';
+export type {
+  LoopConfig,
+  LoopContext,
+  LoopEvent,
+  ToolCallRequest,
+  ToolCallResult,
+} from './LoopController.js';
 export { NodeExecutor } from './NodeExecutor.js';
 export type { NodeExecutionResult } from './NodeExecutor.js';
 export { GraphRuntime } from './GraphRuntime.js';
