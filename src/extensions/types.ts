@@ -405,3 +405,10 @@ export type VadProviderDescriptor = ExtensionDescriptor<SpeechVadProvider> & {
 export type WakeWordProviderDescriptor = ExtensionDescriptor<WakeWordProvider> & {
   kind: typeof EXTENSION_KIND_WAKE_WORD_PROVIDER;
 };
+
+// Streaming Voice Pipeline extension kinds (v1.5.0)
+export const EXTENSION_KIND_STREAMING_STT = 'streaming-stt-provider';
+export const EXTENSION_KIND_STREAMING_TTS = 'streaming-tts-provider';
+export const EXTENSION_KIND_DIARIZATION = 'diarization-provider';
+export const EXTENSION_KIND_ENDPOINT_DETECTOR = 'endpoint-detector';
+export const EXTENSION_KIND_BARGEIN_HANDLER = 'bargein-handler';
