@@ -118,5 +118,5 @@ export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
 export { generateImage } from './api/generateImage.js';
 export type { GenerateImageOptions, GenerateImageResult } from './api/generateImage.js';
 export { parseModelString, resolveProvider } from './api/model.js';
-export { adaptTools } from './api/tool-adapter.js';
-export type { ToolDefinitionMap } from './api/tool-adapter.js';
+export { adaptTools } from './api/toolAdapter.js';
+export type { ToolDefinitionMap } from './api/toolAdapter.js';
