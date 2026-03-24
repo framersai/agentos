@@ -288,7 +288,7 @@ export class GraphEventEmitter {
       this.streamCompleters.delete(complete);
       if (pendingResolve !== null) {
         // Resolve any dangling promise to avoid memory leaks.
-        const resolve = pendingResolve;
+        const resolve = pendingResolve as (value: IteratorResult<GraphEvent>) => void;
         pendingResolve = null;
         resolve({ value: undefined as unknown as GraphEvent, done: true });
       }

@@ -78,7 +78,7 @@ export * from './channels';
 export * from './voice';
 // Unified speech runtime (STT/TTS/VAD/wake-word)
 export * from './speech';
-export * from './core/images';
+// TODO: export * from './core/images' — module not yet implemented
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports

@@ -69,7 +69,7 @@ export type MemoryTraceType = 'episodic' | 'semantic' | 'procedural' | 'prospect
  * - `session`      — lives only for the lifetime of a single run.
  * - `conversation` — lives only for the current conversation turn window.
  */
-export type MemoryScope = 'global' | 'persona' | 'session' | 'conversation';
+export type GraphMemoryScope = 'global' | 'persona' | 'session' | 'conversation';
 
 /**
  * How the runtime handles in-flight memory reads/writes relative to concurrent graph branches.
@@ -217,7 +217,7 @@ export interface MemoryPolicy {
     /** Restrict loaded traces to these memory types. */
     types?: MemoryTraceType[];
     /** Restrict loaded traces to this scope. */
-    scope?: MemoryScope;
+    scope?: GraphMemoryScope;
     /** Maximum number of traces to surface into `GraphState.memory`. */
     maxTraces?: number;
     /** Minimum consolidation strength (0–1) for a trace to be returned. */
@@ -231,7 +231,7 @@ export interface MemoryPolicy {
     /** Trace category applied to auto-encoded output. */
     type?: MemoryTraceType;
     /** Scope applied to auto-encoded output. */
-    scope?: MemoryScope;
+    scope?: GraphMemoryScope;
   };
 }
 
@@ -297,7 +297,7 @@ export interface MemoryView {
     content: string;
     /** Consolidation strength in range 0–1; higher = stronger/more salient. */
     strength: number;
-    scope: MemoryScope;
+    scope: GraphMemoryScope;
     /** Unix epoch milliseconds when the trace was first encoded. */
     createdAt: number;
     metadata?: Record<string, unknown>;
@@ -306,7 +306,7 @@ export interface MemoryView {
   pendingWrites: ReadonlyArray<{
     type: MemoryTraceType;
     content: string;
-    scope: MemoryScope;
+    scope: GraphMemoryScope;
   }>;
   /** Total number of traces that matched the read filter (before `maxTraces` capping). */
   totalTracesRead: number;

@@ -17,7 +17,7 @@ import {
   type NodeExecutionMode,
   type EffectClass,
   type MemoryTraceType,
-  type MemoryScope,
+  type GraphMemoryScope,
   type MemoryConsistencyMode,
   type GraphCondition,
   type GraphConditionFn,
