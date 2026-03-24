@@ -63,6 +63,7 @@
   - [IGuardrailService](#iguardrailservice)
   - [IHumanInteractionManager](#ihumaninteractionmanager)
 - [Usage Examples](#usage-examples)
+  - [Orchestration Patterns](#orchestration-patterns)
   - [Streaming Chat](#streaming-chat)
   - [Adding Tools](#adding-tools)
   - [Multi-Agent Collaboration](#multi-agent-collaboration)
@@ -926,19 +927,17 @@ Three authoring APIs compile to one `CompiledExecutionGraph` IR executed by a si
 import { AgentGraph, toolNode, gmiNode, START, END } from '@framers/agentos/orchestration';
 import { z } from 'zod';
 
-// Low-level: explicit graph with conditional routing
+// Low-level: explicit graph with checkpoints
 const graph = new AgentGraph({
   input: z.object({ topic: z.string() }),
-  scratch: z.object({ confidence: z.number().default(0) }),
-  artifacts: z.object({ summary: z.string() }),
+  scratch: z.object({ draft: z.string().optional() }),
+  artifacts: z.object({ status: z.string().optional(), summary: z.string().optional() }),
 })
-  .addNode('search', toolNode('web_search'))
-  .addNode('evaluate', gmiNode({ instructions: 'Evaluate quality', executionMode: 'single_turn' }))
-  .addNode('summarize', gmiNode({ instructions: 'Write summary', executionMode: 'single_turn' }))
-  .addEdge(START, 'search')
-  .addEdge('search', 'evaluate')
-  .addConditionalEdge('evaluate', (s) => s.scratch.confidence > 0.8 ? 'summarize' : 'search')
-  .addEdge('summarize', END)
+  .addNode('draft', gmiNode({ instructions: 'Draft a concise summary', executionMode: 'single_turn' }))
+  .addNode('publish', toolNode('publish_report'))
+  .addEdge(START, 'draft')
+  .addEdge('draft', 'publish')
+  .addEdge('publish', END)
   .compile();
 
 const result = await graph.invoke({ topic: 'quantum computing' });
@@ -967,6 +966,8 @@ const plan = await researcher.explain({ topic: 'AI safety' }); // preview plan w
 ```
 
 See [`docs/UNIFIED_ORCHESTRATION.md`](docs/UNIFIED_ORCHESTRATION.md), [`docs/AGENT_GRAPH.md`](docs/AGENT_GRAPH.md), [`docs/WORKFLOW_DSL.md`](docs/WORKFLOW_DSL.md), [`docs/MISSION_API.md`](docs/MISSION_API.md), [`docs/CHECKPOINTING.md`](docs/CHECKPOINTING.md).
+
+Runnable examples: [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs)
 
 #### Legacy WorkflowEngine
 
@@ -1311,6 +1312,71 @@ interface IHumanInteractionManager {
 
 ## Usage Examples
 
+### Orchestration Patterns
+
+Use the new orchestration layer based on how much control you need:
+
+- `workflow()` for deterministic sequential/parallel DAGs
+- `AgentGraph` for explicit cycles, retries, and custom routing
+- `mission()` when you know the goal but want the planner to decide the steps
+
+```typescript
+import {
+  AgentGraph,
+  END,
+  START,
+  gmiNode,
+  mission,
+  toolNode,
+  workflow,
+} from '@framers/agentos/orchestration';
+import { z } from 'zod';
+
+// 1. Deterministic DAG: sequential steps with a parallel fan-out/join
+const onboarding = workflow('user-onboarding')
+  .input(z.object({ email: z.string().email() }))
+  .returns(z.object({ userId: z.string() }))
+  .step('validate', { tool: 'email_validator' })
+  .then('create-account', { tool: 'user_service' })
+  .parallel(
+    [
+      { tool: 'send_welcome_email' },
+      { tool: 'provision_default_workspace' },
+    ],
+    {
+      strategy: 'all',
+      merge: { 'scratch.completedTasks': 'concat' },
+    },
+  )
+  .compile();
+
+// 2. Explicit graph: fixed publish pipeline with explicit nodes and edges
+const reviewGraph = new AgentGraph({
+  input: z.object({ topic: z.string() }),
+  scratch: z.object({ draft: z.string().optional() }),
+  artifacts: z.object({ status: z.string().optional(), summary: z.string().optional() }),
+})
+  .addNode('draft', gmiNode({ instructions: 'Draft the release note.', executionMode: 'single_turn' }))
+  .addNode('publish', toolNode('publish_report'))
+  .addEdge(START, 'draft')
+  .addEdge('draft', 'publish')
+  .addEdge('publish', END)
+  .compile();
+
+// 3. Goal-first mission: preview the generated plan before running it
+const researcher = mission('deep-research')
+  .input(z.object({ topic: z.string() }))
+  .goal('Research {{topic}} thoroughly and produce a cited summary')
+  .returns(z.object({ summary: z.string() }))
+  .planner({ strategy: 'plan_and_execute', maxSteps: 8 })
+  .compile();
+
+const preview = await researcher.explain({ topic: 'AI safety' });
+console.log(preview.steps.map((step) => step.id));
+```
+
+For deeper examples, see [`docs/AGENT_GRAPH.md`](docs/AGENT_GRAPH.md), [`docs/WORKFLOW_DSL.md`](docs/WORKFLOW_DSL.md), [`docs/MISSION_API.md`](docs/MISSION_API.md), the runnable examples [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs), and the legacy dependency-ordered example [`examples/multi-agent-workflow.mjs`](./examples/multi-agent-workflow.mjs).
+
 ### Streaming Chat
 
 ```typescript
@@ -1399,37 +1465,76 @@ for await (const chunk of agent.processRequest({
 ### Multi-Agent Collaboration
 
 ```typescript
-import { AgentOS, AgencyRegistry, AgentCommunicationBus } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+import { AgentCommunicationBus } from '@framers/agentos';
 
-const config = await createTestAgentOSConfig();
-
-const researcher = new AgentOS();
-await researcher.initialize(config);
-
-const writer = new AgentOS();
-await writer.initialize(config);
-
-const agency = new AgencyRegistry();
-const bus = new AgentCommunicationBus();
-agency.register('researcher', researcher, { bus });
-agency.register('writer', writer, { bus });
-
-// Agents coordinate via message passing
-bus.on('research:complete', async ({ findings }) => {
-  for await (const chunk of writer.processRequest({
-    userId: 'system',
-    sessionId: 'collab-1',
-    textInput: `Write documentation based on: ${JSON.stringify(findings)}`,
-  })) { /* handle chunks */ }
+const bus = new AgentCommunicationBus({
+  routingConfig: { enableRoleRouting: true, enableLoadBalancing: true },
 });
 
-for await (const chunk of researcher.processRequest({
-  userId: 'system',
-  sessionId: 'collab-1',
-  textInput: 'Analyze the authentication module',
-})) { /* handle chunks */ }
+bus.registerAgent('coordinator-gmi', 'agency-docs', 'coordinator');
+bus.registerAgent('researcher-gmi', 'agency-docs', 'researcher');
+bus.registerAgent('writer-gmi', 'agency-docs', 'writer');
+
+bus.subscribe(
+  'researcher-gmi',
+  async (message) => {
+    if (message.type !== 'question') return;
+    await bus.sendToAgent(message.fromAgentId, {
+      type: 'answer',
+      fromAgentId: 'researcher-gmi',
+      content: { findings: ['auth edge cases', 'missing audit trail', 'weak retry policy'] },
+      inReplyTo: message.messageId,
+      priority: 'normal',
+    });
+  },
+  { messageTypes: ['question'] },
+);
+
+bus.subscribe(
+  'writer-gmi',
+  async (message) => {
+    if (message.type !== 'task_delegation') return;
+    await bus.sendToAgent(message.fromAgentId, {
+      type: 'answer',
+      fromAgentId: 'writer-gmi',
+      content: { accepted: true },
+      inReplyTo: message.messageId,
+      priority: 'normal',
+    });
+  },
+  { messageTypes: ['task_delegation'] },
+);
+
+await bus.sendToRole('agency-docs', 'researcher', {
+  type: 'task_delegation',
+  fromAgentId: 'coordinator-gmi',
+  content: { topic: 'auth module', instructions: 'Find the risky edge cases.' },
+  priority: 'high',
+});
+
+const review = await bus.requestResponse('researcher-gmi', {
+  type: 'question',
+  fromAgentId: 'coordinator-gmi',
+  content: 'What are the top three findings?',
+  priority: 'high',
+  timeoutMs: 30_000,
+});
+
+const handoff = await bus.handoff('researcher-gmi', 'writer-gmi', {
+  taskId: 'auth-audit',
+  taskDescription: 'Turn the findings into a release note draft',
+  progress: 0.8,
+  completedWork: [review.content],
+  remainingWork: ['Write polished summary'],
+  context: { audience: 'engineering' },
+  reason: 'completion',
+  instructions: 'Summarize the findings in concise release-note style.',
+});
+
+console.log(handoff.accepted);
 ```
+
+Runnable example: [`examples/agent-communication-bus.mjs`](./examples/agent-communication-bus.mjs)
 
 ### Human-in-the-Loop Approvals
 

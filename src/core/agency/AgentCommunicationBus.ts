@@ -302,15 +302,35 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
         timeoutId,
       });
 
-      // Send the request message - extract only the fields needed
-      const { messageId: _mid, toAgentId: _tid, sentAt: _sat, ...requestData } = request;
-      this.sendToAgent(targetAgentId, {
-        ...requestData,
-      }).catch((error) => {
-        clearTimeout(timeoutId);
-        this.pendingRequests.delete(messageId);
-        reject(error);
-      });
+      const fullMessage: AgentMessage = {
+        ...request,
+        messageId,
+        toAgentId: targetAgentId,
+        sentAt: new Date(),
+        priority: request.priority ?? 'normal',
+      };
+
+      this.deliverMessage(fullMessage)
+        .then((status) => {
+          if (status.status === 'failed' || status.status === 'expired') {
+            clearTimeout(timeoutId);
+            this.pendingRequests.delete(messageId);
+            resolve({
+              responseId: `res-${uuidv4()}`,
+              requestId: messageId,
+              fromAgentId: targetAgentId,
+              status: 'error',
+              content: null,
+              error: status.failureReason ?? 'Request delivery failed',
+              respondedAt: new Date(),
+            });
+          }
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(messageId);
+          reject(error);
+        });
     });
   }
 
@@ -339,8 +359,6 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
       content: context as unknown as Record<string, unknown>,
       priority: 'high',
       timeoutMs: 60000,
-      messageId: `handoff-${Date.now()}`,
-      sentAt: new Date(),
     });
 
     if (response.status === 'success') {
@@ -663,11 +681,20 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
     this.addToHistory(targetAgentId, message);
     this.addToHistory(message.fromAgentId, message);
 
+    const resolvedPendingRequest = this.resolvePendingRequest(message);
+
     // Find subscriptions for target agent
     const subs = this.subscriptions.get(targetAgentId) ?? [];
     const matchingSubs = subs.filter((sub) => this.matchesSubscription(message, sub.options));
 
     if (matchingSubs.length === 0) {
+      if (resolvedPendingRequest) {
+        this.stats.totalMessagesDelivered++;
+        const status = this.createDeliveredStatus(message.messageId, targetAgentId);
+        this.deliveryStatuses.set(message.messageId, status);
+        return status;
+      }
+
       this.logger?.warn?.('No subscribers for message', { messageId: message.messageId, target: targetAgentId });
       return this.createFailedDelivery(message.messageId, targetAgentId, 'No subscribers');
     }
@@ -689,7 +716,7 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
     const deliveryTime = Date.now() - startTime;
     this.updateAvgDeliveryTime(deliveryTime);
 
-    if (delivered) {
+    if (delivered || resolvedPendingRequest) {
       this.stats.totalMessagesDelivered++;
       const status = this.createDeliveredStatus(message.messageId, targetAgentId);
       this.deliveryStatuses.set(message.messageId, status);
@@ -698,6 +725,43 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
 
     this.stats.totalMessagesFailed++;
     return this.createFailedDelivery(message.messageId, targetAgentId, 'Delivery failed');
+  }
+
+  private resolvePendingRequest(message: AgentMessage): boolean {
+    if (!message.inReplyTo) {
+      return false;
+    }
+
+    if (message.type !== 'answer' && message.type !== 'error') {
+      return false;
+    }
+
+    const pending = this.pendingRequests.get(message.inReplyTo);
+    if (!pending) {
+      return false;
+    }
+
+    clearTimeout(pending.timeoutId);
+    this.pendingRequests.delete(message.inReplyTo);
+
+    let error: string | undefined;
+    if (message.type === 'error') {
+      error = typeof message.content === 'string'
+        ? message.content
+        : (message.content as Record<string, unknown>)?.error as string | undefined;
+    }
+
+    pending.resolve({
+      responseId: `res-${uuidv4()}`,
+      requestId: message.inReplyTo,
+      fromAgentId: message.fromAgentId,
+      status: message.type === 'answer' ? 'success' : 'error',
+      content: message.content,
+      error,
+      respondedAt: new Date(),
+    });
+
+    return true;
   }
 
   private matchesSubscription(message: AgentMessage, options: SubscriptionOptions): boolean {
@@ -776,4 +840,3 @@ export class AgentCommunicationBus implements IAgentCommunicationBus {
     }
   }
 }
-

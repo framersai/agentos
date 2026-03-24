@@ -104,7 +104,7 @@ export interface AgentMessage {
 /**
  * A request expecting a response.
  */
-export interface AgentRequest extends Omit<AgentMessage, 'type'> {
+export interface AgentRequest extends Omit<AgentMessage, 'type' | 'messageId' | 'toAgentId' | 'sentAt'> {
   /** Request type (subset of message types) */
   type: 'question' | 'task_delegation' | 'critique';
   /** Timeout for response in ms */
@@ -590,6 +590,5 @@ export interface IAgentCommunicationBus {
     },
   ): Promise<AgentMessage[]>;
 }
-
 
 

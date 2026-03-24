@@ -231,37 +231,68 @@ describe('AgentCommunicationBus', () => {
   });
 
   describe('request-response', () => {
-    it('should handle request-response pattern', async () => {
+    it('should resolve request-response when the target replies with an answer', async () => {
       bus.subscribe('expert', async (msg) => {
         if (msg.type === 'question') {
-          // Simulate processing and respond
-          // Note: In real use, the expert would call submitResponse or similar
+          await bus.sendToAgent(msg.fromAgentId, {
+            type: 'answer',
+            fromAgentId: 'expert',
+            content: { answer: 'Use the checkpoint store and resume the run.' },
+            inReplyTo: msg.messageId,
+            priority: 'normal',
+          });
         }
       });
 
-      // This will timeout since we don't have the full response mechanism
-      // Testing the timeout behavior
-      const responsePromise = bus.requestResponse('expert', {
+      const response = await bus.requestResponse('expert', {
         type: 'question',
         fromAgentId: 'requester',
         content: 'What is the answer?',
         priority: 'high',
-        timeoutMs: 100, // Short timeout for test
+        timeoutMs: 1000,
       });
 
-      const response = await responsePromise;
+      expect(response.status).toBe('success');
+      expect(response.fromAgentId).toBe('expert');
+      expect(response.content).toEqual({
+        answer: 'Use the checkpoint store and resume the run.',
+      });
+    });
+
+    it('should timeout when no response arrives', async () => {
+      bus.subscribe('expert', async (_msg) => {
+        // Intentionally do nothing.
+      });
+
+      const response = await bus.requestResponse('expert', {
+        type: 'question',
+        fromAgentId: 'requester',
+        content: 'What is the answer?',
+        priority: 'high',
+        timeoutMs: 100,
+      });
+
       expect(response.status).toBe('timeout');
     });
   });
 
   describe('handoff', () => {
-    it('should initiate handoff between agents', async () => {
-      bus.subscribe('new-owner', async () => {
-        // Accept handoff - but we can't respond in this test
+    it('should initiate and accept a handoff between agents', async () => {
+      bus.subscribe('new-owner', async (msg) => {
+        if (msg.type !== 'task_delegation') {
+          return;
+        }
+
+        await bus.sendToAgent(msg.fromAgentId, {
+          type: 'answer',
+          fromAgentId: 'new-owner',
+          content: { accepted: true, taskId: 'task-1' },
+          inReplyTo: msg.messageId,
+          priority: 'normal',
+        });
       });
 
-      // Use a very short timeout for the test
-      const handoffPromise = bus.handoff('current-owner', 'new-owner', {
+      const result = await bus.handoff('current-owner', 'new-owner', {
         taskId: 'task-1',
         taskDescription: 'Data analysis',
         progress: 0.5,
@@ -271,11 +302,9 @@ describe('AgentCommunicationBus', () => {
         reason: 'specialization',
       });
 
-      // The handoff will timeout - we're testing the mechanism, not full flow
-      const result = await handoffPromise;
-      // Since request-response times out, handoff will be rejected
-      expect(result.accepted).toBe(false);
-    }, 70000); // Increase test timeout
+      expect(result.accepted).toBe(true);
+      expect(result.newOwnerId).toBe('new-owner');
+    });
   });
 
   describe('subscription filtering', () => {
@@ -541,4 +570,3 @@ describe('AgentCommunicationBus', () => {
     });
   });
 });
-
