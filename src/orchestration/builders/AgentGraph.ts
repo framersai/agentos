@@ -79,11 +79,11 @@ export class AgentGraph<TState extends GraphState = GraphState> {
   constructor(
     private readonly stateSchema: {
       /** Zod schema for `GraphState.input`. */
-      input: any;   // eslint-disable-line @typescript-eslint/no-explicit-any
+      input: any;
       /** Zod schema for `GraphState.scratch`. */
-      scratch: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      scratch: any;
       /** Zod schema for `GraphState.artifacts`. */
-      artifacts: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      artifacts: any;
     },
     private readonly config?: {
       /** Field-level merge strategies for `scratch` and `artifacts` fields. */

@@ -79,7 +79,7 @@ export class NodeScheduler {
     // Seed the queue with nodes that have no predecessors at all, or whose
     // only predecessors are START (treated as "already satisfied" at t=0).
     const queue: string[] = [];
-    for (const [id, degree] of inDegree) {
+    for (const [id, _degree] of inDegree) {
       // A node is initially ready when all its predecessors are sentinels
       // (START/END) or it has no predecessors.
       const realPredCount = (this.predecessors.get(id) ?? []).filter(

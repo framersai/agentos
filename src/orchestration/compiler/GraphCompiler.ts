@@ -47,11 +47,11 @@ export interface GraphCompilerInput {
    */
   stateSchema: {
     /** Schema for `GraphState.input` — the frozen user-provided input. */
-    input: any;   // eslint-disable-line @typescript-eslint/no-explicit-any
+    input: any;
     /** Schema for `GraphState.scratch` — the node-to-node communication bag. */
-    scratch: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    scratch: any;
     /** Schema for `GraphState.artifacts` — accumulated external outputs. */
-    artifacts: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    artifacts: any;
   };
   /** Field-level reducer configuration passed through to the IR without modification. */
   reducers: StateReducers;

@@ -162,7 +162,7 @@ export class StateManager {
    * @returns New `GraphState` with the merged scratch partition.
    */
   mergeParallelBranches(baseState: GraphState, branchStates: GraphState[]): GraphState {
-    let merged = { ...(baseState.scratch as any) };
+    const merged = { ...(baseState.scratch as any) };
 
     for (const branch of branchStates) {
       const branchScratch = branch.scratch as any;

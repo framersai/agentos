@@ -37,7 +37,6 @@ import type { ZodType } from 'zod';
  */
 export function lowerZodToJsonSchema(schema: ZodType): Record<string, unknown> {
   // Access Zod v4 internals via `_def`; the top-level `_def.type` is the discriminant.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const def = (schema as any)._def as Record<string, unknown> | undefined;
   if (!def) return {};
 
@@ -82,7 +81,6 @@ export function lowerZodToJsonSchema(schema: ZodType): Record<string, unknown> {
         properties[key] = lowerZodToJsonSchema(fieldSchema);
 
         // A field is required unless its outermost wrapper is optional or has a default.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fieldType = ((fieldSchema as any)._def as Record<string, unknown> | undefined)?.type as string | undefined;
         if (fieldType !== 'optional' && fieldType !== 'default') {
           required.push(key);
