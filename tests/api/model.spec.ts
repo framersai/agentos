@@ -1,6 +1,6 @@
 // packages/agentos/tests/api/model.spec.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { parseModelString, resolveProvider } from '../src/api/model.js';
+import { parseModelString, resolveProvider } from '../../src/api/model.js';
 
 describe('parseModelString', () => {
   it('parses openai:gpt-4o', () => {

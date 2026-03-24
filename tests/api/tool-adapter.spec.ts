@@ -1,6 +1,6 @@
 // packages/agentos/tests/api/tool-adapter.spec.ts
 import { describe, it, expect } from 'vitest';
-import { adaptTools, type ToolDefinition } from '../src/api/tool-adapter.js';
+import { adaptTools, type ToolDefinition } from '../../src/api/toolAdapter.js';
 
 describe('adaptTools', () => {
   it('adapts JSON Schema tool', () => {
