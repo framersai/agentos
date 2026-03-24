@@ -155,6 +155,21 @@ export class MemoryStore {
     });
     const embedding = embeddingResponse.embeddings[0];
 
+    try {
+      const exists = this.config.vectorStore.collectionExists
+        ? await this.config.vectorStore.collectionExists(collection)
+        : true;
+      if (!exists) {
+        await this.config.vectorStore.createCollection?.(
+          collection,
+          this.config.embeddingDimension ?? embedding.length,
+          { overwriteIfExists: false },
+        );
+      }
+    } catch {
+      // Some providers auto-create collections or do not expose existence checks reliably.
+    }
+
     // Upsert into vector store
     const doc: VectorDocument = {
       id: trace.id,
@@ -394,6 +409,34 @@ export class MemoryStore {
       if (trace.isActive) count++;
     }
     return count;
+  }
+
+  /**
+   * List cached traces for diagnostics and tooling.
+   */
+  listTraces(options?: {
+    activeOnly?: boolean;
+    type?: MemoryType;
+    scope?: MemoryScope;
+    scopeId?: string;
+  }): MemoryTrace[] {
+    const traces: MemoryTrace[] = [];
+    for (const trace of this.traceCache.values()) {
+      if (options?.activeOnly && !trace.isActive) {
+        continue;
+      }
+      if (options?.type && trace.type !== options.type) {
+        continue;
+      }
+      if (options?.scope && trace.scope !== options.scope) {
+        continue;
+      }
+      if (options?.scopeId && trace.scopeId !== options.scopeId) {
+        continue;
+      }
+      traces.push({ ...trace });
+    }
+    return traces.sort((a, b) => b.createdAt - a.createdAt);
   }
 
   private registerScope(scope: MemoryScope, scopeId: string): void {

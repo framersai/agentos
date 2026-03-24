@@ -131,6 +131,30 @@ export interface ICognitiveMemoryManager {
   /** Get memory health diagnostics. */
   getMemoryHealth(): Promise<MemoryHealthReport>;
 
+  /** Access the underlying long-term memory store for diagnostics/devtools. */
+  getStore(): MemoryStore;
+
+  /** Access the working-memory model for diagnostics/devtools. */
+  getWorkingMemory(): CognitiveWorkingMemory;
+
+  /** Get the resolved cognitive-memory runtime config. */
+  getConfig(): CognitiveMemoryConfig;
+
+  /** Get graph module when enabled. */
+  getGraph(): IMemoryGraph | null;
+
+  /** Get observer module when enabled. */
+  getObserver(): MemoryObserver | null;
+
+  /** Get prospective-memory manager when enabled. */
+  getProspective(): ProspectiveMemoryManager | null;
+
+  /** Get infinite-context runtime stats when enabled. */
+  getContextWindowStats(): ContextWindowStats | null;
+
+  /** Get a human-readable compaction/transparency report when enabled. */
+  getContextTransparencyReport(): string | null;
+
   /** Shutdown and release resources. */
   shutdown(): Promise<void>;
 }
