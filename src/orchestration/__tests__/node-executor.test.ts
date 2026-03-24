@@ -204,4 +204,171 @@ describe('NodeExecutor', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe('No ToolOrchestrator configured');
   });
+
+  // -------------------------------------------------------------------------
+  // Test 7 — GMI node with mock LoopController accumulates text
+  // -------------------------------------------------------------------------
+
+  it('executes a gmi node with LoopController and returns accumulated text', async () => {
+    const mockLoopController = {
+      async *execute(_config: unknown, context: { generateStream: () => AsyncGenerator<unknown, unknown, undefined> }) {
+        const gen = context.generateStream();
+        while (true) {
+          const { value, done } = await gen.next();
+          if (done) break;
+          const chunk = value as { type: string; content?: string };
+          if (chunk.type === 'text_delta' && chunk.content) {
+            yield { type: 'text_delta' as const, content: chunk.content };
+          }
+        }
+        yield { type: 'loop_complete' as const, totalIterations: 1 };
+      },
+    };
+
+    async function* mockProviderCall() {
+      yield { type: 'text_delta' as const, content: 'Hello ' };
+      yield { type: 'text_delta' as const, content: 'World' };
+      return { responseText: 'Hello World', toolCalls: [], finishReason: 'stop' };
+    }
+
+    const executor = new NodeExecutor({
+      loopController: mockLoopController as any,
+      providerCall: () => mockProviderCall(),
+    });
+
+    const node: GraphNode = {
+      id: 'node-gmi',
+      type: 'gmi',
+      executorConfig: { type: 'gmi', instructions: 'Say hello' },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const result = await executor.execute(node, emptyState);
+    expect(result.success).toBe(true);
+    expect(result.output).toBe('Hello World');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 8 — Subgraph node with mock resolver invokes recursively
+  // -------------------------------------------------------------------------
+
+  it('executes a subgraph node by delegating to a child runtime', async () => {
+    const childGraph = {
+      id: 'child-graph',
+      name: 'child',
+      nodes: [],
+      edges: [],
+      stateSchema: { input: {}, scratch: {}, artifacts: {} },
+      reducers: {},
+      checkpointPolicy: 'none' as const,
+      memoryConsistency: 'live' as const,
+    };
+
+    const mockRuntime = {
+      invoke: vi.fn().mockResolvedValue({ answer: 42 }),
+    };
+
+    const executor = new NodeExecutor({
+      subgraphResolver: (id: string) => id === 'child-graph' ? childGraph : undefined,
+      createSubgraphRuntime: () => mockRuntime,
+    });
+
+    const node: GraphNode = {
+      id: 'node-subgraph',
+      type: 'subgraph',
+      executorConfig: {
+        type: 'subgraph',
+        graphId: 'child-graph',
+        inputMapping: { 'query': 'q' },
+        outputMapping: { 'answer': 'result' },
+      },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const state: Partial<GraphState> = { scratch: { query: 'hello' } } as any;
+    const result = await executor.execute(node, state);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toEqual({ answer: 42 });
+    expect(result.scratchUpdate).toEqual({ result: 42 });
+    expect(mockRuntime.invoke).toHaveBeenCalledWith(childGraph, { q: 'hello' });
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 9 — Expression evaluator: scratch.x > 5
+  // -------------------------------------------------------------------------
+
+  it('evaluates expression "scratch.x > 5 ? \'yes\' : \'no\'" correctly', async () => {
+    const executor = new NodeExecutor({});
+    const node: GraphNode = {
+      id: 'node-expr',
+      type: 'router',
+      executorConfig: {
+        type: 'router',
+        condition: { type: 'expression', expr: "scratch.x > 5 ? 'yes' : 'no'" },
+      },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const state: Partial<GraphState> = { scratch: { x: 10 } } as any;
+    const result = await executor.execute(node, state);
+
+    expect(result.success).toBe(true);
+    expect(result.routeTarget).toBe('yes');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 10 — Expression evaluator: scratch.name == 'pro'
+  // -------------------------------------------------------------------------
+
+  it('evaluates expression "scratch.name == \'pro\' ? \'a\' : \'b\'" correctly', async () => {
+    const executor = new NodeExecutor({});
+    const node: GraphNode = {
+      id: 'node-expr2',
+      type: 'router',
+      executorConfig: {
+        type: 'router',
+        condition: { type: 'expression', expr: "scratch.name == 'pro' ? 'a' : 'b'" },
+      },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const state: Partial<GraphState> = { scratch: { name: 'pro' } } as any;
+    const result = await executor.execute(node, state);
+
+    expect(result.success).toBe(true);
+    expect(result.routeTarget).toBe('a');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 11 — Expression evaluator returns 'false' on invalid expression
+  // -------------------------------------------------------------------------
+
+  it('returns "false" when expression evaluation fails', async () => {
+    const executor = new NodeExecutor({});
+    const node: GraphNode = {
+      id: 'node-expr-bad',
+      type: 'router',
+      executorConfig: {
+        type: 'router',
+        condition: { type: 'expression', expr: '{{invalid syntax' },
+      },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const result = await executor.execute(node, emptyState);
+
+    expect(result.success).toBe(true);
+    expect(result.routeTarget).toBe('false');
+  });
 });

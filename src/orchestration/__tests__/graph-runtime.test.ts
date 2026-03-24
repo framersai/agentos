@@ -444,4 +444,241 @@ describe('GraphRuntime', () => {
     expect(executedNodeIds).toContain('b');
     expect(executedNodeIds).not.toContain('c');
   });
+
+  // ── 9. Personality edge routes to 'below' when trait < threshold ──────────
+
+  it('routes to below branch when personality trait is below threshold', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockResolvedValue({
+      success: true,
+      output: 'done',
+    } satisfies NodeExecutionResult);
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      personaTraits: { openness: 0.3 },
+    });
+
+    const nodeA = makeNode('a');
+    const nodeB = makeNode('b');
+    const nodeC = makeNode('c');
+
+    const graph: CompiledExecutionGraph = {
+      id: 'g-personality-below',
+      name: 'personality-below-test',
+      nodes: [nodeA, nodeB, nodeC],
+      edges: [
+        { id: 'e0', source: START, target: 'a', type: 'static' },
+        {
+          id: 'e1',
+          source: 'a',
+          target: 'b',
+          type: 'personality',
+          personalityCondition: { trait: 'openness', threshold: 0.5, above: 'b', below: 'c' },
+        },
+        {
+          id: 'e1b',
+          source: 'a',
+          target: 'c',
+          type: 'personality',
+          personalityCondition: { trait: 'openness', threshold: 0.5, above: 'b', below: 'c' },
+        },
+        { id: 'e2', source: 'b', target: END, type: 'static' },
+        { id: 'e3', source: 'c', target: END, type: 'static' },
+      ],
+      stateSchema: { input: {}, scratch: {}, artifacts: {} },
+      reducers: {},
+      checkpointPolicy: 'explicit',
+      memoryConsistency: 'live',
+    };
+
+    const visitedIds: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      if (event.type === 'node_start') visitedIds.push(event.nodeId);
+    }
+
+    expect(visitedIds).toContain('a');
+    expect(visitedIds).toContain('c');
+    expect(visitedIds).not.toContain('b');
+  });
+
+  // ── 10. Personality edge routes to 'above' when trait >= threshold ─────────
+
+  it('routes to above branch when personality trait is at or above threshold', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockResolvedValue({
+      success: true,
+      output: 'done',
+    } satisfies NodeExecutionResult);
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      personaTraits: { openness: 0.7 },
+    });
+
+    const nodeA = makeNode('a');
+    const nodeB = makeNode('b');
+    const nodeC = makeNode('c');
+
+    const graph: CompiledExecutionGraph = {
+      id: 'g-personality-above',
+      name: 'personality-above-test',
+      nodes: [nodeA, nodeB, nodeC],
+      edges: [
+        { id: 'e0', source: START, target: 'a', type: 'static' },
+        {
+          id: 'e1',
+          source: 'a',
+          target: 'b',
+          type: 'personality',
+          personalityCondition: { trait: 'openness', threshold: 0.5, above: 'b', below: 'c' },
+        },
+        {
+          id: 'e1b',
+          source: 'a',
+          target: 'c',
+          type: 'personality',
+          personalityCondition: { trait: 'openness', threshold: 0.5, above: 'b', below: 'c' },
+        },
+        { id: 'e2', source: 'b', target: END, type: 'static' },
+        { id: 'e3', source: 'c', target: END, type: 'static' },
+      ],
+      stateSchema: { input: {}, scratch: {}, artifacts: {} },
+      reducers: {},
+      checkpointPolicy: 'explicit',
+      memoryConsistency: 'live',
+    };
+
+    const visitedIds: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      if (event.type === 'node_start') visitedIds.push(event.nodeId);
+    }
+
+    expect(visitedIds).toContain('a');
+    expect(visitedIds).toContain('b');
+    expect(visitedIds).not.toContain('c');
+  });
+
+  // ── 11. Discovery edge calls discoveryEngine.discover() ───────────────────
+
+  it('calls discoveryEngine.discover() for discovery edges', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockResolvedValue({
+      success: true,
+      output: 'done',
+    } satisfies NodeExecutionResult);
+
+    const discoverMock = vi.fn().mockResolvedValue({
+      results: [{ id: 'found-tool', name: 'found-tool' }],
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      discoveryEngine: { discover: discoverMock },
+    });
+
+    const nodeA = makeNode('a');
+    const nodeB = makeNode('b');
+
+    const graph: CompiledExecutionGraph = {
+      id: 'g-discovery',
+      name: 'discovery-test',
+      nodes: [nodeA, nodeB],
+      edges: [
+        { id: 'e0', source: START, target: 'a', type: 'static' },
+        {
+          id: 'e1',
+          source: 'a',
+          target: 'b',
+          type: 'discovery',
+          discoveryQuery: 'find a summarizer',
+          discoveryFallback: 'b',
+        },
+        { id: 'e2', source: 'b', target: END, type: 'static' },
+      ],
+      stateSchema: { input: {}, scratch: {}, artifacts: {} },
+      reducers: {},
+      checkpointPolicy: 'explicit',
+      memoryConsistency: 'live',
+    };
+
+    await runtime.invoke(graph, {});
+    expect(discoverMock).toHaveBeenCalledWith('find a summarizer', { kind: undefined });
+  });
+
+  // ── 12. Retry policy retries on failure then succeeds ─────────────────────
+
+  it('retries a failing node and succeeds on a subsequent attempt', async () => {
+    const store = new InMemoryCheckpointStore();
+    let callCount = 0;
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') {
+        callCount++;
+        if (callCount < 3) return { success: false, error: 'transient' };
+        return { success: true, output: 'recovered' };
+      }
+      return { success: true, output: `${node.id}-done` };
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const nodeA: GraphNode = {
+      ...makeNode('a'),
+      retryPolicy: { maxAttempts: 3, backoff: 'fixed', backoffMs: 1 },
+    };
+
+    const graph = makeLinearGraph('g-retry-success', [nodeA, makeNode('b')]);
+    const events: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      events.push(event.type);
+    }
+
+    // Node 'a' should have been called 3 times (2 failures + 1 success).
+    expect(callCount).toBe(3);
+    // The run should complete successfully (no error event).
+    expect(events).not.toContain('error');
+    expect(events[events.length - 1]).toBe('run_end');
+    // Node 'b' should have run.
+    expect(executeMock.mock.calls.some(([n]: [GraphNode]) => n.id === 'b')).toBe(true);
+  });
+
+  // ── 13. Retry policy exhausts retries then fails ──────────────────────────
+
+  it('exhausts retry attempts and then fails the run', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') return { success: false, error: 'permanent' };
+      return { success: true, output: `${node.id}-done` };
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const nodeA: GraphNode = {
+      ...makeNode('a'),
+      retryPolicy: { maxAttempts: 2, backoff: 'fixed', backoffMs: 1 },
+    };
+
+    const graph = makeLinearGraph('g-retry-fail', [nodeA, makeNode('b')]);
+    const events: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      events.push(event.type);
+    }
+
+    // Node 'a' should have been called 2 times total (initial + 1 retry).
+    const aCalls = executeMock.mock.calls.filter(([n]: [GraphNode]) => n.id === 'a');
+    expect(aCalls).toHaveLength(2);
+    // Run should end with error.
+    expect(events).toContain('error');
+    // Node 'b' should NOT have run.
+    expect(executeMock.mock.calls.some(([n]: [GraphNode]) => n.id === 'b')).toBe(false);
+  });
 });

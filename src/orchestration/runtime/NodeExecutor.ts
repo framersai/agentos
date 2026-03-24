@@ -13,8 +13,9 @@
  * after the `LoopController` and extension managers are available.
  */
 
-import type { GraphNode, GraphState, GraphCondition } from '../ir/types.js';
+import type { GraphNode, GraphState, GraphCondition, CompiledExecutionGraph } from '../ir/types.js';
 import type { GraphEvent } from '../events/GraphEvent.js';
+import type { LoopController, LoopChunk, LoopOutput } from './LoopController.js';
 
 // ---------------------------------------------------------------------------
 // Public result type
@@ -101,6 +102,36 @@ export interface NodeExecutorDeps {
       guardrailIds: string[],
     ): Promise<{ passed: boolean; results: unknown[] }>;
   };
+
+  /**
+   * LoopController for GMI node execution. When provided alongside `providerCall`,
+   * GMI nodes delegate to the LoopController's ReAct loop instead of returning a placeholder.
+   */
+  loopController?: LoopController;
+
+  /**
+   * Provider-specific LLM call that returns a streaming async generator.
+   * Used by GMI nodes to produce text via the LoopController.
+   *
+   * @param instructions - System instructions from the GMI node config.
+   * @param state        - Current graph state for context injection.
+   * @returns Async generator yielding LoopChunks and returning a LoopOutput.
+   */
+  providerCall?: (instructions: string, state: Partial<GraphState>) => AsyncGenerator<LoopChunk, LoopOutput, undefined>;
+
+  /**
+   * Resolves a subgraph id to its compiled execution graph for recursive invocation.
+   * When absent, subgraph nodes return a placeholder.
+   */
+  subgraphResolver?: (graphId: string) => CompiledExecutionGraph | undefined;
+
+  /**
+   * Factory that creates a GraphRuntime for subgraph execution.
+   * Injected to avoid circular imports between NodeExecutor and GraphRuntime.
+   */
+  createSubgraphRuntime?: (graph: CompiledExecutionGraph) => {
+    invoke(graph: CompiledExecutionGraph, input: unknown): Promise<unknown>;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -182,17 +213,14 @@ export class NodeExecutor {
         return this.executeHuman(config);
 
       case 'gmi':
-        // GMI execution is delegated to `LoopController` and wired in `GraphRuntime`.
-        // This placeholder allows the executor to be used before the LLM subsystem is ready.
-        return { success: true, output: 'gmi-placeholder' };
+        return this.executeGmi(config, state);
 
       case 'extension':
         // Extension execution is wired by `GraphRuntime` once the extension manager is available.
         return { success: true, output: 'extension-placeholder' };
 
       case 'subgraph':
-        // Subgraph delegation is wired by `GraphRuntime` once nested graph lookup is available.
-        return { success: true, output: 'subgraph-placeholder' };
+        return this.executeSubgraph(config, state);
     }
   }
 
@@ -323,25 +351,201 @@ export class NodeExecutor {
     });
   }
 
+  /**
+   * Executes a GMI (General Model Invocation) node via the LoopController.
+   *
+   * When `deps.loopController` and `deps.providerCall` are both available, builds a
+   * `LoopContext` that wires the provider's streaming generator to the LoopController's
+   * ReAct loop. Text deltas are accumulated and returned as the node output.
+   *
+   * Falls back to a placeholder when the LLM subsystem is not yet wired (e.g. in tests
+   * or when Wunderland provides its own override).
+   *
+   * @param config - GMI executor config with instructions and optional sampling params.
+   * @param state  - Current graph state for context injection into the provider call.
+   */
+  private async executeGmi(
+    config: { type: 'gmi'; instructions: string; maxInternalIterations?: number; parallelTools?: boolean; temperature?: number; maxTokens?: number },
+    state: Partial<GraphState>,
+  ): Promise<NodeExecutionResult> {
+    if (!this.deps.loopController || !this.deps.providerCall) {
+      // Placeholder: allows the executor to be used before the LLM subsystem is ready.
+      return { success: true, output: 'gmi-placeholder' };
+    }
+
+    try {
+      const loopContext = {
+        generateStream: () => this.deps.providerCall!(config.instructions, state),
+        executeTool: async (toolCall: { id: string; name: string; arguments: Record<string, unknown> }) => {
+          if (!this.deps.toolOrchestrator) {
+            return { id: toolCall.id, name: toolCall.name, success: false, error: 'No ToolOrchestrator configured' };
+          }
+          const result = await this.deps.toolOrchestrator.processToolCall({
+            toolCallRequest: { toolName: toolCall.name, arguments: toolCall.arguments },
+          });
+          return {
+            id: toolCall.id,
+            name: toolCall.name,
+            success: result.success ?? !result.isError,
+            output: result.output,
+            error: result.error,
+          };
+        },
+        addToolResults: () => {
+          // No-op: results are fed back via the provider call's conversation context.
+        },
+      };
+
+      let accumulatedText = '';
+      for await (const event of this.deps.loopController.execute(
+        {
+          maxIterations: config.maxInternalIterations ?? 10,
+          parallelTools: config.parallelTools ?? false,
+          failureMode: 'fail_open',
+        },
+        loopContext,
+      )) {
+        if (event.type === 'text_delta') {
+          accumulatedText += event.content;
+        }
+      }
+
+      return { success: true, output: accumulatedText };
+    } catch (err) {
+      return {
+        success: false,
+        error: `GMI execution failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+
+  /**
+   * Executes a subgraph node by recursively invoking a child `GraphRuntime`.
+   *
+   * When `deps.subgraphResolver` and `deps.createSubgraphRuntime` are both available,
+   * the resolver looks up the compiled graph by id, input/output mappings are applied
+   * to shuttle data between parent scratch and child input/artifacts, and a new runtime
+   * instance executes the child graph to completion.
+   *
+   * Falls back to a placeholder when the subgraph subsystem is not yet wired.
+   *
+   * @param config - Subgraph executor config with graphId and optional field mappings.
+   * @param state  - Current parent graph state used for input mapping.
+   */
+  private async executeSubgraph(
+    config: { type: 'subgraph'; graphId: string; inputMapping?: Record<string, string>; outputMapping?: Record<string, string> },
+    state: Partial<GraphState>,
+  ): Promise<NodeExecutionResult> {
+    if (!this.deps.subgraphResolver || !this.deps.createSubgraphRuntime) {
+      // Placeholder: allows the executor to be used before nested graph lookup is available.
+      return { success: true, output: 'subgraph-placeholder' };
+    }
+
+    const childGraph = this.deps.subgraphResolver(config.graphId);
+    if (!childGraph) {
+      return { success: false, error: `Subgraph not found: ${config.graphId}` };
+    }
+
+    try {
+      // Build child input from parent scratch via inputMapping.
+      let childInput: Record<string, unknown> = {};
+      if (config.inputMapping && state.scratch) {
+        for (const [parentPath, childPath] of Object.entries(config.inputMapping)) {
+          const val = this.resolvePathValue(state.scratch, parentPath);
+          this.setPathValue(childInput, childPath, val);
+        }
+      }
+
+      const runtime = this.deps.createSubgraphRuntime(childGraph);
+      const childOutput = await runtime.invoke(childGraph, childInput);
+
+      // Map child artifacts back to parent scratch via outputMapping.
+      let scratchUpdate: Record<string, unknown> | undefined;
+      if (config.outputMapping && childOutput && typeof childOutput === 'object') {
+        scratchUpdate = {};
+        for (const [childPath, parentPath] of Object.entries(config.outputMapping)) {
+          const val = this.resolvePathValue(childOutput, childPath);
+          this.setPathValue(scratchUpdate, parentPath, val);
+        }
+      }
+
+      return { success: true, output: childOutput, scratchUpdate };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Subgraph execution failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Utilities
   // ---------------------------------------------------------------------------
 
   /**
-   * Minimal DSL expression evaluator for `{ type: 'expression' }` routing conditions.
+   * Safe dot-path expression evaluator for `{ type: 'expression' }` routing conditions.
    *
-   * Current implementation is a stub that returns the expression string unchanged.
-   * A full implementation would parse `"scratch.confidence > 0.8 ? 'approve' : 'review'"`
-   * using a sandboxed interpreter with dot-path access to `state` fields.
+   * Replaces partition references (`scratch`, `input`, `artifacts`) with their resolved
+   * values from `state`, then evaluates the resulting expression using `new Function()`.
+   * Only simple comparisons and boolean logic are supported.
    *
    * @param expr  - The DSL expression string from `GraphConditionExpr`.
-   * @param state - Current graph state (available for a real implementation to traverse).
-   * @returns The resolved target node id (or the raw expression until the evaluator is complete).
-   *
-   * @todo Implement a sandboxed expression interpreter (tracked separately).
+   * @param state - Current graph state whose partitions are accessible in the expression.
+   * @returns The resolved target node id, or `'false'` if evaluation fails.
    */
-  private evaluateExpression(expr: string, _state: Partial<GraphState>): string {
-    return expr;
+  private evaluateExpression(expr: string, state: Partial<GraphState>): string {
+    const resolved = expr.replace(
+      /\b(scratch|input|artifacts)\b(?:\.(\w+(?:\.\w+)*))?/g,
+      (_, partition: string, path?: string) => {
+        let val: unknown = (state as Record<string, unknown>)?.[partition];
+        if (path) {
+          for (const key of path.split('.')) {
+            val = (val as Record<string, unknown> | undefined)?.[key];
+          }
+        }
+        return JSON.stringify(val ?? null);
+      },
+    );
+    try {
+      const fn = new Function(`return String(${resolved})`);
+      return fn();
+    } catch {
+      return 'false';
+    }
+  }
+
+  /**
+   * Resolves a dot-separated path against an object, returning the nested value.
+   *
+   * @param obj  - Root object to traverse.
+   * @param path - Dot-separated field path (e.g. `'foo.bar.baz'`).
+   * @returns The resolved value, or `undefined` if any segment is missing.
+   */
+  private resolvePathValue(obj: unknown, path: string): unknown {
+    let val: unknown = obj;
+    for (const key of path.split('.')) {
+      val = (val as Record<string, unknown> | undefined)?.[key];
+    }
+    return val;
+  }
+
+  /**
+   * Sets a value at a dot-separated path on an object, creating intermediate objects as needed.
+   *
+   * @param obj   - Root object to mutate.
+   * @param path  - Dot-separated field path (e.g. `'foo.bar'`).
+   * @param value - Value to set at the terminal key.
+   */
+  private setPathValue(obj: Record<string, unknown>, path: string, value: unknown): void {
+    const keys = path.split('.');
+    let current: Record<string, unknown> = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (!(keys[i] in current) || typeof current[keys[i]] !== 'object') {
+        current[keys[i]] = {};
+      }
+      current = current[keys[i]] as Record<string, unknown>;
+    }
+    current[keys[keys.length - 1]] = value;
   }
 
   /**

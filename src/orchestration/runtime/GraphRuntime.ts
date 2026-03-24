@@ -41,6 +41,20 @@ export interface GraphRuntimeConfig {
   checkpointStore: ICheckpointStore;
   /** Dispatcher that executes individual `GraphNode` instances. */
   nodeExecutor: NodeExecutor;
+  /**
+   * Optional discovery engine for `discovery`-type edge routing.
+   * When present and an edge has a `discoveryQuery`, the engine is called to
+   * resolve the target dynamically. Falls back to `discoveryFallback` when absent.
+   */
+  discoveryEngine?: {
+    discover(query: string, options?: unknown): Promise<{ results?: Array<{ id?: string; name?: string }> }>;
+  };
+  /**
+   * Optional persona trait values for `personality`-type edge routing.
+   * Keys are trait names (e.g. `'openness'`), values are 0–1 floats.
+   * When absent, traits are read from `state.scratch._personaTraits` or default to 0.5.
+   */
+  personaTraits?: Record<string, number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,9 +166,26 @@ export class GraphRuntime {
         yield { type: 'node_start', nodeId, state: { input: state.input, scratch: state.scratch } };
         const nodeStart = Date.now();
 
-        // ── Execute ───────────────────────────────────────────────────────────
-        const result = await this.config.nodeExecutor.execute(node, state);
-        const durationMs = Date.now() - nodeStart;
+        // ── Execute (with retry) ─────────────────────────────────────────────
+        let result = await this.config.nodeExecutor.execute(node, state);
+        let durationMs = Date.now() - nodeStart;
+
+        // Retry loop: when a retry policy is configured and the node fails,
+        // re-attempt up to maxAttempts times with backoff between attempts.
+        if (!result.success && !result.interrupt && node.retryPolicy) {
+          const policy = node.retryPolicy;
+          let attempt = 1; // first attempt already happened above
+          while (!result.success && attempt < policy.maxAttempts) {
+            attempt++;
+            const backoffMs = calculateBackoff(policy, attempt);
+            await sleep(backoffMs);
+
+            yield { type: 'node_start', nodeId, state: { input: state.input, scratch: state.scratch } };
+            const retryStart = Date.now();
+            result = await this.config.nodeExecutor.execute(node, state);
+            durationMs = Date.now() - retryStart;
+          }
+        }
 
         nodeResults[nodeId] = {
           effectClass: node.effectClass,
@@ -232,7 +263,7 @@ export class GraphRuntime {
 
         // ── Edge routing ──────────────────────────────────────────────────────
         const outEdges = graph.edges.filter(e => e.source === nodeId);
-        const targets = this.evaluateEdges(outEdges, state, result);
+        const targets = await this.evaluateEdges(outEdges, state, result);
 
         // Any conditional-edge target that was NOT selected is marked as skipped
         // so downstream nodes that depend only on the skipped branch do not block.
@@ -454,7 +485,7 @@ export class GraphRuntime {
 
         // Evaluate outgoing edges for the resumed node.
         const outEdges = graph.edges.filter(e => e.source === nodeId);
-        const targets = this.evaluateEdges(outEdges, state, result);
+        const targets = await this.evaluateEdges(outEdges, state, result);
 
         for (const edge of outEdges) {
           if (edge.type === 'conditional' || edge.type === 'personality') {
@@ -499,11 +530,11 @@ export class GraphRuntime {
    * @param result - Execution result; `routeTarget` takes precedence when present.
    * @returns Ordered array of target node ids (may include `END`).
    */
-  private evaluateEdges(
+  private async evaluateEdges(
     edges: GraphEdge[],
     state: GraphState,
     result: NodeExecutionResult,
-  ): string[] {
+  ): Promise<string[]> {
     // Router / guardrail nodes return an explicit target that takes precedence.
     if (result.routeTarget) {
       return [result.routeTarget];
@@ -540,15 +571,36 @@ export class GraphRuntime {
 
         case 'personality':
           if (edge.personalityCondition) {
-            // Stub: always route to the 'above' branch until personality integration lands.
-            targets.push(edge.personalityCondition.above);
+            const { trait, threshold, above, below } = edge.personalityCondition;
+            // Resolve trait value: config > scratch._personaTraits > default 0.5
+            const traitValue =
+              this.config.personaTraits?.[trait]
+                ?? ((state.scratch as Record<string, unknown> | undefined)?._personaTraits as Record<string, number> | undefined)?.[trait]
+                ?? 0.5;
+            targets.push(traitValue >= threshold ? above : below);
           }
           break;
 
-        case 'discovery':
-          // Stub: fall back to the declared fallback target until discovery is wired.
+        case 'discovery': {
+          // Attempt dynamic discovery when an engine and query are available.
+          if (this.config.discoveryEngine && edge.discoveryQuery) {
+            try {
+              const discoveryResult = await this.config.discoveryEngine.discover(edge.discoveryQuery, {
+                kind: edge.discoveryKind,
+              });
+              const topResult = discoveryResult?.results?.[0];
+              if (topResult && (topResult.id || topResult.name)) {
+                targets.push(edge.target);
+                break;
+              }
+            } catch {
+              // Fall through to fallback on discovery error.
+            }
+          }
+          // Fallback when no engine, no query, no results, or error.
           if (edge.discoveryFallback) targets.push(edge.discoveryFallback);
           break;
+        }
       }
     }
 
@@ -621,4 +673,35 @@ export class GraphRuntime {
       .filter((edge) => edge.target !== END && targets.includes(edge.target))
       .map((edge) => edge.id);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Module-level helpers
+// ---------------------------------------------------------------------------
+
+import type { RetryPolicy } from '../ir/types.js';
+
+/**
+ * Calculate the backoff delay in milliseconds for a given retry attempt.
+ *
+ * @param policy  - The retry policy with backoff strategy and base duration.
+ * @param attempt - The current attempt number (1-indexed; attempt 2 is the first retry).
+ * @returns Delay in milliseconds before the next attempt.
+ */
+function calculateBackoff(policy: RetryPolicy, attempt: number): number {
+  switch (policy.backoff) {
+    case 'fixed': return policy.backoffMs;
+    case 'linear': return policy.backoffMs * attempt;
+    case 'exponential': return policy.backoffMs * Math.pow(2, attempt - 1);
+    default: return policy.backoffMs;
+  }
+}
+
+/**
+ * Promise-based sleep utility for retry backoff delays.
+ *
+ * @param ms - Duration in milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
