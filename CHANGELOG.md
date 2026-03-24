@@ -1,3 +1,8 @@
+## <small>0.1.75 (2026-03-24)</small>
+
+* feat(orchestration): add judgeNode builder for LLM-as-judge evaluation ([3e176cc](https://github.com/framersai/agentos/commit/3e176cc))
+* test(voice-pipeline): add full conversational loop integration test ([6c79487](https://github.com/framersai/agentos/commit/6c79487))
+
 ## <small>0.1.74 (2026-03-24)</small>
 
 * docs: add voice pipeline architecture and configuration guide ([99dfabd](https://github.com/framersai/agentos/commit/99dfabd))
