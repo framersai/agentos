@@ -1,3 +1,7 @@
+## <small>0.1.81 (2026-03-24)</small>
+
+* fix(ci): skip docs-alignment tests when cross-repo files are unavailable ([36a5d46](https://github.com/framersai/agentos/commit/36a5d46))
+
 ## <small>0.1.80 (2026-03-24)</small>
 
 * feat(orchestration): implement real gmi/subgraph execution, expression eval, discovery/personality r ([cdd908c](https://github.com/framersai/agentos/commit/cdd908c))
