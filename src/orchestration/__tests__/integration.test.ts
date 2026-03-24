@@ -12,7 +12,7 @@
  * 3. mission: compile → invoke lifecycle
  * 4. Checkpoint time-travel: fork with modified state
  * 5. Streaming emits correct event sequence
- * 6. Error handling: node failure with graceful continuation
+ * 6. Error handling: node failure halts the run with explicit error events
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -160,15 +160,14 @@ describe('E2E Integration — AgentGraph lifecycle', () => {
       scratch: z.object({}),
       artifacts: z.object({ answer: z.string().optional() }),
     })
-      .addNode('step1', toolNode('search'))
-      .addNode('step2', toolNode('summarize'))
+      .addNode('step1', gmiNode({ instructions: 'Search for the answer.' }))
+      .addNode('step2', gmiNode({ instructions: 'Summarize the answer.' }))
       .addEdge(START, 'step1')
       .addEdge('step1', 'step2')
       .addEdge('step2', END)
       .compile();
 
     const result = await graph.invoke({ query: 'test' });
-    // Default NodeExecutor returns a stub — result should be defined (empty artifacts object)
     expect(result).toBeDefined();
   });
 
@@ -178,8 +177,8 @@ describe('E2E Integration — AgentGraph lifecycle', () => {
       scratch: z.object({}),
       artifacts: z.object({}),
     })
-      .addNode('a', toolNode('tool_a'))
-      .addNode('b', toolNode('tool_b'))
+      .addNode('a', gmiNode({ instructions: 'Step A' }))
+      .addNode('b', gmiNode({ instructions: 'Step B' }))
       .addEdge(START, 'a')
       .addEdge('a', 'b')
       .addEdge('b', END)
@@ -469,7 +468,7 @@ describe('E2E Integration — streaming event sequence', () => {
 // ---------------------------------------------------------------------------
 
 describe('E2E Integration — error handling', () => {
-  it('invoke resolves even when node executor returns success:false', async () => {
+  it('halts the run when node executor returns success:false', async () => {
     const executor = {
       execute: vi.fn().mockResolvedValue({
         success: false,
@@ -480,9 +479,13 @@ describe('E2E Integration — error handling', () => {
     const store = new InMemoryCheckpointStore();
     const runtime = new GraphRuntime({ checkpointStore: store, nodeExecutor: executor as any });
 
-    const graph = makeLinearGraph('error-graph', [makeNode('failing-node')]);
-    // The runtime does not throw on node success:false — it returns final artifacts
-    await expect(runtime.invoke(graph, {})).resolves.toBeDefined();
+    const graph = makeLinearGraph('error-graph', [makeNode('failing-node'), makeNode('downstream-node')]);
+    const events = await collectEvents(runtime.stream(graph, {}));
+
+    expect(executor.execute).toHaveBeenCalledTimes(1);
+    expect(events.some((event) => event.type === 'error')).toBe(true);
+    expect(events.some((event) => event.type === 'interrupt')).toBe(true);
+    expect(events.some((event) => event.type === 'node_start' && (event as any).nodeId === 'downstream-node')).toBe(false);
   });
 
   it('resume throws when no checkpoint exists for runId', async () => {

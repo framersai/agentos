@@ -316,4 +316,132 @@ describe('GraphRuntime', () => {
     // The resume should complete without throwing.
     expect(resumeResult).toBeDefined();
   });
+
+  it('accepts an exact checkpoint id in resume()', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockResolvedValue({
+      success: true,
+      output: 'resume-output',
+    } satisfies NodeExecutionResult);
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph = makeLinearGraph(
+      'g-resume-checkpoint-id',
+      [makeNode('a'), makeNode('b')],
+      { checkpointPolicy: 'every_node' },
+    );
+
+    await runtime.invoke(graph, { seed: 7 });
+    const checkpoints = await store.list('g-resume-checkpoint-id');
+    const checkpointForA = checkpoints.find((cp) => cp.nodeId === 'a');
+    expect(checkpointForA).toBeDefined();
+
+    executeMock.mockClear();
+    const resumeResult = await runtime.resume(graph, checkpointForA!.id);
+
+    expect(resumeResult).toBeDefined();
+    expect(executeMock).toHaveBeenCalled();
+  });
+
+  it('halts on node failure and emits error/interruption events', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') {
+        return { success: false, error: 'boom' };
+      }
+      return { success: true, output: `${node.id}-done` };
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph = makeLinearGraph('g-failure', [makeNode('a'), makeNode('b')]);
+    const events = [];
+    for await (const event of runtime.stream(graph, {})) {
+      events.push(event);
+    }
+
+    expect(executeMock).toHaveBeenCalledTimes(1);
+    expect(events.some((event) => event.type === 'error')).toBe(true);
+    expect(events.some((event) => event.type === 'interrupt')).toBe(true);
+    expect(events.some((event) => event.type === 'run_end')).toBe(true);
+    expect(events.some((event) => event.type === 'node_start' && event.nodeId === 'b')).toBe(false);
+  });
+
+  it('persists skipped conditional branches so resume does not execute the bypassed arm', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') {
+        return { success: true, output: 'a-done', scratchUpdate: { goToB: true } };
+      }
+      return { success: true, output: `${node.id}-done` };
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const nodeA = makeNode('a');
+    const nodeB = makeNode('b');
+    const nodeC = makeNode('c');
+
+    const graph: CompiledExecutionGraph = {
+      id: 'g-conditional-resume',
+      name: 'conditional-resume-test',
+      nodes: [nodeA, nodeB, nodeC],
+      edges: [
+        { id: 'e0', source: START, target: 'a', type: 'static' },
+        {
+          id: 'e1',
+          source: 'a',
+          target: 'b',
+          type: 'conditional',
+          condition: {
+            type: 'function',
+            fn: (state: GraphState) =>
+              (state.scratch as Record<string, unknown>).goToB ? 'b' : 'c',
+          },
+        },
+        {
+          id: 'e2',
+          source: 'a',
+          target: 'c',
+          type: 'conditional',
+          condition: {
+            type: 'function',
+            fn: (state: GraphState) =>
+              (state.scratch as Record<string, unknown>).goToB ? 'b' : 'c',
+          },
+        },
+        { id: 'e3', source: 'b', target: END, type: 'static' },
+        { id: 'e4', source: 'c', target: END, type: 'static' },
+      ],
+      stateSchema: { input: {}, scratch: {}, artifacts: {} },
+      reducers: {},
+      checkpointPolicy: 'every_node',
+      memoryConsistency: 'snapshot',
+    };
+
+    await runtime.invoke(graph, {});
+
+    const checkpoints = await store.list('g-conditional-resume');
+    const checkpointForA = checkpoints.find((cp) => cp.nodeId === 'a');
+    expect(checkpointForA).toBeDefined();
+
+    const forkedRunId = await store.fork(checkpointForA!.id);
+    executeMock.mockClear();
+
+    await runtime.resume(graph, forkedRunId);
+
+    const executedNodeIds = executeMock.mock.calls.map(([node]) => (node as GraphNode).id);
+    expect(executedNodeIds).toContain('b');
+    expect(executedNodeIds).not.toContain('c');
+  });
 });

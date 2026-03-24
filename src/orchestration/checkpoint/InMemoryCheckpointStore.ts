@@ -63,6 +63,15 @@ export class InMemoryCheckpointStore implements ICheckpointStore {
   }
 
   /**
+   * Load a checkpoint by its unique checkpoint id.
+   *
+   * {@inheritDoc ICheckpointStore.get}
+   */
+  async get(checkpointId: string): Promise<Checkpoint | null> {
+    return this._checkpoints.get(checkpointId) ?? null;
+  }
+
+  /**
    * Load a checkpoint for the given `runId`.
    *
    * Scans the full store filtering by `runId` and optionally `nodeId`. When multiple

@@ -89,6 +89,16 @@ export interface Checkpoint {
   /** Ordered list of node ids that had completed execution when this checkpoint was taken. */
   visitedNodes: string[];
 
+  /**
+   * Ordered list of node ids that were explicitly bypassed by routing decisions
+   * (for example, the non-selected arm of a conditional branch).
+   *
+   * Persisting this list is required for correct resume semantics on branched
+   * graphs: otherwise a resumed run cannot distinguish "not run yet" from
+   * "intentionally skipped" and may stall on dead branches.
+   */
+  skippedNodes?: string[];
+
   /** Ids of edges that had been emitted but whose target nodes had not yet started. */
   pendingEdges: string[];
 }
@@ -114,6 +124,14 @@ export interface ICheckpointStore {
    * @param checkpoint - The snapshot to persist.
    */
   save(checkpoint: Checkpoint): Promise<void>;
+
+  /**
+   * Load a checkpoint by its unique checkpoint identifier.
+   *
+   * @param checkpointId - The exact checkpoint id assigned at save-time.
+   * @returns The matching checkpoint, or `null` when none exists.
+   */
+  get(checkpointId: string): Promise<Checkpoint | null>;
 
   /**
    * Load a checkpoint for the given `runId`.

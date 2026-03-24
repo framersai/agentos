@@ -135,8 +135,18 @@ export class GraphRuntime {
 
         // ── Checkpoint BEFORE ────────────────────────────────────────────────
         if (node.checkpoint === 'before' || node.checkpoint === 'both') {
-          await this.saveCheckpoint(graph, runId, nodeId, state, nodeResults, completedNodes);
-          yield { type: 'checkpoint_saved', checkpointId: `${runId}-${nodeId}-before`, nodeId };
+          const checkpointId = await this.saveCheckpoint(
+            graph,
+            runId,
+            nodeId,
+            state,
+            nodeResults,
+            completedNodes,
+            skippedNodes,
+            [],
+          );
+          state = this.attachCheckpointMetadata(state, checkpointId);
+          yield { type: 'checkpoint_saved', checkpointId, nodeId };
         }
 
         yield { type: 'node_start', nodeId, state: { input: state.input, scratch: state.scratch } };
@@ -160,33 +170,65 @@ export class GraphRuntime {
           state = stateManager.updateArtifacts(state, result.artifactsUpdate);
         }
 
-        yield { type: 'node_end', nodeId, output: result.output, durationMs };
-
         // ── Human interrupt ───────────────────────────────────────────────────
         if (result.interrupt) {
+          yield { type: 'node_end', nodeId, output: result.output, durationMs };
           yield { type: 'interrupt', nodeId, reason: 'human_approval' };
           // Persist so the run can be resumed later.
-          await this.saveCheckpoint(graph, runId, nodeId, state, nodeResults, completedNodes);
-          yield {
-            type: 'run_end',
+          const checkpointId = await this.saveCheckpoint(
+            graph,
             runId,
-            finalOutput: state.artifacts,
-            totalDurationMs: Date.now() - startTime,
-          };
+            nodeId,
+            state,
+            nodeResults,
+            completedNodes,
+            skippedNodes,
+            [],
+          );
+          state = this.attachCheckpointMetadata(state, checkpointId);
+          yield { type: 'checkpoint_saved', checkpointId, nodeId };
+          yield { type: 'run_end', runId, finalOutput: state.artifacts, totalDurationMs: Date.now() - startTime };
           return;
         }
 
-        completedNodes.push(nodeId);
-
-        // ── Checkpoint AFTER ──────────────────────────────────────────────────
-        if (
-          node.checkpoint === 'after' ||
-          node.checkpoint === 'both' ||
-          graph.checkpointPolicy === 'every_node'
-        ) {
-          await this.saveCheckpoint(graph, runId, nodeId, state, nodeResults, completedNodes);
-          yield { type: 'checkpoint_saved', checkpointId: `${runId}-${nodeId}-after`, nodeId };
+        if (!result.success) {
+          const errorMessage = result.error ?? `Node ${nodeId} failed`;
+          const timeoutMs = this.extractTimeoutMs(errorMessage);
+          if (timeoutMs !== null) {
+            yield { type: 'node_timeout', nodeId, timeoutMs };
+          }
+          yield {
+            type: 'error',
+            nodeId,
+            error: {
+              code: timeoutMs !== null ? 'NODE_TIMEOUT' : 'NODE_EXECUTION_FAILED',
+              message: errorMessage,
+            },
+          };
+          const checkpointId = await this.saveCheckpoint(
+            graph,
+            runId,
+            nodeId,
+            state,
+            nodeResults,
+            completedNodes,
+            skippedNodes,
+            [],
+          );
+          state = this.attachCheckpointMetadata(state, checkpointId);
+          yield { type: 'checkpoint_saved', checkpointId, nodeId };
+          yield {
+            type: 'interrupt',
+            nodeId,
+            reason: node.type === 'guardrail' ? 'guardrail_violation' : 'error',
+          };
+          yield { type: 'run_end', runId, finalOutput: state.artifacts, totalDurationMs: Date.now() - startTime };
+          return;
         }
+
+        yield { type: 'node_end', nodeId, output: result.output, durationMs };
+
+        completedNodes.push(nodeId);
 
         // ── Edge routing ──────────────────────────────────────────────────────
         const outEdges = graph.edges.filter(e => e.source === nodeId);
@@ -214,6 +256,26 @@ export class GraphRuntime {
             yield { type: 'edge_transition', sourceId: nodeId, targetId: target, edgeType };
           }
         }
+
+        // ── Checkpoint AFTER ──────────────────────────────────────────────────
+        if (
+          node.checkpoint === 'after' ||
+          node.checkpoint === 'both' ||
+          graph.checkpointPolicy === 'every_node'
+        ) {
+          const checkpointId = await this.saveCheckpoint(
+            graph,
+            runId,
+            nodeId,
+            state,
+            nodeResults,
+            completedNodes,
+            skippedNodes,
+            this.resolvePendingEdgeIds(outEdges, targets),
+          );
+          state = this.attachCheckpointMetadata(state, checkpointId);
+          yield { type: 'checkpoint_saved', checkpointId, nodeId };
+        }
       }
     }
 
@@ -234,13 +296,15 @@ export class GraphRuntime {
    * outputs to avoid duplicate side-effects; all other nodes are re-executed.
    *
    * @param graph - The same compiled graph that was originally invoked.
-   * @param runId - The run identifier returned by the original `stream()` call.
+   * @param runOrCheckpointId - Either the original run id or an exact checkpoint id.
    * @returns The final `GraphState.artifacts` value after resumption completes.
-   * @throws {Error} When no checkpoint exists for the given `runId`.
+   * @throws {Error} When no checkpoint exists for the given identifier.
    */
-  async resume(graph: CompiledExecutionGraph, runId: string): Promise<unknown> {
-    const checkpoint = await this.config.checkpointStore.latest(runId);
-    if (!checkpoint) throw new Error(`No checkpoint found for run ${runId}`);
+  async resume(graph: CompiledExecutionGraph, runOrCheckpointId: string): Promise<unknown> {
+    const checkpoint =
+      await this.config.checkpointStore.latest(runOrCheckpointId)
+      ?? await this.config.checkpointStore.get(runOrCheckpointId);
+    if (!checkpoint) throw new Error(`No checkpoint found for identifier ${runOrCheckpointId}`);
 
     // Reconstruct graph state from the persisted snapshot.
     const stateManager = new StateManager(graph.reducers);
@@ -254,7 +318,7 @@ export class GraphRuntime {
     };
 
     let finalOutput: unknown;
-    for await (const event of this.continueFromCheckpoint(graph, runId, state, checkpoint)) {
+    for await (const event of this.continueFromCheckpoint(graph, checkpoint.runId, state, checkpoint)) {
       if (event.type === 'run_end') finalOutput = event.finalOutput;
     }
     return finalOutput;
@@ -287,7 +351,7 @@ export class GraphRuntime {
     const stateManager = new StateManager(graph.reducers);
 
     const completedNodes = [...checkpoint.visitedNodes];
-    const skippedNodes: string[] = [];
+    const skippedNodes = [...(checkpoint.skippedNodes ?? [])];
     const nodeResults = { ...checkpoint.nodeResults };
     const startTime = Date.now();
 
@@ -331,12 +395,80 @@ export class GraphRuntime {
         if (result.scratchUpdate) state = stateManager.updateScratch(state, result.scratchUpdate);
         if (result.artifactsUpdate) state = stateManager.updateArtifacts(state, result.artifactsUpdate);
 
+        if (result.interrupt) {
+          yield { type: 'node_end', nodeId, output: result.output, durationMs };
+          yield { type: 'interrupt', nodeId, reason: 'human_approval' };
+          const checkpointId = await this.saveCheckpoint(
+            graph,
+            runId,
+            nodeId,
+            state,
+            nodeResults,
+            completedNodes,
+            skippedNodes,
+            [],
+          );
+          state = this.attachCheckpointMetadata(state, checkpointId);
+          yield { type: 'checkpoint_saved', checkpointId, nodeId };
+          yield { type: 'run_end', runId, finalOutput: state.artifacts, totalDurationMs: Date.now() - startTime };
+          return;
+        }
+
+        if (!result.success) {
+          const errorMessage = result.error ?? `Node ${nodeId} failed`;
+          const timeoutMs = this.extractTimeoutMs(errorMessage);
+          if (timeoutMs !== null) {
+            yield { type: 'node_timeout', nodeId, timeoutMs };
+          }
+          yield {
+            type: 'error',
+            nodeId,
+            error: {
+              code: timeoutMs !== null ? 'NODE_TIMEOUT' : 'NODE_EXECUTION_FAILED',
+              message: errorMessage,
+            },
+          };
+          const checkpointId = await this.saveCheckpoint(
+            graph,
+            runId,
+            nodeId,
+            state,
+            nodeResults,
+            completedNodes,
+            skippedNodes,
+            [],
+          );
+          state = this.attachCheckpointMetadata(state, checkpointId);
+          yield { type: 'checkpoint_saved', checkpointId, nodeId };
+          yield {
+            type: 'interrupt',
+            nodeId,
+            reason: node.type === 'guardrail' ? 'guardrail_violation' : 'error',
+          };
+          yield { type: 'run_end', runId, finalOutput: state.artifacts, totalDurationMs: Date.now() - startTime };
+          return;
+        }
+
         yield { type: 'node_end', nodeId, output: result.output, durationMs };
         completedNodes.push(nodeId);
 
         // Evaluate outgoing edges for the resumed node.
         const outEdges = graph.edges.filter(e => e.source === nodeId);
         const targets = this.evaluateEdges(outEdges, state, result);
+
+        for (const edge of outEdges) {
+          if (edge.type === 'conditional' || edge.type === 'personality') {
+            for (const potentialTarget of outEdges.map(e => e.target)) {
+              if (
+                !targets.includes(potentialTarget) &&
+                !completedNodes.includes(potentialTarget) &&
+                !skippedNodes.includes(potentialTarget)
+              ) {
+                skippedNodes.push(potentialTarget);
+              }
+            }
+          }
+        }
 
         for (const target of targets) {
           if (target !== END) {
@@ -441,9 +573,11 @@ export class GraphRuntime {
     state: GraphState,
     nodeResults: Record<string, { effectClass: string; output: unknown; durationMs: number }>,
     visitedNodes: string[],
-  ): Promise<void> {
+    skippedNodes: string[],
+    pendingEdges: string[],
+  ): Promise<string> {
     const checkpoint: Checkpoint = {
-      id: `${runId}-${nodeId}-${Date.now()}`,
+      id: crypto.randomUUID(),
       graphId: graph.id,
       runId,
       nodeId,
@@ -457,8 +591,34 @@ export class GraphRuntime {
       // Cast: checkpoint type requires EffectClass but we store as string for flexibility.
       nodeResults: nodeResults as Checkpoint['nodeResults'],
       visitedNodes: [...visitedNodes],
-      pendingEdges: [],
+      skippedNodes: [...skippedNodes],
+      pendingEdges: [...pendingEdges],
     };
     await this.config.checkpointStore.save(checkpoint);
+    return checkpoint.id;
+  }
+
+  private attachCheckpointMetadata(state: GraphState, checkpointId: string): GraphState {
+    return {
+      ...state,
+      checkpointId,
+      diagnostics: {
+        ...state.diagnostics,
+        checkpointsSaved: state.diagnostics.checkpointsSaved + 1,
+      },
+    };
+  }
+
+  private extractTimeoutMs(errorMessage: string): number | null {
+    const match = errorMessage.match(/timeout after (\d+)ms/i);
+    if (!match) return null;
+    const value = Number(match[1]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  private resolvePendingEdgeIds(edges: GraphEdge[], targets: string[]): string[] {
+    return edges
+      .filter((edge) => edge.target !== END && targets.includes(edge.target))
+      .map((edge) => edge.id);
   }
 }

@@ -63,6 +63,16 @@ describe('InMemoryCheckpointStore', () => {
   });
 
   // -------------------------------------------------------------------------
+  it('get returns a checkpoint by exact checkpoint id', async () => {
+    const cp = makeCheckpoint({ id: 'cp-direct', runId: 'run-1' });
+    await store.save(cp);
+
+    const loaded = await store.get('cp-direct');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.id).toBe('cp-direct');
+  });
+
+  // -------------------------------------------------------------------------
   it('load returns null for an unknown runId', async () => {
     const result = await store.load('run-missing');
     expect(result).toBeNull();
