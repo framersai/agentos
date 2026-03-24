@@ -1,3 +1,11 @@
+## <small>0.1.78 (2026-03-24)</small>
+
+* docs: add known limitations section to VOICE_PIPELINE.md ([ea7de63](https://github.com/framersai/agentos/commit/ea7de63))
+* docs: soften claims where implementation is lighter than described ([06433c0](https://github.com/framersai/agentos/commit/06433c0))
+* docs: update VOICE_PIPELINE.md and add orchestration examples ([d422c57](https://github.com/framersai/agentos/commit/d422c57))
+* refactor(builders): tighten builder validation and type safety ([3e62502](https://github.com/framersai/agentos/commit/3e62502))
+* fix(orchestration): stop on node failure, persist skippedNodes in checkpoints, fix branch resume ([15656c8](https://github.com/framersai/agentos/commit/15656c8))
+
 ## <small>0.1.77 (2026-03-24)</small>
 
 * docs: update examples and README for provider-first API ([6aa8387](https://github.com/framersai/agentos/commit/6aa8387))
