@@ -1,3 +1,7 @@
+## <small>0.1.82 (2026-03-24)</small>
+
+* fix(ci): update generateText test to match new provider-defaults error message ([4212cb0](https://github.com/framersai/agentos/commit/4212cb0))
+
 ## <small>0.1.81 (2026-03-24)</small>
 
 * fix(ci): skip docs-alignment tests when cross-repo files are unavailable ([36a5d46](https://github.com/framersai/agentos/commit/36a5d46))
