@@ -24,6 +24,8 @@
 
 - [Overview](#overview)
 - [Quick Start](#quick-start)
+  - [High-Level API](#high-level-api)
+  - [Low-Level Runtime API](#low-level-runtime-api)
 - [System Architecture](#system-architecture)
   - [Architecture Diagram](#architecture-diagram)
   - [Request Lifecycle](#request-lifecycle)
@@ -144,7 +146,78 @@ npm install @framers/agentos
 
 **Requirements:** Node.js 18+ and TypeScript 5.0+
 
-### Minimal Example
+**Start here:**
+
+- Use [`generateText()` / `streamText()` / `generateImage()` / `agent()`](./docs/HIGH_LEVEL_API.md) when you want the fastest path from prompt to working code.
+- Use [`AgentOS`](#low-level-runtime-api) when you need extensions, workflows, personas, HITL, or full runtime control.
+- Browse the live docs entrypoints at [docs.agentos.sh/getting-started/high-level-api](https://docs.agentos.sh/getting-started/high-level-api) and [docs.agentos.sh/api](https://docs.agentos.sh/api).
+
+### High-Level API
+
+Use the streamlined APIs when you want AI SDK-style text generation, image generation, or stateful sessions without wiring the full AgentOS runtime.
+
+```typescript
+import { agent, generateImage, generateText, streamText } from '@framers/agentos';
+
+const quick = await generateText({
+  model: 'openai:gpt-4.1-mini',
+  prompt: 'Explain how TCP handshakes work in 3 bullets.',
+});
+
+console.log(quick.text);
+
+const live = streamText({
+  model: 'openai:gpt-4.1-mini',
+  prompt: 'Stream a short explanation of SYN, SYN-ACK, ACK.',
+});
+
+for await (const delta of live.textStream) {
+  process.stdout.write(delta);
+}
+
+const image = await generateImage({
+  model: 'openai:gpt-image-1.5',
+  prompt: 'A cinematic neon city skyline reflected in rain at night.',
+});
+
+console.log(image.images[0]?.mimeType);
+
+const assistant = agent({
+  model: 'openai:gpt-4.1-mini',
+  instructions: 'You are a concise networking tutor.',
+  maxSteps: 3,
+});
+
+const session = assistant.session('tcp-demo');
+const reply = await session.send('Now compare TCP and UDP.');
+console.log(reply.text);
+```
+
+Built-in image providers: `openai`, `openrouter`, `stability`, and `replicate`.
+
+Use `providerOptions` when you need provider-native controls without leaving the
+high-level API:
+
+```typescript
+const poster = await generateImage({
+  model: 'stability:stable-image-core',
+  prompt: 'An art deco travel poster for a moon colony',
+  negativePrompt: 'text, watermark',
+  providerOptions: {
+    stability: {
+      stylePreset: 'illustration',
+      seed: 42,
+      cfgScale: 8,
+    },
+  },
+});
+```
+
+Runnable examples: [`examples/high-level-api.mjs`](./examples/high-level-api.mjs), [`examples/generate-image.mjs`](./examples/generate-image.mjs)
+
+Use `AgentOS` directly when you need personas, chunk-level streaming events, extensions, workflows, multi-agent orchestration, or full runtime lifecycle control.
+
+### Low-Level Runtime API
 
 ```typescript
 import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
