@@ -28,6 +28,11 @@
       "default": "./dist/speech/index.js",
       "types": "./dist/speech/index.d.ts"
     },
+    "./images": {
+      "import": "./dist/core/images/index.js",
+      "default": "./dist/core/images/index.js",
+      "types": "./dist/core/images/index.d.ts"
+    },
     "./core/guardrails": {
       "import": "./dist/core/guardrails/index.js",
       "default": "./dist/core/guardrails/index.js",
