@@ -154,6 +154,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
 
     // Build and return the VoicePipelineSession object
     const sessionId = randomUUID();
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const orchestrator = this;
     const session: VoicePipelineSession = Object.assign(new EventEmitter(), {
       sessionId,
