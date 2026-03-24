@@ -521,6 +521,8 @@ export interface IGMI {
 
 
   getReasoningTrace(): Readonly<ReasoningTrace>;
+  getWorkingMemorySnapshot(): Promise<Record<string, any>>;
+  getCognitiveMemoryManager(): import('../memory/CognitiveMemoryManager.js').ICognitiveMemoryManager | undefined;
   _triggerAndProcessSelfReflection(): Promise<void>;
   onMemoryLifecycleEvent(event: MemoryLifecycleEvent): Promise<LifecycleActionResponse>;
   analyzeAndReportMemoryHealth(): Promise<GMIHealthReport['memoryHealth']>;

@@ -32,6 +32,7 @@ import { PersonaOverlayManager } from './persona_overlays/PersonaOverlayManager'
 import type { PersonaStateOverlay, PersonaEvolutionContext } from './persona_overlays/PersonaOverlayTypes';
 import { resolveSecretForProvider } from '../config/extensionSecrets';
 import type { PersonaEvolutionRule } from '../core/workflows/WorkflowTypes';
+import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
 
 /**
  * Custom error class for GMIManager-specific operational errors.
@@ -54,7 +55,25 @@ export interface GMIManagerConfig {
   defaultGMIBaseConfigDefaults?: Partial<Pick<GMIBaseConfig, 'defaultLlmProviderId' | 'defaultLlmModelId' | 'customSettings'>>;
   /** Strict validation enforcement configuration (optional, defaults to permissive). */
   personaValidationStrict?: PersonaValidationStrictConfig;
+  /** Optional per-GMI cognitive memory factory used by devtools and advanced runtimes. */
+  cognitiveMemoryFactory?: GMICognitiveMemoryFactory;
 }
+
+export interface GMICognitiveMemoryFactoryInput {
+  gmiInstanceId: string;
+  sessionId: string;
+  userId: string;
+  persona: IPersonaDefinition;
+  workingMemory: InMemoryWorkingMemory;
+  llmProviderManager: AIModelProviderManager;
+  utilityAI: IUtilityAI;
+  toolOrchestrator: IToolOrchestrator;
+  retrievalAugmentor?: IRetrievalAugmentor;
+}
+
+export type GMICognitiveMemoryFactory = (
+  input: GMICognitiveMemoryFactoryInput,
+) => Promise<ICognitiveMemoryManager | undefined> | ICognitiveMemoryManager | undefined;
 
 /**
  * Options supplied when instantiating a GMI for an Agency seat.
@@ -71,7 +90,8 @@ export interface GMIAgencyContextOptions {
  * Manages the lifecycle of Generalized Mind Instances (GMIs).
  */
 export class GMIManager {
-  private config!: Required<Omit<GMIManagerConfig, 'defaultGMIBaseConfigDefaults' | 'personaValidationStrict'>> & Pick<GMIManagerConfig, 'defaultGMIBaseConfigDefaults' | 'personaValidationStrict'>;
+  private config!: Required<Omit<GMIManagerConfig, 'defaultGMIBaseConfigDefaults' | 'personaValidationStrict' | 'cognitiveMemoryFactory'>> &
+    Pick<GMIManagerConfig, 'defaultGMIBaseConfigDefaults' | 'personaValidationStrict' | 'cognitiveMemoryFactory'>;
   private personaLoader: IPersonaLoader;
   private allPersonaDefinitions: Map<string, IPersonaDefinition>;
   private allPersonaRecords: Map<string, LoadedPersonaRecord>;
@@ -116,6 +136,7 @@ export class GMIManager {
       defaultWorkingMemoryType: config.defaultWorkingMemoryType ?? 'in_memory',
       defaultGMIBaseConfigDefaults: config.defaultGMIBaseConfigDefaults,
       personaValidationStrict: config.personaValidationStrict,
+      cognitiveMemoryFactory: config.cognitiveMemoryFactory,
     };
 
     this.subscriptionService = subscriptionService;
@@ -438,8 +459,31 @@ export class GMIManager {
     return secretIds.size ? Array.from(secretIds) : undefined;
   }
 
-  private assembleGMIBaseConfig(persona: IPersonaDefinition): GMIBaseConfig {
+  private async assembleGMIBaseConfig(
+    persona: IPersonaDefinition,
+    runtimeContext: { gmiInstanceId: string; sessionId: string; userId: string },
+  ): Promise<GMIBaseConfig> {
     const workingMemory = new InMemoryWorkingMemory();
+    let cognitiveMemory: ICognitiveMemoryManager | undefined;
+
+    if (this.config.cognitiveMemoryFactory) {
+      try {
+        cognitiveMemory = await this.config.cognitiveMemoryFactory({
+          ...runtimeContext,
+          persona,
+          workingMemory,
+          llmProviderManager: this.llmProviderManager,
+          utilityAI: this.utilityAI,
+          toolOrchestrator: this.toolOrchestrator,
+          retrievalAugmentor: this.retrievalAugmentor,
+        });
+      } catch (error: any) {
+        console.warn(
+          `GMIManager (ID: ${this.managerId}): Failed to initialize cognitive memory for GMI ${runtimeContext.gmiInstanceId}.`,
+          error?.message ?? error,
+        );
+      }
+    }
 
     return {
       workingMemory,
@@ -448,6 +492,7 @@ export class GMIManager {
       utilityAI: this.utilityAI,
       toolOrchestrator: this.toolOrchestrator,
       retrievalAugmentor: this.retrievalAugmentor,
+      cognitiveMemory,
       defaultLlmProviderId: persona.defaultProviderId || this.config.defaultGMIBaseConfigDefaults?.defaultLlmProviderId,
       defaultLlmModelId: persona.defaultModelId || this.config.defaultGMIBaseConfigDefaults?.defaultLlmModelId,
       customSettings: persona.customFields,
@@ -522,7 +567,11 @@ export class GMIManager {
       const newGmiInstanceId = `gmi-instance-${uuidv4()}`;
       console.log(`GMIManager (ID: ${this.managerId}): Creating new GMI instance ${newGmiInstanceId} for session ${sessionId} with persona ${requestedPersonaId}.`);
 
-      const completeGMIBaseConfig = this.assembleGMIBaseConfig(effectivePersona);
+      const completeGMIBaseConfig = await this.assembleGMIBaseConfig(effectivePersona, {
+        gmiInstanceId: newGmiInstanceId,
+        sessionId,
+        userId,
+      });
       const newGMI = new GMI(newGmiInstanceId);
 
       try {

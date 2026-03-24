@@ -58,6 +58,9 @@ import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
 import { ConversationMessage, createConversationMessage, MessageRole } from '../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { GMIEventType, GMIEvent, SentimentHistoryState, createGMIEvent } from './GMIEvent.js';
+import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
+import type { PADState } from '../memory/config.js';
+import type { AssembledMemoryContext, MemorySourceType, MemoryType } from '../memory/types.js';
 
 const DEFAULT_MAX_CONVERSATION_HISTORY_TURNS = 20;
 const DEFAULT_SELF_REFLECTION_INTERVAL_TURNS = 5;
@@ -83,6 +86,7 @@ export class GMI implements IGMI {
   private toolOrchestrator!: IToolOrchestrator;
   private llmProviderManager!: AIModelProviderManager;
   private utilityAI!: IUtilityAI;
+  private cognitiveMemory?: ICognitiveMemoryManager;
 
   // Internal State
   private state: GMIPrimeState;
@@ -143,6 +147,7 @@ export class GMI implements IGMI {
     this.toolOrchestrator = config.toolOrchestrator;
     this.llmProviderManager = config.llmProviderManager;
     this.utilityAI = config.utilityAI;
+    this.cognitiveMemory = config.cognitiveMemory;
 
     this.reasoningTrace.personaId = this.activePersona.id;
 
@@ -263,6 +268,16 @@ export class GMI implements IGMI {
     return JSON.parse(JSON.stringify(this.reasoningTrace));
   }
 
+  /** @inheritdoc */
+  public async getWorkingMemorySnapshot(): Promise<Record<string, any>> {
+    return this.workingMemory.getAll();
+  }
+
+  /** @inheritdoc */
+  public getCognitiveMemoryManager(): ICognitiveMemoryManager | undefined {
+    return this.cognitiveMemory;
+  }
+
   /**
    * Adds an entry to the GMI's reasoning trace.
    * @private
@@ -278,6 +293,131 @@ export class GMI implements IGMI {
       details: details ? JSON.parse(JSON.stringify(details)) : {},
     };
     this.reasoningTrace.entries.push(entry);
+  }
+
+  private getCurrentPadState(): PADState {
+    switch (this.currentGmiMood) {
+      case GMIMood.EMPATHETIC:
+        return { valence: 0.55, arousal: 0.15, dominance: 0.25 };
+      case GMIMood.CURIOUS:
+        return { valence: 0.35, arousal: 0.45, dominance: 0.15 };
+      case GMIMood.ASSERTIVE:
+        return { valence: 0.15, arousal: 0.35, dominance: 0.7 };
+      case GMIMood.ANALYTICAL:
+        return { valence: 0.1, arousal: -0.1, dominance: 0.45 };
+      case GMIMood.FOCUSED:
+        return { valence: 0.2, arousal: 0.1, dominance: 0.55 };
+      case GMIMood.FRUSTRATED:
+        return { valence: -0.65, arousal: 0.6, dominance: 0.2 };
+      case GMIMood.CREATIVE:
+        return { valence: 0.45, arousal: 0.35, dominance: 0.35 };
+      case GMIMood.NEUTRAL:
+      default:
+        return { valence: 0, arousal: 0, dominance: 0 };
+    }
+  }
+
+  private stringifyTurnContent(content: GMITurnInput['content']): string | null {
+    if (typeof content === 'string') {
+      const trimmed = content.trim();
+      return trimmed ? trimmed : null;
+    }
+    try {
+      const serialized = JSON.stringify(content);
+      return serialized && serialized !== 'null' ? serialized : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private buildMemoryTags(role: 'user' | 'assistant' | 'tool' | 'system'): string[] {
+    const tags = [
+      role,
+      this.activePersona?.id,
+      this.currentUserContext?.userId,
+      this.currentTaskContext?.domain,
+    ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    return Array.from(new Set(tags));
+  }
+
+  private async assembleCognitiveMemoryContext(query: string): Promise<AssembledMemoryContext | null> {
+    if (!this.cognitiveMemory || !query.trim()) {
+      return null;
+    }
+
+    try {
+      const context = await this.cognitiveMemory.assembleForPrompt(
+        query,
+        1600,
+        this.getCurrentPadState(),
+      );
+      if (context.contextText.trim()) {
+        this.addTraceEntry(ReasoningEntryType.DEBUG, 'Cognitive memory context assembled.', {
+          tokensUsed: context.tokensUsed,
+          includedMemoryIds: context.includedMemoryIds,
+        });
+      }
+      return context;
+    } catch (error: any) {
+      this.addTraceEntry(ReasoningEntryType.WARNING, 'Cognitive memory assembly failed.', {
+        error: error?.message ?? String(error),
+      });
+      return null;
+    }
+  }
+
+  private async encodeCognitiveMemory(
+    content: string,
+    options: {
+      type: MemoryType;
+      sourceType: MemorySourceType;
+      scopeId?: string;
+      role: 'user' | 'assistant' | 'tool' | 'system';
+    },
+  ): Promise<void> {
+    if (!this.cognitiveMemory || !content.trim()) {
+      return;
+    }
+
+    try {
+      await this.cognitiveMemory.observe?.(options.role, content, this.getCurrentPadState());
+      await this.cognitiveMemory.encode(content, this.getCurrentPadState(), this.currentGmiMood, {
+        type: options.type,
+        scope: 'user',
+        scopeId: options.scopeId ?? this.currentUserContext.userId ?? this.gmiId,
+        sourceType: options.sourceType,
+        tags: this.buildMemoryTags(options.role),
+      });
+    } catch (error: any) {
+      this.addTraceEntry(ReasoningEntryType.WARNING, 'Cognitive memory encoding failed.', {
+        role: options.role,
+        error: error?.message ?? String(error),
+      });
+    }
+  }
+
+  private async syncCognitiveMemoryForTurn(turnInput: GMITurnInput, responseText: string): Promise<void> {
+    const inputText = this.stringifyTurnContent(turnInput.content);
+    if (inputText && (
+      turnInput.type === GMIInteractionType.TEXT ||
+      turnInput.type === GMIInteractionType.MULTIMODAL_CONTENT
+    )) {
+      await this.encodeCognitiveMemory(inputText, {
+        type: 'episodic',
+        sourceType: 'user_statement',
+        scopeId: this.currentUserContext.userId,
+        role: 'user',
+      });
+    }
+
+    if (responseText.trim()) {
+      await this.encodeCognitiveMemory(responseText, {
+        type: 'semantic',
+        sourceType: 'agent_inference',
+        scopeId: turnInput.sessionId ?? this.currentUserContext.userId ?? this.gmiId,
+        role: 'assistant',
+      });
+    }
   }
 
   /**
@@ -548,12 +688,19 @@ export class GMI implements IGMI {
           typeof turnInput.metadata?.longTermMemoryContext === 'string'
             ? turnInput.metadata.longTermMemoryContext.trim()
             : "";
+        let assembledMemoryContext: AssembledMemoryContext | null = null;
 
         const lastMessage = this.conversationHistory.length > 0 ? this.conversationHistory[this.conversationHistory.length - 1] : null;
         const isUserInitiatedTurn = lastMessage?.role === 'user';
+        const currentTurnText =
+          isUserInitiatedTurn && lastMessage?.content
+            ? (typeof lastMessage.content === 'string'
+                ? lastMessage.content
+                : JSON.stringify(lastMessage.content))
+            : '';
 
         if (this.retrievalAugmentor && this.activePersona.memoryConfig?.ragConfig?.enabled && isUserInitiatedTurn && lastMessage?.content) {
-          const currentQueryForRag = typeof lastMessage.content === 'string' ? lastMessage.content : JSON.stringify(lastMessage.content);
+          const currentQueryForRag = currentTurnText;
           if (this.shouldTriggerRAGRetrieval(currentQueryForRag)) {
             this.addTraceEntry(ReasoningEntryType.RAG_QUERY_START, "RAG retrieval triggered.", { queryPreview: currentQueryForRag.substring(0, 100) });
             const retrievalOptions: RagRetrievalOptions = {
@@ -565,6 +712,10 @@ export class GMI implements IGMI {
             augmentedContextFromRAG = ragResult.augmentedContext;
             this.addTraceEntry(ReasoningEntryType.RAG_QUERY_RESULT, 'RAG context retrieved.', { length: augmentedContextFromRAG.length });
           }
+        }
+
+        if (isUserInitiatedTurn && currentTurnText) {
+          assembledMemoryContext = await this.assembleCognitiveMemoryContext(currentTurnText);
         }
 
         const promptExecContext = this.buildPromptExecutionContext();
@@ -614,8 +765,13 @@ export class GMI implements IGMI {
         const promptComponents: PromptComponents = {
           systemPrompts,
           conversationHistory: durableHistoryForPrompt ?? this.buildConversationHistoryForPrompt(),
-          userInput: isUserInitiatedTurn && typeof lastMessage?.content === 'string' ? lastMessage.content : null,
-          retrievedContext: [augmentedContextFromRAG, injectedLongTermMemoryContext].filter(Boolean).join("\n\n---\n\n"),
+          userInput: isUserInitiatedTurn ? currentTurnText : null,
+          retrievedContext: [
+            assembledMemoryContext?.contextText,
+            augmentedContextFromRAG,
+            injectedLongTermMemoryContext,
+          ].filter(Boolean).join("\n\n---\n\n"),
+          assembledMemoryContext: assembledMemoryContext ?? undefined,
           // tools: this.activePersona.embeddedTools, // If ITool[] and PromptComponents.tools takes ITool[]
         };
 
@@ -791,8 +947,10 @@ export class GMI implements IGMI {
         break main_processing_loop; // Break if no tool calls
       }
 
+      await this.syncCognitiveMemoryForTurn(turnInput, aggregatedResponseText);
+
       await this.performPostTurnIngestion(
-        typeof turnInput.content === 'string' ? turnInput.content : JSON.stringify(turnInput.content),
+        this.stringifyTurnContent(turnInput.content) ?? '',
         aggregatedResponseText
       );
 
@@ -2137,6 +2295,7 @@ export class GMI implements IGMI {
     this.state = GMIPrimeState.SHUTTING_DOWN;
     this.addTraceEntry(ReasoningEntryType.LIFECYCLE, "GMI shutting down.");
     try {
+      await this.cognitiveMemory?.shutdown?.();
       await this.workingMemory?.close?.();
       // Shared dependencies (tool orchestrator, retrieval augmentor, utility AI, etc.) are owned by
       // the host (AgentOS/GMIManager) and may be shared across GMIs. Do not shut them down here,
