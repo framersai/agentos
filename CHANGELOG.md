@@ -1,3 +1,10 @@
+## <small>0.1.74 (2026-03-24)</small>
+
+* docs: add voice pipeline architecture and configuration guide ([99dfabd](https://github.com/framersai/agentos/commit/99dfabd))
+* feat(voice-pipeline): add barrel exports and update provider catalog with streaming flags ([56806ae](https://github.com/framersai/agentos/commit/56806ae))
+* feat(voice-pipeline): add VoicePipelineOrchestrator state machine ([f37a25b](https://github.com/framersai/agentos/commit/f37a25b))
+* feat(voice-pipeline): add WebSocketStreamTransport implementing IStreamTransport ([f05469e](https://github.com/framersai/agentos/commit/f05469e))
+
 ## <small>0.1.73 (2026-03-24)</small>
 
 * feat(voice-pipeline): add AcousticEndpointDetector wrapping silence detection ([c683997](https://github.com/framersai/agentos/commit/c683997))
