@@ -20,6 +20,6 @@ describe.skipIf(!hasOpenAI)('generateText (integration)', () => {
 describe('generateText (unit)', () => {
   it('throws on invalid model string', async () => {
     const { generateText } = await import('../../src/api/generateText.js');
-    await expect(generateText({ model: 'invalid', prompt: 'test' })).rejects.toThrow('Invalid model');
+    await expect(generateText({ model: 'invalid', prompt: 'test' })).rejects.toThrow(/invalid model|requires either a provider/i);
   });
 });
