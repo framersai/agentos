@@ -139,9 +139,28 @@ interface OllamaEmbeddingResponse {
 }
 
 type TextContentPart = Extract<MessageContentPart, { type: 'text' }>;
+type ImageUrlContentPart = Extract<MessageContentPart, { type: 'image_url' }>;
 
 const isTextContentPart = (part: MessageContentPart): part is TextContentPart =>
   part.type === 'text' && typeof (part as Record<string, unknown>).text === 'string';
+
+const isImageUrlContentPart = (part: MessageContentPart): part is ImageUrlContentPart =>
+  part.type === 'image_url'
+  && typeof (part as Record<string, unknown>).image_url === 'object'
+  && part.image_url !== null
+  && typeof part.image_url.url === 'string';
+
+const extractBase64ImagePayload = (url: string): string | null => {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('data:')) return null;
+
+  const marker = ';base64,';
+  const markerIndex = trimmed.indexOf(marker);
+  if (markerIndex === -1) return null;
+
+  const payload = trimmed.slice(markerIndex + marker.length).trim();
+  return payload.length > 0 ? payload : null;
+};
 
 // @ts-nocheck
 /**
@@ -296,11 +315,21 @@ export class OllamaProvider implements IProvider {
 
       if (typeof msg.content !== 'string') {
         if (Array.isArray(msg.content)) {
-            const textPart = msg.content.find(isTextContentPart);
-            return {
-                role: msg.role,
-                content: textPart?.text ?? JSON.stringify(msg.content),
-            };
+          const textContent = msg.content
+            .filter(isTextContentPart)
+            .map((part) => part.text.trim())
+            .filter(Boolean)
+            .join('\n');
+          const images = msg.content
+            .filter(isImageUrlContentPart)
+            .map((part) => extractBase64ImagePayload(part.image_url.url))
+            .filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+          return {
+            role: msg.role,
+            content: textContent || JSON.stringify(msg.content),
+            ...(images.length > 0 ? { images } : {}),
+          };
         }
         return { role: msg.role, content: JSON.stringify(msg.content) };
       }
