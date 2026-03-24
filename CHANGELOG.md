@@ -1,3 +1,7 @@
+## <small>0.1.79 (2026-03-24)</small>
+
+* fix(lint): exclude stale .js from lint, suppress this-alias in VoicePipeline ([5c0527c](https://github.com/framersai/agentos/commit/5c0527c))
+
 ## <small>0.1.78 (2026-03-24)</small>
 
 * docs: add known limitations section to VOICE_PIPELINE.md ([ea7de63](https://github.com/framersai/agentos/commit/ea7de63))
