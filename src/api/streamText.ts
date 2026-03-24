@@ -7,7 +7,7 @@
  * Multi-step tool calling is supported: tool-call and tool-result parts are
  * yielded inline before the next LLM step begins.
  */
-import { parseModelString, resolveProvider, createProviderManager } from './model.js';
+import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { adaptTools, type ToolDefinitionMap } from './toolAdapter.js';
 import type { GenerateTextOptions, TokenUsage, ToolCallRecord } from './generateText.js';
 import type { ITool } from '../core/tools/ITool.js';
@@ -83,7 +83,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
     let finalText = '';
 
     try {
-      const { providerId, modelId } = parseModelString(opts.model);
+      const { providerId, modelId } = resolveModelOption(opts, 'text');
       const resolved = resolveProvider(providerId, modelId, { apiKey: opts.apiKey, baseUrl: opts.baseUrl });
       const manager = await createProviderManager(resolved);
       const provider = manager.getProvider(resolved.providerId);

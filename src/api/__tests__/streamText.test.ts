@@ -13,6 +13,7 @@ const hoisted = vi.hoisted(() => {
 
 vi.mock('../model.js', () => ({
   parseModelString: vi.fn(() => ({ providerId: 'openai', modelId: 'gpt-4.1-mini' })),
+  resolveModelOption: vi.fn(() => ({ providerId: 'openai', modelId: 'gpt-4.1-mini' })),
   resolveProvider: vi.fn(() => ({ providerId: 'openai', modelId: 'gpt-4.1-mini', apiKey: 'test-key' })),
   createProviderManager: hoisted.createProviderManager,
 }));

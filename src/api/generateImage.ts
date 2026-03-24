@@ -16,17 +16,26 @@ import type {
   ImageModality,
   ImageOutputFormat,
 } from '../core/images/IImageProvider.js';
-import { parseModelString, resolveMediaProvider } from './model.js';
+import { resolveModelOption, resolveMediaProvider } from './model.js';
 
 /**
  * Options for a {@link generateImage} call.
  */
 export interface GenerateImageOptions {
   /**
-   * Model in `provider:model` format.
-   * @example `"openai:dall-e-3"`, `"stability:stable-diffusion-xl-1024-v1-0"`
+   * Provider name.  When supplied without `model`, the default image model for
+   * the provider is resolved automatically from the built-in defaults registry.
+   *
+   * @example `"openai"`, `"stability"`, `"replicate"`
    */
-  model: string;
+  provider?: string;
+  /**
+   * Model in `provider:model` format (legacy) or plain model name when `provider` is set.
+   * @example `"openai:dall-e-3"`, `"stability:stable-diffusion-xl-1024-v1-0"`
+   *
+   * Either `provider` or `model` (or an API key env var for auto-detection) is required.
+   */
+  model?: string;
   /** Text description of the desired image. */
   prompt: string;
   /** Output modalities requested from the provider (provider-dependent). */
@@ -99,7 +108,7 @@ export interface GenerateImageResult {
  * ```
  */
 export async function generateImage(opts: GenerateImageOptions): Promise<GenerateImageResult> {
-  const { providerId, modelId } = parseModelString(opts.model);
+  const { providerId, modelId } = resolveModelOption(opts, 'image');
   const resolved = resolveMediaProvider(providerId, modelId, {
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,

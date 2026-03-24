@@ -16,10 +16,20 @@ import type { ToolDefinitionMap } from './toolAdapter.js';
  */
 export interface AgentOptions {
   /**
-   * Model in `provider:model` format used for every call made by this agent.
-   * @example `"openai:gpt-4o"`, `"anthropic:claude-opus-4-5"`
+   * Provider name.  When supplied without `model`, the default text model for
+   * the provider is resolved automatically from the built-in defaults registry.
+   *
+   * @example `"openai"`, `"anthropic"`, `"ollama"`
    */
-  model: string;
+  provider?: string;
+  /**
+   * Model used for every call made by this agent.  Accepted in two formats:
+   * - `"provider:model"` — legacy format (e.g. `"openai:gpt-4o"`), still fully supported.
+   * - Plain model name (e.g. `"gpt-4o-mini"`) when `provider` is also set.
+   *
+   * Either `provider` or `model` (or an API key env var for auto-detection) is required.
+   */
+  model?: string;
   /** Display name injected into the system prompt (e.g. `"Aria"`). */
   name?: string;
   /** Free-form system instructions prepended before personality and name lines. */
@@ -166,6 +176,7 @@ export function agent(opts: AgentOptions): Agent {
   const useMemory = opts.memory !== false;
 
   const baseOpts: Partial<GenerateTextOptions> = {
+    provider: opts.provider,
     model: opts.model,
     system: buildSystemPrompt(opts),
     tools: opts.tools,

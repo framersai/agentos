@@ -7,7 +7,7 @@
  * endpoint.  Multi-step tool calling is supported: the loop continues until the
  * model produces a plain-text reply or `maxSteps` is exhausted.
  */
-import { parseModelString, resolveProvider, createProviderManager } from './model.js';
+import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { adaptTools, type ToolDefinitionMap } from './toolAdapter.js';
 import type { ITool } from '../core/tools/ITool.js';
 
@@ -56,10 +56,20 @@ export interface TokenUsage {
  */
 export interface GenerateTextOptions {
   /**
-   * Model identifier in `provider:model` format.
-   * @example `"openai:gpt-4o"`, `"anthropic:claude-opus-4-5"`, `"ollama:llama3.2"`
+   * Provider name.  When supplied without `model`, the default text model for
+   * the provider is resolved automatically from the built-in defaults registry.
+   *
+   * @example `"openai"`, `"anthropic"`, `"ollama"`
    */
-  model: string;
+  provider?: string;
+  /**
+   * Model identifier.  Accepted in two formats:
+   * - `"provider:model"` — legacy format (e.g. `"openai:gpt-4o"`), still fully supported.
+   * - Plain model name (e.g. `"gpt-4o-mini"`) when `provider` is also set.
+   *
+   * Either `provider` or `model` (or an API key env var for auto-detection) is required.
+   */
+  model?: string;
   /** Single user turn to append after any `messages`. Convenience alternative to building a `messages` array. */
   prompt?: string;
   /** System prompt injected as the first message. */
@@ -124,7 +134,7 @@ export interface GenerateTextResult {
  * ```
  */
 export async function generateText(opts: GenerateTextOptions): Promise<GenerateTextResult> {
-  const { providerId, modelId } = parseModelString(opts.model);
+  const { providerId, modelId } = resolveModelOption(opts, 'text');
   const resolved = resolveProvider(providerId, modelId, { apiKey: opts.apiKey, baseUrl: opts.baseUrl });
   const manager = await createProviderManager(resolved);
 
