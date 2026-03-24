@@ -1,3 +1,9 @@
+## <small>0.1.77 (2026-03-24)</small>
+
+* docs: update examples and README for provider-first API ([6aa8387](https://github.com/framersai/agentos/commit/6aa8387))
+* feat(api): add provider option to generateText, streamText, generateImage, agent ([bd4bd1a](https://github.com/framersai/agentos/commit/bd4bd1a)), closes [hi#level](https://github.com/hi/issues/level)
+* feat(api): add provider-defaults registry and resolveModelOption ([ae0076a](https://github.com/framersai/agentos/commit/ae0076a))
+
 ## <small>0.1.76 (2026-03-24)</small>
 
 * fix: update package.json deps and orchestration runtime exports ([378aa06](https://github.com/framersai/agentos/commit/378aa06))
