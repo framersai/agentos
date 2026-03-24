@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 function read(relativeToThisFile: string): string {
   return readFileSync(new URL(relativeToThisFile, import.meta.url), 'utf8');
 }
+
+function exists(relativeToThisFile: string): boolean {
+  try {
+    return existsSync(fileURLToPath(new URL(relativeToThisFile, import.meta.url)));
+  } catch { return false; }
+}
+
+/** Skip tests that reference files outside the agentos package (e.g. in CI where submodules aren't checked out). */
+const hasLiveDocs = exists('../../../../../apps/agentos-live-docs/docs/index.md');
+const hasSkillsPackages = exists('../../../../agentos-skills/package.json');
+const itIfLiveDocs = hasLiveDocs ? it : it.skip;
+const itIfSkills = hasSkillsPackages ? it : it.skip;
 
 describe('AgentOS docs alignment', () => {
   it('keeps the package README aligned with the high-level API surface', () => {
@@ -22,7 +35,7 @@ describe('AgentOS docs alignment', () => {
     expect(guide).toContain('Do not force libraries like Wunderland to adopt `agent()`');
   });
 
-  it('keeps the runnable example and docs homepage aligned with the streamlined APIs', () => {
+  itIfLiveDocs('keeps the runnable example and docs homepage aligned with the streamlined APIs', () => {
     const example = read('../../../examples/high-level-api.mjs');
     const docsIndex = read('../../../../../apps/agentos-live-docs/docs/index.md');
     const homepage = read('../../../../../apps/agentos-live-docs/src/pages/index.tsx');
@@ -33,7 +46,7 @@ describe('AgentOS docs alignment', () => {
     expect(homepage).toContain('/getting-started/high-level-api');
   });
 
-  it('surfaces the unified orchestration guides in the package docs and live docs indexes', () => {
+  itIfLiveDocs('surfaces the unified orchestration guides in the package docs and live docs indexes', () => {
     const packageDocsIndex = read('../../../docs/README.md');
     const liveDocsIndex = read('../../../../../apps/agentos-live-docs/docs/index.md');
     const documentationIndex = read('../../../../../apps/agentos-live-docs/docs/getting-started/documentation-index.md');
@@ -46,7 +59,7 @@ describe('AgentOS docs alignment', () => {
     expect(documentationIndex).toContain('Checkpointing');
   });
 
-  it('keeps the skills runtime and skills tool extension distinct in package metadata and docs', () => {
+  itIfSkills('keeps the skills runtime and skills tool extension distinct in package metadata and docs', () => {
     const runtimePackage = JSON.parse(read('../../../../agentos-skills/package.json'));
     const extensionPackage = JSON.parse(read('../../../../agentos-ext-skills/package.json'));
     const packageSkillsGuide = read('../../../docs/SKILLS.md');
