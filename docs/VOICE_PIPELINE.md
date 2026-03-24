@@ -175,3 +175,30 @@ The voice server communicates via WebSocket:
 | Transport disconnects | Tear down all sessions. Client must reconnect. |
 | Endpoint stuck | 30s watchdog timer forces `turn_complete`. |
 | Diarization lag | Non-blocking. Transcript sent to LLM immediately; speaker labels backfilled. |
+
+## Known Limitations
+
+The voice pipeline is functional but has these known limitations that will be addressed in future releases:
+
+### No True Incremental LLM Streaming
+
+The current `chat --voice` implementation gets the full LLM text reply first, then chunks it for TTS. This means:
+- First audio playback is delayed until the LLM finishes generating
+- Barge-in cannot cancel in-flight LLM generation — only TTS playback
+- Future: wire a real streaming text-turn API from the chat runtime into `IVoicePipelineAgentSession`
+
+### Semantic Endpointing Requires LLM Callback
+
+The semantic endpoint detector (`@framers/agentos-ext-endpoint-semantic`) only invokes the LLM turn-completeness classifier when an explicit `llmCall` callback is provided. Without it, the detector falls back to heuristic endpointing (punctuation + silence timeout).
+
+### Telephony Media Stream Bridge Incomplete
+
+The `telephony-webhook-server.ts` handles webhook routing and call control but does not yet automatically bridge provider media streams (Twilio `<Stream>`, Telnyx streaming, Plivo Audio Stream) into `TelephonyStreamTransport` and the voice pipeline. The media stream WebSocket connection must be established separately.
+
+### Env-Based Provider Resolution
+
+The `SpeechProviderResolver` and `createStreamingPipeline()` currently resolve voice components based on environment variables and static configuration. Future versions will resolve through a real `ExtensionManager` runtime with dynamic pack loading and hot-swapping.
+
+### No Call Recording or Transcript Persistence
+
+Call transcripts are held in memory during the call but are not persisted to storage after the call ends. Future: integrate with AgentOS storage/memory system.
