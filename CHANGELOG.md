@@ -1,3 +1,11 @@
+## <small>0.1.73 (2026-03-24)</small>
+
+* feat(voice-pipeline): add AcousticEndpointDetector wrapping silence detection ([c683997](https://github.com/framersai/agentos/commit/c683997))
+* feat(voice-pipeline): add core interfaces and types for streaming voice pipeline ([25d2dc6](https://github.com/framersai/agentos/commit/25d2dc6))
+* feat(voice-pipeline): add HardCut and SoftFade barge-in handlers ([e6cde06](https://github.com/framersai/agentos/commit/e6cde06))
+* feat(voice-pipeline): add HeuristicEndpointDetector with punctuation and silence detection ([1d820bc](https://github.com/framersai/agentos/commit/1d820bc))
+* docs: add unified orchestration layer section to README ([1214ebd](https://github.com/framersai/agentos/commit/1214ebd))
+
 ## <small>0.1.72 (2026-03-24)</small>
 
 * chore: update package.json with image provider dependencies ([96a58d3](https://github.com/framersai/agentos/commit/96a58d3))
