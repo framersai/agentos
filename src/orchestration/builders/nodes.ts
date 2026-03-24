@@ -1,4 +1,5 @@
 import type { GraphNode, GraphCondition, NodeExecutionMode, EffectClass, MemoryPolicy, DiscoveryPolicy, PersonaPolicy, GuardrailPolicy, RetryPolicy, CompiledExecutionGraph } from '../ir/types.js';
+import { lowerZodToJsonSchema } from '../compiler/SchemaLowering.js';
 
 export interface NodePolicies {
   memory?: MemoryPolicy;
@@ -111,6 +112,46 @@ export function guardrailNode(guardrailIds: string[], config: {
     executionMode: 'single_turn',
     effectClass: 'pure',
     checkpoint: 'none',
+  };
+}
+
+/**
+ * Creates an LLM-as-judge evaluation node with structured rubric output.
+ * The judge is a gmiNode that enforces single_turn execution and structured JSON output.
+ *
+ * @param config.rubric - Evaluation criteria description
+ * @param config.schema - Zod schema for structured score output
+ * @param config.threshold - Optional minimum passing score per dimension
+ * @param config.model - Optional model override for the judge LLM
+ */
+export function judgeNode(config: {
+  rubric: string;
+  schema: any;
+  threshold?: number;
+  model?: string;
+}, policies?: NodePolicies): GraphNode {
+  const instructions = [
+    'You are an evaluation judge. Your task is to score content against a rubric.',
+    '',
+    '## Rubric',
+    config.rubric,
+    '',
+    '## Instructions',
+    '1. Read the content in the conversation carefully.',
+    '2. Score each dimension in the rubric on a scale of 1-10.',
+    '3. Respond with ONLY a JSON object matching the required schema.',
+    '4. Do not include any other text, explanation, or commentary.',
+    config.threshold
+      ? `\n## Pass Threshold\nA score of ${config.threshold} or higher on each dimension is required to pass.`
+      : '',
+  ].join('\n');
+
+  const base = gmiNode({ instructions, executionMode: 'single_turn' }, policies);
+
+  return {
+    ...base,
+    id: nextId('judge'),
+    outputSchema: lowerZodToJsonSchema(config.schema),
   };
 }
 
