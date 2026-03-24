@@ -262,12 +262,12 @@ export class VoicePipelineOrchestrator extends EventEmitter {
       transport.sendControl({ type: 'agent_speaking', text: '' });
 
       for await (const token of tokenStream) {
-        if (this._state !== 'speaking') break; // barge-in happened
+        if ((this._state as string) !== 'speaking') break; // barge-in happened
         this._currentTTSText += token;
         ttsSession.pushTokens(token);
       }
 
-      if (this._state === 'speaking') {
+      if ((this._state as string) === 'speaking') {
         await ttsSession.flush();
       }
     });
