@@ -1,3 +1,9 @@
+## <small>0.1.98 (2026-03-25)</small>
+
+* fix(emergent): add missing ToolPackage.ts — fixes CI build ([322139a](https://github.com/framersai/agentos/commit/322139a))
+* docs: fix HIGH_LEVEL_API.md — use provider-first style, add local providers ([281cfbd](https://github.com/framersai/agentos/commit/281cfbd))
+* docs(emergent): expand EMERGENT_CAPABILITIES.md with comprehensive examples ([007005a](https://github.com/framersai/agentos/commit/007005a))
+
 ## <small>0.1.97 (2026-03-25)</small>
 
 * docs: add EMERGENT_CAPABILITIES.md, update README + registry ([16a7a1f](https://github.com/framersai/agentos/commit/16a7a1f))
