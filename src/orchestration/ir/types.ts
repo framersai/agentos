@@ -112,6 +112,35 @@ export type GraphCondition =
 // ---------------------------------------------------------------------------
 
 /**
+ * Configuration for a voice pipeline node.
+ * All fields except `mode` are optional and default from agent.config.json voice section.
+ */
+export interface VoiceNodeConfig {
+  /** Voice session mode */
+  mode: 'conversation' | 'listen-only' | 'speak-only';
+  /** STT provider override */
+  stt?: string;
+  /** TTS provider override */
+  tts?: string;
+  /** TTS voice override */
+  voice?: string;
+  /** Endpointing mode */
+  endpointing?: 'acoustic' | 'heuristic' | 'semantic';
+  /** Barge-in mode */
+  bargeIn?: 'hard-cut' | 'soft-fade' | 'disabled';
+  /** Enable diarization */
+  diarization?: boolean;
+  /** Language (BCP-47) */
+  language?: string;
+  /** Max turns before node completes (0 = unlimited) */
+  maxTurns?: number;
+  /** Exit condition */
+  exitOn?: 'hangup' | 'silence-timeout' | 'keyword' | 'turns-exhausted' | 'manual';
+  /** Keywords that trigger completion (when exitOn: 'keyword') */
+  exitKeywords?: string[];
+}
+
+/**
  * Describes how the runtime should execute a `GraphNode`.  Each variant maps to a
  * distinct execution strategy.
  *
@@ -122,6 +151,7 @@ export type GraphCondition =
  * - `guardrail`  — Run one or more guardrail checks; route or block on violation.
  * - `router`     — Pure routing node; evaluates a `GraphCondition` and emits no output.
  * - `subgraph`   — Delegate to another `CompiledExecutionGraph` with optional field mapping.
+ * - `voice`      — Run a voice pipeline session with configurable STT/TTS and turn management.
  */
 export type NodeExecutorConfig =
   | {
@@ -178,6 +208,11 @@ export type NodeExecutorConfig =
       inputMapping?: Record<string, string>;
       /** Maps child `artifacts` field paths → parent `scratch` field paths. */
       outputMapping?: Record<string, string>;
+    }
+  | {
+      type: 'voice';
+      /** Voice pipeline session configuration. */
+      voiceConfig: VoiceNodeConfig;
     };
 
 // ---------------------------------------------------------------------------
@@ -350,7 +385,7 @@ export interface GraphNode {
   /** Unique identifier within the parent `CompiledExecutionGraph`. Must not equal `START` or `END`. */
   id: string;
   /** Coarse type label kept in sync with `executorConfig.type` for fast switching. */
-  type: 'gmi' | 'tool' | 'extension' | 'human' | 'guardrail' | 'router' | 'subgraph';
+  type: 'gmi' | 'tool' | 'extension' | 'human' | 'guardrail' | 'router' | 'subgraph' | 'voice';
   /** Full executor configuration; discriminated union determines runtime strategy. */
   executorConfig: NodeExecutorConfig;
   /** Controls the LLM turn budget for this node. */

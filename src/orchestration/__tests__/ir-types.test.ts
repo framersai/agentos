@@ -38,6 +38,7 @@ import {
   type CheckpointMetadata,
   type RunInspection,
   type CompiledExecutionGraph,
+  type VoiceNodeConfig,
 } from '../ir/index.js';
 
 // ---------------------------------------------------------------------------
@@ -197,6 +198,37 @@ describe('NodeExecutorConfig discriminated union', () => {
     if (config.type === 'subgraph') {
       expect(config.graphId).toBe('research-subgraph');
     }
+  });
+
+  it('discriminates voice config', () => {
+    const config: NodeExecutorConfig = {
+      type: 'voice',
+      voiceConfig: { mode: 'conversation' },
+    };
+    expect(config.type).toBe('voice');
+    if (config.type === 'voice') {
+      expect(config.voiceConfig.mode).toBe('conversation');
+    }
+  });
+
+  it('voice config with all optional fields', () => {
+    const config: NodeExecutorConfig = {
+      type: 'voice',
+      voiceConfig: {
+        mode: 'conversation',
+        stt: 'deepgram',
+        tts: 'elevenlabs',
+        voice: 'nova',
+        endpointing: 'semantic',
+        bargeIn: 'hard-cut',
+        diarization: true,
+        language: 'en-US',
+        maxTurns: 5,
+        exitOn: 'keyword',
+        exitKeywords: ['goodbye', 'done'],
+      },
+    };
+    expect(config.type).toBe('voice');
   });
 });
 
