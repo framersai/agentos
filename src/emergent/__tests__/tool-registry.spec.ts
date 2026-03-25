@@ -77,7 +77,12 @@ function makeRegistry(
 class MockStorageAdapter implements IStorageAdapter {
   rows = new Map<
     string,
-    { promoted_at: number | null; promoted_by: string | null }
+    {
+      promoted_at: number | null;
+      promoted_by: string | null;
+      implementation_source?: string | null;
+      implementation_mode?: string | null;
+    }
   >();
 
   async run(sql: string, params: unknown[] = []): Promise<unknown> {
@@ -88,6 +93,10 @@ class MockStorageAdapter implements IStorageAdapter {
           typeof params[11] === 'number' ? params[11] : null,
         promoted_by:
           typeof params[12] === 'string' ? params[12] : null,
+        implementation_source:
+          typeof params[6] === 'string' ? params[6] : null,
+        implementation_mode:
+          typeof params[5] === 'string' ? params[5] : null,
       });
     }
     return {};
@@ -327,6 +336,41 @@ describe('EmergentToolRegistry', () => {
 
     expect(firstPromotedAt).not.toBeNull();
     expect(secondPromotedAt).toBe(firstPromotedAt);
+  });
+
+  it('redacts sandbox source at rest by default', async () => {
+    const adapter = new MockStorageAdapter();
+    const registry = new EmergentToolRegistry(
+      { ...DEFAULT_EMERGENT_CONFIG, enabled: true },
+      adapter,
+    );
+    await registry.ensureSchema();
+
+    const tool = makeTool();
+    registry.register(tool, 'session');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persisted = adapter.rows.get(tool.id);
+    expect(persisted?.implementation_mode).toBe('sandbox');
+    expect(persisted?.implementation_source).toContain('"redacted":true');
+    expect(persisted?.implementation_source).not.toContain('function execute');
+  });
+
+  it('persists raw sandbox source only when explicitly enabled', async () => {
+    const adapter = new MockStorageAdapter();
+    const registry = new EmergentToolRegistry(
+      { ...DEFAULT_EMERGENT_CONFIG, enabled: true, persistSandboxSource: true },
+      adapter,
+    );
+    await registry.ensureSchema();
+
+    const tool = makeTool();
+    registry.register(tool, 'session');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persisted = adapter.rows.get(tool.id);
+    expect(persisted?.implementation_mode).toBe('sandbox');
+    expect(persisted?.implementation_source).toContain('function execute');
   });
 
   // -------------------------------------------------------------------------

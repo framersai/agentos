@@ -20,6 +20,20 @@ export type {
   IStorageAdapter as EmergentRegistryStorageAdapter,
   AuditEntry,
 } from './EmergentToolRegistry.js';
+export {
+  EMERGENT_TOOL_PACKAGE_SCHEMA_VERSION,
+  buildEmergentToolPackage,
+  serializeEmergentToolPackage,
+  parseEmergentToolPackage,
+  materializeEmergentToolFromPackage,
+} from './ToolPackage.js';
+export type {
+  PortableSandboxImplementation,
+  PortableToolImplementation,
+  EmergentToolPackageManifest,
+  BuildEmergentToolPackageOptions,
+  MaterializeEmergentToolFromPackageOptions,
+} from './ToolPackage.js';
 export { EmergentJudge } from './EmergentJudge.js';
 export type { ToolCandidate, EmergentJudgeConfig } from './EmergentJudge.js';
 export { EmergentCapabilityEngine } from './EmergentCapabilityEngine.js';

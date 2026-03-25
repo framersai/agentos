@@ -327,6 +327,14 @@ describe('emergent/types', () => {
       expect(DEFAULT_EMERGENT_CONFIG.maxAgentTools).toBe(50);
     });
 
+    it('disables sandbox forging by default', () => {
+      expect(DEFAULT_EMERGENT_CONFIG.allowSandboxTools).toBe(false);
+    });
+
+    it('does not persist raw sandbox source by default', () => {
+      expect(DEFAULT_EMERGENT_CONFIG.persistSandboxSource).toBe(false);
+    });
+
     it('has correct sandbox memory limit', () => {
       expect(DEFAULT_EMERGENT_CONFIG.sandboxMemoryMB).toBe(128);
     });
@@ -375,9 +383,13 @@ describe('emergent/types', () => {
       const custom: EmergentConfig = {
         ...DEFAULT_EMERGENT_CONFIG,
         enabled: true,
+        allowSandboxTools: true,
+        persistSandboxSource: true,
         maxSessionTools: 25,
       };
       expect(custom.enabled).toBe(true);
+      expect(custom.allowSandboxTools).toBe(true);
+      expect(custom.persistSandboxSource).toBe(true);
       expect(custom.maxSessionTools).toBe(25);
       // Unchanged values remain
       expect(custom.judgeModel).toBe('gpt-4o-mini');

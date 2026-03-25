@@ -268,6 +268,32 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     return descriptors.length;
   }
 
+  /**
+   * Remove emergent tools from the discovery index.
+   *
+   * This is used when a promoted/shared tool is deactivated or revoked and
+   * should no longer be returned by semantic capability discovery.
+   */
+  async removeEmergentTools(tools: EmergentTool[]): Promise<number> {
+    const eligible = tools.filter((t) => t.tier !== 'session');
+
+    if (eligible.length === 0) return 0;
+
+    let removed = 0;
+    for (const tool of eligible) {
+      await this.index.removeCapability(`emergent-tool:${tool.name}`);
+      removed += 1;
+    }
+
+    const allCapabilities = this.index.getAllCapabilities();
+    await this.graph.buildGraph(allCapabilities);
+
+    this.indexVersion++;
+    this.assembler.invalidateCache();
+
+    return removed;
+  }
+
   // ============================================================================
   // ACCESSORS
   // ============================================================================

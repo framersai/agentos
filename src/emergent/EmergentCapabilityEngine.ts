@@ -64,6 +64,9 @@ export interface EmergentCapabilityEngineDeps {
 
   /** Optional callback used when a tool is promoted to a persisted tier. */
   onToolPromoted?: (tool: EmergentTool) => Promise<void>;
+
+  /** Optional callback used when a tool is removed from the live runtime. */
+  onToolRemoved?: (tool: EmergentTool) => Promise<void>;
 }
 
 // ============================================================================
@@ -120,6 +123,7 @@ export class EmergentCapabilityEngine {
   private readonly registry: EmergentToolRegistry;
   private readonly onToolForged?: (tool: EmergentTool, executable: ITool) => Promise<void>;
   private readonly onToolPromoted?: (tool: EmergentTool) => Promise<void>;
+  private readonly onToolRemoved?: (tool: EmergentTool) => Promise<void>;
 
   /** Internal index for fast session/agent → tool lookups. */
   private readonly index: ToolIndex = {
@@ -140,6 +144,7 @@ export class EmergentCapabilityEngine {
     this.registry = deps.registry;
     this.onToolForged = deps.onToolForged;
     this.onToolPromoted = deps.onToolPromoted;
+    this.onToolRemoved = deps.onToolRemoved;
   }
 
   // --------------------------------------------------------------------------
@@ -225,6 +230,14 @@ export class EmergentCapabilityEngine {
       }
     } else {
       // ---- SANDBOX MODE ----
+      if (!this.config.allowSandboxTools) {
+        return {
+          success: false,
+          error:
+            'Sandboxed emergent tools are disabled. Enable allowSandboxTools to permit code-forged tools.',
+        };
+      }
+
       source = request.implementation.code;
 
       // Step 2a: Static code validation before any execution.
@@ -466,6 +479,43 @@ export class EmergentCapabilityEngine {
   }
 
   /**
+   * Hydrate a persisted tool back into a live runtime and make it executable.
+   *
+   * This is used by backend/admin control planes to sync shared tools from
+   * durable storage into a running ToolOrchestrator after promotion or restart.
+   */
+  async syncPersistedTool(tool: EmergentTool): Promise<void> {
+    this.registry.upsert(tool);
+    this.indexTool(tool.id, tool.createdBy, this.extractSessionId(tool.source) ?? `persisted:${tool.id}`);
+
+    const isActive = (tool as EmergentTool & { isActive?: boolean }).isActive ?? true;
+    if (!isActive) {
+      return;
+    }
+
+    if (this.onToolForged) {
+      await this.onToolForged(tool, this.createExecutableTool(tool));
+    }
+  }
+
+  /**
+   * Remove a previously synced tool from the live runtime and registry.
+   */
+  async removeTool(toolId: string): Promise<EmergentTool | undefined> {
+    const tool = this.registry.get(toolId);
+    if (!tool) {
+      return undefined;
+    }
+
+    this.registry.remove(toolId);
+    this.removeIndexedToolEverywhere(toolId);
+    if (this.onToolRemoved) {
+      await this.onToolRemoved(tool);
+    }
+    return tool;
+  }
+
+  /**
    * Create an executable ITool wrapper for a forged emergent tool.
    *
    * The wrapper performs runtime output validation, usage tracking, and
@@ -573,6 +623,20 @@ export class EmergentCapabilityEngine {
   ): void {
     this.index.bySession.get(sessionId)?.delete(toolId);
     this.index.byAgent.get(agentId)?.delete(toolId);
+  }
+
+  private removeIndexedToolEverywhere(toolId: string): void {
+    for (const toolIds of this.index.bySession.values()) {
+      toolIds.delete(toolId);
+    }
+    for (const toolIds of this.index.byAgent.values()) {
+      toolIds.delete(toolId);
+    }
+  }
+
+  private extractSessionId(source: string): string | null {
+    const match = /session\s+([A-Za-z0-9._:-]+)/i.exec(source);
+    return match?.[1] ?? null;
   }
 
   private buildSandboxExecutable(tool: EmergentTool): ITool<Record<string, unknown>, unknown> {

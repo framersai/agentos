@@ -444,4 +444,7 @@ export interface ICapabilityDiscoveryEngine {
 
   /** Index promoted emergent tools into discovery. */
   indexEmergentTools?(tools: EmergentTool[]): Promise<number>;
+
+  /** Remove emergent tools from discovery when they are deactivated or revoked. */
+  removeEmergentTools?(tools: EmergentTool[]): Promise<number>;
 }

@@ -39,6 +39,8 @@ function makeConfig(overrides?: Partial<EmergentConfig>): EmergentConfig {
     enabled: true,
     maxSessionTools: 10,
     maxAgentTools: 50,
+    allowSandboxTools: true,
+    persistSandboxSource: false,
     sandboxMemoryMB: 128,
     sandboxTimeoutMs: 5000,
     promotionThreshold: { uses: 5, confidence: 0.8 },
@@ -235,6 +237,22 @@ describe('EmergentCapabilityEngine', () => {
     // Verify it was registered.
     const registered = registry.get(result.toolId!);
     expect(registered).toBeDefined();
+  });
+
+  it('forge (sandbox): rejects sandbox mode when sandbox forging is disabled', async () => {
+    engine = new EmergentCapabilityEngine({
+      config: makeConfig({ allowSandboxTools: false }),
+      composableBuilder,
+      sandboxForge,
+      judge,
+      registry,
+    });
+
+    const result = await engine.forge(makeSandboxRequest(), { agentId, sessionId });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Sandboxed emergent tools are disabled/i);
+    expect(generateText).not.toHaveBeenCalled();
   });
 
   // =========================================================================

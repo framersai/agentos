@@ -26,6 +26,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
   EmergentTool,
+  SandboxAPI,
   ToolTier,
   ToolUsageStats,
   EmergentConfig,
@@ -105,6 +106,13 @@ export interface AuditEntry {
   /** Unix epoch millisecond timestamp of when the event occurred. */
   timestamp: number;
 }
+
+type PersistedSandboxMetadata = {
+  redacted: true;
+  reason: 'sandbox-source-not-persisted';
+  allowlist: SandboxAPI[];
+  codeBytes: number;
+};
 
 // ============================================================================
 // TIER ORDER
@@ -328,6 +336,32 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
    */
   get(toolId: string): EmergentTool | undefined {
     return this.sessionTools.get(toolId) ?? this.persistedTools.get(toolId);
+  }
+
+  /**
+   * Upsert a tool into the registry, replacing any prior in-memory copy.
+   *
+   * Used to hydrate persisted/shared tools back into a live runtime so they can
+   * become executable again after process restart or admin promotion.
+   */
+  upsert(tool: EmergentTool): void {
+    this.sessionTools.delete(tool.id);
+    this.persistedTools.delete(tool.id);
+
+    const normalized: EmergentTool = { ...tool };
+    if (normalized.tier === 'session') {
+      this.sessionTools.set(normalized.id, normalized);
+    } else {
+      this.persistedTools.set(normalized.id, normalized);
+    }
+
+    if (this.db && this.schemaReady) {
+      this.persistToolToDb(normalized).catch(() => {
+        // Best-effort persistence mirror only.
+      });
+    }
+
+    this.logAudit(normalized.id, 'sync', { tier: normalized.tier });
   }
 
   /**
@@ -724,6 +758,11 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
         (existing.promoted_by != null ? String(existing.promoted_by) : null);
     }
 
+    const implementationSource =
+      tool.implementation.mode === 'sandbox'
+        ? this.serializeSandboxImplementation(tool)
+        : JSON.stringify(tool.implementation);
+
     await this.db.run(
       `INSERT OR REPLACE INTO agentos_emergent_tools
        (id, name, description, input_schema, output_schema, implementation_mode,
@@ -739,7 +778,7 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
         JSON.stringify(tool.inputSchema),
         JSON.stringify(tool.outputSchema),
         tool.implementation.mode,
-        JSON.stringify(tool.implementation),
+        implementationSource,
         tool.tier,
         tool.createdBy,
         sessionId,
@@ -758,5 +797,24 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
         1,
       ],
     );
+  }
+
+  private serializeSandboxImplementation(tool: EmergentTool): string {
+    if (tool.implementation.mode !== 'sandbox') {
+      return JSON.stringify(tool.implementation);
+    }
+
+    if (this.config.persistSandboxSource) {
+      return tool.implementation.code;
+    }
+
+    const metadata: PersistedSandboxMetadata = {
+      redacted: true,
+      reason: 'sandbox-source-not-persisted',
+      allowlist: [...tool.implementation.allowlist],
+      codeBytes: Buffer.byteLength(tool.implementation.code, 'utf8'),
+    };
+
+    return JSON.stringify(metadata);
   }
 }

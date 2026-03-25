@@ -143,7 +143,7 @@ describe('ToolOrchestrator — emergent engine integration', () => {
       toolExecutor,
       undefined,
       undefined,
-      { enabled: true },
+      { enabled: true, config: { allowSandboxTools: true } },
     );
 
     const engine = orchestrator.getEmergentEngine();
@@ -176,7 +176,7 @@ describe('ToolOrchestrator — emergent engine integration', () => {
       toolExecutor,
       undefined,
       undefined,
-      { enabled: true },
+      { enabled: true, config: { allowSandboxTools: true } },
     );
 
     const engine = orchestrator.getEmergentEngine()!;
@@ -222,7 +222,7 @@ describe('ToolOrchestrator — emergent engine integration', () => {
       toolExecutor,
       undefined,
       undefined,
-      { enabled: true },
+      { enabled: true, config: { allowSandboxTools: true } },
     );
 
     const engine = orchestrator.getEmergentEngine()!;
@@ -246,7 +246,7 @@ describe('ToolOrchestrator — emergent engine integration', () => {
     );
 
     expect(result.success).toBe(false);
-    // The error comes from the judge failing to call the LLM.
+    expect(result.error).toMatch(/LLM call failed during creation review/i);
     expect(result.verdict?.approved).toBe(false);
   });
 
@@ -259,6 +259,7 @@ describe('ToolOrchestrator — emergent engine integration', () => {
       undefined,
       {
         enabled: true,
+        config: { allowSandboxTools: true },
         generateText: vi.fn().mockResolvedValue(
           JSON.stringify({
             safety: { passed: true, concerns: [] },

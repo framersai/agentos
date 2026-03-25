@@ -658,6 +658,35 @@ export interface EmergentConfig {
   maxAgentTools: number;
 
   /**
+   * Whether sandboxed code tools may be forged at all.
+   *
+   * When `false`, agents may still create compose-mode tools from existing
+   * registered tools, but any forge request using `implementation.mode:
+   * 'sandbox'` is rejected before validation or execution.
+   *
+   * This is intentionally disabled by default because sandboxed code carries
+   * higher review and persistence risk than safe-by-construction composition.
+   *
+   * @default false
+   */
+  allowSandboxTools: boolean;
+
+  /**
+   * Whether sandbox source code should be persisted at rest.
+   *
+   * When `false`, sandbox tools still run in memory for the active process, but
+   * durable storage only receives redacted metadata instead of raw source code.
+   * This reduces the blast radius of runtime-forged code while preserving audit
+   * visibility and non-source tool metadata.
+   *
+   * Persisting raw sandbox source should be an explicit opt-in for trusted
+   * environments that need restart-time rehydration of sandbox tools.
+   *
+   * @default false
+   */
+  persistSandboxSource: boolean;
+
+  /**
    * Memory limit in megabytes for each sandboxed tool execution.
    * Passed as {@link SandboxExecutionRequest.memoryMB}.
    * @default 128
@@ -714,6 +743,8 @@ export const DEFAULT_EMERGENT_CONFIG: Readonly<EmergentConfig> = {
   enabled: false,
   maxSessionTools: 10,
   maxAgentTools: 50,
+  allowSandboxTools: false,
+  persistSandboxSource: false,
   sandboxMemoryMB: 128,
   sandboxTimeoutMs: 5000,
   promotionThreshold: {

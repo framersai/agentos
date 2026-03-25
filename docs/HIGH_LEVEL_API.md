@@ -21,25 +21,58 @@ If you also want durable helper-level accounting, set `usageLedger.path`, set `u
 | `agent()` | Lightweight multi-turn sessions with in-memory history | Does not replace the full AgentOS runtime |
 | `AgentOS` | Personas, extensions, workflows, multi-agent orchestration, guardrails, HITL, runtime lifecycle | More setup, more control |
 
-## Provider Defaults
+## Provider Resolution
+
+### Calling Styles
+
+AgentOS supports three styles for specifying provider and model. **Provider-first is recommended:**
+
+```ts
+// 1. Provider-first (recommended) — AgentOS picks the best default model
+await generateText({ provider: 'openai', prompt: '...' });
+
+// 2. Provider + explicit model — full control
+await generateText({ provider: 'anthropic', model: 'claude-sonnet-4-20250514', prompt: '...' });
+
+// 3. Legacy colon format — backwards compatible, still works
+await generateText({ model: 'openai:gpt-4o', prompt: '...' });
+```
+
+### Provider Defaults
 
 When you supply `provider` without an explicit `model`, AgentOS resolves the default model
 for the requested task automatically:
 
-| Provider | Text default | Image default | Embedding default |
-|----------|-------------|---------------|-------------------|
-| `openai` | `gpt-4o` | `gpt-image-1` | `text-embedding-3-small` |
-| `anthropic` | `claude-sonnet-4-20250514` | — | — |
-| `ollama` | `llama3.2` | `stable-diffusion` | `nomic-embed-text` |
-| `openrouter` | `openai/gpt-4o` | — | — |
-| `gemini` | `gemini-2.5-flash` | — | — |
-| `stability` | — | `stable-diffusion-xl-1024-v1-0` | — |
-| `replicate` | — | `black-forest-labs/flux-1.1-pro` | — |
+| Provider | Type | Text default | Image default | Embedding default | Env var |
+|----------|------|-------------|---------------|-------------------|---------|
+| `openai` | Cloud | `gpt-4o` | `gpt-image-1` | `text-embedding-3-small` | `OPENAI_API_KEY` |
+| `anthropic` | Cloud | `claude-sonnet-4-20250514` | — | — | `ANTHROPIC_API_KEY` |
+| `gemini` | Cloud | `gemini-2.5-flash` | — | — | `GEMINI_API_KEY` |
+| `openrouter` | Cloud | `openai/gpt-4o` | — | — | `OPENROUTER_API_KEY` |
+| `stability` | Cloud | — | `stable-diffusion-xl-1024-v1-0` | — | `STABILITY_API_KEY` |
+| `replicate` | Cloud | — | `black-forest-labs/flux-1.1-pro` | — | `REPLICATE_API_TOKEN` |
+| `ollama` | Local | `llama3.2` | `stable-diffusion` | `nomic-embed-text` | `OLLAMA_BASE_URL` |
+| `stable-diffusion-local` | Local | — | `v1-5-pruned-emaonly` | — | `STABLE_DIFFUSION_LOCAL_BASE_URL` |
 
 When neither `provider` nor `model` is given, the first set API key env var is used
 (`OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `OPENROUTER_API_KEY` → `GEMINI_API_KEY` → `OLLAMA_BASE_URL`).
 
-The legacy `model: 'provider:model'` format is fully supported alongside the new style.
+### Local Providers
+
+Local providers don't require API keys — just a `baseUrl` (or the corresponding env var):
+
+```ts
+// Ollama — runs any GGUF model locally
+await generateText({
+  provider: 'ollama',
+  model: 'llama3.2',
+  prompt: 'Explain quantum entanglement simply.',
+  baseUrl: 'http://localhost:11434', // or set OLLAMA_BASE_URL
+});
+
+// Anthropic fallback: if ANTHROPIC_API_KEY is unset but OPENROUTER_API_KEY is set,
+// AgentOS automatically routes anthropic requests through OpenRouter.
+```
 
 ## `generateText()`
 
@@ -110,21 +143,28 @@ console.log(result.provider);
 console.log(result.images[0]?.mimeType);
 ```
 
-Built-in image providers:
+### Built-in Image Providers
 
-- `openai`
-- `openrouter`
-- `stability`
-- `replicate`
+| Provider | Type | Default model | API key env var |
+|---|---|---|---|
+| `openai` | Cloud API | `gpt-image-1` | `OPENAI_API_KEY` |
+| `stability` | Cloud API | `stable-diffusion-xl-1024-v1-0` | `STABILITY_API_KEY` |
+| `replicate` | Cloud API | `black-forest-labs/flux-1.1-pro` | `REPLICATE_API_TOKEN` |
+| `openrouter` | Cloud API | — | `OPENROUTER_API_KEY` |
+| `ollama` | Local | `stable-diffusion` | None (uses `baseUrl`) |
+| `stable-diffusion-local` | Local | `v1-5-pruned-emaonly` | None (uses `baseUrl`) |
+
+### Provider-Specific Options
 
 Use the common options for the simple path, then drop down to namespaced
-`providerOptions` when you need provider-specific controls:
+`providerOptions` when you need provider-native controls:
 
 ```ts
 import { generateImage } from '@framers/agentos';
 
 const poster = await generateImage({
-  model: 'stability:stable-image-core',
+  provider: 'stability',
+  model: 'stable-image-core',
   prompt: 'An art deco travel poster for a moon colony',
   negativePrompt: 'text, watermark',
   providerOptions: {
@@ -143,7 +183,8 @@ Replicate and OpenRouter work the same way:
 
 ```ts
 const replicateResult = await generateImage({
-  model: 'replicate:black-forest-labs/flux-schnell',
+  provider: 'replicate',
+  model: 'black-forest-labs/flux-schnell',
   prompt: 'A product photo of a titanium watch on black stone',
   aspectRatio: '16:9',
   providerOptions: {
@@ -157,8 +198,31 @@ const replicateResult = await generateImage({
 });
 ```
 
-If you need a custom backend entirely, register a provider factory and still use
-the same `generateImage()` surface:
+### Local Image Generation
+
+Run Stable Diffusion locally without any API key:
+
+```ts
+// Via Ollama (if your Ollama install has a stable-diffusion model)
+const local = await generateImage({
+  provider: 'ollama',
+  model: 'stable-diffusion',
+  prompt: 'A watercolor landscape of rolling hills',
+  baseUrl: 'http://localhost:11434', // or set OLLAMA_BASE_URL
+});
+
+// Via local Stable Diffusion WebUI (Automatic1111 / ComfyUI)
+const sdLocal = await generateImage({
+  provider: 'stable-diffusion-local',
+  model: 'v1-5-pruned-emaonly',
+  prompt: 'A brutalist house in fog',
+  baseUrl: 'http://localhost:7860', // or set STABLE_DIFFUSION_LOCAL_BASE_URL
+});
+```
+
+### Custom Image Provider
+
+Register a provider factory for backends not covered by the built-ins:
 
 ```ts
 import {
@@ -167,7 +231,7 @@ import {
   type IImageProvider,
 } from '@framers/agentos';
 
-class CustomImageProvider implements IImageProvider {
+class ComfyUIProvider implements IImageProvider {
   providerId = 'comfyui';
   isInitialized = false;
   defaultModelId = 'sdxl';
@@ -187,10 +251,11 @@ class CustomImageProvider implements IImageProvider {
   }
 }
 
-registerImageProviderFactory('comfyui', () => new CustomImageProvider());
+registerImageProviderFactory('comfyui', () => new ComfyUIProvider());
 
 await generateImage({
-  model: 'comfyui:sdxl',
+  provider: 'comfyui',
+  model: 'sdxl',
   prompt: 'A brutalist house in fog',
 });
 ```
