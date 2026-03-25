@@ -1,3 +1,9 @@
+## <small>0.1.85 (2026-03-25)</small>
+
+* feat(orchestration): add voice step support to WorkflowBuilder configToNode ([c7ed210](https://github.com/framersai/agentos/commit/c7ed210))
+* feat(orchestration): add voiceNode() builder DSL and WorkflowBuilder.transport() ([8310ac5](https://github.com/framersai/agentos/commit/8310ac5))
+* feat(orchestration): add VoiceTransportAdapter for voice transport mode ([8725b4c](https://github.com/framersai/agentos/commit/8725b4c))
+
 ## <small>0.1.84 (2026-03-25)</small>
 
 * feat(orchestration): add 5 voice event variants to GraphEvent union ([5286b3a](https://github.com/framersai/agentos/commit/5286b3a))
