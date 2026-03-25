@@ -1,3 +1,11 @@
+## <small>0.1.84 (2026-03-25)</small>
+
+* feat(orchestration): add 5 voice event variants to GraphEvent union ([5286b3a](https://github.com/framersai/agentos/commit/5286b3a))
+* feat(orchestration): add voice variant to NodeExecutorConfig + VoiceNodeConfig type ([1b44b8b](https://github.com/framersai/agentos/commit/1b44b8b))
+* feat(orchestration): add VoiceNodeExecutor with exit-condition racing and barge-in abort ([d4631a2](https://github.com/framersai/agentos/commit/d4631a2))
+* feat(orchestration): add VoiceTurnCollector for voice node transcript buffering ([16ff7e8](https://github.com/framersai/agentos/commit/16ff7e8))
+* feat(voice-pipeline): add VoiceInterruptError and public waitForUserTurn/pushToTTS methods ([57b351a](https://github.com/framersai/agentos/commit/57b351a))
+
 ## <small>0.1.83 (2026-03-24)</small>
 
 * feat(orchestration): implement real extension node execution via extensionExecutor dep ([4782a63](https://github.com/framersai/agentos/commit/4782a63))
