@@ -253,4 +253,37 @@ describe('GraphEventEmitter', () => {
       expect(firstEvent.type).toBe('run_start');
     });
   });
+
+  describe('voice events', () => {
+    it('accepts voice_transcript event', () => {
+      const event: GraphEvent = {
+        type: 'voice_transcript',
+        nodeId: 'listen',
+        text: 'Hello',
+        isFinal: true,
+        confidence: 0.95,
+      };
+      expect(event.type).toBe('voice_transcript');
+    });
+
+    it('accepts voice_barge_in event', () => {
+      const event: GraphEvent = {
+        type: 'voice_barge_in',
+        nodeId: 'listen',
+        interruptedText: 'I was saying...',
+        userSpeech: 'Wait!',
+      };
+      expect(event.type).toBe('voice_barge_in');
+    });
+
+    it('accepts voice_session event', () => {
+      const event: GraphEvent = {
+        type: 'voice_session',
+        nodeId: 'listen',
+        action: 'ended',
+        exitReason: 'hangup',
+      };
+      expect(event.type).toBe('voice_session');
+    });
+  });
 });

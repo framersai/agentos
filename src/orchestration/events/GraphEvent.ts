@@ -86,7 +86,22 @@ export type GraphEvent =
    * Emitted for unhandled exceptions or structured runtime errors.
    * `nodeId` is absent for graph-level errors that occur outside any node's scope.
    */
-  | { type: 'error'; nodeId?: string; error: { message: string; code: string } };
+  | { type: 'error'; nodeId?: string; error: { message: string; code: string } }
+
+  /** Live STT transcription — interim and final results. */
+  | { type: 'voice_transcript'; nodeId: string; text: string; isFinal: boolean; speaker?: string; confidence: number }
+
+  /** Audio chunk metadata (actual audio flows via IStreamTransport, not events). */
+  | { type: 'voice_audio'; nodeId: string; direction: 'inbound' | 'outbound'; format: string; durationMs: number }
+
+  /** User barge-in — interrupted the agent mid-speech. */
+  | { type: 'voice_barge_in'; nodeId: string; interruptedText: string; userSpeech: string }
+
+  /** User turn complete — endpoint detection fired. */
+  | { type: 'voice_turn_complete'; nodeId: string; transcript: string; turnIndex: number; endpointReason: string }
+
+  /** Voice session lifecycle — started or ended. */
+  | { type: 'voice_session'; nodeId: string; action: 'started' | 'ended'; exitReason?: string };
 
 // ---------------------------------------------------------------------------
 // GraphEventEmitter
