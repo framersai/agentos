@@ -603,6 +603,26 @@ export class WorkflowBuilder {
       };
     }
 
+    if (config.voice) {
+      // Voice pipeline node: runs a bidirectional STT/TTS session with configurable
+      // turn limits and exit conditions.  Uses `react_bounded` execution mode to
+      // model the multi-turn interaction loop within a single graph node.
+      return {
+        id,
+        type: 'voice' as const,
+        executorConfig: {
+          type: 'voice' as const,
+          voiceConfig: config.voice,
+        },
+        executionMode: 'react_bounded',
+        effectClass: config.effectClass ?? 'external',
+        timeout: config.timeout,
+        checkpoint: 'before',
+        memoryPolicy: config.memory,
+        guardrailPolicy: config.guardrails,
+      };
+    }
+
     // Fallback: treat as a no-op tool node.
     return {
       ...toolNode('unknown', { timeout: config.timeout }),
