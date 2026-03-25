@@ -83,6 +83,7 @@ import { ILogger } from '../logging/ILogger';
 import { createLogger } from '../logging/loggerFactory';
 import { configureAgentOSObservability, type AgentOSObservabilityConfig } from '../core/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../core/guardrails/IGuardrailService';
+import type { EmergentConfig } from '../emergent/types.js';
 import { GuardrailAction } from '../core/guardrails/IGuardrailService';
 import {
   evaluateInputGuardrails,
@@ -539,6 +540,19 @@ export interface AgentOSConfig {
   storageAdapter?: StorageAdapter;
 
   /**
+   * Enable emergent capability creation. When true, the agent gains access
+   * to the `forge_tool` meta-tool and can create new tools at runtime.
+   * @default false
+   */
+  emergent?: boolean;
+
+  /**
+   * Configuration for the emergent capability engine.
+   * Only applies when `emergent: true`.
+   */
+  emergentConfig?: Partial<EmergentConfig>;
+
+  /**
    * Optional observability config for tracing, metrics, and log correlation.
    * Default: disabled (opt-in).
    */
@@ -795,12 +809,34 @@ export class AgentOS implements IAgentOS {
       const toolRegistry = this.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
       this.toolExecutor = new ToolExecutor(this.authService, this.subscriptionService, toolRegistry);
       this.toolOrchestrator = new ToolOrchestrator();
+      // Build emergent options from config when emergent: true.
+      const emergentOptions = this.config.emergent
+        ? {
+            enabled: true,
+            config: this.config.emergentConfig,
+            generateText: async (model: string, prompt: string): Promise<string> => {
+              const provider = this.modelProviderManager.getDefaultProvider();
+              if (!provider) {
+                throw new Error('No LLM provider available for the emergent judge.');
+              }
+              const response = await provider.generateChatCompletion({
+                messages: [{ role: 'user', content: prompt }],
+                model,
+              });
+              return typeof response.content === 'string'
+                ? response.content
+                : JSON.stringify(response.content);
+            },
+          }
+        : undefined;
+
       await this.toolOrchestrator.initialize(
         this.config.toolOrchestratorConfig,
         this.toolPermissionManager,
         this.toolExecutor,
         undefined,
-        this.config.hitlManager
+        this.config.hitlManager,
+        emergentOptions,
       );
       console.log('AgentOS: ToolOrchestrator initialized.');
       await this.initializeTurnPlanner();

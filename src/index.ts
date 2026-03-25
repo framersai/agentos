@@ -103,6 +103,8 @@ export * from './orchestration/index.js';
 export * from './core/provenance';
 // Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)
 export * from './core/safety';
+// Emergent Capability Engine (runtime tool creation)
+export * from './emergent/index.js';
 // Extension Secrets Catalog
 export {
   EXTENSION_SECRET_DEFINITIONS,

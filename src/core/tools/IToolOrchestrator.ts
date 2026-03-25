@@ -18,6 +18,8 @@ import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import type { IHumanInteractionManager } from '../hitl/IHumanInteractionManager';
 import type { CapabilityDiscoveryResult } from '../../discovery/types';
+import type { EmergentConfig } from '../../emergent/types.js';
+import type { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
 
 /**
  * Represents the information about a tool that is suitable for an LLM
@@ -65,6 +67,17 @@ export interface IToolOrchestrator {
     toolExecutor: ToolExecutor,
     initialTools?: ITool[],
     hitlManager?: IHumanInteractionManager,
+    emergentOptions?: {
+      /** Enable emergent capability creation. */
+      enabled: boolean;
+      /** Partial emergent config to merge with defaults. */
+      config?: Partial<EmergentConfig>;
+      /**
+       * LLM text generation callback for the EmergentJudge.
+       * When omitted the judge rejects all tools (safe fallback).
+       */
+      generateText?: (model: string, prompt: string) => Promise<string>;
+    },
   ): Promise<void>;
 
   /**
@@ -145,6 +158,30 @@ export interface IToolOrchestrator {
       userContext?: UserContext;
     },
   ): Promise<ToolDefinitionForLLM[]>;
+
+  /**
+   * Returns the underlying {@link EmergentCapabilityEngine} instance, or
+   * `undefined` if emergent capabilities were not enabled at initialization.
+   *
+   * @returns The engine instance, or `undefined`.
+   */
+  getEmergentEngine?(): EmergentCapabilityEngine | undefined;
+
+  /**
+   * Clean up all emergent session-scoped tools for a given session.
+   * No-op if emergent capabilities are not enabled.
+   *
+   * @param sessionId - The session identifier to clean up.
+   */
+  cleanupEmergentSession?(sessionId: string): void;
+
+  /**
+   * Register a dynamically forged emergent tool with the orchestrator so the
+   * agent can use it in subsequent turns.
+   *
+   * @param tool - An {@link ITool} instance wrapping the forged tool.
+   */
+  registerForgedTool?(tool: ITool): Promise<void>;
 
   /**
    * Checks the health of the ToolOrchestrator and its critical dependencies.

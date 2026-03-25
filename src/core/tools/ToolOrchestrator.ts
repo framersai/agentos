@@ -33,13 +33,21 @@ import {
   IToolOrchestrator,
   ToolDefinitionForLLM,
 } from './IToolOrchestrator';
-import { ITool, JSONSchemaObject, ToolExecutionResult } from './ITool';
+import { ITool, JSONSchemaObject, ToolExecutionResult, ToolExecutionContext } from './ITool';
 import { IToolPermissionManager, PermissionCheckContext, PermissionCheckResult } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import type { ActionSeverity, IHumanInteractionManager, PendingAction } from '../hitl/IHumanInteractionManager';
+import type { EmergentConfig } from '../../emergent/types.js';
+import { DEFAULT_EMERGENT_CONFIG } from '../../emergent/types.js';
+import { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
+import { ComposableToolBuilder } from '../../emergent/ComposableToolBuilder.js';
+import { SandboxedToolForge } from '../../emergent/SandboxedToolForge.js';
+import { EmergentJudge } from '../../emergent/EmergentJudge.js';
+import { EmergentToolRegistry } from '../../emergent/EmergentToolRegistry.js';
+import { ForgeToolMetaTool } from '../../emergent/ForgeToolMetaTool.js';
 
 /**
  * @class ToolOrchestrator
@@ -82,6 +90,13 @@ export class ToolOrchestrator implements IToolOrchestrator {
    * Optional human-in-the-loop manager used to gate risky tool executions.
    */
   private hitlManager?: IHumanInteractionManager;
+
+  /**
+   * The emergent capability engine instance, created when `emergent: true`.
+   * Manages runtime tool creation via the forge pipeline.
+   * @private
+   */
+  private emergentEngine?: EmergentCapabilityEngine;
 
   /**
    * A flag indicating whether the orchestrator has been successfully initialized and is ready for operation.
@@ -137,6 +152,17 @@ export class ToolOrchestrator implements IToolOrchestrator {
     toolExecutor: ToolExecutor,
     initialTools?: ITool[],
     hitlManager?: IHumanInteractionManager,
+    emergentOptions?: {
+      /** Enable emergent capability creation. */
+      enabled: boolean;
+      /** Partial emergent config to merge with defaults. */
+      config?: Partial<EmergentConfig>;
+      /**
+       * LLM text generation callback for the EmergentJudge.
+       * When omitted the judge rejects all tools (safe fallback).
+       */
+      generateText?: (model: string, prompt: string) => Promise<string>;
+    },
   ): Promise<void> {
     if (this.isInitialized) {
       console.warn(
@@ -182,6 +208,70 @@ export class ToolOrchestrator implements IToolOrchestrator {
             console.error(`ToolOrchestrator (ID: ${this.orchestratorId}): ${errorMsg}`, registrationError.details || registrationError);
         }
       }
+    }
+
+    // -----------------------------------------------------------------------
+    // Emergent Capability Engine (optional — only when emergent: true)
+    // -----------------------------------------------------------------------
+    if (emergentOptions?.enabled) {
+      const emergentConfig: EmergentConfig = {
+        ...DEFAULT_EMERGENT_CONFIG,
+        ...(emergentOptions.config ?? {}),
+        enabled: true,
+      };
+
+      // ComposableToolBuilder — wired to this orchestrator's own tool execution
+      // so that composed tools can invoke any registered tool.
+      const composableBuilder = new ComposableToolBuilder(
+        async (toolName: string, args: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult> => {
+          const tool = await this.getTool(toolName);
+          if (!tool) {
+            return { success: false, error: `Tool "${toolName}" not found in orchestrator.` };
+          }
+          return tool.execute(args as Record<string, unknown>, context);
+        },
+      );
+
+      // SandboxedToolForge — uses config-driven resource limits.
+      const sandboxForge = new SandboxedToolForge({
+        memoryMB: emergentConfig.sandboxMemoryMB,
+        timeoutMs: emergentConfig.sandboxTimeoutMs,
+      });
+
+      // EmergentJudge — wired to the provided generateText callback, or a
+      // no-op stub that rejects all tools when no LLM is configured.
+      const generateText: (model: string, prompt: string) => Promise<string> =
+        emergentOptions.generateText ??
+        (async () => {
+          throw new Error('No LLM provider configured for the emergent judge.');
+        });
+
+      const judge = new EmergentJudge({
+        judgeModel: emergentConfig.judgeModel,
+        promotionModel: emergentConfig.promotionJudgeModel,
+        generateText,
+      });
+
+      // EmergentToolRegistry — in-memory only (no storage adapter for now).
+      const registry = new EmergentToolRegistry(emergentConfig);
+
+      // Assemble the engine.
+      this.emergentEngine = new EmergentCapabilityEngine({
+        config: emergentConfig,
+        composableBuilder,
+        sandboxForge,
+        judge,
+        registry,
+      });
+
+      // Create and register the forge_tool meta-tool.
+      const forgeMetaTool = new ForgeToolMetaTool(this.emergentEngine);
+      await this.registerInitialTool(forgeMetaTool);
+
+      console.log(
+        `ToolOrchestrator (ID: ${this.orchestratorId}): Emergent capability engine initialized. ` +
+        `forge_tool meta-tool registered.`,
+      );
     }
 
     this.isInitialized = true;
@@ -601,6 +691,62 @@ export class ToolOrchestrator implements IToolOrchestrator {
         details: coreExecutorResult.details,
       } : undefined,
     };
+  }
+
+  // --------------------------------------------------------------------------
+  // EMERGENT CAPABILITY HELPERS
+  // --------------------------------------------------------------------------
+
+  /**
+   * Returns the underlying {@link EmergentCapabilityEngine} instance, or
+   * `undefined` if emergent capabilities were not enabled at initialization.
+   *
+   * Callers can use this to access engine methods like `getSessionTools()`,
+   * `getAgentTools()`, or `checkPromotion()` that are not exposed through
+   * the orchestrator's own API.
+   *
+   * @returns The engine instance, or `undefined`.
+   */
+  public getEmergentEngine(): EmergentCapabilityEngine | undefined {
+    return this.emergentEngine;
+  }
+
+  /**
+   * Clean up all emergent session-scoped tools for a given session.
+   *
+   * Delegates to {@link EmergentCapabilityEngine.cleanupSession}. This should
+   * be called when a conversation/session ends to free session-tier tools.
+   *
+   * No-op if emergent capabilities are not enabled.
+   *
+   * @param sessionId - The session identifier to clean up.
+   */
+  public cleanupEmergentSession(sessionId: string): void {
+    if (this.emergentEngine) {
+      this.emergentEngine.cleanupSession(sessionId);
+      console.log(
+        `ToolOrchestrator (ID: ${this.orchestratorId}): Cleaned up emergent session "${sessionId}".`,
+      );
+    }
+  }
+
+  /**
+   * Register a dynamically forged emergent tool with the orchestrator so the
+   * agent can use it in subsequent turns within the same session.
+   *
+   * This is the bridge between the {@link EmergentCapabilityEngine} (which
+   * stores tool metadata) and the {@link ToolOrchestrator} (which the LLM
+   * tool-call pipeline queries). After forge_tool produces a new tool, call
+   * this method to make it appear in `listAvailableTools()`.
+   *
+   * @param tool - An {@link ITool} instance wrapping the emergent tool.
+   */
+  public async registerForgedTool(tool: ITool): Promise<void> {
+    this.ensureInitialized();
+    await this.registerInitialTool(tool);
+    console.log(
+      `ToolOrchestrator (ID: ${this.orchestratorId}): Forged tool '${tool.name}' registered dynamically.`,
+    );
   }
 
   /**
