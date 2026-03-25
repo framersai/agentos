@@ -1,3 +1,7 @@
+## <small>0.1.91 (2026-03-25)</small>
+
+* feat(emergent): Task 1 — define all types and interfaces for Emergent Capability Engine ([8f80f98](https://github.com/framersai/agentos/commit/8f80f98))
+
 ## <small>0.1.90 (2026-03-25)</small>
 
 * fix(ci): resolve typecheck errors in test files ([8dc9b14](https://github.com/framersai/agentos/commit/8dc9b14))
