@@ -202,3 +202,203 @@ The `SpeechProviderResolver` and `createStreamingPipeline()` currently resolve v
 ### No Call Recording or Transcript Persistence
 
 Call transcripts are held in memory during the call but are not persisted to storage after the call ends. Future: integrate with AgentOS storage/memory system.
+
+---
+
+## Voice-Graph Integration
+
+AgentOS lets you embed voice I/O directly inside an orchestration graph. There are two complementary integration modes: **voice nodes** (one step in a larger graph is a voice session) and **voice transport** (the entire graph runs inside a phone call or real-time voice session).
+
+### Voice as a Graph Node Type
+
+Use the `voiceNode()` builder to create a `GraphNode` of type `'voice'`. The node manages a full multi-turn STT/TTS session and exits when one of its configured exit conditions fires.
+
+```typescript
+import { voiceNode } from '@framers/agentos/orchestration';
+
+const listenNode = voiceNode('intake', {
+  mode: 'conversation',
+  stt: 'deepgram',
+  tts: 'elevenlabs',
+  maxTurns: 5,
+  exitOn: 'keyword',
+  exitKeywords: ['confirmed', 'cancel'],
+})
+  .on('keyword:confirmed', 'process-intake')
+  .on('keyword:cancel',    'goodbye')
+  .on('hangup',            'end')
+  .on('turns-exhausted',   'fallback')
+  .build();
+```
+
+The builder produces a `GraphNode` with:
+
+| Property | Value |
+|----------|-------|
+| `type` | `'voice'` |
+| `executorConfig.type` | `'voice'` |
+| `executionMode` | `'react_bounded'` — models the multi-turn loop |
+| `effectClass` | `'external'` — touches real-world audio I/O |
+| `checkpoint` | `'before'` — snapshot taken before the session starts |
+
+Exit reasons map to the next node via `.on(exitReason, targetNodeId)`. The `.on()` chain is order-independent; the voice executor resolves the correct edge after the session ends.
+
+### Voice Transport Mode
+
+When the entire workflow should run inside a single phone call, declare a `transport` at the workflow level. All nodes in the graph then receive input from STT and deliver output to TTS via a `VoiceTransportAdapter`.
+
+```typescript
+import { workflow } from '@framers/agentos/orchestration';
+import { VoiceTransportAdapter } from '@framers/agentos/orchestration/runtime/VoiceTransportAdapter';
+
+const callFlow = workflow('phone-intake')
+  .input(inputSchema)
+  .returns(outputSchema)
+  .transport('voice', { stt: 'deepgram', tts: 'openai', voice: 'alloy' })
+  .step('greet',    { voice: { mode: 'speak-only' } })
+  .step('listen',   { voice: { mode: 'conversation', maxTurns: 3 } })
+  .step('confirm',  { voice: { mode: 'conversation', exitOn: 'keyword', exitKeywords: ['yes', 'no'] } })
+  .step('process',  { tool: 'crm_update' })
+  .compile();
+```
+
+The `VoiceTransportAdapter` bridges the graph I/O cycle:
+
+- `getNodeInput(nodeId)` — waits for the user's next speech turn (resolves on `turn_complete`).
+- `deliverNodeOutput(nodeId, text)` — sends the node's response to TTS and emits a `voice_audio` graph event.
+- `init(state)` — injects `state.scratch.voiceTransport` so voice nodes can access the transport.
+- `dispose()` — emits `voice_session ended` and tears down the adapter.
+
+### YAML Syntax
+
+#### Voice step in a YAML workflow
+
+```yaml
+name: phone-intake
+steps:
+  - id: greet
+    voice:
+      mode: speak-only
+      tts: openai
+      voice: alloy
+
+  - id: collect-info
+    voice:
+      mode: conversation
+      stt: deepgram
+      endpointing: heuristic
+      bargeIn: hard-cut
+      maxTurns: 5
+      exitOn: keyword
+      exitKeywords:
+        - confirmed
+        - cancel
+```
+
+#### Voice transport at workflow level
+
+```yaml
+name: phone-intake
+transport:
+  type: voice
+  stt: deepgram
+  tts: elevenlabs
+  voice: nova
+  bargeIn: hard-cut
+  endpointing: heuristic
+steps:
+  - id: greet
+    voice:
+      mode: speak-only
+  - id: intake
+    voice:
+      mode: conversation
+      maxTurns: 3
+      exitOn: keyword
+      exitKeywords: [confirmed, done]
+```
+
+When `transport.type: voice` is present, `compileWorkflowYaml()` attaches the config to `compiled._transport` so the caller can detect that the workflow expects a `VoiceTransportAdapter` at runtime.
+
+#### YAML voice step fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mode` | `conversation` \| `listen-only` \| `speak-only` | **Required.** Session direction. |
+| `stt` | string | STT provider override (e.g. `deepgram`, `openai`). |
+| `tts` | string | TTS provider override (e.g. `openai`, `elevenlabs`). |
+| `voice` | string | TTS voice name. |
+| `endpointing` | `acoustic` \| `heuristic` \| `semantic` | Endpoint detection mode. |
+| `bargeIn` | `hard-cut` \| `soft-fade` \| `disabled` | Barge-in handling. |
+| `diarization` | boolean | Enable speaker diarization. |
+| `language` | string | BCP-47 language tag (e.g. `en-US`). |
+| `maxTurns` | number | Maximum turns before `turns-exhausted` exit. `0` = unlimited. |
+| `exitOn` | string | Primary exit condition: `hangup`, `silence-timeout`, `keyword`, `turns-exhausted`, `manual`. |
+| `exitKeywords` | string[] | Phrases that trigger keyword exit. Case-insensitive substring match. |
+
+### Barge-in Routing with Exit Conditions
+
+The `VoiceNodeExecutor` races multiple exit conditions simultaneously via a `Promise.race`. The first condition to fire determines the `exitReason` string, which is then looked up in the node's edge map to resolve the `routeTarget`.
+
+| `exitReason` | Trigger | Typical edge target |
+|---|---|---|
+| `hangup` | Transport emits `close` or `disconnected` | `end` / cleanup node |
+| `turns-exhausted` | `turn_complete` fires and `turnCount >= maxTurns` | summarize / fallback node |
+| `keyword:<word>` | `final_transcript` contains a phrase from `exitKeywords` | intent-specific handler |
+| `silence-timeout` | No speech for 30 s when `exitOn: silence-timeout` | timeout handler / retry |
+| `interrupted` | `AbortController` fired with a `VoiceInterruptError` (barge-in) | re-listen / cancel TTS |
+
+When a barge-in occurs, the executor catches the `VoiceInterruptError` and returns `exitReason: 'interrupted'`. Wire a loopback edge `.on('interrupted', 'listen')` to restart the listen cycle:
+
+```typescript
+voiceNode('listen', { mode: 'conversation' })
+  .on('interrupted',      'listen')   // barge-in → re-listen
+  .on('turns-exhausted',  'summarize')
+  .on('hangup',           'end')
+  .build();
+```
+
+### Graph Events for Voice
+
+Voice nodes emit the following `GraphEvent` values in causal order:
+
+| Event type | When |
+|---|---|
+| `voice_session` (action: `started`) | Immediately on `execute()` entry |
+| `voice_transcript` (isFinal: false) | Each `interim_transcript` from STT |
+| `voice_transcript` (isFinal: true) | Each confirmed `final_transcript` |
+| `voice_turn_complete` | Each `turn_complete` from endpoint detector |
+| `voice_audio` (direction: `outbound`) | When TTS delivery is triggered by `VoiceTransportAdapter.deliverNodeOutput()` |
+| `voice_barge_in` | Each `barge_in` event from the pipeline session |
+| `voice_session` (action: `ended`) | On node exit, with `exitReason` |
+
+Consume events via the `GraphRuntime` stream:
+
+```typescript
+for await (const event of runtime.stream(graph, input)) {
+  if (event.type === 'voice_transcript' && event.isFinal) {
+    console.log(`[${event.speaker}] ${event.text}`);
+  }
+  if (event.type === 'voice_session' && event.action === 'ended') {
+    console.log('Session exit reason:', event.exitReason);
+  }
+}
+```
+
+### Checkpoint Support
+
+Voice nodes use `checkpoint: 'before'` so the runtime takes a state snapshot before each voice session starts. If the process crashes mid-call, the graph can be resumed from the beginning of that voice node.
+
+In addition, the `VoiceNodeExecutor` writes a `VoiceNodeCheckpoint` to `scratchUpdate[nodeId]` after every execution:
+
+```typescript
+interface VoiceNodeCheckpoint {
+  turnIndex: number;          // total turns completed (inclusive of prior runs)
+  transcript: TranscriptEntry[]; // full buffered transcript
+  lastExitReason: string | null;
+  speakerMap: Record<string, string>;
+  sessionConfig: VoiceNodeConfig;
+}
+```
+
+Pass `state.scratch[nodeId].turnIndex` back as the `initialTurnCount` when constructing a `VoiceTurnCollector` to resume the turn counter from where the previous run left off — enabling a call that spans multiple graph runs (e.g. after a human-approval pause) to count turns continuously rather than resetting to zero.
