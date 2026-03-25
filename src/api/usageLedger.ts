@@ -64,6 +64,7 @@ export interface AgentOSUsageRecordInput {
   options?: AgentOSUsageLedgerOptions;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface ReadAgentOSUsageOptions extends Pick<AgentOSUsageLedgerOptions, 'enabled' | 'path' | 'sessionId' | 'personaId'> {}
 
 const DEFAULT_LEDGER_DIR = '.framers';
