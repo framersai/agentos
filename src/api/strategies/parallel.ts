@@ -16,31 +16,7 @@ import type {
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
 import { isAgent } from './index.js';
-
-/**
- * Merge agency-level defaults into an agent config.
- *
- * Agent-level values take precedence; tools are merged (agency tools serve as
- * a base layer, agent tools override on name collision).
- *
- * @param agentConfig - Per-agent configuration.
- * @param agencyConfig - Agency-level fallback values.
- * @returns A merged config suitable for passing to `agent()`.
- */
-function mergeDefaults(
-  agentConfig: BaseAgentConfig,
-  agencyConfig: AgencyOptions,
-): BaseAgentConfig {
-  return {
-    model: agentConfig.model ?? agencyConfig.model,
-    provider: agentConfig.provider ?? agencyConfig.provider,
-    apiKey: agentConfig.apiKey ?? agencyConfig.apiKey,
-    baseUrl: agentConfig.baseUrl ?? agencyConfig.baseUrl,
-    ...agentConfig,
-    /* Merge tool maps: agency tools as base, agent tools overlay. */
-    tools: { ...(agencyConfig.tools ?? {}), ...(agentConfig.tools ?? {}) },
-  };
-}
+import { mergeDefaults, checkBeforeAgent } from './shared.js';
 
 /**
  * Compiles a parallel execution strategy.
@@ -68,20 +44,32 @@ export function compileParallel(
 
   return {
     async execute(prompt, opts) {
-      /* Run every agent concurrently. */
+      /* Run every agent concurrently, gated by beforeAgent HITL. */
       const entries = Object.entries(agents);
-      const settled = await Promise.all(
+      const settled = (await Promise.all(
         entries.map(async ([name, agentOrConfig]) => {
+          /* HITL: check beforeAgent gate before invoking this agent. */
+          const decision = await checkBeforeAgent(name, prompt, [], agencyConfig);
+          if (decision && !decision.approved) {
+            /* Agent was rejected — exclude from results. */
+            return null;
+          }
+
           const a: Agent = isAgent(agentOrConfig)
             ? agentOrConfig
             : createAgent({ ...mergeDefaults(agentOrConfig, agencyConfig) });
 
+          /* Apply instruction modifications from the approval decision if any. */
+          const effectivePrompt = decision?.modifications?.instructions
+            ? `${prompt}\n\n[Additional instructions]: ${decision.modifications.instructions}`
+            : prompt;
+
           const start = Date.now();
-          const result = (await a.generate(prompt, opts)) as Record<string, unknown>;
+          const result = (await a.generate(effectivePrompt, opts)) as Record<string, unknown>;
           const durationMs = Date.now() - start;
           return { name, result, durationMs };
         }),
-      );
+      )).filter((r): r is NonNullable<typeof r> => r !== null);
 
       /* Collect agent call records and aggregate usage. */
       const agentCalls: AgentCallRecord[] = [];
@@ -131,7 +119,7 @@ export function compileParallel(
         maxSteps: 1,
       });
 
-      const synthesis = (await synthesizer.generate(synthPrompt, opts)) as Record<string, unknown>;
+      const synthesis = (await synthesizer.generate(synthPrompt, opts)) as unknown as Record<string, unknown>;
       const synthUsage = (synthesis.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
 
       totalUsage.promptTokens += synthUsage.promptTokens ?? 0;

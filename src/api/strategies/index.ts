@@ -129,3 +129,4 @@ export { compileParallel } from './parallel.js';
 export { compileDebate } from './debate.js';
 export { compileReviewLoop } from './review-loop.js';
 export { compileHierarchical } from './hierarchical.js';
+export { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';

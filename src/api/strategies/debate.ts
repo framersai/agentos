@@ -17,47 +17,7 @@ import type {
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
 import { isAgent } from './index.js';
-
-/**
- * Merge agency-level defaults into an agent config.
- *
- * Agent-level values take precedence; tools are merged (agency tools serve as
- * a base layer, agent tools override on name collision).
- *
- * @param agentConfig - Per-agent configuration.
- * @param agencyConfig - Agency-level fallback values.
- * @returns A merged config suitable for passing to `agent()`.
- */
-function mergeDefaults(
-  agentConfig: BaseAgentConfig,
-  agencyConfig: AgencyOptions,
-): BaseAgentConfig {
-  return {
-    model: agentConfig.model ?? agencyConfig.model,
-    provider: agentConfig.provider ?? agencyConfig.provider,
-    apiKey: agentConfig.apiKey ?? agencyConfig.apiKey,
-    baseUrl: agentConfig.baseUrl ?? agencyConfig.baseUrl,
-    ...agentConfig,
-    /* Merge tool maps: agency tools as base, agent tools overlay. */
-    tools: { ...(agencyConfig.tools ?? {}), ...(agentConfig.tools ?? {}) },
-  };
-}
-
-/**
- * Resolves an agent-or-config value into a usable {@link Agent} instance.
- *
- * @param agentOrConfig - Either a pre-built Agent or a raw BaseAgentConfig.
- * @param agencyConfig - Agency-level fallback values for config merging.
- * @returns A ready-to-call Agent instance.
- */
-function resolveAgent(
-  agentOrConfig: BaseAgentConfig | Agent,
-  agencyConfig: AgencyOptions,
-): Agent {
-  return isAgent(agentOrConfig)
-    ? agentOrConfig
-    : createAgent({ ...mergeDefaults(agentOrConfig, agencyConfig) });
-}
+import { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
 
 /**
  * Compiles a debate execution strategy.
@@ -93,6 +53,13 @@ export function compileDebate(
 
       for (let round = 0; round < maxRounds; round++) {
         for (const [name, agentOrConfig] of entries) {
+          /* HITL: check beforeAgent gate before invoking this agent. */
+          const decision = await checkBeforeAgent(name, prompt, agentCalls, agencyConfig);
+          if (decision && !decision.approved) {
+            /* Agent was rejected — skip this agent in this round. */
+            continue;
+          }
+
           const a = resolveAgent(agentOrConfig, agencyConfig);
 
           const debateContext =
@@ -149,7 +116,7 @@ export function compileDebate(
         maxSteps: 1,
       });
 
-      const synthesis = (await synthesizer.generate(synthPrompt, opts)) as Record<string, unknown>;
+      const synthesis = (await synthesizer.generate(synthPrompt, opts)) as unknown as Record<string, unknown>;
       const synthUsage = (synthesis.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
 
       totalUsage.promptTokens += synthUsage.promptTokens ?? 0;

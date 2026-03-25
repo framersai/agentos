@@ -18,47 +18,7 @@ import type {
 import type { ToolDefinitionMap } from '../toolAdapter.js';
 import { AgencyConfigError } from '../types.js';
 import { isAgent } from './index.js';
-
-/**
- * Merge agency-level defaults into an agent config.
- *
- * Agent-level values take precedence; tools are merged (agency tools serve as
- * a base layer, agent tools override on name collision).
- *
- * @param agentConfig - Per-agent configuration.
- * @param agencyConfig - Agency-level fallback values.
- * @returns A merged config suitable for passing to `agent()`.
- */
-function mergeDefaults(
-  agentConfig: BaseAgentConfig,
-  agencyConfig: AgencyOptions,
-): BaseAgentConfig {
-  return {
-    model: agentConfig.model ?? agencyConfig.model,
-    provider: agentConfig.provider ?? agencyConfig.provider,
-    apiKey: agentConfig.apiKey ?? agencyConfig.apiKey,
-    baseUrl: agentConfig.baseUrl ?? agencyConfig.baseUrl,
-    ...agentConfig,
-    /* Merge tool maps: agency tools as base, agent tools overlay. */
-    tools: { ...(agencyConfig.tools ?? {}), ...(agentConfig.tools ?? {}) },
-  };
-}
-
-/**
- * Resolves an agent-or-config value into a usable {@link Agent} instance.
- *
- * @param agentOrConfig - Either a pre-built Agent or a raw BaseAgentConfig.
- * @param agencyConfig - Agency-level fallback values for config merging.
- * @returns A ready-to-call Agent instance.
- */
-function resolveAgent(
-  agentOrConfig: BaseAgentConfig | Agent,
-  agencyConfig: AgencyOptions,
-): Agent {
-  return isAgent(agentOrConfig)
-    ? agentOrConfig
-    : createAgent({ ...mergeDefaults(agentOrConfig, agencyConfig) });
-}
+import { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
 
 /**
  * Extracts a human-readable description from an agent config or instance.
@@ -119,9 +79,21 @@ export function compileHierarchical(
             required: ['task'],
           },
           execute: async (args: { task: string }) => {
+            /* HITL: check beforeAgent gate before delegating to this sub-agent. */
+            const decision = await checkBeforeAgent(name, args.task, agentCalls, agencyConfig);
+            if (decision && !decision.approved) {
+              return { success: false, data: `Agent "${name}" execution was rejected by HITL.` };
+            }
+
             const a = resolveAgent(agentOrConfig, agencyConfig);
+
+            /* Apply instruction modifications from the approval decision if any. */
+            const effectiveTask = decision?.modifications?.instructions
+              ? `${args.task}\n\n[Additional instructions]: ${decision.modifications.instructions}`
+              : args.task;
+
             const start = Date.now();
-            const result = (await a.generate(args.task, opts)) as Record<string, unknown>;
+            const result = (await a.generate(effectiveTask, opts)) as Record<string, unknown>;
             const durationMs = Date.now() - start;
 
             const resultText = (result.text as string) ?? '';
@@ -170,7 +142,7 @@ export function compileHierarchical(
         maxSteps: agencyConfig.maxSteps ?? 10,
       });
 
-      const result = (await manager.generate(prompt, opts)) as Record<string, unknown>;
+      const result = (await manager.generate(prompt, opts)) as unknown as Record<string, unknown>;
       return { ...result, agentCalls };
     },
 

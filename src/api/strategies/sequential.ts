@@ -13,33 +13,10 @@ import type {
   Agent,
   BaseAgentConfig,
   AgentCallRecord,
+  ApprovalRequest,
 } from '../types.js';
 import { isAgent } from './index.js';
-
-/**
- * Merge agency-level defaults into an agent config.
- *
- * Agent-level values take precedence; tools are merged (agency tools serve as
- * a base layer, agent tools override on name collision).
- *
- * @param agentConfig - Per-agent configuration.
- * @param agencyConfig - Agency-level fallback values.
- * @returns A merged config suitable for passing to `agent()`.
- */
-function mergeDefaults(
-  agentConfig: BaseAgentConfig,
-  agencyConfig: AgencyOptions,
-): BaseAgentConfig {
-  return {
-    model: agentConfig.model ?? agencyConfig.model,
-    provider: agentConfig.provider ?? agencyConfig.provider,
-    apiKey: agentConfig.apiKey ?? agencyConfig.apiKey,
-    baseUrl: agentConfig.baseUrl ?? agencyConfig.baseUrl,
-    ...agentConfig,
-    /* Merge tool maps: agency tools as base, agent tools overlay. */
-    tools: { ...(agencyConfig.tools ?? {}), ...(agentConfig.tools ?? {}) },
-  };
-}
+import { mergeDefaults, checkBeforeAgent } from './shared.js';
 
 /**
  * Compiles a sequential execution strategy.
@@ -65,12 +42,24 @@ export function compileSequential(
       const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       for (const [name, agentOrConfig] of Object.entries(agents)) {
+        /* HITL: check beforeAgent gate before invoking this agent. */
+        const decision = await checkBeforeAgent(name, context, agentCalls, agencyConfig);
+        if (decision && !decision.approved) {
+          /* Agent was rejected — skip and continue to the next agent. */
+          continue;
+        }
+
         const a: Agent = isAgent(agentOrConfig)
           ? agentOrConfig
           : createAgent({ ...mergeDefaults(agentOrConfig, agencyConfig) });
 
+        /* Apply instruction modifications from the approval decision if any. */
+        const effectiveContext = decision?.modifications?.instructions
+          ? `${context}\n\n[Additional instructions]: ${decision.modifications.instructions}`
+          : context;
+
         const start = Date.now();
-        const result = (await a.generate(context, opts)) as Record<string, unknown>;
+        const result = (await a.generate(effectiveContext, opts)) as Record<string, unknown>;
         const durationMs = Date.now() - start;
 
         const resultText = (result.text as string) ?? '';

@@ -17,47 +17,7 @@ import type {
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
 import { isAgent } from './index.js';
-
-/**
- * Merge agency-level defaults into an agent config.
- *
- * Agent-level values take precedence; tools are merged (agency tools serve as
- * a base layer, agent tools override on name collision).
- *
- * @param agentConfig - Per-agent configuration.
- * @param agencyConfig - Agency-level fallback values.
- * @returns A merged config suitable for passing to `agent()`.
- */
-function mergeDefaults(
-  agentConfig: BaseAgentConfig,
-  agencyConfig: AgencyOptions,
-): BaseAgentConfig {
-  return {
-    model: agentConfig.model ?? agencyConfig.model,
-    provider: agentConfig.provider ?? agencyConfig.provider,
-    apiKey: agentConfig.apiKey ?? agencyConfig.apiKey,
-    baseUrl: agentConfig.baseUrl ?? agencyConfig.baseUrl,
-    ...agentConfig,
-    /* Merge tool maps: agency tools as base, agent tools overlay. */
-    tools: { ...(agencyConfig.tools ?? {}), ...(agentConfig.tools ?? {}) },
-  };
-}
-
-/**
- * Resolves an agent-or-config value into a usable {@link Agent} instance.
- *
- * @param agentOrConfig - Either a pre-built Agent or a raw BaseAgentConfig.
- * @param agencyConfig - Agency-level fallback values for config merging.
- * @returns A ready-to-call Agent instance.
- */
-function resolveAgent(
-  agentOrConfig: BaseAgentConfig | Agent,
-  agencyConfig: AgencyOptions,
-): Agent {
-  return isAgent(agentOrConfig)
-    ? agentOrConfig
-    : createAgent({ ...mergeDefaults(agentOrConfig, agencyConfig) });
-}
+import { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
 
 /**
  * Attempts to parse a reviewer response as JSON with an `approved` field.
@@ -126,6 +86,13 @@ export function compileReviewLoop(
       let feedback = '';
 
       for (let round = 0; round < maxRounds; round++) {
+        /* ---- HITL: check beforeAgent gate for the producer ---- */
+        const prodDecision = await checkBeforeAgent(producerName, prompt, agentCalls, agencyConfig);
+        if (prodDecision && !prodDecision.approved) {
+          /* Producer rejected — terminate the loop early. */
+          break;
+        }
+
         /* ---- Producer creates or revises ---- */
         const prodPrompt =
           round === 0
@@ -158,6 +125,13 @@ export function compileReviewLoop(
         totalUsage.promptTokens += prodUsage.promptTokens ?? 0;
         totalUsage.completionTokens += prodUsage.completionTokens ?? 0;
         totalUsage.totalTokens += prodUsage.totalTokens ?? 0;
+
+        /* ---- HITL: check beforeAgent gate for the reviewer ---- */
+        const revDecision = await checkBeforeAgent(reviewerName, prompt, agentCalls, agencyConfig);
+        if (revDecision && !revDecision.approved) {
+          /* Reviewer rejected — accept the current draft and break. */
+          break;
+        }
 
         /* ---- Reviewer evaluates ---- */
         const revPrompt =
