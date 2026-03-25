@@ -40,13 +40,14 @@ import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import type { ActionSeverity, IHumanInteractionManager, PendingAction } from '../hitl/IHumanInteractionManager';
-import type { EmergentConfig } from '../../emergent/types.js';
+import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
 import { DEFAULT_EMERGENT_CONFIG } from '../../emergent/types.js';
 import { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
 import { ComposableToolBuilder } from '../../emergent/ComposableToolBuilder.js';
 import { SandboxedToolForge } from '../../emergent/SandboxedToolForge.js';
 import { EmergentJudge } from '../../emergent/EmergentJudge.js';
 import { EmergentToolRegistry } from '../../emergent/EmergentToolRegistry.js';
+import type { IStorageAdapter as EmergentStorageAdapter } from '../../emergent/EmergentToolRegistry.js';
 import { ForgeToolMetaTool } from '../../emergent/ForgeToolMetaTool.js';
 
 /**
@@ -97,6 +98,7 @@ export class ToolOrchestrator implements IToolOrchestrator {
    * @private
    */
   private emergentEngine?: EmergentCapabilityEngine;
+  private emergentDiscoveryIndexer?: (tools: EmergentTool[]) => Promise<void>;
 
   /**
    * A flag indicating whether the orchestrator has been successfully initialized and is ready for operation.
@@ -162,6 +164,8 @@ export class ToolOrchestrator implements IToolOrchestrator {
        * When omitted the judge rejects all tools (safe fallback).
        */
       generateText?: (model: string, prompt: string) => Promise<string>;
+      /** Optional persistent storage adapter for the emergent registry. */
+      storageAdapter?: EmergentStorageAdapter;
     },
   ): Promise<void> {
     if (this.isInitialized) {
@@ -252,8 +256,11 @@ export class ToolOrchestrator implements IToolOrchestrator {
         generateText,
       });
 
-      // EmergentToolRegistry — in-memory only (no storage adapter for now).
-      const registry = new EmergentToolRegistry(emergentConfig);
+      const registry = new EmergentToolRegistry(
+        emergentConfig,
+        emergentOptions.storageAdapter,
+      );
+      await registry.ensureSchema();
 
       // Assemble the engine.
       this.emergentEngine = new EmergentCapabilityEngine({
@@ -262,6 +269,12 @@ export class ToolOrchestrator implements IToolOrchestrator {
         sandboxForge,
         judge,
         registry,
+        onToolForged: async (_tool, executable) => {
+          await this.registerInitialTool(executable);
+        },
+        onToolPromoted: async (tool) => {
+          await this.emergentDiscoveryIndexer?.([tool]);
+        },
       });
 
       // Create and register the forge_tool meta-tool.
@@ -723,7 +736,10 @@ export class ToolOrchestrator implements IToolOrchestrator {
    */
   public cleanupEmergentSession(sessionId: string): void {
     if (this.emergentEngine) {
-      this.emergentEngine.cleanupSession(sessionId);
+      const removedTools = this.emergentEngine.cleanupSession(sessionId);
+      void Promise.allSettled(
+        removedTools.map((tool) => this.unregisterTool(tool.name)),
+      );
       console.log(
         `ToolOrchestrator (ID: ${this.orchestratorId}): Cleaned up emergent session "${sessionId}".`,
       );
@@ -747,6 +763,12 @@ export class ToolOrchestrator implements IToolOrchestrator {
     console.log(
       `ToolOrchestrator (ID: ${this.orchestratorId}): Forged tool '${tool.name}' registered dynamically.`,
     );
+  }
+
+  public setEmergentDiscoveryIndexer(
+    indexer: (tools: EmergentTool[]) => Promise<void>,
+  ): void {
+    this.emergentDiscoveryIndexer = indexer;
   }
 
   /**

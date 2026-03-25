@@ -303,6 +303,12 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
       this.persistedTools.set(registered.id, registered);
     }
 
+    if (this.db && this.schemaReady) {
+      this.persistToolToDb(registered).catch(() => {
+        // Best-effort persistence mirror. In-memory state remains authoritative.
+      });
+    }
+
     this.logAudit(registered.id, 'register', { tier });
   }
 
@@ -320,6 +326,29 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
    */
   get(toolId: string): EmergentTool | undefined {
     return this.sessionTools.get(toolId) ?? this.persistedTools.get(toolId);
+  }
+
+  /**
+   * Remove a tool from the registry entirely.
+   *
+   * Used to roll back newly forged tools when downstream activation fails.
+   */
+  remove(toolId: string): boolean {
+    const removed =
+      this.sessionTools.delete(toolId) || this.persistedTools.delete(toolId);
+
+    if (removed) {
+      if (this.db && this.schemaReady) {
+        this.db
+          .run(`DELETE FROM agentos_emergent_tools WHERE id = ?`, [toolId])
+          .catch(() => {
+            // Best-effort cleanup only.
+          });
+      }
+      this.logAudit(toolId, 'remove');
+    }
+
+    return removed;
   }
 
   // --------------------------------------------------------------------------
@@ -415,6 +444,12 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
     stats.confidenceScore = stats.successCount / stats.totalUses;
 
     stats.lastUsedAt = new Date().toISOString();
+
+    if (this.db && this.schemaReady) {
+      this.persistToolToDb(tool).catch(() => {
+        // Best-effort persistence mirror. Usage stats still live in memory.
+      });
+    }
 
     this.logAudit(toolId, 'use', { success, executionTimeMs });
   }
@@ -526,6 +561,14 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
     // Mark as inactive via a convention property.
     (tool as EmergentTool & { isActive?: boolean }).isActive = false;
 
+    if (this.db && this.schemaReady) {
+      this.db
+        .run(`UPDATE agentos_emergent_tools SET is_active = 0 WHERE id = ?`, [toolId])
+        .catch(() => {
+          // Best-effort persistence only.
+        });
+    }
+
     this.logAudit(toolId, 'demote', { reason });
   }
 
@@ -550,6 +593,13 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
     for (const [id, tool] of this.sessionTools) {
       if (tool.source.includes(sessionId)) {
         this.sessionTools.delete(id);
+        if (this.db && this.schemaReady) {
+          this.db
+            .run(`DELETE FROM agentos_emergent_tools WHERE id = ?`, [id])
+            .catch(() => {
+              // Best-effort cleanup only.
+            });
+        }
         this.logAudit(id, 'cleanup', { sessionId });
         removedCount += 1;
       }
@@ -663,7 +713,7 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
         tool.createdBy,
         sessionId,
         new Date(tool.createdAt).getTime(),
-        Date.now(),
+        tool.tier === 'session' ? null : Date.now(),
         approvedBy ?? null,
         JSON.stringify(tool.judgeVerdicts),
         tool.usageStats.confidenceScore,

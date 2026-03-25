@@ -249,4 +249,73 @@ describe('ToolOrchestrator — emergent engine integration', () => {
     // The error comes from the judge failing to call the LLM.
     expect(result.verdict?.approved).toBe(false);
   });
+
+  it('registers a forged tool with the orchestrator and removes it on session cleanup', async () => {
+    await orchestrator.initialize(
+      undefined,
+      permissionManager,
+      toolExecutor,
+      undefined,
+      undefined,
+      {
+        enabled: true,
+        generateText: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            safety: { passed: true, concerns: [] },
+            correctness: { passed: true, failedTests: [] },
+            determinism: { likely: true, reasoning: 'deterministic' },
+            bounded: { likely: true, reasoning: 'bounded' },
+            confidence: 0.91,
+            approved: true,
+            reasoning: 'safe and correct',
+          }),
+        ),
+      },
+    );
+
+    const engine = orchestrator.getEmergentEngine()!;
+    const forgeResult = await engine.forge(
+      {
+        name: 'add_numbers_runtime',
+        description: 'Adds two numbers',
+        inputSchema: {
+          type: 'object',
+          properties: { a: { type: 'number' }, b: { type: 'number' } },
+          required: ['a', 'b'],
+        },
+        outputSchema: {
+          type: 'object',
+          properties: { sum: { type: 'number' } },
+          required: ['sum'],
+        },
+        implementation: {
+          mode: 'sandbox',
+          code: 'function execute(input) { return { sum: input.a + input.b }; }',
+          allowlist: [],
+        },
+        testCases: [{ input: { a: 2, b: 3 }, expectedOutput: { sum: 5 } }],
+      },
+      { agentId: 'agent-1', sessionId: 'sess-1' },
+    );
+
+    expect(forgeResult.success).toBe(true);
+
+    const forgedTool = await orchestrator.getTool('add_numbers_runtime');
+    expect(forgedTool).toBeDefined();
+
+    const execution = await forgedTool!.execute(
+      { a: 7, b: 8 },
+      {
+        gmiId: 'agent-1',
+        personaId: 'persona-1',
+        userContext: { userId: 'user-1' } as any,
+        correlationId: 'sess-1',
+      },
+    );
+    expect(execution.success).toBe(true);
+    expect(execution.output).toEqual({ sum: 15 });
+
+    orchestrator.cleanupEmergentSession('sess-1');
+    expect(await orchestrator.getTool('add_numbers_runtime')).toBeUndefined();
+  });
 });

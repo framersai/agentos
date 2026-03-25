@@ -40,6 +40,7 @@
     "src/social-posting/**/*.ts",
     "src/speech/**/*.ts",
     "src/voice/**/*.ts",
+    "src/emergent/**/*.ts",
     "src/orchestration/**/*.ts",
     "src/voice-pipeline/**/*.ts",
     "src/**/*.json"

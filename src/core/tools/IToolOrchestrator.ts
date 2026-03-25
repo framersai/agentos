@@ -18,7 +18,7 @@ import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
 import type { IHumanInteractionManager } from '../hitl/IHumanInteractionManager';
 import type { CapabilityDiscoveryResult } from '../../discovery/types';
-import type { EmergentConfig } from '../../emergent/types.js';
+import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
 import type { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
 
 /**
@@ -182,6 +182,13 @@ export interface IToolOrchestrator {
    * @param tool - An {@link ITool} instance wrapping the forged tool.
    */
   registerForgedTool?(tool: ITool): Promise<void>;
+
+  /**
+   * Provide a discovery index callback for promoted emergent tools.
+   */
+  setEmergentDiscoveryIndexer?(
+    indexer: (tools: EmergentTool[]) => Promise<void>,
+  ): void;
 
   /**
    * Checks the health of the ToolOrchestrator and its critical dependencies.

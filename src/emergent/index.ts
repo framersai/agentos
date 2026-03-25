@@ -16,7 +16,10 @@ export { ComposableToolBuilder } from './ComposableToolBuilder.js';
 export { SandboxedToolForge } from './SandboxedToolForge.js';
 export type { SandboxedToolForgeConfig } from './SandboxedToolForge.js';
 export { EmergentToolRegistry } from './EmergentToolRegistry.js';
-export type { IStorageAdapter, AuditEntry } from './EmergentToolRegistry.js';
+export type {
+  IStorageAdapter as EmergentRegistryStorageAdapter,
+  AuditEntry,
+} from './EmergentToolRegistry.js';
 export { EmergentJudge } from './EmergentJudge.js';
 export type { ToolCandidate, EmergentJudgeConfig } from './EmergentJudge.js';
 export { EmergentCapabilityEngine } from './EmergentCapabilityEngine.js';

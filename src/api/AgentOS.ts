@@ -651,6 +651,7 @@ export class AgentOS implements IAgentOS {
   private workflowRuntime?: WorkflowRuntime;
   private agencyRegistry?: AgencyRegistry;
   private turnPlanner?: ITurnPlanner;
+  private capabilityDiscoveryEngine?: ICapabilityDiscoveryEngine;
   private discoveryEmbeddingManager?: EmbeddingManager;
   private discoveryVectorStore?: InMemoryVectorStore;
 
@@ -819,14 +820,27 @@ export class AgentOS implements IAgentOS {
               if (!provider) {
                 throw new Error('No LLM provider available for the emergent judge.');
               }
-              const response = await provider.generateChatCompletion({
-                messages: [{ role: 'user', content: prompt }],
+              const response = await provider.generateCompletion(
                 model,
-              });
-              return typeof response.content === 'string'
-                ? response.content
-                : JSON.stringify(response.content);
+                [{ role: 'user', content: prompt }],
+                {},
+              );
+              const firstContent = response.choices?.[0]?.message?.content ?? '';
+              return typeof firstContent === 'string'
+                ? firstContent
+                : JSON.stringify(firstContent);
             },
+            storageAdapter: storageAdapter
+              ? {
+                  run: async (sql: string, params?: unknown[]) =>
+                    storageAdapter.run(sql, params as any),
+                  get: async (sql: string, params?: unknown[]) =>
+                    storageAdapter.get(sql, params as any),
+                  all: async (sql: string, params?: unknown[]) =>
+                    storageAdapter.all(sql, params as any),
+                  exec: async (sql: string) => storageAdapter.exec(sql),
+                }
+              : undefined,
           }
         : undefined;
 
@@ -840,6 +854,13 @@ export class AgentOS implements IAgentOS {
       );
       console.log('AgentOS: ToolOrchestrator initialized.');
       await this.initializeTurnPlanner();
+      if (this.capabilityDiscoveryEngine && this.toolOrchestrator.setEmergentDiscoveryIndexer) {
+        this.toolOrchestrator.setEmergentDiscoveryIndexer(async (tools) => {
+          if (this.capabilityDiscoveryEngine?.indexEmergentTools) {
+            await this.capabilityDiscoveryEngine.indexEmergentTools(tools);
+          }
+        });
+      }
 
       // Initialize Conversation Manager
       this.conversationManager = new ConversationManager();
@@ -1123,6 +1144,7 @@ export class AgentOS implements IAgentOS {
     const turnPlanningConfig = this.config.turnPlanning;
     if (turnPlanningConfig?.enabled === false) {
       this.turnPlanner = undefined;
+      this.capabilityDiscoveryEngine = undefined;
       return;
     }
 
@@ -1146,6 +1168,7 @@ export class AgentOS implements IAgentOS {
       discoveryEngine,
       this.logger.child?.({ component: 'TurnPlanner' }) ?? this.logger,
     );
+    this.capabilityDiscoveryEngine = discoveryEngine;
     this.logger.info('AgentOS turn planner initialized', {
       discoveryEnabled: Boolean(discoveryEngine?.isInitialized?.()),
       defaultToolFailureMode: turnPlanningConfig?.defaultToolFailureMode ?? 'fail_open',

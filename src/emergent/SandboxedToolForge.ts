@@ -29,6 +29,7 @@
 import { createContext, runInContext } from 'node:vm';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import * as path from 'node:path';
 import type {
   SandboxExecutionRequest,
   SandboxExecutionResult,
@@ -65,6 +66,13 @@ export interface SandboxedToolForgeConfig {
    * @default []
    */
   fetchDomainAllowlist?: string[];
+
+  /**
+   * Filesystem roots sandboxed `fs.readFile` calls may access.
+   * Relative paths are resolved from the current working directory.
+   * Defaults to the current working directory only.
+   */
+  fsReadRoots?: string[];
 }
 
 // ============================================================================
@@ -77,6 +85,7 @@ export interface SandboxedToolForgeConfig {
  */
 const ALWAYS_BANNED: ReadonlyArray<[RegExp, string]> = [
   [/\beval\s*\(/, 'eval() is forbidden'],
+  [/\bFunction\s*\(/, 'Function() is forbidden'],
   [/\bnew\s+Function\s*\(/, 'new Function() is forbidden'],
   [/\brequire\s*\(/, 'require() is forbidden'],
   [/\bimport\s+/, 'import statements are forbidden'],
@@ -136,6 +145,9 @@ export class SandboxedToolForge {
   /** Domain allowlist for sandboxed `fetch` calls. */
   private readonly fetchDomainAllowlist: string[];
 
+  /** Filesystem roots sandboxed reads may access. */
+  private readonly fsReadRoots: string[];
+
   /**
    * Create a new SandboxedToolForge instance.
    *
@@ -147,6 +159,9 @@ export class SandboxedToolForge {
     this.timeoutMs = config?.timeoutMs ?? 5000;
     this.fetchDomainAllowlist = (config?.fetchDomainAllowlist ?? []).map((d) =>
       d.toLowerCase(),
+    );
+    this.fsReadRoots = (config?.fsReadRoots ?? [process.cwd()]).map((root) =>
+      path.resolve(root),
     );
   }
 
@@ -279,10 +294,20 @@ export class SandboxedToolForge {
     // Step 2: Build sandbox context with only safe globals + allowlisted APIs.
     const sandboxGlobals = this.buildSandboxContext(request.allowlist);
 
-    // Step 3: Wrap the code so it defines `execute`, calls it, and serializes.
+    // Step 3: Wrap the code so it supports either `execute(input)` or
+    // `run(input)` and always resolves async work before serializing the result.
     const wrappedCode = `
-      ${request.code};
-      JSON.stringify(execute(${JSON.stringify(request.input)}));
+      (async () => {
+        ${request.code};
+        const __entry =
+          typeof execute === 'function'
+            ? execute
+            : (typeof run === 'function' ? run : null);
+        if (!__entry) {
+          throw new Error('Sandboxed tool must define execute(input) or run(input).');
+        }
+        return JSON.stringify(await __entry(${JSON.stringify(request.input)}));
+      })();
     `;
 
     // Step 4: Execute in VM with timeout.
@@ -293,16 +318,32 @@ export class SandboxedToolForge {
         // Prevent breakOnSigint from leaking.
         breakOnSigint: false,
       });
+      const settledResult =
+        rawResult &&
+        typeof rawResult === 'object' &&
+        typeof (rawResult as Promise<unknown>).then === 'function'
+          ? await Promise.race([
+              rawResult as Promise<unknown>,
+              new Promise<never>((_, reject) => {
+                setTimeout(() => {
+                  reject(new Error(`Execution timed out after ${timeout}ms`));
+                }, timeout);
+              }),
+            ])
+          : rawResult;
 
       const executionTimeMs = Math.round(performance.now() - startTime);
 
       // Parse the JSON-serialized output.
       let output: unknown;
       try {
-        output = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
+        output =
+          typeof settledResult === 'string'
+            ? JSON.parse(settledResult)
+            : settledResult;
       } catch {
         // If JSON.parse fails, use the raw result.
-        output = rawResult;
+        output = settledResult;
       }
 
       return {
@@ -416,6 +457,18 @@ export class SandboxedToolForge {
     if (allowlist.includes('fs.readFile')) {
       globals.fs = {
         readFile: async (filePath: string) => {
+          const resolvedPath = path.resolve(filePath);
+          const allowed = this.fsReadRoots.some((root) => {
+            return (
+              resolvedPath === root ||
+              resolvedPath.startsWith(`${root}${path.sep}`)
+            );
+          });
+          if (!allowed) {
+            throw new Error(
+              `fs.readFile blocked: path "${resolvedPath}" is outside the allowed roots`,
+            );
+          }
           const data = await readFile(filePath);
           // Enforce 1 MB size limit.
           if (data.byteLength > 1_048_576) {

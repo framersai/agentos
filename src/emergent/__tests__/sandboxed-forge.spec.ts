@@ -63,6 +63,18 @@ describe('SandboxedToolForge', () => {
     expect(result.error).toBeUndefined();
   });
 
+  it('supports async sandbox entrypoints', async () => {
+    const request = makeRequest(
+      'async function execute(input) { return { sum: input.a + input.b }; }',
+      { a: 4, b: 5 },
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toEqual({ sum: 9 });
+  });
+
   // -------------------------------------------------------------------------
   // 2. Code with while(true) is killed by timeout
   // -------------------------------------------------------------------------
@@ -215,6 +227,18 @@ describe('SandboxedToolForge', () => {
     expect(result.executionTimeMs).toBeGreaterThanOrEqual(0);
   });
 
+  it('returns a failure result when no execute/run entrypoint is defined', async () => {
+    const request = makeRequest(
+      'function notTheRightName(input) { return input; }',
+      {},
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('must define execute(input) or run(input)');
+  });
+
   // -------------------------------------------------------------------------
   // 12. fs.write* is always banned
   // -------------------------------------------------------------------------
@@ -239,6 +263,16 @@ describe('SandboxedToolForge', () => {
 
     expect(result.valid).toBe(false);
     expect(result.violations).toContain('new Function() is forbidden');
+  });
+
+  it('catches bare Function() constructor calls', () => {
+    const result = forge.validateCode(
+      'function execute(input) { return Function("return 1")(); }',
+      [],
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.violations).toContain('Function() is forbidden');
   });
 
   // -------------------------------------------------------------------------

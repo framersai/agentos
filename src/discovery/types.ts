@@ -12,6 +12,7 @@
  */
 
 import type { JSONSchemaObject } from '../core/tools/ITool.js';
+import type { EmergentTool } from '../emergent/types.js';
 
 // ============================================================================
 // CAPABILITY DESCRIPTOR
@@ -440,4 +441,7 @@ export interface ICapabilityDiscoveryEngine {
 
   /** Get all registered capability IDs. */
   listCapabilityIds(): string[];
+
+  /** Index promoted emergent tools into discovery. */
+  indexEmergentTools?(tools: EmergentTool[]): Promise<number>;
 }
