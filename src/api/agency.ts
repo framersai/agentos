@@ -130,6 +130,12 @@ export function agency(opts: AgencyOptions): Agent {
         sanitizedPrompt = await runGuardrails(sanitizedPrompt, inputGuards, 'input', opts.on);
       }
 
+      // When structured output is configured, append a JSON schema hint to
+      // nudge the LLM into producing parseable output.
+      if (opts.output) {
+        sanitizedPrompt = appendSchemaHint(sanitizedPrompt, opts.output);
+      }
+
       // Execute the compiled multi-agent strategy.
       const result = (await strategy.execute(sanitizedPrompt, execOpts)) as Record<string, unknown>;
       const elapsedMs = Date.now() - start;
@@ -648,6 +654,35 @@ async function runGuardrails(
 // ---------------------------------------------------------------------------
 // Structured output (Zod parsing)
 // ---------------------------------------------------------------------------
+
+/**
+ * Appends a JSON schema hint to the prompt when structured output is configured.
+ *
+ * If the schema exposes a Zod `.shape` (for object schemas) or `.description`,
+ * a human-readable description is appended. Otherwise a generic JSON instruction
+ * is added to the prompt.
+ *
+ * @param prompt - The original prompt text.
+ * @param schema - The Zod schema (typed as `unknown` to avoid a hard zod dep).
+ * @returns The prompt with the schema hint appended.
+ */
+function appendSchemaHint(prompt: string, schema: unknown): string {
+  const zodSchema = schema as { shape?: Record<string, unknown>; description?: string };
+  let schemaDescription = '';
+
+  if (zodSchema?.shape) {
+    const keys = Object.keys(zodSchema.shape);
+    schemaDescription = `an object with keys: ${keys.join(', ')}`;
+  } else if (zodSchema?.description) {
+    schemaDescription = zodSchema.description;
+  }
+
+  const hint = schemaDescription
+    ? `\n\nRespond with valid JSON matching this schema: ${schemaDescription}. Output only the JSON object, no additional text.`
+    : '\n\nRespond with valid JSON. Output only the JSON object, no additional text.';
+
+  return prompt + hint;
+}
 
 /**
  * Attempts to parse the result text as JSON and validate it against a Zod
