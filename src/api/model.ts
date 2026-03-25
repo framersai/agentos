@@ -51,6 +51,7 @@ const ENV_URL_MAP: Record<string, string> = {
   stability: 'STABILITY_BASE_URL',
   replicate: 'REPLICATE_BASE_URL',
   ollama: 'OLLAMA_BASE_URL',
+  'stable-diffusion-local': 'STABLE_DIFFUSION_LOCAL_BASE_URL',
 };
 
 /**
@@ -156,6 +157,15 @@ export function resolveMediaProvider(
   if (providerId === 'ollama') {
     if (!baseUrl) {
       throw new Error(`No base URL for ollama. Set OLLAMA_BASE_URL or pass baseUrl.`);
+    }
+    return { providerId, modelId, baseUrl };
+  }
+
+  if (providerId === 'stable-diffusion-local') {
+    if (!baseUrl) {
+      throw new Error(
+        `No base URL for stable-diffusion-local. Set STABLE_DIFFUSION_LOCAL_BASE_URL or pass baseUrl.`,
+      );
     }
     return { providerId, modelId, baseUrl };
   }

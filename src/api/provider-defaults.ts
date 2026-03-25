@@ -59,6 +59,9 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
   replicate: {
     image: 'black-forest-labs/flux-1.1-pro',
   },
+  'stable-diffusion-local': {
+    image: 'v1-5-pruned-emaonly',
+  },
 };
 
 /** Env var keys checked for auto-detection, in priority order */
@@ -70,6 +73,7 @@ const AUTO_DETECT_ORDER: Array<{ envKey: string; provider: string }> = [
   { envKey: 'OLLAMA_BASE_URL', provider: 'ollama' },
   { envKey: 'STABILITY_API_KEY', provider: 'stability' },
   { envKey: 'REPLICATE_API_TOKEN', provider: 'replicate' },
+  { envKey: 'STABLE_DIFFUSION_LOCAL_BASE_URL', provider: 'stable-diffusion-local' },
 ];
 
 /**

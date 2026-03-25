@@ -1,4 +1,4 @@
-export type ImageProviderId = 'openai' | 'openrouter' | 'stability' | 'replicate' | (string & {});
+export type ImageProviderId = 'openai' | 'openrouter' | 'stability' | 'replicate' | 'stable-diffusion-local' | (string & {});
 export type ImageModality = 'image' | 'text';
 export type ImageBackground = 'transparent' | 'opaque' | 'auto';
 export type ImageOutputFormat = 'png' | 'jpeg' | 'jpg' | 'webp';
@@ -72,11 +72,39 @@ export interface ReplicateImageProviderOptions {
   extraBody?: Record<string, unknown>;
 }
 
+export interface StableDiffusionLocalImageProviderOptions {
+  /** Number of inference steps (default 25). */
+  steps?: number;
+  /** Classifier-free guidance scale (default 7.5). */
+  cfgScale?: number;
+  /** Random seed (-1 for random). */
+  seed?: number;
+  /** Sampler name (e.g. 'Euler a', 'DPM++ 2M Karras'). */
+  sampler?: string;
+  /** Negative prompt. */
+  negativePrompt?: string;
+  /** Image width in pixels (default 512). */
+  width?: number;
+  /** Image height in pixels (default 512). */
+  height?: number;
+  /** Number of images to generate (default 1). */
+  batchSize?: number;
+  /** ControlNet settings forwarded verbatim to the backend. */
+  controlnet?: Record<string, unknown>;
+  /** LoRA models to apply.  Injected into the prompt as `<lora:name:weight>`. */
+  loras?: Array<{ name: string; weight?: number }>;
+  /** Enable high-resolution fix (A1111 only). */
+  hrFix?: boolean;
+  /** Denoising strength for high-res fix or img2img (default 0.7). */
+  denoisingStrength?: number;
+}
+
 export interface ImageProviderOptionBag {
   openai?: OpenAIImageProviderOptions;
   openrouter?: OpenRouterImageProviderOptions;
   stability?: StabilityImageProviderOptions;
   replicate?: ReplicateImageProviderOptions;
+  'stable-diffusion-local'?: StableDiffusionLocalImageProviderOptions;
   [providerId: string]: unknown;
 }
 
@@ -118,7 +146,7 @@ export interface IImageProvider {
   shutdown?(): Promise<void>;
 }
 
-const BUILT_IN_IMAGE_PROVIDER_IDS = new Set(['openai', 'openrouter', 'stability', 'replicate']);
+const BUILT_IN_IMAGE_PROVIDER_IDS = new Set(['openai', 'openrouter', 'stability', 'replicate', 'stable-diffusion-local']);
 
 export function getImageProviderOptions<T extends object>(
   providerId: string,
