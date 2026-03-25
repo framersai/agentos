@@ -13,6 +13,7 @@ import { adaptTools, type ToolDefinitionMap } from './toolAdapter.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import type { ITool } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
+import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 
 /**
  * A single chat message in a conversation history.
@@ -122,6 +123,21 @@ export interface GenerateTextResult {
    * - `"error"` — provider returned an error.
    */
   finishReason: 'stop' | 'length' | 'tool-calls' | 'error';
+  /**
+   * Ordered records of every sub-agent call made during an `agency()` run.
+   * `undefined` for plain `generateText` / `agent()` calls.
+   */
+  agentCalls?: AgentCallRecord[];
+  /**
+   * Structured trace events emitted during the run.
+   * Populated by the agency orchestrator; `undefined` for single-agent calls.
+   */
+  trace?: AgencyTraceEvent[];
+  /**
+   * Parsed structured output produced when `BaseAgentConfig.output` is a Zod
+   * schema.  `undefined` when no output schema is configured.
+   */
+  parsed?: unknown;
 }
 
 /**
