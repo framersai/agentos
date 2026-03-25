@@ -5,7 +5,6 @@ import type {
   TextToSpeechProvider,
   SpeechVadProvider,
   WakeWordProvider,
-  SpeechProviderCatalogEntry,
   SpeechResolverConfig,
   ProviderRequirements,
   ProviderRegistration,

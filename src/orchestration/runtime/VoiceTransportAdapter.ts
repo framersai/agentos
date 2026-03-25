@@ -190,7 +190,7 @@ export class VoiceTransportAdapter {
    * @param output - Text or async token stream to synthesise as speech.
    * @throws {Error} If called before `init()`.
    */
-  async deliverNodeOutput(nodeId: string, output: string | AsyncIterable<string>): Promise<void> {
+  async deliverNodeOutput(nodeId: string, _output: string | AsyncIterable<string>): Promise<void> {
     if (!this.initialized) {
       throw new Error('VoiceTransportAdapter not initialized');
     }

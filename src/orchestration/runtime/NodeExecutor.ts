@@ -474,7 +474,7 @@ export class NodeExecutor {
 
     try {
       // Build child input from parent scratch via inputMapping.
-      let childInput: Record<string, unknown> = {};
+      const childInput: Record<string, unknown> = {};
       if (config.inputMapping && state.scratch) {
         for (const [parentPath, childPath] of Object.entries(config.inputMapping)) {
           const val = this.resolvePathValue(state.scratch, parentPath);
