@@ -41,6 +41,7 @@ import type {
   ApprovalDecision,
   AgentCallRecord,
   RagConfig,
+  AgencyStreamPart,
 } from './types.js';
 import { AgencyConfigError } from './types.js';
 
@@ -264,15 +265,34 @@ export function agency(opts: AgencyOptions): Agent {
           },
 
           /**
-           * Streams a user message through the agency strategy.
-           * History is not automatically updated for streaming calls in v1.
+           * Streams a user message through the agency strategy, feeding prior
+           * conversation history into the prompt — matching the behaviour of
+           * `session.send()`.  The assistant turn is appended to history once
+           * the full streamed text is resolved.
            *
            * @param text - User message text.
            * @returns A streaming result compatible with `StreamTextResult`.
            */
           stream(text: string): unknown {
+            // Push the user turn before building the prompt so the prior
+            // history (everything before the new turn) is included.
             history.push({ role: 'user', content: text });
-            return strategy.stream(buildSessionPrompt(history.slice(0, -1), text));
+            const fullPrompt = buildSessionPrompt(history.slice(0, -1), text);
+            const streamResult = strategy.stream(fullPrompt) as {
+              text: Promise<string>;
+              textStream: AsyncIterable<string>;
+              fullStream: AsyncIterable<AgencyStreamPart>;
+              usage: Promise<unknown>;
+            };
+
+            // Append the assistant reply to history once streaming resolves.
+            streamResult.text.then((assistantText) => {
+              history.push({ role: 'assistant', content: assistantText });
+            }).catch(() => {
+              // Ignore resolution failures — history will just lack this turn.
+            });
+
+            return streamResult;
           },
 
           /** Returns a snapshot of the session's conversation history. */

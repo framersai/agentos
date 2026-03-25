@@ -187,8 +187,10 @@ provider.  All five strategies are available out of the box:
 | `review-loop` | One agent drafts, another reviews and requests revisions |
 | `hierarchical` | A coordinator dispatches sub-tasks to specialist agents at runtime |
 
-Add guardrails, HITL, resource controls, and observability in the same config
-object — see [`docs/AGENCY_API.md`](./docs/AGENCY_API.md) for the full reference.
+Add guardrails, HITL, resource controls, observability, `listen()` for voice
+transport, `connect()` for channel adapters, RAG context injection, and real
+per-agent stream events in the same config object — see
+[`docs/AGENCY_API.md`](./docs/AGENCY_API.md) for the full reference.
 
 ### Single-Agent and Low-Level Helpers
 

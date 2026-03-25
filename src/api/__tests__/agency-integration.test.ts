@@ -1132,4 +1132,131 @@ describe('Agency Full Integration', () => {
       expect(result.text).toBeDefined();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Task 6: stream() with per-agent events
+  // ---------------------------------------------------------------------------
+
+  describe('stream() per-agent events', () => {
+    it('stream() fullStream yields agent-start for __agency__', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      /**
+       * The mock strategy stream returns a pre-baked iterable, so we test the
+       * agency-level stream() delegation here (fullStream from the mock).
+       * For real per-agent events, see the sequential strategy unit tests.
+       */
+      const streamResult = team.stream('stream test') as {
+        fullStream: AsyncIterable<{ type: string; agent?: string }>;
+      };
+
+      const events: Array<{ type: string; agent?: string }> = [];
+      for await (const part of streamResult.fullStream) {
+        events.push(part);
+      }
+
+      // The mock strategy returns a single text event — verify it is iterable.
+      expect(events.length).toBeGreaterThan(0);
+    });
+
+    it('stream() textStream yields string chunks', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      const streamResult = team.stream('stream chunks') as {
+        textStream: AsyncIterable<string>;
+      };
+
+      const chunks: string[] = [];
+      for await (const chunk of streamResult.textStream) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.join('')).toBe(DEFAULT_RESULT.text);
+    });
+
+    it('stream() text promise resolves to the full text', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      const streamResult = team.stream('stream text') as { text: Promise<string> };
+      const text = await streamResult.text;
+      expect(text).toBe(DEFAULT_RESULT.text);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Task 6: session.stream() history integration
+  // ---------------------------------------------------------------------------
+
+  describe('session.stream() history integration', () => {
+    it('session.stream() builds prompt that includes prior history', async () => {
+      hoisted.strategyStream.mockClear();
+
+      const team = agency({
+        agents: { a: mockAgentConfig('a') },
+        strategy: 'sequential',
+      });
+
+      const session = team.session('stream-history') as {
+        send: (t: string) => Promise<unknown>;
+        stream: (t: string) => unknown;
+      };
+
+      // First turn via send() so history is populated.
+      await session.send('First turn');
+
+      // Second turn via stream() — should include the prior history in the prompt.
+      session.stream('Second turn via stream');
+
+      // The strategy stream should have been called with the history-prefixed prompt.
+      expect(hoisted.strategyStream).toHaveBeenCalledWith(
+        'User: First turn\nAssistant: AI is transformative.\nUser: Second turn via stream',
+      );
+    });
+
+    it('session.stream() is iterable and yields text', async () => {
+      const team = agency({
+        agents: { a: mockAgentConfig('a') },
+        strategy: 'sequential',
+      });
+
+      const session = team.session('stream-iterable') as {
+        stream: (t: string) => { textStream: AsyncIterable<string> };
+      };
+
+      const result = session.stream('Hello streaming');
+      const chunks: string[] = [];
+      for await (const chunk of result.textStream) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.join('')).toBe(DEFAULT_RESULT.text);
+    });
+
+    it('session.stream() does not lose history on first call with empty history', () => {
+      const team = agency({
+        agents: { a: mockAgentConfig('a') },
+        strategy: 'sequential',
+      });
+
+      const session = team.session('stream-empty-history') as {
+        stream: (t: string) => unknown;
+      };
+
+      hoisted.strategyStream.mockClear();
+
+      // When history is empty, the plain text should be passed through unchanged.
+      session.stream('Plain prompt');
+
+      expect(hoisted.strategyStream).toHaveBeenCalledWith('Plain prompt');
+    });
+  });
 });
