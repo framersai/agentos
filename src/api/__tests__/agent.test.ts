@@ -42,13 +42,29 @@ describe('agent', () => {
     });
   });
 
-  it('throws when guardrails are requested on the lightweight API', () => {
-    expect(() =>
-      agent({
-        model: 'openai:gpt-4.1-mini',
-        guardrails: ['pii-redaction'],
+  it('accepts guardrails without throwing (stored as config for agency/runtime)', () => {
+    const assistant = agent({
+      model: 'openai:gpt-4.1-mini',
+      guardrails: ['pii-redaction'],
+    });
+    // Should create the agent successfully — guardrails are accepted as config
+    expect(typeof assistant.generate).toBe('function');
+  });
+
+  it('forwards top-level usageLedger to observability.usageLedger', async () => {
+    const assistant = agent({
+      model: 'openai:gpt-4.1-mini',
+      usageLedger: { path: '/tmp/compat.jsonl', enabled: true },
+    });
+    await assistant.generate('hi');
+    expect(hoisted.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usageLedger: expect.objectContaining({
+          path: '/tmp/compat.jsonl',
+          enabled: true,
+        }),
       }),
-    ).toThrow(/full AgentOS runtime/i);
+    );
   });
 
   it('injects personality traits into the system prompt', async () => {

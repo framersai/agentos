@@ -4,8 +4,9 @@
  *
  * Wraps {@link generateText} and {@link streamText} with per-session conversation
  * history, optional HEXACO-inspired personality shaping, and a named-agent system
- * prompt builder.  For full guardrail enforcement or production multi-agent
- * orchestration use the AgentOS runtime (`AgentOSOrchestrator`) instead.
+ * prompt builder.  Guardrail identifiers are accepted and stored in config but
+ * are not actively enforced in this lightweight layer — use the full AgentOS
+ * runtime (`AgentOSOrchestrator`) or `agency()` for guardrail enforcement.
  */
 import { generateText, type GenerateTextOptions, type GenerateTextResult, type Message } from './generateText.js';
 import { streamText, type StreamTextResult } from './streamText.js';
@@ -15,58 +16,21 @@ import {
   type AgentOSUsageAggregate,
   type AgentOSUsageLedgerOptions,
 } from './usageLedger.js';
+import type { BaseAgentConfig } from './types.js';
 
 /**
  * Configuration options for the {@link agent} factory function.
+ *
+ * Extends {@link BaseAgentConfig} with backward-compatible convenience fields.
+ * All `BaseAgentConfig` fields (rag, discovery, permissions, emergent, voice,
+ * etc.) are accepted and stored in config but are not actively wired in the
+ * lightweight agent — they will be consumed by `agency()` and the full runtime.
  */
-export interface AgentOptions {
+export interface AgentOptions extends BaseAgentConfig {
   /**
-   * Provider name.  When supplied without `model`, the default text model for
-   * the provider is resolved automatically from the built-in defaults registry.
-   *
-   * @example `"openai"`, `"anthropic"`, `"ollama"`
+   * Top-level usage ledger shorthand for backward compatibility.
+   * When present, forwarded to `observability.usageLedger` internally.
    */
-  provider?: string;
-  /**
-   * Model used for every call made by this agent.  Accepted in two formats:
-   * - `"provider:model"` — legacy format (e.g. `"openai:gpt-4o"`), still fully supported.
-   * - Plain model name (e.g. `"gpt-4o-mini"`) when `provider` is also set.
-   *
-   * Either `provider` or `model` (or an API key env var for auto-detection) is required.
-   */
-  model?: string;
-  /** Display name injected into the system prompt (e.g. `"Aria"`). */
-  name?: string;
-  /** Free-form system instructions prepended before personality and name lines. */
-  instructions?: string;
-  /** Named tools available to the agent on every call. */
-  tools?: ToolDefinitionMap;
-  /**
-   * Enable in-memory conversation history for sessions.
-   * When `false`, each `send` / `stream` call is stateless.  Defaults to `true`.
-   */
-  memory?: boolean;
-  /**
-   * HEXACO-inspired personality trait overrides (0–1 scale).
-   * Encoded as a human-readable trait string appended to the system prompt.
-   */
-  personality?: Partial<{
-    honesty: number; emotionality: number; extraversion: number;
-    agreeableness: number; conscientiousness: number; openness: number;
-  }>;
-  /**
-   * Guardrail policy identifiers.
-   * **Not supported** in the lightweight API — passing any values throws immediately.
-   * Use `AgentOSOrchestrator` for real guardrail enforcement.
-   */
-  guardrails?: string[];
-  /** Override the provider API key instead of reading from environment variables. */
-  apiKey?: string;
-  /** Override the provider base URL (useful for local proxies or Ollama). */
-  baseUrl?: string;
-  /** Maximum agentic steps per call. Defaults to `5`. */
-  maxSteps?: number;
-  /** Optional durable usage ledger configuration for helper-level accounting. */
   usageLedger?: AgentOSUsageLedgerOptions;
 }
 
@@ -172,8 +136,10 @@ function buildSystemPrompt(opts: AgentOptions): string | undefined {
  * Multiple independent sessions can be opened via {@link Agent.session}.
  *
  * @param opts - Agent configuration including model, instructions, and optional tools.
+ *   All {@link BaseAgentConfig} fields are accepted; advanced fields (rag, discovery,
+ *   permissions, emergent, voice, guardrails, etc.) are stored but not actively
+ *   wired in the lightweight layer — they are consumed by `agency()` and the full runtime.
  * @returns An {@link Agent} instance with `generate`, `stream`, `session`, and `close` methods.
- * @throws {Error} If `opts.guardrails` contains any entries (not supported in the lightweight API).
  *
  * @example
  * ```ts
@@ -184,14 +150,17 @@ function buildSystemPrompt(opts: AgentOptions): string | undefined {
  * ```
  */
 export function agent(opts: AgentOptions): Agent {
-  if (opts.guardrails && opts.guardrails.length > 0) {
-    throw new Error(
-      'agent({ guardrails }) is not supported in the lightweight high-level API. Use the full AgentOS runtime for real guardrail enforcement.',
-    );
-  }
-
   const sessions = new Map<string, Message[]>();
   const useMemory = opts.memory !== false;
+
+  /*
+   * Resolve the effective usage ledger config.  The top-level `usageLedger`
+   * field is a backward-compat alias — if it is present we forward it to
+   * `observability.usageLedger`.  An explicit `observability.usageLedger`
+   * takes precedence when both are supplied.
+   */
+  const effectiveLedger: AgentOSUsageLedgerOptions | undefined =
+    (opts.observability?.usageLedger as AgentOSUsageLedgerOptions | undefined) ?? opts.usageLedger;
 
   const baseOpts: Partial<GenerateTextOptions> = {
     provider: opts.provider,
@@ -201,7 +170,7 @@ export function agent(opts: AgentOptions): Agent {
     maxSteps: opts.maxSteps ?? 5,
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
-    usageLedger: opts.usageLedger,
+    usageLedger: effectiveLedger,
   };
 
   return {
