@@ -1,3 +1,8 @@
+## <small>0.1.92 (2026-03-25)</small>
+
+* feat(emergent): add SandboxedToolForge for isolated code execution ([c6bbee7](https://github.com/framersai/agentos/commit/c6bbee7))
+* feat(emergent): Task 2 — ComposableToolBuilder with pipeline resolution and tests ([f237352](https://github.com/framersai/agentos/commit/f237352))
+
 ## <small>0.1.91 (2026-03-25)</small>
 
 * feat(emergent): Task 1 — define all types and interfaces for Emergent Capability Engine ([8f80f98](https://github.com/framersai/agentos/commit/8f80f98))
