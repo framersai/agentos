@@ -36,10 +36,12 @@ import type {
   MemoryPolicy,
   DiscoveryPolicy,
   GuardrailPolicy,
+  VoiceNodeConfig,
   BuiltinReducer,
   ReducerFn,
 } from '../ir/types.js';
 import { START, END } from '../ir/types.js';
+import type { VoiceTransportConfig } from '../runtime/VoiceTransportAdapter.js';
 import { gmiNode, toolNode, humanNode } from './nodes.js';
 import type { ICheckpointStore } from '../checkpoint/ICheckpointStore.js';
 import { InMemoryCheckpointStore } from '../checkpoint/InMemoryCheckpointStore.js';
@@ -99,6 +101,13 @@ export interface StepConfig {
   timeout?: number;
   /** Side-effect classification used by the runtime for scheduling decisions. */
   effectClass?: 'pure' | 'read' | 'write' | 'external' | 'human';
+  /**
+   * Voice pipeline node configuration.
+   * When provided alongside `executorConfig.type: 'voice'`, these settings are
+   * forwarded to the VoiceNodeExecutor.  Typically set via the `voiceNode()`
+   * builder rather than directly through `StepConfig`.
+   */
+  voice?: VoiceNodeConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +184,12 @@ export class WorkflowBuilder {
   private steps: InternalStep[] = [];
   /** Human-readable name forwarded to the compiled graph. */
   private readonly name: string;
+  /**
+   * Optional transport configuration set via {@link transport}.
+   * When present, the compiled workflow is associated with a transport backend
+   * (e.g. a voice pipeline) that intercepts graph I/O at runtime.
+   */
+  private _transportConfig: ({ type: string } & Omit<VoiceTransportConfig, 'type'>) | undefined;
 
   /**
    * @param name - Human-readable workflow name.
@@ -207,6 +222,35 @@ export class WorkflowBuilder {
    */
   returns(schema: any): this {
     this.returnsSchema = schema;
+    return this;
+  }
+
+  /**
+   * Attach a transport backend to this workflow.
+   *
+   * When `type` is `'voice'`, the compiled workflow will route graph I/O
+   * through a {@link VoiceTransportAdapter} at runtime.  The `config` values
+   * override per-field defaults from `agent.config.json`.
+   *
+   * The transport config is stored as `_transportConfig` on the builder
+   * instance and is available for inspection or forwarding to the runtime.
+   *
+   * @param type   - Transport kind; currently only `'voice'` is supported.
+   * @param config - Optional voice pipeline overrides (STT, TTS, voice, etc.).
+   * @returns `this` for fluent chaining.
+   *
+   * @example
+   * ```typescript
+   * const wf = workflow('voice-flow')
+   *   .input(inputSchema)
+   *   .returns(outputSchema)
+   *   .transport('voice', { stt: 'deepgram', tts: 'openai', voice: 'alloy' })
+   *   .step('listen', { tool: 'listen_tool' })
+   *   .compile();
+   * ```
+   */
+  transport(type: 'voice', config?: Omit<VoiceTransportConfig, 'type'>): this {
+    (this as any)._transportConfig = { type, ...config };
     return this;
   }
 
