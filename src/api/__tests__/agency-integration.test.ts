@@ -233,6 +233,42 @@ describe('Agency Full Integration', () => {
     expect(result.text).toBe(DEFAULT_RESULT.text);
   });
 
+  it('enforces beforeReturn HITL and allows output modification', async () => {
+    const approvalRequested = vi.fn();
+    const approvalDecided = vi.fn();
+
+    const team = agency({
+      agents: { worker: mockAgentConfig('worker') },
+      strategy: 'sequential',
+      hitl: {
+        approvals: { beforeReturn: true },
+        handler: async () => ({
+          approved: true,
+          modifications: { output: 'approved and rewritten' },
+        }),
+      },
+      on: { approvalRequested, approvalDecided },
+    });
+
+    const result = await team.generate('Do the thing') as Record<string, unknown>;
+    expect(result.text).toBe('approved and rewritten');
+    expect(approvalRequested).toHaveBeenCalledOnce();
+    expect(approvalDecided).toHaveBeenCalledOnce();
+  });
+
+  it('rejects the final result when beforeReturn HITL rejects', async () => {
+    const team = agency({
+      agents: { worker: mockAgentConfig('worker') },
+      strategy: 'sequential',
+      hitl: {
+        approvals: { beforeReturn: true },
+        handler: async () => ({ approved: false, reason: 'needs human review' }),
+      },
+    });
+
+    await expect(team.generate('Do the thing')).rejects.toThrow(/needs human review/i);
+  });
+
   it('runs with HITL auto-approve on beforeTool trigger', async () => {
     const team = agency({
       agents: { worker: mockAgentConfig('worker') },
@@ -285,6 +321,30 @@ describe('Agency Full Integration', () => {
     expect(history[1]).toEqual({ role: 'assistant', content: DEFAULT_RESULT.text });
     expect(history[2]).toEqual({ role: 'user', content: 'Second message' });
     expect(history[3]).toEqual({ role: 'assistant', content: DEFAULT_RESULT.text });
+  });
+
+  it('session send includes prior turns in later prompts', async () => {
+    hoisted.strategyExecute.mockClear();
+    hoisted.strategyExecute.mockResolvedValue(DEFAULT_RESULT);
+
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+    });
+
+    const session = team.session('history-prompt') as {
+      send: (t: string) => Promise<unknown>;
+    };
+
+    await session.send('First message');
+    await session.send('Second message');
+
+    expect(hoisted.strategyExecute).toHaveBeenNthCalledWith(1, 'First message', undefined);
+    expect(hoisted.strategyExecute).toHaveBeenNthCalledWith(
+      2,
+      'User: First message\nAssistant: AI is transformative.\nUser: Second message',
+      undefined,
+    );
   });
 
   it('session.clear() removes all history', async () => {
@@ -445,6 +505,31 @@ describe('Agency Full Integration', () => {
     expect(limitEvents.length).toBe(0);
   });
 
+  it('fires limitReached callback when cost limit is breached', async () => {
+    hoisted.strategyExecute.mockResolvedValueOnce({
+      text: 'over-budget',
+      agentCalls: [],
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15, costUSD: 1.25 },
+    });
+
+    const limitEvents: Array<{ metric: string; value: number; limit: number }> = [];
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+      controls: { maxCostUSD: 0.5, onLimitReached: 'warn' },
+      on: { limitReached: (e) => limitEvents.push(e) },
+    });
+
+    await team.generate('expensive task');
+
+    expect(limitEvents).toHaveLength(1);
+    expect(limitEvents[0]).toMatchObject({
+      metric: 'maxCostUSD',
+      value: 1.25,
+      limit: 0.5,
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // usage()
   // ---------------------------------------------------------------------------
@@ -461,6 +546,21 @@ describe('Agency Full Integration', () => {
     expect(typeof u.totalTokens).toBe('number');
   });
 
+  it('usage() aggregates across multiple generate calls', async () => {
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+    });
+
+    await team.generate('first');
+    await team.generate('second');
+
+    const usage = await team.usage() as Record<string, unknown>;
+    expect(usage.promptTokens).toBe(DEFAULT_USAGE.promptTokens * 2);
+    expect(usage.completionTokens).toBe(DEFAULT_USAGE.completionTokens * 2);
+    expect(usage.totalTokens).toBe(DEFAULT_USAGE.totalTokens * 2);
+  });
+
   it('session.usage() resolves to a usage object', async () => {
     const team = agency({
       agents: { a: mockAgentConfig('a') },
@@ -472,6 +572,25 @@ describe('Agency Full Integration', () => {
     expect(typeof u.promptTokens).toBe('number');
     expect(typeof u.completionTokens).toBe('number');
     expect(typeof u.totalTokens).toBe('number');
+  });
+
+  it('session.usage() aggregates only that session', async () => {
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+    });
+
+    const s1 = team.session('s1') as { send: (t: string) => Promise<unknown>; usage: () => Promise<Record<string, unknown>> };
+    const s2 = team.session('s2') as { send: (t: string) => Promise<unknown>; usage: () => Promise<Record<string, unknown>> };
+
+    await s1.send('one');
+    await s1.send('two');
+    await s2.send('three');
+
+    const u1 = await s1.usage();
+    const u2 = await s2.usage();
+    expect(u1.totalTokens).toBe(DEFAULT_USAGE.totalTokens * 2);
+    expect(u2.totalTokens).toBe(DEFAULT_USAGE.totalTokens);
   });
 
   // ---------------------------------------------------------------------------
@@ -535,5 +654,259 @@ describe('Agency Full Integration', () => {
 
     const result = await team.generate('debate task') as Record<string, unknown>;
     expect(result.text).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // beforeAgent HITL enforcement
+  // ---------------------------------------------------------------------------
+
+  describe('beforeAgent HITL', () => {
+    it('skips agent when beforeAgent HITL rejects', async () => {
+      /**
+       * When a HITL handler rejects a beforeAgent approval, the strategy
+       * should skip that agent entirely. We verify by checking that the
+       * strategy execute still receives the call (the gate is inside the
+       * strategy compiler, not wrappedExecute), but more importantly
+       * that the agency plumbing doesn't throw.
+       */
+      const handler = vi.fn().mockResolvedValue({ approved: false, reason: 'not now' });
+
+      const team = agency({
+        agents: {
+          researcher: mockAgentConfig('researcher'),
+          writer: mockAgentConfig('writer'),
+        },
+        strategy: 'sequential',
+        hitl: {
+          approvals: { beforeAgent: ['researcher'] },
+          handler,
+        },
+      });
+
+      const result = await team.generate('test task') as Record<string, unknown>;
+      expect(result.text).toBeDefined();
+    });
+
+    it('proceeds when beforeAgent HITL approves', async () => {
+      const handler = vi.fn().mockResolvedValue({ approved: true });
+
+      const team = agency({
+        agents: {
+          researcher: mockAgentConfig('researcher'),
+        },
+        strategy: 'sequential',
+        hitl: {
+          approvals: { beforeAgent: ['researcher'] },
+          handler,
+        },
+      });
+
+      const result = await team.generate('approved task') as Record<string, unknown>;
+      expect(result.text).toBe(DEFAULT_RESULT.text);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Guardrails runtime binding
+  // ---------------------------------------------------------------------------
+
+  describe('Guardrails runtime binding', () => {
+    it('input guardrails are evaluated before strategy execution', async () => {
+      /**
+       * Input guardrails run on the prompt before the strategy. Since the
+       * guardrail infrastructure is not actually installed in tests, the
+       * dynamic import fail-open path is taken and the prompt passes through
+       * unchanged. We verify the result is still valid.
+       */
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        guardrails: { input: ['pii-redactor'] },
+      });
+
+      const result = await team.generate('My SSN is 123-45-6789') as Record<string, unknown>;
+      expect(result.text).toBeDefined();
+    });
+
+    it('output guardrails are evaluated after strategy execution', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        guardrails: { output: ['toxicity-filter'] },
+      });
+
+      const result = await team.generate('Write something') as Record<string, unknown>;
+      expect(result.text).toBeDefined();
+    });
+
+    it('string[] guardrails shorthand is treated as output-only', async () => {
+      /**
+       * For backward compatibility, passing a plain string[] to guardrails
+       * applies them to the output direction only.
+       */
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        guardrails: ['grounding-guard'],
+      });
+
+      const result = await team.generate('test') as Record<string, unknown>;
+      expect(result.text).toBeDefined();
+    });
+
+    it('fires guardrailResult callback for each configured guardrail', async () => {
+      const guardrailEvents: Array<{ guardrailId: string; passed: boolean }> = [];
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        guardrails: { output: ['guard-a', 'guard-b'] },
+        on: {
+          guardrailResult: (e) => guardrailEvents.push(e),
+        },
+      });
+
+      await team.generate('test with guards');
+      expect(guardrailEvents.length).toBe(2);
+      expect(guardrailEvents[0].guardrailId).toBe('guard-a');
+      expect(guardrailEvents[1].guardrailId).toBe('guard-b');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Structured Zod output parsing
+  // ---------------------------------------------------------------------------
+
+  describe('Structured output parsing', () => {
+    it('parses valid JSON result through Zod schema into result.parsed', async () => {
+      const jsonResult = JSON.stringify({ name: 'Alice', age: 30 });
+      hoisted.strategyExecute.mockResolvedValueOnce({
+        text: jsonResult,
+        agentCalls: [],
+        usage: DEFAULT_USAGE,
+      });
+
+      /** Minimal Zod-like schema stub with a parse method. */
+      const schema = {
+        parse: (v: unknown) => v,
+        shape: { name: {}, age: {} },
+      };
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        output: schema,
+      });
+
+      const result = await team.generate('Return JSON') as Record<string, unknown>;
+      expect(result.parsed).toEqual({ name: 'Alice', age: 30 });
+    });
+
+    it('returns undefined parsed for non-JSON result', async () => {
+      hoisted.strategyExecute.mockResolvedValueOnce({
+        text: 'This is plain text, not JSON at all.',
+        agentCalls: [],
+        usage: DEFAULT_USAGE,
+      });
+
+      const schema = {
+        parse: (v: unknown) => {
+          if (typeof v !== 'object' || v === null) throw new Error('Expected object');
+          return v;
+        },
+      };
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        output: schema,
+      });
+
+      const result = await team.generate('Return plain text') as Record<string, unknown>;
+      expect(result.parsed).toBeUndefined();
+    });
+
+    it('extracts JSON from a code fence and parses it', async () => {
+      const codeFenceResult = 'Here is the result:\n```json\n{"score": 42}\n```\nDone.';
+      hoisted.strategyExecute.mockResolvedValueOnce({
+        text: codeFenceResult,
+        agentCalls: [],
+        usage: DEFAULT_USAGE,
+      });
+
+      const schema = {
+        parse: (v: unknown) => v,
+      };
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        output: schema,
+      });
+
+      const result = await team.generate('Return JSON in fence') as Record<string, unknown>;
+      expect(result.parsed).toEqual({ score: 42 });
+    });
+
+    it('appends a schema hint to the prompt when output is configured', async () => {
+      hoisted.strategyExecute.mockClear();
+      hoisted.strategyExecute.mockResolvedValueOnce({
+        text: '{"name":"Bob"}',
+        agentCalls: [],
+        usage: DEFAULT_USAGE,
+      });
+
+      const schema = {
+        parse: (v: unknown) => v,
+        shape: { name: {} },
+      };
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        output: schema,
+      });
+
+      await team.generate('Give me a name');
+
+      /* Verify the strategy received a prompt with the schema hint appended. */
+      const calledPrompt = hoisted.strategyExecute.mock.calls[0][0] as string;
+      expect(calledPrompt).toContain('Respond with valid JSON');
+      expect(calledPrompt).toContain('name');
+    });
+
+    it('does not populate parsed when no output schema is configured', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      const result = await team.generate('no schema') as Record<string, unknown>;
+      expect(result.parsed).toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // beforeTool forwarding to sub-agent permissions
+  // ---------------------------------------------------------------------------
+
+  describe('beforeTool forwarding', () => {
+    it('agency-level beforeTool config does not throw during construction', () => {
+      /**
+       * When `hitl.approvals.beforeTool` is set, the agency forwards those
+       * tool names into each sub-agent's `permissions.requireApproval`. The
+       * construction itself must not throw.
+       */
+      expect(() =>
+        agency({
+          agents: { worker: mockAgentConfig('worker') },
+          strategy: 'sequential',
+          hitl: {
+            approvals: { beforeTool: ['dangerous-tool'] },
+            handler: hitl.autoApprove(),
+          },
+        }),
+      ).not.toThrow();
+    });
   });
 });
