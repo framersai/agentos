@@ -26,6 +26,7 @@ import type {
   ICapabilityDiscoveryEngine,
   PresetCoOccurrence,
 } from './types.js';
+import type { EmergentTool } from '../emergent/types.js';
 import { DEFAULT_DISCOVERY_CONFIG } from './types.js';
 import { CapabilityIndex } from './CapabilityIndex.js';
 import { CapabilityGraph } from './CapabilityGraph.js';
@@ -204,6 +205,67 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
 
     this.indexVersion++;
     this.assembler.invalidateCache();
+  }
+
+  // ============================================================================
+  // EMERGENT TOOL INDEXING
+  // ============================================================================
+
+  /**
+   * Index emergent tools into the capability discovery system.
+   *
+   * Converts {@link EmergentTool} objects to {@link CapabilityDescriptor}s and
+   * upserts them into the vector index and relationship graph. Session-tier tools
+   * are skipped because they are too ephemeral to warrant indexing overhead.
+   *
+   * Each emergent tool becomes a descriptor with:
+   * - `id: 'emergent-tool:${tool.name}'`
+   * - `kind: 'emergent-tool'`
+   * - `category: 'emergent'`
+   * - `tags: ['runtime-created', 'agent-forged', implementation.mode]`
+   * - `hasSideEffects: true` when the implementation mode is `'sandbox'`
+   *
+   * @param tools - Array of emergent tools to index. Session-tier entries are filtered out.
+   * @returns The number of tools actually indexed (excluding skipped session-tier tools).
+   */
+  async indexEmergentTools(tools: EmergentTool[]): Promise<number> {
+    // Filter out session-tier tools — too ephemeral for discovery indexing
+    const eligible = tools.filter((t) => t.tier !== 'session');
+
+    if (eligible.length === 0) return 0;
+
+    const descriptors: CapabilityDescriptor[] = eligible.map((tool) => ({
+      id: `emergent-tool:${tool.name}`,
+      kind: 'emergent-tool' as const,
+      name: tool.name,
+      displayName: tool.name,
+      description: tool.description,
+      category: 'emergent',
+      tags: ['runtime-created', 'agent-forged', tool.implementation.mode],
+      requiredSecrets: [],
+      requiredTools: [],
+      available: true,
+      hasSideEffects: tool.implementation.mode === 'sandbox',
+      fullSchema: tool.inputSchema,
+      sourceRef: {
+        type: 'emergent-tool' as const,
+        emergentToolId: tool.id,
+        tier: tool.tier,
+      },
+    }));
+
+    for (const desc of descriptors) {
+      await this.index.upsertCapability(desc);
+    }
+
+    // Rebuild graph to include new emergent-tool nodes
+    const allCapabilities = this.index.getAllCapabilities();
+    await this.graph.buildGraph(allCapabilities);
+
+    this.indexVersion++;
+    this.assembler.invalidateCache();
+
+    return descriptors.length;
   }
 
   // ============================================================================

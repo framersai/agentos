@@ -20,7 +20,7 @@ import type { JSONSchemaObject } from '../core/tools/ITool.js';
 /**
  * Kind discriminator for capability descriptors.
  */
-export type CapabilityKind = 'tool' | 'skill' | 'extension' | 'channel' | 'voice' | 'productivity';
+export type CapabilityKind = 'tool' | 'skill' | 'extension' | 'channel' | 'voice' | 'productivity' | 'emergent-tool';
 
 /**
  * Reference back to the original source of a capability.
@@ -31,7 +31,8 @@ export type CapabilitySourceRef =
   | { type: 'skill'; skillName: string; skillPath?: string }
   | { type: 'extension'; packageName: string; extensionId: string }
   | { type: 'channel'; platform: string }
-  | { type: 'manifest'; manifestPath: string; entryId: string };
+  | { type: 'manifest'; manifestPath: string; entryId: string }
+  | { type: 'emergent-tool'; emergentToolId: string; tier: string };
 
 /**
  * Unified representation of any capability in the system.
