@@ -6,7 +6,7 @@
 
 # AgentOS
 
-**Open-source TypeScript runtime for production AI agents — unified graph orchestration (AgentGraph / workflow / mission), multimodal RAG, 37 channel adapters, 5-tier guardrails, 21 LLM providers.**
+**TypeScript runtime for autonomous AI agents — multimodal RAG, cognitive memory, streaming guardrails, voice pipeline, and emergent multi-agent orchestration.**
 
 [![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions)
@@ -194,10 +194,28 @@ const assistant = agent({
 const session = assistant.session('tcp-demo');
 const reply = await session.send('Now compare TCP and UDP.');
 console.log(reply.text);
+console.log(await session.usage());
 
 // Legacy format — still supported:
 // const result = await generateText({ model: 'openai:gpt-4o', prompt: '...' });
 ```
+
+If you want durable helper-level usage accounting outside the full runtime, enable
+the opt-in usage ledger:
+
+```typescript
+import { generateText, getRecordedAgentOSUsage } from '@framers/agentos';
+
+await generateText({
+  provider: 'openai',
+  prompt: 'Explain HTTP keep-alive.',
+  usageLedger: { enabled: true, sessionId: 'readme-demo' },
+});
+
+console.log(await getRecordedAgentOSUsage({ enabled: true, sessionId: 'readme-demo' }));
+```
+
+With `enabled: true`, AgentOS writes to the shared home ledger at `~/.framers/usage-ledger.jsonl` unless you provide `usageLedger.path` or one of the ledger env vars.
 
 Built-in image providers: `openai`, `openrouter`, `stability`, and `replicate`.
 
