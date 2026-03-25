@@ -1,3 +1,7 @@
+## <small>0.1.96 (2026-03-25)</small>
+
+* fix(ci): suppress empty-object-type lint error in usageLedger ([4029e70](https://github.com/framersai/agentos/commit/4029e70))
+
 ## <small>0.1.95 (2026-03-25)</small>
 
 * feat(discovery): wire emergent tools into CapabilityDiscoveryEngine ([d60308a](https://github.com/framersai/agentos/commit/d60308a))
