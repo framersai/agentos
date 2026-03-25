@@ -31,7 +31,7 @@ describe('PlivoMediaStreamParser', () => {
 
       expect(result).not.toBeNull();
       expect(result!.type).toBe('start');
-      if (result!.type === 'start') {
+      if (result && result.type === 'start') {
         expect(result.streamSid).toBe('s1');
         expect(result.callSid).toBe('u1');
       }
@@ -63,7 +63,7 @@ describe('PlivoMediaStreamParser', () => {
 
       expect(result).not.toBeNull();
       expect(result!.type).toBe('audio');
-      if (result!.type === 'audio') {
+      if (result && result.type === 'audio') {
         expect(result.streamSid).toBe('s1');
         expect(result.payload).toEqual(rawBytes);
       }
@@ -92,7 +92,7 @@ describe('PlivoMediaStreamParser', () => {
 
       expect(result).not.toBeNull();
       expect(result!.type).toBe('stop');
-      if (result!.type === 'stop') {
+      if (result && result.type === 'stop') {
         expect(result.streamSid).toBe('s1');
       }
     });

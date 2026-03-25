@@ -162,7 +162,7 @@ describe('WebSocketStreamTransport', () => {
   // -------------------------------------------------------------------------
 
   it('JSON-stringifies the message and sends as text', async () => {
-    const msg = { type: 'session_started', sessionId: 'abc', config: {} as any };
+    const msg = { type: 'session_started' as const, sessionId: 'abc', config: {} as any };
 
     await transport.sendControl(msg);
 

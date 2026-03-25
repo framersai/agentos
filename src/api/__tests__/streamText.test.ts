@@ -1,3 +1,6 @@
+import * as os from 'node:os';
+import * as path from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => {
@@ -19,6 +22,7 @@ vi.mock('../model.js', () => ({
 }));
 
 import { streamText } from '../streamText.js';
+import { clearRecordedAgentOSUsage, getRecordedAgentOSUsage } from '../usageLedger.js';
 
 describe('streamText', () => {
   it('executes streamed tool calls before continuing to the next step', async () => {
@@ -91,7 +95,7 @@ describe('streamText', () => {
         lookup: {
           description: 'Look up protocol context',
           parameters: { type: 'object', properties: { topic: { type: 'string' } }, required: ['topic'] },
-          execute: vi.fn(async (args) => ({ summary: `context for ${args.topic}` })),
+          execute: vi.fn(async (args: { topic: string }) => ({ summary: `context for ${args.topic}` })),
         },
       },
     });
@@ -113,5 +117,52 @@ describe('streamText', () => {
         result: { summary: 'context for QUIC' },
       },
     ]);
+  });
+
+  it('persists streaming usage when a ledger path is configured', async () => {
+    const ledgerPath = path.join(os.tmpdir(), `agentos-stream-text-${Date.now()}.jsonl`);
+
+    hoisted.generateCompletionStream.mockImplementationOnce(async function* () {
+      yield {
+        id: 'step-1',
+        object: 'chat.completion.chunk',
+        created: 1,
+        modelId: 'gpt-4.1-mini',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: 'streamed hello' },
+            finishReason: 'stop',
+          },
+        ],
+        responseTextDelta: 'streamed hello',
+        isFinal: true,
+        usage: { promptTokens: 4, completionTokens: 3, totalTokens: 7, costUSD: 0.0007 },
+      };
+    });
+
+    const result = streamText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'hi',
+      usageLedger: { path: ledgerPath, sessionId: 'stream-session' },
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of result.textStream) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(['streamed hello']);
+    await expect(getRecordedAgentOSUsage({ path: ledgerPath, sessionId: 'stream-session' })).resolves.toEqual({
+      sessionId: 'stream-session',
+      personaId: undefined,
+      promptTokens: 4,
+      completionTokens: 3,
+      totalTokens: 7,
+      costUSD: 0.0007,
+      calls: 1,
+    });
+
+    await clearRecordedAgentOSUsage({ path: ledgerPath });
   });
 });

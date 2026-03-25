@@ -17,6 +17,7 @@ import type {
   LoopConfig,
   LoopContext,
   LoopChunk,
+  LoopEvent,
   LoopOutput,
   LoopToolCallRequest,
   LoopToolCallResult,
@@ -162,7 +163,7 @@ describe('LoopController', () => {
     expect(context.addToolResults).toHaveBeenCalledTimes(2);
 
     // Final event is loop_complete
-    const lastEvent = events[events.length - 1];
+    const lastEvent = events[events.length - 1] as Extract<LoopEvent, { type: 'loop_complete' }>;
     expect(lastEvent.type).toBe('loop_complete');
     expect(lastEvent.totalIterations).toBe(3);
   });
@@ -175,7 +176,7 @@ describe('LoopController', () => {
     const { context, getCallCount } = createMockContext(10);
     const events = await collectEvents(baseConfig({ maxIterations: 3 }), context);
 
-    const lastEvent = events[events.length - 1];
+    const lastEvent = events[events.length - 1] as Extract<LoopEvent, { type: 'max_iterations_reached' }>;
     expect(lastEvent.type).toBe('max_iterations_reached');
     expect(lastEvent.iteration).toBe(3);
 
