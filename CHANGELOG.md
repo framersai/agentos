@@ -1,3 +1,7 @@
+## <small>0.1.88 (2026-03-25)</small>
+
+* fix(ci): resolve TS errors in voice test files — null assertions, return types, provider config ([b2caecf](https://github.com/framersai/agentos/commit/b2caecf))
+
 ## <small>0.1.87 (2026-03-25)</small>
 
 * feat(images): add local Stable Diffusion provider with A1111 and ComfyUI support ([dc3fdeb](https://github.com/framersai/agentos/commit/dc3fdeb))
