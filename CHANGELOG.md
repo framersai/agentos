@@ -1,3 +1,18 @@
+## <small>0.1.99 (2026-03-25)</small>
+
+* test(api): add full agency integration test ([1931af1](https://github.com/framersai/agentos/commit/1931af1))
+* test(api): add HITL beforeAgent, guardrail, and structured output tests ([8d8df48](https://github.com/framersai/agentos/commit/8d8df48))
+* test(api): add nested agency and emergent validation tests ([318a463](https://github.com/framersai/agentos/commit/318a463))
+* feat(api): add agency() factory function with validation, resource controls, and session management ([aa2d66c](https://github.com/framersai/agentos/commit/aa2d66c))
+* feat(api): add BaseAgentConfig, AgencyOptions, and extended result types ([bb3d417](https://github.com/framersai/agentos/commit/bb3d417))
+* feat(api): add debate, review-loop, and hierarchical strategy compilers with adaptive mode ([ec174de](https://github.com/framersai/agentos/commit/ec174de))
+* feat(api): add HITL approval handlers (cli, webhook, slack, auto) ([8ceb66d](https://github.com/framersai/agentos/commit/8ceb66d))
+* feat(api): add sequential and parallel strategy compilers ([a398b73](https://github.com/framersai/agentos/commit/a398b73))
+* feat(api): wire beforeAgent HITL into strategy compilers, forward beforeTool to sub-agents ([3332209](https://github.com/framersai/agentos/commit/3332209))
+* feat(api): wire guardrail input/output evaluation into agency execution ([cc917f9](https://github.com/framersai/agentos/commit/cc917f9))
+* docs: add AGENCY_API.md and update README with high-level API showcase ([9807c1e](https://github.com/framersai/agentos/commit/9807c1e)), closes [hi#level](https://github.com/hi/issues/level)
+* refactor(api): unify agent() with BaseAgentConfig, remove guardrails throw ([b2a9b33](https://github.com/framersai/agentos/commit/b2a9b33))
+
 ## <small>0.1.98 (2026-03-25)</small>
 
 * fix(emergent): add missing ToolPackage.ts — fixes CI build ([322139a](https://github.com/framersai/agentos/commit/322139a))
