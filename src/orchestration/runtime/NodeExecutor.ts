@@ -16,6 +16,7 @@
 import type { GraphNode, GraphState, GraphCondition, CompiledExecutionGraph } from '../ir/types.js';
 import type { GraphEvent } from '../events/GraphEvent.js';
 import type { LoopController, LoopChunk, LoopOutput } from './LoopController.js';
+import type { VoiceNodeExecutor } from './VoiceNodeExecutor.js';
 
 // ---------------------------------------------------------------------------
 // Public result type
@@ -146,6 +147,12 @@ export interface NodeExecutorDeps {
     method: string,
     input: unknown,
   ) => Promise<{ success: boolean; output?: unknown; error?: string }>;
+
+  /**
+   * Executor for `voice` nodes. Manages voice pipeline sessions, turn collection,
+   * and exit-condition racing. When absent, voice nodes return `success: false`.
+   */
+  voiceExecutor?: VoiceNodeExecutor;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +241,12 @@ export class NodeExecutor {
 
       case 'subgraph':
         return this.executeSubgraph(config, state);
+
+      case 'voice':
+        if (!this.deps.voiceExecutor) {
+          return { success: false, error: 'VoiceNodeExecutor not configured' };
+        }
+        return this.deps.voiceExecutor.execute(node, state);
     }
   }
 
