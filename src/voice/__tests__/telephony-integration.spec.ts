@@ -27,8 +27,8 @@ import type { AudioFrame } from '../../voice-pipeline/types.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Build a minimal mock WebSocket-like EventEmitter. */
-function createMockWS() {
-  const ws = new EventEmitter() as ReturnType<typeof createMockWS>;
+function createMockWS(): EventEmitter & { send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } {
+  const ws = new EventEmitter();
   (ws as any).send = vi.fn();
   (ws as any).close = vi.fn();
   return ws as EventEmitter & { send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
@@ -232,7 +232,7 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
     });
 
     manager = new CallManager({
-      provider: { provider: 'twilio' },
+      provider: { provider: 'twilio', config: { accountSid: 'test', authToken: 'test', phoneNumber: '+1' } } as any,
       webhookBaseUrl: 'https://example.com',
     });
 

@@ -31,8 +31,8 @@ describe('TwilioMediaStreamParser', () => {
       expect(result).not.toBeNull();
       expect(result!.type).toBe('start');
       if (result!.type === 'start') {
-        expect(result.streamSid).toBe('MZ001');
-        expect(result.callSid).toBe('CA001');
+        expect(result!.streamSid).toBe('MZ001');
+        expect(result!.callSid).toBe('CA001');
       }
     });
 
@@ -64,8 +64,8 @@ describe('TwilioMediaStreamParser', () => {
       expect(result).not.toBeNull();
       expect(result!.type).toBe('audio');
       if (result!.type === 'audio') {
-        expect(result.streamSid).toBe('MZ001');
-        expect(result.payload).toEqual(rawBytes);
+        expect(result!.streamSid).toBe('MZ001');
+        expect(result!.payload).toEqual(rawBytes);
       }
     });
 
@@ -115,9 +115,9 @@ describe('TwilioMediaStreamParser', () => {
       expect(result).not.toBeNull();
       expect(result!.type).toBe('dtmf');
       if (result!.type === 'dtmf') {
-        expect(result.digit).toBe('5');
-        expect(result.streamSid).toBe('MZ001');
-        expect(result.durationMs).toBe(500);
+        expect(result!.digit).toBe('5');
+        expect(result!.streamSid).toBe('MZ001');
+        expect(result!.durationMs).toBe(500);
       }
     });
 
@@ -132,7 +132,7 @@ describe('TwilioMediaStreamParser', () => {
 
       expect(result?.type).toBe('dtmf');
       if (result?.type === 'dtmf') {
-        expect(result.durationMs).toBeUndefined();
+        expect(result!.durationMs).toBeUndefined();
       }
     });
   });
@@ -150,7 +150,7 @@ describe('TwilioMediaStreamParser', () => {
       expect(result).not.toBeNull();
       expect(result!.type).toBe('stop');
       if (result!.type === 'stop') {
-        expect(result.streamSid).toBe('MZ001');
+        expect(result!.streamSid).toBe('MZ001');
       }
     });
   });
@@ -172,8 +172,8 @@ describe('TwilioMediaStreamParser', () => {
       expect(result).not.toBeNull();
       expect(result!.type).toBe('mark');
       if (result!.type === 'mark') {
-        expect(result.name).toBe('done');
-        expect(result.streamSid).toBe('MZ001');
+        expect(result!.name).toBe('done');
+        expect(result!.streamSid).toBe('MZ001');
       }
     });
   });
