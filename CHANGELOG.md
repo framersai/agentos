@@ -1,3 +1,12 @@
+## <small>0.1.95 (2026-03-25)</small>
+
+* feat(discovery): wire emergent tools into CapabilityDiscoveryEngine ([d60308a](https://github.com/framersai/agentos/commit/d60308a))
+* feat(emergent): add EmergentJudge — LLM-as-judge for forged tool evaluation ([dea5600](https://github.com/framersai/agentos/commit/dea5600))
+* feat(emergent): commit EmergentCapabilityEngine, ForgeToolMetaTool, and integration wiring ([30b3895](https://github.com/framersai/agentos/commit/30b3895))
+* feat(emergent): wire EmergentCapabilityEngine into ToolOrchestrator and AgentOSConfig ([4608dc2](https://github.com/framersai/agentos/commit/4608dc2))
+* test(voice): add E2E voice pipeline tests with real Deepgram + OpenAI TTS ([b86b333](https://github.com/framersai/agentos/commit/b86b333))
+* docs: add Emergent Capabilities section to README ([4e87a17](https://github.com/framersai/agentos/commit/4e87a17))
+
 ## <small>0.1.94 (2026-03-25)</small>
 
 * feat(api): add observability + usage tracking, update provider APIs, fix CI type errors ([cec6339](https://github.com/framersai/agentos/commit/cec6339))
