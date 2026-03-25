@@ -1088,6 +1088,16 @@ See [`docs/STRUCTURED_OUTPUT.md`](docs/STRUCTURED_OUTPUT.md) for usage patterns.
 
 ---
 
+### Emergent Capabilities
+
+**Location:** `src/emergent/`
+
+Agents with `emergent: true` create new tools at runtime — compose existing tools via a step DSL or write sandboxed JavaScript. An LLM-as-judge evaluates safety and correctness. Tools earn trust through tiered promotion: session (in-memory) → agent (persisted, auto-promoted after 5+ uses with >0.8 confidence) → shared (human-approved HITL gate).
+
+See [`docs/EMERGENT_CAPABILITIES.md`](docs/EMERGENT_CAPABILITIES.md) and the [docs site guide](https://docs.agentos.sh/features/emergent-capabilities) for details.
+
+---
+
 ## Configuration
 
 ### Development (Quick Start)
