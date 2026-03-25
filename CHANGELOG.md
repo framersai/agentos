@@ -1,3 +1,8 @@
+## <small>0.1.89 (2026-03-25)</small>
+
+* fix(ci): add ./voice subpath export to resolve @framers/agentos/voice imports ([457159a](https://github.com/framersai/agentos/commit/457159a))
+* docs: update README tagline ([5d09422](https://github.com/framersai/agentos/commit/5d09422))
+
 ## <small>0.1.88 (2026-03-25)</small>
 
 * fix(ci): resolve TS errors in voice test files — null assertions, return types, provider config ([b2caecf](https://github.com/framersai/agentos/commit/b2caecf))
