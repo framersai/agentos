@@ -1,0 +1,397 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { EmergentToolRegistry } from '../EmergentToolRegistry.js';
+import type { EmergentTool, ToolUsageStats, EmergentConfig } from '../types.js';
+import { DEFAULT_EMERGENT_CONFIG } from '../types.js';
+import type { JSONSchemaObject } from '../../core/tools/ITool.js';
+
+// ---------------------------------------------------------------------------
+// Helpers — builds valid objects without relying on runtime constructors
+// ---------------------------------------------------------------------------
+
+/** Counter for unique tool IDs across a test run. */
+let idCounter = 0;
+
+/**
+ * Build a minimal valid {@link ToolUsageStats} with optional overrides.
+ */
+function makeUsageStats(
+  overrides: Partial<ToolUsageStats> = {},
+): ToolUsageStats {
+  return {
+    totalUses: 0,
+    successCount: 0,
+    failureCount: 0,
+    avgExecutionTimeMs: 0,
+    lastUsedAt: null,
+    confidenceScore: 0,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a minimal valid {@link EmergentTool} with optional overrides.
+ * Each call produces a unique `id` unless explicitly overridden.
+ */
+function makeTool(overrides: Partial<EmergentTool> = {}): EmergentTool {
+  idCounter += 1;
+  const inputSchema: JSONSchemaObject = {
+    type: 'object',
+    properties: { value: { type: 'number' } },
+    required: ['value'],
+  };
+  const outputSchema: JSONSchemaObject = {
+    type: 'object',
+    properties: { result: { type: 'number' } },
+  };
+  return {
+    id: `emergent:test-${idCounter}`,
+    name: `test_tool_${idCounter}`,
+    description: 'A test tool.',
+    inputSchema,
+    outputSchema,
+    implementation: {
+      mode: 'sandbox',
+      code: 'function execute(input) { return input; }',
+      allowlist: [],
+    },
+    tier: 'session',
+    createdBy: 'agent-1',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    judgeVerdicts: [],
+    usageStats: makeUsageStats(),
+    source: 'forged by agent agent-1 during session sess-abc',
+    ...overrides,
+  };
+}
+
+/**
+ * Build a registry with emergent capabilities enabled and sensible test defaults.
+ */
+function makeRegistry(
+  overrides: Partial<EmergentConfig> = {},
+): EmergentToolRegistry {
+  return new EmergentToolRegistry({ ...DEFAULT_EMERGENT_CONFIG, enabled: true, ...overrides });
+}
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
+
+describe('EmergentToolRegistry', () => {
+  beforeEach(() => {
+    // Reset the ID counter so each test starts clean.
+    idCounter = 0;
+  });
+
+  // -------------------------------------------------------------------------
+  // 1. Register a tool at session tier, get() retrieves it
+  // -------------------------------------------------------------------------
+  it('registers a tool at session tier and retrieves it via get()', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+
+    registry.register(tool, 'session');
+
+    const retrieved = registry.get(tool.id);
+    expect(retrieved).toBeDefined();
+    expect(retrieved!.id).toBe(tool.id);
+    expect(retrieved!.name).toBe(tool.name);
+    expect(retrieved!.tier).toBe('session');
+  });
+
+  // -------------------------------------------------------------------------
+  // 2. getByTier('session') returns session tools only
+  // -------------------------------------------------------------------------
+  it('getByTier("session") returns only session-tier tools', () => {
+    const registry = makeRegistry();
+    const sessionTool = makeTool({ source: 'forged by agent agent-1 during session sess-abc' });
+    const agentTool = makeTool({ source: 'forged by agent agent-2 during session sess-xyz' });
+
+    registry.register(sessionTool, 'session');
+    registry.register(agentTool, 'agent');
+
+    const sessionTools = registry.getByTier('session');
+    expect(sessionTools).toHaveLength(1);
+    expect(sessionTools[0].id).toBe(sessionTool.id);
+
+    const agentTools = registry.getByTier('agent');
+    expect(agentTools).toHaveLength(1);
+    expect(agentTools[0].id).toBe(agentTool.id);
+  });
+
+  // -------------------------------------------------------------------------
+  // 3. recordUse() increments totalUses and successCount
+  // -------------------------------------------------------------------------
+  it('recordUse() increments totalUses and successCount on success', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'session');
+
+    registry.recordUse(tool.id, { value: 1 }, { result: 2 }, true, 50);
+
+    const stats = registry.getUsageStats(tool.id)!;
+    expect(stats.totalUses).toBe(1);
+    expect(stats.successCount).toBe(1);
+    expect(stats.failureCount).toBe(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // 4. recordUse() with success=false increments failureCount
+  // -------------------------------------------------------------------------
+  it('recordUse() increments failureCount on failure', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'session');
+
+    registry.recordUse(tool.id, { value: 1 }, null, false, 100);
+
+    const stats = registry.getUsageStats(tool.id)!;
+    expect(stats.totalUses).toBe(1);
+    expect(stats.successCount).toBe(0);
+    expect(stats.failureCount).toBe(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. getUsageStats() returns correct stats after multiple uses
+  // -------------------------------------------------------------------------
+  it('getUsageStats() returns accurate stats after multiple invocations', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'session');
+
+    // 3 successes, 1 failure
+    registry.recordUse(tool.id, {}, {}, true, 40);
+    registry.recordUse(tool.id, {}, {}, true, 60);
+    registry.recordUse(tool.id, {}, {}, false, 200);
+    registry.recordUse(tool.id, {}, {}, true, 100);
+
+    const stats = registry.getUsageStats(tool.id)!;
+    expect(stats.totalUses).toBe(4);
+    expect(stats.successCount).toBe(3);
+    expect(stats.failureCount).toBe(1);
+    expect(stats.lastUsedAt).not.toBeNull();
+
+    // Average execution time: (40 + 60 + 200 + 100) / 4 = 100
+    expect(stats.avgExecutionTimeMs).toBe(100);
+  });
+
+  // -------------------------------------------------------------------------
+  // 6. confidenceScore calculated as successCount / totalUses
+  // -------------------------------------------------------------------------
+  it('confidenceScore is calculated as successCount / totalUses', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'session');
+
+    // 3 successes out of 4 total
+    registry.recordUse(tool.id, {}, {}, true, 10);
+    registry.recordUse(tool.id, {}, {}, true, 10);
+    registry.recordUse(tool.id, {}, {}, false, 10);
+    registry.recordUse(tool.id, {}, {}, true, 10);
+
+    const stats = registry.getUsageStats(tool.id)!;
+    expect(stats.confidenceScore).toBe(0.75); // 3/4
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. promote() moves tool from session to agent tier
+  // -------------------------------------------------------------------------
+  it('promote() moves a tool from session to agent tier', async () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'session');
+
+    // Session tier should have it.
+    expect(registry.getByTier('session')).toHaveLength(1);
+    expect(registry.getByTier('agent')).toHaveLength(0);
+
+    await registry.promote(tool.id, 'agent', 'admin');
+
+    // After promotion: session is empty, agent has it.
+    expect(registry.getByTier('session')).toHaveLength(0);
+    expect(registry.getByTier('agent')).toHaveLength(1);
+
+    const promoted = registry.get(tool.id)!;
+    expect(promoted.tier).toBe('agent');
+  });
+
+  // -------------------------------------------------------------------------
+  // 8. cleanupSession() removes only that session's tools
+  // -------------------------------------------------------------------------
+  it('cleanupSession() removes only tools matching the session ID', () => {
+    const registry = makeRegistry();
+    const tool1 = makeTool({ source: 'forged by agent agent-1 during session sess-111' });
+    const tool2 = makeTool({ source: 'forged by agent agent-1 during session sess-111' });
+    const tool3 = makeTool({ source: 'forged by agent agent-2 during session sess-222' });
+
+    registry.register(tool1, 'session');
+    registry.register(tool2, 'session');
+    registry.register(tool3, 'session');
+    expect(registry.getByTier('session')).toHaveLength(3);
+
+    const removed = registry.cleanupSession('sess-111');
+
+    expect(removed).toBe(2);
+    expect(registry.getByTier('session')).toHaveLength(1);
+    expect(registry.get(tool1.id)).toBeUndefined();
+    expect(registry.get(tool2.id)).toBeUndefined();
+    expect(registry.get(tool3.id)).toBeDefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // 9. register() throws when maxSessionTools exceeded
+  // -------------------------------------------------------------------------
+  it('register() throws when maxSessionTools limit is exceeded', () => {
+    const registry = makeRegistry({ maxSessionTools: 2 });
+
+    registry.register(makeTool(), 'session');
+    registry.register(makeTool(), 'session');
+
+    expect(() => registry.register(makeTool(), 'session')).toThrow(
+      /Session tool limit reached/,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // 10. demote() sets confidenceScore to 0 and marks inactive
+  // -------------------------------------------------------------------------
+  it('demote() sets confidenceScore to 0 and marks the tool inactive', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'session');
+
+    // Give it some confidence first.
+    registry.recordUse(tool.id, {}, {}, true, 10);
+    expect(registry.getUsageStats(tool.id)!.confidenceScore).toBe(1);
+
+    registry.demote(tool.id, 'Test demotion reason');
+
+    const stats = registry.getUsageStats(tool.id)!;
+    expect(stats.confidenceScore).toBe(0);
+
+    // The tool should be marked inactive via convention property.
+    const demoted = registry.get(tool.id) as EmergentTool & { isActive?: boolean };
+    expect(demoted.isActive).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // 11. logAudit creates audit entries accessible via getAuditLog()
+  // -------------------------------------------------------------------------
+  it('audit log records events for all state changes', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+
+    registry.register(tool, 'session');
+    registry.recordUse(tool.id, {}, {}, true, 10);
+    registry.demote(tool.id, 'bad tool');
+
+    const allEntries = registry.getAuditLog();
+    expect(allEntries.length).toBeGreaterThanOrEqual(3);
+
+    const types = allEntries.map((e) => e.eventType);
+    expect(types).toContain('register');
+    expect(types).toContain('use');
+    expect(types).toContain('demote');
+
+    // Filter by tool ID.
+    const toolEntries = registry.getAuditLog(tool.id);
+    expect(toolEntries).toHaveLength(allEntries.filter((e) => e.toolId === tool.id).length);
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: promote() throws when target tier is not higher
+  // -------------------------------------------------------------------------
+  it('promote() throws when target tier is not higher than current', async () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'agent');
+
+    await expect(registry.promote(tool.id, 'session')).rejects.toThrow(
+      /target tier must be strictly higher/,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: register() throws on duplicate ID
+  // -------------------------------------------------------------------------
+  it('register() throws when a tool with the same ID already exists', () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+
+    registry.register(tool, 'session');
+    expect(() => registry.register(tool, 'session')).toThrow(
+      /already registered/,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: recordUse() throws for unknown tool
+  // -------------------------------------------------------------------------
+  it('recordUse() throws for an unknown tool ID', () => {
+    const registry = makeRegistry();
+
+    expect(() =>
+      registry.recordUse('emergent:nonexistent', {}, {}, true, 10),
+    ).toThrow(/not found/);
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: getUsageStats() returns undefined for unknown tool
+  // -------------------------------------------------------------------------
+  it('getUsageStats() returns undefined for an unknown tool ID', () => {
+    const registry = makeRegistry();
+    expect(registry.getUsageStats('emergent:nonexistent')).toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: register() enforces maxAgentTools limit
+  // -------------------------------------------------------------------------
+  it('register() throws when maxAgentTools limit is exceeded', () => {
+    const registry = makeRegistry({ maxAgentTools: 1 });
+
+    registry.register(makeTool(), 'agent');
+
+    expect(() => registry.register(makeTool(), 'agent')).toThrow(
+      /Agent tool limit reached/,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: promote() from agent to shared works
+  // -------------------------------------------------------------------------
+  it('promote() moves a tool from agent to shared tier', async () => {
+    const registry = makeRegistry();
+    const tool = makeTool();
+    registry.register(tool, 'agent');
+
+    await registry.promote(tool.id, 'shared', 'admin');
+
+    expect(registry.getByTier('agent')).toHaveLength(0);
+    expect(registry.getByTier('shared')).toHaveLength(1);
+    expect(registry.get(tool.id)!.tier).toBe('shared');
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: ensureSchema() is a no-op without a DB adapter
+  // -------------------------------------------------------------------------
+  it('ensureSchema() completes without error when no DB is provided', async () => {
+    const registry = makeRegistry();
+    await expect(registry.ensureSchema()).resolves.toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // Additional: getByTier() with agentId scope filter
+  // -------------------------------------------------------------------------
+  it('getByTier() filters by agentId scope', () => {
+    const registry = makeRegistry();
+    const tool1 = makeTool({ createdBy: 'agent-A' });
+    const tool2 = makeTool({ createdBy: 'agent-B' });
+
+    registry.register(tool1, 'agent');
+    registry.register(tool2, 'agent');
+
+    const filtered = registry.getByTier('agent', { agentId: 'agent-A' });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].createdBy).toBe('agent-A');
+  });
+});
