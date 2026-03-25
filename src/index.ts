@@ -120,6 +120,25 @@ export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
+export { agency } from './api/agency.js';
+export { hitl } from './api/hitl.js';
+export type { HitlHandler } from './api/hitl.js';
+export type {
+  AgencyOptions,
+  AgencyStrategy,
+  AgencyConfigError as AgencyConfigErrorType,
+  AgencyCallbacks,
+  AgencyStreamPart,
+  AgencyTraceEvent,
+  AgentCallRecord,
+  ApprovalRequest,
+  ApprovalDecision,
+  ResourceControls,
+  HitlConfig,
+  CompiledStrategy,
+  Agency,
+} from './api/types.js';
+export { AgencyConfigError } from './api/types.js';
 export { generateImage } from './api/generateImage.js';
 export type { GenerateImageOptions, GenerateImageResult } from './api/generateImage.js';
 export {
