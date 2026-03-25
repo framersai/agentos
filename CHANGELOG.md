@@ -1,3 +1,9 @@
+## <small>0.1.86 (2026-03-25)</small>
+
+* fix(ci): prefer-const in NodeExecutor, prefix unused params, remove unused import ([1e44d7c](https://github.com/framersai/agentos/commit/1e44d7c))
+* docs: add voice-graph integration guide to VOICE_PIPELINE.md ([fdeab10](https://github.com/framersai/agentos/commit/fdeab10))
+* test(orchestration): add voice graph integration tests ([b39539a](https://github.com/framersai/agentos/commit/b39539a))
+
 ## <small>0.1.85 (2026-03-25)</small>
 
 * feat(orchestration): add voice step support to WorkflowBuilder configToNode ([c7ed210](https://github.com/framersai/agentos/commit/c7ed210))
