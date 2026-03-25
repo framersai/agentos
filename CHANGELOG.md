@@ -1,3 +1,7 @@
+## <small>0.1.93 (2026-03-25)</small>
+
+* feat(emergent): add EmergentToolRegistry with tiered lifecycle management ([74bdb4f](https://github.com/framersai/agentos/commit/74bdb4f))
+
 ## <small>0.1.92 (2026-03-25)</small>
 
 * feat(emergent): add SandboxedToolForge for isolated code execution ([c6bbee7](https://github.com/framersai/agentos/commit/c6bbee7))
