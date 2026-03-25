@@ -5,8 +5,9 @@
  * Manages the lifecycle of emergent tools across three trust tiers:
  *
  * - **Session tier**: In-memory `Map`, auto-cleaned when the session ends.
- *   Tools at this tier live only for the duration of the agent session and are
- *   never persisted.
+ *   Tools at this tier live only for the duration of the agent session. When a
+ *   storage adapter is available they are also mirrored into SQLite for
+ *   inspection/debugging and removed during session cleanup.
  *
  * - **Agent tier**: Persisted in SQLite via the `agentos_emergent_tools` table.
  *   Tools at this tier are scoped to the agent that created them and survive
@@ -123,8 +124,9 @@ const TIER_ORDER: readonly ToolTier[] = ['session', 'agent', 'shared'];
  * Manages the lifecycle of emergent tools across three trust tiers.
  *
  * The registry stores session-tier tools in an in-memory Map (keyed by tool ID)
- * and agent/shared-tier tools in SQLite (when a storage adapter is provided) or
- * in a separate in-memory Map as fallback.
+ * and mirrors them to SQLite when available for audit/inspection. Agent/shared
+ * tier tools live in the persisted map and are written to SQLite (when a
+ * storage adapter is provided) or kept in-memory as fallback.
  *
  * Key responsibilities:
  * - **Registration**: Accept new tools at a given tier, enforcing config limits.
@@ -257,9 +259,9 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
   /**
    * Register a new emergent tool at the given tier.
    *
-   * Session-tier tools are stored in the in-memory session map. Agent and shared
-   * tier tools are stored in the persisted map (and will be written to SQLite on
-   * the next DB sync if a storage adapter is available).
+   * Session-tier tools are stored in the in-memory session map and mirrored to
+   * SQLite when available. Agent and shared tier tools are stored in the
+   * persisted map (and written to SQLite when a storage adapter is available).
    *
    * @param tool - The emergent tool to register. Must have a unique `id`.
    * @param tier - The tier to register the tool at. The tool's `tier` property
@@ -693,6 +695,35 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
     const sessionMatch = tool.source.match(/session\s+([\w-]+)/);
     const sessionId = sessionMatch?.[1] ?? 'unknown';
 
+    let promotedAt: number | null = null;
+    let promotedBy: string | null = approvedBy ?? null;
+
+    if (tool.tier !== 'session') {
+      const existing =
+        ((await this.db.get(
+          `SELECT promoted_at, promoted_by
+             FROM agentos_emergent_tools
+            WHERE id = ?
+            LIMIT 1`,
+          [tool.id],
+        )) as
+          | {
+              promoted_at?: number | null;
+              promoted_by?: string | null;
+            }
+          | undefined) ?? { promoted_at: null, promoted_by: null };
+
+      promotedAt =
+        approvedBy != null
+          ? Date.now()
+          : typeof existing.promoted_at === 'number'
+            ? existing.promoted_at
+            : Date.now();
+      promotedBy =
+        approvedBy ??
+        (existing.promoted_by != null ? String(existing.promoted_by) : null);
+    }
+
     await this.db.run(
       `INSERT OR REPLACE INTO agentos_emergent_tools
        (id, name, description, input_schema, output_schema, implementation_mode,
@@ -713,8 +744,8 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
         tool.createdBy,
         sessionId,
         new Date(tool.createdAt).getTime(),
-        tool.tier === 'session' ? null : Date.now(),
-        approvedBy ?? null,
+        promotedAt,
+        promotedBy,
         JSON.stringify(tool.judgeVerdicts),
         tool.usageStats.confidenceScore,
         tool.usageStats.totalUses,

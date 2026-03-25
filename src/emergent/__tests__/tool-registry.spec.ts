@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EmergentToolRegistry } from '../EmergentToolRegistry.js';
 import type { EmergentTool, ToolUsageStats, EmergentConfig } from '../types.js';
+import type { IStorageAdapter } from '../EmergentToolRegistry.js';
 import { DEFAULT_EMERGENT_CONFIG } from '../types.js';
 import type { JSONSchemaObject } from '../../core/tools/ITool.js';
 
@@ -71,6 +72,39 @@ function makeRegistry(
   overrides: Partial<EmergentConfig> = {},
 ): EmergentToolRegistry {
   return new EmergentToolRegistry({ ...DEFAULT_EMERGENT_CONFIG, enabled: true, ...overrides });
+}
+
+class MockStorageAdapter implements IStorageAdapter {
+  rows = new Map<
+    string,
+    { promoted_at: number | null; promoted_by: string | null }
+  >();
+
+  async run(sql: string, params: unknown[] = []): Promise<unknown> {
+    if (sql.includes('INSERT OR REPLACE INTO agentos_emergent_tools')) {
+      const id = String(params[0]);
+      this.rows.set(id, {
+        promoted_at:
+          typeof params[11] === 'number' ? params[11] : null,
+        promoted_by:
+          typeof params[12] === 'string' ? params[12] : null,
+      });
+    }
+    return {};
+  }
+
+  async get(sql: string, params: unknown[] = []): Promise<unknown> {
+    if (sql.includes('SELECT promoted_at, promoted_by')) {
+      return this.rows.get(String(params[0]));
+    }
+    return undefined;
+  }
+
+  async all(): Promise<unknown[]> {
+    return [];
+  }
+
+  async exec(): Promise<void> {}
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +306,27 @@ describe('EmergentToolRegistry', () => {
     // The tool should be marked inactive via convention property.
     const demoted = registry.get(tool.id) as EmergentTool & { isActive?: boolean };
     expect(demoted.isActive).toBe(false);
+  });
+
+  it('preserves promoted_at when a promoted tool is persisted again after usage', async () => {
+    const adapter = new MockStorageAdapter();
+    const registry = new EmergentToolRegistry(
+      { ...DEFAULT_EMERGENT_CONFIG, enabled: true },
+      adapter,
+    );
+    await registry.ensureSchema();
+
+    const tool = makeTool();
+    registry.register(tool, 'session');
+    await registry.promote(tool.id, 'agent', 'admin');
+    const firstPromotedAt = adapter.rows.get(tool.id)?.promoted_at;
+
+    registry.recordUse(tool.id, {}, {}, true, 10);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const secondPromotedAt = adapter.rows.get(tool.id)?.promoted_at;
+
+    expect(firstPromotedAt).not.toBeNull();
+    expect(secondPromotedAt).toBe(firstPromotedAt);
   });
 
   // -------------------------------------------------------------------------
