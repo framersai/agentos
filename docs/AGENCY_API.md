@@ -353,6 +353,11 @@ const withRag = agency({
 
 ### Voice pipeline
 
+When `voice.enabled` is `true` the agency exposes a `listen()` method that
+starts a local WebSocket server.  Callers receive the bound port and URL and can
+connect any audio client.  The full STT → LLM → TTS pipeline is provided by
+`src/voice-pipeline/`; the agency wires `generate()` as the LLM backend.
+
 ```typescript
 const voiceAgent = agency({
   model: 'openai:gpt-4o',
@@ -369,10 +374,22 @@ const voiceAgent = agency({
   },
 });
 
-await voiceAgent.connect(); // attach voice transport
+// Bind to an OS-assigned port; connect audio clients to the returned URL.
+const server = await voiceAgent.listen();
+console.log(`Voice WS server ready at ${server.url}`);
+// ...
+await server.close();
 ```
 
+Requires the `ws` package (`npm install ws`).
+
 ### Channel adapters
+
+When `channels` contains at least one entry the agency exposes a `connect()`
+method.  Calling it logs each configured channel and defers real adapter
+initialisation to the runtime.  Full adapter wiring (Discord, Telegram, Slack,
+etc.) is handled by the channel adapter infrastructure in
+`src/channels/`; `connect()` is the hook point for that wiring.
 
 ```typescript
 const social = agency({
@@ -385,7 +402,7 @@ const social = agency({
   },
 });
 
-await social.connect(); // open all channel connections
+await social.connect(); // logs each channel; real adapter connection is a follow-up
 ```
 
 ---

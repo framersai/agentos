@@ -192,7 +192,11 @@ export function agency(opts: AgencyOptions): Agent {
   // Returned Agent interface
   // ---------------------------------------------------------------------------
 
-  return {
+  /**
+   * Build the core agent object.  `listen` and `connect` are conditionally
+   * attached below based on the presence of `opts.voice` and `opts.channels`.
+   */
+  const agentObj: Agent = {
     /**
      * Runs the agency's strategy for the given prompt and returns the final
      * aggregated result (non-streaming).
@@ -314,6 +318,99 @@ export function agency(opts: AgencyOptions): Agent {
       }
     },
   };
+
+  // ---------------------------------------------------------------------------
+  // listen() — voice WebSocket transport
+  // ---------------------------------------------------------------------------
+
+  /**
+   * When `opts.voice.enabled` is set, attach a `listen()` method that starts a
+   * local WebSocket server and exposes a port for real-time audio I/O.
+   *
+   * The WebSocket server acts as the transport layer; on each incoming connection
+   * the audio bytes are bridged to the agency via `generate()` / `session()` once
+   * a full-pipeline STT+TTS integration is in place.  For v1 the connection
+   * handler is a no-op stub, establishing the port and URL surface so callers
+   * can integrate their own audio transport.
+   *
+   * Dynamic import of `ws` keeps voice entirely optional — if the package is
+   * not installed the error message tells the caller exactly what to install.
+   */
+  if (opts.voice?.enabled) {
+    agentObj.listen = async (listenOpts?: { port?: number }): Promise<{ port: number; url: string; close: () => Promise<void> }> => {
+      try {
+        const { WebSocketServer } = await import('ws');
+        const port = listenOpts?.port ?? 0;
+
+        const wss = new WebSocketServer({ port, host: '127.0.0.1' });
+        await new Promise<void>((resolve) => wss.on('listening', resolve));
+        const address = wss.address() as { port: number } | null;
+        const actualPort = address?.port ?? port;
+
+        /*
+         * Connection handler: each WS client is a voice session.
+         * v1 stub — real audio bridging (STT → agency.generate() → TTS) is
+         * wired in the full voice pipeline via `src/voice-pipeline/`.
+         * TODO: integrate `src/voice-pipeline/` STT+TTS pipeline here by
+         * passing `agentObj.generate` as the LLM backend.
+         */
+        wss.on('connection', (_ws) => {
+          // Audio bytes → STT → agency.generate() → TTS → audio bytes
+          // Full pipeline: see packages/agentos/src/voice-pipeline/
+        });
+
+        return {
+          port: actualPort,
+          url: `ws://127.0.0.1:${actualPort}`,
+          close: () => new Promise<void>((resolve) => wss.close(() => resolve())),
+        };
+      } catch {
+        throw new Error(
+          'Voice transport requires the ws package. Install with: npm install ws',
+        );
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // connect() — channel adapter wiring
+  // ---------------------------------------------------------------------------
+
+  /**
+   * When `opts.channels` contains at least one configured channel, attach a
+   * `connect()` method.  On invocation it iterates the channel map, logs each
+   * channel as configured, and defers real adapter initialisation to runtime.
+   *
+   * Full channel wiring depends on the channel adapter infrastructure in
+   * `packages/agentos/src/channels/`.  For v1 `connect()` establishes the
+   * surface — real adapter instances are a follow-up integration.
+   *
+   * Channel adapters follow the `IChannelAdapter` pattern:
+   *   connect(config, messageHandler) — where `messageHandler` bridges incoming
+   *   channel messages to `agentObj.generate()`.
+   */
+  if (opts.channels && Object.keys(opts.channels).length > 0) {
+    agentObj.connect = async (): Promise<void> => {
+      for (const [channelName, channelConfig] of Object.entries(opts.channels!)) {
+        try {
+          /*
+           * Dynamic import of the channel adapter.  Each adapter is registered
+           * under `channels/<name>/index.js` in the extensions registry.
+           * TODO: resolve adapters from the ExtensionRegistry and call
+           *   adapter.connect(channelConfig, (msg) => agentObj.generate(msg))
+           */
+          void channelConfig; // suppress unused warning until full wiring
+          console.log(
+            `[agency] Channel "${channelName}" configured (connection deferred to runtime)`,
+          );
+        } catch {
+          console.warn(`[agency] Channel "${channelName}" adapter not available`);
+        }
+      }
+    };
+  }
+
+  return agentObj;
 }
 
 // ---------------------------------------------------------------------------

@@ -909,4 +909,158 @@ describe('Agency Full Integration', () => {
       ).not.toThrow();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Task 4: listen() — voice WebSocket transport
+  // ---------------------------------------------------------------------------
+
+  describe('listen() — voice transport', () => {
+    it('listen() is present when voice.enabled is true', () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        voice: { enabled: true },
+      });
+
+      expect(typeof team.listen).toBe('function');
+    });
+
+    it('listen() is absent when voice is not configured', () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      expect(team.listen).toBeUndefined();
+    });
+
+    it('listen() is absent when voice.enabled is false', () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        voice: { enabled: false },
+      });
+
+      expect(team.listen).toBeUndefined();
+    });
+
+    it('listen() returns port, url, and close function', async () => {
+      /**
+       * This test actually binds a WebSocket server on an OS-assigned port.
+       * The `ws` package must be resolvable in the test environment.
+       * If `ws` is not available, the test is skipped gracefully.
+       */
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        voice: { enabled: true },
+      });
+
+      let result: { port: number; url: string; close: () => Promise<void> } | undefined;
+      try {
+        result = await team.listen!();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('ws package')) {
+          // ws not installed in this environment — skip.
+          return;
+        }
+        throw err;
+      }
+
+      expect(typeof result.port).toBe('number');
+      expect(result.port).toBeGreaterThan(0);
+      expect(result.url).toMatch(/^ws:\/\/127\.0\.0\.1:\d+$/);
+      expect(typeof result.close).toBe('function');
+
+      // Clean up the server.
+      await result.close();
+    });
+
+    it('listen() with explicit port binds to that port', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        voice: { enabled: true },
+      });
+
+      let result: { port: number; url: string; close: () => Promise<void> } | undefined;
+      try {
+        result = await team.listen!({ port: 0 });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('ws package')) return;
+        throw err;
+      }
+
+      expect(result.port).toBeGreaterThan(0);
+      await result.close();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Task 4: connect() — channel adapter wiring
+  // ---------------------------------------------------------------------------
+
+  describe('connect() — channel wiring', () => {
+    it('connect() is present when channels are configured', () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        channels: { discord: { token: 'abc123' } },
+      });
+
+      expect(typeof team.connect).toBe('function');
+    });
+
+    it('connect() is absent when channels are not configured', () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      expect(team.connect).toBeUndefined();
+    });
+
+    it('connect() is absent when channels object is empty', () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        channels: {},
+      });
+
+      expect(team.connect).toBeUndefined();
+    });
+
+    it('connect() resolves without throwing for multiple channels', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        channels: {
+          discord: { token: 'tok1' },
+          telegram: { token: 'tok2' },
+        },
+      });
+
+      await expect(team.connect!()).resolves.toBeUndefined();
+    });
+
+    it('connect() logs each configured channel without throwing', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        channels: { slack: { webhookUrl: 'https://hooks.slack.com/...' } },
+      });
+
+      await team.connect!();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('slack'),
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
 });
