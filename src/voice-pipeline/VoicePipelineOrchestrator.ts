@@ -197,6 +197,72 @@ export class VoicePipelineOrchestrator extends EventEmitter {
   }
 
   // --------------------------------------------------------------------------
+  // Public integration points for VoiceTransportAdapter / graph nodes
+  // --------------------------------------------------------------------------
+
+  /**
+   * Wait for the next user turn to complete.
+   *
+   * Wraps the internal `'turn_complete'` event in a one-shot Promise so that
+   * graph nodes (via VoiceTransportAdapter) can `await` user input without
+   * having to manage raw EventEmitter subscriptions themselves.
+   *
+   * Resolves with the first `TurnCompleteEvent` fired after this call.
+   * If the session is closed before a turn completes, the Promise will never
+   * resolve — callers should race it against a session-close signal if needed.
+   *
+   * @returns A Promise that resolves with the completed turn event.
+   *
+   * @example
+   * ```typescript
+   * const turn = await orchestrator.waitForUserTurn();
+   * console.log('User said:', turn.transcript);
+   * ```
+   */
+  async waitForUserTurn(): Promise<TurnCompleteEvent> {
+    return new Promise<TurnCompleteEvent>((resolve) => {
+      this.once('turn_complete', (event: TurnCompleteEvent) => resolve(event));
+    });
+  }
+
+  /**
+   * Push text to the active TTS session.
+   *
+   * Accepts either a plain string or an `AsyncIterable<string>` of token chunks
+   * (e.g. a streaming LLM response). Calls `pushTokens()` on the active TTS
+   * session for each token, then calls `flush()` to signal end-of-utterance.
+   *
+   * Used by VoiceTransportAdapter to deliver graph node output as speech
+   * without the caller needing a direct reference to the TTS session.
+   *
+   * @param text - A complete string, or an async iterable of string tokens.
+   * @throws {Error} If there is no active TTS session (i.e. session not started).
+   *
+   * @example
+   * ```typescript
+   * // Plain string
+   * await orchestrator.pushToTTS('Hello, how can I help?');
+   *
+   * // Streaming tokens from an LLM
+   * await orchestrator.pushToTTS(llm.streamTokens(prompt));
+   * ```
+   */
+  async pushToTTS(text: string | AsyncIterable<string>): Promise<void> {
+    const ttsSession = this._ttsSession;
+    if (!ttsSession) throw new Error('No active TTS session');
+
+    if (typeof text === 'string') {
+      ttsSession.pushTokens(text);
+    } else {
+      for await (const token of text) {
+        ttsSession.pushTokens(token);
+      }
+    }
+
+    await ttsSession.flush();
+  }
+
+  // --------------------------------------------------------------------------
   // Wiring helpers
   // --------------------------------------------------------------------------
 

@@ -11,3 +11,4 @@ export { HeuristicEndpointDetector } from './HeuristicEndpointDetector.js';
 export { AcousticEndpointDetector } from './AcousticEndpointDetector.js';
 export { WebSocketStreamTransport } from './WebSocketStreamTransport.js';
 export { VoicePipelineOrchestrator } from './VoicePipelineOrchestrator.js';
+export { VoiceInterruptError } from './VoiceInterruptError.js';
