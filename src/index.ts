@@ -91,6 +91,8 @@ export { createLogger, setLoggerFactory, resetLoggerFactory } from './logging/lo
 export * from './types/rateLimitTypes';
 // Storage adapters
 export * from './core/storage';
+// Usage & cost accounting
+export * from './core/usage/UsageLedger';
 // RAG (Retrieval Augmented Generation)
 export * from './rag';
 // Cognitive Memory System
@@ -118,6 +120,27 @@ export { agent } from './api/agent.js';
 export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
 export { generateImage } from './api/generateImage.js';
 export type { GenerateImageOptions, GenerateImageResult } from './api/generateImage.js';
-export { parseModelString, resolveProvider } from './api/model.js';
+export {
+  parseModelString,
+  resolveProvider,
+  resolveModelOption,
+} from './api/model.js';
+export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/provider-defaults.js';
+export type { ProviderDefaults } from './api/provider-defaults.js';
+export type { TaskType, ModelOption } from './api/model.js';
 export { adaptTools } from './api/toolAdapter.js';
 export type { ToolDefinitionMap } from './api/toolAdapter.js';
+export {
+  getDefaultAgentOSUsageLedgerPath,
+  resolveAgentOSUsageLedgerPath,
+  readRecordedAgentOSUsageEvents,
+  recordAgentOSUsage,
+  getRecordedAgentOSUsage,
+  clearRecordedAgentOSUsage,
+} from './api/usageLedger.js';
+export type {
+  AgentOSUsageLedgerOptions,
+  AgentOSUsageEvent,
+  AgentOSUsageRecordInput,
+  AgentOSUsageAggregate,
+} from './api/usageLedger.js';

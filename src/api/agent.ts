@@ -10,6 +10,11 @@
 import { generateText, type GenerateTextOptions, type GenerateTextResult, type Message } from './generateText.js';
 import { streamText, type StreamTextResult } from './streamText.js';
 import type { ToolDefinitionMap } from './toolAdapter.js';
+import {
+  getRecordedAgentOSUsage,
+  type AgentOSUsageAggregate,
+  type AgentOSUsageLedgerOptions,
+} from './usageLedger.js';
 
 /**
  * Configuration options for the {@link agent} factory function.
@@ -61,6 +66,8 @@ export interface AgentOptions {
   baseUrl?: string;
   /** Maximum agentic steps per call. Defaults to `5`. */
   maxSteps?: number;
+  /** Optional durable usage ledger configuration for helper-level accounting. */
+  usageLedger?: AgentOSUsageLedgerOptions;
 }
 
 /**
@@ -88,6 +95,8 @@ export interface AgentSession {
   stream(text: string): StreamTextResult;
   /** Returns a snapshot of the current conversation history for this session. */
   messages(): Message[];
+  /** Returns persisted usage totals for this session when the usage ledger is enabled. */
+  usage(): Promise<AgentOSUsageAggregate>;
   /** Clears all messages from this session's history. */
   clear(): void;
 }
@@ -119,8 +128,17 @@ export interface Agent {
    * @returns The session object for this ID.
    */
   session(id?: string): AgentSession;
+  /** Returns persisted usage totals for the whole agent or a single session. */
+  usage(sessionId?: string): Promise<AgentOSUsageAggregate>;
   /** Releases all in-memory session state held by this agent. */
   close(): Promise<void>;
+}
+
+function mergeUsageLedgerOptions(
+  ...parts: Array<AgentOSUsageLedgerOptions | undefined>
+): AgentOSUsageLedgerOptions | undefined {
+  const merged = Object.assign({}, ...parts.filter(Boolean));
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 function buildSystemPrompt(opts: AgentOptions): string | undefined {
@@ -183,15 +201,34 @@ export function agent(opts: AgentOptions): Agent {
     maxSteps: opts.maxSteps ?? 5,
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
+    usageLedger: opts.usageLedger,
   };
 
   return {
     async generate(prompt: string, extra?: Partial<GenerateTextOptions>): Promise<GenerateTextResult> {
-      return generateText({ ...baseOpts, ...extra, prompt } as GenerateTextOptions);
+      return generateText({
+        ...baseOpts,
+        ...extra,
+        prompt,
+        usageLedger: mergeUsageLedgerOptions(
+          baseOpts.usageLedger,
+          extra?.usageLedger,
+          { source: extra?.usageLedger?.source ?? 'agent.generate' },
+        ),
+      } as GenerateTextOptions);
     },
 
     stream(prompt: string, extra?: Partial<GenerateTextOptions>): StreamTextResult {
-      return streamText({ ...baseOpts, ...extra, prompt } as GenerateTextOptions);
+      return streamText({
+        ...baseOpts,
+        ...extra,
+        prompt,
+        usageLedger: mergeUsageLedgerOptions(
+          baseOpts.usageLedger,
+          extra?.usageLedger,
+          { source: extra?.usageLedger?.source ?? 'agent.stream' },
+        ),
+      } as GenerateTextOptions);
     },
 
     session(id?: string): AgentSession {
@@ -209,6 +246,10 @@ export function agent(opts: AgentOptions): Agent {
           const result = await generateText({
             ...baseOpts,
             messages: requestMessages,
+            usageLedger: mergeUsageLedgerOptions(
+              baseOpts.usageLedger,
+              { sessionId, source: 'agent.session.send' },
+            ),
           } as GenerateTextOptions);
           if (useMemory) {
             history.push({ role: 'user', content: text });
@@ -223,6 +264,10 @@ export function agent(opts: AgentOptions): Agent {
             messages: useMemory
               ? [...history, { role: 'user' as const, content: text }]
               : [{ role: 'user' as const, content: text }],
+            usageLedger: mergeUsageLedgerOptions(
+              baseOpts.usageLedger,
+              { sessionId, source: 'agent.session.stream' },
+            ),
           } as GenerateTextOptions);
           // Capture text for history when done
           if (useMemory) {
@@ -236,10 +281,26 @@ export function agent(opts: AgentOptions): Agent {
           return [...history];
         },
 
+        async usage(): Promise<AgentOSUsageAggregate> {
+          return getRecordedAgentOSUsage({
+            enabled: baseOpts.usageLedger?.enabled,
+            path: baseOpts.usageLedger?.path,
+            sessionId,
+          });
+        },
+
         clear() {
           history.length = 0;
         },
       };
+    },
+
+    async usage(sessionId?: string): Promise<AgentOSUsageAggregate> {
+      return getRecordedAgentOSUsage({
+        enabled: baseOpts.usageLedger?.enabled,
+        path: baseOpts.usageLedger?.path,
+        sessionId,
+      });
     },
 
     async close() {

@@ -8,8 +8,11 @@
  * model produces a plain-text reply or `maxSteps` is exhausted.
  */
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
+import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools, type ToolDefinitionMap } from './toolAdapter.js';
+import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import type { ITool } from '../core/tools/ITool.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
 
 /**
  * A single chat message in a conversation history.
@@ -48,6 +51,8 @@ export interface TokenUsage {
   completionTokens: number;
   /** Sum of `promptTokens` and `completionTokens`. */
   totalTokens: number;
+  /** Total cost reported by the provider across all steps, when available. */
+  costUSD?: number;
 }
 
 /**
@@ -91,12 +96,18 @@ export interface GenerateTextOptions {
   apiKey?: string;
   /** Override the provider base URL (useful for local proxies or Ollama). */
   baseUrl?: string;
+  /** Optional durable usage ledger configuration for helper-level accounting. */
+  usageLedger?: AgentOSUsageLedgerOptions;
 }
 
 /**
  * The completed result returned by {@link generateText}.
  */
 export interface GenerateTextResult {
+  /** Provider identifier used for the final run. */
+  provider: string;
+  /** Resolved model identifier used for the run. */
+  model: string;
   /** Final assistant text after all agentic steps have completed. */
   text: string;
   /** Aggregated token usage across all steps. */
@@ -134,124 +145,200 @@ export interface GenerateTextResult {
  * ```
  */
 export async function generateText(opts: GenerateTextOptions): Promise<GenerateTextResult> {
-  const { providerId, modelId } = resolveModelOption(opts, 'text');
-  const resolved = resolveProvider(providerId, modelId, { apiKey: opts.apiKey, baseUrl: opts.baseUrl });
-  const manager = await createProviderManager(resolved);
+  const startedAt = Date.now();
+  let metricStatus: 'ok' | 'error' = 'ok';
+  let metricUsage: TokenUsage | undefined;
+  let metricProviderId: string | undefined;
+  let metricModelId: string | undefined;
 
-  const provider = manager.getProvider(resolved.providerId);
-  if (!provider) throw new Error(`Provider ${resolved.providerId} not available.`);
+  try {
+    return await withAgentOSSpan(
+      'agentos.api.generate_text',
+      async (span) => {
+        const { providerId, modelId } = resolveModelOption(opts, 'text');
+        const resolved = resolveProvider(providerId, modelId, { apiKey: opts.apiKey, baseUrl: opts.baseUrl });
+        const manager = await createProviderManager(resolved);
+        metricProviderId = resolved.providerId;
+        metricModelId = resolved.modelId;
 
-  // Build messages
-  const messages: Array<Record<string, unknown>> = [];
-  if (opts.system) messages.push({ role: 'system', content: opts.system });
-  if (opts.messages) {
-    for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
-  }
-  if (opts.prompt) messages.push({ role: 'user', content: opts.prompt });
+        const provider = manager.getProvider(resolved.providerId);
+        if (!provider) throw new Error(`Provider ${resolved.providerId} not available.`);
 
-  const tools = adaptTools(opts.tools);
-  const toolMap = new Map<string, ITool>();
-  for (const t of tools) toolMap.set(t.name, t);
+        span?.setAttribute('llm.provider', resolved.providerId);
+        span?.setAttribute('llm.model', resolved.modelId);
 
-  const toolSchemas = tools.length > 0
-    ? tools.map(t => ({
-        type: 'function' as const,
-        function: { name: t.name, description: t.description, parameters: t.inputSchema },
-      }))
-    : undefined;
-
-  const allToolCalls: ToolCallRecord[] = [];
-  const totalUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-  const maxSteps = opts.maxSteps ?? 1;
-
-  for (let step = 0; step < maxSteps; step++) {
-    const response = await provider.generateCompletion(
-      resolved.modelId,
-      messages as any,
-      {
-        tools: toolSchemas,
-        temperature: opts.temperature,
-        maxTokens: opts.maxTokens,
-      } as any,
-    );
-
-    // Accumulate usage
-    if (response.usage) {
-      totalUsage.promptTokens += response.usage.promptTokens ?? 0;
-      totalUsage.completionTokens += response.usage.completionTokens ?? 0;
-      totalUsage.totalTokens += response.usage.totalTokens ?? 0;
-    }
-
-    const choice = response.choices?.[0];
-    if (!choice) break;
-
-    const content = choice.message?.content;
-    const textContent = typeof content === 'string' ? content : (content as any)?.text ?? '';
-    const toolCallsInChoice = choice.message?.tool_calls ?? [];
-
-    // If assistant returned text with no tool calls, we're done
-    if (textContent && toolCallsInChoice.length === 0) {
-      return {
-        text: textContent,
-        usage: totalUsage,
-        toolCalls: allToolCalls,
-        finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
-      };
-    }
-
-    // Tool calls
-    if (toolCallsInChoice.length > 0) {
-      messages.push({
-        role: 'assistant',
-        content: textContent || null,
-        tool_calls: toolCallsInChoice,
-      } as any);
-
-      for (const tc of toolCallsInChoice) {
-        const fnName = (tc as any).function?.name ?? (tc as any).name ?? '';
-        const fnArgs = (tc as any).function?.arguments ?? '{}';
-        const tcId = (tc as any).id ?? '';
-        const tool = toolMap.get(fnName);
-        const record: ToolCallRecord = {
-          name: fnName,
-          args: JSON.parse(typeof fnArgs === 'string' ? fnArgs : JSON.stringify(fnArgs)),
-        };
-
-        if (tool) {
-          try {
-            const result = await tool.execute(record.args as any, {} as any);
-            record.result = result.output;
-            record.error = result.success ? undefined : result.error;
-            messages.push({
-              role: 'tool',
-              tool_call_id: tcId,
-              content: JSON.stringify(result.output ?? result.error ?? ''),
-            } as any);
-          } catch (err: any) {
-            record.error = err?.message;
-            messages.push({ role: 'tool', tool_call_id: tcId, content: JSON.stringify({ error: err?.message }) } as any);
-          }
+        // Build messages
+        const messages: Array<Record<string, unknown>> = [];
+        if (opts.system) messages.push({ role: 'system', content: opts.system });
+        if (opts.messages) {
+          for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
         }
-        allToolCalls.push(record);
-      }
-      continue;
+        if (opts.prompt) messages.push({ role: 'user', content: opts.prompt });
+
+        const tools = adaptTools(opts.tools);
+        const toolMap = new Map<string, ITool>();
+        for (const t of tools) toolMap.set(t.name, t);
+
+        span?.setAttribute('agentos.api.tool_count', tools.length);
+
+        const toolSchemas = tools.length > 0
+          ? tools.map(t => ({
+              type: 'function' as const,
+              function: { name: t.name, description: t.description, parameters: t.inputSchema },
+            }))
+          : undefined;
+
+        const allToolCalls: ToolCallRecord[] = [];
+        const totalUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+        const maxSteps = opts.maxSteps ?? 1;
+        span?.setAttribute('agentos.api.max_steps', maxSteps);
+
+        for (let step = 0; step < maxSteps; step++) {
+          const response = await withAgentOSSpan(
+            'agentos.api.generate_text.step',
+            async (stepSpan) => {
+              stepSpan?.setAttribute('llm.provider', resolved.providerId);
+              stepSpan?.setAttribute('llm.model', resolved.modelId);
+              stepSpan?.setAttribute('agentos.api.step', step + 1);
+              stepSpan?.setAttribute('agentos.api.tool_count', tools.length);
+
+              const stepResponse = await provider.generateCompletion(
+                resolved.modelId,
+                messages as any,
+                {
+                  tools: toolSchemas,
+                  temperature: opts.temperature,
+                  maxTokens: opts.maxTokens,
+                } as any,
+              );
+              attachUsageAttributes(stepSpan, {
+                promptTokens: stepResponse.usage?.promptTokens,
+                completionTokens: stepResponse.usage?.completionTokens,
+                totalTokens: stepResponse.usage?.totalTokens,
+                costUSD: stepResponse.usage?.costUSD,
+              });
+              return stepResponse;
+            },
+          );
+
+          if (response.usage) {
+            totalUsage.promptTokens += response.usage.promptTokens ?? 0;
+            totalUsage.completionTokens += response.usage.completionTokens ?? 0;
+            totalUsage.totalTokens += response.usage.totalTokens ?? 0;
+            if (typeof response.usage.costUSD === 'number') {
+              totalUsage.costUSD = (totalUsage.costUSD ?? 0) + response.usage.costUSD;
+            }
+          }
+
+          const choice = response.choices?.[0];
+          if (!choice) break;
+
+          const content = choice.message?.content;
+          const textContent = typeof content === 'string' ? content : (content as any)?.text ?? '';
+          const toolCallsInChoice = choice.message?.tool_calls ?? [];
+
+          if (textContent && toolCallsInChoice.length === 0) {
+            metricUsage = totalUsage;
+            span?.setAttribute('agentos.api.finish_reason', choice.finishReason ?? 'stop');
+            span?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
+            attachUsageAttributes(span, totalUsage);
+            return {
+              provider: resolved.providerId,
+              model: resolved.modelId,
+              text: textContent,
+              usage: totalUsage,
+              toolCalls: allToolCalls,
+              finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
+            };
+          }
+
+          if (toolCallsInChoice.length > 0) {
+            messages.push({
+              role: 'assistant',
+              content: textContent || null,
+              tool_calls: toolCallsInChoice,
+            } as any);
+
+            for (const tc of toolCallsInChoice) {
+              const fnName = (tc as any).function?.name ?? (tc as any).name ?? '';
+              const fnArgs = (tc as any).function?.arguments ?? '{}';
+              const tcId = (tc as any).id ?? '';
+              const tool = toolMap.get(fnName);
+              const record: ToolCallRecord = {
+                name: fnName,
+                args: JSON.parse(typeof fnArgs === 'string' ? fnArgs : JSON.stringify(fnArgs)),
+              };
+
+              if (tool) {
+                try {
+                  const result = await tool.execute(record.args as any, {} as any);
+                  record.result = result.output;
+                  record.error = result.success ? undefined : result.error;
+                  messages.push({
+                    role: 'tool',
+                    tool_call_id: tcId,
+                    content: JSON.stringify(result.output ?? result.error ?? ''),
+                  } as any);
+                } catch (err: any) {
+                  record.error = err?.message;
+                  messages.push({ role: 'tool', tool_call_id: tcId, content: JSON.stringify({ error: err?.message }) } as any);
+                }
+              }
+              allToolCalls.push(record);
+            }
+            continue;
+          }
+
+          metricUsage = totalUsage;
+          span?.setAttribute('agentos.api.finish_reason', choice.finishReason ?? 'stop');
+          span?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
+          attachUsageAttributes(span, totalUsage);
+          return {
+            provider: resolved.providerId,
+            model: resolved.modelId,
+            text: textContent,
+            usage: totalUsage,
+            toolCalls: allToolCalls,
+            finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
+          };
+        }
+
+        const lastAssistant = messages.filter(m => m.role === 'assistant').pop();
+        metricUsage = totalUsage;
+        span?.setAttribute('agentos.api.finish_reason', 'tool-calls');
+        span?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
+        attachUsageAttributes(span, totalUsage);
+        return {
+          provider: resolved.providerId,
+          model: resolved.modelId,
+          text: (lastAssistant?.content as string) ?? '',
+          usage: totalUsage,
+          toolCalls: allToolCalls,
+          finishReason: 'tool-calls',
+        };
+      },
+    );
+  } catch (error) {
+    metricStatus = 'error';
+    throw error;
+  } finally {
+    try {
+      await recordAgentOSUsage({
+        providerId: metricProviderId,
+        modelId: metricModelId,
+        usage: metricUsage,
+        options: {
+          ...opts.usageLedger,
+          source: opts.usageLedger?.source ?? 'generateText',
+        },
+      });
+    } catch {
+      // Helper-level usage persistence is best-effort and should not break generation.
     }
-
-    // No content and no tool calls — done
-    return {
-      text: textContent,
-      usage: totalUsage,
-      toolCalls: allToolCalls,
-      finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
-    };
+    recordAgentOSTurnMetrics({
+      durationMs: Date.now() - startedAt,
+      status: metricStatus,
+      usage: toTurnMetricUsage(metricUsage),
+    });
   }
-
-  // Exhausted maxSteps — return last state
-  const lastAssistant = messages.filter(m => m.role === 'assistant').pop();
-  return {
-    text: (lastAssistant?.content as string) ?? '',
-    usage: totalUsage,
-    toolCalls: allToolCalls,
-    finishReason: 'tool-calls',
-  };
 }

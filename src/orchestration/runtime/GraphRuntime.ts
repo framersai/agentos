@@ -170,20 +170,17 @@ export class GraphRuntime {
         let result = await this.config.nodeExecutor.execute(node, state);
         let durationMs = Date.now() - nodeStart;
 
-        // Retry loop: when a retry policy is configured and the node fails,
-        // re-attempt up to maxAttempts times with backoff between attempts.
         if (!result.success && !result.interrupt && node.retryPolicy) {
           const policy = node.retryPolicy;
-          let attempt = 1; // first attempt already happened above
-          while (!result.success && attempt < policy.maxAttempts) {
+          let attempt = 1;
+          while (attempt < policy.maxAttempts && shouldRetry(policy, result.error)) {
             attempt++;
-            const backoffMs = calculateBackoff(policy, attempt);
-            await sleep(backoffMs);
-
+            await sleep(calculateBackoff(policy, attempt - 1));
             yield { type: 'node_start', nodeId, state: { input: state.input, scratch: state.scratch } };
             const retryStart = Date.now();
             result = await this.config.nodeExecutor.execute(node, state);
             durationMs = Date.now() - retryStart;
+            if (result.success || result.interrupt) break;
           }
         }
 
@@ -418,8 +415,22 @@ export class GraphRuntime {
         yield { type: 'node_start', nodeId, state: { input: state.input, scratch: state.scratch } };
         const nodeStart = Date.now();
 
-        const result = await this.config.nodeExecutor.execute(node, state);
-        const durationMs = Date.now() - nodeStart;
+        let result = await this.config.nodeExecutor.execute(node, state);
+        let durationMs = Date.now() - nodeStart;
+
+        if (!result.success && !result.interrupt && node.retryPolicy) {
+          const policy = node.retryPolicy;
+          let attempt = 1;
+          while (attempt < policy.maxAttempts && shouldRetry(policy, result.error)) {
+            attempt++;
+            await sleep(calculateBackoff(policy, attempt - 1));
+            yield { type: 'node_start', nodeId, state: { input: state.input, scratch: state.scratch } };
+            const retryStart = Date.now();
+            result = await this.config.nodeExecutor.execute(node, state);
+            durationMs = Date.now() - retryStart;
+            if (result.success || result.interrupt) break;
+          }
+        }
 
         nodeResults[nodeId] = { effectClass: node.effectClass, output: result.output, durationMs };
 
@@ -552,14 +563,17 @@ export class GraphRuntime {
         case 'conditional': {
           if (!edge.condition) break;
 
-          let resolvedTarget: string;
+          let resolvedTarget: string | undefined;
           if (edge.condition.type === 'function') {
             // Call the author-provided TypeScript routing function.
             resolvedTarget = edge.condition.fn(state);
           } else {
-            // Expression evaluation is a stub; returns the raw expression until the
-            // DSL interpreter is implemented (tracked separately).
-            resolvedTarget = edge.target;
+            const expressionResult = evaluateConditionExpression(edge.condition.expr, state);
+            if (typeof expressionResult === 'string') {
+              resolvedTarget = expressionResult;
+            } else if (expressionResult === true) {
+              resolvedTarget = edge.target;
+            }
           }
 
           // Only add the target if the condition resolved to this edge's target.
@@ -694,6 +708,34 @@ function calculateBackoff(policy: RetryPolicy, attempt: number): number {
     case 'linear': return policy.backoffMs * attempt;
     case 'exponential': return policy.backoffMs * Math.pow(2, attempt - 1);
     default: return policy.backoffMs;
+  }
+}
+
+function shouldRetry(policy: RetryPolicy, errorMessage?: string): boolean {
+  if (!policy.retryOn || policy.retryOn.length === 0) return true;
+  if (!errorMessage) return false;
+
+  const normalizedError = errorMessage.toLowerCase();
+  return policy.retryOn.some((entry) => normalizedError.includes(entry.toLowerCase()));
+}
+
+function evaluateConditionExpression(expr: string, state: GraphState): unknown {
+  try {
+    const rewritten = expr.replace(
+      /\b(?:state\.)?(scratch|input|artifacts)\.(\w+(?:\.\w+)*)/g,
+      (_match: string, partition: string, path: string) => {
+        const parts = path.split('.');
+        let access = `state.${partition}`;
+        for (const part of parts) {
+          access += `?.["${part}"]`;
+        }
+        return access;
+      },
+    );
+    // eslint-disable-next-line no-new-func
+    return new Function('state', `return (${rewritten});`)(state);
+  } catch {
+    return false;
   }
 }
 

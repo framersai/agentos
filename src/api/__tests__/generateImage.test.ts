@@ -1,6 +1,10 @@
+import * as os from 'node:os';
+import * as path from 'node:path';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { generateImage } from '../generateImage.js';
+import { clearRecordedAgentOSUsage, getRecordedAgentOSUsage } from '../usageLedger.js';
 
 describe('generateImage', () => {
   afterEach(() => {
@@ -207,5 +211,58 @@ describe('generateImage', () => {
     expect(result.images[0]).toMatchObject({
       url: 'https://replicate.delivery/pbxt/test-image.webp',
     });
+  });
+
+  it('persists image usage when a ledger path is configured', async () => {
+    const ledgerPath = path.join(os.tmpdir(), `agentos-generate-image-${Date.now()}.jsonl`);
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          created: 999,
+          model: 'google/gemini-2.5-flash-image',
+          usage: {
+            prompt_tokens: 20,
+            completion_tokens: 0,
+            total_tokens: 20,
+            cost: 0.05,
+          },
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                images: [
+                  {
+                    image_url: {
+                      url: 'https://example.com/image.png',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await generateImage({
+      model: 'openrouter:google/gemini-2.5-flash-image',
+      prompt: 'A desert sunrise',
+      apiKey: 'test-key',
+      usageLedger: { path: ledgerPath, sessionId: 'image-session' },
+    });
+
+    await expect(getRecordedAgentOSUsage({ path: ledgerPath, sessionId: 'image-session' })).resolves.toEqual({
+      sessionId: 'image-session',
+      personaId: undefined,
+      promptTokens: 20,
+      completionTokens: 0,
+      totalTokens: 20,
+      costUSD: 0.05,
+      calls: 1,
+    });
+
+    await clearRecordedAgentOSUsage({ path: ledgerPath });
   });
 });

@@ -50,7 +50,7 @@ describe('ComposableToolBuilder', () => {
 
   beforeEach(() => {
     executeTool = vi.fn();
-    builder = new ComposableToolBuilder(executeTool);
+    builder = new ComposableToolBuilder(executeTool as any);
   });
 
   // -------------------------------------------------------------------------

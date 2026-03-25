@@ -17,6 +17,9 @@ import type {
   ImageOutputFormat,
 } from '../core/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
+import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
 
 /**
  * Options for a {@link generateImage} call.
@@ -68,6 +71,8 @@ export interface GenerateImageOptions {
   negativePrompt?: string;
   /** Arbitrary provider-specific options not covered by the standard fields. */
   providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
+  /** Optional durable usage ledger configuration for helper-level accounting. */
+  usageLedger?: AgentOSUsageLedgerOptions;
 }
 
 /**
@@ -108,43 +113,102 @@ export interface GenerateImageResult {
  * ```
  */
 export async function generateImage(opts: GenerateImageOptions): Promise<GenerateImageResult> {
-  const { providerId, modelId } = resolveModelOption(opts, 'image');
-  const resolved = resolveMediaProvider(providerId, modelId, {
-    apiKey: opts.apiKey,
-    baseUrl: opts.baseUrl,
-  });
+  const startedAt = Date.now();
+  let metricStatus: 'ok' | 'error' = 'ok';
+  let metricUsage: ImageGenerationResult['usage'];
+  let metricProviderId: string | undefined;
+  let metricModelId: string | undefined;
 
-  const provider = createImageProvider(resolved.providerId);
-  await provider.initialize({
-    apiKey: resolved.apiKey,
-    baseURL: resolved.baseUrl,
-    defaultModelId: resolved.modelId,
-  });
+  try {
+    return await withAgentOSSpan(
+      'agentos.api.generate_image',
+      async (span) => {
+        const { providerId, modelId } = resolveModelOption(opts, 'image');
+        const resolved = resolveMediaProvider(providerId, modelId, {
+          apiKey: opts.apiKey,
+          baseUrl: opts.baseUrl,
+        });
+        metricProviderId = resolved.providerId;
+        metricModelId = resolved.modelId;
 
-  const result = await provider.generateImage({
-    modelId: resolved.modelId,
-    prompt: opts.prompt,
-    modalities: opts.modalities,
-    n: opts.n,
-    size: opts.size,
-    aspectRatio: opts.aspectRatio,
-    quality: opts.quality,
-    background: opts.background,
-    outputFormat: opts.outputFormat,
-    outputCompression: opts.outputCompression,
-    responseFormat: opts.responseFormat,
-    userId: opts.userId,
-    seed: opts.seed,
-    negativePrompt: opts.negativePrompt,
-    providerOptions: opts.providerOptions,
-  });
+        span?.setAttribute('llm.provider', resolved.providerId);
+        span?.setAttribute('llm.model', resolved.modelId);
 
-  return {
-    model: result.modelId,
-    provider: result.providerId,
-    created: result.created,
-    text: result.text,
-    images: result.images,
-    usage: result.usage,
-  };
+        const provider = createImageProvider(resolved.providerId);
+        await provider.initialize({
+          apiKey: resolved.apiKey,
+          baseURL: resolved.baseUrl,
+          defaultModelId: resolved.modelId,
+        });
+
+        const result = await provider.generateImage({
+          modelId: resolved.modelId,
+          prompt: opts.prompt,
+          modalities: opts.modalities,
+          n: opts.n,
+          size: opts.size,
+          aspectRatio: opts.aspectRatio,
+          quality: opts.quality,
+          background: opts.background,
+          outputFormat: opts.outputFormat,
+          outputCompression: opts.outputCompression,
+          responseFormat: opts.responseFormat,
+          userId: opts.userId,
+          seed: opts.seed,
+          negativePrompt: opts.negativePrompt,
+          providerOptions: opts.providerOptions,
+        });
+
+        metricUsage = result.usage;
+        span?.setAttribute('agentos.api.images_count', result.images.length);
+        attachUsageAttributes(span, {
+          promptTokens: result.usage?.promptTokens,
+          completionTokens: result.usage?.completionTokens,
+          totalTokens: result.usage?.totalTokens,
+          totalCostUSD: result.usage?.totalCostUSD,
+        });
+
+        return {
+          model: result.modelId,
+          provider: result.providerId,
+          created: result.created,
+          text: result.text,
+          images: result.images,
+          usage: result.usage,
+        };
+      },
+    );
+  } catch (error) {
+    metricStatus = 'error';
+    throw error;
+  } finally {
+    try {
+      await recordAgentOSUsage({
+        providerId: metricProviderId,
+        modelId: metricModelId,
+        usage: metricUsage ? {
+          promptTokens: metricUsage.promptTokens,
+          completionTokens: metricUsage.completionTokens,
+          totalTokens: metricUsage.totalTokens,
+          costUSD: metricUsage.totalCostUSD,
+        } : undefined,
+        options: {
+          ...opts.usageLedger,
+          source: opts.usageLedger?.source ?? 'generateImage',
+        },
+      });
+    } catch {
+      // Helper-level usage persistence is best-effort and should not break generation.
+    }
+    recordAgentOSTurnMetrics({
+      durationMs: Date.now() - startedAt,
+      status: metricStatus,
+      usage: toTurnMetricUsage(metricUsage ? {
+        promptTokens: metricUsage.promptTokens,
+        completionTokens: metricUsage.completionTokens,
+        totalTokens: metricUsage.totalTokens,
+        totalCostUSD: metricUsage.totalCostUSD,
+      } : undefined),
+    });
+  }
 }

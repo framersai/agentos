@@ -7,6 +7,10 @@ AgentOS now exposes two public layers from the root package:
 
 Use the high-level API when you want the fastest path to text generation, streaming, and lightweight stateful sessions. Use `AgentOS` directly when you need the full runtime.
 
+When AgentOS observability is enabled, these helper APIs also emit opt-in OTEL spans and turn metrics. `generateText()` and `streamText()` attach provider/model/token usage and aggregated cost when the provider returns it; `generateImage()` does the same for image-generation usage.
+
+If you also want durable helper-level accounting, set `usageLedger.path`, set `usageLedger.enabled: true`, or export `AGENTOS_USAGE_LEDGER_PATH` / `WUNDERLAND_USAGE_LEDGER_PATH`. With `enabled: true`, helper usage lands in the shared home ledger at `~/.framers/usage-ledger.jsonl` unless you provide an explicit path.
+
 ## When to use which
 
 | API | Best for | Tradeoff |
@@ -53,6 +57,24 @@ console.log(usage.totalTokens);
 
 // Legacy format — still supported:
 // const { text } = await generateText({ model: 'openai:gpt-4.1-mini', prompt: '...' });
+```
+
+Persist helper usage for later inspection:
+
+```ts
+import { generateText, getRecordedAgentOSUsage } from '@framers/agentos';
+
+await generateText({
+  provider: 'openai',
+  prompt: 'Summarize QUIC in one sentence.',
+  usageLedger: {
+    enabled: true,
+    sessionId: 'demo-session',
+  },
+});
+
+const totals = await getRecordedAgentOSUsage({ enabled: true, sessionId: 'demo-session' });
+console.log(totals.totalTokens);
 ```
 
 ## `streamText()`
@@ -191,6 +213,8 @@ console.log(first.text);
 
 const second = await session.send('Compare it to TCP.');
 console.log(second.text);
+
+console.log(await session.usage());
 ```
 
 Runnable examples in the package source:

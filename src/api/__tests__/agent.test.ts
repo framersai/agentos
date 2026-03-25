@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   generateText: vi.fn(),
   streamText: vi.fn(),
+  getRecordedAgentOSUsage: vi.fn(),
 }));
 
 vi.mock('../generateText.js', () => ({
@@ -13,17 +14,31 @@ vi.mock('../streamText.js', () => ({
   streamText: hoisted.streamText,
 }));
 
+vi.mock('../usageLedger.js', () => ({
+  getRecordedAgentOSUsage: hoisted.getRecordedAgentOSUsage,
+}));
+
 import { agent } from '../agent.js';
 
 describe('agent', () => {
   beforeEach(() => {
     hoisted.generateText.mockReset();
     hoisted.streamText.mockReset();
+    hoisted.getRecordedAgentOSUsage.mockReset();
     hoisted.generateText.mockResolvedValue({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
       text: 'ok',
       usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
       toolCalls: [],
       finishReason: 'stop',
+    });
+    hoisted.getRecordedAgentOSUsage.mockResolvedValue({
+      promptTokens: 2,
+      completionTokens: 1,
+      totalTokens: 3,
+      costUSD: 0.001,
+      calls: 1,
     });
   });
 
@@ -80,5 +95,38 @@ describe('agent', () => {
       }),
     );
     expect(session.messages()).toEqual([]);
+  });
+
+  it('tracks session usage through the durable usage ledger', async () => {
+    const assistant = agent({
+      model: 'openai:gpt-4.1-mini',
+      usageLedger: { path: '/tmp/agentos-usage-test.jsonl', enabled: true },
+    });
+
+    const session = assistant.session('demo');
+    await session.send('hello');
+
+    expect(hoisted.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usageLedger: expect.objectContaining({
+          path: '/tmp/agentos-usage-test.jsonl',
+          sessionId: 'demo',
+          source: 'agent.session.send',
+        }),
+      }),
+    );
+
+    await expect(session.usage()).resolves.toEqual({
+      promptTokens: 2,
+      completionTokens: 1,
+      totalTokens: 3,
+      costUSD: 0.001,
+      calls: 1,
+    });
+    expect(hoisted.getRecordedAgentOSUsage).toHaveBeenCalledWith({
+      enabled: true,
+      path: '/tmp/agentos-usage-test.jsonl',
+      sessionId: 'demo',
+    });
   });
 });

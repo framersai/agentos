@@ -8,10 +8,13 @@
  * yielded inline before the next LLM step begins.
  */
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
+import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools, type ToolDefinitionMap } from './toolAdapter.js';
 import type { GenerateTextOptions, TokenUsage, ToolCallRecord } from './generateText.js';
+import { recordAgentOSUsage } from './usageLedger.js';
 import type { ITool } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
+import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../core/observability/otel.js';
 
 /**
  * A discriminated union representing a single event emitted by the
@@ -79,15 +82,25 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
   const allToolCalls: ToolCallRecord[] = [];
 
   async function* runStream(): AsyncGenerator<StreamPart> {
+    const startedAt = Date.now();
+    const rootSpan = startAgentOSSpan('agentos.api.stream_text');
     const usage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     let finalText = '';
+    let metricStatus: 'ok' | 'error' = 'ok';
+    let recordedProviderId: string | undefined;
+    let recordedModelId: string | undefined;
 
     try {
       const { providerId, modelId } = resolveModelOption(opts, 'text');
       const resolved = resolveProvider(providerId, modelId, { apiKey: opts.apiKey, baseUrl: opts.baseUrl });
       const manager = await createProviderManager(resolved);
+      recordedProviderId = resolved.providerId;
+      recordedModelId = resolved.modelId;
       const provider = manager.getProvider(resolved.providerId);
       if (!provider) throw new Error(`Provider ${resolved.providerId} not available.`);
+
+      rootSpan?.setAttribute('llm.provider', resolved.providerId);
+      rootSpan?.setAttribute('llm.model', resolved.modelId);
 
       const messages: Array<Record<string, unknown>> = [];
       if (opts.system) messages.push({ role: 'system', content: opts.system });
@@ -97,6 +110,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       const tools = adaptTools(opts.tools);
       const toolMap = new Map<string, ITool>();
       for (const tool of tools) toolMap.set(tool.name, tool);
+      rootSpan?.setAttribute('agentos.api.tool_count', tools.length);
 
       const toolSchemas = tools.length > 0
         ? tools.map((tool) => ({
@@ -106,8 +120,17 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         : undefined;
 
       const maxSteps = opts.maxSteps ?? 1;
+      rootSpan?.setAttribute('agentos.api.max_steps', maxSteps);
 
       for (let step = 0; step < maxSteps; step++) {
+        const stepSpan = startAgentOSSpan('agentos.api.stream_text.step', {
+          attributes: {
+            'llm.provider': resolved.providerId,
+            'llm.model': resolved.modelId,
+            'agentos.api.step': step + 1,
+            'agentos.api.tool_count': tools.length,
+          },
+        });
         const stream = provider.generateCompletionStream(
           resolved.modelId,
           messages as any,
@@ -120,32 +143,46 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         const reconstructor = new StreamingReconstructor();
 
-        for await (const chunk of stream) {
-          reconstructor.push(chunk);
+        try {
+          for await (const chunk of stream) {
+            reconstructor.push(chunk);
 
-          const textDelta = chunk.responseTextDelta ?? '';
-          if (textDelta) {
-            const part: StreamPart = { type: 'text', text: textDelta };
-            parts.push(part);
-            yield part;
-          }
+            const textDelta = chunk.responseTextDelta ?? '';
+            if (textDelta) {
+              const part: StreamPart = { type: 'text', text: textDelta };
+              parts.push(part);
+              yield part;
+            }
 
-          if (chunk.error) {
-            const error = new Error(chunk.error.message);
-            const part: StreamPart = { type: 'error', error };
-            parts.push(part);
-            yield part;
-            resolveText!(finalText);
-            resolveUsage!(usage);
-            resolveToolCalls!(allToolCalls);
-            return;
-          }
+            if (chunk.error) {
+              const error = new Error(chunk.error.message);
+              const part: StreamPart = { type: 'error', error };
+              parts.push(part);
+              yield part;
+              metricStatus = 'error';
+              resolveText!(finalText);
+              resolveUsage!(usage);
+              resolveToolCalls!(allToolCalls);
+              return;
+            }
 
-          if (chunk.isFinal && chunk.usage) {
-            usage.promptTokens += chunk.usage.promptTokens ?? 0;
-            usage.completionTokens += chunk.usage.completionTokens ?? 0;
-            usage.totalTokens += chunk.usage.totalTokens ?? 0;
+            if (chunk.isFinal && chunk.usage) {
+              usage.promptTokens += chunk.usage.promptTokens ?? 0;
+              usage.completionTokens += chunk.usage.completionTokens ?? 0;
+              usage.totalTokens += chunk.usage.totalTokens ?? 0;
+              if (typeof chunk.usage.costUSD === 'number') {
+                usage.costUSD = (usage.costUSD ?? 0) + chunk.usage.costUSD;
+              }
+              attachUsageAttributes(stepSpan, {
+                promptTokens: chunk.usage.promptTokens,
+                completionTokens: chunk.usage.completionTokens,
+                totalTokens: chunk.usage.totalTokens,
+                costUSD: chunk.usage.costUSD,
+              });
+            }
           }
+        } finally {
+          stepSpan?.end();
         }
 
         const stepText = reconstructor.getFullText();
@@ -164,6 +201,9 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         if (!streamedToolCalls || streamedToolCalls.length === 0) {
           finalText = stepText;
+          rootSpan?.setAttribute('agentos.api.finish_reason', 'stop');
+          rootSpan?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
+          attachUsageAttributes(rootSpan, usage);
           resolveText!(finalText);
           resolveUsage!(usage);
           resolveToolCalls!(allToolCalls);
@@ -251,6 +291,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       resolveUsage!(usage);
       resolveToolCalls!(allToolCalls);
     } catch (err: any) {
+      metricStatus = 'error';
       const error = err instanceof Error ? err : new Error(String(err));
       const part: StreamPart = { type: 'error', error };
       parts.push(part);
@@ -258,6 +299,33 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       resolveText!(finalText);
       resolveUsage!(usage);
       resolveToolCalls!(allToolCalls);
+    } finally {
+      rootSpan?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
+      if (metricStatus === 'error') {
+        rootSpan?.setAttribute('agentos.api.finish_reason', 'error');
+      } else if (allToolCalls.length > 0 && !finalText) {
+        rootSpan?.setAttribute('agentos.api.finish_reason', 'tool-calls');
+      }
+      attachUsageAttributes(rootSpan, usage);
+      rootSpan?.end();
+      try {
+        await recordAgentOSUsage({
+          providerId: recordedProviderId,
+          modelId: recordedModelId,
+          usage,
+          options: {
+            ...opts.usageLedger,
+            source: opts.usageLedger?.source ?? 'streamText',
+          },
+        });
+      } catch {
+        // Helper-level usage persistence is best-effort and should not break streaming.
+      }
+      recordAgentOSTurnMetrics({
+        durationMs: Date.now() - startedAt,
+        status: metricStatus,
+        usage: toTurnMetricUsage(usage),
+      });
     }
   }
 

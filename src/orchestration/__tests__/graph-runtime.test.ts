@@ -269,6 +269,61 @@ describe('GraphRuntime', () => {
     expect(visitedIds).not.toContain('c');
   });
 
+  it('routes expression-based conditional edges using boolean evaluation', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(
+      async (node: GraphNode): Promise<NodeExecutionResult> => {
+        if (node.id === 'a') {
+          return { success: true, output: 'a-done', scratchUpdate: { score: 8 } };
+        }
+        return { success: true, output: `${node.id}-done` };
+      },
+    );
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph: CompiledExecutionGraph = {
+      id: 'g-expression-conditional',
+      name: 'expression-conditional-test',
+      nodes: [makeNode('a'), makeNode('b'), makeNode('c')],
+      edges: [
+        { id: 'e0', source: START, target: 'a', type: 'static' },
+        {
+          id: 'e1',
+          source: 'a',
+          target: 'b',
+          type: 'conditional',
+          condition: { type: 'expression', expr: 'scratch.score > 5' },
+        },
+        {
+          id: 'e2',
+          source: 'a',
+          target: 'c',
+          type: 'conditional',
+          condition: { type: 'expression', expr: 'scratch.score <= 5' },
+        },
+        { id: 'e3', source: 'b', target: END, type: 'static' },
+        { id: 'e4', source: 'c', target: END, type: 'static' },
+      ],
+      stateSchema: { input: {}, scratch: {}, artifacts: {} },
+      reducers: {},
+      checkpointPolicy: 'explicit',
+      memoryConsistency: 'live',
+    };
+
+    const visitedIds: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      if (event.type === 'node_start') visitedIds.push(event.nodeId);
+    }
+
+    expect(visitedIds).toContain('a');
+    expect(visitedIds).toContain('b');
+    expect(visitedIds).not.toContain('c');
+  });
+
   // ── 5. Resume from checkpoint ──────────────────────────────────────────────
 
   it('resumes a run from a forked checkpoint and completes successfully', async () => {
@@ -680,5 +735,83 @@ describe('GraphRuntime', () => {
     expect(events).toContain('error');
     // Node 'b' should NOT have run.
     expect(executeMock.mock.calls.some(([n]: [GraphNode]) => n.id === 'b')).toBe(false);
+  });
+
+  it('applies retry policy when resuming from a checkpoint', async () => {
+    const store = new InMemoryCheckpointStore();
+    let resumeMode = false;
+    let resumedBCalls = 0;
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (!resumeMode) {
+        return { success: true, output: `${node.id}-initial` };
+      }
+      if (node.id === 'b') {
+        resumedBCalls++;
+        if (resumedBCalls === 1) return { success: false, error: 'transient retryable' };
+        return { success: true, output: 'b-recovered' };
+      }
+      return { success: true, output: `${node.id}-resume` };
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph = makeLinearGraph(
+      'g-resume-retry',
+      [
+        makeNode('a'),
+        {
+          ...makeNode('b'),
+          retryPolicy: { maxAttempts: 2, backoff: 'fixed', backoffMs: 1, retryOn: ['retryable'] },
+        },
+      ],
+      { checkpointPolicy: 'every_node' },
+    );
+
+    await runtime.invoke(graph, {});
+    const checkpoints = await store.list('g-resume-retry');
+    const checkpointForA = checkpoints.find((cp) => cp.nodeId === 'a');
+    expect(checkpointForA).toBeDefined();
+
+    const forkedRunId = await store.fork(checkpointForA!.id);
+    executeMock.mockClear();
+    resumeMode = true;
+
+    const result = await runtime.resume(graph, forkedRunId);
+
+    expect(result).toBeDefined();
+    expect(resumedBCalls).toBe(2);
+  });
+
+  it('does not retry when retryOn does not match the error', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') return { success: false, error: 'fatal' };
+      return { success: true, output: `${node.id}-done` };
+    });
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph = makeLinearGraph('g-retry-filter', [
+      {
+        ...makeNode('a'),
+        retryPolicy: { maxAttempts: 3, backoff: 'fixed', backoffMs: 1, retryOn: ['retryable'] },
+      },
+      makeNode('b'),
+    ]);
+
+    const events: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      events.push(event.type);
+    }
+
+    const aCalls = executeMock.mock.calls.filter(([n]: [GraphNode]) => n.id === 'a');
+    expect(aCalls).toHaveLength(1);
+    expect(events).toContain('error');
   });
 });
