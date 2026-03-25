@@ -12,3 +12,4 @@
  */
 
 export * from './types.js';
+export { ComposableToolBuilder } from './ComposableToolBuilder.js';
