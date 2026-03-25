@@ -40,6 +40,7 @@ import type {
   ApprovalRequest,
   ApprovalDecision,
   AgentCallRecord,
+  RagConfig,
 } from './types.js';
 import { AgencyConfigError } from './types.js';
 
@@ -128,6 +129,11 @@ export function agency(opts: AgencyOptions): Agent {
       let sanitizedPrompt = prompt;
       if (inputGuards.length) {
         sanitizedPrompt = await runGuardrails(sanitizedPrompt, inputGuards, 'input', opts.on);
+      }
+
+      // Inject RAG context into the prompt when RAG is configured.
+      if (opts.rag) {
+        sanitizedPrompt = await injectRagContext(sanitizedPrompt, opts.rag);
       }
 
       // When structured output is configured, append a JSON schema hint to
@@ -746,6 +752,80 @@ async function runGuardrails(
     );
     return text;
   }
+}
+
+// ---------------------------------------------------------------------------
+// RAG context injection
+// ---------------------------------------------------------------------------
+
+/**
+ * Injects retrieved context into the prompt when RAG is configured.
+ *
+ * For v1 this is a shell that accepts the {@link RagConfig} and returns the
+ * prompt unmodified (no-op) when no live vector store query can be performed.
+ * The infrastructure exists in `src/rag/` but initialising
+ * `EmbeddingManager` + `VectorStoreManager` is a heavyweight operation best
+ * suited to the full `AgentOSOrchestrator` pipeline.
+ *
+ * TODO: wire live retrieval by importing `EmbeddingManager` + `VectorStoreManager`
+ * from `../../rag/index.js`, embedding the query, and returning the top-K chunks
+ * joined as a context block.  See `src/rag/IVectorStore.ts` for the query API.
+ *
+ * When `ragConfig.documents` is set (but a live vector store is not) an info
+ * message is logged directing the caller to `AgentOSOrchestrator` for full RAG.
+ *
+ * @param prompt - The user prompt to augment.
+ * @param ragConfig - RAG configuration from `AgencyOptions.rag`.
+ * @returns The (possibly augmented) prompt string.
+ */
+async function injectRagContext(prompt: string, ragConfig: RagConfig): Promise<string> {
+  // If a vector store is configured, attempt a live retrieval query.
+  if (ragConfig.vectorStore) {
+    try {
+      const ragContext = await retrieveRagContext(prompt, ragConfig);
+      if (ragContext) {
+        return `[Retrieved context]\n${ragContext}\n\n[User query]\n${prompt}`;
+      }
+    } catch {
+      // RAG infrastructure not available — fail open and proceed without context.
+    }
+  }
+
+  // If documents are specified but no vector store query succeeded, guide the caller.
+  if (ragConfig.documents && ragConfig.documents.length > 0) {
+    console.info(
+      '[AgentOS][Agency] RAG document loading configured — use AgentOSOrchestrator ' +
+      'for full RAG pipeline with document indexing and retrieval.',
+    );
+  }
+
+  return prompt;
+}
+
+/**
+ * Queries the configured vector store for chunks relevant to `query`.
+ *
+ * This is a placeholder for v1.  In a full implementation this would:
+ * 1. Import and initialise `EmbeddingManager` from `../../rag/EmbeddingManager.js`.
+ * 2. Embed `query` with the provider from `ragConfig.vectorStore.embeddingModel`.
+ * 3. Call `vectorStore.search(embedding, topK, minScore)` on the active store.
+ * 4. Join the returned chunks into a context string.
+ *
+ * TODO: implement live retrieval once `EmbeddingManager` + `VectorStoreManager`
+ * are available as lightweight imports without NestJS / heavy DI overhead.
+ * See `src/rag/EmbeddingManager.ts` and `src/rag/IVectorStore.ts`.
+ *
+ * @param _query - The text to embed and search for.
+ * @param _ragConfig - The active RAG configuration.
+ * @returns A joined context string, or `null` when retrieval is unavailable.
+ */
+async function retrieveRagContext(
+  _query: string,
+  _ragConfig: RagConfig,
+): Promise<string | null> {
+  // v1 placeholder — returns null (no-op).
+  // Full wiring: EmbeddingManager.embed(_query) → vectorStore.search(embedding, topK, minScore)
+  return null;
 }
 
 // ---------------------------------------------------------------------------

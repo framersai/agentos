@@ -677,9 +677,11 @@ export type Agency = Agent;
  *
  * Each field is optional; sensible defaults are applied at runtime.  For the
  * lightweight `agent()` helper, only `model`/`provider`, `instructions`, and
- * `tools` are typically needed.  The richer fields (`rag`, `discovery`, `hitl`,
- * `emergent`, `voice`, etc.) are consumed by the full AgentOS orchestrator and
- * the `agency()` factory.
+ * `tools` are typically needed.  `agency()` additionally consumes orchestration,
+ * session, aggregate usage, resource control, and `beforeReturn` HITL settings.
+ * The richer fields (`rag`, `discovery`, `guardrails`, `voice`, `channels`,
+ * `provenance`, etc.) remain part of the shared config surface for forward
+ * compatibility, but are still more fully enforced by the deeper runtime.
  */
 export interface BaseAgentConfig {
   /**

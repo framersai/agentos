@@ -1063,4 +1063,73 @@ describe('Agency Full Integration', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Task 5: RAG context injection
+  // ---------------------------------------------------------------------------
+
+  describe('RAG context injection', () => {
+    it('RAG config does not throw during construction', () => {
+      expect(() =>
+        agency({
+          agents: { worker: mockAgentConfig('worker') },
+          strategy: 'sequential',
+          rag: {
+            vectorStore: { provider: 'in-memory', embeddingModel: 'text-embedding-3-small' },
+            topK: 5,
+            minScore: 0.7,
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('generate() with RAG configured still returns a valid result', async () => {
+      /**
+       * Since the v1 RAG implementation is a no-op placeholder that returns
+       * null (no context injected), the result should be identical to a run
+       * without RAG — the prompt is passed through unchanged.
+       */
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        rag: {
+          vectorStore: { provider: 'in-memory' },
+          topK: 3,
+        },
+      });
+
+      const result = await team.generate('query with RAG') as Record<string, unknown>;
+      expect(result.text).toBe(DEFAULT_RESULT.text);
+    });
+
+    it('generate() with RAG documents logs info message', async () => {
+      const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        rag: {
+          documents: [{ path: '/tmp/doc.md', loader: 'markdown' }],
+        },
+      });
+
+      await team.generate('query with documents');
+
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringContaining('AgentOSOrchestrator'),
+      );
+
+      infoSpy.mockRestore();
+    });
+
+    it('generate() works normally when rag is not configured', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      const result = await team.generate('no rag') as Record<string, unknown>;
+      expect(result.text).toBeDefined();
+    });
+  });
 });
