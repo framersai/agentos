@@ -1,3 +1,8 @@
+## <small>0.1.97 (2026-03-25)</small>
+
+* docs: add EMERGENT_CAPABILITIES.md, update README + registry ([16a7a1f](https://github.com/framersai/agentos/commit/16a7a1f))
+* fix(ci): fix emergent test mock types for generateText ([f742ae9](https://github.com/framersai/agentos/commit/f742ae9))
+
 ## <small>0.1.96 (2026-03-25)</small>
 
 * fix(ci): suppress empty-object-type lint error in usageLedger ([4029e70](https://github.com/framersai/agentos/commit/4029e70))
