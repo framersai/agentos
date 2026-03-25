@@ -1,3 +1,7 @@
+## <small>0.1.87 (2026-03-25)</small>
+
+* feat(images): add local Stable Diffusion provider with A1111 and ComfyUI support ([dc3fdeb](https://github.com/framersai/agentos/commit/dc3fdeb))
+
 ## <small>0.1.86 (2026-03-25)</small>
 
 * fix(ci): prefer-const in NodeExecutor, prefix unused params, remove unused import ([1e44d7c](https://github.com/framersai/agentos/commit/1e44d7c))
