@@ -1,3 +1,7 @@
+## <small>0.1.90 (2026-03-25)</small>
+
+* fix(ci): resolve typecheck errors in test files ([8dc9b14](https://github.com/framersai/agentos/commit/8dc9b14))
+
 ## <small>0.1.89 (2026-03-25)</small>
 
 * fix(ci): add ./voice subpath export to resolve @framers/agentos/voice imports ([457159a](https://github.com/framersai/agentos/commit/457159a))
