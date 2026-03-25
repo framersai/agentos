@@ -13,3 +13,4 @@
 
 export * from './types.js';
 export { ComposableToolBuilder } from './ComposableToolBuilder.js';
+export { SandboxedToolForge } from './SandboxedToolForge.js';
