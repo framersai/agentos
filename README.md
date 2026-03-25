@@ -24,8 +24,9 @@
 
 - [Overview](#overview)
 - [Quick Start](#quick-start)
-  - [High-Level API](#high-level-api)
-  - [Low-Level Runtime API](#low-level-runtime-api)
+  - [Multi-Agent Teams with agency()](#multi-agent-teams-with-agency)
+  - [Single-Agent and Low-Level Helpers](#single-agent-and-low-level-helpers)
+  - [Advanced: AgentGraph and Full Runtime](#advanced-agentgraph-and-full-runtime)
 - [System Architecture](#system-architecture)
   - [Architecture Diagram](#architecture-diagram)
   - [Request Lifecycle](#request-lifecycle)
@@ -149,18 +150,55 @@ npm install @framers/agentos
 
 **Start here:**
 
-- Use [`generateText()` / `streamText()` / `generateImage()` / `agent()`](./docs/HIGH_LEVEL_API.md) when you want the fastest path from prompt to working code.
-- Use [`AgentOS`](#low-level-runtime-api) when you need extensions, workflows, personas, HITL, or full runtime control.
-- Browse the live docs entrypoints at [docs.agentos.sh/getting-started/high-level-api](https://docs.agentos.sh/getting-started/high-level-api) and [docs.agentos.sh/api](https://docs.agentos.sh/api).
+- Use [`agency()`](./docs/AGENCY_API.md) to coordinate a team of agents with a single call.
+- Use [`generateText()` / `streamText()` / `generateImage()` / `agent()`](./docs/HIGH_LEVEL_API.md) for the fastest path from prompt to working code.
+- Use [`AgentOS`](#advanced-agentgraph-and-full-runtime) when you need extensions, workflows, personas, or full runtime lifecycle control.
+- Browse the live docs at [docs.agentos.sh/getting-started/high-level-api](https://docs.agentos.sh/getting-started/high-level-api) and [docs.agentos.sh/api](https://docs.agentos.sh/api).
 
-### High-Level API
+### Multi-Agent Teams with `agency()`
 
-Use the streamlined APIs when you want AI SDK-style text generation, image generation, or stateful sessions without wiring the full AgentOS runtime.
+`agency()` is the recommended starting point for any task that benefits from
+multiple specialised agents.  Three lines to go from prompt to a coordinated
+research-and-writing pipeline:
+
+```typescript
+import { agency } from '@framers/agentos';
+
+const team = agency({
+  agents: {
+    researcher: { instructions: 'Find relevant facts.' },
+    writer:     { instructions: 'Write a clear, concise summary.' },
+  },
+  strategy: 'sequential',
+});
+
+const result = await team.generate('Summarise recent advances in fusion energy.');
+console.log(result.text);
+```
+
+Set `OPENAI_API_KEY` (or another provider's key) and the agency auto-detects the
+provider.  All five strategies are available out of the box:
+
+| Strategy | What it does |
+|---|---|
+| `sequential` | Agents run in order; each receives the previous output as context |
+| `parallel` | All agents run concurrently; results are merged by a synthesis step |
+| `debate` | Agents argue and refine a shared answer over multiple rounds |
+| `review-loop` | One agent drafts, another reviews and requests revisions |
+| `hierarchical` | A coordinator dispatches sub-tasks to specialist agents at runtime |
+
+Add guardrails, HITL, resource controls, and observability in the same config
+object — see [`docs/AGENCY_API.md`](./docs/AGENCY_API.md) for the full reference.
+
+### Single-Agent and Low-Level Helpers
+
+Use the streamlined helpers when you want AI SDK-style text generation, image
+generation, or a single stateful session without a multi-agent team.
 
 ```typescript
 import { agent, generateImage, generateText, streamText } from '@framers/agentos';
 
-// Provider-first: set provider, AgentOS picks the best default model automatically.
+// Provider-first: AgentOS picks the best default model automatically.
 // Requires OPENAI_API_KEY (or the matching env var) to be set.
 const quick = await generateText({
   provider: 'openai',
@@ -219,8 +257,7 @@ With `enabled: true`, AgentOS writes to the shared home ledger at `~/.framers/us
 
 Built-in image providers: `openai`, `openrouter`, `stability`, and `replicate`.
 
-Use `providerOptions` when you need provider-native controls without leaving the
-high-level API:
+Use `providerOptions` when you need provider-native controls without leaving the high-level API:
 
 ```typescript
 const poster = await generateImage({
@@ -239,9 +276,11 @@ const poster = await generateImage({
 
 Runnable examples: [`examples/high-level-api.mjs`](./examples/high-level-api.mjs), [`examples/generate-image.mjs`](./examples/generate-image.mjs)
 
-Use `AgentOS` directly when you need personas, chunk-level streaming events, extensions, workflows, multi-agent orchestration, or full runtime lifecycle control.
+### Advanced: AgentGraph and Full Runtime
 
-### Low-Level Runtime API
+Use `AgentGraph` or the full `AgentOS` runtime when you need programmatic graph
+construction with custom edge callbacks, extensions, workflow DSL, personas,
+chunk-level streaming events, or full runtime lifecycle control.
 
 ```typescript
 import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
@@ -260,6 +299,10 @@ for await (const chunk of agent.processRequest({
   }
 }
 ```
+
+See [`docs/AGENT_GRAPH.md`](./docs/AGENT_GRAPH.md) for the `AgentGraph` programmatic
+graph builder and [`docs/WORKFLOW_DSL.md`](./docs/WORKFLOW_DSL.md) for the workflow
+DSL.
 
 ---
 
@@ -1857,10 +1900,12 @@ Wildcard exports support paths up to 4 levels deep:
 
 ## Internal Documentation
 
-The `docs/` directory contains 25 detailed specification documents:
+The `docs/` directory contains specification and reference documents:
 
 | Document | Description |
 |----------|-------------|
+| [`AGENCY_API.md`](docs/AGENCY_API.md) | `agency()` reference: all 5 strategies, HITL, guardrails, RAG, voice, nested agencies, full-featured example |
+| [`HIGH_LEVEL_API.md`](docs/HIGH_LEVEL_API.md) | `generateText()`, `streamText()`, `generateImage()`, single `agent()` |
 | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Complete system architecture with data flow diagrams |
 | [`SAFETY_PRIMITIVES.md`](docs/SAFETY_PRIMITIVES.md) | Circuit breaker, cost guard, stuck detection, dedup API reference |
 | [`PLANNING_ENGINE.md`](docs/PLANNING_ENGINE.md) | ReAct reasoning, multi-step task planning specification |
