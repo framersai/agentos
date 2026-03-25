@@ -169,7 +169,8 @@ function rejectedPromotionResponse(): string {
 // ---------------------------------------------------------------------------
 
 describe('EmergentJudge', () => {
-  let generateText: ReturnType<typeof vi.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let generateText: any;
   let judge: EmergentJudge;
 
   beforeEach(() => {

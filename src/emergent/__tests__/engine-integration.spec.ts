@@ -151,7 +151,8 @@ function rejectedPromotionJson(): string {
 // ---------------------------------------------------------------------------
 
 describe('EmergentCapabilityEngine', () => {
-  let generateText: ReturnType<typeof vi.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let generateText: any;
   let executeTool: ReturnType<typeof vi.fn>;
   let composableBuilder: ComposableToolBuilder;
   let sandboxForge: SandboxedToolForge;
