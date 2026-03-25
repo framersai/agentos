@@ -113,6 +113,11 @@
       "default": "./dist/orchestration/index.js",
       "types": "./dist/orchestration/index.d.ts"
     },
+    "./voice": {
+      "import": "./dist/voice/index.js",
+      "default": "./dist/voice/index.js",
+      "types": "./dist/voice/index.d.ts"
+    },
     "./voice-pipeline": {
       "import": "./dist/voice-pipeline/index.js",
       "default": "./dist/voice-pipeline/index.js",
