@@ -1,9 +1,17 @@
 /**
- * @fileoverview Memory Observer — personality-biased background note extraction.
+ * @fileoverview Memory Observer — personality-biased background note extraction
+ * with LLM-based compression and reflection tiers.
  *
  * Monitors accumulated conversation tokens via ObservationBuffer.
  * When the threshold is reached, extracts concise observation notes
  * via a persona-configured LLM (defaults to cheap model).
+ *
+ * Three-tier agentic memory pipeline (Mastra-style):
+ *   1. Raw notes — extracted per-turn when token threshold is reached.
+ *   2. Compressed observations — produced by ObservationCompressor when
+ *      accumulated notes exceed the compression threshold (default: 50 notes).
+ *   3. Reflections — produced by ObservationReflector when compressed
+ *      observations exceed the reflection token threshold (default: 40,000 tokens).
  *
  * Personality bias:
  * - High emotionality → notes emotional shifts
@@ -17,6 +25,9 @@
 
 import type { HexacoTraits, PADState, ObserverConfig } from '../config.js';
 import { ObservationBuffer, type BufferedMessage } from './ObservationBuffer.js';
+import { ObservationCompressor, type CompressedObservation } from './ObservationCompressor.js';
+import { ObservationReflector, type Reflection } from './ObservationReflector.js';
+import { relativeTimeLabel } from './temporal.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,6 +46,15 @@ export interface ObservationNote {
   /** Emotional context at observation time. */
   emotionalContext?: { valence: number; arousal: number };
   timestamp: number;
+  /** Three-date temporal metadata. */
+  temporal?: {
+    /** When this observation was made (Unix ms). Same as timestamp. */
+    observedAt: number;
+    /** When the referenced event actually occurred (Unix ms). */
+    referencedAt: number;
+    /** Human-friendly relative time label. */
+    relativeLabel: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -72,11 +92,25 @@ Output ONLY valid JSON objects, one per line. No markdown, no explanation.${emph
 
 let noteIdCounter = 0;
 
+/** Default number of accumulated notes before compression triggers. */
+const DEFAULT_COMPRESSION_THRESHOLD = 50;
+
+/** Default token count of compressed observations before reflection triggers. */
+const DEFAULT_REFLECTION_THRESHOLD_TOKENS = 40_000;
+
 export class MemoryObserver {
   private buffer: ObservationBuffer;
   private traits: HexacoTraits;
   private llmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
   private config: ObserverConfig;
+
+  // --- Compression / reflection tier state ---
+  private accumulatedNotes: ObservationNote[] = [];
+  private accumulatedCompressed: CompressedObservation[] = [];
+  private compressor: ObservationCompressor | null = null;
+  private reflector: ObservationReflector | null = null;
+  private compressionThreshold: number;
+  private reflectionThresholdTokens: number;
 
   constructor(
     traits: HexacoTraits,
@@ -92,6 +126,16 @@ export class MemoryObserver {
     this.buffer = new ObservationBuffer({
       activationThresholdTokens: this.config.activationThresholdTokens,
     });
+
+    // Default thresholds for compression and reflection tiers.
+    this.compressionThreshold = DEFAULT_COMPRESSION_THRESHOLD;
+    this.reflectionThresholdTokens = DEFAULT_REFLECTION_THRESHOLD_TOKENS;
+
+    // Initialize compressor and reflector if LLM invoker is provided.
+    if (this.llmInvoker) {
+      this.compressor = new ObservationCompressor(this.llmInvoker, this.traits);
+      this.reflector = new ObservationReflector(this.llmInvoker);
+    }
   }
 
   /**
@@ -129,10 +173,63 @@ export class MemoryObserver {
 
     try {
       const response = await this.llmInvoker(systemPrompt, conversationText);
-      return this.parseNotes(response, mood);
+      const notes = this.parseNotes(response, mood, messages);
+
+      // Accumulate notes for the compression tier.
+      this.accumulatedNotes.push(...notes);
+
+      return notes;
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Run compression if accumulated notes exceed the compression threshold.
+   *
+   * When the number of accumulated raw notes exceeds the configured threshold
+   * (default: 50), the ObservationCompressor is invoked to produce denser
+   * compressed observations. The raw notes are then cleared.
+   *
+   * @returns Compressed observations if threshold was met, null otherwise.
+   */
+  async compressIfNeeded(): Promise<CompressedObservation[] | null> {
+    if (!this.compressor) return null;
+    if (this.accumulatedNotes.length < this.compressionThreshold) return null;
+
+    const compressed = await this.compressor.compress(this.accumulatedNotes);
+
+    // Clear consumed notes and accumulate compressed observations.
+    this.accumulatedNotes = [];
+    this.accumulatedCompressed.push(...compressed);
+
+    return compressed;
+  }
+
+  /**
+   * Run reflection if accumulated compressed observations exceed the token threshold.
+   *
+   * When the total estimated tokens of accumulated compressed observations
+   * exceeds the configured threshold (default: 40,000 tokens), the
+   * ObservationReflector is invoked to extract higher-level patterns.
+   *
+   * @returns Reflections if threshold was met, null otherwise.
+   */
+  async reflectIfNeeded(): Promise<Reflection[] | null> {
+    if (!this.reflector) return null;
+
+    const totalTokens = this.accumulatedCompressed.reduce(
+      (sum, o) => sum + Math.ceil(o.summary.length / 4),
+      0,
+    );
+    if (totalTokens < this.reflectionThresholdTokens) return null;
+
+    const reflections = await this.reflector.reflect(this.accumulatedCompressed);
+
+    // Clear consumed compressed observations.
+    this.accumulatedCompressed = [];
+
+    return reflections;
   }
 
   /** Get the underlying buffer for inspection. */
@@ -145,21 +242,67 @@ export class MemoryObserver {
     return this.buffer.shouldActivate();
   }
 
+  /** Get the count of accumulated raw notes awaiting compression. */
+  getAccumulatedNoteCount(): number {
+    return this.accumulatedNotes.length;
+  }
+
+  /** Get the count of accumulated compressed observations awaiting reflection. */
+  getAccumulatedCompressedCount(): number {
+    return this.accumulatedCompressed.length;
+  }
+
+  /** Get the accumulated compressed observations (read-only snapshot). */
+  getAccumulatedCompressed(): readonly CompressedObservation[] {
+    return this.accumulatedCompressed;
+  }
+
+  /** Set the compression threshold (number of notes before compression triggers). */
+  setCompressionThreshold(threshold: number): void {
+    this.compressionThreshold = threshold;
+  }
+
+  /** Set the reflection token threshold (estimated tokens before reflection triggers). */
+  setReflectionThresholdTokens(threshold: number): void {
+    this.reflectionThresholdTokens = threshold;
+  }
+
   /** Reset the observer. */
   clear(): void {
     this.buffer.clear();
+    this.accumulatedNotes = [];
+    this.accumulatedCompressed = [];
   }
 
   // --- Internal ---
 
-  private parseNotes(llmResponse: string, mood?: PADState): ObservationNote[] {
+  /**
+   * Parse LLM response into ObservationNote objects.
+   *
+   * Attaches three-date temporal metadata from conversation message timestamps
+   * when available, using the earliest message timestamp as `referencedAt`
+   * and the current time as `observedAt`.
+   */
+  private parseNotes(
+    llmResponse: string,
+    mood?: PADState,
+    messages?: BufferedMessage[],
+  ): ObservationNote[] {
     const notes: ObservationNote[] = [];
     const lines = llmResponse.split('\n').filter((l) => l.trim());
+
+    // Determine the earliest message timestamp for the referencedAt field.
+    const earliestMessageTime = messages && messages.length > 0
+      ? Math.min(...messages.map((m) => m.timestamp))
+      : undefined;
 
     for (const line of lines) {
       try {
         const parsed = JSON.parse(line.trim());
         if (parsed.type && parsed.content) {
+          const now = Date.now();
+          const referencedAt = earliestMessageTime ?? now;
+
           notes.push({
             id: `obs_${Date.now()}_${++noteIdCounter}`,
             type: parsed.type,
@@ -167,7 +310,12 @@ export class MemoryObserver {
             importance: typeof parsed.importance === 'number' ? parsed.importance : 0.5,
             entities: Array.isArray(parsed.entities) ? parsed.entities : [],
             emotionalContext: mood ? { valence: mood.valence, arousal: mood.arousal } : undefined,
-            timestamp: Date.now(),
+            timestamp: now,
+            temporal: {
+              observedAt: now,
+              referencedAt,
+              relativeLabel: relativeTimeLabel(referencedAt, now),
+            },
           });
         }
       } catch {

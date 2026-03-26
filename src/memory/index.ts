@@ -149,6 +149,16 @@ export type { ObservationNote } from './observation/MemoryObserver.js';
 export { MemoryReflector } from './observation/MemoryReflector.js';
 export type { MemoryReflectionResult } from './observation/MemoryReflector.js';
 
+// --- Observation Compression & Reflection (Mastra-style agentic compression) ---
+export { ObservationCompressor } from './observation/ObservationCompressor.js';
+export type { CompressedObservation, CompressionPriority } from './observation/ObservationCompressor.js';
+export { ObservationReflector } from './observation/ObservationReflector.js';
+export type { Reflection, ReflectionPatternType } from './observation/ObservationReflector.js';
+
+// --- Temporal Reasoning ---
+export { relativeTimeLabel } from './observation/temporal.js';
+export type { TemporalMetadata } from './observation/temporal.js';
+
 // --- Prospective Memory (Batch 2) ---
 export { ProspectiveMemoryManager } from './prospective/ProspectiveMemoryManager.js';
 export type { ProspectiveMemoryItem, ProspectiveTriggerType } from './prospective/ProspectiveMemoryManager.js';

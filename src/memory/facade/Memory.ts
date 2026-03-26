@@ -396,6 +396,14 @@ export class Memory {
       conditions.push('t.strength >= ?');
       params.push(minStrength);
     }
+    if (options?.after != null) {
+      conditions.push('t.created_at > ?');
+      params.push(options.after);
+    }
+    if (options?.before != null) {
+      conditions.push('t.created_at < ?');
+      params.push(options.before);
+    }
 
     const whereClause = conditions.length > 0
       ? `WHERE ${conditions.join(' AND ')}`

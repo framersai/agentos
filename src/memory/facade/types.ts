@@ -329,6 +329,18 @@ export interface RecallOptions {
    * @default 0
    */
   minStrength?: number;
+
+  /**
+   * Only return traces created after this Unix-ms timestamp.
+   * Part of the three-date temporal model for time-ranged recall.
+   */
+  after?: number;
+
+  /**
+   * Only return traces created before this Unix-ms timestamp.
+   * Part of the three-date temporal model for time-ranged recall.
+   */
+  before?: number;
 }
 
 // ---------------------------------------------------------------------------
