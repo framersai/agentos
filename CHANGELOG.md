@@ -1,3 +1,7 @@
+## <small>0.1.116 (2026-03-26)</small>
+
+* fix(lint): resolve unreachable else-if branch in orchestrator tool result handler ([ec1acb2](https://github.com/framersai/agentos/commit/ec1acb2))
+
 ## <small>0.1.115 (2026-03-26)</small>
 
 * fix(lint): suppress require imports in multimodal indexer, use const for embeddedImages ([8c3a18d](https://github.com/framersai/agentos/commit/8c3a18d))
