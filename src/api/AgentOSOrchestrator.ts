@@ -1879,11 +1879,7 @@ export class AgentOSOrchestrator {
               }
             );
             // The orchestrator now waits for another external call to `orchestrateToolResult` for these new calls.
-          } else if (
-            gmiOutputAfterTool.isFinal &&
-            gmiOutputAfterTool.toolCalls &&
-            gmiOutputAfterTool.toolCalls.length > 0
-          ) {
+          } else if (gmiOutputAfterTool.isFinal) {
             if (this.config.enableConversationalPersistence && conversationContext) {
               try {
                 if (
