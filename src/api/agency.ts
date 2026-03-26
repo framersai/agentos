@@ -365,7 +365,8 @@ export function agency(opts: AgencyOptions): Agent {
   if (opts.voice?.enabled) {
     agentObj.listen = async (listenOpts?: { port?: number }): Promise<{ port: number; url: string; close: () => Promise<void> }> => {
       try {
-        const { WebSocketServer } = await import('ws');
+        const ws = await import('ws');
+        const WebSocketServer = (ws as any).WebSocketServer ?? ws.default?.Server ?? ws.Server;
         const port = listenOpts?.port ?? 0;
 
         const wss = new WebSocketServer({ port, host: '127.0.0.1' });
@@ -380,7 +381,7 @@ export function agency(opts: AgencyOptions): Agent {
          * TODO: integrate `src/voice-pipeline/` STT+TTS pipeline here by
          * passing `agentObj.generate` as the LLM backend.
          */
-        wss.on('connection', (_ws) => {
+        wss.on('connection', (_ws: unknown) => {
           // Audio bytes → STT → agency.generate() → TTS → audio bytes
           // Full pipeline: see packages/agentos/src/voice-pipeline/
         });
