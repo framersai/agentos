@@ -412,8 +412,10 @@ export class SandboxedToolForge {
       RangeError,
       TextEncoder,
       TextDecoder,
-      // Minimal crypto for randomUUID.
-      crypto: { randomUUID: () => randomUUID() },
+      // NOTE: crypto is NOT injected here by default. Previously, a bare
+      // `crypto: { randomUUID }` was always included, leaking a capability
+      // that bypassed the allowlist check. Now crypto (including randomUUID)
+      // is only injected below when 'crypto' is explicitly in the allowlist.
       // Console stub that silently discards output.
       console: {
         log: () => {},

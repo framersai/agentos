@@ -93,11 +93,21 @@ interface PipelineContext {
  */
 export class ComposableToolBuilder {
   /**
+   * When true, unresolved `$`-prefixed reference expressions throw instead
+   * of silently passing through as literal strings. Useful for development
+   * and testing to catch typos in inputMapping expressions early.
+   */
+  readonly strictMode: boolean;
+
+  /**
    * @param executeTool - Callback invoked for each pipeline step. Receives the
    *   target tool name, the resolved argument object, and the outer execution
    *   context forwarded from the composite tool's own `execute` call.
    *   Must return a {@link ToolExecutionResult}; a `success: false` result aborts
    *   the remainder of the pipeline.
+   * @param options - Optional builder configuration.
+   * @param options.strictMode - When true, unresolved reference expressions
+   *   throw an error instead of falling through as literal strings.
    */
   constructor(
     private readonly executeTool: (
@@ -105,7 +115,10 @@ export class ComposableToolBuilder {
       args: unknown,
       context: ToolExecutionContext,
     ) => Promise<ToolExecutionResult>,
-  ) {}
+    options?: { strictMode?: boolean },
+  ) {
+    this.strictMode = options?.strictMode ?? false;
+  }
 
   // --------------------------------------------------------------------------
   // PUBLIC API
@@ -140,9 +153,10 @@ export class ComposableToolBuilder {
     inputSchema: JSONSchemaObject,
     spec: ComposableToolSpec,
   ): ITool {
-    // Capture `this.executeTool` in a local binding so that the returned object's
+    // Capture instance fields in local bindings so that the returned object's
     // `execute` closure does not retain a reference to `this` beyond what is needed.
     const executeTool = this.executeTool;
+    const strictMode = this.strictMode;
 
     return {
       // -----------------------------------------------------------------------
@@ -173,7 +187,7 @@ export class ComposableToolBuilder {
 
         for (const step of spec.steps) {
           // Resolve the step's inputMapping against the current pipeline context.
-          const resolvedArgs = resolveMapping(step.inputMapping, pipelineCtx);
+          const resolvedArgs = resolveMapping(step.inputMapping, pipelineCtx, strictMode);
 
           // Invoke the underlying tool via the caller-supplied executor.
           const result = await executeTool(step.tool, resolvedArgs, context);
@@ -253,15 +267,17 @@ export class ComposableToolBuilder {
  *
  * @param mapping - The raw `inputMapping` from a {@link ComposableStep}.
  * @param ctx - The current pipeline evaluation context.
+ * @param strict - When true, unresolved `$`-prefixed expressions throw.
  * @returns A new plain object with all reference expressions replaced.
  */
 function resolveMapping(
   mapping: Record<string, unknown>,
   ctx: PipelineContext,
+  strict: boolean = false,
 ): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(mapping)) {
-    resolved[key] = resolveValue(value, ctx);
+    resolved[key] = resolveValue(value, ctx, strict);
   }
   return resolved;
 }
@@ -275,15 +291,16 @@ function resolveMapping(
  *
  * @param value - The raw value to resolve.
  * @param ctx - The current pipeline evaluation context.
+ * @param strict - When true, unresolved `$`-prefixed expressions throw.
  * @returns The resolved runtime value.
  */
-function resolveValue(value: unknown, ctx: PipelineContext): unknown {
+function resolveValue(value: unknown, ctx: PipelineContext, strict: boolean = false): unknown {
   if (typeof value === 'string' && value.startsWith('$')) {
-    return resolveExpression(value, ctx);
+    return resolveExpression(value, ctx, strict);
   }
 
   if (isPlainObject(value)) {
-    return resolveMapping(value as Record<string, unknown>, ctx);
+    return resolveMapping(value as Record<string, unknown>, ctx, strict);
   }
 
   return value;
@@ -301,13 +318,14 @@ function resolveValue(value: unknown, ctx: PipelineContext): unknown {
  * - `"$steps[N].a.b"` → dotted path into that step's output
  *
  * If the expression does not match any of these forms the original string is
- * returned unchanged, preventing accidental silent failures.
+ * returned unchanged (non-strict mode), or an error is thrown (strict mode).
  *
  * @param expr - The `$`-prefixed expression string.
  * @param ctx - The current pipeline evaluation context.
+ * @param strict - When true, unresolved expressions throw instead of passing through.
  * @returns The resolved runtime value, or the original `expr` string if unmatched.
  */
-function resolveExpression(expr: string, ctx: PipelineContext): unknown {
+function resolveExpression(expr: string, ctx: PipelineContext, strict: boolean = false): unknown {
   // --- $input or $input.path ---
   if (expr === '$input') {
     return ctx.input;
@@ -348,7 +366,16 @@ function resolveExpression(expr: string, ctx: PipelineContext): unknown {
     }
   }
 
-  // Unrecognised expression — return as literal.
+  // Unrecognised expression — strict mode throws so typos in inputMapping
+  // are caught during development rather than silently producing wrong data.
+  if (strict) {
+    throw new Error(
+      `Unresolved reference expression: "${expr}". Available: $input, $prev, $steps[N]`,
+    );
+  }
+  // Non-strict: return as literal (existing behaviour) but warn so the issue
+  // is visible in logs without crashing production pipelines.
+  console.warn(`[ComposableToolBuilder] Unresolved reference "${expr}" treated as literal`);
   return expr;
 }
 

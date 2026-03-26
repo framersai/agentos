@@ -269,4 +269,70 @@ describe('ComposableToolBuilder', () => {
     expect(result.valid).toBe(true);
     expect(result.errors).toBeUndefined();
   });
+
+  // -------------------------------------------------------------------------
+  // 8. Strict mode throws on unresolved reference
+  // -------------------------------------------------------------------------
+  it('strict mode throws on unresolved reference expression', async () => {
+    const strictBuilder = new ComposableToolBuilder(executeTool as any, { strictMode: true });
+
+    const spec: ComposableToolSpec = {
+      mode: 'compose',
+      steps: [
+        {
+          name: 'step1',
+          tool: 'tool_a',
+          // $typo is an unresolved expression — strict mode should throw.
+          inputMapping: { bad: '$typo.value' },
+        },
+      ],
+    };
+
+    executeTool.mockResolvedValueOnce(ok({ data: 'unused' }));
+
+    const tool = strictBuilder.build('strict_test', 'Test strict mode', {}, spec);
+    await expect(tool.execute({ topic: 'test' }, ctx)).rejects.toThrow(
+      /Unresolved reference expression/,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // 9. Non-strict mode warns but continues on unresolved reference
+  // -------------------------------------------------------------------------
+  it('non-strict mode returns literal for unresolved reference', async () => {
+    // Default builder is non-strict.
+    const spec: ComposableToolSpec = {
+      mode: 'compose',
+      steps: [
+        {
+          name: 'step1',
+          tool: 'tool_a',
+          // $typo is unresolved — non-strict returns it as literal string.
+          inputMapping: { bad: '$typo.value' },
+        },
+      ],
+    };
+
+    executeTool.mockResolvedValueOnce(ok({ done: true }));
+
+    // Spy on console.warn to verify the warning is emitted.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const tool = builder.build('nonstrict_test', 'Test non-strict mode', {}, spec);
+    const result = await tool.execute({ topic: 'test' }, ctx);
+
+    expect(result.success).toBe(true);
+    // The unresolved reference should have been passed as a literal string.
+    expect(executeTool).toHaveBeenCalledWith(
+      'tool_a',
+      { bad: '$typo.value' },
+      ctx,
+    );
+    // A warning should have been logged.
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Unresolved reference'),
+    );
+
+    warnSpy.mockRestore();
+  });
 });

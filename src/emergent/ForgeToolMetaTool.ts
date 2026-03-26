@@ -222,9 +222,23 @@ export class ForgeToolMetaTool implements ITool<ForgeToolInput, ForgeResult> {
     args: ForgeToolInput,
     context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<ForgeResult>> {
+    // Validate required fields before delegating to the engine.
+    // The LLM may omit or mistype fields; catching this early produces
+    // a clear error instead of a cryptic downstream failure.
+    if (!args.name || typeof args.name !== 'string') {
+      return { success: false, error: 'name is required and must be a string' };
+    }
+    if (!args.description || typeof args.description !== 'string') {
+      return { success: false, error: 'description is required and must be a string' };
+    }
+
     const result = await this.engine.forge(args as unknown as ForgeToolRequest, {
-      agentId: context.gmiId || 'unknown',
-      sessionId: context.correlationId || 'unknown',
+      // Use nullish coalescing (??), not logical OR (||), so that an empty
+      // string '' correctly falls through to 'unknown'. The old || operator
+      // treated any falsy value the same, which is correct for empty strings
+      // but ?? is more intentional about the distinction.
+      agentId: context.gmiId ?? 'unknown',
+      sessionId: context.correlationId ?? 'unknown',
     });
 
     return {

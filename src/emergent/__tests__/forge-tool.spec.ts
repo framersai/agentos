@@ -219,12 +219,13 @@ describe('ForgeToolMetaTool', () => {
   // 6. Falls back to 'unknown' when context fields are missing
   // =========================================================================
 
-  it('falls back to "unknown" when gmiId and correlationId are missing', async () => {
+  it('falls back to "unknown" when gmiId and correlationId are nullish', async () => {
     mockEngine.forge.mockResolvedValueOnce(successResult());
 
-    // Cast to bypass type checking for the test — simulate missing fields.
+    // Uses ?? (nullish coalescing), so null/undefined map to 'unknown'
+    // but empty string '' passes through because it's not nullish.
     const ctx = {
-      gmiId: '',
+      gmiId: undefined as unknown as string,
       personaId: 'persona-main',
       userContext: { userId: 'user-1' },
     } as ToolExecutionContext;
@@ -235,5 +236,48 @@ describe('ForgeToolMetaTool', () => {
       agentId: 'unknown',
       sessionId: 'unknown',
     });
+  });
+
+  it('preserves empty string gmiId instead of replacing with "unknown"', async () => {
+    mockEngine.forge.mockResolvedValueOnce(successResult());
+
+    // Empty string is not nullish — ?? preserves it, unlike || which would
+    // replace it with 'unknown'. This is intentional: an explicit empty
+    // string assignment is different from a missing/undefined field.
+    const ctx = {
+      gmiId: '',
+      personaId: 'persona-main',
+      userContext: { userId: 'user-1' },
+    } as ToolExecutionContext;
+
+    await metaTool.execute(makeInput(), ctx);
+
+    expect(mockEngine.forge).toHaveBeenCalledWith(expect.anything(), {
+      agentId: '',
+      sessionId: 'unknown',
+    });
+  });
+
+  // =========================================================================
+  // 7. Input validation — missing required fields
+  // =========================================================================
+
+  it('returns error when name is missing', async () => {
+    const input = makeInput({ name: '' as any });
+    const result = await metaTool.execute(input, makeContext());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('name is required');
+    // Engine.forge should NOT have been called.
+    expect(mockEngine.forge).not.toHaveBeenCalled();
+  });
+
+  it('returns error when description is missing', async () => {
+    const input = makeInput({ description: undefined as any });
+    const result = await metaTool.execute(input, makeContext());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('description is required');
+    expect(mockEngine.forge).not.toHaveBeenCalled();
   });
 });
