@@ -186,6 +186,22 @@ provider.  All five strategies are available out of the box:
 | `debate` | Agents argue and refine a shared answer over multiple rounds |
 | `review-loop` | One agent drafts, another reviews and requests revisions |
 | `hierarchical` | A coordinator dispatches sub-tasks to specialist agents at runtime |
+| `graph` | Explicit dependency DAG via `dependsOn`; tiers run concurrently |
+
+**Graph strategy** — declare dependencies between agents and let the orchestrator
+handle topological ordering and concurrent execution:
+
+```typescript
+const team = agency({
+  agents: {
+    researcher:  { instructions: 'Research the topic.' },
+    writer:      { instructions: 'Write an article.',       dependsOn: ['researcher'] },
+    illustrator: { instructions: 'Describe illustrations.', dependsOn: ['researcher'] },
+    reviewer:    { instructions: 'Review everything.',      dependsOn: ['writer', 'illustrator'] },
+  },
+  strategy: 'graph', // auto-detected when any agent has dependsOn
+});
+```
 
 Add guardrails, HITL, resource controls, observability, `listen()` for voice
 transport, `connect()` for channel adapters, RAG context injection, and real

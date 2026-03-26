@@ -186,6 +186,86 @@ const team = agency({
 const { text } = await team.generate('Explain and demonstrate the quicksort algorithm.');
 ```
 
+### graph
+
+Agents declare explicit dependencies via `dependsOn`.  The orchestrator
+topologically sorts agents into tiers and runs each tier concurrently.  Every
+agent receives the original user prompt plus the concatenated plain-text outputs
+of its direct dependencies.
+
+**Auto-detection:** when _any_ agent in the roster has a `dependsOn` array, the
+strategy is automatically set to `'graph'` — you don't need to specify it
+explicitly (though doing so is fine).
+
+**Cycle detection:** the orchestrator validates the dependency DAG at
+construction time and throws if it contains a cycle.
+
+**Context passing:** each agent's prompt is assembled as:
+
+```
+<original user prompt>
+
+--- Output from <dependencyName> ---
+<plain text output>
+```
+
+There is no expression language (no `$steps.<name>` references).  Each agent
+simply receives plain text from its predecessors.
+
+#### Agent config — `dependsOn`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `dependsOn` | `string[]` | `[]` | Names of agents in the same agency that must complete before this agent runs.  Agents with no `dependsOn` are roots and execute first. |
+
+#### Full example — research team
+
+```typescript
+const team = agency({
+  model: 'openai:gpt-4o',
+  agents: {
+    // Tier 0 — no dependencies, runs first
+    researcher: {
+      instructions: 'Research the topic thoroughly. Provide facts, statistics, and sources.',
+    },
+
+    // Tier 1 — both depend on researcher, run concurrently
+    writer: {
+      instructions: 'Write a polished article based on the research provided.',
+      dependsOn: ['researcher'],
+    },
+    illustrator: {
+      instructions: 'Describe 3 illustrations that would complement the article.',
+      dependsOn: ['researcher'],
+    },
+
+    // Tier 2 — depends on both writer and illustrator, runs last
+    reviewer: {
+      instructions: 'Review the article and illustrations for consistency and accuracy.',
+      dependsOn: ['writer', 'illustrator'],
+    },
+  },
+  strategy: 'graph', // optional — auto-detected from dependsOn
+});
+
+const { text, agentCalls } = await team.generate('Write about the James Webb Space Telescope.');
+console.log(text);
+console.log(agentCalls.map(c => `${c.agent} (${c.durationMs}ms)`));
+// researcher (2100ms)
+// writer (1800ms)        — ran concurrently with illustrator
+// illustrator (1200ms)   — ran concurrently with writer
+// reviewer (1500ms)
+```
+
+#### Streaming
+
+```typescript
+const stream = team.stream('Write about the James Webb Space Telescope.');
+for await (const chunk of stream.textStream) {
+  process.stdout.write(chunk);
+}
+```
+
 ---
 
 ## Adaptive Mode
