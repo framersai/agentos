@@ -1,3 +1,7 @@
+## <small>0.1.112 (2026-03-26)</small>
+
+* refactor(voice): Opus rewrite — comprehensive TSDoc on telephony providers, parsers, transport ([da5ef9b](https://github.com/framersai/agentos/commit/da5ef9b))
+
 ## <small>0.1.111 (2026-03-26)</small>
 
 * refactor(speech): Opus rewrite — comprehensive TSDoc, inline comments, stricter types across provide ([9b745cd](https://github.com/framersai/agentos/commit/9b745cd))
