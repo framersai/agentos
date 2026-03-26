@@ -154,6 +154,57 @@ export function computeInterference(
 }
 
 // ---------------------------------------------------------------------------
+// Retrieval penalty (unused / ignored traces)
+// ---------------------------------------------------------------------------
+
+/**
+ * Result of applying the unused-trace penalty to a memory trace's decay
+ * parameters.
+ */
+export interface PenaltyResult {
+  /** Updated encoding strength after the 10% immediate penalty. */
+  encodingStrength: number;
+  /** Updated stability — halved, floored at 60 000 ms (1 minute). */
+  stability: number;
+  /** Timestamp of the penalty application (Unix ms). */
+  lastAccessedAt: number;
+}
+
+/**
+ * Accelerates decay for a trace that was retrieved and injected into the
+ * prompt but subsequently ignored by the LLM's response.
+ *
+ * Rationale: if a memory was surfaced but the model produced a response
+ * that didn't use it, the trace is likely less relevant than its current
+ * strength suggests.  Halving stability makes the forgetting curve steeper
+ * going forward (the trace will reach the pruning threshold faster), while
+ * the 10% immediate strength penalty provides a small but observable signal
+ * to the consolidation pipeline.
+ *
+ * The stability floor of 60 000 ms (1 minute) prevents pathological
+ * oscillation on traces that are repeatedly penalised — they still decay
+ * naturally but aren't instantly pruned by a single feedback event.
+ *
+ * @param trace - The memory trace that was injected but ignored.
+ * @param now   - Current wall-clock timestamp in milliseconds.
+ * @returns Updated `encodingStrength`, `stability`, and `lastAccessedAt`
+ *   suitable for writing back to the trace store.
+ */
+export function penalizeUnused(trace: MemoryTrace, now: number): PenaltyResult {
+  const currentStrength = computeCurrentStrength(trace, now);
+
+  // Floor: 1 minute — prevents traces from reaching an unusable stability
+  // value even after many consecutive ignore penalties.
+  const newStability = Math.max(trace.stability * 0.5, 60_000);
+
+  return {
+    encodingStrength: currentStrength * 0.9, // 10% immediate strength penalty
+    stability: newStability,
+    lastAccessedAt: now,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Batch decay sweep (for consolidation pipeline)
 // ---------------------------------------------------------------------------
 
