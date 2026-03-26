@@ -5,6 +5,7 @@
  * - penalizeUnused: halves stability, applies 10% strength penalty, respects 60 s floor.
  * - RetrievalFeedbackSignal.detect: keyword-based used/ignored classification.
  * - RetrievalFeedbackSignal persistence: rows written to retrieval_feedback table.
+ * - RetrievalFeedbackSignal trace updates: used signals reinforce, ignored signals penalise.
  * - RetrievalFeedbackSignal.getHistory: returns events ordered most-recent first.
  * - RetrievalFeedbackSignal.getStats: correct used/ignored aggregate counts.
  *
@@ -336,6 +337,76 @@ describe('RetrievalFeedbackSignal persistence', () => {
     const byId = new Map(rows.map((r) => [r.trace_id, r.signal]));
     expect(byId.get(usedTrace.id)).toBe('used');
     expect(byId.get(ignoredTrace.id)).toBe('ignored');
+  });
+
+  it('reinforces the stored trace when the signal is "used"', async () => {
+    const { brain } = openBrain();
+    const sig = new RetrievalFeedbackSignal(brain);
+
+    const trace = makeTrace({
+      content: 'distributed tracing telemetry observability services',
+      encodingStrength: 0.8,
+      retrievalCount: 0,
+    });
+    seedTraceRow(brain, trace);
+
+    await sig.detect(
+      [trace],
+      'Distributed tracing improves observability across services and telemetry pipelines.',
+    );
+
+    interface TraceStateRow {
+      strength: number;
+      last_accessed: number | null;
+      retrieval_count: number;
+    }
+
+    const row = brain.db
+      .prepare<[string], TraceStateRow>(
+        `SELECT strength, last_accessed, retrieval_count
+         FROM memory_traces
+         WHERE id = ?`,
+      )
+      .get(trace.id);
+
+    expect(row?.strength ?? 0).toBeGreaterThan(trace.encodingStrength);
+    expect(row?.retrieval_count).toBe(1);
+    expect(row?.last_accessed ?? 0).toBeGreaterThanOrEqual(trace.createdAt);
+  });
+
+  it('penalises the stored trace when the signal is "ignored"', async () => {
+    const { brain } = openBrain();
+    const sig = new RetrievalFeedbackSignal(brain);
+
+    const trace = makeTrace({
+      content: 'watercolour glazing paper pigments composition',
+      encodingStrength: 1.0,
+      retrievalCount: 0,
+    });
+    seedTraceRow(brain, trace);
+
+    await sig.detect(
+      [trace],
+      'PostgreSQL replicas improve read throughput for database-heavy services.',
+    );
+
+    interface TraceStateRow {
+      strength: number;
+      last_accessed: number | null;
+      retrieval_count: number;
+    }
+
+    const row = brain.db
+      .prepare<[string], TraceStateRow>(
+        `SELECT strength, last_accessed, retrieval_count
+         FROM memory_traces
+         WHERE id = ?`,
+      )
+      .get(trace.id);
+
+    expect(row?.strength ?? 1).toBeLessThan(trace.encodingStrength);
+    expect(row?.retrieval_count).toBe(0);
+    expect(row?.last_accessed ?? 0).toBeGreaterThanOrEqual(trace.createdAt);
   });
 });
 

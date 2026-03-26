@@ -24,6 +24,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { MemoryTrace } from '../types.js';
+import type { ITool } from '../../core/tools/ITool.js';
 import type {
   MemoryConfig,
   RememberOptions,
@@ -35,6 +36,7 @@ import type {
   ImportResult,
   ConsolidationResult,
   MemoryHealth,
+  LoadedDocument,
 } from './types.js';
 import type {
   IKnowledgeGraph,
@@ -43,13 +45,22 @@ import type {
 } from '../../core/knowledge/IKnowledgeGraph.js';
 
 import { SqliteBrain } from '../store/SqliteBrain.js';
+import {
+  buildNaturalLanguageFtsQuery,
+  buildInitialTraceMetadata,
+  parseTraceMetadata,
+  readPersistedDecayState,
+  withPersistedDecayState,
+} from '../store/tracePersistence.js';
 import { SqliteKnowledgeGraph } from '../store/SqliteKnowledgeGraph.js';
 import { SqliteMemoryGraph } from '../store/SqliteMemoryGraph.js';
 import { LoaderRegistry } from '../ingestion/LoaderRegistry.js';
 import { FolderScanner } from '../ingestion/FolderScanner.js';
 import { ChunkingEngine } from '../ingestion/ChunkingEngine.js';
+import { UrlLoader } from '../ingestion/UrlLoader.js';
 import { RetrievalFeedbackSignal } from '../feedback/RetrievalFeedbackSignal.js';
 import { ConsolidationLoop } from '../consolidation/ConsolidationLoop.js';
+import { penalizeUnused, updateOnRetrieval } from '../decay/DecayModel.js';
 import {
   JsonExporter,
   JsonImporter,
@@ -60,7 +71,16 @@ import {
   SqliteExporter,
   SqliteImporter,
   ChatGptImporter,
+  CsvImporter,
 } from '../io/index.js';
+import {
+  MemoryAddTool,
+  MemoryUpdateTool,
+  MemoryDeleteTool,
+  MemoryMergeTool,
+  MemorySearchTool,
+  MemoryReflectTool,
+} from '../tools/index.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -197,6 +217,13 @@ export class Memory {
       ...config,
     };
 
+    if (this._config.store !== 'sqlite') {
+      throw new Error(
+        `Memory currently supports only the SQLite-backed facade at runtime. ` +
+        `Received store="${this._config.store}".`,
+      );
+    }
+
     // Step 2: create SqliteBrain.
     this._brain = new SqliteBrain(this._config.path!);
 
@@ -255,15 +282,20 @@ export class Memory {
   async remember(content: string, options?: RememberOptions): Promise<MemoryTrace> {
     await this._initPromise;
 
-    const id = nextTraceId();
-    const now = Date.now();
+    const contentHash = sha256(content);
     const type = options?.type ?? 'episodic';
     const scope = options?.scope ?? 'user';
     const scopeId = options?.scopeId ?? '';
+    const existing = this._findExistingTraceByHash(contentHash, type, scope, scopeId);
+    if (existing) {
+      return this._buildTrace(existing);
+    }
+
+    const id = nextTraceId();
+    const now = Date.now();
     const tags = options?.tags ?? [];
     const entities = options?.entities ?? [];
     const importance = options?.importance ?? 1.0;
-    const contentHash = sha256(content);
 
     // Insert into memory_traces.
     this._brain.db
@@ -282,7 +314,7 @@ export class Memory {
         now,
         JSON.stringify(tags),
         JSON.stringify({}),
-        JSON.stringify({ content_hash: contentHash, entities, scopeId }),
+        JSON.stringify(buildInitialTraceMetadata({}, { contentHash, entities, scopeId })),
       );
 
     // Sync FTS5 index. The external-content FTS5 table needs explicit insert.
@@ -321,7 +353,7 @@ export class Memory {
       retrieval_count: 0,
       tags: JSON.stringify(tags),
       emotions: JSON.stringify({}),
-      metadata: JSON.stringify({ content_hash: contentHash, entities, scopeId }),
+      metadata: JSON.stringify(buildInitialTraceMetadata({}, { contentHash, entities, scopeId })),
       deleted: 0,
     });
   }
@@ -340,6 +372,11 @@ export class Memory {
   async recall(query: string, options?: RecallOptions): Promise<ScoredTrace[]> {
     await this._initPromise;
 
+    const ftsQuery = buildNaturalLanguageFtsQuery(query);
+    if (!ftsQuery) {
+      return [];
+    }
+
     const limit = options?.limit ?? 10;
     const minStrength = options?.minStrength ?? 0;
 
@@ -354,6 +391,10 @@ export class Memory {
     if (options?.scope) {
       conditions.push('t.scope = ?');
       params.push(options.scope);
+    }
+    if (options?.scopeId) {
+      conditions.push(`json_extract(t.metadata, '$.scopeId') = ?`);
+      params.push(options.scopeId);
     }
     if (minStrength > 0) {
       conditions.push('t.strength >= ?');
@@ -376,13 +417,15 @@ export class Memory {
       LIMIT ?
     `;
 
-    params.push(query, limit);
+    params.push(ftsQuery, limit);
 
     const rows = this._brain.db
       .prepare<unknown[], FtsJoinRow>(sql)
       .all(...params);
 
-    return rows.map((row) => ({
+    const updatedRows = this._applyRecallAccessUpdates(rows);
+
+    return updatedRows.map((row) => ({
       trace: this._buildTrace(row),
       score: row.strength * Math.abs(row.rank),
     }));
@@ -432,9 +475,12 @@ export class Memory {
       tracesCreated: 0,
     };
 
-    const chunkStrategy = this._config.ingestion?.chunkStrategy ?? 'semantic';
-    const chunkSize = this._config.ingestion?.chunkSize ?? 512;
-    const chunkOverlap = this._config.ingestion?.chunkOverlap ?? 64;
+    const chunking = {
+      strategy: (this._config.ingestion?.chunkStrategy ?? 'semantic') as 'fixed' | 'semantic' | 'hierarchical' | 'layout',
+      chunkSize: this._config.ingestion?.chunkSize ?? 512,
+      chunkOverlap: this._config.ingestion?.chunkOverlap ?? 64,
+    };
+    const urlLoader = new UrlLoader(this._loaderRegistry);
 
     try {
       // Detect source type.
@@ -456,80 +502,13 @@ export class Memory {
 
         // Chunk and store each loaded document.
         for (const doc of scanResult.documents) {
-          const chunks = await this._chunkingEngine.chunk(doc.content, {
-            strategy: chunkStrategy as 'fixed' | 'semantic' | 'hierarchical' | 'layout',
-            chunkSize,
-            chunkOverlap,
-          });
-
-          const docId = `doc_${Date.now()}_${_traceCounter++}`;
-          const contentHash = sha256(doc.content);
-
-          // Insert document record.
-          this._brain.db
-            .prepare(
-              `INSERT OR IGNORE INTO documents
-                 (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .run(
-              docId,
-              doc.metadata.source ?? source,
-              doc.format,
-              doc.metadata.title ?? null,
-              contentHash,
-              chunks.length,
-              JSON.stringify(doc.metadata),
-              Date.now(),
-            );
-
-          // Insert chunks and create traces.
-          // Insert memory_traces FIRST (document_chunks.trace_id is an FK).
-          for (const chunk of chunks) {
-            const chunkId = `chunk_${Date.now()}_${_traceCounter++}`;
-            const traceId = nextTraceId();
-
-            // 1. Create the memory trace for this chunk.
-            this._brain.db
-              .prepare(
-                `INSERT INTO memory_traces
-                   (id, type, scope, content, embedding, strength, created_at,
-                    last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-                 VALUES (?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
-              )
-              .run(
-                traceId,
-                chunk.content,
-                Date.now(),
-                JSON.stringify({
-                  content_hash: sha256(chunk.content),
-                  document_id: docId,
-                  chunk_index: chunk.index,
-                }),
-              );
-
-            // 2. Sync FTS index.
-            this._brain.db
-              .prepare(
-                `INSERT INTO memory_traces_fts (rowid, content, tags)
-                 VALUES (
-                   (SELECT rowid FROM memory_traces WHERE id = ?),
-                   ?,
-                   '[]'
-                 )`,
-              )
-              .run(traceId, chunk.content);
-
-            // 3. Insert the document chunk (FK to memory_traces now satisfied).
-            this._brain.db
-              .prepare(
-                `INSERT INTO document_chunks (id, document_id, trace_id, content, chunk_index, page_number, embedding)
-                 VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-              )
-              .run(chunkId, docId, traceId, chunk.content, chunk.index, chunk.pageNumber ?? null);
-
-            result.chunksCreated++;
-            result.tracesCreated++;
+          try {
+            await this._ingestLoadedDocument(doc.metadata.source ?? source, doc, chunking, result);
+          } catch (err) {
+            result.failed.push({
+              path: doc.metadata.source ?? source,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
       } else if (stat?.isFile()) {
@@ -537,88 +516,25 @@ export class Memory {
         try {
           const doc = await this._loaderRegistry.loadFile(source);
           result.succeeded.push(source);
-
-          const chunks = await this._chunkingEngine.chunk(doc.content, {
-            strategy: chunkStrategy as 'fixed' | 'semantic' | 'hierarchical' | 'layout',
-            chunkSize,
-            chunkOverlap,
-          });
-
-          const docId = `doc_${Date.now()}_${_traceCounter++}`;
-          const contentHash = sha256(doc.content);
-
-          this._brain.db
-            .prepare(
-              `INSERT OR IGNORE INTO documents
-                 (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .run(
-              docId,
-              source,
-              doc.format,
-              doc.metadata.title ?? null,
-              contentHash,
-              chunks.length,
-              JSON.stringify(doc.metadata),
-              Date.now(),
-            );
-
-          for (const chunk of chunks) {
-            const chunkId = `chunk_${Date.now()}_${_traceCounter++}`;
-            const traceId = nextTraceId();
-
-            // 1. Create the memory trace first (FK target for document_chunks).
-            this._brain.db
-              .prepare(
-                `INSERT INTO memory_traces
-                   (id, type, scope, content, embedding, strength, created_at,
-                    last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-                 VALUES (?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
-              )
-              .run(
-                traceId,
-                chunk.content,
-                Date.now(),
-                JSON.stringify({
-                  content_hash: sha256(chunk.content),
-                  document_id: docId,
-                  chunk_index: chunk.index,
-                }),
-              );
-
-            // 2. Sync FTS index.
-            this._brain.db
-              .prepare(
-                `INSERT INTO memory_traces_fts (rowid, content, tags)
-                 VALUES (
-                   (SELECT rowid FROM memory_traces WHERE id = ?),
-                   ?,
-                   '[]'
-                 )`,
-              )
-              .run(traceId, chunk.content);
-
-            // 3. Insert document chunk (FK to memory_traces now satisfied).
-            this._brain.db
-              .prepare(
-                `INSERT INTO document_chunks (id, document_id, trace_id, content, chunk_index, page_number, embedding)
-                 VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-              )
-              .run(chunkId, docId, traceId, chunk.content, chunk.index, chunk.pageNumber ?? null);
-
-            result.chunksCreated++;
-            result.tracesCreated++;
-          }
+          await this._ingestLoadedDocument(source, doc, chunking, result);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          result.failed.push({ path: source, error: message });
+        }
+      } else if (urlLoader.canLoad(source)) {
+        try {
+          const doc = await urlLoader.load(source);
+          result.succeeded.push(source);
+          await this._ingestLoadedDocument(source, doc, chunking, result);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           result.failed.push({ path: source, error: message });
         }
       } else {
-        // URL or unknown source -- treat as unsupported for now.
+        // Unknown source.
         result.failed.push({
           path: source,
-          error: `Source "${source}" is not a file or directory.`,
+          error: `Source "${source}" is not a file, directory, or supported URL.`,
         });
       }
     } catch (err: unknown) {
@@ -744,13 +660,75 @@ export class Memory {
   feedback(traceId: string, signal: 'used' | 'ignored'): void {
     if (!this._feedbackSignal) return;
 
-    // Fire-and-forget: insert feedback row without awaiting.
-    this._brain.db
-      .prepare(
-        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-         VALUES (?, ?, NULL, ?)`,
-      )
-      .run(traceId, signal, Date.now());
+    try {
+      const now = Date.now();
+      const row = this._brain.db
+        .prepare<[string], TraceRow>(
+          `SELECT id, type, scope, content, embedding, strength, created_at,
+                  last_accessed, retrieval_count, tags, emotions, metadata, deleted
+           FROM memory_traces
+           WHERE id = ?
+           LIMIT 1`,
+        )
+        .get(traceId);
+
+      this._brain.db
+        .prepare(
+          `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
+           VALUES (?, ?, NULL, ?)`,
+        )
+        .run(traceId, signal, now);
+
+      if (!row) return;
+
+      if (signal === 'used') {
+        const update = updateOnRetrieval(this._buildTrace(row), now);
+        const metadata = JSON.stringify(
+          withPersistedDecayState(parseTraceMetadata(row.metadata), {
+            stability: update.stability,
+            accessCount: update.accessCount,
+            reinforcementInterval: update.reinforcementInterval,
+            nextReinforcementAt: update.nextReinforcementAt,
+          }),
+        );
+        this._brain.db
+          .prepare(
+            `UPDATE memory_traces
+             SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
+             WHERE id = ?`,
+          )
+          .run(
+            update.encodingStrength,
+            update.lastAccessedAt,
+            update.retrievalCount,
+            metadata,
+            traceId,
+          );
+        return;
+      }
+
+      const penalty = penalizeUnused(this._buildTrace(row), now);
+      const existingDecay = readPersistedDecayState(parseTraceMetadata(row.metadata), row.retrieval_count);
+      const metadata = JSON.stringify(
+        withPersistedDecayState(parseTraceMetadata(row.metadata), {
+          stability: penalty.stability,
+          accessCount: existingDecay.accessCount,
+          reinforcementInterval: existingDecay.reinforcementInterval,
+          ...(existingDecay.nextReinforcementAt !== undefined
+            ? { nextReinforcementAt: existingDecay.nextReinforcementAt }
+            : {}),
+        }),
+      );
+      this._brain.db
+        .prepare(
+          `UPDATE memory_traces
+           SET strength = ?, last_accessed = ?, metadata = ?
+           WHERE id = ?`,
+        )
+        .run(penalty.encodingStrength, penalty.lastAccessedAt, metadata, traceId);
+    } catch {
+      // Explicit feedback is best-effort; the caller should not fail on analytics updates.
+    }
   }
 
   // =========================================================================
@@ -814,32 +792,75 @@ export class Memory {
     await this._initPromise;
 
     const format = await this._detectImportFormat(source, options);
+    let result: ImportResult;
 
     switch (format) {
-      case 'json': {
-        const importer = new JsonImporter(this._brain);
-        return importer.import(source);
-      }
-      case 'markdown': {
-        const importer = new MarkdownImporter(this._brain);
-        return importer.import(source);
-      }
-      case 'obsidian': {
-        const importer = new ObsidianImporter(this._brain);
-        return importer.import(source);
-      }
-      case 'sqlite': {
-        const importer = new SqliteImporter(this._brain);
-        return importer.import(source);
-      }
-      case 'chatgpt': {
-        const importer = new ChatGptImporter(this._brain);
-        return importer.import(source);
-      }
-      default: {
-        return { imported: 0, skipped: 0, errors: [`Unsupported import format: "${format}"`] };
-      }
+      case 'json':
+        result = await new JsonImporter(this._brain).import(source);
+        break;
+      case 'markdown':
+        result = await new MarkdownImporter(this._brain).import(source);
+        break;
+      case 'obsidian':
+        result = await new ObsidianImporter(this._brain).import(source);
+        break;
+      case 'sqlite':
+        result = await new SqliteImporter(this._brain).import(source);
+        break;
+      case 'chatgpt':
+        result = await new ChatGptImporter(this._brain).import(source);
+        break;
+      case 'csv':
+        result = await new CsvImporter(this._brain).import(source);
+        break;
+      default:
+        result = { imported: 0, skipped: 0, errors: [`Unsupported import format: "${format}"`] };
+        break;
     }
+
+    if (result.imported > 0) {
+      this._rebuildFtsIndex();
+    }
+
+    return result;
+  }
+
+  // =========================================================================
+  // Tool integration
+  // =========================================================================
+
+  /**
+   * Create runtime `ITool` instances backed by this memory facade's SQLite brain.
+   *
+   * This is the supported bridge from the standalone memory engine into
+   * AgentOS tool registration. The returned tools share this `Memory`
+   * instance's underlying SQLite database and consolidation loop.
+   *
+   * Typical usage:
+   * ```ts
+   * for (const tool of memory.createTools()) {
+   *   await agentos.getToolOrchestrator().registerTool(tool);
+   * }
+   * ```
+   *
+   * When self-improvement is disabled, `memory_reflect` is omitted because
+   * there is no backing {@link ConsolidationLoop} instance.
+   */
+  createTools(options?: { includeReflect?: boolean }): ITool[] {
+    const tools: ITool[] = [
+      new MemoryAddTool(this._brain),
+      new MemoryUpdateTool(this._brain),
+      new MemoryDeleteTool(this._brain),
+      new MemoryMergeTool(this._brain),
+      new MemorySearchTool(this._brain),
+    ];
+
+    const includeReflect = options?.includeReflect ?? true;
+    if (includeReflect && this._consolidationLoop) {
+      tools.push(new MemoryReflectTool(this._brain, this._consolidationLoop));
+    }
+
+    return tools;
   }
 
   // =========================================================================
@@ -977,11 +998,11 @@ export class Memory {
     let emotions = {};
     try { emotions = JSON.parse(row.emotions); } catch { /* empty */ }
 
-    let metadata: Record<string, unknown> = {};
-    try { metadata = JSON.parse(row.metadata); } catch { /* empty */ }
+    const metadata = parseTraceMetadata(row.metadata);
 
     const entities = Array.isArray(metadata.entities) ? metadata.entities as string[] : [];
     const scopeId = typeof metadata.scopeId === 'string' ? metadata.scopeId : '';
+    const decayState = readPersistedDecayState(metadata, row.retrieval_count);
 
     return {
       id: row.id,
@@ -1006,16 +1027,217 @@ export class Memory {
         ...emotions,
       },
       encodingStrength: row.strength,
-      stability: 86_400_000, // 1 day default
+      stability: decayState.stability,
       retrievalCount: row.retrieval_count,
       lastAccessedAt: row.last_accessed ?? row.created_at,
-      accessCount: row.retrieval_count,
-      reinforcementInterval: 86_400_000,
+      accessCount: decayState.accessCount,
+      reinforcementInterval: decayState.reinforcementInterval,
+      ...(decayState.nextReinforcementAt !== undefined
+        ? { nextReinforcementAt: decayState.nextReinforcementAt }
+        : {}),
       associatedTraceIds: [],
       createdAt: row.created_at,
       updatedAt: row.created_at,
       isActive: row.deleted === 0,
     };
+  }
+
+  /**
+   * Find an active trace previously stored with the same content hash.
+   *
+   * Checks both the facade-native `content_hash` metadata key and the
+   * importer-used `import_hash` key so dedup works across facade and import
+   * workflows.
+   */
+  private _findExistingTraceByHash(
+    contentHash: string,
+    type: string,
+    scope: string,
+    scopeId: string,
+  ): TraceRow | undefined {
+    return this._brain.db
+      .prepare<[string, string, string, string, string], TraceRow>(
+        `SELECT id, type, scope, content, embedding, strength, created_at,
+                last_accessed, retrieval_count, tags, emotions, metadata, deleted
+         FROM memory_traces
+         WHERE deleted = 0
+           AND type = ?
+           AND scope = ?
+           AND ifnull(json_extract(metadata, '$.scopeId'), '') = ?
+           AND (
+             json_extract(metadata, '$.content_hash') = ?
+             OR json_extract(metadata, '$.import_hash') = ?
+           )
+         LIMIT 1`,
+      )
+      .get(type, scope, scopeId, contentHash, contentHash);
+  }
+
+  /**
+   * Apply spaced-repetition access updates to recalled rows and persist the
+   * updated retrieval metadata back to SQLite.
+   */
+  private _applyRecallAccessUpdates(rows: FtsJoinRow[]): FtsJoinRow[] {
+    if (rows.length === 0) return rows;
+
+    const now = Date.now();
+    const updateStmt = this._brain.db.prepare(
+      `UPDATE memory_traces
+       SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
+       WHERE id = ?`,
+    );
+
+    return this._brain.db.transaction(() => rows.map((row) => {
+      const update = updateOnRetrieval(this._buildTrace(row), now);
+      const metadata = JSON.stringify(
+        withPersistedDecayState(parseTraceMetadata(row.metadata), {
+          stability: update.stability,
+          accessCount: update.accessCount,
+          reinforcementInterval: update.reinforcementInterval,
+          nextReinforcementAt: update.nextReinforcementAt,
+        }),
+      );
+      updateStmt.run(
+        update.encodingStrength,
+        update.lastAccessedAt,
+        update.retrievalCount,
+        metadata,
+        row.id,
+      );
+
+      return {
+        ...row,
+        strength: update.encodingStrength,
+        last_accessed: update.lastAccessedAt,
+        retrieval_count: update.retrievalCount,
+        metadata,
+      };
+    }))();
+  }
+
+  /**
+   * Persist one loaded document into the documents/chunks/traces tables.
+   *
+   * Document-level dedup is keyed by `documents.content_hash`, so re-ingesting
+   * the same source content is idempotent.
+   */
+  private async _ingestLoadedDocument(
+    source: string,
+    doc: LoadedDocument,
+    chunking: {
+      strategy: 'fixed' | 'semantic' | 'hierarchical' | 'layout';
+      chunkSize: number;
+      chunkOverlap: number;
+    },
+    result: IngestResult,
+  ): Promise<void> {
+    const contentHash = sha256(doc.content);
+    const existingDoc = this._brain.db
+      .prepare<[string], { id: string }>(
+        `SELECT id FROM documents WHERE content_hash = ? LIMIT 1`,
+      )
+      .get(contentHash);
+
+    if (existingDoc) {
+      return;
+    }
+
+    const chunks = await this._chunkingEngine.chunk(doc.content, chunking);
+    const docId = `doc_${Date.now()}_${_traceCounter++}`;
+
+    this._brain.db
+      .prepare(
+        `INSERT INTO documents
+           (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        docId,
+        doc.metadata.source ?? source,
+        doc.format,
+        doc.metadata.title ?? null,
+        contentHash,
+        chunks.length,
+        JSON.stringify(doc.metadata),
+        Date.now(),
+      );
+
+    for (const chunk of chunks) {
+      const chunkId = `chunk_${Date.now()}_${_traceCounter++}`;
+      const traceId = nextTraceId();
+      const createdAt = Date.now();
+
+      this._brain.db
+        .prepare(
+          `INSERT INTO memory_traces
+             (id, type, scope, content, embedding, strength, created_at,
+              last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+           VALUES (?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
+        )
+        .run(
+          traceId,
+          chunk.content,
+          createdAt,
+          JSON.stringify(
+            buildInitialTraceMetadata(
+              {
+                document_id: docId,
+                chunk_index: chunk.index,
+              },
+              { contentHash: sha256(chunk.content) },
+            ),
+          ),
+        );
+
+      this._brain.db
+        .prepare(
+          `INSERT INTO memory_traces_fts (rowid, content, tags)
+           VALUES (
+             (SELECT rowid FROM memory_traces WHERE id = ?),
+             ?,
+             '[]'
+           )`,
+        )
+        .run(traceId, chunk.content);
+
+      if (this._config.graph && !this._memoryGraph.hasNode(traceId)) {
+        await this._memoryGraph.addNode(traceId, {
+          type: 'semantic',
+          scope: 'user',
+          scopeId: docId,
+          strength: 1.0,
+          createdAt,
+        });
+      }
+
+      this._brain.db
+        .prepare(
+          `INSERT INTO document_chunks (id, document_id, trace_id, content, chunk_index, page_number, embedding)
+           VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+        )
+        .run(
+          chunkId,
+          docId,
+          traceId,
+          chunk.content,
+          chunk.index,
+          chunk.pageNumber ?? null,
+        );
+
+      result.chunksCreated++;
+      result.tracesCreated++;
+    }
+  }
+
+  /**
+   * Rebuild the external-content FTS index after bulk import operations.
+   */
+  private _rebuildFtsIndex(): void {
+    try {
+      this._brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    } catch {
+      // Best-effort; imports still succeed even if the FTS rebuild is unavailable.
+    }
   }
 
   /**

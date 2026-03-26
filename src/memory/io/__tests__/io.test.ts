@@ -32,6 +32,7 @@ import {
   SqliteExporter,
   SqliteImporter,
   ChatGptImporter,
+  CsvImporter,
 } from '../index.js';
 
 // ---------------------------------------------------------------------------
@@ -616,7 +617,7 @@ describe('SqliteExporter', () => {
     const backupBrain = openBrain(outPath);
 
     const row = backupBrain.db
-      .prepare<[], { content: string }>(
+      .prepare<[string], { content: string }>(
         'SELECT content FROM memory_traces WHERE content = ? LIMIT 1',
       )
       .get('Backup read test');
@@ -773,7 +774,7 @@ describe('ChatGptImporter', () => {
     await new ChatGptImporter(brain).import(jsonPath);
 
     const convo = brain.db
-      .prepare<[], { title: string }>(
+      .prepare<[string], { title: string }>(
         `SELECT title FROM conversations WHERE title = ? LIMIT 1`,
       )
       .get('Discussion about TypeScript generics');
@@ -829,5 +830,69 @@ describe('ChatGptImporter', () => {
     const brain = openBrain();
     const result = await new ChatGptImporter(brain).import(jsonPath);
     expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 10. CSV import
+// ---------------------------------------------------------------------------
+
+describe('CsvImporter', () => {
+  it('imports traces from a CSV file with a content column', async () => {
+    const dir = tempDir();
+    const csvPath = path.join(dir, 'memories.csv');
+
+    fs.writeFileSync(
+      csvPath,
+      [
+        'content,type,scope,tags',
+        '"Alpha note about butterflies",semantic,user,"nature|insects"',
+        '"Beta note about alpacas",episodic,persona,"animals"',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const brain = openBrain();
+    const result = await new CsvImporter(brain).import(csvPath);
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.imported).toBe(2);
+
+    const rows = brain.db
+      .prepare<[], { content: string; type: string; scope: string; tags: string }>(
+        `SELECT content, type, scope, tags
+         FROM memory_traces
+         ORDER BY content`,
+      )
+      .all();
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.content).toBe('Alpha note about butterflies');
+    expect(rows[0]?.type).toBe('semantic');
+    expect(rows[0]?.scope).toBe('user');
+    expect(rows[0]?.tags).toContain('nature');
+  });
+
+  it('deduplicates repeated CSV imports by content hash', async () => {
+    const dir = tempDir();
+    const csvPath = path.join(dir, 'dedup.csv');
+
+    fs.writeFileSync(
+      csvPath,
+      [
+        'content,type',
+        '"Repeated fact about dark mode",semantic',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const brain = openBrain();
+    const importer = new CsvImporter(brain);
+
+    const first = await importer.import(csvPath);
+    const second = await importer.import(csvPath);
+
+    expect(first.imported).toBe(1);
+    expect(second.skipped).toBe(1);
   });
 });

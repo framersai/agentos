@@ -1,42 +1,134 @@
 # RAG and Memory Configuration
 
-AgentOS provides two levels of memory API:
+AgentOS provides three levels of memory API:
 
-1. **`AgentMemory`** — High-level facade with simple `remember()`, `recall()`, `observe()`, `search()` methods. No knowledge of PAD mood models or HEXACO traits required.
-2. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `GraphRAGEngine` for custom pipelines.
+1. **`Memory`** — Primary SQLite-first facade for persistent local memory, ingestion, import/export, graph memory, and self-improving consolidation.
+2. **`AgentMemory`** — Compatibility facade that can wrap either `CognitiveMemoryManager` or the standalone `Memory` engine.
+3. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `GraphRAGEngine` for custom pipelines.
+
+## Standalone Memory Facade
+
+```ts
+import { Memory } from '@framers/agentos';
+
+const mem = new Memory({
+  store: 'sqlite',
+  path: './brain.sqlite',
+  graph: true,
+  selfImprove: true,
+});
+
+await mem.remember('User prefers dark mode', { type: 'semantic', tags: ['prefs'] });
+await mem.ingest('./docs');
+await mem.importFrom('./notes.csv', { format: 'csv' });
+
+const hits = await mem.recall('dark mode');
+await mem.export('./vault', { format: 'obsidian' });
+await mem.close();
+```
+
+To expose the memory editor tools to AgentOS at runtime, either register the
+tools directly or load them through the extension system:
+
+```ts
+import { createMemoryToolsPack, Memory } from '@framers/agentos';
+
+const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+
+// Direct registration
+for (const tool of memory.createTools()) {
+  await agentos.getToolOrchestrator().registerTool(tool);
+}
+
+// Or extension-based registration through the shared tool registry
+await agentos.getExtensionManager().loadPackFromFactory(
+  createMemoryToolsPack(memory),
+  'memory-tools',
+);
+```
+
+If you already bootstrap `AgentOS`, you can auto-load the same pack directly
+from `AgentOS.initialize()`:
+
+```ts
+import { AgentOS, Memory } from '@framers/agentos';
+
+const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const agentos = new AgentOS();
+
+await agentos.initialize({
+  // ...standard AgentOS config...
+  memoryTools: {
+    memory,
+    includeReflect: true,
+    identifier: 'primary-memory-tools',
+    manageLifecycle: true,
+  },
+});
+```
+
+`manageLifecycle` is optional. Leave it unset when your app owns the
+`Memory` instance and closes it outside `AgentOS`.
+
+`memoryTools` only registers the tool pack. It does not automatically make the
+same `Memory` instance the prompt-time `longTermMemoryRetriever` or
+`rollingSummaryMemorySink`.
+
+If you want one standalone `Memory` backend to power all three paths, use the
+unified `standaloneMemory` config bridge:
+
+```ts
+import { AgentOS, Memory } from '@framers/agentos';
+
+const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const agentos = new AgentOS();
+
+await agentos.initialize({
+  // ...standard AgentOS config...
+  standaloneMemory: {
+    memory,
+    manageLifecycle: true,
+    tools: { includeReflect: true },
+    longTermRetriever: true,
+    rollingSummarySink: true,
+  },
+});
+```
+
+This keeps memory tools available to agents while also reusing the same store
+for long-term prompt injection and rolling-summary persistence.
 
 ## High-Level API: AgentMemory
 
 ```ts
 import { AgentMemory } from '@framers/agentos';
 
-// Wrap an existing CognitiveMemoryManager (e.g., in wunderland)
-const memory = AgentMemory.wrap(existingManager);
+// Option A: wrap an existing CognitiveMemoryManager
+const cognitive = AgentMemory.wrap(existingManager);
 
-// Or create standalone
-const memory = new AgentMemory();
-await memory.initialize(cognitiveMemoryConfig);
+// Option B: create a standalone SQLite-backed adapter
+const memory = AgentMemory.sqlite({ path: './brain.sqlite' });
 
 // Store information
-await memory.remember(“User prefers dark mode”);
-await memory.remember(“Deploy by Friday”, { type: 'prospective', tags: ['deadline'] });
+await memory.remember('User prefers dark mode');
+await memory.remember('Deploy by Friday', { type: 'prospective', tags: ['deadline'] });
 
-// Recall relevant memories (uses HyDE when enabled)
-const results = await memory.recall(“what does the user prefer?”);
+// Recall relevant memories
+const results = await memory.recall('what does the user prefer?');
 for (const m of results.memories) {
   console.log(m.content, m.retrievalScore);
 }
 
-// Observe conversation turns (observational memory)
-await memory.observe('user', “Can you help me debug this?”);
-await memory.observe('assistant', “Sure! The issue is in your useEffect...”);
+// Standalone-only extras from the new Memory engine
+await memory.ingest('./docs');
+await memory.export('./vault', { format: 'obsidian' });
 
-// Get assembled context for prompt injection
-const context = await memory.getContext(“TMJ treatment”, { tokenBudget: 2000 });
+// Cognitive-only APIs remain available on the wrapped manager path
+await cognitive.observe('user', 'Can you help me debug this?');
+const context = await cognitive.getContext('TMJ treatment', { tokenBudget: 2000 });
 
-// Set reminders (prospective memory)
-await memory.remind({
-  content: “Remind about deploy deadline”,
+await cognitive.remind({
+  content: 'Remind about deploy deadline',
   triggerType: 'time',
   triggerAt: Date.now() + 3600000,
 });
@@ -47,9 +139,12 @@ await memory.consolidate();
 // Health diagnostics
 const health = await memory.health();
 
-// Access underlying CognitiveMemoryManager for advanced usage
-const raw = memory.raw;
+// Access underlying backends when needed
+const rawManager = cognitive.raw;
+const rawMemory = memory.rawMemory;
 ```
+
+Use `Memory` directly for most local-first or ingestion-heavy workloads. Use `AgentMemory` when you want a compatibility facade across both backends, or when you specifically need cognitive-only APIs such as `observe()`, `getContext()`, or `remind()`.
 
 ## Observational Memory
 
@@ -117,7 +212,7 @@ The concrete RAG APIs live under `@framers/agentos/rag`:
 - **`HydeRetriever`** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
 - **`GraphRAGEngine`** — TypeScript-native graph-based RAG with knowledge graph traversal
 
-For most use cases, prefer `AgentMemory` over direct RAG primitive usage.
+For most standalone and local-first use cases, prefer `Memory`. Use `AgentMemory` when you need the compatibility layer or the cognitive observer/reflector APIs.
 
 ## Enabling RAG In AgentOS
 

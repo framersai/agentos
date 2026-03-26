@@ -58,7 +58,11 @@ describe('ExtensionLoader', () => {
 
   beforeEach(() => {
     manager = new ExtensionManager();
-    loader = new ExtensionLoader(manager);
+    loader = new ExtensionLoader(manager, {
+      loadCurated: false,
+      loadCommunity: false,
+      autoInstall: false,
+    });
     vi.clearAllMocks();
   });
 

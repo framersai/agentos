@@ -192,18 +192,22 @@ export interface IngestionConfig {
  * Top-level configuration object for the Memory facade.
  *
  * All fields are optional; sensible defaults are applied per field.
- * A minimal `{}` config is valid and will use in-memory storage with no graph,
- * no decay and a default embedding provider.
+ * A minimal `{}` config is valid and will use a temporary SQLite brain file
+ * with graph + self-improvement enabled.
  */
 export interface MemoryConfig {
   /**
    * Persistence backend for memory traces.
-   * - `'sqlite'`  – file-based SQLite (recommended for single-process agents).
-   * - `'memory'`  – in-process Map, no persistence (good for testing).
-   * - `'qdrant'`  – Qdrant vector database (remote or local).
-   * - `'neo4j'`   – Neo4j graph database (full graph-native storage).
-   * - `'hnsw'`    – HNSW in-memory approximate nearest-neighbour index.
-   * @default 'memory'
+   *
+   * The Phase 1 facade currently implements the SQLite path at runtime.
+   * Other values are reserved for future backends and will throw if selected.
+   *
+   * - `'sqlite'`  – file-based SQLite (implemented; recommended).
+   * - `'memory'`  – reserved for a future in-process backend.
+   * - `'qdrant'`  – reserved for a future vector-database backend.
+   * - `'neo4j'`   – reserved for a future graph-database backend.
+   * - `'hnsw'`    – reserved for a future ANN-only backend.
+   * @default 'sqlite'
    */
   store?: 'sqlite' | 'memory' | 'qdrant' | 'neo4j' | 'hnsw';
 

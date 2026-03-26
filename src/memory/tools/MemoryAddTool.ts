@@ -13,6 +13,7 @@
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../core/tools/ITool.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import { buildInitialTraceMetadata, sha256Hex } from '../store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
 // Counter for unique ID generation within the process lifetime
@@ -159,15 +160,31 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
       const type = args.type ?? 'episodic';
       const scope = args.scope ?? 'user';
       const tags = JSON.stringify(args.tags ?? []);
+      const metadata = JSON.stringify(
+        buildInitialTraceMetadata({}, { contentHash: sha256Hex(args.content) }),
+      );
 
-      this.brain.db
-        .prepare(
-          `INSERT INTO memory_traces
-             (id, type, scope, content, embedding, strength, created_at,
-              last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', '{}', 0)`,
-        )
-        .run(traceId, type, scope, args.content, now, tags);
+      this.brain.db.transaction(() => {
+        this.brain.db
+          .prepare(
+            `INSERT INTO memory_traces
+               (id, type, scope, content, embedding, strength, created_at,
+                last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+             VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`,
+          )
+          .run(traceId, type, scope, args.content, now, tags, metadata);
+
+        this.brain.db
+          .prepare(
+            `INSERT INTO memory_traces_fts (rowid, content, tags)
+             VALUES (
+               (SELECT rowid FROM memory_traces WHERE id = ?),
+               ?,
+               ?
+             )`,
+          )
+          .run(traceId, args.content, tags);
+      })();
 
       return { success: true, output: { traceId } };
     } catch (err) {

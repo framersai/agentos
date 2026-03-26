@@ -18,6 +18,12 @@
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../core/tools/ITool.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import {
+  parseTraceMetadata,
+  readPersistedDecayState,
+  sha256Hex,
+  withPersistedDecayState,
+} from '../store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
 // Internal row type
@@ -25,10 +31,14 @@ import type { SqliteBrain } from '../store/SqliteBrain.js';
 
 /** Minimal column set needed for the merge operation. */
 interface TraceRow {
+  rowid: number;
   id: string;
   content: string;
   retrieval_count: number;
   tags: string;
+  metadata: string;
+  last_accessed: number | null;
+  created_at: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +172,7 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
       const placeholders = traceIds.map(() => '?').join(', ');
       const rows = this.brain.db
         .prepare<unknown[], TraceRow>(
-          `SELECT id, content, retrieval_count, tags
+          `SELECT rowid AS rowid, id, content, retrieval_count, tags, metadata, last_accessed, created_at
            FROM memory_traces
            WHERE id IN (${placeholders}) AND deleted = 0`,
         )
@@ -196,29 +206,80 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
           // Malformed JSON tag — skip gracefully.
         }
       }
+      const finalTags = JSON.stringify([...allTags]);
+      const survivorMetadata = parseTraceMetadata(survivor.metadata);
+      survivorMetadata.content_hash = sha256Hex(finalContent);
+      delete survivorMetadata.import_hash;
 
-      // Update survivor: new content, cleared embedding, unioned tags.
-      this.brain.db
-        .prepare(
-          `UPDATE memory_traces
-           SET content = ?, embedding = NULL, tags = ?
-           WHERE id = ?`,
-        )
-        .run(finalContent, JSON.stringify([...allTags]), survivor.id);
-
-      // Soft-delete all non-survivors.
-      const deletedIds: string[] = [];
-      const deleteStmt = this.brain.db.prepare(
-        `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
+      const mergedDecay = rows.map((row) =>
+        readPersistedDecayState(parseTraceMetadata(row.metadata), row.retrieval_count),
+      );
+      const mergedMetadata = JSON.stringify(
+        withPersistedDecayState(survivorMetadata, {
+          stability: Math.max(...mergedDecay.map((state) => state.stability)),
+          accessCount: mergedDecay.reduce((sum, state) => sum + state.accessCount, 0),
+          reinforcementInterval: Math.max(
+            ...mergedDecay.map((state) => state.reinforcementInterval),
+          ),
+          ...(mergedDecay.some((state) => state.nextReinforcementAt !== undefined)
+            ? {
+                nextReinforcementAt: Math.max(
+                  ...mergedDecay.map((state) => state.nextReinforcementAt ?? 0),
+                ),
+              }
+            : {}),
+        }),
+      );
+      const mergedRetrievalCount = rows.reduce((sum, row) => sum + row.retrieval_count, 0);
+      const mergedLastAccessed = Math.max(
+        ...rows.map((row) => row.last_accessed ?? row.created_at),
       );
 
-      for (const row of rows) {
-        if (row.id !== survivor.id) {
-          deleteStmt.run(row.id);
-          deletedIds.push(row.id);
-        }
-      }
+      // Update survivor: new content, cleared embedding, unioned tags.
+      const deletedIds: string[] = [];
 
+      this.brain.db.transaction(() => {
+        this.brain.db
+          .prepare(
+            `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
+             VALUES ('delete', ?, ?, ?)`,
+          )
+          .run(survivor.rowid, survivor.content, survivor.tags);
+
+        this.brain.db
+          .prepare(
+            `UPDATE memory_traces
+             SET content = ?, embedding = NULL, tags = ?, metadata = ?, retrieval_count = ?, last_accessed = ?
+             WHERE id = ?`,
+          )
+          .run(
+            finalContent,
+            finalTags,
+            mergedMetadata,
+            mergedRetrievalCount,
+            mergedLastAccessed,
+            survivor.id,
+          );
+
+        this.brain.db
+          .prepare(
+            `INSERT INTO memory_traces_fts (rowid, content, tags)
+             VALUES (?, ?, ?)`,
+          )
+          .run(survivor.rowid, finalContent, finalTags);
+
+        // Soft-delete all non-survivors.
+        const deleteStmt = this.brain.db.prepare(
+          `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
+        );
+
+        for (const row of rows) {
+          if (row.id !== survivor.id) {
+            deleteStmt.run(row.id);
+            deletedIds.push(row.id);
+          }
+        }
+      })();
       return {
         success: true,
         output: { survivorId: survivor.id, deletedIds },

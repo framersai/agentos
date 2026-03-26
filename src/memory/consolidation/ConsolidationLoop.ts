@@ -30,6 +30,12 @@ import type { SqliteBrain } from '../store/SqliteBrain.js';
 import type { IMemoryGraph } from '../graph/IMemoryGraph.js';
 import { computeCurrentStrength } from '../decay/DecayModel.js';
 import type { MemoryTrace, MemoryType, MemoryScope } from '../types.js';
+import {
+  buildInitialTraceMetadata,
+  parseTraceMetadata,
+  readPersistedDecayState,
+  withPersistedDecayState,
+} from '../store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
 // Internal row type for memory_traces queries
@@ -314,12 +320,39 @@ export class ConsolidationLoop {
 
     // Max strength.
     const maxStrength = Math.max(survivor.strength, loser.strength);
+    const survivorMetadata = parseTraceMetadata(survivor.metadata);
+    const loserMetadata = parseTraceMetadata(loser.metadata);
+    const survivorDecay = readPersistedDecayState(survivorMetadata, survivor.retrieval_count);
+    const loserDecay = readPersistedDecayState(loserMetadata, loser.retrieval_count);
+    const mergedLastAccessed = Math.max(
+      survivor.last_accessed ?? survivor.created_at,
+      loser.last_accessed ?? loser.created_at,
+    );
+    const mergedMetadata = JSON.stringify(
+      withPersistedDecayState(survivorMetadata, {
+        stability: Math.max(survivorDecay.stability, loserDecay.stability),
+        accessCount: survivorDecay.accessCount + loserDecay.accessCount,
+        reinforcementInterval: Math.max(
+          survivorDecay.reinforcementInterval,
+          loserDecay.reinforcementInterval,
+        ),
+        ...((survivorDecay.nextReinforcementAt !== undefined ||
+          loserDecay.nextReinforcementAt !== undefined)
+          ? {
+              nextReinforcementAt: Math.max(
+                survivorDecay.nextReinforcementAt ?? 0,
+                loserDecay.nextReinforcementAt ?? 0,
+              ),
+            }
+          : {}),
+      }),
+    );
 
     // Update survivor.
     this.brain.db
       .prepare(
         `UPDATE memory_traces
-         SET tags = ?, emotions = ?, strength = ?, retrieval_count = ?
+         SET tags = ?, emotions = ?, strength = ?, retrieval_count = ?, last_accessed = ?, metadata = ?
          WHERE id = ?`,
       )
       .run(
@@ -327,6 +360,8 @@ export class ConsolidationLoop {
         JSON.stringify(avgEmotions),
         maxStrength,
         survivor.retrieval_count + loser.retrieval_count,
+        mergedLastAccessed,
+        mergedMetadata,
         survivor.id,
       );
 
@@ -461,7 +496,7 @@ export class ConsolidationLoop {
             0,
             JSON.stringify(['derived', 'insight']),
             JSON.stringify({}),
-            JSON.stringify({ sourceCluster: cluster.clusterId }),
+            JSON.stringify(buildInitialTraceMetadata({ sourceCluster: cluster.clusterId })),
             0,
           );
 
@@ -570,13 +605,17 @@ export class ConsolidationLoop {
    */
   private _rowToMinimalTrace(row: TraceRow): MemoryTrace {
     const now = Date.now();
+    const metadata = parseTraceMetadata(row.metadata);
+    const decayState = readPersistedDecayState(metadata, row.retrieval_count);
     return {
       id: row.id,
       type: row.type as MemoryType,
       scope: row.scope as MemoryScope,
-      scopeId: '',
+      scopeId: typeof metadata.scopeId === 'string' ? metadata.scopeId : '',
       content: row.content,
-      entities: [],
+      entities: Array.isArray(metadata.entities)
+        ? metadata.entities.filter((entity): entity is string => typeof entity === 'string')
+        : [],
       tags: [],
       provenance: {
         sourceType: 'observation',
@@ -593,12 +632,14 @@ export class ConsolidationLoop {
       },
       // The `strength` column stores the current encoding strength.
       encodingStrength: row.strength,
-      // Stability defaults to 1 hour; in production the store would persist this separately.
-      stability: 3_600_000,
+      stability: decayState.stability,
       retrievalCount: row.retrieval_count,
       lastAccessedAt: row.last_accessed ?? row.created_at,
-      accessCount: row.retrieval_count,
-      reinforcementInterval: 86_400_000,
+      accessCount: decayState.accessCount,
+      reinforcementInterval: decayState.reinforcementInterval,
+      ...(decayState.nextReinforcementAt !== undefined
+        ? { nextReinforcementAt: decayState.nextReinforcementAt }
+        : {}),
       associatedTraceIds: [],
       createdAt: row.created_at,
       updatedAt: now,

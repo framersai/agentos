@@ -15,6 +15,7 @@
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../core/tools/ITool.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import { buildNaturalLanguageFtsQuery } from '../store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
 // Internal row types
@@ -184,6 +185,11 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
     _context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<MemorySearchOutput>> {
     try {
+      const rawQuery = args.query.trim();
+      if (!rawQuery) {
+        return { success: true, output: { results: [] } };
+      }
+
       const limit = args.limit ?? 10;
 
       // Build WHERE clause additions for optional filters.
@@ -214,11 +220,27 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
         LIMIT ?
       `;
 
-      const params: unknown[] = [args.query, ...extraParams, limit];
+      const runSearch = (query: string): SearchRow[] => {
+        const params: unknown[] = [query, ...extraParams, limit];
+        return this.brain.db
+          .prepare<unknown[], SearchRow>(sql)
+          .all(...(params as unknown[]));
+      };
 
-      const rows = this.brain.db
-        .prepare<unknown[], SearchRow>(sql)
-        .all(...(params as unknown[]));
+      let rows: SearchRow[];
+      try {
+        rows = runSearch(rawQuery);
+      } catch (error: any) {
+        const fallbackQuery = buildNaturalLanguageFtsQuery(rawQuery);
+        if (
+          error?.code !== 'SQLITE_ERROR' ||
+          !fallbackQuery ||
+          fallbackQuery === rawQuery
+        ) {
+          throw error;
+        }
+        rows = runSearch(fallbackQuery);
+      }
 
       const results: MemorySearchResult[] = rows.map((row) => {
         let tags: string[] = [];

@@ -103,6 +103,28 @@ export type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 
 // --- Extension ---
 export { createCognitiveMemoryDescriptor } from './extension/CognitiveMemoryExtension.js';
+export { createStandaloneMemoryDescriptor } from './extension/StandaloneMemoryExtension.js';
+export {
+  createMemoryToolDescriptors,
+  createMemoryToolsPack,
+} from './extension/MemoryToolsExtension.js';
+export type {
+  MemoryToolsExtensionOptions,
+} from './extension/MemoryToolsExtension.js';
+export type {
+  StandaloneMemoryDescriptorOptions,
+} from './extension/StandaloneMemoryExtension.js';
+
+// --- Standalone Memory Bridges ---
+export {
+  buildStandaloneMemoryPersonaScopeId,
+  createStandaloneMemoryLongTermRetriever,
+  createStandaloneMemoryRollingSummarySink,
+} from './integration/StandaloneMemoryBridge.js';
+export type {
+  StandaloneMemoryLongTermRetrieverOptions,
+  StandaloneMemoryRollingSummarySinkOptions,
+} from './integration/StandaloneMemoryBridge.js';
 
 // --- Memory Graph (Batch 2) ---
 export type {
@@ -222,6 +244,7 @@ export {
   SqliteExporter,
   SqliteImporter,
   ChatGptImporter,
+  CsvImporter,
 } from './io/index.js';
 
 // --- SQLite Storage ---

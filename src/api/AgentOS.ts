@@ -104,6 +104,17 @@ import {
   type ExtensionEvent,
   type ExtensionEventListener,
 } from '../extensions';
+import { createMemoryToolsPack } from '../memory/extension/MemoryToolsExtension.js';
+import type { MemoryToolsExtensionOptions } from '../memory/extension/MemoryToolsExtension.js';
+import {
+  createStandaloneMemoryLongTermRetriever,
+  createStandaloneMemoryRollingSummarySink,
+} from '../memory/integration/StandaloneMemoryBridge.js';
+import type { Memory } from '../memory/facade/Memory.js';
+import type {
+  StandaloneMemoryLongTermRetrieverOptions,
+  StandaloneMemoryRollingSummarySinkOptions,
+} from '../memory/integration/StandaloneMemoryBridge.js';
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
 import { WorkflowRuntime } from '../core/workflows/runtime/WorkflowRuntime';
 import { AgencyRegistry } from '../core/agency/AgencyRegistry';
@@ -307,6 +318,76 @@ const DISCOVERY_EMBEDDING_DEFAULTS: Record<
   ollama: { modelId: 'nomic-embed-text', dimension: 768 },
 };
 
+export interface AgentOSMemoryToolsConfig extends MemoryToolsExtensionOptions {
+  /**
+   * Enable or disable automatic memory-tool registration.
+   * Default: true when this block is provided.
+   */
+  enabled?: boolean;
+
+  /**
+   * Standalone memory backend whose `createTools()` output should be exposed
+   * through the shared AgentOS tool registry.
+   */
+  memory: Pick<Memory, 'createTools'> & Partial<Pick<Memory, 'close'>>;
+
+  /**
+   * If true, AgentOS will call `memory.close()` during shutdown via the loaded
+   * extension pack's deactivation hook.
+   * Default: false (caller manages lifecycle).
+   */
+  manageLifecycle?: boolean;
+
+  /**
+   * Optional extension-pack identifier override.
+   * @default 'config-memory-tools'
+   */
+  identifier?: string;
+}
+
+export interface AgentOSStandaloneMemoryConfig {
+  /**
+   * Enable or disable standalone-memory integration.
+   * Default: true when this block is provided.
+   */
+  enabled?: boolean;
+
+  /**
+   * Standalone memory backend used to derive one or more AgentOS integrations.
+   */
+  memory: Pick<Memory, 'remember' | 'recall' | 'forget'> &
+    Partial<Pick<Memory, 'createTools' | 'health' | 'close'>>;
+
+  /**
+   * If true, AgentOS closes the standalone memory backend during shutdown
+   * unless `memoryTools.manageLifecycle` already owns that lifecycle.
+   * Default: false.
+   */
+  manageLifecycle?: boolean;
+
+  /**
+   * When provided, AgentOS derives `memoryTools` from this standalone memory
+   * backend unless `memoryTools` was already supplied explicitly.
+   */
+  tools?: boolean | Omit<AgentOSMemoryToolsConfig, 'memory' | 'enabled' | 'manageLifecycle'>;
+
+  /**
+   * When provided, AgentOS derives `longTermMemoryRetriever` from this
+   * standalone memory backend unless one was already supplied explicitly.
+   */
+  longTermRetriever?:
+    | boolean
+    | StandaloneMemoryLongTermRetrieverOptions;
+
+  /**
+   * When provided, AgentOS derives `rollingSummaryMemorySink` from this
+   * standalone memory backend unless one was already supplied explicitly.
+   */
+  rollingSummarySink?:
+    | boolean
+    | StandaloneMemoryRollingSummarySinkOptions;
+}
+
 /**
  * @interface AgentOSConfig
  * @description Defines the comprehensive configuration structure required to initialize and operate
@@ -427,6 +508,24 @@ export interface AgentOSConfig {
   guardrailService?: IGuardrailService;
   /** Optional map of secretId -> value for extension/tool credentials. */
   extensionSecrets?: Record<string, string>;
+  /**
+   * Optional standalone-memory tool registration.
+   *
+   * When provided, AgentOS will load the standalone memory editor tools as an
+   * extension pack during initialization, making them immediately available to
+   * the shared `ToolExecutor`/`ToolOrchestrator`.
+   */
+  memoryTools?: AgentOSMemoryToolsConfig;
+  /**
+   * Optional unified standalone-memory bridge.
+   *
+   * This derives one or more AgentOS integrations from a single standalone
+   * `Memory` instance:
+   * - memory tools
+   * - long-term memory retriever
+   * - rolling-summary sink
+   */
+  standaloneMemory?: AgentOSStandaloneMemoryConfig;
   /**
    * Optional: enable schema-on-demand meta tools for lazy tool schema loading.
    *
@@ -630,6 +729,7 @@ export interface AgentOSRuntimeSnapshot {
 export class AgentOS implements IAgentOS {
   private initialized: boolean = false;
   private config!: Readonly<AgentOSConfig>;
+  private managedStandaloneMemoryClosers: Array<() => Promise<void>> = [];
 
   private modelProviderManager!: AIModelProviderManager;
   private utilityAIService!: IUtilityAI & IPromptEngineUtilityAI;
@@ -690,8 +790,10 @@ export class AgentOS implements IAgentOS {
     }
 
     this.validateConfiguration(config);
+    const resolvedConfig = this.resolveStandaloneMemoryConfig(config);
     // Make the configuration immutable after validation to prevent runtime changes.
-    this.config = Object.freeze({ ...config });
+    this.config = Object.freeze({ ...resolvedConfig });
+    this.configureManagedStandaloneMemory();
 
     // Observability is opt-in (config + env). Safe no-op if OTEL is not installed by host.
     configureAgentOSObservability(this.config.observability);
@@ -757,6 +859,8 @@ export class AgentOS implements IAgentOS {
       );
       this.logger.info('[AgentOS] Schema-on-demand tools enabled');
     }
+
+    await this.registerConfigMemoryTools(extensionLifecycleContext);
 
     let storageAdapter = this.config.storageAdapter;
     if (storageAdapter) {
@@ -956,6 +1060,55 @@ export class AgentOS implements IAgentOS {
         if (!config.storageAdapter && !config.prisma) {
             missingParams.push('storageAdapter or prisma (at least one required)');
         }
+        if (config.memoryTools && config.memoryTools.enabled !== false) {
+            if (
+              !config.memoryTools.memory ||
+              typeof config.memoryTools.memory.createTools !== 'function'
+            ) {
+              missingParams.push('memoryTools.memory.createTools (when memoryTools is enabled)');
+            }
+            if (
+              config.memoryTools.manageLifecycle === true &&
+              typeof config.memoryTools.memory?.close !== 'function'
+            ) {
+              missingParams.push('memoryTools.memory.close (when memoryTools.manageLifecycle is true)');
+            }
+        }
+        if (config.standaloneMemory && config.standaloneMemory.enabled !== false) {
+            if (!config.standaloneMemory.memory) {
+              missingParams.push('standaloneMemory.memory');
+            }
+            if (
+              config.standaloneMemory.tools &&
+              !config.memoryTools &&
+              typeof config.standaloneMemory.memory?.createTools !== 'function'
+            ) {
+              missingParams.push('standaloneMemory.memory.createTools (when standaloneMemory.tools is enabled)');
+            }
+            if (
+              config.standaloneMemory.longTermRetriever &&
+              !config.longTermMemoryRetriever &&
+              typeof config.standaloneMemory.memory?.recall !== 'function'
+            ) {
+              missingParams.push('standaloneMemory.memory.recall (when standaloneMemory.longTermRetriever is enabled)');
+            }
+            if (
+              config.standaloneMemory.rollingSummarySink &&
+              !config.rollingSummaryMemorySink &&
+              (
+                typeof config.standaloneMemory.memory?.remember !== 'function' ||
+                typeof config.standaloneMemory.memory?.forget !== 'function'
+              )
+            ) {
+              missingParams.push('standaloneMemory.memory.remember/forget (when standaloneMemory.rollingSummarySink is enabled)');
+            }
+            if (
+              config.standaloneMemory.manageLifecycle === true &&
+              typeof config.standaloneMemory.memory?.close !== 'function'
+            ) {
+              missingParams.push('standaloneMemory.memory.close (when standaloneMemory.manageLifecycle is true)');
+            }
+        }
     }
 
     if (missingParams.length > 0) {
@@ -980,6 +1133,100 @@ export class AgentOS implements IAgentOS {
       },
       context,
     );
+  }
+
+  private resolveStandaloneMemoryConfig(config: AgentOSConfig): AgentOSConfig {
+    const standalone = config.standaloneMemory;
+    if (!standalone || standalone.enabled === false) {
+      return { ...config };
+    }
+
+    const resolved: AgentOSConfig = { ...config };
+    const memory = standalone.memory;
+
+    if (!resolved.memoryTools && standalone.tools) {
+      resolved.memoryTools = {
+        memory: memory as Pick<Memory, 'createTools'> & Partial<Pick<Memory, 'close'>>,
+        ...(standalone.tools === true ? {} : standalone.tools),
+      };
+    }
+
+    if (!resolved.longTermMemoryRetriever && standalone.longTermRetriever) {
+      resolved.longTermMemoryRetriever = createStandaloneMemoryLongTermRetriever(
+        memory as Pick<Memory, 'recall'>,
+        standalone.longTermRetriever === true
+          ? undefined
+          : standalone.longTermRetriever,
+      );
+    }
+
+    if (!resolved.rollingSummaryMemorySink && standalone.rollingSummarySink) {
+      resolved.rollingSummaryMemorySink = createStandaloneMemoryRollingSummarySink(
+        memory as Pick<Memory, 'remember' | 'recall' | 'forget'> &
+          Partial<Pick<Memory, 'health' | 'close'>>,
+        standalone.rollingSummarySink === true
+          ? undefined
+          : standalone.rollingSummarySink,
+      );
+    }
+
+    return resolved;
+  }
+
+  private configureManagedStandaloneMemory(): void {
+    this.managedStandaloneMemoryClosers = [];
+
+    const standalone = this.config.standaloneMemory;
+    if (!standalone || standalone.enabled === false || standalone.manageLifecycle !== true) {
+      return;
+    }
+    if (this.config.memoryTools?.manageLifecycle === true) {
+      return;
+    }
+    if (typeof standalone.memory.close !== 'function') {
+      return;
+    }
+
+    this.managedStandaloneMemoryClosers.push(async () => {
+      await standalone.memory.close?.();
+    });
+  }
+
+  private async registerConfigMemoryTools(context: ExtensionLifecycleContext): Promise<void> {
+    if (!this.config.memoryTools || this.config.memoryTools.enabled === false) {
+      return;
+    }
+
+    const {
+      memory,
+      enabled: _enabled,
+      identifier,
+      manageLifecycle,
+      ...packOptions
+    } = this.config.memoryTools;
+
+    const pack = createMemoryToolsPack(memory, packOptions);
+    const packIdentifier = identifier ?? 'config-memory-tools';
+    if (manageLifecycle) {
+      const existingOnDeactivate = pack.onDeactivate;
+      pack.onDeactivate = async (lifecycleContext) => {
+        await existingOnDeactivate?.(lifecycleContext);
+        await memory.close?.();
+      };
+    }
+
+    await this.extensionManager.loadPackFromFactory(
+      pack,
+      packIdentifier,
+      undefined,
+      context,
+    );
+
+    this.logger.info('[AgentOS] Config memory tools enabled', {
+      identifier: packIdentifier,
+      packName: pack.name,
+      toolCount: pack.descriptors.length,
+    });
   }
 
   private async initializeWorkflowRuntime(_context: ExtensionLifecycleContext): Promise<void> {
@@ -1715,13 +1962,18 @@ export class AgentOS implements IAgentOS {
       yield errorChunk; // Yield the processed error
     } finally {
       if (streamIdToListen) {
-        await this.streamingManager.deregisterClient(streamIdToListen, bridge.id).catch((deregError) => {
-          this.logger.warn('Failed to deregister bridge client', {
-            bridgeId: bridge.id,
-            streamId: streamIdToListen,
-            error: (deregError as Error).message,
+        const activeStreamIds = await this.streamingManager
+          .getActiveStreamIds()
+          .catch(() => [] as string[]);
+        if (activeStreamIds.includes(streamIdToListen)) {
+          await this.streamingManager.deregisterClient(streamIdToListen, bridge.id).catch((deregError) => {
+            this.logger.warn('Failed to deregister bridge client', {
+              bridgeId: bridge.id,
+              streamId: streamIdToListen,
+              error: (deregError as Error).message,
+            });
           });
-        });
+        }
       }
       bridge.forceClose(); // Ensure the bridge generator also terminates
     }
@@ -1809,8 +2061,17 @@ export class AgentOS implements IAgentOS {
       yield errorChunk;
     } finally {
       console.log(`AgentOS.handleToolResult: Deregistering bridge client ${bridge.id} from stream ${streamId}.`);
-      await this.streamingManager.deregisterClient(streamId, bridge.id)
-        .catch(deregError => console.error(`AgentOS.handleToolResult: Error deregistering bridge client ${bridge.id}: ${(deregError as Error).message}`));
+      const activeStreamIds = await this.streamingManager
+        .getActiveStreamIds()
+        .catch(() => [] as string[]);
+      if (activeStreamIds.includes(streamId)) {
+        await this.streamingManager.deregisterClient(streamId, bridge.id)
+          .catch((deregError) => {
+            console.error(
+              `AgentOS.handleToolResult: Error deregistering bridge client ${bridge.id}: ${(deregError as Error).message}`,
+            );
+          });
+      }
       bridge.forceClose();
     }
   }
@@ -2072,6 +2333,10 @@ export class AgentOS implements IAgentOS {
         await this.extensionManager.shutdown({ logger: this.logger });
         console.log('AgentOS: ExtensionManager shut down.');
       }
+      for (const closeMemory of this.managedStandaloneMemoryClosers) {
+        await closeMemory();
+      }
+      this.managedStandaloneMemoryClosers = [];
       // Other services like authService, subscriptionService, prisma might not have explicit async shutdown methods
       // if they manage connections passively or are handled by process exit.
 

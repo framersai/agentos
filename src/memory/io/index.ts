@@ -16,6 +16,7 @@
  * - `ObsidianImporter` — extends `MarkdownImporter` with wikilink → edge parsing.
  * - `SqliteImporter`   — merges another SQLite brain file (smart dedup + tag union).
  * - `ChatGptImporter`  — parses ChatGPT's `conversations.json` export format.
+ * - `CsvImporter`      — imports flat CSV files with a required `content` column.
  *
  * @module memory/io
  */
@@ -29,3 +30,4 @@ export { ObsidianImporter } from './ObsidianImporter.js';
 export { SqliteExporter } from './SqliteExporter.js';
 export { SqliteImporter } from './SqliteImporter.js';
 export { ChatGptImporter } from './ChatGptImporter.js';
+export { CsvImporter } from './CsvImporter.js';

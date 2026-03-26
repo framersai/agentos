@@ -12,6 +12,7 @@
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../core/tools/ITool.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import { parseTraceMetadata, sha256Hex } from '../store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
 // Input / Output types
@@ -142,29 +143,59 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
         return { success: true, output: { updated: false } };
       }
 
-      // Build the SET clause dynamically.
-      const setClauses: string[] = [];
-      const params: unknown[] = [];
+      const current = this.brain.db
+        .prepare<[string], { rowid: number; content: string; tags: string; metadata: string }>(
+          `SELECT rowid AS rowid, content, tags, metadata
+           FROM memory_traces
+           WHERE id = ? AND deleted = 0`,
+        )
+        .get(traceId);
+
+      if (!current) {
+        return { success: true, output: { updated: false } };
+      }
+
+      const nextContent = content ?? current.content;
+      const nextTags = tags !== undefined ? JSON.stringify(tags) : current.tags;
+      const nextMetadataObject = parseTraceMetadata(current.metadata);
 
       if (content !== undefined) {
-        // Changing content invalidates the stored embedding vector.
-        setClauses.push('content = ?', 'embedding = NULL');
-        params.push(content);
+        nextMetadataObject.content_hash = sha256Hex(nextContent);
+        delete nextMetadataObject.import_hash;
       }
 
-      if (tags !== undefined) {
-        setClauses.push('tags = ?');
-        params.push(JSON.stringify(tags));
-      }
+      const nextMetadata = JSON.stringify(nextMetadataObject);
+      const sql = content !== undefined
+        ? `UPDATE memory_traces
+             SET content = ?, tags = ?, metadata = ?, embedding = NULL
+             WHERE id = ? AND deleted = 0`
+        : `UPDATE memory_traces
+             SET content = ?, tags = ?, metadata = ?
+             WHERE id = ? AND deleted = 0`;
 
-      // WHERE clause: only update active (non-deleted) traces.
-      params.push(traceId);
+      const changes = this.brain.db.transaction(() => {
+        this.brain.db
+          .prepare(
+            `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
+             VALUES ('delete', ?, ?, ?)`,
+          )
+          .run(current.rowid, current.content, current.tags);
 
-      const sql = `UPDATE memory_traces SET ${setClauses.join(', ')} WHERE id = ? AND deleted = 0`;
+        const info = this.brain.db
+          .prepare(sql)
+          .run(nextContent, nextTags, nextMetadata, traceId) as { changes: number };
 
-      // better-sqlite3 `.run()` accepts rest parameters; cast via unknown[] for TS.
-      const info = this.brain.db.prepare(sql).run(...(params as unknown[])) as { changes: number };
-      const changes = info.changes;
+        if (info.changes > 0) {
+          this.brain.db
+            .prepare(
+              `INSERT INTO memory_traces_fts (rowid, content, tags)
+               VALUES (?, ?, ?)`,
+            )
+            .run(current.rowid, nextContent, nextTags);
+        }
+
+        return info.changes;
+      })();
 
       return { success: true, output: { updated: changes > 0 } };
     } catch (err) {

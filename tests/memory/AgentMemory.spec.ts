@@ -1,6 +1,11 @@
+import os from 'node:os';
+import path from 'node:path';
+import { mkdtemp, rm } from 'node:fs/promises';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { AgentMemory } from '../../src/memory/AgentMemory.js';
+import type { MemoryTrace } from '../../src/memory/types.js';
 
 function createManager(overrides: Record<string, unknown> = {}) {
   return {
@@ -18,6 +23,84 @@ function createManager(overrides: Record<string, unknown> = {}) {
     runConsolidation: vi.fn(async () => undefined),
     getMemoryHealth: vi.fn(async () => ({ status: 'ok' })),
     shutdown: vi.fn(async () => undefined),
+    ...overrides,
+  } as any;
+}
+
+function createTrace(overrides: Partial<MemoryTrace> = {}): MemoryTrace {
+  return {
+    id: 'trace-1',
+    type: 'episodic',
+    scope: 'thread',
+    scopeId: 'thread-1',
+    content: 'hello memory',
+    entities: [],
+    tags: ['prefs'],
+    provenance: {
+      sourceType: 'user_statement',
+      sourceTimestamp: Date.now(),
+      confidence: 1,
+      verificationCount: 0,
+    },
+    emotionalContext: {
+      valence: 0,
+      arousal: 0,
+      dominance: 0,
+      intensity: 0,
+      gmiMood: 'neutral',
+    },
+    encodingStrength: 0.8,
+    stability: 86_400_000,
+    retrievalCount: 0,
+    lastAccessedAt: Date.now(),
+    accessCount: 0,
+    reinforcementInterval: 86_400_000,
+    associatedTraceIds: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    isActive: true,
+    ...overrides,
+  };
+}
+
+function createStandaloneMemory(overrides: Record<string, unknown> = {}) {
+  const trace = createTrace();
+  return {
+    remember: vi.fn(async () => trace),
+    recall: vi.fn(async () => [{ trace, score: 0.92 }]),
+    consolidate: vi.fn(async () => ({
+      pruned: 0,
+      merged: 0,
+      derived: 0,
+      compacted: 0,
+      durationMs: 5,
+    })),
+    health: vi.fn(async () => ({
+      totalTraces: 1,
+      activeTraces: 1,
+      avgStrength: 0.8,
+      weakestTraceStrength: 0.8,
+      graphNodes: 0,
+      graphEdges: 0,
+      lastConsolidation: null,
+      tracesPerType: { episodic: 1 },
+      tracesPerScope: { thread: 1 },
+      documentsIngested: 0,
+    })),
+    close: vi.fn(async () => undefined),
+    ingest: vi.fn(async () => ({
+      succeeded: ['doc.md'],
+      failed: [],
+      chunksCreated: 1,
+      tracesCreated: 1,
+    })),
+    importFrom: vi.fn(async () => ({
+      imported: 1,
+      skipped: 0,
+      errors: [],
+    })),
+    export: vi.fn(async () => undefined),
+    feedback: vi.fn(),
     ...overrides,
   } as any;
 }
@@ -143,5 +226,115 @@ describe('AgentMemory', () => {
 
     expect(manager.shutdown).toHaveBeenCalledTimes(1);
     expect(memory.isInitialized).toBe(false);
+  });
+
+  it('wrapMemory() marks a standalone memory facade as initialized and exposes rawMemory', async () => {
+    const standalone = createStandaloneMemory();
+    const memory = AgentMemory.wrapMemory(standalone);
+
+    expect(memory.isInitialized).toBe(true);
+    expect(memory.rawMemory).toBe(standalone);
+    await expect(memory.remember('User prefers dark mode')).resolves.toMatchObject({
+      success: true,
+      trace: expect.objectContaining({ id: 'trace-1' }),
+    });
+  });
+
+  it('delegates recall, health, ingest, export, import, feedback, and shutdown to standalone memory', async () => {
+    const standalone = createStandaloneMemory();
+    const memory = AgentMemory.wrapMemory(standalone);
+
+    const recall = await memory.recall('dark mode', {
+      limit: 5,
+      types: ['episodic'],
+      tags: ['prefs'],
+      minConfidence: 0.5,
+    });
+    const search = await memory.search('dark mode');
+    const health = await memory.health();
+    const ingest = await memory.ingest('./docs');
+    await memory.export('./backup.json', { format: 'json' });
+    const imported = await memory.importFrom('./backup.json', { format: 'json' });
+    memory.feedback('trace-1', 'used');
+    await memory.shutdown();
+
+    expect(recall.memories).toHaveLength(1);
+    expect(recall.memories[0]?.retrievalScore).toBe(0.92);
+    expect(search).toHaveLength(1);
+    expect(health.totalTraces).toBe(1);
+    expect(health.tracesPerType.episodic).toBe(1);
+    expect(ingest.tracesCreated).toBe(1);
+    expect(imported.imported).toBe(1);
+    expect(standalone.recall).toHaveBeenCalledWith('dark mode', expect.objectContaining({ limit: 50, type: 'episodic' }));
+    expect(standalone.ingest).toHaveBeenCalledWith('./docs', undefined);
+    expect(standalone.export).toHaveBeenCalledWith('./backup.json', { format: 'json' });
+    expect(standalone.importFrom).toHaveBeenCalledWith('./backup.json', { format: 'json' });
+    expect(standalone.feedback).toHaveBeenCalledWith('trace-1', 'used');
+    expect(standalone.close).toHaveBeenCalledTimes(1);
+    expect(memory.isInitialized).toBe(false);
+  });
+
+  it('throws a helpful error when cognitive-only APIs are used on standalone memory', async () => {
+    const memory = AgentMemory.wrapMemory(createStandaloneMemory());
+
+    await expect(memory.observe('user', 'hello')).rejects.toThrow(
+      'AgentMemory.observe() requires a CognitiveMemoryManager-backed instance',
+    );
+    await expect(memory.getContext('hello')).rejects.toThrow(
+      'AgentMemory.getContext() requires a CognitiveMemoryManager-backed instance',
+    );
+    await expect(memory.remind({ content: 'later' } as any)).rejects.toThrow(
+      'AgentMemory.remind() requires a CognitiveMemoryManager-backed instance',
+    );
+    await expect(memory.reminders()).rejects.toThrow(
+      'AgentMemory.reminders() requires a CognitiveMemoryManager-backed instance',
+    );
+    expect(() => memory.raw).toThrow(
+      'AgentMemory.raw is only available when backed by CognitiveMemoryManager',
+    );
+  });
+
+  it('throws a helpful error when standalone-only APIs are used on cognitive memory', async () => {
+    const memory = AgentMemory.wrap(createManager());
+
+    await expect(memory.ingest('./docs')).rejects.toThrow(
+      'AgentMemory.ingest() requires the standalone SQLite-backed Memory facade',
+    );
+    await expect(memory.importFrom('./backup.json')).rejects.toThrow(
+      'AgentMemory.importFrom() requires the standalone SQLite-backed Memory facade',
+    );
+    await expect(memory.export('./backup.json')).rejects.toThrow(
+      'AgentMemory.export() requires the standalone SQLite-backed Memory facade',
+    );
+    expect(() => memory.feedback('trace-1', 'used')).toThrow(
+      'AgentMemory.feedback() requires the standalone SQLite-backed Memory facade',
+    );
+  });
+
+  it('sqlite() provides a ready standalone adapter over the new Memory facade', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'agent-memory-'));
+    const brainPath = path.join(tempDir, 'brain.sqlite');
+    const memory = AgentMemory.sqlite({
+      path: brainPath,
+      graph: false,
+      selfImprove: false,
+    });
+
+    try {
+      expect(memory.isInitialized).toBe(true);
+      expect(memory.rawMemory).toBeDefined();
+
+      await memory.remember('User prefers dark mode', { tags: ['prefs'] });
+      const recall = await memory.recall('dark mode');
+      const health = await memory.health();
+
+      expect(recall.memories).toHaveLength(1);
+      expect(recall.memories[0]?.content).toContain('dark mode');
+      expect(health.totalTraces).toBe(1);
+      expect(health.tracesPerScope.thread).toBe(1);
+    } finally {
+      await memory.shutdown();
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

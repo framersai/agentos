@@ -2,6 +2,11 @@
 
 For deployments that need immutability guarantees and auditability, see [Provenance & Immutability](./PROVENANCE_IMMUTABILITY.md) for `sealed`/`revisioned` storage policy enforcement, signed event ledgers, and optional external anchoring.
 
+Current runtime memory note:
+- The standalone SQLite-first `Memory` facade is now a first-class runtime path alongside the older cognitive memory stack.
+- `AgentOSConfig.memoryTools` only registers memory editor tools.
+- `AgentOSConfig.standaloneMemory` is the higher-level bridge when one `Memory` instance should also act as `longTermMemoryRetriever` and `rollingSummaryMemorySink`.
+
 ---
 
 ## System Architecture Overview

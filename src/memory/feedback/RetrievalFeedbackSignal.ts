@@ -30,6 +30,12 @@
 
 import type { MemoryTrace } from '../types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import { penalizeUnused, updateOnRetrieval } from '../decay/DecayModel.js';
+import {
+  parseTraceMetadata,
+  readPersistedDecayState,
+  withPersistedDecayState,
+} from '../store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -70,19 +76,38 @@ interface FeedbackRow {
   created_at: number;
 }
 
+/** Raw row shape returned by SQLite queries on `memory_traces`. */
+interface TraceRow {
+  id: string;
+  type: string;
+  scope: string;
+  content: string;
+  strength: number;
+  created_at: number;
+  last_accessed: number | null;
+  retrieval_count: number;
+  tags: string;
+  emotions: string;
+  metadata: string;
+  deleted: number;
+}
+
 // ---------------------------------------------------------------------------
 // RetrievalFeedbackSignal
 // ---------------------------------------------------------------------------
 
 /**
- * Detects which injected memory traces were used vs ignored by the LLM, and
- * persists those signals to the `retrieval_feedback` table.
+ * Detects which injected memory traces were used vs ignored by the LLM,
+ * persists those signals to the `retrieval_feedback` table, and applies a
+ * best-effort trace-strength update in `memory_traces`.
  *
  * **Lifecycle:**
  * 1. Before generation: retrieve relevant traces and inject them into the prompt.
  * 2. After response delivery (non-blocking): call `detect(injectedTraces, response)`.
- * 3. The decay pipeline reads `getStats(traceId)` during consolidation and
- *    applies `penalizeUnused` / `updateOnRetrieval` accordingly.
+ * 3. The signal is recorded immediately and the underlying trace is nudged
+ *    toward reinforcement or decay.
+ * 4. The consolidation pipeline can still read `getStats(traceId)` later for
+ *    broader aggregate decisions.
  */
 export class RetrievalFeedbackSignal {
   /**
@@ -103,7 +128,8 @@ export class RetrievalFeedbackSignal {
 
   /**
    * Detect which of the injected traces were referenced in `response`, persist
-   * the signals to `retrieval_feedback`, and return the full feedback array.
+   * the signals to `retrieval_feedback`, update the corresponding
+   * `memory_traces` rows, and return the full feedback array.
    *
    * **Keyword heuristic:**
    * - Extract all words > 4 characters from each trace's `content` field,
@@ -133,27 +159,91 @@ export class RetrievalFeedbackSignal {
       `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
        VALUES (?, ?, ?, ?)`,
     );
+    const selectTraceStmt = this.brain.db.prepare<[string], TraceRow>(
+      `SELECT id, type, scope, content, strength, created_at, last_accessed,
+              retrieval_count, tags, emotions, metadata, deleted
+       FROM memory_traces
+       WHERE id = ?
+       LIMIT 1`,
+    );
+    const usedUpdateStmt = this.brain.db.prepare<[number, number, number, string, string]>(
+      `UPDATE memory_traces
+       SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
+       WHERE id = ?`,
+    );
+    const ignoredUpdateStmt = this.brain.db.prepare<[number, number, string, string]>(
+      `UPDATE memory_traces
+       SET strength = ?, last_accessed = ?, metadata = ?
+       WHERE id = ?`,
+    );
 
-    for (const trace of injectedTraces) {
-      const keywords = this._extractKeywords(trace.content);
-      let signal: 'used' | 'ignored' = 'ignored';
+    this.brain.db.transaction(() => {
+      for (const trace of injectedTraces) {
+        const keywords = this._extractKeywords(trace.content);
+        let signal: 'used' | 'ignored' = 'ignored';
 
-      if (keywords.length > 0) {
-        const matchCount = keywords.filter((kw) => responseLower.includes(kw)).length;
-        const matchRatio = matchCount / keywords.length;
-        if (matchRatio > 0.3) {
-          signal = 'used';
+        if (keywords.length > 0) {
+          const matchCount = keywords.filter((kw) => responseLower.includes(kw)).length;
+          const matchRatio = matchCount / keywords.length;
+          if (matchRatio > 0.3) {
+            signal = 'used';
+          }
         }
+
+        insertStmt.run(trace.id, signal, null, now);
+
+        const row = selectTraceStmt.get(trace.id);
+        if (row) {
+          const persistedTrace = this._buildTrace(row);
+          if (signal === 'used') {
+            const update = updateOnRetrieval(persistedTrace, now);
+            const metadata = JSON.stringify(
+              withPersistedDecayState(parseTraceMetadata(row.metadata), {
+                stability: update.stability,
+                accessCount: update.accessCount,
+                reinforcementInterval: update.reinforcementInterval,
+                nextReinforcementAt: update.nextReinforcementAt,
+              }),
+            );
+            usedUpdateStmt.run(
+              update.encodingStrength,
+              update.lastAccessedAt,
+              update.retrievalCount,
+              metadata,
+              trace.id,
+            );
+          } else {
+            const penalty = penalizeUnused(persistedTrace, now);
+            const existingDecay = readPersistedDecayState(
+              parseTraceMetadata(row.metadata),
+              row.retrieval_count,
+            );
+            const metadata = JSON.stringify(
+              withPersistedDecayState(parseTraceMetadata(row.metadata), {
+                stability: penalty.stability,
+                accessCount: existingDecay.accessCount,
+                reinforcementInterval: existingDecay.reinforcementInterval,
+                ...(existingDecay.nextReinforcementAt !== undefined
+                  ? { nextReinforcementAt: existingDecay.nextReinforcementAt }
+                  : {}),
+              }),
+            );
+            ignoredUpdateStmt.run(
+              penalty.encodingStrength,
+              penalty.lastAccessedAt,
+              metadata,
+              trace.id,
+            );
+          }
+        }
+
+        feedbacks.push({
+          traceId: trace.id,
+          signal,
+          timestamp: now,
+        });
       }
-
-      insertStmt.run(trace.id, signal, null, now);
-
-      feedbacks.push({
-        traceId: trace.id,
-        signal,
-        timestamp: now,
-      });
-    }
+    })();
 
     return feedbacks;
   }
@@ -241,5 +331,73 @@ export class RetrievalFeedbackSignal {
 
     // Return deduplicated list using a Set for uniqueness.
     return [...new Set(words)];
+  }
+
+  /**
+   * Convert a raw `memory_traces` row into a minimal `MemoryTrace` envelope
+   * suitable for reuse by the decay model.
+   */
+  private _buildTrace(row: TraceRow): MemoryTrace {
+    const metadata = parseTraceMetadata(row.metadata);
+    let tags: string[] = [];
+    let emotions: Record<string, unknown> = {};
+
+    try {
+      const parsed = JSON.parse(row.tags);
+      if (Array.isArray(parsed)) {
+        tags = parsed.filter((tag): tag is string => typeof tag === 'string');
+      }
+    } catch {
+      tags = [];
+    }
+
+    try {
+      emotions = JSON.parse(row.emotions) as Record<string, unknown>;
+    } catch {
+      emotions = {};
+    }
+
+    const scopeId = typeof metadata.scopeId === 'string' ? metadata.scopeId : '';
+    const entities = Array.isArray(metadata.entities)
+      ? metadata.entities.filter((entity): entity is string => typeof entity === 'string')
+      : [];
+    const decayState = readPersistedDecayState(metadata, row.retrieval_count);
+
+    return {
+      id: row.id,
+      type: row.type as MemoryTrace['type'],
+      scope: row.scope as MemoryTrace['scope'],
+      scopeId,
+      content: row.content,
+      entities,
+      tags,
+      provenance: {
+        sourceType: 'user_statement',
+        sourceTimestamp: row.created_at,
+        confidence: 1.0,
+        verificationCount: 0,
+      },
+      emotionalContext: {
+        valence: 0,
+        arousal: 0,
+        dominance: 0,
+        intensity: 0,
+        gmiMood: 'neutral',
+        ...emotions,
+      },
+      encodingStrength: row.strength,
+      stability: decayState.stability,
+      retrievalCount: row.retrieval_count,
+      lastAccessedAt: row.last_accessed ?? row.created_at,
+      accessCount: decayState.accessCount,
+      reinforcementInterval: decayState.reinforcementInterval,
+      ...(decayState.nextReinforcementAt !== undefined
+        ? { nextReinforcementAt: decayState.nextReinforcementAt }
+        : {}),
+      associatedTraceIds: [],
+      createdAt: row.created_at,
+      updatedAt: row.created_at,
+      isActive: row.deleted === 0,
+    };
   }
 }

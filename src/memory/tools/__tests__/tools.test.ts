@@ -164,6 +164,56 @@ describe('MemoryAddTool', () => {
     const unique = new Set(ids);
     expect(unique.size).toBe(3);
   });
+
+  it('stores content hash metadata and makes the trace searchable without an FTS rebuild', async () => {
+    const brain = openBrain();
+    const addTool = new MemoryAddTool(brain);
+    const searchTool = new MemorySearchTool(brain);
+
+    const result = await addTool.execute(
+      { content: 'Freshly added search-visible memory.' },
+      testContext,
+    );
+
+    const row = brain.db
+      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
+      .get(result.output!.traceId);
+
+    const metadata = JSON.parse(row!.metadata) as {
+      content_hash?: string;
+      decay?: { stability?: number };
+    };
+    expect(typeof metadata.content_hash).toBe('string');
+    expect(metadata.decay?.stability).toBeDefined();
+
+    const search = await searchTool.execute(
+      { query: 'search visible' },
+      testContext,
+    );
+    expect(search.success).toBe(true);
+    expect(search.output!.results.map((entry) => entry.id)).toContain(result.output!.traceId);
+  });
+});
+
+describe('MemorySearchTool', () => {
+  it('falls back to a natural-language-safe FTS query when punctuation would break raw MATCH syntax', async () => {
+    const brain = openBrain();
+    const addTool = new MemoryAddTool(brain);
+    const searchTool = new MemorySearchTool(brain);
+
+    await addTool.execute(
+      { content: 'Freshly added memory about command palettes.' },
+      testContext,
+    );
+
+    const result = await searchTool.execute(
+      { query: 'Can you find my command palette memory?' },
+      testContext,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output?.results.some((entry) => entry.content.includes('command palettes'))).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -199,13 +249,14 @@ describe('MemoryUpdateTool', () => {
 
     // Verify content changed and embedding was cleared.
     const row = brain.db
-      .prepare<[string], { content: string; embedding: Buffer | null }>(
-        'SELECT content, embedding FROM memory_traces WHERE id = ?',
+      .prepare<[string], { content: string; embedding: Buffer | null; metadata: string }>(
+        'SELECT content, embedding, metadata FROM memory_traces WHERE id = ?',
       )
       .get(traceId);
 
     expect(row!.content).toBe('Updated content after reflection.');
     expect(row!.embedding).toBeNull();
+    expect((JSON.parse(row!.metadata) as { content_hash?: string }).content_hash).toBeDefined();
   });
 
   it('updates tags without touching content', async () => {
@@ -266,6 +317,31 @@ describe('MemoryUpdateTool', () => {
 
     expect(result.success).toBe(true);
     expect(result.output?.updated).toBe(false);
+  });
+
+  it('keeps search results current after a content update without rebuilding FTS', async () => {
+    const brain = openBrain();
+    const addTool = new MemoryAddTool(brain);
+    const updateTool = new MemoryUpdateTool(brain);
+    const searchTool = new MemorySearchTool(brain);
+
+    const { output: added } = await addTool.execute(
+      { content: 'Original invisible-after-update phrase.' },
+      testContext,
+    );
+
+    await updateTool.execute(
+      { traceId: added!.traceId, content: 'Updated searchable phrase for FTS sync.' },
+      testContext,
+    );
+
+    const result = await searchTool.execute(
+      { query: 'searchable phrase' },
+      testContext,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output!.results.map((entry) => entry.id)).toContain(added!.traceId);
   });
 });
 
@@ -434,7 +510,7 @@ describe('MemoryMergeTool', () => {
 
     // Determine which trace survived (higher retrieval_count; both start at 0, so first wins).
     const survivor = brain.db
-      .prepare<[], { tags: string }>(
+      .prepare<[string, string], { tags: string }>(
         'SELECT tags FROM memory_traces WHERE deleted = 0 AND id IN (?, ?)',
       )
       .get(a!.traceId, b!.traceId);
@@ -445,6 +521,43 @@ describe('MemoryMergeTool', () => {
     expect(tags).toContain('shared');
     // Deduplicated — 'shared' appears only once.
     expect(tags.filter((t) => t === 'shared')).toHaveLength(1);
+  });
+
+  it('updates survivor metadata and FTS after merge', async () => {
+    const brain = openBrain();
+    const addTool = new MemoryAddTool(brain);
+    const mergeTool = new MemoryMergeTool(brain);
+    const searchTool = new MemorySearchTool(brain);
+
+    const { output: a } = await addTool.execute({ content: 'Merge left side' }, testContext);
+    const { output: b } = await addTool.execute({ content: 'Merge right side' }, testContext);
+
+    await mergeTool.execute(
+      {
+        traceIds: [a!.traceId, b!.traceId],
+        mergedContent: 'Unified merged memory content',
+      },
+      testContext,
+    );
+
+    const survivor = brain.db
+      .prepare<[string, string], { id: string; retrieval_count: number; metadata: string }>(
+        `SELECT id, retrieval_count, metadata
+         FROM memory_traces
+         WHERE deleted = 0 AND id IN (?, ?)`,
+      )
+      .get(a!.traceId, b!.traceId);
+
+    expect(survivor).toBeDefined();
+    expect(survivor!.retrieval_count).toBe(0);
+    expect((JSON.parse(survivor!.metadata) as { content_hash?: string }).content_hash).toBeDefined();
+
+    const result = await searchTool.execute(
+      { query: 'unified merged memory' },
+      testContext,
+    );
+    expect(result.success).toBe(true);
+    expect(result.output!.results.map((entry) => entry.id)).toContain(survivor!.id);
   });
 
   it('returns error when fewer than 2 trace IDs are provided', async () => {

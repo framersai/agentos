@@ -596,6 +596,8 @@ export class AgentOSOrchestrator {
     let longTermMemoryPolicy: ResolvedLongTermMemoryPolicy | null = null;
     let didForceTerminate = false;
     let lifecycleDegraded = false;
+    let keepStreamContextActive = false;
+    let streamedToolCallRequest = false;
 
     try {
       if (!selectedPersonaId) {
@@ -1061,6 +1063,13 @@ export class AgentOSOrchestrator {
             }
 
             const gmiChunk = value;
+            if (
+              gmiChunk.type === GMIOutputChunkType.TOOL_CALL_REQUEST &&
+              Array.isArray(gmiChunk.content) &&
+              gmiChunk.content.length > 0
+            ) {
+              streamedToolCallRequest = true;
+            }
             await this.transformAndPushGMIChunk(agentOSStreamId, streamContext, gmiChunk);
 
             // NOTE: Tool calls may be executed internally by the GMI/tool orchestrator. Do not stop
@@ -1100,6 +1109,32 @@ export class AgentOSOrchestrator {
           isFinal: true,
           responseText: gmi ? 'Processing complete.' : 'Processing ended.',
         };
+
+      if (
+        finalGMIStateForResponse.isFinal === false &&
+        Array.isArray(finalGMIStateForResponse.toolCalls) &&
+        finalGMIStateForResponse.toolCalls.length > 0
+      ) {
+        keepStreamContextActive = true;
+
+        if (!streamedToolCallRequest) {
+          await this.chunks.pushChunk(
+            agentOSStreamId,
+            AgentOSResponseChunkType.TOOL_CALL_REQUEST,
+            gmiInstanceIdForChunks,
+            currentPersonaId,
+            false,
+            {
+              toolCalls: finalGMIStateForResponse.toolCalls,
+              rationale:
+                finalGMIStateForResponse.responseText ||
+                'Agent requires tool execution before it can complete the turn.',
+            },
+          );
+        }
+
+        return;
+      }
 
       const normalizedUsage = normalizeUsage(finalGMIStateForResponse.usage);
       if (normalizedUsage) {
@@ -1296,9 +1331,16 @@ export class AgentOSOrchestrator {
       });
 
       // Stream is closed explicitly in the success/error paths; this finally block always
-      // clears internal state to avoid leaks.
-      this.activeStreamContexts.delete(agentOSStreamId);
-      console.log(`AgentOSOrchestrator: Finished processing for AgentOS Stream ${agentOSStreamId}. Context removed.`);
+      // clears internal state to avoid leaks, unless we are waiting for an external
+      // tool result to continue this same stream.
+      if (!keepStreamContextActive) {
+        this.activeStreamContexts.delete(agentOSStreamId);
+        console.log(`AgentOSOrchestrator: Finished processing for AgentOS Stream ${agentOSStreamId}. Context removed.`);
+      } else {
+        console.log(
+          `AgentOSOrchestrator: Stream ${agentOSStreamId} retained for external tool continuation.`,
+        );
+      }
     }
   }
 
@@ -1424,7 +1466,11 @@ export class AgentOSOrchestrator {
               },
             );
             // The orchestrator now waits for another external call to `orchestrateToolResult` for these new calls.
-          } else if (gmiOutputAfterTool.isFinal) {
+          } else if (
+            gmiOutputAfterTool.isFinal &&
+            gmiOutputAfterTool.toolCalls &&
+            gmiOutputAfterTool.toolCalls.length > 0
+          ) {
             if (this.config.enableConversationalPersistence && conversationContext) {
               try {
                 if (
