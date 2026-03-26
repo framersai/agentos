@@ -47,7 +47,7 @@ export class StateManager {
   /**
    * @param reducers - Field-level reducer configuration keyed by dot-notation paths
    *                   (e.g. `'scratch.messages'`).  Determines how conflicting values
-   *                   are merged during {@link updateScratch} and {@link mergeParallelBranches}.
+   *                   are merged during `updateScratch()` and `mergeParallelBranches()`.
    */
   constructor(private readonly reducers: StateReducers) {}
 
@@ -58,7 +58,7 @@ export class StateManager {
   /**
    * Create a clean initial {@link GraphState} from the caller-supplied `input` value.
    *
-   * The `input` partition is frozen with {@link Object.freeze} so that no node can
+   * The `input` partition is frozen with `Object.freeze()` so that no node can
    * accidentally mutate it.  All other partitions start empty.
    *
    * @param input - Arbitrary value provided by the graph caller; becomes `state.input`.
@@ -114,7 +114,7 @@ export class StateManager {
    *
    * Artifact fields are intended for caller-facing outputs and are not subject to
    * reducer logic in this method.  If you need reducer-aware artifact merging, use
-   * {@link mergeParallelBranches} instead.
+   * `mergeParallelBranches()` instead.
    *
    * @param state - Current graph state (not mutated).
    * @param patch - Partial artifacts update emitted by a completed node.
@@ -197,7 +197,7 @@ export class StateManager {
   private applyReducer(
     reducer: ReducerFn | BuiltinReducer,
     existing: unknown,
-    incoming: unknown,
+    incoming: unknown
   ): unknown {
     if (typeof reducer === 'function') {
       return reducer(existing, incoming);

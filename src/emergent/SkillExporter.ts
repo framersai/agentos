@@ -4,7 +4,7 @@
  *
  * Converts runtime-forged {@link EmergentTool} instances into the standard
  * SKILL.md + CAPABILITY.yaml format consumed by the agentos-skills-registry
- * and the {@link CapabilityManifestScanner}.
+ * and the discovery capability manifest scanner.
  *
  * This enables emergent tools that have proven their worth (agent-tier or
  * shared-tier) to be persisted as first-class skills, discoverable by the
@@ -41,9 +41,7 @@ import type { JSONSchemaObject } from '../core/tools/ITool.js';
  * ```
  */
 function titleCase(name: string): string {
-  return name
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return name.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -98,9 +96,7 @@ function buildParameterTable(schema: JSONSchemaObject): string {
     return '';
   }
 
-  const required = new Set<string>(
-    Array.isArray(schema.required) ? schema.required : [],
-  );
+  const required = new Set<string>(Array.isArray(schema.required) ? schema.required : []);
 
   const rows: string[] = [];
   rows.push('| Parameter | Type | Required | Description |');
@@ -197,19 +193,19 @@ export function exportToolAsSkill(tool: EmergentTool): string {
     const steps = (tool.implementation as ComposableToolSpec).steps;
     sections.push(
       `This tool is a composable pipeline of ${steps.length} step(s) that chains ` +
-      `the following tools in sequence: ${steps.map((s) => `\`${s.tool}\``).join(' -> ')}.`,
+        `the following tools in sequence: ${steps.map((s) => `\`${s.tool}\``).join(' -> ')}.`
     );
   } else {
     // Sandbox tools — explain without exposing code
     const sandbox = tool.implementation as SandboxedToolSpec;
     sections.push(
       'This tool executes sandboxed code with the following API allowlist: ' +
-      `${sandbox.allowlist.map((a) => `\`${a}\``).join(', ')}.`,
+        `${sandbox.allowlist.map((a) => `\`${a}\``).join(', ')}.`
     );
     sections.push('');
     sections.push(
       '> **Note:** Sandbox source code is redacted in the skill export for security. ' +
-      'The tool must be re-forged or the original sandbox source must be provided separately.',
+        'The tool must be re-forged or the original sandbox source must be provided separately.'
     );
   }
   sections.push('');
@@ -246,7 +242,9 @@ export function exportToolAsSkill(tool: EmergentTool): string {
       }
       const mappingEntries = Object.entries(step.inputMapping);
       if (mappingEntries.length > 0) {
-        sections.push(`   - Input mapping: ${mappingEntries.map(([k, v]) => `\`${k}\` = \`${String(v)}\``).join(', ')}`);
+        sections.push(
+          `   - Input mapping: ${mappingEntries.map(([k, v]) => `\`${k}\` = \`${String(v)}\``).join(', ')}`
+        );
       }
     }
     sections.push('');
@@ -259,9 +257,11 @@ export function exportToolAsSkill(tool: EmergentTool): string {
   sections.push(`- **Tier:** ${tool.tier}`);
   sections.push(`- **Total uses:** ${tool.usageStats.totalUses}`);
   sections.push(
-    `- **Success rate:** ${tool.usageStats.totalUses > 0
-      ? ((tool.usageStats.successCount / tool.usageStats.totalUses) * 100).toFixed(1)
-      : '0.0'}%`,
+    `- **Success rate:** ${
+      tool.usageStats.totalUses > 0
+        ? ((tool.usageStats.successCount / tool.usageStats.totalUses) * 100).toFixed(1)
+        : '0.0'
+    }%`
   );
   sections.push(`- **Confidence:** ${tool.usageStats.confidenceScore.toFixed(2)}`);
   sections.push('');
@@ -276,7 +276,7 @@ export function exportToolAsSkill(tool: EmergentTool): string {
 /**
  * Builds a CAPABILITY.yaml content string for an emergent tool.
  *
- * The format matches the schema expected by {@link CapabilityManifestScanner}:
+ * The format matches the schema expected by the capability manifest scanner:
  * ```yaml
  * id: tool:<name>
  * kind: tool
@@ -337,10 +337,7 @@ export function buildCapabilityYaml(tool: EmergentTool): string {
  * // => "/home/user/.wunderland/capabilities/my-tool/SKILL.md"
  * ```
  */
-export async function writeSkillFile(
-  tool: EmergentTool,
-  outputDir: string,
-): Promise<string> {
+export async function writeSkillFile(tool: EmergentTool, outputDir: string): Promise<string> {
   const skillDir = path.join(outputDir, tool.name);
   await fs.mkdir(skillDir, { recursive: true });
 
@@ -356,7 +353,7 @@ export async function writeSkillFile(
  *
  * Creates a directory named after the tool under `outputDir`, containing both
  * files. This directory structure is compatible with the
- * {@link CapabilityManifestScanner} and can be placed in any scan directory
+ * capability manifest scanner and can be placed in any scan directory
  * (`~/.wunderland/capabilities/`, `./.wunderland/capabilities/`, etc.) for
  * automatic discovery.
  *
@@ -378,7 +375,7 @@ export async function writeSkillFile(
  */
 export async function exportToolAsSkillPack(
   tool: EmergentTool,
-  outputDir: string,
+  outputDir: string
 ): Promise<{ skillPath: string; capabilityPath: string }> {
   const skillDir = path.join(outputDir, tool.name);
   await fs.mkdir(skillDir, { recursive: true });

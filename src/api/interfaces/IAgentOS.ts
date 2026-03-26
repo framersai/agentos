@@ -10,6 +10,11 @@
 
 import { AgentOSInput, UserFeedbackPayload } from '../types/AgentOSInput';
 import { AgentOSResponse } from '../types/AgentOSResponse';
+import type {
+  AgentOSPendingExternalToolRequest,
+  AgentOSResumeExternalToolRequestOptions,
+} from '../types/AgentOSExternalToolRequest';
+import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
 import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 import type { AgentOSConfig, AgentOSRuntimeSnapshot } from '../AgentOS';
@@ -19,12 +24,16 @@ import type {
   WorkflowProgressUpdate,
   WorkflowStatus,
 } from '../../core/workflows/WorkflowTypes';
-import type { WorkflowQueryOptions, WorkflowTaskUpdate } from '../../core/workflows/storage/IWorkflowStore';
+import type {
+  WorkflowQueryOptions,
+  WorkflowTaskUpdate,
+} from '../../core/workflows/storage/IWorkflowStore';
 import type { ConversationManager } from '../../core/conversation/ConversationManager';
 import type { GMIManager } from '../../cognitive_substrate/GMIManager';
 import type { ExtensionManager } from '../../extensions';
-import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
+import type { IToolOrchestrator, ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
+import type { ExternalToolRegistry } from '../externalToolRegistry';
 
 /**
  * @interface IAgentOS
@@ -70,7 +79,21 @@ export interface IAgentOS {
     toolName: string,
     toolOutput: any,
     isSuccess: boolean,
-    errorMessage?: string,
+    errorMessage?: string
+  ): AsyncGenerator<AgentOSResponse, void, undefined>;
+
+  /**
+   * Handles a batch of externally executed tool results that belong to the same
+   * paused stream and continues the agent interaction once.
+   * @param {string} streamId - The original stream ID associated with the paused request.
+   * @param {AgentOSToolResultInput[]} toolResults - Ordered tool results to apply to the paused turn.
+   * @returns {AsyncGenerator<AgentOSResponse, void, undefined>} An async generator that yields
+   * response chunks after processing the tool results.
+   * @throws {Error} If the `streamId` is invalid or the tool result batch is empty.
+   */
+  handleToolResults?(
+    streamId: string,
+    toolResults: AgentOSToolResultInput[]
   ): AsyncGenerator<AgentOSResponse, void, undefined>;
 
   /**
@@ -96,7 +119,7 @@ export interface IAgentOS {
       context?: Record<string, unknown>;
       roleAssignments?: Record<string, string>;
       metadata?: Record<string, unknown>;
-    },
+    }
   ): Promise<WorkflowInstance>;
 
   /**
@@ -119,7 +142,10 @@ export interface IAgentOS {
    * @param {string} [sinceTimestamp] - Optional timestamp to get events since.
    * @returns {Promise<WorkflowProgressUpdate | null>} Progress details or null if not found.
    */
-  getWorkflowProgress(workflowId: string, sinceTimestamp?: string): Promise<WorkflowProgressUpdate | null>;
+  getWorkflowProgress(
+    workflowId: string,
+    sinceTimestamp?: string
+  ): Promise<WorkflowProgressUpdate | null>;
 
   /**
    * Updates the high-level workflow status (e.g., cancel, complete).
@@ -127,7 +153,10 @@ export interface IAgentOS {
    * @param {WorkflowStatus} status - The new status to set.
    * @returns {Promise<WorkflowInstance | null>} Updated workflow instance or null if not found.
    */
-  updateWorkflowStatus(workflowId: string, status: WorkflowStatus): Promise<WorkflowInstance | null>;
+  updateWorkflowStatus(
+    workflowId: string,
+    status: WorkflowStatus
+  ): Promise<WorkflowInstance | null>;
 
   /**
    * Applies task-level updates to a workflow instance.
@@ -135,7 +164,10 @@ export interface IAgentOS {
    * @param {WorkflowTaskUpdate[]} updates - Array of task updates to apply.
    * @returns {Promise<WorkflowInstance | null>} Updated workflow instance or null if not found.
    */
-  applyWorkflowTaskUpdates(workflowId: string, updates: WorkflowTaskUpdate[]): Promise<WorkflowInstance | null>;
+  applyWorkflowTaskUpdates(
+    workflowId: string,
+    updates: WorkflowTaskUpdate[]
+  ): Promise<WorkflowInstance | null>;
 
   /**
    * Retrieves a list of all available persona definitions (agents) configured in the system.
@@ -152,7 +184,32 @@ export interface IAgentOS {
    * @returns {Promise<ConversationContext | null>} The conversation context or null.
    * @throws {Error} If AgentOS is not initialized or if a database error occurs.
    */
-  getConversationHistory(conversationId: string, userId: string): Promise<ConversationContext | null>;
+  getConversationHistory(
+    conversationId: string,
+    userId: string
+  ): Promise<ConversationContext | null>;
+
+  /**
+   * Returns the pending external-tool pause snapshot for a conversation, if one
+   * was persisted during an actionable TOOL_CALL_REQUEST pause.
+   */
+  getPendingExternalToolRequest(
+    conversationId: string,
+    userId: string
+  ): Promise<AgentOSPendingExternalToolRequest | null>;
+
+  /**
+   * Resumes a previously persisted external-tool pause after restart using the
+   * saved pause snapshot and the host-provided tool results.
+   *
+   * Hosts can re-assert runtime-only organization context through `options`
+   * when the resumed turn needs organization-scoped memory or tenant routing.
+   */
+  resumeExternalToolRequest(
+    pendingRequest: AgentOSPendingExternalToolRequest,
+    toolResults: AgentOSToolResultInput[],
+    options?: AgentOSResumeExternalToolRequestOptions
+  ): AsyncGenerator<AgentOSResponse, void, undefined>;
 
   /**
    * Returns a serializable runtime/devtools snapshot of the initialized AgentOS instance.
@@ -166,6 +223,8 @@ export interface IAgentOS {
   getGMIManager(): GMIManager;
   getExtensionManager(): ExtensionManager;
   getToolOrchestrator(): IToolOrchestrator;
+  getExternalToolRegistry(): ExternalToolRegistry | undefined;
+  listExternalToolsForLLM(): ToolDefinitionForLLM[];
   getModelProviderManager(): AIModelProviderManager;
 
   /**
@@ -177,7 +236,12 @@ export interface IAgentOS {
    * @returns {Promise<void>} A promise that resolves when feedback is accepted.
    * @throws {Error} If AgentOS is not initialized or if feedback processing fails.
    */
-  receiveFeedback(userId: string, sessionId: string, personaId: string, feedbackPayload: UserFeedbackPayload): Promise<void>;
+  receiveFeedback(
+    userId: string,
+    sessionId: string,
+    personaId: string,
+    feedbackPayload: UserFeedbackPayload
+  ): Promise<void>;
 
   /**
    * Gracefully shuts down the AgentOS system and all its sub-components.

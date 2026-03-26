@@ -23,14 +23,12 @@ import { ObjectGenerationError } from './generateObject.js';
 
 /**
  * Recursively makes every property in `T` optional, including nested objects.
- * Used to type the partial objects yielded by {@link StreamObjectResult.partialObjectStream}
+ * Used to type the partial objects yielded by `StreamObjectResult.partialObjectStream`
  * as the LLM incrementally builds the JSON response.
  *
  * @typeParam T - The source type to make deeply partial.
  */
-export type DeepPartial<T> = T extends object
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : T;
+export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 /**
  * Options for a {@link streamObject} call.
@@ -170,7 +168,7 @@ function buildSchemaSystemPrompt(
   userSystem: string | undefined,
   jsonSchema: Record<string, unknown>,
   schemaName?: string,
-  schemaDescription?: string,
+  schemaDescription?: string
 ): string {
   const parts: string[] = [];
 
@@ -179,7 +177,9 @@ function buildSchemaSystemPrompt(
     parts.push('');
   }
 
-  parts.push('You MUST respond with ONLY a valid JSON object — no markdown, no code fences, no explanation.');
+  parts.push(
+    'You MUST respond with ONLY a valid JSON object — no markdown, no code fences, no explanation.'
+  );
 
   if (schemaName) {
     parts.push(`The JSON object should be a "${schemaName}".`);
@@ -342,7 +342,7 @@ function extractJson(text: string): unknown {
  * @see {@link streamText} for plain text streaming.
  */
 export function streamObject<T extends ZodType>(
-  opts: StreamObjectOptions<T>,
+  opts: StreamObjectOptions<T>
 ): StreamObjectResult<z.infer<T>> {
   // Deferred promise resolvers — settled when the stream completes
   let resolveObject: (v: z.infer<T>) => void;
@@ -354,8 +354,12 @@ export function streamObject<T extends ZodType>(
     resolveObject = res;
     rejectObject = rej;
   });
-  const textPromise = new Promise<string>((res) => { resolveText = res; });
-  const usagePromise = new Promise<TokenUsage>((res) => { resolveUsage = res; });
+  const textPromise = new Promise<string>((res) => {
+    resolveText = res;
+  });
+  const usagePromise = new Promise<TokenUsage>((res) => {
+    resolveUsage = res;
+  });
 
   // Convert the Zod schema to JSON Schema for the system prompt
   const jsonSchema = lowerZodToJsonSchema(opts.schema);
@@ -364,7 +368,7 @@ export function streamObject<T extends ZodType>(
     opts.system,
     jsonSchema,
     opts.schemaName,
-    opts.schemaDescription,
+    opts.schemaDescription
   );
 
   /**
@@ -417,7 +421,7 @@ export function streamObject<T extends ZodType>(
       } catch (parseErr) {
         const err = new ObjectGenerationError(
           `Failed to parse streamed JSON: ${(parseErr as Error).message}`,
-          finalText,
+          finalText
         );
         rejectObject!(err);
         return;
@@ -434,8 +438,8 @@ export function streamObject<T extends ZodType>(
           new ObjectGenerationError(
             `Streamed JSON does not match schema: ${validation.error.message}`,
             finalText,
-            validation.error,
-          ),
+            validation.error
+          )
         );
       }
     } catch (err) {
@@ -443,12 +447,7 @@ export function streamObject<T extends ZodType>(
       const error = err instanceof Error ? err : new Error(String(err));
       resolveText!(buffer);
       resolveUsage!({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
-      rejectObject!(
-        new ObjectGenerationError(
-          `Stream interrupted: ${error.message}`,
-          buffer,
-        ),
-      );
+      rejectObject!(new ObjectGenerationError(`Stream interrupted: ${error.message}`, buffer));
     }
   }
 

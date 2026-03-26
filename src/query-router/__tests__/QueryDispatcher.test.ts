@@ -5,6 +5,8 @@
  * All retrieval dependencies are vi.fn() mocks injected via QueryDispatcherDeps.
  */
 
+import { describe, expect, it, vi } from 'vitest';
+
 import type {
   RetrievedChunk,
   QueryRouterEventUnion,
@@ -103,9 +105,9 @@ describe('QueryDispatcher', () => {
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
 
     // Should emit retrieve:start and retrieve:vector and retrieve:complete events
-    const emittedTypes = (deps.emit as ReturnType<typeof vi.fn>).mock.calls.map(
-      (call: [QueryRouterEventUnion]) => call[0].type,
-    );
+    const emitCalls = (deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>;
+    const emittedTypes = emitCalls.map(([event]) => event.type);
     expect(emittedTypes).toContain('retrieve:start');
     expect(emittedTypes).toContain('retrieve:vector');
     expect(emittedTypes).toContain('retrieve:complete');
@@ -153,9 +155,9 @@ describe('QueryDispatcher', () => {
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
 
     // Events emitted
-    const emittedTypes = (deps.emit as ReturnType<typeof vi.fn>).mock.calls.map(
-      (call: [QueryRouterEventUnion]) => call[0].type,
-    );
+    const emitCalls = (deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>;
+    const emittedTypes = emitCalls.map(([event]) => event.type);
     expect(emittedTypes).toContain('retrieve:start');
     expect(emittedTypes).toContain('retrieve:vector');
     expect(emittedTypes).toContain('retrieve:graph');
@@ -202,11 +204,21 @@ describe('QueryDispatcher', () => {
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
 
     // Events emitted — should include research events
-    const emittedTypes = (deps.emit as ReturnType<typeof vi.fn>).mock.calls.map(
-      (call: [QueryRouterEventUnion]) => call[0].type,
-    );
+    const emitCalls = (deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>;
+    const emittedTypes = emitCalls.map(([event]) => event.type);
     expect(emittedTypes).toContain('research:start');
+    expect(emittedTypes).toContain('research:phase');
     expect(emittedTypes).toContain('research:complete');
+    expect(emittedTypes).toContain('retrieve:complete');
+
+    const retrieveCompleteEvents = emitCalls
+      .map(([event]) => event)
+      .filter((event): event is Extract<QueryRouterEventUnion, { type: 'retrieve:complete' }> =>
+        event.type === 'retrieve:complete',
+      );
+    expect(retrieveCompleteEvents).toHaveLength(1);
+    expect(retrieveCompleteEvents.at(-1)?.result.researchSynthesis).toBe('Deep research synthesis.');
   });
 
   // -----------------------------------------------------------------------
@@ -240,8 +252,9 @@ describe('QueryDispatcher', () => {
     expect(result.chunks.length).toBeGreaterThan(0);
 
     // Fallback event emitted
-    const fallbackEvents = (deps.emit as ReturnType<typeof vi.fn>).mock.calls
-      .map((call: [QueryRouterEventUnion]) => call[0])
+    const fallbackEvents = ((deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>)
+      .map(([event]) => event)
       .filter((e: QueryRouterEventUnion) => e.type === 'retrieve:fallback');
     expect(fallbackEvents.length).toBeGreaterThanOrEqual(1);
     expect(fallbackEvents[0]).toMatchObject({
@@ -280,8 +293,9 @@ describe('QueryDispatcher', () => {
     expect(result.chunks.length).toBeGreaterThan(0);
 
     // Fallback event emitted
-    const fallbackEvents = (deps.emit as ReturnType<typeof vi.fn>).mock.calls
-      .map((call: [QueryRouterEventUnion]) => call[0])
+    const fallbackEvents = ((deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>)
+      .map(([event]) => event)
       .filter((e: QueryRouterEventUnion) => e.type === 'retrieve:fallback');
     expect(fallbackEvents.length).toBeGreaterThanOrEqual(1);
     const researchFallback = fallbackEvents.find(

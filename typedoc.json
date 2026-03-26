@@ -1,17 +1,10 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": [
-    "src/index.ts"
-  ],
+  "entryPoints": ["src/index.ts"],
   "out": "docs/api",
   "json": "../../docs-generated/library/public/docs.json",
   "tsconfig": "tsconfig.build.json",
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "**/__tests__/**",
-    "**/tests/**"
-  ],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "**/__tests__/**", "**/tests/**"],
   "skipErrorChecking": true,
   "cleanOutputDir": true,
   "name": "@framers/agentos",
@@ -22,18 +15,8 @@
   "excludeInternal": true,
   "excludeExternals": true,
   "categorizeByGroup": true,
-  "categoryOrder": [
-    "*",
-    "Other"
-  ],
-  "groupOrder": [
-    "Classes",
-    "Interfaces",
-    "Functions",
-    "Types",
-    "Variables",
-    "Enums"
-  ],
+  "categoryOrder": ["*", "Other"],
+  "groupOrder": ["Classes", "Interfaces", "Functions", "Types", "Variables", "Enums"],
   "navigation": {
     "includeCategories": true,
     "includeGroups": true
@@ -63,10 +46,20 @@
   "theme": "default",
   "lightHighlightTheme": "github-light",
   "darkHighlightTheme": "github-dark",
-  "sort": [
-    "source-order",
-    "alphabetical"
+  "highlightLanguages": [
+    "bash",
+    "js",
+    "json",
+    "mermaid",
+    "python",
+    "sh",
+    "sql",
+    "ts",
+    "typescript",
+    "xml",
+    "yaml"
   ],
+  "sort": ["source-order", "alphabetical"],
   "kindSortOrder": [
     "Reference",
     "Project",

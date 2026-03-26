@@ -69,7 +69,11 @@ export {
   computeInterference,
   findPrunableTraces,
 } from './decay/DecayModel.js';
-export type { RetrievalUpdateResult, InterferenceResult, InterferenceVictim } from './decay/DecayModel.js';
+export type {
+  RetrievalUpdateResult,
+  InterferenceResult,
+  InterferenceVictim,
+} from './decay/DecayModel.js';
 export {
   scoreAndRankTraces,
   detectPartiallyRetrieved,
@@ -77,7 +81,11 @@ export {
   computeEmotionalCongruence,
   DEFAULT_SCORING_WEIGHTS,
 } from './decay/RetrievalPriorityScorer.js';
-export type { ScoringWeights, ScoringContext, CandidateTrace } from './decay/RetrievalPriorityScorer.js';
+export type {
+  ScoringWeights,
+  ScoringContext,
+  CandidateTrace,
+} from './decay/RetrievalPriorityScorer.js';
 
 // --- Working Memory ---
 export { CognitiveWorkingMemory } from './working/CognitiveWorkingMemory.js';
@@ -108,12 +116,8 @@ export {
   createMemoryToolDescriptors,
   createMemoryToolsPack,
 } from './extension/MemoryToolsExtension.js';
-export type {
-  MemoryToolsExtensionOptions,
-} from './extension/MemoryToolsExtension.js';
-export type {
-  StandaloneMemoryDescriptorOptions,
-} from './extension/StandaloneMemoryExtension.js';
+export type { MemoryToolsExtensionOptions } from './extension/MemoryToolsExtension.js';
+export type { StandaloneMemoryDescriptorOptions } from './extension/StandaloneMemoryExtension.js';
 
 // --- Standalone Memory Bridges ---
 export {
@@ -151,7 +155,10 @@ export type { MemoryReflectionResult } from './observation/MemoryReflector.js';
 
 // --- Observation Compression & Reflection (Mastra-style agentic compression) ---
 export { ObservationCompressor } from './observation/ObservationCompressor.js';
-export type { CompressedObservation, CompressionPriority } from './observation/ObservationCompressor.js';
+export type {
+  CompressedObservation,
+  CompressionPriority,
+} from './observation/ObservationCompressor.js';
 export { ObservationReflector } from './observation/ObservationReflector.js';
 export type { Reflection, ReflectionPatternType } from './observation/ObservationReflector.js';
 
@@ -161,15 +168,24 @@ export type { TemporalMetadata } from './observation/temporal.js';
 
 // --- Prospective Memory (Batch 2) ---
 export { ProspectiveMemoryManager } from './prospective/ProspectiveMemoryManager.js';
-export type { ProspectiveMemoryItem, ProspectiveTriggerType } from './prospective/ProspectiveMemoryManager.js';
+export type {
+  ProspectiveMemoryItem,
+  ProspectiveTriggerType,
+} from './prospective/ProspectiveMemoryManager.js';
 
 // --- Consolidation Pipeline (Batch 2) ---
 export { ConsolidationPipeline } from './consolidation/ConsolidationPipeline.js';
-export type { ConsolidationResult, ConsolidationPipelineConfig } from './consolidation/ConsolidationPipeline.js';
+export type {
+  ConsolidationResult,
+  ConsolidationPipelineConfig,
+} from './consolidation/ConsolidationPipeline.js';
 
 // --- Infinite Context Window (Batch 3) ---
 export { ContextWindowManager } from './context/ContextWindowManager.js';
-export type { ContextWindowManagerConfig, ContextWindowStats } from './context/ContextWindowManager.js';
+export type {
+  ContextWindowManagerConfig,
+  ContextWindowStats,
+} from './context/ContextWindowManager.js';
 export { CompactionEngine } from './context/CompactionEngine.js';
 export { CompactionLog } from './context/CompactionLog.js';
 export type { CompactionLogStats } from './context/CompactionLog.js';
@@ -199,6 +215,8 @@ export { ReadWorkingMemoryTool } from './working/ReadWorkingMemoryTool.js';
 // --- Memory Facade (Phase 1: Ingestion + Self-Improving Graph) ---
 export { Memory } from './facade/index.js';
 export type { ScoredTrace } from './facade/index.js';
+export { createOcrPdfLoader } from './ingestion/OcrPdfLoader.js';
+export { createDoclingLoader } from './ingestion/DoclingLoader.js';
 // Note: ConsolidationResult from the facade is aliased to MemoryConsolidationResult
 // to avoid collision with the existing ConsolidationResult from ConsolidationPipeline.
 export type {

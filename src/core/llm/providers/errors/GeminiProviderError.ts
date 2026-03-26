@@ -6,7 +6,7 @@
  * such as HTTP status codes and Gemini API error details.
  *
  * @module backend/agentos/core/llm/providers/errors/GeminiProviderError
- * @see {@link ./ProviderError.ts}
+ * @see {@link ProviderError}
  */
 
 import { ProviderError } from './ProviderError';
@@ -51,7 +51,7 @@ export class GeminiProviderError extends ProviderError {
     code: string,
     httpStatus?: number,
     geminiErrorStatus?: string,
-    details?: unknown,
+    details?: unknown
   ) {
     super(message, code, 'gemini', details);
     this.name = 'GeminiProviderError';

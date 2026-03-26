@@ -6,7 +6,7 @@
  * Anthropic-specific error types.
  *
  * @module backend/agentos/core/llm/providers/errors/AnthropicProviderError
- * @see {@link ./ProviderError.ts}
+ * @see {@link ProviderError}
  */
 
 import { ProviderError } from './ProviderError';
@@ -47,7 +47,7 @@ export class AnthropicProviderError extends ProviderError {
     code: string,
     httpStatus?: number,
     anthropicErrorType?: string,
-    details?: unknown,
+    details?: unknown
   ) {
     super(message, code, 'anthropic', details);
     this.name = 'AnthropicProviderError';

@@ -13,9 +13,7 @@
  * - **Replicate** — Model-specific (img2img with low strength).
  */
 import { createImageProvider } from '../core/images/index.js';
-import {
-  ImageVariationNotSupportedError,
-} from '../core/images/ImageOperationError.js';
+import { ImageVariationNotSupportedError } from '../core/images/ImageOperationError.js';
 import { imageToBuffer } from '../core/images/imageToBuffer.js';
 import type {
   GeneratedImage,
@@ -109,7 +107,7 @@ export interface VariateImageResult {
 /**
  * Generates visual variations of a source image using a provider-agnostic interface.
  *
- * Resolves credentials via {@link resolveMediaProvider}, initialises the
+ * Resolves credentials via `resolveMediaProvider()`, initialises the
  * matching image provider, converts the input image to a `Buffer`, and
  * dispatches to the provider's `variateImage` method.
  *
@@ -141,74 +139,71 @@ export async function variateImage(opts: VariateImageOptions): Promise<VariateIm
   let metricModelId: string | undefined;
 
   try {
-    return await withAgentOSSpan(
-      'agentos.api.variate_image',
-      async (span) => {
-        const { providerId, modelId } = resolveModelOption(opts, 'image');
-        const resolved = resolveMediaProvider(providerId, modelId, {
-          apiKey: opts.apiKey,
-          baseUrl: opts.baseUrl,
+    return await withAgentOSSpan('agentos.api.variate_image', async (span) => {
+      const { providerId, modelId } = resolveModelOption(opts, 'image');
+      const resolved = resolveMediaProvider(providerId, modelId, {
+        apiKey: opts.apiKey,
+        baseUrl: opts.baseUrl,
+      });
+      metricProviderId = resolved.providerId;
+      metricModelId = resolved.modelId;
+
+      span?.setAttribute('llm.provider', resolved.providerId);
+      span?.setAttribute('llm.model', resolved.modelId);
+      span?.setAttribute('agentos.api.variance', opts.variance ?? 0.5);
+
+      const provider = createImageProvider(resolved.providerId);
+      await provider.initialize({
+        apiKey: resolved.apiKey,
+        baseURL: resolved.baseUrl,
+        defaultModelId: resolved.modelId,
+      });
+
+      const imageBuffer = await imageToBuffer(opts.image);
+
+      let result: ImageGenerationResult;
+
+      if (typeof provider.variateImage === 'function') {
+        // Native variation support (e.g. OpenAI /v1/images/variations).
+        result = await provider.variateImage({
+          modelId: resolved.modelId,
+          image: imageBuffer,
+          n: opts.n,
+          variance: opts.variance,
+          size: opts.size,
+          providerOptions: opts.providerOptions,
         });
-        metricProviderId = resolved.providerId;
-        metricModelId = resolved.modelId;
-
-        span?.setAttribute('llm.provider', resolved.providerId);
-        span?.setAttribute('llm.model', resolved.modelId);
-        span?.setAttribute('agentos.api.variance', opts.variance ?? 0.5);
-
-        const provider = createImageProvider(resolved.providerId);
-        await provider.initialize({
-          apiKey: resolved.apiKey,
-          baseURL: resolved.baseUrl,
-          defaultModelId: resolved.modelId,
+      } else if (typeof provider.editImage === 'function') {
+        // Fallback: use img2img with low strength to produce "variations".
+        // The variance parameter maps to edit strength — lower variance means
+        // the output stays closer to the original.
+        result = await provider.editImage({
+          modelId: resolved.modelId,
+          image: imageBuffer,
+          prompt: 'Create a variation of this image.',
+          mode: 'img2img',
+          strength: opts.variance ?? 0.5,
+          n: opts.n,
+          size: opts.size,
+          providerOptions: opts.providerOptions,
         });
+      } else {
+        throw new ImageVariationNotSupportedError(resolved.providerId);
+      }
 
-        const imageBuffer = await imageToBuffer(opts.image);
+      metricUsage = result.usage;
+      span?.setAttribute('agentos.api.images_count', result.images.length);
+      attachUsageAttributes(span, {
+        totalCostUSD: result.usage?.totalCostUSD,
+      });
 
-        let result: ImageGenerationResult;
-
-        if (typeof provider.variateImage === 'function') {
-          // Native variation support (e.g. OpenAI /v1/images/variations).
-          result = await provider.variateImage({
-            modelId: resolved.modelId,
-            image: imageBuffer,
-            n: opts.n,
-            variance: opts.variance,
-            size: opts.size,
-            providerOptions: opts.providerOptions,
-          });
-        } else if (typeof provider.editImage === 'function') {
-          // Fallback: use img2img with low strength to produce "variations".
-          // The variance parameter maps to edit strength — lower variance means
-          // the output stays closer to the original.
-          result = await provider.editImage({
-            modelId: resolved.modelId,
-            image: imageBuffer,
-            prompt: 'Create a variation of this image.',
-            mode: 'img2img',
-            strength: opts.variance ?? 0.5,
-            n: opts.n,
-            size: opts.size,
-            providerOptions: opts.providerOptions,
-          });
-        } else {
-          throw new ImageVariationNotSupportedError(resolved.providerId);
-        }
-
-        metricUsage = result.usage;
-        span?.setAttribute('agentos.api.images_count', result.images.length);
-        attachUsageAttributes(span, {
-          totalCostUSD: result.usage?.totalCostUSD,
-        });
-
-        return {
-          images: result.images,
-          provider: result.providerId,
-          model: result.modelId,
-          usage: { costUSD: result.usage?.totalCostUSD },
-        };
-      },
-    );
+      return {
+        images: result.images,
+        provider: result.providerId,
+        model: result.modelId,
+        usage: { costUSD: result.usage?.totalCostUSD },
+      };
+    });
   } catch (error) {
     metricStatus = 'error';
     throw error;
@@ -217,9 +212,11 @@ export async function variateImage(opts: VariateImageOptions): Promise<VariateIm
       await recordAgentOSUsage({
         providerId: metricProviderId,
         modelId: metricModelId,
-        usage: metricUsage ? {
-          costUSD: metricUsage.totalCostUSD,
-        } : undefined,
+        usage: metricUsage
+          ? {
+              costUSD: metricUsage.totalCostUSD,
+            }
+          : undefined,
         options: {
           ...opts.usageLedger,
           source: opts.usageLedger?.source ?? 'variateImage',
@@ -231,9 +228,13 @@ export async function variateImage(opts: VariateImageOptions): Promise<VariateIm
     recordAgentOSTurnMetrics({
       durationMs: Date.now() - startedAt,
       status: metricStatus,
-      usage: toTurnMetricUsage(metricUsage ? {
-        totalCostUSD: metricUsage.totalCostUSD,
-      } : undefined),
+      usage: toTurnMetricUsage(
+        metricUsage
+          ? {
+              totalCostUSD: metricUsage.totalCostUSD,
+            }
+          : undefined
+      ),
     });
   }
 }

@@ -11,7 +11,7 @@
  * - **Sandbox**: runs agent-written code via {@link SandboxedToolForge} (judge-gated).
  *
  * After registration the engine tracks usage and auto-promotes tools that
- * meet the configured {@link EmergentConfig.promotionThreshold} criteria.
+ * meet the configured `EmergentConfig.promotionThreshold` criteria.
  */
 
 import type {
@@ -23,11 +23,7 @@ import type {
   ToolUsageStats,
 } from './types.js';
 import type { ToolCandidate } from './EmergentJudge.js';
-import type {
-  ITool,
-  ToolExecutionContext,
-  ToolExecutionResult,
-} from '../core/tools/ITool.js';
+import type { ITool, ToolExecutionContext, ToolExecutionResult } from '../core/tools/ITool.js';
 import { ComposableToolBuilder } from './ComposableToolBuilder.js';
 import { SandboxedToolForge } from './SandboxedToolForge.js';
 import { EmergentJudge } from './EmergentJudge.js';
@@ -75,8 +71,8 @@ export interface EmergentCapabilityEngineDeps {
 
 /**
  * Internal index mapping session IDs and agent IDs to their associated
- * emergent tool IDs, enabling fast lookup for {@link getSessionTools},
- * {@link getAgentTools}, and {@link cleanupSession}.
+ * emergent tool IDs, enabling fast lookup for `getSessionTools()`,
+ * `getAgentTools()`, and `cleanupSession()`.
  */
 interface ToolIndex {
   /** Session ID → set of tool IDs created in that session. */
@@ -172,7 +168,7 @@ export class EmergentCapabilityEngine {
    */
   async forge(
     request: ForgeToolRequest,
-    context: { agentId: string; sessionId: string },
+    context: { agentId: string; sessionId: string }
   ): Promise<ForgeResult> {
     // Guard: engine must be enabled.
     if (!this.config.enabled) {
@@ -195,7 +191,7 @@ export class EmergentCapabilityEngine {
         request.name,
         request.description,
         request.inputSchema,
-        request.implementation,
+        request.implementation
       );
 
       // Run every declared test case.
@@ -210,7 +206,7 @@ export class EmergentCapabilityEngine {
         try {
           const result = await composedTool.execute(
             tc.input as Record<string, unknown>,
-            mockContext,
+            mockContext
           );
           testResults.push({
             input: tc.input,
@@ -243,7 +239,7 @@ export class EmergentCapabilityEngine {
       // Step 2a: Static code validation before any execution.
       const validation = this.sandboxForge.validateCode(
         request.implementation.code,
-        request.implementation.allowlist,
+        request.implementation.allowlist
       );
 
       if (!validation.valid) {
@@ -281,9 +277,7 @@ export class EmergentCapabilityEngine {
       source,
       implementationMode: request.implementation.mode,
       allowlist:
-        request.implementation.mode === 'sandbox'
-          ? request.implementation.allowlist
-          : undefined,
+        request.implementation.mode === 'sandbox' ? request.implementation.allowlist : undefined,
       testResults,
     };
 
@@ -328,10 +322,7 @@ export class EmergentCapabilityEngine {
           this.removeIndexedTool(toolId, context.agentId, context.sessionId);
           return {
             success: false,
-            error:
-              error instanceof Error
-                ? error.message
-                : 'Failed to activate forged tool.',
+            error: error instanceof Error ? error.message : 'Failed to activate forged tool.',
           };
         }
       }
@@ -362,7 +353,7 @@ export class EmergentCapabilityEngine {
    *
    * A tool qualifies for promotion when:
    * 1. It is at the `'session'` tier.
-   * 2. Its usage stats meet {@link EmergentConfig.promotionThreshold}:
+   * 2. Its usage stats meet `EmergentConfig.promotionThreshold`:
    *    - `totalUses >= threshold.uses`
    *    - `confidenceScore >= threshold.confidence`
    *
@@ -388,10 +379,7 @@ export class EmergentCapabilityEngine {
     // Check thresholds.
     const { uses, confidence } = this.config.promotionThreshold;
 
-    if (
-      tool.usageStats.totalUses < uses ||
-      tool.usageStats.confidenceScore < confidence
-    ) {
+    if (tool.usageStats.totalUses < uses || tool.usageStats.confidenceScore < confidence) {
       return null;
     }
 
@@ -466,7 +454,7 @@ export class EmergentCapabilityEngine {
   /**
    * Clean up all session tools for a given session.
    *
-   * Delegates to the registry's {@link EmergentToolRegistry.cleanupSession}
+   * Delegates to the registry's `EmergentToolRegistry.cleanupSession()`
    * method and clears the local session index.
    *
    * @param sessionId - The session identifier to clean up.
@@ -486,7 +474,11 @@ export class EmergentCapabilityEngine {
    */
   async syncPersistedTool(tool: EmergentTool): Promise<void> {
     this.registry.upsert(tool);
-    this.indexTool(tool.id, tool.createdBy, this.extractSessionId(tool.source) ?? `persisted:${tool.id}`);
+    this.indexTool(
+      tool.id,
+      tool.createdBy,
+      this.extractSessionId(tool.source) ?? `persisted:${tool.id}`
+    );
 
     const isActive = (tool as EmergentTool & { isActive?: boolean }).isActive ?? true;
     if (!isActive) {
@@ -528,7 +520,7 @@ export class EmergentCapabilityEngine {
             tool.name,
             tool.description,
             tool.inputSchema,
-            tool.implementation,
+            tool.implementation
           )
         : this.buildSandboxExecutable(tool);
 
@@ -543,7 +535,7 @@ export class EmergentCapabilityEngine {
       hasSideEffects: tool.implementation.mode === 'sandbox',
       execute: async (
         args: Record<string, unknown>,
-        context: ToolExecutionContext,
+        context: ToolExecutionContext
       ): Promise<ToolExecutionResult> => {
         const startTime = performance.now();
         const result = await baseTool.execute(args, context);
@@ -557,11 +549,7 @@ export class EmergentCapabilityEngine {
         let validationPassed = true;
 
         if (success) {
-          const reuseVerdict = this.judge.validateReuse(
-            tool.id,
-            result.output,
-            tool.outputSchema,
-          );
+          const reuseVerdict = this.judge.validateReuse(tool.id, result.output, tool.outputSchema);
           if (!reuseVerdict.valid) {
             success = false;
             validationPassed = false;
@@ -569,13 +557,7 @@ export class EmergentCapabilityEngine {
           }
         }
 
-        this.registry.recordUse(
-          tool.id,
-          args,
-          result.output,
-          success,
-          executionTimeMs,
-        );
+        this.registry.recordUse(tool.id, args, result.output, success, executionTimeMs);
 
         // Only check promotion when execution succeeded AND output passed
         // validation. Promoting after validation failure would reward tools
@@ -606,11 +588,7 @@ export class EmergentCapabilityEngine {
    * @param agentId - The agent that created the tool.
    * @param sessionId - The session in which the tool was created.
    */
-  private indexTool(
-    toolId: string,
-    agentId: string,
-    sessionId: string,
-  ): void {
+  private indexTool(toolId: string, agentId: string, sessionId: string): void {
     // Session index.
     if (!this.index.bySession.has(sessionId)) {
       this.index.bySession.set(sessionId, new Set());
@@ -624,11 +602,7 @@ export class EmergentCapabilityEngine {
     this.index.byAgent.get(agentId)!.add(toolId);
   }
 
-  private removeIndexedTool(
-    toolId: string,
-    agentId: string,
-    sessionId: string,
-  ): void {
+  private removeIndexedTool(toolId: string, agentId: string, sessionId: string): void {
     this.index.bySession.get(sessionId)?.delete(toolId);
     this.index.byAgent.get(agentId)?.delete(toolId);
   }
@@ -657,9 +631,7 @@ export class EmergentCapabilityEngine {
       outputSchema: tool.outputSchema,
       category: 'emergent',
       hasSideEffects: true,
-      execute: async (
-        args: Record<string, unknown>,
-      ): Promise<ToolExecutionResult> => {
+      execute: async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
         if (tool.implementation.mode !== 'sandbox') {
           return {
             success: false,

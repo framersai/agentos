@@ -88,7 +88,7 @@ export interface AudioFrame {
    * (e.g. a hardware device label or a WebRTC peer ID). Used by the
    * diarization engine when native speaker IDs are unavailable.
    *
-   * @see {@link DiarizedSegment.speakerId} for the post-diarization label.
+   * See `DiarizedSegment.speakerId` for the post-diarization label.
    */
   speakerHint?: string;
 }
@@ -114,12 +114,12 @@ export interface AudioFrame {
  */
 export interface EncodedAudioChunk {
   /**
-   * Raw encoded bytes in the format specified by {@link format}.
+   * Raw encoded bytes in the format specified by `format`.
    */
   audio: Buffer;
 
   /**
-   * Codec/container format of {@link audio}.
+   * Codec/container format of `audio`.
    *
    * - `'pcm'` -- raw signed 16-bit LE samples (lowest latency, highest bandwidth).
    * - `'mp3'` -- MPEG Layer 3 (wide browser support, moderate latency).
@@ -135,13 +135,13 @@ export interface EncodedAudioChunk {
   /**
    * Playback duration of this chunk in milliseconds.
    * Used by the orchestrator to track cumulative played time for
-   * barge-in context ({@link BargeinContext.playedDurationMs}).
+   * barge-in context (`BargeinContext.playedDurationMs`).
    */
   durationMs: number;
 
   /**
    * The text fragment that was synthesised into this chunk. Preserved so
-   * barge-in handlers can report {@link VoiceTurnMetadata.interruptedRemainder}
+   * barge-in handlers can report `VoiceTurnMetadata.interruptedRemainder`
    * accurately when playback is cut short.
    */
   text: string;
@@ -155,7 +155,7 @@ export interface EncodedAudioChunk {
  * Discriminated union of control messages sent from the pipeline to the
  * underlying stream transport (e.g. a WebSocket or WebRTC data-channel).
  *
- * @see {@link IStreamTransport.sendControl} which accepts these messages.
+ * See `IStreamTransport.sendControl()` for the transport method that accepts these messages.
  * @see {@link ServerTextMessage} for the full server-to-client protocol.
  *
  * @example
@@ -256,10 +256,10 @@ export interface IStreamTransport extends EventEmitter {
 // ============================================================================
 
 /**
- * Configuration passed to {@link IStreamingSTT.startSession} when opening a new
+ * Configuration passed to `IStreamingSTT.startSession()` when opening a new
  * speech recognition stream.
  *
- * @see {@link VoicePipelineConfig.sttOptions} for provider-level overrides.
+ * See `VoicePipelineConfig.sttOptions` for provider-level overrides.
  *
  * @example
  * ```typescript
@@ -311,7 +311,7 @@ export interface StreamingSTTConfig {
  * A single word within a {@link TranscriptEvent}, augmented with timing and
  * optional speaker attribution.
  *
- * @see {@link TranscriptEvent.words} which contains an array of these.
+ * See `TranscriptEvent.words` for the array that contains these entries.
  */
 export interface TranscriptWord {
   /**
@@ -347,7 +347,7 @@ export interface TranscriptWord {
  * Emitted by a {@link StreamingSTTSession} each time the provider produces a
  * recognition hypothesis.
  *
- * @see {@link IEndpointDetector.pushTranscript} which consumes these events.
+ * See `IEndpointDetector.pushTranscript()` for the endpoint detector hook that consumes these events.
  *
  * @example
  * ```typescript
@@ -365,7 +365,7 @@ export interface TranscriptEvent {
   text: string;
 
   /**
-   * Aggregate confidence score for {@link text} in the range [0, 1].
+   * Aggregate confidence score for `text` in the range [0, 1].
    */
   confidence: number;
 
@@ -403,7 +403,7 @@ export interface TranscriptEvent {
  * | `'error'`      | `Error`               | Unrecoverable provider error.      |
  * | `'close'`      | *(none)*              | Session has been fully terminated. |
  *
- * @see {@link IStreamingSTT.startSession} which creates these sessions.
+ * See `IStreamingSTT.startSession()` for the factory method that creates these sessions.
  */
 export interface StreamingSTTSession extends EventEmitter {
   /**
@@ -433,7 +433,7 @@ export interface StreamingSTTSession extends EventEmitter {
  * Implementations are registered via the `EXTENSION_KIND_STREAMING_STT`
  * extension kind and resolved by the voice pipeline at session creation time.
  *
- * @see {@link StreamingSTTSession} for the session interface returned by {@link startSession}.
+ * See {@link StreamingSTTSession} for the session interface returned by `startSession()`.
  */
 export interface IStreamingSTT {
   /**
@@ -464,7 +464,7 @@ export interface IStreamingSTT {
  * A VAD (Voice Activity Detection) or STT-derived event describing speech
  * energy transitions over time.
  *
- * @see {@link IEndpointDetector.pushVadEvent} which consumes these.
+ * See `IEndpointDetector.pushVadEvent()` for the endpoint-detector hook that consumes these.
  *
  * @example
  * ```typescript
@@ -522,8 +522,8 @@ export interface VadEvent {
  * | `manual`           | Explicitly triggered by a ClientTextMessage control     |
  * | `timeout`          | Hard maximum turn duration elapsed                     |
  *
- * @see {@link TurnCompleteEvent.reason} which carries this value.
- * @see {@link VoiceTurnMetadata.endpointReason} where it is forwarded to the agent.
+ * See `TurnCompleteEvent.reason` for the field that carries this value.
+ * See `VoiceTurnMetadata.endpointReason` for where it is forwarded to the agent.
  */
 export type EndpointReason =
   | 'silence_timeout'
@@ -628,7 +628,7 @@ export interface IEndpointDetector extends EventEmitter {
  * Configuration for a diarization session. Controls expected speaker count and
  * chunking behaviour for providers that require buffered audio.
  *
- * @see {@link IDiarizationEngine.startSession} which accepts this config.
+ * See `IDiarizationEngine.startSession()` for the factory method that accepts this config.
  */
 export interface DiarizationConfig {
   /**
@@ -704,7 +704,7 @@ export interface DiarizedSegment extends TranscriptSegment {
   speakerId: string;
 
   /**
-   * Confidence that this segment belongs to {@link speakerId}, in the range [0, 1].
+   * Confidence that this segment belongs to `speakerId`, in the range [0, 1].
    */
   speakerConfidence: number;
 }
@@ -722,7 +722,7 @@ export interface DiarizedSegment extends TranscriptSegment {
  * | `'error'`          | `Error`                                  | Unrecoverable engine error.    |
  * | `'close'`          | *(none)*                                 | Session terminated.            |
  *
- * @see {@link IDiarizationEngine.startSession} which creates these sessions.
+ * See `IDiarizationEngine.startSession()` for the factory method that creates these sessions.
  */
 export interface DiarizationSession extends EventEmitter {
   /**
@@ -762,7 +762,7 @@ export interface DiarizationSession extends EventEmitter {
  *
  * Registered via `EXTENSION_KIND_DIARIZATION`.
  *
- * @see {@link DiarizationSession} for the session interface returned by {@link startSession}.
+ * See {@link DiarizationSession} for the session interface returned by `startSession()`.
  */
 export interface IDiarizationEngine {
   /**
@@ -779,10 +779,10 @@ export interface IDiarizationEngine {
 // ============================================================================
 
 /**
- * Configuration passed to {@link IStreamingTTS.startSession} when opening a new
+ * Configuration passed to `IStreamingTTS.startSession()` when opening a new
  * text-to-speech synthesis stream.
  *
- * @see {@link VoicePipelineConfig.ttsOptions} for provider-level overrides.
+ * See `VoicePipelineConfig.ttsOptions` for provider-level overrides.
  *
  * @example
  * ```typescript
@@ -808,7 +808,7 @@ export interface StreamingTTSConfig {
   format?: 'pcm' | 'mp3' | 'opus';
 
   /**
-   * Output sample rate in Hz. Must be supported by the chosen {@link format}.
+   * Output sample rate in Hz. Must be supported by the chosen `format`.
    * @defaultValue 24000
    */
   sampleRate?: number;
@@ -825,7 +825,7 @@ export interface StreamingTTSConfig {
 
   /**
    * Maximum number of milliseconds of audio to buffer before forcing a flush,
-   * regardless of {@link chunkingMode}. Prevents unbounded memory growth for very
+   * regardless of `chunkingMode`. Prevents unbounded memory growth for very
    * long utterances.
    * @defaultValue 3000
    */
@@ -850,12 +850,12 @@ export interface StreamingTTSConfig {
  * | `'error'`          | `Error`                   | Unrecoverable synthesis error.       |
  * | `'close'`          | *(none)*                  | Session terminated.                  |
  *
- * @see {@link IStreamingTTS.startSession} which creates these sessions.
+ * See `IStreamingTTS.startSession()` for the factory method that creates these sessions.
  */
 export interface StreamingTTSSession extends EventEmitter {
   /**
    * Push one or more LLM output tokens into the synthesis buffer.
-   * The session will chunk and synthesise them according to {@link StreamingTTSConfig.chunkingMode}.
+   * The session will chunk and synthesise them according to `StreamingTTSConfig.chunkingMode`.
    *
    * @param tokens - Text tokens to synthesise (may be partial words).
    */
@@ -885,7 +885,7 @@ export interface StreamingTTSSession extends EventEmitter {
  *
  * Registered via `EXTENSION_KIND_STREAMING_TTS`.
  *
- * @see {@link StreamingTTSSession} for the session interface returned by {@link startSession}.
+ * See {@link StreamingTTSSession} for the session interface returned by `startSession()`.
  */
 export interface IStreamingTTS {
   /**
@@ -908,7 +908,7 @@ export interface IStreamingTTS {
 // ============================================================================
 
 /**
- * Contextual information supplied to {@link IBargeinHandler.handleBargein} so the
+ * Contextual information supplied to `IBargeinHandler.handleBargein()` so the
  * handler can make an informed decision about how to respond to interruption.
  *
  * @see {@link IBargeinHandler} which consumes this context.
@@ -936,14 +936,14 @@ export interface BargeinContext {
 
   /**
    * The partial TTS text that was interrupted. Used to construct
-   * {@link VoiceTurnMetadata.interruptedRemainder} so the agent knows what
+   * `VoiceTurnMetadata.interruptedRemainder` so the agent knows what
    * information was cut off and can avoid repeating it.
    */
   interruptedText: string;
 
   /**
    * How many milliseconds of audio had been played at the point of interruption.
-   * Combined with {@link interruptedText}, this allows the agent to estimate
+   * Combined with `interruptedText`, this allows the agent to estimate
    * how much of the response the user actually heard.
    */
   playedDurationMs: number;
@@ -951,7 +951,7 @@ export interface BargeinContext {
 
 /**
  * Action the pipeline should take in response to a detected barge-in.
- * Returned by {@link IBargeinHandler.handleBargein}.
+ * Returned by `IBargeinHandler.handleBargein()`.
  *
  * @see {@link IBargeinHandler} which returns this type.
  *
@@ -974,7 +974,7 @@ export type BargeinAction =
       injectMarker?: string;
     }
   | {
-      /** Fade out TTS audio over {@link fadeMs} milliseconds then pause. */
+      /** Fade out TTS audio over `fadeMs` milliseconds then pause. */
       type: 'pause';
       /** Duration of the fade-out in milliseconds. @defaultValue 150 */
       fadeMs?: number;
@@ -1027,7 +1027,7 @@ export interface IBargeinHandler {
 /**
  * Adapts any AgentOS agent to the voice pipeline's turn-based protocol.
  *
- * The pipeline calls {@link sendText} with the user's final transcript and
+ * The pipeline calls `sendText()` with the user's final transcript and
  * streams the response back as text tokens for TTS synthesis.
  *
  * @see {@link VoicePipelineOrchestrator} which invokes this during the
@@ -1065,7 +1065,7 @@ export interface IVoicePipelineAgentSession {
  * Rich metadata attached to each voice turn and passed to the agent session.
  * Enables the agent to tailor its response based on conversation dynamics.
  *
- * @see {@link IVoicePipelineAgentSession.sendText} which receives this metadata.
+ * See `IVoicePipelineAgentSession.sendText()` for the agent-session method that receives this metadata.
  *
  * @example
  * ```typescript
@@ -1103,7 +1103,7 @@ export interface VoiceTurnMetadata {
   wasInterrupted: boolean;
 
   /**
-   * When {@link wasInterrupted} is `true`, the text remainder of the agent response
+   * When `wasInterrupted` is `true`, the text remainder of the agent response
    * that was cut off. Useful for the agent to avoid re-stating information
    * the user has already heard.
    */
@@ -1155,7 +1155,7 @@ export interface VoicePipelineConfig {
 
   /**
    * Endpoint detection strategy. Defaults to `'heuristic'` when omitted.
-   * @see {@link IEndpointDetector.mode} for the strategy descriptions.
+   * See `IEndpointDetector.mode` for the strategy descriptions.
    */
   endpointing?: 'acoustic' | 'heuristic' | 'semantic';
 
@@ -1171,12 +1171,12 @@ export interface VoicePipelineConfig {
   bargeIn?: 'hard-cut' | 'soft-fade' | 'disabled';
 
   /**
-   * TTS voice identifier. Forwarded to {@link StreamingTTSConfig.voice}.
+   * TTS voice identifier. Forwarded to `StreamingTTSConfig.voice`.
    */
   voice?: string;
 
   /**
-   * Output audio format for TTS. Forwarded to {@link StreamingTTSConfig.format}.
+   * Output audio format for TTS. Forwarded to `StreamingTTSConfig.format`.
    * @defaultValue 'opus'
    */
   format?: 'pcm' | 'mp3' | 'opus';
@@ -1194,12 +1194,12 @@ export interface VoicePipelineConfig {
   maxTurnDurationMs?: number;
 
   /**
-   * Provider-level STT options merged into {@link StreamingSTTConfig.providerOptions}.
+   * Provider-level STT options merged into `StreamingSTTConfig.providerOptions`.
    */
   sttOptions?: Record<string, unknown>;
 
   /**
-   * Provider-level TTS options merged into {@link StreamingTTSConfig.providerOptions}.
+   * Provider-level TTS options merged into `StreamingTTSConfig.providerOptions`.
    */
   ttsOptions?: Record<string, unknown>;
 }
@@ -1215,16 +1215,16 @@ export interface VoicePipelineConfig {
  * any  -> closed
  * ```
  *
- * The state machine is enforced by {@link VoicePipelineOrchestrator._setState}
+ * The state machine is enforced by the internal `VoicePipelineOrchestrator._setState`
  * which emits `'state_changed'` on every transition.
  */
 export type PipelineState =
-  | 'idle'          // Session created but no audio flowing yet
-  | 'listening'     // Capturing user audio; STT + VAD active
-  | 'processing'    // User turn complete; agent generating response
-  | 'speaking'      // TTS audio streaming to client
-  | 'interrupting'  // Barge-in detected; winding down TTS
-  | 'closed';       // Session terminated; no further state changes
+  | 'idle' // Session created but no audio flowing yet
+  | 'listening' // Capturing user audio; STT + VAD active
+  | 'processing' // User turn complete; agent generating response
+  | 'speaking' // TTS audio streaming to client
+  | 'interrupting' // Barge-in detected; winding down TTS
+  | 'closed'; // Session terminated; no further state changes
 
 /**
  * A live voice pipeline session binding a transport, STT, endpoint detection,
@@ -1242,7 +1242,7 @@ export type PipelineState =
  * | `'error'`                | `Error`                   | Unrecoverable pipeline error.           |
  * | `'close'`                | *(none)*                  | Session has been fully torn down.       |
  *
- * @see {@link VoicePipelineOrchestrator.startSession} which creates these sessions.
+ * See `VoicePipelineOrchestrator.startSession()` for the factory method that creates these sessions.
  */
 export interface VoicePipelineSession extends EventEmitter {
   /**
@@ -1317,7 +1317,7 @@ export type ClientTextMessage =
  * All messages are JSON-serialised.
  *
  * @see {@link ClientTextMessage} for the client-to-server counterpart.
- * @see {@link IStreamTransport.sendControl} which sends these messages.
+ * See `IStreamTransport.sendControl()` for the transport method that sends these messages.
  *
  * @example
  * ```typescript

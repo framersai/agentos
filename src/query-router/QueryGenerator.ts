@@ -25,7 +25,7 @@
  */
 
 import { generateText } from '../api/generateText.js';
-import type { QueryTier, RetrievedChunk } from '../types.js';
+import type { QueryTier, RetrievedChunk } from './types.js';
 
 // ============================================================================
 // Configuration

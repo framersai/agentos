@@ -51,7 +51,13 @@ export type GraphEvent =
    * Emitted after each guardrail evaluation.
    * `passed: false` indicates a violation; `action` mirrors `GuardrailPolicy.onViolation`.
    */
-  | { type: 'guardrail_result'; nodeId: string; guardrailId: string; passed: boolean; action: string }
+  | {
+      type: 'guardrail_result';
+      nodeId: string;
+      guardrailId: string;
+      passed: boolean;
+      action: string;
+    }
 
   /** Emitted after the runtime successfully persists a checkpoint snapshot. */
   | { type: 'checkpoint_saved'; checkpointId: string; nodeId: string }
@@ -62,7 +68,11 @@ export type GraphEvent =
    * - `error`              — unrecoverable error after exhausting retry budget.
    * - `guardrail_violation` — a `block` guardrail fired, halting the run.
    */
-  | { type: 'interrupt'; nodeId: string; reason: 'human_approval' | 'error' | 'guardrail_violation' }
+  | {
+      type: 'interrupt';
+      nodeId: string;
+      reason: 'human_approval' | 'error' | 'guardrail_violation';
+    }
 
   /** Emitted after memory traces are loaded into `GraphState.memory` for a node. */
   | { type: 'memory_read'; nodeId: string; traceCount: number }
@@ -91,16 +101,23 @@ export type GraphEvent =
   /**
    * Live STT transcription -- both interim (partial) and final (confirmed) results.
    *
-   * Emitted by {@link VoiceTurnCollector} for every speech recognition result.
+   * Emitted by the internal voice turn collector for every speech recognition result.
    * Consumers should check `isFinal` to distinguish speculative partials from
    * confirmed utterances. Only final results are persisted in the transcript buffer.
    *
    * - `speaker` is absent when the STT provider does not support diarization.
    * - `confidence` ranges from `0` (no confidence) to `1` (maximum confidence).
    *
-   * @see {@link VoiceTurnCollector} -- the source of these events.
+   * See `VoiceTurnCollector` for the internal event source.
    */
-  | { type: 'voice_transcript'; nodeId: string; text: string; isFinal: boolean; speaker?: string; confidence: number }
+  | {
+      type: 'voice_transcript';
+      nodeId: string;
+      text: string;
+      isFinal: boolean;
+      speaker?: string;
+      confidence: number;
+    }
 
   /**
    * Audio chunk metadata emitted when audio data flows through the voice pipeline.
@@ -113,29 +130,35 @@ export type GraphEvent =
    * - `direction: 'outbound'` -- agent TTS audio being sent to the user.
    * - `durationMs` is `0` for streaming chunks where total duration is unknown.
    *
-   * @see {@link VoiceTransportAdapter} -- emits outbound events on `deliverNodeOutput()`.
+   * See `VoiceTransportAdapter` for the transport-layer emitter.
    */
-  | { type: 'voice_audio'; nodeId: string; direction: 'inbound' | 'outbound'; format: string; durationMs: number }
+  | {
+      type: 'voice_audio';
+      nodeId: string;
+      direction: 'inbound' | 'outbound';
+      format: string;
+      durationMs: number;
+    }
 
   /**
    * User barge-in -- the user interrupted the agent while it was speaking.
    *
-   * Emitted by {@link VoiceTurnCollector} when the session fires a `barge_in` event.
+   * Emitted by the internal voice turn collector when the session fires a `barge_in` event.
    * This signals that TTS playback should be cancelled and the graph may need to
    * reroute to handle the interruption (e.g. re-enter a listening state).
    *
    * - `interruptedText` -- what the agent was saying when interrupted.
    * - `userSpeech` -- what the user said that triggered the interruption.
    *
-   * @see {@link VoiceInterruptError} -- the structured error variant for graph-level handling.
+   * See `VoiceInterruptError` for the structured error variant used in graph-level handling.
    */
   | { type: 'voice_barge_in'; nodeId: string; interruptedText: string; userSpeech: string }
 
   /**
    * User turn complete -- the endpoint detector determined the user finished speaking.
    *
-   * Emitted by both {@link VoiceTurnCollector} (from session events) and
-   * {@link VoiceTransportAdapter} (from transport events). Carries the full
+   * Emitted by both the internal voice turn collector (from session events) and
+   * the voice transport adapter (from transport events). Carries the full
    * transcript for the completed turn and the endpoint detection reason.
    *
    * - `turnIndex` is 1-based and reflects the post-increment count (includes
@@ -143,15 +166,21 @@ export type GraphEvent =
    * - `endpointReason` describes why the endpoint was detected (e.g. `'punctuation'`,
    *   `'silence'`, `'acoustic'`, `'unknown'`).
    *
-   * @see {@link VoiceTurnCollector} -- increments turnIndex and emits this event.
+   * See `VoiceTurnCollector` for turn counting and event emission.
    */
-  | { type: 'voice_turn_complete'; nodeId: string; transcript: string; turnIndex: number; endpointReason: string }
+  | {
+      type: 'voice_turn_complete';
+      nodeId: string;
+      transcript: string;
+      turnIndex: number;
+      endpointReason: string;
+    }
 
   /**
    * Voice session lifecycle event -- signals when a voice session starts or ends.
    *
-   * Emitted by both {@link VoiceNodeExecutor} (at the graph node level) and
-   * {@link VoiceTransportAdapter} (at the transport level). The `nodeId` is the
+   * Emitted by both the voice node executor (at the graph node level) and
+   * the voice transport adapter (at the transport level). The `nodeId` is the
    * graph node id for executor-level events, or `'__transport__'` for
    * transport-level events.
    *
@@ -160,8 +189,8 @@ export type GraphEvent =
    *   (e.g. `'turns-exhausted'`, `'hangup'`, `'interrupted'`, `'error'`,
    *   `'transport-disposed'`).
    *
-   * @see {@link VoiceNodeExecutor} -- emits started/ended around the exit condition race.
-   * @see {@link VoiceTransportAdapter} -- emits started on init(), ended on dispose().
+   * See `VoiceNodeExecutor` for node-level lifecycle emission.
+   * See `VoiceTransportAdapter` for transport-level lifecycle emission.
    */
   | { type: 'voice_session'; nodeId: string; action: 'started' | 'ended'; exitReason?: string };
 

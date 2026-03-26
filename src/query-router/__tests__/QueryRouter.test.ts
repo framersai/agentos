@@ -9,6 +9,8 @@
  * - The router is initialised with a minimal config pointing at a fake corpus.
  */
 
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 // ---------------------------------------------------------------------------
 // Mocks — must be declared before any module imports that depend on them
 // ---------------------------------------------------------------------------
@@ -30,6 +32,7 @@ vi.mock('node:fs', async () => {
 });
 
 import { generateText } from '../../api/generateText.js';
+import type { QueryRouterConfig as PublicQueryRouterConfig } from '../../index.js';
 import { QueryRouter } from '../QueryRouter.js';
 import type { QueryResult, ClassificationResult } from '../types.js';
 
@@ -105,6 +108,17 @@ describe('QueryRouter', () => {
     vi.clearAllMocks();
   });
 
+  it('public QueryRouterConfig matches the constructor surface', () => {
+    const config: PublicQueryRouterConfig = {
+      knowledgeCorpus: ['/fake/docs'],
+      availableTools: ['web_search'],
+      generationModel: 'gpt-4o-mini',
+    };
+
+    expect(config.knowledgeCorpus).toEqual(['/fake/docs']);
+    expect(config.availableTools).toEqual(['web_search']);
+  });
+
   // -------------------------------------------------------------------------
   // Test 1: classify() returns a ClassificationResult
   // -------------------------------------------------------------------------
@@ -169,8 +183,53 @@ describe('QueryRouter', () => {
     expect(hookArg.confidence).toBe(0.9);
   });
 
+  it('includes available tools in the classifier prompt', async () => {
+    mockGenerateText.mockResolvedValueOnce(classifierResponse(1, 0.88));
+
+    const router = createRouter({
+      availableTools: ['web_search', 'deep_research'],
+    });
+    await router.init();
+
+    await router.classify('What can you look up?');
+
+    const classifierCall = mockGenerateText.mock.calls[0][0];
+    expect(classifierCall.system).toContain('web_search, deep_research');
+  });
+
+  it('records retrieval fallbacks and exercised tiers in route()', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(2, 0.92))
+      .mockResolvedValueOnce(generatorResponse('Pricing starts at $19/month.'));
+
+    const router = createRouter({ graphEnabled: false });
+    await router.init();
+
+    const result = await router.route('Compare pricing docs across the product tiers.');
+
+    expect(result.fallbacksUsed).toContain('keyword-fallback');
+    expect(result.tiersUsed).toEqual([1, 2]);
+  });
+
+  it('records research fallback when tier 3 downgrades to tier 2', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(3, 0.95))
+      .mockResolvedValueOnce(generatorResponse('Fallback research answer.'));
+
+    const router = createRouter({ graphEnabled: true, deepResearchEnabled: true });
+    await router.init();
+
+    vi.spyOn(router as any, 'deepResearch')
+      .mockRejectedValue(new Error('Research backend unavailable'));
+
+    const result = await router.route('Compare the architecture to competing frameworks.');
+
+    expect(result.fallbacksUsed).toContain('research-skip');
+    expect(result.tiersUsed).toEqual([1, 2, 3]);
+  });
+
   // -------------------------------------------------------------------------
-  // Test 4: close() doesn't throw
+  // Test 7: close() doesn't throw
   // -------------------------------------------------------------------------
   it('close() does not throw', async () => {
     const router = createRouter();

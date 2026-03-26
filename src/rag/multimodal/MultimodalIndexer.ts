@@ -160,7 +160,7 @@ export class MultimodalIndexer {
    * @param deps.visionProvider - Optional vision LLM for image description.
    * @param deps.visionPipeline - Optional full vision pipeline with OCR, handwriting,
    *   document understanding, CLIP embeddings, and cloud fallback. When provided,
-   *   it is wrapped as an {@link IVisionProvider} via {@link PipelineVisionProvider},
+   *   it is wrapped as an `IVisionProvider` via `PipelineVisionProvider`,
    *   overriding any `visionProvider` passed alongside it.
    * @param deps.sttProvider - Optional STT provider for audio transcription.
    * @param deps.config - Optional configuration overrides.
@@ -212,7 +212,9 @@ export class MultimodalIndexer {
     if (deps.visionPipeline) {
       // Lazy import to avoid circular dependency at module load time.
       // PipelineVisionProvider is a thin adapter — safe to require synchronously.
-      const { PipelineVisionProvider } = require('../../core/vision/providers/PipelineVisionProvider.js');
+      const {
+        PipelineVisionProvider,
+      } = require('../../core/vision/providers/PipelineVisionProvider.js');
       this._visionProvider = new PipelineVisionProvider(deps.visionPipeline);
     } else {
       this._visionProvider = deps.visionProvider;
@@ -220,7 +222,8 @@ export class MultimodalIndexer {
 
     this._config = {
       defaultCollection: deps.config?.defaultCollection ?? DEFAULT_COLLECTION,
-      imageDescriptionPrompt: deps.config?.imageDescriptionPrompt ?? DEFAULT_IMAGE_DESCRIPTION_PROMPT,
+      imageDescriptionPrompt:
+        deps.config?.imageDescriptionPrompt ?? DEFAULT_IMAGE_DESCRIPTION_PROMPT,
     };
   }
 
@@ -252,7 +255,7 @@ export class MultimodalIndexer {
     if (!this._visionProvider) {
       throw new Error(
         'MultimodalIndexer: cannot index image — no vision provider configured. ' +
-        'Pass a visionProvider in the constructor.',
+          'Pass a visionProvider in the constructor.'
       );
     }
 
@@ -285,8 +288,14 @@ export class MultimodalIndexer {
     };
     const embeddingResponse = await this._embeddingManager.generateEmbeddings(embeddingRequest);
 
-    if (!embeddingResponse.embeddings || embeddingResponse.embeddings.length === 0 || embeddingResponse.embeddings[0].length === 0) {
-      throw new Error('MultimodalIndexer: embedding generation returned empty result for image description.');
+    if (
+      !embeddingResponse.embeddings ||
+      embeddingResponse.embeddings.length === 0 ||
+      embeddingResponse.embeddings[0].length === 0
+    ) {
+      throw new Error(
+        'MultimodalIndexer: embedding generation returned empty result for image description.'
+      );
     }
 
     // Step 3: Store in vector store with image modality metadata
@@ -339,7 +348,7 @@ export class MultimodalIndexer {
     if (!this._sttProvider) {
       throw new Error(
         'MultimodalIndexer: cannot index audio — no STT provider configured. ' +
-        'Pass an sttProvider in the constructor.',
+          'Pass an sttProvider in the constructor.'
       );
     }
 
@@ -359,8 +368,14 @@ export class MultimodalIndexer {
     };
     const embeddingResponse = await this._embeddingManager.generateEmbeddings(embeddingRequest);
 
-    if (!embeddingResponse.embeddings || embeddingResponse.embeddings.length === 0 || embeddingResponse.embeddings[0].length === 0) {
-      throw new Error('MultimodalIndexer: embedding generation returned empty result for audio transcript.');
+    if (
+      !embeddingResponse.embeddings ||
+      embeddingResponse.embeddings.length === 0 ||
+      embeddingResponse.embeddings[0].length === 0
+    ) {
+      throw new Error(
+        'MultimodalIndexer: embedding generation returned empty result for audio transcript.'
+      );
     }
 
     // Step 3: Store in vector store with audio modality metadata
@@ -427,8 +442,14 @@ export class MultimodalIndexer {
     };
     const embeddingResponse = await this._embeddingManager.generateEmbeddings(embeddingRequest);
 
-    if (!embeddingResponse.embeddings || embeddingResponse.embeddings.length === 0 || embeddingResponse.embeddings[0].length === 0) {
-      throw new Error('MultimodalIndexer: embedding generation returned empty result for search query.');
+    if (
+      !embeddingResponse.embeddings ||
+      embeddingResponse.embeddings.length === 0 ||
+      embeddingResponse.embeddings[0].length === 0
+    ) {
+      throw new Error(
+        'MultimodalIndexer: embedding generation returned empty result for search query.'
+      );
     }
 
     const queryEmbedding = embeddingResponse.embeddings[0];
@@ -466,7 +487,7 @@ export class MultimodalIndexer {
   // -------------------------------------------------------------------------
 
   /**
-   * Create a {@link MultimodalMemoryBridge} using this indexer's providers.
+   * Create a `MultimodalMemoryBridge` using this indexer's providers.
    *
    * The bridge extends this indexer's RAG capabilities with cognitive memory
    * integration, enabling multimodal content to be stored in both the vector
@@ -475,7 +496,7 @@ export class MultimodalIndexer {
    * @param memoryManager - Optional cognitive memory manager for memory trace creation.
    *   When omitted, the bridge still indexes into RAG but creates no memory traces.
    * @param options - Bridge configuration overrides (mood, chunk sizes, etc.)
-   * @returns A configured MultimodalMemoryBridge instance
+   * @returns A configured multimodal memory bridge instance.
    *
    * @example
    * ```typescript
@@ -487,11 +508,11 @@ export class MultimodalIndexer {
    * await bridge.ingestImage(imageBuffer, { source: 'user-upload' });
    * ```
    *
-   * @see {@link MultimodalMemoryBridge} for full documentation.
+   * See `MultimodalMemoryBridge` for full documentation.
    */
   createMemoryBridge(
     memoryManager?: import('../../memory/CognitiveMemoryManager.js').ICognitiveMemoryManager,
-    options?: import('./MultimodalMemoryBridge.js').MultimodalBridgeOptions,
+    options?: import('./MultimodalMemoryBridge.js').MultimodalBridgeOptions
   ): import('./MultimodalMemoryBridge.js').MultimodalMemoryBridge {
     // Lazy import to avoid circular dependency at module load time.
     // The bridge depends on the indexer, and this factory lives on the indexer,

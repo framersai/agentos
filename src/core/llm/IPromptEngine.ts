@@ -19,8 +19,8 @@
  * - Performance optimization strategies such as caching.
  *
  * @module backend/agentos/core/llm/IPromptEngine
- * @see {@link ../../../docs/PROMPTS.MD} for detailed architectural documentation.
- * @see {@link ../../cognitive_substrate/personas/IPersonaDefinition.ts} for persona-driven prompting.
+ * See `docs/PROMPTS.MD` for detailed architectural documentation.
+ * @see {@link IPersonaDefinition} for persona-driven prompting.
  */
 
 import {
@@ -95,7 +95,8 @@ export interface PromptExecutionContext {
   /** User-specific preferences that affect prompting (e.g., verbosity, preferred formats). */
   userPreferences?: Record<string, unknown>;
   /** Historical interaction patterns that inform adaptation (e.g., preferred response styles). */
-  interactionHistorySummary?: { // Summary rather than full history to keep context lean
+  interactionHistorySummary?: {
+    // Summary rather than full history to keep context lean
     successfulInteractionCount: number;
     problematicInteractionCount: number;
     commonTopics?: string[];
@@ -134,7 +135,9 @@ export interface PromptComponents {
    */
   toolSchemas?: Array<Record<string, unknown>>;
   /** Retrieved context from a RAG system, to be incorporated into the prompt. */
-  retrievedContext?: string | Array<{ source: string; content: string; relevance?: number; type?: string }>;
+  retrievedContext?:
+    | string
+    | Array<{ source: string; content: string; relevance?: number; type?: string }>;
   /** Assembled cognitive memory context (personality-affected, token-budgeted). Merged with retrievedContext by the prompt template. */
   assembledMemoryContext?: import('../../memory/types.js').AssembledMemoryContext;
   /** Task-specific data or parameters that need to be included in the prompt. */
@@ -212,7 +215,7 @@ export type FormattedPrompt =
   | {
       messages: ChatMessage[];
       system?: string; // For models like Anthropic that separate system prompt
-      tools?: any[];    // Formatted tools for the specific API
+      tools?: any[]; // Formatted tools for the specific API
       [key: string]: any; // For other provider-specific top-level fields
     };
 
@@ -253,7 +256,8 @@ export interface PromptEngineResult {
     addedContextualElementIds?: string[]; // IDs of contextual elements incorporated
   };
   /** Performance metrics and metadata related to the prompt construction process. */
-  metadata: { // Made non-optional
+  metadata: {
+    // Made non-optional
     constructionTimeMs: number;
     selectedContextualElementIds: string[]; // IDs of ContextualPromptElements used
     templateUsed: string; // Name of the prompt template function used
@@ -342,11 +346,14 @@ export interface PromptEngineConfig {
    *   2. If personaId absent => all runtime tools (no filtering).
    * Note: Unknown tool IDs in manifest are ignored gracefully.
    */
-  toolSchemaManifest?: Record<string, {
-    enabledToolIds?: string[];
-    disabledToolIds?: string[];
-    modelOverrides?: Record<string, string[]>;
-  }>;
+  toolSchemaManifest?: Record<
+    string,
+    {
+      enabledToolIds?: string[];
+      disabledToolIds?: string[];
+      modelOverrides?: Record<string, string[]>;
+    }
+  >;
 }
 
 /**
@@ -377,7 +384,6 @@ export type PromptTemplateFunction = (
  */
 export type TokenEstimator = (content: string, modelId?: string) => Promise<number>;
 
-
 /**
  * Interface for utility AI services that assist the PromptEngine with complex
  * content processing tasks like summarization and relevance analysis, specifically
@@ -401,7 +407,12 @@ export interface IPromptEngineUtilityAI {
     targetTokenCount: number,
     modelInfo: Readonly<ModelTargetInfo>,
     preserveImportantMessages?: boolean
-  ): Promise<{ summaryMessages: Message[]; originalTokenCount: number; finalTokenCount: number; messagesSummarized: number }>;
+  ): Promise<{
+    summaryMessages: Message[];
+    originalTokenCount: number;
+    finalTokenCount: number;
+    messagesSummarized: number;
+  }>;
 
   /**
    * Summarizes retrieved RAG context to fit token limits, ideally preserving source attribution if possible.
@@ -417,7 +428,12 @@ export interface IPromptEngineUtilityAI {
     targetTokenCount: number,
     modelInfo: Readonly<ModelTargetInfo>,
     preserveSourceAttribution?: boolean
-  ): Promise<{ summary: string; originalTokenCount: number; finalTokenCount: number; preservedSources?: string[] }>;
+  ): Promise<{
+    summary: string;
+    originalTokenCount: number;
+    finalTokenCount: number;
+    preservedSources?: string[];
+  }>;
 
   /**
    * Analyzes a piece of content for its relevance and importance within the current execution context.
@@ -432,7 +448,12 @@ export interface IPromptEngineUtilityAI {
     content: string,
     executionContext: Readonly<PromptExecutionContext>,
     modelInfo: Readonly<ModelTargetInfo>
-  ): Promise<{ relevanceScore: number; importanceScore: number; keywords?: string[]; topics?: string[] }>;
+  ): Promise<{
+    relevanceScore: number;
+    importanceScore: number;
+    keywords?: string[];
+    topics?: string[];
+  }>;
 }
 
 /**
@@ -548,10 +569,7 @@ export interface IPromptEngine {
    * @returns {Promise<void>} A promise that resolves when the template is successfully registered.
    * @throws {PromptEngineError} If the `templateName` is invalid or `templateFunction` is not a function.
    */
-  registerTemplate(
-    templateName: string,
-    templateFunction: PromptTemplateFunction
-  ): Promise<void>;
+  registerTemplate(templateName: string, templateFunction: PromptTemplateFunction): Promise<void>;
 
   /**
    * Validates a given set of prompt components and model information against the engine's
@@ -573,7 +591,13 @@ export interface IPromptEngine {
     executionContext?: Readonly<PromptExecutionContext>
   ): Promise<{
     isValid: boolean;
-    issues: Array<{ type: 'error' | 'warning'; code: string; message: string; suggestion?: string; component?: string }>;
+    issues: Array<{
+      type: 'error' | 'warning';
+      code: string;
+      message: string;
+      suggestion?: string;
+      component?: string;
+    }>;
     recommendations?: string[];
   }>;
 
@@ -602,11 +626,20 @@ export interface IPromptEngine {
   getEngineStatistics(): Promise<{
     totalPromptsConstructed: number;
     averageConstructionTimeMs: number;
-    cacheStats: { hits: number; misses: number; currentSize: number; maxSize?: number; effectivenessRatio: number };
+    cacheStats: {
+      hits: number;
+      misses: number;
+      currentSize: number;
+      maxSize?: number;
+      effectivenessRatio: number;
+    };
     tokenCountingStats: { operations: number; averageAccuracy?: number }; // Accuracy might be hard to track without ground truth
     contextualElementUsage: Record<string, { count: number; averageEvaluationTimeMs?: number }>;
     errorRatePerType: Record<string, number>; // Errors per error code or type
-    performanceTimers: Record<string, { count: number; totalTimeMs: number; averageTimeMs: number }>; // e.g., timers for evaluateCriteria, templateFormatting
+    performanceTimers: Record<
+      string,
+      { count: number; totalTimeMs: number; averageTimeMs: number }
+    >; // e.g., timers for evaluateCriteria, templateFormatting
   }>;
 }
 

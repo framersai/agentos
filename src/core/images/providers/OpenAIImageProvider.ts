@@ -11,6 +11,7 @@ import {
   type ImageModelInfo,
   type OpenAIImageProviderOptions,
 } from '../IImageProvider.js';
+import { bufferToBlobPart } from '../imageToBuffer.js';
 
 export interface OpenAIImageProviderConfig {
   apiKey: string;
@@ -67,7 +68,7 @@ export class OpenAIImageProvider implements IImageProvider {
 
     const providerOptions = getImageProviderOptions<OpenAIImageProviderOptions>(
       this.providerId,
-      request.providerOptions,
+      request.providerOptions
     );
     const body: Record<string, unknown> = {
       model: request.modelId || this.defaultModelId || 'gpt-image-1.5',
@@ -79,7 +80,8 @@ export class OpenAIImageProvider implements IImageProvider {
     if (request.quality) body.quality = request.quality;
     if (request.background) body.background = request.background;
     if (request.outputFormat) body.output_format = normalizeOutputFormat(request.outputFormat);
-    if (typeof request.outputCompression === 'number') body.output_compression = request.outputCompression;
+    if (typeof request.outputCompression === 'number')
+      body.output_compression = request.outputCompression;
     if (request.responseFormat) body.response_format = request.responseFormat;
     if (request.userId) body.user = request.userId;
     if (providerOptions) {
@@ -154,12 +156,20 @@ export class OpenAIImageProvider implements IImageProvider {
     const formData = new FormData();
 
     // OpenAI expects the image as a file-like Blob in the multipart payload.
-    formData.append('image', new Blob([request.image], { type: 'image/png' }), 'image.png');
+    formData.append(
+      'image',
+      new Blob([bufferToBlobPart(request.image)], { type: 'image/png' }),
+      'image.png'
+    );
     formData.append('prompt', request.prompt);
 
     // Mask is only used for inpainting — white regions are edited.
     if (request.mask) {
-      formData.append('mask', new Blob([request.mask], { type: 'image/png' }), 'mask.png');
+      formData.append(
+        'mask',
+        new Blob([bufferToBlobPart(request.mask)], { type: 'image/png' }),
+        'mask.png'
+      );
     }
 
     const model = request.modelId || this.defaultModelId || 'gpt-image-1';
@@ -226,7 +236,11 @@ export class OpenAIImageProvider implements IImageProvider {
     }
 
     const formData = new FormData();
-    formData.append('image', new Blob([request.image], { type: 'image/png' }), 'image.png');
+    formData.append(
+      'image',
+      new Blob([bufferToBlobPart(request.image)], { type: 'image/png' }),
+      'image.png'
+    );
 
     const model = request.modelId || this.defaultModelId || 'dall-e-2';
     formData.append('model', model);

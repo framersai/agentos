@@ -10,8 +10,8 @@
  * Using a typed error subclass (rather than a plain Error with a message string)
  * allows consumers to:
  * 1. Catch specifically via `instanceof VoiceInterruptError`.
- * 2. Access structured fields ({@link interruptedText}, {@link userSpeech},
- *    {@link playedDurationMs}) without parsing an error message.
+ * 2. Access structured fields (`interruptedText`, `userSpeech`,
+ *    `playedDurationMs`) without parsing an error message.
  * 3. Distinguish barge-in interruptions from other pipeline errors in
  *    catch blocks and error boundaries.
  *
@@ -24,8 +24,8 @@
  * Structured error representing a user barge-in interruption during TTS playback.
  *
  * Thrown (or returned as a typed sentinel) when the user speaks over the agent.
- * Consumers can inspect {@link interruptedText}, {@link userSpeech}, and
- * {@link playedDurationMs} to decide how to resume or branch the conversation graph.
+ * Consumers can inspect `interruptedText`, `userSpeech`, and
+ * `playedDurationMs` to decide how to resume or branch the conversation graph.
  *
  * @see {@link IBargeinHandler} which triggers the barge-in decision.
  * @see {@link VoicePipelineOrchestrator} which transitions through INTERRUPTING state.
@@ -81,10 +81,10 @@ export class VoiceInterruptError extends Error {
 
   /**
    * How much of the agent's response was already played (ms).
-   * Derived from the cumulative `durationMs` of {@link EncodedAudioChunk}s
+   * Derived from the cumulative `durationMs` of `EncodedAudioChunk`s
    * sent to the transport before the barge-in was detected.
    *
-   * Combined with {@link interruptedText}, this allows the consumer to
+   * Combined with `interruptedText`, this allows the consumer to
    * estimate how much of the response the user actually heard.
    */
   readonly playedDurationMs: number;
@@ -106,11 +106,7 @@ export class VoiceInterruptError extends Error {
    * });
    * ```
    */
-  constructor(context: {
-    interruptedText: string;
-    userSpeech: string;
-    playedDurationMs: number;
-  }) {
+  constructor(context: { interruptedText: string; userSpeech: string; playedDurationMs: number }) {
     super('Voice session interrupted by user');
     this.interruptedText = context.interruptedText;
     this.userSpeech = context.userSpeech;

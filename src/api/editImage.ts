@@ -13,9 +13,7 @@
  * established by {@link generateImage}.
  */
 import { createImageProvider } from '../core/images/index.js';
-import {
-  ImageEditNotSupportedError,
-} from '../core/images/ImageOperationError.js';
+import { ImageEditNotSupportedError } from '../core/images/ImageOperationError.js';
 import { imageToBuffer } from '../core/images/imageToBuffer.js';
 import type {
   GeneratedImage,
@@ -120,7 +118,7 @@ export interface EditImageResult {
 /**
  * Edits an image using a provider-agnostic interface.
  *
- * Resolves credentials via {@link resolveMediaProvider}, initialises the
+ * Resolves credentials via `resolveMediaProvider()`, initialises the
  * matching image provider, converts the input image to a `Buffer`, and
  * dispatches to the provider's `editImage` method.
  *
@@ -159,65 +157,62 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
   let metricModelId: string | undefined;
 
   try {
-    return await withAgentOSSpan(
-      'agentos.api.edit_image',
-      async (span) => {
-        const { providerId, modelId } = resolveModelOption(opts, 'image');
-        const resolved = resolveMediaProvider(providerId, modelId, {
-          apiKey: opts.apiKey,
-          baseUrl: opts.baseUrl,
-        });
-        metricProviderId = resolved.providerId;
-        metricModelId = resolved.modelId;
+    return await withAgentOSSpan('agentos.api.edit_image', async (span) => {
+      const { providerId, modelId } = resolveModelOption(opts, 'image');
+      const resolved = resolveMediaProvider(providerId, modelId, {
+        apiKey: opts.apiKey,
+        baseUrl: opts.baseUrl,
+      });
+      metricProviderId = resolved.providerId;
+      metricModelId = resolved.modelId;
 
-        span?.setAttribute('llm.provider', resolved.providerId);
-        span?.setAttribute('llm.model', resolved.modelId);
-        span?.setAttribute('agentos.api.edit_mode', opts.mode ?? 'img2img');
+      span?.setAttribute('llm.provider', resolved.providerId);
+      span?.setAttribute('llm.model', resolved.modelId);
+      span?.setAttribute('agentos.api.edit_mode', opts.mode ?? 'img2img');
 
-        const provider = createImageProvider(resolved.providerId);
-        await provider.initialize({
-          apiKey: resolved.apiKey,
-          baseURL: resolved.baseUrl,
-          defaultModelId: resolved.modelId,
-        });
+      const provider = createImageProvider(resolved.providerId);
+      await provider.initialize({
+        apiKey: resolved.apiKey,
+        baseURL: resolved.baseUrl,
+        defaultModelId: resolved.modelId,
+      });
 
-        // Guard: the provider must implement editImage.
-        if (typeof provider.editImage !== 'function') {
-          throw new ImageEditNotSupportedError(resolved.providerId);
-        }
+      // Guard: the provider must implement editImage.
+      if (typeof provider.editImage !== 'function') {
+        throw new ImageEditNotSupportedError(resolved.providerId);
+      }
 
-        // Normalise heterogeneous image input into Buffers.
-        const imageBuffer = await imageToBuffer(opts.image);
-        const maskBuffer = opts.mask ? await imageToBuffer(opts.mask) : undefined;
+      // Normalise heterogeneous image input into Buffers.
+      const imageBuffer = await imageToBuffer(opts.image);
+      const maskBuffer = opts.mask ? await imageToBuffer(opts.mask) : undefined;
 
-        const result = await provider.editImage({
-          modelId: resolved.modelId,
-          image: imageBuffer,
-          prompt: opts.prompt,
-          mask: maskBuffer,
-          mode: opts.mode,
-          strength: opts.strength,
-          negativePrompt: opts.negativePrompt,
-          size: opts.size,
-          seed: opts.seed,
-          n: opts.n,
-          providerOptions: opts.providerOptions,
-        });
+      const result = await provider.editImage({
+        modelId: resolved.modelId,
+        image: imageBuffer,
+        prompt: opts.prompt,
+        mask: maskBuffer,
+        mode: opts.mode,
+        strength: opts.strength,
+        negativePrompt: opts.negativePrompt,
+        size: opts.size,
+        seed: opts.seed,
+        n: opts.n,
+        providerOptions: opts.providerOptions,
+      });
 
-        metricUsage = result.usage;
-        span?.setAttribute('agentos.api.images_count', result.images.length);
-        attachUsageAttributes(span, {
-          totalCostUSD: result.usage?.totalCostUSD,
-        });
+      metricUsage = result.usage;
+      span?.setAttribute('agentos.api.images_count', result.images.length);
+      attachUsageAttributes(span, {
+        totalCostUSD: result.usage?.totalCostUSD,
+      });
 
-        return {
-          images: result.images,
-          provider: result.providerId,
-          model: result.modelId,
-          usage: { costUSD: result.usage?.totalCostUSD },
-        };
-      },
-    );
+      return {
+        images: result.images,
+        provider: result.providerId,
+        model: result.modelId,
+        usage: { costUSD: result.usage?.totalCostUSD },
+      };
+    });
   } catch (error) {
     metricStatus = 'error';
     throw error;
@@ -226,9 +221,11 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
       await recordAgentOSUsage({
         providerId: metricProviderId,
         modelId: metricModelId,
-        usage: metricUsage ? {
-          costUSD: metricUsage.totalCostUSD,
-        } : undefined,
+        usage: metricUsage
+          ? {
+              costUSD: metricUsage.totalCostUSD,
+            }
+          : undefined,
         options: {
           ...opts.usageLedger,
           source: opts.usageLedger?.source ?? 'editImage',
@@ -240,9 +237,13 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
     recordAgentOSTurnMetrics({
       durationMs: Date.now() - startedAt,
       status: metricStatus,
-      usage: toTurnMetricUsage(metricUsage ? {
-        totalCostUSD: metricUsage.totalCostUSD,
-      } : undefined),
+      usage: toTurnMetricUsage(
+        metricUsage
+          ? {
+              totalCostUSD: metricUsage.totalCostUSD,
+            }
+          : undefined
+      ),
     });
   }
 }

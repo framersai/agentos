@@ -19,18 +19,21 @@
 ## Documentation Index
 
 ### Getting Started
+
 - [**Getting Started Guide**](./GETTING_STARTED.md) — Install, env setup, and 3 levels (1 line → 3 lines → 5 lines)
 - [**README**](../README.md) — Installation and quick start
 - [**High-Level API**](./HIGH_LEVEL_API.md) — `generateText()`, `streamText()`, `generateImage()`, and `agent()`
-- [**Examples Cookbook**](./EXAMPLES.md) — 8 complete runnable examples (customer service, research team, blog publisher, etc.)
+- [**Examples Cookbook**](./EXAMPLES.md) — 9 complete runnable examples, including runtime-configured `AgentOS` tools
 - [**CHANGELOG**](../CHANGELOG.md) — Version history and release notes
 
 ### Architecture & Core Concepts
+
 - [**Architecture Overview**](./ARCHITECTURE.md) — Complete system architecture and design principles
 
 ### Features & Capabilities
 
 #### Planning & Orchestration
+
 - [**Orchestration Guide**](./ORCHESTRATION.md) — Graphs, workflows, missions, voice nodes, checkpointing, YAML authoring
 - [**Unified Orchestration Layer**](./UNIFIED_ORCHESTRATION.md) — One runtime, three authoring APIs (`AgentGraph`, `workflow()`, `mission()`)
 - [**AgentGraph**](./AGENT_GRAPH.md) — Full graph builder with typed nodes, conditional edges, and subgraphs
@@ -42,10 +45,12 @@
 - [**Agent Communication**](./AGENT_COMMUNICATION.md) — Inter-agent messaging and coordination
 
 #### Safety & Security
+
 - [**Guardrails System**](./GUARDRAILS_USAGE.md) — Two-phase guardrail dispatch, built-in packs (PII, ML classifiers, topicality, code safety, grounding), and folder-level filesystem permissions
 - [**Safety Primitives**](./SAFETY_PRIMITIVES.md) — Circuit breakers, cost guards, stuck detection, and tool execution guards
 
 #### Memory & Storage
+
 - [**Cognitive Memory Guide**](./COGNITIVE_MEMORY_GUIDE.md) — Working memory, encoding, retrieval, consolidation, prospective memory
 - [**Cognitive Memory System**](./COGNITIVE_MEMORY.md) — Personality-modulated memory with Ebbinghaus decay, Baddeley's working memory, spreading activation, and HEXACO-driven encoding
 - [**RAG Memory Configuration**](./RAG_MEMORY_CONFIGURATION.md) — Vector storage and retrieval setup
@@ -56,45 +61,52 @@
 - [**Provenance & Immutability**](./PROVENANCE_IMMUTABILITY.md) — Sealed storage policy, signed ledger, and anchoring
 
 #### AI & LLM
+
 - [**Structured Output**](./STRUCTURED_OUTPUT.md) — JSON schema validation and structured generation
 - [**Evaluation Guide**](./EVALUATION.md) — Test cases, graders, LLM-as-judge, A/B testing, experiment tracking
 - [**Evaluation Framework**](./EVALUATION_FRAMEWORK.md) — Testing, scoring, and quality assurance
+- [**Query Router**](./QUERY_ROUTER.md) — Tiered query classification, retrieval routing, keyword fallback, and grounded answer generation
 - [**Image Generation Guide**](./IMAGE_GENERATION.md) — 5 providers (OpenAI, Stability, Replicate, OpenRouter, local SD)
 - [**Capability Discovery Guide**](./DISCOVERY.md) — Three-tier semantic discovery, CAPABILITY.yaml, meta-tool
 - [**Capability Discovery**](./CAPABILITY_DISCOVERY.md) — Full architecture reference
 - [**Cost Optimization**](./COST_OPTIMIZATION.md) — Token usage and API cost management
 
 #### Extensions & Customization
+
 - [**RFC Extension Standards**](./RFC_EXTENSION_STANDARDS.md) — Extension development guidelines
 - [**Recursive Self-Building Agents**](./RECURSIVE_SELF_BUILDING_AGENTS.md) — Advanced agent patterns
 - [**Skills (SKILL.md)**](./SKILLS.md) — Prompt modules loaded from directories/registries
 
 #### Channels & Social
+
 - [**Channels Guide**](./CHANNELS.md) — All 37 channels with setup for Discord, Slack, Telegram, Twitter, WhatsApp
 - [**Social Posting Guide**](./SOCIAL_POSTING.md) — SocialPostManager, content adaptation, scheduling, analytics
 
 ### Platform & Infrastructure
+
 - [**Platform Support**](./PLATFORM_SUPPORT.md) — Supported environments and requirements
 - [**Observability (OpenTelemetry)**](./OBSERVABILITY.md) — Tracing, metrics, and log correlation/export (opt-in)
 - [**Logging (Pino + OpenTelemetry)**](./LOGGING.md) — Structured logs, trace correlation, and OTEL LogRecord export (opt-in)
 
 ### Ecosystem
+
 - [**Ecosystem**](./ECOSYSTEM.md) — Related packages, extensions, and resources
 - [**Releasing**](./RELEASING.md) — Automated release process
 
 ### API Reference
+
 - [**TypeDoc API**](./api/index.html) — Auto-generated API documentation
 
 ---
 
 ## Quick Links
 
-| Resource | Link |
-|----------|------|
-| Website | [agentos.sh](https://agentos.sh) |
-| GitHub | [framersai/agentos](https://github.com/framersai/agentos) |
-| npm | [@framers/agentos](https://www.npmjs.com/package/@framers/agentos) |
-| Issues | [GitHub Issues](https://github.com/framersai/agentos/issues) |
+| Resource    | Link                                                                   |
+| ----------- | ---------------------------------------------------------------------- |
+| Website     | [agentos.sh](https://agentos.sh)                                       |
+| GitHub      | [framersai/agentos](https://github.com/framersai/agentos)              |
+| npm         | [@framers/agentos](https://www.npmjs.com/package/@framers/agentos)     |
+| Issues      | [GitHub Issues](https://github.com/framersai/agentos/issues)           |
 | Discussions | [GitHub Discussions](https://github.com/framersai/agentos/discussions) |
 
 ---

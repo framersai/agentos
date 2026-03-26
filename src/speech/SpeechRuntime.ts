@@ -30,7 +30,7 @@ export class SpeechRuntime {
   private readonly preferredSttProviderId: string | undefined;
   private readonly preferredTtsProviderId: string | undefined;
 
-  /** @since 0.2.0 — Prefer resolver over registry for provider resolution. */
+  /** Prefer resolver-based provider resolution over direct registry lookups. */
   readonly resolver: SpeechProviderResolver;
 
   constructor(config: SpeechRuntimeConfig = {}) {
@@ -114,19 +114,27 @@ export class SpeechRuntime {
   }
 
   hydrateFromExtensionManager(manager: ExtensionManager): void {
-    for (const descriptor of manager.getRegistry<SpeechToTextProvider>(EXTENSION_KIND_STT_PROVIDER).listActive()) {
+    for (const descriptor of manager
+      .getRegistry<SpeechToTextProvider>(EXTENSION_KIND_STT_PROVIDER)
+      .listActive()) {
       this.registry.registerSttProvider(descriptor.payload);
       this.registerProviderInResolver(descriptor.payload, 'stt', 'extension');
     }
-    for (const descriptor of manager.getRegistry<TextToSpeechProvider>(EXTENSION_KIND_TTS_PROVIDER).listActive()) {
+    for (const descriptor of manager
+      .getRegistry<TextToSpeechProvider>(EXTENSION_KIND_TTS_PROVIDER)
+      .listActive()) {
       this.registry.registerTtsProvider(descriptor.payload);
       this.registerProviderInResolver(descriptor.payload, 'tts', 'extension');
     }
-    for (const descriptor of manager.getRegistry<SpeechVadProvider>(EXTENSION_KIND_VAD_PROVIDER).listActive()) {
+    for (const descriptor of manager
+      .getRegistry<SpeechVadProvider>(EXTENSION_KIND_VAD_PROVIDER)
+      .listActive()) {
       this.registry.registerVadProvider(descriptor.payload);
       this.registerProviderInResolver(descriptor.payload, 'vad', 'extension');
     }
-    for (const descriptor of manager.getRegistry<WakeWordProvider>(EXTENSION_KIND_WAKE_WORD_PROVIDER).listActive()) {
+    for (const descriptor of manager
+      .getRegistry<WakeWordProvider>(EXTENSION_KIND_WAKE_WORD_PROVIDER)
+      .listActive()) {
       this.registry.registerWakeWordProvider(descriptor.payload);
       this.registerProviderInResolver(descriptor.payload, 'wake-word', 'extension');
     }
@@ -135,8 +143,6 @@ export class SpeechRuntime {
   /**
    * Resolve an STT provider via the new {@link SpeechProviderResolver}.
    * Returns `undefined` instead of throwing when no provider matches.
-   *
-   * @since 0.2.0
    */
   getSTT(requirements?: ProviderRequirements): SpeechToTextProvider | undefined {
     try {
@@ -149,8 +155,6 @@ export class SpeechRuntime {
   /**
    * Resolve a TTS provider via the new {@link SpeechProviderResolver}.
    * Returns `undefined` instead of throwing when no provider matches.
-   *
-   * @since 0.2.0
    */
   getTTS(requirements?: ProviderRequirements): TextToSpeechProvider | undefined {
     try {
@@ -185,7 +189,9 @@ export class SpeechRuntime {
     }));
   }
 
-  getProvider(id: string):
+  getProvider(
+    id: string
+  ):
     | SpeechToTextProvider
     | TextToSpeechProvider
     | SpeechVadProvider
@@ -221,7 +227,7 @@ export class SpeechRuntime {
   private registerProviderInResolver(
     provider: { id: string; getProviderName?: () => string },
     kind: 'stt' | 'tts' | 'vad' | 'wake-word',
-    source: 'core' | 'extension' = 'core',
+    source: 'core' | 'extension' = 'core'
   ): void {
     const catalogEntry = findSpeechProviderCatalogEntry(provider.id) ?? {
       id: provider.id,
@@ -285,7 +291,11 @@ export function createSpeechRuntimeFromEnv(
   env: Record<string, string | undefined> = process.env,
   config: Omit<SpeechRuntimeConfig, 'env'> = {}
 ): SpeechRuntime {
-  return new SpeechRuntime({ ...config, autoRegisterFromEnv: config.autoRegisterFromEnv ?? true, env });
+  return new SpeechRuntime({
+    ...config,
+    autoRegisterFromEnv: config.autoRegisterFromEnv ?? true,
+    env,
+  });
 }
 
 export function getDefaultSpeechProviderId(kind: 'stt' | 'tts'): string | undefined {

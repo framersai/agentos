@@ -86,8 +86,7 @@ function normalizeSegments(input: unknown): SpeechTranscriptionSegment[] | undef
                   word: typeof value.word === 'string' ? value.word : '',
                   start: typeof value.start === 'number' ? value.start : 0,
                   end: typeof value.end === 'number' ? value.end : 0,
-                  confidence:
-                    typeof value.confidence === 'number' ? value.confidence : undefined,
+                  confidence: typeof value.confidence === 'number' ? value.confidence : undefined,
                 };
               })
           : undefined,
@@ -101,8 +100,7 @@ function normalizeSegments(input: unknown): SpeechTranscriptionSegment[] | undef
         avg_logprob: typeof item.avg_logprob === 'number' ? item.avg_logprob : undefined,
         compression_ratio:
           typeof item.compression_ratio === 'number' ? item.compression_ratio : undefined,
-        no_speech_prob:
-          typeof item.no_speech_prob === 'number' ? item.no_speech_prob : undefined,
+        no_speech_prob: typeof item.no_speech_prob === 'number' ? item.no_speech_prob : undefined,
       };
     });
 }
@@ -130,7 +128,7 @@ function normalizeSegments(input: unknown): SpeechTranscriptionSegment[] | undef
  * plain text and segments are not available.
  *
  * @see {@link OpenAIWhisperSpeechToTextProviderConfig} for configuration options
- * @see {@link normalizeSegments} for the segment normalization logic
+ * See `normalizeSegments()` for the segment normalization logic.
  *
  * @example
  * ```ts

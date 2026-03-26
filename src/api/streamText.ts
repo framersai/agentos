@@ -9,7 +9,7 @@
  */
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
-import { adaptTools, type ToolDefinitionMap } from './toolAdapter.js';
+import { adaptTools } from './toolAdapter.js';
 import type { GenerateTextOptions, TokenUsage, ToolCallRecord } from './generateText.js';
 import { recordAgentOSUsage } from './usageLedger.js';
 import type { ITool } from '../core/tools/ITool.js';
@@ -18,7 +18,7 @@ import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../core/observabilit
 
 /**
  * A discriminated union representing a single event emitted by the
- * {@link StreamTextResult.fullStream} iterable.
+ * `StreamTextResult.fullStream` iterable.
  *
  * - `"text"` — incremental token delta from the model.
  * - `"tool-call"` — the model requested a tool invocation.
@@ -74,9 +74,15 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
   let resolveUsage: (v: TokenUsage) => void;
   let resolveToolCalls: (v: ToolCallRecord[]) => void;
 
-  const textPromise = new Promise<string>(r => { resolveText = r; });
-  const usagePromise = new Promise<TokenUsage>(r => { resolveUsage = r; });
-  const toolCallsPromise = new Promise<ToolCallRecord[]>(r => { resolveToolCalls = r; });
+  const textPromise = new Promise<string>((r) => {
+    resolveText = r;
+  });
+  const usagePromise = new Promise<TokenUsage>((r) => {
+    resolveUsage = r;
+  });
+  const toolCallsPromise = new Promise<ToolCallRecord[]>((r) => {
+    resolveToolCalls = r;
+  });
 
   const parts: StreamPart[] = [];
   const allToolCalls: ToolCallRecord[] = [];
@@ -92,7 +98,10 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
     try {
       const { providerId, modelId } = resolveModelOption(opts, 'text');
-      const resolved = resolveProvider(providerId, modelId, { apiKey: opts.apiKey, baseUrl: opts.baseUrl });
+      const resolved = resolveProvider(providerId, modelId, {
+        apiKey: opts.apiKey,
+        baseUrl: opts.baseUrl,
+      });
       const manager = await createProviderManager(resolved);
       recordedProviderId = resolved.providerId;
       recordedModelId = resolved.modelId;
@@ -104,7 +113,8 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
       const messages: Array<Record<string, unknown>> = [];
       if (opts.system) messages.push({ role: 'system', content: opts.system });
-      if (opts.messages) for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
+      if (opts.messages)
+        for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
       if (opts.prompt) messages.push({ role: 'user', content: opts.prompt });
 
       const tools = adaptTools(opts.tools);
@@ -112,12 +122,17 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       for (const tool of tools) toolMap.set(tool.name, tool);
       rootSpan?.setAttribute('agentos.api.tool_count', tools.length);
 
-      const toolSchemas = tools.length > 0
-        ? tools.map((tool) => ({
-            type: 'function' as const,
-            function: { name: tool.name, description: tool.description, parameters: tool.inputSchema },
-          }))
-        : undefined;
+      const toolSchemas =
+        tools.length > 0
+          ? tools.map((tool) => ({
+              type: 'function' as const,
+              function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.inputSchema,
+              },
+            }))
+          : undefined;
 
       const maxSteps = opts.maxSteps ?? 1;
       rootSpan?.setAttribute('agentos.api.max_steps', maxSteps);
@@ -138,7 +153,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             tools: toolSchemas,
             temperature: opts.temperature,
             maxTokens: opts.maxTokens,
-          } as any,
+          } as any
         );
 
         const reconstructor = new StreamingReconstructor();
@@ -187,8 +202,10 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         const stepText = reconstructor.getFullText();
         const finalChunk = reconstructor.getFinalChunk();
-        const streamedToolCalls = finalChunk?.choices?.[0]?.message?.tool_calls
-          ?? reconstructor.getToolCalls()
+        const streamedToolCalls =
+          finalChunk?.choices?.[0]?.message?.tool_calls ??
+          reconstructor
+            .getToolCalls()
             .filter((toolCall) => toolCall.id && toolCall.name)
             .map((toolCall) => ({
               id: toolCall.id!,
@@ -244,7 +261,11 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           const tool = toolMap.get(fnName);
           if (!tool) {
             toolCallRecord.error = `Tool "${fnName}" not found.`;
-            const resultPart: StreamPart = { type: 'tool-result', toolName: fnName, result: { error: toolCallRecord.error } };
+            const resultPart: StreamPart = {
+              type: 'tool-result',
+              toolName: fnName,
+              result: { error: toolCallRecord.error },
+            };
             parts.push(resultPart);
             yield resultPart;
             messages.push({
@@ -270,7 +291,9 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             messages.push({
               role: 'tool',
               tool_call_id: toolCallId,
-              content: JSON.stringify(result.output ?? { error: result.error ?? 'Tool execution failed.' }),
+              content: JSON.stringify(
+                result.output ?? { error: result.error ?? 'Tool execution failed.' }
+              ),
             } as any);
           } catch (err: any) {
             toolCallRecord.error = err?.message ?? String(err);

@@ -14,6 +14,7 @@
 6. [Knowledge Base Q&A](#6-knowledge-base-qa)
 7. [Multi-Channel Support Bot](#7-multi-channel-support-bot)
 8. [Automated Blog Publisher](#8-automated-blog-publisher)
+9. [Runtime-Configured Tools](#9-runtime-configured-tools)
 
 ---
 
@@ -25,9 +26,9 @@ Sequential pipeline with human-in-the-loop escalation.
 import { agency } from '@framers/agentos';
 
 const supportTeam = agency({
-  provider:  'openai',
-  model:     'gpt-4o',
-  strategy:  'sequential',
+  provider: 'openai',
+  model: 'gpt-4o',
+  strategy: 'sequential',
   agents: {
     triage: {
       instructions: `
@@ -56,7 +57,7 @@ const supportTeam = agency({
 });
 
 const result = await supportTeam.generate(
-  'My account was charged twice for the same subscription and I am very upset.',
+  'My account was charged twice for the same subscription and I am very upset.'
 );
 
 console.log(result.text);
@@ -72,11 +73,12 @@ Parallel information gathering with RAG and synthesis.
 import { agency } from '@framers/agentos';
 
 const researchTeam = agency({
-  provider:  'anthropic',
-  strategy:  'parallel',
+  provider: 'anthropic',
+  strategy: 'parallel',
   agents: {
     webResearcher: {
-      instructions: 'Search the web for current information on the topic. Return key facts and sources.',
+      instructions:
+        'Search the web for current information on the topic. Return key facts and sources.',
       tools: ['web_search', 'web_fetch'],
     },
     academicResearcher: {
@@ -84,7 +86,8 @@ const researchTeam = agency({
       tools: ['arxiv_search'],
     },
     newsAnalyst: {
-      instructions: 'Find recent news and trends on the topic. Highlight what changed in the last month.',
+      instructions:
+        'Find recent news and trends on the topic. Highlight what changed in the last month.',
       tools: ['news_search'],
     },
   },
@@ -103,7 +106,9 @@ const researchTeam = agency({
   },
 });
 
-const report = await researchTeam.generate('Impact of quantum error correction on near-term quantum computing.');
+const report = await researchTeam.generate(
+  'Impact of quantum error correction on near-term quantum computing.'
+);
 console.log(report.text);
 ```
 
@@ -159,7 +164,7 @@ const contentPipeline = workflow('content-pipeline')
   .compile();
 
 const result = await contentPipeline.invoke({
-  topic:    'How AI agents will change software development in 2026',
+  topic: 'How AI agents will change software development in 2026',
   audience: 'senior software engineers',
 });
 
@@ -176,12 +181,12 @@ Hierarchical agency with voice transport and telephony.
 import { agency } from '@framers/agentos';
 
 const callCenter = agency({
-  provider:  'openai',
-  strategy:  'hierarchical',
+  provider: 'openai',
+  strategy: 'hierarchical',
   voice: {
     sttProvider: 'deepgram',
     ttsProvider: 'elevenlabs',
-    voiceId:     'professional-en-us',
+    voiceId: 'professional-en-us',
   },
   agents: {
     receptionist: {
@@ -216,8 +221,8 @@ const callCenter = agency({
 
 // Answer an inbound call
 callCenter.listen({
-  transport:  'twilio',
-  onCallEnd:  (summary) => console.log('Call summary:', summary),
+  transport: 'twilio',
+  onCallEnd: (summary) => console.log('Call summary:', summary),
 });
 
 console.log('Call center ready. Listening for calls...');
@@ -234,9 +239,9 @@ import { agency } from '@framers/agentos';
 import { readFileSync } from 'fs';
 
 const codeReviewer = agency({
-  provider:  'anthropic',
-  strategy:  'debate',
-  rounds:    2,
+  provider: 'anthropic',
+  strategy: 'debate',
+  rounds: 2,
   agents: {
     critic: {
       instructions: `
@@ -301,10 +306,10 @@ const kbAgent = agent({
   `,
   tools: ['knowledge_base_search'],
   rag: {
-    enabled:       true,
-    vectorStore:   'hnsw',
-    collections:   ['product-docs', 'api-reference', 'tutorials'],
-    topK:          5,
+    enabled: true,
+    vectorStore: 'hnsw',
+    collections: ['product-docs', 'api-reference', 'tutorials'],
+    topK: 5,
     minSimilarity: 0.7,
   },
   memory: memory,
@@ -322,9 +327,7 @@ console.log(answer);
 //  option in your AgentOSConfig..."
 
 // Follow-up benefits from both RAG and memory
-const { text: followUp } = await session.send(
-  'What about for the voice pipeline specifically?'
-);
+const { text: followUp } = await session.send('What about for the voice pipeline specifically?');
 
 console.log(followUp);
 ```
@@ -344,8 +347,8 @@ import { TelegramAdapter } from '@framers/agentos-extensions/channels/telegram';
 
 // 1. Create the agency
 const supportBot = agency({
-  provider:  'openai',
-  strategy:  'sequential',
+  provider: 'openai',
+  strategy: 'sequential',
   agents: {
     greeter: {
       instructions: 'Greet the user and understand their issue in 1–2 sentences.',
@@ -361,8 +364,8 @@ const supportBot = agency({
 // 2. Connect to channels
 const router = new ChannelRouter();
 
-const discord  = new DiscordAdapter();
-const slack    = new SlackAdapter();
+const discord = new DiscordAdapter();
+const slack = new SlackAdapter();
 const telegram = new TelegramAdapter();
 
 await discord.initialize({ credential: process.env.DISCORD_BOT_TOKEN! });
@@ -404,15 +407,19 @@ import { SocialPostManager, ContentAdaptationEngine } from '@framers/agentos/soc
 import { z } from 'zod';
 
 const blogPublisher = workflow('automated-blog-publisher')
-  .input(z.object({
-    topic:     z.string(),
-    audience:  z.string(),
-    platforms: z.array(z.string()).default(['twitter', 'linkedin', 'bluesky']),
-  }))
-  .returns(z.object({
-    postUrl:    z.string(),
-    socialUrls: z.record(z.string()),
-  }))
+  .input(
+    z.object({
+      topic: z.string(),
+      audience: z.string(),
+      platforms: z.array(z.string()).default(['twitter', 'linkedin', 'bluesky']),
+    })
+  )
+  .returns(
+    z.object({
+      postUrl: z.string(),
+      socialUrls: z.record(z.string()),
+    })
+  )
 
   // Research
   .step('research', {
@@ -441,21 +448,23 @@ const blogPublisher = workflow('automated-blog-publisher')
   // Parallel: publish to CMS + generate social variants
   .parallel(
     { reducers: {} },
-    (wf) => wf.step('publish-cms', {
-      tool: 'cms_publish',
-      effectClass: 'external',
-    }),
-    (wf) => wf.step('social-variants', {
-      gmi: {
-        instructions: `
+    (wf) =>
+      wf.step('publish-cms', {
+        tool: 'cms_publish',
+        effectClass: 'external',
+      }),
+    (wf) =>
+      wf.step('social-variants', {
+        gmi: {
+          instructions: `
           Create platform-specific social media posts for this blog post.
           Twitter: 280 chars max, hook + link
           LinkedIn: professional tone, 3 bullet highlights
           Bluesky: casual tone, 300 chars max
           Return as JSON: { twitter, linkedin, bluesky }
         `,
-      },
-    }),
+        },
+      })
   )
 
   // Schedule social posts
@@ -471,10 +480,10 @@ async function publishPost(topic: string) {
   // First, generate the header image outside the workflow
   const image = await generateImage({
     provider: 'stability',
-    model:    'stable-image-core',
-    prompt:   `A professional blog header image representing: ${topic}. Clean, modern style.`,
-    width:    1200,
-    height:   628,
+    model: 'stable-image-core',
+    prompt: `A professional blog header image representing: ${topic}. Clean, modern style.`,
+    width: 1200,
+    height: 628,
     providerOptions: {
       stability: { stylePreset: 'digital-art' },
     },
@@ -482,7 +491,7 @@ async function publishPost(topic: string) {
 
   const result = await blogPublisher.invoke({
     topic,
-    audience:  'software developers',
+    audience: 'software developers',
     platforms: ['twitter', 'linkedin', 'bluesky'],
     // Pass image URL into the workflow context
     headerImageUrl: image.images[0].url,
@@ -497,12 +506,66 @@ await publishPost('How vector databases enable semantic search in AI application
 
 ---
 
+## 9. Runtime-Configured Tools
+
+Direct `AgentOS` initialization with runtime-configured tools via
+`createTestAgentOSConfig({ tools })`.
+
+Runnable source: `packages/agentos/examples/agentos-config-tools.mjs`
+
+```typescript
+import { AgentOS } from '@framers/agentos';
+import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+
+const agent = new AgentOS();
+
+await agent.initialize(
+  await createTestAgentOSConfig({
+    tools: {
+      open_profile: {
+        description: 'Load a saved profile record by ID.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: { type: 'string' },
+          },
+          required: ['profileId'],
+        },
+        execute: async ({ profileId }) => ({
+          success: true,
+          output: {
+            profile: {
+              id: profileId,
+              preferredTheme: 'solarized',
+            },
+          },
+        }),
+      },
+    },
+  })
+);
+
+const tool = await agent.getToolOrchestrator().getTool('open_profile');
+const result = await tool?.execute({ profileId: 'profile-1' }, {});
+
+console.log(result);
+await agent.shutdown();
+```
+
+Use this path when the tool should be globally prompt-visible and executable on
+direct `processRequest()` turns. Use `externalTools` or the registered-tool
+helpers only when the host should stay responsible for execution after a tool
+pause.
+
+---
+
 ## Related Guides
 
 - [GETTING_STARTED.md](./GETTING_STARTED.md) — installation and first steps
 - [ORCHESTRATION.md](./ORCHESTRATION.md) — graphs, workflows, missions
 - [CHANNELS.md](./CHANNELS.md) — channel setup
 - [SOCIAL_POSTING.md](./SOCIAL_POSTING.md) — social media publishing
+- [HIGH_LEVEL_API.md](./HIGH_LEVEL_API.md) — `AgentOS`, helper wrappers, and runtime tool registration
 - [COGNITIVE_MEMORY_GUIDE.md](./COGNITIVE_MEMORY_GUIDE.md) — memory system
 - [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) — image provider setup
 - [EVALUATION.md](./EVALUATION.md) — testing and benchmarking

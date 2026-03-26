@@ -31,7 +31,7 @@ export interface AssemblyAISTTProviderConfig {
  * Word-level timing entry returned by AssemblyAI transcripts.
  *
  * AssemblyAI returns word timings in **milliseconds** (not seconds), which
- * differs from most other providers. The {@link wordsToSegments} function
+ * differs from most other providers. The `wordsToSegments()` function
  * handles the conversion to seconds.
  *
  * @see https://www.assemblyai.com/docs/api-reference/transcripts
@@ -156,9 +156,9 @@ function wordsToSegments(words: AssemblyAIWord[]): SpeechTranscriptionSegment[] 
  *    the upload URL. Returns a transcript `id` used for polling. Optional
  *    features like `speaker_labels` are enabled in this request's JSON body.
  *
- * 3. **Poll** — `GET /v2/transcript/:id` is called every {@link POLL_INTERVAL_MS}
+ * 3. **Poll** — `GET /v2/transcript/:id` is called every `POLL_INTERVAL_MS`
  *    (1 second) until the transcript `status` transitions to `'completed'` or
- *    `'error'`. The polling loop is bounded by {@link DEFAULT_TIMEOUT_MS}
+ *    `'error'`. The polling loop is bounded by `DEFAULT_TIMEOUT_MS`
  *    (120 seconds) to prevent indefinite waiting.
  *
  * ## AbortController Usage
@@ -177,7 +177,7 @@ function wordsToSegments(words: AssemblyAIWord[]): SpeechTranscriptionSegment[] 
  * - Aborted signals throw with a descriptive cancellation message.
  *
  * @see {@link AssemblyAISTTProviderConfig} for configuration options
- * @see {@link AssemblyAITranscript} for the polling response shape
+ * See `AssemblyAITranscript` for the polling response shape.
  *
  * @example
  * ```ts
@@ -253,7 +253,7 @@ export class AssemblyAISTTProvider implements SpeechToTextProvider {
    * @param audio - Raw audio data and associated metadata. The `data` buffer
    *   is uploaded to AssemblyAI's CDN in step 1.
    * @param options - Optional transcription settings. Pass
-   *   `providerSpecificOptions.signal` (an {@link AbortSignal}) to cancel
+   *   `providerSpecificOptions.signal` (an `AbortSignal`) to cancel
    *   at any point in the pipeline.
    * @returns A promise resolving to the normalized transcription result.
    * @throws {Error} When the upload API returns a non-2xx status.

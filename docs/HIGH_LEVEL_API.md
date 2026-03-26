@@ -13,13 +13,13 @@ If you also want durable helper-level accounting, set `usageLedger.path`, set `u
 
 ## When to use which
 
-| API | Best for | Tradeoff |
-| --- | --- | --- |
-| `generateText()` | One-shot text or tool-calling turns | No persistent session state |
-| `streamText()` | Stream text or tool-calling results immediately | Stateless per call |
-| `generateImage()` | Provider-agnostic image generation from a single prompt | Provider feature support varies |
-| `agent()` | Lightweight multi-turn sessions with in-memory history | Does not replace the full AgentOS runtime |
-| `AgentOS` | Personas, extensions, workflows, multi-agent orchestration, guardrails, HITL, runtime lifecycle | More setup, more control |
+| API               | Best for                                                                                        | Tradeoff                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `generateText()`  | One-shot text or tool-calling turns                                                             | No persistent session state               |
+| `streamText()`    | Stream text or tool-calling results immediately                                                 | Stateless per call                        |
+| `generateImage()` | Provider-agnostic image generation from a single prompt                                         | Provider feature support varies           |
+| `agent()`         | Lightweight multi-turn sessions with in-memory history                                          | Does not replace the full AgentOS runtime |
+| `AgentOS`         | Personas, extensions, workflows, multi-agent orchestration, guardrails, HITL, runtime lifecycle | More setup, more control                  |
 
 ## Provider Resolution
 
@@ -43,16 +43,16 @@ await generateText({ model: 'openai:gpt-4o', prompt: '...' });
 When you supply `provider` without an explicit `model`, AgentOS resolves the default model
 for the requested task automatically:
 
-| Provider | Type | Text default | Image default | Embedding default | Env var |
-|----------|------|-------------|---------------|-------------------|---------|
-| `openai` | Cloud | `gpt-4o` | `gpt-image-1` | `text-embedding-3-small` | `OPENAI_API_KEY` |
-| `anthropic` | Cloud | `claude-sonnet-4-20250514` | — | — | `ANTHROPIC_API_KEY` |
-| `gemini` | Cloud | `gemini-2.5-flash` | — | — | `GEMINI_API_KEY` |
-| `openrouter` | Cloud | `openai/gpt-4o` | — | — | `OPENROUTER_API_KEY` |
-| `stability` | Cloud | — | `stable-diffusion-xl-1024-v1-0` | — | `STABILITY_API_KEY` |
-| `replicate` | Cloud | — | `black-forest-labs/flux-1.1-pro` | — | `REPLICATE_API_TOKEN` |
-| `ollama` | Local | `llama3.2` | `stable-diffusion` | `nomic-embed-text` | `OLLAMA_BASE_URL` |
-| `stable-diffusion-local` | Local | — | `v1-5-pruned-emaonly` | — | `STABLE_DIFFUSION_LOCAL_BASE_URL` |
+| Provider                 | Type  | Text default               | Image default                    | Embedding default        | Env var                           |
+| ------------------------ | ----- | -------------------------- | -------------------------------- | ------------------------ | --------------------------------- |
+| `openai`                 | Cloud | `gpt-4o`                   | `gpt-image-1`                    | `text-embedding-3-small` | `OPENAI_API_KEY`                  |
+| `anthropic`              | Cloud | `claude-sonnet-4-20250514` | —                                | —                        | `ANTHROPIC_API_KEY`               |
+| `gemini`                 | Cloud | `gemini-2.5-flash`         | —                                | —                        | `GEMINI_API_KEY`                  |
+| `openrouter`             | Cloud | `openai/gpt-4o`            | —                                | —                        | `OPENROUTER_API_KEY`              |
+| `stability`              | Cloud | —                          | `stable-diffusion-xl-1024-v1-0`  | —                        | `STABILITY_API_KEY`               |
+| `replicate`              | Cloud | —                          | `black-forest-labs/flux-1.1-pro` | —                        | `REPLICATE_API_TOKEN`             |
+| `ollama`                 | Local | `llama3.2`                 | `stable-diffusion`               | `nomic-embed-text`       | `OLLAMA_BASE_URL`                 |
+| `stable-diffusion-local` | Local | —                          | `v1-5-pruned-emaonly`            | —                        | `STABLE_DIFFUSION_LOCAL_BASE_URL` |
 
 When neither `provider` nor `model` is given, the first set API key env var is used
 (`OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `OPENROUTER_API_KEY` → `GEMINI_API_KEY` → `OLLAMA_BASE_URL`).
@@ -91,6 +91,23 @@ console.log(usage.totalTokens);
 // Legacy format — still supported:
 // const { text } = await generateText({ model: 'openai:gpt-4.1-mini', prompt: '...' });
 ```
+
+`generateText({ tools })` and `streamText({ tools })` now accept three useful
+forms:
+
+- A named high-level tool map
+- An `ExternalToolRegistry` (`Record`, `Map`, or iterable)
+- A prompt-only `ToolDefinitionForLLM[]`
+
+External registries are exposed to the model and executed when called.
+Prompt-only `ToolDefinitionForLLM[]` are exposed to the model too, but if the
+model calls one without an executor attached, AgentOS returns an explicit tool
+error instead of silently no-oping.
+
+The same `tools` forms now work on `agent({ tools })` and `agency({ tools })`.
+When an agency-level tool set is combined with per-agent tools, AgentOS
+normalizes both sides first and then merges by tool name, with the per-agent
+tool winning on collisions.
 
 Persist helper usage for later inspection:
 
@@ -145,14 +162,14 @@ console.log(result.images[0]?.mimeType);
 
 ### Built-in Image Providers
 
-| Provider | Type | Default model | API key env var |
-|---|---|---|---|
-| `openai` | Cloud API | `gpt-image-1` | `OPENAI_API_KEY` |
-| `stability` | Cloud API | `stable-diffusion-xl-1024-v1-0` | `STABILITY_API_KEY` |
-| `replicate` | Cloud API | `black-forest-labs/flux-1.1-pro` | `REPLICATE_API_TOKEN` |
-| `openrouter` | Cloud API | — | `OPENROUTER_API_KEY` |
-| `ollama` | Local | `stable-diffusion` | None (uses `baseUrl`) |
-| `stable-diffusion-local` | Local | `v1-5-pruned-emaonly` | None (uses `baseUrl`) |
+| Provider                 | Type      | Default model                    | API key env var       |
+| ------------------------ | --------- | -------------------------------- | --------------------- |
+| `openai`                 | Cloud API | `gpt-image-1`                    | `OPENAI_API_KEY`      |
+| `stability`              | Cloud API | `stable-diffusion-xl-1024-v1-0`  | `STABILITY_API_KEY`   |
+| `replicate`              | Cloud API | `black-forest-labs/flux-1.1-pro` | `REPLICATE_API_TOKEN` |
+| `openrouter`             | Cloud API | —                                | `OPENROUTER_API_KEY`  |
+| `ollama`                 | Local     | `stable-diffusion`               | None (uses `baseUrl`) |
+| `stable-diffusion-local` | Local     | `v1-5-pruned-emaonly`            | None (uses `baseUrl`) |
 
 ### Provider-Specific Options
 
@@ -225,11 +242,7 @@ const sdLocal = await generateImage({
 Register a provider factory for backends not covered by the built-ins:
 
 ```ts
-import {
-  generateImage,
-  registerImageProviderFactory,
-  type IImageProvider,
-} from '@framers/agentos';
+import { generateImage, registerImageProviderFactory, type IImageProvider } from '@framers/agentos';
 
 class ComfyUIProvider implements IImageProvider {
   providerId = 'comfyui';
@@ -282,10 +295,15 @@ console.log(second.text);
 console.log(await session.usage());
 ```
 
+`agent({ tools })` accepts the same three forms as `generateText({ tools })`
+and `streamText({ tools })`: named tool maps, `ExternalToolRegistry`
+(`Record`, `Map`, or iterable), and prompt-only `ToolDefinitionForLLM[]`.
+
 Runnable examples in the package source:
 
 - `packages/agentos/examples/high-level-api.mjs`
 - `packages/agentos/examples/generate-image.mjs`
+- `packages/agentos/examples/agentos-config-tools.mjs`
 
 ## Full runtime: `AgentOS`
 
@@ -294,7 +312,24 @@ import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
 import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 
 const agent = new AgentOS();
-await agent.initialize(await createTestAgentOSConfig());
+await agent.initialize(
+  await createTestAgentOSConfig({
+    tools: {
+      open_profile: {
+        description: 'Load a saved profile record by ID.',
+        inputSchema: {
+          type: 'object',
+          properties: { profileId: { type: 'string' } },
+          required: ['profileId'],
+        },
+        execute: async ({ profileId }) => ({
+          success: true,
+          output: { profile: { id: profileId, preferredTheme: 'solarized' } },
+        }),
+      },
+    },
+  })
+);
 
 for await (const chunk of agent.processRequest({
   userId: 'user-1',
@@ -306,6 +341,110 @@ for await (const chunk of agent.processRequest({
   }
 }
 ```
+
+`AgentOSConfig.tools` now accepts the same three forms as the high-level
+helpers: named tool maps, `ExternalToolRegistry` (`Record`, `Map`, or
+iterable), and prompt-only `ToolDefinitionForLLM[]`. AgentOS normalizes those
+inputs during `initialize(...)` and registers them into the shared
+`ToolOrchestrator`, so direct `processRequest()` turns can plan against and
+execute them without helper wrappers. If a config-registered tool collides with
+an extension or pack tool name, the config tool wins at registration time.
+
+If those external tool calls are AgentOS-registered tools, prefer
+`processRequestWithRegisteredTools(...)`. It executes the registered tools with
+the correct live-turn `ToolExecutionContext` and resumes the stream for you:
+
+```ts
+import {
+  AgentOS,
+  AgentOSResponseChunkType,
+  processRequestWithRegisteredTools,
+} from '@framers/agentos';
+
+for await (const chunk of processRequestWithRegisteredTools(agent, {
+  userId: 'user-1',
+  sessionId: 'session-1',
+  textInput: 'Search memory for my preferences',
+})) {
+  if (chunk.type === AgentOSResponseChunkType.TEXT_DELTA) {
+    process.stdout.write(chunk.textDelta);
+  }
+}
+```
+
+If a live turn can mix AgentOS-registered tools with a stable host-managed tool
+map, either configure `externalTools` once on `AgentOS.initialize(...)` or pass
+`externalTools` to `processRequestWithRegisteredTools(...)`. It can be a
+record, `Map`, or iterable of tool-like executors, and only missing tool names
+will run through that host registry. Per-call `externalTools` override the
+configured registry by tool name. Use `externalTools` for helper-level fallback
+execution; use `AgentOSConfig.tools` when the tool should be permanently
+registered and prompt-visible on direct runtime turns too.
+If an `externalTools` entry also provides `description` and `inputSchema`, the
+helper temporarily registers a proxy tool so the model can see and plan against
+it during the turn. Execution-only entries without prompt metadata still work
+for fallback execution, but they are not visible to the model up front.
+
+If you need fully dynamic routing instead of a fixed tool map, keep using
+`fallbackExternalToolHandler`.
+
+For custom host-managed tools, keep using `processRequestWithExternalTools(...)`
+and provide your own execution callback.
+
+If you are building a lower-level/custom GMI path and only need prompt-visible
+host tool schemas, configure `AgentOSConfig.externalTools` and call
+`agent.listExternalToolsForLLM()`. That returns only the prompt-aware host
+tools. You can turn those into raw OpenAI-style function schemas with
+`formatToolDefinitionsForOpenAI(...)` or directly from the registry with
+`formatExternalToolsForOpenAI(...)`.
+
+`processRequestWithExternalTools(...)` is the simplest path while the same
+AgentOS runtime stays alive. For restart-safe external tool execution, AgentOS
+also persists actionable external pauses into the conversation metadata. A fresh
+runtime can recover the pending request with
+`getPendingExternalToolRequest(conversationId, userId)` and continue on a new
+stream with `resumeExternalToolRequest(...)`:
+
+If the pending tool calls are AgentOS-registered tools, prefer
+`resumeExternalToolRequestWithRegisteredTools(...)`. It executes the registered
+tools with the correct resume-time `ToolExecutionContext` and then resumes the
+stream for you.
+
+```ts
+import { resumeExternalToolRequestWithRegisteredTools } from '@framers/agentos';
+
+const pending = await agent.getPendingExternalToolRequest('conv-1', 'user-1');
+
+if (pending) {
+  for await (const chunk of resumeExternalToolRequestWithRegisteredTools(agent, pending, {
+    organizationId: 'org-123',
+  })) {
+    if (chunk.type === AgentOSResponseChunkType.TEXT_DELTA) {
+      process.stdout.write(chunk.textDelta);
+    }
+  }
+}
+```
+
+If a persisted pause can mix AgentOS-registered tools with a stable
+host-managed tool map, either configure `externalTools` once on
+`AgentOS.initialize(...)` or pass `externalTools` to
+`resumeExternalToolRequestWithRegisteredTools(...)`. The helper will execute
+the registered tool calls itself and only delegate missing tool names to that
+host registry before resuming the stream. Per-call `externalTools` override the
+configured registry by tool name.
+Prompt-aware entries with `description` and `inputSchema` are also registered
+temporarily during the resumed stream so follow-up model calls can plan against
+the same host tools.
+
+If you need fully dynamic routing instead of a fixed tool map, keep using
+`fallbackExternalToolHandler`.
+
+For custom host-managed tools that are not registered in AgentOS, keep using
+`resumeExternalToolRequest(...)` directly and supply your own tool results.
+
+This recovery path assumes the conversation store is still available after the
+original process exits.
 
 ## Guidance
 

@@ -3,7 +3,7 @@
  * @fileoverview Defines a custom error class for OpenRouter-specific provider errors.
  * This extends the base {@link ProviderError} to include details specific to OpenRouter API interactions.
  * @module backend/agentos/core/llm/providers/errors/OpenRouterProviderError
- * @see {@link ./ProviderError.ts}
+ * @see {@link ProviderError}
  */
 
 import { ProviderError } from './ProviderError';

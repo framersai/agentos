@@ -112,12 +112,16 @@ describe('StreamChunkEmitter', () => {
       await emitter.pushChunk('s1', AgentOSResponseChunkType.TOOL_CALL_REQUEST, 'gmi1', 'p1', false, {
         toolCalls,
         rationale: 'need to search',
+        executionMode: 'external',
+        requiresExternalToolResult: true,
       });
 
       const chunk = (mockSM.pushChunk as any).mock.calls[0][1];
       expect(chunk.type).toBe(AgentOSResponseChunkType.TOOL_CALL_REQUEST);
       expect(chunk.toolCalls).toEqual(toolCalls);
       expect(chunk.rationale).toBe('need to search');
+      expect(chunk.executionMode).toBe('external');
+      expect(chunk.requiresExternalToolResult).toBe(true);
     });
 
     it('assembles TOOL_RESULT_EMISSION chunk correctly', async () => {

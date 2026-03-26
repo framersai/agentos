@@ -45,9 +45,7 @@ export async function imageToBuffer(input: string | Buffer): Promise<Buffer> {
   }
 
   if (typeof input !== 'string') {
-    throw new TypeError(
-      'imageToBuffer: expected a string (base64, URL, or file path) or Buffer.',
-    );
+    throw new TypeError('imageToBuffer: expected a string (base64, URL, or file path) or Buffer.');
   }
 
   const trimmed = input.trim();
@@ -73,7 +71,7 @@ export async function imageToBuffer(input: string | Buffer): Promise<Buffer> {
     const response = await globalThis.fetch(trimmed);
     if (!response.ok) {
       throw new Error(
-        `imageToBuffer: failed to fetch image from ${trimmed} (${response.status} ${response.statusText}).`,
+        `imageToBuffer: failed to fetch image from ${trimmed} (${response.status} ${response.statusText}).`
       );
     }
     return Buffer.from(await response.arrayBuffer());
@@ -81,11 +79,28 @@ export async function imageToBuffer(input: string | Buffer): Promise<Buffer> {
 
   // Heuristic: if the string contains path separators or a file extension,
   // treat it as a filesystem path.  Otherwise assume raw base64.
-  const looksLikePath = trimmed.includes('/') || trimmed.includes('\\') || /\.\w{2,5}$/.test(trimmed);
+  const looksLikePath =
+    trimmed.includes('/') || trimmed.includes('\\') || /\.\w{2,5}$/.test(trimmed);
   if (looksLikePath) {
     return fs.readFile(trimmed);
   }
 
   // Fallback: raw base64 string (no data URL prefix).
   return Buffer.from(trimmed, 'base64');
+}
+
+/**
+ * Converts a Node.js `Buffer` into a DOM-compatible `BlobPart`.
+ *
+ * Recent TypeScript DOM typings require `BlobPart` byte views to be backed by a
+ * concrete `ArrayBuffer`, while `Buffer` is typed as `ArrayBufferLike`. Returning
+ * a plain `Uint8Array` avoids that mismatch for multipart image uploads.
+ *
+ * @param input - Raw image bytes stored in a Node.js `Buffer`.
+ * @returns An `ArrayBuffer` safe to pass into `new Blob([...])`.
+ */
+export function bufferToBlobPart(input: Buffer): ArrayBuffer {
+  const bytes = new ArrayBuffer(input.byteLength);
+  new Uint8Array(bytes).set(input);
+  return bytes;
 }

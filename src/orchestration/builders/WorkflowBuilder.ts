@@ -229,7 +229,7 @@ export class WorkflowBuilder {
    * Attach a transport backend to this workflow.
    *
    * When `type` is `'voice'`, the compiled workflow will route graph I/O
-   * through a {@link VoiceTransportAdapter} at runtime.  The `config` values
+   * through the voice transport adapter at runtime. The `config` values
    * override per-field defaults from `agent.config.json`.
    *
    * The transport config is stored as `_transportConfig` on the builder
@@ -314,7 +314,7 @@ export class WorkflowBuilder {
       quorumCount?: number;
       merge: Record<string, BuiltinReducer | ReducerFn>;
       timeout?: number;
-    },
+    }
   ): this {
     this.steps.push({ kind: 'parallel', steps, join });
     return this;
@@ -376,7 +376,6 @@ export class WorkflowBuilder {
           });
         }
         tailNodeIds = [internalStep.id];
-
       } else if (internalStep.kind === 'branch') {
         // ── Router + fan-out ───────────────────────────────────────────────
         // Insert a pure router node that evaluates the condition.
@@ -439,7 +438,6 @@ export class WorkflowBuilder {
 
         // All branch leaves become the new tail for the next step.
         tailNodeIds = branchTails;
-
       } else if (internalStep.kind === 'parallel') {
         // ── Parallel fan-out ───────────────────────────────────────────────
         const parallelTails: string[] = [];
@@ -538,7 +536,7 @@ export class WorkflowBuilder {
             memory: config.memory,
             discovery: config.discovery,
             guardrails: config.guardrails,
-          },
+          }
         ),
         id,
       };
@@ -555,7 +553,7 @@ export class WorkflowBuilder {
           {
             memory: config.memory,
             guardrails: config.guardrails,
-          },
+          }
         ),
         id,
       };
@@ -563,9 +561,7 @@ export class WorkflowBuilder {
 
     if (config.human) {
       return {
-        ...humanNode(
-          { prompt: config.human.prompt, timeout: config.timeout },
-        ),
+        ...humanNode({ prompt: config.human.prompt, timeout: config.timeout }),
         id,
       };
     }
@@ -655,7 +651,7 @@ export class CompiledWorkflow {
    */
   constructor(
     private readonly ir: CompiledExecutionGraph,
-    checkpointStore: ICheckpointStore,
+    checkpointStore: ICheckpointStore
   ) {
     this.runtime = new GraphRuntime({
       checkpointStore,

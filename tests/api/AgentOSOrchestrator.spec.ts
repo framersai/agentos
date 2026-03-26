@@ -6,19 +6,20 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AgentOSOrchestrator } from '../../src/api/AgentOSOrchestrator';
+import {
+  AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY,
+  type AgentOSPendingExternalToolRequest,
+} from '../../src/api/types/AgentOSExternalToolRequest';
 import type { AgentOSInput, ProcessingOptions } from '../../src/api/types/AgentOSInput';
 import { AgentOSResponseChunkType } from '../../src/api/types/AgentOSResponse';
 import { GMIOutputChunkType } from '../../src/cognitive_substrate/IGMI';
-import type {
-  GMITurnInput,
-  IGMI,
-  GMIOutputChunk,
-} from '../../src/cognitive_substrate/IGMI';
+import type { GMITurnInput, IGMI, GMIOutputChunk } from '../../src/cognitive_substrate/IGMI';
 import type { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import type { IToolOrchestrator } from '../../src/core/tools/IToolOrchestrator';
 import type { ConversationManager } from '../../src/core/conversation/ConversationManager';
 import type { StreamingManager } from '../../src/core/streaming/StreamingManager';
 import type { ConversationContext } from '../../src/core/conversation/ConversationContext';
+import { MessageRole } from '../../src/core/conversation/ConversationMessage';
 
 describe('AgentOSOrchestrator (API layer)', () => {
   let orchestrator: AgentOSOrchestrator;
@@ -351,12 +352,18 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await orchestrator.orchestrateTurn(input);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
-      const finalChunk = pushedChunks.find((c: any) => c.type === AgentOSResponseChunkType.FINAL_RESPONSE);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
+      const finalChunk = pushedChunks.find(
+        (c: any) => c.type === AgentOSResponseChunkType.FINAL_RESPONSE
+      );
 
       expect(finalChunk).toBeTruthy();
       expect(finalChunk.finalResponseText).toBe('Here are three tips: 1) Do X 2) Do Y 3) Do Z');
-      expect(String(finalChunk.finalResponseText).toLowerCase()).not.toContain('turn processing sequence complete');
+      expect(String(finalChunk.finalResponseText).toLowerCase()).not.toContain(
+        'turn processing sequence complete'
+      );
       expect(mockStreamingManager.closeStream).toHaveBeenCalled();
     });
 
@@ -398,9 +405,11 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(capturedGMIInput?.metadata?.organizationId).toBe('org-default');
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const tenantUpdateChunk = pushedChunks.find(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.tenantRouting,
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.tenantRouting
       );
       expect(tenantUpdateChunk?.updates?.tenantRouting?.mode).toBe('single_tenant');
       expect(tenantUpdateChunk?.updates?.tenantRouting?.defaultOrganizationId).toBe('org-default');
@@ -460,9 +469,12 @@ describe('AgentOSOrchestrator (API layer)', () => {
       expect(retrieveInput.maxContextChars).toBe(4200);
       expect(retrieveInput.topKByScope).toEqual({ user: 8, persona: 8, organization: 8 });
 
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const recallUpdateChunk = pushedChunks.find(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.longTermMemoryRecall,
+        (c: any) =>
+          c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.longTermMemoryRecall
       );
       expect(recallUpdateChunk?.updates?.longTermMemoryRecall?.profile).toBe('aggressive');
       expect(recallUpdateChunk?.updates?.longTermMemoryRecall?.cadenceTurns).toBe(2);
@@ -501,9 +513,11 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await orchestrator.orchestrateTurn(input);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const taskOutcomeChunk = pushedChunks.find(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcome,
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcome
       );
 
       expect(taskOutcomeChunk).toBeTruthy();
@@ -575,9 +589,11 @@ describe('AgentOSOrchestrator (API layer)', () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 90));
 
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const kpiChunks = pushedChunks.filter(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcomeKpi,
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcomeKpi
       );
       expect(kpiChunks.length).toBeGreaterThanOrEqual(2);
       const lastKpi = kpiChunks[kpiChunks.length - 1].updates.taskOutcomeKpi;
@@ -671,9 +687,11 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(capturedGMIInput?.metadata?.executionPolicy?.toolSelectionMode).toBe('all');
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const planningChunks = pushedChunks.filter(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning,
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning
       );
       const planningChunk = planningChunks[planningChunks.length - 1];
       expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.applied).toBe(true);
@@ -762,12 +780,16 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(capturedGMIInput?.metadata?.executionPolicy?.toolFailureMode).toBe('fail_open');
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const planningChunks = pushedChunks.filter(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning,
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning
       );
       const planningChunk = planningChunks[planningChunks.length - 1];
-      expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.forcedToolFailureMode).toBe(true);
+      expect(
+        planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.forcedToolFailureMode
+      ).toBe(true);
     });
 
     it('preserves explicit fail_closed request override under degraded KPI', async () => {
@@ -858,16 +880,21 @@ describe('AgentOSOrchestrator (API layer)', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(capturedGMIInput?.metadata?.executionPolicy?.toolFailureMode).toBe('fail_closed');
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const planningChunks = pushedChunks.filter(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning,
+        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.turnPlanning
       );
       const planningChunk = planningChunks[planningChunks.length - 1];
       expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.applied).toBe(false);
       expect(
-        planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.preservedRequestedFailClosed,
+        planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions
+          ?.preservedRequestedFailClosed
       ).toBe(true);
-      expect(planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.forcedToolFailureMode).toBeFalsy();
+      expect(
+        planningChunk?.updates?.turnPlanning?.adaptiveExecution?.actions?.forcedToolFailureMode
+      ).toBeFalsy();
     });
 
     it('loads persisted KPI windows and applies adaptive execution on first turn', async () => {
@@ -1050,13 +1077,372 @@ describe('AgentOSOrchestrator (API layer)', () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 90));
 
-      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map((call: any[]) => call[1]);
+      const pushedChunks = (mockStreamingManager.pushChunk as any).mock.calls.map(
+        (call: any[]) => call[1]
+      );
       const alertChunk = pushedChunks.find(
-        (c: any) => c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcomeAlert,
+        (c: any) =>
+          c.type === AgentOSResponseChunkType.METADATA_UPDATE && c.updates?.taskOutcomeAlert
       );
       expect(alertChunk).toBeTruthy();
       expect(alertChunk.updates.taskOutcomeAlert.sampleCount).toBeGreaterThanOrEqual(2);
       expect(alertChunk.updates.taskOutcomeAlert.value).toBeLessThan(0.9);
+    });
+  });
+
+  describe('external tool pause persistence and resume', () => {
+    it('persists pending external tool requests into conversation metadata', async () => {
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+        }
+      );
+
+      const metadata: Record<string, any> = { userId: 'test-user' };
+      const messages: any[] = [];
+      const toolCalls = [{ id: 'tool-1', name: 'memory_search', arguments: { query: 'prefs' } }];
+
+      const statefulConversationContext = {
+        sessionId: 'conv-pending',
+        createdAt: Date.now(),
+        userId: 'test-user',
+        getHistory: vi.fn().mockImplementation(() => messages),
+        getAllMessages: vi.fn().mockImplementation(() => messages),
+        addMessage: vi.fn().mockImplementation((message) => {
+          const saved = {
+            id: `msg-${messages.length + 1}`,
+            timestamp: Date.now(),
+            ...message,
+          };
+          messages.push(saved);
+          return saved;
+        }),
+        getMetadata: vi.fn((key: string) => metadata[key]),
+        setMetadata: vi.fn((key: string, value: unknown) => {
+          if (value === undefined) {
+            delete metadata[key];
+          } else {
+            metadata[key] = value;
+          }
+        }),
+        getAllMetadata: vi.fn(() => ({ ...metadata })),
+        clearHistory: vi.fn(),
+        getTurnNumber: vi.fn().mockReturnValue(0),
+        toJSON: vi.fn().mockReturnValue({ sessionMetadata: metadata, messages }),
+        currentLanguage: 'en-US',
+      } as unknown as ConversationContext;
+
+      const externalPauseGmi = {
+        ...mockGMI,
+        processTurnStream: vi.fn().mockImplementation(async function* (_input: GMITurnInput) {
+          return {
+            isFinal: false,
+            responseText: 'Need a memory search before I can continue.',
+            toolCalls,
+          };
+        }),
+      } as unknown as IGMI;
+
+      (mockGMIManager.getOrCreateGMIForSession as any).mockResolvedValue({
+        gmi: externalPauseGmi,
+        conversationContext: statefulConversationContext,
+      });
+
+      await orchestrator.orchestrateTurn({
+        userId: 'test-user',
+        sessionId: 'test-session',
+        conversationId: 'conv-pending',
+        textInput: 'Search memory for my preferences.',
+        selectedPersonaId: 'persona-1',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const pendingRequest = metadata[
+        AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY
+      ] as AgentOSPendingExternalToolRequest;
+
+      expect(pendingRequest).toMatchObject({
+        streamId: 'stream-1',
+        sessionId: 'test-session',
+        conversationId: 'conv-pending',
+        userId: 'test-user',
+        personaId: 'persona-1',
+        toolCalls,
+      });
+      expect(statefulConversationContext.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: MessageRole.ASSISTANT,
+          tool_calls: toolCalls,
+        })
+      );
+      expect(mockConversationManager.saveConversation).toHaveBeenCalled();
+      expect(mockStreamingManager.pushChunk).toHaveBeenCalledWith(
+        'stream-1',
+        expect.objectContaining({
+          type: AgentOSResponseChunkType.TOOL_CALL_REQUEST,
+        })
+      );
+    });
+
+    it('rehydrates conversation history and clears persisted pending state when resuming tool results', async () => {
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+        }
+      );
+
+      const toolCalls = [{ id: 'tool-1', name: 'memory_search', arguments: { query: 'prefs' } }];
+      const pendingRequest: AgentOSPendingExternalToolRequest = {
+        streamId: 'old-stream',
+        sessionId: 'session-resume',
+        conversationId: 'conv-resume',
+        userId: 'test-user',
+        personaId: 'persona-1',
+        gmiInstanceId: 'gmi-1',
+        toolCalls,
+        rationale: 'Need a memory search before I can continue.',
+        requestedAt: new Date().toISOString(),
+      };
+
+      const metadata: Record<string, any> = {
+        userId: 'test-user',
+        [AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY]: pendingRequest,
+      };
+      const messages: any[] = [
+        {
+          id: 'msg-1',
+          timestamp: Date.now() - 1000,
+          role: MessageRole.USER,
+          content: 'Search memory for my preferences.',
+        },
+        {
+          id: 'msg-2',
+          timestamp: Date.now(),
+          role: MessageRole.ASSISTANT,
+          content: null,
+          tool_calls: toolCalls,
+        },
+      ];
+
+      const statefulConversationContext = {
+        sessionId: 'conv-resume',
+        createdAt: Date.now(),
+        userId: 'test-user',
+        getHistory: vi.fn().mockImplementation(() => messages),
+        getAllMessages: vi.fn().mockImplementation(() => messages),
+        addMessage: vi.fn().mockImplementation((message) => {
+          const saved = {
+            id: `msg-${messages.length + 1}`,
+            timestamp: Date.now(),
+            ...message,
+          };
+          messages.push(saved);
+          return saved;
+        }),
+        getMetadata: vi.fn((key: string) => metadata[key]),
+        setMetadata: vi.fn((key: string, value: unknown) => {
+          if (value === undefined) {
+            delete metadata[key];
+          } else {
+            metadata[key] = value;
+          }
+        }),
+        getAllMetadata: vi.fn(() => ({ ...metadata })),
+        clearHistory: vi.fn(),
+        getTurnNumber: vi.fn().mockReturnValue(2),
+        toJSON: vi.fn().mockReturnValue({ sessionMetadata: metadata, messages }),
+        currentLanguage: 'en-US',
+      } as unknown as ConversationContext;
+
+      const resumeGmi = {
+        ...mockGMI,
+        hydrateConversationHistory: vi.fn(),
+        handleToolResult: vi.fn().mockResolvedValue({
+          isFinal: true,
+          responseText: 'Resumed successfully.',
+        }),
+      } as unknown as IGMI;
+
+      (mockGMIManager.getOrCreateGMIForSession as any).mockResolvedValue({
+        gmi: resumeGmi,
+        conversationContext: statefulConversationContext,
+      });
+
+      const streamId = await orchestrator.orchestrateResumedToolResults(pendingRequest, [
+        {
+          toolCallId: 'tool-1',
+          toolName: 'memory_search',
+          toolOutput: { results: [{ id: 'trace-1', content: 'User likes shortcuts.' }] },
+          isSuccess: true,
+        },
+      ]);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(streamId).toBe('stream-1');
+      expect(resumeGmi.hydrateConversationHistory).toHaveBeenCalledWith(messages);
+      expect(resumeGmi.handleToolResult).toHaveBeenCalledTimes(1);
+      expect(metadata[AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY]).toBeUndefined();
+      expect(mockStreamingManager.pushChunk).toHaveBeenCalledWith(
+        'stream-1',
+        expect.objectContaining({
+          type: AgentOSResponseChunkType.FINAL_RESPONSE,
+        })
+      );
+    });
+
+    it('re-applies runtime organization context from resume options', async () => {
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+        }
+      );
+
+      const toolCalls = [
+        { id: 'tool-1', name: 'memory_search', arguments: { query: 'org prefs' } },
+      ];
+      const pendingRequest: AgentOSPendingExternalToolRequest = {
+        streamId: 'old-stream',
+        sessionId: 'session-resume',
+        conversationId: 'conv-resume',
+        userId: 'test-user',
+        personaId: 'persona-1',
+        gmiInstanceId: 'gmi-1',
+        toolCalls,
+        rationale: 'Need organization memory before I can continue.',
+        requestedAt: new Date().toISOString(),
+      };
+
+      const metadata: Record<string, any> = {
+        userId: 'test-user',
+        [AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY]: pendingRequest,
+      };
+      const messages: any[] = [
+        {
+          id: 'msg-1',
+          timestamp: Date.now() - 1000,
+          role: MessageRole.USER,
+          content: 'Search organization memory for our defaults.',
+        },
+        {
+          id: 'msg-2',
+          timestamp: Date.now(),
+          role: MessageRole.ASSISTANT,
+          content: null,
+          tool_calls: toolCalls,
+        },
+      ];
+
+      const statefulConversationContext = {
+        sessionId: 'conv-resume',
+        createdAt: Date.now(),
+        userId: 'test-user',
+        getHistory: vi.fn().mockImplementation(() => messages),
+        getAllMessages: vi.fn().mockImplementation(() => messages),
+        addMessage: vi.fn().mockImplementation((message) => {
+          const saved = {
+            id: `msg-${messages.length + 1}`,
+            timestamp: Date.now(),
+            ...message,
+          };
+          messages.push(saved);
+          return saved;
+        }),
+        getMetadata: vi.fn((key: string) => metadata[key]),
+        setMetadata: vi.fn((key: string, value: unknown) => {
+          if (value === undefined) {
+            delete metadata[key];
+          } else {
+            metadata[key] = value;
+          }
+        }),
+        getAllMetadata: vi.fn(() => ({ ...metadata })),
+        clearHistory: vi.fn(),
+        getTurnNumber: vi.fn().mockReturnValue(2),
+        toJSON: vi.fn().mockReturnValue({ sessionMetadata: metadata, messages }),
+        currentLanguage: 'en-US',
+      } as unknown as ConversationContext;
+
+      const resumeGmi = {
+        ...mockGMI,
+        hydrateConversationHistory: vi.fn(),
+        hydrateTurnContext: vi.fn(),
+        handleToolResult: vi.fn().mockResolvedValue({
+          isFinal: true,
+          responseText: 'Resumed successfully with org context.',
+        }),
+      } as unknown as IGMI;
+
+      (mockGMIManager.getOrCreateGMIForSession as any).mockResolvedValue({
+        gmi: resumeGmi,
+        conversationContext: statefulConversationContext,
+      });
+
+      await orchestrator.orchestrateResumedToolResults(
+        pendingRequest,
+        [
+          {
+            toolCallId: 'tool-1',
+            toolName: 'memory_search',
+            toolOutput: { results: [{ id: 'trace-1', content: 'Org defaults prefer shortcuts.' }] },
+            isSuccess: true,
+          },
+        ],
+        {
+          organizationId: 'org-resume',
+        }
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(resumeGmi.hydrateTurnContext).toHaveBeenCalledWith({
+        sessionId: 'session-resume',
+        conversationId: 'conv-resume',
+        organizationId: 'org-resume',
+      });
+      expect(resumeGmi.handleToolResult).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -32,7 +32,7 @@ export interface OpenAITextToSpeechProviderConfig {
   model?: string;
 
   /**
-   * Default voice identifier. See {@link OPENAI_VOICES} for available options.
+   * Default voice identifier. See `OPENAI_VOICES` for available options.
    * @default 'nova'
    */
   voice?: string;
@@ -113,8 +113,8 @@ function mimeTypeForOutput(format: string | undefined): string {
  *
  * ## Voice Listing
  *
- * OpenAI's voice catalog is static (6 voices), so {@link listAvailableVoices}
- * returns a hardcoded list from {@link OPENAI_VOICES} without making an API call.
+ * OpenAI's voice catalog is static (6 voices), so `listAvailableVoices()`
+ * returns a hardcoded list from `OPENAI_VOICES` without making an API call.
  *
  * @see {@link OpenAITextToSpeechProviderConfig} for configuration options
  * @see {@link OpenAIWhisperSpeechToTextProvider} for the corresponding STT provider

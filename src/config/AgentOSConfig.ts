@@ -11,6 +11,8 @@
 
 import { PrismaClient } from '@prisma/client';
 import { AgentOSConfig } from '../api/AgentOS';
+import type { ExternalToolRegistry } from '../api/externalToolRegistry';
+import type { AdaptableToolInput } from '../api/toolAdapter';
 import { GMIManagerConfig } from '../cognitive_substrate/GMIManager';
 import { AgentOSOrchestratorConfig } from '../api/AgentOSOrchestrator';
 import { PromptEngineConfig } from '../core/llm/IPromptEngine';
@@ -18,7 +20,10 @@ import { ToolOrchestratorConfig } from './ToolOrchestratorConfig';
 import { ToolPermissionManagerConfig } from '../core/tools/permissions/IToolPermissionManager';
 import { ConversationManagerConfig } from '../core/conversation/ConversationManager';
 import { StreamingManagerConfig } from '../core/streaming/StreamingManager';
-import { AIModelProviderManagerConfig, ProviderConfigEntry } from '../core/llm/providers/AIModelProviderManager';
+import {
+  AIModelProviderManagerConfig,
+  ProviderConfigEntry,
+} from '../core/llm/providers/AIModelProviderManager';
 import { PersonaLoaderConfig } from '../cognitive_substrate/personas/IPersonaLoader';
 
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
@@ -55,7 +60,7 @@ export interface EnvironmentConfig {
   // Application Configuration
   DEFAULT_PERSONA_ID?: string;
   NODE_ENV?: string;
-  
+
   // Feature Flags
   ENABLE_PERSISTENCE?: string;
   ENABLE_UTILITY_AI?: string;
@@ -74,7 +79,7 @@ export interface ConfigValidationResult {
 
 /**
  * Validates the environment configuration for required variables.
- * 
+ *
  * @param env - The environment configuration object
  * @returns Validation result with errors and warnings
  */
@@ -88,7 +93,12 @@ export function validateEnvironmentConfig(env: Partial<EnvironmentConfig>): Conf
   }
 
   // Warnings for missing optional but recommended variables
-  if (!env.OPENAI_API_KEY && !env.ANTHROPIC_API_KEY && !env.OPENROUTER_API_KEY && !env.OLLAMA_BASE_URL) {
+  if (
+    !env.OPENAI_API_KEY &&
+    !env.ANTHROPIC_API_KEY &&
+    !env.OPENROUTER_API_KEY &&
+    !env.OLLAMA_BASE_URL
+  ) {
     warnings.push('No LLM provider API keys configured. AgentOS will have limited functionality.');
   }
 
@@ -99,13 +109,13 @@ export function validateEnvironmentConfig(env: Partial<EnvironmentConfig>): Conf
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
 /**
  * Reads and validates environment configuration.
- * 
+ *
  * @returns Validated environment configuration
  * @throws GMIError if required environment variables are missing
  */
@@ -128,25 +138,24 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     ENABLE_PERSISTENCE: process.env.ENABLE_PERSISTENCE || 'true',
     ENABLE_UTILITY_AI: process.env.ENABLE_UTILITY_AI || 'false',
     MAX_CONCURRENT_STREAMS: process.env.MAX_CONCURRENT_STREAMS || '1000',
-    MAX_TOOL_CALL_ITERATIONS: process.env.MAX_TOOL_CALL_ITERATIONS || '5'
+    MAX_TOOL_CALL_ITERATIONS: process.env.MAX_TOOL_CALL_ITERATIONS || '5',
   };
 
   const validation = validateEnvironmentConfig(env);
-  
+
   // Log warnings
   if (validation.warnings.length > 0) {
     console.warn('AgentOS Configuration Warnings:');
-    validation.warnings.forEach(warning => console.warn(`  - ${warning}`));
+    validation.warnings.forEach((warning) => console.warn(`  - ${warning}`));
   }
 
   // Throw error if validation fails
   if (!validation.isValid) {
-    const errorMessage = `AgentOS Configuration Errors:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`;
-    throw new GMIError(
-      errorMessage,
-      GMIErrorCode.CONFIGURATION_ERROR,
-      { errors: validation.errors, warnings: validation.warnings }
-    );
+    const errorMessage = `AgentOS Configuration Errors:\n${validation.errors.map((e) => `  - ${e}`).join('\n')}`;
+    throw new GMIError(errorMessage, GMIErrorCode.CONFIGURATION_ERROR, {
+      errors: validation.errors,
+      warnings: validation.warnings,
+    });
   }
 
   return env as EnvironmentConfig;
@@ -154,7 +163,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
 
 /**
  * Creates the Persona Loader configuration.
- * 
+ *
  * @param env - Environment configuration
  * @returns PersonaLoaderConfig
  */
@@ -173,7 +182,7 @@ function createPersonaLoaderConfig(env: EnvironmentConfig): PersonaLoaderConfig 
 
 /**
  * Creates the AI Model Provider Manager configuration.
- * 
+ *
  * @param env - Environment configuration
  * @returns AIModelProviderManagerConfig
  */
@@ -191,8 +200,8 @@ function createModelProviderManagerConfig(env: EnvironmentConfig): AIModelProvid
         baseURL: 'https://api.openai.com/v1',
         defaultModel: 'gpt-4o',
         maxRetries: 3,
-        timeout: 60000
-      }
+        timeout: 60000,
+      },
     });
   }
 
@@ -207,8 +216,8 @@ function createModelProviderManagerConfig(env: EnvironmentConfig): AIModelProvid
         baseURL: 'https://openrouter.ai/api/v1',
         defaultModel: 'openai/gpt-4o',
         maxRetries: 3,
-        timeout: 60000
-      }
+        timeout: 60000,
+      },
     });
   }
 
@@ -221,13 +230,13 @@ function createModelProviderManagerConfig(env: EnvironmentConfig): AIModelProvid
       config: {
         baseURL: env.OLLAMA_BASE_URL,
         defaultModel: 'llama3.2',
-        timeout: 120000 // Longer timeout for local models
-      }
+        timeout: 120000, // Longer timeout for local models
+      },
     });
   }
 
   // Ensure at least one provider is marked as default
-  if (providers.length > 0 && !providers.some(p => p.isDefault)) {
+  if (providers.length > 0 && !providers.some((p) => p.isDefault)) {
     providers[0].isDefault = true;
   }
 
@@ -240,20 +249,26 @@ function createModelProviderManagerConfig(env: EnvironmentConfig): AIModelProvid
  */
 function _createLemonSqueezyService(_env: EnvironmentConfig) {
   return {
-    initialize: async () => { /* implementation */ },
+    initialize: async () => {
+      /* implementation */
+    },
     verifyWebhookSignature: (_rawBody: string, _signature: string) => true,
-    processWebhookEvent: async (_eventName: string, _data: any) => { /* implementation */ }
+    processWebhookEvent: async (_eventName: string, _data: any) => {
+      /* implementation */
+    },
   };
 }
 
 /**
  * Creates a utility AI service instance if enabled.
  * This is a placeholder - implement based on your UtilityAI implementation.
- * 
+ *
  * @param env - Environment configuration
  * @returns UtilityAI service or undefined
  */
-async function createUtilityAIService(env: EnvironmentConfig): Promise<(IUtilityAI & IPromptEngineUtilityAI) | undefined> {
+async function createUtilityAIService(
+  env: EnvironmentConfig
+): Promise<(IUtilityAI & IPromptEngineUtilityAI) | undefined> {
   if (env.ENABLE_UTILITY_AI === 'true') {
     // TODO: Implement your UtilityAI service
     // const utilityAI = new YourUtilityAIService();
@@ -263,19 +278,37 @@ async function createUtilityAIService(env: EnvironmentConfig): Promise<(IUtility
   return undefined;
 }
 
+export interface CreateAgentOSConfigOptions {
+  /**
+   * Optional runtime-level registered tools to place on `AgentOSConfig.tools`.
+   * These will be registered into the shared `ToolOrchestrator` during
+   * `AgentOS.initialize(...)`.
+   */
+  tools?: AdaptableToolInput;
+
+  /**
+   * Optional stable host-managed tool registry to place on
+   * `AgentOSConfig.externalTools`.
+   */
+  externalTools?: ExternalToolRegistry;
+}
+
 /**
  * Main function to create the complete AgentOS configuration.
- * 
+ *
+ * @param options - Optional runtime tool inputs to apply to the generated config.
  * @returns Promise resolving to a complete AgentOSConfig
  * @throws GMIError if configuration creation fails
  */
-export async function createAgentOSConfig(): Promise<AgentOSConfig> {
+export async function createAgentOSConfig(
+  options: CreateAgentOSConfigOptions = {}
+): Promise<AgentOSConfig> {
   console.log('AgentOS Config: Starting configuration creation...');
-  
+
   try {
     // Load and validate environment
     const env = getEnvironmentConfig();
-    
+
     // Create Prisma client
     const prisma = new PrismaClient();
     console.log('AgentOS Config: Prisma client stub initialized');
@@ -292,14 +325,14 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       defaultWorkingMemoryType: 'in_memory',
       defaultGMIBaseConfigDefaults: {
         defaultLlmProviderId: 'openai',
-        defaultLlmModelId: 'gpt-4o'
-      }
+        defaultLlmModelId: 'gpt-4o',
+      },
     };
 
     const orchestratorConfig: AgentOSOrchestratorConfig = {
       maxToolCallIterations: parseInt(env.MAX_TOOL_CALL_ITERATIONS || '5'),
       defaultAgentTurnTimeoutMs: 120000,
-      enableConversationalPersistence: env.ENABLE_PERSISTENCE === 'true'
+      enableConversationalPersistence: env.ENABLE_PERSISTENCE === 'true',
     };
 
     const promptEngineConfig: PromptEngineConfig = {
@@ -340,8 +373,8 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       globalDisabledTools: [],
       toolRegistrySettings: {
         allowDynamicRegistration: true,
-        persistRegistry: false
-      }
+        persistRegistry: false,
+      },
     };
 
     const toolPermissionManagerConfig: ToolPermissionManagerConfig = {
@@ -349,10 +382,13 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       logToolCalls: env.NODE_ENV === 'development',
       toolToSubscriptionFeatures: {
         // Example: map specific tools to subscription features
-        'advanced_search_tool': [
-          { flag: 'FEATURE_ADVANCED_SEARCH', description: 'Access to advanced search capabilities' }
-        ]
-      }
+        advanced_search_tool: [
+          {
+            flag: 'FEATURE_ADVANCED_SEARCH',
+            description: 'Access to advanced search capabilities',
+          },
+        ],
+      },
     };
 
     const turnPlanning = {
@@ -381,14 +417,14 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       },
       maxActiveConversationsInMemory: 1000,
       inactivityTimeoutMs: 3600000,
-      persistenceEnabled: env.ENABLE_PERSISTENCE === 'true'
+      persistenceEnabled: env.ENABLE_PERSISTENCE === 'true',
     };
 
     const streamingManagerConfig: StreamingManagerConfig = {
       maxConcurrentStreams: parseInt(env.MAX_CONCURRENT_STREAMS || '1000'),
       defaultStreamInactivityTimeoutMs: 300000, // 5 minutes
       maxClientsPerStream: 10,
-      onClientSendErrorBehavior: 'log_and_continue'
+      onClientSendErrorBehavior: 'log_and_continue',
     };
 
     const modelProviderManagerConfig = createModelProviderManagerConfig(env);
@@ -414,23 +450,26 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
       utilityAIService,
       turnPlanning,
       extensionSecrets: Object.keys(extensionSecrets).length ? extensionSecrets : undefined,
+      ...(options.tools ? { tools: options.tools } : {}),
+      ...(options.externalTools ? { externalTools: options.externalTools } : {}),
     };
 
     console.log('AgentOS Config: Configuration created successfully');
     console.log(`AgentOS Config: Environment: ${env.NODE_ENV}`);
     console.log(`AgentOS Config: Persistence enabled: ${env.ENABLE_PERSISTENCE}`);
-    console.log(`AgentOS Config: LLM providers configured: ${modelProviderManagerConfig.providers.length}`);
+    console.log(
+      `AgentOS Config: LLM providers configured: ${modelProviderManagerConfig.providers.length}`
+    );
     console.log(`AgentOS Config: Default persona: ${defaultPersonaId}`);
 
     return config;
-
   } catch (error: any) {
     console.error('AgentOS Config: Failed to create configuration:', error);
-    
+
     if (error instanceof GMIError) {
       throw error;
     }
-    
+
     throw new GMIError(
       `Failed to create AgentOS configuration: ${error.message}`,
       GMIErrorCode.CONFIGURATION_ERROR,
@@ -442,14 +481,17 @@ export async function createAgentOSConfig(): Promise<AgentOSConfig> {
 /**
  * Helper function to create a test configuration for development/testing.
  * This bypasses some environment requirements and uses sensible defaults.
- * 
+ *
+ * @param options - Optional runtime tool inputs to apply to the generated config.
  * @returns Promise resolving to a test AgentOSConfig
  */
-export async function createTestAgentOSConfig(): Promise<AgentOSConfig> {
+export async function createTestAgentOSConfig(
+  options: CreateAgentOSConfigOptions = {}
+): Promise<AgentOSConfig> {
   // Set minimal test environment
   if (!process.env.DATABASE_URL) {
     process.env.DATABASE_URL = 'file:./test.db';
   }
-  
-  return createAgentOSConfig();
+
+  return createAgentOSConfig(options);
 }

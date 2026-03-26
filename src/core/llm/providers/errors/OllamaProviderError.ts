@@ -3,7 +3,7 @@
  * @fileoverview Defines a custom error class for Ollama-specific provider errors.
  * This extends the base {@link ProviderError} to include details specific to Ollama API interactions.
  * @module backend/agentos/core/llm/providers/errors/OllamaProviderError
- * @see {@link ./ProviderError.ts}
+ * @see {@link ProviderError}
  */
 
 import { ProviderError } from './ProviderError';
@@ -35,12 +35,7 @@ export class OllamaProviderError extends ProviderError {
    * @param {number} [httpStatus] - HTTP status code from the API response.
    * @param {unknown} [details] - Optional underlying error object or additional context from Ollama.
    */
-  constructor(
-    message: string,
-    code: string,
-    httpStatus?: number,
-    details?: unknown
-  ) {
+  constructor(message: string, code: string, httpStatus?: number, details?: unknown) {
     super(message, code, 'ollama', details); // ProviderId is 'ollama'
     this.name = 'OllamaProviderError';
     this.httpStatus = httpStatus;

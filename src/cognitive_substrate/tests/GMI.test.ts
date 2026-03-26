@@ -265,6 +265,161 @@ describe('GMI Core Functionality', () => {
     expect(mockWorkingMemory.set).toHaveBeenCalledWith('currentGmiMood', GMIMood.FOCUSED);
   });
 
+  it('handleToolResult should return the continuation stream final output', async () => {
+    (gmi as any).state = GMIPrimeState.AWAITING_TOOL_RESULT;
+    (gmi as any).reasoningTrace.turnId = 'tool-turn-1';
+
+    const output = await gmi.handleToolResult(
+      'tool-call-1',
+      'memory_search',
+      {
+        type: 'success',
+        result: {
+          results: [{ id: 'trace-1', content: 'User prefers keyboard shortcuts.' }],
+        },
+      },
+      'user-test',
+    );
+
+    expect(output).toBeDefined();
+    expect(output.isFinal).toBe(true);
+    expect(output.responseText).toContain('Mock stream response.');
+  });
+
+  it('handleToolResults should batch external tool results into one continuation', async () => {
+    (gmi as any).state = GMIPrimeState.AWAITING_TOOL_RESULT;
+    (gmi as any).reasoningTrace.turnId = 'tool-turn-2';
+    expect(gmi.handleToolResults).toBeDefined();
+
+    const output = await gmi.handleToolResults!(
+      [
+        {
+          toolCallId: 'tool-call-1',
+          toolName: 'memory_search',
+          output: {
+            results: [{ id: 'trace-1', content: 'User prefers keyboard shortcuts.' }],
+          },
+        },
+        {
+          toolCallId: 'tool-call-2',
+          toolName: 'memory_add',
+          output: { success: true },
+        },
+      ],
+      'user-test',
+    );
+
+    expect(output).toBeDefined();
+    expect(output.isFinal).toBe(true);
+    expect(output.responseText).toContain('Mock stream response.');
+  });
+
+  it('hydrates turn context so resumed continuations keep thread scope for later internal tool calls', async () => {
+    (gmi as any).state = GMIPrimeState.AWAITING_TOOL_RESULT;
+    (gmi as any).reasoningTrace.turnId = 'tool-turn-thread-context';
+    gmi.hydrateTurnContext?.({
+      sessionId: 'session-thread-context',
+      conversationId: 'conv-thread-context',
+      organizationId: 'org-thread-context',
+    });
+
+    let providerCallCount = 0;
+    (mockProvider.generateCompletionStream as any).mockImplementation(
+      async function* () {
+        providerCallCount += 1;
+
+        if (providerCallCount === 1) {
+          yield {
+            id: 'cmp-thread-tool-request',
+            object: 'chat.completion.chunk',
+            created: Date.now(),
+            modelId: 'mock-model',
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'tool-call-thread-memory-add',
+                      type: 'function',
+                      function: {
+                        name: 'memory_add',
+                        arguments: JSON.stringify({
+                          content: 'Remember this thread detail.',
+                          scope: 'thread',
+                        }),
+                      },
+                    },
+                  ],
+                },
+                finishReason: 'tool_calls',
+              },
+            ],
+            isFinal: true,
+          } as any;
+          return;
+        }
+
+        yield {
+          id: 'cmp-thread-tool-final',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          modelId: 'mock-model',
+          responseTextDelta: 'Continuation complete.',
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: 'Continuation complete.' },
+              finishReason: null,
+            },
+          ],
+          isFinal: false,
+        } as any;
+
+        yield {
+          id: 'cmp-thread-tool-final',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          modelId: 'mock-model',
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: 'Continuation complete.' },
+              finishReason: 'stop',
+            },
+          ],
+          usage: { totalTokens: 4, promptTokens: 2, completionTokens: 2 },
+          isFinal: true,
+        } as any;
+      },
+    );
+
+    await gmi.handleToolResults!(
+      [
+        {
+          toolCallId: 'external-tool-call-1',
+          toolName: 'memory_search',
+          output: {
+            results: [{ id: 'trace-1', content: 'User prefers keyboard shortcuts.' }],
+          },
+        },
+      ],
+      'user-test',
+    );
+
+    expect(mockToolOrchestrator.processToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionData: {
+          sessionId: 'session-thread-context',
+          conversationId: 'conv-thread-context',
+          organizationId: 'org-thread-context',
+        },
+      }),
+    );
+  });
+
 
   it('should shutdown gracefully', async () => {
     await expect(gmi.shutdown()).resolves.toBeUndefined();

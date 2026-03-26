@@ -21,11 +21,11 @@
  * not crash the transport, allowing the session to continue.
  *
  * ### Binary frames (outbound)
- * {@link sendAudio} sends the raw `Buffer` from an {@link EncodedAudioChunk}
+ * `sendAudio()` sends the raw `Buffer` from an {@link EncodedAudioChunk}
  * (or converts a `Float32Array` to a `Buffer` for raw {@link AudioFrame}s).
  *
  * ### Text frames (outbound)
- * {@link sendControl} JSON-stringifies a {@link ServerTextMessage} and sends
+ * `sendControl()` JSON-stringifies a {@link ServerTextMessage} and sends
  * it as a text frame.
  *
  * ## Reconnection behaviour
@@ -123,7 +123,7 @@ export interface WebSocketLike extends NodeJS.EventEmitter {
  */
 export interface WebSocketStreamTransportConfig {
   /**
-   * Sample rate (in Hz) used to populate {@link AudioFrame.sampleRate} on
+   * Sample rate (in Hz) used to populate `AudioFrame.sampleRate` on
    * inbound binary messages. Must match the rate the remote client is sending.
    *
    * Common values: 16000 (telephony/STT), 24000 (TTS output), 48000 (high-fidelity).
@@ -151,8 +151,8 @@ export interface WebSocketStreamTransportConfig {
  *
  * | Method          | Behaviour                                              |
  * |-----------------|--------------------------------------------------------|
- * | {@link sendAudio}   | Serialises audio to a binary `Buffer` and calls `ws.send()`. |
- * | {@link sendControl} | JSON-stringifies the message and calls `ws.send()`.    |
+ * | `sendAudio()`   | Serialises audio to a binary `Buffer` and calls `ws.send()`. |
+ * | `sendControl()` | JSON-stringifies the message and calls `ws.send()`.    |
  *
  * ## Lifecycle events (re-emitted on `this`)
  *
@@ -194,7 +194,7 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
 
   /**
    * Current connection state. Updated internally by WebSocket event handlers.
-   * Read externally via the {@link state} getter.
+   * Read externally via the `state` getter.
    */
   private _state: 'connecting' | 'open' | 'closing' | 'closed';
 
@@ -206,7 +206,7 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
   private readonly _ws: WebSocketLike;
 
   /**
-   * Audio sample rate propagated into every decoded {@link AudioFrame}.
+   * Audio sample rate propagated into every decoded `AudioFrame`.
    * Configured once at construction and never changed.
    */
   private readonly _sampleRate: number;
@@ -219,7 +219,7 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
    * Create a new transport wrapping an existing WebSocket connection.
    *
    * The constructor inspects `ws.readyState` to determine the initial
-   * {@link state}: if the socket is already OPEN (readyState === 1) the state
+   * `state`: if the socket is already OPEN (readyState === 1) the state
    * is set to `'open'`; otherwise it is set to `'connecting'` and will
    * transition to `'open'` when the `'open'` event fires.
    *
@@ -281,7 +281,7 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
         binary = Buffer.from(
           frame.samples.buffer,
           frame.samples.byteOffset,
-          frame.samples.byteLength,
+          frame.samples.byteLength
         );
       }
 
@@ -355,8 +355,8 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
           this.emit(
             'error',
             new Error(
-              `WebSocketStreamTransport: failed to parse inbound text message as JSON: ${String(err)}`,
-            ),
+              `WebSocketStreamTransport: failed to parse inbound text message as JSON: ${String(err)}`
+            )
           );
         }
       } else {
@@ -378,7 +378,7 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
         const samples = new Float32Array(
           buffer.buffer,
           buffer.byteOffset,
-          buffer.byteLength / Float32Array.BYTES_PER_ELEMENT,
+          buffer.byteLength / Float32Array.BYTES_PER_ELEMENT
         );
 
         const frame: AudioFrame = {

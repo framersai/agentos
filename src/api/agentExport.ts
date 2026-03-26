@@ -6,7 +6,7 @@
  * configurations. Agents can be exported as JSON or YAML, transferred across
  * environments, and re-imported to create identical agent instances.
  *
- * The export captures the full {@link BaseAgentConfig} surface — model, tools,
+ * The export captures the full `BaseAgentConfig` surface — model, tools,
  * personality, guardrails, memory, RAG, voice, channels, etc. — as well as
  * agency-specific fields (sub-agent roster, strategy, rounds).
  *
@@ -33,12 +33,7 @@ import YAML from 'yaml';
 
 import { agent as createAgent } from './agent.js';
 import { agency as createAgency } from './agency.js';
-import type {
-  BaseAgentConfig,
-  AgencyOptions,
-  AgencyStrategy,
-  Agent,
-} from './types.js';
+import type { BaseAgentConfig, AgencyOptions, AgencyStrategy, Agent } from './types.js';
 
 // ============================================================================
 // EXPORT CONFIG TYPE
@@ -47,7 +42,7 @@ import type {
 /**
  * Portable agent configuration envelope.
  *
- * Wraps a {@link BaseAgentConfig} with version metadata, export timestamp,
+ * Wraps a `BaseAgentConfig` with version metadata, export timestamp,
  * and type discriminator so import logic can reconstruct the correct agent
  * variant (single agent vs. multi-agent agency).
  */
@@ -128,12 +123,14 @@ function extractConfig(agentInstance: Agent): BaseAgentConfig {
  * @param agentInstance - The agent/agency to extract from.
  * @returns Agency fields if present, or undefined for plain agents.
  */
-function extractAgencyFields(agentInstance: Agent): {
-  agents?: Record<string, BaseAgentConfig>;
-  strategy?: AgencyStrategy;
-  adaptive?: boolean;
-  maxRounds?: number;
-} | undefined {
+function extractAgencyFields(agentInstance: Agent):
+  | {
+      agents?: Record<string, BaseAgentConfig>;
+      strategy?: AgencyStrategy;
+      adaptive?: boolean;
+      maxRounds?: number;
+    }
+  | undefined {
   const raw = (agentInstance as unknown as Record<string, unknown>).__agencyConfig;
   if (raw && typeof raw === 'object') {
     return raw as {
@@ -149,7 +146,7 @@ function extractAgencyFields(agentInstance: Agent): {
 /**
  * Exports an agent's configuration as a portable {@link AgentExportConfig} object.
  *
- * Captures the full {@link BaseAgentConfig} including model, instructions,
+ * Captures the full `BaseAgentConfig` including model, instructions,
  * personality, tools, guardrails, memory, RAG, voice, channels, and all
  * other configuration surfaces. For agency instances, the sub-agent roster,
  * strategy, and round limits are also included.
@@ -169,7 +166,7 @@ function extractAgencyFields(agentInstance: Agent): {
  */
 export function exportAgentConfig(
   agentInstance: Agent,
-  metadata?: AgentExportConfig['metadata'],
+  metadata?: AgentExportConfig['metadata']
 ): AgentExportConfig {
   const config = extractConfig(agentInstance);
   const agencyFields = extractAgencyFields(agentInstance);
@@ -213,7 +210,7 @@ export function exportAgentConfig(
  */
 export function exportAgentConfigJSON(
   agentInstance: Agent,
-  metadata?: AgentExportConfig['metadata'],
+  metadata?: AgentExportConfig['metadata']
 ): string {
   return JSON.stringify(exportAgentConfig(agentInstance, metadata), null, 2);
 }
@@ -235,7 +232,7 @@ export function exportAgentConfigJSON(
  */
 export function exportAgentConfigYAML(
   agentInstance: Agent,
-  metadata?: AgentExportConfig['metadata'],
+  metadata?: AgentExportConfig['metadata']
 ): string {
   return YAML.stringify(exportAgentConfig(agentInstance, metadata));
 }
@@ -269,9 +266,7 @@ export function exportAgentConfigYAML(
 export function importAgent(exportConfig: AgentExportConfig): Agent {
   const validation = validateAgentExport(exportConfig);
   if (!validation.valid) {
-    throw new Error(
-      `Invalid agent export config: ${validation.errors.join('; ')}`,
-    );
+    throw new Error(`Invalid agent export config: ${validation.errors.join('; ')}`);
   }
 
   if (exportConfig.type === 'agency' && exportConfig.agents) {
@@ -383,9 +378,7 @@ export function importAgentFromYAML(yamlStr: string): Agent {
  * }
  * ```
  */
-export function validateAgentExport(
-  config: unknown,
-): { valid: boolean; errors: string[] } {
+export function validateAgentExport(config: unknown): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!config || typeof config !== 'object') {
@@ -422,10 +415,17 @@ export function validateAgentExport(
 
     // Strategy, if present, must be a valid value
     const validStrategies = new Set([
-      'sequential', 'parallel', 'debate', 'review-loop', 'hierarchical', 'graph',
+      'sequential',
+      'parallel',
+      'debate',
+      'review-loop',
+      'hierarchical',
+      'graph',
     ]);
     if (c.strategy !== undefined && !validStrategies.has(c.strategy as string)) {
-      errors.push(`Invalid strategy: ${String(c.strategy)}. Expected one of: ${[...validStrategies].join(', ')}.`);
+      errors.push(
+        `Invalid strategy: ${String(c.strategy)}. Expected one of: ${[...validStrategies].join(', ')}.`
+      );
     }
   }
 

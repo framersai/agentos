@@ -34,7 +34,7 @@
  *   .build();
  * ```
  *
- * @see {@link VoiceNodeExecutor} -- the runtime executor that processes voice nodes.
+ * See `VoiceNodeExecutor` for the runtime executor that processes voice nodes.
  * @see {@link VoiceNodeConfig} -- the configuration shape from the graph IR.
  */
 
@@ -94,7 +94,7 @@ export function voiceNode(id: string, config: VoiceNodeConfig): VoiceNodeBuilder
  * ```
  *
  * @see {@link voiceNode} -- the factory function that creates builder instances.
- * @see {@link VoiceNodeExecutor} -- resolves the exit reason and looks up the edge map.
+ * See `VoiceNodeExecutor` for the runtime that resolves exit reasons and edge routing.
  */
 export class VoiceNodeBuilder {
   /**
@@ -119,7 +119,7 @@ export class VoiceNodeBuilder {
   constructor(
     /** The node id assigned at construction time. */
     readonly id: string,
-    private readonly config: VoiceNodeConfig,
+    private readonly config: VoiceNodeConfig
   ) {}
 
   // -------------------------------------------------------------------------
@@ -158,10 +158,7 @@ export class VoiceNodeBuilder {
    * ```
    */
   on(exitReason: string, target: string | { id: string }): this {
-    this.edgeMap.set(
-      exitReason,
-      typeof target === 'string' ? target : target.id,
-    );
+    this.edgeMap.set(exitReason, typeof target === 'string' ? target : target.id);
     return this;
   }
 

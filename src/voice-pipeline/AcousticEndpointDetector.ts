@@ -47,12 +47,7 @@
 
 import { EventEmitter } from 'node:events';
 import { SilenceDetector, type SilenceDetectorConfig } from '../core/audio/SilenceDetector.js';
-import type {
-  IEndpointDetector,
-  VadEvent,
-  TranscriptEvent,
-  TurnCompleteEvent,
-} from './types.js';
+import type { IEndpointDetector, VadEvent, TranscriptEvent, TurnCompleteEvent } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -120,7 +115,7 @@ export interface AcousticEndpointDetectorConfig {
 export class AcousticEndpointDetector extends EventEmitter implements IEndpointDetector {
   /**
    * Detection mode identifier. Always `'acoustic'` for this implementation.
-   * @see {@link IEndpointDetector.mode}
+   * See `IEndpointDetector.mode`.
    */
   public readonly mode = 'acoustic' as const;
 
@@ -135,16 +130,16 @@ export class AcousticEndpointDetector extends EventEmitter implements IEndpointD
    * `durationMs` in the emitted {@link TurnCompleteEvent} as:
    * `speechEndTimeMs - speechStartTimeMs`.
    *
-   * Reset to `null` on each {@link reset} call.
+   * Reset to `null` on each `reset` call.
    */
   private speechStartTimeMs: number | null = null;
 
   /**
    * Timestamp (ms) when the most recent `speech_end` VAD event was received.
-   * Used together with {@link speechStartTimeMs} to calculate `durationMs`
+   * Used together with `speechStartTimeMs` to calculate `durationMs`
    * for the turn-complete event.
    *
-   * Reset to `null` on each {@link reset} call.
+   * Reset to `null` on each `reset` call.
    */
   private speechEndTimeMs: number | null = null;
 

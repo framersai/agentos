@@ -16,12 +16,7 @@
   "out": "docs/api/modules",
   "json": "../../docs-generated/library/modules/docs.json",
   "tsconfig": "tsconfig.build.json",
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "**/__tests__/**",
-    "**/tests/**"
-  ],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "**/__tests__/**", "**/tests/**"],
   "skipErrorChecking": true,
   "cleanOutputDir": false,
   "name": "@framers/agentos Module API",
@@ -32,18 +27,8 @@
   "excludeInternal": true,
   "excludeExternals": true,
   "categorizeByGroup": true,
-  "categoryOrder": [
-    "*",
-    "Other"
-  ],
-  "groupOrder": [
-    "Classes",
-    "Interfaces",
-    "Functions",
-    "Types",
-    "Variables",
-    "Enums"
-  ],
+  "categoryOrder": ["*", "Other"],
+  "groupOrder": ["Classes", "Interfaces", "Functions", "Types", "Variables", "Enums"],
   "navigation": {
     "includeCategories": true,
     "includeGroups": true
@@ -57,10 +42,20 @@
   "theme": "default",
   "lightHighlightTheme": "github-light",
   "darkHighlightTheme": "github-dark",
-  "sort": [
-    "source-order",
-    "alphabetical"
+  "highlightLanguages": [
+    "bash",
+    "js",
+    "json",
+    "mermaid",
+    "python",
+    "sh",
+    "sql",
+    "ts",
+    "typescript",
+    "xml",
+    "yaml"
   ],
+  "sort": ["source-order", "alphabetical"],
   "kindSortOrder": [
     "Reference",
     "Project",

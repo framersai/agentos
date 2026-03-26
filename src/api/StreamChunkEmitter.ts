@@ -104,6 +104,8 @@ export class StreamChunkEmitter {
           ...baseChunk,
           toolCalls: data.toolCalls,
           rationale: data.rationale,
+          executionMode: data.executionMode,
+          requiresExternalToolResult: data.requiresExternalToolResult,
         } as AgentOSToolCallRequestChunk;
         break;
       case AgentOSResponseChunkType.TOOL_RESULT_EMISSION:

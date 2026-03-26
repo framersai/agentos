@@ -76,21 +76,20 @@ export class MarkdownExporter {
    * Directories are created on demand (equivalent to `mkdir -p`).
    *
    * @param outputDir - Root directory to write the Markdown vault into.
-   * @param options   - Optional export configuration (currently unused but
+   * @param _options  - Optional export configuration (currently unused but
    *   accepted for API consistency with other exporters).
    */
   async export(outputDir: string, _options?: ExportOptions): Promise<void> {
     const db = this.brain.db;
 
     const traces = db
-      .prepare<[], TraceRow>(
-        'SELECT id, type, scope, content, strength, created_at, tags FROM memory_traces WHERE deleted = 0',
-      )
+      .prepare<
+        [],
+        TraceRow
+      >('SELECT id, type, scope, content, strength, created_at, tags FROM memory_traces WHERE deleted = 0')
       .all();
 
-    await Promise.all(
-      traces.map((trace) => this._writeTrace(outputDir, trace)),
-    );
+    await Promise.all(traces.map((trace) => this._writeTrace(outputDir, trace)));
   }
 
   // -------------------------------------------------------------------------

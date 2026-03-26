@@ -74,7 +74,7 @@ function openBrain(): SqliteBrain {
 const testContext: ToolExecutionContext = {
   gmiId: 'test-gmi',
   personaId: 'test-persona',
-  userContext: {} as any,
+  userContext: { userId: 'default-user' } as any,
 };
 
 afterEach(() => {
@@ -193,6 +193,64 @@ describe('MemoryAddTool', () => {
     expect(search.success).toBe(true);
     expect(search.output!.results.map((entry) => entry.id)).toContain(result.output!.traceId);
   });
+
+  it('persists the resolved user scopeId from execution context metadata', async () => {
+    const brain = openBrain();
+    const tool = new MemoryAddTool(brain);
+
+    const result = await tool.execute(
+      { content: 'The user prefers keyboard-first navigation.', scope: 'user' },
+      {
+        ...testContext,
+        userContext: { userId: 'user-42' } as any,
+      },
+    );
+
+    const row = brain.db
+      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
+      .get(result.output!.traceId);
+
+    expect((JSON.parse(row!.metadata) as { scopeId?: string }).scopeId).toBe('user-42');
+  });
+
+  it('derives persona scopeId from the active user and persona', async () => {
+    const brain = openBrain();
+    const tool = new MemoryAddTool(brain);
+
+    const result = await tool.execute(
+      { content: 'Persona memory for the design assistant.', scope: 'persona' },
+      {
+        ...testContext,
+        personaId: 'designer',
+        userContext: { userId: 'user-42' } as any,
+      },
+    );
+
+    const row = brain.db
+      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
+      .get(result.output!.traceId);
+
+    expect((JSON.parse(row!.metadata) as { scopeId?: string }).scopeId).toBe('user-42::designer');
+  });
+
+  it('derives thread scopeId from sessionData conversationId', async () => {
+    const brain = openBrain();
+    const tool = new MemoryAddTool(brain);
+
+    const result = await tool.execute(
+      { content: 'Thread-scoped onboarding note.', scope: 'thread' },
+      {
+        ...testContext,
+        sessionData: { conversationId: 'conv-42' },
+      },
+    );
+
+    const row = brain.db
+      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
+      .get(result.output!.traceId);
+
+    expect((JSON.parse(row!.metadata) as { scopeId?: string }).scopeId).toBe('conv-42');
+  });
 });
 
 describe('MemorySearchTool', () => {
@@ -213,6 +271,80 @@ describe('MemorySearchTool', () => {
 
     expect(result.success).toBe(true);
     expect(result.output?.results.some((entry) => entry.content.includes('command palettes'))).toBe(true);
+  });
+
+  it('restricts scoped search results to the active user scopeId', async () => {
+    const brain = openBrain();
+    const addTool = new MemoryAddTool(brain);
+    const searchTool = new MemorySearchTool(brain);
+
+    await addTool.execute(
+      { content: 'Alice prefers keyboard shortcuts.', scope: 'user', tags: ['preferences'] },
+      {
+        ...testContext,
+        userContext: { userId: 'user-alice' } as any,
+      },
+    );
+    await addTool.execute(
+      { content: 'Bob prefers voice navigation.', scope: 'user', tags: ['preferences'] },
+      {
+        ...testContext,
+        userContext: { userId: 'user-bob' } as any,
+      },
+    );
+
+    const result = await searchTool.execute(
+      { query: 'prefers', scope: 'user', limit: 10 },
+      {
+        ...testContext,
+        userContext: { userId: 'user-alice' } as any,
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output?.results.some((entry) => entry.content.includes('Alice prefers'))).toBe(
+      true,
+    );
+    expect(result.output?.results.some((entry) => entry.content.includes('Bob prefers'))).toBe(
+      false,
+    );
+  });
+
+  it('restricts organization-scoped results to the active organization context', async () => {
+    const brain = openBrain();
+    const addTool = new MemoryAddTool(brain);
+    const searchTool = new MemorySearchTool(brain);
+
+    await addTool.execute(
+      { content: 'Org Alpha uses quarterly planning.', scope: 'organization' },
+      {
+        ...testContext,
+        sessionData: { organizationId: 'org-alpha' },
+      },
+    );
+    await addTool.execute(
+      { content: 'Org Beta uses rolling planning.', scope: 'organization' },
+      {
+        ...testContext,
+        sessionData: { organizationId: 'org-beta' },
+      },
+    );
+
+    const result = await searchTool.execute(
+      { query: 'planning', scope: 'organization', limit: 10 },
+      {
+        ...testContext,
+        sessionData: { organizationId: 'org-alpha' },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      result.output?.results.some((entry) => entry.content.includes('Org Alpha uses quarterly')),
+    ).toBe(true);
+    expect(
+      result.output?.results.some((entry) => entry.content.includes('Org Beta uses rolling')),
+    ).toBe(false);
   });
 });
 

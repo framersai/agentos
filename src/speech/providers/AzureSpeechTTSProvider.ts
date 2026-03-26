@@ -16,7 +16,7 @@ export interface AzureSpeechTTSProviderConfig {
    * Azure Cognitive Services subscription key.
    * Sent as the `Ocp-Apim-Subscription-Key` header value.
    *
-   * @see {@link AzureSpeechSTTProviderConfig.key} for the same pattern on STT
+   * See `AzureSpeechSTTProviderConfig.key` for the same pattern on STT.
    */
   key: string;
 
@@ -92,7 +92,7 @@ interface AzureVoiceEntry {
  */
 function escapeXml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')   // Must be first to avoid double-escaping
+    .replace(/&/g, '&amp;') // Must be first to avoid double-escaping
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
@@ -165,9 +165,9 @@ function mapVoice(entry: AzureVoiceEntry): SpeechVoice {
  *
  * Azure's TTS REST endpoint requires SSML (Speech Synthesis Markup Language) as
  * the request body — it does not accept plain text. This provider generates
- * minimal SSML via {@link buildSsml} that wraps the input text in `<speak>`
+ * minimal SSML via `buildSsml()` that wraps the input text in `<speak>`
  * and `<voice>` elements. Special XML characters in the text are escaped via
- * {@link escapeXml} to prevent malformed XML.
+ * `escapeXml()` to prevent malformed XML.
  *
  * ## `X-Microsoft-OutputFormat` Options
  *

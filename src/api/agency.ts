@@ -330,7 +330,7 @@ export function agency(opts: AgencyOptions): Agent {
             // history (everything before the new turn) is included.
             history.push({ role: 'user', content: text });
             const fullPrompt = buildSessionPrompt(history.slice(0, -1), text);
-            const streamResult = strategy.stream(fullPrompt) as {
+            const streamResult = agentObj.stream(fullPrompt) as {
               text: Promise<string>;
               textStream: AsyncIterable<string>;
               fullStream: AsyncIterable<AgencyStreamPart>;

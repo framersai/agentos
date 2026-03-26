@@ -3,7 +3,7 @@
  * pipeline.
  *
  * FolderScanner is NOT an {@link IDocumentLoader}; instead it orchestrates a
- * {@link LoaderRegistry} to batch-process every file in a directory tree.  It
+ * `LoaderRegistry` to batch-process every file in a directory tree. It
  * supports glob-based include/exclude filters via `minimatch`, per-file
  * progress callbacks, and graceful error collection so a single unreadable file
  * never aborts a whole scan.
@@ -23,7 +23,7 @@ import { validatePath } from './pathUtils.js';
 // ---------------------------------------------------------------------------
 
 /**
- * Configuration options for {@link FolderScanner.scan}.
+ * Configuration options for `FolderScanner.scan()`.
  */
 export interface FolderScanOptions {
   /**
@@ -65,7 +65,7 @@ export interface FolderScanOptions {
 }
 
 /**
- * The aggregated result of a {@link FolderScanner.scan} call.
+ * The aggregated result of a `FolderScanner.scan()` call.
  */
 export interface FolderScanResult {
   /**
@@ -90,7 +90,7 @@ export interface FolderScanResult {
 
 /**
  * Recursively scans a directory and loads every file whose extension has a
- * registered loader in the supplied {@link LoaderRegistry}.
+ * registered loader in the supplied `LoaderRegistry`.
  *
  * ### Example
  * ```ts
@@ -110,7 +110,7 @@ export interface FolderScanResult {
  */
 export class FolderScanner {
   /**
-   * @param registry - The {@link LoaderRegistry} used to dispatch each file to
+   * @param registry - The `LoaderRegistry` used to dispatch each file to
    *                   the appropriate loader.
    */
   constructor(private readonly registry: LoaderRegistry) {}
@@ -124,11 +124,11 @@ export class FolderScanner {
    *
    * Files are discovered first and then loaded sequentially.  Errors thrown
    * by individual loaders are caught and accumulated in
-   * {@link FolderScanResult.failed} rather than propagating.
+   * the returned `failed` list rather than propagating.
    *
    * @param dirPath - Absolute path to the directory to scan.
    * @param options - Optional include/exclude filters and progress callback.
-   * @returns A promise that resolves to a {@link FolderScanResult}.
+   * @returns A promise that resolves to a `FolderScanResult`.
    *
    * @throws {Error} When `dirPath` cannot be read as a directory (e.g.
    *                 it does not exist or is a regular file).
@@ -137,12 +137,7 @@ export class FolderScanner {
     // Validate the directory path against traversal before scanning.
     const resolvedDir = validatePath(dirPath);
 
-    const {
-      recursive = true,
-      include,
-      exclude,
-      onProgress,
-    } = options;
+    const { recursive = true, include, exclude, onProgress } = options;
 
     // ------------------------------------------------------------------
     // 1. Discover all candidate file paths.
@@ -177,17 +172,13 @@ export class FolderScanner {
 
       // Apply include filter — file must match at least one pattern.
       if (include && include.length > 0) {
-        const matches = include.some((pattern) =>
-          minimatch(relativePath, pattern, { dot: true }),
-        );
+        const matches = include.some((pattern) => minimatch(relativePath, pattern, { dot: true }));
         if (!matches) continue;
       }
 
       // Apply exclude filter — file must NOT match any pattern.
       if (exclude && exclude.length > 0) {
-        const excluded = exclude.some((pattern) =>
-          minimatch(relativePath, pattern, { dot: true }),
-        );
+        const excluded = exclude.some((pattern) => minimatch(relativePath, pattern, { dot: true }));
         if (excluded) continue;
       }
 

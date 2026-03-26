@@ -30,7 +30,7 @@ import type { EmergentCapabilityEngine } from './EmergentCapabilityEngine.js';
  * Input arguments accepted by the `forge_tool` meta-tool.
  *
  * Mirrors {@link ForgeToolRequest} but typed as a `Record<string, any>` to
- * satisfy the {@link ITool} generic constraint while retaining semantic clarity.
+ * satisfy the `ITool` generic constraint while retaining semantic clarity.
  */
 export interface ForgeToolInput extends Record<string, any> {
   /** Machine-readable name for the new tool. */
@@ -50,7 +50,10 @@ export interface ForgeToolInput extends Record<string, any> {
    * sandbox (arbitrary code). Discriminated on the `mode` field.
    */
   implementation:
-    | { mode: 'compose'; steps: Array<{ name: string; tool: string; inputMapping: Record<string, unknown> }> }
+    | {
+        mode: 'compose';
+        steps: Array<{ name: string; tool: string; inputMapping: Record<string, unknown> }>;
+      }
     | { mode: 'sandbox'; code: string; allowlist: string[] };
 
   /**
@@ -136,8 +139,7 @@ export class ForgeToolMetaTool implements ITool<ForgeToolInput, ForgeResult> {
         description: 'JSON Schema for the tool output (optional).',
       },
       implementation: {
-        description:
-          'Implementation: compose existing tools or write sandboxed code.',
+        description: 'Implementation: compose existing tools or write sandboxed code.',
         oneOf: [
           {
             type: 'object',
@@ -220,7 +222,7 @@ export class ForgeToolMetaTool implements ITool<ForgeToolInput, ForgeResult> {
    */
   async execute(
     args: ForgeToolInput,
-    context: ToolExecutionContext,
+    context: ToolExecutionContext
   ): Promise<ToolExecutionResult<ForgeResult>> {
     // Validate required fields before delegating to the engine.
     // The LLM may omit or mistype fields; catching this early produces

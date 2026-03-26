@@ -356,7 +356,13 @@ export class AgentOSOrchestrator {
         chunk = { ...baseChunk, message: data.message, progressPercentage: data.progressPercentage, statusCode: data.statusCode } as AgentOSSystemProgressChunk;
         break;
       case AgentOSResponseChunkType.TOOL_CALL_REQUEST:
-        chunk = { ...baseChunk, toolCalls: data.toolCalls, rationale: data.rationale } as AgentOSToolCallRequestChunk;
+        chunk = {
+          ...baseChunk,
+          toolCalls: data.toolCalls,
+          rationale: data.rationale,
+          executionMode: data.executionMode,
+          requiresExternalToolResult: data.requiresExternalToolResult,
+        } as AgentOSToolCallRequestChunk;
         break;
       case AgentOSResponseChunkType.TOOL_RESULT_EMISSION:
         chunk = { ...baseChunk, toolCallId: data.toolCallId, toolName: data.toolName, toolResult: data.toolResult, isSuccess: data.isSuccess, errorMessage: data.errorMessage } as AgentOSToolResultEmissionChunk;
@@ -498,7 +504,12 @@ export class AgentOSOrchestrator {
    * @param {string} activePersonaId - The definitive ID of the persona resolved for this turn. Guaranteed to be a string by caller.
    * @returns {GMITurnInput} The structured input object ready for the GMI.
    */
-  private constructGMITurnInput(agentOSStreamId: StreamId, agentOSInput: AgentOSInput, activePersonaId: string): GMITurnInput { // activePersonaId is string
+  private constructGMITurnInput(
+    agentOSStreamId: StreamId,
+    agentOSInput: AgentOSInput,
+    activePersonaId: string,
+    conversationId?: string,
+  ): GMITurnInput { // activePersonaId is string
     const { userId, sessionId, options, textInput, visionInputs, audioInput, userFeedback, selectedPersonaId, userApiKeys } = agentOSInput;
 
     const gmiInputMetadata: GMITurnInput['metadata'] = {
@@ -512,6 +523,8 @@ export class AgentOSOrchestrator {
         toolChoice: (options as any)?.toolChoice, 
         responseFormat: (options as any)?.responseFormat,
       },
+      sessionId,
+      conversationId,
       userApiKeys,
       userFeedback,
       explicitPersonaSwitchId: selectedPersonaId !== activePersonaId ? selectedPersonaId : undefined,
@@ -601,7 +614,12 @@ export class AgentOSOrchestrator {
         { message: `Persona ${activePersonaId} ready. GMI Instance: ${gmiInstanceIdForChunks}`, progressPercentage: 10 }
       );
 
-      const gmiTurnInput = this.constructGMITurnInput(agentOSStreamId, input, activePersonaId);
+      const gmiTurnInput = this.constructGMITurnInput(
+        agentOSStreamId,
+        input,
+        activePersonaId,
+        conversationContext.sessionId,
+      );
 
       // --- Org context + long-term memory policy (persisted per conversation) ---
       if (conversationContext) {
@@ -1103,7 +1121,12 @@ export class AgentOSOrchestrator {
         await this.pushChunkToStream(
           agentOSStreamId, AgentOSResponseChunkType.TOOL_CALL_REQUEST,
           gmiInstanceIdForChunks, personaId, false,
-          { toolCalls: gmiOutputAfterTool.toolCalls, rationale: gmiOutputAfterTool.responseText || "Agent requires further tool execution based on previous tool's result." }
+          {
+            toolCalls: gmiOutputAfterTool.toolCalls,
+            rationale: gmiOutputAfterTool.responseText || "Agent requires further tool execution based on previous tool's result.",
+            executionMode: 'external',
+            requiresExternalToolResult: true,
+          }
         );
       } else if (gmiOutputAfterTool.isFinal) {
         console.log(`AgentOSOrchestrator (Stream: ${agentOSStreamId}): GMI interaction concluded as final after tool result processing.`);
@@ -1256,9 +1279,19 @@ export class AgentOSOrchestrator {
         if (gmiChunk.content && Array.isArray(gmiChunk.content) && gmiChunk.content.length > 0) {
           const toolCalls = gmiChunk.content as ToolCallRequest[];
           const rationale = (gmiChunk.metadata?.rationale as string) || "Agent is considering using tools.";
+          const executionMode =
+            gmiChunk.metadata?.executionMode === 'external' ? 'external' : 'internal';
           await this.pushChunkToStream( agentOSStreamId, AgentOSResponseChunkType.TOOL_CALL_REQUEST,
             gmiInstanceIdForChunks, personaId, false, // Tool call requests are typically not final for the turn
-            { toolCalls, rationale });
+            {
+              toolCalls,
+              rationale,
+              executionMode,
+              requiresExternalToolResult:
+                typeof gmiChunk.metadata?.requiresExternalToolResult === 'boolean'
+                  ? gmiChunk.metadata.requiresExternalToolResult
+                  : executionMode === 'external',
+            });
         }
         break;
       }

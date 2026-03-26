@@ -53,7 +53,7 @@ export interface MultimodalConfig {
  * Adds auto-generated captions to {@link ExtractedImage} objects that lack
  * one, using a caller-supplied vision LLM function.
  *
- * Images are processed in parallel via {@link Promise.allSettled} so a single
+ * Images are processed in parallel via `Promise.allSettled()` so a single
  * failed captioning attempt does not block the rest.  Images whose captioning
  * fails retain their original (un-captioned) state rather than propagating the
  * error.
@@ -121,14 +121,14 @@ export class MultimodalAggregator {
           // Captioning failed — return the original image unchanged.
           return image;
         }
-      }),
+      })
     );
 
     // Extract the fulfilled values (allSettled always fulfils, but we spread
     // the value for explicitness; rejected branches are unreachable here since
     // the inner try/catch already handles errors, but typing requires it).
     return results.map((result, index) =>
-      result.status === 'fulfilled' ? result.value : images[index],
+      result.status === 'fulfilled' ? result.value : images[index]
     );
   }
 }

@@ -8,7 +8,7 @@
  *
  * This module provides a factory function {@link createDoclingLoader} that:
  * 1. Checks whether `python3 -m docling --version` succeeds in the current PATH.
- * 2. If it does, returns a {@link DoclingLoader} instance that spawns a
+ * 2. If it does, returns a Docling-backed loader instance that spawns a
  *    `python3 -m docling` subprocess for each document.
  * 3. If Docling is not installed, returns `null` gracefully.
  *
@@ -85,7 +85,7 @@ interface DoclingJsonOutput {
  * High-fidelity document loader that delegates to a `python3 -m docling`
  * subprocess.
  *
- * Consumers should use {@link createDoclingLoader} rather than constructing
+ * Consumers should use `createDoclingLoader()` rather than constructing
  * this class directly so that the Python availability check is always run
  * before first use.
  *
@@ -132,7 +132,9 @@ class DoclingLoader implements IDocumentLoader {
     } finally {
       // Clean up any temp file we created.
       if (tempFile !== null) {
-        await fs.unlink(tempFile).catch(() => { /* ignore cleanup errors */ });
+        await fs.unlink(tempFile).catch(() => {
+          /* ignore cleanup errors */
+        });
       }
     }
   }
@@ -169,9 +171,11 @@ class DoclingLoader implements IDocumentLoader {
 
       proc.on('close', (code) => {
         if (code !== 0) {
-          reject(new Error(
-            `DoclingLoader: python3 -m docling exited with code ${code}.\n${stderr.slice(0, 500)}`,
-          ));
+          reject(
+            new Error(
+              `DoclingLoader: python3 -m docling exited with code ${code}.\n${stderr.slice(0, 500)}`
+            )
+          );
           return;
         }
 
@@ -179,10 +183,12 @@ class DoclingLoader implements IDocumentLoader {
           const parsed = JSON.parse(stdout) as DoclingJsonOutput;
           resolve(parsed);
         } catch (err) {
-          reject(new Error(
-            `DoclingLoader: failed to parse Docling JSON output: ${String(err)}\n` +
-            `stdout (first 500 chars): ${stdout.slice(0, 500)}`,
-          ));
+          reject(
+            new Error(
+              `DoclingLoader: failed to parse Docling JSON output: ${String(err)}\n` +
+                `stdout (first 500 chars): ${stdout.slice(0, 500)}`
+            )
+          );
         }
       });
 
@@ -205,10 +211,7 @@ class DoclingLoader implements IDocumentLoader {
    * @param json         - Parsed Docling JSON.
    * @param resolvedPath - Original source path for the `source` metadata field.
    */
-  private _mapToLoadedDocument(
-    json: DoclingJsonOutput,
-    resolvedPath?: string,
-  ): LoadedDocument {
+  private _mapToLoadedDocument(json: DoclingJsonOutput, resolvedPath?: string): LoadedDocument {
     // Prefer top-level `text` (Docling v2+), fall back to concatenating pages.
     let content: string;
     if (typeof json['text'] === 'string') {
@@ -223,9 +226,11 @@ class DoclingLoader implements IDocumentLoader {
 
     const rawMeta = json['metadata'] ?? {};
     const pageCount: number | undefined =
-      typeof rawMeta['pageCount'] === 'number' ? rawMeta['pageCount'] :
-      typeof rawMeta['page_count'] === 'number' ? rawMeta['page_count'] :
-      undefined;
+      typeof rawMeta['pageCount'] === 'number'
+        ? rawMeta['pageCount']
+        : typeof rawMeta['page_count'] === 'number'
+          ? rawMeta['page_count']
+          : undefined;
 
     const meta: DocumentMetadata = {
       ...(typeof rawMeta['title'] === 'string' && rawMeta['title']
@@ -250,7 +255,7 @@ class DoclingLoader implements IDocumentLoader {
 
 /**
  * Checks whether `python3 -m docling` is available in the current environment
- * and, if so, returns a new {@link DoclingLoader} instance; otherwise returns
+ * and, if so, returns a new Docling-backed loader instance; otherwise returns
  * `null`.
  *
  * The availability check runs `python3 -m docling --version` synchronously
@@ -266,7 +271,7 @@ class DoclingLoader implements IDocumentLoader {
  * const loader = new PdfLoader(null, doclingLoader);
  * ```
  *
- * @returns A `DoclingLoader` instance when Docling is installed, or `null`.
+ * @returns A Docling-backed loader instance when Docling is installed, or `null`.
  */
 export function createDoclingLoader(): IDocumentLoader | null {
   try {

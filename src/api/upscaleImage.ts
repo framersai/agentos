@@ -13,9 +13,7 @@
  * - **OpenAI** — not supported (throws {@link ImageUpscaleNotSupportedError})
  */
 import { createImageProvider } from '../core/images/index.js';
-import {
-  ImageUpscaleNotSupportedError,
-} from '../core/images/ImageOperationError.js';
+import { ImageUpscaleNotSupportedError } from '../core/images/ImageOperationError.js';
 import { imageToBuffer } from '../core/images/imageToBuffer.js';
 import type {
   GeneratedImage,
@@ -102,7 +100,7 @@ export interface UpscaleImageResult {
 /**
  * Upscales an image using a provider-agnostic interface.
  *
- * Resolves credentials via {@link resolveMediaProvider}, initialises the
+ * Resolves credentials via `resolveMediaProvider()`, initialises the
  * matching image provider, converts the input image to a `Buffer`, and
  * dispatches to the provider's `upscaleImage` method.
  *
@@ -131,58 +129,55 @@ export async function upscaleImage(opts: UpscaleImageOptions): Promise<UpscaleIm
   let metricModelId: string | undefined;
 
   try {
-    return await withAgentOSSpan(
-      'agentos.api.upscale_image',
-      async (span) => {
-        const { providerId, modelId } = resolveModelOption(opts, 'image');
-        const resolved = resolveMediaProvider(providerId, modelId, {
-          apiKey: opts.apiKey,
-          baseUrl: opts.baseUrl,
-        });
-        metricProviderId = resolved.providerId;
-        metricModelId = resolved.modelId;
+    return await withAgentOSSpan('agentos.api.upscale_image', async (span) => {
+      const { providerId, modelId } = resolveModelOption(opts, 'image');
+      const resolved = resolveMediaProvider(providerId, modelId, {
+        apiKey: opts.apiKey,
+        baseUrl: opts.baseUrl,
+      });
+      metricProviderId = resolved.providerId;
+      metricModelId = resolved.modelId;
 
-        span?.setAttribute('llm.provider', resolved.providerId);
-        span?.setAttribute('llm.model', resolved.modelId);
-        span?.setAttribute('agentos.api.upscale_factor', opts.scale ?? 2);
+      span?.setAttribute('llm.provider', resolved.providerId);
+      span?.setAttribute('llm.model', resolved.modelId);
+      span?.setAttribute('agentos.api.upscale_factor', opts.scale ?? 2);
 
-        const provider = createImageProvider(resolved.providerId);
-        await provider.initialize({
-          apiKey: resolved.apiKey,
-          baseURL: resolved.baseUrl,
-          defaultModelId: resolved.modelId,
-        });
+      const provider = createImageProvider(resolved.providerId);
+      await provider.initialize({
+        apiKey: resolved.apiKey,
+        baseURL: resolved.baseUrl,
+        defaultModelId: resolved.modelId,
+      });
 
-        // Guard: the provider must implement upscaleImage.
-        if (typeof provider.upscaleImage !== 'function') {
-          throw new ImageUpscaleNotSupportedError(resolved.providerId);
-        }
+      // Guard: the provider must implement upscaleImage.
+      if (typeof provider.upscaleImage !== 'function') {
+        throw new ImageUpscaleNotSupportedError(resolved.providerId);
+      }
 
-        const imageBuffer = await imageToBuffer(opts.image);
+      const imageBuffer = await imageToBuffer(opts.image);
 
-        const result = await provider.upscaleImage({
-          modelId: resolved.modelId,
-          image: imageBuffer,
-          scale: opts.scale,
-          width: opts.width,
-          height: opts.height,
-          providerOptions: opts.providerOptions,
-        });
+      const result = await provider.upscaleImage({
+        modelId: resolved.modelId,
+        image: imageBuffer,
+        scale: opts.scale,
+        width: opts.width,
+        height: opts.height,
+        providerOptions: opts.providerOptions,
+      });
 
-        metricUsage = result.usage;
-        span?.setAttribute('agentos.api.images_count', result.images.length);
-        attachUsageAttributes(span, {
-          totalCostUSD: result.usage?.totalCostUSD,
-        });
+      metricUsage = result.usage;
+      span?.setAttribute('agentos.api.images_count', result.images.length);
+      attachUsageAttributes(span, {
+        totalCostUSD: result.usage?.totalCostUSD,
+      });
 
-        return {
-          image: result.images[0],
-          provider: result.providerId,
-          model: result.modelId,
-          usage: { costUSD: result.usage?.totalCostUSD },
-        };
-      },
-    );
+      return {
+        image: result.images[0],
+        provider: result.providerId,
+        model: result.modelId,
+        usage: { costUSD: result.usage?.totalCostUSD },
+      };
+    });
   } catch (error) {
     metricStatus = 'error';
     throw error;
@@ -191,9 +186,11 @@ export async function upscaleImage(opts: UpscaleImageOptions): Promise<UpscaleIm
       await recordAgentOSUsage({
         providerId: metricProviderId,
         modelId: metricModelId,
-        usage: metricUsage ? {
-          costUSD: metricUsage.totalCostUSD,
-        } : undefined,
+        usage: metricUsage
+          ? {
+              costUSD: metricUsage.totalCostUSD,
+            }
+          : undefined,
         options: {
           ...opts.usageLedger,
           source: opts.usageLedger?.source ?? 'upscaleImage',
@@ -205,9 +202,13 @@ export async function upscaleImage(opts: UpscaleImageOptions): Promise<UpscaleIm
     recordAgentOSTurnMetrics({
       durationMs: Date.now() - startedAt,
       status: metricStatus,
-      usage: toTurnMetricUsage(metricUsage ? {
-        totalCostUSD: metricUsage.totalCostUSD,
-      } : undefined),
+      usage: toTurnMetricUsage(
+        metricUsage
+          ? {
+              totalCostUSD: metricUsage.totalCostUSD,
+            }
+          : undefined
+      ),
     });
   }
 }

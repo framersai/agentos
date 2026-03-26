@@ -63,7 +63,7 @@ describe('agent', () => {
           path: '/tmp/compat.jsonl',
           enabled: true,
         }),
-      }),
+      })
     );
   });
 
@@ -79,12 +79,12 @@ describe('agent', () => {
     expect(hoisted.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         system: expect.stringContaining('openness=0.80'),
-      }),
+      })
     );
     expect(hoisted.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         system: expect.stringContaining('Be concise.'),
-      }),
+      })
     );
   });
 
@@ -102,13 +102,13 @@ describe('agent', () => {
       1,
       expect.objectContaining({
         messages: [{ role: 'user', content: 'first' }],
-      }),
+      })
     );
     expect(hoisted.generateText).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         messages: [{ role: 'user', content: 'second' }],
-      }),
+      })
     );
     expect(session.messages()).toEqual([]);
   });
@@ -129,7 +129,7 @@ describe('agent', () => {
           sessionId: 'demo',
           source: 'agent.session.send',
         }),
-      }),
+      })
     );
 
     await expect(session.usage()).resolves.toEqual({
@@ -144,5 +144,35 @@ describe('agent', () => {
       path: '/tmp/agentos-usage-test.jsonl',
       sessionId: 'demo',
     });
+  });
+
+  it('accepts external tool registries on the agent config', async () => {
+    const externalTools = new Map([
+      [
+        'open_profile',
+        {
+          description: 'Load a saved profile by ID.',
+          inputSchema: {
+            type: 'object',
+            properties: { profileId: { type: 'string' } },
+            required: ['profileId'],
+          },
+          execute: async () => ({ success: true, output: { id: 'profile-1' } }),
+        },
+      ],
+    ]);
+
+    const assistant = agent({
+      model: 'openai:gpt-4.1-mini',
+      tools: externalTools,
+    });
+
+    await assistant.generate('Load my profile.');
+
+    expect(hoisted.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: externalTools,
+      })
+    );
   });
 });

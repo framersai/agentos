@@ -28,6 +28,7 @@
  * @see {@link compileAdaptiveWrapper} -- wraps other strategies with a hierarchical manager.
  */
 import { agent as createAgent } from '../agent.js';
+import { mergeAdaptableTools } from '../toolAdapter.js';
 import type {
   AgencyOptions,
   CompiledStrategy,
@@ -88,11 +89,11 @@ function getAgentDescription(agentOrConfig: BaseAgentConfig | Agent): string {
  */
 export function compileHierarchical(
   agents: Record<string, BaseAgentConfig | Agent>,
-  agencyConfig: AgencyOptions,
+  agencyConfig: AgencyOptions
 ): CompiledStrategy {
   if (!agencyConfig.model && !agencyConfig.provider) {
     throw new AgencyConfigError(
-      'Hierarchical strategy requires an agency-level model or provider for the manager agent.',
+      'Hierarchical strategy requires an agency-level model or provider for the manager agent.'
     );
   }
 
@@ -135,8 +136,19 @@ export function compileHierarchical(
             const durationMs = Date.now() - start;
 
             const resultText = (result.text as string) ?? '';
-            const resultUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
-            const resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
+            const resultUsage =
+              (result.usage as {
+                promptTokens?: number;
+                completionTokens?: number;
+                totalTokens?: number;
+              }) ?? {};
+            const resultToolCalls =
+              (result.toolCalls as Array<{
+                name: string;
+                args: unknown;
+                result?: unknown;
+                error?: string;
+              }>) ?? [];
 
             // Record the sub-agent call for the final result's agentCalls array.
             agentCalls.push({
@@ -171,7 +183,7 @@ export function compileHierarchical(
 
       // Merge agency-level tools with the delegation tools. Agency tools
       // (e.g. shared search, calculator) are available alongside delegation.
-      const mergedTools = { ...(agencyConfig.tools ?? {}), ...agentTools };
+      const mergedTools = mergeAdaptableTools(agencyConfig.tools, agentTools);
 
       const manager = createAgent({
         model: agencyConfig.model,

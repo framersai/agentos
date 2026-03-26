@@ -23,7 +23,7 @@
  *   │ sample / 32768  -- normalise to IEEE 754 float range
  *   ▼
  * Float32 [-1, 1] at outputSampleRate
- *   │ emit('audio', AudioFrame)
+ *   │ emit('audio', `AudioFrame`)
  *   ▼
  * Voice pipeline (VAD / STT)
  * ```
@@ -31,7 +31,7 @@
  * ### Outbound path (pipeline -> phone)
  *
  * ```
- * EncodedAudioChunk (PCM Int16 at chunk.sampleRate)
+ * `EncodedAudioChunk` (PCM Int16 at chunk.sampleRate)
  *   │ resample(chunk.sampleRate -> 8 kHz)  -- linear interpolation
  *   ▼
  * Int16 PCM 8 kHz
@@ -81,7 +81,7 @@ import type {
  */
 export interface TelephonyStreamTransportConfig {
   /**
-   * Sample rate the pipeline expects for inbound {@link AudioFrame} events.
+   * Sample rate the pipeline expects for inbound `AudioFrame` events.
    * Incoming 8 kHz telephony audio is upsampled to this rate.
    * @defaultValue 16000
    */
@@ -90,7 +90,7 @@ export interface TelephonyStreamTransportConfig {
 
 /**
  * Adapts a telephony provider WebSocket media stream to the
- * {@link IStreamTransport} interface consumed by the AgentOS voice pipeline.
+ * `IStreamTransport` interface consumed by the AgentOS voice pipeline.
  *
  * ## Inbound path (phone -> pipeline)
  * 1. Provider WebSocket frames arrive as raw `Buffer` or JSON `string`.
@@ -103,14 +103,14 @@ export interface TelephonyStreamTransportConfig {
  * 6. `'stop'` or WebSocket close transitions to `'closed'` and emits `'close'`.
  *
  * ## Outbound path (pipeline -> phone)
- * 1. {@link sendAudio} receives an {@link EncodedAudioChunk} (PCM Int16 format assumed).
+ * 1. `sendAudio()` receives an `EncodedAudioChunk` (PCM Int16 format assumed).
  * 2. Chunk is resampled from `chunk.sampleRate` -> 8 kHz via linear interpolation.
  * 3. Resampled PCM is mu-law encoded via {@link convertPcmToMulaw8k}.
  * 4. {@link MediaStreamParser.formatOutgoing} wraps the bytes for the provider.
  * 5. The formatted payload is sent over the WebSocket.
  *
  * ## Events emitted
- * - `'audio'` ({@link AudioFrame}) -- inbound decoded audio for STT / VAD.
+ * - `'audio'` (`AudioFrame`) -- inbound decoded audio for STT / VAD.
  * - `'dtmf'` (`{ digit: string; durationMs?: number }`) -- caller key-press.
  * - `'mark'` (`{ name: string }`) -- named stream marker.
  * - `'close'` () -- transport has been fully closed.
@@ -183,7 +183,7 @@ export class TelephonyStreamTransport extends EventEmitter implements IStreamTra
   constructor(
     private readonly ws: any, // WebSocket-like; typed `any` to avoid hard dep on ws package
     private readonly parser: MediaStreamParser,
-    config?: TelephonyStreamTransportConfig,
+    config?: TelephonyStreamTransportConfig
   ) {
     super();
     this.outputSampleRate = config?.outputSampleRate ?? 16000;
@@ -213,7 +213,7 @@ export class TelephonyStreamTransport extends EventEmitter implements IStreamTra
           const int16 = new Int16Array(
             pcm16Buf.buffer,
             pcm16Buf.byteOffset,
-            pcm16Buf.byteLength / 2,
+            pcm16Buf.byteLength / 2
           );
 
           // Step 3: Resample 8 kHz -> outputSampleRate (typically 16 kHz).
@@ -290,14 +290,18 @@ export class TelephonyStreamTransport extends EventEmitter implements IStreamTra
     const int16 = new Int16Array(
       chunk.audio.buffer,
       chunk.audio.byteOffset,
-      chunk.audio.byteLength / 2,
+      chunk.audio.byteLength / 2
     );
 
     // Resample to 8 kHz first, then encode to mu-law.
     // We pre-resample so convertPcmToMulaw8k's internal resampler sees 8 kHz
     // input and acts as a no-op, avoiding a redundant second pass.
     const resampled8k = this.resample(int16, chunk.sampleRate, 8000);
-    const pcm8kBuf = Buffer.from(resampled8k.buffer, resampled8k.byteOffset, resampled8k.byteLength);
+    const pcm8kBuf = Buffer.from(
+      resampled8k.buffer,
+      resampled8k.byteOffset,
+      resampled8k.byteLength
+    );
 
     // Encode to mu-law (ITU G.711). Pass sampleRate=8000 so the function's
     // internal resampler is a no-op.

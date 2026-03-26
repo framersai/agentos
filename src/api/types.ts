@@ -879,7 +879,7 @@ export interface BaseAgentConfig {
  * ```
  *
  * @see {@link agency} -- the factory function that consumes this configuration.
- * @see {@link BaseAgentConfig} -- the shared config surface inherited by this interface.
+ * See `BaseAgentConfig` for the shared config surface inherited by this interface.
  */
 export interface AgencyOptions extends BaseAgentConfig {
   /**

@@ -4,14 +4,14 @@
  * Implements a tiered extraction strategy:
  * 1. **unpdf** (Tier 1, always available) — pure-JS text extraction via
  *    `getDocumentProxy` + `extractText`.  Fast and dependency-free.
- * 2. **OcrPdfLoader** (Tier 2, opt-in) — Tesseract.js OCR, engaged when the
+ * 2. **OCR fallback** (Tier 2, opt-in) — Tesseract.js OCR, engaged when the
  *    unpdf extraction produces sparse text (< 50 chars per page on average).
- * 3. **DoclingLoader** (Tier 3, opt-in) — Python `docling` subprocess, engaged
+ * 3. **Docling fallback** (Tier 3, opt-in) — Python `docling` subprocess, engaged
  *    when explicitly configured via the `docling` loader option.
  *
  * Both fallback loaders are optional and injected via constructor parameters;
- * callers supply them by calling {@link createOcrPdfLoader} and
- * {@link createDoclingLoader} and checking for non-null values.
+ * callers supply them by calling `createOcrPdfLoader()` and
+ * `createDoclingLoader()` and checking for non-null values.
  *
  * @module memory/ingestion/PdfLoader
  */
@@ -73,10 +73,10 @@ function isSparse(text: string, pageCount: number): boolean {
  * ### Extraction tiers
  * 1. **unpdf** — always used as the primary extraction engine.  Performs
  *    pure-JS PDF text layer extraction with no native binaries required.
- * 2. **OcrPdfLoader** (optional) — supplied at construction time and engaged
+ * 2. **OCR fallback** (optional) — supplied at construction time and engaged
  *    automatically when unpdf yields sparse text (< 50 chars per page on
  *    average), indicating a scanned document.
- * 3. **DoclingLoader** (optional) — when provided, takes precedence over both
+ * 3. **Docling fallback** (optional) — when provided, takes precedence over both
  *    unpdf and OCR, yielding the highest-fidelity extraction at the cost of
  *    requiring a Python runtime.
  *
@@ -110,12 +110,12 @@ export class PdfLoader implements IDocumentLoader {
   /**
    * Creates a new PdfLoader.
    *
-   * @param ocrLoader     - Optional OCR fallback (e.g. from {@link createOcrPdfLoader}).
-   * @param doclingLoader - Optional Docling loader (e.g. from {@link createDoclingLoader}).
+   * @param ocrLoader - Optional OCR fallback (for example from `createOcrPdfLoader()`).
+   * @param doclingLoader - Optional Docling loader (for example from `createDoclingLoader()`).
    */
   constructor(
     ocrLoader: IDocumentLoader | null = null,
-    doclingLoader: IDocumentLoader | null = null,
+    doclingLoader: IDocumentLoader | null = null
   ) {
     this._ocrLoader = ocrLoader;
     this._doclingLoader = doclingLoader;
@@ -129,8 +129,13 @@ export class PdfLoader implements IDocumentLoader {
   canLoad(source: string | Buffer): boolean {
     if (Buffer.isBuffer(source)) {
       // Detect PDF magic bytes: %PDF- at offset 0.
-      return source.length >= 4 && source[0] === 0x25 && source[1] === 0x50 &&
-        source[2] === 0x44 && source[3] === 0x46;
+      return (
+        source.length >= 4 &&
+        source[0] === 0x25 &&
+        source[1] === 0x50 &&
+        source[2] === 0x44 &&
+        source[3] === 0x46
+      );
     }
     return (SUPPORTED_EXTENSIONS as readonly string[]).includes(extOf(source) as '.pdf');
   }

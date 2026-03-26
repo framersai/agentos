@@ -22,7 +22,7 @@
  * - The orchestrator does NOT resolve providers from ExtensionManager yet.
  *   All components must be injected via {@link VoicePipelineOverrides}.
  *   ExtensionManager integration is a planned future task.
- * - Event wiring is done once during {@link startSession} and never rewired.
+ * - Event wiring is done once during `startSession()` and never rewired.
  *   The transport/STT/TTS sessions are immutable for the session's lifetime.
  * - A watchdog timer prevents the pipeline from staying in LISTENING forever
  *   if the user walks away (default 30 s). The watchdog resets after each
@@ -61,7 +61,7 @@ import type {
  * In production, components would be resolved from ExtensionManager by
  * provider ID (a planned future enhancement).
  *
- * @see {@link VoicePipelineOrchestrator.startSession} which accepts these overrides.
+ * See `VoicePipelineOrchestrator.startSession()` for the method that accepts these overrides.
  *
  * @example
  * ```typescript
@@ -103,23 +103,23 @@ export interface VoicePipelineOverrides {
  * | `'state_changed'` | `{ from: PipelineState, to: PipelineState }`  |
  * | `'turn_complete'` | {@link TurnCompleteEvent}                     |
  *
- * @see {@link VoicePipelineSession} for the public session interface returned by {@link startSession}.
+ * @see {@link VoicePipelineSession} for the public session interface returned by `startSession()`.
  */
 export class VoicePipelineOrchestrator extends EventEmitter {
   // --------------------------------------------------------------------------
   // Private state
   // --------------------------------------------------------------------------
 
-  /** Current pipeline state. Transitions are managed exclusively by {@link _setState}. */
+  /** Current pipeline state. Transitions are managed exclusively by the internal state setter. */
   private _state: PipelineState = 'idle';
 
-  /** Active STT session created during {@link startSession}. Null when idle or closed. */
+  /** Active STT session created during `startSession()`. Null when idle or closed. */
   private _sttSession: StreamingSTTSession | null = null;
 
-  /** Active TTS session created during {@link startSession}. Null when idle or closed. */
+  /** Active TTS session created during `startSession()`. Null when idle or closed. */
   private _ttsSession: StreamingTTSSession | null = null;
 
-  /** The endpoint detector wired during {@link startSession}. Null when idle or closed. */
+  /** The endpoint detector wired during `startSession()`. Null when idle or closed. */
   private _endpointDetector: IEndpointDetector | null = null;
 
   /** The barge-in handler consulted when speech is detected during SPEAKING. Null when idle or closed. */
@@ -174,7 +174,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
   /**
    * Create a new orchestrator with the given pipeline configuration.
    *
-   * The orchestrator starts in `'idle'` state. Call {@link startSession}
+   * The orchestrator starts in `'idle'` state. Call `startSession()`
    * to wire up components and transition to `'listening'`.
    *
    * @param config - Top-level pipeline configuration specifying providers and options.
@@ -209,13 +209,13 @@ export class VoicePipelineOrchestrator extends EventEmitter {
   async startSession(
     transport: IStreamTransport,
     agentSession: IVoicePipelineAgentSession,
-    overrides?: VoicePipelineOverrides,
+    overrides?: VoicePipelineOverrides
   ): Promise<VoicePipelineSession> {
     // Guard: only one session per orchestrator instance
     if (this._state !== 'idle') {
       throw new Error(
         `Cannot start session in state '${this._state}'; expected 'idle'. ` +
-        `Create a new VoicePipelineOrchestrator instance for a new session.`,
+          `Create a new VoicePipelineOrchestrator instance for a new session.`
       );
     }
 
@@ -231,22 +231,22 @@ export class VoicePipelineOrchestrator extends EventEmitter {
     // All four core components are mandatory — fail fast with clear messages
     if (!stt) {
       throw new Error(
-        'streamingSTT is required (pass via overrides or wait for ExtensionManager support).',
+        'streamingSTT is required (pass via overrides or wait for ExtensionManager support).'
       );
     }
     if (!tts) {
       throw new Error(
-        'streamingTTS is required (pass via overrides or wait for ExtensionManager support).',
+        'streamingTTS is required (pass via overrides or wait for ExtensionManager support).'
       );
     }
     if (!endpointDetector) {
       throw new Error(
-        'endpointDetector is required. Pass a HeuristicEndpointDetector or AcousticEndpointDetector via overrides.',
+        'endpointDetector is required. Pass a HeuristicEndpointDetector or AcousticEndpointDetector via overrides.'
       );
     }
     if (!bargeinHandler) {
       throw new Error(
-        'bargeinHandler is required. Pass a HardCutBargeinHandler or SoftFadeBargeinHandler via overrides.',
+        'bargeinHandler is required. Pass a HardCutBargeinHandler or SoftFadeBargeinHandler via overrides.'
       );
     }
 
@@ -389,7 +389,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
     const ttsSession = this._ttsSession;
     if (!ttsSession) {
       throw new Error(
-        'No active TTS session. Ensure startSession() has been called and the session has not been stopped.',
+        'No active TTS session. Ensure startSession() has been called and the session has not been stopped.'
       );
     }
 
@@ -421,10 +421,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
    * @param transport - The bidirectional transport receiving client audio.
    * @param sttSession - The STT session that will process the audio.
    */
-  private _wireTransportToSTT(
-    transport: IStreamTransport,
-    sttSession: StreamingSTTSession,
-  ): void {
+  private _wireTransportToSTT(transport: IStreamTransport, sttSession: StreamingSTTSession): void {
     transport.on('audio', (frame: AudioFrame) => {
       sttSession.pushAudio(frame);
     });
@@ -444,7 +441,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
   private _wireSTTToEndpoint(
     sttSession: StreamingSTTSession,
     endpointDetector: IEndpointDetector,
-    transport: IStreamTransport,
+    transport: IStreamTransport
   ): void {
     sttSession.on('transcript', (transcript: TranscriptEvent) => {
       // Feed the endpoint detector so it can check for terminal punctuation,
@@ -482,7 +479,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
     endpointDetector: IEndpointDetector,
     transport: IStreamTransport,
     agentSession: IVoicePipelineAgentSession,
-    ttsSession: StreamingTTSSession,
+    ttsSession: StreamingTTSSession
   ): void {
     endpointDetector.on('turn_complete', async (event: TurnCompleteEvent) => {
       // Guard: only process turn_complete when we're actively listening.
@@ -543,10 +540,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
    * @param ttsSession - The TTS session emitting audio chunks.
    * @param transport - The transport delivering audio to the client.
    */
-  private _wireTTSToTransport(
-    ttsSession: StreamingTTSSession,
-    transport: IStreamTransport,
-  ): void {
+  private _wireTTSToTransport(ttsSession: StreamingTTSSession, transport: IStreamTransport): void {
     ttsSession.on('audio', (chunk: EncodedAudioChunk) => {
       // Only forward audio while we're in the SPEAKING state.
       // Chunks arriving after a barge-in are silently dropped.
@@ -606,7 +600,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
     ttsSession: StreamingTTSSession,
     bargeinHandler: IBargeinHandler,
     transport: IStreamTransport,
-    agentSession: IVoicePipelineAgentSession,
+    agentSession: IVoicePipelineAgentSession
   ): void {
     sttSession.on('speech_start', async () => {
       // Forward to endpoint detector as a synthetic VAD event so it can
@@ -672,7 +666,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
   private _wireDisconnect(
     transport: IStreamTransport,
     sttSession: StreamingSTTSession,
-    ttsSession: StreamingTTSSession,
+    ttsSession: StreamingTTSSession
   ): void {
     transport.on('close', () => {
       this._clearWatchdog();
@@ -693,7 +687,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
    * Transition to a new pipeline state, emitting a `'state_changed'` event.
    *
    * No-ops if the target state equals the current state (idempotent).
-   * This is the ONLY method that mutates {@link _state}, ensuring all
+   * This is the ONLY method that mutates the internal `_state`, ensuring all
    * transitions are observable via the `'state_changed'` event.
    *
    * @param state - The target pipeline state.

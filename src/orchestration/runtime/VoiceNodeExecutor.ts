@@ -1,7 +1,7 @@
 /**
  * @file VoiceNodeExecutor.ts
  * @description Executes voice nodes in the orchestration graph by managing a voice
- * pipeline session, collecting turns via {@link VoiceTurnCollector}, and racing
+ * pipeline session, collecting turns via `VoiceTurnCollector`, and racing
  * multiple exit conditions (hangup, turns exhausted, keyword, silence timeout,
  * barge-in abort) to determine when the voice node completes.
  *
@@ -27,8 +27,8 @@
  * enabling the graph runtime to resume a voice session from the exact turn index where
  * it was previously suspended.
  *
- * @see {@link VoiceTurnCollector} for transcript buffering and event bridging.
- * @see {@link VoiceTransportAdapter} for how graph I/O is wrapped at the transport level.
+ * See `VoiceTurnCollector` for transcript buffering and event bridging.
+ * See `VoiceTransportAdapter` for how graph I/O is wrapped at the transport level.
  * @see {@link VoiceInterruptError} for the structured barge-in error type.
  */
 
@@ -115,7 +115,7 @@ export interface VoiceNodeCheckpoint {
  * // 'turns-exhausted' | 'hangup' | 'keyword:goodbye' | 'silence-timeout' | 'interrupted'
  * ```
  *
- * @see {@link VoiceTurnCollector} -- subscribes to session events and buffers transcript.
+ * See `VoiceTurnCollector` for session subscription and transcript buffering.
  * @see {@link VoiceInterruptError} -- structured barge-in error that triggers the `interrupted` path.
  */
 export class VoiceNodeExecutor {
@@ -127,9 +127,7 @@ export class VoiceNodeExecutor {
    *                     voice lifecycle events (`voice_session`, `voice_transcript`, etc.)
    *                     are visible to all graph event consumers.
    */
-  constructor(
-    private readonly eventSink: (event: GraphEvent) => void,
-  ) {}
+  constructor(private readonly eventSink: (event: GraphEvent) => void) {}
 
   /**
    * Execute a voice node. Matches the standard 2-arg `execute(node, state)` signature
@@ -141,10 +139,10 @@ export class VoiceNodeExecutor {
    * 2. Creates an internal `AbortController` for barge-in, wiring it to any parent
    *    abort signal in `state.scratch.abortSignal`.
    * 3. Extracts the `voiceTransport` from `state.scratch` (must be pre-placed by
-   *    the graph runtime or {@link VoiceTransportAdapter}).
+   *    the graph runtime or `VoiceTransportAdapter`).
    * 4. Checks for a {@link VoiceNodeCheckpoint} to resume from.
    * 5. Emits a `voice_session` started event.
-   * 6. Wires a {@link VoiceTurnCollector} onto the session and races exit conditions.
+   * 6. Wires a `VoiceTurnCollector` onto the session and races exit conditions.
    * 7. Resolves the exit reason to a route target via the node's edge map.
    * 8. Returns a {@link NodeExecutionResult} with transcript, exit reason, checkpoint,
    *    and optional route target.
@@ -161,10 +159,7 @@ export class VoiceNodeExecutor {
    *
    * @see {@link raceExitConditions} for the concurrent exit condition implementation.
    */
-  async execute(
-    node: GraphNode,
-    state: Partial<GraphState>,
-  ): Promise<NodeExecutionResult> {
+  async execute(node: GraphNode, state: Partial<GraphState>): Promise<NodeExecutionResult> {
     const config = node.executorConfig;
 
     // Guard: only voice nodes should reach this executor.
@@ -183,7 +178,9 @@ export class VoiceNodeExecutor {
     // the voice session is cancelled when the parent cancels.
     const parentSignal = (state as any)?.scratch?.abortSignal as AbortSignal | undefined;
     if (parentSignal) {
-      parentSignal.addEventListener('abort', () => controller.abort(parentSignal.reason), { once: true });
+      parentSignal.addEventListener('abort', () => controller.abort(parentSignal.reason), {
+        once: true,
+      });
     }
 
     // The voice transport must be pre-placed in state.scratch by the graph runtime
@@ -223,7 +220,7 @@ export class VoiceNodeExecutor {
         collector,
         voiceConfig,
         controller,
-        transport,
+        transport
       );
 
       // Map the exitReason string to a target node id using the edge map.
@@ -244,7 +241,12 @@ export class VoiceNodeExecutor {
       };
 
       // Signal that the voice session has ended for this node.
-      this.eventSink({ type: 'voice_session', nodeId: node.id, action: 'ended', exitReason: result.reason });
+      this.eventSink({
+        type: 'voice_session',
+        nodeId: node.id,
+        action: 'ended',
+        exitReason: result.reason,
+      });
 
       return {
         success: true,
@@ -267,7 +269,12 @@ export class VoiceNodeExecutor {
         const edges = (node as any).edges ?? {};
         const routeTarget = edges['interrupted'];
 
-        this.eventSink({ type: 'voice_session', nodeId: node.id, action: 'ended', exitReason: 'interrupted' });
+        this.eventSink({
+          type: 'voice_session',
+          nodeId: node.id,
+          action: 'ended',
+          exitReason: 'interrupted',
+        });
 
         return {
           success: true,
@@ -284,7 +291,12 @@ export class VoiceNodeExecutor {
 
       // Unhandled error -- surface as a failed result so the graph runtime can
       // decide whether to retry, reroute, or halt.
-      this.eventSink({ type: 'voice_session', nodeId: node.id, action: 'ended', exitReason: 'error' });
+      this.eventSink({
+        type: 'voice_session',
+        nodeId: node.id,
+        action: 'ended',
+        exitReason: 'error',
+      });
       return { success: false, error: String(err) };
     }
   }
@@ -329,7 +341,7 @@ export class VoiceNodeExecutor {
     collector: VoiceTurnCollector,
     config: VoiceNodeConfig,
     controller: AbortController,
-    transport: EventEmitter,
+    transport: EventEmitter
   ): Promise<{ reason: string; interruptedText?: string }> {
     return new Promise((resolve, reject) => {
       /** Prevents double-resolution when multiple conditions fire simultaneously. */
@@ -409,14 +421,18 @@ export class VoiceNodeExecutor {
       // (the caller's catch block converts it to exitReason: 'interrupted').
       // For any other abort reason (e.g. parent timeout), we resolve normally
       // with reason: 'interrupted'.
-      controller.signal.addEventListener('abort', () => {
-        const reason = controller.signal.reason;
-        if (reason instanceof VoiceInterruptError) {
-          reject(reason);
-        } else {
-          settleWith({ reason: 'interrupted' });
-        }
-      }, { once: true });
+      controller.signal.addEventListener(
+        'abort',
+        () => {
+          const reason = controller.signal.reason;
+          if (reason instanceof VoiceInterruptError) {
+            reject(reason);
+          } else {
+            settleWith({ reason: 'interrupted' });
+          }
+        },
+        { once: true }
+      );
     });
   }
 }

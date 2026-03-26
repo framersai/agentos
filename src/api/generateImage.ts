@@ -96,7 +96,7 @@ export interface GenerateImageResult {
 /**
  * Generates one or more images using a provider-agnostic `provider:model` string.
  *
- * Resolves credentials via {@link resolveMediaProvider}, initialises the matching
+ * Resolves credentials via `resolveMediaProvider()`, initialises the matching
  * image provider, and returns a normalised {@link GenerateImageResult}.
  *
  * @param opts - Image generation options including model, prompt, and optional parameters.
@@ -120,64 +120,61 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
   let metricModelId: string | undefined;
 
   try {
-    return await withAgentOSSpan(
-      'agentos.api.generate_image',
-      async (span) => {
-        const { providerId, modelId } = resolveModelOption(opts, 'image');
-        const resolved = resolveMediaProvider(providerId, modelId, {
-          apiKey: opts.apiKey,
-          baseUrl: opts.baseUrl,
-        });
-        metricProviderId = resolved.providerId;
-        metricModelId = resolved.modelId;
+    return await withAgentOSSpan('agentos.api.generate_image', async (span) => {
+      const { providerId, modelId } = resolveModelOption(opts, 'image');
+      const resolved = resolveMediaProvider(providerId, modelId, {
+        apiKey: opts.apiKey,
+        baseUrl: opts.baseUrl,
+      });
+      metricProviderId = resolved.providerId;
+      metricModelId = resolved.modelId;
 
-        span?.setAttribute('llm.provider', resolved.providerId);
-        span?.setAttribute('llm.model', resolved.modelId);
+      span?.setAttribute('llm.provider', resolved.providerId);
+      span?.setAttribute('llm.model', resolved.modelId);
 
-        const provider = createImageProvider(resolved.providerId);
-        await provider.initialize({
-          apiKey: resolved.apiKey,
-          baseURL: resolved.baseUrl,
-          defaultModelId: resolved.modelId,
-        });
+      const provider = createImageProvider(resolved.providerId);
+      await provider.initialize({
+        apiKey: resolved.apiKey,
+        baseURL: resolved.baseUrl,
+        defaultModelId: resolved.modelId,
+      });
 
-        const result = await provider.generateImage({
-          modelId: resolved.modelId,
-          prompt: opts.prompt,
-          modalities: opts.modalities,
-          n: opts.n,
-          size: opts.size,
-          aspectRatio: opts.aspectRatio,
-          quality: opts.quality,
-          background: opts.background,
-          outputFormat: opts.outputFormat,
-          outputCompression: opts.outputCompression,
-          responseFormat: opts.responseFormat,
-          userId: opts.userId,
-          seed: opts.seed,
-          negativePrompt: opts.negativePrompt,
-          providerOptions: opts.providerOptions,
-        });
+      const result = await provider.generateImage({
+        modelId: resolved.modelId,
+        prompt: opts.prompt,
+        modalities: opts.modalities,
+        n: opts.n,
+        size: opts.size,
+        aspectRatio: opts.aspectRatio,
+        quality: opts.quality,
+        background: opts.background,
+        outputFormat: opts.outputFormat,
+        outputCompression: opts.outputCompression,
+        responseFormat: opts.responseFormat,
+        userId: opts.userId,
+        seed: opts.seed,
+        negativePrompt: opts.negativePrompt,
+        providerOptions: opts.providerOptions,
+      });
 
-        metricUsage = result.usage;
-        span?.setAttribute('agentos.api.images_count', result.images.length);
-        attachUsageAttributes(span, {
-          promptTokens: result.usage?.promptTokens,
-          completionTokens: result.usage?.completionTokens,
-          totalTokens: result.usage?.totalTokens,
-          totalCostUSD: result.usage?.totalCostUSD,
-        });
+      metricUsage = result.usage;
+      span?.setAttribute('agentos.api.images_count', result.images.length);
+      attachUsageAttributes(span, {
+        promptTokens: result.usage?.promptTokens,
+        completionTokens: result.usage?.completionTokens,
+        totalTokens: result.usage?.totalTokens,
+        totalCostUSD: result.usage?.totalCostUSD,
+      });
 
-        return {
-          model: result.modelId,
-          provider: result.providerId,
-          created: result.created,
-          text: result.text,
-          images: result.images,
-          usage: result.usage,
-        };
-      },
-    );
+      return {
+        model: result.modelId,
+        provider: result.providerId,
+        created: result.created,
+        text: result.text,
+        images: result.images,
+        usage: result.usage,
+      };
+    });
   } catch (error) {
     metricStatus = 'error';
     throw error;
@@ -186,12 +183,14 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
       await recordAgentOSUsage({
         providerId: metricProviderId,
         modelId: metricModelId,
-        usage: metricUsage ? {
-          promptTokens: metricUsage.promptTokens,
-          completionTokens: metricUsage.completionTokens,
-          totalTokens: metricUsage.totalTokens,
-          costUSD: metricUsage.totalCostUSD,
-        } : undefined,
+        usage: metricUsage
+          ? {
+              promptTokens: metricUsage.promptTokens,
+              completionTokens: metricUsage.completionTokens,
+              totalTokens: metricUsage.totalTokens,
+              costUSD: metricUsage.totalCostUSD,
+            }
+          : undefined,
         options: {
           ...opts.usageLedger,
           source: opts.usageLedger?.source ?? 'generateImage',
@@ -203,12 +202,16 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
     recordAgentOSTurnMetrics({
       durationMs: Date.now() - startedAt,
       status: metricStatus,
-      usage: toTurnMetricUsage(metricUsage ? {
-        promptTokens: metricUsage.promptTokens,
-        completionTokens: metricUsage.completionTokens,
-        totalTokens: metricUsage.totalTokens,
-        totalCostUSD: metricUsage.totalCostUSD,
-      } : undefined),
+      usage: toTurnMetricUsage(
+        metricUsage
+          ? {
+              promptTokens: metricUsage.promptTokens,
+              completionTokens: metricUsage.completionTokens,
+              totalTokens: metricUsage.totalTokens,
+              totalCostUSD: metricUsage.totalCostUSD,
+            }
+          : undefined
+      ),
     });
   }
 }

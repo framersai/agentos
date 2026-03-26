@@ -43,6 +43,8 @@ type AjvValidateFn = ((data: unknown) => boolean) & { errors?: AjvValidationErro
  * @property {string[]} personaCapabilities - Capabilities of the active Persona, used for preliminary checks.
  * @property {UserContext} userContext - Contextual information about the end-user.
  * @property {string} [correlationId] - Optional ID for tracing this specific execution across logs and systems.
+ * @property {Record<string, any>} [sessionData] - Optional per-turn execution context such as
+ * conversation/session IDs or tenant routing data that tools may need for scoped behavior.
  */
 export interface ToolExecutionRequestDetails {
   toolCallRequest: ToolCallRequest;
@@ -51,6 +53,7 @@ export interface ToolExecutionRequestDetails {
   personaCapabilities: string[];
   userContext: UserContext;
   correlationId?: string;
+  sessionData?: Record<string, any>;
 }
 
 /**
@@ -222,7 +225,15 @@ export class ToolExecutor {
   * This result indicates the success or failure of the execution and provides the tool's output or error details.
   */
   public async executeTool(requestDetails: ToolExecutionRequestDetails): Promise<ToolExecutionResult> {
-    const { toolCallRequest, gmiId, personaId, personaCapabilities, userContext, correlationId } = requestDetails;
+    const {
+      toolCallRequest,
+      gmiId,
+      personaId,
+      personaCapabilities,
+      userContext,
+      correlationId,
+      sessionData,
+    } = requestDetails;
     
     if (!toolCallRequest || !toolCallRequest.name || typeof toolCallRequest.name !== 'string') {
         const errorMsg = "Invalid ToolCallRequest provided to ToolExecutor: 'name' is missing or invalid.";
@@ -291,6 +302,7 @@ export class ToolExecutor {
       personaId,
       userContext,
       correlationId: correlationId || `tool-exec-${uuidv4()}`,
+      ...(sessionData ? { sessionData } : {}),
     };
 
     try {
@@ -448,4 +460,3 @@ export class ToolExecutor {
     return [];
   }
 }
-

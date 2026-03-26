@@ -73,11 +73,15 @@ describe('AgencyConfigError', () => {
   });
 
   it('can be caught as an Error', () => {
-    expect(() => { throw new AgencyConfigError('thrown'); }).toThrow(Error);
+    expect(() => {
+      throw new AgencyConfigError('thrown');
+    }).toThrow(Error);
   });
 
   it('can be caught as an AgencyConfigError', () => {
-    expect(() => { throw new AgencyConfigError('thrown'); }).toThrow(AgencyConfigError);
+    expect(() => {
+      throw new AgencyConfigError('thrown');
+    }).toThrow(AgencyConfigError);
   });
 });
 
@@ -127,12 +131,22 @@ describe('AgencyStreamPart discriminated union', () => {
   });
 
   it('narrows "tool-call" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'tool-call', toolName: 'search', args: { q: 'test' }, agent: 'researcher' };
+    const part: AgencyStreamPart = {
+      type: 'tool-call',
+      toolName: 'search',
+      args: { q: 'test' },
+      agent: 'researcher',
+    };
     expect(describeStreamPart(part)).toBe('tool-call:search');
   });
 
   it('narrows "tool-result" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'tool-result', toolName: 'search', result: ['r1'], agent: 'researcher' };
+    const part: AgencyStreamPart = {
+      type: 'tool-result',
+      toolName: 'search',
+      result: ['r1'],
+      agent: 'researcher',
+    };
     expect(describeStreamPart(part)).toBe('tool-result:search');
   });
 
@@ -142,32 +156,62 @@ describe('AgencyStreamPart discriminated union', () => {
   });
 
   it('narrows "agent-start" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'agent-start', agent: 'writer', input: 'Draft an intro.' };
+    const part: AgencyStreamPart = {
+      type: 'agent-start',
+      agent: 'writer',
+      input: 'Draft an intro.',
+    };
     expect(describeStreamPart(part)).toBe('agent-start:writer');
   });
 
   it('narrows "agent-end" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'agent-end', agent: 'writer', output: 'Done.', durationMs: 320 };
+    const part: AgencyStreamPart = {
+      type: 'agent-end',
+      agent: 'writer',
+      output: 'Done.',
+      durationMs: 320,
+    };
     expect(describeStreamPart(part)).toBe('agent-end:writer');
   });
 
   it('narrows "agent-handoff" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'agent-handoff', fromAgent: 'planner', toAgent: 'executor', reason: 'task ready' };
+    const part: AgencyStreamPart = {
+      type: 'agent-handoff',
+      fromAgent: 'planner',
+      toAgent: 'executor',
+      reason: 'task ready',
+    };
     expect(describeStreamPart(part)).toBe('agent-handoff:planner->executor');
   });
 
   it('narrows "strategy-override" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'strategy-override', original: 'sequential', chosen: 'parallel', reason: 'independent tasks detected' };
+    const part: AgencyStreamPart = {
+      type: 'strategy-override',
+      original: 'sequential',
+      chosen: 'parallel',
+      reason: 'independent tasks detected',
+    };
     expect(describeStreamPart(part)).toBe('strategy-override:sequential->parallel');
   });
 
   it('narrows "emergent-forge" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'emergent-forge', agentName: 'specialist-42', instructions: 'Focus on legal analysis.', approved: true };
+    const part: AgencyStreamPart = {
+      type: 'emergent-forge',
+      agentName: 'specialist-42',
+      instructions: 'Focus on legal analysis.',
+      approved: true,
+    };
     expect(describeStreamPart(part)).toBe('emergent-forge:specialist-42');
   });
 
   it('narrows "guardrail-result" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'guardrail-result', agent: 'writer', guardrailId: 'pii-block', passed: true, action: 'allow' };
+    const part: AgencyStreamPart = {
+      type: 'guardrail-result',
+      agent: 'writer',
+      guardrailId: 'pii-block',
+      passed: true,
+      action: 'allow',
+    };
     expect(describeStreamPart(part)).toBe('guardrail-result:pii-block');
   });
 
@@ -191,7 +235,12 @@ describe('AgencyStreamPart discriminated union', () => {
   });
 
   it('narrows "permission-denied" parts correctly', () => {
-    const part: AgencyStreamPart = { type: 'permission-denied', agent: 'rogue', action: 'spawn', reason: 'tier:strict forbids spawn' };
+    const part: AgencyStreamPart = {
+      type: 'permission-denied',
+      agent: 'rogue',
+      action: 'spawn',
+      reason: 'tier:strict forbids spawn',
+    };
     expect(describeStreamPart(part)).toBe('permission-denied:spawn');
   });
 });
@@ -219,7 +268,13 @@ describe('MemoryType literals', () => {
 });
 
 describe('AgencyStrategy literals', () => {
-  const strategies: AgencyStrategy[] = ['sequential', 'parallel', 'debate', 'review-loop', 'hierarchical'];
+  const strategies: AgencyStrategy[] = [
+    'sequential',
+    'parallel',
+    'debate',
+    'review-loop',
+    'hierarchical',
+  ];
   it('has exactly 5 members', () => {
     expect(strategies).toHaveLength(5);
   });
@@ -262,6 +317,45 @@ describe('BaseAgentConfig structural shapes', () => {
     expect((cfg.guardrails as GuardrailsConfig).tier).toBe('strict');
   });
 
+  it('accepts tools as an ExternalToolRegistry Map', () => {
+    const cfg: BaseAgentConfig = {
+      tools: new Map([
+        [
+          'open_profile',
+          {
+            description: 'Load a saved profile record by ID.',
+            inputSchema: {
+              type: 'object',
+              properties: { profileId: { type: 'string' } },
+              required: ['profileId'],
+            },
+            execute: async () => ({ success: true, output: { id: 'profile-1' } }),
+          },
+        ],
+      ]),
+    };
+
+    expect(cfg.tools).toBeInstanceOf(Map);
+  });
+
+  it('accepts tools as prompt-only ToolDefinitionForLLM arrays', () => {
+    const cfg: BaseAgentConfig = {
+      tools: [
+        {
+          name: 'open_profile',
+          description: 'Load a saved profile record by ID.',
+          inputSchema: {
+            type: 'object',
+            properties: { profileId: { type: 'string' } },
+            required: ['profileId'],
+          },
+        },
+      ],
+    };
+
+    expect(Array.isArray(cfg.tools)).toBe(true);
+  });
+
   it('accepts a full PermissionsConfig', () => {
     const perms: PermissionsConfig = {
       tools: ['search', 'calculator'],
@@ -297,16 +391,20 @@ describe('BaseAgentConfig structural shapes', () => {
   it('accepts ResourceControls', () => {
     const controls: ResourceControls = {
       maxTotalTokens: 100_000,
-      maxCostUSD: 2.50,
+      maxCostUSD: 2.5,
       maxDurationMs: 30_000,
       onLimitReached: 'stop',
     };
     const cfg: BaseAgentConfig = { controls };
-    expect((cfg.controls as ResourceControls).maxCostUSD).toBe(2.50);
+    expect((cfg.controls as ResourceControls).maxCostUSD).toBe(2.5);
   });
 
   it('accepts ObservabilityConfig', () => {
-    const obs: ObservabilityConfig = { logLevel: 'debug', traceEvents: true, otel: { enabled: true } };
+    const obs: ObservabilityConfig = {
+      logLevel: 'debug',
+      traceEvents: true,
+      otel: { enabled: true },
+    };
     const cfg: BaseAgentConfig = { observability: obs };
     expect((cfg.observability as ObservabilityConfig).logLevel).toBe('debug');
   });
@@ -336,13 +434,27 @@ describe('BaseAgentConfig structural shapes', () => {
   it('accepts AgencyCallbacks', () => {
     const events: string[] = [];
     const callbacks: AgencyCallbacks = {
-      agentStart: (e: AgentStartEvent) => { events.push(`start:${e.agent}`); },
-      agentEnd: (e: AgentEndEvent) => { events.push(`end:${e.agent}`); },
-      handoff: (e: HandoffEvent) => { events.push(`handoff:${e.fromAgent}`); },
-      toolCall: (e: ToolCallEvent) => { events.push(`tool:${e.toolName}`); },
-      emergentForge: (e: ForgeEvent) => { events.push(`forge:${e.agentName}`); },
-      guardrailResult: (e: GuardrailEvent) => { events.push(`guard:${e.guardrailId}`); },
-      limitReached: (e: LimitEvent) => { events.push(`limit:${e.metric}`); },
+      agentStart: (e: AgentStartEvent) => {
+        events.push(`start:${e.agent}`);
+      },
+      agentEnd: (e: AgentEndEvent) => {
+        events.push(`end:${e.agent}`);
+      },
+      handoff: (e: HandoffEvent) => {
+        events.push(`handoff:${e.fromAgent}`);
+      },
+      toolCall: (e: ToolCallEvent) => {
+        events.push(`tool:${e.toolName}`);
+      },
+      emergentForge: (e: ForgeEvent) => {
+        events.push(`forge:${e.agentName}`);
+      },
+      guardrailResult: (e: GuardrailEvent) => {
+        events.push(`guard:${e.guardrailId}`);
+      },
+      limitReached: (e: LimitEvent) => {
+        events.push(`limit:${e.metric}`);
+      },
     };
 
     // Fire them to confirm runtime shapes are valid
@@ -350,9 +462,20 @@ describe('BaseAgentConfig structural shapes', () => {
     callbacks.agentEnd!({ agent: 'a', output: 'bye', durationMs: 100, timestamp: 1 });
     callbacks.handoff!({ fromAgent: 'a', toAgent: 'b', reason: 'done', timestamp: 2 });
     callbacks.toolCall!({ agent: 'a', toolName: 'search', args: {}, timestamp: 3 });
-    callbacks.emergentForge!({ agentName: 'z', instructions: 'do stuff', approved: true, timestamp: 4 });
-    callbacks.guardrailResult!({ agent: 'a', guardrailId: 'pii', passed: true, action: 'allow', timestamp: 5 });
-    callbacks.limitReached!({ metric: 'maxCostUSD', value: 3.01, limit: 3.00, timestamp: 6 });
+    callbacks.emergentForge!({
+      agentName: 'z',
+      instructions: 'do stuff',
+      approved: true,
+      timestamp: 4,
+    });
+    callbacks.guardrailResult!({
+      agent: 'a',
+      guardrailId: 'pii',
+      passed: true,
+      action: 'allow',
+      timestamp: 5,
+    });
+    callbacks.limitReached!({ metric: 'maxCostUSD', value: 3.01, limit: 3.0, timestamp: 6 });
 
     expect(events).toEqual([
       'start:a',
@@ -468,7 +591,13 @@ describe('AgencyTraceEvent union', () => {
       { fromAgent: 'a', toAgent: 'b', reason: 'done', timestamp: 2 } satisfies HandoffEvent,
       { agent: 'a', toolName: 'calc', args: {}, timestamp: 3 } satisfies ToolCallEvent,
       { agentName: 'z', instructions: '...', approved: true, timestamp: 4 } satisfies ForgeEvent,
-      { agent: 'a', guardrailId: 'pii', passed: true, action: 'allow', timestamp: 5 } satisfies GuardrailEvent,
+      {
+        agent: 'a',
+        guardrailId: 'pii',
+        passed: true,
+        action: 'allow',
+        timestamp: 5,
+      } satisfies GuardrailEvent,
       { metric: 'maxCostUSD', value: 3.01, limit: 3.0, timestamp: 6 } satisfies LimitEvent,
     ];
 
@@ -493,13 +622,27 @@ describe('Agent / Agency structural equivalence', () => {
   it('an Agency-typed value satisfies the Agent interface at runtime', () => {
     // Minimal mock that satisfies both interfaces
     const mockAgency: Agency = {
-      async generate(_prompt: string) { return { text: 'ok' }; },
-      stream(_prompt: string) { return {}; },
-      session(_id?: string) { return {}; },
-      async usage(_sessionId?: string) { return {}; },
-      async close() { /* no-op */ },
-      async listen(_opts?: { port?: number }) { return { port: 3000, url: 'http://localhost:3000', close: async () => {} }; },
-      async connect() { /* no-op */ },
+      async generate(_prompt: string) {
+        return { text: 'ok' };
+      },
+      stream(_prompt: string) {
+        return {};
+      },
+      session(_id?: string) {
+        return {};
+      },
+      async usage(_sessionId?: string) {
+        return {};
+      },
+      async close() {
+        /* no-op */
+      },
+      async listen(_opts?: { port?: number }) {
+        return { port: 3000, url: 'http://localhost:3000', close: async () => {} };
+      },
+      async connect() {
+        /* no-op */
+      },
     };
 
     // Agency satisfies Agent

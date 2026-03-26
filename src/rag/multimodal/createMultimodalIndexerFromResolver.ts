@@ -22,11 +22,11 @@
  *   throw only when `indexAudio()` is actually called.
  *
  * - **Vision**: When a `VisionPipeline` is provided, it is wrapped in a
- *   {@link PipelineVisionProvider}. Otherwise vision is left unconfigured.
+ *   `PipelineVisionProvider`. Otherwise vision is left unconfigured.
  *   Callers can also pass a pre-built `IVisionProvider` for custom setups.
  *
  * @see {@link SpeechProviderAdapter} for the STT bridge.
- * @see {@link PipelineVisionProvider} for the vision bridge.
+ * See `PipelineVisionProvider` for the vision bridge.
  * @see {@link MultimodalIndexer} for the indexer itself.
  *
  * @example
@@ -96,7 +96,7 @@ export interface MultimodalIndexerFromResolverOptions {
   /**
    * Vision pipeline for multi-tier image processing.
    * When provided, it is wrapped as an `IVisionProvider` via
-   * {@link PipelineVisionProvider}, giving the indexer the full
+   * `PipelineVisionProvider`, giving the indexer the full
    * progressive OCR + cloud fallback pipeline.
    *
    * Mutually exclusive with `visionProvider` — if both are set,
@@ -136,8 +136,8 @@ export interface MultimodalIndexerFromResolverOptions {
 
 /**
  * Create a {@link MultimodalIndexer} that reuses providers from the
- * voice pipeline's {@link SpeechProviderResolver} and an optional
- * {@link VisionPipeline}.
+ * voice pipeline's `SpeechProviderResolver` and an optional
+ * `VisionPipeline`.
  *
  * This is the recommended way to instantiate a multimodal indexer in
  * applications that also use the voice pipeline — it ensures both
@@ -188,7 +188,7 @@ export interface MultimodalIndexerFromResolverOptions {
  * ```
  */
 export function createMultimodalIndexerFromResolver(
-  opts: MultimodalIndexerFromResolverOptions,
+  opts: MultimodalIndexerFromResolverOptions
 ): MultimodalIndexer {
   // ---------------------------------------------------------------------------
   // Resolve STT provider from the speech resolver

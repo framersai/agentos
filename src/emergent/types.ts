@@ -76,7 +76,7 @@ export interface ComposableStep {
 
   /**
    * The registered tool name to invoke for this step.
-   * Must match the `name` property of an {@link ITool} available to the agent.
+   * Must match the `name` property of an `ITool` available to the agent.
    * @example "web_search"
    */
   tool: string;
@@ -169,7 +169,7 @@ export type ToolImplementation = ComposableToolSpec | SandboxedToolSpec;
  */
 export interface SandboxExecutionRequest {
   /**
-   * Source code of the sandboxed module (same format as {@link SandboxedToolSpec.code}).
+   * Source code of the sandboxed module (same format as `SandboxedToolSpec.code`).
    */
   code: string;
 
@@ -688,14 +688,14 @@ export interface EmergentConfig {
 
   /**
    * Memory limit in megabytes for each sandboxed tool execution.
-   * Passed as {@link SandboxExecutionRequest.memoryMB}.
+   * Passed as `SandboxExecutionRequest.memoryMB`.
    * @default 128
    */
   sandboxMemoryMB: number;
 
   /**
    * Wall-clock timeout in milliseconds for each sandboxed tool execution.
-   * Passed as {@link SandboxExecutionRequest.timeoutMs}.
+   * Passed as `SandboxExecutionRequest.timeoutMs`.
    * @default 5000
    */
   sandboxTimeoutMs: number;

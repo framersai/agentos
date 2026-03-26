@@ -17,7 +17,7 @@
  * - `crypto` — Hashing and HMAC only (`createHash`, `createHmac`).
  *
  * Security model:
- * 1. **Static validation** ({@link validateCode}) rejects dangerous patterns
+ * 1. **Static validation** (`validateCode()`) rejects dangerous patterns
  *    (regex scan) before any code reaches the runtime.
  * 2. **Runtime isolation** executes validated code inside a minimal context that
  *    exposes only JSON, Math, Date, TextEncoder, TextDecoder, and explicitly
@@ -30,11 +30,7 @@ import { createContext, runInContext } from 'node:vm';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import type {
-  SandboxExecutionRequest,
-  SandboxExecutionResult,
-  SandboxAPI,
-} from './types.js';
+import type { SandboxExecutionRequest, SandboxExecutionResult, SandboxAPI } from './types.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -157,12 +153,8 @@ export class SandboxedToolForge {
   constructor(config?: SandboxedToolForgeConfig) {
     this.memoryMB = config?.memoryMB ?? 128;
     this.timeoutMs = config?.timeoutMs ?? 5000;
-    this.fetchDomainAllowlist = (config?.fetchDomainAllowlist ?? []).map((d) =>
-      d.toLowerCase(),
-    );
-    this.fsReadRoots = (config?.fsReadRoots ?? [process.cwd()]).map((root) =>
-      path.resolve(root),
-    );
+    this.fetchDomainAllowlist = (config?.fetchDomainAllowlist ?? []).map((d) => d.toLowerCase());
+    this.fsReadRoots = (config?.fsReadRoots ?? [process.cwd()]).map((root) => path.resolve(root));
   }
 
   // --------------------------------------------------------------------------
@@ -197,10 +189,7 @@ export class SandboxedToolForge {
    * // result.violations === ['eval() is forbidden']
    * ```
    */
-  validateCode(
-    code: string,
-    allowlist: SandboxAPI[],
-  ): { valid: boolean; violations: string[] } {
+  validateCode(code: string, allowlist: SandboxAPI[]): { valid: boolean; violations: string[] } {
     const violations: string[] = [];
 
     // Check always-banned patterns.
@@ -231,9 +220,7 @@ export class SandboxedToolForge {
       violations.push('crypto access is not in the allowlist');
     }
 
-    return violations.length === 0
-      ? { valid: true, violations: [] }
-      : { valid: false, violations };
+    return violations.length === 0 ? { valid: true, violations: [] } : { valid: false, violations };
   }
 
   // --------------------------------------------------------------------------
@@ -251,7 +238,7 @@ export class SandboxedToolForge {
    * ```
    *
    * Execution flow:
-   * 1. Run {@link validateCode} — reject immediately if violations are found.
+   * 1. Run `validateCode()` — reject immediately if violations are found.
    * 2. Wrap the agent's code into a self-contained expression that calls `execute`.
    * 3. Run in a Node.js `vm` sandbox with a restricted global context.
    * 4. Parse the output, measure execution time, and return the result.
@@ -274,9 +261,7 @@ export class SandboxedToolForge {
    * // result.output === { sum: 30 }
    * ```
    */
-  async execute(
-    request: SandboxExecutionRequest,
-  ): Promise<SandboxExecutionResult> {
+  async execute(request: SandboxExecutionRequest): Promise<SandboxExecutionResult> {
     const timeout = request.timeoutMs ?? this.timeoutMs;
     const startTime = performance.now();
 
@@ -337,10 +322,7 @@ export class SandboxedToolForge {
       // Parse the JSON-serialized output.
       let output: unknown;
       try {
-        output =
-          typeof settledResult === 'string'
-            ? JSON.parse(settledResult)
-            : settledResult;
+        output = typeof settledResult === 'string' ? JSON.parse(settledResult) : settledResult;
       } catch {
         // If JSON.parse fails, use the raw result.
         output = settledResult;
@@ -354,19 +336,15 @@ export class SandboxedToolForge {
       };
     } catch (err: unknown) {
       const executionTimeMs = Math.round(performance.now() - startTime);
-      const message =
-        err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
 
       // Detect timeout errors from the vm module.
       const isTimeout =
-        message.includes('Script execution timed out') ||
-        message.includes('timed out');
+        message.includes('Script execution timed out') || message.includes('timed out');
 
       return {
         success: false,
-        error: isTimeout
-          ? `Execution timed out after ${timeout}ms`
-          : `Execution error: ${message}`,
+        error: isTimeout ? `Execution timed out after ${timeout}ms` : `Execution error: ${message}`,
         executionTimeMs,
         memoryUsedBytes: 0,
       };
@@ -386,9 +364,7 @@ export class SandboxedToolForge {
    * @param allowlist - The set of APIs to inject into the sandbox.
    * @returns A plain object suitable for {@link createContext}.
    */
-  private buildSandboxContext(
-    allowlist: SandboxAPI[],
-  ): Record<string, unknown> {
+  private buildSandboxContext(allowlist: SandboxAPI[]): Record<string, unknown> {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const globals: Record<string, unknown> = {
       // Safe built-ins always available.
@@ -431,23 +407,15 @@ export class SandboxedToolForge {
       const domainAllowlist = this.fetchDomainAllowlist;
       globals.fetch = async (
         urlOrRequest: string | { url: string },
-        init?: Record<string, unknown>,
+        init?: Record<string, unknown>
       ) => {
-        const urlStr =
-          typeof urlOrRequest === 'string'
-            ? urlOrRequest
-            : urlOrRequest.url;
+        const urlStr = typeof urlOrRequest === 'string' ? urlOrRequest : urlOrRequest.url;
         const url = new URL(urlStr);
         const host = url.hostname.toLowerCase();
 
         // Enforce domain allowlist if configured.
-        if (
-          domainAllowlist.length > 0 &&
-          !domainAllowlist.includes(host)
-        ) {
-          throw new Error(
-            `fetch blocked: domain "${host}" is not in the allowlist`,
-          );
+        if (domainAllowlist.length > 0 && !domainAllowlist.includes(host)) {
+          throw new Error(`fetch blocked: domain "${host}" is not in the allowlist`);
         }
 
         // Delegate to the real global fetch.
@@ -461,21 +429,18 @@ export class SandboxedToolForge {
         readFile: async (filePath: string) => {
           const resolvedPath = path.resolve(filePath);
           const allowed = this.fsReadRoots.some((root) => {
-            return (
-              resolvedPath === root ||
-              resolvedPath.startsWith(`${root}${path.sep}`)
-            );
+            return resolvedPath === root || resolvedPath.startsWith(`${root}${path.sep}`);
           });
           if (!allowed) {
             throw new Error(
-              `fs.readFile blocked: path "${resolvedPath}" is outside the allowed roots`,
+              `fs.readFile blocked: path "${resolvedPath}" is outside the allowed roots`
             );
           }
           const data = await readFile(filePath);
           // Enforce 1 MB size limit.
           if (data.byteLength > 1_048_576) {
             throw new Error(
-              `fs.readFile blocked: file exceeds 1 MB limit (${data.byteLength} bytes)`,
+              `fs.readFile blocked: file exceeds 1 MB limit (${data.byteLength} bytes)`
             );
           }
           return data.toString('utf-8');
@@ -488,8 +453,7 @@ export class SandboxedToolForge {
       globals.crypto = {
         randomUUID: () => randomUUID(),
         createHash: (algorithm: string) => createHash(algorithm),
-        createHmac: (algorithm: string, key: string) =>
-          createHmac(algorithm, key),
+        createHmac: (algorithm: string, key: string) => createHmac(algorithm, key),
       };
     }
 

@@ -11,7 +11,7 @@
  * results sorted by score.
  */
 
-import type { CorpusChunk, RetrievedChunk } from '../types.js';
+import type { CorpusChunk, RetrievedChunk } from './types.js';
 
 /**
  * Common English stop words that add noise to keyword matching.

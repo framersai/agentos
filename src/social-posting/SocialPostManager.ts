@@ -156,7 +156,7 @@ const VALID_TRANSITIONS: Record<SocialPostStatus, SocialPostStatus[]> = {
  *
  * Provides create, schedule, publish, retry, and query operations over an
  * in-memory store. Platform-specific publishing is delegated to callers
- * (typically the ToolExecutor / skill layer) via the {@link publishNow}
+ * (typically the ToolExecutor / skill layer) via the `publishNow`
  * callback mechanism.
  *
  * @example
@@ -181,7 +181,7 @@ export class SocialPostManager {
 
   /**
    * Optional publish handler injected by the consuming layer.
-   * Called for each platform when {@link publishNow} is invoked.
+   * Called for each platform when `publishNow` is invoked.
    *
    * When not provided, publishNow will mark all platforms as 'pending'
    * and transition the post to 'publishing', leaving actual delivery
@@ -189,7 +189,7 @@ export class SocialPostManager {
    */
   private publishHandler?: (
     post: SocialPost,
-    platform: string,
+    platform: string
   ) => Promise<SocialPostPlatformResult>;
 
   // --------------------------------------------------------------------------
@@ -201,12 +201,12 @@ export class SocialPostManager {
    *
    * The handler receives the full post and a single platform string and must
    * return a {@link SocialPostPlatformResult}. It is called once per platform
-   * during {@link publishNow}.
+   * during `publishNow`.
    *
    * @param handler - Async function that publishes content to a platform
    */
   setPublishHandler(
-    handler: (post: SocialPost, platform: string) => Promise<SocialPostPlatformResult>,
+    handler: (post: SocialPost, platform: string) => Promise<SocialPostPlatformResult>
   ): void {
     this.publishHandler = handler;
   }
@@ -307,7 +307,7 @@ export class SocialPostManager {
           post.results[platform] = errorResult;
           return errorResult;
         }
-      }),
+      })
     );
 
     // Determine aggregate status
@@ -340,7 +340,7 @@ export class SocialPostManager {
   markPlatformResult(
     postId: string,
     platform: string,
-    result: SocialPostPlatformResult,
+    result: SocialPostPlatformResult
   ): SocialPost {
     const post = this.requirePost(postId);
     post.results[platform] = result;
@@ -377,9 +377,7 @@ export class SocialPostManager {
     this.assertTransition(post.status, 'retry');
 
     if (post.retryCount >= post.maxRetries) {
-      throw new Error(
-        `Post ${postId} has exceeded maximum retries (${post.maxRetries})`,
-      );
+      throw new Error(`Post ${postId} has exceeded maximum retries (${post.maxRetries})`);
     }
 
     post.status = 'retry';
@@ -446,11 +444,7 @@ export class SocialPostManager {
     const results: SocialPost[] = [];
 
     for (const post of this.posts.values()) {
-      if (
-        post.status === 'scheduled' &&
-        post.scheduledAt &&
-        new Date(post.scheduledAt) <= now
-      ) {
+      if (post.status === 'scheduled' && post.scheduledAt && new Date(post.scheduledAt) <= now) {
         results.push({ ...post });
       }
     }
@@ -476,15 +470,12 @@ export class SocialPostManager {
   /**
    * Assert that a state transition is valid.
    */
-  private assertTransition(
-    current: SocialPostStatus,
-    target: SocialPostStatus,
-  ): void {
+  private assertTransition(current: SocialPostStatus, target: SocialPostStatus): void {
     const allowed = VALID_TRANSITIONS[current];
     if (!allowed || !allowed.includes(target)) {
       throw new Error(
         `Invalid state transition: '${current}' --> '${target}'. ` +
-          `Allowed transitions from '${current}': [${(allowed ?? []).join(', ')}]`,
+          `Allowed transitions from '${current}': [${(allowed ?? []).join(', ')}]`
       );
     }
   }
@@ -492,9 +483,7 @@ export class SocialPostManager {
   /**
    * Initialize platform results with 'pending' status for each platform.
    */
-  private initPlatformResults(
-    platforms: string[],
-  ): Record<string, SocialPostPlatformResult> {
+  private initPlatformResults(platforms: string[]): Record<string, SocialPostPlatformResult> {
     const results: Record<string, SocialPostPlatformResult> = {};
     for (const platform of platforms) {
       results[platform] = { platform, status: 'pending' };

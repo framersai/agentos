@@ -5,6 +5,8 @@
  * prompt formatting, topic capping, and empty-input handling.
  */
 
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import type { CorpusChunk, TopicEntry } from '../../query-router/types.js';
 import { TopicExtractor } from '../TopicExtractor.js';
 

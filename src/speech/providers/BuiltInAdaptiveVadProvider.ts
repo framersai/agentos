@@ -1,8 +1,6 @@
 import { AdaptiveVAD } from '../../core/audio/AdaptiveVAD.js';
 import { EnvironmentalCalibrator } from '../../core/audio/EnvironmentalCalibrator.js';
-import type {
-  AdaptiveVADConfig,
-} from '../../core/audio/AdaptiveVAD.js';
+import type { AdaptiveVADConfig } from '../../core/audio/AdaptiveVAD.js';
 import type { CalibrationConfig } from '../../core/audio/EnvironmentalCalibrator.js';
 import type { SpeechVadDecision, SpeechVadProvider } from '../types.js';
 
@@ -13,8 +11,8 @@ import type { SpeechVadDecision, SpeechVadProvider } from '../types.js';
  * audio with 20ms frames (the standard voice pipeline configuration).
  *
  * @see {@link BuiltInAdaptiveVadProvider} for usage examples
- * @see {@link AdaptiveVADConfig} for detailed VAD tuning parameters
- * @see {@link CalibrationConfig} for environmental calibration settings
+ * See `AdaptiveVADConfig` for detailed VAD tuning parameters.
+ * See `CalibrationConfig` for environmental calibration settings.
  */
 export interface BuiltInAdaptiveVadProviderConfig {
   /**
@@ -35,7 +33,7 @@ export interface BuiltInAdaptiveVadProviderConfig {
    * Environmental calibration settings. Controls how the noise floor and
    * spectral profile are estimated from ambient audio.
    *
-   * @see {@link CalibrationConfig} for available options
+   * See `CalibrationConfig` for available options.
    */
   calibration?: CalibrationConfig;
 
@@ -43,23 +41,23 @@ export interface BuiltInAdaptiveVadProviderConfig {
    * VAD algorithm configuration. Controls speech detection thresholds,
    * minimum speech duration, hangover period, etc.
    *
-   * @see {@link AdaptiveVADConfig} for available options
+   * See `AdaptiveVADConfig` for available options.
    */
   vad?: AdaptiveVADConfig;
 }
 
 /**
  * Built-in voice activity detection (VAD) provider backed by the
- * {@link AdaptiveVAD} engine and {@link EnvironmentalCalibrator}.
+ * `AdaptiveVAD` engine and `EnvironmentalCalibrator`.
  *
  * This is the default VAD provider in AgentOS and requires no external
  * dependencies or API keys. It operates entirely locally on raw audio frames.
  *
  * ## How It Works
  *
- * 1. The {@link EnvironmentalCalibrator} continuously estimates the ambient
+ * 1. The `EnvironmentalCalibrator` continuously estimates the ambient
  *    noise floor and spectral profile from incoming audio frames.
- * 2. The {@link AdaptiveVAD} uses the calibrator's noise profile to set
+ * 2. The `AdaptiveVAD` uses the calibrator's noise profile to set
  *    dynamic thresholds for speech detection — louder environments get
  *    higher thresholds to avoid false positives.
  * 3. Each `processFrame()` call returns a {@link SpeechVadDecision} with
@@ -72,8 +70,8 @@ export interface BuiltInAdaptiveVadProviderConfig {
  * - VAD and calibration: Use sensible defaults from the underlying engines
  *
  * @see {@link BuiltInAdaptiveVadProviderConfig} for configuration options
- * @see {@link AdaptiveVAD} for the underlying VAD algorithm
- * @see {@link EnvironmentalCalibrator} for the noise profiling engine
+ * See `AdaptiveVAD` for the underlying VAD algorithm.
+ * See `EnvironmentalCalibrator` for the noise profiling engine.
  *
  * @example
  * ```ts
@@ -137,11 +135,7 @@ export class BuiltInAdaptiveVadProvider implements SpeechVadProvider {
       sampleRate: config.sampleRate ?? 16_000,
       ...(config.calibration ?? {}),
     });
-    this.vad = new AdaptiveVAD(
-      config.vad ?? {},
-      this.calibrator,
-      config.frameDurationMs ?? 20
-    );
+    this.vad = new AdaptiveVAD(config.vad ?? {}, this.calibrator, config.frameDurationMs ?? 20);
   }
 
   /**

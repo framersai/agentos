@@ -18,13 +18,15 @@
  *
  * The router also handles:
  * - Corpus loading from markdown files on disk
+ * - Real vector embedding via EmbeddingManager + VectorStoreManager (in-memory)
  * - Keyword fallback retrieval when embeddings are unavailable
  * - Event emission for full pipeline observability
  * - Lifecycle hooks (onClassification, onRetrieval) for consumer integration
  *
- * **Embedding note:** The `init()` method's embedding step is a placeholder
- * for now (Task 8 wires real embeddings). All retrieval currently goes through
- * {@link KeywordFallback}.
+ * Embedding pipeline: The `init()` method attempts to initialize an
+ * AIModelProviderManager, EmbeddingManager, and VectorStoreManager to enable
+ * real vector search. If any step fails (e.g., no API key configured), the
+ * router falls back gracefully to {@link KeywordFallback} for all retrieval.
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -35,11 +37,13 @@ import { QueryDispatcher } from './QueryDispatcher.js';
 import { QueryGenerator } from './QueryGenerator.js';
 import { TopicExtractor } from './TopicExtractor.js';
 import { KeywordFallback } from './KeywordFallback.js';
+import { DEFAULT_QUERY_ROUTER_CONFIG } from './types.js';
 import type {
   ClassificationResult,
   ConversationMessage,
   CorpusChunk,
   QueryResult,
+  QueryRouterConfig,
   QueryRouterEventUnion,
   QueryTier,
   RetrievalResult,
@@ -48,105 +52,22 @@ import type {
   TopicEntry,
 } from './types.js';
 
+// RAG module types — imported as types to keep the dependency graph light.
+// The actual classes are dynamically imported in init() to stay optional.
+import type { EmbeddingManager } from '../rag/EmbeddingManager.js';
+import type { VectorStoreManager } from '../rag/VectorStoreManager.js';
+import type { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager.js';
+import type { VectorDocument } from '../rag/IVectorStore.js';
+
 // ============================================================================
 // Configuration
 // ============================================================================
 
-/**
- * Full configuration for the QueryRouter pipeline.
- *
- * All fields except `knowledgeCorpus` have sensible defaults. The
- * constructor merges user-supplied values over {@link QUERY_ROUTER_DEFAULTS}.
- */
-export interface QueryRouterFullConfig {
-  /** Directories containing .md/.mdx files to ingest as the knowledge corpus. */
-  knowledgeCorpus: string[];
-
-  /** LLM model for the classifier. @default 'gpt-4o-mini' */
-  classifierModel: string;
-
-  /** LLM provider for the classifier. @default 'openai' */
-  classifierProvider: string;
-
-  /**
-   * Minimum confidence threshold for accepting a classification.
-   * Below this, the tier is bumped up by 1.
-   * @default 0.7
-   */
-  confidenceThreshold: number;
-
-  /** Maximum tier the classifier may assign. @default 3 */
-  maxTier: QueryTier;
-
-  /** Embedding provider name. @default 'openai' */
-  embeddingProvider: string;
-
-  /** Embedding model identifier. @default 'text-embedding-3-small' */
-  embeddingModel: string;
-
-  /** LLM model for T0/T1 generation. @default 'gpt-4o-mini' */
-  generationModel: string;
-
-  /** LLM model for T2/T3 generation (deep). @default 'gpt-4o' */
-  generationModelDeep: string;
-
-  /** LLM provider for generation. @default 'openai' */
-  generationProvider: string;
-
-  /** Whether graph-based retrieval is enabled. @default true */
-  graphEnabled: boolean;
-
-  /** Whether deep research is enabled. @default Boolean(process.env.SERPER_API_KEY) */
-  deepResearchEnabled: boolean;
-
-  /** Number of recent conversation messages to include as context. @default 5 */
-  conversationWindowSize: number;
-
-  /** Maximum estimated tokens for documentation context. @default 4000 */
-  maxContextTokens: number;
-
-  /** Whether to cache query results. @default true */
-  cacheResults: boolean;
-
-  /**
-   * Hook called after classification completes.
-   * Receives the ClassificationResult for consumer integration.
-   */
-  onClassification?: (result: ClassificationResult) => void;
-
-  /**
-   * Hook called after retrieval completes.
-   * Receives the RetrievalResult for consumer integration.
-   */
-  onRetrieval?: (result: RetrievalResult) => void;
-
-  /** Optional API key override for LLM calls. */
-  apiKey?: string;
-
-  /** Optional base URL override for LLM providers. */
-  baseUrl?: string;
-}
-
-/**
- * Default configuration values for the QueryRouter.
- * These are merged under any user-supplied config in the constructor.
- */
-const QUERY_ROUTER_DEFAULTS: Omit<QueryRouterFullConfig, 'knowledgeCorpus'> = {
-  classifierModel: 'gpt-4o-mini',
-  classifierProvider: 'openai',
-  confidenceThreshold: 0.7,
-  maxTier: 3,
-  embeddingProvider: 'openai',
-  embeddingModel: 'text-embedding-3-small',
-  generationModel: 'gpt-4o-mini',
-  generationModelDeep: 'gpt-4o',
-  generationProvider: 'openai',
-  graphEnabled: true,
-  deepResearchEnabled: Boolean(process.env.SERPER_API_KEY),
-  conversationWindowSize: 5,
-  maxContextTokens: 4000,
-  cacheResults: true,
-};
+type QueryRouterResolvedConfig = Omit<
+  Required<QueryRouterConfig>,
+  'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl'
+> &
+  Pick<QueryRouterConfig, 'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl'>;
 
 /** Regex for splitting markdown by h1-h3 headings. */
 const HEADING_REGEX = /^#{1,3}\s+(.+)/;
@@ -187,7 +108,7 @@ const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdx']);
  */
 export class QueryRouter {
   /** Resolved configuration with defaults applied. */
-  private readonly config: QueryRouterFullConfig;
+  private readonly config: QueryRouterResolvedConfig;
 
   /** Loaded corpus chunks from disk. */
   private corpus: CorpusChunk[] = [];
@@ -213,6 +134,24 @@ export class QueryRouter {
   /** Whether init() has been called successfully. */
   private initialized = false;
 
+  /** Embedding manager for generating vector embeddings. Null if not available. */
+  private embeddingManager: EmbeddingManager | null = null;
+
+  /** Vector store manager for persisting and querying embeddings. Null if not available. */
+  private vectorStoreManager: VectorStoreManager | null = null;
+
+  /** AI model provider manager used by the embedding manager. Null if not available. */
+  private providerManager: AIModelProviderManager | null = null;
+
+  /** Embedding dimension for the configured model. Zero if embeddings unavailable. */
+  private embeddingDimension = 0;
+
+  /**
+   * The data source ID used for corpus embeddings in the vector store.
+   * Matches the collection name configured during init().
+   */
+  private readonly corpusDataSourceId = 'query-router-corpus';
+
   /**
    * Creates a new QueryRouter instance.
    *
@@ -221,10 +160,12 @@ export class QueryRouter {
    *
    * @param config - Partial configuration; `knowledgeCorpus` is required.
    */
-  constructor(config: Partial<QueryRouterFullConfig> & { knowledgeCorpus: string[] }) {
+  constructor(config: QueryRouterConfig) {
     this.config = {
-      ...QUERY_ROUTER_DEFAULTS,
+      ...DEFAULT_QUERY_ROUTER_CONFIG,
       ...config,
+      deepResearchEnabled: config.deepResearchEnabled ?? Boolean(process.env.SERPER_API_KEY),
+      availableTools: config.availableTools ?? [...DEFAULT_QUERY_ROUTER_CONFIG.availableTools],
     };
   }
 
@@ -234,12 +175,15 @@ export class QueryRouter {
 
   /**
    * Initialise the router: load corpus from disk, extract topics, build
-   * keyword fallback index, and instantiate classifier/dispatcher/generator.
+   * keyword fallback index, embed the corpus into a vector store, and
+   * instantiate classifier/dispatcher/generator.
    *
    * Must be called before `classify()`, `retrieve()`, or `route()`.
    *
-   * The embedding step is a placeholder for now — Task 8 wires real
-   * vector embeddings. All retrieval currently delegates to KeywordFallback.
+   * The embedding step uses real EmbeddingManager + VectorStoreManager when
+   * an LLM provider is available (e.g., OPENAI_API_KEY is set). If embedding
+   * initialisation fails for any reason, the router falls back gracefully to
+   * KeywordFallback for all retrieval.
    */
   async init(): Promise<void> {
     // 1. Load corpus chunks from the configured knowledge directories
@@ -253,19 +197,24 @@ export class QueryRouter {
     // 3. Build keyword fallback index
     this.keywordFallback = new KeywordFallback(this.corpus);
 
-    // 4. Instantiate the classifier
+    // 4. Attempt to embed corpus chunks into a real vector store.
+    //    This is wrapped in a try/catch so failure is non-fatal — keyword
+    //    fallback will still work for all retrieval operations.
+    await this.embedCorpus();
+
+    // 5. Instantiate the classifier
     this.classifier = new QueryClassifier({
       model: this.config.classifierModel,
       provider: this.config.classifierProvider,
       confidenceThreshold: this.config.confidenceThreshold,
       maxTier: this.config.maxTier,
       topicList,
-      toolList: '',
+      toolList: this.formatToolList(this.config.availableTools),
       apiKey: this.config.apiKey,
       baseUrl: this.config.baseUrl,
     });
 
-    // 5. Instantiate the generator
+    // 6. Instantiate the generator
     this.generator = new QueryGenerator({
       model: this.config.generationModel,
       modelDeep: this.config.generationModelDeep,
@@ -275,7 +224,7 @@ export class QueryRouter {
       maxContextTokens: this.config.maxContextTokens,
     });
 
-    // 6. Instantiate the dispatcher with callback dependencies
+    // 7. Instantiate the dispatcher with callback dependencies
     this.dispatcher = new QueryDispatcher({
       vectorSearch: (query: string, topK: number) => this.vectorSearch(query, topK),
       graphExpand: (seeds: RetrievedChunk[]) => this.graphExpand(seeds),
@@ -308,11 +257,35 @@ export class QueryRouter {
   ): Promise<ClassificationResult> {
     this.ensureInitialized();
 
+    const start = Date.now();
+    this.emit({
+      type: 'classify:start',
+      query,
+      timestamp: start,
+    });
+
     const trimmedHistory = conversationHistory?.slice(
       -this.config.conversationWindowSize,
     );
 
-    return this.classifier!.classify(query, trimmedHistory);
+    const result = await this.classifier!.classify(query, trimmedHistory);
+
+    if (result.reasoning.startsWith('Classification failed;')) {
+      this.emit({
+        type: 'classify:error',
+        error: new Error(result.reasoning),
+        timestamp: Date.now(),
+      });
+    }
+
+    this.emit({
+      type: 'classify:complete',
+      result,
+      durationMs: Date.now() - start,
+      timestamp: Date.now(),
+    });
+
+    return result;
   }
 
   /**
@@ -352,17 +325,9 @@ export class QueryRouter {
     this.ensureInitialized();
 
     const routeStart = Date.now();
-    const fallbacksUsed: string[] = [];
 
     // --- Phase 1: Classification ---
     const classification = await this.classify(query, conversationHistory);
-
-    this.emit({
-      type: 'classify:complete',
-      result: classification,
-      durationMs: Date.now() - routeStart,
-      timestamp: Date.now(),
-    });
 
     // Fire the onClassification hook if configured
     if (this.config.onClassification) {
@@ -370,11 +335,15 @@ export class QueryRouter {
     }
 
     // --- Phase 2: Retrieval ---
+    const retrievalEventStart = this.events.length;
     const retrieval = await this.dispatcher!.dispatch(
       query,
       classification.tier,
       classification.suggestedSources,
     );
+    const retrievalEvents = this.events.slice(retrievalEventStart);
+    const fallbacksUsed = this.collectFallbacks(classification, retrievalEvents);
+    const tiersUsed = this.collectTiersUsed(classification, fallbacksUsed);
 
     // Fire the onRetrieval hook if configured
     if (this.config.onRetrieval) {
@@ -413,7 +382,6 @@ export class QueryRouter {
 
     // --- Assemble final result ---
     const totalDuration = Date.now() - routeStart;
-    const tiersUsed: QueryTier[] = [classification.tier];
 
     const result: QueryResult = {
       answer: generateResult.answer,
@@ -437,10 +405,33 @@ export class QueryRouter {
   /**
    * Tear down resources and release references.
    *
-   * Safe to call multiple times. After close(), the router must be
-   * re-initialised via {@link init} before further use.
+   * Shuts down embedding and vector store managers if they were initialised,
+   * then nulls out all component references. Safe to call multiple times.
+   * After close(), the router must be re-initialised via {@link init} before
+   * further use.
    */
   async close(): Promise<void> {
+    // Shut down RAG modules if they were initialised
+    try {
+      if (this.embeddingManager && typeof (this.embeddingManager as any).shutdown === 'function') {
+        await this.embeddingManager.shutdown();
+      }
+    } catch { /* best-effort cleanup */ }
+    try {
+      if (this.vectorStoreManager) {
+        await this.vectorStoreManager.shutdownAllProviders();
+      }
+    } catch { /* best-effort cleanup */ }
+    try {
+      if (this.providerManager) {
+        await this.providerManager.shutdown();
+      }
+    } catch { /* best-effort cleanup */ }
+
+    this.embeddingManager = null;
+    this.vectorStoreManager = null;
+    this.providerManager = null;
+    this.embeddingDimension = 0;
     this.classifier = null;
     this.dispatcher = null;
     this.generator = null;
@@ -580,21 +571,287 @@ export class QueryRouter {
   }
 
   // ==========================================================================
+  // PRIVATE — Corpus embedding
+  // ==========================================================================
+
+  /**
+   * Embed all loaded corpus chunks into the vector store using real
+   * EmbeddingManager and VectorStoreManager instances.
+   *
+   * The method dynamically imports the RAG modules to keep them optional —
+   * if the imports fail or initialisation fails (e.g., no API key), the error
+   * is caught and logged as a warning. The router will continue to function
+   * using the KeywordFallback engine for all retrieval.
+   *
+   * Steps:
+   * 1. Dynamic-import AIModelProviderManager, EmbeddingManager, VectorStoreManager
+   * 2. Initialise the provider manager with the configured embedding provider
+   * 3. Initialise the embedding manager with the configured model
+   * 4. Initialise the vector store manager with an in-memory provider
+   * 5. Create a collection with the correct dimension
+   * 6. Embed all corpus chunks in batches of 50
+   * 7. Upsert the resulting VectorDocuments into the vector store
+   * 8. Cache embeddings on CorpusChunk.embedding for potential reuse
+   */
+  private async embedCorpus(): Promise<void> {
+    if (this.corpus.length === 0) {
+      return;
+    }
+
+    // Quick check: bail out early if there's obviously no API key configured.
+    // This avoids the overhead of dynamic imports and provider initialization
+    // in test environments and when no embedding provider is available.
+    const apiKey = this.config.apiKey || process.env.OPENAI_API_KEY || '';
+    if (!apiKey) {
+      console.debug(
+        '[QueryRouter] No embedding API key configured; skipping vector store embedding (keyword fallback active).',
+      );
+      return;
+    }
+
+    try {
+      // --- Dynamic imports to keep RAG modules optional ---
+      const [
+        { AIModelProviderManager: AIModelProviderManagerClass },
+        { EmbeddingManager: EmbeddingManagerClass },
+        { VectorStoreManager: VectorStoreManagerClass },
+      ] = await Promise.all([
+        import('../core/llm/providers/AIModelProviderManager.js'),
+        import('../rag/EmbeddingManager.js'),
+        import('../rag/VectorStoreManager.js'),
+      ]);
+
+      // --- 1. Initialise the AI model provider manager ---
+      const pm = new AIModelProviderManagerClass();
+      await pm.initialize({
+        providers: [
+          {
+            providerId: this.config.embeddingProvider,
+            enabled: true,
+            config: {
+              apiKey: this.config.apiKey || process.env.OPENAI_API_KEY || '',
+              ...(this.config.baseUrl ? { baseUrl: this.config.baseUrl } : {}),
+            },
+            isDefault: true,
+          },
+        ],
+      });
+      this.providerManager = pm;
+
+      // --- 2. Initialise the embedding manager ---
+      const em = new EmbeddingManagerClass();
+      const embeddingModelId = this.config.embeddingModel;
+      const embeddingProviderId = this.config.embeddingProvider;
+
+      // Determine dimension: use a known dimension for common models, or
+      // try to derive it by generating a single test embedding.
+      let dimension = this.getKnownDimension(embeddingModelId);
+
+      await em.initialize(
+        {
+          embeddingModels: [
+            {
+              modelId: embeddingModelId,
+              providerId: embeddingProviderId,
+              dimension: dimension || 1536, // initial guess; corrected below if needed
+              isDefault: true,
+            },
+          ],
+          defaultModelId: embeddingModelId,
+          defaultBatchSize: 50,
+        },
+        pm,
+      );
+      this.embeddingManager = em;
+
+      // If dimension was unknown, generate a probe embedding to discover it
+      if (!dimension) {
+        const probe = await em.generateEmbeddings({ texts: ['dimension probe'] });
+        if (probe.embeddings.length > 0 && probe.embeddings[0].length > 0) {
+          dimension = probe.embeddings[0].length;
+        } else {
+          dimension = 1536; // safe fallback for OpenAI models
+        }
+      }
+      this.embeddingDimension = dimension;
+
+      // --- 3. Initialise the vector store manager (in-memory) ---
+      const vsm = new VectorStoreManagerClass();
+      const collectionName = this.corpusDataSourceId;
+      await vsm.initialize(
+        {
+          managerId: 'query-router-vsm',
+          providers: [{ id: 'mem', type: 'in_memory' }],
+          defaultProviderId: 'mem',
+        },
+        [
+          {
+            dataSourceId: collectionName,
+            displayName: 'QueryRouter Corpus',
+            vectorStoreProviderId: 'mem',
+            actualNameInProvider: collectionName,
+            embeddingDimension: dimension,
+          },
+        ],
+      );
+      this.vectorStoreManager = vsm;
+
+      // --- 4. Create the collection ---
+      const { store, collectionName: resolvedName } =
+        await vsm.getStoreForDataSource(collectionName);
+
+      if (typeof store.createCollection === 'function') {
+        await store.createCollection(resolvedName, dimension);
+      }
+
+      // --- 5. Embed corpus chunks in batches of 50 ---
+      const BATCH_SIZE = 50;
+      const allDocuments: VectorDocument[] = [];
+
+      for (let i = 0; i < this.corpus.length; i += BATCH_SIZE) {
+        const batch = this.corpus.slice(i, i + BATCH_SIZE);
+        const texts = batch.map((c) => c.content);
+
+        const result = await em.generateEmbeddings({ texts });
+
+        for (let j = 0; j < batch.length; j++) {
+          const embedding = result.embeddings[j];
+          if (!embedding || embedding.length === 0) {
+            continue; // skip chunks that failed to embed
+          }
+
+          // Cache embedding on the CorpusChunk for potential later reuse
+          batch[j].embedding = embedding;
+
+          allDocuments.push({
+            id: batch[j].id,
+            embedding,
+            textContent: batch[j].content,
+            metadata: {
+              heading: batch[j].heading,
+              sourcePath: batch[j].sourcePath,
+            },
+          });
+        }
+      }
+
+      // --- 6. Upsert into vector store ---
+      if (allDocuments.length > 0) {
+        await store.upsert(resolvedName, allDocuments);
+      }
+
+      console.log(
+        `[QueryRouter] Embedded ${allDocuments.length} chunks into vector store (dim=${dimension})`,
+      );
+    } catch (error: unknown) {
+      // Non-fatal: warn and continue — keyword fallback still works
+      const message =
+        error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[QueryRouter] Embedding initialisation failed, falling back to keyword search: ${message}`,
+      );
+      // Clean up any partial state
+      this.embeddingManager = null;
+      this.vectorStoreManager = null;
+      this.providerManager = null;
+      this.embeddingDimension = 0;
+    }
+  }
+
+  /**
+   * Return a known embedding dimension for common models.
+   *
+   * This avoids an extra API call when the dimension can be statically
+   * determined from the model identifier.
+   *
+   * @param modelId - The embedding model identifier.
+   * @returns The known dimension, or 0 if unknown.
+   */
+  private getKnownDimension(modelId: string): number {
+    const KNOWN_DIMENSIONS: Record<string, number> = {
+      'text-embedding-3-small': 1536,
+      'text-embedding-3-large': 3072,
+      'text-embedding-ada-002': 1536,
+    };
+    return KNOWN_DIMENSIONS[modelId] ?? 0;
+  }
+
+  // ==========================================================================
   // PRIVATE — Retrieval callbacks (injected into QueryDispatcher)
   // ==========================================================================
 
   /**
    * Vector search callback for the dispatcher.
    *
-   * Currently delegates to the KeywordFallback engine since real embeddings
-   * are not yet wired (Task 8). When embeddings are available, this method
-   * will delegate to the VectorStoreManager instead.
+   * When the EmbeddingManager and VectorStoreManager are available, this method
+   * embeds the query, queries the vector store, and maps the results to
+   * RetrievedChunk objects. If the RAG modules are not available (e.g., embedding
+   * init failed), it falls back to the KeywordFallback engine and emits a
+   * retrieve:fallback event.
    *
    * @param query - The user's query string.
    * @param topK - Maximum number of chunks to return.
    * @returns Promise resolving to an array of matched chunks.
    */
   private async vectorSearch(query: string, topK: number): Promise<RetrievedChunk[]> {
+    // --- Real vector search when RAG modules are available ---
+    if (this.embeddingManager && this.vectorStoreManager) {
+      try {
+        // Embed the query
+        const queryResult = await this.embeddingManager.generateEmbeddings({
+          texts: [query],
+        });
+
+        const queryEmbedding = queryResult.embeddings[0];
+        if (!queryEmbedding || queryEmbedding.length === 0) {
+          // Embedding failed for the query — fall through to keyword fallback
+          throw new Error('Query embedding returned empty vector');
+        }
+
+        // Query the vector store
+        const { store, collectionName } =
+          await this.vectorStoreManager.getStoreForDataSource(this.corpusDataSourceId);
+
+        const searchResults = await store.query(collectionName, queryEmbedding, {
+          topK,
+          includeTextContent: true,
+          includeMetadata: true,
+        });
+
+        // Map retrieved vector documents to RetrievedChunk[]
+        return searchResults.documents.map((doc) => ({
+          id: doc.id,
+          content: doc.textContent ?? '',
+          heading: (doc.metadata?.heading as string) ?? '',
+          sourcePath: (doc.metadata?.sourcePath as string) ?? '',
+          relevanceScore: doc.similarityScore,
+          matchType: 'vector' as const,
+        }));
+      } catch (error: unknown) {
+        // On any error during vector search, fall back to keyword search
+        const message =
+          error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[QueryRouter] Vector search failed, falling back to keyword search: ${message}`,
+        );
+        this.emit({
+          type: 'retrieve:fallback',
+          strategy: 'keyword-fallback',
+          reason: `Vector search error: ${message}`,
+          timestamp: Date.now(),
+        });
+      }
+    } else {
+      // RAG modules not available — emit a fallback event
+      this.emit({
+        type: 'retrieve:fallback',
+        strategy: 'keyword-fallback',
+        reason: 'Embeddings unavailable; using keyword search',
+        timestamp: Date.now(),
+      });
+    }
+
+    // --- Keyword fallback ---
     if (!this.keywordFallback) {
       return [];
     }
@@ -604,13 +861,14 @@ export class QueryRouter {
   /**
    * Graph expansion callback for the dispatcher.
    *
-   * Placeholder — returns empty array. Will be wired to GraphRAG in a
-   * future task.
+   * Placeholder — returns empty array.
+   * // Follow-up: wire GraphRAGEngine
    *
    * @param _seeds - Seed chunks to expand from (unused for now).
    * @returns Promise resolving to an empty array.
    */
   private async graphExpand(_seeds: RetrievedChunk[]): Promise<RetrievedChunk[]> {
+    // Follow-up: wire GraphRAGEngine
     return [];
   }
 
@@ -618,7 +876,7 @@ export class QueryRouter {
    * Reranking callback for the dispatcher.
    *
    * Placeholder — returns the first topN chunks without actual reranking.
-   * Will be replaced by a cross-encoder or LLM-based reranker in a future task.
+   * // Follow-up: wire RerankerService
    *
    * @param _query - The user's query (unused for now).
    * @param chunks - Candidate chunks to rerank.
@@ -630,14 +888,15 @@ export class QueryRouter {
     chunks: RetrievedChunk[],
     topN: number,
   ): Promise<RetrievedChunk[]> {
+    // Follow-up: wire RerankerService
     return chunks.slice(0, topN);
   }
 
   /**
    * Deep research callback for the dispatcher.
    *
-   * Placeholder — returns empty synthesis and empty sources. Will be wired
-   * to a real research engine when SERPER_API_KEY is available.
+   * Placeholder — returns empty synthesis and empty sources.
+   * // Follow-up: wire DeepResearchEngine
    *
    * @param _query - The user's query (unused for now).
    * @param _sources - Source identifiers to consult (unused for now).
@@ -647,7 +906,59 @@ export class QueryRouter {
     _query: string,
     _sources: string[],
   ): Promise<{ synthesis: string; sources: RetrievedChunk[] }> {
+    // Follow-up: wire DeepResearchEngine
     return { synthesis: '', sources: [] };
+  }
+
+  /**
+   * Format available tools for the classifier prompt.
+   */
+  private formatToolList(availableTools: string[]): string {
+    return availableTools.length > 0 ? availableTools.join(', ') : '(none available)';
+  }
+
+  /**
+   * Derive fallback strategy names from classification + retrieval events.
+   */
+  private collectFallbacks(
+    classification: ClassificationResult,
+    events: QueryRouterEventUnion[],
+  ): string[] {
+    const fallbacks = new Set<string>();
+
+    if (classification.confidence < this.config.confidenceThreshold) {
+      fallbacks.add('low-confidence-classification');
+    }
+
+    for (const event of events) {
+      if (event.type === 'retrieve:fallback') {
+        fallbacks.add(event.strategy);
+      }
+    }
+
+    return Array.from(fallbacks);
+  }
+
+  /**
+   * Approximate the tiers actually exercised when fallback strategies fired.
+   */
+  private collectTiersUsed(
+    classification: ClassificationResult,
+    fallbacksUsed: string[],
+  ): QueryTier[] {
+    const tiers = new Set<QueryTier>([classification.tier]);
+
+    for (const fallback of fallbacksUsed) {
+      if (fallback === 'research-skip') {
+        tiers.add(2);
+      }
+
+      if (fallback === 'graph-skip' || fallback === 'keyword-fallback' || fallback === 'rerank-skip') {
+        tiers.add(1);
+      }
+    }
+
+    return Array.from(tiers).sort((a, b) => a - b) as QueryTier[];
   }
 
   // ==========================================================================

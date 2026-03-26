@@ -13,9 +13,15 @@
  * @module memory/tools/MemorySearchTool
  */
 
-import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../core/tools/ITool.js';
+import type {
+  ITool,
+  ToolExecutionResult,
+  ToolExecutionContext,
+  JSONSchemaObject,
+} from '../../core/tools/ITool.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 import { buildNaturalLanguageFtsQuery } from '../store/tracePersistence.js';
+import { resolveMemoryToolScopeId } from './scopeContext.js';
 
 // ---------------------------------------------------------------------------
 // Internal row types
@@ -176,13 +182,13 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
    * Tags are stored as JSON arrays; they are parsed and returned as string[].
    * Malformed tag JSON returns an empty array rather than throwing.
    *
-   * @param args     - Search input (query, optional type/scope/limit).
-   * @param _context - Tool execution context (not used by this tool).
+   * @param args    - Search input (query, optional type/scope/limit).
+   * @param context - Tool execution context used to resolve scoped searches.
    * @returns `{ results }` array on success, or an error result.
    */
   async execute(
     args: MemorySearchInput,
-    _context: ToolExecutionContext,
+    context: ToolExecutionContext
   ): Promise<ToolExecutionResult<MemorySearchOutput>> {
     try {
       const rawQuery = args.query.trim();
@@ -204,10 +210,15 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
       if (args.scope !== undefined) {
         extraClauses.push('mt.scope = ?');
         extraParams.push(args.scope);
+
+        const scopeId = resolveMemoryToolScopeId(args.scope, context);
+        if (scopeId) {
+          extraClauses.push(`json_extract(mt.metadata, '$.scopeId') = ?`);
+          extraParams.push(scopeId);
+        }
       }
 
-      const extraWhere =
-        extraClauses.length > 0 ? `AND ${extraClauses.join(' AND ')}` : '';
+      const extraWhere = extraClauses.length > 0 ? `AND ${extraClauses.join(' AND ')}` : '';
 
       const sql = `
         SELECT mt.id, mt.content, mt.type, mt.scope, mt.strength, mt.tags
@@ -222,9 +233,7 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
 
       const runSearch = (query: string): SearchRow[] => {
         const params: unknown[] = [query, ...extraParams, limit];
-        return this.brain.db
-          .prepare<unknown[], SearchRow>(sql)
-          .all(...(params as unknown[]));
+        return this.brain.db.prepare<unknown[], SearchRow>(sql).all(...(params as unknown[]));
       };
 
       let rows: SearchRow[];
@@ -232,11 +241,7 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
         rows = runSearch(rawQuery);
       } catch (error: any) {
         const fallbackQuery = buildNaturalLanguageFtsQuery(rawQuery);
-        if (
-          error?.code !== 'SQLITE_ERROR' ||
-          !fallbackQuery ||
-          fallbackQuery === rawQuery
-        ) {
+        if (error?.code !== 'SQLITE_ERROR' || !fallbackQuery || fallbackQuery === rawQuery) {
           throw error;
         }
         rows = runSearch(fallbackQuery);

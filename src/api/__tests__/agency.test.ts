@@ -39,13 +39,16 @@ import { compileParallel } from '../strategies/parallel.js';
 import { compileDebate } from '../strategies/debate.js';
 import { compileReviewLoop } from '../strategies/review-loop.js';
 import { compileHierarchical } from '../strategies/hierarchical.js';
-import { compileStrategy, isAgent } from '../strategies/index.js';
+import { compileStrategy, isAgent, mergeDefaults } from '../strategies/index.js';
 
 /* ------------------------------------------------------------------ */
 /* Helper: create a mock pre-built Agent                               */
 /* ------------------------------------------------------------------ */
 
-function mockAgent(text: string, usage?: Partial<{ promptTokens: number; completionTokens: number; totalTokens: number }>): Agent {
+function mockAgent(
+  text: string,
+  usage?: Partial<{ promptTokens: number; completionTokens: number; totalTokens: number }>
+): Agent {
   const u = {
     promptTokens: usage?.promptTokens ?? 10,
     completionTokens: usage?.completionTokens ?? 5,
@@ -64,7 +67,12 @@ function mockAgent(text: string, usage?: Partial<{ promptTokens: number; complet
  * Creates a mock agent whose generate() responses are controlled by a
  * sequence of return values. Each call returns the next value in order.
  */
-function mockAgentSequence(responses: Array<{ text: string; usage?: Partial<{ promptTokens: number; completionTokens: number; totalTokens: number }> }>): Agent {
+function mockAgentSequence(
+  responses: Array<{
+    text: string;
+    usage?: Partial<{ promptTokens: number; completionTokens: number; totalTokens: number }>;
+  }>
+): Agent {
   const gen = vi.fn();
   for (const resp of responses) {
     const u = {
@@ -98,6 +106,60 @@ describe('isAgent', () => {
   });
 });
 
+describe('mergeDefaults', () => {
+  it('normalizes and merges adaptable tool inputs by name', () => {
+    const merged = mergeDefaults(
+      {
+        model: 'openai:gpt-4o',
+        tools: [
+          {
+            name: 'open_profile',
+            description: 'Agent prompt-only profile lookup.',
+            inputSchema: {
+              type: 'object',
+              properties: { profileId: { type: 'string' } },
+              required: ['profileId'],
+            },
+          },
+        ],
+      },
+      {
+        agents: {},
+        tools: new Map([
+          [
+            'search',
+            {
+              description: 'Shared search tool.',
+              inputSchema: { type: 'object', properties: {} },
+              execute: async () => ({ success: true, output: 'shared' }),
+            },
+          ],
+          [
+            'open_profile',
+            {
+              description: 'Agency profile lookup.',
+              inputSchema: { type: 'object', properties: {} },
+              execute: async () => ({ success: true, output: 'agency' }),
+            },
+          ],
+        ]),
+      } as AgencyOptions
+    );
+
+    const mergedTools = merged.tools as Record<string, unknown>;
+
+    expect(Object.keys(mergedTools)).toEqual(['search', 'open_profile']);
+    expect(mergedTools.search).toMatchObject({
+      name: 'search',
+      description: 'Shared search tool.',
+    });
+    expect(mergedTools.open_profile).toMatchObject({
+      name: 'open_profile',
+      description: 'Agent prompt-only profile lookup.',
+    });
+  });
+});
+
 /* ------------------------------------------------------------------ */
 /* compileStrategy dispatcher                                          */
 /* ------------------------------------------------------------------ */
@@ -108,30 +170,26 @@ describe('compileStrategy', () => {
   });
 
   it('dispatches "sequential" to compileSequential', () => {
-    const strategy = compileStrategy(
-      'sequential',
-      { a: mockAgent('ok') },
-      { agents: { a: mockAgent('ok') } } as AgencyOptions,
-    );
+    const strategy = compileStrategy('sequential', { a: mockAgent('ok') }, {
+      agents: { a: mockAgent('ok') },
+    } as AgencyOptions);
     expect(strategy).toHaveProperty('execute');
     expect(strategy).toHaveProperty('stream');
   });
 
   it('dispatches "parallel" to compileParallel', () => {
-    const strategy = compileStrategy(
-      'parallel',
-      { a: mockAgent('ok') },
-      { agents: { a: mockAgent('ok') }, model: 'openai:gpt-4o' } as AgencyOptions,
-    );
+    const strategy = compileStrategy('parallel', { a: mockAgent('ok') }, {
+      agents: { a: mockAgent('ok') },
+      model: 'openai:gpt-4o',
+    } as AgencyOptions);
     expect(strategy).toHaveProperty('execute');
   });
 
   it('dispatches "debate" to compileDebate', () => {
-    const strategy = compileStrategy(
-      'debate',
-      { a: mockAgent('ok'), b: mockAgent('ok') },
-      { agents: { a: mockAgent('ok'), b: mockAgent('ok') }, model: 'openai:gpt-4o' } as AgencyOptions,
-    );
+    const strategy = compileStrategy('debate', { a: mockAgent('ok'), b: mockAgent('ok') }, {
+      agents: { a: mockAgent('ok'), b: mockAgent('ok') },
+      model: 'openai:gpt-4o',
+    } as AgencyOptions);
     expect(strategy).toHaveProperty('execute');
     expect(strategy).toHaveProperty('stream');
   });
@@ -140,7 +198,7 @@ describe('compileStrategy', () => {
     const strategy = compileStrategy(
       'review-loop',
       { producer: mockAgent('ok'), reviewer: mockAgent('ok') },
-      { agents: { producer: mockAgent('ok'), reviewer: mockAgent('ok') } } as AgencyOptions,
+      { agents: { producer: mockAgent('ok'), reviewer: mockAgent('ok') } } as AgencyOptions
     );
     expect(strategy).toHaveProperty('execute');
   });
@@ -152,21 +210,18 @@ describe('compileStrategy', () => {
       toolCalls: [],
     });
 
-    const strategy = compileStrategy(
-      'hierarchical',
-      { a: mockAgent('ok') },
-      { agents: { a: mockAgent('ok') }, model: 'openai:gpt-4o' } as AgencyOptions,
-    );
+    const strategy = compileStrategy('hierarchical', { a: mockAgent('ok') }, {
+      agents: { a: mockAgent('ok') },
+      model: 'openai:gpt-4o',
+    } as AgencyOptions);
     expect(strategy).toHaveProperty('execute');
   });
 
   it('throws for unknown strategies', () => {
     expect(() =>
-      compileStrategy(
-        'unknown-strategy' as any,
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileStrategy('unknown-strategy' as any, { a: mockAgent('ok') }, {
+        agents: { a: mockAgent('ok') },
+      } as AgencyOptions)
     ).toThrow(/not yet implemented/);
   });
 });
@@ -181,7 +236,11 @@ describe('Sequential Strategy', () => {
     const agentA: Agent = {
       generate: vi.fn().mockImplementation(async () => {
         callOrder.push('a');
-        return { text: 'A output', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 }, toolCalls: [] };
+        return {
+          text: 'A output',
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          toolCalls: [],
+        };
       }),
       stream: vi.fn(),
       session: vi.fn(),
@@ -191,7 +250,11 @@ describe('Sequential Strategy', () => {
     const agentB: Agent = {
       generate: vi.fn().mockImplementation(async () => {
         callOrder.push('b');
-        return { text: 'B output', usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 }, toolCalls: [] };
+        return {
+          text: 'B output',
+          usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+          toolCalls: [],
+        };
       }),
       stream: vi.fn(),
       session: vi.fn(),
@@ -245,7 +308,9 @@ describe('Sequential Strategy', () => {
 
     const agencyConfig = { agents: { a: agentA, b: agentB } } as AgencyOptions;
     const strategy = compileSequential({ a: agentA, b: agentB }, agencyConfig);
-    const result = (await strategy.execute('task')) as { usage: { promptTokens: number; completionTokens: number; totalTokens: number } };
+    const result = (await strategy.execute('task')) as {
+      usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+    };
 
     expect(result.usage.promptTokens).toBe(300);
     expect(result.usage.completionTokens).toBe(130);
@@ -256,7 +321,11 @@ describe('Sequential Strategy', () => {
     const agentA: Agent = {
       generate: vi.fn().mockImplementation(async () => {
         await new Promise((r) => setTimeout(r, 10));
-        return { text: 'A', usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 }, toolCalls: [] };
+        return {
+          text: 'A',
+          usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+          toolCalls: [],
+        };
       }),
       stream: vi.fn(),
       session: vi.fn(),
@@ -322,16 +391,10 @@ describe('Parallel Strategy', () => {
 
   it('throws AgencyConfigError without an agency-level model or provider', () => {
     expect(() =>
-      compileParallel(
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileParallel({ a: mockAgent('ok') }, { agents: { a: mockAgent('ok') } } as AgencyOptions)
     ).toThrow(AgencyConfigError);
     expect(() =>
-      compileParallel(
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileParallel({ a: mockAgent('ok') }, { agents: { a: mockAgent('ok') } } as AgencyOptions)
     ).toThrow(/agency-level model/i);
   });
 
@@ -342,7 +405,11 @@ describe('Parallel Strategy', () => {
       generate: vi.fn().mockImplementation(async () => {
         startTimes.push(Date.now());
         await new Promise((r) => setTimeout(r, 20));
-        return { text, usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 }, toolCalls: [] };
+        return {
+          text,
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          toolCalls: [],
+        };
       }),
       stream: vi.fn(),
       session: vi.fn(),
@@ -493,16 +560,10 @@ describe('Debate Strategy', () => {
 
   it('throws AgencyConfigError without an agency-level model or provider', () => {
     expect(() =>
-      compileDebate(
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileDebate({ a: mockAgent('ok') }, { agents: { a: mockAgent('ok') } } as AgencyOptions)
     ).toThrow(AgencyConfigError);
     expect(() =>
-      compileDebate(
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileDebate({ a: mockAgent('ok') }, { agents: { a: mockAgent('ok') } } as AgencyOptions)
     ).toThrow(/agency-level model/i);
   });
 
@@ -696,16 +757,14 @@ describe('Review-Loop Strategy', () => {
 
   it('throws AgencyConfigError with fewer than two agents', () => {
     expect(() =>
-      compileReviewLoop(
-        { producer: mockAgent('ok') },
-        { agents: { producer: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileReviewLoop({ producer: mockAgent('ok') }, {
+        agents: { producer: mockAgent('ok') },
+      } as AgencyOptions)
     ).toThrow(AgencyConfigError);
     expect(() =>
-      compileReviewLoop(
-        { producer: mockAgent('ok') },
-        { agents: { producer: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileReviewLoop({ producer: mockAgent('ok') }, {
+        agents: { producer: mockAgent('ok') },
+      } as AgencyOptions)
     ).toThrow(/at least two agents/i);
   });
 
@@ -718,7 +777,10 @@ describe('Review-Loop Strategy', () => {
     } as AgencyOptions;
 
     const strategy = compileReviewLoop({ producer, reviewer }, agencyConfig);
-    const result = (await strategy.execute('write a poem')) as { text: string; agentCalls: AgentCallRecord[] };
+    const result = (await strategy.execute('write a poem')) as {
+      text: string;
+      agentCalls: AgentCallRecord[];
+    };
 
     /* Producer was called first, then reviewer. */
     expect(result.agentCalls).toHaveLength(2);
@@ -731,10 +793,7 @@ describe('Review-Loop Strategy', () => {
 
   it('loops on rejection until approved', async () => {
     /* Producer generates two drafts (one per round). */
-    const producer = mockAgentSequence([
-      { text: 'draft v1' },
-      { text: 'draft v2' },
-    ]);
+    const producer = mockAgentSequence([{ text: 'draft v1' }, { text: 'draft v2' }]);
 
     /* Reviewer rejects first, approves second. */
     const reviewer = mockAgentSequence([
@@ -748,14 +807,18 @@ describe('Review-Loop Strategy', () => {
     } as AgencyOptions;
 
     const strategy = compileReviewLoop({ producer, reviewer }, agencyConfig);
-    const result = (await strategy.execute('write code')) as { text: string; agentCalls: AgentCallRecord[] };
+    const result = (await strategy.execute('write code')) as {
+      text: string;
+      agentCalls: AgentCallRecord[];
+    };
 
     /* 2 rounds * 2 agents = 4 agent calls. */
     expect(result.agentCalls).toHaveLength(4);
     expect(result.text).toBe('draft v2');
 
     /* Second producer call should include feedback from the first review. */
-    const secondProdInput = (producer.generate as ReturnType<typeof vi.fn>).mock.calls[1][0] as string;
+    const secondProdInput = (producer.generate as ReturnType<typeof vi.fn>).mock
+      .calls[1][0] as string;
     expect(secondProdInput).toContain('Needs more detail.');
     expect(secondProdInput).toContain('Revise your work');
   });
@@ -789,7 +852,10 @@ describe('Review-Loop Strategy', () => {
     } as AgencyOptions;
 
     const strategy = compileReviewLoop({ producer, reviewer }, agencyConfig);
-    const result = (await strategy.execute('task')) as { text: string; agentCalls: AgentCallRecord[] };
+    const result = (await strategy.execute('task')) as {
+      text: string;
+      agentCalls: AgentCallRecord[];
+    };
 
     /* 2 rounds * 2 agents = 4 calls. */
     expect(result.agentCalls).toHaveLength(4);
@@ -797,10 +863,7 @@ describe('Review-Loop Strategy', () => {
   });
 
   it('treats non-JSON reviewer output as feedback (rejection)', async () => {
-    const producer = mockAgentSequence([
-      { text: 'initial draft' },
-      { text: 'revised draft' },
-    ]);
+    const producer = mockAgentSequence([{ text: 'initial draft' }, { text: 'revised draft' }]);
     const reviewer = mockAgentSequence([
       { text: 'This needs work. Add more examples.' },
       { text: JSON.stringify({ approved: true, feedback: 'Good now.' }) },
@@ -812,23 +875,32 @@ describe('Review-Loop Strategy', () => {
     } as AgencyOptions;
 
     const strategy = compileReviewLoop({ producer, reviewer }, agencyConfig);
-    const result = (await strategy.execute('task')) as { text: string; agentCalls: AgentCallRecord[] };
+    const result = (await strategy.execute('task')) as {
+      text: string;
+      agentCalls: AgentCallRecord[];
+    };
 
     /* Non-JSON review is treated as rejection feedback. */
     expect(result.agentCalls).toHaveLength(4);
     expect(result.text).toBe('revised draft');
 
     /* The second producer call should include the plain-text feedback. */
-    const secondProdInput = (producer.generate as ReturnType<typeof vi.fn>).mock.calls[1][0] as string;
+    const secondProdInput = (producer.generate as ReturnType<typeof vi.fn>).mock
+      .calls[1][0] as string;
     expect(secondProdInput).toContain('This needs work. Add more examples.');
   });
 
   it('aggregates usage across all rounds', async () => {
-    const producer = mockAgent('draft', { promptTokens: 100, completionTokens: 50, totalTokens: 150 });
-    const reviewer = mockAgent(
-      JSON.stringify({ approved: true }),
-      { promptTokens: 30, completionTokens: 10, totalTokens: 40 },
-    );
+    const producer = mockAgent('draft', {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    });
+    const reviewer = mockAgent(JSON.stringify({ approved: true }), {
+      promptTokens: 30,
+      completionTokens: 10,
+      totalTokens: 40,
+    });
 
     const agencyConfig = {
       agents: { producer, reviewer },
@@ -871,16 +943,14 @@ describe('Hierarchical Strategy', () => {
 
   it('throws AgencyConfigError without an agency-level model or provider', () => {
     expect(() =>
-      compileHierarchical(
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileHierarchical({ a: mockAgent('ok') }, {
+        agents: { a: mockAgent('ok') },
+      } as AgencyOptions)
     ).toThrow(AgencyConfigError);
     expect(() =>
-      compileHierarchical(
-        { a: mockAgent('ok') },
-        { agents: { a: mockAgent('ok') } } as AgencyOptions,
-      ),
+      compileHierarchical({ a: mockAgent('ok') }, {
+        agents: { a: mockAgent('ok') },
+      } as AgencyOptions)
     ).toThrow(/agency-level model/i);
   });
 
@@ -956,7 +1026,10 @@ describe('Hierarchical Strategy', () => {
 
   it('manager sees team roster in system prompt', async () => {
     const coder: BaseAgentConfig = { model: 'openai:gpt-4o', instructions: 'Write clean code' };
-    const tester: BaseAgentConfig = { model: 'openai:gpt-4o', instructions: 'Write thorough tests' };
+    const tester: BaseAgentConfig = {
+      model: 'openai:gpt-4o',
+      instructions: 'Write thorough tests',
+    };
 
     hoisted.agentGenerate.mockResolvedValue({
       text: 'managed result',
@@ -1009,6 +1082,45 @@ describe('Hierarchical Strategy', () => {
     expect(managerConfig.tools).toHaveProperty('delegate_to_beta');
     expect(managerConfig.tools.delegate_to_alpha.description).toContain('alpha');
     expect(managerConfig.tools.delegate_to_beta.description).toContain('beta');
+  });
+
+  it('merges adaptable agency tools with manager delegation tools', async () => {
+    const agentA = mockAgent('ok');
+
+    hoisted.agentGenerate.mockResolvedValue({
+      text: 'done',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      toolCalls: [],
+    });
+
+    const agencyConfig = {
+      agents: { alpha: agentA },
+      model: 'openai:gpt-4o',
+      tools: new Map([
+        [
+          'shared_search',
+          {
+            description: 'Shared search tool.',
+            inputSchema: { type: 'object', properties: {} },
+            execute: async () => ({ success: true, output: 'shared' }),
+          },
+        ],
+      ]),
+    } as AgencyOptions;
+
+    const strategy = compileHierarchical({ alpha: agentA }, agencyConfig);
+    await strategy.execute('task');
+
+    const { agent: agentFactory } = await import('../agent.js');
+    const factoryMock = agentFactory as ReturnType<typeof vi.fn>;
+    const managerConfig = factoryMock.mock.calls[factoryMock.mock.calls.length - 1][0];
+
+    expect(managerConfig.tools).toHaveProperty('shared_search');
+    expect(managerConfig.tools).toHaveProperty('delegate_to_alpha');
+    expect(managerConfig.tools.shared_search).toMatchObject({
+      name: 'shared_search',
+      description: 'Shared search tool.',
+    });
   });
 
   it('returns a stream wrapper from the stream method', async () => {

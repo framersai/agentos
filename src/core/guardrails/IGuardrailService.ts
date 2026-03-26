@@ -290,7 +290,7 @@ export interface GuardrailConfig {
    *
    * - `'per-chunk'` — evaluate every TEXT_DELTA individually (default behavior).
    * - `'sentence-buffered'` — accumulate chunks and evaluate at sentence
-   *   boundaries using {@link SentenceBoundaryBuffer}. The previous sentence
+   *   boundaries using the internal sentence boundary buffer. The previous sentence
    *   is included as overlap context for safety evaluation.
    *
    * Only applies when {@link evaluateStreamingChunks} is `true`.

@@ -9,7 +9,7 @@
  * On construction the registry pre-registers five built-in loaders:
  * {@link TextLoader}, {@link MarkdownLoader}, {@link HtmlLoader},
  * {@link PdfLoader}, and {@link DocxLoader}.  In addition, the optional
- * {@link OcrPdfLoader} and {@link DoclingLoader} are registered when their
+ * OCR and Docling-backed loaders are registered when their
  * respective factories return non-null values (i.e. when `tesseract.js` and
  * `python3 -m docling` are available in the environment).
  *
@@ -57,9 +57,7 @@ function normaliseExt(extensionOrPath: string): string {
 
   if (!hasSeparator && !hasDotInMiddle) {
     // Bare extension like 'pdf' or '.pdf'.
-    const stripped = extensionOrPath.startsWith('.')
-      ? extensionOrPath.slice(1)
-      : extensionOrPath;
+    const stripped = extensionOrPath.startsWith('.') ? extensionOrPath.slice(1) : extensionOrPath;
     return stripped ? `.${stripped.toLowerCase()}` : '';
   }
 
@@ -84,10 +82,10 @@ function normaliseExt(extensionOrPath: string): string {
  * | `.docx`                                           | {@link DocxLoader}    |
  *
  * ### Conditional loaders (registered when available)
- * | Condition                     | Loader                              |
- * |-------------------------------|-------------------------------------|
- * | `tesseract.js` installed      | {@link OcrPdfLoader} (overrides PDF) |
- * | `python3 -m docling` available | {@link DoclingLoader} (overrides PDF + DOCX) |
+ * | Condition                     | Loader                                                  |
+ * |-------------------------------|---------------------------------------------------------|
+ * | `tesseract.js` installed      | factory from {@link createOcrPdfLoader} (overrides PDF) |
+ * | `python3 -m docling` available | factory from {@link createDoclingLoader} (overrides PDF + DOCX) |
  *
  * ### Registering a custom loader
  * ```ts
@@ -124,9 +122,9 @@ export class LoaderRegistry {
    * 1. {@link TextLoader}, {@link MarkdownLoader}, {@link HtmlLoader} — core text formats.
    * 2. {@link PdfLoader} (with injected OCR + Docling loaders) — PDF extraction.
    * 3. {@link DocxLoader} — DOCX extraction.
-   * 4. Optional: an {@link OcrPdfLoader} override when `tesseract.js` is installed.
-   * 5. Optional: a {@link DoclingLoader} override when Python Docling is available.
-   *    DoclingLoader supports both `.pdf` and `.docx`, so it supersedes both
+   * 4. Optional: an override from {@link createOcrPdfLoader} when `tesseract.js` is installed.
+   * 5. Optional: an override from {@link createDoclingLoader} when Python Docling is available.
+   *    The Docling-backed loader supports both `.pdf` and `.docx`, so it supersedes both
    *    PdfLoader and DocxLoader when present.
    */
   constructor() {
@@ -245,7 +243,7 @@ export class LoaderRegistry {
       const ext = normaliseExt(filePath);
       throw new Error(
         `LoaderRegistry: no loader registered for extension "${ext}" (file: "${filePath}"). ` +
-        `Supported extensions: ${this.getSupportedExtensions().join(', ')}.`,
+          `Supported extensions: ${this.getSupportedExtensions().join(', ')}.`
       );
     }
 

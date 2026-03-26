@@ -11,9 +11,15 @@
  * @module memory/tools/MemoryAddTool
  */
 
-import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../core/tools/ITool.js';
+import type {
+  ITool,
+  ToolExecutionResult,
+  ToolExecutionContext,
+  JSONSchemaObject,
+} from '../../core/tools/ITool.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 import { buildInitialTraceMetadata, sha256Hex } from '../store/tracePersistence.js';
+import { resolveMemoryToolScopeId } from './scopeContext.js';
 
 // ---------------------------------------------------------------------------
 // Counter for unique ID generation within the process lifetime
@@ -146,12 +152,12 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
    * EmbeddingEncoder will embed it asynchronously.
    *
    * @param args    - Memory add input (content, optional type/scope/tags).
-   * @param _context - Tool execution context (not used by this tool).
+   * @param context - Tool execution context used to resolve the scope ID.
    * @returns `{ traceId }` on success, or an error result.
    */
   async execute(
     args: MemoryAddInput,
-    _context: ToolExecutionContext,
+    context: ToolExecutionContext
   ): Promise<ToolExecutionResult<MemoryAddOutput>> {
     try {
       const now = Date.now();
@@ -159,9 +165,16 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
 
       const type = args.type ?? 'episodic';
       const scope = args.scope ?? 'user';
+      const scopeId = resolveMemoryToolScopeId(scope, context);
       const tags = JSON.stringify(args.tags ?? []);
       const metadata = JSON.stringify(
-        buildInitialTraceMetadata({}, { contentHash: sha256Hex(args.content) }),
+        buildInitialTraceMetadata(
+          {},
+          {
+            contentHash: sha256Hex(args.content),
+            ...(scopeId ? { scopeId } : {}),
+          }
+        )
       );
 
       this.brain.db.transaction(() => {
@@ -170,7 +183,7 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
             `INSERT INTO memory_traces
                (id, type, scope, content, embedding, strength, created_at,
                 last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-             VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`,
+             VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`
           )
           .run(traceId, type, scope, args.content, now, tags, metadata);
 
@@ -181,7 +194,7 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
                (SELECT rowid FROM memory_traces WHERE id = ?),
                ?,
                ?
-             )`,
+             )`
           )
           .run(traceId, args.content, tags);
       })();

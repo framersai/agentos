@@ -1219,6 +1219,7 @@ describe('Agency Full Integration', () => {
       // The strategy stream should have been called with the history-prefixed prompt.
       expect(hoisted.strategyStream).toHaveBeenCalledWith(
         'User: First turn\nAssistant: AI is transformative.\nUser: Second turn via stream',
+        undefined,
       );
     });
 
@@ -1256,7 +1257,7 @@ describe('Agency Full Integration', () => {
       // When history is empty, the plain text should be passed through unchanged.
       session.stream('Plain prompt');
 
-      expect(hoisted.strategyStream).toHaveBeenCalledWith('Plain prompt');
+      expect(hoisted.strategyStream).toHaveBeenCalledWith('Plain prompt', undefined);
     });
   });
 });

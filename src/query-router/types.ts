@@ -12,7 +12,7 @@
  * - ClassificationResult: Output of the query classifier with confidence scoring
  * - RetrievalResult: Aggregated chunks from vector, graph, and research sources
  * - QueryResult: Final answer with citations, timing, and tier metadata
- * - QueryRouterConfig: Fully documented configuration with sensible defaults
+ * - QueryRouterConfig: Public constructor config with sensible defaults
  * - Event system: Discriminated union of lifecycle events for observability
  */
 
@@ -222,118 +222,132 @@ export interface QueryResult {
 // ============================================================================
 
 /**
- * Configuration for the QueryRouter pipeline.
- * All fields have sensible defaults documented via `@default` annotations.
+ * Public constructor configuration for the QueryRouter pipeline.
+ *
+ * `knowledgeCorpus` is required. All other fields are optional and default to
+ * the values in {@link DEFAULT_QUERY_ROUTER_CONFIG}.
  */
 export interface QueryRouterConfig {
   /**
+   * Directories containing `.md` / `.mdx` files to ingest as the knowledge
+   * corpus.
+   */
+  knowledgeCorpus: string[];
+
+  /**
    * Minimum confidence threshold for accepting a classification result.
    * If confidence falls below this, the router may escalate to a higher tier.
-   * @default 0.6
+   * @default 0.7
    */
-  confidenceThreshold: number;
+  confidenceThreshold?: number;
 
-  /**
-   * Maximum number of vector search results to retrieve per query.
-   * @default 10
-   */
-  maxChunks: number;
+  /** LLM model for the classifier. @default 'gpt-4o-mini' */
+  classifierModel?: string;
 
-  /**
-   * Minimum relevance score (0 to 1) for a chunk to be included in results.
-   * Chunks below this threshold are discarded.
-   * @default 0.25
-   */
-  minRelevance: number;
+  /** LLM provider for the classifier. @default 'openai' */
+  classifierProvider?: string;
+
+  /** Maximum tier the classifier may assign. @default 3 */
+  maxTier?: QueryTier;
+
+  /** Embedding provider name. @default 'openai' */
+  embeddingProvider?: string;
+
+  /** Embedding model identifier. @default 'text-embedding-3-small' */
+  embeddingModel?: string;
+
+  /** LLM model for T0/T1 generation. @default 'gpt-4o-mini' */
+  generationModel?: string;
+
+  /** LLM model for T2/T3 generation (deep). @default 'gpt-4o' */
+  generationModelDeep?: string;
+
+  /** LLM provider for generation. @default 'openai' */
+  generationProvider?: string;
 
   /**
    * Whether to enable GraphRAG-based retrieval for tier >= 2 queries.
    * Requires a configured GraphRAG engine.
    * @default true
    */
-  enableGraphRetrieval: boolean;
+  graphEnabled?: boolean;
 
   /**
    * Whether to enable deep research mode for tier 3 queries.
    * Research mode performs iterative multi-pass retrieval and synthesis.
    * @default true
    */
-  enableResearch: boolean;
-
-  /**
-   * Maximum number of research iterations for tier 3 queries.
-   * Each iteration refines the search based on gaps found in prior passes.
-   * @default 3
-   */
-  maxResearchIterations: number;
-
-  /**
-   * Maximum total duration (in milliseconds) allowed for a single query
-   * before the router returns whatever partial result is available.
-   * @default 30000
-   */
-  timeoutMs: number;
-
-  /**
-   * Vector store collection name used for corpus chunk embeddings.
-   * @default 'query_router_corpus'
-   */
-  collectionName: string;
-
-  /**
-   * Embedding model identifier. When undefined, the default model
-   * from EmbeddingManager is used.
-   * @default undefined
-   */
-  embeddingModelId?: string;
-
-  /**
-   * Whether to enable the keyword fallback strategy when vector
-   * retrieval returns insufficient results.
-   * @default true
-   */
-  enableKeywordFallback: boolean;
+  deepResearchEnabled?: boolean;
 
   /**
    * Number of recent conversation messages to include as context
    * for classification and generation.
    * @default 5
    */
-  conversationHistoryLimit: number;
+  conversationWindowSize?: number;
 
   /**
-   * Temperature for the LLM used in answer generation.
-   * Lower values produce more deterministic, focused answers.
-   * @default 0.3
+   * Maximum estimated tokens to allocate for documentation context.
+   * @default 4000
    */
-  generationTemperature: number;
+  maxContextTokens?: number;
 
   /**
-   * Maximum tokens for the generated answer.
-   * @default 2048
+   * Whether to cache query results.
+   * @default true
    */
-  generationMaxTokens: number;
+  cacheResults?: boolean;
+
+  /**
+   * Optional tool/capability names exposed to the classifier prompt so it can
+   * reason about what the runtime can actually do.
+   * @default []
+   */
+  availableTools?: string[];
+
+  /**
+   * Hook called after classification completes.
+   * Receives the ClassificationResult for consumer integration.
+   */
+  onClassification?: (result: ClassificationResult) => void;
+
+  /**
+   * Hook called after retrieval completes.
+   * Receives the RetrievalResult for consumer integration.
+   */
+  onRetrieval?: (result: RetrievalResult) => void;
+
+  /** Optional API key override for LLM calls. */
+  apiKey?: string;
+
+  /** Optional base URL override for LLM providers. */
+  baseUrl?: string;
 }
 
 /**
  * Default configuration values for the QueryRouter.
  * @see QueryRouterConfig
  */
-export const DEFAULT_QUERY_ROUTER_CONFIG: Readonly<QueryRouterConfig> = {
-  confidenceThreshold: 0.6,
-  maxChunks: 10,
-  minRelevance: 0.25,
-  enableGraphRetrieval: true,
-  enableResearch: true,
-  maxResearchIterations: 3,
-  timeoutMs: 30_000,
-  collectionName: 'query_router_corpus',
-  embeddingModelId: undefined,
-  enableKeywordFallback: true,
-  conversationHistoryLimit: 5,
-  generationTemperature: 0.3,
-  generationMaxTokens: 2048,
-};
+export const DEFAULT_QUERY_ROUTER_CONFIG = {
+  confidenceThreshold: 0.7,
+  classifierModel: 'gpt-4o-mini',
+  classifierProvider: 'openai',
+  maxTier: 3 as QueryTier,
+  embeddingProvider: 'openai',
+  embeddingModel: 'text-embedding-3-small',
+  generationModel: 'gpt-4o-mini',
+  generationModelDeep: 'gpt-4o',
+  generationProvider: 'openai',
+  graphEnabled: true,
+  deepResearchEnabled: Boolean(process.env.SERPER_API_KEY),
+  conversationWindowSize: 5,
+  maxContextTokens: 4000,
+  cacheResults: true,
+  availableTools: [] as string[],
+} satisfies Omit<
+  Required<QueryRouterConfig>,
+  'knowledgeCorpus' | 'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl'
+>;
 
 // ============================================================================
 // EVENTS — Observability lifecycle events

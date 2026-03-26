@@ -149,7 +149,7 @@ function wordsToSegments(words: DeepgramWord[]): SpeechTranscriptionSegment[] {
  * When `enableSpeakerDiarization` is `true`, the `diarize=true` query parameter
  * is set. Deepgram then includes a `speaker` field (zero-based integer index) on
  * each word in the response. These speaker indices are preserved through the
- * {@link wordsToSegments} mapping into the normalized result.
+ * `wordsToSegments()` mapping into the normalized result.
  *
  * ## Error Handling
  *
@@ -161,7 +161,7 @@ function wordsToSegments(words: DeepgramWord[]): SpeechTranscriptionSegment[] {
  * for real-time transcription.
  *
  * @see {@link DeepgramBatchSTTProviderConfig} for configuration options
- * @see {@link wordsToSegments} for the word-to-segment mapping logic
+ * See `wordsToSegments()` for the word-to-segment mapping logic.
  *
  * @example
  * ```ts

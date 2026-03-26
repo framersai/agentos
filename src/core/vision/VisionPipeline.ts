@@ -555,6 +555,7 @@ export class VisionPipeline {
     // (e.g. in environments without native bindings).
     let sharp: any;
     try {
+      // @ts-ignore — sharp is an optional native dependency, may not be installed in CI
       sharp = (await import('sharp')).default;
     } catch {
       // sharp not available — return original image unmodified.

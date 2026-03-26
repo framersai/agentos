@@ -121,7 +121,42 @@ export * from './rag';
 // Cognitive Memory System
 export * from './memory';
 // Query Router (classification, retrieval dispatch, grounded answer generation)
-export * from './query-router/index.js';
+export {
+  QueryClassifier,
+  QueryDispatcher,
+  QueryGenerator,
+  QueryRouter,
+  TopicExtractor,
+  KeywordFallback,
+} from './query-router/index.js';
+export type {
+  QueryTier,
+  ClassificationResult,
+  RetrievedChunk,
+  SourceCitation,
+  RetrievalResult,
+  ConversationMessage,
+  QueryRouterConfig,
+  ClassifyStartEvent,
+  ClassifyCompleteEvent,
+  ClassifyErrorEvent,
+  RetrieveStartEvent,
+  RetrieveVectorEvent,
+  RetrieveGraphEvent,
+  RetrieveRerankEvent,
+  RetrieveCompleteEvent,
+  RetrieveFallbackEvent,
+  ResearchStartEvent,
+  ResearchPhaseEvent,
+  ResearchCompleteEvent,
+  GenerateStartEvent,
+  GenerateCompleteEvent,
+  RouteCompleteEvent,
+  QueryRouterEventUnion,
+  CorpusChunk,
+  TopicEntry,
+  QueryResult as QueryRouterResult,
+} from './query-router/types.js';
 // Orchestration Layer (IR, Events, Checkpoint, Runtime)
 export * from './orchestration/index.js';
 // Provenance, Audit & Immutability

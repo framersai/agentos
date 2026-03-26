@@ -47,14 +47,14 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
   constructor(
     embeddingManager: IEmbeddingManager,
     vectorStore: IVectorStore,
-    config?: Partial<CapabilityDiscoveryConfig>,
+    config?: Partial<CapabilityDiscoveryConfig>
   ) {
     this.config = { ...DEFAULT_DISCOVERY_CONFIG, ...config };
     this.index = new CapabilityIndex(
       embeddingManager,
       vectorStore,
       this.config.collectionName,
-      this.config.embeddingModelId,
+      this.config.embeddingModelId
     );
     this.graph = new CapabilityGraph();
     this.assembler = new CapabilityContextAssembler(this.index.getEmbeddingStrategy());
@@ -72,7 +72,7 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
    */
   async initialize(
     sources: CapabilityIndexSources,
-    presetCoOccurrences?: PresetCoOccurrence[],
+    presetCoOccurrences?: PresetCoOccurrence[]
   ): Promise<void> {
     // 1. Build the vector index (normalizes sources + embeds + stores)
     await this.index.buildIndex(sources);
@@ -101,7 +101,7 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
    */
   async discover(
     userMessage: string,
-    options?: DiscoveryQueryOptions,
+    options?: DiscoveryQueryOptions
   ): Promise<CapabilityDiscoveryResult> {
     if (!this.initialized) {
       return this.emptyResult();
@@ -113,15 +113,11 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     // 1. Semantic search
     // Retrieve more candidates than needed for graph re-ranking to work effectively
     const searchTopK = queryConfig.tier1TopK * 2;
-    const searchResults = await this.index.search(
-      userMessage,
-      searchTopK,
-      {
-        kind: options?.kind,
-        category: options?.category,
-        onlyAvailable: options?.onlyAvailable,
-      },
-    );
+    const searchResults = await this.index.search(userMessage, searchTopK, {
+      kind: options?.kind,
+      category: options?.category,
+      onlyAvailable: options?.onlyAvailable,
+    });
 
     const embeddingTimeMs = performance.now() - embeddingStart;
 
@@ -134,7 +130,7 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
 
       const reranked = this.graph.rerank(
         searchResults.map((r) => ({ id: r.descriptor.id, score: r.score })),
-        queryConfig.graphBoostFactor,
+        queryConfig.graphBoostFactor
       );
 
       // Map back to CapabilitySearchResult format
@@ -150,10 +146,7 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     }
 
     // 3. Build Tier 0 category summary
-    const tier0 = this.assembler.buildTier0(
-      this.index.getAllCapabilities(),
-      this.indexVersion,
-    );
+    const tier0 = this.assembler.buildTier0(this.index.getAllCapabilities(), this.indexVersion);
 
     // 4. Assemble tiered result with token budgets
     return this.assembler.assemble(tier0, finalResults, queryConfig, {
@@ -214,7 +207,7 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
   /**
    * Index emergent tools into the capability discovery system.
    *
-   * Converts {@link EmergentTool} objects to {@link CapabilityDescriptor}s and
+   * Converts `EmergentTool` objects to `CapabilityDescriptor` records and
    * upserts them into the vector index and relationship graph. Session-tier tools
    * are skipped because they are too ephemeral to warrant indexing overhead.
    *

@@ -32,16 +32,27 @@
  * - Ensuring adherence to TypeScript best practices, including strict type safety,
  * comprehensive JSDoc documentation, and robust error management.
  *
- * @see {@link ./interfaces/IAgentOS.ts} for the `IAgentOS` interface contract.
- * @see {@link ./AgentOSOrchestrator.ts} for the orchestration logic.
- * @see {@link ../cognitive_substrate/GMIManager.ts} for GMI lifecycle management.
- * @see {@link ../core/streaming/StreamingManager.ts} for real-time data streaming.
- * @see {@link @framers/agentos/utils/errors.ts} for custom error definitions.
+ * @see {@link IAgentOS} for the public interface contract.
+ * @see {@link AgentOSOrchestrator} for the orchestration logic.
+ * @see {@link GMIManager} for GMI lifecycle management.
+ * See `StreamingManager` for real-time data streaming internals.
+ * See `@framers/agentos/utils/errors` for shared error definitions.
  */
 
 import { IAgentOS } from './interfaces/IAgentOS';
 import { AgentOSInput, UserFeedbackPayload } from './types/AgentOSInput';
-import { AgentOSResponse, AgentOSErrorChunk, AgentOSResponseChunkType } from './types/AgentOSResponse';
+import type {
+  AgentOSPendingExternalToolRequest,
+  AgentOSResumeExternalToolRequestOptions,
+} from './types/AgentOSExternalToolRequest';
+import { AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY } from './types/AgentOSExternalToolRequest';
+import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
+import {
+  AgentOSResponse,
+  AgentOSErrorChunk,
+  AgentOSResponseChunkType,
+  isActionableToolCallRequestChunk,
+} from './types/AgentOSResponse';
 import {
   AgentOSOrchestrator,
   type AgentOSOrchestratorDependencies,
@@ -49,21 +60,30 @@ import {
   type ITaskOutcomeTelemetryStore,
 } from './AgentOSOrchestrator';
 import { GMIManager, GMIManagerConfig } from '../cognitive_substrate/GMIManager';
-import { AIModelProviderManager, AIModelProviderManagerConfig } from '../core/llm/providers/AIModelProviderManager';
+import {
+  AIModelProviderManager,
+  AIModelProviderManagerConfig,
+} from '../core/llm/providers/AIModelProviderManager';
 import { PromptEngine } from '../core/llm/PromptEngine';
 import { PromptEngineConfig, IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
 import type { ITool } from '../core/tools/ITool';
-import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
+import { IToolOrchestrator, type ToolDefinitionForLLM } from '../core/tools/IToolOrchestrator';
 import { ToolOrchestratorConfig } from '../config/ToolOrchestratorConfig';
 import { ToolOrchestrator } from '../core/tools/ToolOrchestrator';
 import { ToolExecutor } from '../core/tools/ToolExecutor';
-import { IToolPermissionManager, ToolPermissionManagerConfig } from '../core/tools/permissions/IToolPermissionManager';
+import {
+  IToolPermissionManager,
+  ToolPermissionManagerConfig,
+} from '../core/tools/permissions/IToolPermissionManager';
 import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionManager';
 import type { IAuthService, ISubscriptionService } from '../services/user_auth/types';
 import type { IHumanInteractionManager } from '../core/hitl/IHumanInteractionManager';
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
 import { LLMUtilityAI } from '../core/ai_utilities/LLMUtilityAI';
-import { ConversationManager, ConversationManagerConfig } from '../core/conversation/ConversationManager';
+import {
+  ConversationManager,
+  ConversationManagerConfig,
+} from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
@@ -71,17 +91,27 @@ import type { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
 import type { IVectorStoreManager } from '../rag/IVectorStoreManager';
 import type { EmbeddingManagerConfig } from '../config/EmbeddingManagerConfiguration';
 import type { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
-import type { RagDataSourceConfig, VectorStoreManagerConfig } from '../config/VectorStoreConfiguration';
+import type {
+  RagDataSourceConfig,
+  VectorStoreManagerConfig,
+} from '../config/VectorStoreConfiguration';
 import type { PrismaClient } from '@prisma/client';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { IPersonaDefinition } from '../cognitive_substrate/personas/IPersonaDefinition';
-import { StreamingManager, StreamingManagerConfig, StreamId } from '../core/streaming/StreamingManager';
+import {
+  StreamingManager,
+  StreamingManagerConfig,
+  StreamId,
+} from '../core/streaming/StreamingManager';
 import { IStreamClient, StreamClientId } from '../core/streaming/IStreamClient';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { ILogger } from '../logging/ILogger';
 import { createLogger } from '../logging/loggerFactory';
-import { configureAgentOSObservability, type AgentOSObservabilityConfig } from '../core/observability/otel';
+import {
+  configureAgentOSObservability,
+  type AgentOSObservabilityConfig,
+} from '../core/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../core/guardrails/IGuardrailService';
 import type { EmergentConfig } from '../emergent/types.js';
 import { GuardrailAction } from '../core/guardrails/IGuardrailService';
@@ -115,6 +145,12 @@ import type {
   StandaloneMemoryLongTermRetrieverOptions,
   StandaloneMemoryRollingSummarySinkOptions,
 } from '../memory/integration/StandaloneMemoryBridge.js';
+import {
+  listExternalToolDefinitionsForLLM,
+  normalizeExternalToolRegistry,
+  type ExternalToolRegistry,
+} from './externalToolRegistry';
+import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './toolAdapter';
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
 import { WorkflowRuntime } from '../core/workflows/runtime/WorkflowRuntime';
 import { AgencyRegistry } from '../core/agency/AgencyRegistry';
@@ -123,10 +159,7 @@ import {
   type ITurnPlanner,
   type TurnPlannerConfig,
 } from '../core/orchestration/TurnPlanner';
-import {
-  CapabilityDiscoveryEngine,
-  createDiscoverCapabilitiesTool,
-} from '../discovery';
+import { CapabilityDiscoveryEngine, createDiscoverCapabilitiesTool } from '../discovery';
 import type {
   CapabilityDescriptor,
   CapabilityDiscoveryConfig,
@@ -174,13 +207,16 @@ type StorageWriteHookResult = StorageWriteHookContext | undefined | void;
 
 type StorageWriteHooks = {
   onBeforeWrite?: (context: StorageWriteHookContext) => Promise<StorageWriteHookResult>;
-  onAfterWrite?: (context: StorageWriteHookContext, result: { changes: number; lastInsertRowid?: unknown }) => Promise<void>;
+  onAfterWrite?: (
+    context: StorageWriteHookContext,
+    result: { changes: number; lastInsertRowid?: unknown }
+  ) => Promise<void>;
 };
 
 function wrapStorageAdapterWithWriteHooks(
   adapter: StorageAdapter,
   hooks: StorageWriteHooks,
-  options?: { inTransaction?: boolean; logger?: ILogger },
+  options?: { inTransaction?: boolean; logger?: ILogger }
 ): StorageAdapter {
   const inTransaction = options?.inTransaction === true;
 
@@ -209,7 +245,9 @@ function wrapStorageAdapterWithWriteHooks(
     try {
       await hooks.onAfterWrite?.(context, result);
     } catch (error: any) {
-      options?.logger?.error?.('[AgentOS][StorageHooks] onAfterWrite failed', { error: error?.message ?? error });
+      options?.logger?.error?.('[AgentOS][StorageHooks] onAfterWrite failed', {
+        error: error?.message ?? error,
+      });
     }
 
     return result;
@@ -226,7 +264,10 @@ function wrapStorageAdapterWithWriteHooks(
     run: runWithHooks,
     transaction: async <T>(fn: (trx: StorageAdapter) => Promise<T>): Promise<T> => {
       return adapter.transaction(async (trx) => {
-        const wrappedTrx = wrapStorageAdapterWithWriteHooks(trx, hooks, { inTransaction: true, logger: options?.logger });
+        const wrappedTrx = wrapStorageAdapterWithWriteHooks(trx, hooks, {
+          inTransaction: true,
+          logger: options?.logger,
+        });
         return fn(wrappedTrx);
       });
     },
@@ -246,7 +287,10 @@ function wrapStorageAdapterWithWriteHooks(
             } catch (error: any) {
               results.push({ changes: 0, lastInsertRowid: null });
               failed += 1;
-              errors.push({ index: i, error: error instanceof Error ? error : new Error(String(error)) });
+              errors.push({
+                index: i,
+                error: error instanceof Error ? error : new Error(String(error)),
+              });
             }
           }
 
@@ -258,7 +302,7 @@ function wrapStorageAdapterWithWriteHooks(
           } as any;
         }
       : undefined,
-    prepare: adapter.prepare ? ((statement) => adapter.prepare!(statement)) : undefined,
+    prepare: adapter.prepare ? (statement) => adapter.prepare!(statement) : undefined,
   };
 }
 
@@ -309,10 +353,7 @@ export interface AgentOSTurnPlanningConfig extends TurnPlannerConfig {
   };
 }
 
-const DISCOVERY_EMBEDDING_DEFAULTS: Record<
-  string,
-  { modelId: string; dimension: number }
-> = {
+const DISCOVERY_EMBEDDING_DEFAULTS: Record<string, { modelId: string; dimension: number }> = {
   openai: { modelId: 'text-embedding-3-small', dimension: 1536 },
   openrouter: { modelId: 'openai/text-embedding-3-small', dimension: 1536 },
   ollama: { modelId: 'nomic-embed-text', dimension: 768 },
@@ -375,17 +416,13 @@ export interface AgentOSStandaloneMemoryConfig {
    * When provided, AgentOS derives `longTermMemoryRetriever` from this
    * standalone memory backend unless one was already supplied explicitly.
    */
-  longTermRetriever?:
-    | boolean
-    | StandaloneMemoryLongTermRetrieverOptions;
+  longTermRetriever?: boolean | StandaloneMemoryLongTermRetrieverOptions;
 
   /**
    * When provided, AgentOS derives `rollingSummaryMemorySink` from this
    * standalone memory backend unless one was already supplied explicitly.
    */
-  rollingSummarySink?:
-    | boolean
-    | StandaloneMemoryRollingSummarySinkOptions;
+  rollingSummarySink?: boolean | StandaloneMemoryRollingSummarySinkOptions;
 }
 
 /**
@@ -477,18 +514,18 @@ export interface AgentOSConfig {
   toolPermissionManagerConfig: ToolPermissionManagerConfig;
   /** Configuration for the {@link ConversationManager}. */
   conversationManagerConfig: ConversationManagerConfig;
-  /** Configuration for the {@link StreamingManager}. */
+  /** Configuration for the internal streaming manager. */
   streamingManagerConfig: StreamingManagerConfig;
   /** Configuration for the {@link AIModelProviderManager}. */
   modelProviderManagerConfig: AIModelProviderManagerConfig;
   /** The default Persona ID to use if none is specified in an interaction. */
   defaultPersonaId: string;
   /** An instance of the Prisma client for database interactions.
-   * 
+   *
    * **Optional when `storageAdapter` is provided:**
    * - If `storageAdapter` is provided, Prisma is only used for server-side features (auth, subscriptions).
    * - If `storageAdapter` is omitted, Prisma is required for all database operations.
-   * 
+   *
    * **Client-side usage:**
    * ```typescript
    * const storage = await createAgentOSStorage({ platform: 'web' });
@@ -526,6 +563,30 @@ export interface AgentOSConfig {
    * - rolling-summary sink
    */
   standaloneMemory?: AgentOSStandaloneMemoryConfig;
+  /**
+   * Optional runtime-level registered tools.
+   *
+   * These tools are normalized during initialization and registered into the
+   * shared `ToolOrchestrator`, making them directly available to `processRequest()`
+   * and other full-runtime flows without helper wrappers.
+   *
+   * Accepts:
+   * - a named high-level tool map
+   * - an `ExternalToolRegistry` (`Record`, `Map`, or iterable)
+   * - a prompt-only `ToolDefinitionForLLM[]`
+   */
+  tools?: AdaptableToolInput;
+  /**
+   * Optional stable registry of host-managed external tools.
+   *
+   * This is the runtime-level default for helper APIs such as
+   * `processRequestWithRegisteredTools(...)` and
+   * `resumeExternalToolRequestWithRegisteredTools(...)`.
+   *
+   * Per-call `externalTools` passed into those helpers override entries from
+   * this configured registry by tool name.
+   */
+  externalTools?: ExternalToolRegistry;
   /**
    * Optional: enable schema-on-demand meta tools for lazy tool schema loading.
    *
@@ -574,10 +635,10 @@ export interface AgentOSConfig {
   extensionManifest?: ExtensionManifest;
   /** Declarative overrides applied after packs are loaded. */
   extensionOverrides?: ExtensionOverrides;
-  /** 
+  /**
    * Optional registry configuration for loading extensions and personas from custom sources.
    * Allows self-hosted registries and custom git repositories.
-   * 
+   *
    * @example
    * ```typescript
    * registryConfig: {
@@ -612,30 +673,30 @@ export interface AgentOSConfig {
   /**
    * Optional cross-platform storage adapter for client-side persistence.
    * Enables fully offline AgentOS in browsers (IndexedDB), desktop (SQLite), mobile (Capacitor).
-   * 
+   *
    * **Platform Support:**
    * - Web: IndexedDB (recommended) or sql.js
    * - Electron: better-sqlite3 (native) or sql.js (fallback)
    * - Capacitor: @capacitor-community/sqlite (native) or IndexedDB
    * - Node: better-sqlite3 or PostgreSQL
-   * 
+   *
    * **Usage:**
    * ```typescript
    * import { createAgentOSStorage } from '@framers/sql-storage-adapter/agentos';
-   * 
+   *
    * const storage = await createAgentOSStorage({ platform: 'auto' });
-   * 
+   *
    * await agentos.initialize({
    *   storageAdapter: storage.getAdapter(),
    *   // ... other config
    * });
    * ```
-   * 
+   *
    * **Graceful Degradation:**
    * - If omitted, AgentOS falls back to Prisma (server-side only).
-  * - If provided, AgentOS uses storageAdapter for conversations, Prisma only for auth/subscriptions.
-  * - Recommended: Always provide storageAdapter for cross-platform compatibility.
-  */
+   * - If provided, AgentOS uses storageAdapter for conversations, Prisma only for auth/subscriptions.
+   * - Recommended: Always provide storageAdapter for cross-platform compatibility.
+   */
   storageAdapter?: StorageAdapter;
 
   /**
@@ -715,7 +776,6 @@ export interface AgentOSRuntimeSnapshot {
   };
 }
 
-
 /**
  * @class AgentOS
  * @implements {IAgentOS}
@@ -791,8 +851,19 @@ export class AgentOS implements IAgentOS {
 
     this.validateConfiguration(config);
     const resolvedConfig = this.resolveStandaloneMemoryConfig(config);
+    const normalizedConfigTools = adaptToolsToMap(resolvedConfig.tools);
+    const normalizedExternalTools = normalizeExternalToolRegistry(resolvedConfig.externalTools);
+    const {
+      externalTools: _externalTools,
+      tools: _tools,
+      ...resolvedConfigWithoutNormalizedTools
+    } = resolvedConfig;
     // Make the configuration immutable after validation to prevent runtime changes.
-    this.config = Object.freeze({ ...resolvedConfig });
+    this.config = Object.freeze({
+      ...resolvedConfigWithoutNormalizedTools,
+      ...(Object.keys(normalizedConfigTools).length > 0 ? { tools: normalizedConfigTools } : {}),
+      ...(normalizedExternalTools ? { externalTools: normalizedExternalTools } : {}),
+    });
     this.configureManagedStandaloneMemory();
 
     // Observability is opt-in (config + env). Safe no-op if OTEL is not installed by host.
@@ -801,13 +872,16 @@ export class AgentOS implements IAgentOS {
     // Initialize LanguageService early if configured so downstream orchestration can use it.
     if (config.languageConfig) {
       try {
-  // Dynamic import may fail under certain bundler path resolutions; using explicit relative path.
-  const { LanguageService } = await import('../core/language');
+        // Dynamic import may fail under certain bundler path resolutions; using explicit relative path.
+        const { LanguageService } = await import('../core/language');
         this.languageService = new LanguageService(config.languageConfig);
         await this.languageService.initialize();
         this.logger.info('AgentOS LanguageService initialized');
       } catch (langErr: any) {
-        this.logger.error('Failed initializing LanguageService; continuing without multilingual features', { error: langErr?.message || langErr });
+        this.logger.error(
+          'Failed initializing LanguageService; continuing without multilingual features',
+          { error: langErr?.message || langErr }
+        );
       }
     }
 
@@ -855,7 +929,7 @@ export class AgentOS implements IAgentOS {
         pack,
         'schema-on-demand',
         undefined,
-        extensionLifecycleContext,
+        extensionLifecycleContext
       );
       this.logger.info('[AgentOS] Schema-on-demand tools enabled');
     }
@@ -870,11 +944,15 @@ export class AgentOS implements IAgentOS {
           .getActive('provenance-system');
         const provenanceHooks = (provenanceDescriptor as any)?.payload?.result?.hooks;
         if (provenanceHooks) {
-          storageAdapter = wrapStorageAdapterWithWriteHooks(storageAdapter, provenanceHooks, { logger: this.logger });
+          storageAdapter = wrapStorageAdapterWithWriteHooks(storageAdapter, provenanceHooks, {
+            logger: this.logger,
+          });
           this.logger.info('[AgentOS][Provenance] Storage write hooks enabled');
         }
       } catch (error: any) {
-        this.logger.warn?.('[AgentOS][Provenance] Failed to apply storage write hooks', { error: error?.message ?? error });
+        this.logger.warn?.('[AgentOS][Provenance] Failed to apply storage write hooks', {
+          error: error?.message ?? error,
+        });
       }
     }
 
@@ -909,10 +987,14 @@ export class AgentOS implements IAgentOS {
         this.subscriptionService
       );
       console.log('AgentOS: ToolPermissionManager initialized.');
-      
+
       // Initialize Tool Orchestrator
       const toolRegistry = this.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
-      this.toolExecutor = new ToolExecutor(this.authService, this.subscriptionService, toolRegistry);
+      this.toolExecutor = new ToolExecutor(
+        this.authService,
+        this.subscriptionService,
+        toolRegistry
+      );
       this.toolOrchestrator = new ToolOrchestrator();
       // Build emergent options from config when emergent: true.
       const emergentOptions = this.config.emergent
@@ -927,12 +1009,10 @@ export class AgentOS implements IAgentOS {
               const response = await provider.generateCompletion(
                 model,
                 [{ role: 'user', content: prompt }],
-                {},
+                {}
               );
               const firstContent = response.choices?.[0]?.message?.content ?? '';
-              return typeof firstContent === 'string'
-                ? firstContent
-                : JSON.stringify(firstContent);
+              return typeof firstContent === 'string' ? firstContent : JSON.stringify(firstContent);
             },
             storageAdapter: storageAdapter
               ? {
@@ -947,16 +1027,23 @@ export class AgentOS implements IAgentOS {
               : undefined,
           }
         : undefined;
+      const initialConfigTools = adaptTools(this.config.tools);
 
       await this.toolOrchestrator.initialize(
         this.config.toolOrchestratorConfig,
         this.toolPermissionManager,
         this.toolExecutor,
-        undefined,
+        initialConfigTools,
         this.config.hitlManager,
-        emergentOptions,
+        emergentOptions
       );
       console.log('AgentOS: ToolOrchestrator initialized.');
+      if (initialConfigTools.length > 0) {
+        this.logger.info('[AgentOS] Config tools registered', {
+          toolCount: initialConfigTools.length,
+          toolNames: initialConfigTools.map((tool) => tool.name),
+        });
+      }
       await this.initializeTurnPlanner();
       if (this.capabilityDiscoveryEngine && this.toolOrchestrator.setEmergentDiscoveryIndexer) {
         this.toolOrchestrator.setEmergentDiscoveryIndexer(async (tools) => {
@@ -979,7 +1066,7 @@ export class AgentOS implements IAgentOS {
       this.streamingManager = new StreamingManager();
       await this.streamingManager.initialize(this.config.streamingManagerConfig);
       console.log('AgentOS: StreamingManager initialized.');
-      
+
       // Initialize GMI Manager
       this.gmiManager = new GMIManager(
         this.config.gmiManagerConfig,
@@ -991,7 +1078,7 @@ export class AgentOS implements IAgentOS {
         this.utilityAIService, // Pass the potentially dual-role utility service
         this.toolOrchestrator,
         this.retrievalAugmentor,
-        this.config.personaLoader,
+        this.config.personaLoader
       );
       await this.gmiManager.initialize();
       console.log('AgentOS: GMIManager initialized.');
@@ -1011,18 +1098,33 @@ export class AgentOS implements IAgentOS {
         taskOutcomeTelemetryStore: this.config.taskOutcomeTelemetryStore,
       };
       this.agentOSOrchestrator = new AgentOSOrchestrator();
-      await this.agentOSOrchestrator.initialize(this.config.orchestratorConfig, orchestratorDependencies);
+      await this.agentOSOrchestrator.initialize(
+        this.config.orchestratorConfig,
+        orchestratorDependencies
+      );
       this.logger.info('AgentOS orchestrator initialized');
-
     } catch (error: unknown) {
       this.logger.error('AgentOS initialization failed', { error });
-      const err = error instanceof GMIError ? error : new GMIError(
-        error instanceof Error ? error.message : 'Unknown error during AgentOS initialization',
-        GMIErrorCode.GMI_INITIALIZATION_ERROR, // Corrected error code
-        error // details
+      const err =
+        error instanceof GMIError
+          ? error
+          : new GMIError(
+              error instanceof Error
+                ? error.message
+                : 'Unknown error during AgentOS initialization',
+              GMIErrorCode.GMI_INITIALIZATION_ERROR, // Corrected error code
+              error // details
+            );
+      console.error(
+        'AgentOS: Critical failure during core component initialization:',
+        err.toJSON()
       );
-      console.error('AgentOS: Critical failure during core component initialization:', err.toJSON());
-      throw AgentOSServiceError.wrap(err, err.code, 'AgentOS initialization failed', 'AgentOS.initialize');
+      throw AgentOSServiceError.wrap(
+        err,
+        err.code,
+        'AgentOS initialization failed',
+        'AgentOS.initialize'
+      );
     }
 
     this.initialized = true;
@@ -1041,80 +1143,94 @@ export class AgentOS implements IAgentOS {
   private validateConfiguration(config: AgentOSConfig): void {
     const missingParams: string[] = [];
     if (!config) {
-        // This case should ideally not be hit if TypeScript is used correctly at the call site,
-        // but as a runtime check:
-        missingParams.push('AgentOSConfig (entire object)');
+      // This case should ideally not be hit if TypeScript is used correctly at the call site,
+      // but as a runtime check:
+      missingParams.push('AgentOSConfig (entire object)');
     } else {
-        // Check for each required sub-configuration
-        const requiredConfigs: Array<keyof AgentOSConfig> = [
-            'gmiManagerConfig', 'orchestratorConfig', 'promptEngineConfig',
-            'toolOrchestratorConfig', 'toolPermissionManagerConfig', 'conversationManagerConfig',
-            'streamingManagerConfig', 'modelProviderManagerConfig', 'defaultPersonaId'
-        ];
-        for (const key of requiredConfigs) {
-            if (!config[key]) {
-                missingParams.push(String(key));
-            }
+      // Check for each required sub-configuration
+      const requiredConfigs: Array<keyof AgentOSConfig> = [
+        'gmiManagerConfig',
+        'orchestratorConfig',
+        'promptEngineConfig',
+        'toolOrchestratorConfig',
+        'toolPermissionManagerConfig',
+        'conversationManagerConfig',
+        'streamingManagerConfig',
+        'modelProviderManagerConfig',
+        'defaultPersonaId',
+      ];
+      for (const key of requiredConfigs) {
+        if (!config[key]) {
+          missingParams.push(String(key));
         }
-        // Either storageAdapter or prisma must be provided
-        if (!config.storageAdapter && !config.prisma) {
-            missingParams.push('storageAdapter or prisma (at least one required)');
+      }
+      // Either storageAdapter or prisma must be provided
+      if (!config.storageAdapter && !config.prisma) {
+        missingParams.push('storageAdapter or prisma (at least one required)');
+      }
+      if (config.memoryTools && config.memoryTools.enabled !== false) {
+        if (
+          !config.memoryTools.memory ||
+          typeof config.memoryTools.memory.createTools !== 'function'
+        ) {
+          missingParams.push('memoryTools.memory.createTools (when memoryTools is enabled)');
         }
-        if (config.memoryTools && config.memoryTools.enabled !== false) {
-            if (
-              !config.memoryTools.memory ||
-              typeof config.memoryTools.memory.createTools !== 'function'
-            ) {
-              missingParams.push('memoryTools.memory.createTools (when memoryTools is enabled)');
-            }
-            if (
-              config.memoryTools.manageLifecycle === true &&
-              typeof config.memoryTools.memory?.close !== 'function'
-            ) {
-              missingParams.push('memoryTools.memory.close (when memoryTools.manageLifecycle is true)');
-            }
+        if (
+          config.memoryTools.manageLifecycle === true &&
+          typeof config.memoryTools.memory?.close !== 'function'
+        ) {
+          missingParams.push('memoryTools.memory.close (when memoryTools.manageLifecycle is true)');
         }
-        if (config.standaloneMemory && config.standaloneMemory.enabled !== false) {
-            if (!config.standaloneMemory.memory) {
-              missingParams.push('standaloneMemory.memory');
-            }
-            if (
-              config.standaloneMemory.tools &&
-              !config.memoryTools &&
-              typeof config.standaloneMemory.memory?.createTools !== 'function'
-            ) {
-              missingParams.push('standaloneMemory.memory.createTools (when standaloneMemory.tools is enabled)');
-            }
-            if (
-              config.standaloneMemory.longTermRetriever &&
-              !config.longTermMemoryRetriever &&
-              typeof config.standaloneMemory.memory?.recall !== 'function'
-            ) {
-              missingParams.push('standaloneMemory.memory.recall (when standaloneMemory.longTermRetriever is enabled)');
-            }
-            if (
-              config.standaloneMemory.rollingSummarySink &&
-              !config.rollingSummaryMemorySink &&
-              (
-                typeof config.standaloneMemory.memory?.remember !== 'function' ||
-                typeof config.standaloneMemory.memory?.forget !== 'function'
-              )
-            ) {
-              missingParams.push('standaloneMemory.memory.remember/forget (when standaloneMemory.rollingSummarySink is enabled)');
-            }
-            if (
-              config.standaloneMemory.manageLifecycle === true &&
-              typeof config.standaloneMemory.memory?.close !== 'function'
-            ) {
-              missingParams.push('standaloneMemory.memory.close (when standaloneMemory.manageLifecycle is true)');
-            }
+      }
+      if (config.standaloneMemory && config.standaloneMemory.enabled !== false) {
+        if (!config.standaloneMemory.memory) {
+          missingParams.push('standaloneMemory.memory');
         }
+        if (
+          config.standaloneMemory.tools &&
+          !config.memoryTools &&
+          typeof config.standaloneMemory.memory?.createTools !== 'function'
+        ) {
+          missingParams.push(
+            'standaloneMemory.memory.createTools (when standaloneMemory.tools is enabled)'
+          );
+        }
+        if (
+          config.standaloneMemory.longTermRetriever &&
+          !config.longTermMemoryRetriever &&
+          typeof config.standaloneMemory.memory?.recall !== 'function'
+        ) {
+          missingParams.push(
+            'standaloneMemory.memory.recall (when standaloneMemory.longTermRetriever is enabled)'
+          );
+        }
+        if (
+          config.standaloneMemory.rollingSummarySink &&
+          !config.rollingSummaryMemorySink &&
+          (typeof config.standaloneMemory.memory?.remember !== 'function' ||
+            typeof config.standaloneMemory.memory?.forget !== 'function')
+        ) {
+          missingParams.push(
+            'standaloneMemory.memory.remember/forget (when standaloneMemory.rollingSummarySink is enabled)'
+          );
+        }
+        if (
+          config.standaloneMemory.manageLifecycle === true &&
+          typeof config.standaloneMemory.memory?.close !== 'function'
+        ) {
+          missingParams.push(
+            'standaloneMemory.memory.close (when standaloneMemory.manageLifecycle is true)'
+          );
+        }
+      }
     }
 
     if (missingParams.length > 0) {
       const message = `AgentOS Configuration Error: Missing essential parameters: ${missingParams.join(', ')}.`;
       console.error(message);
-      throw new AgentOSServiceError(message, GMIErrorCode.CONFIGURATION_ERROR, { missingParameters: missingParams });
+      throw new AgentOSServiceError(message, GMIErrorCode.CONFIGURATION_ERROR, {
+        missingParameters: missingParams,
+      });
     }
   }
 
@@ -1131,7 +1247,7 @@ export class AgentOS implements IAgentOS {
         priority: Number.MAX_SAFE_INTEGER,
         metadata: { origin: 'config' },
       },
-      context,
+      context
     );
   }
 
@@ -1154,9 +1270,7 @@ export class AgentOS implements IAgentOS {
     if (!resolved.longTermMemoryRetriever && standalone.longTermRetriever) {
       resolved.longTermMemoryRetriever = createStandaloneMemoryLongTermRetriever(
         memory as Pick<Memory, 'recall'>,
-        standalone.longTermRetriever === true
-          ? undefined
-          : standalone.longTermRetriever,
+        standalone.longTermRetriever === true ? undefined : standalone.longTermRetriever
       );
     }
 
@@ -1164,9 +1278,7 @@ export class AgentOS implements IAgentOS {
       resolved.rollingSummaryMemorySink = createStandaloneMemoryRollingSummarySink(
         memory as Pick<Memory, 'remember' | 'recall' | 'forget'> &
           Partial<Pick<Memory, 'health' | 'close'>>,
-        standalone.rollingSummarySink === true
-          ? undefined
-          : standalone.rollingSummarySink,
+        standalone.rollingSummarySink === true ? undefined : standalone.rollingSummarySink
       );
     }
 
@@ -1215,12 +1327,7 @@ export class AgentOS implements IAgentOS {
       };
     }
 
-    await this.extensionManager.loadPackFromFactory(
-      pack,
-      packIdentifier,
-      undefined,
-      context,
-    );
+    await this.extensionManager.loadPackFromFactory(pack, packIdentifier, undefined, context);
 
     this.logger.info('[AgentOS] Config memory tools enabled', {
       identifier: packIdentifier,
@@ -1235,9 +1342,9 @@ export class AgentOS implements IAgentOS {
 
     const workflowLogger = this.logger.child?.({ component: 'WorkflowEngine' }) ?? this.logger;
     await this.workflowEngine.initialize(this.config.workflowEngineConfig ?? {}, {
-    store: this.workflowStore,
-    logger: workflowLogger,
-  });
+      store: this.workflowStore,
+      logger: workflowLogger,
+    });
 
     const agencyLogger = this.logger.child?.({ component: 'AgencyRegistry' }) ?? this.logger;
     this.agencyRegistry = new AgencyRegistry(agencyLogger);
@@ -1254,7 +1361,10 @@ export class AgentOS implements IAgentOS {
           id: descriptor.id,
           payload: descriptor.payload,
         });
-      } else if (event.type === 'descriptor:deactivated' && event.kind === EXTENSION_KIND_WORKFLOW) {
+      } else if (
+        event.type === 'descriptor:deactivated' &&
+        event.kind === EXTENSION_KIND_WORKFLOW
+      ) {
         const descriptor = event.descriptor as WorkflowDescriptor;
         await this.handleWorkflowDescriptorDeactivated({
           id: descriptor.id,
@@ -1400,20 +1510,21 @@ export class AgentOS implements IAgentOS {
 
     if (!discoveryEngine && turnPlanningConfig?.discovery?.enabled !== false) {
       try {
-        discoveryEngine = await this.initializeCapabilityDiscoveryEngine(
-          turnPlanningConfig ?? {},
-        );
+        discoveryEngine = await this.initializeCapabilityDiscoveryEngine(turnPlanningConfig ?? {});
       } catch (error: any) {
-        this.logger.warn('Capability discovery initialization failed; planner will continue without discovery', {
-          error: error?.message ?? error,
-        });
+        this.logger.warn(
+          'Capability discovery initialization failed; planner will continue without discovery',
+          {
+            error: error?.message ?? error,
+          }
+        );
       }
     }
 
     this.turnPlanner = new AgentOSTurnPlanner(
       turnPlanningConfig,
       discoveryEngine,
-      this.logger.child?.({ component: 'TurnPlanner' }) ?? this.logger,
+      this.logger.child?.({ component: 'TurnPlanner' }) ?? this.logger
     );
     this.capabilityDiscoveryEngine = discoveryEngine;
     this.logger.info('AgentOS turn planner initialized', {
@@ -1425,7 +1536,7 @@ export class AgentOS implements IAgentOS {
   }
 
   private async initializeCapabilityDiscoveryEngine(
-    turnPlanningConfig: AgentOSTurnPlanningConfig,
+    turnPlanningConfig: AgentOSTurnPlanningConfig
   ): Promise<ICapabilityDiscoveryEngine | undefined> {
     const discoveryConfig = turnPlanningConfig.discovery;
     if (discoveryConfig?.enabled === false) {
@@ -1438,7 +1549,7 @@ export class AgentOS implements IAgentOS {
     const defaultProvider =
       this.modelProviderManager.getDefaultProvider() ??
       this.modelProviderManager.getProvider(
-        this.config.modelProviderManagerConfig.providers.find((p) => p.enabled)?.providerId || '',
+        this.config.modelProviderManagerConfig.providers.find((p) => p.enabled)?.providerId || ''
       );
     const providerId = defaultProvider?.providerId;
     if (!providerId) {
@@ -1454,10 +1565,8 @@ export class AgentOS implements IAgentOS {
       return undefined;
     }
 
-    const embeddingModelId =
-      discoveryConfig?.embeddingModelId ?? embeddingDefaults.modelId;
-    const embeddingDimension =
-      discoveryConfig?.embeddingDimension ?? embeddingDefaults.dimension;
+    const embeddingModelId = discoveryConfig?.embeddingModelId ?? embeddingDefaults.modelId;
+    const embeddingDimension = discoveryConfig?.embeddingDimension ?? embeddingDefaults.dimension;
 
     const embeddingManager = new EmbeddingManager();
     await embeddingManager.initialize(
@@ -1475,7 +1584,7 @@ export class AgentOS implements IAgentOS {
         cacheMaxSize: 500,
         cacheTTLSeconds: 3600,
       },
-      this.modelProviderManager,
+      this.modelProviderManager
     );
 
     const vectorStore = new InMemoryVectorStore();
@@ -1487,7 +1596,7 @@ export class AgentOS implements IAgentOS {
     const engine = new CapabilityDiscoveryEngine(
       embeddingManager,
       vectorStore,
-      discoveryConfig?.config,
+      discoveryConfig?.config
     );
     const sources = this.buildCapabilityIndexSources(discoveryConfig?.sources);
     await engine.initialize(sources, discoveryConfig?.sources?.presetCoOccurrences);
@@ -1512,7 +1621,7 @@ export class AgentOS implements IAgentOS {
   }
 
   private buildCapabilityIndexSources(
-    overrides?: AgentOSCapabilityDiscoverySources,
+    overrides?: AgentOSCapabilityDiscoverySources
   ): CapabilityIndexSources {
     const titleCase = (value: string): string =>
       value
@@ -1522,54 +1631,60 @@ export class AgentOS implements IAgentOS {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 
     const toolRegistry = this.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
-    const tools: NonNullable<CapabilityIndexSources['tools']> = toolRegistry
+    const runtimeTools = new Map<string, ITool>();
+    for (const tool of toolRegistry
       .listActive()
       .map((descriptor) => descriptor.payload)
-      .filter(Boolean)
-      .map((tool) => ({
-        id: tool.id || `tool:${tool.name}`,
-        name: tool.name,
-        displayName: tool.displayName || titleCase(tool.name),
-        description: tool.description || '',
-        category: tool.category || 'general',
-        inputSchema: tool.inputSchema,
-        outputSchema: tool.outputSchema,
-        requiredCapabilities: tool.requiredCapabilities,
-        hasSideEffects: tool.hasSideEffects,
-      }));
+      .filter(Boolean)) {
+      runtimeTools.set(tool.name, tool);
+    }
+    for (const tool of adaptTools(this.config.tools)) {
+      runtimeTools.set(tool.name, tool);
+    }
+    const tools: NonNullable<CapabilityIndexSources['tools']> = Array.from(
+      runtimeTools.values()
+    ).map((tool) => ({
+      id: tool.id || `tool:${tool.name}`,
+      name: tool.name,
+      displayName: tool.displayName || titleCase(tool.name),
+      description: tool.description || '',
+      category: tool.category || 'general',
+      inputSchema: tool.inputSchema,
+      outputSchema: tool.outputSchema,
+      requiredCapabilities: tool.requiredCapabilities,
+      hasSideEffects: tool.hasSideEffects,
+    }));
 
     const loadedPacks = this.extensionManager.listLoadedPacks();
-    const packExtensions: NonNullable<CapabilityIndexSources['extensions']> =
-      loadedPacks.map((pack) => ({
+    const packExtensions: NonNullable<CapabilityIndexSources['extensions']> = loadedPacks.map(
+      (pack) => ({
         id: `extension:${pack.key}`,
         name: pack.name,
         displayName: titleCase(pack.name),
         description: `Extension pack${pack.version ? ` v${pack.version}` : ''}`,
         category: 'extensions',
         available: true,
-      }));
+      })
+    );
 
     const workflowRegistry =
       this.extensionManager.getRegistry<WorkflowDescriptorPayload>(EXTENSION_KIND_WORKFLOW);
-    const workflowExtensions: NonNullable<CapabilityIndexSources['extensions']> =
-      workflowRegistry.listActive().map((descriptor) => ({
+    const workflowExtensions: NonNullable<CapabilityIndexSources['extensions']> = workflowRegistry
+      .listActive()
+      .map((descriptor) => ({
         id: `workflow:${descriptor.payload.definition.id}`,
         name: descriptor.payload.definition.id,
         displayName:
-          descriptor.payload.definition.displayName ||
-          titleCase(descriptor.payload.definition.id),
-        description:
-          descriptor.payload.definition.description ||
-          'Workflow automation capability',
+          descriptor.payload.definition.displayName || titleCase(descriptor.payload.definition.id),
+        description: descriptor.payload.definition.description || 'Workflow automation capability',
         category: 'workflow',
         requiredSecrets: descriptor.payload.definition.metadata?.requiredSecrets,
         available: true,
       }));
 
-    const messagingRegistry =
-      this.extensionManager.getRegistry<MessagingChannelPayload>(
-        EXTENSION_KIND_MESSAGING_CHANNEL,
-      );
+    const messagingRegistry = this.extensionManager.getRegistry<MessagingChannelPayload>(
+      EXTENSION_KIND_MESSAGING_CHANNEL
+    );
     const channels: NonNullable<CapabilityIndexSources['channels']> = messagingRegistry
       .listActive()
       .map((descriptor) => descriptor.payload)
@@ -1585,11 +1700,7 @@ export class AgentOS implements IAgentOS {
 
     return {
       tools,
-      extensions: [
-        ...packExtensions,
-        ...workflowExtensions,
-        ...(overrides?.extensions ?? []),
-      ],
+      extensions: [...packExtensions, ...workflowExtensions, ...(overrides?.extensions ?? [])],
       channels: [...channels, ...(overrides?.channels ?? [])],
       skills: overrides?.skills,
       manifests: overrides?.manifests,
@@ -1600,7 +1711,8 @@ export class AgentOS implements IAgentOS {
     const services: IGuardrailService[] = [];
 
     if (this.extensionManager) {
-      const registry = this.extensionManager.getRegistry<IGuardrailService>(EXTENSION_KIND_GUARDRAIL);
+      const registry =
+        this.extensionManager.getRegistry<IGuardrailService>(EXTENSION_KIND_GUARDRAIL);
       services.push(...registry.listActive().map((descriptor) => descriptor.payload));
     }
 
@@ -1629,8 +1741,7 @@ export class AgentOS implements IAgentOS {
       this.config.modelProviderManagerConfig.providers[0]?.providerId ||
       'openai';
     const defaultModelId =
-      this.config.gmiManagerConfig.defaultGMIBaseConfigDefaults?.defaultLlmModelId ||
-      'gpt-4o';
+      this.config.gmiManagerConfig.defaultGMIBaseConfigDefaults?.defaultLlmModelId || 'gpt-4o';
 
     await fallbackUtility.initialize({
       llmProviderManager: this.modelProviderManager,
@@ -1663,26 +1774,35 @@ export class AgentOS implements IAgentOS {
 
     const activeConversations =
       (this.conversationManager as any)?.activeConversations instanceof Map
-        ? Array.from(((this.conversationManager as any).activeConversations as Map<string, ConversationContext>).values())
+        ? Array.from(
+            (
+              (this.conversationManager as any).activeConversations as Map<
+                string,
+                ConversationContext
+              >
+            ).values()
+          )
         : [];
 
-    const conversationItems: AgentOSActiveConversationSnapshot[] = activeConversations.map((context) => {
-      const history = context.getHistory();
-      const lastActiveAt = history.reduce((latest, message) => {
-        const timestamp = typeof message.timestamp === 'number' ? message.timestamp : 0;
-        return Math.max(latest, timestamp);
-      }, 0);
+    const conversationItems: AgentOSActiveConversationSnapshot[] = activeConversations.map(
+      (context) => {
+        const history = context.getHistory();
+        const lastActiveAt = history.reduce((latest, message) => {
+          const timestamp = typeof message.timestamp === 'number' ? message.timestamp : 0;
+          return Math.max(latest, timestamp);
+        }, 0);
 
-      return {
-        sessionId: context.sessionId,
-        userId: context.getMetadata('userId'),
-        gmiInstanceId: context.getMetadata('gmiInstanceId'),
-        activePersonaId: context.getMetadata('activePersonaId'),
-        createdAt: context.createdAt,
-        lastActiveAt: lastActiveAt || context.getMetadata('_lastAccessed'),
-        messageCount: history.length,
-      };
-    });
+        return {
+          sessionId: context.sessionId,
+          userId: context.getMetadata('userId'),
+          gmiInstanceId: context.getMetadata('gmiInstanceId'),
+          activePersonaId: context.getMetadata('activePersonaId'),
+          createdAt: context.createdAt,
+          lastActiveAt: lastActiveAt || context.getMetadata('_lastAccessed'),
+          messageCount: history.length,
+        };
+      }
+    );
 
     const gmiItems: AgentOSActiveGMISnapshot[] = [];
     for (const gmi of this.gmiManager.activeGMIs.values()) {
@@ -1716,8 +1836,10 @@ export class AgentOS implements IAgentOS {
       .filter((provider) => provider.enabled !== false)
       .map((provider) => provider.providerId);
     const toolRegistry = this.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
-    const workflowRegistry = this.extensionManager.getRegistry<WorkflowDescriptorPayload>(EXTENSION_KIND_WORKFLOW);
-    const guardrailRegistry = this.extensionManager.getRegistry<IGuardrailService>(EXTENSION_KIND_GUARDRAIL);
+    const workflowRegistry =
+      this.extensionManager.getRegistry<WorkflowDescriptorPayload>(EXTENSION_KIND_WORKFLOW);
+    const guardrailRegistry =
+      this.extensionManager.getRegistry<IGuardrailService>(EXTENSION_KIND_GUARDRAIL);
 
     return {
       initialized: this.initialized,
@@ -1770,6 +1892,16 @@ export class AgentOS implements IAgentOS {
     return this.toolOrchestrator;
   }
 
+  public getExternalToolRegistry(): ExternalToolRegistry | undefined {
+    this.ensureInitialized();
+    return this.config.externalTools;
+  }
+
+  public listExternalToolsForLLM(): ToolDefinitionForLLM[] {
+    this.ensureInitialized();
+    return listExternalToolDefinitionsForLLM(this.config.externalTools);
+  }
+
   public getModelProviderManager(): AIModelProviderManager {
     this.ensureInitialized();
     return this.modelProviderManager;
@@ -1781,12 +1913,12 @@ export class AgentOS implements IAgentOS {
    *
    * This method orchestrates:
    * 1. Retrieval or creation of a {@link StreamId} via the {@link AgentOSOrchestrator}.
-   * 2. Registration of a temporary, request-scoped stream client to the {@link StreamingManager}.
+   * 2. Registration of a temporary, request-scoped stream client to the internal streaming manager.
    * 3. Yielding of {@link AgentOSResponse} chunks received by this client.
    * 4. Ensuring the temporary client is deregistered upon completion or error.
    *
    * The underlying {@link AgentOSOrchestrator} handles the GMI interaction and pushes
-   * chunks to the {@link StreamingManager}. This method acts as the bridge to make these
+   * chunks to the internal streaming manager. This method acts as the bridge to make these
    * chunks available as an `AsyncGenerator` to the caller (e.g., an API route handler).
    *
    * @public
@@ -1801,7 +1933,9 @@ export class AgentOS implements IAgentOS {
    * service is not initialized. Errors during GMI processing are typically yielded as
    * `AgentOSErrorChunk`s.
    */
-  public async *processRequest(input: AgentOSInput): AsyncGenerator<AgentOSResponse, void, undefined> {
+  public async *processRequest(
+    input: AgentOSInput
+  ): AsyncGenerator<AgentOSResponse, void, undefined> {
     this.ensureInitialized();
     // Authentication and detailed authorization would typically happen here or be delegated.
     // For example:
@@ -1829,7 +1963,7 @@ export class AgentOS implements IAgentOS {
     const guardrailInputOutcome = await evaluateInputGuardrails(
       guardrailServices,
       guardrailReadyInput,
-      guardrailContext,
+      guardrailContext
     );
 
     const blockingEvaluation =
@@ -1863,7 +1997,9 @@ export class AgentOS implements IAgentOS {
           personaDefault: undefined,
           configDefault: this.config.languageConfig.defaultLanguage,
           supported: this.config.languageConfig.supportedLanguages,
-          fallbackChain: this.config.languageConfig.fallbackLanguages || [this.config.languageConfig.defaultLanguage],
+          fallbackChain: this.config.languageConfig.fallbackLanguages || [
+            this.config.languageConfig.defaultLanguage,
+          ],
           preferSourceLanguageResponses: this.config.languageConfig.preferSourceLanguageResponses,
           targetLanguage: orchestratorInput.targetLanguage,
         } as any);
@@ -1887,10 +2023,13 @@ export class AgentOS implements IAgentOS {
         userId: orchestratorInput.userId,
         sessionId: orchestratorInput.sessionId,
       });
-      
+
       // The orchestrator creates/manages the actual stream and starts pushing chunks to StreamingManager.
       // We get the streamId it uses so our bridge can listen to it.
-  streamIdToListen = await this.agentOSOrchestrator.orchestrateTurn({ ...orchestratorInput, languageNegotiation } as any);
+      streamIdToListen = await this.agentOSOrchestrator.orchestrateTurn({
+        ...orchestratorInput,
+        languageNegotiation,
+      } as any);
       await this.streamingManager.registerClient(streamIdToListen, bridge);
       this.logger.debug?.('Bridge registered', { bridgeId: bridge.id, streamId: streamIdToListen });
 
@@ -1902,7 +2041,7 @@ export class AgentOS implements IAgentOS {
           streamId: streamIdToListen!,
           personaId: effectivePersonaId,
           inputEvaluations: guardrailInputOutcome.evaluations ?? [],
-        },
+        }
       );
       if (orchestratorInput.workflowRequest) {
         const wfRequest = orchestratorInput.workflowRequest;
@@ -1910,7 +2049,9 @@ export class AgentOS implements IAgentOS {
           await this.startWorkflow(wfRequest.definitionId, orchestratorInput, {
             workflowId: wfRequest.workflowId,
             conversationId:
-              wfRequest.conversationId ?? orchestratorInput.conversationId ?? orchestratorInput.sessionId,
+              wfRequest.conversationId ??
+              orchestratorInput.conversationId ??
+              orchestratorInput.sessionId,
             createdByUserId: orchestratorInput.userId,
             context: wfRequest.context,
             roleAssignments: wfRequest.roleAssignments,
@@ -1932,22 +2073,28 @@ export class AgentOS implements IAgentOS {
           chunk.metadata.language = languageNegotiation;
         }
         yield chunk;
+        if (isActionableToolCallRequestChunk(chunk)) {
+          break;
+        }
         if (chunk.isFinal && chunk.type !== AgentOSResponseChunkType.ERROR) {
           // If a non-error chunk is final, the primary interaction part might be done.
           // The stream itself might remain open for a short while for cleanup or late messages.
           // The bridge's consume() will end when notifyStreamClosed is called.
-          break; 
+          break;
         }
       }
     } catch (error: unknown) {
-        const serviceError = AgentOSServiceError.wrap(
+      const serviceError = AgentOSServiceError.wrap(
         error,
         GMIErrorCode.GMI_PROCESSING_ERROR, // Default code for facade-level processing errors
         `Error during AgentOS.processRequest for user '${orchestratorInput.userId}'`,
         'AgentOS.processRequest'
       );
-      this.logger.error('processRequest failed', { error: serviceError, streamId: streamIdToListen });
-      
+      this.logger.error('processRequest failed', {
+        error: serviceError,
+        streamId: streamIdToListen,
+      });
+
       const errorChunk: AgentOSErrorChunk = {
         type: AgentOSResponseChunkType.ERROR,
         streamId: streamIdToListen || baseStreamDebugId, // Use known streamId if available
@@ -1966,13 +2113,15 @@ export class AgentOS implements IAgentOS {
           .getActiveStreamIds()
           .catch(() => [] as string[]);
         if (activeStreamIds.includes(streamIdToListen)) {
-          await this.streamingManager.deregisterClient(streamIdToListen, bridge.id).catch((deregError) => {
-            this.logger.warn('Failed to deregister bridge client', {
-              bridgeId: bridge.id,
-              streamId: streamIdToListen,
-              error: (deregError as Error).message,
+          await this.streamingManager
+            .deregisterClient(streamIdToListen, bridge.id)
+            .catch((deregError) => {
+              this.logger.warn('Failed to deregister bridge client', {
+                bridgeId: bridge.id,
+                streamId: streamIdToListen,
+                error: (deregError as Error).message,
+              });
             });
-          });
         }
       }
       bridge.forceClose(); // Ensure the bridge generator also terminates
@@ -2011,29 +2160,59 @@ export class AgentOS implements IAgentOS {
     toolName: string,
     toolOutput: any,
     isSuccess: boolean,
-    errorMessage?: string,
+    errorMessage?: string
+  ): AsyncGenerator<AgentOSResponse, void, undefined> {
+    yield* this.handleToolResults(streamId, [
+      {
+        toolCallId,
+        toolName,
+        toolOutput,
+        isSuccess,
+        errorMessage,
+      },
+    ]);
+  }
+
+  public async *handleToolResults(
+    streamId: StreamId,
+    toolResults: AgentOSToolResultInput[]
   ): AsyncGenerator<AgentOSResponse, void, undefined> {
     this.ensureInitialized();
+    if (!Array.isArray(toolResults) || toolResults.length === 0) {
+      throw new AgentOSServiceError(
+        'At least one tool result is required to continue the stream.',
+        GMIErrorCode.VALIDATION_ERROR,
+        { streamId },
+        'AgentOS.handleToolResults'
+      );
+    }
 
     // Create a new bridge client for this specific tool result handling phase
-    const bridge = new AsyncStreamClientBridge(`client-toolRes-${streamId.substring(0,8)}-${toolCallId.substring(0,8)}`);
+    const bridge = new AsyncStreamClientBridge(
+      `client-toolRes-${streamId.substring(0, 8)}-${toolResults[0]!.toolCallId.substring(0, 8)}`
+    );
 
     try {
-      console.log(`AgentOS.handleToolResult: Stream '${streamId}', ToolCall '${toolCallId}'. Orchestrator will push new chunks to this stream.`);
-      
+      console.log(
+        `AgentOS.handleToolResults: Stream '${streamId}', ${toolResults.length} tool result(s). Orchestrator will push new chunks to this stream.`
+      );
+
       // Register the bridge client to listen for new chunks on the existing stream
       await this.streamingManager.registerClient(streamId, bridge);
-      console.log(`AgentOS.handleToolResult: Bridge client ${bridge.id} registered to stream ${streamId}.`);
-
-      // This call is `async Promise<void>`; it triggers the orchestrator to process the tool result
-      // and push new chunks to the StreamingManager for the given streamId.
-      await this.agentOSOrchestrator.orchestrateToolResult(
-        streamId, toolCallId, toolName, toolOutput, isSuccess, errorMessage
+      console.log(
+        `AgentOS.handleToolResults: Bridge client ${bridge.id} registered to stream ${streamId}.`
       );
+
+      // This call is `async Promise<void>`; it triggers the orchestrator to process the tool result(s)
+      // and push new chunks to the StreamingManager for the given streamId.
+      await this.agentOSOrchestrator.orchestrateToolResults(streamId, toolResults);
 
       // Yield new chunks received by our bridge client on the same stream
       for await (const chunk of bridge.consume()) {
         yield chunk;
+        if (isActionableToolCallRequestChunk(chunk)) {
+          break;
+        }
         if (chunk.isFinal && chunk.type !== AgentOSResponseChunkType.ERROR) {
           break;
         }
@@ -2042,8 +2221,8 @@ export class AgentOS implements IAgentOS {
       const serviceError = AgentOSServiceError.wrap(
         error,
         GMIErrorCode.TOOL_ERROR, // Default code for facade-level tool result errors
-        `Error during AgentOS.handleToolResult for stream '${streamId}', tool '${toolName}'`,
-        'AgentOS.handleToolResult'
+        `Error during AgentOS.handleToolResults for stream '${streamId}'`,
+        'AgentOS.handleToolResults'
       );
       console.error(`${serviceError.name}: ${serviceError.message}`, serviceError.toJSON());
 
@@ -2060,17 +2239,18 @@ export class AgentOS implements IAgentOS {
       };
       yield errorChunk;
     } finally {
-      console.log(`AgentOS.handleToolResult: Deregistering bridge client ${bridge.id} from stream ${streamId}.`);
+      console.log(
+        `AgentOS.handleToolResults: Deregistering bridge client ${bridge.id} from stream ${streamId}.`
+      );
       const activeStreamIds = await this.streamingManager
         .getActiveStreamIds()
         .catch(() => [] as string[]);
       if (activeStreamIds.includes(streamId)) {
-        await this.streamingManager.deregisterClient(streamId, bridge.id)
-          .catch((deregError) => {
-            console.error(
-              `AgentOS.handleToolResult: Error deregistering bridge client ${bridge.id}: ${(deregError as Error).message}`,
-            );
-          });
+        await this.streamingManager.deregisterClient(streamId, bridge.id).catch((deregError) => {
+          console.error(
+            `AgentOS.handleToolResults: Error deregistering bridge client ${bridge.id}: ${(deregError as Error).message}`
+          );
+        });
       }
       bridge.forceClose();
     }
@@ -2091,7 +2271,7 @@ export class AgentOS implements IAgentOS {
       context?: Record<string, unknown>;
       roleAssignments?: Record<string, string>;
       metadata?: Record<string, unknown>;
-    } = {},
+    } = {}
   ): Promise<WorkflowInstance> {
     this.ensureInitialized();
     const definition = this.workflowEngine
@@ -2101,7 +2281,7 @@ export class AgentOS implements IAgentOS {
       throw new AgentOSServiceError(
         `Workflow definition '${definitionId}' not found.`,
         GMIErrorCode.CONFIGURATION_ERROR,
-        { definitionId },
+        { definitionId }
       );
     }
     return this.workflowEngine.startWorkflow({
@@ -2128,7 +2308,7 @@ export class AgentOS implements IAgentOS {
 
   public async getWorkflowProgress(
     workflowId: string,
-    sinceTimestamp?: string,
+    sinceTimestamp?: string
   ): Promise<WorkflowProgressUpdate | null> {
     this.ensureInitialized();
     return this.workflowEngine.getWorkflowProgress(workflowId, sinceTimestamp);
@@ -2136,7 +2316,7 @@ export class AgentOS implements IAgentOS {
 
   public async updateWorkflowStatus(
     workflowId: string,
-    status: WorkflowStatus,
+    status: WorkflowStatus
   ): Promise<WorkflowInstance | null> {
     this.ensureInitialized();
     return this.workflowEngine.updateWorkflowStatus(workflowId, status);
@@ -2144,7 +2324,7 @@ export class AgentOS implements IAgentOS {
 
   public async applyWorkflowTaskUpdates(
     workflowId: string,
-    updates: WorkflowTaskUpdate[],
+    updates: WorkflowTaskUpdate[]
   ): Promise<WorkflowInstance | null> {
     this.ensureInitialized();
     return this.workflowEngine.applyTaskUpdates(workflowId, updates);
@@ -2164,11 +2344,18 @@ export class AgentOS implements IAgentOS {
    */
   public async listAvailablePersonas(userId?: string): Promise<Partial<IPersonaDefinition>[]> {
     this.ensureInitialized();
-    console.log(`AgentOS.listAvailablePersonas: Request for UserID: '${userId || "anonymous/system"}'.`);
+    console.log(
+      `AgentOS.listAvailablePersonas: Request for UserID: '${userId || 'anonymous/system'}'.`
+    );
     try {
       return await this.gmiManager.listAvailablePersonas(userId);
     } catch (error: unknown) {
-      throw AgentOSServiceError.wrap(error, GMIErrorCode.PERSONA_LOAD_ERROR, "Failed to list available personas", "AgentOS.listAvailablePersonas");
+      throw AgentOSServiceError.wrap(
+        error,
+        GMIErrorCode.PERSONA_LOAD_ERROR,
+        'Failed to list available personas',
+        'AgentOS.listAvailablePersonas'
+      );
     }
   }
 
@@ -2185,9 +2372,14 @@ export class AgentOS implements IAgentOS {
    * @throws {AgentOSServiceError} If the service is not initialized or if a critical error
    * occurs during history retrieval (permission errors might result in `null` or specific error type).
    */
-  public async getConversationHistory(conversationId: string, userId: string): Promise<ConversationContext | null> {
+  public async getConversationHistory(
+    conversationId: string,
+    userId: string
+  ): Promise<ConversationContext | null> {
     this.ensureInitialized();
-    console.log(`AgentOS.getConversationHistory: Request for ConversationID '${conversationId}', UserID '${userId}'.`);
+    console.log(
+      `AgentOS.getConversationHistory: Request for ConversationID '${conversationId}', UserID '${userId}'.`
+    );
 
     // Authorization to access conversation history should be handled here or by the ConversationManager.
     // For example, using this.authService:
@@ -2205,14 +2397,113 @@ export class AgentOS implements IAgentOS {
         if (context.getMetadata('userId') === userId /* || check other access rules */) {
           return context;
         } else {
-          console.warn(`AgentOS.getConversationHistory: User '${userId}' attempted to access conversation '${conversationId}' belonging to another user ('${context.getMetadata('userId')}').`);
+          console.warn(
+            `AgentOS.getConversationHistory: User '${userId}' attempted to access conversation '${conversationId}' belonging to another user ('${context.getMetadata('userId')}').`
+          );
           // Consider throwing PERMISSION_DENIED for explicit denial.
           return null;
         }
       }
       return null; // Conversation not found
     } catch (error: unknown) {
-      throw AgentOSServiceError.wrap(error, GMIErrorCode.GMI_CONTEXT_ERROR, `Failed to retrieve conversation history for ID '${conversationId}'`, "AgentOS.getConversationHistory");
+      throw AgentOSServiceError.wrap(
+        error,
+        GMIErrorCode.GMI_CONTEXT_ERROR,
+        `Failed to retrieve conversation history for ID '${conversationId}'`,
+        'AgentOS.getConversationHistory'
+      );
+    }
+  }
+
+  public async getPendingExternalToolRequest(
+    conversationId: string,
+    userId: string
+  ): Promise<AgentOSPendingExternalToolRequest | null> {
+    this.ensureInitialized();
+
+    const context = await this.getConversationHistory(conversationId, userId);
+    if (!context) {
+      return null;
+    }
+
+    const pendingRequest = context.getMetadata(AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY);
+    return pendingRequest ?? null;
+  }
+
+  public async *resumeExternalToolRequest(
+    pendingRequest: AgentOSPendingExternalToolRequest,
+    toolResults: AgentOSToolResultInput[],
+    options: AgentOSResumeExternalToolRequestOptions = {}
+  ): AsyncGenerator<AgentOSResponse, void, undefined> {
+    this.ensureInitialized();
+
+    let streamIdToListen: StreamId | undefined;
+    let shouldDeregisterBridge = false;
+    const bridge = new AsyncStreamClientBridge(
+      `client-resumeToolReq-${pendingRequest.conversationId}-${Date.now()}`
+    );
+
+    try {
+      streamIdToListen = await this.agentOSOrchestrator.orchestrateResumedToolResults(
+        pendingRequest,
+        toolResults,
+        options
+      );
+      await this.streamingManager.registerClient(streamIdToListen, bridge);
+
+      for await (const chunk of bridge.consume()) {
+        yield chunk;
+        if (isActionableToolCallRequestChunk(chunk)) {
+          shouldDeregisterBridge = true;
+          break;
+        }
+        if (chunk.isFinal && chunk.type !== AgentOSResponseChunkType.ERROR) {
+          break;
+        }
+      }
+    } catch (error: unknown) {
+      const serviceError = AgentOSServiceError.wrap(
+        error,
+        GMIErrorCode.TOOL_ERROR,
+        `Error during AgentOS.resumeExternalToolRequest for conversation '${pendingRequest.conversationId}'`,
+        'AgentOS.resumeExternalToolRequest'
+      );
+      console.error(`${serviceError.name}: ${serviceError.message}`, serviceError.toJSON());
+
+      const errorChunk: AgentOSErrorChunk = {
+        type: AgentOSResponseChunkType.ERROR,
+        streamId: streamIdToListen || pendingRequest.streamId,
+        gmiInstanceId:
+          (serviceError.details as any)?.gmiInstanceId ||
+          pendingRequest.gmiInstanceId ||
+          'agentos_facade_resume_error',
+        personaId:
+          (serviceError.details as any)?.personaId || pendingRequest.personaId || 'unknown_persona',
+        isFinal: true,
+        timestamp: new Date().toISOString(),
+        code: serviceError.code.toString(),
+        message: serviceError.message,
+        details: serviceError.details || { name: serviceError.name, stack: serviceError.stack },
+      };
+      yield errorChunk;
+    } finally {
+      if (streamIdToListen && shouldDeregisterBridge) {
+        const activeStreamIds = await this.streamingManager
+          .getActiveStreamIds()
+          .catch(() => [] as string[]);
+        if (activeStreamIds.includes(streamIdToListen)) {
+          await this.streamingManager
+            .deregisterClient(streamIdToListen, bridge.id)
+            .catch((deregError) => {
+              this.logger.warn('Failed to deregister resume bridge client', {
+                bridgeId: bridge.id,
+                streamId: streamIdToListen,
+                error: (deregError as Error).message,
+              });
+            });
+        }
+      }
+      bridge.forceClose();
     }
   }
 
@@ -2231,19 +2522,34 @@ export class AgentOS implements IAgentOS {
    * @throws {AgentOSServiceError} If the service is not initialized or if an error occurs
    * during feedback processing (e.g., `GMIErrorCode.GMI_FEEDBACK_ERROR`).
    */
-  public async receiveFeedback(userId: string, sessionId: string, personaId: string, feedbackPayload: UserFeedbackPayload): Promise<void> {
+  public async receiveFeedback(
+    userId: string,
+    sessionId: string,
+    personaId: string,
+    feedbackPayload: UserFeedbackPayload
+  ): Promise<void> {
     this.ensureInitialized();
     // Basic authorization checks for the user can be performed here.
     // E.g., await this.authService.validateUserExists(userId);
 
-    console.log(`AgentOS.receiveFeedback: UserID '${userId}', SessionID '${sessionId}', PersonaID '${personaId}'. Payload:`, JSON.stringify(feedbackPayload).substring(0, 200) + "...");
-    
+    console.log(
+      `AgentOS.receiveFeedback: UserID '${userId}', SessionID '${sessionId}', PersonaID '${personaId}'. Payload:`,
+      JSON.stringify(feedbackPayload).substring(0, 200) + '...'
+    );
+
     try {
       // Delegate feedback processing, typically to GMIManager or directly to the relevant GMI.
       await this.gmiManager.processUserFeedback(userId, sessionId, personaId, feedbackPayload);
-      console.info(`AgentOS.receiveFeedback: Feedback processed successfully for UserID '${userId}', PersonaID '${personaId}'.`);
+      console.info(
+        `AgentOS.receiveFeedback: Feedback processed successfully for UserID '${userId}', PersonaID '${personaId}'.`
+      );
     } catch (error: unknown) {
-      throw AgentOSServiceError.wrap(error, GMIErrorCode.GMI_FEEDBACK_ERROR, "Failed to process user feedback", "AgentOS.receiveFeedback");
+      throw AgentOSServiceError.wrap(
+        error,
+        GMIErrorCode.GMI_FEEDBACK_ERROR,
+        'Failed to process user feedback',
+        'AgentOS.receiveFeedback'
+      );
     }
   }
 
@@ -2258,7 +2564,9 @@ export class AgentOS implements IAgentOS {
    */
   public async shutdown(): Promise<void> {
     if (!this.initialized) {
-      console.warn('AgentOS Service is already shut down or was never initialized. Shutdown call is a no-op.');
+      console.warn(
+        'AgentOS Service is already shut down or was never initialized. Shutdown call is a no-op.'
+      );
       return;
     }
     console.log('AgentOS Service: Initiating graceful shutdown sequence...');
@@ -2273,16 +2581,16 @@ export class AgentOS implements IAgentOS {
         this.workflowEngine.offEvent(this.workflowEngineListener);
         this.workflowEngineListener = undefined;
       }
-    if (this.workflowExtensionListener && this.extensionManager) {
-      this.extensionManager.off(this.workflowExtensionListener);
-      this.workflowExtensionListener = undefined;
-    }
+      if (this.workflowExtensionListener && this.extensionManager) {
+        this.extensionManager.off(this.workflowExtensionListener);
+        this.workflowExtensionListener = undefined;
+      }
 
-    if (this.workflowRuntime) {
-      await this.workflowRuntime.stop();
-      this.workflowRuntime = undefined;
-    }
-    this.agencyRegistry = undefined;
+      if (this.workflowRuntime) {
+        await this.workflowRuntime.stop();
+        this.workflowRuntime = undefined;
+      }
+      this.agencyRegistry = undefined;
       if (this.agentOSOrchestrator?.shutdown) {
         await this.agentOSOrchestrator.shutdown();
         console.log('AgentOS: AgentOSOrchestrator shut down.');
@@ -2295,7 +2603,10 @@ export class AgentOS implements IAgentOS {
         await this.streamingManager.shutdown();
         console.log('AgentOS: StreamingManager shut down.');
       }
-      if (this.conversationManager?.shutdown && typeof this.conversationManager.shutdown === 'function') {
+      if (
+        this.conversationManager?.shutdown &&
+        typeof this.conversationManager.shutdown === 'function'
+      ) {
         await this.conversationManager.shutdown();
         console.log('AgentOS: ConversationManager shut down.');
       }
@@ -2316,14 +2627,17 @@ export class AgentOS implements IAgentOS {
         await this.retrievalAugmentor.shutdown();
         console.log('AgentOS: RetrievalAugmentor shut down.');
       }
-      if (this.manageRetrievalAugmentorLifecycle && this.ragVectorStoreManager?.shutdownAllProviders) {
+      if (
+        this.manageRetrievalAugmentorLifecycle &&
+        this.ragVectorStoreManager?.shutdownAllProviders
+      ) {
         await this.ragVectorStoreManager.shutdownAllProviders();
         console.log('AgentOS: VectorStore providers shut down.');
       }
       // PromptEngine might have a cleanup method like clearCache
       if (this.promptEngine && typeof this.promptEngine.clearCache === 'function') {
-          await this.promptEngine.clearCache();
-          console.log('AgentOS: PromptEngine cache cleared.');
+        await this.promptEngine.clearCache();
+        console.log('AgentOS: PromptEngine cache cleared.');
       }
       if (this.modelProviderManager?.shutdown) {
         await this.modelProviderManager.shutdown();
@@ -2344,11 +2658,16 @@ export class AgentOS implements IAgentOS {
     } catch (error: unknown) {
       // Even if one component fails to shut down, attempt to log and continue if possible,
       // but report the overall failure.
-      const serviceError = AgentOSServiceError.wrap(error, GMIErrorCode.GMI_SHUTDOWN_ERROR, "Error during AgentOS service shutdown sequence", "AgentOS.shutdown");
+      const serviceError = AgentOSServiceError.wrap(
+        error,
+        GMIErrorCode.GMI_SHUTDOWN_ERROR,
+        'Error during AgentOS service shutdown sequence',
+        'AgentOS.shutdown'
+      );
       console.error(`${serviceError.name}: ${serviceError.message}`, serviceError.toJSON());
       throw serviceError; // Re-throw to indicate shutdown was problematic.
     } finally {
-        this.initialized = false; // Mark as uninitialized regardless of shutdown errors.
+      this.initialized = false; // Mark as uninitialized regardless of shutdown errors.
     }
   }
 
@@ -2356,7 +2675,8 @@ export class AgentOS implements IAgentOS {
     // Prefer caller-provided augmentor instance.
     if (this.config.retrievalAugmentor) {
       this.retrievalAugmentor = this.config.retrievalAugmentor;
-      this.manageRetrievalAugmentorLifecycle = this.config.manageRetrievalAugmentorLifecycle === true;
+      this.manageRetrievalAugmentorLifecycle =
+        this.config.manageRetrievalAugmentorLifecycle === true;
       return;
     }
 
@@ -2371,10 +2691,15 @@ export class AgentOS implements IAgentOS {
       const { RetrievalAugmentor } = await import('../rag/RetrievalAugmentor');
 
       const embeddingManager = new EmbeddingManager();
-      await embeddingManager.initialize(ragConfig.embeddingManagerConfig, this.modelProviderManager);
+      await embeddingManager.initialize(
+        ragConfig.embeddingManagerConfig,
+        this.modelProviderManager
+      );
 
       const bindToStorageAdapter =
-        ragConfig.bindToStorageAdapter === undefined ? true : ragConfig.bindToStorageAdapter === true;
+        ragConfig.bindToStorageAdapter === undefined
+          ? true
+          : ragConfig.bindToStorageAdapter === true;
 
       const patchedVectorStoreConfig: VectorStoreManagerConfig = {
         ...ragConfig.vectorStoreManagerConfig,
@@ -2399,7 +2724,7 @@ export class AgentOS implements IAgentOS {
       await retrievalAugmentor.initialize(
         ragConfig.retrievalAugmentorConfig,
         embeddingManager,
-        vectorStoreManager,
+        vectorStoreManager
       );
 
       this.retrievalAugmentor = retrievalAugmentor;
@@ -2407,13 +2732,15 @@ export class AgentOS implements IAgentOS {
       this.manageRetrievalAugmentorLifecycle = ragConfig.manageLifecycle !== false;
       console.log('AgentOS: RAG subsystem initialized.');
     } catch (error: any) {
-      this.logger.error('AgentOS: Failed to initialize RAG subsystem; continuing without retrieval augmentor.', {
-        error: error?.message ?? error,
-      });
+      this.logger.error(
+        'AgentOS: Failed to initialize RAG subsystem; continuing without retrieval augmentor.',
+        {
+          error: error?.message ?? error,
+        }
+      );
     }
   }
 }
-
 
 // Imported from extracted module
 import { AsyncStreamClientBridge } from '../core/streaming/AsyncStreamClientBridge';

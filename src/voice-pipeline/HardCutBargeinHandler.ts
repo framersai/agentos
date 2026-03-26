@@ -2,7 +2,7 @@
  * @module voice-pipeline/HardCutBargeinHandler
  *
  * Implements a hard-cut barge-in policy: when the user speaks over TTS output
- * for at least {@link HardCutBargeinHandlerOptions.minSpeechMs} milliseconds,
+ * for at least `HardCutBargeinHandlerOptions.minSpeechMs` milliseconds,
  * playback is stopped immediately with no fade-out. Short detections below the
  * threshold are treated as accidental noise and ignored.
  *
@@ -73,11 +73,11 @@ export interface HardCutBargeinHandlerOptions {
  * Barge-in handler that applies a hard-cut strategy.
  *
  * When the user speaks over an active TTS stream, this handler immediately
- * cancels playback if the detected speech exceeds {@link minSpeechMs}. Below
+ * cancels playback if the detected speech exceeds `minSpeechMs`. Below
  * that threshold the interruption is considered noise and playback continues
  * uninterrupted.
  *
- * The handler is stateless -- each {@link handleBargein} call is evaluated
+ * The handler is stateless -- each `handleBargein` call is evaluated
  * independently with no memory of previous barge-in events.
  *
  * @see {@link IBargeinHandler} for the interface contract.

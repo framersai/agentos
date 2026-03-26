@@ -14,8 +14,8 @@ import type {
  * Payload emitted on the `provider_fallback` event when a provider in the
  * chain fails and the proxy advances to the next candidate.
  *
- * This event is emitted on the {@link EventEmitter} passed to the proxy
- * constructor — typically the {@link SpeechProviderResolver} instance — so
+ * This event is emitted on the `EventEmitter` passed to the proxy
+ * constructor — typically the `SpeechProviderResolver` instance — so
  * that callers can observe and log the fallback path without coupling to
  * the proxy internals.
  *
@@ -59,7 +59,7 @@ export interface ProviderFallbackEvent {
  * throws:
  *
  * - **If it is NOT the last provider:** The error is caught, a
- *   `provider_fallback` event is emitted on the shared {@link EventEmitter},
+ *   `provider_fallback` event is emitted on the shared `EventEmitter`,
  *   and the next provider is tried. Errors are caught per-provider so that a
  *   single API outage doesn't block the entire pipeline.
  *
@@ -77,7 +77,7 @@ export interface ProviderFallbackEvent {
  * cost of slightly increased latency when early providers fail.
  *
  * @see {@link ProviderFallbackEvent} for the event payload shape
- * @see {@link SpeechProviderResolver.resolveSTT} for how this proxy is created
+ * See `SpeechProviderResolver.resolveSTT()` for how this proxy is created.
  *
  * @example
  * ```ts
@@ -126,7 +126,7 @@ export class FallbackSTTProxy implements SpeechToTextProvider {
    */
   constructor(
     private readonly chain: SpeechToTextProvider[],
-    private readonly emitter: EventEmitter,
+    private readonly emitter: EventEmitter
   ) {
     this.id = chain[0]?.id ?? 'fallback-stt';
     this.displayName = `Fallback STT (${chain.map((p) => p.id).join(' \u2192 ')})`;
@@ -158,7 +158,7 @@ export class FallbackSTTProxy implements SpeechToTextProvider {
    */
   async transcribe(
     audio: SpeechAudioInput,
-    options?: SpeechTranscriptionOptions,
+    options?: SpeechTranscriptionOptions
   ): Promise<SpeechTranscriptionResult> {
     if (this.chain.length === 0) {
       throw new Error('No providers in fallback chain');
@@ -227,7 +227,7 @@ export class FallbackSTTProxy implements SpeechToTextProvider {
  * reflect the provider that actually handles synthesis if the primary fails.
  *
  * @see {@link ProviderFallbackEvent} for the event payload shape
- * @see {@link SpeechProviderResolver.resolveTTS} for how this proxy is created
+ * See `SpeechProviderResolver.resolveTTS()` for how this proxy is created.
  *
  * @example
  * ```ts
@@ -251,7 +251,7 @@ export class FallbackTTSProxy implements TextToSpeechProvider {
 
   /**
    * Whether the proxy supports streaming. Only reflects the first provider's
-   * capability — see {@link FallbackSTTProxy.supportsStreaming} for rationale.
+   * capability — see `FallbackSTTProxy.supportsStreaming` for rationale.
    */
   readonly supportsStreaming: boolean;
 
@@ -271,7 +271,7 @@ export class FallbackTTSProxy implements TextToSpeechProvider {
    */
   constructor(
     private readonly chain: TextToSpeechProvider[],
-    private readonly emitter: EventEmitter,
+    private readonly emitter: EventEmitter
   ) {
     this.id = chain[0]?.id ?? 'fallback-tts';
     this.displayName = `Fallback TTS (${chain.map((p) => p.id).join(' \u2192 ')})`;
@@ -296,10 +296,7 @@ export class FallbackTTSProxy implements TextToSpeechProvider {
    * const result = await proxy.synthesize('Hello world', { voice: 'nova' });
    * ```
    */
-  async synthesize(
-    text: string,
-    options?: SpeechSynthesisOptions,
-  ): Promise<SpeechSynthesisResult> {
+  async synthesize(text: string, options?: SpeechSynthesisOptions): Promise<SpeechSynthesisResult> {
     if (this.chain.length === 0) {
       throw new Error('No providers in fallback chain');
     }

@@ -33,12 +33,7 @@
  */
 
 import { EventEmitter } from 'node:events';
-import type {
-  IEndpointDetector,
-  TranscriptEvent,
-  VadEvent,
-  TurnCompleteEvent,
-} from './types.js';
+import type { IEndpointDetector, TranscriptEvent, VadEvent, TurnCompleteEvent } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -151,15 +146,12 @@ export interface HeuristicEndpointDetectorOptions {
  * // -> 'turn_complete' fires immediately with reason 'punctuation'
  * ```
  */
-export class HeuristicEndpointDetector
-  extends EventEmitter
-  implements IEndpointDetector
-{
+export class HeuristicEndpointDetector extends EventEmitter implements IEndpointDetector {
   /**
    * Active detection strategy label.
    * Always `'heuristic'` for this implementation.
    *
-   * @see {@link IEndpointDetector.mode}
+   * See `IEndpointDetector.mode`.
    */
   readonly mode: IEndpointDetector['mode'] = 'heuristic';
 
@@ -363,14 +355,10 @@ export class HeuristicEndpointDetector
    * @param speechEndTimestamp - Unix epoch ms timestamp of the `speech_end` event,
    *   used to compute `durationMs` as `speechEndTimestamp - turnStartMs`.
    */
-  private _emitTurnComplete(
-    reason: TurnCompleteEvent['reason'],
-    speechEndTimestamp: number,
-  ): void {
+  private _emitTurnComplete(reason: TurnCompleteEvent['reason'], speechEndTimestamp: number): void {
     // Compute speech duration. Falls back to 0 if no speech_start was recorded
     // (defensive: should not happen in normal operation).
-    const durationMs =
-      this.turnStartMs !== null ? speechEndTimestamp - this.turnStartMs : 0;
+    const durationMs = this.turnStartMs !== null ? speechEndTimestamp - this.turnStartMs : 0;
 
     const event: TurnCompleteEvent = {
       transcript: this.accumulatedText,
@@ -387,13 +375,13 @@ export class HeuristicEndpointDetector
 
   /**
    * Start the silence-timeout timer. If the user does not resume speaking
-   * within {@link silenceTimeoutMs} ms, the detector fires `turn_complete`
+   * within `silenceTimeoutMs` ms, the detector fires `turn_complete`
    * with reason `'silence_timeout'`.
    *
    * Any previously running silence timer is cleared first to prevent
    * double-fires from rapid speech_end -> speech_start -> speech_end sequences.
    *
-   * @param speechEndTimestamp - Timestamp passed through to {@link _emitTurnComplete}
+   * @param speechEndTimestamp - Timestamp passed through to the internal turn-complete emitter
    *   for duration calculation.
    */
   private _startSilenceTimer(speechEndTimestamp: number): void {

@@ -23,7 +23,7 @@
  * from where the session left off rather than resetting to zero. This is
  * critical for `maxTurns` enforcement across graph suspensions.
  *
- * @see {@link VoiceNodeExecutor} -- creates and owns the collector during voice node execution.
+ * See `VoiceNodeExecutor` for the owner of this collector during voice node execution.
  * @see {@link VoiceNodeCheckpoint} -- persists `turnIndex` and `transcript` across suspensions.
  */
 
@@ -98,7 +98,7 @@ export interface TranscriptEntry {
  * ```
  *
  * @see {@link TranscriptEntry} -- shape of each buffered transcript entry.
- * @see {@link VoiceNodeExecutor} -- the executor that creates and queries the collector.
+ * See `VoiceNodeExecutor` for the executor that creates and queries the collector.
  */
 export class VoiceTurnCollector {
   /** Buffered confirmed utterances in chronological order. Append-only. */
@@ -137,7 +137,7 @@ export class VoiceTurnCollector {
     session: EventEmitter,
     private readonly eventSink: (event: GraphEvent) => void,
     private readonly nodeId: string,
-    initialTurnCount = 0,
+    initialTurnCount = 0
   ) {
     this.turnCount = initialTurnCount;
 

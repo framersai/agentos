@@ -12,6 +12,7 @@ import {
   type ImageModelInfo,
   type StabilityImageProviderOptions,
 } from '../IImageProvider.js';
+import { bufferToBlobPart } from '../imageToBuffer.js';
 
 export interface StabilityImageProviderConfig {
   apiKey: string;
@@ -93,16 +94,22 @@ const STABILITY_ROUTE_ALIASES: Record<string, StabilityRoute> = {
 
 function resolveStabilityRoute(
   modelId: string,
-  providerOptions?: StabilityImageProviderOptions,
+  providerOptions?: StabilityImageProviderOptions
 ): StabilityRoute {
   const normalizedModelId = providerOptions?.engine?.trim() || modelId.trim();
-  return STABILITY_ROUTE_ALIASES[normalizedModelId] ?? {
-    path: '/v2beta/stable-image/generate/core',
-    responseModelId: normalizedModelId,
-  };
+  return (
+    STABILITY_ROUTE_ALIASES[normalizedModelId] ?? {
+      path: '/v2beta/stable-image/generate/core',
+      responseModelId: normalizedModelId,
+    }
+  );
 }
 
-function appendIfDefined(formData: FormData, key: string, value: string | number | boolean | undefined): void {
+function appendIfDefined(
+  formData: FormData,
+  key: string,
+  value: string | number | boolean | undefined
+): void {
   if (value === undefined) {
     return;
   }
@@ -114,7 +121,8 @@ export class StabilityImageProvider implements IImageProvider {
   public isInitialized = false;
   public defaultModelId?: string;
 
-  private config!: Required<Pick<StabilityImageProviderConfig, 'apiKey'>> & StabilityImageProviderConfig;
+  private config!: Required<Pick<StabilityImageProviderConfig, 'apiKey'>> &
+    StabilityImageProviderConfig;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
@@ -144,23 +152,30 @@ export class StabilityImageProvider implements IImageProvider {
 
     const providerOptions = getImageProviderOptions<StabilityImageProviderOptions>(
       this.providerId,
-      request.providerOptions,
+      request.providerOptions
     );
-    const route = resolveStabilityRoute(request.modelId || this.defaultModelId || 'stable-image-core', providerOptions);
+    const route = resolveStabilityRoute(
+      request.modelId || this.defaultModelId || 'stable-image-core',
+      providerOptions
+    );
 
     const formData = new FormData();
     formData.append('prompt', request.prompt);
-    appendIfDefined(formData, 'negative_prompt', providerOptions?.negativePrompt ?? request.negativePrompt);
+    appendIfDefined(
+      formData,
+      'negative_prompt',
+      providerOptions?.negativePrompt ?? request.negativePrompt
+    );
     appendIfDefined(
       formData,
       'aspect_ratio',
-      providerOptions?.aspectRatio ?? request.aspectRatio ?? inferAspectRatioFromSize(request.size),
+      providerOptions?.aspectRatio ?? request.aspectRatio ?? inferAspectRatioFromSize(request.size)
     );
     appendIfDefined(formData, 'seed', providerOptions?.seed ?? request.seed);
     appendIfDefined(
       formData,
       'output_format',
-      normalizeOutputFormat(providerOptions?.outputFormat ?? request.outputFormat),
+      normalizeOutputFormat(providerOptions?.outputFormat ?? request.outputFormat)
     );
     appendIfDefined(formData, 'style_preset', providerOptions?.stylePreset);
     appendIfDefined(formData, 'cfg_scale', providerOptions?.cfgScale);
@@ -276,13 +291,17 @@ export class StabilityImageProvider implements IImageProvider {
 
     const providerOptions = getImageProviderOptions<StabilityImageProviderOptions>(
       this.providerId,
-      request.providerOptions,
+      request.providerOptions
     );
 
     const formData = new FormData();
 
     // Source image — sent as a Blob so the multipart encoder assigns a filename.
-    formData.append('image', new Blob([request.image], { type: 'image/png' }), 'image.png');
+    formData.append(
+      'image',
+      new Blob([bufferToBlobPart(request.image)], { type: 'image/png' }),
+      'image.png'
+    );
     formData.append('prompt', request.prompt);
 
     // Strength controls how much the output deviates from the source.
@@ -291,12 +310,24 @@ export class StabilityImageProvider implements IImageProvider {
 
     // When a mask is provided the request is an inpainting operation.
     if (request.mask) {
-      formData.append('mask_image', new Blob([request.mask], { type: 'image/png' }), 'mask.png');
+      formData.append(
+        'mask_image',
+        new Blob([bufferToBlobPart(request.mask)], { type: 'image/png' }),
+        'mask.png'
+      );
     }
 
-    appendIfDefined(formData, 'negative_prompt', request.negativePrompt ?? providerOptions?.negativePrompt);
+    appendIfDefined(
+      formData,
+      'negative_prompt',
+      request.negativePrompt ?? providerOptions?.negativePrompt
+    );
     appendIfDefined(formData, 'seed', request.seed ?? providerOptions?.seed);
-    appendIfDefined(formData, 'output_format', normalizeOutputFormat(providerOptions?.outputFormat));
+    appendIfDefined(
+      formData,
+      'output_format',
+      normalizeOutputFormat(providerOptions?.outputFormat)
+    );
     appendIfDefined(formData, 'cfg_scale', providerOptions?.cfgScale);
     appendIfDefined(formData, 'steps', providerOptions?.steps);
 
@@ -350,27 +381,38 @@ export class StabilityImageProvider implements IImageProvider {
 
     const providerOptions = getImageProviderOptions<StabilityImageProviderOptions>(
       this.providerId,
-      request.providerOptions,
+      request.providerOptions
     );
 
     const formData = new FormData();
-    formData.append('image', new Blob([request.image], { type: 'image/png' }), 'image.png');
+    formData.append(
+      'image',
+      new Blob([bufferToBlobPart(request.image)], { type: 'image/png' }),
+      'image.png'
+    );
 
     // Stability's upscale endpoint accepts a target `width`.
     // Derive from explicit width, or scale factor applied to a default 512px base.
     const targetWidth = request.width ?? (request.scale ? 512 * request.scale : 2048);
     appendIfDefined(formData, 'width', targetWidth);
     if (request.height) appendIfDefined(formData, 'height', request.height);
-    appendIfDefined(formData, 'output_format', normalizeOutputFormat(providerOptions?.outputFormat));
+    appendIfDefined(
+      formData,
+      'output_format',
+      normalizeOutputFormat(providerOptions?.outputFormat)
+    );
 
-    const response = await fetch(`${this.config.baseURL}/v2beta/stable-image/upscale/conservative`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        Accept: 'application/json',
-      },
-      body: formData,
-    });
+    const response = await fetch(
+      `${this.config.baseURL}/v2beta/stable-image/upscale/conservative`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          Accept: 'application/json',
+        },
+        body: formData,
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -396,7 +438,7 @@ export class StabilityImageProvider implements IImageProvider {
    */
   private async parseStabilityResponse(
     response: Response,
-    providerOptions?: StabilityImageProviderOptions,
+    providerOptions?: StabilityImageProviderOptions
   ): Promise<GeneratedImage[]> {
     const contentType = response.headers.get('content-type') ?? '';
     const images: GeneratedImage[] = [];
@@ -435,11 +477,31 @@ export class StabilityImageProvider implements IImageProvider {
 
   async listAvailableModels(): Promise<ImageModelInfo[]> {
     return [
-      { providerId: this.providerId, modelId: 'stable-image-core', displayName: 'Stable Image Core' },
-      { providerId: this.providerId, modelId: 'stable-image-ultra', displayName: 'Stable Image Ultra' },
-      { providerId: this.providerId, modelId: 'sd3-medium', displayName: 'Stable Diffusion 3 Medium' },
-      { providerId: this.providerId, modelId: 'sd3-large', displayName: 'Stable Diffusion 3 Large' },
-      { providerId: this.providerId, modelId: 'sd3-large-turbo', displayName: 'Stable Diffusion 3 Large Turbo' },
+      {
+        providerId: this.providerId,
+        modelId: 'stable-image-core',
+        displayName: 'Stable Image Core',
+      },
+      {
+        providerId: this.providerId,
+        modelId: 'stable-image-ultra',
+        displayName: 'Stable Image Ultra',
+      },
+      {
+        providerId: this.providerId,
+        modelId: 'sd3-medium',
+        displayName: 'Stable Diffusion 3 Medium',
+      },
+      {
+        providerId: this.providerId,
+        modelId: 'sd3-large',
+        displayName: 'Stable Diffusion 3 Large',
+      },
+      {
+        providerId: this.providerId,
+        modelId: 'sd3-large-turbo',
+        displayName: 'Stable Diffusion 3 Large Turbo',
+      },
     ];
   }
 }

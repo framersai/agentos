@@ -1,5 +1,5 @@
 ---
-title: "Creating Custom Guardrails"
+title: 'Creating Custom Guardrails'
 sidebar_position: 8
 ---
 
@@ -61,18 +61,18 @@ interface GuardrailConfig {
   // When true, evaluateOutput is called for every TEXT_DELTA chunk during
   // streaming. When false (default), it is only called for FINAL_RESPONSE
   // chunks. Enable this for real-time PII redaction or immediate blocking.
-  evaluateStreamingChunks?: boolean;   // default: false
+  evaluateStreamingChunks?: boolean; // default: false
 
   // Rate-limits how many streaming evaluations happen per request.
   // After this limit, remaining chunks pass through unevaluated.
   // Only applies when evaluateStreamingChunks is true.
-  maxStreamingEvaluations?: number;    // default: undefined (no limit)
+  maxStreamingEvaluations?: number; // default: undefined (no limit)
 
   // When true, this guardrail runs in Phase 1 (sequential).
   // It sees and can modify text produced by prior sanitizers.
   // When false, it runs in Phase 2 (parallel).
   // Phase 2 guardrails that return SANITIZE are downgraded to FLAG.
-  canSanitize?: boolean;               // default: false
+  canSanitize?: boolean; // default: false
 
   // Maximum time (ms) to wait for this guardrail's evaluation.
   // On timeout the evaluation is abandoned (fail-open) and a warning is logged.
@@ -80,7 +80,7 @@ interface GuardrailConfig {
   // SAFETY WARNING: Do NOT set timeoutMs on safety-critical guardrails
   // (e.g., CSAM detection, compliance-mandatory filters) because fail-open
   // on timeout means content passes unchecked.
-  timeoutMs?: number;                  // default: undefined (wait indefinitely)
+  timeoutMs?: number; // default: undefined (wait indefinitely)
 }
 ```
 
@@ -98,12 +98,12 @@ interface GuardrailInputPayload {
 }
 
 interface GuardrailContext {
-  userId: string;           // Unique user identifier
-  sessionId: string;        // Current session
-  personaId?: string;       // Active persona/agent identity
-  conversationId?: string;  // Conversation thread
-  mode?: string;            // Operating mode (e.g., 'debug', 'production')
-  metadata?: Record<string, unknown>;  // Arbitrary context for your policy logic
+  userId: string; // Unique user identifier
+  sessionId: string; // Current session
+  personaId?: string; // Active persona/agent identity
+  conversationId?: string; // Conversation thread
+  mode?: string; // Operating mode (e.g., 'debug', 'production')
+  metadata?: Record<string, unknown>; // Arbitrary context for your policy logic
 }
 ```
 
@@ -162,12 +162,12 @@ interface GuardrailEvaluationResult {
 
 ## GuardrailAction Deep Dive
 
-| Action | Enum Value | Effect |
-|---|---|---|
-| **ALLOW** | `'allow'` | Pass content unchanged. Use when all checks pass. |
-| **FLAG** | `'flag'` | Pass content through but record metadata for audit/analytics. Content reaches the user; the evaluation is logged for review. |
-| **SANITIZE** | `'sanitize'` | Replace content with the value in `modifiedText`. Use for PII redaction, profanity masking, or content rewriting. Requires `canSanitize: true` in config to work in Phase 1. |
-| **BLOCK** | `'block'` | Reject/terminate the interaction. For input evaluation, the request is never processed. For output evaluation during streaming, the stream is terminated immediately with an error chunk. |
+| Action       | Enum Value   | Effect                                                                                                                                                                                    |
+| ------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ALLOW**    | `'allow'`    | Pass content unchanged. Use when all checks pass.                                                                                                                                         |
+| **FLAG**     | `'flag'`     | Pass content through but record metadata for audit/analytics. Content reaches the user; the evaluation is logged for review.                                                              |
+| **SANITIZE** | `'sanitize'` | Replace content with the value in `modifiedText`. Use for PII redaction, profanity masking, or content rewriting. Requires `canSanitize: true` in config to work in Phase 1.              |
+| **BLOCK**    | `'block'`    | Reject/terminate the interaction. For input evaluation, the request is never processed. For output evaluation during streaming, the stream is terminated immediately with an error chunk. |
 
 ### SANITIZE rules
 
@@ -222,6 +222,8 @@ Emitted when the LLM requests a tool call. Useful for guardrails that want to ap
 {
   type: 'tool_call_request',   // AgentOSResponseChunkType.TOOL_CALL_REQUEST
   streamId: 'stream-abc',
+  executionMode: 'external',
+  requiresExternalToolResult: true,
   toolCalls: [
     {
       id: 'call_001',
@@ -233,6 +235,22 @@ Emitted when the LLM requests a tool call. Useful for guardrails that want to ap
   isFinal: false,
 }
 ```
+
+If `executionMode` is `'internal'`, the chunk is informational only and the
+runtime will execute the tool without requiring `handleToolResult(...)`.
+Host code can gate that path with `isActionableToolCallRequestChunk(chunk)`
+from `@framers/agentos` instead of open-coding both field checks.
+For `'external'` chunks, hosts should resume through `handleToolResult(...)`
+or `handleToolResults(...)` if the same pause emitted multiple actionable tool calls.
+AgentOS also persists actionable external pauses into the conversation metadata,
+so a reconnecting or restarted host can redisplay the pending tool request and
+resume it with `resumeExternalToolRequest(...)`.
+If those pending tool calls are AgentOS-registered tools, prefer
+`resumeExternalToolRequestWithRegisteredTools(...)` to rebuild the correct
+resume-time tool execution context automatically.
+If the continued turn needs organization-scoped memory, the host must
+re-supply trusted `organizationId` in the resume options because org context is
+not persisted in conversation metadata.
 
 ### TOOL_RESULT_EMISSION
 
@@ -252,15 +270,15 @@ The result of a tool execution, emitted after the tool runs.
 
 ### Other chunk types
 
-| Type | Typical guardrail action |
-|---|---|
-| `SYSTEM_PROGRESS` | Usually ignored. Informational progress updates. |
-| `UI_COMMAND` | Rarely intercepted. Contains frontend rendering instructions. |
-| `ERROR` | Usually ignored. The stream is already in an error state. |
-| `METADATA_UPDATE` | Usually ignored. Session metadata changes. |
-| `WORKFLOW_UPDATE` | Usually ignored. Multi-step workflow progress. |
-| `AGENCY_UPDATE` | Usually ignored. Multi-agent coordination state. |
-| `PROVENANCE_EVENT` | Usually ignored. Signed ledger entries. |
+| Type               | Typical guardrail action                                      |
+| ------------------ | ------------------------------------------------------------- |
+| `SYSTEM_PROGRESS`  | Usually ignored. Informational progress updates.              |
+| `UI_COMMAND`       | Rarely intercepted. Contains frontend rendering instructions. |
+| `ERROR`            | Usually ignored. The stream is already in an error state.     |
+| `METADATA_UPDATE`  | Usually ignored. Session metadata changes.                    |
+| `WORKFLOW_UPDATE`  | Usually ignored. Multi-step workflow progress.                |
+| `AGENCY_UPDATE`    | Usually ignored. Multi-agent coordination state.              |
+| `PROVENANCE_EVENT` | Usually ignored. Signed ledger entries.                       |
 
 ### The isFinal flag
 
@@ -358,11 +376,7 @@ class ProfanityFilterGuardrail implements IGuardrailService {
    * The list of prohibited words. In production you would load this from
    * a database, config file, or external API.
    */
-  private readonly blocklist: string[] = [
-    'badword1',
-    'badword2',
-    'offensive_term',
-  ];
+  private readonly blocklist: string[] = ['badword1', 'badword2', 'offensive_term'];
 
   /**
    * Check if text contains any prohibited words.
@@ -388,9 +402,7 @@ class ProfanityFilterGuardrail implements IGuardrailService {
    * Evaluate user input before orchestration.
    * Blocks the request entirely if profanity is detected.
    */
-  async evaluateInput(
-    { input }: GuardrailInputPayload,
-  ): Promise<GuardrailEvaluationResult | null> {
+  async evaluateInput({ input }: GuardrailInputPayload): Promise<GuardrailEvaluationResult | null> {
     // Guard: skip if there is no text to evaluate.
     if (!input.textInput) {
       return null;
@@ -421,9 +433,9 @@ class ProfanityFilterGuardrail implements IGuardrailService {
    * Because evaluateStreamingChunks is false (default), this method is
    * only called for FINAL_RESPONSE chunks.
    */
-  async evaluateOutput(
-    { chunk }: GuardrailOutputPayload,
-  ): Promise<GuardrailEvaluationResult | null> {
+  async evaluateOutput({
+    chunk,
+  }: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null> {
     // Only evaluate the final assembled response.
     if (chunk.type !== AgentOSResponseChunkType.FINAL_RESPONSE) {
       return null;
@@ -533,9 +545,9 @@ class StreamingContentPolicyGuardrail implements IGuardrailService {
    *
    * For isFinal chunks: flush the remaining buffer and do a final check.
    */
-  async evaluateOutput(
-    { chunk }: GuardrailOutputPayload,
-  ): Promise<GuardrailEvaluationResult | null> {
+  async evaluateOutput({
+    chunk,
+  }: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null> {
     // We only care about TEXT_DELTA and FINAL_RESPONSE chunks.
     if (
       chunk.type !== AgentOSResponseChunkType.TEXT_DELTA &&
@@ -553,9 +565,10 @@ class StreamingContentPolicyGuardrail implements IGuardrailService {
       const buffer = this.buffers.get(streamId);
 
       // Determine the text to evaluate on the final flush.
-      const finalText = chunk.type === AgentOSResponseChunkType.FINAL_RESPONSE
-        ? chunk.finalResponseText ?? ''
-        : (buffer?.text ?? '') + ((chunk as any).textDelta ?? '');
+      const finalText =
+        chunk.type === AgentOSResponseChunkType.FINAL_RESPONSE
+          ? (chunk.finalResponseText ?? '')
+          : (buffer?.text ?? '') + ((chunk as any).textDelta ?? '');
 
       // Clean up the stream buffer -- we are done with this stream.
       this.buffers.delete(streamId);
@@ -601,7 +614,7 @@ class StreamingContentPolicyGuardrail implements IGuardrailService {
           buffer.text.lastIndexOf('. '),
           buffer.text.lastIndexOf('? '),
           buffer.text.lastIndexOf('! '),
-          buffer.text.lastIndexOf('\n'),
+          buffer.text.lastIndexOf('\n')
         );
         if (lastBoundary > 0) {
           buffer.text = buffer.text.slice(lastBoundary + 1);
@@ -763,9 +776,7 @@ const ciPath = path.resolve(__dirname, '../../../../packages/agentos/src');
 const monoPath = path.resolve(__dirname, '../../../../../agentos/src');
 
 // Use whichever path actually exists on disk.
-const agentosPath = fs.existsSync(ciPath)
-  ? ciPath
-  : fs.existsSync(monoPath) ? monoPath : null;
+const agentosPath = fs.existsSync(ciPath) ? ciPath : fs.existsSync(monoPath) ? monoPath : null;
 
 export default defineConfig({
   test: {
@@ -774,11 +785,13 @@ export default defineConfig({
     include: ['test/**/*.spec.ts'],
     testTimeout: 10000,
   },
-  resolve: agentosPath ? {
-    alias: {
-      '@framers/agentos': agentosPath,
-    },
-  } : {},
+  resolve: agentosPath
+    ? {
+        alias: {
+          '@framers/agentos': agentosPath,
+        },
+      }
+    : {},
 });
 ```
 
@@ -826,9 +839,7 @@ export * from './types';
  * @param options - Optional pack configuration. All fields have defaults.
  * @returns A fully-configured ExtensionPack ready for registration.
  */
-export function createMyGuardrailPack(
-  options?: MyGuardrailOptions,
-): ExtensionPack {
+export function createMyGuardrailPack(options?: MyGuardrailOptions): ExtensionPack {
   const opts: MyGuardrailOptions = options ?? {};
 
   // Mutable state that onActivate can upgrade with the extension manager's
@@ -863,7 +874,7 @@ export function createMyGuardrailPack(
       return [
         {
           id: 'my-guardrail',
-          kind: EXTENSION_KIND_GUARDRAIL,  // 'guardrail'
+          kind: EXTENSION_KIND_GUARDRAIL, // 'guardrail'
           priority: 0,
           payload: guardrail,
         },
@@ -941,7 +952,7 @@ import type { ISharedServiceRegistry } from '@framers/agentos';
 class MyGuardrail implements IGuardrailService {
   constructor(
     private readonly services: ISharedServiceRegistry,
-    private readonly options: MyGuardrailOptions,
+    private readonly options: MyGuardrailOptions
   ) {}
 
   async evaluateInput({ input }: GuardrailInputPayload) {
@@ -950,13 +961,13 @@ class MyGuardrail implements IGuardrailService {
     // The service ID is a unique string -- use the same ID across
     // extensions to share the same instance.
     const classifier = await this.services.getOrCreate(
-      'toxicity-classifier-v2',   // Service ID (shared across extensions)
+      'toxicity-classifier-v2', // Service ID (shared across extensions)
       async () => {
         // This factory runs ONCE, the first time any extension requests
         // this service ID. Subsequent calls return the cached instance.
         const { ToxicityClassifier } = await import('my-ml-library');
         const model = new ToxicityClassifier();
-        await model.loadWeights();  // ~98MB one-time load
+        await model.loadWeights(); // ~98MB one-time load
         return model;
       },
       {
@@ -968,7 +979,7 @@ class MyGuardrail implements IGuardrailService {
         },
         // Tags are for diagnostics/tooling -- optional but recommended.
         tags: ['ml', 'toxicity', 'gpu'],
-      },
+      }
     );
 
     // Use the shared classifier instance.
@@ -1133,9 +1144,7 @@ describe('MyGuardrail.evaluateInput', () => {
     const guardrail = new MyGuardrail(mockServiceRegistry, {});
 
     // Act: evaluate clean text.
-    const result = await guardrail.evaluateInput!(
-      mockInputPayload('Hello, how are you?'),
-    );
+    const result = await guardrail.evaluateInput!(mockInputPayload('Hello, how are you?'));
 
     // Assert: null means "allow".
     expect(result).toBeNull();
@@ -1144,9 +1153,7 @@ describe('MyGuardrail.evaluateInput', () => {
   it('should block prohibited content', async () => {
     const guardrail = new MyGuardrail(mockServiceRegistry, {});
 
-    const result = await guardrail.evaluateInput!(
-      mockInputPayload('This contains badword1 in it'),
-    );
+    const result = await guardrail.evaluateInput!(mockInputPayload('This contains badword1 in it'));
 
     // Assert: BLOCK action with a reason code.
     expect(result).not.toBeNull();
@@ -1163,9 +1170,7 @@ describe('MyGuardrail.evaluateOutput', () => {
   it('should allow clean final response', async () => {
     const guardrail = new MyGuardrail(mockServiceRegistry, {});
 
-    const result = await guardrail.evaluateOutput!(
-      mockFinalResponse('Here is a helpful answer.'),
-    );
+    const result = await guardrail.evaluateOutput!(mockFinalResponse('Here is a helpful answer.'));
 
     expect(result).toBeNull();
   });
@@ -1173,9 +1178,7 @@ describe('MyGuardrail.evaluateOutput', () => {
   it('should block prohibited content in final response', async () => {
     const guardrail = new MyGuardrail(mockServiceRegistry, {});
 
-    const result = await guardrail.evaluateOutput!(
-      mockFinalResponse('The answer is badword1.'),
-    );
+    const result = await guardrail.evaluateOutput!(mockFinalResponse('The answer is badword1.'));
 
     expect(result).not.toBeNull();
     expect(result!.action).toBe(GuardrailAction.BLOCK);
@@ -1197,10 +1200,7 @@ const mockServiceRegistry: ISharedServiceRegistry = {
   // In-memory store for test services.
   _store: new Map<string, unknown>(),
 
-  async getOrCreate<T>(
-    serviceId: string,
-    factory: () => Promise<T> | T,
-  ): Promise<T> {
+  async getOrCreate<T>(serviceId: string, factory: () => Promise<T> | T): Promise<T> {
     if (this._store.has(serviceId)) {
       return this._store.get(serviceId) as T;
     }
@@ -1233,15 +1233,13 @@ import { ParallelGuardrailDispatcher } from '@framers/agentos/core/guardrails';
 describe('Integration: ParallelGuardrailDispatcher + MyGuardrail', () => {
   it('should block input through the dispatcher', async () => {
     // Register your guardrail alongside others.
-    const services = [
-      new MyGuardrail(mockServiceRegistry, {}),
-    ];
+    const services = [new MyGuardrail(mockServiceRegistry, {})];
 
     // Run through the full two-phase dispatch.
     const outcome = await ParallelGuardrailDispatcher.evaluateInput(
       services,
       mockInput('This contains badword1'),
-      mockContext,
+      mockContext
     );
 
     // The dispatcher's worst-wins aggregation should pick up the BLOCK.

@@ -10,6 +10,7 @@ import { IPersonaDefinition } from './personas/IPersonaDefinition';
 import { IWorkingMemory } from './memory/IWorkingMemory';
 import { IPromptEngine } from '../core/llm/IPromptEngine';
 import { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
+import type { ConversationMessage } from '../core/conversation/ConversationMessage';
 // Assuming AIModelProviderManager is correctly exported from this path
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
@@ -397,6 +398,8 @@ export interface ReasoningTrace {
   personaId: string;
   turnId?: string; // Made optional as per GMI.ts usage
   sessionId?: string; // Added based on GMI.ts usage (Error 41)
+  conversationId?: string;
+  organizationId?: string;
   entries: ReasoningTraceEntry[];
 }
 
@@ -518,6 +521,24 @@ export interface IGMI {
     userId: string,
     userApiKeys?: Record<string, string>
   ): Promise<GMIOutput>;
+
+  handleToolResults?(
+    toolResults: ToolCallResult[],
+    userId: string,
+    userApiKeys?: Record<string, string>
+  ): Promise<GMIOutput>;
+
+  hydrateConversationHistory?(
+    conversationHistory: ConversationMessage[],
+  ): void;
+
+  hydrateTurnContext?(
+    context: {
+      sessionId?: string;
+      conversationId?: string;
+      organizationId?: string;
+    },
+  ): void;
 
 
   getReasoningTrace(): Readonly<ReasoningTrace>;

@@ -77,7 +77,7 @@ export interface IToolOrchestrator {
        * When omitted the judge rejects all tools (safe fallback).
        */
       generateText?: (model: string, prompt: string) => Promise<string>;
-    },
+    }
   ): Promise<void>;
 
   /**
@@ -156,11 +156,11 @@ export interface IToolOrchestrator {
       personaId?: string;
       personaCapabilities?: string[];
       userContext?: UserContext;
-    },
+    }
   ): Promise<ToolDefinitionForLLM[]>;
 
   /**
-   * Returns the underlying {@link EmergentCapabilityEngine} instance, or
+   * Returns the underlying emergent capability engine instance, or
    * `undefined` if emergent capabilities were not enabled at initialization.
    *
    * @returns The engine instance, or `undefined`.
@@ -179,16 +179,14 @@ export interface IToolOrchestrator {
    * Register a dynamically forged emergent tool with the orchestrator so the
    * agent can use it in subsequent turns.
    *
-   * @param tool - An {@link ITool} instance wrapping the forged tool.
+   * @param tool - An `ITool` instance wrapping the forged tool.
    */
   registerForgedTool?(tool: ITool): Promise<void>;
 
   /**
    * Provide a discovery index callback for promoted emergent tools.
    */
-  setEmergentDiscoveryIndexer?(
-    indexer: (tools: EmergentTool[]) => Promise<void>,
-  ): void;
+  setEmergentDiscoveryIndexer?(indexer: (tools: EmergentTool[]) => Promise<void>): void;
 
   /**
    * Checks the health of the ToolOrchestrator and its critical dependencies.

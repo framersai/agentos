@@ -49,7 +49,7 @@ interface PipelineContext {
 // ============================================================================
 
 /**
- * Builds composite {@link ITool} instances by chaining existing tool invocations.
+ * Builds composite `ITool` instances by chaining existing tool invocations.
  *
  * Each invocation is described by a {@link ComposableStep} that maps values from
  * a shared pipeline context into the step tool's arguments via a lightweight
@@ -113,9 +113,9 @@ export class ComposableToolBuilder {
     private readonly executeTool: (
       toolName: string,
       args: unknown,
-      context: ToolExecutionContext,
+      context: ToolExecutionContext
     ) => Promise<ToolExecutionResult>,
-    options?: { strictMode?: boolean },
+    options?: { strictMode?: boolean }
   ) {
     this.strictMode = options?.strictMode ?? false;
   }
@@ -125,7 +125,7 @@ export class ComposableToolBuilder {
   // --------------------------------------------------------------------------
 
   /**
-   * Build an {@link ITool}-compatible object from a {@link ComposableToolSpec}.
+   * Build an `ITool`-compatible object from a {@link ComposableToolSpec}.
    *
    * The returned tool can be registered directly with any tool orchestrator that
    * accepts `ITool`. Its `execute` method runs the step pipeline sequentially,
@@ -135,7 +135,7 @@ export class ComposableToolBuilder {
    * @param description - Natural language description of what the composite tool does.
    * @param inputSchema - JSON Schema describing the arguments the composite tool accepts.
    * @param spec - The composable pipeline specification to execute.
-   * @returns A fully-formed {@link ITool} instance whose `execute` method runs the pipeline.
+   * @returns A fully-formed `ITool` instance whose `execute` method runs the pipeline.
    *
    * @example
    * ```ts
@@ -151,7 +151,7 @@ export class ComposableToolBuilder {
     name: string,
     description: string,
     inputSchema: JSONSchemaObject,
-    spec: ComposableToolSpec,
+    spec: ComposableToolSpec
   ): ITool {
     // Capture instance fields in local bindings so that the returned object's
     // `execute` closure does not retain a reference to `this` beyond what is needed.
@@ -174,7 +174,7 @@ export class ComposableToolBuilder {
       // -----------------------------------------------------------------------
       async execute(
         args: Record<string, unknown>,
-        context: ToolExecutionContext,
+        context: ToolExecutionContext
       ): Promise<ToolExecutionResult> {
         /** Shared evaluation context threaded through each step. */
         const pipelineCtx: PipelineContext = {
@@ -273,7 +273,7 @@ export class ComposableToolBuilder {
 function resolveMapping(
   mapping: Record<string, unknown>,
   ctx: PipelineContext,
-  strict: boolean = false,
+  strict: boolean = false
 ): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(mapping)) {
@@ -370,7 +370,7 @@ function resolveExpression(expr: string, ctx: PipelineContext, strict: boolean =
   // are caught during development rather than silently producing wrong data.
   if (strict) {
     throw new Error(
-      `Unresolved reference expression: "${expr}". Available: $input, $prev, $steps[N]`,
+      `Unresolved reference expression: "${expr}". Available: $input, $prev, $steps[N]`
     );
   }
   // Non-strict: return as literal (existing behaviour) but warn so the issue

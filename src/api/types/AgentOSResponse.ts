@@ -73,6 +73,13 @@ export interface AgentOSSystemProgressChunk extends AgentOSResponseChunk {
 }
 
 /**
+ * Indicates whether a tool request is informational because the runtime will
+ * execute the tool internally, or whether the host must execute the tool and
+ * resume the turn through `handleToolResult(...)`.
+ */
+export type AgentOSToolCallExecutionMode = 'internal' | 'external';
+
+/**
  * @typedef {Object} AgentOSToolCallRequestChunk
  * Informs the client that the agent has decided to call one or more tools.
  * @augments {AgentOSResponseChunk}
@@ -81,6 +88,8 @@ export interface AgentOSToolCallRequestChunk extends AgentOSResponseChunk {
   type: AgentOSResponseChunkType.TOOL_CALL_REQUEST;
   toolCalls: ToolCallRequest[]; // Using ToolCallRequest consistently
   rationale?: string;
+  executionMode: AgentOSToolCallExecutionMode;
+  requiresExternalToolResult: boolean;
 }
 
 /**
@@ -224,3 +233,44 @@ export type AgentOSResponse =
   | AgentOSWorkflowUpdateChunk
   | AgentOSAgencyUpdateChunk
   | AgentOSProvenanceEventChunk;
+
+/**
+ * A host-actionable tool request chunk. Hosts should execute or surface the
+ * tool call and resume the stream through `handleToolResult(...)`.
+ */
+export type AgentOSActionableToolCallRequestChunk =
+  AgentOSToolCallRequestChunk & {
+    executionMode: 'external';
+    requiresExternalToolResult: true;
+  };
+
+function isChunkRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+/**
+ * Runtime type guard for streamed tool-call request chunks.
+ */
+export function isToolCallRequestChunk(
+  chunk: unknown,
+): chunk is AgentOSToolCallRequestChunk {
+  return (
+    isChunkRecord(chunk) &&
+    chunk.type === AgentOSResponseChunkType.TOOL_CALL_REQUEST &&
+    Array.isArray(chunk.toolCalls)
+  );
+}
+
+/**
+ * Runtime type guard for tool-call request chunks that require the host to
+ * call `handleToolResult(...)` to continue the turn.
+ */
+export function isActionableToolCallRequestChunk(
+  chunk: unknown,
+): chunk is AgentOSActionableToolCallRequestChunk {
+  return (
+    isToolCallRequestChunk(chunk) &&
+    chunk.executionMode === 'external' &&
+    chunk.requiresExternalToolResult === true
+  );
+}

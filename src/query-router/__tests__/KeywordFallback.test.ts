@@ -3,6 +3,8 @@
  * the degraded-mode fallback when the embedding API is unavailable.
  */
 
+import { describe, expect, it } from 'vitest';
+
 import type { CorpusChunk } from '../types.js';
 import { KeywordFallback } from '../KeywordFallback.js';
 

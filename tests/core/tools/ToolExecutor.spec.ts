@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ToolExecutor } from '../../../src/core/tools/ToolExecutor';
-import { ITool, ToolExecutionResult } from '../../../src/core/tools/ITool';
+import { ITool, ToolExecutionContext, ToolExecutionResult } from '../../../src/core/tools/ITool';
 import { ToolCallRequest, UserContext } from '../../../src/cognitive_substrate/IGMI';
 
 const userContext: UserContext = { userId: 'u-1' };
@@ -107,5 +107,37 @@ describe('ToolExecutor', () => {
     expect(result.success).toBe(false);
     expect(String(result.error)).toContain('Invalid arguments');
   });
-});
 
+  it('forwards sessionData into the tool execution context', async () => {
+    let observedContext: ToolExecutionContext | undefined;
+    const executor = new ToolExecutor();
+    await executor.registerTool(
+      makeTool({
+        execute: async (_args: any, context: ToolExecutionContext): Promise<ToolExecutionResult> => {
+          observedContext = context;
+          return { success: true, output: { ok: true } };
+        },
+      }),
+    );
+
+    const result = await executor.executeTool({
+      toolCallRequest: makeRequest('echo', { text: 'hello' }),
+      gmiId: 'gmi-1',
+      personaId: 'persona-1',
+      personaCapabilities: [],
+      userContext,
+      sessionData: {
+        sessionId: 'session-1',
+        conversationId: 'conv-1',
+        organizationId: 'org-1',
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(observedContext?.sessionData).toEqual({
+      sessionId: 'session-1',
+      conversationId: 'conv-1',
+      organizationId: 'org-1',
+    });
+  });
+});

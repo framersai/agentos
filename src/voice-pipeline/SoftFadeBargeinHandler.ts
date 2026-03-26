@@ -80,7 +80,7 @@ export interface SoftFadeBargeinHandlerOptions {
   /**
    * Speech duration threshold in milliseconds at or above which the barge-in
    * triggers an immediate cancel rather than a fade-out pause. This is the
-   * upper boundary of the "pause" region. Must be greater than {@link ignoreMs}
+   * upper boundary of the "pause" region. Must be greater than `ignoreMs`
    * for the pause (fade) region to exist.
    *
    * @defaultValue 2000
@@ -107,7 +107,7 @@ export interface SoftFadeBargeinHandlerOptions {
 /**
  * Barge-in handler that applies a three-tier soft-fade strategy.
  *
- * The handler is stateless -- each {@link handleBargein} call is evaluated
+ * The handler is stateless -- each `handleBargein` call is evaluated
  * independently with no memory of previous barge-in events.
  *
  * @see {@link IBargeinHandler} for the interface contract.
@@ -131,19 +131,19 @@ export class SoftFadeBargeinHandler implements IBargeinHandler {
 
   /**
    * Speech duration below which the barge-in is dismissed as noise.
-   * @see {@link SoftFadeBargeinHandlerOptions.ignoreMs}
+   * See `SoftFadeBargeinHandlerOptions.ignoreMs`.
    */
   private readonly ignoreMs: number;
 
   /**
    * Speech duration at or above which the barge-in escalates to a full cancel.
-   * @see {@link SoftFadeBargeinHandlerOptions.cancelMs}
+   * See `SoftFadeBargeinHandlerOptions.cancelMs`.
    */
   private readonly cancelMs: number;
 
   /**
    * Duration of the TTS audio fade-out applied during a `'pause'` action.
-   * @see {@link SoftFadeBargeinHandlerOptions.fadeMs}
+   * See `SoftFadeBargeinHandlerOptions.fadeMs`.
    */
   private readonly fadeMs: number;
 

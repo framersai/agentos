@@ -11,6 +11,7 @@
  * @see {@link compileStrategy} -- the dispatcher that selects and invokes strategy compilers.
  */
 import { agent as createAgent } from '../agent.js';
+import { mergeAdaptableTools } from '../toolAdapter.js';
 import type {
   AgencyOptions,
   Agent,
@@ -22,7 +23,7 @@ import type {
 
 /**
  * Type guard that checks whether a value is a pre-built {@link Agent} instance
- * (has a `generate` method) vs a raw {@link BaseAgentConfig} object.
+ * (has a `generate` method) vs a raw `BaseAgentConfig` object.
  *
  * Uses duck-typing on the `generate` method rather than `instanceof` because
  * Agent instances may come from different module copies (e.g. nested agencies
@@ -73,7 +74,7 @@ export function isAgent(value: BaseAgentConfig | Agent): value is Agent {
  */
 export function mergeDefaults(
   agentConfig: BaseAgentConfig,
-  agencyConfig: AgencyOptions,
+  agencyConfig: AgencyOptions
 ): BaseAgentConfig {
   return {
     // Agency-level model/provider/apiKey/baseUrl serve as defaults.
@@ -86,7 +87,7 @@ export function mergeDefaults(
     ...agentConfig,
     // Tools are merged separately because we want additive merging
     // (agency tools + agent tools) rather than wholesale replacement.
-    tools: { ...(agencyConfig.tools ?? {}), ...(agentConfig.tools ?? {}) },
+    tools: mergeAdaptableTools(agencyConfig.tools, agentConfig.tools),
   };
 }
 
@@ -112,7 +113,7 @@ export function mergeDefaults(
  */
 export function resolveAgent(
   agentOrConfig: BaseAgentConfig | Agent,
-  agencyConfig: AgencyOptions,
+  agencyConfig: AgencyOptions
 ): Agent {
   return isAgent(agentOrConfig)
     ? agentOrConfig
@@ -158,7 +159,7 @@ export async function checkBeforeAgent(
   name: string,
   context: string,
   agentCalls: AgentCallRecord[],
-  agencyConfig: AgencyOptions,
+  agencyConfig: AgencyOptions
 ): Promise<ApprovalDecision | null> {
   const beforeAgent = agencyConfig.hitl?.approvals?.beforeAgent;
   const handler = agencyConfig.hitl?.handler;

@@ -420,15 +420,58 @@ export class GMI implements IGMI {
     }
   }
 
+  private getConversationIdForTurn(turnInput: GMITurnInput): string | undefined {
+    const metadataConversationId =
+      typeof turnInput.metadata?.conversationId === 'string'
+        ? turnInput.metadata.conversationId.trim()
+        : '';
+    if (metadataConversationId) {
+      return metadataConversationId;
+    }
+
+    const sessionId = typeof turnInput.sessionId === 'string' ? turnInput.sessionId.trim() : '';
+    return sessionId || undefined;
+  }
+
+  private getOrganizationIdForTurn(turnInput: GMITurnInput): string | undefined {
+    const organizationId =
+      typeof turnInput.metadata?.organizationId === 'string'
+        ? turnInput.metadata.organizationId.trim()
+        : '';
+    return organizationId || undefined;
+  }
+
+  private buildToolSessionData(turnInput: GMITurnInput): Record<string, any> | undefined {
+    const sessionId = typeof turnInput.sessionId === 'string' ? turnInput.sessionId.trim() : '';
+    const conversationId = this.getConversationIdForTurn(turnInput);
+    const organizationId = this.getOrganizationIdForTurn(turnInput);
+
+    const sessionData: Record<string, any> = {};
+    if (sessionId) {
+      sessionData.sessionId = sessionId;
+    }
+    if (conversationId) {
+      sessionData.conversationId = conversationId;
+    }
+    if (organizationId) {
+      sessionData.organizationId = organizationId;
+    }
+
+    return Object.keys(sessionData).length > 0 ? sessionData : undefined;
+  }
+
   /**
    * Ensures the GMI is initialized and in a READY state.
    * @private
    */
-  private ensureReady(): void {
+  private ensureReady(additionallyAllowedStates: GMIPrimeState[] = []): void {
     if (!this.isInitialized) {
         throw new GMIError(`GMI (ID: ${this.gmiId}) is not initialized.`, GMIErrorCode.NOT_INITIALIZED);
     }
-    if (this.state !== GMIPrimeState.READY) {
+    if (
+      this.state !== GMIPrimeState.READY &&
+      !additionallyAllowedStates.includes(this.state)
+    ) {
 
       throw new GMIError(
         `GMI (ID: ${this.gmiId}) is not in READY state. Current state: ${this.state}.`,
@@ -546,6 +589,79 @@ export class GMI implements IGMI {
     return conversationMessage;
   }
 
+  private convertConversationMessageToChatMessage(
+    message: ConversationMessage,
+  ): ChatMessage | null {
+    if (message.role === MessageRole.ERROR || message.role === MessageRole.THOUGHT) {
+      return null;
+    }
+
+    const role: ChatMessage['role'] =
+      message.role === MessageRole.SYSTEM || message.role === MessageRole.SUMMARY
+        ? 'system'
+        : message.role === MessageRole.ASSISTANT
+          ? 'assistant'
+          : message.role === MessageRole.TOOL
+            ? 'tool'
+            : 'user';
+
+    const content =
+      message.role === MessageRole.SUMMARY && typeof message.content === 'string'
+        ? `[Conversation Summary]\n${message.content}`
+        : this.normalizeConversationMessageContent(message.content);
+
+    return {
+      role,
+      content,
+      name: message.name,
+      tool_call_id: message.tool_call_id,
+      tool_calls: Array.isArray(message.tool_calls)
+        ? message.tool_calls.map((toolCall) => ({
+            id: toolCall.id,
+            type: 'function' as const,
+            function: {
+              name: toolCall.name,
+              arguments: JSON.stringify(toolCall.arguments ?? {}),
+            },
+          }))
+        : undefined,
+    };
+  }
+
+  private normalizeConversationMessageContent(
+    content: ConversationMessage['content'],
+  ): ChatMessage['content'] {
+    if (content === null || typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return content.map((part) => ({ ...part })) as ChatMessage['content'];
+    }
+    return JSON.stringify(content);
+  }
+
+  public hydrateConversationHistory(conversationHistory: ConversationMessage[]): void {
+    this.conversationHistory = conversationHistory
+      .map((message) => this.convertConversationMessageToChatMessage(message))
+      .filter((message): message is ChatMessage => message !== null);
+  }
+
+  public hydrateTurnContext(context: {
+    sessionId?: string;
+    conversationId?: string;
+    organizationId?: string;
+  }): void {
+    if (typeof context.sessionId === 'string' && context.sessionId.trim()) {
+      this.reasoningTrace.sessionId = context.sessionId.trim();
+    }
+    if (typeof context.conversationId === 'string' && context.conversationId.trim()) {
+      this.reasoningTrace.conversationId = context.conversationId.trim();
+    }
+    if (typeof context.organizationId === 'string' && context.organizationId.trim()) {
+      this.reasoningTrace.organizationId = context.organizationId.trim();
+    }
+  }
+
   private mapChatRoleToMessageRole(role: ChatMessage['role']): MessageRole {
     switch (role) {
       case 'system':
@@ -636,11 +752,20 @@ export class GMI implements IGMI {
   /** @inheritdoc */
 
   public async *processTurnStream(turnInput: GMITurnInput): AsyncGenerator<GMIOutputChunk, GMIOutput, undefined> {
-    this.ensureReady();
+    const continuationAllowedStates =
+      turnInput.metadata?.isToolContinuation === true
+        ? [GMIPrimeState.PROCESSING, GMIPrimeState.AWAITING_TOOL_RESULT]
+        : [];
+    this.ensureReady(continuationAllowedStates);
     this.state = GMIPrimeState.PROCESSING;
     const turnId = turnInput.interactionId || `turn-${uuidv4()}`;
     // Store turnId on reasoningTrace for current turn
-    if (this.reasoningTrace) this.reasoningTrace.turnId = turnId;
+    if (this.reasoningTrace) {
+      this.reasoningTrace.turnId = turnId;
+      this.reasoningTrace.sessionId = turnInput.sessionId;
+      this.reasoningTrace.conversationId = this.getConversationIdForTurn(turnInput);
+      this.reasoningTrace.organizationId = this.getOrganizationIdForTurn(turnInput);
+    }
 
     this.addTraceEntry(ReasoningEntryType.INTERACTION_START, `Processing turn '${turnId}' for user '${turnInput.userId}'`,
       { inputType: turnInput.type, inputPreview: String(turnInput.content).substring(0, 100) });
@@ -878,7 +1003,17 @@ export class GMI implements IGMI {
                     : tc.function.arguments,
             }));
             aggregatedToolCalls.push(...currentIterationToolCallRequests); // Aggregate for final output
-            yield this.createOutputChunk(turnInput.interactionId, GMIOutputChunkType.TOOL_CALL_REQUEST, [...currentIterationToolCallRequests]);
+            yield this.createOutputChunk(
+              turnInput.interactionId,
+              GMIOutputChunkType.TOOL_CALL_REQUEST,
+              [...currentIterationToolCallRequests],
+              {
+                metadata: {
+                  executionMode: 'internal',
+                  requiresExternalToolResult: false,
+                },
+              },
+            );
             this.addTraceEntry(ReasoningEntryType.TOOL_CALL_REQUESTED, `LLM requested tool(s).`, { requests: currentIterationToolCallRequests });
           }
           
@@ -921,6 +1056,7 @@ export class GMI implements IGMI {
               gmiId: this.gmiId, personaId: this.activePersona.id,
               personaCapabilities: this.activePersona.allowedCapabilities || [],
               userContext: this.currentUserContext, correlationId: turnId,
+              sessionData: this.buildToolSessionData(turnInput),
             };
             this.addTraceEntry(ReasoningEntryType.TOOL_EXECUTION_START, `Orchestrating tool: ${toolCallReq.name}`, { reqId: toolCallReq.id });
             const result = await this.toolOrchestrator.processToolCall(requestDetails);
@@ -1000,15 +1136,52 @@ export class GMI implements IGMI {
     toolCallId: string,
     toolName: string,
     resultPayload: ToolResultPayload,
+    userId: string,
+    // userApiKeys?: Record<string, string> // Not directly used by GMI, providers handle keys
+  ): Promise<GMIOutput> {
+    return this.handleToolResults(
+      [
+        {
+          toolCallId,
+          toolName,
+          output: resultPayload.type === 'success' ? resultPayload.result : resultPayload.error,
+          isError: resultPayload.type === 'error',
+          errorDetails: resultPayload.type === 'error' ? resultPayload.error : undefined,
+        },
+      ],
+      userId,
+    );
+  }
+
+  /** @inheritdoc */
+  public async handleToolResults(
+    toolResults: ToolCallResult[],
     _userId: string,
     // userApiKeys?: Record<string, string> // Not directly used by GMI, providers handle keys
   ): Promise<GMIOutput> {
     if (!this.isInitialized) {
         throw new GMIError("GMI is not initialized. Cannot handle tool result.", GMIErrorCode.NOT_INITIALIZED);
     }
+    if (!Array.isArray(toolResults) || toolResults.length === 0) {
+        throw new GMIError(
+          'At least one tool result is required to continue the turn.',
+          GMIErrorCode.VALIDATION_ERROR,
+        );
+    }
     // Allow handling tool results if processing or specifically awaiting
-    if (this.state !== GMIPrimeState.AWAITING_TOOL_RESULT && this.state !== GMIPrimeState.PROCESSING) {
-        this.addTraceEntry(ReasoningEntryType.WARNING, `handleToolResult called when GMI state is ${this.state}. Expected AWAITING_TOOL_RESULT or PROCESSING.`, { toolCallId, toolName });
+    if (
+      this.state !== GMIPrimeState.AWAITING_TOOL_RESULT &&
+      this.state !== GMIPrimeState.PROCESSING &&
+      this.state !== GMIPrimeState.READY
+    ) {
+        this.addTraceEntry(
+          ReasoningEntryType.WARNING,
+          `handleToolResults called when GMI state is ${this.state}. Expected READY, AWAITING_TOOL_RESULT, or PROCESSING.`,
+          {
+            toolCallIds: toolResults.map((toolResult) => toolResult.toolCallId),
+            toolNames: toolResults.map((toolResult) => toolResult.toolName),
+          },
+        );
         // Depending on desired robustness, could throw an error or try to proceed.
     }
     this.state = GMIPrimeState.PROCESSING; // Set state to processing
@@ -1016,18 +1189,22 @@ export class GMI implements IGMI {
     // Use current turnId if available, or generate a new interactionId for this specific handling
     const interactionId = this.reasoningTrace?.turnId || `tool_handler_turn_${uuidv4()}`;
 
-    this.addTraceEntry(ReasoningEntryType.TOOL_EXECUTION_RESULT, `Received external tool result for '${toolName}' (ID: ${toolCallId}) to be processed.`,
-      { toolCallId, toolName, success: resultPayload.type === 'success', interactionId }
+    this.addTraceEntry(
+      ReasoningEntryType.TOOL_EXECUTION_RESULT,
+      toolResults.length === 1
+        ? `Received external tool result for '${toolResults[0].toolName}' (ID: ${toolResults[0].toolCallId}) to be processed.`
+        : `Received ${toolResults.length} external tool results to be processed together.`,
+      {
+        interactionId,
+        toolResults: toolResults.map((toolResult) => ({
+          toolCallId: toolResult.toolCallId,
+          toolName: toolResult.toolName,
+          success: !toolResult.isError,
+        })),
+      },
     );
 
-    const toolCallResult: ToolCallResult = {
-        toolCallId,
-        toolName,
-        output: resultPayload.type === 'success' ? resultPayload.result : resultPayload.error,
-        isError: resultPayload.type === 'error',
-        errorDetails: resultPayload.type === 'error' ? resultPayload.error : undefined,
-    };
-    this.updateConversationHistoryWithToolResult(toolCallResult);
+    toolResults.forEach((toolResult) => this.updateConversationHistoryWithToolResult(toolResult));
 
     // Construct a system turn input to represent the continuation after tool result
     const systemTurnInput: GMITurnInput = {
@@ -1035,10 +1212,20 @@ export class GMI implements IGMI {
         userId: this.currentUserContext.userId, // Use the GMI's current user context
         sessionId: this.reasoningTrace?.sessionId,
         type: GMIInteractionType.SYSTEM_MESSAGE, // Or a specific type for internal continuation
-        content: `Internally processing result for tool '${toolName}'.`, // System message content
+        content:
+          toolResults.length === 1
+            ? `Internally processing result for tool '${toolResults[0].toolName}'.`
+            : `Internally processing ${toolResults.length} external tool results.`,
         metadata: {
             isToolContinuation: true,
-            originalToolCallId: toolCallId,
+            originalToolCallId: toolResults.length === 1 ? toolResults[0].toolCallId : undefined,
+            originalToolCallIds: toolResults.map((toolResult) => toolResult.toolCallId),
+            ...(this.reasoningTrace?.conversationId
+              ? { conversationId: this.reasoningTrace.conversationId }
+              : {}),
+            ...(this.reasoningTrace?.organizationId
+              ? { organizationId: this.reasoningTrace.organizationId }
+              : {}),
         }
     };
     
@@ -1049,47 +1236,52 @@ export class GMI implements IGMI {
     let _lastErrorForOutput: GMIOutput['error'] = undefined;
 
     const stream = this.processTurnStream(systemTurnInput); // This now returns GMIOutput
-    const finalGmiOutputFromStream = await (async () => {
-        for await (const chunk of stream) {
-            // Process chunks as they arrive if needed for intermediate steps,
-            // but the final GMIOutput will be the generator's return value.
-            // Here, we mainly care about the final returned GMIOutput.
-            // However, if processTurnStream itself aggregates, this loop might just be to exhaust it.
-             if (chunk.type === GMIOutputChunkType.TEXT_DELTA && typeof chunk.content === 'string') {
-                _aggregatedResponseText += chunk.content;
-            }
-            if (chunk.type === GMIOutputChunkType.TOOL_CALL_REQUEST && Array.isArray(chunk.content)) {
-                aggregatedToolCalls.push(...chunk.content);
-            }
-            if (chunk.usage) {
-                aggregatedUsage.promptTokens += chunk.usage.promptTokens || 0;
-                aggregatedUsage.completionTokens += chunk.usage.completionTokens || 0;
-                aggregatedUsage.totalTokens = aggregatedUsage.promptTokens + aggregatedUsage.completionTokens;
-                if (chunk.usage.costUSD) aggregatedUsage.totalCostUSD = (aggregatedUsage.totalCostUSD || 0) + chunk.usage.costUSD;
-            }
-            if (chunk.type === GMIOutputChunkType.ERROR) {
-                 _lastErrorForOutput = chunk.errorDetails || {code: GMIErrorCode.GMI_PROCESSING_ERROR, message: String(chunk.content)};
-            }
-        }
-        // The actual final GMIOutput comes from the generator's return value
-        // This requires `processTurnStream` to be `async function* (...) : AsyncGenerator<..., GMIOutput, ...>`
-        // and to have a `return finalOutput;` statement.
-        // The loop above will collect intermediate chunks, and the 'return' from the generator is the key.
-        // This structure is a bit complex with nested generators. Let's assume processTurnStream does return a GMIOutput.
-        // The way AsyncGenerator TReturn works, the last value is 'done: true, value: TReturn'.
-        // My processTurnStream is modified to return GMIOutput.
-        let result = await stream.next();
-        while(!result.done){
-            // This loop is mainly to exhaust the stream if previous loop didn't fully.
-            // The crucial part is what processTurnStream *returns*.
-            result = await stream.next();
-        }
-        return result.value; // This is the GMIOutput
-    })();
+    let finalGmiOutputFromStream: GMIOutput | undefined;
 
-    this.addTraceEntry(ReasoningEntryType.INTERACTION_END, `Continuation after tool '${toolName}' (ID: ${toolCallId}) processed.`);
+    while (true) {
+      const { value, done } = await stream.next();
+      if (done) {
+        finalGmiOutputFromStream = value;
+        break;
+      }
+
+      const chunk = value;
+      if (chunk.type === GMIOutputChunkType.TEXT_DELTA && typeof chunk.content === 'string') {
+        _aggregatedResponseText += chunk.content;
+      }
+      if (chunk.type === GMIOutputChunkType.TOOL_CALL_REQUEST && Array.isArray(chunk.content)) {
+        aggregatedToolCalls.push(...chunk.content);
+      }
+      if (chunk.usage) {
+        aggregatedUsage.promptTokens += chunk.usage.promptTokens || 0;
+        aggregatedUsage.completionTokens += chunk.usage.completionTokens || 0;
+        aggregatedUsage.totalTokens = aggregatedUsage.promptTokens + aggregatedUsage.completionTokens;
+        if (chunk.usage.costUSD) aggregatedUsage.totalCostUSD = (aggregatedUsage.totalCostUSD || 0) + chunk.usage.costUSD;
+      }
+      if (chunk.type === GMIOutputChunkType.ERROR) {
+        _lastErrorForOutput =
+          chunk.errorDetails || { code: GMIErrorCode.GMI_PROCESSING_ERROR, message: String(chunk.content) };
+      }
+    }
+
+    if (!finalGmiOutputFromStream) {
+      finalGmiOutputFromStream = {
+        isFinal: _lastErrorForOutput ? true : false,
+        responseText: _aggregatedResponseText || null,
+        toolCalls: aggregatedToolCalls.length > 0 ? aggregatedToolCalls : undefined,
+        usage: aggregatedUsage,
+        error: _lastErrorForOutput,
+      };
+    }
+
+    this.addTraceEntry(
+      ReasoningEntryType.INTERACTION_END,
+      toolResults.length === 1
+        ? `Continuation after tool '${toolResults[0].toolName}' (ID: ${toolResults[0].toolCallId}) processed.`
+        : `Continuation after ${toolResults.length} external tool results processed.`,
+    );
     return finalGmiOutputFromStream;
-}
+  }
 
   /**
    * Performs post-turn RAG ingestion if configured.

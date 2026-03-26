@@ -17,12 +17,12 @@ import { findSpeechProviderCatalogEntry } from './providerCatalog.js';
  *
  * ## Resolution Algorithm
  *
- * 1. **Registration** — Providers are registered via {@link register} with a
+ * 1. **Registration** — Providers are registered via `register()` with a
  *    unique `id`, a `kind` (stt/tts/vad/wake-word), a numeric `priority`,
  *    and a boolean `isConfigured` flag.
  *
- * 2. **Filtering** — When a consumer calls {@link resolveSTT}, {@link resolveTTS},
- *    {@link resolveVAD}, or {@link resolveWakeWord}, the resolver filters
+ * 2. **Filtering** — When a consumer calls `resolveSTT()`, `resolveTTS()`,
+ *    `resolveVAD()`, or `resolveWakeWord()`, the resolver filters
  *    registrations by `kind` and `isConfigured === true`.
  *
  * 3. **Requirements matching** — Optional {@link ProviderRequirements} further
@@ -50,7 +50,7 @@ import { findSpeechProviderCatalogEntry } from './providerCatalog.js';
  *
  * | Event | Payload | When |
  * |-------|---------|------|
- * | `provider_registered` | `{ id, kind, source }` | A provider is registered via {@link register} |
+ * | `provider_registered` | `{ id, kind, source }` | A provider is registered via `register()` |
  *
  * @see {@link FallbackSTTProxy} for the STT fallback chain implementation
  * @see {@link FallbackTTSProxy} for the TTS fallback chain implementation
@@ -94,7 +94,7 @@ export class SpeechProviderResolver extends EventEmitter {
    */
   constructor(
     private readonly config?: SpeechResolverConfig,
-    private readonly env: Record<string, string | undefined> = process.env,
+    private readonly env: Record<string, string | undefined> = process.env
   ) {
     super();
   }
@@ -187,7 +187,7 @@ export class SpeechProviderResolver extends EventEmitter {
     if (this.config?.stt?.fallback && candidates.length > 1) {
       return new FallbackSTTProxy(
         candidates.map((r) => r.provider as SpeechToTextProvider),
-        this,
+        this
       );
     }
     return candidates[0].provider as SpeechToTextProvider;
@@ -224,7 +224,7 @@ export class SpeechProviderResolver extends EventEmitter {
     if (this.config?.tts?.fallback && candidates.length > 1) {
       return new FallbackTTSProxy(
         candidates.map((r) => r.provider as TextToSpeechProvider),
-        this,
+        this
       );
     }
     return candidates[0].provider as TextToSpeechProvider;
@@ -286,11 +286,11 @@ export class SpeechProviderResolver extends EventEmitter {
    * preferred priorities.
    *
    * The three-phase refresh sequence is:
-   * 1. {@link registerCoreProviders} — register all built-in providers from the
+   * 1. `registerCoreProviders()` — register all built-in providers from the
    *    static catalog, marking each as configured/unconfigured based on env vars.
-   * 2. {@link discoverExtensionProviders} — if an ExtensionManager is provided,
+   * 2. `discoverExtensionProviders()` — if an ExtensionManager is provided,
    *    discover and register any additional speech providers from extensions.
-   * 3. {@link applyPreferredPriorities} — boost priority for providers listed in
+   * 3. `applyPreferredPriorities()` — boost priority for providers listed in
    *    the user's `config.stt.preferred` / `config.tts.preferred` arrays.
    *
    * @param extensionManager - Optional object exposing `getDescriptorsByKind(kind)`.
@@ -319,7 +319,7 @@ export class SpeechProviderResolver extends EventEmitter {
   // ---------------------------------------------------------------------------
 
   /**
-   * Core resolution algorithm shared by {@link resolveSTT} and {@link resolveTTS}.
+   * Core resolution algorithm shared by `resolveSTT()` and `resolveTTS()`.
    *
    * ## Algorithm
    *
@@ -346,14 +346,19 @@ export class SpeechProviderResolver extends EventEmitter {
    */
   private resolveByKind(
     kind: SpeechProviderKind,
-    requirements?: ProviderRequirements,
+    requirements?: ProviderRequirements
   ): ProviderRegistration[] {
     // Path A: explicit preferred ordering from the caller
     if (requirements?.preferredIds?.length) {
       const results: ProviderRegistration[] = [];
       for (const id of requirements.preferredIds) {
         const reg = this.registrations.get(id);
-        if (reg && reg.kind === kind && reg.isConfigured && this.matchesRequirements(reg, requirements)) {
+        if (
+          reg &&
+          reg.kind === kind &&
+          reg.isConfigured &&
+          this.matchesRequirements(reg, requirements)
+        ) {
           results.push(reg);
         }
       }
@@ -434,10 +439,18 @@ export class SpeechProviderResolver extends EventEmitter {
       { id: 'openai-whisper', kind: 'stt' as const, envVars: ['OPENAI_API_KEY'] },
       { id: 'deepgram-batch', kind: 'stt' as const, envVars: ['DEEPGRAM_API_KEY'] },
       { id: 'assemblyai', kind: 'stt' as const, envVars: ['ASSEMBLYAI_API_KEY'] },
-      { id: 'azure-speech-stt', kind: 'stt' as const, envVars: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'] },
+      {
+        id: 'azure-speech-stt',
+        kind: 'stt' as const,
+        envVars: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'],
+      },
       { id: 'openai-tts', kind: 'tts' as const, envVars: ['OPENAI_API_KEY'] },
       { id: 'elevenlabs', kind: 'tts' as const, envVars: ['ELEVENLABS_API_KEY'] },
-      { id: 'azure-speech-tts', kind: 'tts' as const, envVars: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'] },
+      {
+        id: 'azure-speech-tts',
+        kind: 'tts' as const,
+        envVars: ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION'],
+      },
       { id: 'agentos-adaptive-vad', kind: 'vad' as const, envVars: [] as string[] },
     ];
 

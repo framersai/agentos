@@ -28,7 +28,7 @@ export interface LoopConfig {
 
   /**
    * When `true`, all tool calls within a single iteration are dispatched in
-   * parallel via `Promise.allSettled`. When `false`, they execute sequentially.
+   * parallel via `Promise.allSettled()`. When `false`, they execute sequentially.
    */
   parallelTools: boolean;
 
@@ -58,7 +58,7 @@ export interface LoopConfig {
 export interface LoopContext {
   /**
    * Async generator that streams chunks during a single LLM inference pass.
-   * Must return a {@link LoopOutput} as its generator return value (the value
+   * Must return a `LoopOutput` as its generator return value (the value
    * passed to the final `done: true` result from `.next()`).
    */
   generateStream: () => AsyncGenerator<LoopChunk, LoopOutput, undefined>;
@@ -99,7 +99,7 @@ export interface LoopToolCallRequest {
  * The outcome of executing a {@link LoopToolCallRequest}.
  */
 export interface LoopToolCallResult {
-  /** Matches the originating {@link LoopToolCallRequest.id}. */
+  /** Matches the originating `LoopToolCallRequest.id`. */
   id: string;
 
   /** Name of the tool that was called. */
@@ -201,10 +201,7 @@ export class LoopController {
    * @yields {LoopEvent} Structured events for each phase of the loop.
    * @throws {Error} Only when `failureMode === 'fail_closed'` and a tool fails.
    */
-  async *execute(
-    config: LoopConfig,
-    context: LoopContext,
-  ): AsyncGenerator<LoopEvent> {
+  async *execute(config: LoopConfig, context: LoopContext): AsyncGenerator<LoopEvent> {
     let iteration = 0;
 
     while (iteration < config.maxIterations) {
@@ -254,9 +251,7 @@ export class LoopController {
       if (config.parallelTools) {
         // Dispatch all tool calls simultaneously; collect all outcomes even
         // if some reject, so we can still feed partial results back.
-        const settled = await Promise.allSettled(
-          toolCalls.map((tc) => context.executeTool(tc)),
-        );
+        const settled = await Promise.allSettled(toolCalls.map((tc) => context.executeTool(tc)));
 
         results = settled.map((s, i) => {
           if (s.status === 'fulfilled') return s.value;
@@ -291,9 +286,7 @@ export class LoopController {
           yield { type: 'tool_error', toolName: result.name, error: errorMsg };
 
           if (config.failureMode === 'fail_closed') {
-            throw new Error(
-              `Tool ${result.name} failed (fail_closed): ${errorMsg}`,
-            );
+            throw new Error(`Tool ${result.name} failed (fail_closed): ${errorMsg}`);
           }
           // fail_open: continue — the error is already yielded above.
         }

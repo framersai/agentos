@@ -3,7 +3,7 @@
  * @fileoverview Defines a custom error class for OpenAI-specific provider errors.
  * This extends the base {@link ProviderError} to include details specific to OpenAI API interactions.
  * @module backend/agentos/core/llm/providers/errors/OpenAIProviderError
- * @see {@link ./ProviderError.ts}
+ * @see {@link ProviderError}
  */
 
 import { ProviderError } from './ProviderError';

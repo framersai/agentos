@@ -40,7 +40,7 @@
  * await adapter.dispose();
  * ```
  *
- * @see {@link VoiceNodeExecutor} -- the executor that consumes this adapter's events.
+ * See `VoiceNodeExecutor` for the executor that consumes this adapter's events.
  * @see {@link VoiceTransportConfig} -- configuration knobs forwarded to the pipeline.
  */
 
@@ -130,7 +130,7 @@ export interface VoiceTransportConfig {
  * so subsequent calls also throw.
  *
  * @see {@link VoiceTransportConfig} -- the config shape forwarded to the pipeline.
- * @see {@link VoiceNodeExecutor} -- the executor that interacts with the transport.
+ * See `VoiceNodeExecutor` for the executor that interacts with the transport.
  */
 export class VoiceTransportAdapter {
   /**
@@ -160,7 +160,7 @@ export class VoiceTransportAdapter {
   constructor(
     private readonly config: VoiceTransportConfig,
     private readonly transport: any, // IStreamTransport
-    private readonly eventSink: (event: GraphEvent) => void,
+    private readonly eventSink: (event: GraphEvent) => void
   ) {}
 
   // -------------------------------------------------------------------------
@@ -171,12 +171,12 @@ export class VoiceTransportAdapter {
    * Initialise the adapter.
    *
    * Injects the `IStreamTransport` instance into `state.scratch.voiceTransport`
-   * so that voice graph nodes (specifically {@link VoiceNodeExecutor}) can access
+   * so that voice graph nodes (specifically `VoiceNodeExecutor`) can access
    * the transport for session event subscription. Then emits a `voice_session`
    * started event to signal that the voice session is live.
    *
-   * Must be called exactly once before {@link getNodeInput} or
-   * {@link deliverNodeOutput}. Calling `init()` multiple times is safe but
+   * Must be called exactly once before `getNodeInput()` or
+   * `deliverNodeOutput()`. Calling `init()` multiple times is safe but
    * redundant -- the transport reference is simply overwritten.
    *
    * @param state - Mutable `GraphState` (or partial) for the current run.

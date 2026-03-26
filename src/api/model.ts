@@ -23,7 +23,7 @@ export interface ParsedModel {
 
 /**
  * A fully resolved provider configuration including optional credentials.
- * Produced by {@link resolveProvider} and {@link resolveMediaProvider}.
+ * Produced by `resolveProvider()` and `resolveMediaProvider()`.
  */
 export interface ResolvedProvider {
   /** Canonical provider identifier after any fallback remapping (e.g. anthropic → openrouter). */
@@ -67,7 +67,7 @@ const ENV_URL_MAP: Record<string, string> = {
  *
  * @param model - A `provider:model` string such as `"openai:gpt-4o"`,
  *   `"ollama:llama3.2"`, or `"openrouter:anthropic/claude-sonnet-4-5-20250929"`.
- * @returns A {@link ParsedModel} with `providerId` and `modelId` fields.
+ * @returns A `ParsedModel` with `providerId` and `modelId` fields.
  * @throws {Error} When the string is missing, not a string, or does not match
  *   the expected `provider:model` format.
  */
@@ -97,18 +97,20 @@ export function parseModelString(model: string): ParsedModel {
  * @param modelId - Model identifier within the provider.
  * @param overrides - Optional explicit API key and/or base URL that take precedence
  *   over environment variable lookups.
- * @returns A {@link ResolvedProvider} ready for {@link createProviderManager}.
+ * @returns A `ResolvedProvider` ready for `createProviderManager()`.
  * @throws {Error} When no credentials can be resolved for the given provider.
  */
 export function resolveProvider(
   providerId: string,
   modelId: string,
-  overrides?: { apiKey?: string; baseUrl?: string },
+  overrides?: { apiKey?: string; baseUrl?: string }
 ): ResolvedProvider {
-  const apiKey = overrides?.apiKey
-    ?? (ENV_KEY_MAP[providerId] ? process.env[ENV_KEY_MAP[providerId]] : undefined);
-  const baseUrl = overrides?.baseUrl
-    ?? (ENV_URL_MAP[providerId] ? process.env[ENV_URL_MAP[providerId]] : undefined);
+  const apiKey =
+    overrides?.apiKey ??
+    (ENV_KEY_MAP[providerId] ? process.env[ENV_KEY_MAP[providerId]] : undefined);
+  const baseUrl =
+    overrides?.baseUrl ??
+    (ENV_URL_MAP[providerId] ? process.env[ENV_URL_MAP[providerId]] : undefined);
 
   if (providerId === 'ollama') {
     if (!baseUrl) {
@@ -145,18 +147,20 @@ export function resolveProvider(
  * @param providerId - Provider identifier (e.g. `"stability"`, `"replicate"`, `"ollama"`).
  * @param modelId - Model identifier within the provider.
  * @param overrides - Optional explicit API key and/or base URL overrides.
- * @returns A {@link ResolvedProvider} ready for use with an image provider factory.
+ * @returns A `ResolvedProvider` ready for use with an image provider factory.
  * @throws {Error} When a known provider is missing its required API key or base URL.
  */
 export function resolveMediaProvider(
   providerId: string,
   modelId: string,
-  overrides?: { apiKey?: string; baseUrl?: string },
+  overrides?: { apiKey?: string; baseUrl?: string }
 ): ResolvedProvider {
-  const apiKey = overrides?.apiKey
-    ?? (ENV_KEY_MAP[providerId] ? process.env[ENV_KEY_MAP[providerId]] : undefined);
-  const baseUrl = overrides?.baseUrl
-    ?? (ENV_URL_MAP[providerId] ? process.env[ENV_URL_MAP[providerId]] : undefined);
+  const apiKey =
+    overrides?.apiKey ??
+    (ENV_KEY_MAP[providerId] ? process.env[ENV_KEY_MAP[providerId]] : undefined);
+  const baseUrl =
+    overrides?.baseUrl ??
+    (ENV_URL_MAP[providerId] ? process.env[ENV_URL_MAP[providerId]] : undefined);
 
   if (providerId === 'ollama') {
     if (!baseUrl) {
@@ -168,7 +172,7 @@ export function resolveMediaProvider(
   if (providerId === 'stable-diffusion-local') {
     if (!baseUrl) {
       throw new Error(
-        `No base URL for stable-diffusion-local. Set STABLE_DIFFUSION_LOCAL_BASE_URL or pass baseUrl.`,
+        `No base URL for stable-diffusion-local. Set STABLE_DIFFUSION_LOCAL_BASE_URL or pass baseUrl.`
       );
     }
     return { providerId, modelId, baseUrl };
@@ -236,7 +240,7 @@ export interface ModelOption {
  *
  * @param opts - Caller options containing optional `provider` and/or `model`.
  * @param task - Task type used to select the correct default model. Defaults to `"text"`.
- * @returns A {@link ParsedModel} with `providerId` and `modelId`.
+ * @returns A `ParsedModel` with `providerId` and `modelId`.
  * @throws {Error} When no provider can be determined, the provider is unknown,
  *   or the provider has no default model for the requested task.
  */
@@ -251,7 +255,7 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
     const detected = autoDetectProvider();
     if (detected) return { providerId: detected, modelId: opts.model };
     throw new Error(
-      'model without ":" requires either a provider option or a configured env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).',
+      'model without ":" requires either a provider option or a configured env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).'
     );
   }
 
@@ -260,13 +264,13 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
     const defaults = PROVIDER_DEFAULTS[opts.provider];
     if (!defaults) {
       throw new Error(
-        `Unknown provider "${opts.provider}". Known providers: ${Object.keys(PROVIDER_DEFAULTS).join(', ')}.`,
+        `Unknown provider "${opts.provider}". Known providers: ${Object.keys(PROVIDER_DEFAULTS).join(', ')}.`
       );
     }
     const modelId = defaults[task];
     if (!modelId) {
       throw new Error(
-        `Provider "${opts.provider}" has no default ${task} model. Specify model explicitly.`,
+        `Provider "${opts.provider}" has no default ${task} model. Specify model explicitly.`
       );
     }
     return { providerId: opts.provider, modelId };
@@ -281,7 +285,7 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
   }
 
   throw new Error(
-    'Either "provider" or "model" is required. Or set an API key env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).',
+    'Either "provider" or "model" is required. Or set an API key env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).'
   );
 }
 
@@ -294,12 +298,12 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
  * `manager.initialize()` before returning.  The returned manager is ready for
  * immediate use via `manager.getProvider(providerId)`.
  *
- * @param resolved - A {@link ResolvedProvider} produced by {@link resolveProvider}
- *   or {@link resolveMediaProvider}.
+ * @param resolved - A `ResolvedProvider` produced by {@link resolveProvider}
+ *   or `resolveMediaProvider()`.
  * @returns A fully initialised {@link AIModelProviderManager} instance.
  */
 export async function createProviderManager(
-  resolved: ResolvedProvider,
+  resolved: ResolvedProvider
 ): Promise<AIModelProviderManager> {
   const manager = new AIModelProviderManager();
 
@@ -311,12 +315,14 @@ export async function createProviderManager(
   }
 
   await manager.initialize({
-    providers: [{
-      providerId: resolved.providerId,
-      enabled: true,
-      isDefault: true,
-      config: providerConfig,
-    }],
+    providers: [
+      {
+        providerId: resolved.providerId,
+        enabled: true,
+        isDefault: true,
+        config: providerConfig,
+      },
+    ],
   });
 
   return manager;

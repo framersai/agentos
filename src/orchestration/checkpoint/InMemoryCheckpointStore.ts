@@ -51,37 +51,20 @@ export class InMemoryCheckpointStore implements ICheckpointStore {
   /** Primary storage map — checkpoint.id → Checkpoint. */
   private readonly _checkpoints = new Map<string, Checkpoint>();
 
-  /**
-   * Persist a checkpoint snapshot.
-   *
-   * Overwrites any existing entry with the same `id`.
-   *
-   * {@inheritDoc ICheckpointStore.save}
-   */
+  /** {@inheritDoc ICheckpointStore.save} */
   async save(checkpoint: Checkpoint): Promise<void> {
     this._checkpoints.set(checkpoint.id, checkpoint);
   }
 
-  /**
-   * Load a checkpoint by its unique checkpoint id.
-   *
-   * {@inheritDoc ICheckpointStore.get}
-   */
+  /** {@inheritDoc ICheckpointStore.get} */
   async get(checkpointId: string): Promise<Checkpoint | null> {
     return this._checkpoints.get(checkpointId) ?? null;
   }
 
-  /**
-   * Load a checkpoint for the given `runId`.
-   *
-   * Scans the full store filtering by `runId` and optionally `nodeId`. When multiple
-   * checkpoints match, returns the one with the highest `timestamp`.
-   *
-   * {@inheritDoc ICheckpointStore.load}
-   */
+  /** {@inheritDoc ICheckpointStore.load} */
   async load(runId: string, nodeId?: string): Promise<Checkpoint | null> {
     const candidates = Array.from(this._checkpoints.values()).filter(
-      (cp) => cp.runId === runId && (nodeId === undefined || cp.nodeId === nodeId),
+      (cp) => cp.runId === runId && (nodeId === undefined || cp.nodeId === nodeId)
     );
 
     if (candidates.length === 0) return null;
@@ -91,33 +74,18 @@ export class InMemoryCheckpointStore implements ICheckpointStore {
     return candidates[0]!;
   }
 
-  /**
-   * Return the most recently persisted checkpoint for a run.
-   *
-   * Equivalent to `load(runId)` with no `nodeId` filter.
-   *
-   * {@inheritDoc ICheckpointStore.latest}
-   */
+  /** {@inheritDoc ICheckpointStore.latest} */
   async latest(runId: string): Promise<Checkpoint | null> {
     return this.load(runId);
   }
 
-  /**
-   * List lightweight metadata for all checkpoints belonging to a graph.
-   *
-   * Results are sorted by `timestamp` descending (most recent first). When
-   * `options.limit` is set, only the first `limit` entries are returned after sorting.
-   *
-   * {@inheritDoc ICheckpointStore.list}
-   */
+  /** {@inheritDoc ICheckpointStore.list} */
   async list(
     graphId: string,
-    options?: { limit?: number; runId?: string },
+    options?: { limit?: number; runId?: string }
   ): Promise<CheckpointMetadata[]> {
     let results = Array.from(this._checkpoints.values()).filter(
-      (cp) =>
-        cp.graphId === graphId &&
-        (options?.runId === undefined || cp.runId === options.runId),
+      (cp) => cp.graphId === graphId && (options?.runId === undefined || cp.runId === options.runId)
     );
 
     // Most-recent-first ordering.
@@ -130,35 +98,16 @@ export class InMemoryCheckpointStore implements ICheckpointStore {
     return results.map(toMetadata);
   }
 
-  /**
-   * Permanently remove a checkpoint from the store.
-   *
-   * Silently succeeds when `checkpointId` does not exist.
-   *
-   * {@inheritDoc ICheckpointStore.delete}
-   */
+  /** {@inheritDoc ICheckpointStore.delete} */
   async delete(checkpointId: string): Promise<void> {
     this._checkpoints.delete(checkpointId);
   }
 
-  /**
-   * Create a new run branching from an existing checkpoint.
-   *
-   * Steps:
-   * 1. Loads the source checkpoint (throws if missing).
-   * 2. Deep-clones via `structuredClone`.
-   * 3. Assigns a fresh `runId` and `id` via `crypto.randomUUID()`.
-   * 4. Applies `patchState` overrides via `Object.assign` on each state partition.
-   * 5. Saves the forked checkpoint and returns the new `runId`.
-   *
-   * {@inheritDoc ICheckpointStore.fork}
-   */
+  /** {@inheritDoc ICheckpointStore.fork} */
   async fork(checkpointId: string, patchState?: Partial<GraphState>): Promise<string> {
     const source = this._checkpoints.get(checkpointId);
     if (!source) {
-      throw new Error(
-        `InMemoryCheckpointStore.fork: checkpoint "${checkpointId}" not found`,
-      );
+      throw new Error(`InMemoryCheckpointStore.fork: checkpoint "${checkpointId}" not found`);
     }
 
     // Deep clone so mutations to the forked checkpoint cannot affect the source.

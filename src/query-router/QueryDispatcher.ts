@@ -26,7 +26,7 @@ import type {
   RetrievedChunk,
   RetrievalResult,
   QueryRouterEventUnion,
-} from '../types.js';
+} from './types.js';
 
 // ============================================================================
 // DEPENDENCY INTERFACE
@@ -203,6 +203,19 @@ export class QueryDispatcher {
    * - If rerank fails, falls back to sorting by score and taking top 5.
    */
   private async dispatchTier2(query: string, start: number): Promise<RetrievalResult> {
+    return this.dispatchTier2Internal(query, start, true);
+  }
+
+  /**
+   * Internal Tier 2 pipeline used by both direct T2 routing and the T3
+   * pre-research retrieval stage. T3 suppresses the early retrieve:complete
+   * event so the final completion event reflects the post-research result.
+   */
+  private async dispatchTier2Internal(
+    query: string,
+    start: number,
+    emitComplete: boolean,
+  ): Promise<RetrievalResult> {
     // --- Vector search (topK=15) ---
     const vectorStart = Date.now();
     const vectorChunks = await this.deps.vectorSearch(query, 15);
@@ -277,11 +290,13 @@ export class QueryDispatcher {
       durationMs: Date.now() - start,
     };
 
-    this.deps.emit({
-      type: 'retrieve:complete',
-      result,
-      timestamp: Date.now(),
-    });
+    if (emitComplete) {
+      this.deps.emit({
+        type: 'retrieve:complete',
+        result,
+        timestamp: Date.now(),
+      });
+    }
 
     return result;
   }
@@ -298,7 +313,7 @@ export class QueryDispatcher {
     start: number,
   ): Promise<RetrievalResult> {
     // Run the T2 pipeline first to get hybrid chunks
-    const t2Result = await this.dispatchTier2(query, start);
+    const t2Result = await this.dispatchTier2Internal(query, start, false);
 
     // --- Deep research (fallback-safe) ---
     if (this.deps.deepResearchEnabled) {
@@ -313,6 +328,14 @@ export class QueryDispatcher {
         const researchResult = await this.deps.deepResearch(query, suggestedSources);
 
         this.deps.emit({
+          type: 'research:phase',
+          iteration: 1,
+          totalIterations: 1,
+          newChunksFound: researchResult.sources.length,
+          timestamp: Date.now(),
+        });
+
+        this.deps.emit({
           type: 'research:complete',
           iterationsUsed: 1,
           totalChunks: researchResult.sources.length,
@@ -323,11 +346,19 @@ export class QueryDispatcher {
         // Merge research chunks with T2 chunks, dedup
         const allChunks = this.mergeAndDedup(t2Result.chunks, researchResult.sources);
 
-        return {
+        const result: RetrievalResult = {
           chunks: allChunks,
           researchSynthesis: researchResult.synthesis,
           durationMs: Date.now() - start,
         };
+
+        this.deps.emit({
+          type: 'retrieve:complete',
+          result,
+          timestamp: Date.now(),
+        });
+
+        return result;
       } catch (err) {
         this.deps.emit({
           type: 'retrieve:fallback',
@@ -339,10 +370,18 @@ export class QueryDispatcher {
     }
 
     // If research was disabled or failed, return T2 result with updated duration
-    return {
+    const result: RetrievalResult = {
       ...t2Result,
       durationMs: Date.now() - start,
     };
+
+    this.deps.emit({
+      type: 'retrieve:complete',
+      result,
+      timestamp: Date.now(),
+    });
+
+    return result;
   }
 
   // --------------------------------------------------------------------------

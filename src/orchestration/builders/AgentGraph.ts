@@ -92,7 +92,7 @@ export class AgentGraph<TState extends GraphState = GraphState> {
       memoryConsistency?: MemoryConsistencyMode;
       /** Graph-wide checkpoint persistence strategy (default: `'none'`). */
       checkpointPolicy?: 'every_node' | 'explicit' | 'none';
-    },
+    }
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -181,9 +181,9 @@ export class AgentGraph<TState extends GraphState = GraphState> {
    *
    * @param source - Source node id.
    * @param config - Discovery configuration.
-   * @param config.query          - Semantic search query forwarded to `CapabilityDiscoveryEngine`.
-   * @param config.kind           - Optional filter: restrict discovery to a specific capability kind.
-   * @param config.fallbackTarget - Node id to route to when discovery resolves no target.
+   * `config.query` is forwarded to the `CapabilityDiscoveryEngine`.
+   * `config.kind` optionally restricts discovery to a specific capability kind.
+   * `config.fallbackTarget` is used when discovery resolves no target.
    * @returns `this` for chaining.
    */
   addDiscoveryEdge(
@@ -195,7 +195,7 @@ export class AgentGraph<TState extends GraphState = GraphState> {
       kind?: 'tool' | 'skill' | 'extension' | 'any';
       /** Fallback node id used when discovery resolves no target. */
       fallbackTarget?: string;
-    },
+    }
   ): this {
     this.edges.push({
       id: `edge-${++this.edgeCounter}`,
@@ -218,10 +218,10 @@ export class AgentGraph<TState extends GraphState = GraphState> {
    *
    * @param source - Source node id.
    * @param config - Personality routing configuration.
-   * @param config.trait     - HEXACO/PAD trait name to inspect (e.g. `'conscientiousness'`).
-   * @param config.threshold - Decision boundary (0–1).
-   * @param config.above     - Target node id when trait value ≥ threshold.
-   * @param config.below     - Target node id when trait value < threshold.
+   * `config.trait` identifies the HEXACO/PAD value to inspect.
+   * `config.threshold` is the decision boundary in the 0–1 range.
+   * `config.above` is used when the trait value is greater than or equal to the threshold.
+   * `config.below` is used when the trait value is below the threshold.
    * @returns `this` for chaining.
    */
   addPersonalityEdge(
@@ -235,7 +235,7 @@ export class AgentGraph<TState extends GraphState = GraphState> {
       above: string;
       /** Target node id when the trait value is below the threshold. */
       below: string;
-    },
+    }
   ): this {
     // Emit two edges — one per branch — so the reachability checker can see both targets.
     // The runtime selects between them by evaluating `personalityCondition` at execution time.
@@ -273,8 +273,8 @@ export class AgentGraph<TState extends GraphState = GraphState> {
    * Pass `{ validate: false }` to skip validation (e.g. for cyclic graphs under construction).
    *
    * @param options - Optional compilation flags.
-   * @param options.checkpointStore - Custom checkpoint store; defaults to `InMemoryCheckpointStore`.
-   * @param options.validate        - Set to `false` to skip structural validation (default: `true`).
+   * `options.checkpointStore` overrides the default `InMemoryCheckpointStore`.
+   * `options.validate` can be set to `false` to skip structural validation.
    * @returns A `CompiledAgentGraph` instance ready for `invoke()` / `stream()` / `resume()`.
    * @throws {Error} When validation is enabled and the graph contains structural errors or warnings.
    */
@@ -304,16 +304,14 @@ export class AgentGraph<TState extends GraphState = GraphState> {
       const result = GraphValidator.validate(ir, { requireAcyclic: false });
 
       if (!result.valid) {
-        throw new Error(
-          `Graph validation failed:\n  ${result.errors.join('\n  ')}`,
-        );
+        throw new Error(`Graph validation failed:\n  ${result.errors.join('\n  ')}`);
       }
 
       if (result.warnings.length > 0) {
         // Promote warnings to compile-time errors for maximum safety.
         // Authors who intentionally want orphan nodes must pass { validate: false }.
         throw new Error(
-          `Graph validation warnings (treated as errors at compile time):\n  ${result.warnings.join('\n  ')}`,
+          `Graph validation warnings (treated as errors at compile time):\n  ${result.warnings.join('\n  ')}`
         );
       }
     }
@@ -349,7 +347,7 @@ export class CompiledAgentGraph<TState extends GraphState = GraphState> {
    */
   constructor(
     private readonly ir: CompiledExecutionGraph,
-    checkpointStore: ICheckpointStore,
+    checkpointStore: ICheckpointStore
   ) {
     this.runtime = new GraphRuntime({
       checkpointStore,
@@ -407,10 +405,11 @@ export class CompiledAgentGraph<TState extends GraphState = GraphState> {
   /**
    * Inspect execution state for a completed or in-progress run.
    *
-   * @param runId - The unique run identifier assigned at `stream()` call-time.
+   * @param _runId - The unique run identifier assigned at `stream()` call-time.
    * @returns A stub object — full inspection support is tracked separately.
    *
-   * @todo Implement with full runtime inspection once the run-registry subsystem lands.
+   * Full runtime inspection is not implemented yet; this currently returns a
+   * stub object until the run-registry subsystem lands.
    */
   async inspect(_runId: string): Promise<unknown> {
     // Stub — run registry not yet implemented.

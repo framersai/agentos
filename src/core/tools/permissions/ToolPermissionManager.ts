@@ -35,11 +35,12 @@
  * - Configuration Management: Behavior is driven by `ToolPermissionManagerConfig`.
  * - Strict Type Safety: Leverages TypeScript's type system to prevent common errors.
  *
- * @see {@link ./IToolPermissionManager.ts} for the interface definition and related types (including `FeatureFlag` and `ToolPermissionManagerConfig`).
- * @see {@link ../ITool.ts} for `ITool` and `ToolDefinition` which include `requiredCapabilities`.
- * @see {@link ../../../cognitive_substrate/IGMI.ts} for `UserContext` definition.
- * @see {@link ../../../../services/user_auth/SubscriptionService.ts} for `ISubscriptionService` and `ISubscriptionTier`.
- * @see {@link @framers/agentos/utils/errors.ts} for `GMIError` and `GMIErrorCode`.
+ * @see {@link IToolPermissionManager} for the interface definition and related types
+ * such as `FeatureFlag` and `ToolPermissionManagerConfig`.
+ * See `ITool` and `ToolDefinition` for capability-gated tool metadata.
+ * See `UserContext` in `IGMI` for invoking-user context.
+ * See `ISubscriptionService` and `ISubscriptionTier` in `services/user_auth/types`.
+ * See `GMIError` and `GMIErrorCode` in `@framers/agentos/utils/errors`.
  */
 
 import {
@@ -49,7 +50,11 @@ import {
   ToolPermissionManagerConfig,
   FeatureFlag,
 } from './IToolPermissionManager';
-import type { IAuthService, ISubscriptionService, ISubscriptionTier } from '../../../services/user_auth/types';
+import type {
+  IAuthService,
+  ISubscriptionService,
+  ISubscriptionTier,
+} from '../../../services/user_auth/types';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 
@@ -148,10 +153,12 @@ export class ToolPermissionManager implements IToolPermissionManager {
   public async initialize(
     config: ToolPermissionManagerConfig,
     authService?: IAuthService,
-    subscriptionService?: ISubscriptionService,
+    subscriptionService?: ISubscriptionService
   ): Promise<void> {
     if (this.isInitialized) {
-      console.warn(`ToolPermissionManager (ID: ${this.managerId}): Attempting to re-initialize an already initialized instance. The current configuration will be replaced. This may affect ongoing operations if not handled carefully at the application level.`);
+      console.warn(
+        `ToolPermissionManager (ID: ${this.managerId}): Attempting to re-initialize an already initialized instance. The current configuration will be replaced. This may affect ongoing operations if not handled carefully at the application level.`
+      );
     }
 
     if (!config) {
@@ -161,7 +168,7 @@ export class ToolPermissionManager implements IToolPermissionManager {
         { managerId: this.managerId, detail: 'Configuration object is missing.' }
       );
     }
-    
+
     this.config = Object.freeze({
       strictCapabilityChecking: config.strictCapabilityChecking ?? true,
       toolToSubscriptionFeatures: config.toolToSubscriptionFeatures || {},
@@ -172,12 +179,19 @@ export class ToolPermissionManager implements IToolPermissionManager {
     this.authService = authService;
     this.subscriptionService = subscriptionService;
 
-    if (Object.keys(this.config.toolToSubscriptionFeatures).length > 0 && !this.subscriptionService) {
-      console.warn(`ToolPermissionManager (ID: ${this.managerId}): WARNING - 'toolToSubscriptionFeatures' are configured, but no ISubscriptionService instance was provided. Subscription-based tool access checks will default to denial for tools requiring features. This might be a deployment or configuration oversight.`);
+    if (
+      Object.keys(this.config.toolToSubscriptionFeatures).length > 0 &&
+      !this.subscriptionService
+    ) {
+      console.warn(
+        `ToolPermissionManager (ID: ${this.managerId}): WARNING - 'toolToSubscriptionFeatures' are configured, but no ISubscriptionService instance was provided. Subscription-based tool access checks will default to denial for tools requiring features. This might be a deployment or configuration oversight.`
+      );
     }
 
     this.isInitialized = true;
-    console.log(`ToolPermissionManager (ID: ${this.managerId}) initialized successfully. Strict capability checking: ${this.config.strictCapabilityChecking}. Logging tool calls: ${this.config.logToolCalls}. Mapped tools to features: ${Object.keys(this.config.toolToSubscriptionFeatures).length}.`);
+    console.log(
+      `ToolPermissionManager (ID: ${this.managerId}) initialized successfully. Strict capability checking: ${this.config.strictCapabilityChecking}. Logging tool calls: ${this.config.logToolCalls}. Mapped tools to features: ${Object.keys(this.config.toolToSubscriptionFeatures).length}.`
+    );
   }
 
   /**
@@ -195,7 +209,11 @@ export class ToolPermissionManager implements IToolPermissionManager {
       throw new GMIError(
         `ToolPermissionManager (ID: ${this.managerId}) is not initialized. Operations cannot be performed until initialize() is called with a valid configuration.`,
         GMIErrorCode.NOT_INITIALIZED,
-        { component: 'ToolPermissionManager', managerId: this.managerId, attemptedOperationRequiresInitialization: true }
+        {
+          component: 'ToolPermissionManager',
+          managerId: this.managerId,
+          attemptedOperationRequiresInitialization: true,
+        }
       );
     }
   }
@@ -217,19 +235,23 @@ export class ToolPermissionManager implements IToolPermissionManager {
    */
   public hasRequiredCapabilities(
     personaCapabilities: string[],
-    toolRequiredCapabilities: string[] | undefined,
+    toolRequiredCapabilities: string[] | undefined
   ): boolean {
     this.ensureInitialized();
 
     if (!toolRequiredCapabilities || toolRequiredCapabilities.length === 0) {
-      return true; 
+      return true;
     }
     if (!personaCapabilities || personaCapabilities.length === 0) {
-      return false; 
+      return false;
     }
 
-    const personaCapabilitiesSet = new Set(personaCapabilities.filter(cap => typeof cap === 'string' && cap.trim() !== ''));
-    const validToolRequiredCaps = toolRequiredCapabilities.filter(cap => typeof cap === 'string' && cap.trim() !== '');
+    const personaCapabilitiesSet = new Set(
+      personaCapabilities.filter((cap) => typeof cap === 'string' && cap.trim() !== '')
+    );
+    const validToolRequiredCaps = toolRequiredCapabilities.filter(
+      (cap) => typeof cap === 'string' && cap.trim() !== ''
+    );
 
     for (const requiredCap of validToolRequiredCaps) {
       if (!personaCapabilitiesSet.has(requiredCap)) {
@@ -275,29 +297,35 @@ export class ToolPermissionManager implements IToolPermissionManager {
   public async checkToolSubscriptionAccess(
     userId: string,
     toolIdOrName: string
-  ): Promise<{isAllowed: boolean, missingFeatures?: FeatureFlag[], reason?: string}> {
+  ): Promise<{ isAllowed: boolean; missingFeatures?: FeatureFlag[]; reason?: string }> {
     this.ensureInitialized();
-    const requiredFeatureFlags: FeatureFlag[] | undefined = this.getRequiredFeaturesForTool(toolIdOrName);
+    const requiredFeatureFlags: FeatureFlag[] | undefined =
+      this.getRequiredFeaturesForTool(toolIdOrName);
 
     if (!requiredFeatureFlags || requiredFeatureFlags.length === 0) {
-      return { isAllowed: true, reason: `Tool '${toolIdOrName}' does not require specific subscription features.` };
+      return {
+        isAllowed: true,
+        reason: `Tool '${toolIdOrName}' does not require specific subscription features.`,
+      };
     }
 
     if (!this.subscriptionService) {
-      const reason = `Tool '${toolIdOrName}' requires subscription features [${requiredFeatureFlags.map(f => f.flag).join(', ')}], but ISubscriptionService is not configured. To enable subscription-based access control, inject a subscription service via AgentOSConfig or use @framers/agentos-extensions/auth. Defaulting to ALLOW.`;
+      const reason = `Tool '${toolIdOrName}' requires subscription features [${requiredFeatureFlags.map((f) => f.flag).join(', ')}], but ISubscriptionService is not configured. To enable subscription-based access control, inject a subscription service via AgentOSConfig or use @framers/agentos-extensions/auth. Defaulting to ALLOW.`;
       console.warn(`ToolPermissionManager (ID: ${this.managerId}, User: ${userId}): ${reason}`);
       // Default to allowing access when no subscription service configured
-      return { isAllowed: true, reason: `No subscription service configured - access allowed by default` };
+      return {
+        isAllowed: true,
+        reason: `No subscription service configured - access allowed by default`,
+      };
     }
 
     try {
-      const userTier: ISubscriptionTier | null =
-        (this.subscriptionService.getUserSubscriptionTier
-          ? await this.subscriptionService.getUserSubscriptionTier(userId)
-          : await this.subscriptionService.getUserSubscription(userId));
+      const userTier: ISubscriptionTier | null = this.subscriptionService.getUserSubscriptionTier
+        ? await this.subscriptionService.getUserSubscriptionTier(userId)
+        : await this.subscriptionService.getUserSubscription(userId);
 
       if (!userTier) {
-        const reason = `User (ID: ${userId}) does not have an identifiable or active subscription tier. Access to tool '${toolIdOrName}' requiring features [${requiredFeatureFlags.map(f => f.flag).join(', ')}] is denied.`;
+        const reason = `User (ID: ${userId}) does not have an identifiable or active subscription tier. Access to tool '${toolIdOrName}' requiring features [${requiredFeatureFlags.map((f) => f.flag).join(', ')}] is denied.`;
         return { isAllowed: false, missingFeatures: requiredFeatureFlags, reason };
       }
 
@@ -311,20 +339,26 @@ export class ToolPermissionManager implements IToolPermissionManager {
       }
 
       if (missingFeaturesAccumulator.length > 0) {
-        const reason = `User (ID: ${userId}) lacks required subscription features for tool '${toolIdOrName}': [${missingFeaturesAccumulator.map(f => `'${f.flag}'`).join(', ')}]. Current tier: '${userTier.name}'.`;
+        const reason = `User (ID: ${userId}) lacks required subscription features for tool '${toolIdOrName}': [${missingFeaturesAccumulator.map((f) => `'${f.flag}'`).join(', ')}]. Current tier: '${userTier.name}'.`;
         return { isAllowed: false, missingFeatures: missingFeaturesAccumulator, reason };
       }
 
-      return { isAllowed: true, reason: `User (ID: ${userId}) possesses all required subscription features for tool '${toolIdOrName}' via tier '${userTier.name}'.` };
+      return {
+        isAllowed: true,
+        reason: `User (ID: ${userId}) possesses all required subscription features for tool '${toolIdOrName}' via tier '${userTier.name}'.`,
+      };
     } catch (error: unknown) {
       const wrappedError = createGMIErrorFromError(
         error,
-        GMIErrorCode.SUBSCRIPTION_ERROR, 
+        GMIErrorCode.SUBSCRIPTION_ERROR,
         { userId, toolIdOrName, serviceCalled: 'ISubscriptionService.getUserSubscriptionTier' },
         `An error occurred while checking subscription features for tool '${toolIdOrName}'.`,
         this.managerId
       );
-      console.error(`ToolPermissionManager (ID: ${this.managerId}): ${wrappedError.message}`, wrappedError.toJSON());
+      console.error(
+        `ToolPermissionManager (ID: ${this.managerId}): ${wrappedError.message}`,
+        wrappedError.toJSON()
+      );
       throw wrappedError;
     }
   }
@@ -347,7 +381,8 @@ export class ToolPermissionManager implements IToolPermissionManager {
 
     if (this.config.strictCapabilityChecking) {
       if (!this.hasRequiredCapabilities(personaCapabilities, tool.requiredCapabilities)) {
-        const missingCaps = tool.requiredCapabilities?.filter(rc => !personaCapabilities.includes(rc)) || [];
+        const missingCaps =
+          tool.requiredCapabilities?.filter((rc) => !personaCapabilities.includes(rc)) || [];
         const reason = `Permission Denied: Persona (ID: '${personaId}') lacks required capabilities for tool '${tool.name}'. Missing: [${missingCaps.join(', ')}]. Required: [${tool.requiredCapabilities?.join(', ')}].`;
         if (this.config.logToolCalls) {
           console.warn(`${logPreamble}: Strict capability check FAILED. ${reason}`);
@@ -355,7 +390,12 @@ export class ToolPermissionManager implements IToolPermissionManager {
         return {
           isAllowed: false,
           reason,
-          details: { checkType: "personaCapabilities", required: tool.requiredCapabilities, possessed: personaCapabilities, missing: missingCaps },
+          details: {
+            checkType: 'personaCapabilities',
+            required: tool.requiredCapabilities,
+            possessed: personaCapabilities,
+            missing: missingCaps,
+          },
         };
       }
       if (this.config.logToolCalls) {
@@ -363,7 +403,9 @@ export class ToolPermissionManager implements IToolPermissionManager {
       }
     } else {
       if (this.config.logToolCalls) {
-        console.warn(`${logPreamble}: Strict capability checking is DISABLED by configuration. Persona capability validation for tool '${tool.name}' was skipped.`);
+        console.warn(
+          `${logPreamble}: Strict capability checking is DISABLED by configuration. Persona capability validation for tool '${tool.name}' was skipped.`
+        );
       }
     }
 
@@ -371,16 +413,29 @@ export class ToolPermissionManager implements IToolPermissionManager {
     const requiredFeatures = this.getRequiredFeaturesForTool(toolIdentifierForFeatureLookup);
 
     if (requiredFeatures && requiredFeatures.length > 0) {
-      const subscriptionAccessResult = await this.checkToolSubscriptionAccess(userContext.userId, toolIdentifierForFeatureLookup);
+      const subscriptionAccessResult = await this.checkToolSubscriptionAccess(
+        userContext.userId,
+        toolIdentifierForFeatureLookup
+      );
       if (!subscriptionAccessResult.isAllowed) {
-        const reason = subscriptionAccessResult.reason || `User (ID: '${userContext.userId}') subscription does not grant access to tool '${tool.name}'.`;
+        const reason =
+          subscriptionAccessResult.reason ||
+          `User (ID: '${userContext.userId}') subscription does not grant access to tool '${tool.name}'.`;
         if (this.config.logToolCalls) {
-          console.warn(`${logPreamble}: User subscription feature check FAILED. ${reason}`, subscriptionAccessResult.missingFeatures);
+          console.warn(
+            `${logPreamble}: User subscription feature check FAILED. ${reason}`,
+            subscriptionAccessResult.missingFeatures
+          );
         }
         return {
           isAllowed: false,
           reason,
-          details: { checkType: "userSubscriptionFeatures", requiredFeatures: requiredFeatures.map(f=>f.flag), missingFeatures: subscriptionAccessResult.missingFeatures?.map(f => f.flag), toolIdentifier: toolIdentifierForFeatureLookup }
+          details: {
+            checkType: 'userSubscriptionFeatures',
+            requiredFeatures: requiredFeatures.map((f) => f.flag),
+            missingFeatures: subscriptionAccessResult.missingFeatures?.map((f) => f.flag),
+            toolIdentifier: toolIdentifierForFeatureLookup,
+          },
         };
       }
       if (this.config.logToolCalls) {
@@ -395,4 +450,3 @@ export class ToolPermissionManager implements IToolPermissionManager {
     return { isAllowed: true, reason: successReason };
   }
 }
-

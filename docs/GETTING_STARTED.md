@@ -99,9 +99,12 @@ Three lines to create a multi-turn assistant that remembers context:
 ```typescript
 import { agent } from '@framers/agentos';
 
-const assistant = agent({ provider: 'openai', instructions: 'You are a helpful coding assistant.' });
-const session   = assistant.session('my-session');
-const reply     = await session.send('What is a closure in JavaScript?');
+const assistant = agent({
+  provider: 'openai',
+  instructions: 'You are a helpful coding assistant.',
+});
+const session = assistant.session('my-session');
+const reply = await session.send('What is a closure in JavaScript?');
 
 console.log(reply.text);
 
@@ -124,8 +127,8 @@ const team = agency({
   strategy: 'sequential',
   agents: {
     researcher: { instructions: 'Find key facts about the topic.' },
-    writer:     { instructions: 'Synthesize the facts into a clear summary.' },
-    reviewer:   { instructions: 'Check for accuracy and suggest improvements.' },
+    writer: { instructions: 'Synthesize the facts into a clear summary.' },
+    reviewer: { instructions: 'Check for accuracy and suggest improvements.' },
   },
 });
 
@@ -160,13 +163,11 @@ const coder = agent({
 const session = coder.session('quickstart');
 
 const { text: explanation } = await session.send(
-  'How do I debounce a function in TypeScript? Show a typed example.',
+  'How do I debounce a function in TypeScript? Show a typed example.'
 );
 console.log('\nDebounce explanation:\n', explanation);
 
-const { text: followUp } = await session.send(
-  'Now make it cancel-able with an AbortSignal.',
-);
+const { text: followUp } = await session.send('Now make it cancel-able with an AbortSignal.');
 console.log('\nCancellable version:\n', followUp);
 
 // ── Step 3: Check usage ─────────────────────────────────────────────────────
@@ -202,16 +203,17 @@ Usage: { inputTokens: 312, outputTokens: 487, totalTokens: 799, estimatedCost: 0
 
 ## What's Next
 
-| Topic | Guide |
-|-------|-------|
-| Graph pipelines, workflows, missions | [ORCHESTRATION.md](./ORCHESTRATION.md) |
-| Deploy agents to 37 channels | [CHANNELS.md](./CHANNELS.md) |
-| Publish to social platforms | [SOCIAL_POSTING.md](./SOCIAL_POSTING.md) |
-| Audit trails and tamper evidence | [PROVENANCE.md](./PROVENANCE.md) |
-| Episodic, semantic, procedural memory | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) |
-| Testing and benchmarking agents | [EVALUATION.md](./EVALUATION.md) |
-| Token-efficient capability discovery | [DISCOVERY.md](./DISCOVERY.md) |
-| Image generation across 5 providers | [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) |
-| Practical cookbook examples | [EXAMPLES.md](./EXAMPLES.md) |
-| Full API hierarchy | [AGENCY_API.md](./AGENCY_API.md) |
-| Architecture overview | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| Topic                                             | Guide                                        |
+| ------------------------------------------------- | -------------------------------------------- |
+| Graph pipelines, workflows, missions              | [ORCHESTRATION.md](./ORCHESTRATION.md)       |
+| Deploy agents to 37 channels                      | [CHANNELS.md](./CHANNELS.md)                 |
+| Publish to social platforms                       | [SOCIAL_POSTING.md](./SOCIAL_POSTING.md)     |
+| Audit trails and tamper evidence                  | [PROVENANCE.md](./PROVENANCE.md)             |
+| Episodic, semantic, procedural memory             | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) |
+| Testing and benchmarking agents                   | [EVALUATION.md](./EVALUATION.md)             |
+| Token-efficient capability discovery              | [DISCOVERY.md](./DISCOVERY.md)               |
+| Image generation across 5 providers               | [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) |
+| Practical cookbook examples                       | [EXAMPLES.md](./EXAMPLES.md)                 |
+| Runtime-configured tools and full `AgentOS` setup | [HIGH_LEVEL_API.md](./HIGH_LEVEL_API.md)     |
+| Full API hierarchy                                | [AGENCY_API.md](./AGENCY_API.md)             |
+| Architecture overview                             | [ARCHITECTURE.md](./ARCHITECTURE.md)         |

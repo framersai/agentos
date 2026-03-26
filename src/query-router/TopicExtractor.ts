@@ -21,7 +21,7 @@
  * @module @framers/agentos/query-router/TopicExtractor
  */
 
-import type { CorpusChunk, TopicEntry } from '../types.js';
+import type { CorpusChunk, TopicEntry } from './types.js';
 
 /**
  * Default maximum number of topics returned by {@link TopicExtractor.extract}.
