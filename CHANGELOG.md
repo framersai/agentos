@@ -1,3 +1,7 @@
+## <small>0.1.105 (2026-03-26)</small>
+
+* fix(ci): add better-sqlite3 to test.server.deps.external in vitest config ([9a9d986](https://github.com/framersai/agentos/commit/9a9d986))
+
 ## <small>0.1.104 (2026-03-26)</small>
 
 * fix(ci): mark better-sqlite3 as external in vitest config — native addon cannot be transformed by Vi ([f2c5546](https://github.com/framersai/agentos/commit/f2c5546))
