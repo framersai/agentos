@@ -1,3 +1,7 @@
+## <small>0.1.101 (2026-03-26)</small>
+
+* feat(agency): add graph strategy with explicit dependsOn agent dependencies ([c7c2c44](https://github.com/framersai/agentos/commit/c7c2c44))
+
 ## <small>0.1.100 (2026-03-26)</small>
 
 * fix(api): fix WebSocketServer import and implicit any in agency.ts ([946012e](https://github.com/framersai/agentos/commit/946012e))
