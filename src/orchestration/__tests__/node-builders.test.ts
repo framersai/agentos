@@ -69,8 +69,8 @@ describe('gmiNode', () => {
   it('generates a unique id with "gmi-" prefix', () => {
     const a = gmiNode({ instructions: 'A' });
     const b = gmiNode({ instructions: 'B' });
-    expect(a.id).toMatch(/^gmi-\d+$/);
-    expect(b.id).toMatch(/^gmi-\d+$/);
+    expect(a.id).toMatch(/^gmi-[0-9a-f]{8}$/);
+    expect(b.id).toMatch(/^gmi-[0-9a-f]{8}$/);
     expect(a.id).not.toBe(b.id);
   });
 
@@ -169,8 +169,8 @@ describe('toolNode', () => {
   it('generates a unique id with "tool-" prefix', () => {
     const a = toolNode('tool_a');
     const b = toolNode('tool_b');
-    expect(a.id).toMatch(/^tool-\d+$/);
-    expect(b.id).toMatch(/^tool-\d+$/);
+    expect(a.id).toMatch(/^tool-[0-9a-f]{8}$/);
+    expect(b.id).toMatch(/^tool-[0-9a-f]{8}$/);
     expect(a.id).not.toBe(b.id);
   });
 
@@ -250,8 +250,8 @@ describe('humanNode', () => {
   it('generates a unique id with "human-" prefix', () => {
     const a = humanNode({ prompt: 'A' });
     const b = humanNode({ prompt: 'B' });
-    expect(a.id).toMatch(/^human-\d+$/);
-    expect(b.id).toMatch(/^human-\d+$/);
+    expect(a.id).toMatch(/^human-[0-9a-f]{8}$/);
+    expect(b.id).toMatch(/^human-[0-9a-f]{8}$/);
     expect(a.id).not.toBe(b.id);
   });
 
@@ -301,8 +301,8 @@ describe('routerNode', () => {
   it('generates a unique id with "router-" prefix', () => {
     const a = routerNode('a');
     const b = routerNode('b');
-    expect(a.id).toMatch(/^router-\d+$/);
-    expect(b.id).toMatch(/^router-\d+$/);
+    expect(a.id).toMatch(/^router-[0-9a-f]{8}$/);
+    expect(b.id).toMatch(/^router-[0-9a-f]{8}$/);
     expect(a.id).not.toBe(b.id);
   });
 
@@ -357,8 +357,8 @@ describe('guardrailNode', () => {
   it('generates a unique id with "guardrail-" prefix', () => {
     const a = guardrailNode(['g1'], { onViolation: 'warn' });
     const b = guardrailNode(['g2'], { onViolation: 'block' });
-    expect(a.id).toMatch(/^guardrail-\d+$/);
-    expect(b.id).toMatch(/^guardrail-\d+$/);
+    expect(a.id).toMatch(/^guardrail-[0-9a-f]{8}$/);
+    expect(b.id).toMatch(/^guardrail-[0-9a-f]{8}$/);
     expect(a.id).not.toBe(b.id);
   });
 });
@@ -407,8 +407,8 @@ describe('subgraphNode', () => {
   it('generates a unique id with "subgraph-" prefix', () => {
     const a = subgraphNode(fakeCompiledGraph('c1'));
     const b = subgraphNode(fakeCompiledGraph('c2'));
-    expect(a.id).toMatch(/^subgraph-\d+$/);
-    expect(b.id).toMatch(/^subgraph-\d+$/);
+    expect(a.id).toMatch(/^subgraph-[0-9a-f]{8}$/);
+    expect(b.id).toMatch(/^subgraph-[0-9a-f]{8}$/);
     expect(a.id).not.toBe(b.id);
   });
 });

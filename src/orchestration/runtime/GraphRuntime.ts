@@ -263,19 +263,17 @@ export class GraphRuntime {
         const outEdges = graph.edges.filter(e => e.source === nodeId);
         const targets = await this.evaluateEdges(outEdges, state, result);
 
-        // Any conditional-edge target that was NOT selected is marked as skipped
+        // Any outgoing-edge target that was NOT selected is marked as skipped
         // so downstream nodes that depend only on the skipped branch do not block.
-        for (const edge of outEdges) {
-          if (edge.type === 'conditional' || edge.type === 'personality') {
-            for (const potentialTarget of outEdges.map(e => e.target)) {
-              if (
-                !targets.includes(potentialTarget) &&
-                !completedNodes.includes(potentialTarget) &&
-                !skippedNodes.includes(potentialTarget)
-              ) {
-                skippedNodes.push(potentialTarget);
-              }
-            }
+        // This applies to ALL edge types (static, conditional, personality, discovery)
+        // when a router node produces a routing decision.
+        for (const potentialTarget of outEdges.map(e => e.target)) {
+          if (
+            !targets.includes(potentialTarget) &&
+            !completedNodes.includes(potentialTarget) &&
+            !skippedNodes.includes(potentialTarget)
+          ) {
+            skippedNodes.push(potentialTarget);
           }
         }
 
@@ -499,17 +497,13 @@ export class GraphRuntime {
         const outEdges = graph.edges.filter(e => e.source === nodeId);
         const targets = await this.evaluateEdges(outEdges, state, result);
 
-        for (const edge of outEdges) {
-          if (edge.type === 'conditional' || edge.type === 'personality') {
-            for (const potentialTarget of outEdges.map(e => e.target)) {
-              if (
-                !targets.includes(potentialTarget) &&
-                !completedNodes.includes(potentialTarget) &&
-                !skippedNodes.includes(potentialTarget)
-              ) {
-                skippedNodes.push(potentialTarget);
-              }
-            }
+        for (const potentialTarget of outEdges.map(e => e.target)) {
+          if (
+            !targets.includes(potentialTarget) &&
+            !completedNodes.includes(potentialTarget) &&
+            !skippedNodes.includes(potentialTarget)
+          ) {
+            skippedNodes.push(potentialTarget);
           }
         }
 

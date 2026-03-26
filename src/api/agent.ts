@@ -241,7 +241,7 @@ export function agent(opts: AgentOptions): Agent {
           // Capture text for history when done
           if (useMemory) {
             history.push({ role: 'user', content: text });
-            result.text.then((replyText) => history.push({ role: 'assistant', content: replyText }));
+            void result.text.then((replyText) => history.push({ role: 'assistant', content: replyText })).catch(() => { /* history update failed, non-critical */ });
           }
           return result;
         },

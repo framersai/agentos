@@ -199,8 +199,13 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
               },
             }));
 
-        if (!streamedToolCalls || streamedToolCalls.length === 0) {
+        // Always track the latest step's text so finalText is available even
+        // when maxSteps is exhausted with outstanding tool calls.
+        if (stepText) {
           finalText = stepText;
+        }
+
+        if (!streamedToolCalls || streamedToolCalls.length === 0) {
           rootSpan?.setAttribute('agentos.api.finish_reason', 'stop');
           rootSpan?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
           attachUsageAttributes(rootSpan, usage);

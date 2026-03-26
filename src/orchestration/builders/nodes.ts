@@ -10,9 +10,21 @@ export interface NodePolicies {
   effectClass?: EffectClass;
 }
 
-let nodeCounter = 0;
+/**
+ * Generates a unique node ID using a random UUID fragment to avoid collisions
+ * when multiple graphs are created in the same process.
+ */
 function nextId(prefix: string): string {
-  return `${prefix}-${++nodeCounter}`;
+  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+/**
+ * No-op retained for backward compatibility with tests that previously
+ * relied on the now-removed sequential `nodeCounter`.
+ * @deprecated Node IDs are now UUID-based; resetting has no effect.
+ */
+export function __resetNodeCounter(): void {
+  // Intentional no-op — IDs are UUID-based now.
 }
 
 export function gmiNode(config: {

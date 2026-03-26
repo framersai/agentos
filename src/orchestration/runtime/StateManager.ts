@@ -238,9 +238,18 @@ export class StateManager {
         // Preserve the first value ever written; ignore subsequent writes.
         return existing;
 
-      case 'longest':
-        // Keep whichever operand has the greater string length (or array length).
-        return String(existing).length >= String(incoming).length ? existing : incoming;
+      case 'longest': {
+        // Keep whichever operand has the greater length.
+        // Arrays use .length, strings use .length, objects use Object.keys().length,
+        // and primitives fall back to String(val).length.
+        const lengthOf = (val: unknown): number => {
+          if (Array.isArray(val)) return val.length;
+          if (typeof val === 'string') return val.length;
+          if (typeof val === 'object' && val !== null) return Object.keys(val).length;
+          return String(val).length;
+        };
+        return lengthOf(existing) >= lengthOf(incoming) ? existing : incoming;
+      }
 
       default: {
         // Exhaustiveness guard — should be unreachable at runtime if types are respected.
