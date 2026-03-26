@@ -128,6 +128,11 @@
       "default": "./dist/voice-pipeline/index.js",
       "types": "./dist/voice-pipeline/index.d.ts"
     },
+    "./query-router": {
+      "import": "./dist/query-router/index.js",
+      "default": "./dist/query-router/index.js",
+      "types": "./dist/query-router/index.d.ts"
+    },
     "./memory/index": {
       "import": "./dist/memory/index.js",
       "default": "./dist/memory/index.js",
