@@ -317,7 +317,7 @@ describe('WebRTCStreamTransport', () => {
     await transport.sendAudio(chunk);
     expect(audioChannel.send).toHaveBeenCalledTimes(1);
     // Verify it sent an ArrayBuffer
-    const sent = audioChannel.send.mock.calls[0][0];
+    const sent = (audioChannel.send as any).mock.calls[0][0];
     expect(sent).toBeInstanceOf(ArrayBuffer);
   });
 
@@ -335,7 +335,7 @@ describe('WebRTCStreamTransport', () => {
 
     await transport.sendAudio(frame);
     expect(audioChannel.send).toHaveBeenCalledTimes(1);
-    const sent = audioChannel.send.mock.calls[0][0];
+    const sent = (audioChannel.send as any).mock.calls[0][0];
     expect(sent).toBeInstanceOf(ArrayBuffer);
     // Verify the content matches
     const view = new Float32Array(sent);
@@ -495,7 +495,7 @@ describe('WebRTCStreamTransport', () => {
     const listener = vi.fn();
     transport.on('audio_frame', listener);
 
-    remoteAudioChannel.readyState = 'open';
+    (remoteAudioChannel as any).readyState = 'open';
     const samples = new Float32Array([0.42]);
     remoteAudioChannel._triggerMessage(samples.buffer);
 

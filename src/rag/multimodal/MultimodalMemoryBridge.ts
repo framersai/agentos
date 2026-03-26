@@ -1202,6 +1202,7 @@ export class MultimodalMemoryBridge {
     try {
       // Dynamic import so the dep is truly optional — won't blow up at
       // module load time if pdf-parse isn't installed
+      // @ts-ignore — optional peer dependency; types not guaranteed to be installed
       const mod = await import('pdf-parse');
       return mod.default ?? mod;
     } catch {

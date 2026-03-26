@@ -48,7 +48,7 @@ function extOf(filePath: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Internal loader implementation.  Consumers should use {@link createOcrPdfLoader}
+ * Internal loader implementation. Consumers should use `createOcrPdfLoader()`
  * rather than instantiating this class directly, as the factory performs the
  * availability check and returns `null` when tesseract.js is absent.
  *
@@ -66,9 +66,13 @@ class OcrPdfLoader implements IDocumentLoader {
   canLoad(source: string | Buffer): boolean {
     if (Buffer.isBuffer(source)) {
       // Detect PDF magic bytes: %PDF- at offset 0.
-      return source.length >= 4 &&
-        source[0] === 0x25 && source[1] === 0x50 &&
-        source[2] === 0x44 && source[3] === 0x46;
+      return (
+        source.length >= 4 &&
+        source[0] === 0x25 &&
+        source[1] === 0x50 &&
+        source[2] === 0x44 &&
+        source[3] === 0x46
+      );
     }
     return (SUPPORTED_EXTENSIONS as readonly string[]).includes(extOf(source) as '.pdf');
   }
@@ -97,13 +101,13 @@ class OcrPdfLoader implements IDocumentLoader {
     let Tesseract: any;
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error — optional peer dependency; types not guaranteed to be installed
+      // @ts-ignore — optional peer dependency; types not guaranteed to be installed
       Tesseract = await import('tesseract.js');
     } catch {
       throw new Error(
         'OcrPdfLoader: tesseract.js is not installed.  ' +
-        'Run `pnpm add tesseract.js` (or the equivalent for your package manager) ' +
-        'to enable OCR-based PDF extraction.',
+          'Run `pnpm add tesseract.js` (or the equivalent for your package manager) ' +
+          'to enable OCR-based PDF extraction.'
       );
     }
 
@@ -113,7 +117,9 @@ class OcrPdfLoader implements IDocumentLoader {
     const {
       data: { text },
     } = await Tesseract.recognize(buffer, 'eng', {
-      logger: () => { /* suppress progress output */ },
+      logger: () => {
+        /* suppress progress output */
+      },
     });
 
     const meta: DocumentMetadata = {
@@ -134,7 +140,7 @@ class OcrPdfLoader implements IDocumentLoader {
 
 /**
  * Checks whether `tesseract.js` is available in the current environment and,
- * if so, returns a new {@link OcrPdfLoader} instance; otherwise returns `null`.
+ * if so, returns a new OCR PDF loader instance; otherwise returns `null`.
  *
  * The check is performed by attempting to resolve the package path using
  * Node's `createRequire`.  This avoids a full async dynamic import at call
@@ -149,7 +155,7 @@ class OcrPdfLoader implements IDocumentLoader {
  * const loader = new PdfLoader(ocrLoader);
  * ```
  *
- * @returns An `OcrPdfLoader` instance when tesseract.js is installed, or
+ * @returns An OCR PDF loader instance when tesseract.js is installed, or
  *          `null` when it is not.
  */
 export function createOcrPdfLoader(): IDocumentLoader | null {

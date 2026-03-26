@@ -177,12 +177,12 @@ describe('MultimodalIndexer', () => {
 
     // Should have embedded the description
     expect(embeddingManager.generateEmbeddings).toHaveBeenCalledTimes(1);
-    const embReq = embeddingManager.generateEmbeddings.mock.calls[0][0];
+    const embReq = (embeddingManager.generateEmbeddings.mock.calls as any)[0][0];
     expect(embReq.texts[0]).toContain('golden retriever');
 
     // Should have upserted to vector store
     expect(vectorStore.upsert).toHaveBeenCalledTimes(1);
-    const [collection, docs] = vectorStore.upsert.mock.calls[0];
+    const [collection, docs] = vectorStore.upsert.mock.calls[0] as any;
     expect(collection).toBe('multimodal');
     expect(docs).toHaveLength(1);
     expect(docs[0].metadata.modality).toBe('image');
@@ -208,7 +208,7 @@ describe('MultimodalIndexer', () => {
       collection: 'custom-images',
     });
 
-    expect(vectorStore.upsert.mock.calls[0][0]).toBe('custom-images');
+    expect((vectorStore.upsert.mock.calls as any)[0][0]).toBe('custom-images');
   });
 
   it('should throw if no vision provider is configured', async () => {
@@ -247,12 +247,12 @@ describe('MultimodalIndexer', () => {
 
     // Should have embedded the transcript
     expect(embeddingManager.generateEmbeddings).toHaveBeenCalledTimes(1);
-    const embReq = embeddingManager.generateEmbeddings.mock.calls[0][0];
+    const embReq = (embeddingManager.generateEmbeddings.mock.calls as any)[0][0];
     expect(embReq.texts[0]).toContain('machine learning podcast');
 
     // Should have upserted to vector store
     expect(vectorStore.upsert).toHaveBeenCalledTimes(1);
-    const [collection, docs] = vectorStore.upsert.mock.calls[0];
+    const [collection, docs] = vectorStore.upsert.mock.calls[0] as any;
     expect(collection).toBe('multimodal');
     expect(docs[0].metadata.modality).toBe('audio');
     expect(docs[0].metadata.source).toBe('podcast');
@@ -269,7 +269,7 @@ describe('MultimodalIndexer', () => {
       collection: 'meeting-recordings',
     });
 
-    expect(vectorStore.upsert.mock.calls[0][0]).toBe('meeting-recordings');
+    expect((vectorStore.upsert.mock.calls as any)[0][0]).toBe('meeting-recordings');
   });
 
   it('should throw if no STT provider is configured', async () => {
@@ -300,12 +300,12 @@ describe('MultimodalIndexer', () => {
 
     // Should have embedded the query
     expect(embeddingManager.generateEmbeddings).toHaveBeenCalledTimes(1);
-    const embReq = embeddingManager.generateEmbeddings.mock.calls[0][0];
+    const embReq = (embeddingManager.generateEmbeddings.mock.calls as any)[0][0];
     expect(embReq.texts[0]).toBe('dogs on beach');
 
     // Should have queried vector store
     expect(vectorStore.query).toHaveBeenCalledTimes(1);
-    const [collection, _embedding, queryOpts] = vectorStore.query.mock.calls[0];
+    const [collection, _embedding, queryOpts] = vectorStore.query.mock.calls[0] as any;
     expect(collection).toBe('multimodal');
     expect(queryOpts.topK).toBe(5);
     expect(queryOpts.includeMetadata).toBe(true);
@@ -332,21 +332,21 @@ describe('MultimodalIndexer', () => {
   it('should filter by single modality', async () => {
     await indexer.search('cats', { modalities: ['image'] });
 
-    const queryOpts = vectorStore.query.mock.calls[0][2];
+    const queryOpts = (vectorStore.query.mock.calls as any)[0][2];
     expect(queryOpts.filter).toEqual({ modality: 'image' });
   });
 
   it('should filter by multiple modalities using $in', async () => {
     await indexer.search('cats', { modalities: ['image', 'audio'] });
 
-    const queryOpts = vectorStore.query.mock.calls[0][2];
+    const queryOpts = (vectorStore.query.mock.calls as any)[0][2];
     expect(queryOpts.filter).toEqual({ modality: { $in: ['image', 'audio'] } });
   });
 
   it('should not apply modality filter when modalities is empty', async () => {
     await indexer.search('cats', { modalities: [] });
 
-    const queryOpts = vectorStore.query.mock.calls[0][2];
+    const queryOpts = (vectorStore.query.mock.calls as any)[0][2];
     // No filter should be applied
     expect(queryOpts.filter).toBeUndefined();
   });
@@ -354,7 +354,7 @@ describe('MultimodalIndexer', () => {
   it('should use custom topK and collection', async () => {
     await indexer.search('test', { topK: 20, collection: 'custom-coll' });
 
-    const [collection, _embedding, queryOpts] = vectorStore.query.mock.calls[0];
+    const [collection, _embedding, queryOpts] = vectorStore.query.mock.calls[0] as any;
     expect(collection).toBe('custom-coll');
     expect(queryOpts.topK).toBe(20);
   });
@@ -367,7 +367,7 @@ describe('MultimodalIndexer', () => {
     });
 
     await customIndexer.search('test');
-    expect(vectorStore.query.mock.calls[0][0]).toBe('knowledge-base');
+    expect((vectorStore.query.mock.calls as any)[0][0]).toBe('knowledge-base');
   });
 
   // -------------------------------------------------------------------------
@@ -380,7 +380,7 @@ describe('MultimodalIndexer', () => {
       metadata: { source: 'upload', tags: 'landscape', userId: 'user-123' },
     });
 
-    const doc = vectorStore.upsert.mock.calls[0][1][0];
+    const doc = (vectorStore.upsert.mock.calls as any)[0][1][0];
     expect(doc.metadata.source).toBe('upload');
     expect(doc.metadata.tags).toBe('landscape');
     expect(doc.metadata.userId).toBe('user-123');
@@ -394,7 +394,7 @@ describe('MultimodalIndexer', () => {
       metadata: { source: 'meeting', duration: 3600 },
     });
 
-    const doc = vectorStore.upsert.mock.calls[0][1][0];
+    const doc = (vectorStore.upsert.mock.calls as any)[0][1][0];
     expect(doc.metadata.source).toBe('meeting');
     expect(doc.metadata.duration).toBe(3600);
     expect(doc.metadata.modality).toBe('audio');

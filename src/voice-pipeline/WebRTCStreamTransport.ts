@@ -154,7 +154,7 @@ export interface RTCPeerConnectionLike {
  */
 export interface WebRTCStreamTransportConfig {
   /**
-   * Sample rate (in Hz) used to populate {@link AudioFrame.sampleRate} on
+   * Sample rate (in Hz) used to populate `AudioFrame.sampleRate` on
    * inbound audio messages. Must match the rate the remote peer is sending.
    *
    * Common values: 16000 (telephony/STT), 24000 (TTS output), 48000 (high-fidelity).
@@ -192,9 +192,9 @@ export interface WebRTCStreamTransportConfig {
  * ## Lifecycle
  *
  * 1. Construct with an existing {@link RTCPeerConnectionLike}.
- * 2. Call {@link initialize} to create DataChannels and wire up handlers.
+ * 2. Call `initialize` to create DataChannels and wire up handlers.
  * 3. The transport is `'open'` once both DataChannels reach `'open'` state.
- * 4. Call {@link close} to tear down channels and the peer connection.
+ * 4. Call `close` to tear down channels and the peer connection.
  *
  * ## Events emitted
  *
@@ -243,7 +243,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
 
   /**
    * Current connection state. Updated internally by DataChannel event
-   * handlers. Read externally via the {@link state} getter.
+   * handlers. Read externally via the `state` getter.
    */
   private _state: 'connecting' | 'open' | 'closing' | 'closed';
 
@@ -265,13 +265,13 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
 
   /**
    * Unreliable/unordered DataChannel for audio frame transport.
-   * Created during {@link initialize}. `null` until then.
+   * Created during `initialize`. `null` until then.
    */
   private _audioChannel: RTCDataChannelLike | null = null;
 
   /**
    * Reliable/ordered DataChannel for JSON control messages.
-   * Created during {@link initialize}. `null` until then.
+   * Created during `initialize`. `null` until then.
    */
   private _controlChannel: RTCDataChannelLike | null = null;
 
@@ -305,7 +305,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
     if (!peerConnection) {
       throw new Error(
         'WebRTCStreamTransport: peerConnection is required. ' +
-        'Pass an RTCPeerConnection instance from the `wrtc` package or a compatible polyfill.',
+          'Pass an RTCPeerConnection instance from the `wrtc` package or a compatible polyfill.'
       );
     }
 
@@ -401,12 +401,20 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
   sendAudio(chunk: EncodedAudioChunk | AudioFrame): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this._audioChannel) {
-        reject(new Error('WebRTCStreamTransport: audio channel not initialized. Call initialize() first.'));
+        reject(
+          new Error(
+            'WebRTCStreamTransport: audio channel not initialized. Call initialize() first.'
+          )
+        );
         return;
       }
 
       if (this._audioChannel.readyState !== 'open') {
-        reject(new Error(`WebRTCStreamTransport: audio channel is "${this._audioChannel.readyState}", not "open".`));
+        reject(
+          new Error(
+            `WebRTCStreamTransport: audio channel is "${this._audioChannel.readyState}", not "open".`
+          )
+        );
         return;
       }
 
@@ -418,7 +426,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
           // Buffer.buffer may be a shared pool allocation, so we slice to get
           // only the relevant portion.
           const buf = (chunk as EncodedAudioChunk).audio;
-          arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+          arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
         } else {
           // AudioFrame path: send the Float32Array's backing ArrayBuffer.
           // Same slicing concern as above — the Float32Array may be a view
@@ -426,8 +434,8 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
           const frame = chunk as AudioFrame;
           arrayBuffer = frame.samples.buffer.slice(
             frame.samples.byteOffset,
-            frame.samples.byteOffset + frame.samples.byteLength,
-          );
+            frame.samples.byteOffset + frame.samples.byteLength
+          ) as ArrayBuffer;
         }
 
         this._audioChannel.send(arrayBuffer);
@@ -459,12 +467,20 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
   sendControl(msg: TransportControlMessage | ServerTextMessage): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this._controlChannel) {
-        reject(new Error('WebRTCStreamTransport: control channel not initialized. Call initialize() first.'));
+        reject(
+          new Error(
+            'WebRTCStreamTransport: control channel not initialized. Call initialize() first.'
+          )
+        );
         return;
       }
 
       if (this._controlChannel.readyState !== 'open') {
-        reject(new Error(`WebRTCStreamTransport: control channel is "${this._controlChannel.readyState}", not "open".`));
+        reject(
+          new Error(
+            `WebRTCStreamTransport: control channel is "${this._controlChannel.readyState}", not "open".`
+          )
+        );
         return;
       }
 
@@ -552,7 +568,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
         if (!(raw instanceof ArrayBuffer)) {
           this.emit(
             'error',
-            new Error('WebRTCStreamTransport: received non-binary message on audio channel'),
+            new Error('WebRTCStreamTransport: received non-binary message on audio channel')
           );
           return;
         }
@@ -571,7 +587,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
       } catch (err) {
         this.emit(
           'error',
-          new Error(`WebRTCStreamTransport: error processing audio message: ${String(err)}`),
+          new Error(`WebRTCStreamTransport: error processing audio message: ${String(err)}`)
         );
       }
     };
@@ -590,10 +606,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
     };
 
     channel.onerror = (event: Event) => {
-      this.emit(
-        'error',
-        new Error(`WebRTCStreamTransport: audio channel error: ${String(event)}`),
-      );
+      this.emit('error', new Error(`WebRTCStreamTransport: audio channel error: ${String(event)}`));
     };
   }
 
@@ -609,9 +622,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
   private _attachControlChannelHandlers(channel: RTCDataChannelLike): void {
     channel.onmessage = (event: { data: unknown }) => {
       try {
-        const text = typeof event.data === 'string'
-          ? event.data
-          : String(event.data);
+        const text = typeof event.data === 'string' ? event.data : String(event.data);
 
         const msg = JSON.parse(text) as ClientTextMessage;
         this.emit('control', msg);
@@ -620,7 +631,9 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
         // and let the session continue processing valid messages.
         this.emit(
           'error',
-          new Error(`WebRTCStreamTransport: failed to parse control message as JSON: ${String(err)}`),
+          new Error(
+            `WebRTCStreamTransport: failed to parse control message as JSON: ${String(err)}`
+          )
         );
       }
     };
@@ -641,7 +654,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
     channel.onerror = (event: Event) => {
       this.emit(
         'error',
-        new Error(`WebRTCStreamTransport: control channel error: ${String(event)}`),
+        new Error(`WebRTCStreamTransport: control channel error: ${String(event)}`)
       );
     };
   }
@@ -681,7 +694,10 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
           // Transient network disruption — ICE may recover automatically.
           // We don't transition to 'closed' yet, but surface the event.
           if (this._state === 'open') {
-            this.emit('error', new Error('WebRTCStreamTransport: peer connection disconnected (may recover)'));
+            this.emit(
+              'error',
+              new Error('WebRTCStreamTransport: peer connection disconnected (may recover)')
+            );
           }
           break;
 
@@ -769,7 +785,7 @@ export class WebRTCStreamTransport extends EventEmitter implements IStreamTransp
  * ```
  */
 export async function createWebRTCTransport(
-  config: WebRTCStreamTransportConfig,
+  config: WebRTCStreamTransportConfig
 ): Promise<WebRTCStreamTransport> {
   // Dynamic import so that `wrtc` is only loaded when actually needed.
   // This keeps the package as an optional peer dependency — users who
@@ -778,21 +794,23 @@ export async function createWebRTCTransport(
   let RTCPeerConnection: new (config?: Record<string, unknown>) => RTCPeerConnectionLike;
 
   try {
+    // @ts-ignore — optional peer dependency; only needed for server-side WebRTC
     const wrtcModule = await import('wrtc');
-    RTCPeerConnection = wrtcModule.RTCPeerConnection ?? (wrtcModule as any).default?.RTCPeerConnection;
+    RTCPeerConnection =
+      wrtcModule.RTCPeerConnection ?? (wrtcModule as any).default?.RTCPeerConnection;
   } catch {
     throw new Error(
       'WebRTCStreamTransport requires the `wrtc` package for server-side WebRTC. ' +
-      'Install it with: npm install wrtc\n\n' +
-      'Note: `wrtc` is a native addon and may require build tools (Python, C++ compiler). ' +
-      'See https://github.com/nicktomlin/wrtc for platform-specific instructions.',
+        'Install it with: npm install wrtc\n\n' +
+        'Note: `wrtc` is a native addon and may require build tools (Python, C++ compiler). ' +
+        'See https://github.com/nicktomlin/wrtc for platform-specific instructions.'
     );
   }
 
   if (!RTCPeerConnection) {
     throw new Error(
       'WebRTCStreamTransport: `wrtc` package was imported but RTCPeerConnection was not found. ' +
-      'Ensure you have a compatible version of the `wrtc` package installed.',
+        'Ensure you have a compatible version of the `wrtc` package installed.'
     );
   }
 
