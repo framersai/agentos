@@ -499,4 +499,191 @@ describe('EmergentJudge', () => {
       expect(verdict.confidence).toBe(0.75); // min(0.95, 0.75)
     });
   });
+
+  // =========================================================================
+  // reviewCreation — LLM score preservation
+  // =========================================================================
+
+  describe('reviewCreation() — LLM score preservation', () => {
+    it('uses granular safety score from LLM when provided', async () => {
+      // LLM returns a numeric score on the safety object instead of just passed/failed.
+      generateText.mockResolvedValueOnce(JSON.stringify({
+        safety: { passed: true, score: 0.85, concerns: [] },
+        correctness: { passed: true, score: 0.92, failedTests: [] },
+        determinism: { likely: true, reasoning: 'Deterministic.' },
+        bounded: { likely: true, reasoning: 'Bounded.' },
+        confidence: 0.9,
+        approved: true,
+        reasoning: 'Good tool with granular scores.',
+      }));
+
+      const verdict = await judge.reviewCreation(makeCandidate());
+
+      expect(verdict.approved).toBe(true);
+      // Should use the granular score, not binary 1.0.
+      expect(verdict.safety).toBe(0.85);
+      expect(verdict.correctness).toBe(0.92);
+    });
+
+    it('rejects when LLM returns { safety: { score: 0.3 } } without passed field', async () => {
+      // Missing `passed` field means safetyPassed defaults to false.
+      generateText.mockResolvedValueOnce(JSON.stringify({
+        safety: { score: 0.3, concerns: ['Suspicious patterns.'] },
+        correctness: { passed: true, failedTests: [] },
+        determinism: { likely: true, reasoning: 'Deterministic.' },
+        bounded: { likely: true, reasoning: 'Bounded.' },
+        confidence: 0.5,
+        approved: false,
+        reasoning: 'Safety concerns.',
+      }));
+
+      const verdict = await judge.reviewCreation(makeCandidate());
+
+      // Not approved because safety.passed is not explicitly true.
+      expect(verdict.approved).toBe(false);
+      // Should preserve the numeric score from the LLM.
+      expect(verdict.safety).toBe(0.3);
+    });
+
+    it('rejects when LLM returns empty object {}', async () => {
+      generateText.mockResolvedValueOnce(JSON.stringify({}));
+
+      const verdict = await judge.reviewCreation(makeCandidate());
+
+      // Empty object means safety.passed and correctness.passed are both
+      // undefined, so the tool must not be approved.
+      expect(verdict.approved).toBe(false);
+      expect(verdict.safety).toBe(0.0);
+      expect(verdict.correctness).toBe(0.0);
+      expect(verdict.confidence).toBe(0);
+    });
+
+    it('rejects when LLM returns { confidence: "not a number" }', async () => {
+      generateText.mockResolvedValueOnce(JSON.stringify({
+        safety: { passed: true, concerns: [] },
+        correctness: { passed: true, failedTests: [] },
+        determinism: { likely: true, reasoning: 'Ok.' },
+        bounded: { likely: true, reasoning: 'Ok.' },
+        confidence: 'not a number',
+        approved: true,
+        reasoning: 'Should still work.',
+      }));
+
+      const verdict = await judge.reviewCreation(makeCandidate());
+
+      // The tool should still be approved (safety + correctness both pass).
+      expect(verdict.approved).toBe(true);
+      // But confidence should fall back to 0 because it's not a number.
+      expect(verdict.confidence).toBe(0);
+    });
+  });
+
+  // =========================================================================
+  // validateReuse — full schema validation
+  // =========================================================================
+
+  describe('validateReuse() — constraint validation', () => {
+    it('rejects string shorter than minLength', () => {
+      const schema = { type: 'string', minLength: 5 };
+      const verdict = judge.validateReuse('tool-1', 'hi', schema);
+
+      expect(verdict.valid).toBe(false);
+      expect(verdict.schemaErrors[0]).toContain('minLength');
+    });
+
+    it('rejects string longer than maxLength', () => {
+      const schema = { type: 'string', maxLength: 3 };
+      const verdict = judge.validateReuse('tool-1', 'toolong', schema);
+
+      expect(verdict.valid).toBe(false);
+      expect(verdict.schemaErrors[0]).toContain('maxLength');
+    });
+
+    it('rejects string not matching pattern', () => {
+      const schema = { type: 'string', pattern: '^[a-z]+$' };
+      const verdict = judge.validateReuse('tool-1', 'ABC123', schema);
+
+      expect(verdict.valid).toBe(false);
+      expect(verdict.schemaErrors[0]).toContain('pattern');
+    });
+
+    it('rejects string not in enum', () => {
+      const schema = { type: 'string', enum: ['red', 'green', 'blue'] };
+      const verdict = judge.validateReuse('tool-1', 'yellow', schema);
+
+      expect(verdict.valid).toBe(false);
+      expect(verdict.schemaErrors[0]).toContain('enum');
+    });
+
+    it('rejects number below minimum', () => {
+      const schema = { type: 'number', minimum: 10 };
+      const verdict = judge.validateReuse('tool-1', 5, schema);
+
+      expect(verdict.valid).toBe(false);
+      expect(verdict.schemaErrors[0]).toContain('minimum');
+    });
+
+    it('rejects number above maximum', () => {
+      const schema = { type: 'number', maximum: 100 };
+      const verdict = judge.validateReuse('tool-1', 150, schema);
+
+      expect(verdict.valid).toBe(false);
+      expect(verdict.schemaErrors[0]).toContain('maximum');
+    });
+
+    it('validates nested object schema with maxLength constraint', () => {
+      const schema = {
+        type: 'object',
+        properties: {
+          name: { type: 'string', maxLength: 10 },
+          age: { type: 'number', minimum: 0 },
+        },
+        required: ['name', 'age'],
+      };
+
+      // Name exceeds maxLength.
+      const verdict = judge.validateReuse('tool-1', {
+        name: 'a very long name that exceeds the limit',
+        age: 25,
+      }, schema);
+
+      expect(verdict.valid).toBe(false);
+      // Error should be prefixed with the property name.
+      expect(verdict.schemaErrors.some(e => e.startsWith('name.'))).toBe(true);
+      expect(verdict.schemaErrors.some(e => e.includes('maxLength'))).toBe(true);
+    });
+
+    it('recursively validates array items', () => {
+      const schema = {
+        type: 'array',
+        items: { type: 'number', minimum: 0 },
+      };
+
+      const verdict = judge.validateReuse('tool-1', [1, 2, -3, 4], schema);
+
+      expect(verdict.valid).toBe(false);
+      // Error should reference the index.
+      expect(verdict.schemaErrors.some(e => e.includes('[2]'))).toBe(true);
+      expect(verdict.schemaErrors.some(e => e.includes('minimum'))).toBe(true);
+    });
+
+    it('passes valid nested object with constraints', () => {
+      const schema = {
+        type: 'object',
+        properties: {
+          title: { type: 'string', minLength: 1, maxLength: 50 },
+          count: { type: 'integer', minimum: 0, maximum: 1000 },
+        },
+        required: ['title', 'count'],
+      };
+
+      const verdict = judge.validateReuse('tool-1', {
+        title: 'Valid Title',
+        count: 42,
+      }, schema);
+
+      expect(verdict.valid).toBe(true);
+      expect(verdict.schemaErrors).toEqual([]);
+    });
+  });
 });

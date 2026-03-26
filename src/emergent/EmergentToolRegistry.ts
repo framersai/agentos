@@ -172,6 +172,14 @@ export class EmergentToolRegistry {
   private schemaReady = false;
 
   /**
+   * Cached promise from the first `ensureSchemaReady()` call.
+   * Guards against the race condition where multiple callers invoke
+   * `ensureSchema()` concurrently — without this, the second caller could
+   * start DB operations before the first's DDL statements finish.
+   */
+  private schemaReadyPromise: Promise<void> | null = null;
+
+  /**
    * Create a new EmergentToolRegistry.
    *
    * @param config - Emergent capability configuration. Missing fields are
@@ -188,6 +196,22 @@ export class EmergentToolRegistry {
   // --------------------------------------------------------------------------
   // SCHEMA
   // --------------------------------------------------------------------------
+
+  /**
+   * Idempotent schema readiness guard.
+   *
+   * Ensures `ensureSchema()` is called exactly once and all subsequent callers
+   * await the same in-flight promise. This prevents the race condition where
+   * concurrent DB operations start before DDL statements finish.
+   *
+   * @returns A promise that resolves when the schema is ready.
+   */
+  async ensureSchemaReady(): Promise<void> {
+    if (!this.schemaReadyPromise) {
+      this.schemaReadyPromise = this.ensureSchema();
+    }
+    return this.schemaReadyPromise;
+  }
 
   /**
    * Initialize the database schema for emergent tool persistence.
@@ -724,6 +748,11 @@ CREATE TABLE IF NOT EXISTS agentos_emergent_audit_log (
     if (!this.db) {
       return;
     }
+
+    // Guard: ensure the schema DDL has completed before any DML.
+    // Without this, a race between the fire-and-forget mirror write in
+    // register() and a slow ensureSchema() could produce "table not found".
+    await this.ensureSchemaReady();
 
     // Extract the session ID from the source string if present.
     const sessionMatch = tool.source.match(/session\s+([\w-]+)/);

@@ -256,8 +256,15 @@ export class EmergentJudge {
     return {
       approved,
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
-      safety: safetyPassed ? 1.0 : 0.0,
-      correctness: correctnessPassed ? 1.0 : 0.0,
+      // Preserve the LLM's granular score when available instead of collapsing
+      // to binary 0/1. This retains partial-confidence signals (e.g. 0.3 safety)
+      // that inform downstream promotion decisions.
+      safety: typeof (parsed.safety as Record<string, unknown>)?.score === 'number'
+        ? (parsed.safety as Record<string, unknown>).score as number
+        : (safetyPassed ? 1.0 : 0.0),
+      correctness: typeof (parsed.correctness as Record<string, unknown>)?.score === 'number'
+        ? (parsed.correctness as Record<string, unknown>).score as number
+        : (correctnessPassed ? 1.0 : 0.0),
       determinism: parsed.determinism?.likely ? 1.0 : 0.5,
       bounded: parsed.bounded?.likely ? 1.0 : 0.5,
       reasoning: parsed.reasoning ?? '',
@@ -294,15 +301,14 @@ export class EmergentJudge {
    *   or `valid: false` with a `schemaErrors` array describing each mismatch.
    */
   validateReuse(_toolId: string, output: unknown, schema: JSONSchemaObject): ReuseVerdict {
-    const errors: string[] = [];
-
-    if (schema.type) {
-      errors.push(...this.validateType(output, schema));
-    }
+    // Use the full recursive validator instead of type-only checking.
+    // This catches constraint violations (minLength, maximum, pattern, etc.)
+    // that the old type-only check silently ignored.
+    const result = this.validateAgainstSchema(output, schema as Record<string, unknown>);
 
     return {
-      valid: errors.length === 0,
-      schemaErrors: errors,
+      valid: result.valid,
+      schemaErrors: result.errors,
       anomaly: false,
     };
   }
@@ -491,6 +497,126 @@ Respond ONLY with JSON:
   // --------------------------------------------------------------------------
 
   /**
+   * Recursively validate a value against a JSON Schema definition.
+   *
+   * Implements a focused subset of JSON Schema validation without external
+   * dependencies (no ajv). Supports:
+   * - Type checking: object, string, number, integer, boolean, array
+   * - String constraints: minLength, maxLength, pattern, enum
+   * - Number constraints: minimum, maximum
+   * - Object constraints: required fields, recursive property validation
+   * - Array constraints: recursive items validation
+   *
+   * This runs on every tool invocation so it must be fast — no LLM calls,
+   * no network I/O, no async operations.
+   *
+   * @param value - The value to validate.
+   * @param schema - The JSON Schema to validate against.
+   * @returns An object with `valid: true` if the value conforms, or
+   *   `valid: false` with an `errors` array describing each mismatch.
+   */
+  private validateAgainstSchema(
+    value: unknown,
+    schema: Record<string, unknown>,
+  ): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // --- Type check ---
+    // Validates the fundamental JS type matches the schema's declared type.
+    if (schema.type) {
+      const typeErrors = this.validateType(value, schema as JSONSchemaObject);
+      errors.push(...typeErrors);
+
+      // If the basic type is wrong, skip constraint checks — they only make
+      // sense when the value is already the correct type.
+      if (typeErrors.length > 0) {
+        return { valid: false, errors };
+      }
+    }
+
+    // --- String constraints ---
+    // Only checked when the schema declares string type AND the value is a string.
+    if (schema.type === 'string' && typeof value === 'string') {
+      if (typeof schema.minLength === 'number' && value.length < schema.minLength) {
+        errors.push(`String length ${value.length} is below minLength ${schema.minLength}.`);
+      }
+      if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) {
+        errors.push(`String length ${value.length} exceeds maxLength ${schema.maxLength}.`);
+      }
+      if (typeof schema.pattern === 'string') {
+        // Pattern matching per JSON Schema spec: the pattern tests the entire string.
+        if (!new RegExp(schema.pattern).test(value)) {
+          errors.push(`String does not match pattern "${schema.pattern}".`);
+        }
+      }
+      if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
+        errors.push(`Value "${value}" is not in enum [${schema.enum.map(String).join(', ')}].`);
+      }
+    }
+
+    // --- Number constraints ---
+    // Only checked when the schema declares number/integer AND the value is a number.
+    if (
+      (schema.type === 'number' || schema.type === 'integer') &&
+      typeof value === 'number'
+    ) {
+      if (typeof schema.minimum === 'number' && value < schema.minimum) {
+        errors.push(`Value ${value} is below minimum ${schema.minimum}.`);
+      }
+      if (typeof schema.maximum === 'number' && value > schema.maximum) {
+        errors.push(`Value ${value} exceeds maximum ${schema.maximum}.`);
+      }
+    }
+
+    // --- Object: required fields + recursive property validation ---
+    // Validates nested structure when schema declares object type.
+    if (schema.type === 'object' && typeof value === 'object' && value !== null) {
+      const obj = value as Record<string, unknown>;
+      const props = schema.properties as Record<string, Record<string, unknown>> | undefined;
+      const required = schema.required as string[] | undefined;
+
+      // Check required fields exist on the object.
+      if (required) {
+        for (const key of required) {
+          if (!(key in obj)) {
+            errors.push(`Missing required property "${key}".`);
+          }
+        }
+      }
+
+      // Recursively validate each declared property that exists on the object.
+      if (props) {
+        for (const [key, propSchema] of Object.entries(props)) {
+          if (key in obj) {
+            const nested = this.validateAgainstSchema(obj[key], propSchema);
+            // Prefix nested errors with the property path for clear diagnostics.
+            errors.push(...nested.errors.map((e) => `${key}.${e}`));
+          } else if (!required?.includes(key)) {
+            // Property is declared but not required AND not present — that's still
+            // reported as missing (existing behaviour) to ensure schema conformance.
+            errors.push(`Missing property "${key}" declared in schema.`);
+          }
+        }
+      }
+    }
+
+    // --- Array: items validation ---
+    // Recursively validates each array element against the items schema.
+    if (schema.type === 'array' && Array.isArray(value)) {
+      const items = schema.items as Record<string, unknown> | undefined;
+      if (items) {
+        value.forEach((item, i) => {
+          const nested = this.validateAgainstSchema(item, items);
+          // Prefix nested errors with the array index for clear diagnostics.
+          errors.push(...nested.errors.map((e) => `[${i}].${e}`));
+        });
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  /**
    * Validate a value against a JSON Schema `type` declaration.
    *
    * Performs basic type checking without a full JSON Schema validator library.
@@ -509,27 +635,6 @@ Respond ONLY with JSON:
       case 'object': {
         if (value === null || typeof value !== 'object' || Array.isArray(value)) {
           errors.push(`Expected type "object" but got "${this.describeType(value)}".`);
-          break;
-        }
-
-        const obj = value as Record<string, unknown>;
-
-        // Check declared properties exist.
-        if (schema.properties) {
-          for (const key of Object.keys(schema.properties)) {
-            if (!(key in obj)) {
-              errors.push(`Missing property "${key}" declared in schema.`);
-            }
-          }
-        }
-
-        // Check required properties.
-        if (Array.isArray(schema.required)) {
-          for (const key of schema.required) {
-            if (!(key in obj)) {
-              errors.push(`Missing required property "${key}".`);
-            }
-          }
         }
         break;
       }

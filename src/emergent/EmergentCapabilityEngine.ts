@@ -551,6 +551,10 @@ export class EmergentCapabilityEngine {
 
         let success = result.success;
         let error = result.error;
+        // Track whether the output passed schema validation separately from
+        // execution success. A tool that executes but returns invalid output
+        // should NOT be promoted — its confidence is unreliable.
+        let validationPassed = true;
 
         if (success) {
           const reuseVerdict = this.judge.validateReuse(
@@ -560,6 +564,7 @@ export class EmergentCapabilityEngine {
           );
           if (!reuseVerdict.valid) {
             success = false;
+            validationPassed = false;
             error = `Output schema validation failed: ${reuseVerdict.schemaErrors.join('; ')}`;
           }
         }
@@ -572,7 +577,10 @@ export class EmergentCapabilityEngine {
           executionTimeMs,
         );
 
-        if (success) {
+        // Only check promotion when execution succeeded AND output passed
+        // validation. Promoting after validation failure would reward tools
+        // that produce structurally invalid output.
+        if (success && validationPassed) {
           await this.checkPromotion(tool.id);
         }
 

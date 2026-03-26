@@ -517,4 +517,75 @@ describe('EmergentCapabilityEngine', () => {
     const tool = registry.get(toolId);
     expect(tool!.tier).toBe('session');
   });
+
+  // =========================================================================
+  // 14. Tool with failed validation should NOT be promoted
+  // =========================================================================
+
+  it('does not promote a tool when output validation fails despite high use count', async () => {
+    // Forge a tool whose outputSchema expects { sum: number } with minimum 0.
+    generateText.mockResolvedValueOnce(approvedVerdictJson());
+
+    const request = makeSandboxRequest({
+      outputSchema: {
+        type: 'object',
+        properties: { sum: { type: 'number', minimum: 0 } },
+        required: ['sum'],
+      },
+    });
+
+    const forgeResult = await engine.forge(request, { agentId, sessionId });
+    expect(forgeResult.success).toBe(true);
+    const toolId = forgeResult.toolId!;
+
+    // Create an executable tool wrapper (this is what tracks usage + promotion).
+    const executable = engine.createExecutableTool(forgeResult.tool!);
+    const mockContext: ToolExecutionContext = {
+      gmiId: agentId,
+      personaId: 'test',
+      userContext: { userId: 'system' } as any,
+      correlationId: sessionId,
+    };
+
+    // Simulate 6 uses that succeed at execution but produce schema-invalid output.
+    // The sandbox returns { sum: -1 } which violates minimum: 0.
+    for (let i = 0; i < 6; i++) {
+      await executable.execute({ a: -5, b: 4 }, mockContext);
+    }
+
+    // Even though we had 6 uses, all had validation failures so success rate = 0.
+    // The promotion panel should never have been called (only the 1 forge call).
+    // forge = 1 call. Promotion panel = 0 calls.
+    expect(generateText).toHaveBeenCalledTimes(1);
+
+    // Tool should still be at session tier.
+    const tool = registry.get(toolId);
+    expect(tool!.tier).toBe('session');
+  });
+
+  // =========================================================================
+  // 15. Two concurrent forge requests for same name don't create duplicates
+  // =========================================================================
+
+  it('concurrent forge requests for same name create separate tool IDs', async () => {
+    // Both forge calls should complete without colliding on tool IDs because
+    // IDs include timestamps and random suffixes.
+    generateText
+      .mockResolvedValueOnce(approvedVerdictJson())
+      .mockResolvedValueOnce(approvedVerdictJson());
+
+    const [r1, r2] = await Promise.all([
+      engine.forge(makeSandboxRequest(), { agentId, sessionId: 'sess-concurrent-1' }),
+      engine.forge(makeSandboxRequest(), { agentId, sessionId: 'sess-concurrent-2' }),
+    ]);
+
+    expect(r1.success).toBe(true);
+    expect(r2.success).toBe(true);
+    // Tool IDs should be distinct.
+    expect(r1.toolId).not.toBe(r2.toolId);
+
+    // Both should be registered.
+    expect(registry.get(r1.toolId!)).toBeDefined();
+    expect(registry.get(r2.toolId!)).toBeDefined();
+  });
 });
