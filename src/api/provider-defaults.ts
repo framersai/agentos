@@ -62,6 +62,22 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
   'stable-diffusion-local': {
     image: 'v1-5-pruned-emaonly',
   },
+  groq: {
+    text: 'llama-3.3-70b-versatile',
+    cheap: 'gemma2-9b-it',
+  },
+  together: {
+    text: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    cheap: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+  },
+  mistral: {
+    text: 'mistral-large-latest',
+    cheap: 'mistral-small-latest',
+  },
+  xai: {
+    text: 'grok-2',
+    cheap: 'grok-2-mini',
+  },
 };
 
 /** Env var keys checked for auto-detection, in priority order */
@@ -70,6 +86,10 @@ const AUTO_DETECT_ORDER: Array<{ envKey: string; provider: string }> = [
   { envKey: 'ANTHROPIC_API_KEY', provider: 'anthropic' },
   { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'GEMINI_API_KEY', provider: 'gemini' },
+  { envKey: 'GROQ_API_KEY', provider: 'groq' },
+  { envKey: 'TOGETHER_API_KEY', provider: 'together' },
+  { envKey: 'MISTRAL_API_KEY', provider: 'mistral' },
+  { envKey: 'XAI_API_KEY', provider: 'xai' },
   { envKey: 'OLLAMA_BASE_URL', provider: 'ollama' },
   { envKey: 'STABILITY_API_KEY', provider: 'stability' },
   { envKey: 'REPLICATE_API_TOKEN', provider: 'replicate' },

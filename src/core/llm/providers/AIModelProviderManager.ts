@@ -22,6 +22,11 @@ import { IProvider, ModelInfo } from './IProvider';
 import { OpenAIProvider, OpenAIProviderConfig } from './implementations/OpenAIProvider';
 import { OpenRouterProvider, OpenRouterProviderConfig } from './implementations/OpenRouterProvider';
 import { OllamaProvider, OllamaProviderConfig } from './implementations/OllamaProvider';
+import { AnthropicProvider, AnthropicProviderConfig } from './implementations/AnthropicProvider';
+import { GroqProvider, GroqProviderConfig } from './implementations/GroqProvider';
+import { TogetherProvider, TogetherProviderConfig } from './implementations/TogetherProvider';
+import { MistralProvider, MistralProviderConfig } from './implementations/MistralProvider';
+import { XAIProvider, XAIProviderConfig } from './implementations/XAIProvider';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors'; // Corrected import path
 
 /**
@@ -31,7 +36,7 @@ import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agento
 export interface ProviderConfigEntry {
   providerId: string;
   enabled: boolean;
-  config: Partial<OpenAIProviderConfig | OpenRouterProviderConfig | OllamaProviderConfig | Record<string, any>>;
+  config: Partial<OpenAIProviderConfig | OpenRouterProviderConfig | OllamaProviderConfig | AnthropicProviderConfig | GroqProviderConfig | TogetherProviderConfig | MistralProviderConfig | XAIProviderConfig | Record<string, any>>;
   isDefault?: boolean;
 }
 
@@ -105,6 +110,21 @@ export class AIModelProviderManager {
             break;
           case 'ollama':
             providerInstance = new OllamaProvider();
+            break;
+          case 'anthropic':
+            providerInstance = new AnthropicProvider();
+            break;
+          case 'groq':
+            providerInstance = new GroqProvider();
+            break;
+          case 'together':
+            providerInstance = new TogetherProvider();
+            break;
+          case 'mistral':
+            providerInstance = new MistralProvider();
+            break;
+          case 'xai':
+            providerInstance = new XAIProvider();
             break;
           default:
             console.warn(`AIModelProviderManager: Unknown provider ID '${providerEntry.providerId}'. Skipping.`);
