@@ -42,6 +42,7 @@
     "src/voice/**/*.ts",
     "src/emergent/**/*.ts",
     "src/orchestration/**/*.ts",
+    "src/query-router/**/*.ts",
     "src/voice-pipeline/**/*.ts",
     "src/**/*.json"
   ],
