@@ -159,3 +159,6 @@ export { compileReviewLoop } from './review-loop.js';
 export { compileHierarchical } from './hierarchical.js';
 export { compileGraph } from './graph.js';
 export { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+export { compileAgencyToGraph, mapGraphResultToAgencyResult, mapGraphEventToAgencyEvent } from './graphCompiler.js';
+export { agentGraph, AgentGraphBuilder } from './agentGraphBuilder.js';
+export type { AgentNodeConfig } from './agentGraphBuilder.js';
