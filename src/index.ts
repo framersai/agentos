@@ -87,6 +87,22 @@ export * from './voice';
 export * from './speech';
 // Unified image generation providers
 export * from './core/images';
+// Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)
+export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './core/vision/index.js';
+export type {
+  VisionPipelineConfig,
+  VisionResult,
+  VisionStrategy,
+  VisionTier,
+  ContentCategory as VisionContentCategory,
+  TierResult as VisionTierResult,
+  TextRegion as VisionTextRegion,
+  DocumentLayout,
+  DocumentPage,
+  LayoutBlock,
+  VisionPreprocessingConfig,
+} from './core/vision/types.js';
+export type { LLMVisionProviderConfig } from './core/vision/providers/LLMVisionProvider.js';
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports

@@ -51,6 +51,7 @@ import type {
   ISpeechToTextProvider,
   MultimodalIndexerConfig,
 } from './types.js';
+import type { VisionPipeline } from '../../core/vision/VisionPipeline.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -157,6 +158,10 @@ export class MultimodalIndexer {
    * @param deps.embeddingManager - Manager for generating text embeddings.
    * @param deps.vectorStore - Vector store for document storage and search.
    * @param deps.visionProvider - Optional vision LLM for image description.
+   * @param deps.visionPipeline - Optional full vision pipeline with OCR, handwriting,
+   *   document understanding, CLIP embeddings, and cloud fallback. When provided,
+   *   it is wrapped as an {@link IVisionProvider} via {@link PipelineVisionProvider},
+   *   overriding any `visionProvider` passed alongside it.
    * @param deps.sttProvider - Optional STT provider for audio transcription.
    * @param deps.config - Optional configuration overrides.
    *
@@ -164,6 +169,7 @@ export class MultimodalIndexer {
    *
    * @example
    * ```typescript
+   * // With a simple vision LLM provider
    * const indexer = new MultimodalIndexer({
    *   embeddingManager,
    *   vectorStore,
@@ -171,12 +177,20 @@ export class MultimodalIndexer {
    *   sttProvider: myWhisperService,
    *   config: { defaultCollection: 'knowledge' },
    * });
+   *
+   * // With the full vision pipeline (recommended)
+   * const indexer = new MultimodalIndexer({
+   *   embeddingManager,
+   *   vectorStore,
+   *   visionPipeline: myVisionPipeline,
+   * });
    * ```
    */
   constructor(deps: {
     embeddingManager: IEmbeddingManager;
     vectorStore: IVectorStore;
     visionProvider?: IVisionProvider;
+    visionPipeline?: VisionPipeline;
     sttProvider?: ISpeechToTextProvider;
     config?: MultimodalIndexerConfig;
   }) {
@@ -189,8 +203,20 @@ export class MultimodalIndexer {
 
     this._embeddingManager = deps.embeddingManager;
     this._vectorStore = deps.vectorStore;
-    this._visionProvider = deps.visionProvider;
     this._sttProvider = deps.sttProvider;
+
+    // If a full VisionPipeline is provided, wrap it as an IVisionProvider.
+    // This gives the indexer access to the progressive OCR + vision pipeline
+    // for image description, while maintaining backward compatibility with
+    // the simpler IVisionProvider interface.
+    if (deps.visionPipeline) {
+      // Lazy import to avoid circular dependency at module load time.
+      // PipelineVisionProvider is a thin adapter — safe to require synchronously.
+      const { PipelineVisionProvider } = require('../../core/vision/providers/PipelineVisionProvider.js');
+      this._visionProvider = new PipelineVisionProvider(deps.visionPipeline);
+    } else {
+      this._visionProvider = deps.visionProvider;
+    }
 
     this._config = {
       defaultCollection: deps.config?.defaultCollection ?? DEFAULT_COLLECTION,
