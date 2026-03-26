@@ -1,3 +1,7 @@
+## <small>0.1.106 (2026-03-26)</small>
+
+* feat(memory): commit Memory facade integration, tools, extension bridge, tests ([1e19688](https://github.com/framersai/agentos/commit/1e19688))
+
 ## <small>0.1.105 (2026-03-26)</small>
 
 * fix(ci): add better-sqlite3 to test.server.deps.external in vitest config ([9a9d986](https://github.com/framersai/agentos/commit/9a9d986))
