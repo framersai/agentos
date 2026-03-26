@@ -2,15 +2,21 @@
  * @file voice-node-executor.test.ts
  * @description Unit tests for {@link VoiceNodeExecutor}.
  *
- * Covers:
- * 1. Normal turn completion — exits on `turns-exhausted` when `maxTurns` is reached.
- * 2. Route resolution — maps exitReason to `routeTarget` via node edges.
- * 3. Hangup detection — transport `close` event triggers `hangup` exit.
- * 4. Keyword detection — `final_transcript` containing an exit keyword resolves the node.
- * 5. Missing transport — returns `success: false` with a descriptive error.
- * 6. Checkpoint storage — `scratchUpdate` contains the voice node checkpoint.
- * 7. Event emission — `voice_session` started and ended events are emitted.
- * 8. Checkpoint restore — `initialTurnCount` resumes from a persisted value.
+ * Covers the following execution paths:
+ *
+ * 1. **Normal turn completion** -- exits on `turns-exhausted` when `maxTurns` is reached.
+ * 2. **Route resolution** -- maps exitReason to `routeTarget` via node edges.
+ * 3. **Hangup detection** -- transport `close` event triggers `hangup` exit.
+ * 4. **Keyword detection** -- `final_transcript` containing an exit keyword resolves the node.
+ * 5. **Missing transport** -- returns `{ success: false }` with a descriptive error.
+ * 6. **Checkpoint storage** -- `scratchUpdate` contains the voice node checkpoint.
+ * 7. **Event emission** -- `voice_session` started and ended events are emitted.
+ * 8. **Checkpoint restore** -- `initialTurnCount` resumes from a persisted value.
+ * 9. **Non-voice node rejection** -- returns error for nodes with wrong executor type.
+ * 10. **Disconnected event** -- `disconnected` (alternative to `close`) triggers hangup.
+ *
+ * All tests use plain `EventEmitter` instances as transport/session mocks -- no real
+ * audio hardware, STT, or TTS provider is needed.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -25,8 +31,12 @@ import type { GraphNode, GraphState } from '../ir/types.js';
 /**
  * Builds a minimal voice `GraphNode` with the given config overrides and edge map.
  *
+ * The returned node has `type: 'voice'` and all mandatory fields set to
+ * voice-compatible defaults (`react_bounded`, `external`, `before`).
+ *
  * @param config - Partial `VoiceNodeConfig` merged onto defaults.
  * @param edges  - Maps exit reason strings to target node ids.
+ * @returns A `GraphNode` suitable for `VoiceNodeExecutor.execute()`.
  */
 function createVoiceNode(
   config: Record<string, unknown> = {},
@@ -45,10 +55,14 @@ function createVoiceNode(
 
 /**
  * Creates a partial `GraphState` with a voice transport and session wired up.
- * The transport has a `_voiceSession` property pointing to a plain `EventEmitter`
- * so tests can simulate session events.
  *
- * @param overrides - Extra fields merged into `scratch`.
+ * The transport has a `_voiceSession` property pointing to a plain `EventEmitter`
+ * so tests can simulate session events (final_transcript, turn_complete, etc.)
+ * without a real voice pipeline.
+ *
+ * @param overrides - Extra fields merged into `scratch`. Used to inject
+ *                    checkpoint data for restore tests.
+ * @returns A partial `GraphState` ready for `VoiceNodeExecutor.execute()`.
  */
 function createState(overrides: Record<string, unknown> = {}): Partial<GraphState> {
   const session = new EventEmitter();
@@ -70,7 +84,8 @@ describe('VoiceNodeExecutor', () => {
     const node = createVoiceNode({ maxTurns: 1 }, { 'turns-exhausted': 'next' });
     const state = createState();
 
-    // Simulate a turn completing after a short delay.
+    // Simulate a turn completing after a short delay so the executor has
+    // time to wire up its event listeners before the events fire.
     const transport = (state.scratch as any).voiceTransport;
     const session = transport._voiceSession;
     setTimeout(() => {
@@ -95,6 +110,7 @@ describe('VoiceNodeExecutor', () => {
     setTimeout(() => session.emit('turn_complete', { transcript: 'Done', reason: 'silence' }), 10);
 
     const result = await executor.execute(node, state);
+    // The exitReason 'turns-exhausted' should map to 'summarize' in the edge map.
     expect(result.routeTarget).toBe('summarize');
   });
 
@@ -103,6 +119,7 @@ describe('VoiceNodeExecutor', () => {
     const node = createVoiceNode({}, { hangup: 'end' });
     const state = createState();
     const transport = (state.scratch as any).voiceTransport;
+    // Simulate transport closing (e.g. WebSocket close).
     setTimeout(() => transport.emit('close'), 10);
 
     const result = await executor.execute(node, state);
@@ -119,6 +136,8 @@ describe('VoiceNodeExecutor', () => {
     );
     const state = createState();
     const session = ((state.scratch as any).voiceTransport)._voiceSession;
+    // The keyword 'goodbye' is embedded in a longer utterance to verify
+    // substring matching works correctly.
     setTimeout(() => {
       session.emit('final_transcript', { text: 'Okay goodbye then', confidence: 0.9 });
     }, 10);
@@ -130,6 +149,7 @@ describe('VoiceNodeExecutor', () => {
   it('returns error when no transport in state', async () => {
     const executor = new VoiceNodeExecutor(vi.fn());
     const node = createVoiceNode();
+    // Pass a state with scratch but no voiceTransport to trigger the guard.
     const result = await executor.execute(node, { scratch: {} } as any);
     expect(result.success).toBe(false);
     expect(result.error).toContain('voiceTransport');
@@ -143,6 +163,7 @@ describe('VoiceNodeExecutor', () => {
     setTimeout(() => session.emit('turn_complete', { transcript: 'Hi', reason: 'silence' }), 10);
 
     const result = await executor.execute(node, state);
+    // The checkpoint is keyed by the node id in scratchUpdate.
     expect(result.scratchUpdate).toBeDefined();
     expect((result.scratchUpdate as any)['voice-1']).toBeDefined();
     expect((result.scratchUpdate as any)['voice-1'].turnIndex).toBe(1);
@@ -157,6 +178,7 @@ describe('VoiceNodeExecutor', () => {
     setTimeout(() => session.emit('turn_complete', { transcript: 'X', reason: 'silence' }), 10);
 
     await executor.execute(node, state);
+    // Filter to voice_session events only.
     const sessionEvents = events.filter((e) => e.type === 'voice_session');
     expect(sessionEvents).toHaveLength(2);
     expect(sessionEvents[0].action).toBe('started');
@@ -165,6 +187,8 @@ describe('VoiceNodeExecutor', () => {
 
   it('restores from checkpoint with initial turn count', async () => {
     const executor = new VoiceNodeExecutor(vi.fn());
+    // maxTurns is 6, checkpoint has 5 turns already completed.
+    // One more turn should exhaust the limit.
     const node = createVoiceNode({ maxTurns: 6 });
     const state = createState({
       'voice-1': {
@@ -190,6 +214,7 @@ describe('VoiceNodeExecutor', () => {
       effectClass: 'external',
       checkpoint: 'none',
     };
+    // A non-voice node should be rejected immediately.
     const result = await executor.execute(node, {} as any);
     expect(result.success).toBe(false);
     expect(result.error).toContain('non-voice');
@@ -200,6 +225,7 @@ describe('VoiceNodeExecutor', () => {
     const node = createVoiceNode({}, { hangup: 'end' });
     const state = createState();
     const transport = (state.scratch as any).voiceTransport;
+    // Telephony transports emit 'disconnected' instead of 'close'.
     setTimeout(() => transport.emit('disconnected'), 10);
 
     const result = await executor.execute(node, state);

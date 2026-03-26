@@ -1,15 +1,18 @@
 /**
  * @file voice-transport-adapter.test.ts
- * @description Unit tests for VoiceTransportAdapter.
+ * @description Unit tests for {@link VoiceTransportAdapter}.
  *
- * Covers:
- * 1. init() injects voiceTransport into state.scratch.
- * 2. init() emits a voice_session started event.
- * 3. getNodeInput() resolves when the transport emits turn_complete.
- * 4. getNodeInput() emits a voice_turn_complete event with the correct nodeId.
- * 5. deliverNodeOutput() emits a voice_audio outbound event.
- * 6. getNodeInput() throws when called before init().
- * 7. dispose() emits a voice_session ended event.
+ * Covers the full lifecycle contract:
+ *
+ * 1. `init()` injects `voiceTransport` into `state.scratch`.
+ * 2. `init()` emits a `voice_session` started event.
+ * 3. `getNodeInput()` resolves when the transport emits `turn_complete`.
+ * 4. `getNodeInput()` emits a `voice_turn_complete` event with the correct `nodeId`.
+ * 5. `deliverNodeOutput()` emits a `voice_audio` outbound event.
+ * 6. `getNodeInput()` throws when called before `init()`.
+ * 7. `dispose()` emits a `voice_session` ended event.
+ *
+ * All tests use a plain `EventEmitter` as the transport mock.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,6 +25,9 @@ import { VoiceTransportAdapter } from '../runtime/VoiceTransportAdapter.js';
 
 /**
  * Create a fresh adapter + mock transport + event collector for each test.
+ *
+ * @returns Object with `transport` (mock EventEmitter), `events` (collected
+ *          GraphEvents), and `adapter` (the VoiceTransportAdapter under test).
  */
 function setup() {
   const transport = new EventEmitter();
@@ -39,15 +45,15 @@ function setup() {
 // ---------------------------------------------------------------------------
 
 describe('VoiceTransportAdapter', () => {
-  // ── Test 1 ──────────────────────────────────────────────────────────────
   it('init injects voiceTransport into state.scratch', async () => {
     const { adapter, transport } = setup();
     const state: any = { scratch: {} };
     await adapter.init(state);
+    // After init(), the transport reference must be accessible in scratch
+    // so that VoiceNodeExecutor can find it.
     expect(state.scratch.voiceTransport).toBe(transport);
   });
 
-  // ── Test 2 ──────────────────────────────────────────────────────────────
   it('init emits voice_session started', async () => {
     const { adapter, events } = setup();
     await adapter.init({ scratch: {} } as any);
@@ -56,29 +62,28 @@ describe('VoiceTransportAdapter', () => {
     );
   });
 
-  // ── Test 3 ──────────────────────────────────────────────────────────────
   it('getNodeInput resolves on turn_complete event', async () => {
     const { adapter, transport } = setup();
     await adapter.init({ scratch: {} } as any);
+    // Start waiting for input BEFORE emitting the event (simulates async I/O).
     const inputPromise = adapter.getNodeInput('greet');
     transport.emit('turn_complete', { transcript: 'Hello there', reason: 'punctuation' });
     const result = await inputPromise;
     expect(result).toBe('Hello there');
   });
 
-  // ── Test 4 ──────────────────────────────────────────────────────────────
   it('getNodeInput emits voice_turn_complete event', async () => {
     const { adapter, transport, events } = setup();
     await adapter.init({ scratch: {} } as any);
     const inputPromise = adapter.getNodeInput('greet');
     transport.emit('turn_complete', { transcript: 'Hi', reason: 'silence' });
     await inputPromise;
+    // Filter to turn_complete events and verify the nodeId tag.
     const turnEvents = events.filter((e) => e.type === 'voice_turn_complete');
     expect(turnEvents).toHaveLength(1);
     expect(turnEvents[0].nodeId).toBe('greet');
   });
 
-  // ── Test 5 ──────────────────────────────────────────────────────────────
   it('deliverNodeOutput emits voice_audio event', async () => {
     const { adapter, events } = setup();
     await adapter.init({ scratch: {} } as any);
@@ -88,13 +93,12 @@ describe('VoiceTransportAdapter', () => {
     expect(audioEvents[0].direction).toBe('outbound');
   });
 
-  // ── Test 6 ──────────────────────────────────────────────────────────────
   it('throws if not initialized', async () => {
     const { adapter } = setup();
+    // Calling getNodeInput before init() must throw to prevent silent failures.
     await expect(adapter.getNodeInput('x')).rejects.toThrow('not initialized');
   });
 
-  // ── Test 7 ──────────────────────────────────────────────────────────────
   it('dispose emits voice_session ended', async () => {
     const { adapter, events } = setup();
     await adapter.init({ scratch: {} } as any);

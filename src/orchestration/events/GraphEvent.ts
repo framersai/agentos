@@ -88,19 +88,81 @@ export type GraphEvent =
    */
   | { type: 'error'; nodeId?: string; error: { message: string; code: string } }
 
-  /** Live STT transcription — interim and final results. */
+  /**
+   * Live STT transcription -- both interim (partial) and final (confirmed) results.
+   *
+   * Emitted by {@link VoiceTurnCollector} for every speech recognition result.
+   * Consumers should check `isFinal` to distinguish speculative partials from
+   * confirmed utterances. Only final results are persisted in the transcript buffer.
+   *
+   * - `speaker` is absent when the STT provider does not support diarization.
+   * - `confidence` ranges from `0` (no confidence) to `1` (maximum confidence).
+   *
+   * @see {@link VoiceTurnCollector} -- the source of these events.
+   */
   | { type: 'voice_transcript'; nodeId: string; text: string; isFinal: boolean; speaker?: string; confidence: number }
 
-  /** Audio chunk metadata (actual audio flows via IStreamTransport, not events). */
+  /**
+   * Audio chunk metadata emitted when audio data flows through the voice pipeline.
+   *
+   * The actual PCM/opus audio bytes flow via `IStreamTransport`, NOT through events.
+   * This event carries only metadata (direction, format, duration) so that the graph
+   * event bus can track audio flow without handling binary payloads.
+   *
+   * - `direction: 'inbound'` -- user microphone audio arriving at the STT engine.
+   * - `direction: 'outbound'` -- agent TTS audio being sent to the user.
+   * - `durationMs` is `0` for streaming chunks where total duration is unknown.
+   *
+   * @see {@link VoiceTransportAdapter} -- emits outbound events on `deliverNodeOutput()`.
+   */
   | { type: 'voice_audio'; nodeId: string; direction: 'inbound' | 'outbound'; format: string; durationMs: number }
 
-  /** User barge-in — interrupted the agent mid-speech. */
+  /**
+   * User barge-in -- the user interrupted the agent while it was speaking.
+   *
+   * Emitted by {@link VoiceTurnCollector} when the session fires a `barge_in` event.
+   * This signals that TTS playback should be cancelled and the graph may need to
+   * reroute to handle the interruption (e.g. re-enter a listening state).
+   *
+   * - `interruptedText` -- what the agent was saying when interrupted.
+   * - `userSpeech` -- what the user said that triggered the interruption.
+   *
+   * @see {@link VoiceInterruptError} -- the structured error variant for graph-level handling.
+   */
   | { type: 'voice_barge_in'; nodeId: string; interruptedText: string; userSpeech: string }
 
-  /** User turn complete — endpoint detection fired. */
+  /**
+   * User turn complete -- the endpoint detector determined the user finished speaking.
+   *
+   * Emitted by both {@link VoiceTurnCollector} (from session events) and
+   * {@link VoiceTransportAdapter} (from transport events). Carries the full
+   * transcript for the completed turn and the endpoint detection reason.
+   *
+   * - `turnIndex` is 1-based and reflects the post-increment count (includes
+   *   checkpoint-restored turns when resuming from a checkpoint).
+   * - `endpointReason` describes why the endpoint was detected (e.g. `'punctuation'`,
+   *   `'silence'`, `'acoustic'`, `'unknown'`).
+   *
+   * @see {@link VoiceTurnCollector} -- increments turnIndex and emits this event.
+   */
   | { type: 'voice_turn_complete'; nodeId: string; transcript: string; turnIndex: number; endpointReason: string }
 
-  /** Voice session lifecycle — started or ended. */
+  /**
+   * Voice session lifecycle event -- signals when a voice session starts or ends.
+   *
+   * Emitted by both {@link VoiceNodeExecutor} (at the graph node level) and
+   * {@link VoiceTransportAdapter} (at the transport level). The `nodeId` is the
+   * graph node id for executor-level events, or `'__transport__'` for
+   * transport-level events.
+   *
+   * - `action: 'started'` -- the session is now active and accepting audio.
+   * - `action: 'ended'` -- the session has terminated; `exitReason` describes why
+   *   (e.g. `'turns-exhausted'`, `'hangup'`, `'interrupted'`, `'error'`,
+   *   `'transport-disposed'`).
+   *
+   * @see {@link VoiceNodeExecutor} -- emits started/ended around the exit condition race.
+   * @see {@link VoiceTransportAdapter} -- emits started on init(), ended on dispose().
+   */
   | { type: 'voice_session'; nodeId: string; action: 'started' | 'ended'; exitReason?: string };
 
 // ---------------------------------------------------------------------------

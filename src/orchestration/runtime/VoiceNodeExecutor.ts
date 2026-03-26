@@ -5,18 +5,31 @@
  * multiple exit conditions (hangup, turns exhausted, keyword, silence timeout,
  * barge-in abort) to determine when the voice node completes.
  *
+ * ## Design rationale
+ *
  * The executor follows the standard 2-arg `execute(node, state)` contract used by
- * {@link NodeExecutor}. It creates an internal `AbortController` for barge-in
+ * {@link NodeExecutor}. Internally it creates an `AbortController` for barge-in
  * support and optionally merges a parent abort signal from `state.scratch.abortSignal`.
  *
+ * Exit conditions are modelled as a **single `Promise.race`** rather than a state
+ * machine because the conditions are orthogonal and any one of them can fire at any
+ * time. The `settled` flag inside {@link raceExitConditions} guards against
+ * double-resolution when two conditions fire within the same microtask.
+ *
+ * ## State contract
+ *
  * Voice transport and session references are expected in `state.scratch`:
- * - `voiceTransport` — the bidirectional transport EventEmitter (emits `close` / `disconnected`).
- * - `voiceTransport._voiceSession` — the voice pipeline session EventEmitter that fires
+ * - `voiceTransport` -- the bidirectional transport EventEmitter (emits `close` / `disconnected`).
+ * - `voiceTransport._voiceSession` -- the voice pipeline session EventEmitter that fires
  *   `final_transcript`, `turn_complete`, `speech_start`, and `barge_in` events.
  *
  * Checkpoint data is stored in `state.scratch[nodeId]` as a {@link VoiceNodeCheckpoint},
  * enabling the graph runtime to resume a voice session from the exact turn index where
  * it was previously suspended.
+ *
+ * @see {@link VoiceTurnCollector} for transcript buffering and event bridging.
+ * @see {@link VoiceTransportAdapter} for how graph I/O is wrapped at the transport level.
+ * @see {@link VoiceInterruptError} for the structured barge-in error type.
  */
 
 import { EventEmitter } from 'events';
@@ -36,17 +49,44 @@ import { VoiceInterruptError } from '../../voice-pipeline/VoiceInterruptError.js
  * The graph runtime persists this structure so that a subsequent invocation of the
  * same voice node (e.g. after a graph loop or checkpoint restore) can continue the
  * conversation from `turnIndex` rather than resetting to zero.
+ *
+ * @example
+ * ```ts
+ * // Restoring from a checkpoint:
+ * const checkpoint = state.scratch['voice-1'] as VoiceNodeCheckpoint;
+ * const resumedTurnIndex = checkpoint.turnIndex; // e.g. 5
+ * ```
  */
 export interface VoiceNodeCheckpoint {
   /** Number of turns completed when the checkpoint was captured. */
   turnIndex: number;
-  /** Full transcript buffer at the time of checkpoint. */
+
+  /**
+   * Full transcript buffer at the time of checkpoint.
+   *
+   * Each entry records a confirmed (final) utterance with its speaker label
+   * and wall-clock timestamp, preserving the full conversation history for
+   * downstream summarisation or analytics.
+   */
   transcript: Array<{ speaker: string; text: string; timestamp: number }>;
-  /** Exit reason that caused the voice node to complete (`null` if still in progress). */
+
+  /**
+   * Exit reason that caused the voice node to complete.
+   * `null` when the checkpoint was captured mid-session (e.g. process crash).
+   */
   lastExitReason: string | null;
-  /** Maps diarization speaker labels to human-readable names (reserved for future use). */
+
+  /**
+   * Maps diarization speaker labels to human-readable names.
+   * Reserved for future use -- populated as an empty object today.
+   */
   speakerMap: Record<string, string>;
-  /** The voice config that was active when this checkpoint was created. */
+
+  /**
+   * The voice config that was active when this checkpoint was created.
+   * Stored so that a resumed session can verify config compatibility before
+   * continuing from the persisted turn index.
+   */
   sessionConfig: VoiceNodeConfig;
 }
 
@@ -59,25 +99,33 @@ export interface VoiceNodeCheckpoint {
  * multiple exit conditions to determine when the node is done.
  *
  * Exit conditions are evaluated concurrently via a single `Promise` race:
- * - **Hangup** — transport emits `close` or `disconnected`.
- * - **Turns exhausted** — session emits `turn_complete` and the collector's count
+ * - **Hangup** -- transport emits `close` or `disconnected`.
+ * - **Turns exhausted** -- session emits `turn_complete` and the collector's count
  *   reaches `config.maxTurns`.
- * - **Keyword** — a `final_transcript` event contains one of `config.exitKeywords`.
- * - **Silence timeout** — no speech activity for 30 seconds (when `exitOn: 'silence-timeout'`).
- * - **Abort/barge-in** — the internal `AbortController` is signalled, either by a
+ * - **Keyword** -- a `final_transcript` event contains one of `config.exitKeywords`.
+ * - **Silence timeout** -- no speech activity for 30 seconds (when `exitOn: 'silence-timeout'`).
+ * - **Abort/barge-in** -- the internal `AbortController` is signalled, either by a
  *   parent abort signal or a `VoiceInterruptError`.
  *
  * @example
  * ```ts
  * const executor = new VoiceNodeExecutor((event) => emitter.emit(event));
  * const result = await executor.execute(voiceNode, graphState);
- * console.log(result.output.exitReason); // 'turns-exhausted' | 'hangup' | 'keyword:goodbye' | ...
+ * console.log(result.output.exitReason);
+ * // 'turns-exhausted' | 'hangup' | 'keyword:goodbye' | 'silence-timeout' | 'interrupted'
  * ```
+ *
+ * @see {@link VoiceTurnCollector} -- subscribes to session events and buffers transcript.
+ * @see {@link VoiceInterruptError} -- structured barge-in error that triggers the `interrupted` path.
  */
 export class VoiceNodeExecutor {
   /**
+   * Creates a new VoiceNodeExecutor.
+   *
    * @param eventSink - Callback invoked synchronously for every emitted {@link GraphEvent}.
-   *                     Typically bound to the graph runtime's event emitter.
+   *                     Typically bound to the graph runtime's event emitter so that
+   *                     voice lifecycle events (`voice_session`, `voice_transcript`, etc.)
+   *                     are visible to all graph event consumers.
    */
   constructor(
     private readonly eventSink: (event: GraphEvent) => void,
@@ -87,55 +135,89 @@ export class VoiceNodeExecutor {
    * Execute a voice node. Matches the standard 2-arg `execute(node, state)` signature
    * used throughout the orchestration runtime.
    *
-   * Creates an internal `AbortController` for barge-in, wires up a
-   * {@link VoiceTurnCollector} on the session, and races exit conditions to
-   * determine when the node completes.
+   * ## Lifecycle
+   *
+   * 1. Validates that `node.executorConfig.type` is `'voice'`.
+   * 2. Creates an internal `AbortController` for barge-in, wiring it to any parent
+   *    abort signal in `state.scratch.abortSignal`.
+   * 3. Extracts the `voiceTransport` from `state.scratch` (must be pre-placed by
+   *    the graph runtime or {@link VoiceTransportAdapter}).
+   * 4. Checks for a {@link VoiceNodeCheckpoint} to resume from.
+   * 5. Emits a `voice_session` started event.
+   * 6. Wires a {@link VoiceTurnCollector} onto the session and races exit conditions.
+   * 7. Resolves the exit reason to a route target via the node's edge map.
+   * 8. Returns a {@link NodeExecutionResult} with transcript, exit reason, checkpoint,
+   *    and optional route target.
    *
    * @param node  - Immutable voice node descriptor from the compiled graph IR.
+   *                Must have `executorConfig.type === 'voice'`.
    * @param state - Current (partial) graph state threaded from the runtime.
+   *                Must contain `scratch.voiceTransport` for the voice session.
    * @returns A {@link NodeExecutionResult} with transcript, exit reason, and optional route target.
+   *          On success, `output` contains `{ transcript, turns, exitReason, lastSpeaker, interruptedText }`.
+   *          `scratchUpdate` carries the {@link VoiceNodeCheckpoint} keyed by node id.
+   * @throws Never -- all errors are caught and returned as `{ success: false, error }`.
+   *         {@link VoiceInterruptError} is caught and mapped to `exitReason: 'interrupted'`.
+   *
+   * @see {@link raceExitConditions} for the concurrent exit condition implementation.
    */
   async execute(
     node: GraphNode,
     state: Partial<GraphState>,
   ): Promise<NodeExecutionResult> {
     const config = node.executorConfig;
+
+    // Guard: only voice nodes should reach this executor.
     if (config.type !== 'voice') {
       return { success: false, error: 'VoiceNodeExecutor received non-voice node' };
     }
+
     const voiceConfig = config.voiceConfig;
 
-    // Internal AbortController for barge-in or parent cancellation.
+    // Create an internal AbortController so barge-in events or parent cancellation
+    // can terminate the exit condition race without waiting for a session event.
     const controller = new AbortController();
 
-    // If a parent abort signal exists in scratch, forward its abort to ours.
+    // If a parent abort signal exists in scratch (e.g. from a graph-level timeout
+    // or manual cancellation), forward its abort to our internal controller so that
+    // the voice session is cancelled when the parent cancels.
     const parentSignal = (state as any)?.scratch?.abortSignal as AbortSignal | undefined;
     if (parentSignal) {
       parentSignal.addEventListener('abort', () => controller.abort(parentSignal.reason), { once: true });
     }
 
-    // Voice transport must be pre-placed in state.scratch by the graph runtime.
+    // The voice transport must be pre-placed in state.scratch by the graph runtime
+    // or VoiceTransportAdapter before executing a voice node. Without it we cannot
+    // receive session events or detect hangup.
     const transport = (state as any)?.scratch?.voiceTransport as EventEmitter | undefined;
     if (!transport) {
       return { success: false, error: 'Voice node requires voiceTransport in state.scratch' };
     }
 
-    // Check for checkpoint restore — continue from a prior turn index.
+    // Check for checkpoint restore -- if the node was previously executed and the
+    // graph was suspended/restored, the prior turn count is in the checkpoint.
+    // This lets the turn counter continue from where it left off rather than
+    // resetting to zero, which would cause premature exits on maxTurns.
     const checkpoint = (state as any)?.scratch?.[node.id] as VoiceNodeCheckpoint | undefined;
     const initialTurnCount = checkpoint?.turnIndex ?? 0;
 
-    // Emit session lifecycle event: started.
+    // Signal that the voice session is now active for this node.
     this.eventSink({ type: 'voice_session', nodeId: node.id, action: 'started' });
 
     try {
       // The voice session EventEmitter is expected on transport._voiceSession.
-      // In production this is the VoicePipelineSession; in tests it can be a plain EventEmitter.
+      // In production this is the VoicePipelineSession; in tests it can be a
+      // plain EventEmitter. Fallback to a fresh emitter avoids null dereferences
+      // when the transport doesn't have an attached session.
       const session: EventEmitter = (transport as any)._voiceSession ?? new EventEmitter();
 
-      // Create the turn collector — it subscribes to session events and buffers transcript.
+      // Create the turn collector -- it subscribes to session events (interim_transcript,
+      // final_transcript, turn_complete, barge_in) and bridges them into GraphEvents
+      // while maintaining a running transcript buffer and turn counter.
       const collector = new VoiceTurnCollector(session, this.eventSink, node.id, initialTurnCount);
 
-      // Race all exit conditions against each other.
+      // Race all exit conditions against each other. The first condition to fire
+      // determines exitReason and ends the voice node.
       const result = await this.raceExitConditions(
         session,
         collector,
@@ -144,11 +226,15 @@ export class VoiceNodeExecutor {
         transport,
       );
 
-      // Resolve exitReason → routeTarget from node edges.
+      // Map the exitReason string to a target node id using the edge map.
+      // This is how voice nodes implement conditional routing: different exit
+      // conditions route to different downstream nodes.
       const edges = (node as any).edges ?? {};
       const routeTarget = typeof edges === 'object' ? edges[result.reason] : undefined;
 
-      // Build checkpoint for scratch so the runtime can persist/restore later.
+      // Build the checkpoint so the runtime can persist and restore later.
+      // This is written into scratchUpdate and merged back into state.scratch
+      // by the graph runtime after execution completes.
       const voiceCheckpoint: VoiceNodeCheckpoint = {
         turnIndex: collector.getTurnCount(),
         transcript: collector.getTranscript(),
@@ -157,7 +243,7 @@ export class VoiceNodeExecutor {
         sessionConfig: voiceConfig,
       };
 
-      // Emit session lifecycle event: ended.
+      // Signal that the voice session has ended for this node.
       this.eventSink({ type: 'voice_session', nodeId: node.id, action: 'ended', exitReason: result.reason });
 
       return {
@@ -173,8 +259,10 @@ export class VoiceNodeExecutor {
         scratchUpdate: { [node.id]: voiceCheckpoint },
       };
     } catch (err) {
-      // VoiceInterruptError is a structured barge-in — treat as a successful exit
-      // with exitReason: 'interrupted' so the graph can route accordingly.
+      // VoiceInterruptError is a structured barge-in -- the user spoke over the
+      // agent. This is not an error condition; it's a valid exit path that the
+      // graph should be able to route on. We convert it to a successful result
+      // with exitReason: 'interrupted' so edge routing works as expected.
       if (err instanceof VoiceInterruptError) {
         const edges = (node as any).edges ?? {};
         const routeTarget = edges['interrupted'];
@@ -194,7 +282,8 @@ export class VoiceNodeExecutor {
         };
       }
 
-      // Unhandled error — surface as a failed result.
+      // Unhandled error -- surface as a failed result so the graph runtime can
+      // decide whether to retry, reroute, or halt.
       this.eventSink({ type: 'voice_session', nodeId: node.id, action: 'ended', exitReason: 'error' });
       return { success: false, error: String(err) };
     }
@@ -208,16 +297,31 @@ export class VoiceNodeExecutor {
    * Races all configured exit conditions against each other and resolves with
    * the first one that fires.
    *
-   * Listeners are attached to the session and transport EventEmitters. The
-   * `AbortController` signal is also monitored — if it fires with a
-   * {@link VoiceInterruptError} the Promise rejects (handled by the caller),
-   * otherwise it resolves with `{ reason: 'interrupted' }`.
+   * ## How it works
    *
-   * @param session    - Voice pipeline session EventEmitter.
-   * @param collector  - Active turn collector tracking turn count.
-   * @param config     - Voice node configuration with exit settings.
+   * Each exit condition is wired as a listener on either the `session` or
+   * `transport` EventEmitter. All listeners call a shared `settleWith()` helper
+   * that resolves the outer Promise exactly once (guarded by a `settled` boolean).
+   *
+   * The `AbortController` signal is also monitored -- if it fires with a
+   * {@link VoiceInterruptError} the Promise rejects (handled by the caller's
+   * catch block), otherwise it resolves with `{ reason: 'interrupted' }`.
+   *
+   * ## Why a Promise race instead of a state machine?
+   *
+   * The exit conditions are independent and asynchronous. A Promise-based race
+   * avoids complex state transitions and lets each condition be a simple
+   * event listener. The `settled` guard handles the only tricky case: two
+   * conditions firing in the same microtask.
+   *
+   * @param session    - Voice pipeline session EventEmitter that fires
+   *                     `turn_complete`, `final_transcript`, `speech_start`, `barge_in`.
+   * @param collector  - Active turn collector tracking turn count and transcript.
+   * @param config     - Voice node configuration with exit settings (`maxTurns`,
+   *                     `exitOn`, `exitKeywords`).
    * @param controller - Internal AbortController for barge-in signalling.
-   * @param transport  - Bidirectional transport EventEmitter.
+   * @param transport  - Bidirectional transport EventEmitter that fires `close`
+   *                     and `disconnected` on hangup.
    * @returns The winning exit condition's reason string and optional interrupted text.
    */
   private async raceExitConditions(
@@ -228,12 +332,14 @@ export class VoiceNodeExecutor {
     transport: EventEmitter,
   ): Promise<{ reason: string; interruptedText?: string }> {
     return new Promise((resolve, reject) => {
-      /** Prevent double-resolution from multiple conditions firing simultaneously. */
+      /** Prevents double-resolution when multiple conditions fire simultaneously. */
       let settled = false;
 
       /**
        * Settle the promise with a resolve value, guarding against double-settle.
-       * @param result - The exit condition result.
+       * Every exit condition calls this instead of `resolve()` directly.
+       *
+       * @param result - The exit condition result containing the reason string.
        */
       const settleWith = (result: { reason: string; interruptedText?: string }): void => {
         if (settled) return;
@@ -242,11 +348,17 @@ export class VoiceNodeExecutor {
       };
 
       // -- Hangup: transport disconnects -----------------------------------
+      // Both `close` and `disconnected` events indicate the transport is gone.
+      // We listen for both because different transport implementations emit
+      // different event names (WebSocket uses `close`, telephony uses `disconnected`).
       const onDisconnect = (): void => settleWith({ reason: 'hangup' });
       transport.on('close', onDisconnect);
       transport.on('disconnected', onDisconnect);
 
       // -- Turns exhausted -------------------------------------------------
+      // Only armed when maxTurns is a positive number. We check the collector's
+      // count (not a local counter) because the collector may have been seeded
+      // with an initialTurnCount from a checkpoint restore.
       if (config.maxTurns && config.maxTurns > 0) {
         session.on('turn_complete', () => {
           if (collector.getTurnCount() >= config.maxTurns!) {
@@ -256,6 +368,9 @@ export class VoiceNodeExecutor {
       }
 
       // -- Keyword detection -----------------------------------------------
+      // Only armed when exitOn is 'keyword' and at least one keyword is provided.
+      // The keyword check is case-insensitive and uses substring matching so that
+      // "goodbye" matches "okay goodbye then".
       if (config.exitOn === 'keyword' && config.exitKeywords?.length) {
         session.on('final_transcript', (evt: any) => {
           const text = (evt.text ?? '').toLowerCase();
@@ -269,22 +384,31 @@ export class VoiceNodeExecutor {
       }
 
       // -- Silence timeout (default 30 s) ----------------------------------
+      // Only armed when exitOn is 'silence-timeout'. A watchdog timer is reset
+      // on every speech activity event. If the timer fires without being reset,
+      // the user has been silent for too long and the session ends.
       if (config.exitOn === 'silence-timeout') {
         let silenceTimer: ReturnType<typeof setTimeout> | null = null;
         const timeoutMs = 30_000;
 
-        /** Reset the silence watchdog — called on any speech activity. */
+        /** Reset the silence watchdog -- called on any speech activity. */
         const resetTimer = (): void => {
           if (silenceTimer) clearTimeout(silenceTimer);
           silenceTimer = setTimeout(() => settleWith({ reason: 'silence-timeout' }), timeoutMs);
         };
 
+        // Reset on both speech_start (user began talking) and turn_complete
+        // (user finished a turn) to cover all speech activity signals.
         session.on('speech_start', resetTimer);
         session.on('turn_complete', resetTimer);
         resetTimer(); // Start the initial timer immediately.
       }
 
       // -- Abort signal (barge-in or parent cancellation) ------------------
+      // If the abort reason is a VoiceInterruptError, we reject the Promise
+      // (the caller's catch block converts it to exitReason: 'interrupted').
+      // For any other abort reason (e.g. parent timeout), we resolve normally
+      // with reason: 'interrupted'.
       controller.signal.addEventListener('abort', () => {
         const reason = controller.signal.reason;
         if (reason instanceof VoiceInterruptError) {

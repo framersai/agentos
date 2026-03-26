@@ -1,7 +1,12 @@
 /**
  * @file voice-turn-collector.test.ts
- * @description Unit tests for VoiceTurnCollector — covers transcript buffering,
- * turn counting, last-speaker tracking, GraphEvent emission, and checkpoint restore.
+ * @description Unit tests for {@link VoiceTurnCollector}.
+ *
+ * Covers transcript buffering, turn counting, last-speaker tracking,
+ * GraphEvent emission, checkpoint restore, defensive defaults, and
+ * buffer immutability.
+ *
+ * All tests use a plain `EventEmitter` as the session mock.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -16,6 +21,9 @@ import { VoiceTurnCollector } from '../runtime/VoiceTurnCollector.js';
  * Creates a fresh session emitter, event sink spy, and collector instance.
  *
  * @param initialTurnCount - Optional seed for checkpoint-restore tests.
+ * @returns Object with `session` (EventEmitter to fire events on),
+ *          `events` (collected GraphEvents), and `collector` (the instance
+ *          under test).
  */
 function setup(initialTurnCount = 0) {
   const session = new EventEmitter();
@@ -30,6 +38,8 @@ function setup(initialTurnCount = 0) {
 // ---------------------------------------------------------------------------
 
 describe('VoiceTurnCollector', () => {
+  // -- interim_transcript forwarding (not buffered) -------------------------
+
   it('emits voice_transcript on interim_transcript', () => {
     const { session, events } = setup();
     session.emit('interim_transcript', { text: 'Hel', confidence: 0.5 });
@@ -53,10 +63,14 @@ describe('VoiceTurnCollector', () => {
   });
 
   it('does NOT buffer interim transcripts', () => {
+    // Interim transcripts are speculative and should not pollute the
+    // canonical transcript buffer.
     const { session, collector } = setup();
     session.emit('interim_transcript', { text: 'part' });
     expect(collector.getTranscript()).toHaveLength(0);
   });
+
+  // -- final_transcript buffering + forwarding ------------------------------
 
   it('buffers transcript on final_transcript', () => {
     const { session, collector } = setup();
@@ -85,6 +99,8 @@ describe('VoiceTurnCollector', () => {
     expect(t[1].text).toBe('World');
   });
 
+  // -- turn_complete counting + forwarding ----------------------------------
+
   it('increments turn count on turn_complete', () => {
     const { session, collector } = setup();
     session.emit('turn_complete', { transcript: 'Hello there', reason: 'punctuation' });
@@ -95,6 +111,7 @@ describe('VoiceTurnCollector', () => {
     const { session, events } = setup();
     session.emit('turn_complete', { transcript: 'Hello there', reason: 'punctuation' });
     expect(events[0].type).toBe('voice_turn_complete');
+    // turnIndex is 1 after the first turn_complete (post-increment).
     expect(events[0].turnIndex).toBe(1);
     expect(events[0].endpointReason).toBe('punctuation');
     expect(events[0].transcript).toBe('Hello there');
@@ -109,6 +126,8 @@ describe('VoiceTurnCollector', () => {
     expect(events[2].turnIndex).toBe(3);
   });
 
+  // -- barge_in forwarding --------------------------------------------------
+
   it('emits voice_barge_in on barge_in', () => {
     const { session, events } = setup();
     session.emit('barge_in', { interruptedText: 'I was saying', userSpeech: 'Wait!' });
@@ -118,7 +137,10 @@ describe('VoiceTurnCollector', () => {
     expect(events[0].nodeId).toBe('test-node');
   });
 
+  // -- checkpoint restore ---------------------------------------------------
+
   it('supports initial turn count for checkpoint restore', () => {
+    // Starting from turnIndex 5, the next turn_complete should yield 6.
     const { session, collector } = setup(5);
     session.emit('turn_complete', { transcript: 'Next', reason: 'silence' });
     expect(collector.getTurnCount()).toBe(6);
@@ -130,7 +152,11 @@ describe('VoiceTurnCollector', () => {
     expect(events[0].turnIndex).toBe(6);
   });
 
+  // -- defensive defaults ---------------------------------------------------
+
   it('defaults speaker to user when not provided on final_transcript', () => {
+    // When the STT service doesn't provide diarization, speaker defaults
+    // to 'user' so the transcript always has a speaker label.
     const { session, collector } = setup();
     session.emit('final_transcript', { text: 'Hi' });
     expect(collector.getLastSpeaker()).toBe('user');
@@ -144,10 +170,11 @@ describe('VoiceTurnCollector', () => {
     expect(collector.getLastSpeaker()).toBe('');
   });
 
-  it('getTranscript() returns a copy — mutations do not affect internal buffer', () => {
+  it('getTranscript() returns a copy -- mutations do not affect internal buffer', () => {
     const { session, collector } = setup();
     session.emit('final_transcript', { text: 'Immutable', speaker: 'user' });
     const copy = collector.getTranscript();
+    // Mutating the returned copy should not affect the internal buffer.
     copy.push({ speaker: 'intruder', text: 'injected', timestamp: 0 });
     expect(collector.getTranscript()).toHaveLength(1);
   });

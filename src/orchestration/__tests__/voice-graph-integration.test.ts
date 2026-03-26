@@ -5,13 +5,16 @@
  * These tests exercise the pipeline end-to-end with real implementations and mock
  * EventEmitter transports, validating:
  *
- * 1. Keyword exit condition resolves and routes to the correct edge target.
- * 2. Transport close (hangup) resolves the node successfully.
- * 3. VoiceTransportAdapter injects transport into state and handles I/O events.
- * 4. voiceNode() builder produces a valid GraphNode IR object.
- * 5. Checkpoint data (turnIndex, transcript) is stored in scratchUpdate after execution.
+ * 1. **Keyword exit** -- keyword exit condition resolves and routes to the correct edge target.
+ * 2. **Hangup routing** -- transport close (hangup) resolves the node successfully.
+ * 3. **Transport adapter I/O** -- VoiceTransportAdapter injects transport into state
+ *    and handles I/O events correctly.
+ * 4. **Builder IR output** -- voiceNode() builder produces a valid GraphNode IR object
+ *    with correct mandatory fields and edge map.
+ * 5. **Checkpoint persistence** -- checkpoint data (turnIndex, transcript) is stored
+ *    in scratchUpdate after execution.
  *
- * All tests use plain `EventEmitter` instances as transport/session mocks — no real
+ * All tests use plain `EventEmitter` instances as transport/session mocks -- no real
  * audio hardware, STT, or TTS provider is needed.
  */
 
@@ -86,7 +89,7 @@ describe('Voice Graph Integration', () => {
   it('barge-in routes to interrupted edge', async () => {
     const executor = new VoiceNodeExecutor(vi.fn());
 
-    // Node only has interrupted/completed routes — no hangup route.
+    // Node only has interrupted/completed routes -- no hangup route.
     const node = voiceNode('listen', { mode: 'conversation' })
       .on('interrupted', 'listen')
       .on('completed', 'end')
@@ -95,6 +98,8 @@ describe('Voice Graph Integration', () => {
     const { state, transport } = createMockState();
 
     // Simulate transport close (equivalent to caller hanging up).
+    // Note: despite the test name mentioning "barge-in", this actually tests
+    // hangup without a matching edge -- routeTarget should be undefined.
     setTimeout(() => transport.emit('close'), 10);
 
     const result = await executor.execute(node, state);
