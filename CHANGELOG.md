@@ -1,3 +1,23 @@
+## <small>0.1.102 (2026-03-26)</small>
+
+* fix(memory): add @types/better-sqlite3 and fix implicit any parameters for CI ([98945c3](https://github.com/framersai/agentos/commit/98945c3))
+* feat(memory): add 6 agent memory editor tools — add, update, delete, merge, search, reflect ([7531a2c](https://github.com/framersai/agentos/commit/7531a2c))
+* feat(memory): add ChunkingEngine — fixed, semantic, hierarchical, and layout strategies ([fdf4e5e](https://github.com/framersai/agentos/commit/fdf4e5e))
+* feat(memory): add ConsolidationLoop — self-improving prune/merge/strengthen/derive/compact/reindex ([e174869](https://github.com/framersai/agentos/commit/e174869))
+* feat(memory): add facade types and extend ConsolidationConfig ([ae8c04b](https://github.com/framersai/agentos/commit/ae8c04b))
+* feat(memory): add FolderScanner, MultimodalAggregator, UrlLoader ([c12546d](https://github.com/framersai/agentos/commit/c12546d))
+* feat(memory): add IDocumentLoader interface, TextLoader, MarkdownLoader, HtmlLoader, LoaderRegistry ([f871a3b](https://github.com/framersai/agentos/commit/f871a3b))
+* feat(memory): add import/export — JSON, Markdown, Obsidian vault, SQLite, ChatGPT ([c815b4a](https://github.com/framersai/agentos/commit/c815b4a))
+* feat(memory): add Memory facade — unified public API for the complete memory system ([155586a](https://github.com/framersai/agentos/commit/155586a))
+* feat(memory): add PdfLoader (unpdf), OcrPdfLoader (tesseract.js), DoclingLoader, DocxLoader ([6af478d](https://github.com/framersai/agentos/commit/6af478d))
+* feat(memory): add RetrievalFeedbackSignal and DecayModel.penalizeUnused() ([e4daa7a](https://github.com/framersai/agentos/commit/e4daa7a))
+* feat(memory): add SqliteBrain — unified SQLite connection with schema and WAL mode ([9a7d91d](https://github.com/framersai/agentos/commit/9a7d91d))
+* feat(memory): add SqliteKnowledgeGraph — IKnowledgeGraph backed by SQLite with recursive CTE travers ([da4b0c6](https://github.com/framersai/agentos/commit/da4b0c6))
+* feat(memory): add SqliteMemoryGraph — IMemoryGraph with spreading activation and cluster detection ([dc538ef](https://github.com/framersai/agentos/commit/dc538ef))
+* feat(memory): integrate Memory facade — barrel exports, deps verified, full test suite passing ([c19e99c](https://github.com/framersai/agentos/commit/c19e99c))
+* docs: add comprehensive guides for all AgentOS components — getting started, orchestration, channels ([3c3f770](https://github.com/framersai/agentos/commit/3c3f770))
+* docs(agency): add graph strategy docs, README, and example ([997cbc9](https://github.com/framersai/agentos/commit/997cbc9))
+
 ## <small>0.1.101 (2026-03-26)</small>
 
 * feat(agency): add graph strategy with explicit dependsOn agent dependencies ([c7c2c44](https://github.com/framersai/agentos/commit/c7c2c44))
