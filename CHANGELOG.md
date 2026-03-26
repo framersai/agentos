@@ -1,3 +1,7 @@
+## <small>0.1.109 (2026-03-26)</small>
+
+* refactor(voice-pipeline): Opus rewrite — comprehensive TSDoc, inline comments, stricter types ([4de7f16](https://github.com/framersai/agentos/commit/4de7f16))
+
 ## <small>0.1.108 (2026-03-26)</small>
 
 * fix(memory): resolve cosine similarity division-by-zero and path traversal bugs ([17347fa](https://github.com/framersai/agentos/commit/17347fa))
