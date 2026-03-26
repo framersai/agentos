@@ -187,6 +187,7 @@ export function compileGraph(
     },
 
     stream(prompt, opts) {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const self = this;
       const startMs = Date.now();
 

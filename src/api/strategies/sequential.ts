@@ -105,6 +105,7 @@ export function compileSequential(
        * Usage accounting is collected per-agent and summed into a final total.
        * All promises resolve once the generator has been fully consumed.
        */
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const self = this;
       const startMs = Date.now();
 

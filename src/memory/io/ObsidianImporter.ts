@@ -45,7 +45,7 @@ const EMBED_RE = /!\[\[[^\]]+\]\]/g;
  * Matches inline hashtags: `#tagName` (not preceded by `[` or `#`).
  * Only captures the tag name (group 1) without the leading `#`.
  */
-const HASHTAG_RE = /(?<![[\#])#([\w-]+)/g;
+const HASHTAG_RE = /(?<![[#])#([\w-]+)/g;
 
 // ---------------------------------------------------------------------------
 // Internal types

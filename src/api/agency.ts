@@ -752,7 +752,7 @@ async function runGuardrails(
      * registry — for v1 we pass the IDs through as metadata and invoke
      * the dispatcher with any registered guardrail instances.
      */
-    let sanitizedText = text;
+    const sanitizedText = text;
 
     for (const guardId of guardIds) {
       /* Fire the guardrailResult event for observability. */
