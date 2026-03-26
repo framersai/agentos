@@ -214,6 +214,7 @@ export class MultimodalIndexer {
       // PipelineVisionProvider is a thin adapter — safe to require synchronously.
       const {
         PipelineVisionProvider,
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
       } = require('../../core/vision/providers/PipelineVisionProvider.js');
       this._visionProvider = new PipelineVisionProvider(deps.visionPipeline);
     } else {
@@ -517,6 +518,7 @@ export class MultimodalIndexer {
     // Lazy import to avoid circular dependency at module load time.
     // The bridge depends on the indexer, and this factory lives on the indexer,
     // so we use a dynamic require pattern with the already-resolved class.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { MultimodalMemoryBridge } = require('./MultimodalMemoryBridge.js');
     return new MultimodalMemoryBridge(this, memoryManager, options);
   }

@@ -806,7 +806,7 @@ export class MultimodalMemoryBridge {
 
     const ragDocumentIds: string[] = [];
     const visionDescriptions: string[] = [];
-    let embeddedImages = 0;
+    const embeddedImages = 0;
 
     // --- Chunk text and index each chunk ---
     const chunks = chunkText(rawText.trim(), chunkSize, chunkOverlap);
