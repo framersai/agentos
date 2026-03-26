@@ -16,6 +16,7 @@ import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { IDocumentLoader } from './IDocumentLoader.js';
 import type { LoadOptions, LoadedDocument, DocumentMetadata } from '../facade/types.js';
+import { validatePath } from './pathUtils.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -156,8 +157,8 @@ export class TextLoader implements IDocumentLoader {
       raw = source.toString('utf8');
       ext = '.txt';
     } else {
-      // File path: read from disk.
-      resolvedPath = source;
+      // File path: validate against traversal and read from disk.
+      resolvedPath = validatePath(source);
       ext = extOf(source);
       const bytes = await fs.readFile(resolvedPath);
       raw = bytes.toString('utf8');

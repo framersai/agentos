@@ -16,6 +16,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import type { IDocumentLoader } from './IDocumentLoader.js';
 import type { LoadOptions, LoadedDocument, DocumentMetadata } from '../facade/types.js';
+import { validatePath } from './pathUtils.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -140,7 +141,7 @@ export class MarkdownLoader implements IDocumentLoader {
     if (Buffer.isBuffer(source)) {
       raw = source.toString('utf8');
     } else {
-      resolvedPath = source;
+      resolvedPath = validatePath(source);
       const bytes = await fs.readFile(resolvedPath);
       raw = bytes.toString('utf8');
     }

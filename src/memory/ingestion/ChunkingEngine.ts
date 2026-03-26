@@ -118,7 +118,10 @@ function cosineSimilarity(a: number[], b: number[]): number {
     magA += a[i] * a[i];
     magB += b[i] * b[i];
   }
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB) || 1);
+  const mA = Math.sqrt(magA);
+  const mB = Math.sqrt(magB);
+  if (mA === 0 || mB === 0) return 0;
+  return dot / (mA * mB);
 }
 
 // ---------------------------------------------------------------------------

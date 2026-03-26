@@ -14,6 +14,7 @@ import path from 'node:path';
 import mammoth from 'mammoth';
 import type { IDocumentLoader } from './IDocumentLoader.js';
 import type { LoadOptions, LoadedDocument, DocumentMetadata } from '../facade/types.js';
+import { validatePath } from './pathUtils.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -99,7 +100,7 @@ export class DocxLoader implements IDocumentLoader {
     if (Buffer.isBuffer(source)) {
       buffer = source;
     } else {
-      resolvedPath = source;
+      resolvedPath = validatePath(source);
       buffer = await fs.readFile(resolvedPath);
     }
 

@@ -16,6 +16,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { IDocumentLoader } from './IDocumentLoader.js';
 import type { LoadOptions, LoadedDocument, DocumentMetadata } from '../facade/types.js';
+import { validatePath } from './pathUtils.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -199,7 +200,7 @@ export class HtmlLoader implements IDocumentLoader {
     if (Buffer.isBuffer(source)) {
       html = source.toString('utf8');
     } else {
-      resolvedPath = source;
+      resolvedPath = validatePath(source);
       const bytes = await fs.readFile(resolvedPath);
       html = bytes.toString('utf8');
     }

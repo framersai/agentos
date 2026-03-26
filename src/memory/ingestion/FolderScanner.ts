@@ -16,6 +16,7 @@ import path from 'node:path';
 import { minimatch } from 'minimatch';
 import type { LoadedDocument } from '../facade/types.js';
 import type { LoaderRegistry } from './LoaderRegistry.js';
+import { validatePath } from './pathUtils.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -133,6 +134,9 @@ export class FolderScanner {
    *                 it does not exist or is a regular file).
    */
   async scan(dirPath: string, options: FolderScanOptions = {}): Promise<FolderScanResult> {
+    // Validate the directory path against traversal before scanning.
+    const resolvedDir = validatePath(dirPath);
+
     const {
       recursive = true,
       include,
@@ -144,7 +148,7 @@ export class FolderScanner {
     // 1. Discover all candidate file paths.
     // ------------------------------------------------------------------
 
-    const allEntries = await fs.readdir(dirPath, { recursive, withFileTypes: true });
+    const allEntries = await fs.readdir(resolvedDir, { recursive, withFileTypes: true });
 
     // Filter to only regular files whose extension is registered.
     const supportedExtensions = new Set(this.registry.getSupportedExtensions());
@@ -161,7 +165,7 @@ export class FolderScanner {
       const parentPath =
         (entry as { parentPath?: string; path?: string }).parentPath ??
         (entry as { parentPath?: string; path?: string }).path ??
-        dirPath;
+        resolvedDir;
       const absolutePath = path.join(parentPath, entry.name);
 
       // Check that the extension has a registered loader.
@@ -169,7 +173,7 @@ export class FolderScanner {
       if (!supportedExtensions.has(ext)) continue;
 
       // Build relative path for glob matching.
-      const relativePath = path.relative(dirPath, absolutePath);
+      const relativePath = path.relative(resolvedDir, absolutePath);
 
       // Apply include filter — file must match at least one pattern.
       if (include && include.length > 0) {
