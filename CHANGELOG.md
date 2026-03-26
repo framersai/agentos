@@ -1,3 +1,7 @@
+## <small>0.1.104 (2026-03-26)</small>
+
+* fix(ci): mark better-sqlite3 as external in vitest config — native addon cannot be transformed by Vi ([f2c5546](https://github.com/framersai/agentos/commit/f2c5546))
+
 ## <small>0.1.103 (2026-03-26)</small>
 
 * fix: resolve 4 ESLint errors — prefer-const, no-this-alias, no-useless-escape ([ff171a1](https://github.com/framersai/agentos/commit/ff171a1))
