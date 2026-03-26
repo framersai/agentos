@@ -201,7 +201,7 @@ export function agent(opts: AgentOptions): Agent {
     },
 
     session(id?: string): AgentSession {
-      const sessionId = id ?? `session-${Date.now()}`;
+      const sessionId = id ?? crypto.randomUUID();
       if (!sessions.has(sessionId)) sessions.set(sessionId, []);
       const history = sessions.get(sessionId)!;
 

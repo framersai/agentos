@@ -16,8 +16,7 @@ import type {
   ApprovalRequest,
   AgencyStreamPart,
 } from '../types.js';
-import { isAgent } from './index.js';
-import { mergeDefaults, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
 
 /**
  * Compiles a sequential execution strategy.

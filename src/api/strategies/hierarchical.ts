@@ -17,8 +17,7 @@ import type {
 } from '../types.js';
 import type { ToolDefinitionMap } from '../toolAdapter.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent } from './index.js';
-import { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
 
 /**
  * Extracts a human-readable description from an agent config or instance.

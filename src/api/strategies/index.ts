@@ -116,21 +116,10 @@ function compileAdaptiveWrapper(
   return compileHierarchical(agents, adaptiveConfig);
 }
 
-/**
- * Type guard that checks whether a value is a pre-built {@link Agent} instance
- * (has a `generate` method) vs a raw {@link BaseAgentConfig} object.
- *
- * @param value - Either a config object or a running agent.
- * @returns `true` when the value is a pre-built `Agent`.
- */
-export function isAgent(value: BaseAgentConfig | Agent): value is Agent {
-  return typeof (value as Agent).generate === 'function';
-}
-
 export { compileSequential } from './sequential.js';
 export { compileParallel } from './parallel.js';
 export { compileDebate } from './debate.js';
 export { compileReviewLoop } from './review-loop.js';
 export { compileHierarchical } from './hierarchical.js';
 export { compileGraph } from './graph.js';
-export { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+export { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';

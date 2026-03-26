@@ -14,7 +14,16 @@ import type {
   ApprovalRequest,
   ApprovalDecision,
 } from '../types.js';
-import { isAgent } from './index.js';
+/**
+ * Type guard that checks whether a value is a pre-built {@link Agent} instance
+ * (has a `generate` method) vs a raw {@link BaseAgentConfig} object.
+ *
+ * @param value - Either a config object or a running agent.
+ * @returns `true` when the value is a pre-built `Agent`.
+ */
+export function isAgent(value: BaseAgentConfig | Agent): value is Agent {
+  return typeof (value as Agent).generate === 'function';
+}
 
 /**
  * Merge agency-level defaults into an agent config.

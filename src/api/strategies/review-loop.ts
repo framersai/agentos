@@ -16,8 +16,7 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent } from './index.js';
-import { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
 
 /**
  * Attempts to parse a reviewer response as JSON with an `approved` field.

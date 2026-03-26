@@ -521,6 +521,12 @@ export interface GuardrailEvent {
   guardrailId: string;
   /** Whether the guardrail check passed. */
   passed: boolean;
+  /**
+   * Whether the guardrail was actually evaluated/enforced.
+   * When `false`, the guardrail infrastructure was loaded but the individual
+   * guard was not wired — the `passed` value is a default, not an evaluation result.
+   */
+  enforced?: boolean;
   /** Action taken by the guardrail (e.g. `"allow"`, `"block"`, `"redact"`). */
   action: string;
   /** Unix timestamp in milliseconds. */

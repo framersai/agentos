@@ -72,7 +72,8 @@ export interface RecallResult {
 }
 
 export interface RememberResult {
-  trace: MemoryTrace;
+  /** The stored trace. Undefined when `success` is false. */
+  trace?: MemoryTrace;
   success: boolean;
 }
 
@@ -204,7 +205,7 @@ export class AgentMemory {
           });
       return { trace, success: true };
     } catch {
-      return { trace: null as unknown as MemoryTrace, success: false };
+      return { trace: undefined, success: false };
     }
   }
 

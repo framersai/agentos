@@ -230,7 +230,50 @@ export function agency(opts: AgencyOptions): Agent {
      * @returns An object with `textStream`, `fullStream`, and awaitable `text`/`usage` promises.
      */
     stream(prompt: string, streamOpts?: Record<string, unknown>): unknown {
-      return strategy.stream(prompt, streamOpts);
+      /* Apply input guardrails and resource limit checks before streaming. */
+      const guardConfig = normalizeGuardrails(opts.guardrails);
+      const inputGuards = guardConfig?.input ?? [];
+
+      if (!inputGuards.length && !controls) {
+        /* Fast path: no input guardrails or resource limits configured. */
+        return strategy.stream(prompt, streamOpts);
+      }
+
+      /*
+       * When input guardrails or resource limits are configured, we must
+       * await the async guardrail evaluation before starting the stream.
+       * Wrap in a deferred pattern that returns the same stream shape.
+       */
+      const guardedPromptP = inputGuards.length
+        ? runGuardrails(prompt, inputGuards, 'input', opts.on)
+        : Promise.resolve(prompt);
+
+      /* Check resource limits (pre-flight: verify we haven't already exceeded caps). */
+      if (controls) {
+        checkLimits(controls, { usage: agencyUsage }, 0, opts.on);
+      }
+
+      const deferredStream = guardedPromptP.then((sanitizedPrompt) => {
+        return strategy.stream(sanitizedPrompt, streamOpts) as {
+          textStream: AsyncIterable<string>;
+          fullStream: AsyncIterable<AgencyStreamPart>;
+          text: Promise<string>;
+          usage: Promise<unknown>;
+        };
+      });
+
+      return {
+        textStream: (async function* () {
+          const s = await deferredStream;
+          yield* s.textStream;
+        })(),
+        fullStream: (async function* () {
+          const s = await deferredStream;
+          yield* s.fullStream;
+        })(),
+        text: deferredStream.then((s) => s.text),
+        usage: deferredStream.then((s) => s.usage),
+      };
     },
 
     /**
@@ -755,11 +798,14 @@ async function runGuardrails(
     const sanitizedText = text;
 
     for (const guardId of guardIds) {
-      /* Fire the guardrailResult event for observability. */
+      /* Fire a guardrailResult event indicating the guard was not evaluated.
+       * The guardrail registry is loaded but individual guards are not yet
+       * wired — `enforced: false` signals that no actual evaluation occurred. */
       callbacks?.guardrailResult?.({
         agent: '__agency__',
         guardrailId: guardId,
         passed: true,
+        enforced: false,
         action: 'allow',
         timestamp: Date.now(),
       });

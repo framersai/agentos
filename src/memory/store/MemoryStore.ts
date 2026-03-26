@@ -130,6 +130,8 @@ export class MemoryStore {
   private decay: DecayConfig;
   /** Cache of full MemoryTrace objects by ID. */
   private traceCache: Map<string, MemoryTrace> = new Map();
+  /** Cache embeddings by trace ID to avoid re-generating on metadata-only updates. */
+  private embeddingCache: Map<string, number[]> = new Map();
   /** Track concrete scopes we have seen, so retrieval never falls back to a fake wildcard scope. */
   private knownScopes: Map<string, { scope: MemoryScope; scopeId: string }> = new Map();
 
@@ -204,8 +206,9 @@ export class MemoryStore {
       // Knowledge graph may not be available; non-critical
     }
 
-    // Cache
+    // Cache trace and its embedding (avoids re-generation on recordAccess)
     this.traceCache.set(trace.id, trace);
+    this.embeddingCache.set(trace.id, embedding);
     this.registerScope(trace.scope, trace.scopeId);
   }
 
@@ -334,17 +337,24 @@ export class MemoryStore {
     trace.nextReinforcementAt = update.nextReinforcementAt;
     trace.updatedAt = now;
 
-    // Update vector store metadata
+    // Update vector store metadata, reusing cached embedding to avoid
+    // wasteful re-embedding on every access.
     const collection = collectionName(this.config.collectionPrefix, trace.scope, trace.scopeId);
     try {
-      const embeddingResponse = await this.config.embeddingManager.generateEmbeddings({
-        texts: trace.content,
-      });
+      let embedding = this.embeddingCache.get(trace.id);
+      if (!embedding) {
+        // Embedding not cached (e.g. loaded from a prior process). Generate once and cache.
+        const embeddingResponse = await this.config.embeddingManager.generateEmbeddings({
+          texts: trace.content,
+        });
+        embedding = embeddingResponse.embeddings[0];
+        this.embeddingCache.set(trace.id, embedding);
+      }
       await this.config.vectorStore.upsert(collection, [
         {
           id: trace.id,
           textContent: trace.content,
-          embedding: embeddingResponse.embeddings[0],
+          embedding,
           metadata: traceToMetadata(trace),
         },
       ]);
@@ -361,6 +371,13 @@ export class MemoryStore {
 
   /**
    * Get all traces for a scope (for consolidation pipeline).
+   *
+   * **Limitation**: This primarily returns traces from the in-process cache.
+   * Traces that were persisted to the vector store in a prior process lifetime
+   * (or by another process) will only be returned if the cache is empty for this
+   * scope, in which case we fall back to querying the vector store with a
+   * zero-vector and metadata filter. The fallback is approximate (limited by
+   * topK) and does not guarantee completeness.
    */
   async getByScope(scope: MemoryScope, scopeId: string, type?: MemoryType): Promise<MemoryTrace[]> {
     // Return from cache + filter
@@ -372,6 +389,48 @@ export class MemoryStore {
         }
       }
     }
+
+    // Fallback: if cache is empty for this scope, query the vector store.
+    if (results.length === 0) {
+      try {
+        const collection = collectionName(this.config.collectionPrefix, scope, scopeId);
+        const dim = this.config.embeddingDimension ?? 1536;
+        const zeroVector = new Array(dim).fill(0);
+        const filter: MetadataFilter = { isActive: 1 };
+        if (type) {
+          filter.type = type;
+        }
+        const queryResult = await this.config.vectorStore.query(collection, zeroVector, {
+          topK: 500,
+          filter,
+          includeMetadata: true,
+          includeTextContent: true,
+        });
+        for (const doc of queryResult.documents) {
+          if (!doc.metadata) continue;
+          const cached = this.traceCache.get(doc.id);
+          if (cached) {
+            results.push(cached);
+          } else {
+            // Reconstruct trace from vector store metadata.
+            const partial = metadataToTracePartial(doc.metadata as Record<string, any>);
+            const trace: MemoryTrace = {
+              id: doc.id,
+              content: doc.textContent ?? '',
+              associatedTraceIds: [],
+              reinforcementInterval: 0,
+              updatedAt: (partial.createdAt as number) ?? Date.now(),
+              ...partial,
+            } as MemoryTrace;
+            this.traceCache.set(trace.id, trace);
+            results.push(trace);
+          }
+        }
+      } catch {
+        // Vector store query may fail (collection not found, etc.); return empty.
+      }
+    }
+
     return results;
   }
 

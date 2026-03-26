@@ -128,17 +128,13 @@ interface FtsJoinRow extends TraceRow {
 // Constants & defaults
 // ---------------------------------------------------------------------------
 
-/** Monotonically increasing counter for trace IDs. */
-let _traceCounter = 0;
-
 /**
- * Generate a unique, collision-free trace ID.
- *
- * Format: `mt_{timestamp}_{counter}` where the counter resets at process
- * start but is never reused within a single process lifetime.
+ * Generate a globally unique, collision-free trace ID using crypto.randomUUID().
+ * Previous implementation used a monotonic counter (`mt_{timestamp}_{counter}`)
+ * which could collide across multiple processes or rapid restarts.
  */
 function nextTraceId(): string {
-  return `mt_${Date.now()}_${_traceCounter++}`;
+  return `mt_${crypto.randomUUID()}`;
 }
 
 /**
@@ -1143,7 +1139,7 @@ export class Memory {
     }
 
     const chunks = await this._chunkingEngine.chunk(doc.content, chunking);
-    const docId = `doc_${Date.now()}_${_traceCounter++}`;
+    const docId = `doc_${crypto.randomUUID()}`;
 
     this._brain.db
       .prepare(
@@ -1163,7 +1159,7 @@ export class Memory {
       );
 
     for (const chunk of chunks) {
-      const chunkId = `chunk_${Date.now()}_${_traceCounter++}`;
+      const chunkId = `chunk_${crypto.randomUUID()}`;
       const traceId = nextTraceId();
       const createdAt = Date.now();
 

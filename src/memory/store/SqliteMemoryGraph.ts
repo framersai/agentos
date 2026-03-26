@@ -44,6 +44,17 @@ import type {
 } from '../graph/IMemoryGraph.js';
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Hard cap on BFS queue size during spreading activation.
+ * Prevents unbounded memory growth when "better path" re-enqueues create
+ * an explosion of entries in dense graphs.
+ */
+const MAX_QUEUE_SIZE = 10_000;
+
+// ---------------------------------------------------------------------------
 // Internal row shapes
 // ---------------------------------------------------------------------------
 
@@ -414,7 +425,8 @@ export class SqliteMemoryGraph implements IMemoryGraph {
       queue.push({ nodeId: seedId, activation: 1.0, depth: 0, seedOrigin: seedId });
     }
 
-    // Process the queue.
+    // Process the queue. The MAX_QUEUE_SIZE guard prevents unbounded growth
+    // when dense graphs cause many "better path" re-enqueues.
     while (queue.length > 0) {
       const { nodeId, activation, depth, seedOrigin } = queue.shift()!;
 
@@ -444,12 +456,14 @@ export class SqliteMemoryGraph implements IMemoryGraph {
               existing.activation = newActivation;
               existing.depth = depth + 1;
               existing.activatedBy.add(seedOrigin);
-              queue.push({
-                nodeId: neighbourId,
-                activation: newActivation,
-                depth: depth + 1,
-                seedOrigin,
-              });
+              if (queue.length < MAX_QUEUE_SIZE) {
+                queue.push({
+                  nodeId: neighbourId,
+                  activation: newActivation,
+                  depth: depth + 1,
+                  seedOrigin,
+                });
+              }
             } else {
               // Just attribute this seed to the existing entry.
               existing.activatedBy.add(seedOrigin);
@@ -460,12 +474,14 @@ export class SqliteMemoryGraph implements IMemoryGraph {
               depth: depth + 1,
               activatedBy: new Set([seedOrigin]),
             });
-            queue.push({
-              nodeId: neighbourId,
-              activation: newActivation,
-              depth: depth + 1,
-              seedOrigin,
-            });
+            if (queue.length < MAX_QUEUE_SIZE) {
+              queue.push({
+                nodeId: neighbourId,
+                activation: newActivation,
+                depth: depth + 1,
+                seedOrigin,
+              });
+            }
           }
         }
       }

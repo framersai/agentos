@@ -15,8 +15,7 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent } from './index.js';
-import { mergeDefaults, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
 
 /**
  * Compiles a parallel execution strategy.
@@ -46,7 +45,7 @@ export function compileParallel(
     async execute(prompt, opts) {
       /* Run every agent concurrently, gated by beforeAgent HITL. */
       const entries = Object.entries(agents);
-      const settled = (await Promise.all(
+      const allSettled = await Promise.allSettled(
         entries.map(async ([name, agentOrConfig]) => {
           /* HITL: check beforeAgent gate before invoking this agent. */
           const decision = await checkBeforeAgent(name, prompt, [], agencyConfig);
@@ -69,7 +68,28 @@ export function compileParallel(
           const durationMs = Date.now() - start;
           return { name, result, durationMs };
         }),
-      )).filter((r): r is NonNullable<typeof r> => r !== null);
+      );
+
+      /* Log errors from rejected agents and keep only fulfilled results. */
+      const settled: Array<{ name: string; result: Record<string, unknown>; durationMs: number }> = [];
+      for (let i = 0; i < allSettled.length; i++) {
+        const outcome = allSettled[i];
+        if (outcome.status === 'rejected') {
+          const agentName = entries[i][0];
+          const error = outcome.reason instanceof Error ? outcome.reason : new Error(String(outcome.reason));
+          console.error(`[AgentOS][Parallel] Agent "${agentName}" failed:`, error.message);
+          agencyConfig.on?.error?.({
+            agent: agentName,
+            error,
+            timestamp: Date.now(),
+          });
+          continue;
+        }
+        /* Skip null results (HITL-rejected agents). */
+        if (outcome.value !== null) {
+          settled.push(outcome.value);
+        }
+      }
 
       /* Collect agent call records and aggregate usage. */
       const agentCalls: AgentCallRecord[] = [];
