@@ -8,15 +8,24 @@
  * are not actively enforced in this lightweight layer — use the full AgentOS
  * runtime (`AgentOSOrchestrator`) or `agency()` for guardrail enforcement.
  */
-import { generateText, type GenerateTextOptions, type GenerateTextResult, type Message } from './generateText.js';
+import {
+  generateText,
+  type GenerateTextOptions,
+  type GenerateTextResult,
+  type Message,
+} from './generateText.js';
 import { streamText, type StreamTextResult } from './streamText.js';
-import type { ToolDefinitionMap } from './toolAdapter.js';
 import {
   getRecordedAgentOSUsage,
   type AgentOSUsageAggregate,
   type AgentOSUsageLedgerOptions,
 } from './usageLedger.js';
 import type { BaseAgentConfig } from './types.js';
+import {
+  exportAgentConfig,
+  exportAgentConfigJSON,
+  type AgentExportConfig,
+} from './agentExport.js';
 
 /**
  * Configuration options for the {@link agent} factory function.
@@ -96,6 +105,18 @@ export interface Agent {
   usage(sessionId?: string): Promise<AgentOSUsageAggregate>;
   /** Releases all in-memory session state held by this agent. */
   close(): Promise<void>;
+  /**
+   * Exports the agent's configuration as a portable object.
+   * @param metadata - Optional human-readable metadata to attach.
+   * @returns A portable {@link AgentExportConfig} object.
+   */
+  export(metadata?: AgentExportConfig['metadata']): AgentExportConfig;
+  /**
+   * Exports the agent's configuration as a pretty-printed JSON string.
+   * @param metadata - Optional human-readable metadata to attach.
+   * @returns JSON string.
+   */
+  exportJSON(metadata?: AgentExportConfig['metadata']): string;
 }
 
 function mergeUsageLedgerOptions(
@@ -173,17 +194,18 @@ export function agent(opts: AgentOptions): Agent {
     usageLedger: effectiveLedger,
   };
 
-  return {
-    async generate(prompt: string, extra?: Partial<GenerateTextOptions>): Promise<GenerateTextResult> {
+  const agentInstance: Agent = {
+    async generate(
+      prompt: string,
+      extra?: Partial<GenerateTextOptions>
+    ): Promise<GenerateTextResult> {
       return generateText({
         ...baseOpts,
         ...extra,
         prompt,
-        usageLedger: mergeUsageLedgerOptions(
-          baseOpts.usageLedger,
-          extra?.usageLedger,
-          { source: extra?.usageLedger?.source ?? 'agent.generate' },
-        ),
+        usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
+          source: extra?.usageLedger?.source ?? 'agent.generate',
+        }),
       } as GenerateTextOptions);
     },
 
@@ -192,11 +214,9 @@ export function agent(opts: AgentOptions): Agent {
         ...baseOpts,
         ...extra,
         prompt,
-        usageLedger: mergeUsageLedgerOptions(
-          baseOpts.usageLedger,
-          extra?.usageLedger,
-          { source: extra?.usageLedger?.source ?? 'agent.stream' },
-        ),
+        usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
+          source: extra?.usageLedger?.source ?? 'agent.stream',
+        }),
       } as GenerateTextOptions);
     },
 
@@ -215,10 +235,10 @@ export function agent(opts: AgentOptions): Agent {
           const result = await generateText({
             ...baseOpts,
             messages: requestMessages,
-            usageLedger: mergeUsageLedgerOptions(
-              baseOpts.usageLedger,
-              { sessionId, source: 'agent.session.send' },
-            ),
+            usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
+              sessionId,
+              source: 'agent.session.send',
+            }),
           } as GenerateTextOptions);
           if (useMemory) {
             history.push({ role: 'user', content: text });
@@ -233,15 +253,19 @@ export function agent(opts: AgentOptions): Agent {
             messages: useMemory
               ? [...history, { role: 'user' as const, content: text }]
               : [{ role: 'user' as const, content: text }],
-            usageLedger: mergeUsageLedgerOptions(
-              baseOpts.usageLedger,
-              { sessionId, source: 'agent.session.stream' },
-            ),
+            usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
+              sessionId,
+              source: 'agent.session.stream',
+            }),
           } as GenerateTextOptions);
           // Capture text for history when done
           if (useMemory) {
             history.push({ role: 'user', content: text });
-            void result.text.then((replyText) => history.push({ role: 'assistant', content: replyText })).catch(() => { /* history update failed, non-critical */ });
+            void result.text
+              .then((replyText) => history.push({ role: 'assistant', content: replyText }))
+              .catch(() => {
+                /* history update failed, non-critical */
+              });
           }
           return result;
         },
@@ -275,5 +299,33 @@ export function agent(opts: AgentOptions): Agent {
     async close() {
       sessions.clear();
     },
+
+    /**
+     * Exports this agent's configuration as a portable object.
+     * @param metadata - Optional human-readable metadata to attach.
+     * @returns A portable {@link AgentExportConfig} object.
+     */
+    export(metadata?: AgentExportConfig['metadata']): AgentExportConfig {
+      return exportAgentConfig(agentInstance, metadata);
+    },
+
+    /**
+     * Exports this agent's configuration as a pretty-printed JSON string.
+     * @param metadata - Optional human-readable metadata to attach.
+     * @returns JSON string with 2-space indentation.
+     */
+    exportJSON(metadata?: AgentExportConfig['metadata']): string {
+      return exportAgentConfigJSON(agentInstance, metadata);
+    },
   };
+
+  // Stash the original config as a non-enumerable property so that
+  // exportAgentConfig() can retrieve it without polluting the public API.
+  Object.defineProperty(agentInstance, '__config', {
+    value: opts,
+    enumerable: false,
+    configurable: true,
+  });
+
+  return agentInstance;
 }

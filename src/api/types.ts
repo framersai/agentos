@@ -7,7 +7,7 @@
  * event types, callback maps, and the discriminated `AgencyStreamPart` union.
  */
 
-import type { ToolDefinitionMap } from './toolAdapter.js';
+import type { AdaptableToolInput } from './toolAdapter.js';
 
 // ---------------------------------------------------------------------------
 // Scalar union literals
@@ -45,7 +45,13 @@ export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'prospective';
  * - `"hierarchical"` — a coordinator agent dispatches sub-tasks to specialist agents.
  * - `"graph"` — explicit dependency DAG; agents run when all `dependsOn` predecessors complete.
  */
-export type AgencyStrategy = 'sequential' | 'parallel' | 'debate' | 'review-loop' | 'hierarchical' | 'graph';
+export type AgencyStrategy =
+  | 'sequential'
+  | 'parallel'
+  | 'debate'
+  | 'review-loop'
+  | 'hierarchical'
+  | 'graph';
 
 // ---------------------------------------------------------------------------
 // Sub-config interfaces
@@ -609,7 +615,13 @@ export type AgencyStreamPart =
   | { type: 'agent-handoff'; fromAgent: string; toAgent: string; reason: string }
   | { type: 'strategy-override'; original: string; chosen: string; reason: string }
   | { type: 'emergent-forge'; agentName: string; instructions: string; approved: boolean }
-  | { type: 'guardrail-result'; agent: string; guardrailId: string; passed: boolean; action: string }
+  | {
+      type: 'guardrail-result';
+      agent: string;
+      guardrailId: string;
+      passed: boolean;
+      action: string;
+    }
   | { type: 'approval-requested'; request: ApprovalRequest }
   | { type: 'approval-decided'; requestId: string; approved: boolean }
   | { type: 'permission-denied'; agent: string; action: string; reason: string };
@@ -686,12 +698,31 @@ export interface Agent {
    * @param opts - Server options including optional port.
    * @returns Resolves to the bound port, URL, and a `close()` teardown function.
    */
-  listen?(opts?: { port?: number }): Promise<{ port: number; url: string; close: () => Promise<void> }>;
+  listen?(opts?: {
+    port?: number;
+  }): Promise<{ port: number; url: string; close: () => Promise<void> }>;
   /**
    * Connects the agent to configured channel adapters (e.g. Discord, Slack).
    * Present on agency instances only.
    */
   connect?(): Promise<void>;
+  /**
+   * Exports the agent's full configuration as a portable object.
+   *
+   * The returned {@link AgentExportConfig} (imported from `./agentExport.js`)
+   * can be serialized to JSON or YAML and re-imported via `importAgent()`.
+   *
+   * @param metadata - Optional human-readable metadata to attach.
+   * @returns A portable config object.
+   */
+  export?(metadata?: Record<string, unknown>): unknown;
+  /**
+   * Exports the agent's full configuration as a pretty-printed JSON string.
+   *
+   * @param metadata - Optional human-readable metadata to attach.
+   * @returns JSON string with 2-space indentation.
+   */
+  exportJSON?(metadata?: Record<string, unknown>): string;
 }
 
 /**
@@ -747,8 +778,15 @@ export interface BaseAgentConfig {
     conscientiousness: number;
     openness: number;
   }>;
-  /** Named tools available to the agent on every call. */
-  tools?: ToolDefinitionMap;
+  /**
+   * Tools available to the agent on every call.
+   *
+   * Accepts:
+   * - a named high-level tool map
+   * - an `ExternalToolRegistry` (`Record`, `Map`, or iterable)
+   * - a prompt-only `ToolDefinitionForLLM[]`
+   */
+  tools?: AdaptableToolInput;
   /** Maximum number of agentic steps (LLM calls) per invocation. Defaults to `5`. */
   maxSteps?: number;
   /**

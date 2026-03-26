@@ -134,6 +134,16 @@ export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
 export { agency } from './api/agency.js';
+export {
+  exportAgentConfig,
+  exportAgentConfigJSON,
+  exportAgentConfigYAML,
+  importAgent,
+  importAgentFromJSON,
+  importAgentFromYAML,
+  validateAgentExport,
+} from './api/agentExport.js';
+export type { AgentExportConfig } from './api/agentExport.js';
 export { hitl } from './api/hitl.js';
 export type { HitlHandler } from './api/hitl.js';
 export * from './api/processRequestWithExternalTools.js';
@@ -168,8 +178,8 @@ export { parseModelString, resolveProvider, resolveModelOption } from './api/mod
 export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/provider-defaults.js';
 export type { ProviderDefaults } from './api/provider-defaults.js';
 export type { TaskType, ModelOption } from './api/model.js';
-export { adaptTools } from './api/toolAdapter.js';
-export type { ToolDefinitionMap } from './api/toolAdapter.js';
+export { adaptTools, adaptToolsToMap, mergeAdaptableTools } from './api/toolAdapter.js';
+export type { AdaptableToolInput, ToolDefinitionMap } from './api/toolAdapter.js';
 export {
   getDefaultAgentOSUsageLedgerPath,
   resolveAgentOSUsageLedgerPath,

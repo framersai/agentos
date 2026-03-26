@@ -44,6 +44,11 @@ import type {
   AgencyStreamPart,
 } from './types.js';
 import { AgencyConfigError } from './types.js';
+import {
+  exportAgentConfig,
+  exportAgentConfigJSON,
+  type AgentExportConfig,
+} from './agentExport.js';
 
 // ---------------------------------------------------------------------------
 // Public factory
@@ -390,7 +395,55 @@ export function agency(opts: AgencyOptions): Agent {
         }
       }
     },
+
+    /**
+     * Exports this agency's configuration as a portable object.
+     * @param metadata - Optional human-readable metadata to attach.
+     * @returns A portable {@link AgentExportConfig} object.
+     */
+    export(metadata?: AgentExportConfig['metadata']): AgentExportConfig {
+      return exportAgentConfig(agentObj, metadata);
+    },
+
+    /**
+     * Exports this agency's configuration as a pretty-printed JSON string.
+     * @param metadata - Optional human-readable metadata to attach.
+     * @returns JSON string with 2-space indentation.
+     */
+    exportJSON(metadata?: AgentExportConfig['metadata']): string {
+      return exportAgentConfigJSON(agentObj, metadata);
+    },
   };
+
+  // Stash the original config as non-enumerable properties so that
+  // exportAgentConfig() can retrieve them without polluting the public API.
+  Object.defineProperty(agentObj, '__config', {
+    value: opts,
+    enumerable: false,
+    configurable: true,
+  });
+
+  // Separate stash for agency-specific fields (sub-agent roster, strategy).
+  // Needed by the export system to distinguish agency from single agent.
+  const agencySubAgentConfigs: Record<string, BaseAgentConfig> = {};
+  for (const [name, agentOrConfig] of Object.entries(opts.agents)) {
+    if (isAgent(agentOrConfig)) {
+      // Pre-built agents don't carry exportable config — store empty placeholder
+      agencySubAgentConfigs[name] = {};
+    } else {
+      agencySubAgentConfigs[name] = agentOrConfig as BaseAgentConfig;
+    }
+  }
+  Object.defineProperty(agentObj, '__agencyConfig', {
+    value: {
+      agents: agencySubAgentConfigs,
+      strategy: opts.strategy,
+      adaptive: opts.adaptive,
+      maxRounds: opts.maxRounds,
+    },
+    enumerable: false,
+    configurable: true,
+  });
 
   // ---------------------------------------------------------------------------
   // listen() — voice WebSocket transport
