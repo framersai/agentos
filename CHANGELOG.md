@@ -1,3 +1,10 @@
+## <small>0.1.100 (2026-03-26)</small>
+
+* fix(api): fix WebSocketServer import and implicit any in agency.ts ([946012e](https://github.com/framersai/agentos/commit/946012e))
+* feat(api): add real streaming with per-agent events for sequential strategy, session stream history ([eace3d2](https://github.com/framersai/agentos/commit/eace3d2))
+* feat(api): wire listen() for voice transport and connect() for channels on agency ([a37bf45](https://github.com/framersai/agentos/commit/a37bf45))
+* feat(api): wire RAG context injection placeholder into agency execution ([e67304c](https://github.com/framersai/agentos/commit/e67304c))
+
 ## <small>0.1.99 (2026-03-25)</small>
 
 * test(api): add full agency integration test ([1931af1](https://github.com/framersai/agentos/commit/1931af1))
