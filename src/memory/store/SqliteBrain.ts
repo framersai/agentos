@@ -1,0 +1,454 @@
+/**
+ * @fileoverview Unified SQLite connection manager for a single agent's long-term brain.
+ *
+ * One `brain.sqlite` file stores everything the memory ingestion engine needs:
+ * memory traces, knowledge graph nodes/edges, document ingestion records,
+ * conversation history, consolidation logs, and retrieval feedback signals.
+ *
+ * ## Cognitive science grounding
+ * The schema mirrors Tulving's LTM taxonomy:
+ * - `memory_traces`       → episodic + semantic + procedural + prospective memories
+ * - `knowledge_nodes/edges` → semantic network (Collins & Quillian spreading-activation model)
+ * - `documents/chunks`    → external world model (grounded episodic encoding)
+ * - `conversations/messages` → episodic conversational buffer
+ * - `consolidation_log`   → slow-wave sleep analogue (offline consolidation events)
+ * - `retrieval_feedback`  → Hebbian reinforcement ("neurons that fire together wire together")
+ *
+ * ## Storage design choices
+ * - **WAL mode**: allows concurrent reads during writes (important for multi-subsystem access).
+ * - **FTS5 with Porter tokenizer**: enables fast full-text search over memory content with
+ *   morphological stemming (retrieval cue → "retriev*").
+ * - **Embeddings as BLOBs**: raw Float32Array buffers stored directly — no external vector DB
+ *   dependency for the SQLite-backed path; vector similarity runs in-process via HNSW.
+ * - **JSON columns**: tags, emotions, metadata stored as JSON TEXT for schema flexibility
+ *   without sacrificing query-ability via SQLite's json_extract().
+ *
+ * @module memory/store/SqliteBrain
+ */
+
+import Database from 'better-sqlite3';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Current schema version. Increment when breaking schema changes are made. */
+const SCHEMA_VERSION = '1';
+
+// ---------------------------------------------------------------------------
+// DDL — full schema
+// ---------------------------------------------------------------------------
+
+/**
+ * Brain metadata key-value store.
+ * Used for versioning, agent identity, and embedding configuration.
+ */
+const DDL_BRAIN_META = `
+CREATE TABLE IF NOT EXISTS brain_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`;
+
+/**
+ * Core memory trace table (Tulving's unified trace model).
+ *
+ * Column notes:
+ * - `embedding` is a raw BLOB (Float32Array serialised as little-endian bytes).
+ * - `strength` is the Ebbinghaus retrievability R ∈ [0, 1].
+ * - `tags` / `emotions` / `metadata` are JSON TEXT columns.
+ * - `deleted` is a soft-delete flag (0 = active, 1 = tombstoned).
+ */
+const DDL_MEMORY_TRACES = `
+CREATE TABLE IF NOT EXISTS memory_traces (
+  id              TEXT    PRIMARY KEY,
+  type            TEXT    NOT NULL,
+  scope           TEXT    NOT NULL,
+  content         TEXT    NOT NULL,
+  embedding       BLOB,
+  strength        REAL    NOT NULL DEFAULT 1.0,
+  created_at      INTEGER NOT NULL,
+  last_accessed   INTEGER,
+  retrieval_count INTEGER NOT NULL DEFAULT 0,
+  tags            TEXT    NOT NULL DEFAULT '[]',
+  emotions        TEXT    NOT NULL DEFAULT '{}',
+  metadata        TEXT    NOT NULL DEFAULT '{}',
+  deleted         INTEGER NOT NULL DEFAULT 0
+);
+`;
+
+/**
+ * FTS5 virtual table for full-text search over memory content and tags.
+ * Uses the Porter tokenizer for morphological stemming.
+ *
+ * Linked to `memory_traces` via the external content mechanism so that
+ * content is not duplicated on disk.
+ */
+const DDL_MEMORY_TRACES_FTS = `
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_traces_fts USING fts5(
+  content,
+  tags,
+  content='memory_traces',
+  content_rowid='rowid',
+  tokenize='porter ascii'
+);
+`;
+
+/**
+ * Knowledge graph nodes (semantic network).
+ * Each node represents a real-world entity or concept the agent has learned about.
+ *
+ * `properties` is a JSON TEXT column holding arbitrary typed attributes.
+ * `source` is a JSON TEXT provenance reference.
+ * `confidence` ∈ [0, 1] — certainty of this node's existence / accuracy.
+ */
+const DDL_KNOWLEDGE_NODES = `
+CREATE TABLE IF NOT EXISTS knowledge_nodes (
+  id         TEXT    PRIMARY KEY,
+  type       TEXT    NOT NULL,
+  label      TEXT    NOT NULL,
+  properties TEXT    NOT NULL DEFAULT '{}',
+  embedding  BLOB,
+  confidence REAL    NOT NULL DEFAULT 1.0,
+  source     TEXT    NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL
+);
+`;
+
+/**
+ * Knowledge graph edges (typed relationships).
+ * Models semantic links between knowledge nodes (e.g. IS_A, HAS_PART, CAUSED_BY).
+ *
+ * `bidirectional = 1` means the edge applies in both directions (e.g. SIBLING_OF).
+ * `weight` ∈ [0, 1] represents relationship strength / confidence.
+ */
+const DDL_KNOWLEDGE_EDGES = `
+CREATE TABLE IF NOT EXISTS knowledge_edges (
+  id            TEXT    PRIMARY KEY,
+  source_id     TEXT    NOT NULL REFERENCES knowledge_nodes(id),
+  target_id     TEXT    NOT NULL REFERENCES knowledge_nodes(id),
+  type          TEXT    NOT NULL,
+  weight        REAL    NOT NULL DEFAULT 1.0,
+  bidirectional INTEGER NOT NULL DEFAULT 0,
+  metadata      TEXT    NOT NULL DEFAULT '{}',
+  created_at    INTEGER NOT NULL
+);
+`;
+
+/**
+ * Ingested document registry.
+ *
+ * Tracks every external document (PDF, Markdown, web page, etc.) that has
+ * been chunked and embedded into this agent's brain.
+ *
+ * `content_hash` enables idempotent re-ingestion (skip if unchanged).
+ */
+const DDL_DOCUMENTS = `
+CREATE TABLE IF NOT EXISTS documents (
+  id           TEXT    PRIMARY KEY,
+  path         TEXT    NOT NULL,
+  format       TEXT    NOT NULL,
+  title        TEXT,
+  content_hash TEXT    NOT NULL,
+  chunk_count  INTEGER NOT NULL DEFAULT 0,
+  metadata     TEXT    NOT NULL DEFAULT '{}',
+  ingested_at  INTEGER NOT NULL
+);
+`;
+
+/**
+ * Document chunk table.
+ *
+ * Each chunk corresponds to a contiguous passage of text extracted from a
+ * parent document. `trace_id` links to the corresponding memory trace so
+ * retrieval pipelines can cross-reference vector search results.
+ */
+const DDL_DOCUMENT_CHUNKS = `
+CREATE TABLE IF NOT EXISTS document_chunks (
+  id           TEXT    PRIMARY KEY,
+  document_id  TEXT    NOT NULL REFERENCES documents(id),
+  trace_id     TEXT    REFERENCES memory_traces(id),
+  content      TEXT    NOT NULL,
+  chunk_index  INTEGER NOT NULL,
+  page_number  INTEGER,
+  embedding    BLOB
+);
+`;
+
+/**
+ * Document image table.
+ *
+ * Stores visual assets extracted from documents (e.g. figures, diagrams).
+ * `caption` and `embedding` support multimodal retrieval.
+ */
+const DDL_DOCUMENT_IMAGES = `
+CREATE TABLE IF NOT EXISTS document_images (
+  id          TEXT    PRIMARY KEY,
+  document_id TEXT    NOT NULL REFERENCES documents(id),
+  chunk_id    TEXT    REFERENCES document_chunks(id),
+  data        BLOB    NOT NULL,
+  mime_type   TEXT    NOT NULL,
+  caption     TEXT,
+  page_number INTEGER,
+  embedding   BLOB
+);
+`;
+
+/**
+ * Consolidation log.
+ *
+ * Records each offline consolidation run — the analogue of slow-wave sleep
+ * memory consolidation. Tracks how many traces were pruned, merged, derived
+ * (by inference), or compacted (losslessly compressed).
+ */
+const DDL_CONSOLIDATION_LOG = `
+CREATE TABLE IF NOT EXISTS consolidation_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ran_at      INTEGER NOT NULL,
+  pruned      INTEGER NOT NULL DEFAULT 0,
+  merged      INTEGER NOT NULL DEFAULT 0,
+  derived     INTEGER NOT NULL DEFAULT 0,
+  compacted   INTEGER NOT NULL DEFAULT 0,
+  duration_ms INTEGER NOT NULL DEFAULT 0
+);
+`;
+
+/**
+ * Retrieval feedback signals.
+ *
+ * Captures explicit (thumbs up/down) or implicit (click, dwell time, follow-up)
+ * feedback on retrieved memory traces. Used by the spaced-repetition scheduler
+ * to modulate `strength` and `stability` updates (Hebbian reinforcement).
+ *
+ * `signal` examples: 'positive', 'negative', 'neutral', 'implicit_positive'.
+ */
+const DDL_RETRIEVAL_FEEDBACK = `
+CREATE TABLE IF NOT EXISTS retrieval_feedback (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  trace_id   TEXT    NOT NULL REFERENCES memory_traces(id),
+  signal     TEXT    NOT NULL,
+  query      TEXT,
+  created_at INTEGER NOT NULL
+);
+`;
+
+/**
+ * Conversation sessions.
+ *
+ * Provides a lightweight conversational buffer independent of external message
+ * stores. Primarily used for episodic memory encoding (conversation → trace).
+ */
+const DDL_CONVERSATIONS = `
+CREATE TABLE IF NOT EXISTS conversations (
+  id         TEXT    PRIMARY KEY,
+  title      TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  metadata   TEXT    NOT NULL DEFAULT '{}'
+);
+`;
+
+/**
+ * Conversation messages.
+ *
+ * Each message belongs to a conversation. `role` follows the OpenAI convention:
+ * 'user' | 'assistant' | 'system' | 'tool'.
+ */
+const DDL_MESSAGES = `
+CREATE TABLE IF NOT EXISTS messages (
+  id              TEXT    PRIMARY KEY,
+  conversation_id TEXT    NOT NULL REFERENCES conversations(id),
+  role            TEXT    NOT NULL,
+  content         TEXT    NOT NULL,
+  created_at      INTEGER NOT NULL,
+  metadata        TEXT    NOT NULL DEFAULT '{}'
+);
+`;
+
+// ---------------------------------------------------------------------------
+// SqliteBrain
+// ---------------------------------------------------------------------------
+
+/**
+ * Unified SQLite connection manager for a single agent's persistent brain.
+ *
+ * **Usage:**
+ * ```ts
+ * const brain = new SqliteBrain('/path/to/agent/brain.sqlite');
+ *
+ * // Direct DB access for subsystems
+ * const row = brain.db.prepare('SELECT * FROM memory_traces WHERE id = ?').get(id);
+ *
+ * // Meta helpers
+ * brain.setMeta('last_sync', Date.now().toString());
+ * const ver = brain.getMeta('schema_version'); // '1'
+ *
+ * brain.close();
+ * ```
+ *
+ * Subsystems (MemoryTraceRepository, KnowledgeGraphStore, DocumentChunkStore, etc.)
+ * receive the `SqliteBrain` instance and call `brain.db` directly to prepare
+ * statements — this avoids redundant connection overhead across subsystems.
+ */
+export class SqliteBrain {
+  /**
+   * The raw `better-sqlite3` database handle.
+   *
+   * Exposed as `readonly` so subsystems can prepare their own statements
+   * without going through an intermediary layer. `better-sqlite3` is
+   * synchronous and thread-safe for single-writer, multi-reader scenarios.
+   */
+  public readonly db: Database.Database;
+
+  // ---------------------------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Create or open the agent's brain database at `dbPath`.
+   *
+   * Initialization sequence:
+   * 1. Open (or create) the SQLite file.
+   * 2. Enable WAL journal mode for concurrent read access.
+   * 3. Enable foreign key enforcement (OFF by default in SQLite).
+   * 4. Execute the full DDL schema (all `CREATE TABLE IF NOT EXISTS`).
+   * 5. Create the FTS5 virtual table for full-text memory search.
+   * 6. Seed `brain_meta` with `schema_version` and `created_at` if absent.
+   *
+   * @param dbPath - Absolute path to the `.sqlite` file. The file is created
+   *   if it does not exist; parent directories must already exist.
+   */
+  constructor(dbPath: string) {
+    this.db = new Database(dbPath);
+
+    // Step 1: WAL mode — allows concurrent reads while a write is in progress.
+    // Critical for multi-subsystem access patterns (consolidator + retriever + encoder
+    // all touching the same file simultaneously).
+    this.db.pragma('journal_mode = WAL');
+
+    // Step 2: Foreign key enforcement — SQLite disables FK checks by default.
+    // We want referential integrity between chunks↔documents, edges↔nodes, etc.
+    this.db.pragma('foreign_keys = ON');
+
+    // Step 3: Apply full schema in a single transaction for atomicity.
+    this._initSchema();
+
+    // Step 4: Seed brain_meta defaults if this is a fresh database.
+    this._seedMeta();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private init helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Execute all DDL statements inside a single transaction.
+   * `CREATE TABLE IF NOT EXISTS` is idempotent, so re-running on an existing
+   * database is safe — no data is lost.
+   */
+  private _initSchema(): void {
+    const initTx = this.db.transaction(() => {
+      this.db.exec(DDL_BRAIN_META);
+      this.db.exec(DDL_MEMORY_TRACES);
+      this.db.exec(DDL_KNOWLEDGE_NODES);
+      this.db.exec(DDL_KNOWLEDGE_EDGES);
+      this.db.exec(DDL_DOCUMENTS);
+      this.db.exec(DDL_DOCUMENT_CHUNKS);
+      this.db.exec(DDL_DOCUMENT_IMAGES);
+      this.db.exec(DDL_CONSOLIDATION_LOG);
+      this.db.exec(DDL_RETRIEVAL_FEEDBACK);
+      this.db.exec(DDL_CONVERSATIONS);
+      this.db.exec(DDL_MESSAGES);
+      // FTS5 virtual table (must be last; depends on memory_traces existing)
+      this.db.exec(DDL_MEMORY_TRACES_FTS);
+    });
+
+    initTx();
+  }
+
+  /**
+   * Seed `brain_meta` with mandatory keys on first creation.
+   * Uses INSERT OR IGNORE to be idempotent on subsequent opens.
+   */
+  private _seedMeta(): void {
+    const insert = this.db.prepare(
+      `INSERT OR IGNORE INTO brain_meta (key, value) VALUES (?, ?)`,
+    );
+
+    const seedTx = this.db.transaction(() => {
+      insert.run('schema_version', SCHEMA_VERSION);
+      insert.run('created_at', Date.now().toString());
+    });
+
+    seedTx();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Read a value from the `brain_meta` key-value store.
+   *
+   * @param key - The metadata key to look up.
+   * @returns The stored string value, or `undefined` if the key does not exist.
+   */
+  getMeta(key: string): string | undefined {
+    const row = this.db
+      .prepare<[string], { value: string }>('SELECT value FROM brain_meta WHERE key = ?')
+      .get(key);
+
+    return row?.value;
+  }
+
+  /**
+   * Upsert a value into the `brain_meta` key-value store.
+   *
+   * Uses `INSERT OR REPLACE` semantics — creates the row if absent, or
+   * overwrites if present.
+   *
+   * @param key   - The metadata key.
+   * @param value - The string value to store.
+   */
+  setMeta(key: string, value: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO brain_meta (key, value) VALUES (?, ?)')
+      .run(key, value);
+  }
+
+  /**
+   * Check whether a given embedding dimension is compatible with this brain.
+   *
+   * On first call (no stored `embedding_dimensions`), returns `true` and stores
+   * the provided dimension for future compatibility checks.
+   *
+   * Subsequent calls compare `dimensions` against the stored value.
+   * Mismatches indicate that a different embedding model was used to encode
+   * memories — mixing dimensions would corrupt vector similarity searches.
+   *
+   * @param dimensions - The embedding vector length to check (e.g. 1536 for OpenAI ada-002).
+   * @returns `true` if compatible (or no prior value), `false` on mismatch.
+   */
+  checkEmbeddingCompat(dimensions: number): boolean {
+    const stored = this.getMeta('embedding_dimensions');
+
+    if (stored === undefined) {
+      // First embedding model encounter — store and accept.
+      this.setMeta('embedding_dimensions', String(dimensions));
+      return true;
+    }
+
+    return parseInt(stored, 10) === dimensions;
+  }
+
+  /**
+   * Close the database connection.
+   *
+   * Must be called when the agent shuts down to flush the WAL and release
+   * the file lock. Failing to close may leave the database in WAL mode with
+   * an unconsumed WAL file.
+   */
+  close(): void {
+    this.db.close();
+  }
+}
