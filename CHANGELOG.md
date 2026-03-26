@@ -1,3 +1,7 @@
+## <small>0.1.108 (2026-03-26)</small>
+
+* fix(memory): resolve cosine similarity division-by-zero and path traversal bugs ([17347fa](https://github.com/framersai/agentos/commit/17347fa))
+
 ## <small>0.1.107 (2026-03-26)</small>
 
 * fix: resolve 5 critical bugs in orchestration and API layers ([6002b28](https://github.com/framersai/agentos/commit/6002b28))
