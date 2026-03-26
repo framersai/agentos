@@ -1,3 +1,8 @@
+## <small>0.1.107 (2026-03-26)</small>
+
+* fix: resolve 5 critical bugs in orchestration and API layers ([6002b28](https://github.com/framersai/agentos/commit/6002b28))
+* security: replace new Function() with safe expression evaluator in orchestration layer ([3052c7f](https://github.com/framersai/agentos/commit/3052c7f))
+
 ## <small>0.1.106 (2026-03-26)</small>
 
 * feat(memory): commit Memory facade integration, tools, extension bridge, tests ([1e19688](https://github.com/framersai/agentos/commit/1e19688))
