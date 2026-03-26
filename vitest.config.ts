@@ -30,6 +30,11 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
     exclude: ['dist', 'coverage', 'node_modules'],
+    server: {
+      deps: {
+        external: ['better-sqlite3'],
+      },
+    },
     coverage: {
       reporter: ['text', 'html', 'lcov', 'json-summary'],
       reportsDirectory: 'coverage',
