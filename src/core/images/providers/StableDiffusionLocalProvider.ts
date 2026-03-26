@@ -21,6 +21,8 @@ import {
   type IImageProvider,
   type ImageGenerationRequest,
   type ImageGenerationResult,
+  type ImageEditRequest,
+  type ImageUpscaleRequest,
   type ImageModelInfo,
 } from '../IImageProvider.js';
 
@@ -63,11 +65,17 @@ export interface StableDiffusionLocalOptions {
 // Internal types
 // ---------------------------------------------------------------------------
 
-/** Shape returned by A1111 `POST /sdapi/v1/txt2img`. */
+/** Shape returned by A1111 `POST /sdapi/v1/txt2img` and `POST /sdapi/v1/img2img`. */
 type A1111Txt2ImgResponse = {
   images: string[];
   parameters: Record<string, unknown>;
   info: string;
+};
+
+/** Shape returned by A1111 `POST /sdapi/v1/extra-single-image`. */
+type A1111ExtraSingleImageResponse = {
+  image: string;
+  html_info: string;
 };
 
 /** Shape returned by A1111 `GET /sdapi/v1/sd-models`. */
@@ -409,6 +417,153 @@ export class StableDiffusionLocalProvider implements IImageProvider {
         totalImages: images.length,
         totalCostUSD: 0,
       },
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Image editing (img2img / inpainting)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Edits an image using the A1111 `img2img` endpoint.
+   *
+   * Routes to `/sdapi/v1/img2img` which accepts `init_images` (base64 array)
+   * and `denoising_strength` to control how much the output deviates from the
+   * source.  When a mask is provided, A1111 performs inpainting on the white
+   * regions of the mask.
+   *
+   * @param request - Edit request with source image buffer and prompt.
+   * @returns Generation result containing the edited image(s).
+   *
+   * @throws {Error} When the provider is not initialised.
+   * @throws {Error} When the A1111 API returns an HTTP error.
+   */
+  async editImage(request: ImageEditRequest): Promise<ImageGenerationResult> {
+    if (!this.isInitialized) {
+      throw new Error('StableDiffusionLocalProvider is not initialized.');
+    }
+
+    const opts = getImageProviderOptions<StableDiffusionLocalOptions>(
+      'stable-diffusion-local',
+      request.providerOptions,
+    );
+
+    const { width: parsedW, height: parsedH } = parseImageSize(request.size);
+
+    const body: Record<string, unknown> = {
+      // A1111 expects the source image(s) as base64 strings in an array.
+      init_images: [request.image.toString('base64')],
+      prompt: request.prompt,
+      negative_prompt: request.negativePrompt ?? opts?.negativePrompt ?? '',
+      // denoising_strength maps directly to the strength parameter.
+      denoising_strength: request.strength ?? opts?.denoisingStrength ?? 0.75,
+      steps: opts?.steps ?? 25,
+      cfg_scale: opts?.cfgScale ?? 7.5,
+      seed: request.seed ?? opts?.seed ?? -1,
+      sampler_name: opts?.sampler ?? 'Euler a',
+      width: opts?.width ?? parsedW ?? 512,
+      height: opts?.height ?? parsedH ?? 512,
+      batch_size: request.n ?? opts?.batchSize ?? 1,
+    };
+
+    // Inpainting: supply the mask as a base64 string.
+    if (request.mask) {
+      body.mask = request.mask.toString('base64');
+    }
+
+    // Override checkpoint model when explicitly specified.
+    if (request.modelId) {
+      body.override_settings = { sd_model_checkpoint: request.modelId };
+    }
+
+    const resp = await this.fetchImpl(`${this.baseUrl}/sdapi/v1/img2img`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Stable Diffusion img2img API error ${resp.status}: ${text}`);
+    }
+
+    const data = (await resp.json()) as A1111Txt2ImgResponse;
+
+    const images: GeneratedImage[] = data.images.map((base64) => ({
+      base64,
+      mimeType: 'image/png',
+      dataUrl: `data:image/png;base64,${base64}`,
+      revisedPrompt: request.prompt,
+    }));
+
+    return {
+      created: Math.floor(Date.now() / 1000),
+      modelId: request.modelId ?? this.defaultModelId ?? 'unknown',
+      providerId: this.providerId,
+      images,
+      usage: { totalImages: images.length, totalCostUSD: 0 },
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Image upscaling (extras)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Upscales an image using the A1111 extras single-image endpoint.
+   *
+   * Routes to `/sdapi/v1/extra-single-image` which accepts a base64 image,
+   * an upscaler name, and a resize factor.
+   *
+   * @param request - Upscale request with source image and desired scale.
+   * @returns Generation result containing the upscaled image.
+   *
+   * @throws {Error} When the provider is not initialised.
+   * @throws {Error} When the A1111 API returns an HTTP error.
+   */
+  async upscaleImage(request: ImageUpscaleRequest): Promise<ImageGenerationResult> {
+    if (!this.isInitialized) {
+      throw new Error('StableDiffusionLocalProvider is not initialized.');
+    }
+
+    const body: Record<string, unknown> = {
+      image: request.image.toString('base64'),
+      // Default upscaler — R-ESRGAN 4x+ is the most common bundled upscaler.
+      upscaler_1: 'R-ESRGAN 4x+',
+      upscaling_resize: request.scale ?? 2,
+    };
+
+    // When explicit target dimensions are provided, switch to resize-by-size mode.
+    if (request.width || request.height) {
+      body.upscaling_resize_w = request.width ?? 0;
+      body.upscaling_resize_h = request.height ?? 0;
+      body.upscaling_resize = 0; // 0 tells A1111 to use explicit w/h instead of factor.
+    }
+
+    const resp = await this.fetchImpl(`${this.baseUrl}/sdapi/v1/extra-single-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Stable Diffusion upscale API error ${resp.status}: ${text}`);
+    }
+
+    const data = (await resp.json()) as A1111ExtraSingleImageResponse;
+    const image: GeneratedImage = {
+      base64: data.image,
+      mimeType: 'image/png',
+      dataUrl: `data:image/png;base64,${data.image}`,
+    };
+
+    return {
+      created: Math.floor(Date.now() / 1000),
+      modelId: 'upscale',
+      providerId: this.providerId,
+      images: [image],
+      usage: { totalImages: 1, totalCostUSD: 0 },
     };
   }
 

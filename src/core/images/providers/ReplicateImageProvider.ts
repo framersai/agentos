@@ -6,6 +6,8 @@ import {
   type IImageProvider,
   type ImageGenerationRequest,
   type ImageGenerationResult,
+  type ImageEditRequest,
+  type ImageUpscaleRequest,
   type ImageModelInfo,
   normalizeOutputFormat,
   type ReplicateImageProviderOptions,
@@ -171,6 +173,150 @@ export class ReplicateImageProvider implements IImageProvider {
       usage: {
         totalImages: images.length,
       },
+    };
+  }
+
+  /**
+   * Edits an image using a Replicate model that supports image-to-image input.
+   *
+   * Uses `black-forest-labs/flux-fill` for inpainting (when a mask is provided)
+   * or falls back to `stability-ai/sdxl` for generic img2img transforms.
+   * The source image is passed as a base64 data URL in the model input.
+   *
+   * @param request - Edit request with source image, prompt, and optional mask.
+   * @returns Generation result with the edited image(s).
+   *
+   * @throws {Error} When the provider is not initialised or the API fails.
+   */
+  async editImage(request: ImageEditRequest): Promise<ImageGenerationResult> {
+    if (!this.isInitialized) {
+      throw new Error('Replicate image provider is not initialized.');
+    }
+
+    const providerOptions = getImageProviderOptions<ReplicateImageProviderOptions>(
+      this.providerId,
+      request.providerOptions,
+    );
+
+    // Convert image buffer to a base64 data URL that Replicate models accept.
+    const imageDataUrl = `data:image/png;base64,${request.image.toString('base64')}`;
+    const input: Record<string, unknown> = {
+      prompt: request.prompt,
+      image: imageDataUrl,
+      ...(providerOptions?.input ?? {}),
+    };
+
+    // Choose the model based on whether inpainting is requested.
+    const hasInpaintingMask = !!request.mask;
+    const defaultModel = hasInpaintingMask
+      ? 'black-forest-labs/flux-fill'     // Flux Fill is purpose-built for inpainting.
+      : 'stability-ai/sdxl';              // SDXL supports generic img2img via image input.
+
+    if (hasInpaintingMask) {
+      input.mask = `data:image/png;base64,${request.mask!.toString('base64')}`;
+    }
+
+    if (request.strength !== undefined) input.strength = request.strength;
+    if (request.negativePrompt) input.negative_prompt = request.negativePrompt;
+    if (request.seed !== undefined) input.seed = request.seed;
+    if (request.n) input.num_outputs = request.n;
+
+    const model = request.modelId || defaultModel;
+    const body: Record<string, unknown> = {
+      version: model,
+      input,
+    };
+    if (providerOptions?.extraBody) Object.assign(body, providerOptions.extraBody);
+
+    const waitSeconds = providerOptions?.wait ?? 60;
+    let prediction = await this.createPrediction(body, waitSeconds);
+
+    if (
+      prediction.status
+      && !['succeeded', 'failed', 'canceled'].includes(prediction.status)
+      && prediction.urls?.get
+    ) {
+      prediction = await this.pollPrediction(prediction.urls.get, 60_000, 1_000);
+    }
+
+    if (prediction.status === 'failed') {
+      throw new Error(`Replicate image edit failed: ${prediction.error ?? 'unknown error'}`);
+    }
+
+    const images = normalizeReplicateOutput(prediction.output);
+    if (images.length === 0) {
+      throw new Error('Replicate edit returned no image output.');
+    }
+
+    return {
+      created: Math.floor(Date.now() / 1000),
+      modelId: model,
+      providerId: this.providerId,
+      images,
+      usage: { totalImages: images.length },
+    };
+  }
+
+  /**
+   * Upscales an image using a Replicate upscaling model.
+   *
+   * Defaults to `nightmareai/real-esrgan` which supports 2x and 4x upscaling
+   * via the `scale` input parameter.
+   *
+   * @param request - Upscale request with source image and desired scale factor.
+   * @returns Generation result with the upscaled image.
+   *
+   * @throws {Error} When the provider is not initialised or the API fails.
+   */
+  async upscaleImage(request: ImageUpscaleRequest): Promise<ImageGenerationResult> {
+    if (!this.isInitialized) {
+      throw new Error('Replicate image provider is not initialized.');
+    }
+
+    const providerOptions = getImageProviderOptions<ReplicateImageProviderOptions>(
+      this.providerId,
+      request.providerOptions,
+    );
+
+    const imageDataUrl = `data:image/png;base64,${request.image.toString('base64')}`;
+    const input: Record<string, unknown> = {
+      image: imageDataUrl,
+      scale: request.scale ?? 2,
+      ...(providerOptions?.input ?? {}),
+    };
+
+    const model = request.modelId || 'nightmareai/real-esrgan';
+    const body: Record<string, unknown> = {
+      version: model,
+      input,
+    };
+
+    const waitSeconds = providerOptions?.wait ?? 60;
+    let prediction = await this.createPrediction(body, waitSeconds);
+
+    if (
+      prediction.status
+      && !['succeeded', 'failed', 'canceled'].includes(prediction.status)
+      && prediction.urls?.get
+    ) {
+      prediction = await this.pollPrediction(prediction.urls.get, 60_000, 1_000);
+    }
+
+    if (prediction.status === 'failed') {
+      throw new Error(`Replicate image upscale failed: ${prediction.error ?? 'unknown error'}`);
+    }
+
+    const images = normalizeReplicateOutput(prediction.output);
+    if (images.length === 0) {
+      throw new Error('Replicate upscale returned no image output.');
+    }
+
+    return {
+      created: Math.floor(Date.now() / 1000),
+      modelId: model,
+      providerId: this.providerId,
+      images,
+      usage: { totalImages: images.length },
     };
   }
 

@@ -7,6 +7,8 @@ import {
   type IImageProvider,
   type ImageGenerationRequest,
   type ImageGenerationResult,
+  type ImageEditRequest,
+  type ImageUpscaleRequest,
   type ImageModelInfo,
   type StabilityImageProviderOptions,
 } from '../IImageProvider.js';
@@ -248,6 +250,187 @@ export class StabilityImageProvider implements IImageProvider {
         totalImages: usageImages,
       },
     };
+  }
+
+  /**
+   * Edits an image using the Stability AI image-to-image endpoint.
+   *
+   * Routes to different endpoints depending on the edit mode:
+   * - `'img2img'` (default) — `/v2beta/stable-image/generate/sd3` with `image` and `strength`.
+   * - `'inpaint'` — same endpoint but additionally includes `mask_image`.
+   * - `'outpaint'` — currently treated identically to `img2img` (provider
+   *   does not expose a dedicated outpainting endpoint in the v2beta surface).
+   *
+   * @param request - Edit request containing the source image, prompt, and optional mask.
+   * @returns Generation result with the edited image(s).
+   *
+   * @throws {Error} When the provider is not initialised.
+   * @throws {Error} When the Stability API returns an HTTP error status.
+   *
+   * @see https://platform.stability.ai/docs/api-reference#tag/Generate/paths/~1v2beta~1stable-image~1generate~1sd3/post
+   */
+  async editImage(request: ImageEditRequest): Promise<ImageGenerationResult> {
+    if (!this.isInitialized) {
+      throw new Error('Stability image provider is not initialized.');
+    }
+
+    const providerOptions = getImageProviderOptions<StabilityImageProviderOptions>(
+      this.providerId,
+      request.providerOptions,
+    );
+
+    const formData = new FormData();
+
+    // Source image — sent as a Blob so the multipart encoder assigns a filename.
+    formData.append('image', new Blob([request.image], { type: 'image/png' }), 'image.png');
+    formData.append('prompt', request.prompt);
+
+    // Strength controls how much the output deviates from the source.
+    // Stability uses 0–1 with 0 meaning "keep original".
+    appendIfDefined(formData, 'strength', request.strength ?? providerOptions?.strength ?? 0.75);
+
+    // When a mask is provided the request is an inpainting operation.
+    if (request.mask) {
+      formData.append('mask_image', new Blob([request.mask], { type: 'image/png' }), 'mask.png');
+    }
+
+    appendIfDefined(formData, 'negative_prompt', request.negativePrompt ?? providerOptions?.negativePrompt);
+    appendIfDefined(formData, 'seed', request.seed ?? providerOptions?.seed);
+    appendIfDefined(formData, 'output_format', normalizeOutputFormat(providerOptions?.outputFormat));
+    appendIfDefined(formData, 'cfg_scale', providerOptions?.cfgScale);
+    appendIfDefined(formData, 'steps', providerOptions?.steps);
+
+    const model = request.modelId || this.defaultModelId || 'sd3-medium';
+    appendIfDefined(formData, 'model', model);
+
+    // Use the SD3 endpoint which supports image + strength natively.
+    const response = await fetch(`${this.config.baseURL}/v2beta/stable-image/generate/sd3`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        Accept: 'application/json',
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Stability image edit failed (${response.status}): ${errorText}`);
+    }
+
+    const images = await this.parseStabilityResponse(response, providerOptions);
+
+    return {
+      created: Math.floor(Date.now() / 1000),
+      modelId: model,
+      providerId: this.providerId,
+      images,
+      usage: { totalImages: images.length },
+    };
+  }
+
+  /**
+   * Upscales an image using the Stability AI upscale endpoint.
+   *
+   * Uses `/v2beta/stable-image/upscale/conservative` which takes an image
+   * and a target width to produce a higher-resolution version.
+   *
+   * @param request - Upscale request with the source image and desired dimensions.
+   * @returns Generation result with the upscaled image.
+   *
+   * @throws {Error} When the provider is not initialised.
+   * @throws {Error} When the Stability API returns an HTTP error status.
+   *
+   * @see https://platform.stability.ai/docs/api-reference#tag/Upscale
+   */
+  async upscaleImage(request: ImageUpscaleRequest): Promise<ImageGenerationResult> {
+    if (!this.isInitialized) {
+      throw new Error('Stability image provider is not initialized.');
+    }
+
+    const providerOptions = getImageProviderOptions<StabilityImageProviderOptions>(
+      this.providerId,
+      request.providerOptions,
+    );
+
+    const formData = new FormData();
+    formData.append('image', new Blob([request.image], { type: 'image/png' }), 'image.png');
+
+    // Stability's upscale endpoint accepts a target `width`.
+    // Derive from explicit width, or scale factor applied to a default 512px base.
+    const targetWidth = request.width ?? (request.scale ? 512 * request.scale : 2048);
+    appendIfDefined(formData, 'width', targetWidth);
+    if (request.height) appendIfDefined(formData, 'height', request.height);
+    appendIfDefined(formData, 'output_format', normalizeOutputFormat(providerOptions?.outputFormat));
+
+    const response = await fetch(`${this.config.baseURL}/v2beta/stable-image/upscale/conservative`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        Accept: 'application/json',
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Stability image upscale failed (${response.status}): ${errorText}`);
+    }
+
+    const images = await this.parseStabilityResponse(response, providerOptions);
+
+    return {
+      created: Math.floor(Date.now() / 1000),
+      modelId: 'stable-image-upscale',
+      providerId: this.providerId,
+      images,
+      usage: { totalImages: images.length },
+    };
+  }
+
+  /**
+   * Parses a Stability API response into an array of {@link GeneratedImage} objects.
+   *
+   * Handles both JSON envelope responses (with `image` or `artifacts` fields)
+   * and raw binary responses (identified by non-JSON content types).
+   */
+  private async parseStabilityResponse(
+    response: Response,
+    providerOptions?: StabilityImageProviderOptions,
+  ): Promise<GeneratedImage[]> {
+    const contentType = response.headers.get('content-type') ?? '';
+    const images: GeneratedImage[] = [];
+
+    if (contentType.includes('application/json')) {
+      const json = (await response.json()) as StabilityJsonResponse;
+      if (json.image) {
+        const mimeType = `image/${normalizeOutputFormat(providerOptions?.outputFormat) ?? 'png'}`;
+        images.push({
+          mimeType,
+          base64: json.image,
+          dataUrl: `data:${mimeType};base64,${json.image}`,
+          providerMetadata: { seed: json.seed, finishReason: json.finish_reason },
+        });
+      }
+      for (const artifact of json.artifacts ?? []) {
+        if (!artifact.base64) continue;
+        const mimeType = `image/${normalizeOutputFormat(providerOptions?.outputFormat) ?? 'png'}`;
+        images.push({
+          mimeType,
+          base64: artifact.base64,
+          dataUrl: `data:${mimeType};base64,${artifact.base64}`,
+          providerMetadata: { seed: artifact.seed, finishReason: artifact.finishReason },
+        });
+      }
+    } else {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const mimeType = contentType || 'image/png';
+      const base64 = buffer.toString('base64');
+      const parsed = parseDataUrl(`data:${mimeType};base64,${base64}`);
+      images.push(parsed);
+    }
+
+    return images;
   }
 
   async listAvailableModels(): Promise<ImageModelInfo[]> {

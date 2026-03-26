@@ -168,6 +168,12 @@ export type {
 export { AgencyConfigError } from './api/types.js';
 export { generateImage } from './api/generateImage.js';
 export type { GenerateImageOptions, GenerateImageResult } from './api/generateImage.js';
+export { editImage } from './api/editImage.js';
+export type { EditImageOptions, EditImageResult } from './api/editImage.js';
+export { upscaleImage } from './api/upscaleImage.js';
+export type { UpscaleImageOptions, UpscaleImageResult } from './api/upscaleImage.js';
+export { variateImage } from './api/variateImage.js';
+export type { VariateImageOptions, VariateImageResult } from './api/variateImage.js';
 export { generateObject, ObjectGenerationError } from './api/generateObject.js';
 export type { GenerateObjectOptions, GenerateObjectResult } from './api/generateObject.js';
 export { streamObject } from './api/streamObject.js';

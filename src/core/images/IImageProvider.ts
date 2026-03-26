@@ -135,6 +135,104 @@ export interface ImageGenerationResult {
   usage?: ImageProviderUsage;
 }
 
+// ---------------------------------------------------------------------------
+// Image editing (img2img / inpainting / outpainting)
+// ---------------------------------------------------------------------------
+
+/** The kind of editing operation to perform. */
+export type ImageEditMode = 'img2img' | 'inpaint' | 'outpaint';
+
+/**
+ * Provider-level request for image editing.
+ *
+ * Passed to {@link IImageProvider.editImage} by the high-level
+ * {@link editImage} helper after normalising user input.
+ */
+export interface ImageEditRequest {
+  /** Model identifier to use for the edit. */
+  modelId: string;
+  /** Source image as a raw `Buffer`. */
+  image: Buffer;
+  /** Text prompt describing the desired changes. */
+  prompt: string;
+  /** Optional mask for inpainting (white = edit region, black = keep). */
+  mask?: Buffer;
+  /** Editing mode. Defaults to `'img2img'`. */
+  mode?: ImageEditMode;
+  /**
+   * How much the output may deviate from the source.
+   * `0` = identical, `1` = completely redrawn.  Default `0.75`.
+   */
+  strength?: number;
+  /** Negative prompt describing content to avoid. */
+  negativePrompt?: string;
+  /** Desired output dimensions (e.g. `"1024x1024"`). */
+  size?: string;
+  /** Seed for reproducible output. */
+  seed?: number;
+  /** Number of output images. */
+  n?: number;
+  /** Arbitrary provider-specific options. */
+  providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Image upscaling (super-resolution)
+// ---------------------------------------------------------------------------
+
+/**
+ * Provider-level request for image upscaling / super-resolution.
+ *
+ * Passed to {@link IImageProvider.upscaleImage} by the high-level
+ * {@link upscaleImage} helper.
+ */
+export interface ImageUpscaleRequest {
+  /** Model identifier to use for upscaling. */
+  modelId: string;
+  /** Source image as a raw `Buffer`. */
+  image: Buffer;
+  /** Integer scale factor (e.g. `2` or `4`). */
+  scale?: 2 | 4;
+  /** Target width in pixels (alternative to `scale`). */
+  width?: number;
+  /** Target height in pixels (alternative to `scale`). */
+  height?: number;
+  /** Arbitrary provider-specific options. */
+  providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Image variations
+// ---------------------------------------------------------------------------
+
+/**
+ * Provider-level request for generating image variations.
+ *
+ * Passed to {@link IImageProvider.variateImage} by the high-level
+ * {@link variateImage} helper.
+ */
+export interface ImageVariateRequest {
+  /** Model identifier to use for variation generation. */
+  modelId: string;
+  /** Source image as a raw `Buffer`. */
+  image: Buffer;
+  /** Number of variations to generate. */
+  n?: number;
+  /**
+   * How different from the original (`0` = identical, `1` = very different).
+   * Default `0.5`.
+   */
+  variance?: number;
+  /** Desired output size (e.g. `"1024x1024"`). */
+  size?: string;
+  /** Arbitrary provider-specific options. */
+  providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Provider interface
+// ---------------------------------------------------------------------------
+
 export interface IImageProvider {
   readonly providerId: string;
   readonly isInitialized: boolean;
@@ -144,6 +242,26 @@ export interface IImageProvider {
   generateImage(request: ImageGenerationRequest): Promise<ImageGenerationResult>;
   listAvailableModels?(): Promise<ImageModelInfo[]>;
   shutdown?(): Promise<void>;
+
+  // --- Optional editing capabilities (not every provider supports every op) ---
+
+  /**
+   * Perform an image-to-image edit, inpainting, or outpainting operation.
+   * Providers that do not support editing should leave this `undefined`.
+   */
+  editImage?(request: ImageEditRequest): Promise<ImageGenerationResult>;
+
+  /**
+   * Upscale / super-resolve an image.
+   * Providers that do not support upscaling should leave this `undefined`.
+   */
+  upscaleImage?(request: ImageUpscaleRequest): Promise<ImageGenerationResult>;
+
+  /**
+   * Generate visual variations of the supplied image.
+   * Providers that do not support variations should leave this `undefined`.
+   */
+  variateImage?(request: ImageVariateRequest): Promise<ImageGenerationResult>;
 }
 
 const BUILT_IN_IMAGE_PROVIDER_IDS = new Set(['openai', 'openrouter', 'stability', 'replicate', 'stable-diffusion-local']);
