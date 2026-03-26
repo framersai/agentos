@@ -564,10 +564,16 @@ export class GraphRuntime {
             resolvedTarget = edge.condition.fn(state);
           } else {
             const expressionResult = evaluateConditionExpression(edge.condition.expr, state);
-            if (typeof expressionResult === 'string') {
-              resolvedTarget = expressionResult;
-            } else if (expressionResult === true) {
+            const resultStr = String(expressionResult);
+            // Expression evaluated to boolean true/false — use edge target directly
+            if (resultStr === 'true') {
               resolvedTarget = edge.target;
+            } else if (resultStr === 'false') {
+              // Condition is false — do not add this edge's target
+              resolvedTarget = undefined;
+            } else {
+              // Expression returned a route name string (e.g., 'nodeA')
+              resolvedTarget = resultStr;
             }
           }
 

@@ -157,6 +157,23 @@ function evaluateSingleComparison(expr: string, refs: Map<string, unknown>): unk
 }
 
 /**
+ * Evaluate a boolean expression (with `&&`/`||` connectives) to a boolean.
+ *
+ * @param expr - The expression (without ternary).
+ * @param refs - Resolved partition references.
+ * @returns Whether the expression evaluates to truthy.
+ */
+function evaluateBooleanExpression(expr: string, refs: Map<string, unknown>): boolean {
+  const orParts = expr.split('||').map(s => s.trim());
+  for (const orPart of orParts) {
+    const andParts = orPart.split('&&').map(s => s.trim());
+    const allTrue = andParts.every(part => Boolean(evaluateSingleComparison(part, refs)));
+    if (allTrue) return true;
+  }
+  return false;
+}
+
+/**
  * Safely evaluate a graph routing expression against state.
  *
  * Supports:
@@ -175,26 +192,31 @@ function evaluateSingleComparison(expr: string, refs: Map<string, unknown>): unk
  */
 export function safeEvaluateExpression(expr: string, state: Partial<GraphState>): string {
   try {
+    // Reject obviously invalid syntax (template markers, unbalanced braces, etc.)
+    if (/\{\{|\}\}/.test(expr)) return 'false';
+
     const refs = resolveAllRefs(expr, state);
 
-    // Split on `||` first (lower precedence), then `&&` (higher precedence)
-    const orParts = expr.split('||').map(s => s.trim());
-    for (const orPart of orParts) {
-      const andParts = orPart.split('&&').map(s => s.trim());
-      const allTrue = andParts.every(part => {
-        const result = evaluateSingleComparison(part, refs);
-        return Boolean(result);
-      });
-      if (allTrue) {
-        // If the expression was a simple value (no operators), return the resolved value
-        if (orParts.length === 1 && andParts.length === 1) {
-          const result = evaluateSingleComparison(expr, refs);
-          return String(result ?? 'false');
-        }
-        return 'true';
-      }
+    // Handle ternary operator: `condition ? trueValue : falseValue`
+    const ternaryMatch = expr.match(/^(.+?)\s*\?\s*(.+?)\s*:\s*(.+)$/);
+    if (ternaryMatch) {
+      const [, condExpr, trueExpr, falseExpr] = ternaryMatch;
+      const condResult = evaluateBooleanExpression(condExpr!.trim(), refs);
+      const branch = condResult ? trueExpr!.trim() : falseExpr!.trim();
+      const resolved = parseToken(branch, refs);
+      return String(resolved ?? 'false');
     }
-    return 'false';
+
+    // Split on `||` first (lower precedence), then `&&` (higher precedence)
+    const result = evaluateBooleanExpression(expr, refs);
+
+    // If the expression had no boolean connectives, return the resolved value directly
+    if (!expr.includes('||') && !expr.includes('&&')) {
+      const singleResult = evaluateSingleComparison(expr, refs);
+      return String(singleResult ?? 'false');
+    }
+
+    return result ? 'true' : 'false';
   } catch {
     return 'false';
   }
