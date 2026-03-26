@@ -3,8 +3,8 @@ import { AgentOS } from '../../src/api/AgentOS';
 import type { AgentOSConfig } from '../../src/api/AgentOS';
 import type { AgentOSInput } from '../../src/api/types/AgentOSInput';
 import {
-  AgentOSResponse,
   AgentOSResponseChunkType,
+  type AgentOSResponse,
   type AgentOSFinalResponseChunk,
   type AgentOSErrorChunk,
 } from '../../src/api/types/AgentOSResponse';
@@ -56,6 +56,17 @@ class FakeStreamingManager {
       streamId,
       registered.filter((client) => client.id !== clientId),
     );
+  }
+
+  /**
+   * Returns the IDs of all streams that have been prepared.
+   * Required by AgentOS.processRequest's finally block which checks whether
+   * the stream is still active before attempting deregistration.
+   *
+   * @returns Array of active stream IDs
+   */
+  public async getActiveStreamIds(): Promise<string[]> {
+    return Array.from(this.prepared.keys());
   }
 }
 
