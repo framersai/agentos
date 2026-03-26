@@ -1,3 +1,7 @@
+## <small>0.1.115 (2026-03-26)</small>
+
+* fix(lint): suppress require imports in multimodal indexer, use const for embeddedImages ([8c3a18d](https://github.com/framersai/agentos/commit/8c3a18d))
+
 ## <small>0.1.114 (2026-03-26)</small>
 
 * fix(build): add query-router to tsconfig.build.json include list ([6903904](https://github.com/framersai/agentos/commit/6903904))
