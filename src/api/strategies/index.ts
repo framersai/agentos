@@ -20,6 +20,7 @@ import { compileParallel } from './parallel.js';
 import { compileDebate } from './debate.js';
 import { compileReviewLoop } from './review-loop.js';
 import { compileHierarchical } from './hierarchical.js';
+import { compileGraph } from './graph.js';
 
 /**
  * Compile an orchestration strategy into an executable {@link CompiledStrategy}.
@@ -73,6 +74,8 @@ function compileStrategyCore(
       return compileReviewLoop(agents, agencyConfig);
     case 'hierarchical':
       return compileHierarchical(agents, agencyConfig);
+    case 'graph':
+      return compileGraph(agents, agencyConfig);
     default:
       throw new Error(`Strategy '${strategy}' not yet implemented`);
   }
@@ -129,4 +132,5 @@ export { compileParallel } from './parallel.js';
 export { compileDebate } from './debate.js';
 export { compileReviewLoop } from './review-loop.js';
 export { compileHierarchical } from './hierarchical.js';
+export { compileGraph } from './graph.js';
 export { mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';

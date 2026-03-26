@@ -43,8 +43,9 @@ export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'prospective';
  * - `"debate"` — agents iteratively argue and refine a shared answer.
  * - `"review-loop"` — one agent produces output, another reviews and requests revisions.
  * - `"hierarchical"` — a coordinator agent dispatches sub-tasks to specialist agents.
+ * - `"graph"` — explicit dependency DAG; agents run when all `dependsOn` predecessors complete.
  */
-export type AgencyStrategy = 'sequential' | 'parallel' | 'debate' | 'review-loop' | 'hierarchical';
+export type AgencyStrategy = 'sequential' | 'parallel' | 'debate' | 'review-loop' | 'hierarchical' | 'graph';
 
 // ---------------------------------------------------------------------------
 // Sub-config interfaces
@@ -765,6 +766,13 @@ export interface BaseAgentConfig {
   on?: AgencyCallbacks;
   /** Resource limits (tokens, cost, time) applied to the entire run. */
   controls?: ResourceControls;
+  /**
+   * Names of other agents in the agency that must complete before this agent runs.
+   * Used with `strategy: 'graph'` to build an explicit dependency DAG.
+   * Agents with no `dependsOn` are roots and run first.
+   * @example `dependsOn: ['researcher']` — this agent waits for `researcher` to finish.
+   */
+  dependsOn?: string[];
 }
 
 // ---------------------------------------------------------------------------

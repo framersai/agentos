@@ -78,9 +78,13 @@ export function agency(opts: AgencyOptions): Agent {
   // 2. Compile the orchestration strategy into an executable CompiledStrategy.
   //    When `adaptive` is true the strategy dispatcher wraps the chosen strategy
   //    with an implicit hierarchical manager.
+  //    Auto-detect 'graph' when any sub-agent declares `dependsOn`.
+  const hasDependsOn = Object.values(resolvedAgents).some(
+    (a) => !isAgent(a) && Array.isArray((a as BaseAgentConfig).dependsOn) && (a as BaseAgentConfig).dependsOn!.length > 0,
+  );
   const chosenStrategy = opts.adaptive
     ? 'hierarchical'
-    : (opts.strategy ?? 'sequential');
+    : (opts.strategy ?? (hasDependsOn ? 'graph' : 'sequential'));
 
   const strategy: CompiledStrategy = compileStrategy(
     chosenStrategy,
