@@ -188,3 +188,22 @@ export {
   type RAGAuditCollectorOptions,
 } from './audit/index.js';
 
+// ============================================================================
+// Multimodal Indexing (images, audio)
+// ============================================================================
+
+export { MultimodalIndexer } from './multimodal/index.js';
+
+export type {
+  ContentModality,
+  ImageIndexOptions,
+  ImageIndexResult,
+  AudioIndexOptions,
+  AudioIndexResult,
+  MultimodalSearchOptions,
+  MultimodalSearchResult,
+  IVisionProvider,
+  ISpeechToTextProvider,
+  MultimodalIndexerConfig,
+} from './multimodal/index.js';
+
