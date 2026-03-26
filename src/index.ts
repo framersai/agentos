@@ -8,9 +8,16 @@ export * from './api/AgentOS.js';
 export * from './api/AgentOSOrchestrator';
 export * from './api/types/AgentOSInput';
 export * from './api/types/AgentOSResponse';
+export * from './api/types/AgentOSExternalToolRequest';
+export * from './api/types/AgentOSToolResult';
 export * from './cognitive_substrate/IGMI';
 export * from './cognitive_substrate/GMIManager';
-export type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from './core/tools/ITool';
+export type {
+  ITool,
+  ToolExecutionResult,
+  ToolExecutionContext,
+  JSONSchemaObject,
+} from './core/tools/ITool';
 export * from './core/llm/IPromptEngine';
 export * from './config/ToolOrchestratorConfig';
 export * from './core/tools/permissions/IToolPermissionManager';
@@ -115,7 +122,13 @@ export {
 
 // --- High-Level API (AI SDK style) ---
 export { generateText } from './api/generateText.js';
-export type { GenerateTextOptions, GenerateTextResult, Message, ToolCallRecord, TokenUsage } from './api/generateText.js';
+export type {
+  GenerateTextOptions,
+  GenerateTextResult,
+  Message,
+  ToolCallRecord,
+  TokenUsage,
+} from './api/generateText.js';
 export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
@@ -123,6 +136,10 @@ export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
 export { agency } from './api/agency.js';
 export { hitl } from './api/hitl.js';
 export type { HitlHandler } from './api/hitl.js';
+export * from './api/processRequestWithExternalTools.js';
+export * from './api/externalToolRegistry.js';
+export * from './api/processRequestWithRegisteredTools.js';
+export * from './api/resumeExternalToolRequestWithRegisteredTools.js';
 export type {
   AgencyOptions,
   AgencyStrategy,
@@ -141,11 +158,13 @@ export type {
 export { AgencyConfigError } from './api/types.js';
 export { generateImage } from './api/generateImage.js';
 export type { GenerateImageOptions, GenerateImageResult } from './api/generateImage.js';
-export {
-  parseModelString,
-  resolveProvider,
-  resolveModelOption,
-} from './api/model.js';
+export { generateObject, ObjectGenerationError } from './api/generateObject.js';
+export type { GenerateObjectOptions, GenerateObjectResult } from './api/generateObject.js';
+export { streamObject } from './api/streamObject.js';
+export type { StreamObjectOptions, StreamObjectResult, DeepPartial } from './api/streamObject.js';
+export { embedText } from './api/embedText.js';
+export type { EmbedTextOptions, EmbedTextResult } from './api/embedText.js';
+export { parseModelString, resolveProvider, resolveModelOption } from './api/model.js';
 export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/provider-defaults.js';
 export type { ProviderDefaults } from './api/provider-defaults.js';
 export type { TaskType, ModelOption } from './api/model.js';

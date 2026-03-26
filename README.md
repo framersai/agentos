@@ -151,7 +151,7 @@ npm install @framers/agentos
 **Start here:**
 
 - Use [`agency()`](./docs/AGENCY_API.md) to coordinate a team of agents with a single call.
-- Use [`generateText()` / `streamText()` / `generateImage()` / `agent()`](./docs/HIGH_LEVEL_API.md) for the fastest path from prompt to working code.
+- Use [`generateText()` / `streamText()` / `generateObject()` / `streamObject()` / `embedText()` / `generateImage()` / `agent()`](./docs/HIGH_LEVEL_API.md) for the fastest path from prompt to working code.
 - Use [`AgentOS`](#advanced-agentgraph-and-full-runtime) when you need extensions, workflows, personas, or full runtime lifecycle control.
 - Browse the live docs at [docs.agentos.sh/getting-started/high-level-api](https://docs.agentos.sh/getting-started/high-level-api) and [docs.agentos.sh/api](https://docs.agentos.sh/api).
 
@@ -210,11 +210,15 @@ per-agent stream events in the same config object — see
 
 ### Single-Agent and Low-Level Helpers
 
-Use the streamlined helpers when you want AI SDK-style text generation, image
-generation, or a single stateful session without a multi-agent team.
+Use the streamlined helpers when you want AI SDK-style text generation, structured
+output extraction, embedding generation, image generation, or a single stateful
+session without a multi-agent team.
 
 ```typescript
-import { agent, generateImage, generateText, streamText } from '@framers/agentos';
+import {
+  agent, embedText, generateImage, generateObject, generateText, streamText, streamObject,
+} from '@framers/agentos';
+import { z } from 'zod';
 
 // Provider-first: AgentOS picks the best default model automatically.
 // Requires OPENAI_API_KEY (or the matching env var) to be set.
@@ -240,6 +244,36 @@ const image = await generateImage({
 });
 
 console.log(image.images[0]?.mimeType);
+
+// Structured output — Zod-validated JSON extraction
+const { object } = await generateObject({
+  model: 'openai:gpt-4o',
+  schema: z.object({ name: z.string(), age: z.number() }),
+  prompt: 'Extract: "John is 30 years old"',
+});
+
+console.log(object.name, object.age); // "John" 30
+
+// Streaming structured output — partial objects as JSON builds up
+const structured = streamObject({
+  model: 'openai:gpt-4o',
+  schema: z.object({ title: z.string(), tags: z.array(z.string()) }),
+  prompt: 'Generate metadata for an article about TCP.',
+});
+
+for await (const partial of structured.partialObjectStream) {
+  console.log('partial:', partial);
+}
+console.log('final:', await structured.object);
+
+// Embeddings — single or batch
+const { embeddings } = await embedText({
+  model: 'openai:text-embedding-3-small',
+  input: ['Hello world', 'Goodbye world'],
+  dimensions: 256,
+});
+
+console.log(embeddings.length, embeddings[0].length); // 2, 256
 
 const assistant = agent({
   provider: 'openai',
@@ -1923,7 +1957,7 @@ The `docs/` directory contains specification and reference documents:
 | Document | Description |
 |----------|-------------|
 | [`AGENCY_API.md`](docs/AGENCY_API.md) | `agency()` reference: all 5 strategies, HITL, guardrails, RAG, voice, nested agencies, full-featured example |
-| [`HIGH_LEVEL_API.md`](docs/HIGH_LEVEL_API.md) | `generateText()`, `streamText()`, `generateImage()`, single `agent()` |
+| [`HIGH_LEVEL_API.md`](docs/HIGH_LEVEL_API.md) | `generateText()`, `streamText()`, `generateObject()`, `streamObject()`, `embedText()`, `generateImage()`, single `agent()` |
 | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Complete system architecture with data flow diagrams |
 | [`SAFETY_PRIMITIVES.md`](docs/SAFETY_PRIMITIVES.md) | Circuit breaker, cost guard, stuck detection, dedup API reference |
 | [`PLANNING_ENGINE.md`](docs/PLANNING_ENGINE.md) | ReAct reasoning, multi-step task planning specification |
