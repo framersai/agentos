@@ -5,6 +5,20 @@
  * providers (Twilio, Telnyx, Plivo). This module defines the call lifecycle
  * state machine, event types, and configuration.
  *
+ * ## Call lifecycle state machine
+ *
+ * ```
+ *                   ┌──────────────────────────────────────────────┐
+ *                   │             Terminal states                   │
+ *                   │  completed | hangup-user | hangup-bot        │
+ *                   │  timeout | error | failed | no-answer        │
+ *                   │  busy | voicemail                            │
+ *                   └───────────────────────────────────────▲──────┘
+ *                                                           │ (from any non-terminal)
+ *  initiated ──► ringing ──► answered ──► active ──► speaking ◄──► listening
+ *       (monotonic forward-only)                    (can cycle)
+ * ```
+ *
  * Modeled after OpenClaw's voice-call extension architecture with adaptations
  * for the AgentOS extension pack pattern.
  *
@@ -16,7 +30,11 @@
 // ============================================================================
 
 /**
- * Supported telephony providers. Extensible via string literal union.
+ * Supported telephony providers.
+ *
+ * The explicit literals enable autocomplete and exhaustiveness checking while
+ * the `(string & {})` arm keeps the type open for future providers without
+ * requiring a code change.
  */
 export type VoiceProviderName =
   | 'twilio'
@@ -30,10 +48,33 @@ export type VoiceProviderName =
 // ============================================================================
 
 /**
- * States a voice call can be in. Transitions follow a monotonic order
- * (initiated → ringing → answered → active → speaking/listening),
- * except `speaking` ↔ `listening` which can cycle during conversation.
- * Terminal states can be reached from any non-terminal state.
+ * States a voice call can be in.
+ *
+ * Transitions follow a monotonic order
+ * (`initiated` -> `ringing` -> `answered` -> `active` -> `speaking`/`listening`),
+ * except `speaking` <-> `listening` which can cycle during conversation turns.
+ * Terminal states can be reached from **any** non-terminal state.
+ *
+ * ## Non-terminal states (forward-only progression)
+ * - `initiated` -- Call record created, provider request sent.
+ * - `ringing`   -- Provider confirmed the destination phone is ringing.
+ * - `answered`  -- Callee picked up; media channel not yet established.
+ * - `active`    -- Bidirectional media stream is established.
+ *
+ * ## Conversation cycling states (can alternate freely)
+ * - `speaking`  -- Agent TTS is playing audio to the caller.
+ * - `listening` -- Agent STT is listening for caller speech.
+ *
+ * ## Terminal states (once reached, no further transitions)
+ * - `completed`   -- Normal call completion (both parties done).
+ * - `hangup-user` -- The remote caller hung up.
+ * - `hangup-bot`  -- The agent initiated the hangup.
+ * - `timeout`     -- Call exceeded `maxDurationSeconds`.
+ * - `error`       -- Unrecoverable error during the call.
+ * - `failed`      -- Provider could not place the call at all.
+ * - `no-answer`   -- Callee did not pick up within the ring timeout.
+ * - `busy`        -- Callee line is busy.
+ * - `voicemail`   -- Answering machine / voicemail detected.
  */
 export type CallState =
   // Non-terminal (forward-only progression)
@@ -55,7 +96,12 @@ export type CallState =
   | 'busy'
   | 'voicemail';
 
-/** Set of terminal call states — once reached, no further transitions. */
+/**
+ * Set of terminal call states -- once reached, no further transitions are
+ * allowed by the {@link CallManager} state machine.
+ *
+ * Used for guard checks: `if (TERMINAL_CALL_STATES.has(call.state)) return;`
+ */
 export const TERMINAL_CALL_STATES = new Set<CallState>([
   'completed',
   'hangup-user',
@@ -68,10 +114,22 @@ export const TERMINAL_CALL_STATES = new Set<CallState>([
   'voicemail',
 ]);
 
-/** States that can cycle during multi-turn conversations. */
+/**
+ * States that can cycle during multi-turn conversations.
+ *
+ * The state machine allows free transitions between these two states so that
+ * the agent can alternate between speaking and listening without violating
+ * monotonic ordering.
+ */
 export const CONVERSATION_STATES = new Set<CallState>(['speaking', 'listening']);
 
-/** Non-terminal state order for monotonic transition enforcement. */
+/**
+ * Non-terminal state order for monotonic transition enforcement.
+ *
+ * The {@link CallManager} only allows a forward transition when
+ * `STATE_ORDER.indexOf(newState) > STATE_ORDER.indexOf(currentState)`.
+ * This prevents impossible regressions like `answered` -> `ringing`.
+ */
 export const STATE_ORDER: readonly CallState[] = [
   'initiated',
   'ringing',
@@ -98,7 +156,7 @@ export type CallMode = 'notify' | 'conversation';
 export type CallDirection = 'outbound' | 'inbound';
 
 /**
- * Inbound call policy — how the agent handles incoming calls.
+ * Inbound call policy -- how the agent handles incoming calls.
  * - `disabled`: Reject all inbound calls.
  * - `allowlist`: Only accept from allowed numbers.
  * - `pairing`: Accept and pair with agent owner.
@@ -130,7 +188,7 @@ export interface TranscriptEntry {
 export type CallId = string;
 
 /**
- * Full record of a voice call — used for tracking, persistence, and status queries.
+ * Full record of a voice call -- used for tracking, persistence, and status queries.
  */
 export interface CallRecord {
   /** Unique call identifier (UUID). */
@@ -173,7 +231,14 @@ export interface CallRecord {
 
 /**
  * Normalized webhook event from any telephony provider.
- * Uses a discriminated union on the `kind` field.
+ *
+ * Uses a discriminated union on the `kind` field so consumers can narrow
+ * with a `switch (event.kind)` and get full type safety for each variant's
+ * payload.
+ *
+ * Provider-specific webhook formats (Twilio form-encoded, Telnyx JSON,
+ * Plivo URL-encoded/JSON) are all mapped into these canonical shapes by
+ * each provider's {@link IVoiceCallProvider.parseWebhookEvent} implementation.
  */
 export type NormalizedCallEvent =
   | NormalizedCallRinging
@@ -190,6 +255,12 @@ export type NormalizedCallEvent =
   | NormalizedMediaStreamConnected
   | NormalizedDtmfReceived;
 
+/**
+ * Common fields shared by every normalized event variant.
+ *
+ * These fields enable idempotent processing ({@link eventId}), call record
+ * lookup ({@link providerCallId}), and chronological ordering ({@link timestamp}).
+ */
 interface NormalizedEventBase {
   /** Provider-assigned event ID for idempotency. */
   eventId: string;
@@ -199,55 +270,116 @@ interface NormalizedEventBase {
   timestamp: number;
 }
 
+/** The destination phone is ringing. */
 export interface NormalizedCallRinging extends NormalizedEventBase {
   kind: 'call-ringing';
 }
+
+/** The callee answered the call. */
 export interface NormalizedCallAnswered extends NormalizedEventBase {
   kind: 'call-answered';
 }
+
+/** The call completed normally. */
 export interface NormalizedCallCompleted extends NormalizedEventBase {
   kind: 'call-completed';
+  /** Call duration in seconds, if reported by the provider. */
   duration?: number;
 }
+
+/** The provider could not place or maintain the call. */
 export interface NormalizedCallFailed extends NormalizedEventBase {
   kind: 'call-failed';
+  /** Human-readable failure reason from the provider. */
   reason?: string;
 }
+
+/** The callee's line is busy. */
 export interface NormalizedCallBusy extends NormalizedEventBase {
   kind: 'call-busy';
 }
+
+/** The callee did not answer within the ring timeout. */
 export interface NormalizedCallNoAnswer extends NormalizedEventBase {
   kind: 'call-no-answer';
 }
+
+/** Voicemail / answering machine detected (via AMD or similar). */
 export interface NormalizedCallVoicemail extends NormalizedEventBase {
   kind: 'call-voicemail';
 }
+
+/** The remote caller (user) hung up the call. */
 export interface NormalizedCallHangupUser extends NormalizedEventBase {
   kind: 'call-hangup-user';
 }
+
+/** An unrecoverable error occurred during the call. */
 export interface NormalizedCallError extends NormalizedEventBase {
   kind: 'call-error';
+  /** Error description. */
   error: string;
 }
+
+/** A speech-to-text transcript segment (partial or final). */
 export interface NormalizedTranscript extends NormalizedEventBase {
   kind: 'transcript';
+  /** The transcribed text. */
   text: string;
+  /** Whether this is a finalized transcript (vs. in-progress partial). */
   isFinal: boolean;
 }
+
+/** The caller started speaking (voice activity detection trigger). */
 export interface NormalizedSpeechStart extends NormalizedEventBase {
   kind: 'speech-start';
 }
+
+/** A bidirectional media stream WebSocket has connected successfully. */
 export interface NormalizedMediaStreamConnected extends NormalizedEventBase {
   kind: 'media-stream-connected';
+  /** Provider-assigned stream identifier for routing audio frames. */
   streamSid: string;
 }
 
-/** DTMF digit received during a call. */
+/**
+ * DTMF (Dual-Tone Multi-Frequency) digit received during a call.
+ *
+ * DTMF events do NOT trigger a call state transition -- the call remains in
+ * its current state (typically `listening` or `active`). They are relayed as
+ * informational events so higher-level logic (e.g., IVR menus, PIN entry)
+ * can react to caller key-presses.
+ *
+ * ## Provider behavior differences
+ * - **Twilio**: DTMF arrives both via `<Gather>` webhook callbacks (as `Digits`
+ *   param) and via the media stream WebSocket (as `dtmf` events with duration).
+ * - **Telnyx**: DTMF arrives only via `call.dtmf.received` HTTP webhooks --
+ *   never over the media stream WebSocket.
+ * - **Plivo**: DTMF arrives via `<GetDigits>` XML callback (as `Digits` param)
+ *   in webhook POST bodies.
+ *
+ * @example
+ * ```typescript
+ * if (event.kind === 'call-dtmf') {
+ *   console.log(`User pressed ${event.digit} for ${event.durationMs}ms`);
+ * }
+ * ```
+ */
 export interface NormalizedDtmfReceived extends NormalizedEventBase {
   kind: 'call-dtmf';
-  /** The digit pressed: '0'-'9', '*', '#' */
+  /**
+   * The digit pressed by the caller.
+   *
+   * Standard DTMF digits: `'0'`-`'9'`, `'*'`, `'#'`.
+   * Extended DTMF (rarely supported): `'A'`-`'D'`.
+   */
   digit: string;
-  /** How long the key was pressed (ms), if available from provider */
+  /**
+   * How long the key was pressed in milliseconds, when available.
+   *
+   * Not all providers report duration -- Twilio's media stream includes it,
+   * but Telnyx and Plivo webhook payloads typically omit it.
+   */
   durationMs?: number;
 }
 
@@ -255,7 +387,13 @@ export interface NormalizedDtmfReceived extends NormalizedEventBase {
 // Webhook Verification
 // ============================================================================
 
-/** Raw webhook context passed to provider verification. */
+/**
+ * Raw webhook context passed to provider verification.
+ *
+ * Encapsulates everything a provider needs to verify a webhook's authenticity
+ * and parse its payload, without coupling to any specific HTTP framework
+ * (Express, Fastify, Koa, etc.).
+ */
 export interface WebhookContext {
   /** HTTP method (usually POST). */
   method: string;

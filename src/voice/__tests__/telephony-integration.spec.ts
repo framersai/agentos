@@ -1,15 +1,24 @@
 /**
  * @fileoverview Telephony integration tests.
  *
- * Exercises the full inbound media-stream path:
- *   TwilioMediaStreamParser → TelephonyStreamTransport → AudioFrame events
+ * Exercises two end-to-end paths without any real network I/O:
  *
- * And the webhook/state-machine path:
- *   TwilioVoiceProvider + CallManager → state transitions (ringing → answered → completed)
+ * ## Suite 1: Media stream path
+ * ```
+ * TwilioMediaStreamParser -> TelephonyStreamTransport -> AudioFrame events
+ * ```
+ * Validates that real Twilio JSON messages flow through the parser and
+ * transport, producing correctly-shaped AudioFrame events with Float32
+ * samples normalised to [-1, 1].
  *
- * No network I/O is performed — WebSocket and HTTP interactions are mocked.
+ * ## Suite 2: Webhook state machine path
+ * ```
+ * TwilioVoiceProvider + CallManager -> state transitions
+ * ```
+ * Validates the full ringing -> answered -> completed lifecycle via
+ * HMAC-SHA1 signed webhooks processed by the CallManager.
  *
- * @module @framers/agentos/voice/__tests__/telephony-integration
+ * No network I/O is performed -- WebSocket and HTTP interactions are mocked.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -22,11 +31,11 @@ import { CallManager } from '../CallManager.js';
 import { TwilioVoiceProvider } from '../providers/twilio.js';
 import type { AudioFrame } from '../../voice-pipeline/types.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // Shared helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
-/** Build a minimal mock WebSocket-like EventEmitter. */
+/** Build a minimal mock WebSocket-like EventEmitter with send() and close(). */
 function createMockWS(): EventEmitter & { send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } {
   const ws = new EventEmitter();
   (ws as any).send = vi.fn();
@@ -34,12 +43,12 @@ function createMockWS(): EventEmitter & { send: ReturnType<typeof vi.fn>; close:
   return ws as EventEmitter & { send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
 }
 
-/** Encode a mu-law byte value that decodes to audible audio (0x7f = silence). */
+/** Build a mu-law silence buffer (0x7f = zero-crossing in G.711 mu-law). */
 function mulawBytes(count = 16): Buffer {
   return Buffer.alloc(count, 0x7f);
 }
 
-/** Build a Twilio `start` JSON string. */
+/** Build a Twilio `start` JSON string with call metadata. */
 function twilioStart(streamSid = 'MX_STREAM_001', callSid = 'CA_CALL_001'): string {
   return JSON.stringify({
     event: 'start',
@@ -48,7 +57,7 @@ function twilioStart(streamSid = 'MX_STREAM_001', callSid = 'CA_CALL_001'): stri
   });
 }
 
-/** Build a Twilio `media` JSON string with a base64 mu-law payload. */
+/** Build a Twilio `media` JSON string with base64-encoded mu-law audio. */
 function twilioMedia(streamSid = 'MX_STREAM_001', payloadBytes = 16): string {
   return JSON.stringify({
     event: 'media',
@@ -60,7 +69,7 @@ function twilioMedia(streamSid = 'MX_STREAM_001', payloadBytes = 16): string {
   });
 }
 
-/** Build a Twilio `dtmf` JSON string. */
+/** Build a Twilio `dtmf` JSON string for a key-press event. */
 function twilioDtmf(streamSid = 'MX_STREAM_001', digit = '7', duration = 200): string {
   return JSON.stringify({
     event: 'dtmf',
@@ -69,12 +78,17 @@ function twilioDtmf(streamSid = 'MX_STREAM_001', digit = '7', duration = 200): s
   });
 }
 
-/** Build a Twilio `stop` JSON string. */
+/** Build a Twilio `stop` JSON string for stream termination. */
 function twilioStop(streamSid = 'MX_STREAM_001'): string {
   return JSON.stringify({ event: 'stop', streamSid });
 }
 
-/** Compute the Twilio HMAC-SHA1 webhook signature for a URL-encoded body. */
+/**
+ * Compute the Twilio HMAC-SHA1 webhook signature.
+ *
+ * Reproduces Twilio's signing: URL + sorted key-value pairs, HMAC-SHA1,
+ * base64-encoded.
+ */
 function twilioSig(authToken: string, url: string, body: string): string {
   const params = new URLSearchParams(body);
   const sorted = [...params.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -83,9 +97,9 @@ function twilioSig(authToken: string, url: string, body: string): string {
   return createHmac('sha1', authToken).update(data).digest('base64');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Suite 1: TwilioMediaStreamParser + TelephonyStreamTransport (media stream flow)
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Suite 1: TwilioMediaStreamParser + TelephonyStreamTransport (media stream)
+// ---------------------------------------------------------------------------
 
 describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () => {
   let ws: ReturnType<typeof createMockWS>;
@@ -98,24 +112,24 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     transport = new TelephonyStreamTransport(ws, parser, { outputSampleRate: 16000 });
   });
 
-  it('starts in "connecting" state', () => {
+  it('should start in "connecting" state before any Twilio messages arrive', () => {
     expect(transport.state).toBe('connecting');
   });
 
-  it('transitions to "open" after Twilio start message', () => {
+  it('should transition to "open" after receiving a Twilio start message', () => {
     ws.emit('message', twilioStart());
     expect(transport.state).toBe('open');
   });
 
-  it('sends a connected acknowledgment after start', () => {
+  it('should send a connected acknowledgment JSON message after receiving start', () => {
     ws.emit('message', twilioStart('MX1', 'CA1'));
-    // TwilioMediaStreamParser.formatConnected returns a JSON string
+    // TwilioMediaStreamParser.formatConnected returns the connected handshake.
     expect((ws.send as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
     const sent = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0] as string);
     expect(sent).toMatchObject({ event: 'connected', protocol: 'Call' });
   });
 
-  it('emits an "audio" event with a Float32Array AudioFrame on media message', () => {
+  it('should emit an "audio" event with Float32Array AudioFrame when media messages arrive', () => {
     ws.emit('message', twilioStart());
 
     const frames: AudioFrame[] = [];
@@ -130,7 +144,7 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     expect(typeof frame.timestamp).toBe('number');
   });
 
-  it('Float32 samples are normalised to [-1, 1]', () => {
+  it('should normalise Float32 samples to the [-1, 1] range', () => {
     ws.emit('message', twilioStart());
     const frames: AudioFrame[] = [];
     transport.on('audio', (f: AudioFrame) => frames.push(f));
@@ -143,7 +157,7 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     }
   });
 
-  it('emits "dtmf" event with digit and durationMs on dtmf message', () => {
+  it('should emit "dtmf" event with digit and durationMs when DTMF arrives', () => {
     ws.emit('message', twilioStart());
 
     const dtmfEvents: Array<{ digit: string; durationMs?: number }> = [];
@@ -156,7 +170,7 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     expect(dtmfEvents[0].durationMs).toBe(200);
   });
 
-  it('emits "close" and transitions to "closed" on stop message', () => {
+  it('should emit "close" and transition to "closed" when stop message arrives', () => {
     ws.emit('message', twilioStart());
 
     let closedFired = false;
@@ -168,7 +182,7 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     expect(transport.state).toBe('closed');
   });
 
-  it('emits "close" and transitions to "closed" when WebSocket closes', () => {
+  it('should emit "close" and transition to "closed" when WebSocket closes unexpectedly', () => {
     ws.emit('message', twilioStart());
 
     let closedFired = false;
@@ -180,7 +194,7 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     expect(transport.state).toBe('closed');
   });
 
-  it('does not emit a second "close" if WS close fires after stop message', () => {
+  it('should not emit a second "close" when WS close fires after stop message', () => {
     ws.emit('message', twilioStart());
 
     let closeCount = 0;
@@ -189,10 +203,11 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
     ws.emit('message', twilioStop());
     ws.emit('close');
 
+    // Only one close event should fire, not two.
     expect(closeCount).toBe(1);
   });
 
-  it('discards outbound media messages (track=outbound)', () => {
+  it('should discard outbound media messages (track=outbound) to prevent echo', () => {
     ws.emit('message', twilioStart());
 
     const frames: AudioFrame[] = [];
@@ -209,9 +224,9 @@ describe('TwilioMediaStreamParser + TelephonyStreamTransport integration', () =>
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // Suite 2: CallManager + TwilioVoiceProvider webhook state transitions
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
 describe('CallManager + TwilioVoiceProvider integration', () => {
   const ACCOUNT_SID = 'ACtest_integration';
@@ -250,11 +265,11 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
     };
   }
 
-  it('registers the twilio provider and can retrieve it', () => {
+  it('should register the twilio provider and retrieve it by name', () => {
     expect(manager.getProvider('twilio')).toBe(provider);
   });
 
-  it('initiates an outbound call and creates a CallRecord in "initiated" state', async () => {
+  it('should initiate an outbound call and create a CallRecord in "initiated" state', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -274,7 +289,7 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
     expect(call.providerCallId).toBe('CA_OUT_001');
   });
 
-  it('transitions to "ringing" on call-ringing webhook event', async () => {
+  it('should transition to "ringing" when a call-ringing webhook arrives', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -301,7 +316,7 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
     expect(events).toContain('call:ringing');
   });
 
-  it('transitions to "answered" then "completed" via webhook events', async () => {
+  it('should transition through answered to completed via sequential webhooks', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -319,6 +334,7 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
     const makeBody = (status: string) =>
       new URLSearchParams({ CallSid: callSid, CallStatus: status, From: '+15559992222', To: '+15550002222' }).toString();
 
+    // Process the full lifecycle: ringing -> in-progress -> completed.
     manager.processWebhook('twilio', makeCtx(makeBody('ringing')));
     manager.processWebhook('twilio', makeCtx(makeBody('in-progress')));
     manager.processWebhook('twilio', makeCtx(makeBody('completed')));
@@ -330,7 +346,7 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
     expect(stateHistory).toContain('call:ended');
   });
 
-  it('rejects webhook with invalid signature (403 scenario)', () => {
+  it('should reject a webhook with an invalid signature and log a warning', () => {
     const badCtx = {
       method: 'POST' as const,
       url: WEBHOOK_URL,
@@ -338,14 +354,14 @@ describe('CallManager + TwilioVoiceProvider integration', () => {
       body: new URLSearchParams({ CallSid: 'CA_BAD', CallStatus: 'ringing' }).toString(),
     };
 
-    // processWebhook logs a warning and returns without processing
+    // processWebhook logs a warning and returns without processing events.
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     manager.processWebhook('twilio', badCtx);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Webhook verification failed'));
     warnSpy.mockRestore();
   });
 
-  it('emits call:initiated event on successful call initiation', async () => {
+  it('should emit call:initiated event when a call is successfully initiated', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,

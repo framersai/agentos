@@ -1,9 +1,15 @@
 /**
  * @fileoverview Unit tests for {@link TwilioVoiceProvider}.
  *
- * All HTTP calls are intercepted via an injected `fetchImpl` — no real
- * network traffic is made. Webhook verification and event-mapping are
- * exercised for every supported call status and DTMF input.
+ * All HTTP calls are intercepted via an injected `fetchImpl` -- no real
+ * network traffic is made. Tests cover:
+ * - HMAC-SHA1 webhook verification (valid, invalid, missing header).
+ * - Event mapping for every supported Twilio `CallStatus` value.
+ * - DTMF digit extraction from the `Digits` form parameter.
+ * - Outbound call initiation with form-encoded body format.
+ * - Call hangup via `Status=completed`.
+ * - TTS injection via the `Twiml` parameter.
+ * - Authentication header format (HTTP Basic).
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -18,7 +24,7 @@ import type { WebhookContext } from '../types.js';
 const ACCOUNT_SID = 'ACtest1234567890';
 const AUTH_TOKEN = 'test_auth_token';
 
-/** Build a minimal mock Response. */
+/** Build a minimal mock Response that satisfies the fetch() contract. */
 function makeResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -28,7 +34,12 @@ function makeResponse(body: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
-/** Compute the expected Twilio HMAC-SHA1 signature for a given url + body. */
+/**
+ * Compute the expected Twilio HMAC-SHA1 signature for a given URL + form body.
+ *
+ * Reproduces Twilio's signing algorithm: URL + sorted key-value pairs, then
+ * HMAC-SHA1 with the auth token, base64-encoded.
+ */
 function twilioSignature(url: string, body: string): string {
   const params = new URLSearchParams(body);
   const sorted = [...params.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -37,7 +48,7 @@ function twilioSignature(url: string, body: string): string {
   return createHmac('sha1', AUTH_TOKEN).update(data).digest('base64');
 }
 
-/** Build a WebhookContext for a URL-encoded body. */
+/** Build a WebhookContext with a correctly signed Twilio signature header. */
 function makeWebhookCtx(url: string, body: string, overrideHeaders?: Record<string, string>): WebhookContext {
   const sig = twilioSignature(url, body);
   return {
@@ -67,14 +78,14 @@ describe('TwilioVoiceProvider', () => {
 
   // ── Metadata ───────────────────────────────────────────────────────────
 
-  it('has name "twilio"', () => {
+  it('should have name "twilio"', () => {
     expect(provider.name).toBe('twilio');
   });
 
   // ── initiateCall ───────────────────────────────────────────────────────
 
   describe('initiateCall()', () => {
-    it('POSTs to /Accounts/{sid}/Calls.json with correct form body', async () => {
+    it('should POST to /Accounts/{sid}/Calls.json with form-encoded body and status callback events', async () => {
       fetchMock.mockResolvedValue(makeResponse({ sid: 'CA001' }));
 
       const result = await provider.initiateCall({
@@ -94,6 +105,7 @@ describe('TwilioVoiceProvider', () => {
       expect(options.method).toBe('POST');
       expect(options.headers).toMatchObject({ 'Content-Type': 'application/x-www-form-urlencoded' });
 
+      // Verify the form-encoded body contains the expected parameters.
       const body = options.body as string;
       expect(body).toContain('To=%2B15550000002');
       expect(body).toContain('From=%2B15550000001');
@@ -103,7 +115,7 @@ describe('TwilioVoiceProvider', () => {
       expect(body).toContain('StatusCallbackEvent=completed');
     });
 
-    it('returns success: false with error on non-2xx response', async () => {
+    it('should return success: false with a descriptive error on non-2xx responses', async () => {
       fetchMock.mockResolvedValue(makeResponse({ message: 'Not found' }, 404));
 
       const result = await provider.initiateCall({
@@ -118,7 +130,7 @@ describe('TwilioVoiceProvider', () => {
       expect(result.error).toMatch(/404/);
     });
 
-    it('sends a Basic auth header', async () => {
+    it('should send a Basic auth header with accountSid:authToken base64-encoded', async () => {
       fetchMock.mockResolvedValue(makeResponse({ sid: 'CA002' }));
 
       await provider.initiateCall({
@@ -138,7 +150,7 @@ describe('TwilioVoiceProvider', () => {
   // ── hangupCall ─────────────────────────────────────────────────────────
 
   describe('hangupCall()', () => {
-    it('POSTs Status=completed to /Accounts/{sid}/Calls/{callSid}.json', async () => {
+    it('should POST Status=completed to /Accounts/{sid}/Calls/{callSid}.json', async () => {
       fetchMock.mockResolvedValue(makeResponse({}));
 
       await provider.hangupCall({ providerCallId: 'CA999' });
@@ -154,7 +166,7 @@ describe('TwilioVoiceProvider', () => {
   // ── playTts ────────────────────────────────────────────────────────────
 
   describe('playTts()', () => {
-    it('POSTs TwiML <Say> without voice attribute when voice is omitted', async () => {
+    it('should POST TwiML <Say> without voice attribute when voice is omitted', async () => {
       fetchMock.mockResolvedValue(makeResponse({}));
 
       await provider.playTts({ providerCallId: 'CA100', text: 'Hello world' });
@@ -164,7 +176,7 @@ describe('TwilioVoiceProvider', () => {
       expect(body).toBe('<Response><Say>Hello world</Say></Response>');
     });
 
-    it('includes voice attribute when voice is provided', async () => {
+    it('should include the voice attribute in TwiML when voice is provided', async () => {
       fetchMock.mockResolvedValue(makeResponse({}));
 
       await provider.playTts({ providerCallId: 'CA101', text: 'Hey there', voice: 'alice' });
@@ -181,12 +193,12 @@ describe('TwilioVoiceProvider', () => {
     const url = 'https://example.com/twilio/webhook';
     const body = 'CallSid=CA001&CallStatus=ringing&From=%2B15550000001';
 
-    it('returns valid: true for a correctly signed request', () => {
+    it('should return valid: true when the HMAC-SHA1 signature matches', () => {
       const ctx = makeWebhookCtx(url, body);
       expect(provider.verifyWebhook(ctx)).toEqual({ valid: true });
     });
 
-    it('returns valid: false for a wrong signature', () => {
+    it('should return valid: false with "Signature mismatch" when the signature is wrong', () => {
       const ctx: WebhookContext = {
         method: 'POST',
         url,
@@ -198,7 +210,7 @@ describe('TwilioVoiceProvider', () => {
       expect(result.error).toMatch(/mismatch/i);
     });
 
-    it('returns valid: false when signature header is missing', () => {
+    it('should return valid: false when the x-twilio-signature header is missing', () => {
       const ctx: WebhookContext = {
         method: 'POST',
         url,
@@ -214,6 +226,7 @@ describe('TwilioVoiceProvider', () => {
   describe('parseWebhookEvent()', () => {
     const url = 'https://example.com/twilio/webhook';
 
+    // Table-driven test for all CallStatus -> kind mappings.
     const cases: Array<[string, string]> = [
       ['ringing', 'call-ringing'],
       ['in-progress', 'call-answered'],
@@ -225,7 +238,7 @@ describe('TwilioVoiceProvider', () => {
     ];
 
     for (const [twilioStatus, expectedKind] of cases) {
-      it(`maps CallStatus="${twilioStatus}" → kind="${expectedKind}"`, () => {
+      it(`should map CallStatus="${twilioStatus}" to kind="${expectedKind}"`, () => {
         const body = `CallSid=CA001&CallStatus=${twilioStatus}`;
         const ctx = makeWebhookCtx(url, body);
         const result = provider.parseWebhookEvent(ctx);
@@ -235,11 +248,13 @@ describe('TwilioVoiceProvider', () => {
       });
     }
 
-    it('emits call-dtmf event when Digits param is present', () => {
+    it('should emit a call-dtmf event alongside the status event when Digits param is present', () => {
+      // Twilio can include DTMF digits in the same webhook as a status update
+      // (e.g., from a <Gather> verb that also reports call status).
       const body = 'CallSid=CA002&CallStatus=in-progress&Digits=5';
       const ctx = makeWebhookCtx(url, body);
       const result = provider.parseWebhookEvent(ctx);
-      // Both call-answered and call-dtmf
+      // Both call-answered and call-dtmf events should be emitted.
       expect(result.events).toHaveLength(2);
       const dtmf = result.events.find(e => e.kind === 'call-dtmf');
       expect(dtmf).toBeDefined();
@@ -248,18 +263,19 @@ describe('TwilioVoiceProvider', () => {
       }
     });
 
-    it('emits no events for unknown CallStatus', () => {
+    it('should emit no events for unknown CallStatus values like "queued"', () => {
       const body = 'CallSid=CA003&CallStatus=queued';
       const ctx = makeWebhookCtx(url, body);
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events).toHaveLength(0);
     });
 
-    it('assigns unique eventIds to each event', () => {
+    it('should assign unique eventIds to each event for idempotency tracking', () => {
       const body = 'CallSid=CA004&CallStatus=in-progress&Digits=3';
       const ctx = makeWebhookCtx(url, body);
       const result = provider.parseWebhookEvent(ctx);
       const ids = result.events.map(e => e.eventId);
+      // Every event ID should be unique (UUIDs).
       expect(new Set(ids).size).toBe(ids.length);
     });
   });

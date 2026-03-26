@@ -1,10 +1,16 @@
 /**
  * @fileoverview Unit tests for {@link TelnyxVoiceProvider}.
  *
- * All HTTP calls are intercepted via an injected `fetchImpl`. Webhook
- * verification covers both the no-public-key pass-through and header
- * validation paths. Event mapping is tested for all supported Telnyx
- * call event types including voicemail detection.
+ * All HTTP calls are intercepted via an injected `fetchImpl` -- no real
+ * network traffic is made. Tests cover:
+ * - Ed25519 webhook verification (no public key, missing headers, bad key format).
+ * - Event mapping for all supported Telnyx Call Control event types.
+ * - Hangup cause mapping (`normal_clearing` vs. other causes).
+ * - Voicemail detection via `call.machine.detection.ended`.
+ * - Outbound call initiation with JSON body.
+ * - Call hangup via the `/actions/hangup` endpoint.
+ * - TTS via the `/actions/speak` endpoint.
+ * - Authentication header format (Bearer token).
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -18,6 +24,7 @@ import type { WebhookContext } from '../types.js';
 const API_KEY = 'KEY_test_abc123';
 const CONNECTION_ID = 'conn-001';
 
+/** Build a minimal mock Response that satisfies the fetch() contract. */
 function makeResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -27,7 +34,12 @@ function makeResponse(body: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
-/** Build a minimal Telnyx call event webhook body. */
+/**
+ * Build a minimal Telnyx call event webhook body.
+ *
+ * Telnyx wraps all webhook data in a `data` envelope with `event_type` and
+ * `payload` fields.
+ */
 function makeEventBody(eventType: string, payload: Record<string, unknown> = {}): string {
   return JSON.stringify({
     data: {
@@ -41,6 +53,7 @@ function makeEventBody(eventType: string, payload: Record<string, unknown> = {})
   });
 }
 
+/** Build a basic WebhookContext for Telnyx testing. */
 function makeWebhookCtx(body: string, overrideHeaders?: Record<string, string>): WebhookContext {
   return {
     method: 'POST',
@@ -69,14 +82,14 @@ describe('TelnyxVoiceProvider', () => {
 
   // ── Metadata ───────────────────────────────────────────────────────────
 
-  it('has name "telnyx"', () => {
+  it('should have name "telnyx"', () => {
     expect(provider.name).toBe('telnyx');
   });
 
   // ── initiateCall ───────────────────────────────────────────────────────
 
   describe('initiateCall()', () => {
-    it('POSTs to /calls with correct JSON body', async () => {
+    it('should POST to /calls with JSON body containing connection_id, to, from, and webhook_url', async () => {
       fetchMock.mockResolvedValue(
         makeResponse({ data: { call_control_id: 'ctrl-001', call_session_id: 'sess-001' } }),
       );
@@ -101,11 +114,12 @@ describe('TelnyxVoiceProvider', () => {
       expect(body.to).toBe('+15550000002');
       expect(body.from).toBe('+15550000001');
       expect(body.webhook_url).toBe('https://example.com/webhook');
-      // stream_url must NOT be in the initial request
+      // stream_url must NOT be in the initial request -- Telnyx requires
+      // streaming_start as a separate action after call.answered.
       expect(body.stream_url).toBeUndefined();
     });
 
-    it('sends Bearer auth header', async () => {
+    it('should send a Bearer auth header with the API key', async () => {
       fetchMock.mockResolvedValue(
         makeResponse({ data: { call_control_id: 'ctrl-002', call_session_id: 's' } }),
       );
@@ -122,7 +136,7 @@ describe('TelnyxVoiceProvider', () => {
       expect((options.headers as Record<string, string>).Authorization).toBe(`Bearer ${API_KEY}`);
     });
 
-    it('returns success: false on non-2xx response', async () => {
+    it('should return success: false with a descriptive error on non-2xx responses', async () => {
       fetchMock.mockResolvedValue(makeResponse({ errors: [] }, 422));
 
       const result = await provider.initiateCall({
@@ -141,7 +155,7 @@ describe('TelnyxVoiceProvider', () => {
   // ── hangupCall ─────────────────────────────────────────────────────────
 
   describe('hangupCall()', () => {
-    it('POSTs to /calls/{id}/actions/hangup', async () => {
+    it('should POST to /calls/{id}/actions/hangup with an empty JSON body', async () => {
       fetchMock.mockResolvedValue(makeResponse({}));
 
       await provider.hangupCall({ providerCallId: 'ctrl-999' });
@@ -155,7 +169,7 @@ describe('TelnyxVoiceProvider', () => {
   // ── playTts ────────────────────────────────────────────────────────────
 
   describe('playTts()', () => {
-    it('POSTs to /calls/{id}/actions/speak with payload + default voice', async () => {
+    it('should POST to /calls/{id}/actions/speak with payload, default voice, and language', async () => {
       fetchMock.mockResolvedValue(makeResponse({}));
 
       await provider.playTts({ providerCallId: 'ctrl-100', text: 'Hello!' });
@@ -168,7 +182,7 @@ describe('TelnyxVoiceProvider', () => {
       expect(body.language).toBe('en-US');
     });
 
-    it('uses provided voice when specified', async () => {
+    it('should use the provided voice when specified instead of the default', async () => {
       fetchMock.mockResolvedValue(makeResponse({}));
 
       await provider.playTts({ providerCallId: 'ctrl-101', text: 'Hey', voice: 'male' });
@@ -182,12 +196,13 @@ describe('TelnyxVoiceProvider', () => {
   // ── verifyWebhook ──────────────────────────────────────────────────────
 
   describe('verifyWebhook()', () => {
-    it('returns valid: true when no public key is configured (skip verification)', () => {
+    it('should return valid: true when no public key is configured (development mode skip)', () => {
+      // Without a public key, verification is intentionally skipped.
       const ctx = makeWebhookCtx('{}');
       expect(provider.verifyWebhook(ctx)).toEqual({ valid: true });
     });
 
-    it('returns valid: false when signature headers are missing and publicKey is set', () => {
+    it('should return valid: false when signature headers are missing and publicKey is set', () => {
       const providerWithKey = new TelnyxVoiceProvider({
         apiKey: API_KEY,
         connectionId: CONNECTION_ID,
@@ -204,7 +219,9 @@ describe('TelnyxVoiceProvider', () => {
       expect(result.valid).toBe(false);
     });
 
-    it('returns valid: false when Ed25519 verification throws (bad key format)', () => {
+    it('should return valid: false when Ed25519 verification throws due to bad key format', () => {
+      // Malformed public key will cause crypto.verify() to throw,
+      // which the provider catches and returns as a verification failure.
       const providerWithKey = new TelnyxVoiceProvider({
         apiKey: API_KEY,
         connectionId: CONNECTION_ID,
@@ -229,7 +246,7 @@ describe('TelnyxVoiceProvider', () => {
   // ── parseWebhookEvent ──────────────────────────────────────────────────
 
   describe('parseWebhookEvent()', () => {
-    it('maps call.initiated → call-ringing', () => {
+    it('should map call.initiated to call-ringing', () => {
       const ctx = makeWebhookCtx(makeEventBody('call.initiated'));
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events).toHaveLength(1);
@@ -237,25 +254,27 @@ describe('TelnyxVoiceProvider', () => {
       expect(result.events[0].providerCallId).toBe('call-ctrl-001');
     });
 
-    it('maps call.answered → call-answered', () => {
+    it('should map call.answered to call-answered', () => {
       const ctx = makeWebhookCtx(makeEventBody('call.answered'));
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events[0].kind).toBe('call-answered');
     });
 
-    it('maps call.hangup (normal_clearing) → call-hangup-user', () => {
+    it('should map call.hangup with normal_clearing cause to call-hangup-user', () => {
+      // normal_clearing indicates the remote party hung up normally.
       const ctx = makeWebhookCtx(makeEventBody('call.hangup', { hangup_cause: 'normal_clearing' }));
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events[0].kind).toBe('call-hangup-user');
     });
 
-    it('maps call.hangup (unknown cause) → call-completed', () => {
+    it('should map call.hangup with non-user causes to call-completed', () => {
+      // Causes like call_rejected are system-level, not user-initiated hangups.
       const ctx = makeWebhookCtx(makeEventBody('call.hangup', { hangup_cause: 'call_rejected' }));
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events[0].kind).toBe('call-completed');
     });
 
-    it('maps call.dtmf.received → call-dtmf with digit', () => {
+    it('should map call.dtmf.received to call-dtmf with the pressed digit', () => {
       const ctx = makeWebhookCtx(makeEventBody('call.dtmf.received', { digit: '7' }));
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events[0].kind).toBe('call-dtmf');
@@ -264,7 +283,7 @@ describe('TelnyxVoiceProvider', () => {
       }
     });
 
-    it('maps call.machine.detection.ended (result=machine) → call-voicemail', () => {
+    it('should map call.machine.detection.ended with result=machine to call-voicemail', () => {
       const ctx = makeWebhookCtx(
         makeEventBody('call.machine.detection.ended', { result: 'machine' }),
       );
@@ -272,7 +291,8 @@ describe('TelnyxVoiceProvider', () => {
       expect(result.events[0].kind).toBe('call-voicemail');
     });
 
-    it('emits no event for call.machine.detection.ended (result=human)', () => {
+    it('should emit no event when call.machine.detection.ended has result=human', () => {
+      // Human detection is not a meaningful lifecycle event -- the call continues normally.
       const ctx = makeWebhookCtx(
         makeEventBody('call.machine.detection.ended', { result: 'human' }),
       );
@@ -280,13 +300,13 @@ describe('TelnyxVoiceProvider', () => {
       expect(result.events).toHaveLength(0);
     });
 
-    it('emits no events for unknown event types', () => {
+    it('should emit no events for unknown event types to maintain forward compatibility', () => {
       const ctx = makeWebhookCtx(makeEventBody('call.some.unknown.event'));
       const result = provider.parseWebhookEvent(ctx);
       expect(result.events).toHaveLength(0);
     });
 
-    it('returns empty events for malformed JSON', () => {
+    it('should return empty events array for malformed JSON body', () => {
       const ctx: WebhookContext = {
         method: 'POST',
         url: 'https://example.com/wh',

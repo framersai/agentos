@@ -1,12 +1,15 @@
+/**
+ * @fileoverview Unit tests for {@link TwilioMediaStreamParser}.
+ *
+ * Covers all five supported Twilio event types (`start`, `media`, `dtmf`,
+ * `stop`, `mark`), the outbound JSON media envelope, the `connected`
+ * acknowledgment message, and edge cases: outbound track filtering, unknown
+ * events, malformed JSON, and missing required fields.
+ */
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TwilioMediaStreamParser } from '../parsers/TwilioMediaStreamParser.js';
 
-/**
- * Unit tests for {@link TwilioMediaStreamParser}.
- *
- * Each Twilio event type is exercised, plus edge cases: outbound track
- * filtering, unknown events, malformed JSON, and missing fields.
- */
 describe('TwilioMediaStreamParser', () => {
   let parser: TwilioMediaStreamParser;
 
@@ -15,11 +18,11 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — start
+  // parseIncoming -- start
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — start event', () => {
-    it('returns a start event with streamSid and callSid', () => {
+  describe('parseIncoming -- start event', () => {
+    it('should return a start event with streamSid and callSid when Twilio sends a start message', () => {
       const msg = JSON.stringify({
         event: 'start',
         streamSid: 'MZ001',
@@ -36,7 +39,8 @@ describe('TwilioMediaStreamParser', () => {
       }
     });
 
-    it('accepts a Buffer input', () => {
+    it('should accept a Buffer input and still parse the start event correctly', () => {
+      // WebSocket libraries may deliver frames as Buffers instead of strings.
       const msg = Buffer.from(
         JSON.stringify({ event: 'start', streamSid: 'MZ002', start: { callSid: 'CA002' } }),
       );
@@ -47,11 +51,11 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — media (inbound)
+  // parseIncoming -- media (inbound)
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — media event (inbound)', () => {
-    it('decodes base64 audio payload into a Buffer', () => {
+  describe('parseIncoming -- media event (inbound)', () => {
+    it('should decode the base64 audio payload into a Buffer when track is inbound', () => {
       const rawBytes = Buffer.from([0x7f, 0x80, 0x7e]);
       const msg = JSON.stringify({
         event: 'media',
@@ -69,7 +73,8 @@ describe('TwilioMediaStreamParser', () => {
       }
     });
 
-    it('parses inbound media without an explicit track field', () => {
+    it('should parse inbound media even when track field is absent (defaults to inbound)', () => {
+      // Twilio may omit the track field for single-track streams.
       const msg = JSON.stringify({
         event: 'media',
         streamSid: 'MZ003',
@@ -82,11 +87,13 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — media (outbound, must be ignored)
+  // parseIncoming -- media (outbound, must be filtered)
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — outbound media track', () => {
-    it('returns null for outbound track messages', () => {
+  describe('parseIncoming -- outbound media track', () => {
+    it('should return null for outbound track messages to prevent echo feedback', () => {
+      // Twilio echoes outbound audio back on the stream; we must discard it
+      // to prevent the agent from hearing its own TTS output.
       const msg = JSON.stringify({
         event: 'media',
         streamSid: 'MZ001',
@@ -99,11 +106,11 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — dtmf
+  // parseIncoming -- dtmf
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — dtmf event', () => {
-    it('returns dtmf event with digit and durationMs', () => {
+  describe('parseIncoming -- dtmf event', () => {
+    it('should return a dtmf event with digit and durationMs when both are present', () => {
       const msg = JSON.stringify({
         event: 'dtmf',
         streamSid: 'MZ001',
@@ -121,7 +128,8 @@ describe('TwilioMediaStreamParser', () => {
       }
     });
 
-    it('returns dtmf event without durationMs when duration is absent', () => {
+    it('should return a dtmf event without durationMs when duration is absent from the payload', () => {
+      // Not all DTMF events include duration (e.g., webhook-based DTMF).
       const msg = JSON.stringify({
         event: 'dtmf',
         streamSid: 'MZ001',
@@ -138,11 +146,11 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — stop
+  // parseIncoming -- stop
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — stop event', () => {
-    it('returns a stop event with streamSid', () => {
+  describe('parseIncoming -- stop event', () => {
+    it('should return a stop event with streamSid when the stream ends', () => {
       const msg = JSON.stringify({ event: 'stop', streamSid: 'MZ001' });
 
       const result = parser.parseIncoming(msg);
@@ -156,11 +164,11 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — mark
+  // parseIncoming -- mark
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — mark event', () => {
-    it('returns a mark event with name and streamSid', () => {
+  describe('parseIncoming -- mark event', () => {
+    it('should return a mark event with name and streamSid for audio sync markers', () => {
       const msg = JSON.stringify({
         event: 'mark',
         streamSid: 'MZ001',
@@ -179,20 +187,20 @@ describe('TwilioMediaStreamParser', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // parseIncoming — unknown / malformed
+  // parseIncoming -- unknown / malformed
   // ---------------------------------------------------------------------------
 
-  describe('parseIncoming — unknown events and malformed input', () => {
-    it('returns null for unknown event types', () => {
+  describe('parseIncoming -- unknown events and malformed input', () => {
+    it('should return null for unknown event types to ensure forward compatibility', () => {
       const msg = JSON.stringify({ event: 'heartbeat', streamSid: 'MZ001' });
       expect(parser.parseIncoming(msg)).toBeNull();
     });
 
-    it('returns null for malformed JSON', () => {
+    it('should return null for malformed JSON without throwing', () => {
       expect(parser.parseIncoming('not-json')).toBeNull();
     });
 
-    it('returns null when streamSid is missing', () => {
+    it('should return null when streamSid is missing from the message', () => {
       const msg = JSON.stringify({ event: 'stop' });
       expect(parser.parseIncoming(msg)).toBeNull();
     });
@@ -203,7 +211,7 @@ describe('TwilioMediaStreamParser', () => {
   // ---------------------------------------------------------------------------
 
   describe('formatOutgoing', () => {
-    it('wraps audio in the Twilio media envelope', () => {
+    it('should wrap audio in the Twilio JSON media envelope with base64 payload and streamSid', () => {
       const audio = Buffer.from([0x7f, 0x80]);
       const result = parser.formatOutgoing(audio, 'MZ001');
 
@@ -219,7 +227,7 @@ describe('TwilioMediaStreamParser', () => {
   // ---------------------------------------------------------------------------
 
   describe('formatConnected', () => {
-    it('returns a JSON string with event=connected', () => {
+    it('should return a JSON connected handshake message that Twilio requires on stream open', () => {
       const result = parser.formatConnected!('MZ001');
 
       expect(typeof result).toBe('string');

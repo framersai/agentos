@@ -392,7 +392,15 @@ export class CallManager {
         break;
 
       case 'call-dtmf':
-        // DTMF does NOT trigger a state transition — call stays in current state
+        // DTMF key-presses are informational events -- they do NOT trigger a
+        // state transition. The call remains in its current state (typically
+        // 'listening' or 'active') because pressing a phone key is not a
+        // lifecycle event. Higher-level logic (IVR menus, PIN entry, etc.)
+        // subscribes to the 'call:dtmf' event to react to caller input.
+        //
+        // The `digit` field contains '0'-'9', '*', '#', or rarely 'A'-'D'.
+        // The `durationMs` field is provider-dependent: Twilio's media stream
+        // includes key-hold duration, but Telnyx and Plivo webhooks omit it.
         this.emit({
           type: 'call:dtmf',
           callId: call.callId,
