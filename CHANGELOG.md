@@ -1,3 +1,7 @@
+## <small>0.1.103 (2026-03-26)</small>
+
+* fix: resolve 4 ESLint errors — prefer-const, no-this-alias, no-useless-escape ([ff171a1](https://github.com/framersai/agentos/commit/ff171a1))
+
 ## <small>0.1.102 (2026-03-26)</small>
 
 * fix(memory): add @types/better-sqlite3 and fix implicit any parameters for CI ([98945c3](https://github.com/framersai/agentos/commit/98945c3))
