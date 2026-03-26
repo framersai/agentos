@@ -1,3 +1,9 @@
+## <small>0.1.113 (2026-03-26)</small>
+
+* feat(memory): add observational compression, reflection, and temporal reasoning ([b424f68](https://github.com/framersai/agentos/commit/b424f68))
+* refactor(api): Opus rewrite — agency API, strategies, HITL with comprehensive TSDoc ([d550c12](https://github.com/framersai/agentos/commit/d550c12))
+* refactor(orchestration): Opus rewrite — voice-graph integration TSDoc + inline comments ([1ce41fe](https://github.com/framersai/agentos/commit/1ce41fe))
+
 ## <small>0.1.112 (2026-03-26)</small>
 
 * refactor(voice): Opus rewrite — comprehensive TSDoc on telephony providers, parsers, transport ([da5ef9b](https://github.com/framersai/agentos/commit/da5ef9b))
