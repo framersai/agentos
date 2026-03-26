@@ -368,10 +368,14 @@ describe('LoaderRegistry', () => {
     expect(loader).toBeInstanceOf(TextLoader);
   });
 
-  it('getLoader returns undefined for unregistered extensions', () => {
+  it('getLoader returns undefined for truly unregistered extensions', () => {
     const registry = new LoaderRegistry();
-    expect(registry.getLoader('.pdf')).toBeUndefined();
-    expect(registry.getLoader('.docx')).toBeUndefined();
+    // .pdf and .docx are now registered by default (PdfLoader / DocxLoader).
+    expect(registry.getLoader('.pdf')).toBeDefined();
+    expect(registry.getLoader('.docx')).toBeDefined();
+    // Exotic formats remain unregistered.
+    expect(registry.getLoader('.xyz')).toBeUndefined();
+    expect(registry.getLoader('.pptx')).toBeUndefined();
   });
 
   it('getSupportedExtensions returns all registered extensions sorted', () => {
@@ -442,7 +446,8 @@ describe('LoaderRegistry', () => {
   });
 
   it('loadFile throws an informative error for unsupported extensions', async () => {
-    const filePath = path.join(tmpDir, 'document.pdf');
+    // .xyz is not a built-in extension, so LoaderRegistry should throw.
+    const filePath = path.join(tmpDir, 'document.xyz');
     const registry = new LoaderRegistry();
 
     await expect(registry.loadFile(filePath)).rejects.toThrow(/no loader registered for extension/i);

@@ -6,10 +6,14 @@
  * auto-detects the format from a file path before delegating to the
  * appropriate loader.
  *
- * On construction the registry pre-registers the three built-in loaders:
- * {@link TextLoader}, {@link MarkdownLoader}, and {@link HtmlLoader}.
- * Additional loaders (e.g. a PDF loader) can be added at runtime via
- * {@link LoaderRegistry.register}.
+ * On construction the registry pre-registers five built-in loaders:
+ * {@link TextLoader}, {@link MarkdownLoader}, {@link HtmlLoader},
+ * {@link PdfLoader}, and {@link DocxLoader}.  In addition, the optional
+ * {@link OcrPdfLoader} and {@link DoclingLoader} are registered when their
+ * respective factories return non-null values (i.e. when `tesseract.js` and
+ * `python3 -m docling` are available in the environment).
+ *
+ * Additional loaders can be added at runtime via {@link LoaderRegistry.register}.
  *
  * @module memory/ingestion/LoaderRegistry
  */
@@ -20,6 +24,10 @@ import type { LoadOptions, LoadedDocument } from '../facade/types.js';
 import { TextLoader } from './TextLoader.js';
 import { MarkdownLoader } from './MarkdownLoader.js';
 import { HtmlLoader } from './HtmlLoader.js';
+import { PdfLoader } from './PdfLoader.js';
+import { DocxLoader } from './DocxLoader.js';
+import { createOcrPdfLoader } from './OcrPdfLoader.js';
+import { createDoclingLoader } from './DoclingLoader.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,11 +75,19 @@ function normaliseExt(extensionOrPath: string): string {
  * implementations.
  *
  * ### Built-in loaders (registered automatically)
- * | Extensions                                | Loader              |
- * |-------------------------------------------|---------------------|
- * | `.txt`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml` | {@link TextLoader}  |
- * | `.md`, `.mdx`                             | {@link MarkdownLoader} |
- * | `.html`, `.htm`                           | {@link HtmlLoader}  |
+ * | Extensions                                         | Loader                |
+ * |----------------------------------------------------|-----------------------|
+ * | `.txt`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`  | {@link TextLoader}    |
+ * | `.md`, `.mdx`                                     | {@link MarkdownLoader} |
+ * | `.html`, `.htm`                                   | {@link HtmlLoader}    |
+ * | `.pdf`                                            | {@link PdfLoader}     |
+ * | `.docx`                                           | {@link DocxLoader}    |
+ *
+ * ### Conditional loaders (registered when available)
+ * | Condition                     | Loader                              |
+ * |-------------------------------|-------------------------------------|
+ * | `tesseract.js` installed      | {@link OcrPdfLoader} (overrides PDF) |
+ * | `python3 -m docling` available | {@link DoclingLoader} (overrides PDF + DOCX) |
  *
  * ### Registering a custom loader
  * ```ts
@@ -102,14 +118,39 @@ export class LoaderRegistry {
    * Creates a new registry pre-populated with the built-in loaders.
    *
    * Loader registration order determines conflict resolution: later
-   * registrations override earlier ones for the same extension.  The
-   * three built-in loaders cover non-overlapping extension sets, so
-   * there are no conflicts by default.
+   * registrations override earlier ones for the same extension.
+   *
+   * Registration order:
+   * 1. {@link TextLoader}, {@link MarkdownLoader}, {@link HtmlLoader} — core text formats.
+   * 2. {@link PdfLoader} (with injected OCR + Docling loaders) — PDF extraction.
+   * 3. {@link DocxLoader} — DOCX extraction.
+   * 4. Optional: an {@link OcrPdfLoader} override when `tesseract.js` is installed.
+   * 5. Optional: a {@link DoclingLoader} override when Python Docling is available.
+   *    DoclingLoader supports both `.pdf` and `.docx`, so it supersedes both
+   *    PdfLoader and DocxLoader when present.
    */
   constructor() {
+    // Core text-format loaders.
     this.register(new TextLoader());
     this.register(new MarkdownLoader());
     this.register(new HtmlLoader());
+
+    // Probe optional loaders before constructing PdfLoader so we can inject
+    // them as fallbacks rather than having two separate registered instances.
+    const ocrLoader = createOcrPdfLoader();
+    const doclingLoader = createDoclingLoader();
+
+    // PDF loader — passes optional fallbacks into the tier system.
+    this.register(new PdfLoader(ocrLoader, doclingLoader));
+
+    // DOCX loader.
+    this.register(new DocxLoader());
+
+    // When Docling is available register it separately so it also overrides
+    // the DOCX extension (Docling supports both .pdf and .docx).
+    if (doclingLoader !== null) {
+      this.register(doclingLoader);
+    }
   }
 
   // -------------------------------------------------------------------------
