@@ -62,6 +62,12 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
   'stable-diffusion-local': {
     image: 'v1-5-pruned-emaonly',
   },
+  bfl: {
+    image: 'flux-pro-1.1',
+  },
+  fal: {
+    image: 'fal-ai/flux/dev',
+  },
   groq: {
     text: 'llama-3.3-70b-versatile',
     cheap: 'gemma2-9b-it',
@@ -94,6 +100,8 @@ const AUTO_DETECT_ORDER: Array<{ envKey: string; provider: string }> = [
   { envKey: 'STABILITY_API_KEY', provider: 'stability' },
   { envKey: 'REPLICATE_API_TOKEN', provider: 'replicate' },
   { envKey: 'STABLE_DIFFUSION_LOCAL_BASE_URL', provider: 'stable-diffusion-local' },
+  { envKey: 'BFL_API_KEY', provider: 'bfl' },
+  { envKey: 'FAL_API_KEY', provider: 'fal' },
 ];
 
 /**

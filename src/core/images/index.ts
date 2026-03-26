@@ -4,6 +4,8 @@ import { OpenRouterImageProvider } from './providers/OpenRouterImageProvider.js'
 import { ReplicateImageProvider } from './providers/ReplicateImageProvider.js';
 import { StabilityImageProvider } from './providers/StabilityImageProvider.js';
 import { StableDiffusionLocalProvider } from './providers/StableDiffusionLocalProvider.js';
+import { FluxImageProvider } from './providers/FluxImageProvider.js';
+import { FalImageProvider } from './providers/FalImageProvider.js';
 
 export * from './IImageProvider.js';
 export * from './imageToBuffer.js';
@@ -13,6 +15,8 @@ export * from './providers/OpenRouterImageProvider.js';
 export * from './providers/ReplicateImageProvider.js';
 export * from './providers/StabilityImageProvider.js';
 export * from './providers/StableDiffusionLocalProvider.js';
+export * from './providers/FluxImageProvider.js';
+export * from './providers/FalImageProvider.js';
 
 export type ImageProviderFactory = () => IImageProvider;
 
@@ -22,6 +26,8 @@ const imageProviderFactories = new Map<string, ImageProviderFactory>([
   ['stability', () => new StabilityImageProvider()],
   ['replicate', () => new ReplicateImageProvider()],
   ['stable-diffusion-local', () => new StableDiffusionLocalProvider()],
+  ['bfl', () => new FluxImageProvider()],
+  ['fal', () => new FalImageProvider()],
 ]);
 
 export function registerImageProviderFactory(providerId: string, factory: ImageProviderFactory): void {
