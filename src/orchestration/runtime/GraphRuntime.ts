@@ -138,7 +138,195 @@ export class GraphRuntime {
       const readyNodes = scheduler.getReadyNodes(completedNodes, skippedNodes);
       if (readyNodes.length === 0) break; // All work is done (or no START edge).
 
-      for (const nodeId of readyNodes) {
+      // ── Parallel execution ───────────────────────────────────────────────
+      // When multiple nodes are ready simultaneously (e.g. fan-out from START),
+      // execute them in parallel via Promise.all and merge their scratch updates
+      // using StateManager.mergeParallelBranches(). This is the key optimisation
+      // that makes fan-out/fan-in graphs like the parallel agency strategy
+      // actually run concurrently instead of sequentially.
+      //
+      // Single-node batches fall through to the same code path (Promise.all
+      // with a single element) so the logic is unified.
+      if (readyNodes.length > 1) {
+        // Snapshot the state before fan-out so each branch starts from the
+        // same baseline. After all branches complete, we merge their scratch
+        // updates back into this baseline.
+        const baseState = state;
+
+        // Collect events from parallel branches so we can yield them in order
+        // after all branches complete. We cannot yield from inside Promise.all
+        // because async generators do not support concurrent yields.
+        const branchResults: Array<{
+          nodeId: string;
+          events: GraphEvent[];
+          branchState: GraphState;
+          earlyTermination?: {
+            type: 'interrupt' | 'error';
+            events: GraphEvent[];
+          };
+        }> = [];
+
+        const parallelOutcomes = await Promise.all(
+          readyNodes.map(async (nodeId) => {
+            const node = graph.nodes.find(n => n.id === nodeId);
+            if (!node) {
+              skippedNodes.push(nodeId);
+              return null;
+            }
+
+            const events: GraphEvent[] = [];
+            let branchState = stateManager.recordNodeVisit(baseState, nodeId);
+
+            // Checkpoint BEFORE (parallel branch).
+            if (node.checkpoint === 'before' || node.checkpoint === 'both') {
+              const checkpointId = await this.saveCheckpoint(
+                graph, runId, nodeId, branchState, nodeResults,
+                completedNodes, skippedNodes, [],
+              );
+              branchState = this.attachCheckpointMetadata(branchState, checkpointId);
+              events.push({ type: 'checkpoint_saved', checkpointId, nodeId });
+            }
+
+            events.push({ type: 'node_start', nodeId, state: { input: branchState.input, scratch: branchState.scratch } });
+            const nodeStart = Date.now();
+
+            let result = await this.config.nodeExecutor.execute(node, branchState);
+            let durationMs = Date.now() - nodeStart;
+
+            // Retry logic (same as sequential path).
+            if (!result.success && !result.interrupt && node.retryPolicy) {
+              const policy = node.retryPolicy;
+              let attempt = 1;
+              while (attempt < policy.maxAttempts && shouldRetry(policy, result.error)) {
+                attempt++;
+                await sleep(calculateBackoff(policy, attempt - 1));
+                events.push({ type: 'node_start', nodeId, state: { input: branchState.input, scratch: branchState.scratch } });
+                const retryStart = Date.now();
+                result = await this.config.nodeExecutor.execute(node, branchState);
+                durationMs = Date.now() - retryStart;
+                if (result.success || result.interrupt) break;
+              }
+            }
+
+            nodeResults[nodeId] = { effectClass: node.effectClass, output: result.output, durationMs };
+
+            if (result.scratchUpdate) {
+              branchState = stateManager.updateScratch(branchState, result.scratchUpdate);
+            }
+            if (result.artifactsUpdate) {
+              branchState = stateManager.updateArtifacts(branchState, result.artifactsUpdate);
+            }
+
+            // Check for interrupt / error in the parallel branch.
+            if (result.interrupt) {
+              events.push({ type: 'node_end', nodeId, output: result.output, durationMs });
+              const terminationEvents: GraphEvent[] = [
+                { type: 'interrupt', nodeId, reason: 'human_approval' },
+              ];
+              return { nodeId, events, branchState, earlyTermination: { type: 'interrupt' as const, events: terminationEvents } };
+            }
+
+            if (!result.success) {
+              const errorMessage = result.error ?? `Node ${nodeId} failed`;
+              const timeoutMs = this.extractTimeoutMs(errorMessage);
+              const terminationEvents: GraphEvent[] = [];
+              if (timeoutMs !== null) {
+                terminationEvents.push({ type: 'node_timeout', nodeId, timeoutMs });
+              }
+              terminationEvents.push({
+                type: 'error', nodeId,
+                error: { code: timeoutMs !== null ? 'NODE_TIMEOUT' : 'NODE_EXECUTION_FAILED', message: errorMessage },
+              });
+              return { nodeId, events, branchState, earlyTermination: { type: 'error' as const, events: terminationEvents } };
+            }
+
+            events.push({ type: 'node_end', nodeId, output: result.output, durationMs });
+            completedNodes.push(nodeId);
+
+            // Edge routing for this parallel branch.
+            const outEdges = graph.edges.filter(e => e.source === nodeId);
+            const targets = await this.evaluateEdges(outEdges, branchState, result);
+
+            for (const potentialTarget of outEdges.map(e => e.target)) {
+              if (!targets.includes(potentialTarget) && !completedNodes.includes(potentialTarget) && !skippedNodes.includes(potentialTarget)) {
+                skippedNodes.push(potentialTarget);
+              }
+            }
+
+            for (const target of targets) {
+              if (target !== END) {
+                const edgeType = outEdges.find(e => e.target === target)?.type ?? 'static';
+                events.push({ type: 'edge_transition', sourceId: nodeId, targetId: target, edgeType });
+              }
+            }
+
+            // Checkpoint AFTER (parallel branch).
+            if (node.checkpoint === 'after' || node.checkpoint === 'both' || graph.checkpointPolicy === 'every_node') {
+              const checkpointId = await this.saveCheckpoint(
+                graph, runId, nodeId, branchState, nodeResults,
+                completedNodes, skippedNodes, this.resolvePendingEdgeIds(outEdges, targets),
+              );
+              branchState = this.attachCheckpointMetadata(branchState, checkpointId);
+              events.push({ type: 'checkpoint_saved', checkpointId, nodeId });
+            }
+
+            return { nodeId, events, branchState };
+          }),
+        );
+
+        // Yield all collected events from parallel branches in order,
+        // then merge branch states into the shared baseline.
+        const successfulBranches: GraphState[] = [];
+        let earlyTermination = false;
+
+        for (const outcome of parallelOutcomes) {
+          if (!outcome) continue;
+
+          // Yield all events from this branch.
+          for (const event of outcome.events) {
+            yield event;
+          }
+
+          if (outcome.earlyTermination) {
+            // Yield termination events and abort the run.
+            for (const event of outcome.earlyTermination.events) {
+              yield event;
+            }
+            // Save checkpoint and terminate.
+            const checkpointId = await this.saveCheckpoint(
+              graph, runId, outcome.nodeId, outcome.branchState,
+              nodeResults, completedNodes, skippedNodes, [],
+            );
+            state = this.attachCheckpointMetadata(outcome.branchState, checkpointId);
+            yield { type: 'checkpoint_saved', checkpointId, nodeId: outcome.nodeId };
+            if (outcome.earlyTermination.type === 'interrupt') {
+              yield { type: 'interrupt', nodeId: outcome.nodeId, reason: 'human_approval' };
+            } else {
+              const node = graph.nodes.find(n => n.id === outcome.nodeId);
+              yield { type: 'interrupt', nodeId: outcome.nodeId, reason: node?.type === 'guardrail' ? 'guardrail_violation' : 'error' };
+            }
+            yield { type: 'run_end', runId, finalOutput: state.artifacts, totalDurationMs: Date.now() - startTime };
+            earlyTermination = true;
+            break;
+          }
+
+          successfulBranches.push(outcome.branchState);
+        }
+
+        if (earlyTermination) return;
+
+        // Merge all branch states back into the baseline using StateManager.
+        // This is the merge step that makes parallel execution correct:
+        // each branch may have written to different scratch keys, and the
+        // reducer configuration determines how conflicts are resolved.
+        if (successfulBranches.length > 0) {
+          state = stateManager.mergeParallelBranches(baseState, successfulBranches);
+        }
+      } else {
+        // ── Sequential execution (single ready node) ─────────────────────────
+        // Original single-node path preserved for simplicity and to avoid
+        // the overhead of Promise.all for the common single-node case.
+        const nodeId = readyNodes[0];
         const node = graph.nodes.find(n => n.id === nodeId);
         if (!node) {
           // Node declared in edges but missing from nodes array — skip defensively.
