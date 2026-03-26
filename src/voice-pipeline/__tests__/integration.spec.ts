@@ -3,15 +3,25 @@
  *
  * Full conversational loop integration test for the voice pipeline.
  *
- * Uses real HeuristicEndpointDetector and HardCutBargeinHandler wired into
- * VoicePipelineOrchestrator. STT, TTS, and the agent session are mocked so
- * no real API calls are made.
+ * Uses real {@link HeuristicEndpointDetector} and {@link HardCutBargeinHandler}
+ * wired into the {@link VoicePipelineOrchestrator}. STT, TTS, and the agent
+ * session are mocked so no real API calls are made.
  *
- * Scenario coverage:
- *   1. Full conversational turn (listening → processing → speaking → listening)
- *   2. Barge-in interruption with HardCutBargeinHandler threshold logic
- *   3. Transport disconnect collapses state to 'closed'
- *   4. Multiple sequential turns — endpoint detector resets between turns
+ * ## Scenario coverage
+ *
+ * 1. **Full conversational turn**: LISTENING -> PROCESSING -> SPEAKING -> LISTENING
+ *    Verifies the complete happy-path loop including audio forwarding, agent
+ *    invocation, TTS token piping, and state restoration.
+ *
+ * 2. **Barge-in with HardCutBargeinHandler threshold logic**:
+ *    - 2a: Speech below minSpeechMs is ignored (TTS continues).
+ *    - 2b: Speech at/above minSpeechMs cancels TTS and aborts agent.
+ *
+ * 3. **Transport disconnect**: Verifies that a WebSocket close event
+ *    collapses the pipeline to CLOSED and tears down all sub-sessions.
+ *
+ * 4. **Multiple sequential turns**: Verifies that the endpoint detector
+ *    resets between turns and the agent can handle consecutive interactions.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -61,9 +71,7 @@ function createMockSTTSession(): StreamingSTTSession & EventEmitter {
   return s as StreamingSTTSession & EventEmitter;
 }
 
-/**
- * Creates a mock STT factory that resolves with the given session.
- */
+/** Creates a mock STT factory that resolves with the given session. */
 function createMockSTT(session: StreamingSTTSession): IStreamingSTT {
   return {
     providerId: 'mock-stt',
@@ -85,9 +93,7 @@ function createMockTTSSession(): StreamingTTSSession & EventEmitter {
   return s as StreamingTTSSession & EventEmitter;
 }
 
-/**
- * Creates a mock TTS factory that resolves with the given session.
- */
+/** Creates a mock TTS factory that resolves with the given session. */
 function createMockTTS(session: StreamingTTSSession): IStreamingTTS {
   return {
     providerId: 'mock-tts',
@@ -96,9 +102,8 @@ function createMockTTS(session: StreamingTTSSession): IStreamingTTS {
 }
 
 /**
- * Creates a mock agent session. The sendText generator yields two tokens then
- * returns. A new generator is returned on each call so the mock supports
- * multiple turns.
+ * Creates a mock agent session. Each call to sendText returns a new async
+ * generator yielding two tokens, supporting multiple sequential turns.
  */
 function createMockAgentSession() {
   return {
@@ -112,7 +117,7 @@ function createMockAgentSession() {
   };
 }
 
-/** Minimal pipeline config used throughout all tests. */
+/** Minimal pipeline config used throughout all integration tests. */
 function makeConfig(overrides?: Partial<VoicePipelineConfig>): VoicePipelineConfig {
   return {
     stt: 'mock-stt',
@@ -122,7 +127,7 @@ function makeConfig(overrides?: Partial<VoicePipelineConfig>): VoicePipelineConf
   };
 }
 
-/** Helper to build a minimal AudioFrame for injection tests. */
+/** Helper to build a minimal AudioFrame for transport injection. */
 function makeAudioFrame(): AudioFrame {
   return {
     samples: new Float32Array([0.1, 0.2]),
@@ -143,10 +148,10 @@ function makeAudioChunk(): EncodedAudioChunk {
 }
 
 // ============================================================================
-// Shared setup
+// Integration test suite
 // ============================================================================
 
-describe('voice pipeline — full conversational loop integration', () => {
+describe('voice pipeline -- full conversational loop integration', () => {
   let transport: ReturnType<typeof createMockTransport>;
   let sttSession: StreamingSTTSession & EventEmitter;
   let ttsSession: StreamingTTSSession & EventEmitter;
@@ -171,8 +176,8 @@ describe('voice pipeline — full conversational loop integration', () => {
   // --------------------------------------------------------------------------
 
   /**
-   * Start the orchestrator session with real HeuristicEndpointDetector and
-   * real HardCutBargeinHandler, all other components mocked.
+   * Start the orchestrator with real HeuristicEndpointDetector and
+   * real HardCutBargeinHandler. All other components are mocked.
    */
   async function startSession(
     detectorOptions?: ConstructorParameters<typeof HeuristicEndpointDetector>[0],
@@ -192,17 +197,13 @@ describe('voice pipeline — full conversational loop integration', () => {
   }
 
   /**
-   * Drive a full conversational turn:
-   *   1. Emit a final transcript with terminal punctuation.
-   *   2. Emit speech_end so the HeuristicEndpointDetector fires turn_complete.
-   *   3. Flush the async token loop.
-   *   4. Emit flush_complete to finish TTS and return to listening.
-   *
-   * Returns once the orchestrator is back in 'listening' state.
+   * Drive a full conversational turn through the pipeline:
+   * 1. Emit a final transcript with terminal punctuation.
+   * 2. Emit speech_end so the HeuristicEndpointDetector fires turn_complete.
+   * 3. Flush the async token loop (agent -> TTS).
+   * 4. Emit flush_complete to finish TTS and return to LISTENING.
    */
   async function driveFullTurn(transcript = 'Hello.') {
-    const now = Date.now();
-
     // Simulate STT producing a final transcript ending with terminal punctuation.
     sttSession.emit('transcript', {
       text: transcript,
@@ -211,8 +212,8 @@ describe('voice pipeline — full conversational loop integration', () => {
       isFinal: true,
     });
 
-    // Simulate speech_end — the heuristic detector will fire turn_complete
-    // immediately because of the terminal punctuation.
+    // Simulate speech_end -- the heuristic detector will fire turn_complete
+    // immediately because of the terminal punctuation (fast path).
     sttSession.emit('speech_end');
 
     // Yield control so the async turn_complete handler and token loop run.
@@ -221,64 +222,70 @@ describe('voice pipeline — full conversational loop integration', () => {
     // Emit an audio chunk from TTS (wired through to transport).
     ttsSession.emit('audio', makeAudioChunk());
 
-    // Emit flush_complete → orchestrator transitions back to listening.
+    // Emit flush_complete -> orchestrator transitions back to LISTENING.
     ttsSession.emit('flush_complete');
   }
 
   // ============================================================================
-  // Test 1: Full conversational turn
+  // Scenario 1: Full conversational turn
   // ============================================================================
 
-  it('scenario 1: full conversational turn (listening → processing → speaking → listening)', async () => {
+  it('scenario 1: full turn cycle (LISTENING -> PROCESSING -> SPEAKING -> LISTENING)', async () => {
     await startSession();
 
-    // Verify initial state after session start.
+    // Verify initial state after session start
     expect(orchestrator.state).toBe('listening');
 
-    // Simulate transport delivering an audio frame → STT should receive it.
+    // Simulate transport delivering an audio frame -> STT should receive it
     const frame = makeAudioFrame();
     transport.emit('audio', frame);
     expect((sttSession as any).pushAudio).toHaveBeenCalledWith(frame);
 
-    // Collect state transitions.
+    // Collect state transitions for verification
     const states: string[] = [];
     orchestrator.on('state_changed', (evt: { from: string; to: string }) =>
       states.push(evt.to),
     );
 
-    // Drive the full turn.
+    // Drive the full turn
     await driveFullTurn('Hello.');
 
-    // State should have progressed through processing and speaking and returned.
+    // Verify the expected state progression
     expect(states).toContain('processing');
     expect(states).toContain('speaking');
     expect(states).toContain('listening');
 
-    // Agent session must have been called with the recognised transcript.
+    // Agent session must have been called with the recognised transcript
+    // and the correct endpoint reason ('punctuation' because of the period)
     expect(agentSession.sendText).toHaveBeenCalledWith(
       'Hello.',
       expect.objectContaining({ endpointReason: 'punctuation' }),
     );
 
-    // TTS session must have received both token chunks from the agent.
+    // TTS session must have received both token chunks from the agent
     expect((ttsSession as any).pushTokens).toHaveBeenCalledWith('Hello ');
     expect((ttsSession as any).pushTokens).toHaveBeenCalledWith('back!');
 
-    // Transport must have received the TTS audio chunk.
+    // Transport must have received the TTS audio chunk
     expect(transport.sendAudio).toHaveBeenCalledWith(expect.objectContaining({ format: 'opus' }));
 
-    // Final state: back to listening.
+    // Final state: back to LISTENING, ready for next turn
     expect(orchestrator.state).toBe('listening');
   });
 
   // ============================================================================
-  // Test 2: Barge-in interruption
+  // Scenario 2: Barge-in interruption
   // ============================================================================
 
-  it('scenario 2: barge-in below threshold is ignored (HardCutBargeinHandler)', async () => {
+  /**
+   * With minSpeechMs=300, the orchestrator passes speechDurationMs=0 (instant
+   * detection), which is below the threshold. The handler returns 'ignore'
+   * and TTS continues uninterrupted.
+   */
+  it('scenario 2a: barge-in below threshold is ignored (TTS continues)', async () => {
     await startSession({ silenceTimeoutMs: 500 }, { minSpeechMs: 300 });
 
-    // Advance to SPEAKING state.
+    // Advance to SPEAKING state
     sttSession.emit('transcript', {
       text: 'Tell me a story.',
       confidence: 0.9,
@@ -290,22 +297,25 @@ describe('voice pipeline — full conversational loop integration', () => {
 
     expect(orchestrator.state).toBe('speaking');
 
-    // Simulate speech_start during SPEAKING — orchestrator passes speechDurationMs: 0
-    // to the barge-in handler, which is below the 300 ms threshold → 'ignore'.
+    // Simulate speech_start during SPEAKING -- speechDurationMs: 0 < 300 ms -> 'ignore'
     sttSession.emit('speech_start');
     await vi.advanceTimersByTimeAsync(0);
 
-    // TTS should NOT have been cancelled.
+    // TTS should NOT have been cancelled
     expect((ttsSession as any).cancel).not.toHaveBeenCalled();
-    // State must remain speaking.
+    // State must remain SPEAKING
     expect(orchestrator.state).toBe('speaking');
   });
 
-  it('scenario 2b: barge-in above threshold cancels TTS and returns to listening', async () => {
-    // Use minSpeechMs: 0 so any detection is treated as intentional.
+  /**
+   * With minSpeechMs=0, ANY detection triggers cancel. The orchestrator passes
+   * speechDurationMs=0 which equals the threshold, so the handler returns
+   * 'cancel'. TTS is stopped, agent is aborted, state returns to LISTENING.
+   */
+  it('scenario 2b: barge-in at/above threshold cancels TTS and returns to LISTENING', async () => {
     await startSession({ silenceTimeoutMs: 500 }, { minSpeechMs: 0 });
 
-    // Advance to SPEAKING state.
+    // Advance to SPEAKING state
     sttSession.emit('transcript', {
       text: 'Tell me a story.',
       confidence: 0.9,
@@ -317,44 +327,45 @@ describe('voice pipeline — full conversational loop integration', () => {
 
     expect(orchestrator.state).toBe('speaking');
 
-    // Simulate speech_start with speechDurationMs: 0 >= minSpeechMs: 0 → 'cancel'.
+    // Simulate speech_start with speechDurationMs: 0 >= minSpeechMs: 0 -> 'cancel'
     sttSession.emit('speech_start');
     await vi.advanceTimersByTimeAsync(0);
 
-    // TTS must have been cancelled.
     expect((ttsSession as any).cancel).toHaveBeenCalled();
-    // Agent abort must have been triggered.
     expect(agentSession.abort).toHaveBeenCalled();
-    // Transport must have received a barge_in control message.
     expect(transport.sendControl).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'barge_in' }),
     );
-    // State must return to listening.
     expect(orchestrator.state).toBe('listening');
   });
 
   // ============================================================================
-  // Test 3: Transport disconnect
+  // Scenario 3: Transport disconnect
   // ============================================================================
 
-  it('scenario 3: transport disconnect collapses state to closed', async () => {
+  it('scenario 3: transport disconnect collapses pipeline to CLOSED', async () => {
     await startSession();
     expect(orchestrator.state).toBe('listening');
 
-    // Simulate the transport closing (e.g. WebSocket disconnect).
+    // Simulate the transport closing (e.g. WebSocket disconnect)
     transport.emit('close');
 
     expect(orchestrator.state).toBe('closed');
-    // Sub-sessions must have been torn down.
+    // Sub-sessions must have been torn down
     expect((sttSession as any).close).toHaveBeenCalled();
     expect((ttsSession as any).close).toHaveBeenCalled();
   });
 
   // ============================================================================
-  // Test 4: Multiple sequential turns
+  // Scenario 4: Multiple sequential turns
   // ============================================================================
 
-  it('scenario 4: multiple sequential turns — endpoint detector resets between turns', async () => {
+  /**
+   * Verifies that the endpoint detector is properly reset between turns,
+   * allowing the pipeline to handle consecutive user interactions without
+   * stale state from previous turns affecting detection.
+   */
+  it('scenario 4: multiple sequential turns with endpoint detector resets', async () => {
     const { endpointDetector } = await startSession();
     const resetSpy = vi.spyOn(endpointDetector, 'reset');
 
@@ -362,15 +373,13 @@ describe('voice pipeline — full conversational loop integration', () => {
     await driveFullTurn('First question.');
     await vi.advanceTimersByTimeAsync(0);
 
-    // After a turn, the detector's reset() is invoked both internally (inside
-    // _emitTurnComplete) and by the orchestrator after flush_complete — so 2
-    // calls per completed turn is the expected count.
+    // After a turn, reset() is called twice: once internally by the detector
+    // (inside _emitTurnComplete) and once by the orchestrator after flush_complete.
     expect(resetSpy).toHaveBeenCalledTimes(2);
     expect(orchestrator.state).toBe('listening');
     expect(agentSession.sendText).toHaveBeenCalledTimes(1);
 
     // ----- Second turn -----
-    // Emit a second transcript and speech_end to start a new turn.
     sttSession.emit('transcript', {
       text: 'Second question!',
       confidence: 0.87,
@@ -380,7 +389,7 @@ describe('voice pipeline — full conversational loop integration', () => {
     sttSession.emit('speech_end');
     await vi.advanceTimersByTimeAsync(0);
 
-    // Agent must have been called a second time.
+    // Agent must have been called a second time with the new transcript
     expect(agentSession.sendText).toHaveBeenCalledTimes(2);
     expect(agentSession.sendText).toHaveBeenNthCalledWith(
       2,
@@ -388,12 +397,11 @@ describe('voice pipeline — full conversational loop integration', () => {
       expect.objectContaining({ endpointReason: 'punctuation' }),
     );
 
-    // Complete the second turn.
+    // Complete the second turn
     ttsSession.emit('flush_complete');
     expect(orchestrator.state).toBe('listening');
 
-    // After two full turns, reset should have been called 4 times total
-    // (2 per turn: once internally in _emitTurnComplete, once from orchestrator).
+    // After two full turns: 2 resets per turn = 4 total
     expect(resetSpy).toHaveBeenCalledTimes(4);
   });
 });

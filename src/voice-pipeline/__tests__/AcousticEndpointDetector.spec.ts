@@ -1,7 +1,20 @@
 /**
- * @file AcousticEndpointDetector.spec.ts
+ * @module voice-pipeline/__tests__/AcousticEndpointDetector.spec
  *
  * Unit tests for the AcousticEndpointDetector voice-pipeline component.
+ *
+ * ## What is tested
+ *
+ * - Mode property returns 'acoustic'
+ * - turn_complete fires with reason 'silence_timeout' after utteranceEndThresholdMs
+ * - turn_complete does NOT fire before the threshold elapses
+ * - speech_start cancels a pending turn_complete timer
+ * - speech_start is re-emitted on the detector for pipeline consumers
+ * - reset() prevents pending turn_complete from firing
+ * - pushTranscript() is a no-op (acoustic mode ignores transcript content)
+ * - Custom utteranceEndThresholdMs is honoured
+ * - durationMs is correctly computed from speech_start to speech_end timestamps
+ *
  * All timer-based behaviour is validated with vitest fake timers to avoid
  * real-time delays in CI.
  */
@@ -19,10 +32,10 @@ function makeVad(type: VadEvent['type'], timestamp = Date.now()): VadEvent {
   return { type, timestamp };
 }
 
-/** Convenience: advance fake timers AND flush microtask queue. */
+/** Convenience: advance fake timers AND flush the microtask queue. */
 async function advance(ms: number): Promise<void> {
   vi.advanceTimersByTime(ms);
-  // Let any queued promise callbacks settle.
+  // Let any queued promise callbacks settle
   await Promise.resolve();
 }
 
@@ -50,7 +63,7 @@ describe('AcousticEndpointDetector', () => {
   // Basic properties
   // -------------------------------------------------------------------------
 
-  it('exposes mode === "acoustic"', () => {
+  it('should expose mode === "acoustic"', () => {
     expect(detector.mode).toBe('acoustic');
   });
 
@@ -58,7 +71,12 @@ describe('AcousticEndpointDetector', () => {
   // turn_complete after silence
   // -------------------------------------------------------------------------
 
-  it('emits turn_complete with reason "silence_timeout" after utteranceEndThresholdMs of silence', async () => {
+  /**
+   * After speech_end, the SilenceDetector should fire utterance_end_detected
+   * once silence exceeds utteranceEndThresholdMs (1000 ms), which the
+   * AcousticEndpointDetector translates into a turn_complete event.
+   */
+  it('should emit turn_complete with reason "silence_timeout" after utteranceEndThresholdMs of silence', async () => {
     const handler = vi.fn<[TurnCompleteEvent], void>();
     detector.on('turn_complete', handler);
 
@@ -76,7 +94,8 @@ describe('AcousticEndpointDetector', () => {
     expect(event.reason).toBe('silence_timeout');
   });
 
-  it('does NOT emit turn_complete before utteranceEndThresholdMs elapses', async () => {
+  /** Verifies that the timer hasn't fired prematurely before the threshold. */
+  it('should NOT emit turn_complete before utteranceEndThresholdMs elapses', async () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -86,7 +105,7 @@ describe('AcousticEndpointDetector', () => {
     detector.pushVadEvent(makeVad('speech_start', now));
     detector.pushVadEvent(makeVad('speech_end', now + 100));
 
-    // Advance to just before the threshold
+    // Advance to just before the threshold (800 ms < 1000 ms)
     await advance(800);
 
     expect(handler).not.toHaveBeenCalled();
@@ -96,7 +115,12 @@ describe('AcousticEndpointDetector', () => {
   // speech_start cancels pending timer
   // -------------------------------------------------------------------------
 
-  it('cancels pending turn_complete when speech_start arrives before threshold', async () => {
+  /**
+   * If the user resumes speaking before the silence threshold elapses,
+   * the pending turn_complete should be cancelled. This prevents false
+   * turn-completion during natural mid-sentence pauses.
+   */
+  it('should cancel pending turn_complete when speech_start arrives before threshold', async () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -106,19 +130,20 @@ describe('AcousticEndpointDetector', () => {
     detector.pushVadEvent(makeVad('speech_start', now));
     detector.pushVadEvent(makeVad('speech_end', now + 200));
 
-    // Advance partway through silence window…
+    // Advance partway through silence window
     await advance(600);
 
-    // …then speech resumes, which should cancel any pending completion
+    // Speech resumes, which should cancel the pending completion
     detector.pushVadEvent(makeVad('speech_start', now + 800));
 
-    // Advance well past threshold; still no event expected
+    // Advance well past threshold -- still no event expected
     await advance(2000);
 
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('re-emits "speech_start" on itself when a speech_start VAD event is received', () => {
+  /** speech_start events should be re-emitted for barge-in detection. */
+  it('should re-emit "speech_start" when a speech_start VAD event is received', () => {
     const handler = vi.fn();
     detector.on('speech_start', handler);
 
@@ -131,7 +156,7 @@ describe('AcousticEndpointDetector', () => {
   // reset()
   // -------------------------------------------------------------------------
 
-  it('reset() prevents a pending turn_complete from firing', async () => {
+  it('should prevent a pending turn_complete from firing after reset()', async () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -155,7 +180,8 @@ describe('AcousticEndpointDetector', () => {
   // pushTranscript is a no-op
   // -------------------------------------------------------------------------
 
-  it('pushTranscript() is a no-op and does not throw', () => {
+  /** Acoustic mode ignores all transcript content; pushTranscript must not throw. */
+  it('should accept pushTranscript() calls without throwing or emitting events', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -174,8 +200,8 @@ describe('AcousticEndpointDetector', () => {
   // Configurable thresholds
   // -------------------------------------------------------------------------
 
-  it('respects a custom utteranceEndThresholdMs', async () => {
-    // Build a fresh detector with a much shorter threshold
+  /** A shorter utteranceEndThresholdMs should fire turn_complete sooner. */
+  it('should honour a custom utteranceEndThresholdMs', async () => {
     const fastDetector = new AcousticEndpointDetector({
       significantPauseThresholdMs: 100,
       utteranceEndThresholdMs: 300,
@@ -189,7 +215,7 @@ describe('AcousticEndpointDetector', () => {
     fastDetector.pushVadEvent(makeVad('speech_start', now));
     fastDetector.pushVadEvent(makeVad('speech_end', now + 50));
 
-    // Should NOT fire before 300 ms (total 200ms elapsed since speech_end at 50ms)
+    // Should NOT fire before 300 ms
     await advance(200);
     expect(handler).not.toHaveBeenCalled();
 
@@ -200,7 +226,11 @@ describe('AcousticEndpointDetector', () => {
     fastDetector.reset();
   });
 
-  it('includes a non-negative durationMs in the TurnCompleteEvent', async () => {
+  /**
+   * durationMs should be computed as (speechEndTimeMs - speechStartTimeMs),
+   * representing the actual speech duration excluding trailing silence.
+   */
+  it('should include correct durationMs computed from speech_start to speech_end timestamps', async () => {
     const handler = vi.fn<[TurnCompleteEvent], void>();
     detector.on('turn_complete', handler);
 

@@ -1,8 +1,23 @@
 /**
+ * @module voice-pipeline/__tests__/HeuristicEndpointDetector.spec
+ *
  * Unit tests for HeuristicEndpointDetector.
  *
- * All tests use real timers except the `silence_timeout` case, which uses a
- * 100 ms detector instance and a short `setTimeout` await — fast enough for CI
+ * ## What is tested
+ *
+ * - Mode property returns 'heuristic'
+ * - Terminal punctuation (., ?, !) triggers immediate turn_complete with reason 'punctuation'
+ * - Correct transcript text and confidence are carried in the turn_complete event
+ * - Backchannel phrases are detected, suppressed from accumulation, and emitted separately
+ * - Backchannel matching is case-insensitive and whitespace-tolerant
+ * - Silence timeout fallback fires turn_complete with reason 'silence_timeout'
+ * - No turn_complete fires without accumulated text
+ * - No turn_complete fires for interim (non-final) transcripts
+ * - speech_start cancels a pending silence timer
+ * - reset() clears accumulated text and cancels pending timers
+ *
+ * All tests use real timers except the silence_timeout cases, which use a
+ * 100 ms detector instance and a short setTimeout await -- fast enough for CI
  * while remaining deterministic.
  */
 
@@ -14,7 +29,7 @@ import type { TranscriptEvent, VadEvent } from '../types.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a minimal final TranscriptEvent. */
+/** Build a minimal final TranscriptEvent with sensible defaults. */
 function transcript(text: string, isFinal = true): TranscriptEvent {
   return { text, confidence: 0.9, words: [], isFinal };
 }
@@ -49,7 +64,7 @@ describe('HeuristicEndpointDetector', () => {
   // Basic identity
   // -------------------------------------------------------------------------
 
-  it('has mode "heuristic"', () => {
+  it('should report mode as "heuristic"', () => {
     expect(detector.mode).toBe('heuristic');
   });
 
@@ -57,7 +72,7 @@ describe('HeuristicEndpointDetector', () => {
   // Punctuation-triggered completion
   // -------------------------------------------------------------------------
 
-  it('emits turn_complete with reason "punctuation" on period + speech_end', () => {
+  it('should emit turn_complete with reason "punctuation" when transcript ends with period', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -69,7 +84,7 @@ describe('HeuristicEndpointDetector', () => {
     expect(handler.mock.calls[0][0].transcript).toBe('Hello there.');
   });
 
-  it('emits turn_complete with reason "punctuation" on question mark', () => {
+  it('should emit turn_complete with reason "punctuation" when transcript ends with question mark', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -80,7 +95,7 @@ describe('HeuristicEndpointDetector', () => {
     expect(handler.mock.calls[0][0].reason).toBe('punctuation');
   });
 
-  it('emits turn_complete with reason "punctuation" on exclamation mark', () => {
+  it('should emit turn_complete with reason "punctuation" when transcript ends with exclamation mark', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -91,7 +106,7 @@ describe('HeuristicEndpointDetector', () => {
     expect(handler.mock.calls[0][0].reason).toBe('punctuation');
   });
 
-  it('includes the correct transcript text in the turn_complete event', () => {
+  it('should include the accumulated transcript text in the turn_complete event', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -101,7 +116,7 @@ describe('HeuristicEndpointDetector', () => {
     expect(handler.mock.calls[0][0].transcript).toBe('Testing one two three.');
   });
 
-  it('includes confidence in the turn_complete event', () => {
+  it('should include the STT confidence score in the turn_complete event', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -115,7 +130,12 @@ describe('HeuristicEndpointDetector', () => {
   // Backchannel detection
   // -------------------------------------------------------------------------
 
-  it('detects "uh huh" and emits backchannel_detected', () => {
+  /**
+   * Backchannel phrases like "uh huh" should be detected and suppressed from
+   * accumulation. This prevents a subsequent speech_end from triggering
+   * turn_complete for what was merely an acknowledgement.
+   */
+  it('should detect "uh huh" as backchannel and suppress turn_complete', () => {
     const bcHandler = vi.fn();
     const tcHandler = vi.fn();
     detector.on('backchannel_detected', bcHandler);
@@ -126,11 +146,11 @@ describe('HeuristicEndpointDetector', () => {
 
     expect(bcHandler).toHaveBeenCalledOnce();
     expect(bcHandler.mock.calls[0][0].text).toBe('uh huh');
-    // turn_complete must NOT fire because backchannel suppresses accumulation.
+    // turn_complete must NOT fire because backchannel suppresses accumulation
     expect(tcHandler).not.toHaveBeenCalled();
   });
 
-  it('detects "yeah" as a backchannel phrase', () => {
+  it('should detect "yeah" as a backchannel phrase', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
 
@@ -138,42 +158,43 @@ describe('HeuristicEndpointDetector', () => {
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('detects "okay" as a backchannel phrase', () => {
+  it('should detect "okay" as a backchannel phrase', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
     detector.pushTranscript(transcript('okay'));
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('detects "ok" as a backchannel phrase', () => {
+  it('should detect "ok" as a backchannel phrase', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
     detector.pushTranscript(transcript('ok'));
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('detects "mm hmm" as a backchannel phrase', () => {
+  it('should detect "mm hmm" as a backchannel phrase', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
     detector.pushTranscript(transcript('mm hmm'));
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('detects "mm-hmm" as a backchannel phrase', () => {
+  it('should detect "mm-hmm" as a backchannel phrase', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
     detector.pushTranscript(transcript('mm-hmm'));
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('detects "gotcha" as a backchannel phrase', () => {
+  it('should detect "gotcha" as a backchannel phrase', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
     detector.pushTranscript(transcript('gotcha'));
     expect(handler).toHaveBeenCalledOnce();
   });
 
-  it('is case-insensitive for backchannel matching', () => {
+  /** Backchannel matching must be case-insensitive and trim whitespace. */
+  it('should match backchannel phrases case-insensitively with trimmed whitespace', () => {
     const handler = vi.fn();
     detector.on('backchannel_detected', handler);
     detector.pushTranscript(transcript('  Uh Huh  '));
@@ -184,7 +205,12 @@ describe('HeuristicEndpointDetector', () => {
   // Silence timeout fallback
   // -------------------------------------------------------------------------
 
-  it('falls back to silence timeout when no terminal punctuation', async () => {
+  /**
+   * When no terminal punctuation is present, the detector should wait for
+   * silenceTimeoutMs after speech_end before firing turn_complete. This is
+   * the fallback path for STT providers that don't punctuate reliably.
+   */
+  it('should fall back to silence timeout when no terminal punctuation is detected', async () => {
     detector = new HeuristicEndpointDetector({ silenceTimeoutMs: 100 });
     const handler = vi.fn();
     detector.on('turn_complete', handler);
@@ -192,16 +218,17 @@ describe('HeuristicEndpointDetector', () => {
     detector.pushTranscript({ text: 'well I think', confidence: 0.85, words: [], isFinal: true });
     detector.pushVadEvent({ type: 'speech_end', timestamp: Date.now(), source: 'vad' });
 
-    // Must not fire synchronously.
+    // Must not fire synchronously -- the silence timer has just started
     expect(handler).not.toHaveBeenCalled();
 
+    // Wait for the silence timeout to elapse
     await new Promise<void>((r) => setTimeout(r, 150));
 
     expect(handler).toHaveBeenCalledOnce();
     expect(handler.mock.calls[0][0].reason).toBe('silence_timeout');
   });
 
-  it('silence timeout carries the correct transcript', async () => {
+  it('should carry the correct transcript text in silence_timeout turn_complete', async () => {
     detector = new HeuristicEndpointDetector({ silenceTimeoutMs: 100 });
     const handler = vi.fn();
     detector.on('turn_complete', handler);
@@ -215,20 +242,21 @@ describe('HeuristicEndpointDetector', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Does not emit without accumulated text
+  // Guard: no emission without accumulated text
   // -------------------------------------------------------------------------
 
-  it('does not emit turn_complete if no text was accumulated before speech_end', () => {
+  it('should not emit turn_complete when speech_end arrives without prior transcript', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
-    // Push speech_end with no prior transcript.
+    // Push speech_end with no prior transcript -- nothing to flush
     detector.pushVadEvent(speechEnd());
 
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('does not emit turn_complete for interim (non-final) transcripts', () => {
+  /** Interim transcripts are unstable and must not trigger turn_complete. */
+  it('should not emit turn_complete for interim (non-final) transcripts', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
@@ -242,7 +270,12 @@ describe('HeuristicEndpointDetector', () => {
   // speech_start cancels pending silence timer
   // -------------------------------------------------------------------------
 
-  it('speech_start cancels a pending silence timer so turn_complete does not fire', async () => {
+  /**
+   * If the user resumes speaking before the silence timeout elapses,
+   * the timer should be cancelled and turn_complete should NOT fire.
+   * This prevents mid-sentence false positives during natural pauses.
+   */
+  it('should cancel pending silence timer when speech_start arrives', async () => {
     detector = new HeuristicEndpointDetector({ silenceTimeoutMs: 100 });
     const handler = vi.fn();
     detector.on('turn_complete', handler);
@@ -250,12 +283,12 @@ describe('HeuristicEndpointDetector', () => {
     detector.pushTranscript(transcript('mid sentence without punctuation'));
     detector.pushVadEvent({ type: 'speech_end', timestamp: Date.now(), source: 'vad' });
 
-    // User resumes speaking before timeout elapses.
+    // User resumes speaking before timeout elapses
     detector.pushVadEvent({ type: 'speech_start', timestamp: Date.now(), source: 'vad' });
 
     await new Promise<void>((r) => setTimeout(r, 150));
 
-    // Timer was cancelled — turn_complete should not have fired.
+    // Timer was cancelled -- turn_complete should not have fired
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -263,19 +296,19 @@ describe('HeuristicEndpointDetector', () => {
   // reset()
   // -------------------------------------------------------------------------
 
-  it('reset clears accumulated text so speech_end no longer triggers turn_complete', () => {
+  it('should clear accumulated text on reset so speech_end no longer triggers turn_complete', () => {
     const handler = vi.fn();
     detector.on('turn_complete', handler);
 
     detector.pushTranscript(transcript('some text.'));
     detector.reset();
 
-    // After reset the accumulated text is gone — speech_end should not fire.
+    // After reset, accumulated text is gone -- speech_end should not fire
     detector.pushVadEvent(speechEnd());
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it('reset cancels a pending silence timer', async () => {
+  it('should cancel a pending silence timer on reset', async () => {
     detector = new HeuristicEndpointDetector({ silenceTimeoutMs: 100 });
     const handler = vi.fn();
     detector.on('turn_complete', handler);
@@ -283,7 +316,7 @@ describe('HeuristicEndpointDetector', () => {
     detector.pushTranscript(transcript('hello there'));
     detector.pushVadEvent(speechEnd());
 
-    // Timer is now ticking — reset it before it fires.
+    // Timer is now ticking -- reset before it fires
     detector.reset();
 
     await new Promise<void>((r) => setTimeout(r, 150));

@@ -3,6 +3,29 @@
  *
  * Unit tests for VoiceInterruptError and the two public integration methods
  * added to VoicePipelineOrchestrator: waitForUserTurn() and pushToTTS().
+ *
+ * ## What is tested
+ *
+ * ### VoiceInterruptError
+ * - name property is 'VoiceInterruptError'
+ * - message is 'Voice session interrupted by user'
+ * - Structured context fields (interruptedText, userSpeech, playedDurationMs) are stored
+ * - instanceof chain works (VoiceInterruptError -> Error)
+ * - Can be caught and inspected as a typed error
+ * - name field is stable (own property, not prototype)
+ *
+ * ### VoicePipelineOrchestrator.waitForUserTurn
+ * - Resolves when turn_complete is emitted
+ * - Only resolves once (one-shot via `once()`)
+ * - Carries all TurnCompleteEvent fields
+ *
+ * ### VoicePipelineOrchestrator.pushToTTS
+ * - Throws if no active TTS session
+ * - Pushes plain string tokens and flushes
+ * - Iterates async iterable and pushes each chunk
+ * - Flushes exactly once for async iterables
+ * - Works with empty async iterables (no tokens, still flushes)
+ * - Throws after session is stopped
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -27,7 +50,7 @@ import type {
 // ============================================================================
 
 describe('VoiceInterruptError', () => {
-  it('has correct name', () => {
+  it('should have name "VoiceInterruptError" and correct message', () => {
     const err = new VoiceInterruptError({
       interruptedText: 'hello',
       userSpeech: 'wait',
@@ -37,7 +60,7 @@ describe('VoiceInterruptError', () => {
     expect(err.message).toBe('Voice session interrupted by user');
   });
 
-  it('stores context fields', () => {
+  it('should store all structured context fields', () => {
     const err = new VoiceInterruptError({
       interruptedText: 'I was saying',
       userSpeech: 'stop',
@@ -48,7 +71,7 @@ describe('VoiceInterruptError', () => {
     expect(err.playedDurationMs).toBe(1200);
   });
 
-  it('is an instance of Error', () => {
+  it('should be an instance of Error (prototype chain intact)', () => {
     const err = new VoiceInterruptError({
       interruptedText: '',
       userSpeech: '',
@@ -57,7 +80,11 @@ describe('VoiceInterruptError', () => {
     expect(err).toBeInstanceOf(Error);
   });
 
-  it('is catchable as a typed error via instanceof', () => {
+  /**
+   * Validates the primary catch pattern: throw, catch via instanceof,
+   * and access typed fields without casting.
+   */
+  it('should be catchable and inspectable as a typed error via instanceof', () => {
     function throwIt() {
       throw new VoiceInterruptError({
         interruptedText: 'speaking...',
@@ -79,24 +106,24 @@ describe('VoiceInterruptError', () => {
     expect(typed.playedDurationMs).toBe(300);
   });
 
-  it('has a stable name field that always returns VoiceInterruptError', () => {
-    // The `name` field uses a readonly class property initialiser, which in
-    // TypeScript/ES2022 class fields is non-writable on the prototype but the
-    // instance field shadowing means reassignment silently succeeds at runtime.
-    // This test verifies the initial value is correct and stable after construction.
+  /**
+   * The name field is set as a class field (own property) rather than via
+   * the prototype, ensuring it survives serialisation and can be used for
+   * instanceof-free type checks across process boundaries.
+   */
+  it('should have name as an own property (not from prototype)', () => {
     const err = new VoiceInterruptError({
       interruptedText: 'hi',
       userSpeech: 'bye',
       playedDurationMs: 100,
     });
     expect(err.name).toBe('VoiceInterruptError');
-    // TypeScript readonly enforces this at compile-time; runtime value is stable.
     expect(Object.prototype.hasOwnProperty.call(err, 'name')).toBe(true);
   });
 });
 
 // ============================================================================
-// Mock factories (mirrors VoicePipelineOrchestrator.spec.ts)
+// Mock factories (shared between waitForUserTurn and pushToTTS tests)
 // ============================================================================
 
 function createMockTransport(): IStreamTransport & EventEmitter {
@@ -176,7 +203,7 @@ function makeTurnComplete(): TurnCompleteEvent {
 }
 
 // ============================================================================
-// VoicePipelineOrchestrator — waitForUserTurn & pushToTTS
+// VoicePipelineOrchestrator.waitForUserTurn
 // ============================================================================
 
 describe('VoicePipelineOrchestrator.waitForUserTurn', () => {
@@ -204,22 +231,22 @@ describe('VoicePipelineOrchestrator.waitForUserTurn', () => {
     });
   }
 
-  it('resolves when turn_complete is emitted', async () => {
+  it('should resolve when turn_complete is emitted on the orchestrator', async () => {
     await startSession();
     const turnEvent = makeTurnComplete();
 
-    // Start the wait — do NOT await yet
+    // Start the wait -- do NOT await yet
     const waitPromise = orchestrator.waitForUserTurn();
 
-    // Emit the turn_complete event (the orchestrator emits this from endpointDetector)
-    // waitForUserTurn listens on the orchestrator itself, so emit directly
+    // Emit turn_complete (waitForUserTurn uses `once()` on the orchestrator)
     orchestrator.emit('turn_complete', turnEvent);
 
     const resolved = await waitPromise;
     expect(resolved).toEqual(turnEvent);
   });
 
-  it('only resolves once (one-shot)', async () => {
+  /** `once()` ensures the listener auto-removes after the first emission. */
+  it('should only resolve with the first turn_complete event (one-shot)', async () => {
     await startSession();
     const first = makeTurnComplete();
     const second = { ...makeTurnComplete(), transcript: 'Second turn' };
@@ -234,7 +261,7 @@ describe('VoicePipelineOrchestrator.waitForUserTurn', () => {
     expect(resolved.transcript).toBe(first.transcript);
   });
 
-  it('resolves with all fields from TurnCompleteEvent', async () => {
+  it('should carry all TurnCompleteEvent fields through to the resolution', async () => {
     await startSession();
     const event: TurnCompleteEvent = {
       transcript: 'test transcript',
@@ -253,6 +280,10 @@ describe('VoicePipelineOrchestrator.waitForUserTurn', () => {
     expect(resolved.reason).toBe('silence_timeout');
   });
 });
+
+// ============================================================================
+// VoicePipelineOrchestrator.pushToTTS
+// ============================================================================
 
 describe('VoicePipelineOrchestrator.pushToTTS', () => {
   let transport: ReturnType<typeof createMockTransport>;
@@ -288,19 +319,21 @@ describe('VoicePipelineOrchestrator.pushToTTS', () => {
     );
   }
 
-  it('throws if no active TTS session', async () => {
-    // Do NOT call startSession — _ttsSession is null
+  /** pushToTTS should fail if called before startSession. */
+  it('should throw if no active TTS session exists', async () => {
+    // Do NOT call startSession -- _ttsSession is null
     await expect(orchestrator.pushToTTS('hello')).rejects.toThrow('No active TTS session');
   });
 
-  it('calls pushTokens and flush for a plain string', async () => {
+  it('should call pushTokens and flush for a plain string', async () => {
     await startSession();
     await orchestrator.pushToTTS('Hello world');
     expect(ttsSession.pushTokens).toHaveBeenCalledWith('Hello world');
     expect(ttsSession.flush).toHaveBeenCalled();
   });
 
-  it('calls pushTokens for each chunk of an async iterable', async () => {
+  /** Each chunk from the async iterable should be pushed individually. */
+  it('should call pushTokens for each chunk of an async iterable', async () => {
     await startSession();
 
     async function* tokens() {
@@ -318,7 +351,7 @@ describe('VoicePipelineOrchestrator.pushToTTS', () => {
     expect(ttsSession.flush).toHaveBeenCalledTimes(1);
   });
 
-  it('calls flush exactly once for an async iterable', async () => {
+  it('should call flush exactly once after iterating all tokens', async () => {
     await startSession();
 
     async function* tokens() {
@@ -330,7 +363,8 @@ describe('VoicePipelineOrchestrator.pushToTTS', () => {
     expect(ttsSession.flush).toHaveBeenCalledTimes(1);
   });
 
-  it('works with an empty async iterable (no tokens, still flushes)', async () => {
+  /** An empty iterable should still call flush to signal end-of-utterance. */
+  it('should flush even with an empty async iterable (no tokens emitted)', async () => {
     await startSession();
 
     async function* empty() {
@@ -342,7 +376,7 @@ describe('VoicePipelineOrchestrator.pushToTTS', () => {
     expect(ttsSession.flush).toHaveBeenCalledTimes(1);
   });
 
-  it('throws after session is stopped', async () => {
+  it('should throw after the session has been stopped', async () => {
     await startSession();
     await orchestrator.stopSession('test');
     await expect(orchestrator.pushToTTS('hello')).rejects.toThrow('No active TTS session');

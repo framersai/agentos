@@ -2,8 +2,23 @@
  * @module voice-pipeline/__tests__/VoicePipelineOrchestrator.spec
  *
  * Tests for the VoicePipelineOrchestrator state machine. All pipeline
- * components are mocked to isolate the orchestrator's wiring and state
- * transition logic.
+ * components (STT, TTS, endpoint detector, barge-in handler, agent session)
+ * are mocked to isolate the orchestrator's wiring and state transition logic.
+ *
+ * ## What is tested
+ *
+ * - Initial state is `'idle'`
+ * - startSession transitions to `'listening'`
+ * - Audio frames are forwarded from transport to STT
+ * - Transcript events are forwarded from STT to endpoint detector AND transport
+ * - turn_complete triggers LISTENING -> PROCESSING -> SPEAKING transitions
+ * - LLM tokens are piped to TTS during SPEAKING
+ * - TTS audio chunks are forwarded to transport
+ * - flush_complete triggers SPEAKING -> LISTENING
+ * - Barge-in (speech_start during SPEAKING) cancels TTS and returns to LISTENING
+ * - Transport disconnect transitions to CLOSED
+ * - stopSession tears down all components
+ * - VAD events are forwarded from STT speech_start/speech_end to endpoint detector
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -29,6 +44,7 @@ import type {
 // Mock factories
 // ============================================================================
 
+/** Creates a mock IStreamTransport backed by an EventEmitter. */
 function createMockTransport(): IStreamTransport & EventEmitter {
   const emitter = new EventEmitter() as IStreamTransport & EventEmitter;
   Object.defineProperty(emitter, 'id', { value: 'transport-1' });
@@ -39,6 +55,7 @@ function createMockTransport(): IStreamTransport & EventEmitter {
   return emitter;
 }
 
+/** Creates a mock StreamingSTTSession that can emit transcript/speech events. */
 function createMockSTTSession(): StreamingSTTSession & EventEmitter {
   const emitter = new EventEmitter() as StreamingSTTSession & EventEmitter;
   (emitter as any).pushAudio = vi.fn();
@@ -47,6 +64,7 @@ function createMockSTTSession(): StreamingSTTSession & EventEmitter {
   return emitter;
 }
 
+/** Creates a mock IStreamingSTT factory that resolves with the given session. */
 function createMockSTT(session: StreamingSTTSession): IStreamingSTT {
   return {
     providerId: 'mock-stt',
@@ -55,6 +73,7 @@ function createMockSTT(session: StreamingSTTSession): IStreamingSTT {
   };
 }
 
+/** Creates a mock StreamingTTSSession that can emit audio/flush_complete. */
 function createMockTTSSession(): StreamingTTSSession & EventEmitter {
   const emitter = new EventEmitter() as StreamingTTSSession & EventEmitter;
   (emitter as any).pushTokens = vi.fn();
@@ -64,6 +83,7 @@ function createMockTTSSession(): StreamingTTSSession & EventEmitter {
   return emitter;
 }
 
+/** Creates a mock IStreamingTTS factory that resolves with the given session. */
 function createMockTTS(session: StreamingTTSSession): IStreamingTTS {
   return {
     providerId: 'mock-tts',
@@ -71,6 +91,7 @@ function createMockTTS(session: StreamingTTSSession): IStreamingTTS {
   };
 }
 
+/** Creates a mock IEndpointDetector backed by an EventEmitter. */
 function createMockEndpoint(): IEndpointDetector & EventEmitter {
   const emitter = new EventEmitter() as IEndpointDetector & EventEmitter;
   Object.defineProperty(emitter, 'mode', { value: 'heuristic' });
@@ -80,6 +101,7 @@ function createMockEndpoint(): IEndpointDetector & EventEmitter {
   return emitter;
 }
 
+/** Creates a mock IBargeinHandler that returns the specified action. */
 function createMockBargeinHandler(action: BargeinAction = { type: 'cancel' }): IBargeinHandler {
   return {
     mode: 'hard-cut',
@@ -87,6 +109,7 @@ function createMockBargeinHandler(action: BargeinAction = { type: 'cancel' }): I
   };
 }
 
+/** Creates a mock agent session that yields the given tokens from sendText. */
 function createMockAgentSession(tokens: string[] = ['Hello', ' world']): IVoicePipelineAgentSession {
   return {
     sendText: vi.fn().mockReturnValue({
@@ -98,6 +121,7 @@ function createMockAgentSession(tokens: string[] = ['Hello', ' world']): IVoiceP
   };
 }
 
+/** Creates a minimal VoicePipelineConfig with sensible test defaults. */
 function makeConfig(overrides?: Partial<VoicePipelineConfig>): VoicePipelineConfig {
   return {
     stt: 'mock-stt',
@@ -107,6 +131,7 @@ function makeConfig(overrides?: Partial<VoicePipelineConfig>): VoicePipelineConf
   };
 }
 
+/** Creates a minimal AudioFrame for injection tests. */
 function makeFrame(): AudioFrame {
   return {
     samples: new Float32Array([0.1, 0.2]),
@@ -115,6 +140,7 @@ function makeFrame(): AudioFrame {
   };
 }
 
+/** Creates a minimal TurnCompleteEvent for triggering turn processing. */
 function makeTurnComplete(): TurnCompleteEvent {
   return {
     transcript: 'Hello there',
@@ -124,6 +150,7 @@ function makeTurnComplete(): TurnCompleteEvent {
   };
 }
 
+/** Creates a minimal EncodedAudioChunk for TTS audio emission tests. */
 function makeAudioChunk(): EncodedAudioChunk {
   return {
     audio: Buffer.from([0]),
@@ -158,6 +185,7 @@ describe('VoicePipelineOrchestrator', () => {
     orchestrator = new VoicePipelineOrchestrator(makeConfig());
   });
 
+  /** Helper to start a session with all mock components wired up. */
   async function startSession() {
     return orchestrator.startSession(transport, agentSession, {
       streamingSTT: createMockSTT(sttSession),
@@ -167,30 +195,30 @@ describe('VoicePipelineOrchestrator', () => {
     });
   }
 
-  it('starts in idle state', () => {
+  it('should start in idle state before any session is created', () => {
     expect(orchestrator.state).toBe('idle');
   });
 
-  it('transitions to listening on startSession', async () => {
+  it('should transition to listening when startSession is called', async () => {
     await startSession();
     expect(orchestrator.state).toBe('listening');
   });
 
-  it('forwards audio frames from transport to STT', async () => {
+  it('should forward audio frames from transport to STT session', async () => {
     await startSession();
     const frame = makeFrame();
     transport.emit('audio', frame);
     expect(sttSession.pushAudio).toHaveBeenCalledWith(frame);
   });
 
-  it('forwards transcript events to endpoint detector', async () => {
+  it('should forward transcript events from STT to endpoint detector', async () => {
     await startSession();
     const transcript = { text: 'hello', confidence: 0.9, words: [], isFinal: false };
     sttSession.emit('transcript', transcript);
     expect(endpoint.pushTranscript).toHaveBeenCalledWith(transcript);
   });
 
-  it('sends transcript control messages to transport', async () => {
+  it('should relay transcript events to transport as control messages', async () => {
     await startSession();
     const transcript = { text: 'hello', confidence: 0.9, words: [], isFinal: true };
     sttSession.emit('transcript', transcript);
@@ -202,20 +230,24 @@ describe('VoicePipelineOrchestrator', () => {
     });
   });
 
-  it('transitions LISTENING → PROCESSING → SPEAKING on turn_complete', async () => {
+  /**
+   * Validates the core state machine progression on turn_complete:
+   * LISTENING -> PROCESSING (agent thinking) -> SPEAKING (tokens streaming).
+   */
+  it('should transition LISTENING -> PROCESSING -> SPEAKING when turn_complete fires', async () => {
     await startSession();
     const states: string[] = [];
     orchestrator.on('state_changed', (evt: { from: string; to: string }) => states.push(evt.to));
 
     endpoint.emit('turn_complete', makeTurnComplete());
-    // Allow async iteration to complete
+    // Allow the async token iteration to complete
     await vi.advanceTimersByTimeAsync(0);
 
     expect(states).toContain('processing');
     expect(states).toContain('speaking');
   });
 
-  it('pipes LLM tokens to TTS', async () => {
+  it('should pipe LLM tokens to the TTS session during SPEAKING', async () => {
     await startSession();
     endpoint.emit('turn_complete', makeTurnComplete());
     await vi.advanceTimersByTimeAsync(0);
@@ -224,7 +256,7 @@ describe('VoicePipelineOrchestrator', () => {
     expect(ttsSession.pushTokens).toHaveBeenCalledWith(' world');
   });
 
-  it('sends TTS audio chunks to transport', async () => {
+  it('should forward TTS audio chunks to the transport during SPEAKING', async () => {
     await startSession();
     endpoint.emit('turn_complete', makeTurnComplete());
     await vi.advanceTimersByTimeAsync(0);
@@ -234,7 +266,7 @@ describe('VoicePipelineOrchestrator', () => {
     expect(transport.sendAudio).toHaveBeenCalledWith(chunk);
   });
 
-  it('transitions SPEAKING → LISTENING on flush_complete', async () => {
+  it('should transition SPEAKING -> LISTENING when TTS flush_complete fires', async () => {
     await startSession();
     endpoint.emit('turn_complete', makeTurnComplete());
     await vi.advanceTimersByTimeAsync(0);
@@ -244,7 +276,7 @@ describe('VoicePipelineOrchestrator', () => {
     expect(orchestrator.state).toBe('listening');
   });
 
-  it('sends agent_done on flush_complete', async () => {
+  it('should send agent_done control message when TTS flush_complete fires', async () => {
     await startSession();
     endpoint.emit('turn_complete', makeTurnComplete());
     await vi.advanceTimersByTimeAsync(0);
@@ -255,14 +287,19 @@ describe('VoicePipelineOrchestrator', () => {
     );
   });
 
-  it('handles barge-in: SPEAKING → cancel TTS → LISTENING', async () => {
+  /**
+   * Validates barge-in: when speech_start is detected during SPEAKING,
+   * the handler returns 'cancel', TTS is stopped, agent is aborted,
+   * and state returns to LISTENING.
+   */
+  it('should cancel TTS and return to LISTENING on barge-in during SPEAKING', async () => {
     await startSession();
     endpoint.emit('turn_complete', makeTurnComplete());
     await vi.advanceTimersByTimeAsync(0);
 
     expect(orchestrator.state).toBe('speaking');
 
-    // Simulate speech_start during speaking (barge-in)
+    // Simulate speech_start during SPEAKING (barge-in trigger)
     sttSession.emit('speech_start');
     await vi.advanceTimersByTimeAsync(0);
 
@@ -274,7 +311,7 @@ describe('VoicePipelineOrchestrator', () => {
     );
   });
 
-  it('transitions to CLOSED on transport disconnect', async () => {
+  it('should transition to CLOSED when transport disconnects', async () => {
     await startSession();
     transport.emit('close');
     expect(orchestrator.state).toBe('closed');
@@ -282,7 +319,7 @@ describe('VoicePipelineOrchestrator', () => {
     expect(ttsSession.close).toHaveBeenCalled();
   });
 
-  it('stopSession tears down everything', async () => {
+  it('should tear down all components when stopSession is called', async () => {
     await startSession();
     await orchestrator.stopSession('test teardown');
     expect(orchestrator.state).toBe('closed');
@@ -291,7 +328,7 @@ describe('VoicePipelineOrchestrator', () => {
     expect(transport.close).toHaveBeenCalledWith(1000, 'test teardown');
   });
 
-  it('resets endpoint detector after flush_complete', async () => {
+  it('should reset endpoint detector after flush_complete to prepare for next turn', async () => {
     await startSession();
     endpoint.emit('turn_complete', makeTurnComplete());
     await vi.advanceTimersByTimeAsync(0);
@@ -300,7 +337,12 @@ describe('VoicePipelineOrchestrator', () => {
     expect(endpoint.reset).toHaveBeenCalled();
   });
 
-  it('pushes VAD events from STT speech_start/speech_end', async () => {
+  /**
+   * Validates that the orchestrator synthesises VAD events from STT
+   * speech_start/speech_end signals and forwards them to the endpoint
+   * detector, enabling endpoint detection even without a dedicated VAD.
+   */
+  it('should forward synthetic VAD events from STT speech_start/speech_end to endpoint detector', async () => {
     await startSession();
     sttSession.emit('speech_start');
     await vi.advanceTimersByTimeAsync(0);
