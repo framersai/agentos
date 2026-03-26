@@ -3,8 +3,15 @@ import { ExtensionManager } from '../../extensions/ExtensionManager.js';
 import { EXTENSION_KIND_TTS_PROVIDER } from '../../extensions/types.js';
 import { SpeechRuntime } from '../SpeechRuntime.js';
 
+/**
+ * Tests for {@link SpeechRuntime} — the high-level runtime that manages
+ * provider registration, extension hydration, and session creation.
+ *
+ * SpeechRuntime wraps SpeechProviderResolver and provides a simpler API
+ * for end-to-end speech workflows (transcribe, synthesize, VAD sessions).
+ */
 describe('SpeechRuntime', () => {
-  it('auto-registers built-in and env-backed providers', () => {
+  it('should auto-register built-in and env-backed providers on construction', () => {
     const runtime = new SpeechRuntime({
       env: {
         OPENAI_API_KEY: 'sk-openai',
@@ -12,14 +19,17 @@ describe('SpeechRuntime', () => {
       },
     });
 
+    // VAD is always available (no env vars required)
     expect(runtime.getProvider('agentos-adaptive-vad')).toBeDefined();
+    // STT and TTS providers should be registered based on env vars
     expect(runtime.getProvider('openai-whisper')).toBeDefined();
     expect(runtime.getProvider('openai-tts')).toBeDefined();
     expect(runtime.getProvider('elevenlabs')).toBeDefined();
   });
 
-  it('hydrates speech providers from the extension manager', async () => {
+  it('should hydrate speech providers from the extension manager', async () => {
     const manager = new ExtensionManager();
+    // Register a test TTS provider descriptor via the extension system
     await manager.getRegistry(EXTENSION_KIND_TTS_PROVIDER).register(
       {
         id: 'test-tts-descriptor',
@@ -39,10 +49,11 @@ describe('SpeechRuntime', () => {
     const runtime = new SpeechRuntime({ autoRegisterFromEnv: false });
     runtime.hydrateFromExtensionManager(manager);
 
+    // The extension-provided TTS should now be discoverable
     expect(runtime.getProvider('test-tts')).toBeDefined();
   });
 
-  it('prefers configured provider ids before hardcoded defaults', async () => {
+  it('should prefer configured provider IDs over hardcoded defaults', async () => {
     const calls: string[] = [];
     const runtime = new SpeechRuntime({
       autoRegisterFromEnv: false,
@@ -50,6 +61,7 @@ describe('SpeechRuntime', () => {
       preferredTtsProviderId: 'elevenlabs',
     });
 
+    // Register two STT providers — deepgram should be preferred
     runtime.registerSttProvider({
       id: 'openai-whisper',
       getProviderName: () => 'OpenAI Whisper',
@@ -66,6 +78,8 @@ describe('SpeechRuntime', () => {
         return { text: 'deepgram', cost: 0 };
       },
     });
+
+    // Register two TTS providers — elevenlabs should be preferred
     runtime.registerTtsProvider({
       id: 'openai-tts',
       getProviderName: () => 'OpenAI TTS',
@@ -87,6 +101,7 @@ describe('SpeechRuntime', () => {
     await session.speak('hello');
     await session.transcribeAudio(Buffer.from('wav'));
 
+    // Verify the preferred providers were used, not the first-registered ones
     expect(calls).toEqual(['elevenlabs', 'deepgram']);
   });
 });

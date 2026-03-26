@@ -2,14 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssemblyAISTTProvider } from '../providers/AssemblyAISTTProvider.js';
 import type { SpeechAudioInput } from '../types.js';
 
-/** Minimal audio fixture used across tests. */
+/** Minimal audio fixture used across all AssemblyAI tests. */
 const AUDIO: SpeechAudioInput = {
   data: Buffer.from('fake-audio-bytes'),
   mimeType: 'audio/wav',
   durationSeconds: 4,
 };
 
-/** Standard completed transcript response from AssemblyAI. */
+/**
+ * Standard completed transcript response matching the AssemblyAI API shape.
+ * Word timings are in milliseconds (AssemblyAI's native unit), which the
+ * provider must convert to seconds.
+ */
 const COMPLETED_TRANSCRIPT = {
   id: 'tx_123',
   status: 'completed',
@@ -24,14 +28,17 @@ const COMPLETED_TRANSCRIPT = {
 };
 
 /**
- * Builds a mock `fetch` implementation that handles the three AssemblyAI steps:
- * upload → submit → poll (sequence of statuses).
+ * Builds a mock fetch implementation that handles the three-step AssemblyAI flow:
+ * upload -> submit -> poll (with configurable status sequence).
+ *
+ * The `pollStatuses` array controls what status each successive poll returns.
+ * Once the array is exhausted, subsequent polls return 'completed'.
  */
 function makeAssemblyFetch(pollStatuses: string[]) {
   let pollCallIndex = 0;
 
   return vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-    // Step 1 — upload
+    // Step 1 — upload: returns a CDN URL for the uploaded audio
     if (url === 'https://api.assemblyai.com/v2/upload') {
       return Promise.resolve({
         ok: true,
@@ -41,7 +48,7 @@ function makeAssemblyFetch(pollStatuses: string[]) {
       });
     }
 
-    // Step 2 — submit transcript
+    // Step 2 — submit transcript: returns a transcript ID for polling
     if (url === 'https://api.assemblyai.com/v2/transcript' && init?.method === 'POST') {
       return Promise.resolve({
         ok: true,
@@ -51,7 +58,7 @@ function makeAssemblyFetch(pollStatuses: string[]) {
       });
     }
 
-    // Step 3 — poll
+    // Step 3 — poll: returns the transcript with the configured status
     if (url === 'https://api.assemblyai.com/v2/transcript/tx_123') {
       const status = pollStatuses[pollCallIndex] ?? 'completed';
       const isCompleted = status === 'completed';
@@ -76,8 +83,15 @@ function makeAssemblyFetch(pollStatuses: string[]) {
   });
 }
 
+/**
+ * Tests for {@link AssemblyAISTTProvider} — verifies the three-step async
+ * transcription pipeline (upload -> submit -> poll), polling state transitions,
+ * word timing conversion (milliseconds -> seconds), timeout handling, and
+ * error propagation at each step.
+ */
 describe('AssemblyAISTTProvider', () => {
   beforeEach(() => {
+    // Fake timers are needed to control the polling interval (setTimeout)
     vi.useFakeTimers();
   });
 
@@ -85,14 +99,14 @@ describe('AssemblyAISTTProvider', () => {
     vi.useRealTimers();
   });
 
-  it('reports provider id, name, and streaming capability', () => {
+  it('should report correct provider id, name, and streaming capability', () => {
     const provider = new AssemblyAISTTProvider({ apiKey: 'key' });
     expect(provider.id).toBe('assemblyai');
     expect(provider.supportsStreaming).toBe(false);
     expect(provider.getProviderName()).toBe('AssemblyAI');
   });
 
-  it('completes the upload → submit → poll flow', async () => {
+  it('should complete the upload -> submit -> poll flow successfully', async () => {
     const mockFetch = makeAssemblyFetch(['completed']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'test-key',
@@ -100,7 +114,7 @@ describe('AssemblyAISTTProvider', () => {
     });
 
     const promise = provider.transcribe(AUDIO);
-    // Advance fake timer past the poll interval so setTimeout resolves.
+    // Advance fake timers so the poll setTimeout resolves
     await vi.runAllTimersAsync();
     const result = await promise;
 
@@ -110,7 +124,7 @@ describe('AssemblyAISTTProvider', () => {
     expect(result.durationSeconds).toBe(4);
   });
 
-  it('polls through queued → processing → completed states', async () => {
+  it('should poll through queued -> processing -> completed states', async () => {
     const mockFetch = makeAssemblyFetch(['queued', 'processing', 'completed']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'test-key',
@@ -122,11 +136,11 @@ describe('AssemblyAISTTProvider', () => {
     const result = await promise;
 
     expect(result.text).toBe('hello there');
-    // upload(1) + submit(1) + 3 polls = 5 fetch calls total
+    // Total fetch calls: upload(1) + submit(1) + 3 polls = 5
     expect(mockFetch).toHaveBeenCalledTimes(5);
   });
 
-  it('sends Authorization header on all three requests', async () => {
+  it('should send the Authorization header on all three request types', async () => {
     const mockFetch = makeAssemblyFetch(['completed']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'secret-key',
@@ -137,13 +151,14 @@ describe('AssemblyAISTTProvider', () => {
     await vi.runAllTimersAsync();
     await promise;
 
+    // Every request (upload, submit, poll) must include the API key
     for (const [, init] of mockFetch.mock.calls as [string, RequestInit][]) {
       const headers = init?.headers as Record<string, string> | undefined;
       expect(headers?.['Authorization']).toBe('secret-key');
     }
   });
 
-  it('sends audio body and correct content-type on upload', async () => {
+  it('should send audio body and correct content-type on the upload step', async () => {
     const mockFetch = makeAssemblyFetch(['completed']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'key',
@@ -154,18 +169,20 @@ describe('AssemblyAISTTProvider', () => {
     await vi.runAllTimersAsync();
     await promise;
 
+    // Find the upload call by URL
     const uploadCall = mockFetch.mock.calls.find(
       ([url]: [string]) => url === 'https://api.assemblyai.com/v2/upload'
     ) as [string, RequestInit] | undefined;
 
     expect(uploadCall).toBeDefined();
     const [, uploadInit] = uploadCall!;
+    // Raw audio buffer is sent as the body
     expect(uploadInit.body).toBe(AUDIO.data);
     const headers = uploadInit.headers as Record<string, string>;
     expect(headers['Content-Type']).toBe('audio/wav');
   });
 
-  it('includes speaker_labels in the submit body when diarization requested', async () => {
+  it('should include speaker_labels in the submit body when diarization is requested', async () => {
     const mockFetch = makeAssemblyFetch(['completed']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'key',
@@ -176,6 +193,7 @@ describe('AssemblyAISTTProvider', () => {
     await vi.runAllTimersAsync();
     await promise;
 
+    // Find the submit call by URL and method
     const submitCall = mockFetch.mock.calls.find(
       ([url, init]: [string, RequestInit]) =>
         url === 'https://api.assemblyai.com/v2/transcript' && init?.method === 'POST'
@@ -187,7 +205,7 @@ describe('AssemblyAISTTProvider', () => {
     expect(body.speaker_labels).toBe(true);
   });
 
-  it('maps word timing (milliseconds → seconds) in segments', async () => {
+  it('should convert word timings from milliseconds to seconds in segments', async () => {
     const mockFetch = makeAssemblyFetch(['completed']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'key',
@@ -199,12 +217,14 @@ describe('AssemblyAISTTProvider', () => {
     const result = await promise;
 
     expect(result.segments).toHaveLength(2);
+    // 0ms -> 0s, 400ms -> 0.4s
     expect(result.segments![0].startTime).toBe(0);
     expect(result.segments![0].endTime).toBeCloseTo(0.4);
+    // Speaker labels are preserved as-is (string 'A')
     expect(result.segments![0].speaker).toBe('A');
   });
 
-  it('throws when transcript status is error', async () => {
+  it('should throw when the transcript status transitions to error', async () => {
     const mockFetch = makeAssemblyFetch(['error']);
     const provider = new AssemblyAISTTProvider({
       apiKey: 'key',
@@ -218,8 +238,8 @@ describe('AssemblyAISTTProvider', () => {
     expect((err as Error).message).toMatch('AssemblyAI transcription error');
   });
 
-  it('throws on timeout when transcript never completes', async () => {
-    // Always return 'processing' so the loop never finishes.
+  it('should throw on timeout when the transcript never completes', async () => {
+    // Always return 'processing' so the loop never exits naturally
     const mockFetch = makeAssemblyFetch(Array(200).fill('processing'));
     const provider = new AssemblyAISTTProvider({
       apiKey: 'key',
@@ -227,14 +247,14 @@ describe('AssemblyAISTTProvider', () => {
     });
 
     const caught = provider.transcribe(AUDIO).catch((e: unknown) => e);
-    // Advance time well past the 120s timeout.
+    // Advance well past the 120-second timeout
     await vi.advanceTimersByTimeAsync(125_000);
     const err = await caught;
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toMatch(/timed out/);
   });
 
-  it('throws a descriptive error when upload returns non-2xx', async () => {
+  it('should throw a descriptive error when the upload step returns non-2xx', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,

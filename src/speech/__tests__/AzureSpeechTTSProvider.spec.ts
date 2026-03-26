@@ -4,6 +4,10 @@ import { AzureSpeechTTSProvider } from '../providers/AzureSpeechTTSProvider.js';
 /** Minimal fake MP3 bytes for mocking the synthesis response. */
 const FAKE_AUDIO = new Uint8Array([0xff, 0xfb, 0x90, 0x00]).buffer;
 
+/**
+ * Creates a mock fetch for the synthesis endpoint that returns fake audio bytes.
+ * Status code defaults to 200 (success).
+ */
 function makeAudioFetch(status = 200) {
   return vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
@@ -14,6 +18,10 @@ function makeAudioFetch(status = 200) {
   });
 }
 
+/**
+ * Creates a mock fetch for the voice list endpoint.
+ * Returns the given voice entries as a JSON array.
+ */
 function makeVoiceListFetch(voices: object[] = [], status = 200) {
   return vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
@@ -23,6 +31,11 @@ function makeVoiceListFetch(voices: object[] = [], status = 200) {
   });
 }
 
+/**
+ * Tests for {@link AzureSpeechTTSProvider} — verifies SSML generation,
+ * XML character escaping, X-Microsoft-OutputFormat header, voice override,
+ * listAvailableVoices mapping, and error handling.
+ */
 describe('AzureSpeechTTSProvider', () => {
   let provider: AzureSpeechTTSProvider;
   let mockFetch: ReturnType<typeof makeAudioFetch>;
@@ -37,34 +50,39 @@ describe('AzureSpeechTTSProvider', () => {
     });
   });
 
-  it('reports provider id, name, and streaming capability', () => {
+  it('should report correct provider id, name, and streaming capability', () => {
     expect(provider.id).toBe('azure-speech-tts');
     expect(provider.supportsStreaming).toBe(true);
     expect(provider.getProviderName()).toBe('Azure Speech (TTS)');
   });
 
-  it('posts to the correct Azure TTS endpoint for the configured region', async () => {
+  it('should POST to the correct Azure TTS endpoint for the configured region', async () => {
     await provider.synthesize('Hello world');
 
     const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+    // Note: TTS uses tts.speech.microsoft.com (not stt.)
     expect(url).toBe('https://eastus.tts.speech.microsoft.com/cognitiveservices/v1');
   });
 
-  it('sends the required Azure headers', async () => {
+  it('should send the required Azure headers for SSML synthesis', async () => {
     await provider.synthesize('Hello world');
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
+    // Subscription key authentication
     expect(headers['Ocp-Apim-Subscription-Key']).toBe('azure-key');
+    // Content type must be SSML (not plain text)
     expect(headers['Content-Type']).toBe('application/ssml+xml');
+    // Output format controls the audio encoding
     expect(headers['X-Microsoft-OutputFormat']).toBe('audio-24khz-96kbitrate-mono-mp3');
   });
 
-  it('sends well-formed SSML with the default voice', async () => {
+  it('should send well-formed SSML with the default voice', async () => {
     await provider.synthesize('Hello world');
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     const body = init.body as string;
+    // Verify SSML structure
     expect(body).toContain('<speak version="1.0"');
     expect(body).toContain('xmlns="http://www.w3.org/2001/10/synthesis"');
     expect(body).toContain('<voice name="en-US-JennyNeural">');
@@ -73,34 +91,38 @@ describe('AzureSpeechTTSProvider', () => {
     expect(body).toContain('</speak>');
   });
 
-  it('uses the voice from options when provided', async () => {
+  it('should use the voice from options when provided instead of the default', async () => {
     await provider.synthesize('Hi', { voice: 'en-GB-RyanNeural' });
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(init.body as string).toContain('<voice name="en-GB-RyanNeural">');
   });
 
-  it('escapes XML special characters in the text body', async () => {
+  it('should escape XML special characters in the text body', async () => {
     await provider.synthesize('<script>alert("xss")</script> & more');
 
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     const body = init.body as string;
+    // Angle brackets must be escaped to prevent SSML injection
     expect(body).toContain('&lt;script&gt;');
     expect(body).toContain('&amp;');
+    // Raw angle brackets must NOT appear in the text content
     expect(body).not.toContain('<script>');
   });
 
-  it('returns the audio buffer wrapped in SpeechSynthesisResult', async () => {
+  it('should return the audio buffer wrapped in SpeechSynthesisResult', async () => {
     const result = await provider.synthesize('Hello world');
 
     expect(result.audioBuffer).toBeInstanceOf(Buffer);
+    // MIME type should match the X-Microsoft-OutputFormat selection
     expect(result.mimeType).toBe('audio/mpeg');
     expect(result.voiceUsed).toBe('en-US-JennyNeural');
     expect(result.cost).toBe(0);
+    // Usage should track the input character count
     expect(result.usage?.characters).toBe('Hello world'.length);
   });
 
-  it('throws a descriptive error on non-2xx synthesis response', async () => {
+  it('should throw a descriptive error including status code on non-2xx synthesis response', async () => {
     const errFetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -117,8 +139,12 @@ describe('AzureSpeechTTSProvider', () => {
     );
   });
 
+  /**
+   * Tests for the listAvailableVoices() method that fetches voice catalog
+   * from the Azure region and maps to normalized SpeechVoice shape.
+   */
   describe('listAvailableVoices()', () => {
-    it('fetches from the voices/list endpoint', async () => {
+    it('should fetch from the voices/list endpoint for the configured region', async () => {
       const voiceFetch = makeVoiceListFetch([]);
       const p = new AzureSpeechTTSProvider({
         key: 'k',
@@ -136,7 +162,7 @@ describe('AzureSpeechTTSProvider', () => {
       expect(headers?.['Ocp-Apim-Subscription-Key']).toBe('k');
     });
 
-    it('maps Azure voice entries to SpeechVoice shape', async () => {
+    it('should map Azure voice entries to normalized SpeechVoice shape', async () => {
       const azureVoices = [
         {
           ShortName: 'en-US-JennyNeural',
@@ -166,16 +192,16 @@ describe('AzureSpeechTTSProvider', () => {
 
       expect(voices).toHaveLength(2);
       expect(voices[0]).toMatchObject({
-        id: 'en-US-JennyNeural',
-        name: 'Jenny',
-        gender: 'female',
-        lang: 'en-US',
+        id: 'en-US-JennyNeural',  // Uses ShortName as the voice id
+        name: 'Jenny',             // Uses DisplayName
+        gender: 'female',          // Lowercased from 'Female'
+        lang: 'en-US',             // Uses LocaleName
         provider: 'azure-speech-tts',
       });
       expect(voices[1].gender).toBe('male');
     });
 
-    it('throws on non-2xx voice list response', async () => {
+    it('should throw on non-2xx voice list response', async () => {
       const errFetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
