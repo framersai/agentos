@@ -52,6 +52,9 @@ export { AcousticEndpointDetector } from './AcousticEndpointDetector.js';
 // WebSocket-based transport implementation
 export { WebSocketStreamTransport } from './WebSocketStreamTransport.js';
 
+// WebRTC DataChannel-based transport implementation
+export { WebRTCStreamTransport, createWebRTCTransport } from './WebRTCStreamTransport.js';
+
 // Central pipeline orchestrator (state machine)
 export { VoicePipelineOrchestrator } from './VoicePipelineOrchestrator.js';
 
