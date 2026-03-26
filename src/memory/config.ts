@@ -100,6 +100,53 @@ export interface ConsolidationConfig {
   mergeSimilarityThreshold: number;
   /** Minimum cluster size for schema integration. @default 5 */
   minClusterSize: number;
+
+  // ---- Facade / lifecycle extensions ----
+
+  /**
+   * What event or schedule triggers a consolidation run.
+   * - `'turns'`    – fire after every N conversation turns (`every` = turn count).
+   * - `'interval'` – fire on a wall-clock timer (`every` = milliseconds).
+   * - `'manual'`   – only fire when explicitly requested.
+   * @default 'interval'
+   */
+  trigger?: 'turns' | 'interval' | 'manual';
+
+  /**
+   * Numeric complement to `trigger`.
+   * When `trigger='turns'` this is the turn count; when `trigger='interval'`
+   * this is the millisecond period.
+   * @default 3_600_000
+   */
+  every?: number;
+
+  /**
+   * Minimum Ebbinghaus strength below which a trace is pruned.
+   * Must be between 0 and 1.
+   * @default 0.05
+   */
+  pruneThreshold?: number;
+
+  /**
+   * Cosine similarity above which two traces are candidates for merging.
+   * Must be between 0 and 1.
+   * @default 0.92
+   */
+  mergeThreshold?: number;
+
+  /**
+   * Whether the consolidation engine should derive new insight traces from
+   * clusters of related memories during each cycle.
+   * @default true
+   */
+  deriveInsights?: boolean;
+
+  /**
+   * Maximum number of new insight traces the engine may derive per cycle.
+   * Guards against unbounded graph growth.
+   * @default 10
+   */
+  maxDerivedPerCycle?: number;
 }
 
 // ---------------------------------------------------------------------------
