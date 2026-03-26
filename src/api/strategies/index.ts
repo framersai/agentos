@@ -4,9 +4,23 @@
  *
  * Maps an {@link AgencyStrategy} discriminant to the concrete compiler that
  * produces a {@link CompiledStrategy}. Supports sequential, parallel, debate,
- * review-loop, and hierarchical strategies. When `adaptive` mode is enabled
- * on a non-hierarchical strategy, the dispatcher wraps it with an implicit
- * hierarchical manager that may override the default strategy at runtime.
+ * review-loop, hierarchical, and graph strategies.
+ *
+ * ## Adaptive mode
+ *
+ * When `adaptive` mode is enabled on a non-hierarchical strategy, the dispatcher
+ * wraps it with an implicit hierarchical manager that may override the default
+ * strategy at runtime. This works by:
+ *
+ * 1. Appending strategy-awareness instructions to the manager prompt.
+ * 2. Setting `adaptive: false` on the inner call to prevent infinite recursion.
+ * 3. Delegating to `compileHierarchical()` which creates delegation tools.
+ *
+ * The adaptive wrapper is transparent to the caller -- it still receives a
+ * standard {@link CompiledStrategy} with `execute` and `stream` methods.
+ *
+ * @see {@link compileStrategy} -- the main entry point for strategy compilation.
+ * @see {@link agency} -- the factory that calls compileStrategy during construction.
  */
 import type {
   AgencyStrategy,
@@ -34,14 +48,25 @@ import { compileGraph } from './graph.js';
  * @param agents - Named roster of agent configs or pre-built `Agent` instances.
  * @param agencyConfig - Full agency-level configuration providing fallback values.
  * @returns A compiled strategy with `execute` and `stream` methods.
- * @throws {Error} When the requested strategy is not yet implemented.
+ * @throws {Error} When the requested strategy is not yet implemented (e.g. a
+ *         future strategy discriminant that has been added to `AgencyStrategy`
+ *         but not yet wired here).
+ *
+ * @example
+ * ```ts
+ * const strategy = compileStrategy('sequential', agents, agencyConfig);
+ * const result = await strategy.execute('Summarise AI research.');
+ * ```
  */
 export function compileStrategy(
   strategy: AgencyStrategy,
   agents: Record<string, BaseAgentConfig | Agent>,
   agencyConfig: AgencyOptions,
 ): CompiledStrategy {
-  /* When adaptive mode is enabled on non-hierarchical strategies, wrap with a manager. */
+  // When adaptive mode is enabled on non-hierarchical strategies, wrap with
+  // a manager that can override the strategy at runtime. Hierarchical is
+  // excluded because it IS the manager pattern -- wrapping it again would
+  // create a pointless double-manager layer.
   if (agencyConfig.adaptive && strategy !== 'hierarchical') {
     return compileAdaptiveWrapper(strategy, agents, agencyConfig);
   }
@@ -52,10 +77,15 @@ export function compileStrategy(
 /**
  * Core strategy compiler without adaptive wrapping.
  *
+ * Dispatches on the strategy discriminant to the appropriate concrete compiler.
+ * Each compiler returns a {@link CompiledStrategy} with consistent `execute`
+ * and `stream` method signatures.
+ *
  * @param strategy - Strategy discriminant.
  * @param agents - Named agent roster.
  * @param agencyConfig - Agency-level configuration.
  * @returns A compiled strategy.
+ * @throws {Error} When the strategy is not recognised.
  * @internal
  */
 function compileStrategyCore(
@@ -90,7 +120,13 @@ function compileStrategyCore(
  * just like the hierarchical strategy, but with the additional context of the
  * original intended strategy.
  *
- * @param defaultStrategy - The user-declared default strategy.
+ * ## Recursion prevention
+ *
+ * `adaptive: false` is set on the inner config to prevent the hierarchical
+ * compiler from re-entering the adaptive wrapper, which would cause infinite
+ * recursion.
+ *
+ * @param defaultStrategy - The user-declared default strategy (e.g. `"sequential"`).
  * @param agents - Named agent roster.
  * @param agencyConfig - Agency-level configuration.
  * @returns A compiled hierarchical strategy with adaptive instructions.
@@ -109,7 +145,7 @@ function compileAdaptiveWrapper(
   const adaptiveConfig: AgencyOptions = {
     ...agencyConfig,
     instructions: adaptiveInstructions,
-    /* Disable adaptive on the inner call to prevent infinite recursion. */
+    // Disable adaptive on the inner call to prevent infinite recursion.
     adaptive: false,
   };
 

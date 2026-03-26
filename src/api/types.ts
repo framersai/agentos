@@ -619,8 +619,33 @@ export type AgencyStreamPart =
 // ---------------------------------------------------------------------------
 
 /**
- * A stateful agent instance.  Returned by both `agent()` and `agency()`.
+ * A stateful agent instance. Returned by both `agent()` and `agency()`.
  * The `agency()` variant additionally coordinates multiple underlying agents.
+ *
+ * The interface is intentionally minimal so that an `agency()` return value
+ * is a drop-in replacement for an `agent()` return value -- callers can
+ * swap between single-agent and multi-agent without changing call sites.
+ *
+ * @example
+ * ```ts
+ * // Single agent:
+ * const solo = agent({ model: 'openai:gpt-4o', instructions: 'Be helpful.' });
+ * const result = await solo.generate('Hello!');
+ *
+ * // Multi-agent agency (same interface):
+ * const team = agency({
+ *   model: 'openai:gpt-4o',
+ *   agents: { a: { instructions: 'Research.' }, b: { instructions: 'Write.' } },
+ * });
+ * const teamResult = await team.generate('Summarise AI research.');
+ *
+ * // Both can be used interchangeably:
+ * async function run(a: Agent) { return a.generate('Task'); }
+ * await run(solo);
+ * await run(team);
+ * ```
+ *
+ * @see {@link Agency} -- type alias confirming structural equivalence.
  */
 export interface Agent {
   /**
@@ -789,6 +814,34 @@ export interface BaseAgentConfig {
  * Configuration for the `agency()` factory function.
  * Extends `BaseAgentConfig` with a required `agents` roster and optional
  * multi-agent orchestration settings.
+ *
+ * @example
+ * ```ts
+ * import { agency, hitl } from '@framers/agentos';
+ *
+ * const myAgency = agency({
+ *   model: 'openai:gpt-4o',
+ *   strategy: 'sequential',
+ *   agents: {
+ *     researcher: { instructions: 'Find relevant papers.' },
+ *     writer:     { instructions: 'Write a clear summary.' },
+ *   },
+ *   controls: { maxTotalTokens: 50_000, onLimitReached: 'warn' },
+ *   hitl: {
+ *     approvals: { beforeTool: ['delete-file'], beforeReturn: true },
+ *     handler: hitl.autoApprove(),
+ *     timeoutMs: 30_000,
+ *     onTimeout: 'reject',
+ *   },
+ *   on: {
+ *     agentStart: (e) => console.log(`[${e.agent}] started`),
+ *     agentEnd: (e) => console.log(`[${e.agent}] done in ${e.durationMs}ms`),
+ *   },
+ * });
+ * ```
+ *
+ * @see {@link agency} -- the factory function that consumes this configuration.
+ * @see {@link BaseAgentConfig} -- the shared config surface inherited by this interface.
  */
 export interface AgencyOptions extends BaseAgentConfig {
   /**

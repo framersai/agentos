@@ -2,9 +2,24 @@
  * @file sequential.ts
  * Sequential strategy compiler for the Agency API.
  *
+ * ## Execution model
+ *
  * Iterates agents in declaration order. Each agent receives the previous
  * agent's output as context, forming a chain where the final agent's response
  * is the overall result. Token usage is aggregated across all agent calls.
+ *
+ * This is the simplest and most common strategy -- ideal for pipelines like
+ * `researcher -> editor -> reviewer` where each step builds on the previous.
+ *
+ * ## HITL integration
+ *
+ * Each agent is gated by {@link checkBeforeAgent} before invocation. If the
+ * HITL handler rejects an agent, it is skipped and the chain continues with
+ * the next agent using the same context (the rejected agent's contribution
+ * is simply omitted).
+ *
+ * @see {@link compileStrategy} -- the dispatcher that selects this compiler.
+ * @see {@link checkBeforeAgent} -- the HITL gate applied before each agent.
  */
 import { agent as createAgent } from '../agent.js';
 import type {
@@ -24,11 +39,21 @@ import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
  * Agents are invoked one-by-one in their declared iteration order. Each agent
  * after the first receives a prompt that includes both the original task and
  * the preceding agent's output, enabling progressive refinement chains such as
- * researcher -> editor -> reviewer.
+ * `researcher -> editor -> reviewer`.
  *
  * @param agents - Named roster of agent configs or pre-built `Agent` instances.
+ *                 Iteration order of `Object.entries()` determines execution order.
  * @param agencyConfig - Agency-level configuration providing fallback model/provider/tools.
  * @returns A {@link CompiledStrategy} with `execute` and `stream` methods.
+ *
+ * @example
+ * ```ts
+ * const strategy = compileSequential(
+ *   { researcher: { instructions: 'Find info.' }, writer: { instructions: 'Write summary.' } },
+ *   agencyConfig,
+ * );
+ * const result = await strategy.execute('Summarise recent AI research.');
+ * ```
  */
 export function compileSequential(
   agents: Record<string, BaseAgentConfig | Agent>,
@@ -42,10 +67,13 @@ export function compileSequential(
       const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       for (const [name, agentOrConfig] of Object.entries(agents)) {
-        /* HITL: check beforeAgent gate before invoking this agent. */
+        // HITL: check beforeAgent gate before invoking this agent.
+        // Returns null when no gate applies; returns a decision when the
+        // agent is in the approval list.
         const decision = await checkBeforeAgent(name, context, agentCalls, agencyConfig);
         if (decision && !decision.approved) {
-          /* Agent was rejected — skip and continue to the next agent. */
+          // Agent was rejected by HITL -- skip and continue to the next
+          // agent in the chain. The context remains unchanged.
           continue;
         }
 
@@ -53,7 +81,9 @@ export function compileSequential(
           ? agentOrConfig
           : createAgent({ ...mergeDefaults(agentOrConfig, agencyConfig) });
 
-        /* Apply instruction modifications from the approval decision if any. */
+        // Apply instruction modifications from the approval decision if any.
+        // This allows the human reviewer to inject additional guidance into
+        // the agent's context without modifying the original prompt.
         const effectiveContext = decision?.modifications?.instructions
           ? `${context}\n\n[Additional instructions]: ${decision.modifications.instructions}`
           : context;
@@ -83,7 +113,8 @@ export function compileSequential(
         totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
         totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
 
-        /* Chain: subsequent agents see the original task plus previous output. */
+        // Chain: subsequent agents see the original task plus previous output.
+        // This ensures each agent has full context without losing the original prompt.
         context = `Original task: ${prompt}\n\nPrevious agent (${name}) output:\n${resultText}`;
         lastResult = result;
       }
@@ -92,13 +123,13 @@ export function compileSequential(
     },
 
     stream(prompt, opts) {
-      /*
+      /**
        * Real streaming for the sequential strategy: yields per-agent
        * `agent-start` and `agent-end` events bracketing each agent's text
        * tokens, plus agency-level start/end events wrapping the whole run.
        *
        * `fullStream` emits the full {@link AgencyStreamPart} union so callers
-       * can observe every agent transition.  `textStream` filters to just the
+       * can observe every agent transition. `textStream` filters to just the
        * `text` parts so the result stays compatible with `StreamTextResult`.
        *
        * Usage accounting is collected per-agent and summed into a final total.
@@ -182,7 +213,7 @@ export function compileSequential(
         };
       }
 
-      /*
+      /**
        * Because an `AsyncGenerator` can only be iterated once, we materialise
        * a single generator and share it between `fullStream`, `textStream`,
        * `text`, and `usage` by buffering all events.

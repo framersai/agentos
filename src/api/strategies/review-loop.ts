@@ -2,10 +2,26 @@
  * @file review-loop.ts
  * Review-loop strategy compiler for the Agency API.
  *
+ * ## Execution model
+ *
  * The first agent (producer) creates or revises work, the second agent
  * (reviewer) evaluates it. The loop continues until the reviewer approves
  * or `maxRounds` is exhausted. Additional agents beyond the first two are
  * reserved for future specialist injection.
+ *
+ * ## Reviewer response format
+ *
+ * The reviewer is instructed to respond with JSON:
+ * ```json
+ * { "approved": true, "feedback": "Looks great!" }
+ * ```
+ * When the response is not valid JSON or lacks an `approved` boolean, the
+ * entire text is treated as rejection feedback and the producer is asked
+ * to revise. This graceful fallback ensures the loop always makes progress
+ * even when the reviewer doesn't follow the format precisely.
+ *
+ * @see {@link compileStrategy} -- the dispatcher that selects this compiler.
+ * @see {@link compileDebate} -- an alternative iterative strategy for adversarial discourse.
  */
 import { agent as createAgent } from '../agent.js';
 import type {
@@ -25,6 +41,12 @@ import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared
  * When the response is not valid JSON, or lacks an `approved` boolean, the entire
  * text is treated as feedback and the draft is considered not approved.
  *
+ * ## Why parse gracefully?
+ *
+ * LLMs frequently wrap JSON in markdown code fences or add prose around it.
+ * By falling back to "not approved with full text as feedback", we ensure the
+ * loop always makes progress instead of crashing on malformed JSON.
+ *
  * @param text - Raw reviewer output text.
  * @returns Parsed review with approval status and feedback string.
  */
@@ -38,7 +60,7 @@ function parseReview(text: string): { approved: boolean; feedback: string } {
       };
     }
   } catch {
-    /* Not valid JSON — fall through to treat entire text as feedback. */
+    // Not valid JSON -- fall through to treat entire text as feedback.
   }
   return { approved: false, feedback: text };
 }
@@ -53,10 +75,24 @@ function parseReview(text: string): { approved: boolean; feedback: string } {
  * producer for revision, up to `maxRounds` iterations.
  *
  * @param agents - Named roster of agent configs or pre-built `Agent` instances.
- *   At least two agents are required (producer + reviewer).
+ *   At least two agents are required (producer + reviewer). The first entry
+ *   is the producer, the second is the reviewer.
  * @param agencyConfig - Agency-level configuration providing fallback model/provider/tools.
  * @returns A {@link CompiledStrategy} with `execute` and `stream` methods.
  * @throws {AgencyConfigError} When fewer than two agents are provided.
+ *
+ * @example
+ * ```ts
+ * const strategy = compileReviewLoop(
+ *   {
+ *     writer: { instructions: 'Write a blog post.' },
+ *     editor: { instructions: 'Review for clarity and accuracy.' },
+ *   },
+ *   { maxRounds: 3, agents: { ... } },
+ * );
+ * const result = await strategy.execute('Write about TypeScript generics.');
+ * // result.text is the final approved draft.
+ * ```
  */
 export function compileReviewLoop(
   agents: Record<string, BaseAgentConfig | Agent>,
@@ -69,6 +105,8 @@ export function compileReviewLoop(
     );
   }
 
+  // Default to 3 rounds when not specified -- enough for meaningful revision
+  // without excessive back-and-forth.
   const maxRounds = agencyConfig.maxRounds ?? 3;
   const [producerName, producerConfig] = entries[0];
   const [reviewerName, reviewerConfig] = entries[1];
@@ -85,14 +123,17 @@ export function compileReviewLoop(
       let feedback = '';
 
       for (let round = 0; round < maxRounds; round++) {
-        /* ---- HITL: check beforeAgent gate for the producer ---- */
+        // ---- HITL: check beforeAgent gate for the producer ----
         const prodDecision = await checkBeforeAgent(producerName, prompt, agentCalls, agencyConfig);
         if (prodDecision && !prodDecision.approved) {
-          /* Producer rejected — terminate the loop early. */
+          // Producer rejected -- terminate the loop early.
+          // The current draft (empty or from a prior round) becomes the final output.
           break;
         }
 
-        /* ---- Producer creates or revises ---- */
+        // ---- Producer creates or revises ----
+        // On the first round, the producer sees the original task.
+        // On subsequent rounds, it sees the task + its prior draft + reviewer feedback.
         const prodPrompt =
           round === 0
             ? prompt
@@ -125,14 +166,14 @@ export function compileReviewLoop(
         totalUsage.completionTokens += prodUsage.completionTokens ?? 0;
         totalUsage.totalTokens += prodUsage.totalTokens ?? 0;
 
-        /* ---- HITL: check beforeAgent gate for the reviewer ---- */
+        // ---- HITL: check beforeAgent gate for the reviewer ----
         const revDecision = await checkBeforeAgent(reviewerName, prompt, agentCalls, agencyConfig);
         if (revDecision && !revDecision.approved) {
-          /* Reviewer rejected — accept the current draft and break. */
+          // Reviewer rejected -- accept the current draft and break.
           break;
         }
 
-        /* ---- Reviewer evaluates ---- */
+        // ---- Reviewer evaluates ----
         const revPrompt =
           `Review this work for the task: "${prompt}"\n\n` +
           `Draft:\n${draft}\n\n` +
@@ -163,7 +204,8 @@ export function compileReviewLoop(
         totalUsage.completionTokens += revUsage.completionTokens ?? 0;
         totalUsage.totalTokens += revUsage.totalTokens ?? 0;
 
-        /* Parse the review decision. */
+        // Parse the review decision. If approved, exit the loop early.
+        // If not, capture feedback for the next producer revision.
         const review = parseReview(revText);
         if (review.approved) break;
         feedback = review.feedback;
@@ -173,7 +215,7 @@ export function compileReviewLoop(
     },
 
     stream(prompt, opts) {
-      /*
+      /**
        * For v1: streaming delegates to execute() and wraps the resolved text
        * as a single-chunk async iterable. A future version will stream the
        * producer's output in real-time during the final round.

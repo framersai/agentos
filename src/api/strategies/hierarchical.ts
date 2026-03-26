@@ -2,10 +2,30 @@
  * @file hierarchical.ts
  * Hierarchical strategy compiler for the Agency API.
  *
+ * ## Execution model
+ *
  * A manager agent (instantiated from the agency-level config) delegates
  * subtasks to sub-agents via tool calls. Each sub-agent is exposed as a
  * `delegate_to_<name>` tool that the manager can invoke to assign work.
  * The manager synthesizes sub-agent outputs into a final answer.
+ *
+ * ## Emergent wiring
+ *
+ * The manager does not follow a fixed execution order. It decides which
+ * agents to call, in what order, and with what subtasks -- based on the
+ * user prompt and its system instructions. This makes hierarchical the
+ * most flexible strategy, but also the most dependent on the manager
+ * model's ability to plan and delegate effectively.
+ *
+ * ## Tool-based delegation
+ *
+ * Each sub-agent becomes a tool with a JSON Schema parameter (`task: string`).
+ * The tool's `execute` function invokes the sub-agent's `generate()` and
+ * returns the result text. This leverages the LLM's native tool-calling
+ * capability for delegation, avoiding custom routing logic.
+ *
+ * @see {@link compileStrategy} -- the dispatcher that selects this compiler.
+ * @see {@link compileAdaptiveWrapper} -- wraps other strategies with a hierarchical manager.
  */
 import { agent as createAgent } from '../agent.js';
 import type {
@@ -21,6 +41,9 @@ import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared
 
 /**
  * Extracts a human-readable description from an agent config or instance.
+ *
+ * Used to build the team roster in the manager's system prompt so the manager
+ * knows what each sub-agent specialises in.
  *
  * @param agentOrConfig - Either a pre-built Agent or a raw BaseAgentConfig.
  * @returns The instructions string if available, otherwise a generic label.
@@ -47,7 +70,21 @@ function getAgentDescription(agentOrConfig: BaseAgentConfig | Agent): string {
  * @param agencyConfig - Agency-level configuration; must include `model` or `provider`
  *   for the manager agent.
  * @returns A {@link CompiledStrategy} with `execute` and `stream` methods.
- * @throws {AgencyConfigError} When no agency-level model/provider is available for the manager.
+ * @throws {AgencyConfigError} When no agency-level model/provider is available
+ *   for the manager agent.
+ *
+ * @example
+ * ```ts
+ * const strategy = compileHierarchical(
+ *   {
+ *     researcher: { instructions: 'Find academic sources.' },
+ *     writer: { instructions: 'Write clear prose.' },
+ *   },
+ *   { model: 'openai:gpt-4o', agents: { ... } },
+ * );
+ * const result = await strategy.execute('Write a literature review on LLMs.');
+ * // The manager decided which agents to call and in what order.
+ * ```
  */
 export function compileHierarchical(
   agents: Record<string, BaseAgentConfig | Agent>,
@@ -63,7 +100,9 @@ export function compileHierarchical(
     async execute(prompt, opts) {
       const agentCalls: AgentCallRecord[] = [];
 
-      /* Build one tool per sub-agent for the manager to delegate to. */
+      // Build one tool per sub-agent for the manager to delegate to.
+      // The tool name follows the `delegate_to_<name>` convention so the
+      // manager can infer the agent's role from the tool name alone.
       const agentTools: ToolDefinitionMap = {};
       for (const [name, agentOrConfig] of Object.entries(agents)) {
         const description = getAgentDescription(agentOrConfig);
@@ -78,7 +117,7 @@ export function compileHierarchical(
             required: ['task'],
           },
           execute: async (args: { task: string }) => {
-            /* HITL: check beforeAgent gate before delegating to this sub-agent. */
+            // HITL: check beforeAgent gate before delegating to this sub-agent.
             const decision = await checkBeforeAgent(name, args.task, agentCalls, agencyConfig);
             if (decision && !decision.approved) {
               return { success: false, data: `Agent "${name}" execution was rejected by HITL.` };
@@ -86,7 +125,7 @@ export function compileHierarchical(
 
             const a = resolveAgent(agentOrConfig, agencyConfig);
 
-            /* Apply instruction modifications from the approval decision if any. */
+            // Apply instruction modifications from the approval decision if any.
             const effectiveTask = decision?.modifications?.instructions
               ? `${args.task}\n\n[Additional instructions]: ${decision.modifications.instructions}`
               : args.task;
@@ -99,6 +138,7 @@ export function compileHierarchical(
             const resultUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
             const resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
+            // Record the sub-agent call for the final result's agentCalls array.
             agentCalls.push({
               agent: name,
               input: args.task,
@@ -117,7 +157,8 @@ export function compileHierarchical(
         };
       }
 
-      /* Build the team roster description for the manager's system prompt. */
+      // Build the team roster description for the manager's system prompt.
+      // This tells the manager who is on the team and what each member does.
       const teamRoster = Object.entries(agents)
         .map(([name, c]) => `- ${name}: ${getAgentDescription(c)}`)
         .join('\n');
@@ -128,7 +169,8 @@ export function compileHierarchical(
         `Use the delegate_to_<name> tools to assign work. Synthesize their outputs into a final answer.` +
         (agencyConfig.instructions ? `\n\n${agencyConfig.instructions}` : '');
 
-      /* Merge agency-level tools with the delegation tools. */
+      // Merge agency-level tools with the delegation tools. Agency tools
+      // (e.g. shared search, calculator) are available alongside delegation.
       const mergedTools = { ...(agencyConfig.tools ?? {}), ...agentTools };
 
       const manager = createAgent({
@@ -138,6 +180,8 @@ export function compileHierarchical(
         baseUrl: agencyConfig.baseUrl,
         instructions: managerInstructions,
         tools: mergedTools,
+        // Higher maxSteps than default because the manager needs room to
+        // call multiple delegation tools before synthesizing.
         maxSteps: agencyConfig.maxSteps ?? 10,
       });
 
@@ -146,7 +190,7 @@ export function compileHierarchical(
     },
 
     stream(prompt, opts) {
-      /*
+      /**
        * For v1: streaming delegates to execute() and wraps the resolved text
        * as a single-chunk async iterable. A future version will stream the
        * manager's output in real-time.
