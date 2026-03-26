@@ -40,3 +40,9 @@ export { EmergentCapabilityEngine } from './EmergentCapabilityEngine.js';
 export type { EmergentCapabilityEngineDeps } from './EmergentCapabilityEngine.js';
 export { ForgeToolMetaTool } from './ForgeToolMetaTool.js';
 export type { ForgeToolInput } from './ForgeToolMetaTool.js';
+export {
+  exportToolAsSkill,
+  buildCapabilityYaml,
+  writeSkillFile,
+  exportToolAsSkillPack,
+} from './SkillExporter.js';
