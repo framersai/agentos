@@ -103,6 +103,11 @@
       "default": "./dist/core/tools/*.js",
       "types": "./dist/core/tools/*.d.ts"
     },
+    "./core/vision": {
+      "import": "./dist/core/vision/index.js",
+      "default": "./dist/core/vision/index.js",
+      "types": "./dist/core/vision/index.d.ts"
+    },
     "./discovery": {
       "import": "./dist/discovery/index.js",
       "default": "./dist/discovery/index.js",
@@ -248,6 +253,8 @@
     "graphology-types": ">=0.24.0",
     "hnswlib-node": ">=3.0.0",
     "neo4j-driver": ">=5.0.0",
+    "ppu-paddle-ocr": ">=3.0.0",
+    "tesseract.js": ">=5.0.0",
     "typescript": ">=5.0.0"
   },
   "peerDependenciesMeta": {
@@ -267,6 +274,12 @@
       "optional": true
     },
     "neo4j-driver": {
+      "optional": true
+    },
+    "ppu-paddle-ocr": {
+      "optional": true
+    },
+    "tesseract.js": {
       "optional": true
     }
   }
