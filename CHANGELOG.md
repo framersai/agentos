@@ -1,3 +1,8 @@
+## <small>0.1.111 (2026-03-26)</small>
+
+* refactor(speech): Opus rewrite — comprehensive TSDoc, inline comments, stricter types across provide ([9b745cd](https://github.com/framersai/agentos/commit/9b745cd))
+* fix: audit fixes — memory + agency critical/high issues ([7d0591c](https://github.com/framersai/agentos/commit/7d0591c))
+
 ## <small>0.1.110 (2026-03-26)</small>
 
 * fix: add ternary support and boolean result handling to safe expression evaluator ([ac4137e](https://github.com/framersai/agentos/commit/ac4137e))
