@@ -6,6 +6,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.resolve(__dirname, 'src');
 
 export default defineConfig({
+  server: {
+    deps: {
+      // Native C++ addons must not be transformed by Vite
+      external: ['better-sqlite3'],
+    },
+  },
+  ssr: {
+    // Mark native modules as external for SSR/Node transforms
+    external: ['better-sqlite3'],
+  },
   resolve: {
     // Prefer TypeScript sources over any co-located compiled JS artifacts.
     extensions: ['.ts', '.tsx', '.mts', '.js', '.jsx', '.mjs', '.cjs', '.json'],
