@@ -154,7 +154,7 @@ export class SqliteImporter {
       return;
     }
 
-    const checkStmt = this.brain.db.prepare<[string], { id: string; created_at: number; tags: string }>(
+    const checkStmt = this.brain.db.prepare<[string, string], { id: string; created_at: number; tags: string }>(
       `SELECT id, created_at, tags
        FROM memory_traces
        WHERE json_extract(metadata, '$.import_hash') = ?

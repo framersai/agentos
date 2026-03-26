@@ -695,7 +695,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     const searchTerm = `%${query}%`;
 
     const rows = this.brain.db
-      .prepare<[string, number], NodeRow>(
+      .prepare<[string, string, number], NodeRow>(
         `SELECT * FROM knowledge_nodes
          WHERE type = 'memory' AND (label LIKE ? OR properties LIKE ?)
          ORDER BY created_at DESC

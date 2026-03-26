@@ -148,7 +148,7 @@ export class SqliteMemoryGraph implements IMemoryGraph {
 
     // Load all memory graph nodes.
     const nodeRows = this.brain.db
-      .prepare<[], NodeRow>(`SELECT id, properties FROM knowledge_nodes WHERE type = ?`)
+      .prepare<[string], NodeRow>(`SELECT id, properties FROM knowledge_nodes WHERE type = ?`)
       .all(NODE_TYPE);
 
     for (const row of nodeRows) {

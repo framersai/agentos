@@ -60,6 +60,13 @@ const DEFAULT_CONSOLIDATION: Required<ConsolidationConfig> = {
   maxTracesPerCycle: 500,
   mergeSimilarityThreshold: 0.92,
   minClusterSize: 5,
+  // Facade-level lifecycle extensions — defaults match ExtendedConsolidationConfig.
+  trigger: 'interval',
+  every: 3_600_000,
+  pruneThreshold: 0.05,
+  mergeThreshold: 0.92,
+  deriveInsights: true,
+  maxDerivedPerCycle: 10,
 };
 
 // ---------------------------------------------------------------------------

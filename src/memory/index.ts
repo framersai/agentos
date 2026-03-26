@@ -163,3 +163,78 @@ export { MarkdownWorkingMemory } from './working/MarkdownWorkingMemory.js';
 export type { WriteResult } from './working/MarkdownWorkingMemory.js';
 export { UpdateWorkingMemoryTool } from './working/UpdateWorkingMemoryTool.js';
 export { ReadWorkingMemoryTool } from './working/ReadWorkingMemoryTool.js';
+
+// --- Memory Facade (Phase 1: Ingestion + Self-Improving Graph) ---
+export { Memory } from './facade/index.js';
+export type { ScoredTrace } from './facade/index.js';
+// Note: ConsolidationResult from the facade is aliased to MemoryConsolidationResult
+// to avoid collision with the existing ConsolidationResult from ConsolidationPipeline.
+export type {
+  MemoryConfig,
+  EmbeddingConfig,
+  ExtendedConsolidationConfig,
+  IngestionConfig,
+  RememberOptions,
+  RecallOptions,
+  IngestOptions,
+  IngestResult,
+  ExportOptions,
+  ImportOptions,
+  ImportResult,
+  ConsolidationResult as MemoryConsolidationResult,
+  MemoryHealth,
+  LoadOptions,
+  LoadedDocument,
+  DocumentMetadata,
+  DocumentChunk,
+  ExtractedImage,
+  ExtractedTable,
+} from './facade/index.js';
+
+// --- Document Ingestion ---
+export type { IDocumentLoader } from './ingestion/IDocumentLoader.js';
+export { TextLoader } from './ingestion/TextLoader.js';
+export { MarkdownLoader } from './ingestion/MarkdownLoader.js';
+export { HtmlLoader } from './ingestion/HtmlLoader.js';
+export { PdfLoader } from './ingestion/PdfLoader.js';
+export { DocxLoader } from './ingestion/DocxLoader.js';
+export { LoaderRegistry } from './ingestion/LoaderRegistry.js';
+export { FolderScanner } from './ingestion/FolderScanner.js';
+export { ChunkingEngine } from './ingestion/ChunkingEngine.js';
+export { MultimodalAggregator } from './ingestion/MultimodalAggregator.js';
+export { UrlLoader } from './ingestion/UrlLoader.js';
+
+// --- Retrieval Feedback ---
+export { RetrievalFeedbackSignal } from './feedback/index.js';
+export type { RetrievalFeedback } from './feedback/index.js';
+
+// --- Self-Improving Consolidation ---
+export { ConsolidationLoop } from './consolidation/index.js';
+
+// --- Import/Export ---
+export {
+  JsonExporter,
+  JsonImporter,
+  MarkdownExporter,
+  MarkdownImporter,
+  ObsidianExporter,
+  ObsidianImporter,
+  SqliteExporter,
+  SqliteImporter,
+  ChatGptImporter,
+} from './io/index.js';
+
+// --- SQLite Storage ---
+export { SqliteBrain } from './store/SqliteBrain.js';
+export { SqliteKnowledgeGraph } from './store/SqliteKnowledgeGraph.js';
+export { SqliteMemoryGraph } from './store/SqliteMemoryGraph.js';
+
+// --- Agent Memory Tools ---
+export {
+  MemoryAddTool,
+  MemoryUpdateTool,
+  MemoryDeleteTool,
+  MemoryMergeTool,
+  MemorySearchTool,
+  MemoryReflectTool,
+} from './tools/index.js';

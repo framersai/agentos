@@ -172,7 +172,7 @@ export class RetrievalFeedbackSignal {
         `SELECT id, trace_id, signal, query, created_at
          FROM retrieval_feedback
          WHERE trace_id = ?
-         ORDER BY created_at DESC
+         ORDER BY created_at DESC, id DESC
          LIMIT ?`,
       )
       .all(traceId, limit);

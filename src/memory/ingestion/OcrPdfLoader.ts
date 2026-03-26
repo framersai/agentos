@@ -91,9 +91,13 @@ class OcrPdfLoader implements IDocumentLoader {
 
     // Attempt to dynamically import tesseract.js.  The import is wrapped in
     // try/catch so a missing package yields a clear message rather than a
-    // cryptic MODULE_NOT_FOUND stack trace.
-    let Tesseract: typeof import('tesseract.js');
+    // cryptic MODULE_NOT_FOUND stack trace.  We use `any` here so that the
+    // optional peer dependency does not require installed type declarations.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let Tesseract: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error — optional peer dependency; types not guaranteed to be installed
       Tesseract = await import('tesseract.js');
     } catch {
       throw new Error(
