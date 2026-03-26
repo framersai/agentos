@@ -193,6 +193,12 @@ export {
 // ============================================================================
 
 export { MultimodalIndexer } from './multimodal/index.js';
+export { SpeechProviderAdapter } from './multimodal/index.js';
+export { LLMVisionAdapter, type LLMVisionAdapterConfig } from './multimodal/index.js';
+export {
+  createMultimodalIndexerFromResolver,
+  type MultimodalIndexerFromResolverOptions,
+} from './multimodal/index.js';
 
 export type {
   ContentModality,
