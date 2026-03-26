@@ -120,6 +120,8 @@ export * from './core/usage/UsageLedger';
 export * from './rag';
 // Cognitive Memory System
 export * from './memory';
+// Query Router (classification, retrieval dispatch, grounded answer generation)
+export * from './query-router/index.js';
 // Orchestration Layer (IR, Events, Checkpoint, Runtime)
 export * from './orchestration/index.js';
 // Provenance, Audit & Immutability
