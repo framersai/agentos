@@ -434,4 +434,43 @@ export class MultimodalIndexer {
       metadata: doc.metadata as Record<string, unknown> | undefined,
     }));
   }
+
+  // -------------------------------------------------------------------------
+  // Memory bridge factory
+  // -------------------------------------------------------------------------
+
+  /**
+   * Create a {@link MultimodalMemoryBridge} using this indexer's providers.
+   *
+   * The bridge extends this indexer's RAG capabilities with cognitive memory
+   * integration, enabling multimodal content to be stored in both the vector
+   * store (for search) and long-term memory (for recall during conversation).
+   *
+   * @param memoryManager - Optional cognitive memory manager for memory trace creation.
+   *   When omitted, the bridge still indexes into RAG but creates no memory traces.
+   * @param options - Bridge configuration overrides (mood, chunk sizes, etc.)
+   * @returns A configured MultimodalMemoryBridge instance
+   *
+   * @example
+   * ```typescript
+   * const bridge = indexer.createMemoryBridge(memoryManager, {
+   *   enableMemory: true,
+   *   defaultChunkSize: 800,
+   * });
+   *
+   * await bridge.ingestImage(imageBuffer, { source: 'user-upload' });
+   * ```
+   *
+   * @see {@link MultimodalMemoryBridge} for full documentation.
+   */
+  createMemoryBridge(
+    memoryManager?: import('../../memory/CognitiveMemoryManager.js').ICognitiveMemoryManager,
+    options?: import('./MultimodalMemoryBridge.js').MultimodalBridgeOptions,
+  ): import('./MultimodalMemoryBridge.js').MultimodalMemoryBridge {
+    // Lazy import to avoid circular dependency at module load time.
+    // The bridge depends on the indexer, and this factory lives on the indexer,
+    // so we use a dynamic require pattern with the already-resolved class.
+    const { MultimodalMemoryBridge } = require('./MultimodalMemoryBridge.js');
+    return new MultimodalMemoryBridge(this, memoryManager, options);
+  }
 }
