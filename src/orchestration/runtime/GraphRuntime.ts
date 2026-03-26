@@ -25,6 +25,7 @@ import type { ICheckpointStore, Checkpoint } from '../checkpoint/ICheckpointStor
 import { StateManager } from './StateManager.js';
 import { NodeScheduler } from './NodeScheduler.js';
 import { NodeExecutor, type NodeExecutionResult } from './NodeExecutor.js';
+import { safeEvaluateExpression } from './safeExpressionEvaluator.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -720,23 +721,7 @@ function shouldRetry(policy: RetryPolicy, errorMessage?: string): boolean {
 }
 
 function evaluateConditionExpression(expr: string, state: GraphState): unknown {
-  try {
-    const rewritten = expr.replace(
-      /\b(?:state\.)?(scratch|input|artifacts)\.(\w+(?:\.\w+)*)/g,
-      (_match: string, partition: string, path: string) => {
-        const parts = path.split('.');
-        let access = `state.${partition}`;
-        for (const part of parts) {
-          access += `?.["${part}"]`;
-        }
-        return access;
-      },
-    );
-    // eslint-disable-next-line no-new-func
-    return new Function('state', `return (${rewritten});`)(state);
-  } catch {
-    return false;
-  }
+  return safeEvaluateExpression(expr, state);
 }
 
 /**

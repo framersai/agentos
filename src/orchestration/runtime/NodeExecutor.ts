@@ -17,6 +17,7 @@ import type { GraphNode, GraphState, GraphCondition, CompiledExecutionGraph } fr
 import type { GraphEvent } from '../events/GraphEvent.js';
 import type { LoopController, LoopChunk, LoopOutput } from './LoopController.js';
 import type { VoiceNodeExecutor } from './VoiceNodeExecutor.js';
+import { safeEvaluateExpression } from './safeExpressionEvaluator.js';
 
 // ---------------------------------------------------------------------------
 // Public result type
@@ -556,24 +557,7 @@ export class NodeExecutor {
    * @returns The resolved target node id, or `'false'` if evaluation fails.
    */
   private evaluateExpression(expr: string, state: Partial<GraphState>): string {
-    const resolved = expr.replace(
-      /\b(scratch|input|artifacts)\b(?:\.(\w+(?:\.\w+)*))?/g,
-      (_, partition: string, path?: string) => {
-        let val: unknown = (state as Record<string, unknown>)?.[partition];
-        if (path) {
-          for (const key of path.split('.')) {
-            val = (val as Record<string, unknown> | undefined)?.[key];
-          }
-        }
-        return JSON.stringify(val ?? null);
-      },
-    );
-    try {
-      const fn = new Function(`return String(${resolved})`);
-      return fn();
-    } catch {
-      return 'false';
-    }
+    return safeEvaluateExpression(expr, state);
   }
 
   /**
