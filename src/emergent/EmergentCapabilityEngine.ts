@@ -24,10 +24,57 @@ import type {
 } from './types.js';
 import type { ToolCandidate } from './EmergentJudge.js';
 import type { ITool, ToolExecutionContext, ToolExecutionResult } from '../core/tools/ITool.js';
+import type { PersonalityMutationStore } from './PersonalityMutationStore.js';
 import { ComposableToolBuilder } from './ComposableToolBuilder.js';
 import { SandboxedToolForge } from './SandboxedToolForge.js';
 import { EmergentJudge } from './EmergentJudge.js';
 import { EmergentToolRegistry } from './EmergentToolRegistry.js';
+
+// ============================================================================
+// SELF-IMPROVEMENT TOOL DEPENDENCIES
+// ============================================================================
+
+/**
+ * Dependencies required to construct the four self-improvement tools.
+ *
+ * Callers provide runtime hooks for personality access, skill management,
+ * tool execution, and optional memory storage. The engine uses these to
+ * wire each tool without hard-coupling to specific service implementations.
+ */
+export interface SelfImprovementToolDeps {
+  /** Returns the current HEXACO personality trait values as a trait→value map. */
+  getPersonality: () => Record<string, number>;
+
+  /** Sets a single HEXACO personality trait to the given value (already clamped). */
+  setPersonality: (trait: string, value: number) => void;
+
+  /** Durable store for personality mutations (used by AdaptPersonalityTool for persistence). */
+  mutationStore: PersonalityMutationStore;
+
+  /** Returns the agent's currently active skills. */
+  getActiveSkills: () => Array<{ skillId: string; name: string; category: string }>;
+
+  /** Returns skill IDs that may not be disabled (core skills). */
+  getLockedSkills: () => string[];
+
+  /** Dynamically loads a skill by ID and returns its metadata. */
+  loadSkill: (id: string) => Promise<{ skillId: string; name: string; category: string }>;
+
+  /** Unloads (disables) a previously loaded skill. */
+  unloadSkill: (id: string) => void;
+
+  /** Searches the skill registry by query string, returning matching skill metadata. */
+  searchSkills: (query: string) => Array<{ skillId: string; name: string; category: string; description: string }>;
+
+  /** Executes a registered tool by name with the given arguments. */
+  executeTool: (name: string, args: unknown) => Promise<unknown>;
+
+  /** Returns the names of all currently registered tools. */
+  listTools: () => string[];
+
+  /** Optional callback for persisting self-improvement trace memories. */
+  storeMemory?: (trace: { type: string; scope: string; content: string; tags: string[] }) => Promise<void>;
+}
 
 // ============================================================================
 // DEPENDENCY BUNDLE
@@ -505,6 +552,110 @@ export class EmergentCapabilityEngine {
       await this.onToolRemoved(tool);
     }
     return tool;
+  }
+
+  // --------------------------------------------------------------------------
+  // PUBLIC: createSelfImprovementTools
+  // --------------------------------------------------------------------------
+
+  /**
+   * Factory method that creates the four self-improvement tools when
+   * `config.selfImprovement?.enabled` is `true`.
+   *
+   * Returns an array containing:
+   * 1. **AdaptPersonalityTool** — bounded HEXACO trait mutation.
+   * 2. **ManageSkillsTool** — runtime skill enable/disable/search.
+   * 3. **CreateWorkflowTool** — multi-step tool composition.
+   * 4. **SelfEvaluateTool** — self-scoring with parameter adjustment.
+   *
+   * Returns an empty array when self-improvement is disabled or the
+   * config is absent. Uses dynamic imports to avoid hard compile-time
+   * coupling to tool modules that may not yet exist.
+   *
+   * @param deps - Runtime hooks for personality, skills, tools, and memory.
+   * @returns Array of 0 or 4 {@link ITool} instances.
+   */
+  async createSelfImprovementTools(deps: SelfImprovementToolDeps): Promise<ITool[]> {
+    const selfConfig = this.config.selfImprovement;
+    if (!selfConfig?.enabled) {
+      return [];
+    }
+
+    const tools: ITool[] = [];
+
+    try {
+      // Dynamic import to avoid hard coupling — these modules may be created
+      // by other agents or added later. Each import is individually try-caught
+      // so a missing module doesn't prevent the others from loading.
+
+      try {
+        const { AdaptPersonalityTool } = await import('./AdaptPersonalityTool.js');
+        tools.push(
+          new AdaptPersonalityTool({
+            getPersonality: deps.getPersonality,
+            setPersonality: deps.setPersonality,
+            mutationStore: deps.mutationStore,
+            maxDeltaPerSession: selfConfig.personality.maxDeltaPerSession,
+            persistWithDecay: selfConfig.personality.persistWithDecay,
+          }),
+        );
+      } catch {
+        // AdaptPersonalityTool module not available — skip.
+      }
+
+      try {
+        const { ManageSkillsTool } = await import('./ManageSkillsTool.js');
+        tools.push(
+          new ManageSkillsTool({
+            getActiveSkills: deps.getActiveSkills,
+            getLockedSkills: deps.getLockedSkills,
+            loadSkill: deps.loadSkill,
+            unloadSkill: deps.unloadSkill,
+            searchSkills: deps.searchSkills,
+            allowlist: selfConfig.skills.allowlist,
+            requireApprovalForNewCategories: selfConfig.skills.requireApprovalForNewCategories,
+          }),
+        );
+      } catch {
+        // ManageSkillsTool module not available — skip.
+      }
+
+      try {
+        const { CreateWorkflowTool } = await import('./CreateWorkflowTool.js');
+        tools.push(
+          new CreateWorkflowTool({
+            executeTool: deps.executeTool,
+            listTools: deps.listTools,
+            maxSteps: selfConfig.workflows.maxSteps,
+            allowedTools: selfConfig.workflows.allowedTools,
+            storeMemory: deps.storeMemory,
+          }),
+        );
+      } catch {
+        // CreateWorkflowTool module not available — skip.
+      }
+
+      try {
+        const { SelfEvaluateTool } = await import('./SelfEvaluateTool.js');
+        tools.push(
+          new SelfEvaluateTool({
+            getPersonality: deps.getPersonality,
+            setPersonality: deps.setPersonality,
+            mutationStore: deps.mutationStore,
+            autoAdjust: selfConfig.selfEval.autoAdjust,
+            adjustableParams: selfConfig.selfEval.adjustableParams,
+            maxEvaluationsPerSession: selfConfig.selfEval.maxEvaluationsPerSession,
+            storeMemory: deps.storeMemory,
+          }),
+        );
+      } catch {
+        // SelfEvaluateTool module not available — skip.
+      }
+    } catch {
+      // Outer catch for any unexpected dynamic import infrastructure failures.
+    }
+
+    return tools;
   }
 
   /**

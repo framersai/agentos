@@ -243,7 +243,7 @@ export interface MemoryConfig {
    *
    * @example
    * ```typescript
-   * const mem = new Memory({
+   * const mem = await Memory.create({
    *   embed: async (text) => {
    *     const res = await openai.embeddings.create({ model: 'text-embedding-3-small', input: text });
    *     return res.data[0].embedding;
@@ -567,6 +567,16 @@ export interface ConsolidationResult {
    * Wall-clock time the consolidation cycle took in milliseconds.
    */
   durationMs: number;
+
+  /**
+   * Number of personality mutations pruned during decay.
+   *
+   * Only populated when a {@link PersonalityMutationStore} is configured
+   * on the ConsolidationLoop. Zero when the store is absent or no
+   * mutations were pruned.
+   * @default 0
+   */
+  personalityDecayed?: number;
 }
 
 // ---------------------------------------------------------------------------

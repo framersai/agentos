@@ -47,3 +47,10 @@ export {
   writeSkillFile,
   exportToolAsSkillPack,
 } from './SkillExporter.js';
+export { AdaptPersonalityTool } from './AdaptPersonalityTool.js';
+export { ManageSkillsTool } from './ManageSkillsTool.js';
+export { CreateWorkflowTool } from './CreateWorkflowTool.js';
+export { SelfEvaluateTool } from './SelfEvaluateTool.js';
+export { PersonalityMutationStore } from './PersonalityMutationStore.js';
+export type { PersonalityMutation, RecordMutationInput, DecayResult } from './PersonalityMutationStore.js';
+export type { SelfImprovementToolDeps } from './EmergentCapabilityEngine.js';
