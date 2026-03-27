@@ -89,6 +89,10 @@ export * from './speech';
 export * from './core/images';
 // Unified video generation, analysis, and scene detection
 export * from './core/video/index.js';
+// Unified audio generation (music + SFX), processing, and provider registry
+export * from './core/audio/index.js';
+// Media provider preference resolver (shared across image/video/audio)
+export * from './core/media/ProviderPreferences.js';
 // Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)
 export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './core/vision/index.js';
 export type {
@@ -238,6 +242,10 @@ export { variateImage } from './api/variateImage.js';
 export type { VariateImageOptions, VariateImageResult } from './api/variateImage.js';
 export { generateVideo } from './api/generateVideo.js';
 export type { GenerateVideoOptions, GenerateVideoResult } from './api/generateVideo.js';
+export { generateMusic } from './api/generateMusic.js';
+export type { GenerateMusicOptions, GenerateMusicResult } from './api/generateMusic.js';
+export { generateSFX } from './api/generateSFX.js';
+export type { GenerateSFXOptions, GenerateSFXResult } from './api/generateSFX.js';
 export { analyzeVideo } from './api/analyzeVideo.js';
 export type { AnalyzeVideoOptions, AnalyzeVideoResult } from './api/analyzeVideo.js';
 export { detectScenes } from './api/detectScenes.js';
