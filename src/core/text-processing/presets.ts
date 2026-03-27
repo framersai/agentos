@@ -8,7 +8,7 @@ import { StandardTokenizer } from './tokenizers/StandardTokenizer';
 import { CodeTokenizer } from './tokenizers/CodeTokenizer';
 import { LowercaseNormalizer } from './normalizers/LowercaseNormalizer';
 import { AccentStripper } from './normalizers/AccentStripper';
-import { StopWordFilter, ENGLISH_STOP_WORDS, CODE_STOP_WORDS } from './filters/StopWordFilter';
+import { StopWordFilter, CODE_STOP_WORDS } from './filters/StopWordFilter';
 import { PorterStemmer } from './stemmers/PorterStemmer';
 import { NoOpStemmer } from './stemmers/NoOpStemmer';
 
@@ -20,7 +20,7 @@ export function createProsePipeline(): TextProcessingPipeline {
   return new TextProcessingPipeline(new StandardTokenizer())
     .add(new LowercaseNormalizer())
     .add(new AccentStripper())
-    .add(new StopWordFilter(ENGLISH_STOP_WORDS))
+    .add(new StopWordFilter()) /* default: getNaturalStopWords() → 170 words when natural available */
     .add(new PorterStemmer());
 }
 
@@ -43,6 +43,6 @@ export function createCodePipeline(): TextProcessingPipeline {
 export function createRagPipeline(): TextProcessingPipeline {
   return new TextProcessingPipeline(new StandardTokenizer())
     .add(new LowercaseNormalizer())
-    .add(new StopWordFilter(ENGLISH_STOP_WORDS))
+    .add(new StopWordFilter()) /* default: getNaturalStopWords() → 170 words when natural available */
     .add(new PorterStemmer());
 }

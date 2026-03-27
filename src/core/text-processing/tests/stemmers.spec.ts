@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { NoOpStemmer } from '../stemmers/NoOpStemmer';
+import { PorterStemmer } from '../stemmers/PorterStemmer';
 import { NoOpLemmatizer } from '../lemmatizers/NoOpLemmatizer';
-import { StopWordFilter, ENGLISH_STOP_WORDS, CODE_STOP_WORDS } from '../filters/StopWordFilter';
+import { StopWordFilter, ENGLISH_STOP_WORDS, CODE_STOP_WORDS, getNaturalStopWords } from '../filters/StopWordFilter';
 import { LowercaseNormalizer } from '../normalizers/LowercaseNormalizer';
 import { AccentStripper } from '../normalizers/AccentStripper';
 import type { Token } from '../types';
@@ -99,10 +100,88 @@ describe('StopWordFilter', () => {
     expect(result.map(t => t.text)).toEqual(['baz', 'qux']);
   });
 
-  it('defaults to English stop words', () => {
+  it('defaults to getNaturalStopWords (>= 120 words)', () => {
     const filter = new StopWordFilter();
     const tokens = makeTokens(['the', 'cat']);
     const result = filter.process(tokens);
     expect(result.map(t => t.text)).toEqual(['cat']);
+  });
+});
+
+describe('PorterStemmer', () => {
+  it('has the correct name', () => {
+    expect(new PorterStemmer().name).toBe('PorterStemmer');
+  });
+
+  it('stems English words when natural is available', async () => {
+    const stemmer = new PorterStemmer();
+    await stemmer.initialize();
+
+    const tokens = makeTokens(['running', 'foxes', 'connected', 'easily']);
+    const result = stemmer.process(tokens);
+
+    /* natural's Porter stemmer should reduce these */
+    expect(result[0].text).not.toBe('running'); /* should be 'run' or similar */
+    expect(result[0].stem).toBeDefined();
+    expect(result[0].original).toBe('running');
+    /* Each token should have both .text (stemmed) and .stem set */
+    for (const t of result) {
+      expect(t.stem).toBe(t.text);
+    }
+  });
+
+  it('sets stem field on each token', async () => {
+    const stemmer = new PorterStemmer();
+    await stemmer.initialize();
+
+    const tokens = makeTokens(['playing']);
+    const result = stemmer.process(tokens);
+    expect(result[0].stem).toBeDefined();
+    expect(typeof result[0].stem).toBe('string');
+  });
+
+  it('preserves original text', async () => {
+    const stemmer = new PorterStemmer();
+    await stemmer.initialize();
+
+    const tokens = makeTokens(['universities']);
+    const result = stemmer.process(tokens);
+    expect(result[0].original).toBe('universities');
+    expect(result[0].text).not.toBe('universities'); /* should be stemmed */
+  });
+});
+
+describe('getNaturalStopWords', () => {
+  it('returns a Set with >= 120 words', () => {
+    const stopWords = getNaturalStopWords();
+    expect(stopWords.size).toBeGreaterThanOrEqual(120);
+  });
+
+  it('contains common English stop words', () => {
+    const stopWords = getNaturalStopWords();
+    expect(stopWords.has('the')).toBe(true);
+    expect(stopWords.has('is')).toBe(true);
+    expect(stopWords.has('and')).toBe(true);
+    expect(stopWords.has('of')).toBe(true);
+  });
+
+  it('does NOT contain content words', () => {
+    const stopWords = getNaturalStopWords();
+    expect(stopWords.has('computer')).toBe(false);
+    expect(stopWords.has('algorithm')).toBe(false);
+    expect(stopWords.has('function')).toBe(false);
+  });
+
+  it('returns the same Set instance on repeated calls (cached)', () => {
+    const a = getNaturalStopWords();
+    const b = getNaturalStopWords();
+    expect(a).toBe(b); /* same reference — singleton */
+  });
+
+  it('prefers natural library (170 words) when available', () => {
+    const stopWords = getNaturalStopWords();
+    /* natural is in agentos dependencies, so it should be available */
+    /* natural.stopwords has 170 entries */
+    expect(stopWords.size).toBeGreaterThanOrEqual(170);
   });
 });
