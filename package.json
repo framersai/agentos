@@ -179,6 +179,7 @@
   "scripts": {
     "clean": "rimraf dist tsconfig.build.tsbuildinfo",
     "build": "npm run clean && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && node scripts/fix-esm-imports.mjs",
+    "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "node scripts/strip-nbsp.mjs && eslint \"src/**/*.ts\"",
     "test": "vitest run",
@@ -233,7 +234,8 @@
     "typedoc": "^0.25.13",
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "@framers/sql-storage-adapter": "github:framersai/sql-storage-adapter#master"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -256,7 +258,7 @@
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@framers/sql-storage-adapter": ">=0.5.0",
+    "@framers/sql-storage-adapter": ">=0.6.0",
     "graphology": ">=0.25.0",
     "graphology-communities-louvain": ">=2.0.0",
     "graphology-types": ">=0.24.0",
