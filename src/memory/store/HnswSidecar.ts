@@ -9,6 +9,11 @@
  * Auto-activates when trace count exceeds threshold (default: 1000).
  * Below that, brute-force cosine in the Memory facade is fast enough.
  *
+ * NOTE: The generalized version of this pattern is now available at
+ * `core/vector-search/HnswIndexSidecar`. This Memory-specific version
+ * will be migrated to delegate to the shared module in a future update.
+ * New code should use `HnswIndexSidecar` from `core/vector-search/` directly.
+ *
  * Architecture:
  * ```
  * ~/.wunderland/agents/{name}/
@@ -16,6 +21,8 @@
  *   └── brain.hnsw     ← HNSW index (rebuildable)
  *        brain.hnsw.map.json ← label↔id mapping
  * ```
+ *
+ * @see core/vector-search/HnswIndexSidecar for the shared generalized version
  */
 
 import { existsSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';

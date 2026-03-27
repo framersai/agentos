@@ -112,6 +112,28 @@ export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
    * @default 'agentos_rag_'
    */
   tablePrefix?: string;
+
+  /**
+   * Optional text processing pipeline for hybrid search tokenization.
+   * Replaces the built-in regex tokenizer with configurable stemming,
+   * lemmatization, and stop word handling.
+   * @see createRagPipeline from core/text-processing
+   */
+  pipeline?: import('../../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+
+  /**
+   * Document count threshold before HNSW sidecar activates.
+   * Below this count, brute-force cosine similarity is used.
+   * Set to 0 to disable HNSW. Set to Infinity to always use brute-force.
+   * @default 1000
+   */
+  hnswThreshold?: number;
+
+  /**
+   * Embedding dimensions for the HNSW sidecar index.
+   * @default 1536
+   */
+  hnswDimensions?: number;
 }
 
 // ============================================================================
@@ -196,6 +218,12 @@ export class SqlVectorStore implements IVectorStore {
   private readonly providerId: string;
   private tablePrefix: string = 'agentos_rag_';
 
+  /** Optional HNSW sidecar for O(log n) vector search when available. */
+  private sidecar: import('../../../core/vector-search/HnswIndexSidecar').HnswIndexSidecar | null = null;
+
+  /** Optional text processing pipeline for hybrid search tokenization. */
+  private pipeline?: import('../../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+
   /**
    * Constructs a SqlVectorStore instance.
    * The store is not operational until `initialize()` is called.
@@ -246,8 +274,33 @@ export class SqlVectorStore implements IVectorStore {
     // Create schema
     await this.createSchema();
 
+    // Store pipeline reference
+    this.pipeline = this.config.pipeline;
+
+    // Initialize HNSW sidecar for accelerated vector search
+    if (this.config.hnswThreshold !== Infinity) {
+      try {
+        const { HnswIndexSidecar } = await import('../../../core/vector-search/HnswIndexSidecar');
+        this.sidecar = new HnswIndexSidecar();
+
+        // Derive sidecar index path from adapter config
+        const storagePath = (this.config.storage as any)?.filePath ?? (this.config.storage as any)?.database;
+        const indexPath = storagePath ? `${storagePath}.hnsw` : `/tmp/agentos-rag-${this.providerId}.hnsw`;
+
+        await this.sidecar.initialize({
+          indexPath,
+          dimensions: this.config.hnswDimensions ?? this.config.defaultEmbeddingDimension ?? 1536,
+          metric: this.config.similarityMetric ?? 'cosine',
+          activationThreshold: this.config.hnswThreshold ?? 1000,
+        });
+      } catch {
+        /* HNSW sidecar unavailable (hnswlib-node not installed) — brute-force fallback */
+        this.sidecar = null;
+      }
+    }
+
     this.isInitialized = true;
-    console.log(`SqlVectorStore (ID: ${this.providerId}, Config ID: ${this.config.id}) initialized successfully.`);
+    console.log(`SqlVectorStore (ID: ${this.providerId}, Config ID: ${this.config.id}) initialized successfully${this.sidecar?.isAvailable() ? ' (HNSW sidecar ready)' : ''}.`);
   }
 
   /**
@@ -526,6 +579,37 @@ export class SqlVectorStore implements IVectorStore {
       [countResult?.count ?? 0, now, collectionName]
     );
 
+    // ── HNSW sidecar: add upserted vectors + check threshold ──────────
+    if (this.sidecar?.isAvailable() && upsertedIds.length > 0) {
+      const docsWithEmbeddings = documents
+        .filter(d => upsertedIds.includes(d.id) && d.embedding?.length > 0)
+        .map(d => ({ id: d.id, embedding: d.embedding }));
+
+      if (this.sidecar.isActive()) {
+        await this.sidecar.addBatch(docsWithEmbeddings);
+      } else {
+        // Check if we just crossed the activation threshold
+        const docCount = countResult?.count ?? 0;
+        const threshold = this.config.hnswThreshold ?? 1000;
+        if (docCount >= threshold) {
+          // Load ALL embeddings from SQLite and rebuild the HNSW index
+          const allRows = await this.adapter.all<DocumentRow>(
+            `SELECT id, embedding_blob FROM ${this.tablePrefix}documents WHERE collection_name = ?`,
+            [collectionName],
+          );
+          const allItems = allRows
+            .map(row => ({
+              id: row.id,
+              embedding: isLegacyJsonBlob(row.embedding_blob)
+                ? JSON.parse(row.embedding_blob as string) as number[]
+                : blobToEmbedding(row.embedding_blob as Buffer),
+            }))
+            .filter(item => item.embedding.length > 0);
+          await this.sidecar.rebuildFromData(allItems);
+        }
+      }
+    }
+
     return {
       upsertedCount: upsertedIds.length,
       upsertedIds,
@@ -561,6 +645,51 @@ export class SqlVectorStore implements IVectorStore {
       );
     }
 
+    // ── HNSW fast path ─────────────────────────────────────────────────
+    // When the sidecar is active, use O(log n) ANN search to get top
+    // candidates by ID, then fetch full documents from SQLite. Falls through
+    // to brute-force when the sidecar is inactive or unavailable.
+    if (this.sidecar?.isActive()) {
+      const hnswCandidates = await this.sidecar.search(queryEmbedding, topK * 3);
+      if (hnswCandidates.length > 0) {
+        const candidateIds = hnswCandidates.map(c => c.id);
+        const placeholders = candidateIds.map(() => '?').join(',');
+        let hnswQuery = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ? AND id IN (${placeholders})`;
+        const hnswParams: unknown[] = [collectionName, ...candidateIds];
+        if (options?.filter) {
+          const filterSQL = this.buildMetadataFilterSQL(options.filter);
+          hnswQuery += filterSQL.clause;
+          hnswParams.push(...filterSQL.params);
+        }
+        const rows = await this.adapter.all<DocumentRow>(hnswQuery, hnswParams);
+
+        const scoreMap = new Map(hnswCandidates.map(c => [c.id, c.score]));
+        const candidates: RetrievedVectorDocument[] = rows.map(row => {
+          const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : undefined;
+          const embedding = options?.includeEmbedding
+            ? (isLegacyJsonBlob(row.embedding_blob) ? JSON.parse(row.embedding_blob as string) : blobToEmbedding(row.embedding_blob as Buffer))
+            : [];
+          const doc: RetrievedVectorDocument = {
+            id: row.id,
+            embedding,
+            similarityScore: scoreMap.get(row.id) ?? 0,
+          };
+          if (options?.includeMetadata !== false && metadata) doc.metadata = metadata;
+          if (options?.includeTextContent && row.text_content) doc.textContent = row.text_content;
+          return doc;
+        }).filter(d => options?.minSimilarityScore === undefined || d.similarityScore >= options.minSimilarityScore);
+
+        candidates.sort((a, b) => b.similarityScore - a.similarityScore);
+        const results = candidates.slice(0, topK);
+        return {
+          documents: results,
+          queryId: `sql-hnsw-query-${uuidv4()}`,
+          stats: { totalCandidates: hnswCandidates.length, filteredCandidates: candidates.length, returnedCount: results.length },
+        };
+      }
+    }
+
+    // ── Brute-force fallback ──────────────────────────────────────────
     // Build query with SQL-level metadata filtering via json_extract()
     let query = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
     const params: unknown[] = [collectionName];
@@ -692,11 +821,12 @@ export class SqlVectorStore implements IVectorStore {
     }
     const rows = await this.adapter.all<DocumentRow>(hybridQuery, hybridParams);
 
-    const tokenize = (text: string): string[] =>
-      text
-        .toLowerCase()
-        .split(/[^a-z0-9_]+/g)
-        .filter((t) => t.length > 2);
+    const tokenize = (text: string): string[] => {
+      /* Use pluggable pipeline when configured */
+      if (this.pipeline) return this.pipeline.processToStrings(text);
+      /* Fallback: built-in regex tokenizer */
+      return text.toLowerCase().split(/[^a-z0-9_]+/g).filter((t) => t.length > 2);
+    };
 
     const queryTerms = tokenize(queryText);
     const queryTermSet = new Set(queryTerms);
@@ -1024,6 +1154,11 @@ export class SqlVectorStore implements IVectorStore {
   public async shutdown(): Promise<void> {
     if (!this.isInitialized) {
       return;
+    }
+
+    if (this.sidecar) {
+      await this.sidecar.shutdown();
+      this.sidecar = null;
     }
 
     if (this.ownsAdapter && this.adapter) {

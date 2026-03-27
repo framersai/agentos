@@ -3,6 +3,12 @@
  * @description HNSW-based vector store using hnswlib-node for fast approximate nearest neighbor search.
  * Provides O(log n) query performance vs O(n) linear scan, with file-based persistence.
  *
+ * @deprecated Use SqlVectorStore instead — it now includes automatic HNSW acceleration
+ * via the HnswIndexSidecar from core/vector-search/. SqlVectorStore provides the same
+ * HNSW performance plus SQLite persistence, hybrid search (BM25 + vector), metadata
+ * queries, and ACID transactions. Configure with `type: 'sql'` and the HNSW sidecar
+ * activates automatically when document count crosses the threshold (default 1000).
+ *
  * @module AgentOS/RAG/VectorStores
  * @version 1.0.0
  */
@@ -119,6 +125,11 @@ export class HnswlibVectorStore implements IVectorStore {
   private nodePath?: typeof import('node:path');
 
   async initialize(config: VectorStoreProviderConfig): Promise<void> {
+    console.warn(
+      '[DEPRECATED] HnswlibVectorStore is deprecated. Use SqlVectorStore instead — ' +
+      'it now includes automatic HNSW acceleration via sidecar index. ' +
+      'See core/vector-search/HnswIndexSidecar for details.',
+    );
     if (this.isInitialized) {
       console.warn(`[HnswlibVectorStore:${this.providerId}] Re-initializing.`);
       this.collections.clear();

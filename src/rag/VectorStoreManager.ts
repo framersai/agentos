@@ -180,8 +180,12 @@ export class VectorStoreManager implements IVectorStoreManager {
         // Supports SQLite, PostgreSQL, IndexedDB, and more
         return new SqlVectorStore();
       case 'hnswlib':
-        // HNSW-based vector store using hnswlib-node for fast ANN search
-        // O(log n) queries, in-process, file-based persistence
+        // DEPRECATED: Use SqlVectorStore (type: 'sql') instead — it now includes
+        // automatic HNSW acceleration via HnswIndexSidecar.
+        console.warn(
+          '[DEPRECATED] VectorStore type "hnswlib" is deprecated. Use type "sql" instead — ' +
+          'SqlVectorStore now includes automatic HNSW acceleration.',
+        );
         return new HnswlibVectorStore();
       case 'qdrant':
         // Qdrant vector store via HTTP (self-hosted or cloud)

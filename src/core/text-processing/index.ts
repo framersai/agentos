@@ -18,7 +18,7 @@ export { LowercaseNormalizer } from './normalizers/LowercaseNormalizer';
 export { AccentStripper } from './normalizers/AccentStripper';
 
 // Filters
-export { StopWordFilter, ENGLISH_STOP_WORDS, CODE_STOP_WORDS } from './filters/StopWordFilter';
+export { StopWordFilter, ENGLISH_STOP_WORDS, CODE_STOP_WORDS, getNaturalStopWords } from './filters/StopWordFilter';
 
 // Stemmers
 export { PorterStemmer } from './stemmers/PorterStemmer';

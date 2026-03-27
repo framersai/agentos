@@ -75,6 +75,13 @@ export interface BM25Config {
   k1?: number;
   /** Document length normalization factor. Default: 0.75. */
   b?: number;
+  /**
+   * Optional text processing pipeline for tokenization.
+   * When provided, replaces the built-in regex tokenizer with configurable
+   * stemming, lemmatization, and stop word handling.
+   * @see createRagPipeline from core/text-processing for the recommended default.
+   */
+  pipeline?: import('../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
 }
 
 /**
@@ -182,6 +189,13 @@ export class BM25Index {
   private idfDirty: boolean;
 
   /**
+   * Optional pluggable text processing pipeline. When set, replaces the
+   * built-in regex tokenizer with configurable stemming, lemmatization,
+   * and stop word handling.
+   */
+  private pipeline?: import('../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+
+  /**
    * Creates a new BM25 index.
    *
    * @param {BM25Config} [config] - Optional BM25 tuning parameters.
@@ -200,6 +214,7 @@ export class BM25Index {
   constructor(config?: BM25Config) {
     this.k1 = config?.k1 ?? 1.2;
     this.b = config?.b ?? 0.75;
+    this.pipeline = config?.pipeline;
     this.documents = new Map();
     this.invertedIndex = new Map();
     this.idf = new Map();
@@ -224,6 +239,11 @@ export class BM25Index {
    * ```
    */
   private tokenize(text: string): string[] {
+    /* Use pluggable pipeline when configured (supports stemming, lemmatization, etc.) */
+    if (this.pipeline) {
+      return this.pipeline.processToStrings(text);
+    }
+    /* Fallback: built-in regex tokenizer (backwards compatible) */
     return text
       .toLowerCase()
       .split(/[\s\-_.,;:!?'"()[\]{}<>/\\|@#$%^&*~`+=]+/)
