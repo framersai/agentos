@@ -103,28 +103,19 @@ export interface BM25Stats {
 
 // ── Stop Words ────────────────────────────────────────────────────────────
 
+import { ENGLISH_STOP_WORDS } from '../../core/text-processing/filters/StopWordFilter';
+
 /**
- * Common English stop words excluded from indexing and querying.
- * These words occur so frequently they provide minimal discriminative value
- * in BM25 scoring and only inflate index size.
+ * Stop words used by the fallback regex tokenizer (when no pipeline is configured).
+ * Uses the curated 120-word set from the TextProcessingPipeline module.
+ *
+ * For a larger 170-word set from the `natural` NLP library, use
+ * `getNaturalStopWords()` from `core/text-processing/filters/StopWordFilter`.
+ *
+ * When a `TextProcessingPipeline` is configured via `BM25Config.pipeline`,
+ * the pipeline handles stop word filtering internally and this set is not used.
  */
-const STOP_WORDS: ReadonlySet<string> = new Set([
-  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-  'of', 'with', 'by', 'from', 'is', 'it', 'as', 'was', 'are', 'be',
-  'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
-  'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'need',
-  'dare', 'ought', 'used', 'not', 'no', 'nor', 'so', 'if', 'then',
-  'than', 'too', 'very', 'just', 'about', 'above', 'after', 'again',
-  'all', 'also', 'am', 'any', 'because', 'before', 'between', 'both',
-  'each', 'few', 'further', 'get', 'got', 'he', 'her', 'here', 'him',
-  'his', 'how', 'i', 'into', 'its', 'let', 'me', 'more', 'most', 'my',
-  'new', 'now', 'off', 'old', 'once', 'only', 'other', 'our', 'out',
-  'own', 'part', 'per', 'put', 'said', 'same', 'she', 'some', 'still',
-  'such', 'take', 'that', 'their', 'them', 'these', 'they', 'this',
-  'those', 'through', 'under', 'until', 'up', 'us', 'want', 'we',
-  'well', 'what', 'when', 'where', 'which', 'while', 'who', 'whom',
-  'why', 'you', 'your',
-]);
+const STOP_WORDS: ReadonlySet<string> = ENGLISH_STOP_WORDS;
 
 // ── BM25 Index ────────────────────────────────────────────────────────────
 

@@ -824,8 +824,9 @@ export class SqlVectorStore implements IVectorStore {
     const tokenize = (text: string): string[] => {
       /* Use pluggable pipeline when configured */
       if (this.pipeline) return this.pipeline.processToStrings(text);
-      /* Fallback: built-in regex tokenizer */
-      return text.toLowerCase().split(/[^a-z0-9_]+/g).filter((t) => t.length > 2);
+      /* Fallback: built-in regex tokenizer with shared stop word list */
+      const { ENGLISH_STOP_WORDS } = require('../../../core/text-processing/filters/StopWordFilter');
+      return text.toLowerCase().split(/[^a-z0-9_]+/g).filter((t: string) => t.length > 2 && !ENGLISH_STOP_WORDS.has(t));
     };
 
     const queryTerms = tokenize(queryText);
