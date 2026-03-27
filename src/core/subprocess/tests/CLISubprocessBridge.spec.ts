@@ -233,5 +233,29 @@ describe('CLISubprocessBridge', () => {
       const [, args] = execaMock.mock.calls[0];
       expect(args).toContain('stream-json');
     });
+
+    it('throws when the subprocess exits non-zero after stdout completes', async () => {
+      const mockStdout = (async function* () {
+        yield Buffer.from(JSON.stringify({ type: 'done', result: 'partial output' }) + '\n');
+      })();
+
+      const subprocessError = Object.assign(new Error('crashed'), {
+        exitCode: 1,
+        stderr: 'boom',
+      });
+      const subprocessPromise = Promise.reject(subprocessError);
+      subprocessPromise.catch(() => {});
+
+      execaMock.mockReturnValueOnce(Object.assign(subprocessPromise, {
+        stdout: mockStdout,
+        kill: vi.fn(),
+      }));
+
+      await expect(async () => {
+        for await (const _event of bridge.stream({ prompt: 'test' })) {
+          /* drain stream until the classified error is raised */
+        }
+      }).rejects.toBeInstanceOf(CLISubprocessError);
+    });
   });
 });

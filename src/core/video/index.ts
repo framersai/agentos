@@ -12,6 +12,9 @@
  */
 
 import type { IVideoGenerator } from './IVideoGenerator.js';
+import { FalVideoProvider } from './providers/FalVideoProvider.js';
+import { ReplicateVideoProvider } from './providers/ReplicateVideoProvider.js';
+import { RunwayVideoProvider } from './providers/RunwayVideoProvider.js';
 
 export * from './types.js';
 export * from './IVideoGenerator.js';
@@ -27,43 +30,15 @@ export * from './VideoAnalyzer.js';
 export type VideoProviderFactory = () => IVideoGenerator;
 
 /**
- * Internal registry mapping provider IDs to lazy factory functions.
+ * Internal registry mapping provider IDs to provider constructors.
  *
- * Built-in providers (Runway, Replicate, Fal) are registered with dynamic
- * imports so their modules are only loaded when actually requested — this
- * keeps the barrel import lightweight for consumers who don't use video.
+ * Built-in providers (Runway, Replicate, Fal) are pre-registered here so the
+ * public `createVideoProvider()` API remains synchronous and ESM-safe.
  */
 const videoProviderFactories = new Map<string, VideoProviderFactory>([
-  [
-    'runway',
-    () => {
-      // Lazy dynamic import — resolved synchronously from the factory
-      // because the caller will `await provider.initialize()` anyway.
-      // We use a require-style approach via a deferred wrapper.
-      const { RunwayVideoProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/RunwayVideoProvider.js') as typeof import('./providers/RunwayVideoProvider.js');
-      return new RunwayVideoProvider();
-    },
-  ],
-  [
-    'replicate',
-    () => {
-      const { ReplicateVideoProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/ReplicateVideoProvider.js') as typeof import('./providers/ReplicateVideoProvider.js');
-      return new ReplicateVideoProvider();
-    },
-  ],
-  [
-    'fal',
-    () => {
-      const { FalVideoProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/FalVideoProvider.js') as typeof import('./providers/FalVideoProvider.js');
-      return new FalVideoProvider();
-    },
-  ],
+  ['runway', () => new RunwayVideoProvider()],
+  ['replicate', () => new ReplicateVideoProvider()],
+  ['fal', () => new FalVideoProvider()],
 ]);
 
 /**

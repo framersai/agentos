@@ -33,6 +33,7 @@ import type {
   AgentCallRecord,
   AgencyStreamPart,
 } from '../types.js';
+import { createBufferedAsyncReplay } from '../streamBuffer.js';
 import { AgencyConfigError } from '../types.js';
 import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
 
@@ -186,13 +187,12 @@ export function compileGraph(
     },
 
     stream(prompt, opts) {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const self = this;
       const startMs = Date.now();
+      const agentCalls: AgentCallRecord[] = [];
+      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       async function* streamGenerator(): AsyncGenerator<AgencyStreamPart> {
         const outputs = new Map<string, string>();
-        const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
         yield { type: 'agent-start' as const, agent: '__agency__', input: prompt };
 
@@ -202,6 +202,12 @@ export function compileGraph(
           // agent-start/agent-end markers so the consumer knows the structure.
           for (const name of tier) {
             const agentOrConfig = agents[name];
+            const decision = await checkBeforeAgent(name, prompt, agentCalls, agencyConfig);
+            if (decision && !decision.approved) {
+              outputs.set(name, '[skipped by HITL]');
+              continue;
+            }
+
             const config = agentOrConfig as BaseAgentConfig;
             const depNames = (!isAgent(agentOrConfig) && config.dependsOn) || [];
 
@@ -220,9 +226,14 @@ export function compileGraph(
               : createAgent({ ...mergeDefaults(config, agencyConfig) });
 
             let agentText = '';
+            let resultUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+            let resultToolCalls: Array<{ name: string; args: unknown; result?: unknown; error?: string }> = [];
+            const agentStart = Date.now();
             const agentStream = a.stream(context, opts) as {
               textStream?: AsyncIterable<string>;
               text?: Promise<string>;
+              usage?: Promise<{ promptTokens?: number; completionTokens?: number; totalTokens?: number }>;
+              toolCalls?: Promise<Array<{ name: string; args: unknown; result?: unknown; error?: string }>>;
             } | null;
 
             if (agentStream?.textStream) {
@@ -230,31 +241,85 @@ export function compileGraph(
                 yield { type: 'text' as const, text: chunk, agent: name };
                 agentText += chunk;
               }
+              if (!agentText && agentStream.text) {
+                agentText = await agentStream.text;
+                if (agentText) {
+                  yield { type: 'text' as const, text: agentText, agent: name };
+                }
+              }
+              const streamedUsage = (await Promise.resolve(agentStream.usage)) ?? {};
+              resultUsage = {
+                promptTokens: streamedUsage.promptTokens ?? 0,
+                completionTokens: streamedUsage.completionTokens ?? 0,
+                totalTokens: streamedUsage.totalTokens ?? 0,
+              };
+              resultToolCalls = (await Promise.resolve(agentStream.toolCalls)) ?? [];
             } else {
               const result = (await a.generate(context, opts)) as Record<string, unknown>;
               agentText = (result.text as string) ?? '';
               if (agentText) {
                 yield { type: 'text' as const, text: agentText, agent: name };
               }
+              const generatedUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+              resultUsage = {
+                promptTokens: generatedUsage.promptTokens ?? 0,
+                completionTokens: generatedUsage.completionTokens ?? 0,
+                totalTokens: generatedUsage.totalTokens ?? 0,
+              };
+              resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
             }
 
             outputs.set(name, agentText);
-            yield { type: 'agent-end' as const, agent: name, output: agentText, durationMs: 0 };
+            agentCalls.push({
+              agent: name,
+              input: context,
+              output: agentText,
+              toolCalls: resultToolCalls,
+              usage: resultUsage,
+              durationMs: Date.now() - agentStart,
+            });
+
+            totalUsage.promptTokens += resultUsage.promptTokens;
+            totalUsage.completionTokens += resultUsage.completionTokens;
+            totalUsage.totalTokens += resultUsage.totalTokens;
+
+            yield {
+              type: 'agent-end' as const,
+              agent: name,
+              output: agentText,
+              durationMs: Date.now() - agentStart,
+            };
           }
         }
 
         yield { type: 'agent-end' as const, agent: '__agency__', output: '', durationMs: Date.now() - startMs };
       }
+      const replay = createBufferedAsyncReplay(streamGenerator());
 
-      const gen = streamGenerator();
-      const fullStream = gen;
-      const textStreamGen = (async function* () {
-        for await (const part of gen) {
-          if (part.type === 'text') yield part.text;
-        }
-      })();
+      const textPromise = replay.ensureDraining().then(() =>
+        replay
+          .getBuffered()
+          .filter((part): part is { type: 'text'; text: string; agent?: string } => part.type === 'text')
+          .map((part) => part.text)
+          .join(''),
+      );
 
-      return { fullStream, textStream: textStreamGen };
+      const usagePromise = replay.ensureDraining().then(() => ({ ...totalUsage }));
+      const agentCallsPromise = replay.ensureDraining().then(() => [...agentCalls]);
+
+      return {
+        fullStream: replay.iterable,
+        textStream: (async function* () {
+          for await (const part of replay.iterable) {
+            if (part.type === 'text') {
+              yield part.text;
+            }
+          }
+        })(),
+        text: textPromise,
+        usage: usagePromise,
+        agentCalls: agentCallsPromise,
+      };
     },
   };
 }

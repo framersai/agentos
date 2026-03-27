@@ -28,7 +28,10 @@ export type AudioProviderId =
   | 'udio'
   | 'stable-audio'
   | 'elevenlabs-sfx'
-  | 'replicate'
+  | 'replicate-audio'
+  | 'fal-audio'
+  | 'musicgen-local'
+  | 'audiogen-local'
   | (string & {});
 
 /** Output audio container/codec format. */

@@ -238,19 +238,19 @@ export class ClaudeCodeProvider implements IProvider {
       try {
         const parsed = JSON.parse(result.result);
         if (parsed.response_type === 'tool_calls' && Array.isArray(parsed.tool_calls)) {
-          return this.buildToolCallResponse(parsed.tool_calls, result);
+          return this.buildToolCallResponse(parsed.tool_calls, result, undefined, undefined, modelId);
         }
         /* Model chose text response */
-        return this.buildTextResponse(parsed.text ?? result.result, result);
+        return this.buildTextResponse(parsed.text ?? result.result, result, undefined, undefined, modelId);
       } catch {
         /* SCHEMA_PARSE_FAILED — retry without schema */
         const retryOpts = { ...bridgeOpts, jsonSchema: undefined };
         const retryResult = await this.bridge.execute(retryOpts);
-        return this.buildTextResponse(retryResult.result, retryResult);
+        return this.buildTextResponse(retryResult.result, retryResult, undefined, undefined, modelId);
       }
     }
 
-    return this.buildTextResponse(result.result, result);
+    return this.buildTextResponse(result.result, result, undefined, undefined, modelId);
   }
 
   /**
@@ -285,69 +285,91 @@ export class ClaudeCodeProvider implements IProvider {
     let accumulatedText = '';
     const responseId = `cc-${Date.now()}`;
     let finalUsage: ModelUsage | undefined;
+    let emittedFinal = false;
 
-    for await (const event of this.bridge.stream(bridgeOpts)) {
-      switch (event.type) {
-        case 'text_delta':
-          accumulatedText += event.text;
-          yield {
-            id: responseId,
-            object: 'chat.completion.chunk',
-            created: Date.now(),
-            modelId,
-            choices: [{
-              index: 0,
-              message: { role: 'assistant', content: accumulatedText },
-              finishReason: null,
-            }],
-            responseTextDelta: event.text,
-            isFinal: false,
-          };
-          break;
+    try {
+      for await (const event of this.bridge.stream(bridgeOpts)) {
+        switch (event.type) {
+          case 'text_delta':
+            accumulatedText += event.text;
+            yield {
+              id: responseId,
+              object: 'chat.completion.chunk',
+              created: Date.now(),
+              modelId,
+              choices: [{
+                index: 0,
+                message: { role: 'assistant', content: accumulatedText },
+                finishReason: null,
+              }],
+              responseTextDelta: event.text,
+              isFinal: false,
+            };
+            break;
 
-        case 'result': {
-          const usage = event.usage;
-          finalUsage = usage
-            ? { promptTokens: usage.input_tokens, completionTokens: usage.output_tokens, totalTokens: usage.input_tokens + usage.output_tokens, costUSD: 0 }
-            : { totalTokens: 0, costUSD: 0 };
+          case 'result': {
+            const usage = event.usage;
+            finalUsage = usage
+              ? { promptTokens: usage.input_tokens, completionTokens: usage.output_tokens, totalTokens: usage.input_tokens + usage.output_tokens, costUSD: 0 }
+              : { totalTokens: 0, costUSD: 0 };
 
-          const finalText = event.result || accumulatedText;
+            const finalText = event.result || accumulatedText;
 
-          /* Try parsing as tool call response */
-          if (hasTools) {
-            try {
-              const parsed = JSON.parse(finalText);
-              if (parsed.response_type === 'tool_calls' && Array.isArray(parsed.tool_calls)) {
-                yield this.buildToolCallResponse(parsed.tool_calls, { ...event, result: finalText, isError: false, durationMs: 0 }, responseId, finalUsage);
-                return;
-              }
-            } catch { /* fall through to text */ }
+            /* Try parsing as tool call response */
+            if (hasTools) {
+              try {
+                const parsed = JSON.parse(finalText);
+                if (parsed.response_type === 'tool_calls' && Array.isArray(parsed.tool_calls)) {
+                  emittedFinal = true;
+                  yield this.buildToolCallResponse(
+                    parsed.tool_calls,
+                    { sessionId: event.sessionId, usage: event.usage },
+                    responseId,
+                    finalUsage,
+                    modelId,
+                  );
+                  return;
+                }
+              } catch { /* fall through to text */ }
+            }
+
+            emittedFinal = true;
+            yield this.buildTextResponse(
+              finalText,
+              { sessionId: event.sessionId, usage: event.usage },
+              responseId,
+              finalUsage,
+              modelId,
+            );
+            return;
           }
 
-          yield {
-            id: responseId,
-            object: 'chat.completion',
-            created: Date.now(),
-            modelId,
-            choices: [{
-              index: 0,
-              message: { role: 'assistant', content: finalText },
-              finishReason: 'stop',
-            }],
-            usage: finalUsage,
-            isFinal: true,
-          };
-          break;
+          case 'error':
+            emittedFinal = true;
+            yield this.buildStreamErrorResponse(
+              `Claude Code stream error: ${event.error}`,
+              modelId,
+              responseId,
+              finalUsage,
+            );
+            return;
         }
-
-        case 'error':
-          throw new ClaudeCodeProviderError(
-            `Claude Code stream error: ${event.error}`,
-            'CRASHED',
-            'Try running "claude --bare -p test" manually to diagnose.',
-            true,
-          );
       }
+    } catch (error: any) {
+      emittedFinal = true;
+      yield this.buildStreamErrorResponse(
+        error?.message ?? 'Claude Code stream failed.',
+        modelId,
+        responseId,
+        finalUsage,
+        error?.code,
+        error,
+      );
+      return;
+    }
+
+    if (!emittedFinal) {
+      yield this.buildTextResponse(accumulatedText, {}, responseId, finalUsage, modelId);
     }
   }
 
@@ -540,13 +562,14 @@ Each tool call must include "id" (unique string), "name" (tool name), and "argum
     result: { sessionId?: string; usage?: { input_tokens: number; output_tokens: number } },
     responseId?: string,
     usage?: ModelUsage,
+    modelId?: string,
   ): ModelCompletionResponse {
     const u = usage ?? this.buildUsage(result.usage);
     return {
       id: responseId ?? `cc-${result.sessionId ?? Date.now()}`,
       object: 'chat.completion',
       created: Date.now(),
-      modelId: this.defaultModelId ?? 'claude-sonnet-4-20250514',
+      modelId: modelId ?? this.defaultModelId ?? 'claude-sonnet-4-20250514',
       choices: [{
         index: 0,
         message: { role: 'assistant', content: text },
@@ -563,13 +586,14 @@ Each tool call must include "id" (unique string), "name" (tool name), and "argum
     result: { sessionId?: string; usage?: { input_tokens: number; output_tokens: number } },
     responseId?: string,
     usage?: ModelUsage,
+    modelId?: string,
   ): ModelCompletionResponse {
     const u = usage ?? this.buildUsage(result.usage);
     return {
       id: responseId ?? `cc-${result.sessionId ?? Date.now()}`,
       object: 'chat.completion',
       created: Date.now(),
-      modelId: this.defaultModelId ?? 'claude-sonnet-4-20250514',
+      modelId: modelId ?? this.defaultModelId ?? 'claude-sonnet-4-20250514',
       choices: [{
         index: 0,
         message: {
@@ -587,6 +611,31 @@ Each tool call must include "id" (unique string), "name" (tool name), and "argum
         finishReason: 'tool_calls',
       }],
       usage: u,
+      isFinal: true,
+    };
+  }
+
+  /** Build a terminal streaming error chunk instead of throwing mid-stream. */
+  private buildStreamErrorResponse(
+    message: string,
+    modelId: string,
+    responseId: string,
+    usage?: ModelUsage,
+    code?: string | number,
+    details?: unknown,
+  ): ModelCompletionResponse {
+    return {
+      id: responseId,
+      object: 'chat.completion.chunk',
+      created: Date.now(),
+      modelId,
+      choices: [],
+      usage,
+      error: {
+        message,
+        ...(code === undefined ? {} : { code }),
+        ...(details === undefined ? {} : { details }),
+      },
       isFinal: true,
     };
   }

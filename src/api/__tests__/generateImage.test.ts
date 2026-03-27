@@ -265,4 +265,44 @@ describe('generateImage', () => {
 
     await clearRecordedAgentOSUsage({ path: ledgerPath });
   });
+
+  it('auto-detects an image provider using media preferences instead of the generic provider order', async () => {
+    const originalEnv = process.env;
+    process.env = {
+      ...originalEnv,
+      ANTHROPIC_API_KEY: 'anthropic-test',
+      OPENAI_API_KEY: 'openai-test',
+      STABILITY_API_KEY: 'stability-test',
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          image: 'c3RhYmlsaXR5',
+          seed: 77,
+          finish_reason: 'SUCCESS',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    try {
+      const result = await generateImage({
+        prompt: 'A watercolor fox in the forest',
+        providerPreferences: {
+          blocked: ['openai'],
+        },
+      });
+
+      const [url] = vi.mocked(globalThis.fetch).mock.calls[0];
+      expect(String(url)).toContain('/v2beta/stable-image/generate/');
+      expect(result.provider).toBe('stability');
+      expect(result.images[0]).toMatchObject({
+        mimeType: 'image/png',
+        base64: 'c3RhYmlsaXR5',
+      });
+    } finally {
+      process.env = originalEnv;
+    }
+  });
 });

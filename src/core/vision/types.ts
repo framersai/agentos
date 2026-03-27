@@ -381,6 +381,12 @@ export interface Frame {
   /** Raw pixel data as a Buffer (RGB, 3 bytes per pixel, row-major). */
   buffer: Buffer;
 
+  /**
+   * Original encoded frame bytes (for example PNG/JPEG) when the frame was
+   * decoded into raw RGB for scene detection.
+   */
+  sourceBuffer?: Buffer;
+
   /** Timestamp of this frame within the source video, in seconds. */
   timestampSec: number;
 

@@ -20,6 +20,7 @@
  * ```ts
  * import {
  *   resolveProviderOrder,
+ *   resolveProviderChain,
  *   selectWeightedProvider,
  * } from './ProviderPreferences.js';
  *
@@ -32,8 +33,17 @@
  * });
  * // => ['replicate', 'openai']
  *
- * // Weighted random: 90% replicate, 10% openai
- * const chosen = selectWeightedProvider(ordered, {
+ * // Weighted primary selection with deterministic fallback ordering
+ * const chain = resolveProviderChain(ordered, {
+ *   weights: {
+ *     replicate: 9,
+ *     openai: 1,
+ *   },
+ * });
+ * // => ['replicate', 'openai'] most of the time
+ *
+ * // Or pick a single weighted provider directly
+ * const chosen = selectWeightedProvider(chain, {
  *   replicate: 9,
  *   openai: 1,
  * });
@@ -145,6 +155,36 @@ export function resolveProviderOrder(
 }
 
 // ---------------------------------------------------------------------------
+// resolveProviderChain
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a full provider chain from the available providers and preferences.
+ *
+ * This combines deterministic filtering/reordering via
+ * {@link resolveProviderOrder} with optional weighted primary selection via
+ * {@link selectWeightedProvider}. When `weights` are present, a single primary
+ * provider is chosen from the ordered list and moved to the front while the
+ * remaining providers preserve their relative order as fallbacks.
+ *
+ * @param available - Provider IDs currently available in the system.
+ * @param preferences - Optional preference configuration.
+ * @returns Ordered provider chain with the chosen primary first.
+ */
+export function resolveProviderChain(
+  available: string[],
+  preferences?: MediaProviderPreference,
+): string[] {
+  const ordered = resolveProviderOrder(available, preferences);
+  if (ordered.length <= 1 || !preferences?.weights) {
+    return ordered;
+  }
+
+  const primary = selectWeightedProvider(ordered, preferences.weights);
+  return [primary, ...ordered.filter((id) => id !== primary)];
+}
+
+// ---------------------------------------------------------------------------
 // selectWeightedProvider
 // ---------------------------------------------------------------------------
 
@@ -184,10 +224,21 @@ export function selectWeightedProvider(
     return providers[0];
   }
 
-  const resolved = providers.map((id) => ({
-    id,
-    weight: weights[id] ?? 1,
-  }));
+  const resolved = providers
+    .map((id) => {
+      const weight = weights[id] ?? 1;
+      if (!Number.isFinite(weight) || weight < 0) {
+        throw new Error(
+          `Invalid weight for provider "${id}". Expected a finite non-negative number.`,
+        );
+      }
+      return { id, weight };
+    })
+    .filter(({ weight }) => weight > 0);
+
+  if (resolved.length === 0) {
+    throw new Error('Cannot select from providers with zero total weight');
+  }
 
   const totalWeight = resolved.reduce((sum, p) => sum + p.weight, 0);
   let random = Math.random() * totalWeight;

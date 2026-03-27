@@ -15,6 +15,9 @@
 7. [Multi-Channel Support Bot](#7-multi-channel-support-bot)
 8. [Automated Blog Publisher](#8-automated-blog-publisher)
 9. [Runtime-Configured Tools](#9-runtime-configured-tools)
+10. [Agency Streaming](#10-agency-streaming)
+11. [Query Router](#11-query-router)
+12. [Query Router Host Hooks](#12-query-router-host-hooks)
 
 ---
 
@@ -556,6 +559,123 @@ Use this path when the tool should be globally prompt-visible and executable on
 direct `processRequest()` turns. Use `externalTools` or the registered-tool
 helpers only when the host should stay responsible for execution after a tool
 pause.
+
+---
+
+## 10. Agency Streaming
+
+Raw live chunks, finalized approved output, and structured final events from a
+single `agency().stream()` run.
+
+```typescript
+import { agency, type AgencyStreamResult } from '@framers/agentos';
+
+const streamingTeam = agency({
+  provider: 'openai',
+  strategy: 'sequential',
+  agents: {
+    researcher: { instructions: 'Collect the key facts and risks.' },
+    writer: { instructions: 'Turn the facts into four crisp bullet points.' },
+  },
+  hitl: {
+    approvals: { beforeReturn: true },
+    handler: async () => ({
+      approved: true,
+      modifications: {
+        output: 'Approved for delivery:\\n- Risk 1\\n- Risk 2\\n- Risk 3\\n- Risk 4',
+      },
+    }),
+  },
+});
+
+const stream: AgencyStreamResult = streamingTeam.stream(
+  'Summarize the main HTTP/3 rollout risks.'
+);
+
+for await (const chunk of stream.textStream) {
+  process.stdout.write(chunk); // raw live output
+}
+process.stdout.write('\\n');
+
+for await (const event of stream.fullStream) {
+  if (event.type === 'final-output') {
+    console.log('Finalized answer:', event.text);
+    console.log('Agent calls:', event.agentCalls.length);
+  }
+}
+
+for await (const approved of stream.finalTextStream) {
+  console.log('Approved-only stream:', approved);
+}
+
+console.log(await stream.text);
+console.log(await stream.agentCalls);
+```
+
+Runnable source: `packages/agentos/examples/agency-streaming.mjs`
+
+---
+
+## 11. Query Router
+
+Tier classification, retrieval routing, and fallback metadata from the
+standalone `QueryRouter`.
+
+```typescript
+import { QueryRouter } from '@framers/agentos';
+
+const router = new QueryRouter({
+  knowledgeCorpus: ['./docs', './packages/agentos/docs'],
+  availableTools: ['web_search', 'deep_research'],
+  onClassification: (result) => {
+    console.log(result.tier, result.confidence);
+  },
+});
+
+await router.init();
+
+const result = await router.route(
+  'How does AgentOS memory retrieval work, and when does it fall back to keyword search?'
+);
+
+console.log(result.answer);
+console.log(result.classification.tier);
+console.log(result.tiersUsed);
+console.log(result.fallbacksUsed);
+console.log(result.sources);
+
+await router.close();
+```
+
+Runnable source: `packages/agentos/examples/query-router.mjs`
+
+---
+
+## 12. Query Router Host Hooks
+
+Host-provided graph expansion, reranking, and deep research hooks layered onto
+the same `QueryRouter` interface.
+
+```typescript
+import { QueryRouter } from '@framers/agentos';
+
+const router = new QueryRouter({
+  knowledgeCorpus: ['./docs', './packages/agentos/docs'],
+  graphEnabled: true,
+  deepResearchEnabled: true,
+  graphExpand: async (seedChunks) => [...seedChunks, extraGraphChunk],
+  rerank: async (_query, chunks, topN) => chunks.slice(0, topN),
+  deepResearch: async (query, sources) => ({
+    synthesis: `Host-provided research for ${query}`,
+    sources: externalResearchChunks,
+  }),
+});
+
+await router.init();
+console.log(router.getCorpusStats()); // runtime modes become active
+```
+
+Runnable source: `packages/agentos/examples/query-router-host-hooks.mjs`
 
 ---
 

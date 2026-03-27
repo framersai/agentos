@@ -22,8 +22,8 @@
 
 - [**Getting Started Guide**](./GETTING_STARTED.md) — Install, env setup, and 3 levels (1 line → 3 lines → 5 lines)
 - [**README**](../README.md) — Installation and quick start
-- [**High-Level API**](./HIGH_LEVEL_API.md) — `generateText()`, `streamText()`, `generateImage()`, and `agent()`
-- [**Examples Cookbook**](./EXAMPLES.md) — 9 complete runnable examples, including runtime-configured `AgentOS` tools
+- [**High-Level API**](./HIGH_LEVEL_API.md) — `generateText()`, `streamText()`, `generateImage()`, `generateVideo()`, `analyzeVideo()`, `generateMusic()`, `generateSFX()`, `performOCR()`, `agent()`, and `agency()`
+- [**Examples Cookbook**](./EXAMPLES.md) — 12 complete runnable examples, including QueryRouter host hooks and finalized agency streaming
 - [**CHANGELOG**](../CHANGELOG.md) — Version history and release notes
 
 ### Architecture & Core Concepts
@@ -63,10 +63,11 @@
 #### AI & LLM
 
 - [**Structured Output**](./STRUCTURED_OUTPUT.md) — JSON schema validation and structured generation
+- [**Streaming Semantics**](./STREAMING_SEMANTICS.md) — Raw live chunks vs finalized approved output across `textStream`, `fullStream`, `text`, and `finalTextStream`
 - [**Evaluation Guide**](./EVALUATION.md) — Test cases, graders, LLM-as-judge, A/B testing, experiment tracking
 - [**Evaluation Framework**](./EVALUATION_FRAMEWORK.md) — Testing, scoring, and quality assurance
 - [**Query Router**](./QUERY_ROUTER.md) — Tiered query classification, retrieval routing, keyword fallback, and grounded answer generation
-- [**Image Generation Guide**](./IMAGE_GENERATION.md) — 5 providers (OpenAI, Stability, Replicate, OpenRouter, local SD)
+- [**Image Generation Guide**](./IMAGE_GENERATION.md) — Provider-agnostic image generation across cloud and local backends
 - [**Capability Discovery Guide**](./DISCOVERY.md) — Three-tier semantic discovery, CAPABILITY.yaml, meta-tool
 - [**Capability Discovery**](./CAPABILITY_DISCOVERY.md) — Full architecture reference
 - [**Cost Optimization**](./COST_OPTIMIZATION.md) — Token usage and API cost management

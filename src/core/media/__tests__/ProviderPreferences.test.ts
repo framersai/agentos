@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  resolveProviderChain,
   resolveProviderOrder,
   selectWeightedProvider,
 } from '../ProviderPreferences.js';
@@ -126,5 +127,46 @@ describe('selectWeightedProvider', () => {
     // listed:unlisted should be approximately 100:1 — listed > 95%.
     const listedRatio = counts.listed / iterations;
     expect(listedRatio).toBeGreaterThan(0.9);
+  });
+
+  it('throws for invalid negative weights', () => {
+    expect(() =>
+      selectWeightedProvider(['alpha', 'beta'], { alpha: -1, beta: 1 }),
+    ).toThrow(/Invalid weight for provider "alpha"/);
+  });
+
+  it('throws when every configured weight is zero', () => {
+    expect(() =>
+      selectWeightedProvider(['alpha', 'beta'], { alpha: 0, beta: 0 }),
+    ).toThrow('Cannot select from providers with zero total weight');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveProviderChain
+// ---------------------------------------------------------------------------
+
+describe('resolveProviderChain', () => {
+  it('returns ordered providers unchanged when no weights are supplied', () => {
+    expect(
+      resolveProviderChain(['openai', 'stability', 'replicate'], {
+        preferred: ['replicate', 'openai'],
+      }),
+    ).toEqual(['replicate', 'openai']);
+  });
+
+  it('moves the weighted primary to the front while preserving fallback order', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.95);
+
+    const result = resolveProviderChain(['openai', 'stability', 'replicate'], {
+      preferred: ['openai', 'stability', 'replicate'],
+      weights: {
+        openai: 0,
+        stability: 1,
+        replicate: 10,
+      },
+    });
+
+    expect(result).toEqual(['replicate', 'openai', 'stability']);
   });
 });

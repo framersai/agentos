@@ -85,6 +85,7 @@ beforeEach(() => {
     fullStream: (async function* () { yield { type: 'text', text: 'streamed' }; })(),
     text: Promise.resolve('streamed'),
     usage: Promise.resolve({}),
+    agentCalls: Promise.resolve([]),
   });
 });
 
@@ -162,9 +163,10 @@ describe('agency().generate()', () => {
 // ---------------------------------------------------------------------------
 
 describe('agency().stream()', () => {
-  it('delegates to the compiled strategy stream method', () => {
+  it('delegates to the compiled strategy stream method', async () => {
     const a = agency(minimalOpts());
-    const result = a.stream('hello');
+    const result = a.stream('hello') as { text: Promise<string> };
+    await result.text;
     expect(hoisted.strategyStream).toHaveBeenCalledWith('hello', undefined);
     expect(result).toBeDefined();
   });

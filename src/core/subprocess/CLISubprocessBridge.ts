@@ -241,6 +241,9 @@ export abstract class CLISubprocessBridge {
           if (event) yield event;
         } catch { /* ignore */ }
       }
+
+      /* Ensure non-zero exits after stdout drains still surface as errors. */
+      await subprocess;
     } catch (error: any) {
       throw this.classifyError(error);
     }

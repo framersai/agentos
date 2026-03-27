@@ -139,7 +139,7 @@ export class SceneDetector {
       }
 
       // Compute visual difference between consecutive frames
-      const diff = this.histogramDiff(prevFrame.buffer, frame.buffer);
+      const diff = await this.computeDiff(prevFrame.buffer, frame.buffer);
 
       // Check if this exceeds the gradual threshold (minimum for any scene change)
       if (diff >= this.config.gradualThreshold) {
@@ -230,6 +230,47 @@ export class SceneDetector {
   }
 
   // -------------------------------------------------------------------------
+  // Private — configured diff selection
+  // -------------------------------------------------------------------------
+
+  /**
+   * Compute a frame-difference score using the configured detection methods.
+   *
+   * When multiple methods are configured, the maximum score is used so that
+   * any strong signal can trigger a scene boundary.
+   */
+  private async computeDiff(a: Buffer, b: Buffer): Promise<number> {
+    let maxDiff = 0;
+
+    for (const method of this.config.methods) {
+      let diff: number;
+
+      switch (method) {
+        case 'histogram':
+          diff = this.histogramDiff(a, b);
+          break;
+        case 'ssim':
+          diff = await this.ssimDiff(a, b);
+          break;
+        case 'clip':
+          // Semantic scene detection is not yet implemented here; fall back to
+          // histogram-based change scoring so the configured method remains safe.
+          diff = this.histogramDiff(a, b);
+          break;
+        default:
+          diff = this.histogramDiff(a, b);
+          break;
+      }
+
+      if (diff > maxDiff) {
+        maxDiff = diff;
+      }
+    }
+
+    return maxDiff;
+  }
+
+  // -------------------------------------------------------------------------
   // Public API — histogram difference
   // -------------------------------------------------------------------------
 
@@ -289,6 +330,7 @@ export class SceneDetector {
   async ssimDiff(a: Buffer, b: Buffer): Promise<number> {
     // Attempt sharp-based SSIM
     try {
+      // @ts-ignore — sharp is an optional peer dependency
       const sharp = await import('sharp');
       // Convert raw RGB buffers to sharp instances and compute stats
       // Since we're working with raw RGB data of unknown dimensions,

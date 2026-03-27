@@ -191,8 +191,10 @@ export class VideoAnalyzer implements IVideoAnalyzer {
 
     const rich = await this.analyze({
       video: videoBuffer,
+      prompt: request.prompt,
       transcribeAudio: false,
       descriptionDetail: 'brief',
+      maxFrames: request.maxFrames,
     });
 
     return {
@@ -202,8 +204,11 @@ export class VideoAnalyzer implements IVideoAnalyzer {
         endSec: s.endSec,
         description: s.description,
       })),
+      text: rich.fullTranscript ? [rich.fullTranscript] : undefined,
       durationSec: rich.durationSec,
       modelId: request.modelId,
+      providerId: 'agentos-video-analyzer',
+      providerMetadata: rich.metadata,
     };
   }
 
@@ -267,10 +272,17 @@ export class VideoAnalyzer implements IVideoAnalyzer {
       this._emitProgress(request.onProgress, 'extracting-frames', 0, 'Extracting frames at 1fps');
       await mkdir(framesDir, { recursive: true });
 
-      const frames = await this._extractFrames(videoPath, framesDir);
+      let frames = await this._extractFrames(videoPath, framesDir);
+      const extractedFrameCount = frames.length;
+
+      if (request.maxFrames !== undefined && request.maxFrames > 0 && frames.length > request.maxFrames) {
+        frames = this._downsampleFrames(frames, request.maxFrames);
+      }
 
       this._emitProgress(request.onProgress, 'extracting-frames', 100,
-        `Extracted ${frames.length} frames`);
+        frames.length === extractedFrameCount
+          ? `Extracted ${frames.length} frames`
+          : `Extracted ${extractedFrameCount} frames and sampled ${frames.length}`);
 
       // -----------------------------------------------------------------------
       // Stage 3: Detect scenes
@@ -306,9 +318,9 @@ export class VideoAnalyzer implements IVideoAnalyzer {
 
         if (keyFrame) {
           try {
-            const visionResult = await visionPipeline.process(keyFrame.buffer);
+            const visionResult = await visionPipeline.process(keyFrame.sourceBuffer ?? keyFrame.buffer);
             description = visionResult.text || 'No description available.';
-            keyFrameBase64 = keyFrame.buffer.toString('base64');
+            keyFrameBase64 = (keyFrame.sourceBuffer ?? keyFrame.buffer).toString('base64');
           } catch {
             description = 'Vision analysis failed for this scene.';
           }
@@ -382,7 +394,11 @@ export class VideoAnalyzer implements IVideoAnalyzer {
       // -----------------------------------------------------------------------
       this._emitProgress(request.onProgress, 'summarizing', 0, 'Generating summary');
 
-      const summary = await this._generateSummary(sceneDescriptions, fullTranscript);
+      const summary = await this._generateSummary(
+        sceneDescriptions,
+        fullTranscript,
+        request.prompt,
+      );
 
       this._emitProgress(request.onProgress, 'summarizing', 100, 'Summary complete');
 
@@ -403,6 +419,8 @@ export class VideoAnalyzer implements IVideoAnalyzer {
         ragChunkIds,
         metadata: {
           frameCount: frames.length,
+          extractedFrameCount,
+          maxFrames: request.maxFrames,
           sceneThreshold: request.sceneThreshold ?? 0.3,
           descriptionDetail: request.descriptionDetail ?? 'detailed',
           transcribeAudio: request.transcribeAudio !== false,
@@ -502,9 +520,11 @@ export class VideoAnalyzer implements IVideoAnalyzer {
 
     const frames: Frame[] = [];
     for (let i = 0; i < frameFiles.length; i++) {
-      const buffer = await readFile(join(framesDir, frameFiles[i]));
+      const sourceBuffer = await readFile(join(framesDir, frameFiles[i]));
+      const buffer = await this._decodeFrameToRgb(sourceBuffer);
       frames.push({
         buffer,
+        sourceBuffer,
         // At 1fps, frame index = seconds
         timestampSec: i,
         index: i,
@@ -636,6 +656,7 @@ export class VideoAnalyzer implements IVideoAnalyzer {
   private async _generateSummary(
     scenes: SceneDescription[],
     transcript?: string,
+    userPrompt?: string,
   ): Promise<string> {
     // Build the context from scene descriptions
     const sceneLines = scenes.map((s) => {
@@ -648,11 +669,18 @@ export class VideoAnalyzer implements IVideoAnalyzer {
 
     const prompt = [
       'You are analyzing a video. Below are descriptions of each scene detected in the video.',
+      userPrompt
+        ? `\nUser request:\n${userPrompt}`
+        : '',
       transcript ? `\nFull transcript:\n${transcript}` : '',
       '\nScene descriptions:',
       ...sceneLines,
-      '\nProvide a concise summary (2-4 sentences) of the overall video content,',
-      'capturing the narrative arc, key visual elements, and any important spoken content.',
+      userPrompt
+        ? '\nAnswer the user request using the observable scene and transcript evidence.'
+        : '\nProvide a concise summary (2-4 sentences) of the overall video content,',
+      userPrompt
+        ? 'If the request cannot be answered fully, say what is directly supported by the video.'
+        : 'capturing the narrative arc, key visual elements, and any important spoken content.',
     ].filter(Boolean).join('\n');
 
     try {
@@ -734,6 +762,51 @@ export class VideoAnalyzer implements IVideoAnalyzer {
       this._visionPipeline = await createVisionPipeline();
     }
     return this._visionPipeline;
+  }
+
+  /**
+   * Decode an extracted frame image into a raw RGB buffer for scene detection.
+   *
+   * When decoding is unavailable, the original encoded bytes are returned so
+   * callers still get a best-effort diff signal instead of a hard failure.
+   */
+  private async _decodeFrameToRgb(buffer: Buffer): Promise<Buffer> {
+    try {
+      const sharpModule = await import('sharp');
+      const sharp = sharpModule.default;
+      const { data } = await sharp(buffer)
+        .removeAlpha()
+        .toColourspace('rgb')
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      return Buffer.from(data);
+    } catch {
+      return buffer;
+    }
+  }
+
+  /**
+   * Evenly downsample a frame list while preserving order and both endpoints.
+   */
+  private _downsampleFrames(frames: Frame[], maxFrames: number): Frame[] {
+    if (maxFrames >= frames.length) return frames;
+    if (maxFrames <= 1) return [frames[0]];
+
+    const sampled: Frame[] = [];
+    const lastIndex = frames.length - 1;
+
+    for (let i = 0; i < maxFrames; i++) {
+      const index = i === maxFrames - 1
+        ? lastIndex
+        : Math.floor((i * frames.length) / maxFrames);
+      const frame = frames[index];
+
+      if (sampled[sampled.length - 1] !== frame) {
+        sampled.push(frame);
+      }
+    }
+
+    return sampled;
   }
 
   /**

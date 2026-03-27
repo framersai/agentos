@@ -16,6 +16,7 @@ import type {
   AgencyStrategy,
   BaseAgentConfig,
   AgencyOptions,
+  AgencyStreamResult,
   AgencyStreamPart,
   AgencyTraceEvent,
   AgentCallRecord,
@@ -41,6 +42,7 @@ import type {
   ObservabilityConfig,
   ResourceControls,
   CompiledStrategy,
+  CompiledStrategyStreamResult,
   Agent,
   Agency,
 } from '../types.js';
@@ -120,6 +122,8 @@ describe('AgencyStreamPart discriminated union', () => {
         return `approval-requested:${part.request.id}`;
       case 'approval-decided':
         return `approval-decided:${part.requestId}`;
+      case 'final-output':
+        return `final-output:${part.text}`;
       case 'permission-denied':
         return `permission-denied:${part.action}`;
     }
@@ -232,6 +236,18 @@ describe('AgencyStreamPart discriminated union', () => {
   it('narrows "approval-decided" parts correctly', () => {
     const part: AgencyStreamPart = { type: 'approval-decided', requestId: 'req-1', approved: true };
     expect(describeStreamPart(part)).toBe('approval-decided:req-1');
+  });
+
+  it('narrows "final-output" parts correctly', () => {
+    const part: AgencyStreamPart = {
+      type: 'final-output',
+      text: 'Approved answer',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      agentCalls: [],
+      parsed: { ok: true },
+      durationMs: 320,
+    };
+    expect(describeStreamPart(part)).toBe('final-output:Approved answer');
   });
 
   it('narrows "permission-denied" parts correctly', () => {
@@ -626,7 +642,22 @@ describe('Agent / Agency structural equivalence', () => {
         return { text: 'ok' };
       },
       stream(_prompt: string) {
-        return {};
+        const stream: AgencyStreamResult = {
+          textStream: (async function* () {
+            yield 'ok';
+          })(),
+          fullStream: (async function* () {
+            yield { type: 'text' as const, text: 'ok' };
+          })(),
+          text: Promise.resolve('ok'),
+          usage: Promise.resolve({ promptTokens: 1, completionTokens: 1, totalTokens: 2 }),
+          agentCalls: Promise.resolve([]),
+          parsed: Promise.resolve(undefined),
+          finalTextStream: (async function* () {
+            yield 'ok';
+          })(),
+        };
+        return stream;
       },
       session(_id?: string) {
         return {};
@@ -649,5 +680,22 @@ describe('Agent / Agency structural equivalence', () => {
     const asAgent: Agent = mockAgency;
     expect(typeof asAgent.generate).toBe('function');
     expect(typeof asAgent.close).toBe('function');
+  });
+
+  it('CompiledStrategy stream results are structurally typed without casts', () => {
+    const stream: CompiledStrategyStreamResult = {
+      textStream: (async function* () {
+        yield 'chunk';
+      })(),
+      fullStream: (async function* () {
+        yield { type: 'text' as const, text: 'chunk' };
+      })(),
+      text: Promise.resolve('chunk'),
+      usage: Promise.resolve({ promptTokens: 1, completionTokens: 1, totalTokens: 2 }),
+      agentCalls: Promise.resolve([]),
+    };
+
+    expect(stream.text).toBeInstanceOf(Promise);
+    expect(stream.agentCalls).toBeInstanceOf(Promise);
   });
 });

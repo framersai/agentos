@@ -24,7 +24,11 @@ import type {
   ImageOutputFormat,
 } from '../core/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
-import { resolveProviderOrder, type MediaProviderPreference } from '../core/media/ProviderPreferences.js';
+import {
+  resolveProviderChain,
+  resolveProviderOrder,
+  type MediaProviderPreference,
+} from '../core/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
@@ -71,20 +75,32 @@ function detectFallbackImageProviders(primaryProviderId: string): string[] {
 }
 
 /**
- * Creates an {@link IImageProvider} for the resolved primary provider,
- * optionally wrapped in a {@link FallbackImageProxy} when additional
- * image-capable providers are detected in the environment.
+ * Detects all image providers with valid credentials in the environment.
  *
- * When `providerPreferences` is supplied, the fallback chain is reordered
- * and filtered according to the preference rules before being constructed.
+ * @returns Provider IDs in priority order.
+ */
+function detectAvailableImageProviders(): string[] {
+  const available: string[] = [];
+  for (const { envKey, providerId } of IMAGE_PROVIDER_ENV_MAP) {
+    if (!process.env[envKey]) continue;
+    if (!hasImageProviderFactory(providerId)) continue;
+    available.push(providerId);
+  }
+  return available;
+}
+
+/**
+ * Creates an {@link IImageProvider} for the resolved primary provider,
+ * optionally wrapped in a {@link FallbackImageProxy} when an ordered
+ * provider chain contains additional image-capable fallbacks.
  *
  * @param resolved - The primary resolved provider credentials.
- * @param providerPreferences - Optional preferences for reordering/filtering.
+ * @param providerChain - Optional ordered provider IDs with the primary first.
  * @returns An initialised image provider (possibly a fallback proxy).
  */
 async function createImageProviderWithFallback(
   resolved: { providerId: string; modelId: string; apiKey?: string; baseUrl?: string },
-  providerPreferences?: MediaProviderPreference,
+  providerChain?: string[],
 ): Promise<IImageProvider> {
   const primary = createImageProvider(resolved.providerId);
   await primary.initialize({
@@ -93,14 +109,9 @@ async function createImageProviderWithFallback(
     defaultModelId: resolved.modelId,
   });
 
-  let fallbackIds = detectFallbackImageProviders(resolved.providerId);
-
-  // Apply provider preferences to reorder / filter the fallback chain.
-  if (providerPreferences) {
-    const allIds = [resolved.providerId, ...fallbackIds];
-    const ordered = resolveProviderOrder(allIds, providerPreferences);
-    fallbackIds = ordered.filter((id) => id !== resolved.providerId);
-  }
+  const fallbackIds = providerChain
+    ? providerChain.filter((id) => id !== resolved.providerId)
+    : detectFallbackImageProviders(resolved.providerId);
 
   if (fallbackIds.length === 0) {
     return primary;
@@ -111,7 +122,8 @@ async function createImageProviderWithFallback(
   const chain: IImageProvider[] = [primary];
   for (const fbId of fallbackIds) {
     try {
-      const fbResolved = resolveMediaProvider(fbId, resolved.modelId);
+      const { modelId: fallbackModelId } = resolveModelOption({ provider: fbId }, 'image');
+      const fbResolved = resolveMediaProvider(fbId, fallbackModelId);
       const fb = createImageProvider(fbId);
       await fb.initialize({
         apiKey: fbResolved.apiKey,
@@ -237,7 +249,31 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
 
   try {
     return await withAgentOSSpan('agentos.api.generate_image', async (span) => {
-      const { providerId, modelId } = resolveModelOption(opts, 'image');
+      let providerChain: string[] | undefined;
+      let providerId: string;
+      let modelId: string;
+
+      if (!opts.provider && !opts.model) {
+        providerChain = resolveProviderChain(
+          detectAvailableImageProviders(),
+          opts.providerPreferences,
+        );
+        if (providerChain.length === 0) {
+          throw new Error(
+            'No image provider configured. Set OPENAI_API_KEY, STABILITY_API_KEY, REPLICATE_API_TOKEN, BFL_API_KEY, FAL_API_KEY, OPENROUTER_API_KEY, or STABLE_DIFFUSION_LOCAL_BASE_URL.',
+          );
+        }
+        ({ providerId, modelId } = resolveModelOption({ provider: providerChain[0] }, 'image'));
+      } else {
+        ({ providerId, modelId } = resolveModelOption(opts, 'image'));
+        let fallbackIds = detectFallbackImageProviders(providerId);
+        if (opts.providerPreferences) {
+          const ordered = resolveProviderOrder([providerId, ...fallbackIds], opts.providerPreferences);
+          fallbackIds = ordered.filter((id) => id !== providerId);
+        }
+        providerChain = [providerId, ...fallbackIds];
+      }
+
       const resolved = resolveMediaProvider(providerId, modelId, {
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
@@ -248,10 +284,13 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
       span?.setAttribute('llm.provider', resolved.providerId);
       span?.setAttribute('llm.model', resolved.modelId);
 
-      const provider = await createImageProviderWithFallback(resolved, opts.providerPreferences);
+      const provider = await createImageProviderWithFallback(resolved, providerChain);
 
       const result = await provider.generateImage({
-        modelId: resolved.modelId,
+        modelId:
+          provider instanceof FallbackImageProxy
+            ? undefined
+            : resolved.modelId,
         prompt: opts.prompt,
         modalities: opts.modalities,
         n: opts.n,

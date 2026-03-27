@@ -72,6 +72,7 @@ describe('GeminiCLIProvider', () => {
 
       expect(response.choices[0].message.content).toBe('Hi there!');
       expect(response.choices[0].finishReason).toBe('stop');
+      expect(response.modelId).toBe('gemini-2.5-flash');
       expect(response.usage?.costUSD).toBe(0);
 
       /* System prompt goes to bridge */
@@ -193,6 +194,55 @@ describe('GeminiCLIProvider', () => {
       const health = await provider.checkHealth();
       expect(health.isHealthy).toBe(false);
       expect((health.details as any).guidance).toContain('npm install -g @google/gemini-cli');
+    });
+  });
+
+  describe('generateCompletionStream()', () => {
+    beforeEach(async () => {
+      await provider.initialize({});
+    });
+
+    it('synthesizes a final chunk when the bridge only emits text deltas', async () => {
+      bridgeMocks.streamWithSystemPrompt.mockImplementation(async function* () {
+        yield { type: 'text_delta', text: 'Gemini' };
+        yield { type: 'text_delta', text: ' stream' };
+      });
+
+      const chunks: any[] = [];
+      for await (const chunk of provider.generateCompletionStream(
+        'gemini-2.5-pro',
+        [{ role: 'user', content: 'Hello' }],
+        {},
+      )) {
+        chunks.push(chunk);
+      }
+
+      const finalChunk = chunks[chunks.length - 1];
+      expect(finalChunk.isFinal).toBe(true);
+      expect(finalChunk.modelId).toBe('gemini-2.5-pro');
+      expect(finalChunk.choices[0].message.content).toBe('Gemini stream');
+    });
+
+    it('emits a terminal error chunk instead of throwing on stream errors', async () => {
+      bridgeMocks.streamWithSystemPrompt.mockImplementation(async function* () {
+        yield { type: 'error', error: 'quota exploded' };
+      });
+
+      const chunks: any[] = [];
+      for await (const chunk of provider.generateCompletionStream(
+        'gemini-2.0-flash-lite',
+        [{ role: 'user', content: 'Hello' }],
+        {},
+      )) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toMatchObject({
+        isFinal: true,
+        modelId: 'gemini-2.0-flash-lite',
+        error: { message: expect.stringContaining('quota exploded') },
+      });
     });
   });
 });

@@ -109,7 +109,7 @@ export interface ImageProviderOptionBag {
 }
 
 export interface ImageGenerationRequest {
-  modelId: string;
+  modelId?: string;
   prompt: string;
   modalities?: ImageModality[];
   n?: number;

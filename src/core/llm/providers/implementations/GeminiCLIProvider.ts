@@ -222,18 +222,18 @@ export class GeminiCLIProvider implements IProvider {
     if (hasTools) {
       const toolCalls = parseToolCallsFromText(result.result);
       if (toolCalls) {
-        return this.buildToolCallResponse(toolCalls, result);
+        return this.buildToolCallResponse(toolCalls, result, undefined, undefined, modelId);
       }
       /* No tool calls found — check if it's a text response or parse failure */
       /* If text contains partial XML, retry without tools */
       if (result.result.includes('<tool_call') && !result.result.includes('</tool_call>')) {
         const retryOpts = { ...bridgeOpts, systemPrompt: systemPrompt || undefined };
         const retryResult = await this.bridge.executeWithSystemPrompt(retryOpts);
-        return this.buildTextResponse(retryResult.result, retryResult);
+        return this.buildTextResponse(retryResult.result, retryResult, undefined, undefined, modelId);
       }
     }
 
-    return this.buildTextResponse(result.result, result);
+    return this.buildTextResponse(result.result, result, undefined, undefined, modelId);
   }
 
   async *generateCompletionStream(
@@ -260,67 +260,89 @@ export class GeminiCLIProvider implements IProvider {
     let accumulatedText = '';
     const responseId = `gc-${Date.now()}`;
     let finalUsage: ModelUsage | undefined;
+    let emittedFinal = false;
 
-    for await (const event of this.bridge.streamWithSystemPrompt(bridgeOpts)) {
-      switch (event.type) {
-        case 'text_delta':
-          accumulatedText += event.text;
-          yield {
-            id: responseId,
-            object: 'chat.completion.chunk',
-            created: Date.now(),
-            modelId,
-            choices: [{
-              index: 0,
-              message: { role: 'assistant', content: accumulatedText },
-              finishReason: null,
-            }],
-            responseTextDelta: event.text,
-            isFinal: false,
-          };
-          break;
+    try {
+      for await (const event of this.bridge.streamWithSystemPrompt(bridgeOpts)) {
+        switch (event.type) {
+          case 'text_delta':
+            accumulatedText += event.text;
+            yield {
+              id: responseId,
+              object: 'chat.completion.chunk',
+              created: Date.now(),
+              modelId,
+              choices: [{
+                index: 0,
+                message: { role: 'assistant', content: accumulatedText },
+                finishReason: null,
+              }],
+              responseTextDelta: event.text,
+              isFinal: false,
+            };
+            break;
 
-        case 'result': {
-          const usage = event.usage;
-          finalUsage = usage
-            ? { promptTokens: usage.input_tokens, completionTokens: usage.output_tokens, totalTokens: usage.input_tokens + usage.output_tokens, costUSD: 0 }
-            : { totalTokens: 0, costUSD: 0 };
+          case 'result': {
+            const usage = event.usage;
+            finalUsage = usage
+              ? { promptTokens: usage.input_tokens, completionTokens: usage.output_tokens, totalTokens: usage.input_tokens + usage.output_tokens, costUSD: 0 }
+              : { totalTokens: 0, costUSD: 0 };
 
-          const finalText = event.result || accumulatedText;
+            const finalText = event.result || accumulatedText;
 
-          /* Try parsing tool calls from final text */
-          if (hasTools) {
-            const toolCalls = parseToolCallsFromText(finalText);
-            if (toolCalls) {
-              yield this.buildToolCallResponse(toolCalls, { ...event, result: finalText, isError: false, durationMs: 0 }, responseId, finalUsage);
-              return;
+            /* Try parsing tool calls from final text */
+            if (hasTools) {
+              const toolCalls = parseToolCallsFromText(finalText);
+              if (toolCalls) {
+                emittedFinal = true;
+                yield this.buildToolCallResponse(
+                  toolCalls,
+                  { sessionId: event.sessionId, usage: event.usage },
+                  responseId,
+                  finalUsage,
+                  modelId,
+                );
+                return;
+              }
             }
+
+            emittedFinal = true;
+            yield this.buildTextResponse(
+              finalText,
+              { sessionId: event.sessionId, usage: event.usage },
+              responseId,
+              finalUsage,
+              modelId,
+            );
+            return;
           }
 
-          yield {
-            id: responseId,
-            object: 'chat.completion',
-            created: Date.now(),
-            modelId,
-            choices: [{
-              index: 0,
-              message: { role: 'assistant', content: finalText },
-              finishReason: 'stop',
-            }],
-            usage: finalUsage,
-            isFinal: true,
-          };
-          break;
+          case 'error':
+            emittedFinal = true;
+            yield this.buildStreamErrorResponse(
+              `Gemini CLI stream error: ${event.error}`,
+              modelId,
+              responseId,
+              finalUsage,
+            );
+            return;
         }
-
-        case 'error':
-          throw new GeminiCLIProviderError(
-            `Gemini CLI stream error: ${event.error}`,
-            'CRASHED',
-            'Try running "gemini -p test" manually to diagnose.',
-            true,
-          );
       }
+    } catch (error: any) {
+      emittedFinal = true;
+      yield this.buildStreamErrorResponse(
+        error?.message ?? 'Gemini CLI stream failed.',
+        modelId,
+        responseId,
+        finalUsage,
+        error?.code,
+        error,
+      );
+      return;
+    }
+
+    if (!emittedFinal) {
+      yield this.buildTextResponse(accumulatedText, {}, responseId, finalUsage, modelId);
     }
   }
 
@@ -488,13 +510,14 @@ Each tool_call must include id (unique string), name (tool name), and a JSON bod
     result: { sessionId?: string; usage?: { input_tokens: number; output_tokens: number } },
     responseId?: string,
     usage?: ModelUsage,
+    modelId?: string,
   ): ModelCompletionResponse {
     const u = usage ?? this.buildUsage(result.usage);
     return {
       id: responseId ?? `gc-${result.sessionId ?? Date.now()}`,
       object: 'chat.completion',
       created: Date.now(),
-      modelId: this.defaultModelId ?? 'gemini-2.5-flash',
+      modelId: modelId ?? this.defaultModelId ?? 'gemini-2.5-flash',
       choices: [{
         index: 0,
         message: { role: 'assistant', content: text },
@@ -510,13 +533,14 @@ Each tool_call must include id (unique string), name (tool name), and a JSON bod
     result: { sessionId?: string; usage?: { input_tokens: number; output_tokens: number } },
     responseId?: string,
     usage?: ModelUsage,
+    modelId?: string,
   ): ModelCompletionResponse {
     const u = usage ?? this.buildUsage(result.usage);
     return {
       id: responseId ?? `gc-${result.sessionId ?? Date.now()}`,
       object: 'chat.completion',
       created: Date.now(),
-      modelId: this.defaultModelId ?? 'gemini-2.5-flash',
+      modelId: modelId ?? this.defaultModelId ?? 'gemini-2.5-flash',
       choices: [{
         index: 0,
         message: {
@@ -534,6 +558,30 @@ Each tool_call must include id (unique string), name (tool name), and a JSON bod
         finishReason: 'tool_calls',
       }],
       usage: u,
+      isFinal: true,
+    };
+  }
+
+  private buildStreamErrorResponse(
+    message: string,
+    modelId: string,
+    responseId: string,
+    usage?: ModelUsage,
+    code?: string | number,
+    details?: unknown,
+  ): ModelCompletionResponse {
+    return {
+      id: responseId,
+      object: 'chat.completion.chunk',
+      created: Date.now(),
+      modelId,
+      choices: [],
+      usage,
+      error: {
+        message,
+        ...(code === undefined ? {} : { code }),
+        ...(details === undefined ? {} : { details }),
+      },
       isFinal: true,
     };
   }

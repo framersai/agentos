@@ -6,6 +6,8 @@
  * the system looks up the default model for the requested task type here.
  */
 
+import { spawnSync } from 'node:child_process';
+
 /**
  * Default model identifiers for a given provider, keyed by task type.
  * Only fields relevant to the provider need to be populated.
@@ -20,6 +22,9 @@ export interface ProviderDefaults {
   /** Cheapest model for internal/discovery use */
   cheap?: string;
 }
+
+/** Task keys supported by the default-model registry. */
+export type ProviderDefaultTask = 'text' | 'image' | 'embedding';
 
 /**
  * Registry of default models per provider, keyed by provider identifier.
@@ -52,6 +57,14 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
   gemini: {
     text: 'gemini-2.5-flash',
     cheap: 'gemini-2.0-flash',
+  },
+  'claude-code-cli': {
+    text: 'claude-sonnet-4-20250514',
+    cheap: 'claude-haiku-4-5-20251001',
+  },
+  'gemini-cli': {
+    text: 'gemini-2.5-flash',
+    cheap: 'gemini-2.0-flash-lite',
   },
   stability: {
     image: 'stable-diffusion-xl-1024-v1-0',
@@ -86,16 +99,22 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
   },
 };
 
-/** Env var keys checked for auto-detection, in priority order */
-const AUTO_DETECT_ORDER: Array<{ envKey: string; provider: string }> = [
+/** Runtime probes checked for auto-detection, in priority order. */
+type AutoDetectProbe =
+  | { provider: string; envKey: string }
+  | { provider: string; binaryName: string };
+
+const AUTO_DETECT_ORDER: AutoDetectProbe[] = [
+  { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'OPENAI_API_KEY', provider: 'openai' },
   { envKey: 'ANTHROPIC_API_KEY', provider: 'anthropic' },
-  { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'GEMINI_API_KEY', provider: 'gemini' },
   { envKey: 'GROQ_API_KEY', provider: 'groq' },
   { envKey: 'TOGETHER_API_KEY', provider: 'together' },
   { envKey: 'MISTRAL_API_KEY', provider: 'mistral' },
   { envKey: 'XAI_API_KEY', provider: 'xai' },
+  { binaryName: 'claude', provider: 'claude-code-cli' },
+  { binaryName: 'gemini', provider: 'gemini-cli' },
   { envKey: 'OLLAMA_BASE_URL', provider: 'ollama' },
   { envKey: 'STABILITY_API_KEY', provider: 'stability' },
   { envKey: 'REPLICATE_API_TOKEN', provider: 'replicate' },
@@ -104,18 +123,31 @@ const AUTO_DETECT_ORDER: Array<{ envKey: string; provider: string }> = [
   { envKey: 'FAL_API_KEY', provider: 'fal' },
 ];
 
+function isBinaryOnPath(binaryName: string): boolean {
+  const lookupCommand = process.platform === 'win32' ? 'where' : 'which';
+  const result = spawnSync(lookupCommand, [binaryName], { stdio: 'ignore' });
+  return result.status === 0;
+}
+
 /**
  * Auto-detects the active provider by scanning well-known environment variables
- * in priority order.
+ * and CLI binaries in priority order.
  *
- * Returns the identifier of the first provider whose key/URL env var is non-empty,
- * or `undefined` when no recognisable credentials are present.
+ * Returns the identifier of the first provider whose key/URL env var is non-empty
+ * or whose CLI binary is on PATH, or `undefined` when no recognisable runtime is present.
  *
- * Priority: openai → anthropic → openrouter → gemini → ollama → stability → replicate
+ * Priority: openrouter → openai → anthropic → gemini → claude-code-cli → gemini-cli → ollama → …
  */
-export function autoDetectProvider(): string | undefined {
-  for (const { envKey, provider } of AUTO_DETECT_ORDER) {
-    if (process.env[envKey]) return provider;
+export function autoDetectProvider(task?: ProviderDefaultTask): string | undefined {
+  for (const probe of AUTO_DETECT_ORDER) {
+    const available = 'envKey' in probe
+      ? Boolean(process.env[probe.envKey])
+      : isBinaryOnPath(probe.binaryName);
+
+    if (!available) continue;
+    const { provider } = probe;
+    if (task && !PROVIDER_DEFAULTS[provider]?.[task]) continue;
+    return provider;
   }
   return undefined;
 }

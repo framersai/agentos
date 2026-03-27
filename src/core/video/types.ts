@@ -14,12 +14,8 @@
 /** Well-known video provider identifiers. Extensible via `(string & {})`. */
 export type VideoProviderId =
   | 'runway'
-  | 'pika'
-  | 'kling'
-  | 'luma'
-  | 'stable-video'
   | 'replicate'
-  | 'google-veo'
+  | 'fal'
   | (string & {});
 
 /** Output container format for generated videos. */
@@ -77,7 +73,7 @@ export interface VideoProviderUsage {
  */
 export interface VideoGenerateRequest {
   /** Model identifier to use for generation (e.g. `'gen-3-alpha'`). */
-  modelId: string;
+  modelId?: string;
   /** Text prompt describing the desired video content. */
   prompt: string;
   /** Negative prompt describing content to avoid. */
@@ -111,7 +107,7 @@ export interface VideoGenerateRequest {
  */
 export interface ImageToVideoRequest {
   /** Model identifier to use for generation. */
-  modelId: string;
+  modelId?: string;
   /** Source image as a raw `Buffer`. */
   image: Buffer;
   /** Text prompt describing the desired motion / narrative. */
@@ -430,6 +426,12 @@ export interface VideoAnalyzeRequestRich {
   video: string | Buffer;
 
   /**
+   * Optional analysis prompt or question that should guide the final answer.
+   * When omitted, the analyzer produces a general-purpose summary.
+   */
+  prompt?: string;
+
+  /**
    * Threshold for scene change detection (0-1).
    * Lower values detect more scene boundaries (more sensitive);
    * higher values only detect dramatic cuts.
@@ -450,6 +452,13 @@ export interface VideoAnalyzeRequestRich {
    * @default 'detailed'
    */
   descriptionDetail?: DescriptionDetail;
+
+  /**
+   * Maximum number of frames to sample from the extracted frame set.
+   * When the extracted frame count exceeds this value, frames are
+   * evenly downsampled before scene detection and description.
+   */
+  maxFrames?: number;
 
   /**
    * Maximum number of scenes to detect.

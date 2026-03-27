@@ -12,6 +12,14 @@
  */
 
 import type { IAudioGenerator } from './IAudioGenerator.js';
+import { AudioGenLocalProvider } from './providers/AudioGenLocalProvider.js';
+import { ElevenLabsSFXProvider } from './providers/ElevenLabsSFXProvider.js';
+import { FalAudioProvider } from './providers/FalAudioProvider.js';
+import { MusicGenLocalProvider } from './providers/MusicGenLocalProvider.js';
+import { ReplicateAudioProvider } from './providers/ReplicateAudioProvider.js';
+import { StableAudioProvider } from './providers/StableAudioProvider.js';
+import { SunoProvider } from './providers/SunoProvider.js';
+import { UdioProvider } from './providers/UdioProvider.js';
 
 // ---------------------------------------------------------------------------
 // Audio processing (VAD, silence detection, calibration)
@@ -36,87 +44,20 @@ export * from './FallbackAudioProxy.js';
 export type AudioProviderFactory = () => IAudioGenerator;
 
 /**
- * Internal registry mapping provider IDs to lazy factory functions.
+ * Internal registry mapping provider IDs to provider constructors.
  *
- * All 8 built-in providers (Suno, Udio, Stable Audio, ElevenLabs SFX,
- * MusicGen Local, AudioGen Local, Replicate Audio, Fal Audio) are
- * registered with dynamic imports so their modules are only loaded when
- * actually requested — this keeps the barrel import lightweight for
- * consumers who don't use audio generation.
+ * Built-in providers are pre-registered here so the public
+ * `createAudioProvider()` API remains synchronous and ESM-safe.
  */
 const audioProviderFactories = new Map<string, AudioProviderFactory>([
-  [
-    'suno',
-    () => {
-      const { SunoProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/SunoProvider.js') as typeof import('./providers/SunoProvider.js');
-      return new SunoProvider();
-    },
-  ],
-  [
-    'udio',
-    () => {
-      const { UdioProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/UdioProvider.js') as typeof import('./providers/UdioProvider.js');
-      return new UdioProvider();
-    },
-  ],
-  [
-    'stable-audio',
-    () => {
-      const { StableAudioProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/StableAudioProvider.js') as typeof import('./providers/StableAudioProvider.js');
-      return new StableAudioProvider();
-    },
-  ],
-  [
-    'elevenlabs-sfx',
-    () => {
-      const { ElevenLabsSFXProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/ElevenLabsSFXProvider.js') as typeof import('./providers/ElevenLabsSFXProvider.js');
-      return new ElevenLabsSFXProvider();
-    },
-  ],
-  [
-    'musicgen-local',
-    () => {
-      const { MusicGenLocalProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/MusicGenLocalProvider.js') as typeof import('./providers/MusicGenLocalProvider.js');
-      return new MusicGenLocalProvider();
-    },
-  ],
-  [
-    'audiogen-local',
-    () => {
-      const { AudioGenLocalProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/AudioGenLocalProvider.js') as typeof import('./providers/AudioGenLocalProvider.js');
-      return new AudioGenLocalProvider();
-    },
-  ],
-  [
-    'replicate-audio',
-    () => {
-      const { ReplicateAudioProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/ReplicateAudioProvider.js') as typeof import('./providers/ReplicateAudioProvider.js');
-      return new ReplicateAudioProvider();
-    },
-  ],
-  [
-    'fal-audio',
-    () => {
-      const { FalAudioProvider } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('./providers/FalAudioProvider.js') as typeof import('./providers/FalAudioProvider.js');
-      return new FalAudioProvider();
-    },
-  ],
+  ['suno', () => new SunoProvider()],
+  ['udio', () => new UdioProvider()],
+  ['stable-audio', () => new StableAudioProvider()],
+  ['elevenlabs-sfx', () => new ElevenLabsSFXProvider()],
+  ['musicgen-local', () => new MusicGenLocalProvider()],
+  ['audiogen-local', () => new AudioGenLocalProvider()],
+  ['replicate-audio', () => new ReplicateAudioProvider()],
+  ['fal-audio', () => new FalAudioProvider()],
 ]);
 
 /**

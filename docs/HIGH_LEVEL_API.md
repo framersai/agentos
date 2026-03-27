@@ -1,11 +1,12 @@
 # High-Level API
 
-AgentOS now exposes two public layers from the root package:
+AgentOS now exposes three public layers from the root package:
 
-- High-level helpers: `generateText()`, `streamText()`, `generateImage()`, `agent()`
+- High-level helpers: `generateText()`, `streamText()`, `generateImage()`, `generateVideo()`, `analyzeVideo()`, `generateMusic()`, `generateSFX()`, `performOCR()`, `agent()`, `agency()`
+- Standalone retrieval/runtime helpers: `QueryRouter`
 - Full runtime: `new AgentOS()` with `processRequest()`, personas, workflows, extensions, and chunk-level orchestration
 
-Use the high-level API when you want the fastest path to text generation, streaming, and lightweight stateful sessions. Use `AgentOS` directly when you need the full runtime.
+Use the high-level API when you want the fastest path to text, image, video, audio, OCR, lightweight stateful sessions, small multi-agent teams, or standalone grounded Q&A over a markdown corpus. Use `AgentOS` directly when you need the full runtime.
 
 When AgentOS observability is enabled, these helper APIs also emit opt-in OTEL spans and turn metrics. `generateText()` and `streamText()` attach provider/model/token usage and aggregated cost when the provider returns it; `generateImage()` does the same for image-generation usage.
 
@@ -18,7 +19,14 @@ If you also want durable helper-level accounting, set `usageLedger.path`, set `u
 | `generateText()`  | One-shot text or tool-calling turns                                                             | No persistent session state               |
 | `streamText()`    | Stream text or tool-calling results immediately                                                 | Stateless per call                        |
 | `generateImage()` | Provider-agnostic image generation from a single prompt                                         | Provider feature support varies           |
+| `generateVideo()` | Provider-agnostic text-to-video or image-to-video generation                                    | Provider duration/model support varies    |
+| `analyzeVideo()`  | Scene-aware video understanding with optional speech transcription                              | Requires ffmpeg/ffprobe on the host       |
+| `generateMusic()` | Provider-agnostic music generation with fallback across cloud and local backends                | Musical controls vary by provider         |
+| `generateSFX()`   | Provider-agnostic sound-effect generation with fallback across cloud and local backends         | Clip duration/format limits vary          |
+| `performOCR()`    | One-shot OCR / vision extraction without managing a `VisionPipeline`                            | Less control than a long-lived pipeline   |
 | `agent()`         | Lightweight multi-turn sessions with in-memory history                                          | Does not replace the full AgentOS runtime |
+| `agency()`        | Multi-agent teams with strategies, HITL, guardrails, and finalized stream semantics             | More coordination overhead                |
+| `QueryRouter`     | Tiered classify → retrieve → generate pipeline over local docs                                  | Not a full GraphRAG/web-research runtime by default |
 | `AgentOS`         | Personas, extensions, workflows, multi-agent orchestration, guardrails, HITL, runtime lifecycle | More setup, more control                  |
 
 ## Provider Resolution
@@ -49,13 +57,15 @@ for the requested task automatically:
 | `anthropic`              | Cloud | `claude-sonnet-4-20250514` | —                                | —                        | `ANTHROPIC_API_KEY`               |
 | `gemini`                 | Cloud | `gemini-2.5-flash`         | —                                | —                        | `GEMINI_API_KEY`                  |
 | `openrouter`             | Cloud | `openai/gpt-4o`            | —                                | —                        | `OPENROUTER_API_KEY`              |
+| `claude-code-cli`        | Local | `claude-sonnet-4-20250514` | —                                | —                        | `which claude`                    |
+| `gemini-cli`             | Local | `gemini-2.5-flash`         | —                                | —                        | `which gemini`                    |
 | `stability`              | Cloud | —                          | `stable-diffusion-xl-1024-v1-0`  | —                        | `STABILITY_API_KEY`               |
 | `replicate`              | Cloud | —                          | `black-forest-labs/flux-1.1-pro` | —                        | `REPLICATE_API_TOKEN`             |
 | `ollama`                 | Local | `llama3.2`                 | `stable-diffusion`               | `nomic-embed-text`       | `OLLAMA_BASE_URL`                 |
 | `stable-diffusion-local` | Local | —                          | `v1-5-pruned-emaonly`            | —                        | `STABLE_DIFFUSION_LOCAL_BASE_URL` |
 
-When neither `provider` nor `model` is given, the first set API key env var is used
-(`OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `OPENROUTER_API_KEY` → `GEMINI_API_KEY` → `OLLAMA_BASE_URL`).
+When neither `provider` nor `model` is given, AgentOS checks configured runtimes in order
+(`OPENROUTER_API_KEY` → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GEMINI_API_KEY` → `which claude` → `which gemini` → `OLLAMA_BASE_URL`).
 
 ### Local Providers
 
@@ -144,6 +154,101 @@ for await (const delta of result.textStream) {
 console.log(await result.text);
 ```
 
+## `agency().stream()`
+
+`streamText()` is a single-call raw stream. `agency().stream()` separates raw
+live chunks from the finalized post-guardrail/post-HITL answer:
+
+```ts
+import { agency, type AgencyStreamResult } from '@framers/agentos';
+
+const team = agency({
+  provider: 'openai',
+  strategy: 'sequential',
+  agents: {
+    researcher: { instructions: 'Collect the key facts.' },
+    writer: { instructions: 'Turn the facts into a concise answer.' },
+  },
+  hitl: {
+    approvals: { beforeReturn: true },
+    handler: async () => ({
+      approved: true,
+      modifications: { output: 'Approved for delivery.' },
+    }),
+  },
+});
+
+const stream: AgencyStreamResult = team.stream('Summarize HTTP/3 rollout risks.');
+
+for await (const chunk of stream.textStream) {
+  process.stdout.write(chunk); // raw live output
+}
+process.stdout.write('\n');
+
+for await (const approved of stream.finalTextStream) {
+  console.log('Approved answer:', approved);
+}
+
+console.log('Agent calls:', await stream.agentCalls);
+console.log('Final text:', await stream.text);
+```
+
+Use:
+
+- `textStream` for low-latency token UX
+- `finalTextStream` or `text` for the finalized approved answer
+- `fullStream` when you also need structured events like `final-output`
+
+See [Agency API](./AGENCY_API.md) and [Streaming Semantics](./STREAMING_SEMANTICS.md)
+for the full contract.
+
+## `QueryRouter`
+
+Use `QueryRouter` when you want grounded answers over a local markdown corpus
+without booting the full AgentOS runtime.
+
+```ts
+import { QueryRouter } from '@framers/agentos';
+
+const router = new QueryRouter({
+  knowledgeCorpus: ['./docs', './packages/agentos/docs'],
+  availableTools: ['web_search'],
+});
+
+await router.init();
+
+console.log(router.getCorpusStats());
+
+const result = await router.route('How does memory retrieval work?');
+console.log(result.answer);
+console.log(result.tiersUsed);
+console.log(result.fallbacksUsed);
+
+await router.close();
+```
+
+`router.getCorpusStats()` returns a `QueryRouterCorpusStats` snapshot that tells
+you what is actually live in the current host:
+
+- corpus size: `configuredPathCount`, `chunkCount`, `topicCount`, `sourceCount`
+- retrieval path: `vector+keyword-fallback` or `keyword-only`
+- embedding health: `embeddingStatus`
+- runtime truth: `graphRuntimeMode`, `rerankRuntimeMode`, `deepResearchRuntimeMode`
+
+Built-in status meanings:
+
+- `embeddingStatus: 'active'` means vector embeddings initialized successfully
+- `embeddingStatus: 'disabled-no-key'` means init stayed keyword-only because no embedding credential was available
+- `embeddingStatus: 'failed-init'` means vector init was attempted but fell back to keyword-only mode after an error
+- `graphRuntimeMode: 'heuristic'` means same-document / heading-overlap expansion
+- `rerankRuntimeMode: 'heuristic'` means the built-in lexical reranker
+- `deepResearchRuntimeMode: 'heuristic'` means the built-in local-corpus research synthesis path
+
+Hosts can inject real `graphExpand`, `rerank`, and `deepResearch` hooks in the
+constructor; those modes then become `active`.
+
+See [Query Router](./QUERY_ROUTER.md) for the full contract and host-hook examples.
+
 ## `generateImage()`
 
 ```ts
@@ -159,6 +264,95 @@ const result = await generateImage({
 console.log(result.provider);
 console.log(result.images[0]?.mimeType);
 ```
+
+## `generateVideo()`
+
+```ts
+import { generateVideo } from '@framers/agentos';
+
+const result = await generateVideo({
+  prompt: 'A drone flying over a misty forest at sunrise.',
+  timeoutMs: 180_000,
+  onProgress: (event) => console.log(event.status, event.progress, event.message),
+  providerPreferences: {
+    preferred: ['runway', 'replicate'],
+    blocked: ['fal'],
+  },
+});
+
+console.log(result.provider);
+console.log(result.videos[0]?.url);
+```
+
+## `analyzeVideo()`
+
+`analyzeVideo()` auto-creates a `VisionPipeline`, uses the structured
+`VideoAnalyzer` pipeline under the hood, and auto-wires STT when a supported
+speech provider credential is available (`OPENAI_API_KEY`, `DEEPGRAM_API_KEY`,
+`ASSEMBLYAI_API_KEY`, or Azure Speech env vars).
+
+```ts
+import { analyzeVideo } from '@framers/agentos';
+
+const result = await analyzeVideo({
+  videoUrl: 'https://example.com/demo.mp4',
+  prompt: 'What is the product demo showing?',
+  transcribeAudio: true,
+  maxFrames: 12,
+});
+
+console.log(result.description);
+console.log(result.fullTranscript);
+console.log(result.scenes?.length);
+```
+
+Host requirement: `ffmpeg` and `ffprobe` must be installed and available on `PATH`.
+
+## `generateMusic()` and `generateSFX()`
+
+```ts
+import { generateMusic, generateSFX } from '@framers/agentos';
+
+const music = await generateMusic({
+  prompt: 'Warm analog synthwave with a slow build.',
+  timeoutMs: 180_000,
+  onProgress: (event) => console.log('music', event.status, event.message),
+  providerPreferences: {
+    preferred: ['suno', 'udio'],
+  },
+});
+
+const sfx = await generateSFX({
+  prompt: 'Heavy vault door closing with metallic reverb.',
+  timeoutMs: 60_000,
+  onProgress: (event) => console.log('sfx', event.status, event.message),
+  providerPreferences: {
+    preferred: ['elevenlabs-sfx', 'stable-audio'],
+  },
+});
+
+console.log(music.audio[0]?.url);
+console.log(sfx.audio[0]?.url);
+```
+
+## Media Provider Preferences
+
+Image, video, music, and SFX helpers accept `providerPreferences` so callers can
+reorder, block, or weight providers without hard-coding a single backend:
+
+```ts
+import type { MediaProviderPreference } from '@framers/agentos';
+
+const preferredCloudOnly: MediaProviderPreference = {
+  preferred: ['runway', 'replicate'],
+  blocked: ['musicgen-local', 'audiogen-local'],
+  weights: { runway: 3, replicate: 1 },
+};
+```
+
+When `weights` are present, AgentOS chooses the primary provider from the
+resolved list using weighted selection and keeps the remaining providers in
+order as fallbacks.
 
 ### Built-in Image Providers
 

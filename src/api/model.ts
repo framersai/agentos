@@ -58,6 +58,8 @@ const ENV_URL_MAP: Record<string, string> = {
   'stable-diffusion-local': 'STABLE_DIFFUSION_LOCAL_BASE_URL',
 };
 
+const KEYLESS_PROVIDER_IDS = new Set(['claude-code-cli', 'gemini-cli']);
+
 /**
  * Splits a `provider:model` string into its constituent parts.
  *
@@ -117,6 +119,10 @@ export function resolveProvider(
       throw new Error(`No base URL for ollama. Set OLLAMA_BASE_URL or pass baseUrl.`);
     }
     return { providerId, modelId, baseUrl };
+  }
+
+  if (KEYLESS_PROVIDER_IDS.has(providerId)) {
+    return { providerId, modelId };
   }
 
   // Anthropic goes through OpenRouter by default in AgentOS
@@ -252,10 +258,10 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
     // Plain model name with explicit provider
     if (opts.provider) return { providerId: opts.provider, modelId: opts.model };
     // Plain model name — try auto-detect for provider
-    const detected = autoDetectProvider();
+    const detected = autoDetectProvider(task);
     if (detected) return { providerId: detected, modelId: opts.model };
     throw new Error(
-      'model without ":" requires either a provider option or a configured env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).'
+      'model without ":" requires either a provider option or a configured runtime (API key env var, local CLI install, etc.).'
     );
   }
 
@@ -277,7 +283,7 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
   }
 
   // 3. Neither — auto-detect provider from environment
-  const detected = autoDetectProvider();
+  const detected = autoDetectProvider(task);
   if (detected) {
     const defaults = PROVIDER_DEFAULTS[detected];
     const modelId = defaults?.[task];
@@ -285,7 +291,7 @@ export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): 
   }
 
   throw new Error(
-    'Either "provider" or "model" is required. Or set an API key env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).'
+    'Either "provider" or "model" is required. Or configure a supported runtime (API key env var, Claude Code CLI, Gemini CLI, etc.).'
   );
 }
 

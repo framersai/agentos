@@ -12,14 +12,14 @@
  * callers only need to supply a video and optional parameters.
  */
 import type {
-  VideoAnalysis,
-  VideoAnalysisRich,
-  VideoAnalyzeRequestRich,
   DescriptionDetail,
+  SceneDescription,
   VideoAnalysisProgressEvent,
 } from '../core/video/types.js';
-import type { IVideoAnalyzer } from '../core/video/IVideoAnalyzer.js';
-import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import { VideoAnalyzer } from '../core/video/VideoAnalyzer.js';
+import { createVisionPipeline } from '../core/vision/index.js';
+import type { SpeechToTextProvider } from '../speech/types.js';
+import { toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
 
@@ -107,7 +107,7 @@ export interface AnalyzeVideoResult {
   /** Free-form textual description / answer from the analyser. */
   description: string;
   /** Detected scene segments with timestamps. */
-  scenes?: VideoAnalysis['scenes'];
+  scenes?: SceneDescription[];
   /** Detected objects / entities across the video. */
   objects?: string[];
   /** Detected on-screen or spoken text (OCR / ASR). */
@@ -126,40 +126,45 @@ export interface AnalyzeVideoResult {
   providerMetadata?: Record<string, unknown>;
 }
 
-// ---------------------------------------------------------------------------
-// Minimal stub analyser (delegates to IVideoAnalyzer when wired)
-// ---------------------------------------------------------------------------
-
-/**
- * Lightweight video analyser that wraps the core
- * {@link IVideoAnalyzer} interface with option resolution logic.
- *
- * In the current implementation this is a thin pass-through. Future
- * versions will auto-wire a VisionPipeline + STT provider combination
- * so the caller gets a fully functional analyser with zero config.
- */
-class SimpleVideoAnalyzer implements IVideoAnalyzer {
-  /**
-   * Analyse a video from URL or buffer, returning structured results.
-   *
-   * Uses a minimal fetch-based approach for URL videos and passes
-   * through to the core analysis pipeline.
-   */
-  async analyzeVideo(
-    request: import('../core/video/types.js').VideoAnalyzeRequest,
-  ): Promise<VideoAnalysis> {
-    // Currently a stub that returns a minimal analysis from the request.
-    // A real implementation would wire VisionPipeline + STT here.
-    // This ensures the API surface is callable and testable.
-    return {
-      description: request.prompt
-        ? `Analysis guided by: ${request.prompt}`
-        : 'Video analysis completed.',
-      durationSec: undefined,
-      modelId: request.modelId,
-      providerId: 'agentos-video-analyzer',
-    };
+async function createAutoSpeechToTextProvider(): Promise<SpeechToTextProvider | undefined> {
+  if (process.env.OPENAI_API_KEY) {
+    const { OpenAIWhisperSpeechToTextProvider } = await import(
+      '../speech/providers/OpenAIWhisperSpeechToTextProvider.js'
+    );
+    return new OpenAIWhisperSpeechToTextProvider({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
   }
+
+  if (process.env.DEEPGRAM_API_KEY) {
+    const { DeepgramBatchSTTProvider } = await import(
+      '../speech/providers/DeepgramBatchSTTProvider.js'
+    );
+    return new DeepgramBatchSTTProvider({
+      apiKey: process.env.DEEPGRAM_API_KEY,
+    });
+  }
+
+  if (process.env.ASSEMBLYAI_API_KEY) {
+    const { AssemblyAISTTProvider } = await import(
+      '../speech/providers/AssemblyAISTTProvider.js'
+    );
+    return new AssemblyAISTTProvider({
+      apiKey: process.env.ASSEMBLYAI_API_KEY,
+    });
+  }
+
+  if (process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) {
+    const { AzureSpeechSTTProvider } = await import(
+      '../speech/providers/AzureSpeechSTTProvider.js'
+    );
+    return new AzureSpeechSTTProvider({
+      key: process.env.AZURE_SPEECH_KEY,
+      region: process.env.AZURE_SPEECH_REGION,
+    });
+  }
+
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +174,7 @@ class SimpleVideoAnalyzer implements IVideoAnalyzer {
 /**
  * Analyses a video and returns structured understanding results.
  *
- * Creates a {@link SimpleVideoAnalyzer} (backed by auto-detected
+ * Creates a {@link VideoAnalyzer} (backed by auto-detected
  * VisionPipeline + STT when available), dispatches the analysis
  * request, and returns a normalised {@link AnalyzeVideoResult}.
  *
@@ -203,28 +208,53 @@ export async function analyzeVideo(opts: AnalyzeVideoOptions): Promise<AnalyzeVi
     return await withAgentOSSpan('agentos.api.analyze_video', async (span) => {
       if (opts.model) span?.setAttribute('llm.model', opts.model);
 
-      const analyzer = new SimpleVideoAnalyzer();
+      const [visionPipeline, sttProvider] = await Promise.all([
+        createVisionPipeline(
+          opts.model
+            ? { cloudModel: opts.model }
+            : undefined,
+        ),
+        opts.transcribeAudio === false
+          ? Promise.resolve(undefined)
+          : createAutoSpeechToTextProvider(),
+      ]);
 
-      const result = await analyzer.analyzeVideo({
-        videoUrl: opts.videoUrl,
-        videoBuffer: opts.videoBuffer,
-        prompt: opts.prompt,
-        modelId: opts.model,
-        maxFrames: opts.maxFrames,
-        providerOptions: opts.providerOptions,
+      if (sttProvider) {
+        span?.setAttribute('agentos.api.stt_provider', sttProvider.id);
+      }
+
+      const analyzer = new VideoAnalyzer({
+        visionPipeline,
+        ...(sttProvider ? { sttProvider } : {}),
       });
 
-      span?.setAttribute('agentos.api.scene_count', result.scenes?.length ?? 0);
+      const result = await analyzer.analyze({
+        video: opts.videoBuffer ?? opts.videoUrl!,
+        prompt: opts.prompt,
+        sceneThreshold: opts.sceneThreshold,
+        transcribeAudio: opts.transcribeAudio,
+        descriptionDetail: opts.descriptionDetail,
+        maxFrames: opts.maxFrames,
+        maxScenes: opts.maxScenes,
+        indexForRAG: opts.indexForRAG,
+        onProgress: opts.onProgress,
+      });
+
+      span?.setAttribute('agentos.api.scene_count', result.scenes.length);
 
       return {
-        description: result.description,
+        description: result.summary,
         scenes: result.scenes,
-        objects: result.objects,
-        text: result.text,
         durationSec: result.durationSec,
-        model: result.modelId,
-        provider: result.providerId,
-        providerMetadata: result.providerMetadata,
+        model: opts.model,
+        provider: 'agentos-video-analyzer',
+        text: result.fullTranscript ? [result.fullTranscript] : undefined,
+        fullTranscript: result.fullTranscript,
+        ragChunkIds: result.ragChunkIds,
+        providerMetadata: {
+          ...result.metadata,
+          sttProviderId: sttProvider?.id,
+        },
       };
     });
   } catch (error) {

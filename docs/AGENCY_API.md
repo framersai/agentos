@@ -266,6 +266,18 @@ for await (const chunk of stream.textStream) {
 }
 ```
 
+Important: `textStream` is the raw live stream. If output guardrails or
+`beforeReturn` HITL approval rewrite the answer, the finalized output is
+available via:
+
+- `stream.text`
+- `stream.finalTextStream`
+- `final-output` events on `stream.fullStream`
+
+Use `textStream` for low-latency token UX and `finalTextStream` when the client
+must only ever see the approved answer. See
+[Streaming Semantics](./STREAMING_SEMANTICS.md) for the exact contract.
+
 ---
 
 ## Adaptive Mode

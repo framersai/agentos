@@ -67,6 +67,30 @@ vi.mock('../../vision/index.js', () => {
   };
 });
 
+vi.mock('sharp', () => {
+  const holder = {
+    toBuffer: vi.fn().mockResolvedValue({
+      data: Buffer.from([1, 2, 3, 4, 5, 6]),
+      info: { width: 1, height: 2, channels: 3 },
+    }),
+  };
+
+  const sharp = vi.fn(() => ({
+    removeAlpha: () => ({
+      toColourspace: () => ({
+        raw: () => ({
+          toBuffer: (...args: unknown[]) => holder.toBuffer(...args),
+        }),
+      }),
+    }),
+  }));
+
+  return {
+    default: sharp,
+    __holder: holder,
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Import the module under test and the mocked modules to access holders
 // ---------------------------------------------------------------------------
@@ -460,5 +484,60 @@ describe('VideoAnalyzer', () => {
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();
+  });
+
+  it('keeps encoded frames for vision analysis while passing raw RGB frames to scene detection', async () => {
+    setupExecFileMock();
+
+    const visionPipeline = {
+      process: vi.fn().mockResolvedValue({
+        text: 'Scene description 1',
+        confidence: 0.9,
+        category: 'photograph',
+        tiers: ['cloud-vision'],
+        tierResults: [],
+        durationMs: 50,
+      }),
+    } as unknown as VisionPipeline;
+
+    const sceneDetector = new SceneDetector({ hardCutThreshold: 0.01, gradualThreshold: 0.005 });
+    vi.spyOn(sceneDetector, 'detectScenes').mockImplementation(
+      async function* (frames) {
+        let inspected = false;
+
+        for await (const frame of frames) {
+          expect(frame.buffer.equals(Buffer.from([1, 2, 3, 4, 5, 6]))).toBe(true);
+          expect(frame.sourceBuffer?.equals(FAKE_FRAME_BUFFER)).toBe(true);
+          inspected = true;
+          break;
+        }
+
+        expect(inspected).toBe(true);
+
+        yield {
+          index: 0,
+          startFrame: 0,
+          endFrame: 0,
+          startTimeSec: 0,
+          endTimeSec: 0,
+          durationSec: 0,
+          cutType: 'hard-cut' as const,
+          confidence: 1,
+          diffScore: 1,
+        };
+      },
+    );
+
+    const analyzer = new VideoAnalyzer({
+      visionPipeline,
+      sceneDetector,
+    });
+
+    await analyzer.analyze({
+      video: Buffer.alloc(1024, 0),
+      transcribeAudio: false,
+    });
+
+    expect(visionPipeline.process).toHaveBeenCalledWith(FAKE_FRAME_BUFFER);
   });
 });

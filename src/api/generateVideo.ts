@@ -23,7 +23,11 @@ import type {
   VideoProgressEvent,
   VideoAspectRatio,
 } from '../core/video/index.js';
-import { resolveProviderOrder, type MediaProviderPreference } from '../core/media/ProviderPreferences.js';
+import {
+  resolveProviderChain,
+  resolveProviderOrder,
+  type MediaProviderPreference,
+} from '../core/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
@@ -46,6 +50,20 @@ const VIDEO_PROVIDER_ENV_MAP: Array<{ envKey: string; providerId: string }> = [
 /** Shared emitter for video fallback events (singleton per process). */
 const videoFallbackEmitter = new EventEmitter();
 
+function emitVideoProgress(
+  callback: GenerateVideoOptions['onProgress'],
+  status: VideoProgressEvent['status'],
+  progress: number,
+  message: string,
+): void {
+  if (!callback) return;
+  try {
+    callback({ status, progress, message });
+  } catch {
+    // Progress callbacks are best-effort and must not break generation.
+  }
+}
+
 /**
  * Detects the first available video provider from environment variables.
  *
@@ -57,13 +75,27 @@ const videoFallbackEmitter = new EventEmitter();
  *   provider credentials are found.
  */
 function autoDetectVideoProvider(): { providerId: string; apiKey: string } | undefined {
+  const providerId = detectAvailableVideoProviders()[0];
+  if (!providerId) return undefined;
+  return {
+    providerId,
+    apiKey: process.env[envKeyForProvider(providerId)] ?? '',
+  };
+}
+
+/**
+ * Detects all video providers with valid credentials in the environment.
+ *
+ * @returns Provider IDs in priority order.
+ */
+function detectAvailableVideoProviders(): string[] {
+  const available: string[] = [];
   for (const { envKey, providerId } of VIDEO_PROVIDER_ENV_MAP) {
-    const key = process.env[envKey];
-    if (key && hasVideoProviderFactory(providerId)) {
-      return { providerId, apiKey: key };
-    }
+    if (!process.env[envKey]) continue;
+    if (!hasVideoProviderFactory(providerId)) continue;
+    available.push(providerId);
   }
-  return undefined;
+  return available;
 }
 
 /**
@@ -97,42 +129,36 @@ function envKeyForProvider(providerId: string): string {
 }
 
 /**
- * Creates an {@link IVideoGenerator} for the resolved primary provider,
- * optionally wrapped in a {@link FallbackVideoProxy} when additional
- * video-capable providers are detected in the environment.
+ * Creates an {@link IVideoGenerator} for a resolved provider chain,
+ * optionally wrapped in a {@link FallbackVideoProxy} when multiple
+ * video-capable providers are available.
  *
- * When `providerPreferences` is supplied, the fallback chain is reordered
- * and filtered according to the preference rules before being constructed.
- *
- * @param providerId - Primary provider identifier.
+ * @param providerChain - Ordered provider IDs with the primary first and
+ *   optional fallbacks after it.
  * @param apiKey - API key for the primary provider.
  * @param modelId - Optional model identifier override.
  * @param baseUrl - Optional base URL override.
- * @param providerPreferences - Optional preferences for reordering/filtering.
  * @returns An initialised video provider (possibly a fallback proxy).
  */
 async function createVideoProviderWithFallback(
-  providerId: string,
+  providerChain: string[],
   apiKey: string,
   modelId?: string,
   baseUrl?: string,
-  providerPreferences?: MediaProviderPreference,
+  timeoutMs?: number,
 ): Promise<IVideoGenerator> {
+  if (providerChain.length === 0) {
+    throw new Error('No video providers available in the resolved provider chain.');
+  }
+
+  const [providerId, ...fallbackIds] = providerChain;
   const primary = createVideoProvider(providerId);
   await primary.initialize({
     apiKey,
     ...(modelId ? { defaultModelId: modelId } : {}),
     ...(baseUrl ? { baseURL: baseUrl, baseUrl } : {}),
+    ...(timeoutMs ? { timeoutMs } : {}),
   });
-
-  let fallbackIds = detectFallbackVideoProviders(providerId);
-
-  // Apply provider preferences to reorder / filter the fallback chain.
-  if (providerPreferences) {
-    const allIds = [providerId, ...fallbackIds];
-    const ordered = resolveProviderOrder(allIds, providerPreferences);
-    fallbackIds = ordered.filter((id) => id !== providerId);
-  }
 
   if (fallbackIds.length === 0) {
     return primary;
@@ -146,7 +172,10 @@ async function createVideoProviderWithFallback(
       const fbKey = process.env[envKeyForProvider(fbId)];
       if (!fbKey) continue;
       const fb = createVideoProvider(fbId);
-      await fb.initialize({ apiKey: fbKey });
+      await fb.initialize({
+        apiKey: fbKey,
+        ...(timeoutMs ? { timeoutMs } : {}),
+      });
       chain.push(fb);
     } catch {
       // Skip providers that fail to initialise (missing creds, etc.).
@@ -304,6 +333,7 @@ export async function generateVideo(opts: GenerateVideoOptions): Promise<Generat
       // --- Resolve provider ---
       let providerId: string;
       let apiKey: string;
+      let providerChain: string[];
 
       if (opts.provider) {
         providerId = opts.provider;
@@ -316,44 +346,67 @@ export async function generateVideo(opts: GenerateVideoOptions): Promise<Generat
             `No API key for video provider "${providerId}". Set ${envKeyForProvider(providerId)} or pass apiKey.`,
           );
         }
+        let fallbackIds = detectFallbackVideoProviders(providerId);
+        if (opts.providerPreferences) {
+          const ordered = resolveProviderOrder([providerId, ...fallbackIds], opts.providerPreferences);
+          fallbackIds = ordered.filter((id) => id !== providerId);
+        }
+        providerChain = [providerId, ...fallbackIds];
       } else if (opts.apiKey) {
         // Caller supplied a key but no provider — try auto-detect anyway
         const detected = autoDetectVideoProvider();
         providerId = detected?.providerId ?? 'runway';
         apiKey = opts.apiKey;
+        let fallbackIds = detectFallbackVideoProviders(providerId);
+        if (opts.providerPreferences) {
+          const ordered = resolveProviderOrder([providerId, ...fallbackIds], opts.providerPreferences);
+          fallbackIds = ordered.filter((id) => id !== providerId);
+        }
+        providerChain = [providerId, ...fallbackIds];
       } else {
-        const detected = autoDetectVideoProvider();
-        if (!detected) {
+        providerChain = resolveProviderChain(
+          detectAvailableVideoProviders(),
+          opts.providerPreferences,
+        );
+        if (providerChain.length === 0) {
           throw new Error(
             'No video provider configured. Set RUNWAY_API_KEY, REPLICATE_API_TOKEN, or FAL_API_KEY.',
           );
         }
-        providerId = detected.providerId;
-        apiKey = detected.apiKey;
+        providerId = providerChain[0];
+        apiKey = process.env[envKeyForProvider(providerId)] ?? '';
       }
 
       metricProviderId = providerId;
       metricModelId = opts.model;
+      emitVideoProgress(opts.onProgress, 'queued', 0, `Queued video generation with ${providerId}.`);
 
       span?.setAttribute('llm.provider', providerId);
       if (opts.model) span?.setAttribute('llm.model', opts.model);
 
       // --- Create provider (with fallback chain) ---
       const provider = await createVideoProviderWithFallback(
-        providerId,
+        providerChain,
         apiKey,
         opts.model,
         opts.baseUrl,
-        opts.providerPreferences,
+        opts.timeoutMs,
       );
+      emitVideoProgress(opts.onProgress, 'processing', 25, `Generating video with ${providerId}.`);
 
       // --- Dispatch to text-to-video or image-to-video ---
       let result: VideoResult;
 
       if (opts.image) {
+        if (!provider.supports('image-to-video') || typeof provider.imageToVideo !== 'function') {
+          throw new Error(`Provider "${providerId}" does not support image-to-video generation.`);
+        }
         // Image-to-video
-        result = await provider.imageToVideo!({
-          modelId: opts.model ?? provider.defaultModelId ?? '',
+        result = await provider.imageToVideo({
+          modelId:
+            provider instanceof FallbackVideoProxy
+              ? undefined
+              : (opts.model ?? provider.defaultModelId ?? ''),
           image: opts.image,
           prompt: opts.prompt,
           negativePrompt: opts.negativePrompt,
@@ -365,7 +418,10 @@ export async function generateVideo(opts: GenerateVideoOptions): Promise<Generat
       } else {
         // Text-to-video
         result = await provider.generateVideo({
-          modelId: opts.model ?? provider.defaultModelId ?? '',
+          modelId:
+            provider instanceof FallbackVideoProxy
+              ? undefined
+              : (opts.model ?? provider.defaultModelId ?? ''),
           prompt: opts.prompt,
           negativePrompt: opts.negativePrompt,
           durationSec: opts.durationSec,
@@ -383,6 +439,7 @@ export async function generateVideo(opts: GenerateVideoOptions): Promise<Generat
       if (result.usage?.totalCostUSD !== undefined) {
         attachUsageAttributes(span, { totalCostUSD: result.usage.totalCostUSD });
       }
+      emitVideoProgress(opts.onProgress, 'complete', 100, 'Video generation complete.');
 
       return {
         model: result.modelId,
@@ -394,6 +451,12 @@ export async function generateVideo(opts: GenerateVideoOptions): Promise<Generat
     });
   } catch (error) {
     metricStatus = 'error';
+    emitVideoProgress(
+      opts.onProgress,
+      'failed',
+      100,
+      error instanceof Error ? error.message : String(error),
+    );
     throw error;
   } finally {
     try {

@@ -55,7 +55,7 @@ export STABLE_DIFFUSION_LOCAL_BASE_URL=http://localhost:7860
 ```
 
 Provider resolution order when no `provider` or `model` is specified:
-`OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `OPENROUTER_API_KEY` → `GEMINI_API_KEY` → `OLLAMA_BASE_URL`
+`OPENROUTER_API_KEY` → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GEMINI_API_KEY` → `which claude` → `which gemini` → `OLLAMA_BASE_URL`
 
 ---
 

@@ -73,6 +73,7 @@ describe('ClaudeCodeProvider', () => {
       expect(response.choices[0].message.role).toBe('assistant');
       expect(response.choices[0].message.content).toBe('Hi there!');
       expect(response.choices[0].finishReason).toBe('stop');
+      expect(response.modelId).toBe('claude-sonnet-4-20250514');
       expect(response.usage?.totalTokens).toBe(15);
       expect(response.usage?.costUSD).toBe(0);
 
@@ -237,6 +238,55 @@ describe('ClaudeCodeProvider', () => {
       expect(health.isHealthy).toBe(false);
       expect((health.details as any).cliInstalled).toBe(false);
       expect((health.details as any).guidance).toContain('Install Claude Code');
+    });
+  });
+
+  describe('generateCompletionStream()', () => {
+    beforeEach(async () => {
+      await provider.initialize({});
+    });
+
+    it('synthesizes a final chunk when the bridge only emits text deltas', async () => {
+      bridgeMocks.stream.mockImplementation(async function* () {
+        yield { type: 'text_delta', text: 'Hello' };
+        yield { type: 'text_delta', text: ' world' };
+      });
+
+      const chunks: any[] = [];
+      for await (const chunk of provider.generateCompletionStream(
+        'claude-opus-4-20250514',
+        [{ role: 'user', content: 'Hello' }],
+        {},
+      )) {
+        chunks.push(chunk);
+      }
+
+      const finalChunk = chunks[chunks.length - 1];
+      expect(finalChunk.isFinal).toBe(true);
+      expect(finalChunk.modelId).toBe('claude-opus-4-20250514');
+      expect(finalChunk.choices[0].message.content).toBe('Hello world');
+    });
+
+    it('emits a terminal error chunk instead of throwing on stream errors', async () => {
+      bridgeMocks.stream.mockImplementation(async function* () {
+        yield { type: 'error', error: 'stream blew up' };
+      });
+
+      const chunks: any[] = [];
+      for await (const chunk of provider.generateCompletionStream(
+        'claude-haiku-4-5-20251001',
+        [{ role: 'user', content: 'Hello' }],
+        {},
+      )) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toMatchObject({
+        isFinal: true,
+        modelId: 'claude-haiku-4-5-20251001',
+        error: { message: expect.stringContaining('stream blew up') },
+      });
     });
   });
 });

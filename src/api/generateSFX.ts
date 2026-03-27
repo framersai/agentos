@@ -23,7 +23,11 @@ import type {
   AudioOutputFormat,
   AudioProgressEvent,
 } from '../core/audio/types.js';
-import { resolveProviderOrder, type MediaProviderPreference } from '../core/media/ProviderPreferences.js';
+import {
+  resolveProviderChain,
+  resolveProviderOrder,
+  type MediaProviderPreference,
+} from '../core/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
@@ -51,6 +55,20 @@ const SFX_PROVIDER_ENV_MAP: Array<{ envKey: string | null; providerId: string }>
 /** Shared emitter for SFX fallback events (singleton per process). */
 const sfxFallbackEmitter = new EventEmitter();
 
+function emitAudioProgress(
+  callback: ((event: AudioProgressEvent) => void) | undefined,
+  status: AudioProgressEvent['status'],
+  progress: number,
+  message: string,
+): void {
+  if (!callback) return;
+  try {
+    callback({ status, progress, message });
+  } catch {
+    // Progress callbacks are best-effort and must not break generation.
+  }
+}
+
 /**
  * Detects the first available SFX provider from environment variables.
  *
@@ -62,18 +80,28 @@ const sfxFallbackEmitter = new EventEmitter();
  *   provider is available.
  */
 function autoDetectSFXProvider(): { providerId: string; apiKey: string } | undefined {
+  const providerId = detectAvailableSFXProviders()[0];
+  if (!providerId) return undefined;
+  const entry = SFX_PROVIDER_ENV_MAP.find((candidate) => candidate.providerId === providerId);
+  return {
+    providerId,
+    apiKey: entry?.envKey ? (process.env[entry.envKey] ?? '') : '',
+  };
+}
+
+/**
+ * Detects all SFX providers available in the current environment.
+ *
+ * @returns Provider IDs in priority order.
+ */
+function detectAvailableSFXProviders(): string[] {
+  const available: string[] = [];
   for (const { envKey, providerId } of SFX_PROVIDER_ENV_MAP) {
     if (!hasAudioProviderFactory(providerId)) continue;
-    if (envKey === null) {
-      // Local provider — no API key needed
-      return { providerId, apiKey: '' };
-    }
-    const key = process.env[envKey];
-    if (key) {
-      return { providerId, apiKey: key };
-    }
+    if (envKey !== null && !process.env[envKey]) continue;
+    available.push(providerId);
   }
-  return undefined;
+  return available;
 }
 
 /**
@@ -108,40 +136,33 @@ function envKeyForSFXProvider(providerId: string): string {
 }
 
 /**
- * Creates an {@link IAudioGenerator} for the resolved primary provider,
- * optionally wrapped in a {@link FallbackAudioProxy} when additional
- * SFX-capable providers are detected in the environment.
+ * Creates an {@link IAudioGenerator} for a resolved SFX provider chain,
+ * optionally wrapped in a {@link FallbackAudioProxy} when multiple
+ * SFX-capable providers are available.
  *
- * When `providerPreferences` is supplied, the fallback chain is reordered
- * and filtered according to the preference rules before being constructed.
- *
- * @param providerId - Primary provider identifier.
+ * @param providerChain - Ordered provider IDs with the primary first and
+ *   optional fallbacks after it.
  * @param apiKey - API key for the primary provider.
  * @param modelId - Optional model identifier override.
- * @param providerPreferences - Optional preferences for reordering/filtering.
  * @returns An initialised audio provider (possibly a fallback proxy).
  */
 async function createSFXProviderWithFallback(
-  providerId: string,
+  providerChain: string[],
   apiKey: string,
   modelId?: string,
-  providerPreferences?: MediaProviderPreference,
+  timeoutMs?: number,
 ): Promise<IAudioGenerator> {
+  if (providerChain.length === 0) {
+    throw new Error('No SFX providers available in the resolved provider chain.');
+  }
+
+  const [providerId, ...fallbackIds] = providerChain;
   const primary = createAudioProvider(providerId);
   await primary.initialize({
     apiKey,
     ...(modelId ? { defaultModelId: modelId } : {}),
+    ...(timeoutMs ? { timeoutMs } : {}),
   });
-
-  let fallbackIds = detectFallbackSFXProviders(providerId);
-
-  // Apply provider preferences to reorder / filter the fallback chain.
-  if (providerPreferences) {
-    const allIds = [providerId, ...fallbackIds];
-    const ordered = resolveProviderOrder(allIds, providerPreferences);
-    // Remove the primary from the ordered list — it is always first.
-    fallbackIds = ordered.filter((id) => id !== providerId);
-  }
 
   if (fallbackIds.length === 0) {
     return primary;
@@ -155,7 +176,10 @@ async function createSFXProviderWithFallback(
       const entry = SFX_PROVIDER_ENV_MAP.find((e) => e.providerId === fbId);
       const fbKey = entry?.envKey ? (process.env[entry.envKey] ?? '') : '';
       const fb = createAudioProvider(fbId);
-      await fb.initialize({ apiKey: fbKey });
+      await fb.initialize({
+        apiKey: fbKey,
+        ...(timeoutMs ? { timeoutMs } : {}),
+      });
       chain.push(fb);
     } catch {
       // Skip providers that fail to initialise (missing creds, etc.).
@@ -206,6 +230,12 @@ export interface GenerateSFXOptions {
 
   /** Random seed for reproducible generation (provider-dependent). */
   seed?: number;
+
+  /**
+   * Maximum time in milliseconds to wait for generation to complete.
+   * Provider-dependent — polling providers enforce this directly.
+   */
+  timeoutMs?: number;
 
   /** Number of audio clips to generate. Defaults to 1. */
   n?: number;
@@ -289,6 +319,7 @@ export async function generateSFX(opts: GenerateSFXOptions): Promise<GenerateSFX
       // --- Resolve provider ---
       let providerId: string;
       let apiKey: string;
+      let providerChain: string[];
 
       if (opts.provider) {
         providerId = opts.provider;
@@ -302,34 +333,50 @@ export async function generateSFX(opts: GenerateSFXOptions): Promise<GenerateSFX
             `No API key for SFX provider "${providerId}". Set ${envKeyForSFXProvider(providerId)} or pass apiKey.`,
           );
         }
+        let fallbackIds = detectFallbackSFXProviders(providerId);
+        if (opts.providerPreferences) {
+          const ordered = resolveProviderOrder([providerId, ...fallbackIds], opts.providerPreferences);
+          fallbackIds = ordered.filter((id) => id !== providerId);
+        }
+        providerChain = [providerId, ...fallbackIds];
       } else if (opts.apiKey) {
         // Caller supplied a key but no provider — try auto-detect anyway
         const detected = autoDetectSFXProvider();
         providerId = detected?.providerId ?? 'elevenlabs-sfx';
         apiKey = opts.apiKey;
+        let fallbackIds = detectFallbackSFXProviders(providerId);
+        if (opts.providerPreferences) {
+          const ordered = resolveProviderOrder([providerId, ...fallbackIds], opts.providerPreferences);
+          fallbackIds = ordered.filter((id) => id !== providerId);
+        }
+        providerChain = [providerId, ...fallbackIds];
       } else {
-        const detected = autoDetectSFXProvider();
-        if (!detected) {
+        providerChain = resolveProviderChain(
+          detectAvailableSFXProviders(),
+          opts.providerPreferences,
+        );
+        if (providerChain.length === 0) {
           throw new Error(
             'No SFX provider configured. Set ELEVENLABS_API_KEY, STABILITY_API_KEY, REPLICATE_API_TOKEN, or FAL_API_KEY.',
           );
         }
-        providerId = detected.providerId;
-        apiKey = detected.apiKey;
+        providerId = providerChain[0];
+        apiKey = process.env[envKeyForSFXProvider(providerId)] ?? '';
       }
 
       metricProviderId = providerId;
       metricModelId = opts.model;
+      emitAudioProgress(opts.onProgress, 'queued', 0, `Queued SFX generation with ${providerId}.`);
 
       span?.setAttribute('llm.provider', providerId);
       if (opts.model) span?.setAttribute('llm.model', opts.model);
 
       // --- Create provider (with fallback chain) ---
       const provider = await createSFXProviderWithFallback(
-        providerId,
+        providerChain,
         apiKey,
         opts.model,
-        opts.providerPreferences,
+        opts.timeoutMs,
       );
 
       // --- Dispatch to generateSFX ---
@@ -338,10 +385,14 @@ export async function generateSFX(opts: GenerateSFXOptions): Promise<GenerateSFX
           `Provider "${providerId}" does not support SFX generation.`,
         );
       }
+      emitAudioProgress(opts.onProgress, 'processing', 25, `Generating SFX with ${providerId}.`);
 
       const result = await provider.generateSFX({
         prompt: opts.prompt,
-        modelId: opts.model ?? provider.defaultModelId,
+        modelId:
+          provider instanceof FallbackAudioProxy
+            ? undefined
+            : (opts.model ?? provider.defaultModelId),
         durationSec: opts.durationSec,
         outputFormat: opts.outputFormat,
         seed: opts.seed,
@@ -357,6 +408,7 @@ export async function generateSFX(opts: GenerateSFXOptions): Promise<GenerateSFX
       if (result.usage?.totalCostUSD !== undefined) {
         attachUsageAttributes(span, { totalCostUSD: result.usage.totalCostUSD });
       }
+      emitAudioProgress(opts.onProgress, 'complete', 100, 'SFX generation complete.');
 
       return {
         model: result.modelId,
@@ -368,6 +420,12 @@ export async function generateSFX(opts: GenerateSFXOptions): Promise<GenerateSFX
     });
   } catch (error) {
     metricStatus = 'error';
+    emitAudioProgress(
+      opts.onProgress,
+      'failed',
+      100,
+      error instanceof Error ? error.message : String(error),
+    );
     throw error;
   } finally {
     try {
