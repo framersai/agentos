@@ -167,6 +167,31 @@ describe('CreateWorkflowTool', () => {
     expect(result.error).toContain('not available');
   });
 
+  it('should reject steps that are available but not allowed by config', async () => {
+    const restrictedTool = new CreateWorkflowTool(
+      makeDeps({
+        config: {
+          maxSteps: 5,
+          allowedTools: ['web_search'],
+        },
+        listTools: () => ['web_search', 'translate', 'create_workflow'],
+      }),
+    );
+
+    const result = await restrictedTool.execute(
+      {
+        action: 'create',
+        name: 'disallowed-step',
+        description: 'Uses a blocked tool.',
+        steps: [{ tool: 'translate', args: { text: '$input' } }],
+      },
+      ctx,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not permitted');
+  });
+
   it('should fail the workflow when a step times out', async () => {
     // Override executeTool to hang on the second call
     const slowDeps = makeDeps({

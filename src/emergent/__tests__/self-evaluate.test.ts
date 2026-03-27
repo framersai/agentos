@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SelfEvaluateTool, type SelfEvaluateDeps } from '../SelfEvaluateTool.js';
 import { AdaptPersonalityTool } from '../AdaptPersonalityTool.js';
 import type { ToolExecutionContext } from '../../core/tools/ITool.js';
+import { generateText } from '../../api/generateText.js';
 
 // ---------------------------------------------------------------------------
 // Mock generateText
@@ -56,6 +57,7 @@ function makeDeps(overrides?: Partial<SelfEvaluateDeps>): SelfEvaluateDeps {
       autoAdjust: false,
       adjustableParams: ['temperature', 'verbosity', 'openness'],
       maxEvaluationsPerSession: 5,
+      evaluationModel: undefined,
     },
     ...overrides,
   };
@@ -74,7 +76,7 @@ function makeAdaptPersonalityTool(): AdaptPersonalityTool {
 
   return new AdaptPersonalityTool({
     config: { maxDeltaPerSession: 0.3 },
-    mutationStore: { record: vi.fn() },
+    mutationStore: { record: vi.fn().mockResolvedValue('pm_test') },
     getPersonality: () => personality,
     setPersonality: (trait, value) => {
       personality[trait] = value;
@@ -113,6 +115,34 @@ describe('SelfEvaluateTool', () => {
     expect(result.output.scores.helpfulness).toBe(0.8);
     expect(result.output.evalCount).toBe(1);
     expect(result.output.remainingEvaluations).toBe(4);
+  });
+
+  it('should use the configured evaluation model override', async () => {
+    const tool = new SelfEvaluateTool(
+      makeDeps({
+        config: {
+          autoAdjust: false,
+          adjustableParams: ['temperature'],
+          maxEvaluationsPerSession: 5,
+          evaluationModel: 'claude-code-cli:claude-haiku-4-5-20251001',
+        },
+      }),
+    );
+
+    await tool.execute(
+      {
+        action: 'evaluate',
+        response: 'The capital of France is Paris.',
+        query: 'What is the capital of France?',
+      },
+      ctx,
+    );
+
+    expect(vi.mocked(generateText)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'claude-code-cli:claude-haiku-4-5-20251001',
+      }),
+    );
   });
 
   it('should store evaluation as memory trace when storeMemory is provided', async () => {
@@ -185,6 +215,61 @@ describe('SelfEvaluateTool', () => {
     expect(result.success).toBe(true);
     expect(result.output!.trait).toBe('openness');
     expect(result.output!.previousValue).toBe(0.5);
+    expect(result.output!.newValue).toBeCloseTo(0.6);
+  });
+
+  it('should allow trait adjustments when generic personality is configured', async () => {
+    const adaptTool = makeAdaptPersonalityTool();
+    const tool = new SelfEvaluateTool(
+      makeDeps({
+        config: {
+          autoAdjust: false,
+          adjustableParams: ['personality'],
+          maxEvaluationsPerSession: 5,
+          evaluationModel: undefined,
+        },
+        adaptPersonality: adaptTool,
+      }),
+    );
+
+    const result = await tool.execute(
+      {
+        action: 'adjust',
+        param: 'openness',
+        value: 0.1,
+      },
+      ctx,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output!.trait).toBe('openness');
+  });
+
+  it('should support param=personality with a trait payload', async () => {
+    const adaptTool = makeAdaptPersonalityTool();
+    const tool = new SelfEvaluateTool(
+      makeDeps({
+        config: {
+          autoAdjust: false,
+          adjustableParams: ['personality'],
+          maxEvaluationsPerSession: 5,
+          evaluationModel: undefined,
+        },
+        adaptPersonality: adaptTool,
+      }),
+    );
+
+    const result = await tool.execute(
+      {
+        action: 'adjust',
+        param: 'personality',
+        value: { trait: 'openness', delta: 0.1 },
+      },
+      ctx,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output!.trait).toBe('openness');
     expect(result.output!.newValue).toBeCloseTo(0.6);
   });
 

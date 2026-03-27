@@ -15,7 +15,7 @@
  * @module agentos/memory/consolidation/__tests__/consolidation.test
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -554,5 +554,24 @@ describe('ConsolidationLoop — Full cycle', () => {
       'SELECT COUNT(*) AS cnt FROM consolidation_log',
     );
     expect(logCount?.cnt).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('ConsolidationLoop — Personality decay', () => {
+  it('reports the number of personality mutations affected by decay', async () => {
+    const { brain, graph } = await createTestEnv();
+    const mutationStore = {
+      decayAll: vi.fn().mockResolvedValue({ decayed: 2, pruned: 1 }),
+    };
+
+    const loop = new ConsolidationLoop(brain, graph, {
+      personalityMutationStore: mutationStore as any,
+      personalityDecayRate: 0.1,
+    });
+
+    const result = await loop.run();
+
+    expect(mutationStore.decayAll).toHaveBeenCalledWith(0.1);
+    expect(result.personalityDecayed).toBe(3);
   });
 });

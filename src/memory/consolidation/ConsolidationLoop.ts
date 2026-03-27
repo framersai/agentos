@@ -152,7 +152,14 @@ export class ConsolidationLoop {
   async run(config?: Partial<ExtendedConsolidationConfig>): Promise<ConsolidationResult> {
     // Mutex guard — if already running, return zero-count result immediately.
     if (this._running) {
-      return { pruned: 0, merged: 0, derived: 0, compacted: 0, durationMs: 0 };
+      return {
+        pruned: 0,
+        merged: 0,
+        derived: 0,
+        compacted: 0,
+        durationMs: 0,
+        personalityDecayed: 0,
+      };
     }
 
     this._running = true;
@@ -588,7 +595,7 @@ export class ConsolidationLoop {
 
     try {
       const result = await this.options.personalityMutationStore.decayAll(rate);
-      return result.pruned;
+      return result.decayed + result.pruned;
     } catch {
       // Personality decay failures are non-critical — do not block consolidation.
       return 0;

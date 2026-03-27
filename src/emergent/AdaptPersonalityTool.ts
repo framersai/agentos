@@ -22,6 +22,7 @@ import type {
   ToolExecutionContext,
   JSONSchemaObject,
 } from '../core/tools/ITool.js';
+import type { RecordMutationInput } from './PersonalityMutationStore.js';
 
 // ============================================================================
 // VALID TRAITS
@@ -55,30 +56,12 @@ export type HEXACOTrait = (typeof VALID_TRAITS)[number];
 // ============================================================================
 
 /**
- * A single personality mutation record persisted for audit and analysis.
- */
-export interface PersonalityMutation {
-  /** The HEXACO trait that was modified. */
-  trait: string;
-  /** The trait value before the mutation. */
-  previousValue: number;
-  /** The trait value after the mutation. */
-  newValue: number;
-  /** The actual delta applied (may differ from requested if clamped). */
-  delta: number;
-  /** Free-text reasoning provided by the agent for this mutation. */
-  reasoning: string;
-  /** ISO-8601 timestamp of when the mutation occurred. */
-  timestamp: string;
-}
-
-/**
  * Durable store interface for recording personality mutations.
  * Implementations may write to SQLite, a JSON file, or in-memory arrays.
  */
 export interface PersonalityMutationStore {
   /** Persist a single mutation record. */
-  record(mutation: PersonalityMutation): void;
+  record(mutation: RecordMutationInput): Promise<string> | string;
 }
 
 // ============================================================================
@@ -134,8 +117,8 @@ export interface AdaptPersonalityDeps {
     /** Maximum total |delta| that may be applied to any single trait per session. */
     maxDeltaPerSession: number;
   };
-  /** Durable store for recording mutation history. */
-  mutationStore: PersonalityMutationStore;
+  /** Optional durable store for recording mutation history. */
+  mutationStore?: PersonalityMutationStore;
   /** Getter returning the current personality trait map (trait → value in [0, 1]). */
   getPersonality: () => Record<string, number>;
   /** Setter to apply a new value for a specific trait. */
@@ -239,7 +222,7 @@ export class AdaptPersonalityTool
    */
   async execute(
     args: AdaptPersonalityInput,
-    _context: ToolExecutionContext,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<AdaptPersonalityOutput>> {
     const { trait, delta, reasoning } = args;
 
@@ -256,6 +239,13 @@ export class AdaptPersonalityTool
       return {
         success: false,
         error: 'reasoning is required and must be a non-empty string',
+      };
+    }
+
+    if (typeof delta !== 'number' || !Number.isFinite(delta)) {
+      return {
+        success: false,
+        error: 'delta is required and must be a finite number',
       };
     }
 
@@ -301,15 +291,19 @@ export class AdaptPersonalityTool
     const newSessionTotal = currentSessionTotal + Math.abs(effectiveDelta);
     this.sessionDeltas.set(trait, newSessionTotal);
 
-    // 6. Record in mutation store
-    this.deps.mutationStore.record({
-      trait,
-      previousValue,
-      newValue,
-      delta: effectiveDelta,
-      reasoning,
-      timestamp: new Date().toISOString(),
-    });
+    // 6. Record in mutation store when persistence is enabled.
+    if (this.deps.mutationStore) {
+      await Promise.resolve(
+        this.deps.mutationStore.record({
+          agentId: context.gmiId,
+          trait,
+          delta: effectiveDelta,
+          reasoning,
+          baselineValue: previousValue,
+          mutatedValue: newValue,
+        }),
+      );
+    }
 
     // 7. Return result
     const output: AdaptPersonalityOutput = {

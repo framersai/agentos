@@ -21,6 +21,7 @@ import { ComposableToolBuilder } from '../ComposableToolBuilder.js';
 import { SandboxedToolForge } from '../SandboxedToolForge.js';
 import { EmergentJudge } from '../EmergentJudge.js';
 import { EmergentToolRegistry } from '../EmergentToolRegistry.js';
+import { DEFAULT_SELF_IMPROVEMENT_CONFIG } from '../SelfImprovementConfig.js';
 import type {
   EmergentConfig,
   ForgeToolRequest,
@@ -190,6 +191,77 @@ describe('EmergentCapabilityEngine', () => {
   // =========================================================================
   // 1. Full compose flow
   // =========================================================================
+
+  it('createSelfImprovementTools wires all four tools and supports session-only personality mode', async () => {
+    const personality: Record<string, number> = {
+      openness: 0.5,
+      conscientiousness: 0.5,
+      emotionality: 0.5,
+      extraversion: 0.5,
+      agreeableness: 0.5,
+      honesty: 0.5,
+    };
+
+    engine = new EmergentCapabilityEngine({
+      config: makeConfig({
+        selfImprovement: {
+          ...DEFAULT_SELF_IMPROVEMENT_CONFIG,
+          enabled: true,
+          personality: {
+            ...DEFAULT_SELF_IMPROVEMENT_CONFIG.personality,
+            persistWithDecay: false,
+          },
+          selfEval: {
+            ...DEFAULT_SELF_IMPROVEMENT_CONFIG.selfEval,
+            adjustableParams: ['personality'],
+          },
+        },
+      }),
+      composableBuilder,
+      sandboxForge,
+      judge,
+      registry,
+    });
+
+    const tools = await engine.createSelfImprovementTools({
+      getPersonality: () => personality,
+      setPersonality: (trait, value) => {
+        personality[trait] = value;
+      },
+      getActiveSkills: () => [],
+      getLockedSkills: () => [],
+      loadSkill: async (id) => ({ skillId: id, name: id, category: 'test' }),
+      unloadSkill: vi.fn(),
+      searchSkills: () => [],
+      executeTool: vi.fn().mockResolvedValue({ ok: true }),
+      listTools: () => ['web_search', 'summarize'],
+    });
+
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'adapt_personality',
+      'create_workflow',
+      'manage_skills',
+      'self_evaluate',
+    ]);
+
+    const selfEvaluate = tools.find((tool) => tool.name === 'self_evaluate')!;
+    const adjustResult = await selfEvaluate.execute(
+      {
+        action: 'adjust',
+        param: 'personality',
+        value: { trait: 'openness', delta: 0.1 },
+      },
+      {
+        gmiId: agentId,
+        personaId: 'persona',
+        userContext: { userId: 'user' } as any,
+        correlationId: sessionId,
+      },
+    );
+
+    expect(adjustResult.success).toBe(true);
+    expect(personality.openness).toBeCloseTo(0.6);
+  });
 
   it('forge (compose): builds, tests, judges, and registers at session tier', async () => {
     // Mock the executeTool callback for both compose steps.

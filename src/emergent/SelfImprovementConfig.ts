@@ -154,7 +154,8 @@ export interface SelfImprovementConfig {
      * Common adjustable parameters:
      * - `'temperature'` — LLM sampling temperature.
      * - `'verbosity'` — Response length preference.
-     * - `'personality'` — HEXACO trait deltas (delegates to AdaptPersonalityTool).
+     * - `'personality'` — Any HEXACO trait delta via a `{ trait, delta }` payload.
+     * - explicit trait names such as `'openness'` or `'agreeableness'`.
      *
      * @default ['temperature', 'verbosity', 'personality']
      */
@@ -168,6 +169,17 @@ export interface SelfImprovementConfig {
      * @default 10
      */
     maxEvaluationsPerSession: number;
+
+    /**
+     * Optional model override for the evaluation judge.
+     *
+     * When omitted, the tool auto-detects the current text runtime and uses
+     * its cheapest configured text model when available, falling back to
+     * `openai:gpt-4o-mini`.
+     *
+     * @default auto-detected cheap text model
+     */
+    evaluationModel?: string;
   };
 }
 

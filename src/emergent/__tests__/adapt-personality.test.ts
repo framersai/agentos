@@ -45,7 +45,7 @@ function makeDeps(overrides?: Partial<AdaptPersonalityDeps>): AdaptPersonalityDe
 
   return {
     config: { maxDeltaPerSession: 0.3 },
-    mutationStore: { record: vi.fn() },
+    mutationStore: { record: vi.fn().mockResolvedValue('pm_test') } as PersonalityMutationStore,
     getPersonality: () => personality,
     setPersonality: (trait, value) => {
       personality[trait] = value;
@@ -69,6 +69,7 @@ describe('AdaptPersonalityTool', () => {
   });
 
   it('should mutate a trait within budget', async () => {
+    const mutationStore = deps.mutationStore!;
     const result = await tool.execute(
       { trait: 'openness', delta: 0.1, reasoning: 'User likes creativity.' },
       ctx,
@@ -81,7 +82,15 @@ describe('AdaptPersonalityTool', () => {
     expect(result.output!.newValue).toBeCloseTo(0.6);
     expect(result.output!.delta).toBeCloseTo(0.1);
     expect(result.output!.clamped).toBe(false);
-    expect(deps.mutationStore.record).toHaveBeenCalledOnce();
+    expect(mutationStore.record).toHaveBeenCalledOnce();
+    expect(mutationStore.record).toHaveBeenCalledWith({
+      agentId: 'test-gmi',
+      trait: 'openness',
+      delta: 0.1,
+      reasoning: 'User likes creativity.',
+      baselineValue: 0.5,
+      mutatedValue: 0.6,
+    });
   });
 
   it('should clamp delta when exceeding session budget', async () => {
@@ -159,5 +168,15 @@ describe('AdaptPersonalityTool', () => {
 
     expect(result2.success).toBe(false);
     expect(result2.error).toContain('reasoning');
+  });
+
+  it('should reject a non-finite delta', async () => {
+    const result = await tool.execute(
+      { trait: 'openness', delta: Number.NaN, reasoning: 'Bad delta.' },
+      ctx,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('finite number');
   });
 });

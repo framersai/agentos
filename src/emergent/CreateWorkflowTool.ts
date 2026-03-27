@@ -107,6 +107,10 @@ export interface CreateWorkflowDeps {
 /** Default per-step execution timeout in milliseconds. */
 const STEP_TIMEOUT_MS = 30_000;
 
+function isToolAllowed(toolName: string, allowedTools: string[]): boolean {
+  return allowedTools.includes('*') || allowedTools.includes(toolName);
+}
+
 /**
  * ITool implementation enabling agents to compose, execute, and list
  * multi-step tool workflows at runtime.
@@ -294,6 +298,13 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
           error: `Tool "${step.tool}" referenced in step is not available`,
         };
       }
+
+      if (!isToolAllowed(step.tool, this.deps.config.allowedTools)) {
+        return {
+          success: false,
+          error: `Tool "${step.tool}" is not permitted by the workflow allowedTools configuration`,
+        };
+      }
     }
 
     const id = `workflow-${this.nextId++}`;
@@ -346,13 +357,7 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
       const resolvedArgs = this.resolveReferences(step.args, input, prev, stepResults);
 
       try {
-        // 30-second timeout per step via Promise.race
-        const result = await Promise.race([
-          this.deps.executeTool(step.tool, resolvedArgs),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Step ${i} ("${step.tool}") timed out after ${STEP_TIMEOUT_MS}ms`)), STEP_TIMEOUT_MS),
-          ),
-        ]);
+        const result = await this.executeStepWithTimeout(step.tool, resolvedArgs, i);
 
         stepResults.push(result);
         prev = result;
@@ -437,6 +442,33 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
     } catch {
       // If parsing fails (unlikely), return original args
       return args;
+    }
+  }
+
+  private async executeStepWithTimeout(
+    toolName: string,
+    args: Record<string, unknown>,
+    stepIndex: number,
+  ): Promise<unknown> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      return await Promise.race([
+        this.deps.executeTool(toolName, args),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(
+              new Error(
+                `Step ${stepIndex} ("${toolName}") timed out after ${STEP_TIMEOUT_MS}ms`,
+              ),
+            );
+          }, STEP_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 }

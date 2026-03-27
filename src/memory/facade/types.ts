@@ -569,11 +569,12 @@ export interface ConsolidationResult {
   durationMs: number;
 
   /**
-   * Number of personality mutations pruned during decay.
+   * Number of personality mutations affected by decay during this cycle.
    *
    * Only populated when a {@link PersonalityMutationStore} is configured
-   * on the ConsolidationLoop. Zero when the store is absent or no
-   * mutations were pruned.
+   * on the ConsolidationLoop. This includes both weakened mutations and
+   * mutations pruned after falling below the strength threshold.
+   * Zero when the store is absent or no mutations were touched.
    * @default 0
    */
   personalityDecayed?: number;

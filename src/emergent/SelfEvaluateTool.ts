@@ -12,9 +12,8 @@
  * - `report`   — Aggregate session evaluation history, compute score averages,
  *   and list all adjustments made.
  *
- * The tool itself is read-only (`hasSideEffects: false`) because evaluate is
- * observational; adjust delegates its side effects to adapt_personality or
- * stores changes in an ephemeral session state map.
+ * The tool mutates session state during `adjust`, either by delegating to
+ * `adapt_personality` or by updating ephemeral runtime parameters.
  */
 
 import type {
@@ -24,7 +23,8 @@ import type {
   JSONSchemaObject,
 } from '../core/tools/ITool.js';
 import { generateText } from '../api/generateText.js';
-import type { AdaptPersonalityTool } from './AdaptPersonalityTool.js';
+import { PROVIDER_DEFAULTS, autoDetectProvider } from '../api/provider-defaults.js';
+import { VALID_TRAITS, type AdaptPersonalityTool, type HEXACOTrait } from './AdaptPersonalityTool.js';
 
 // ============================================================================
 // TYPES
@@ -125,11 +125,15 @@ export interface SelfEvaluateDeps {
     adjustableParams: string[];
     /** Maximum number of evaluations allowed per session. */
     maxEvaluationsPerSession: number;
+    /** Optional explicit model override for the evaluation judge. */
+    evaluationModel?: string;
   };
   /** Optional AdaptPersonalityTool for delegating personality adjustments. */
   adaptPersonality?: AdaptPersonalityTool;
   /** Optional callback to persist evaluation traces to long-term memory. */
   storeMemory?: (trace: MemoryTrace) => Promise<void>;
+  /** Optional override for tests or custom judge routing. */
+  generateTextImpl?: typeof generateText;
 }
 
 // ============================================================================
@@ -177,7 +181,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
   readonly category = 'emergent';
 
   /** @inheritdoc */
-  readonly hasSideEffects = false;
+  readonly hasSideEffects = true;
 
   /** @inheritdoc */
   readonly inputSchema: JSONSchemaObject = {
@@ -300,8 +304,8 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     // Call LLM to produce evaluation scores
     let scores: EvaluationScores;
     try {
-      const result = await generateText({
-        model: 'openai:gpt-4o-mini',
+      const result = await (this.deps.generateTextImpl ?? generateText)({
+        model: this.resolveEvaluationModel(),
         system:
           'You are a response quality evaluator. Score the following response on four dimensions: ' +
           'relevance, clarity, accuracy, and helpfulness. Each score is a number between 0 and 1. ' +
@@ -311,14 +315,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
         maxTokens: 200,
       });
 
-      scores = JSON.parse(result.text);
-
-      // Validate score structure
-      for (const key of ['relevance', 'clarity', 'accuracy', 'helpfulness'] as const) {
-        if (typeof scores[key] !== 'number' || scores[key] < 0 || scores[key] > 1) {
-          scores[key] = 0.5; // Default to neutral if malformed
-        }
-      }
+      scores = this.parseScores(result.text);
     } catch (err: any) {
       return {
         success: false,
@@ -382,52 +379,74 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
       return { success: false, error: 'value is required for the adjust action' };
     }
 
-    // Check if param is adjustable
+    if (param === 'personality') {
+      if (!this.deps.config.adjustableParams.includes('personality')) {
+        return {
+          success: false,
+          error: `Parameter "${param}" is not adjustable. Allowed: ${this.deps.config.adjustableParams.join(', ')}`,
+        };
+      }
+
+      const trait =
+        typeof value === 'object' && value !== null
+          ? (value as Record<string, unknown>).trait
+          : undefined;
+      const delta =
+        typeof value === 'object' && value !== null
+          ? (value as Record<string, unknown>).delta
+          : undefined;
+
+      if (!this.isPersonalityTrait(trait)) {
+        return {
+          success: false,
+          error: `personality adjustments require a valid trait. Must be one of: ${VALID_TRAITS.join(', ')}`,
+        };
+      }
+      if (typeof delta !== 'number' || !Number.isFinite(delta)) {
+        return {
+          success: false,
+          error: 'personality adjustments require a finite numeric delta',
+        };
+      }
+
+      return this.delegatePersonalityAdjustment(
+        trait,
+        delta,
+        reasoning ?? `Self-evaluation adjustment for ${trait}`,
+        context,
+      );
+    }
+
+    if (this.isPersonalityTrait(param)) {
+      if (
+        !this.deps.config.adjustableParams.includes(param) &&
+        !this.deps.config.adjustableParams.includes('personality')
+      ) {
+        return {
+          success: false,
+          error: `Parameter "${param}" is not adjustable. Allowed: ${this.deps.config.adjustableParams.join(', ')}`,
+        };
+      }
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return {
+          success: false,
+          error: `Personality adjustment "${param}" requires a finite numeric delta`,
+        };
+      }
+
+      return this.delegatePersonalityAdjustment(
+        param,
+        value,
+        reasoning ?? `Self-evaluation adjustment for ${param}`,
+        context,
+      );
+    }
+
     if (!this.deps.config.adjustableParams.includes(param)) {
       return {
         success: false,
         error: `Parameter "${param}" is not adjustable. Allowed: ${this.deps.config.adjustableParams.join(', ')}`,
       };
-    }
-
-    const personalityTraits = [
-      'openness',
-      'conscientiousness',
-      'emotionality',
-      'extraversion',
-      'agreeableness',
-      'honesty',
-    ];
-
-    if (personalityTraits.includes(param)) {
-      // Delegate to AdaptPersonalityTool
-      if (!this.deps.adaptPersonality) {
-        return {
-          success: false,
-          error: 'Personality adjustment requires AdaptPersonalityTool but none was provided.',
-        };
-      }
-
-      const delta = typeof value === 'number' ? value : 0;
-      const personalityResult = await this.deps.adaptPersonality.execute(
-        {
-          trait: param,
-          delta,
-          reasoning: reasoning ?? `Self-evaluation adjustment for ${param}`,
-        },
-        context,
-      );
-
-      if (personalityResult.success && personalityResult.output) {
-        this.adjustments.push({
-          param,
-          prev: personalityResult.output.previousValue,
-          new: personalityResult.output.newValue,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      return personalityResult;
     }
 
     // Non-personality parameter (temperature, verbosity, etc.)
@@ -490,16 +509,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     const paramAdjustments: AdjustmentRecord[] = [];
 
     for (const adj of this.adjustments) {
-      const personalityTraits = [
-        'openness',
-        'conscientiousness',
-        'emotionality',
-        'extraversion',
-        'agreeableness',
-        'honesty',
-      ];
-
-      if (personalityTraits.includes(adj.param)) {
+      if (this.isPersonalityTrait(adj.param)) {
         if (!personalityDrift[adj.param]) {
           personalityDrift[adj.param] = { totalDelta: 0, adjustmentCount: 0 };
         }
@@ -521,5 +531,85 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
         evaluations: this.evaluations,
       },
     };
+  }
+
+  private resolveEvaluationModel(): string {
+    if (this.deps.config.evaluationModel) {
+      return this.deps.config.evaluationModel;
+    }
+
+    const providerId = autoDetectProvider('text');
+    const providerDefaults = providerId ? PROVIDER_DEFAULTS[providerId] : undefined;
+    const modelId = providerDefaults?.cheap ?? providerDefaults?.text;
+
+    if (providerId && modelId) {
+      return `${providerId}:${modelId}`;
+    }
+
+    return 'openai:gpt-4o-mini';
+  }
+
+  private parseScores(rawText: string): EvaluationScores {
+    const parsed = this.extractJsonPayload(rawText) as Partial<EvaluationScores>;
+
+    return {
+      relevance: this.normalizeScore(parsed.relevance),
+      clarity: this.normalizeScore(parsed.clarity),
+      accuracy: this.normalizeScore(parsed.accuracy),
+      helpfulness: this.normalizeScore(parsed.helpfulness),
+    };
+  }
+
+  private extractJsonPayload(rawText: string): unknown {
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      const start = rawText.indexOf('{');
+      const end = rawText.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        return JSON.parse(rawText.slice(start, end + 1));
+      }
+      throw new Error('Evaluation model returned non-JSON output.');
+    }
+  }
+
+  private normalizeScore(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+      ? value
+      : 0.5;
+  }
+
+  private isPersonalityTrait(param: unknown): param is HEXACOTrait {
+    return typeof param === 'string' && VALID_TRAITS.includes(param as HEXACOTrait);
+  }
+
+  private async delegatePersonalityAdjustment(
+    trait: HEXACOTrait,
+    delta: number,
+    reasoning: string,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    if (!this.deps.adaptPersonality) {
+      return {
+        success: false,
+        error: 'Personality adjustment requires AdaptPersonalityTool but none was provided.',
+      };
+    }
+
+    const personalityResult = await this.deps.adaptPersonality.execute(
+      { trait, delta, reasoning },
+      context,
+    );
+
+    if (personalityResult.success && personalityResult.output) {
+      this.adjustments.push({
+        param: trait,
+        prev: personalityResult.output.previousValue,
+        new: personalityResult.output.newValue,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return personalityResult;
   }
 }

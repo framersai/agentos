@@ -25,6 +25,7 @@ import type {
 import type { ToolCandidate } from './EmergentJudge.js';
 import type { ITool, ToolExecutionContext, ToolExecutionResult } from '../core/tools/ITool.js';
 import type { PersonalityMutationStore } from './PersonalityMutationStore.js';
+import type { AdaptPersonalityTool } from './AdaptPersonalityTool.js';
 import { ComposableToolBuilder } from './ComposableToolBuilder.js';
 import { SandboxedToolForge } from './SandboxedToolForge.js';
 import { EmergentJudge } from './EmergentJudge.js';
@@ -49,7 +50,7 @@ export interface SelfImprovementToolDeps {
   setPersonality: (trait: string, value: number) => void;
 
   /** Durable store for personality mutations (used by AdaptPersonalityTool for persistence). */
-  mutationStore: PersonalityMutationStore;
+  mutationStore?: PersonalityMutationStore;
 
   /** Returns the agent's currently active skills. */
   getActiveSkills: () => Array<{ skillId: string; name: string; category: string }>;
@@ -582,6 +583,7 @@ export class EmergentCapabilityEngine {
     }
 
     const tools: ITool[] = [];
+    let adaptPersonalityTool: AdaptPersonalityTool | undefined;
 
     try {
       // Dynamic import to avoid hard coupling — these modules may be created
@@ -590,15 +592,15 @@ export class EmergentCapabilityEngine {
 
       try {
         const { AdaptPersonalityTool } = await import('./AdaptPersonalityTool.js');
-        tools.push(
-          new AdaptPersonalityTool({
-            getPersonality: deps.getPersonality,
-            setPersonality: deps.setPersonality,
-            mutationStore: deps.mutationStore,
+        adaptPersonalityTool = new AdaptPersonalityTool({
+          config: {
             maxDeltaPerSession: selfConfig.personality.maxDeltaPerSession,
-            persistWithDecay: selfConfig.personality.persistWithDecay,
-          }),
-        );
+          },
+          getPersonality: deps.getPersonality,
+          setPersonality: deps.setPersonality,
+          mutationStore: selfConfig.personality.persistWithDecay ? deps.mutationStore : undefined,
+        });
+        tools.push(adaptPersonalityTool);
       } catch {
         // AdaptPersonalityTool module not available — skip.
       }
@@ -607,13 +609,16 @@ export class EmergentCapabilityEngine {
         const { ManageSkillsTool } = await import('./ManageSkillsTool.js');
         tools.push(
           new ManageSkillsTool({
+            config: {
+              allowlist: selfConfig.skills.allowlist,
+              requireApprovalForNewCategories:
+                selfConfig.skills.requireApprovalForNewCategories,
+            },
             getActiveSkills: deps.getActiveSkills,
             getLockedSkills: deps.getLockedSkills,
             loadSkill: deps.loadSkill,
             unloadSkill: deps.unloadSkill,
             searchSkills: deps.searchSkills,
-            allowlist: selfConfig.skills.allowlist,
-            requireApprovalForNewCategories: selfConfig.skills.requireApprovalForNewCategories,
           }),
         );
       } catch {
@@ -624,11 +629,12 @@ export class EmergentCapabilityEngine {
         const { CreateWorkflowTool } = await import('./CreateWorkflowTool.js');
         tools.push(
           new CreateWorkflowTool({
+            config: {
+              maxSteps: selfConfig.workflows.maxSteps,
+              allowedTools: selfConfig.workflows.allowedTools,
+            },
             executeTool: deps.executeTool,
             listTools: deps.listTools,
-            maxSteps: selfConfig.workflows.maxSteps,
-            allowedTools: selfConfig.workflows.allowedTools,
-            storeMemory: deps.storeMemory,
           }),
         );
       } catch {
@@ -639,12 +645,13 @@ export class EmergentCapabilityEngine {
         const { SelfEvaluateTool } = await import('./SelfEvaluateTool.js');
         tools.push(
           new SelfEvaluateTool({
-            getPersonality: deps.getPersonality,
-            setPersonality: deps.setPersonality,
-            mutationStore: deps.mutationStore,
-            autoAdjust: selfConfig.selfEval.autoAdjust,
-            adjustableParams: selfConfig.selfEval.adjustableParams,
-            maxEvaluationsPerSession: selfConfig.selfEval.maxEvaluationsPerSession,
+            config: {
+              autoAdjust: selfConfig.selfEval.autoAdjust,
+              adjustableParams: selfConfig.selfEval.adjustableParams,
+              maxEvaluationsPerSession: selfConfig.selfEval.maxEvaluationsPerSession,
+              evaluationModel: selfConfig.selfEval.evaluationModel,
+            },
+            adaptPersonality: adaptPersonalityTool,
             storeMemory: deps.storeMemory,
           }),
         );
