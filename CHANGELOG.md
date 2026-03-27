@@ -1,3 +1,7 @@
+## <small>0.1.124 (2026-03-27)</small>
+
+* fix(lint): remove unnecessary escape characters in BM25 tokenizer regex ([caf2be9](https://github.com/framersai/agentos/commit/caf2be9))
+
 ## <small>0.1.123 (2026-03-27)</small>
 
 * feat: self-improvement tool factory, consolidation personality decay, barrel exports ([c580042](https://github.com/framersai/agentos/commit/c580042))
