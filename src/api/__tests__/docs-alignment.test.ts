@@ -59,18 +59,15 @@ describe('AgentOS docs alignment', () => {
     expect(documentationIndex).toContain('Checkpointing');
   });
 
-  itIfSkills('keeps the skills runtime and skills tool extension distinct in package metadata and docs', () => {
+  itIfSkills('references the 2-package skills architecture (runtime + registry) without ext-skills', () => {
     const runtimePackage = JSON.parse(read('../../../../agentos-skills/package.json'));
-    const extensionPackage = JSON.parse(read('../../../../agentos-ext-skills/package.json'));
+    const registryPackage = JSON.parse(read('../../../../agentos-skills-registry/package.json'));
     const packageSkillsGuide = read('../../../docs/SKILLS.md');
-    const liveSkillsOverview = read('../../../../../apps/agentos-live-docs/docs/skills/overview.md');
-    const featureGuide = read('../../../../../apps/agentos-live-docs/docs/features/skills.md');
 
     expect(runtimePackage.name).toBe('@framers/agentos-skills');
-    expect(extensionPackage.name).toBe('@framers/agentos-ext-skills');
-    expect(packageSkillsGuide).toContain('@framers/agentos-ext-skills');
-    expect(liveSkillsOverview).toContain('@framers/agentos-ext-skills');
-    expect(featureGuide).toContain('@framers/agentos-ext-skills');
-    expect(featureGuide).toContain('@framers/agentos-skills-registry');
+    expect(registryPackage.name).toBe('@framers/agentos-skills-registry');
+    expect(packageSkillsGuide).toContain('@framers/agentos-skills');
+    expect(packageSkillsGuide).toContain('@framers/agentos-skills-registry');
+    expect(packageSkillsGuide).not.toContain('@framers/agentos-ext-skills');
   });
 });

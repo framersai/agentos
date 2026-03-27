@@ -121,15 +121,6 @@ const snapshot = registry.buildSnapshot({ platform: process.platform, strict: tr
 
 ---
 
-### @framers/agentos-ext-skills
-**Skills Tools Extension** — Tools for skill discovery + enablement (`skills_list`, `skills_read`, `skills_enable`).
-
-```bash
-npm install @framers/agentos-ext-skills
-```
-
----
-
 ## Applications
 
 ### [agentos.sh](https://github.com/framersai/agentos.sh)
