@@ -163,6 +163,16 @@ export interface GenerateTextOptions {
   /** Optional durable usage ledger configuration for helper-level accounting. */
   usageLedger?: AgentOSUsageLedgerOptions;
   /**
+   * Chain-of-thought instruction prepended to the system prompt when tools
+   * are available.  Encourages the model to reason explicitly before choosing
+   * an action.
+   *
+   * - `false` (default) — no CoT injection.
+   * - `true` — inject the default CoT instruction.
+   * - `string` — inject a custom CoT instruction.
+   */
+  chainOfThought?: boolean | string;
+  /**
    * Enable plan-then-execute mode.  When `true` (or a {@link PlanningConfig}),
    * an upfront LLM call decomposes the task into numbered steps before the
    * tool-calling loop begins.  The plan is injected into the system prompt
@@ -215,6 +225,35 @@ export interface GenerateTextResult {
    * `undefined` when planning is disabled or was not requested.
    */
   plan?: Plan;
+}
+
+// ---------------------------------------------------------------------------
+// Chain-of-thought helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Default chain-of-thought instruction prepended to the system prompt when
+ * tools are available and `chainOfThought` is enabled.  Encourages the model
+ * to reason explicitly before selecting a tool or crafting a response.
+ */
+export const DEFAULT_COT_INSTRUCTION = `Before choosing an action, briefly reason about what you need to do and why. Consider:
+1. What information do you already have?
+2. What information do you need?
+3. Which tool is most appropriate and why?
+Then proceed with your tool call or response.`;
+
+/**
+ * Resolves the chain-of-thought instruction from the `chainOfThought` option.
+ *
+ * @param cot - The `chainOfThought` option value.
+ * @returns The resolved CoT instruction string, or `undefined` if disabled.
+ *
+ * @internal
+ */
+export function resolveChainOfThought(cot: boolean | string | undefined): string | undefined {
+  if (!cot) return undefined;
+  if (typeof cot === 'string') return cot;
+  return DEFAULT_COT_INSTRUCTION;
 }
 
 // ---------------------------------------------------------------------------
@@ -379,7 +418,22 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
 
       // Build messages
       const messages: Array<Record<string, unknown>> = [];
-      if (opts.system) messages.push({ role: 'system', content: opts.system });
+
+      // --- Chain-of-thought injection ---
+      // When CoT is enabled and tools are provided, prepend a reasoning
+      // instruction to the system prompt so the model explicitly reasons
+      // before selecting a tool or composing a response.
+      const cotInstruction = resolveChainOfThought(opts.chainOfThought);
+      const hasTools = !!(opts.tools && (Array.isArray(opts.tools) ? opts.tools.length > 0 : Object.keys(opts.tools).length > 0));
+      if (cotInstruction && hasTools) {
+        const systemContent = opts.system
+          ? `${cotInstruction}\n\n${opts.system}`
+          : cotInstruction;
+        messages.push({ role: 'system', content: systemContent });
+      } else if (opts.system) {
+        messages.push({ role: 'system', content: opts.system });
+      }
+
       if (opts.messages) {
         for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
       }
