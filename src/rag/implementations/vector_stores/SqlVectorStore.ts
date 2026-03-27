@@ -561,16 +561,20 @@ export class SqlVectorStore implements IVectorStore {
       );
     }
 
-    // Build query with optional metadata filter
-    const query = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
-    const params: any[] = [collectionName];
+    // Build query with SQL-level metadata filtering via json_extract()
+    let query = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
+    const params: unknown[] = [collectionName];
 
-    // Note: For more advanced filtering, we'd parse the MetadataFilter and generate SQL
-    // For now, we filter in application code for flexibility
+    // Push metadata filters into SQL WHERE clauses — avoids loading unmatched rows
+    if (options?.filter) {
+      const filterSQL = this.buildMetadataFilterSQL(options.filter);
+      query += filterSQL.clause;
+      params.push(...filterSQL.params);
+    }
 
     const rows = await this.adapter.all<DocumentRow>(query, params);
 
-    // Compute similarities and filter
+    // Compute similarities on the (now pre-filtered) result set
     const candidates: RetrievedVectorDocument[] = [];
 
     for (const row of rows) {
@@ -578,11 +582,6 @@ export class SqlVectorStore implements IVectorStore {
         ? JSON.parse(row.embedding_blob as string) as number[]
         : blobToEmbedding(row.embedding_blob as Buffer);
       const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : undefined;
-
-      // Apply metadata filter in application code
-      if (options?.filter && !this.matchesFilter(metadata, options.filter)) {
-        continue;
-      }
 
       // Compute similarity
       let similarityScore: number;
@@ -683,11 +682,15 @@ export class SqlVectorStore implements IVectorStore {
       );
     }
 
-    // Load all documents in the collection (this store computes similarity in application code).
-    const rows = await this.adapter.all<DocumentRow>(
-      `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`,
-      [collectionName],
-    );
+    // Load documents with SQL-level metadata filtering (avoids loading unmatched rows).
+    let hybridQuery = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
+    const hybridParams: unknown[] = [collectionName];
+    if (options?.filter) {
+      const filterSQL = this.buildMetadataFilterSQL(options.filter);
+      hybridQuery += filterSQL.clause;
+      hybridParams.push(...filterSQL.params);
+    }
+    const rows = await this.adapter.all<DocumentRow>(hybridQuery, hybridParams);
 
     const tokenize = (text: string): string[] =>
       text
@@ -718,7 +721,14 @@ export class SqlVectorStore implements IVectorStore {
         : blobToEmbedding(row.embedding_blob as Buffer);
       const metadata = row.metadata_json ? (JSON.parse(row.metadata_json) as Record<string, MetadataValue>) : undefined;
 
-      if (options?.filter && !this.matchesFilter(metadata, options.filter)) continue;
+      // Metadata filtering is now done at SQL level via buildMetadataFilterSQL().
+      // JS-level matchesFilter kept as fallback for $all operator (requires JSON array parsing).
+      if (options?.filter && metadata) {
+        const hasAll = Object.values(options.filter).some(
+          (c) => typeof c === 'object' && c !== null && '$all' in (c as MetadataFieldCondition),
+        );
+        if (hasAll && !this.matchesFilter(metadata, options.filter)) continue;
+      }
 
       let denseScore: number;
       switch (collection.similarityMetric) {
@@ -1066,6 +1076,87 @@ export class SqlVectorStore implements IVectorStore {
   // ============================================================================
   // Private Helper Methods
   // ============================================================================
+
+  /**
+   * Translate a MetadataFilter into SQL WHERE clauses using json_extract().
+   * Pushes filtering into SQLite so only matching rows are loaded into JS.
+   *
+   * @param filter   - The metadata filter to translate.
+   * @param column   - The JSON column name (default: 'metadata_json').
+   * @returns Object with `clause` (SQL fragment) and `params` (bind values).
+   */
+  private buildMetadataFilterSQL(
+    filter: MetadataFilter,
+    column = 'metadata_json',
+  ): { clause: string; params: unknown[] } {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    for (const [field, condition] of Object.entries(filter)) {
+      const path = `json_extract(${column}, '$.${field}')`;
+
+      // Direct scalar match (implicit $eq)
+      if (typeof condition !== 'object' || condition === null) {
+        conditions.push(`${path} = ?`);
+        params.push(condition);
+        continue;
+      }
+
+      const cond = condition as MetadataFieldCondition;
+
+      if (cond.$eq !== undefined) {
+        conditions.push(`${path} = ?`);
+        params.push(cond.$eq);
+      }
+      if (cond.$ne !== undefined) {
+        conditions.push(`${path} != ?`);
+        params.push(cond.$ne);
+      }
+      if (cond.$gt !== undefined) {
+        conditions.push(`${path} > ?`);
+        params.push(cond.$gt);
+      }
+      if (cond.$gte !== undefined) {
+        conditions.push(`${path} >= ?`);
+        params.push(cond.$gte);
+      }
+      if (cond.$lt !== undefined) {
+        conditions.push(`${path} < ?`);
+        params.push(cond.$lt);
+      }
+      if (cond.$lte !== undefined) {
+        conditions.push(`${path} <= ?`);
+        params.push(cond.$lte);
+      }
+      if (cond.$in !== undefined && Array.isArray(cond.$in)) {
+        const placeholders = cond.$in.map(() => '?').join(', ');
+        conditions.push(`${path} IN (${placeholders})`);
+        params.push(...cond.$in);
+      }
+      if (cond.$nin !== undefined && Array.isArray(cond.$nin)) {
+        const placeholders = cond.$nin.map(() => '?').join(', ');
+        conditions.push(`${path} NOT IN (${placeholders})`);
+        params.push(...cond.$nin);
+      }
+      if (cond.$exists !== undefined) {
+        conditions.push(cond.$exists ? `${path} IS NOT NULL` : `${path} IS NULL`);
+      }
+      if (cond.$contains !== undefined) {
+        // For string fields: LIKE %value%. For JSON arrays: json_each check.
+        conditions.push(`${path} LIKE ?`);
+        params.push(`%${cond.$contains}%`);
+      }
+      if (cond.$textSearch !== undefined) {
+        conditions.push(`${path} LIKE ?`);
+        params.push(`%${cond.$textSearch}%`);
+      }
+    }
+
+    return {
+      clause: conditions.length > 0 ? ` AND ${conditions.join(' AND ')}` : '',
+      params,
+    };
+  }
 
   // Distance methods removed — now imported from rag/utils/vectorMath.ts
 
