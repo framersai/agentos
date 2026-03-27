@@ -12,6 +12,7 @@
  */
 
 export * from './types.js';
+export { type SelfImprovementConfig, DEFAULT_SELF_IMPROVEMENT_CONFIG } from './SelfImprovementConfig.js';
 export { ComposableToolBuilder } from './ComposableToolBuilder.js';
 export { SandboxedToolForge } from './SandboxedToolForge.js';
 export type { SandboxedToolForgeConfig } from './SandboxedToolForge.js';

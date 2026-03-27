@@ -16,6 +16,7 @@
  */
 
 import type { JSONSchemaObject } from '../core/tools/ITool.js';
+import type { SelfImprovementConfig } from './SelfImprovementConfig.js';
 
 // ============================================================================
 // TIER SYSTEM
@@ -731,6 +732,15 @@ export interface EmergentConfig {
    * @default "gpt-4o"
    */
   promotionJudgeModel: string;
+
+  /**
+   * Self-improvement configuration for bounded autonomous personality mutation,
+   * skill management, workflow composition, and self-evaluation.
+   *
+   * When omitted or `undefined`, self-improvement tools are not registered.
+   * @default undefined (disabled)
+   */
+  selfImprovement?: SelfImprovementConfig;
 }
 
 /**
