@@ -188,6 +188,21 @@ export interface CognitiveRetrievalOptions {
   timeRange?: { after?: number; before?: number };
   /** If true, skip emotional congruence bias (useful for factual lookups). */
   neutralMood?: boolean;
+  /**
+   * Enable HyDE (Hypothetical Document Embedding) for memory retrieval.
+   *
+   * When `true` and a HyDE retriever is configured on the memory manager,
+   * the system generates a hypothetical memory trace matching the query
+   * before embedding. This produces embeddings that are closer to actual
+   * stored memories, improving recall — especially for vague or abstract
+   * recall prompts (e.g. "that thing we discussed about deployment").
+   *
+   * Adds one LLM call per retrieval. Use for important lookups where
+   * recall quality matters more than latency.
+   *
+   * @default false
+   */
+  hyde?: boolean;
 }
 
 export interface ScoredMemoryTrace extends MemoryTrace {

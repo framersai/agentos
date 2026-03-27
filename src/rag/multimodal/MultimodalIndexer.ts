@@ -52,6 +52,7 @@ import type {
   MultimodalIndexerConfig,
 } from './types.js';
 import type { VisionPipeline } from '../../core/vision/VisionPipeline.js';
+import type { HydeRetriever } from '../HydeRetriever.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -147,6 +148,17 @@ export class MultimodalIndexer {
   /** Resolved configuration. */
   private readonly _config: Required<MultimodalIndexerConfig>;
 
+  /**
+   * Optional HyDE retriever for hypothesis-driven multimodal search.
+   *
+   * When set, the `search()` method can accept `hyde: { enabled: true }`
+   * in its options to embed a hypothetical answer instead of the raw query,
+   * improving recall for exploratory or vague queries.
+   *
+   * @see HydeRetriever
+   */
+  private _hydeRetriever?: HydeRetriever;
+
   // -------------------------------------------------------------------------
   // Constructor
   // -------------------------------------------------------------------------
@@ -226,6 +238,37 @@ export class MultimodalIndexer {
       imageDescriptionPrompt:
         deps.config?.imageDescriptionPrompt ?? DEFAULT_IMAGE_DESCRIPTION_PROMPT,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // HyDE configuration
+  // -------------------------------------------------------------------------
+
+  /**
+   * Attach a HyDE retriever to enable hypothesis-driven multimodal search.
+   *
+   * Once set, pass `hyde: { enabled: true }` in the `search()` options to
+   * activate HyDE for that query. The retriever generates a hypothetical
+   * answer using an LLM, then embeds that answer instead of the raw query
+   * text, which typically yields better recall for exploratory queries.
+   *
+   * @param retriever - A pre-configured HydeRetriever instance.
+   *
+   * @example
+   * ```typescript
+   * indexer.setHydeRetriever(new HydeRetriever({
+   *   llmCaller: myLlmCaller,
+   *   embeddingManager: myEmbeddingManager,
+   *   config: { enabled: true },
+   * }));
+   *
+   * const results = await indexer.search('cats on a beach', {
+   *   hyde: { enabled: true },
+   * });
+   * ```
+   */
+  setHydeRetriever(retriever: HydeRetriever): void {
+    this._hydeRetriever = retriever;
   }
 
   // -------------------------------------------------------------------------
@@ -437,7 +480,45 @@ export class MultimodalIndexer {
     const topK = opts?.topK ?? 5;
     const collection = opts?.collection ?? this._config.defaultCollection;
 
-    // Step 1: Embed the query text
+    // Step 1: Determine query embedding
+    //
+    // When HyDE is enabled and a HydeRetriever is available, we delegate
+    // the full retrieve cycle to the retriever. This generates a hypothetical
+    // answer, embeds it, and searches the vector store in one shot — including
+    // adaptive threshold stepping for better recall.
+    //
+    // Otherwise we fall back to the standard direct-embedding path.
+    if (opts?.hyde?.enabled && this._hydeRetriever) {
+      const hydeResult = await this._hydeRetriever.retrieve({
+        query,
+        vectorStore: this._vectorStore,
+        collectionName: collection,
+        hypothesis: opts.hyde.hypothesis,
+        queryOptions: {
+          topK,
+          includeMetadata: true,
+          includeTextContent: true,
+          // Modality filter is applied via metadata filter
+          ...(opts.modalities && opts.modalities.length > 0
+            ? {
+                filter: opts.modalities.length === 1
+                  ? { modality: opts.modalities[0] }
+                  : { modality: { $in: opts.modalities } },
+              }
+            : {}),
+        },
+      });
+
+      return hydeResult.queryResult.documents.map((doc) => ({
+        id: doc.id,
+        content: doc.textContent ?? '',
+        score: doc.similarityScore,
+        modality: (doc.metadata?.modality as ContentModality) ?? 'text',
+        metadata: doc.metadata as Record<string, unknown> | undefined,
+      }));
+    }
+
+    // Standard path: embed the raw query text directly.
     const embeddingRequest: EmbeddingRequest = {
       texts: [query],
     };

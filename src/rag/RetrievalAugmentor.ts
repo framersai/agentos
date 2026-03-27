@@ -39,6 +39,7 @@ import type { RerankerRequestConfig } from './reranking/IRerankerService';
 import { CohereReranker } from './reranking/providers/CohereReranker';
 import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncoderReranker';
 import { RAGAuditCollector } from './audit/RAGAuditCollector';
+import { HydeRetriever, resolveHydeConfig, type HydeLlmCaller } from './HydeRetriever';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -58,6 +59,22 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
   private vectorStoreManager!: IVectorStoreManager;
   private rerankerService?: RerankerService;
   private isInitialized: boolean = false;
+
+  /**
+   * Optional HyDE (Hypothetical Document Embedding) retriever.
+   *
+   * Created lazily on the first retrieval that enables HyDE, or eagerly when
+   * a default LLM caller is supplied via {@link setHydeLlmCaller}.
+   *
+   * @see HydeRetriever
+   */
+  private hydeRetriever?: HydeRetriever;
+
+  /**
+   * LLM caller function injected by the consumer for HyDE hypothesis
+   * generation. Must be set before HyDE retrieval can be used.
+   */
+  private hydeLlmCaller?: HydeLlmCaller;
 
   /**
    * Constructs a RetrievalAugmentor instance.
@@ -206,6 +223,81 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     }
     this.rerankerService.registerProvider(provider);
     console.log(`RetrievalAugmentor (ID: ${this.augmenterId}): Registered reranker provider '${provider.providerId}'`);
+  }
+
+  /**
+   * Register an LLM caller for HyDE hypothesis generation.
+   *
+   * HyDE (Hypothetical Document Embedding) improves retrieval quality by
+   * generating a hypothetical answer first, then embedding that answer
+   * instead of the raw query. The hypothesis is semantically closer to the
+   * stored documents, yielding better vector similarity matches.
+   *
+   * The caller must be set before HyDE-enabled retrieval can be used. Once
+   * set, HyDE can be activated per-request via `options.hyde.enabled` on
+   * {@link retrieveContext}, or it can be activated globally by passing a
+   * default HyDE config.
+   *
+   * @param llmCaller - An async function that takes `(systemPrompt, userPrompt)`
+   *   and returns the LLM completion text. The system prompt contains
+   *   instructions for hypothesis generation; the user prompt is the query.
+   *
+   * @example
+   * ```typescript
+   * augmentor.setHydeLlmCaller(async (systemPrompt, userPrompt) => {
+   *   const response = await openai.chat.completions.create({
+   *     model: 'gpt-4o-mini',
+   *     messages: [
+   *       { role: 'system', content: systemPrompt },
+   *       { role: 'user', content: userPrompt },
+   *     ],
+   *     max_tokens: 200,
+   *   });
+   *   return response.choices[0].message.content ?? '';
+   * });
+   * ```
+   */
+  public setHydeLlmCaller(llmCaller: HydeLlmCaller): void {
+    this.hydeLlmCaller = llmCaller;
+    // Invalidate any previously-created retriever so the next call rebuilds
+    // with the new caller.
+    this.hydeRetriever = undefined;
+    console.log(
+      `RetrievalAugmentor (ID: ${this.augmenterId}): HyDE LLM caller registered.`,
+    );
+  }
+
+  /**
+   * Lazily create (or re-use) a HydeRetriever configured for this augmentor.
+   *
+   * @param overrides - Per-request HyDE config overrides from
+   *   {@link RagRetrievalOptions.hyde}.
+   * @returns A configured HydeRetriever, or `undefined` if no LLM caller
+   *   has been registered.
+   * @private
+   */
+  private getOrCreateHydeRetriever(
+    overrides?: RagRetrievalOptions['hyde'],
+  ): HydeRetriever | undefined {
+    if (!this.hydeLlmCaller) {
+      return undefined;
+    }
+
+    // Rebuild when per-request overrides differ from current config or when
+    // the retriever hasn't been created yet.
+    if (!this.hydeRetriever || overrides) {
+      this.hydeRetriever = new HydeRetriever({
+        llmCaller: this.hydeLlmCaller,
+        embeddingManager: this.embeddingManager,
+        config: resolveHydeConfig({
+          enabled: true,
+          initialThreshold: overrides?.initialThreshold,
+          minThreshold: overrides?.minThreshold,
+        }),
+      });
+    }
+
+    return this.hydeRetriever;
   }
 
   /**
@@ -656,39 +748,137 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
       throw new GMIError("Could not determine query embedding model ID.", GMIErrorCode.CONFIG_ERROR, { augmenterId: this.augmenterId });
     }
 
-    // 2. Embed Query
-    const embeddingStartTime = Date.now();
-    const embeddingAuditOp = collector?.startOperation('embedding');
-    const queryEmbeddingResponse = await this.embeddingManager.generateEmbeddings({
-      texts: queryText,
-      modelId: queryEmbeddingModelId,
-      userId: options?.userId,
-    });
-    diagnostics.embeddingTimeMs = Date.now() - embeddingStartTime;
+    // 2. HyDE or direct query embedding
+    //
+    // When HyDE is enabled the pipeline generates a hypothetical answer via
+    // LLM, then embeds *that* instead of the raw query. The hypothesis is
+    // semantically closer to actual stored documents, improving recall.
+    //
+    // The HyDE path is chosen when:
+    //   (a) `options.hyde.enabled` is explicitly `true`, AND
+    //   (b) an LLM caller has been registered via `setHydeLlmCaller()`.
+    //
+    // If HyDE is requested but no LLM caller is available, we log a
+    // warning and fall through to the standard embedding path.
+    const useHyde = options?.hyde?.enabled === true;
+    const hydeRetriever = useHyde
+      ? this.getOrCreateHydeRetriever(options?.hyde)
+      : undefined;
 
-    // Audit: record embedding operation
-    if (embeddingAuditOp) {
-      // Estimate embedding tokens (~4 chars per token)
-      const estimatedTokens = Math.ceil(queryText.length / 4);
-      embeddingAuditOp.setTokenUsage({
-        embeddingTokens: estimatedTokens,
-        llmPromptTokens: 0,
-        llmCompletionTokens: 0,
-        totalTokens: estimatedTokens,
+    let queryEmbedding: number[] | undefined;
+
+    if (hydeRetriever) {
+      // ── HyDE path: hypothesis → embed hypothesis → use as query vector ──
+      const hydeAuditOp = collector?.startOperation('hyde');
+
+      // Generate hypothesis (or use pre-supplied one)
+      let hypothesis: string;
+      let hypothesisLatencyMs: number;
+      if (options?.hyde?.hypothesis) {
+        hypothesis = options.hyde.hypothesis;
+        hypothesisLatencyMs = 0;
+      } else {
+        const hypoResult = await hydeRetriever.generateHypothesis(queryText);
+        hypothesis = hypoResult.hypothesis;
+        hypothesisLatencyMs = hypoResult.latencyMs;
+      }
+
+      // Embed the hypothesis instead of the raw query
+      const embeddingStartTime = Date.now();
+      const hydeEmbeddingResponse = await this.embeddingManager.generateEmbeddings({
+        texts: hypothesis,
+        modelId: queryEmbeddingModelId,
+        userId: options?.userId,
       });
-      embeddingAuditOp.complete(queryEmbeddingResponse.embeddings?.length ?? 0);
+      diagnostics.embeddingTimeMs = Date.now() - embeddingStartTime;
+
+      if (
+        !hydeEmbeddingResponse.embeddings ||
+        hydeEmbeddingResponse.embeddings.length === 0 ||
+        !hydeEmbeddingResponse.embeddings[0] ||
+        hydeEmbeddingResponse.embeddings[0].length === 0
+      ) {
+        diagnostics.messages?.push(
+          'HyDE: Failed to generate hypothesis embedding. Falling back to direct query embedding.',
+        );
+        // queryEmbedding stays undefined — fall through to standard path.
+      } else {
+        queryEmbedding = hydeEmbeddingResponse.embeddings[0];
+
+        // Record HyDE diagnostics
+        diagnostics.hyde = {
+          hypothesis,
+          hypothesisLatencyMs,
+          effectiveThreshold: resolveHydeConfig(options?.hyde).initialThreshold,
+          thresholdSteps: 0,
+        };
+        diagnostics.messages?.push(
+          `HyDE: generated hypothesis (${hypothesisLatencyMs}ms), embedded as query vector.`,
+        );
+
+        // Audit: record HyDE operation
+        if (hydeAuditOp) {
+          const estimatedHypoTokens = Math.ceil(hypothesis.length / 4);
+          hydeAuditOp.setTokenUsage({
+            embeddingTokens: estimatedHypoTokens,
+            llmPromptTokens: Math.ceil(queryText.length / 4) + 60,
+            llmCompletionTokens: estimatedHypoTokens,
+            totalTokens: estimatedHypoTokens * 2 + 60,
+          });
+          hydeAuditOp.setHydeDetails({
+            hypothesis,
+            effectiveThreshold: diagnostics.hyde.effectiveThreshold,
+            thresholdSteps: 0,
+          });
+          hydeAuditOp.complete(1);
+        }
+      }
+    } else if (useHyde) {
+      // HyDE was requested but no LLM caller is available.
+      diagnostics.messages?.push(
+        'HyDE: enabled in options but no LLM caller registered via setHydeLlmCaller(). Using direct query embedding.',
+      );
     }
 
-    if (!queryEmbeddingResponse.embeddings || queryEmbeddingResponse.embeddings.length === 0 || !queryEmbeddingResponse.embeddings[0] || queryEmbeddingResponse.embeddings[0].length === 0) {
-      diagnostics.messages?.push("Failed to generate query embedding or embedding was empty.");
-      return {
-        queryText,
-        retrievedChunks: [],
-        augmentedContext: "",
-        diagnostics,
-      };
+    // Standard embedding path (used when HyDE is disabled OR as HyDE fallback)
+    if (!queryEmbedding) {
+      const embeddingStartTime = Date.now();
+      const embeddingAuditOp = collector?.startOperation('embedding');
+      const queryEmbeddingResponse = await this.embeddingManager.generateEmbeddings({
+        texts: queryText,
+        modelId: queryEmbeddingModelId,
+        userId: options?.userId,
+      });
+      diagnostics.embeddingTimeMs = Date.now() - embeddingStartTime;
+
+      // Audit: record embedding operation
+      if (embeddingAuditOp) {
+        const estimatedTokens = Math.ceil(queryText.length / 4);
+        embeddingAuditOp.setTokenUsage({
+          embeddingTokens: estimatedTokens,
+          llmPromptTokens: 0,
+          llmCompletionTokens: 0,
+          totalTokens: estimatedTokens,
+        });
+        embeddingAuditOp.complete(queryEmbeddingResponse.embeddings?.length ?? 0);
+      }
+
+      if (
+        !queryEmbeddingResponse.embeddings ||
+        queryEmbeddingResponse.embeddings.length === 0 ||
+        !queryEmbeddingResponse.embeddings[0] ||
+        queryEmbeddingResponse.embeddings[0].length === 0
+      ) {
+        diagnostics.messages?.push('Failed to generate query embedding or embedding was empty.');
+        return {
+          queryText,
+          retrievedChunks: [],
+          augmentedContext: '',
+          diagnostics,
+        };
+      }
+      queryEmbedding = queryEmbeddingResponse.embeddings[0];
     }
-    const queryEmbedding = queryEmbeddingResponse.embeddings[0];
 
     // 3. Determine Target Data Sources
     const effectiveDataSourceIds = new Set<string>();

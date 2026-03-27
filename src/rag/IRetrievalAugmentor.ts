@@ -134,6 +134,21 @@ export interface RagRetrievalDiagnostics {
   dataSourceHits?: Record<string, number>;
   effectiveDataSourceIds?: string[];
   messages?: string[];
+  /**
+   * HyDE-specific diagnostics, populated when HyDE retrieval is active.
+   *
+   * - `hypothesis`: The generated (or pre-supplied) hypothetical answer.
+   * - `hypothesisLatencyMs`: Time spent generating the hypothesis via LLM.
+   * - `effectiveThreshold`: Final similarity threshold after adaptive stepping.
+   * - `thresholdSteps`: Number of times the threshold was lowered before results
+   *   were found (0 means the initial threshold succeeded).
+   */
+  hyde?: {
+    hypothesis: string;
+    hypothesisLatencyMs: number;
+    effectiveThreshold: number;
+    thresholdSteps: number;
+  };
 }
 
 /**

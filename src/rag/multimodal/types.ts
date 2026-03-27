@@ -181,6 +181,31 @@ export interface MultimodalSearchOptions {
    * @default 'multimodal'
    */
   collection?: string;
+
+  /**
+   * HyDE (Hypothetical Document Embedding) configuration for this search.
+   *
+   * When enabled, a hypothetical answer is generated from the query via LLM
+   * and embedded instead of the raw query. This produces embeddings that are
+   * semantically closer to stored document representations, improving recall
+   * for vague or exploratory queries.
+   *
+   * Requires a `HydeRetriever` to be set on the indexer via
+   * {@link MultimodalIndexer.setHydeRetriever}.
+   *
+   * @example
+   * ```typescript
+   * const results = await indexer.search('architecture diagram', {
+   *   hyde: { enabled: true },
+   * });
+   * ```
+   */
+  hyde?: {
+    /** Whether to use HyDE for this search. @default false */
+    enabled?: boolean;
+    /** Pre-generated hypothesis text (skips the LLM call). */
+    hypothesis?: string;
+  };
 }
 
 /**

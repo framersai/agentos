@@ -61,6 +61,9 @@ import { ContextWindowManager } from './context/ContextWindowManager.js';
 import type { ContextMessage, CompactionEntry } from './context/types.js';
 import type { ContextWindowStats } from './context/ContextWindowManager.js';
 
+// HyDE (Hypothetical Document Embedding) for improved memory retrieval
+import type { HydeRetriever } from '../rag/HydeRetriever.js';
+
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------
@@ -151,6 +154,15 @@ export interface ICognitiveMemoryManager {
   /** Get prospective-memory manager when enabled. */
   getProspective(): ProspectiveMemoryManager | null;
 
+  /**
+   * Attach a HyDE retriever for hypothesis-driven memory recall.
+   * Pass `null` to disable.
+   */
+  setHydeRetriever?(retriever: HydeRetriever | null): void;
+
+  /** Get the HyDE retriever if configured, or `null`. */
+  getHydeRetriever?(): HydeRetriever | null;
+
   /** Get infinite-context runtime stats when enabled. */
   getContextWindowStats(): ContextWindowStats | null;
 
@@ -190,6 +202,16 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
 
   // Batch 3: Infinite Context (optional)
   private contextWindow: ContextWindowManager | null = null;
+
+  /**
+   * Optional HyDE retriever for hypothesis-driven memory recall.
+   *
+   * When set and `options.hyde` is `true` on a `retrieve()` call, the manager
+   * generates a hypothetical memory trace via LLM and uses that text for the
+   * embedding-based memory search. This improves recall for vague or abstract
+   * queries (e.g. "that deployment discussion last week").
+   */
+  private hydeRetriever: HydeRetriever | null = null;
 
   async initialize(config: CognitiveMemoryConfig): Promise<void> {
     this.config = config;
@@ -405,7 +427,26 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
 
     const startTime = Date.now();
 
-    const { scored, partial } = await this.store.query(query, mood, options);
+    // When HyDE is enabled and a retriever is available, generate a
+    // hypothetical memory trace and use it as the search query. The
+    // hypothesis is a plausible memory that the agent *would* have stored,
+    // producing an embedding that's semantically closer to actual stored
+    // traces than the raw recall query.
+    let effectiveQuery = query;
+    if (options.hyde && this.hydeRetriever) {
+      try {
+        const hypoResult = await this.hydeRetriever.generateHypothesis(
+          `Recall a memory about: ${query}`,
+        );
+        if (hypoResult.hypothesis) {
+          effectiveQuery = hypoResult.hypothesis;
+        }
+      } catch {
+        // HyDE generation is non-critical — fall through to raw query.
+      }
+    }
+
+    const { scored, partial } = await this.store.query(effectiveQuery, mood, options);
 
     // --- Batch 2: Spreading activation ---
     if (this.graph && scored.length > 0) {
@@ -803,6 +844,35 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
 
   getProspective(): ProspectiveMemoryManager | null {
     return this.prospective;
+  }
+
+  /**
+   * Attach a HyDE retriever to enable hypothesis-driven memory recall.
+   *
+   * When set, the `retrieve()` and `assembleForPrompt()` methods can accept
+   * `options.hyde = true` to generate a hypothetical memory trace before
+   * searching. This improves recall for vague or abstract queries by
+   * producing embeddings that are semantically closer to stored traces.
+   *
+   * @param retriever - A pre-configured HydeRetriever instance, or `null`
+   *   to disable HyDE.
+   *
+   * @example
+   * ```typescript
+   * memoryManager.setHydeRetriever(new HydeRetriever({
+   *   llmCaller: myLlmCaller,
+   *   embeddingManager: myEmbeddingManager,
+   *   config: { enabled: true },
+   * }));
+   * ```
+   */
+  setHydeRetriever(retriever: HydeRetriever | null): void {
+    this.hydeRetriever = retriever;
+  }
+
+  /** Get the HyDE retriever if configured, or `null`. */
+  getHydeRetriever(): HydeRetriever | null {
+    return this.hydeRetriever;
   }
 
   // =========================================================================

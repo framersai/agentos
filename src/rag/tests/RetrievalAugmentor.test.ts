@@ -300,3 +300,158 @@ describe('RetrievalAugmentor registerRerankerProvider', () => {
     expect(() => augmentor.registerRerankerProvider(mockProvider)).not.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// HyDE integration tests
+// ---------------------------------------------------------------------------
+
+describe('RetrievalAugmentor HyDE integration', () => {
+  let augmentor: RetrievalAugmentor;
+  let mockHydeLlmCaller: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    mockHydeLlmCaller = vi.fn().mockResolvedValue(
+      'Hypothetical answer about test content that matches stored documents.',
+    );
+
+    augmentor = new RetrievalAugmentor();
+    await augmentor.initialize(mockConfig, mockEmbeddingManager, mockVectorStoreManager);
+    augmentor.setHydeLlmCaller(mockHydeLlmCaller);
+  });
+
+  it('should use HyDE when enabled in options', async () => {
+    const result = await augmentor.retrieveContext('What is test?', {
+      targetDataSourceIds: ['test-ds-1'],
+      hyde: { enabled: true },
+    });
+
+    // The LLM caller should have been invoked for hypothesis generation
+    expect(mockHydeLlmCaller).toHaveBeenCalledOnce();
+    expect(mockHydeLlmCaller).toHaveBeenCalledWith(
+      expect.stringContaining('knowledgeable assistant'),
+      'What is test?',
+    );
+
+    // The embedding manager should embed the hypothesis, NOT the raw query
+    expect(mockEmbeddingManager.generateEmbeddings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        texts: expect.stringContaining('Hypothetical answer'),
+      }),
+    );
+
+    // Should still return normal results
+    expect(result.queryText).toBe('What is test?');
+    expect(result.retrievedChunks.length).toBeGreaterThanOrEqual(0);
+
+    // Diagnostics should include HyDE metadata
+    expect(result.diagnostics?.hyde).toBeDefined();
+    expect(result.diagnostics?.hyde?.hypothesis).toContain('Hypothetical answer');
+    expect(result.diagnostics?.hyde?.hypothesisLatencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should skip HyDE when not enabled', async () => {
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      // hyde not specified
+    });
+
+    expect(mockHydeLlmCaller).not.toHaveBeenCalled();
+    expect(result.diagnostics?.hyde).toBeUndefined();
+
+    // Should embed the raw query
+    expect(mockEmbeddingManager.generateEmbeddings).toHaveBeenCalledWith(
+      expect.objectContaining({ texts: 'test query' }),
+    );
+  });
+
+  it('should use pre-supplied hypothesis without calling LLM', async () => {
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      hyde: {
+        enabled: true,
+        hypothesis: 'My pre-generated hypothesis text',
+      },
+    });
+
+    // LLM caller should NOT be called when hypothesis is pre-supplied
+    expect(mockHydeLlmCaller).not.toHaveBeenCalled();
+
+    // Should embed the pre-supplied hypothesis
+    expect(mockEmbeddingManager.generateEmbeddings).toHaveBeenCalledWith(
+      expect.objectContaining({ texts: 'My pre-generated hypothesis text' }),
+    );
+
+    expect(result.diagnostics?.hyde?.hypothesis).toBe('My pre-generated hypothesis text');
+    expect(result.diagnostics?.hyde?.hypothesisLatencyMs).toBe(0);
+  });
+
+  it('should fall back to direct embedding when no LLM caller registered', async () => {
+    const freshAugmentor = new RetrievalAugmentor();
+    await freshAugmentor.initialize(mockConfig, mockEmbeddingManager, mockVectorStoreManager);
+    // No setHydeLlmCaller call
+
+    const result = await freshAugmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      hyde: { enabled: true },
+    });
+
+    // Should fall back to direct query embedding
+    expect(mockEmbeddingManager.generateEmbeddings).toHaveBeenCalledWith(
+      expect.objectContaining({ texts: 'test query' }),
+    );
+
+    expect(result.diagnostics?.hyde).toBeUndefined();
+    expect(result.diagnostics?.messages).toContainEqual(
+      expect.stringContaining('no LLM caller registered'),
+    );
+  });
+
+  it('should fall back to direct embedding when HyDE embedding fails', async () => {
+    // Make the first generateEmbeddings call return empty (HyDE path),
+    // but the second call (fallback) return valid embeddings
+    (mockEmbeddingManager.generateEmbeddings as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        embeddings: [[]],
+        modelId: 'test-emb-model',
+        providerId: 'test-emb-provider',
+        usage: { totalTokens: 0 },
+      })
+      .mockResolvedValueOnce({
+        embeddings: [[0.1, 0.2, 0.3]],
+        modelId: 'test-emb-model',
+        providerId: 'test-emb-provider',
+        usage: { totalTokens: 5 },
+      });
+
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      hyde: { enabled: true },
+    });
+
+    // Should have been called twice: once for HyDE (failed), once for fallback
+    expect(mockEmbeddingManager.generateEmbeddings).toHaveBeenCalledTimes(2);
+
+    // Should still return results from the fallback path
+    expect(result.retrievedChunks.length).toBeGreaterThanOrEqual(0);
+    expect(result.diagnostics?.messages).toContainEqual(
+      expect.stringContaining('Falling back to direct query embedding'),
+    );
+  });
+
+  it('should record HyDE in audit trail when audit is enabled', async () => {
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      hyde: { enabled: true },
+      includeAudit: true,
+    });
+
+    expect(result.auditTrail).toBeDefined();
+    const hydeOp = result.auditTrail?.operations.find(
+      (op) => op.operationType === 'hyde',
+    );
+    expect(hydeOp).toBeDefined();
+    expect(hydeOp?.hydeDetails?.hypothesis).toContain('Hypothetical answer');
+  });
+});

@@ -481,3 +481,138 @@ describe('HydeRetriever', () => {
     });
   });
 });
+
+// ── MultimodalIndexer HyDE integration ──────────────────────────────────
+
+describe('MultimodalIndexer HyDE integration', () => {
+  let llmCaller: ReturnType<typeof createMockLlmCaller>;
+  let embeddingManager: ReturnType<typeof createMockEmbeddingManager>;
+
+  beforeEach(() => {
+    llmCaller = createMockLlmCaller('A golden retriever playing on a sandy beach at sunset');
+    embeddingManager = createMockEmbeddingManager();
+  });
+
+  it('should use HyDE when enabled on search', async () => {
+    const doc = {
+      id: 'img-1',
+      embedding: [0.1],
+      textContent: 'A dog on a beach',
+      similarityScore: 0.85,
+      metadata: { modality: 'image' },
+    };
+    const vectorStore = createMockVectorStore({ documents: [doc] });
+
+    // Import MultimodalIndexer lazily to avoid circular issues in test
+    const { MultimodalIndexer } = await import('../multimodal/MultimodalIndexer.js');
+    const { HydeRetriever: HydeRetrieverClass } = await import('../HydeRetriever.js');
+
+    const hydeRetriever = new HydeRetrieverClass({
+      config: { enabled: true },
+      llmCaller,
+      embeddingManager,
+    });
+
+    const indexer = new MultimodalIndexer({
+      embeddingManager,
+      vectorStore,
+    });
+    indexer.setHydeRetriever(hydeRetriever);
+
+    const results = await indexer.search('dogs at the beach', {
+      hyde: { enabled: true },
+    });
+
+    // LLM should have been called for hypothesis generation
+    expect(llmCaller).toHaveBeenCalledOnce();
+
+    // The hypothesis should have been embedded (not the raw query)
+    expect(embeddingManager.generateEmbeddings).toHaveBeenCalledWith({
+      texts: ['A golden retriever playing on a sandy beach at sunset'],
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe('img-1');
+    expect(results[0].modality).toBe('image');
+  });
+
+  it('should bypass HyDE when not enabled on search', async () => {
+    const doc = {
+      id: 'txt-1',
+      embedding: [0.1],
+      textContent: 'Some text',
+      similarityScore: 0.9,
+      metadata: { modality: 'text' },
+    };
+    const vectorStore = createMockVectorStore({ documents: [doc] });
+
+    const { MultimodalIndexer } = await import('../multimodal/MultimodalIndexer.js');
+    const { HydeRetriever: HydeRetrieverClass } = await import('../HydeRetriever.js');
+
+    const hydeRetriever = new HydeRetrieverClass({
+      config: { enabled: true },
+      llmCaller,
+      embeddingManager,
+    });
+
+    const indexer = new MultimodalIndexer({
+      embeddingManager,
+      vectorStore,
+    });
+    indexer.setHydeRetriever(hydeRetriever);
+
+    const results = await indexer.search('some query', {
+      // hyde not enabled
+    });
+
+    // LLM should NOT be called
+    expect(llmCaller).not.toHaveBeenCalled();
+
+    // Standard embedding path should be used
+    expect(embeddingManager.generateEmbeddings).toHaveBeenCalledWith({
+      texts: ['some query'],
+    });
+
+    expect(results).toHaveLength(1);
+  });
+
+  it('should use pre-supplied hypothesis in multimodal HyDE search', async () => {
+    const doc = {
+      id: 'audio-1',
+      embedding: [0.3],
+      textContent: 'Meeting transcript',
+      similarityScore: 0.75,
+      metadata: { modality: 'audio' },
+    };
+    const vectorStore = createMockVectorStore({ documents: [doc] });
+
+    const { MultimodalIndexer } = await import('../multimodal/MultimodalIndexer.js');
+    const { HydeRetriever: HydeRetrieverClass } = await import('../HydeRetriever.js');
+
+    const hydeRetriever = new HydeRetrieverClass({
+      config: { enabled: true },
+      llmCaller,
+      embeddingManager,
+    });
+
+    const indexer = new MultimodalIndexer({
+      embeddingManager,
+      vectorStore,
+    });
+    indexer.setHydeRetriever(hydeRetriever);
+
+    const results = await indexer.search('meeting notes', {
+      hyde: { enabled: true, hypothesis: 'Pre-built hypothesis about meetings' },
+    });
+
+    // LLM should NOT be called (pre-supplied hypothesis)
+    expect(llmCaller).not.toHaveBeenCalled();
+
+    // Pre-supplied hypothesis should be embedded
+    expect(embeddingManager.generateEmbeddings).toHaveBeenCalledWith({
+      texts: ['Pre-built hypothesis about meetings'],
+    });
+
+    expect(results).toHaveLength(1);
+  });
+});

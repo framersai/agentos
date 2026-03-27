@@ -143,6 +143,17 @@ export class RAGOperationHandle {
   }
 
   /**
+   * Attach HyDE-specific metadata to this audit operation.
+   *
+   * @param details - Hypothesis text, effective threshold, and step count.
+   * @returns `this` for fluent chaining.
+   */
+  setHydeDetails(details: NonNullable<RAGOperationEntry['hydeDetails']>): this {
+    this.entry.hydeDetails = details;
+    return this;
+  }
+
+  /**
    * Finalizes the operation, records duration, computes relevance score stats,
    * and adds the entry to the parent collector.
    *

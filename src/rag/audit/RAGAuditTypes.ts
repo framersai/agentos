@@ -14,7 +14,8 @@ export interface RAGOperationEntry {
     | 'graph_global'
     | 'ingest'
     | 'rerank'
-    | 'embedding';
+    | 'embedding'
+    | 'hyde';
 
   /** ISO 8601 timestamp when the operation started. */
   startedAt: string;
@@ -67,6 +68,16 @@ export interface RAGOperationEntry {
     providerId: string;
     modelId: string;
     documentsReranked: number;
+  };
+
+  /** HyDE-specific details (for hyde operations). */
+  hydeDetails?: {
+    /** The generated hypothetical answer used for embedding. */
+    hypothesis: string;
+    /** Final similarity threshold after adaptive stepping. */
+    effectiveThreshold: number;
+    /** Number of adaptive threshold steps taken. */
+    thresholdSteps: number;
   };
 }
 
