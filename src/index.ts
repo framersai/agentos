@@ -87,6 +87,8 @@ export * from './voice';
 export * from './speech';
 // Unified image generation providers
 export * from './core/images';
+// Unified video generation, analysis, and scene detection
+export * from './core/video/index.js';
 // Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)
 export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './core/vision/index.js';
 export type {
@@ -234,6 +236,12 @@ export { upscaleImage } from './api/upscaleImage.js';
 export type { UpscaleImageOptions, UpscaleImageResult } from './api/upscaleImage.js';
 export { variateImage } from './api/variateImage.js';
 export type { VariateImageOptions, VariateImageResult } from './api/variateImage.js';
+export { generateVideo } from './api/generateVideo.js';
+export type { GenerateVideoOptions, GenerateVideoResult } from './api/generateVideo.js';
+export { analyzeVideo } from './api/analyzeVideo.js';
+export type { AnalyzeVideoOptions, AnalyzeVideoResult } from './api/analyzeVideo.js';
+export { detectScenes } from './api/detectScenes.js';
+export type { DetectScenesOptions } from './api/detectScenes.js';
 export { performOCR } from './api/performOCR.js';
 export type { PerformOCROptions, OCRResult } from './api/performOCR.js';
 export { generateObject, ObjectGenerationError } from './api/generateObject.js';
