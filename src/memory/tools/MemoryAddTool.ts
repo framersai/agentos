@@ -177,27 +177,25 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
         )
       );
 
-      this.brain.db.transaction(() => {
-        this.brain.db
-          .prepare(
-            `INSERT INTO memory_traces
-               (id, type, scope, content, embedding, strength, created_at,
-                last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-             VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`
-          )
-          .run(traceId, type, scope, args.content, now, tags, metadata);
+      await this.brain.transaction(async (trx) => {
+        await trx.run(
+          `INSERT INTO memory_traces
+             (id, type, scope, content, embedding, strength, created_at,
+              last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+           VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`,
+          [traceId, type, scope, args.content, now, tags, metadata],
+        );
 
-        this.brain.db
-          .prepare(
-            `INSERT INTO memory_traces_fts (rowid, content, tags)
-             VALUES (
-               (SELECT rowid FROM memory_traces WHERE id = ?),
-               ?,
-               ?
-             )`
-          )
-          .run(traceId, args.content, tags);
-      })();
+        await trx.run(
+          `INSERT INTO memory_traces_fts (rowid, content, tags)
+           VALUES (
+             (SELECT rowid FROM memory_traces WHERE id = ?),
+             ?,
+             ?
+           )`,
+          [traceId, args.content, tags],
+        );
+      });
 
       return { success: true, output: { traceId } };
     } catch (err) {

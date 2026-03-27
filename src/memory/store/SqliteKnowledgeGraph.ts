@@ -4,6 +4,9 @@
  * Persists knowledge entities (nodes), relations (edges), and episodic memories
  * to the `knowledge_nodes` and `knowledge_edges` tables managed by SqliteBrain.
  *
+ * Uses the async StorageAdapter API exposed by SqliteBrain (run/get/all/exec/
+ * transaction) rather than direct better-sqlite3 access.
+ *
  * Episodic memories are stored as knowledge_nodes with `type = 'memory'` and
  * their memory-specific fields packed into the `properties` JSON column.
  *
@@ -200,7 +203,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
  *
  * @example
  * ```ts
- * const brain = new SqliteBrain('/tmp/agent-brain.sqlite');
+ * const brain = await SqliteBrain.open('/tmp/agent-brain.sqlite');
  * const graph = new SqliteKnowledgeGraph(brain);
  * await graph.initialize();
  *
@@ -218,7 +221,8 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
   private readonly brain: SqliteBrain;
 
   /**
-   * @param brain - A SqliteBrain instance whose `db` handle is used for all queries.
+   * @param brain - A SqliteBrain instance whose async StorageAdapter methods
+   *                are used for all queries.
    */
   constructor(brain: SqliteBrain) {
     this.brain = brain;
@@ -260,9 +264,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     const id = entity.id ?? crypto.randomUUID();
 
     // Check if the entity already exists to preserve createdAt.
-    const existing = this.brain.db
-      .prepare<[string], NodeRow>('SELECT * FROM knowledge_nodes WHERE id = ?')
-      .get(id);
+    const existing = await this.brain.get<NodeRow>(
+      'SELECT * FROM knowledge_nodes WHERE id = ?',
+      [id],
+    );
 
     const createdAt = existing
       ? new Date(existing.created_at).toISOString()
@@ -281,13 +286,11 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       ? embeddingToBlob(entity.embedding)
       : null;
 
-    this.brain.db
-      .prepare(
-        `INSERT OR REPLACE INTO knowledge_nodes
-           (id, type, label, properties, embedding, confidence, source, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    await this.brain.run(
+      `INSERT OR REPLACE INTO knowledge_nodes
+         (id, type, label, properties, embedding, confidence, source, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         id,
         entity.type,
         entity.label,
@@ -296,7 +299,8 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
         entity.confidence,
         JSON.stringify(entity.source),
         new Date(createdAt).getTime(),
-      );
+      ],
+    );
 
     return this._rowToEntity({
       id,
@@ -315,9 +319,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
    * Returns `undefined` if the entity does not exist.
    */
   async getEntity(id: EntityId): Promise<KnowledgeEntity | undefined> {
-    const row = this.brain.db
-      .prepare<[string], NodeRow>('SELECT * FROM knowledge_nodes WHERE id = ?')
-      .get(id);
+    const row = await this.brain.get<NodeRow>(
+      'SELECT * FROM knowledge_nodes WHERE id = ?',
+      [id],
+    );
 
     if (!row) return undefined;
     return this._rowToEntity(row);
@@ -363,7 +368,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     const sql = `SELECT * FROM knowledge_nodes ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
-    const rows = this.brain.db.prepare(sql).all(...params) as NodeRow[];
+    const rows = await this.brain.all<NodeRow>(sql, params);
 
     let entities = rows.map((r) => this._rowToEntity(r));
 
@@ -397,21 +402,21 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
    * Returns `true` if the entity existed and was deleted.
    */
   async deleteEntity(id: EntityId): Promise<boolean> {
-    const deleteOp = this.brain.db.transaction(() => {
+    return await this.brain.transaction(async (trx) => {
       // Delete all edges touching this entity.
-      this.brain.db
-        .prepare('DELETE FROM knowledge_edges WHERE source_id = ? OR target_id = ?')
-        .run(id, id);
+      await trx.run(
+        'DELETE FROM knowledge_edges WHERE source_id = ? OR target_id = ?',
+        [id, id],
+      );
 
       // Delete the node itself.
-      const result = this.brain.db
-        .prepare('DELETE FROM knowledge_nodes WHERE id = ?')
-        .run(id);
+      const result = await trx.run(
+        'DELETE FROM knowledge_nodes WHERE id = ?',
+        [id],
+      );
 
       return result.changes > 0;
     });
-
-    return deleteOp();
   }
 
   // =========================================================================
@@ -431,9 +436,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     const id = relation.id ?? crypto.randomUUID();
 
     // Preserve createdAt if edge already exists.
-    const existing = this.brain.db
-      .prepare<[string], EdgeRow>('SELECT * FROM knowledge_edges WHERE id = ?')
-      .get(id);
+    const existing = await this.brain.get<EdgeRow>(
+      'SELECT * FROM knowledge_edges WHERE id = ?',
+      [id],
+    );
 
     const createdAt = existing
       ? new Date(existing.created_at).toISOString()
@@ -449,13 +455,11 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       _validTo: relation.validTo,
     };
 
-    this.brain.db
-      .prepare(
-        `INSERT OR REPLACE INTO knowledge_edges
-           (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    await this.brain.run(
+      `INSERT OR REPLACE INTO knowledge_edges
+         (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         id,
         relation.sourceId,
         relation.targetId,
@@ -464,7 +468,8 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
         relation.bidirectional ? 1 : 0,
         JSON.stringify(extended),
         new Date(createdAt).getTime(),
-      );
+      ],
+    );
 
     return this._rowToRelation({
       id,
@@ -511,7 +516,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     }
 
     const sql = `SELECT * FROM knowledge_edges WHERE ${clauses.join(' AND ')}`;
-    const rows = this.brain.db.prepare(sql).all(...params) as EdgeRow[];
+    const rows = await this.brain.all<EdgeRow>(sql, params);
 
     return rows.map((r) => this._rowToRelation(r));
   }
@@ -521,9 +526,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
    * Returns `true` if the relation existed and was deleted.
    */
   async deleteRelation(id: RelationId): Promise<boolean> {
-    const result = this.brain.db
-      .prepare('DELETE FROM knowledge_edges WHERE id = ?')
-      .run(id);
+    const result = await this.brain.run(
+      'DELETE FROM knowledge_edges WHERE id = ?',
+      [id],
+    );
     return result.changes > 0;
   }
 
@@ -571,13 +577,11 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       timestamp: now,
     };
 
-    this.brain.db
-      .prepare(
-        `INSERT INTO knowledge_nodes
-           (id, type, label, properties, embedding, confidence, source, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    await this.brain.run(
+      `INSERT INTO knowledge_nodes
+         (id, type, label, properties, embedding, confidence, source, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         id,
         'memory',
         memory.summary.slice(0, 200),
@@ -586,7 +590,8 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
         memory.importance,
         JSON.stringify(source),
         new Date(now).getTime(),
-      );
+      ],
+    );
 
     return {
       id,
@@ -616,11 +621,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
    * then unpacks the memory-specific fields from the `properties` JSON.
    */
   async getMemory(id: string): Promise<EpisodicMemory | undefined> {
-    const row = this.brain.db
-      .prepare<[string], NodeRow>(
-        `SELECT * FROM knowledge_nodes WHERE id = ? AND type = 'memory'`,
-      )
-      .get(id);
+    const row = await this.brain.get<NodeRow>(
+      `SELECT * FROM knowledge_nodes WHERE id = ? AND type = 'memory'`,
+      [id],
+    );
 
     if (!row) return undefined;
     return this._rowToMemory(row);
@@ -662,7 +666,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     const sql = `SELECT * FROM knowledge_nodes WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC LIMIT ?`;
     params.push(limit);
 
-    const rows = this.brain.db.prepare(sql).all(...params) as NodeRow[];
+    const rows = await this.brain.all<NodeRow>(sql, params);
     let memories = rows.map((r) => this._rowToMemory(r));
 
     // Post-filter by memory sub-type (stored in properties JSON).
@@ -694,32 +698,33 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     const limit = topK ?? 10;
     const searchTerm = `%${query}%`;
 
-    const rows = this.brain.db
-      .prepare<[string, string, number], NodeRow>(
-        `SELECT * FROM knowledge_nodes
-         WHERE type = 'memory' AND (label LIKE ? OR properties LIKE ?)
-         ORDER BY created_at DESC
-         LIMIT ?`,
-      )
-      .all(searchTerm, searchTerm, limit) as NodeRow[];
+    const rows = await this.brain.all<NodeRow>(
+      `SELECT * FROM knowledge_nodes
+       WHERE type = 'memory' AND (label LIKE ? OR properties LIKE ?)
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      [searchTerm, searchTerm, limit],
+    );
 
     const memories = rows.map((r) => this._rowToMemory(r));
 
     // Update access count and last accessed for each recalled memory.
     const now = new Date().toISOString();
     for (const mem of memories) {
-      const row = this.brain.db
-        .prepare<[string], NodeRow>('SELECT * FROM knowledge_nodes WHERE id = ?')
-        .get(mem.id);
+      const row = await this.brain.get<NodeRow>(
+        'SELECT * FROM knowledge_nodes WHERE id = ?',
+        [mem.id],
+      );
 
       if (row) {
         const fields = JSON.parse(row.properties) as MemoryNodeFields;
         fields._accessCount = (fields._accessCount ?? 0) + 1;
         fields._lastAccessedAt = now;
 
-        this.brain.db
-          .prepare('UPDATE knowledge_nodes SET properties = ? WHERE id = ?')
-          .run(JSON.stringify(fields), mem.id);
+        await this.brain.run(
+          'UPDATE knowledge_nodes SET properties = ? WHERE id = ?',
+          [JSON.stringify(fields), mem.id],
+        );
 
         mem.accessCount = fields._accessCount;
         mem.lastAccessedAt = now;
@@ -817,11 +822,11 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       maxNodes,
     ];
 
-    const traversalRows = this.brain.db.prepare(sql).all(...params) as Array<{
+    const traversalRows = await this.brain.all<{
       entity_id: string;
       depth: number;
       edge_id: string;
-    }>;
+    }>(sql, params);
 
     // Group by depth. Collect unique entity IDs per level.
     const levelMap = new Map<number, { entityIds: Set<string>; edgeIds: Set<string> }>();
@@ -855,9 +860,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
 
       const relations: KnowledgeRelation[] = [];
       for (const rid of data.edgeIds) {
-        const row = this.brain.db
-          .prepare<[string], EdgeRow>('SELECT * FROM knowledge_edges WHERE id = ?')
-          .get(rid);
+        const row = await this.brain.get<EdgeRow>(
+          'SELECT * FROM knowledge_edges WHERE id = ?',
+          [rid],
+        );
         if (row) relations.push(this._rowToRelation(row));
       }
 
@@ -920,9 +926,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       LIMIT 1
     `;
 
-    const row = this.brain.db.prepare(sql).get(sourceId, sourceId, depth, targetId) as
-      | { path_entities: string; path_edges: string; depth: number }
-      | undefined;
+    const row = await this.brain.get<{ path_entities: string; path_edges: string; depth: number }>(
+      sql,
+      [sourceId, sourceId, depth, targetId],
+    );
 
     if (!row) return null;
 
@@ -937,9 +944,10 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
 
       let relation: KnowledgeRelation | undefined;
       if (i > 0 && edgeIds[i - 1]) {
-        const edgeRow = this.brain.db
-          .prepare<[string], EdgeRow>('SELECT * FROM knowledge_edges WHERE id = ?')
-          .get(edgeIds[i - 1]);
+        const edgeRow = await this.brain.get<EdgeRow>(
+          'SELECT * FROM knowledge_edges WHERE id = ?',
+          [edgeIds[i - 1]],
+        );
         if (edgeRow) relation = this._rowToRelation(edgeRow);
       }
 
@@ -979,9 +987,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       SELECT DISTINCT entity_id FROM neighborhood
     `;
 
-    const rows = this.brain.db.prepare(sql).all(entityId, maxDepth) as Array<{
-      entity_id: string;
-    }>;
+    const rows = await this.brain.all<{ entity_id: string }>(sql, [entityId, maxDepth]);
 
     const entityIds = new Set(rows.map((r) => r.entity_id));
     const entities: KnowledgeEntity[] = [];
@@ -992,9 +998,9 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     }
 
     // Collect all edges where both endpoints are in the neighbourhood.
-    const allEdges = this.brain.db
-      .prepare('SELECT * FROM knowledge_edges')
-      .all() as EdgeRow[];
+    const allEdges = await this.brain.all<EdgeRow>(
+      'SELECT * FROM knowledge_edges',
+    );
 
     const relations = allEdges
       .filter((e) => entityIds.has(e.source_id) && entityIds.has(e.target_id))
@@ -1043,7 +1049,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       params.push(...options.entityTypes);
     }
 
-    const rows = this.brain.db.prepare(sql).all(...params) as NodeRow[];
+    const rows = await this.brain.all<NodeRow>(sql, params);
 
     // We need a query embedding. For keyword-based fallback, we match by text.
     // Here we do keyword search since we don't have an embedding model.
@@ -1095,7 +1101,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
         scope === 'entities' ? "type != 'memory'" :
         scope === 'memories' ? "type = 'memory'" : '1=1'
       }`;
-      const allRows = this.brain.db.prepare(allNodesSql).all() as NodeRow[];
+      const allRows = await this.brain.all<NodeRow>(allNodesSql);
 
       for (const row of allRows) {
         const label = row.label.toLowerCase();
@@ -1174,31 +1180,32 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
 
     const othersIds = entityIds.filter((id) => id !== primaryId);
 
-    const mergeTx = this.brain.db.transaction(() => {
+    await this.brain.transaction(async (trx) => {
       for (const otherId of othersIds) {
-        // Re-link outgoing edges: source_id = otherId → primaryId.
-        this.brain.db
-          .prepare('UPDATE knowledge_edges SET source_id = ? WHERE source_id = ?')
-          .run(primaryId, otherId);
+        // Re-link outgoing edges: source_id = otherId -> primaryId.
+        await trx.run(
+          'UPDATE knowledge_edges SET source_id = ? WHERE source_id = ?',
+          [primaryId, otherId],
+        );
 
-        // Re-link incoming edges: target_id = otherId → primaryId.
-        this.brain.db
-          .prepare('UPDATE knowledge_edges SET target_id = ? WHERE target_id = ?')
-          .run(primaryId, otherId);
+        // Re-link incoming edges: target_id = otherId -> primaryId.
+        await trx.run(
+          'UPDATE knowledge_edges SET target_id = ? WHERE target_id = ?',
+          [primaryId, otherId],
+        );
 
         // Delete the non-primary entity node.
-        this.brain.db
-          .prepare('DELETE FROM knowledge_nodes WHERE id = ?')
-          .run(otherId);
+        await trx.run(
+          'DELETE FROM knowledge_nodes WHERE id = ?',
+          [otherId],
+        );
       }
 
       // Remove any self-referential edges that may have resulted from the merge.
-      this.brain.db
-        .prepare('DELETE FROM knowledge_edges WHERE source_id = target_id')
-        .run();
+      await trx.run(
+        'DELETE FROM knowledge_edges WHERE source_id = target_id',
+      );
     });
-
-    mergeTx();
 
     // Return the surviving primary entity (re-fetch to reflect current state).
     return (await this.getEntity(primaryId))!;
@@ -1216,13 +1223,12 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
   async decayMemories(decayFactor?: number): Promise<number> {
     const factor = decayFactor ?? 0.95;
 
-    const result = this.brain.db
-      .prepare(
-        `UPDATE knowledge_nodes
-         SET confidence = confidence * ?
-         WHERE type = 'memory'`,
-      )
-      .run(factor);
+    const result = await this.brain.run(
+      `UPDATE knowledge_nodes
+       SET confidence = confidence * ?
+       WHERE type = 'memory'`,
+      [factor],
+    );
 
     return result.changes;
   }
@@ -1235,75 +1241,53 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
    */
   async getStats(): Promise<KnowledgeGraphStats> {
     // Total non-memory entities.
-    const entityCount = (
-      this.brain.db
-        .prepare<[], { cnt: number }>(
-          "SELECT COUNT(*) AS cnt FROM knowledge_nodes WHERE type != 'memory'",
-        )
-        .get()
-    )?.cnt ?? 0;
+    const entityCountRow = await this.brain.get<{ cnt: number }>(
+      "SELECT COUNT(*) AS cnt FROM knowledge_nodes WHERE type != 'memory'",
+    );
+    const entityCount = entityCountRow?.cnt ?? 0;
 
     // Total relations.
-    const relationCount = (
-      this.brain.db
-        .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM knowledge_edges')
-        .get()
-    )?.cnt ?? 0;
+    const relationCountRow = await this.brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM knowledge_edges',
+    );
+    const relationCount = relationCountRow?.cnt ?? 0;
 
     // Total memories.
-    const memoryCount = (
-      this.brain.db
-        .prepare<[], { cnt: number }>(
-          "SELECT COUNT(*) AS cnt FROM knowledge_nodes WHERE type = 'memory'",
-        )
-        .get()
-    )?.cnt ?? 0;
+    const memoryCountRow = await this.brain.get<{ cnt: number }>(
+      "SELECT COUNT(*) AS cnt FROM knowledge_nodes WHERE type = 'memory'",
+    );
+    const memoryCount = memoryCountRow?.cnt ?? 0;
 
     // Entity types breakdown (exclude memories).
-    const entityTypeRows = this.brain.db
-      .prepare<[], { type: string; cnt: number }>(
-        "SELECT type, COUNT(*) AS cnt FROM knowledge_nodes WHERE type != 'memory' GROUP BY type",
-      )
-      .all();
+    const entityTypeRows = await this.brain.all<{ type: string; cnt: number }>(
+      "SELECT type, COUNT(*) AS cnt FROM knowledge_nodes WHERE type != 'memory' GROUP BY type",
+    );
     const entitiesByType = {} as Record<EntityType, number>;
     for (const row of entityTypeRows) {
       entitiesByType[row.type as EntityType] = row.cnt;
     }
 
     // Relation types breakdown.
-    const relTypeRows = this.brain.db
-      .prepare<[], { type: string; cnt: number }>(
-        'SELECT type, COUNT(*) AS cnt FROM knowledge_edges GROUP BY type',
-      )
-      .all();
+    const relTypeRows = await this.brain.all<{ type: string; cnt: number }>(
+      'SELECT type, COUNT(*) AS cnt FROM knowledge_edges GROUP BY type',
+    );
     const relationsByType = {} as Record<RelationType, number>;
     for (const row of relTypeRows) {
       relationsByType[row.type as RelationType] = row.cnt;
     }
 
     // Average confidence across all nodes.
-    const avgConf = (
-      this.brain.db
-        .prepare<[], { avg_conf: number | null }>(
-          'SELECT AVG(confidence) AS avg_conf FROM knowledge_nodes',
-        )
-        .get()
-    )?.avg_conf ?? 0;
+    const avgConfRow = await this.brain.get<{ avg_conf: number | null }>(
+      'SELECT AVG(confidence) AS avg_conf FROM knowledge_nodes',
+    );
+    const avgConf = avgConfRow?.avg_conf ?? 0;
 
     // Oldest and newest entries.
-    const oldest = (
-      this.brain.db
-        .prepare<[], { created_at: number }>(
-          'SELECT created_at FROM knowledge_nodes ORDER BY created_at ASC LIMIT 1',
-        )
-        .get()
+    const oldest = await this.brain.get<{ created_at: number }>(
+      'SELECT created_at FROM knowledge_nodes ORDER BY created_at ASC LIMIT 1',
     );
-    const newest = (
-      this.brain.db
-        .prepare<[], { created_at: number }>(
-          'SELECT created_at FROM knowledge_nodes ORDER BY created_at DESC LIMIT 1',
-        )
-        .get()
+    const newest = await this.brain.get<{ created_at: number }>(
+      'SELECT created_at FROM knowledge_nodes ORDER BY created_at DESC LIMIT 1',
     );
 
     return {
@@ -1323,17 +1307,15 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
    * Wipes the knowledge graph completely.
    */
   async clear(): Promise<void> {
-    const clearTx = this.brain.db.transaction(() => {
-      // Edges first (FK constraint on source_id / target_id → knowledge_nodes).
-      this.brain.db.exec('DELETE FROM knowledge_edges');
-      this.brain.db.exec('DELETE FROM knowledge_nodes');
+    await this.brain.transaction(async (trx) => {
+      // Edges first (FK constraint on source_id / target_id -> knowledge_nodes).
+      await trx.exec('DELETE FROM knowledge_edges');
+      await trx.exec('DELETE FROM knowledge_nodes');
     });
-
-    clearTx();
   }
 
   // =========================================================================
-  // Private: Row ↔ Domain Object Converters
+  // Private: Row <-> Domain Object Converters
   // =========================================================================
 
   /**

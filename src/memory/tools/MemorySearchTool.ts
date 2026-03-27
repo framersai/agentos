@@ -231,20 +231,20 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
         LIMIT ?
       `;
 
-      const runSearch = (query: string): SearchRow[] => {
+      const runSearch = async (query: string): Promise<SearchRow[]> => {
         const params: unknown[] = [query, ...extraParams, limit];
-        return this.brain.db.prepare<unknown[], SearchRow>(sql).all(...(params as unknown[]));
+        return await this.brain.all<SearchRow>(sql, params);
       };
 
       let rows: SearchRow[];
       try {
-        rows = runSearch(rawQuery);
+        rows = await runSearch(rawQuery);
       } catch (error: any) {
         const fallbackQuery = buildNaturalLanguageFtsQuery(rawQuery);
         if (error?.code !== 'SQLITE_ERROR' || !fallbackQuery || fallbackQuery === rawQuery) {
           throw error;
         }
-        rows = runSearch(fallbackQuery);
+        rows = await runSearch(fallbackQuery);
       }
 
       const results: MemorySearchResult[] = rows.map((row) => {

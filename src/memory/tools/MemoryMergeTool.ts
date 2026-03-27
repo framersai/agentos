@@ -170,13 +170,12 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
 
       // Load all matching active traces.
       const placeholders = traceIds.map(() => '?').join(', ');
-      const rows = this.brain.db
-        .prepare<unknown[], TraceRow>(
-          `SELECT rowid AS rowid, id, content, retrieval_count, tags, metadata, last_accessed, created_at
-           FROM memory_traces
-           WHERE id IN (${placeholders}) AND deleted = 0`,
-        )
-        .all(...(traceIds as unknown[]));
+      const rows = await this.brain.all<TraceRow>(
+        `SELECT rowid AS rowid, id, content, retrieval_count, tags, metadata, last_accessed, created_at
+         FROM memory_traces
+         WHERE id IN (${placeholders}) AND deleted = 0`,
+        traceIds,
+      );
 
       if (rows.length < 2) {
         return {
@@ -238,48 +237,37 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
       // Update survivor: new content, cleared embedding, unioned tags.
       const deletedIds: string[] = [];
 
-      this.brain.db.transaction(() => {
-        this.brain.db
-          .prepare(
-            `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
-             VALUES ('delete', ?, ?, ?)`,
-          )
-          .run(survivor.rowid, survivor.content, survivor.tags);
-
-        this.brain.db
-          .prepare(
-            `UPDATE memory_traces
-             SET content = ?, embedding = NULL, tags = ?, metadata = ?, retrieval_count = ?, last_accessed = ?
-             WHERE id = ?`,
-          )
-          .run(
-            finalContent,
-            finalTags,
-            mergedMetadata,
-            mergedRetrievalCount,
-            mergedLastAccessed,
-            survivor.id,
-          );
-
-        this.brain.db
-          .prepare(
-            `INSERT INTO memory_traces_fts (rowid, content, tags)
-             VALUES (?, ?, ?)`,
-          )
-          .run(survivor.rowid, finalContent, finalTags);
-
-        // Soft-delete all non-survivors.
-        const deleteStmt = this.brain.db.prepare(
-          `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
+      await this.brain.transaction(async (trx) => {
+        await trx.run(
+          `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
+           VALUES ('delete', ?, ?, ?)`,
+          [survivor.rowid, survivor.content, survivor.tags],
         );
 
+        await trx.run(
+          `UPDATE memory_traces
+           SET content = ?, embedding = NULL, tags = ?, metadata = ?, retrieval_count = ?, last_accessed = ?
+           WHERE id = ?`,
+          [finalContent, finalTags, mergedMetadata, mergedRetrievalCount, mergedLastAccessed, survivor.id],
+        );
+
+        await trx.run(
+          `INSERT INTO memory_traces_fts (rowid, content, tags)
+           VALUES (?, ?, ?)`,
+          [survivor.rowid, finalContent, finalTags],
+        );
+
+        // Soft-delete all non-survivors.
         for (const row of rows) {
           if (row.id !== survivor.id) {
-            deleteStmt.run(row.id);
+            await trx.run(
+              `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
+              [row.id],
+            );
             deletedIds.push(row.id);
           }
         }
-      })();
+      });
       return {
         success: true,
         output: { survivorId: survivor.id, deletedIds },

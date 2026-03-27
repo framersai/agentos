@@ -127,12 +127,10 @@ export class JsonExporter {
     const includeEmbeddings = options?.includeEmbeddings ?? false;
     const includeConversations = options?.includeConversations ?? true;
 
-    const db = this.brain.db;
-
     // Collect brain_meta as a plain object for the `meta` field.
-    const metaRows = db
-      .prepare<[], { key: string; value: string }>('SELECT key, value FROM brain_meta')
-      .all();
+    const metaRows = await this.brain.all<{ key: string; value: string }>(
+      'SELECT key, value FROM brain_meta',
+    );
     const meta: Record<string, string> = {};
     for (const row of metaRows) {
       meta[row.key] = row.value;
@@ -140,32 +138,24 @@ export class JsonExporter {
     meta['exported_at'] = String(Date.now());
 
     // ---- memory_traces ----
-    const rawTraces = db
-      .prepare<[], TraceRow>('SELECT * FROM memory_traces')
-      .all();
+    const rawTraces = await this.brain.all<TraceRow>('SELECT * FROM memory_traces');
 
     const traces = rawTraces.map((row) => this._serializeTrace(row, includeEmbeddings));
 
     // ---- knowledge_nodes ----
-    const rawNodes = db
-      .prepare<[], NodeRow>('SELECT * FROM knowledge_nodes')
-      .all();
+    const rawNodes = await this.brain.all<NodeRow>('SELECT * FROM knowledge_nodes');
 
     const nodes = rawNodes.map((row) => this._serializeNode(row, includeEmbeddings));
 
     // ---- knowledge_edges ----
-    const edges = db
-      .prepare<[], EdgeRow>('SELECT * FROM knowledge_edges')
-      .all();
+    const edges = await this.brain.all<EdgeRow>('SELECT * FROM knowledge_edges');
 
     // ---- documents ----
-    const documents = db
-      .prepare<[], DocumentRow>('SELECT * FROM documents')
-      .all();
+    const documents = await this.brain.all<DocumentRow>('SELECT * FROM documents');
 
     // ---- conversations ----
     const conversations: ConversationRow[] = includeConversations
-      ? db.prepare<[], ConversationRow>('SELECT * FROM conversations').all()
+      ? await this.brain.all<ConversationRow>('SELECT * FROM conversations')
       : [];
 
     const payload = {

@@ -178,11 +178,10 @@ export class MarkdownImporter {
     const hash = crypto.createHash('sha256').update(body, 'utf8').digest('hex');
 
     // Dedup check.
-    const existing = this.brain.db
-      .prepare<[string], { id: string }>(
-        `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
-      )
-      .get(hash);
+    const existing = await this.brain.get<{ id: string }>(
+      `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
+      [hash],
+    );
 
     if (existing) {
       result.skipped++;
@@ -195,14 +194,12 @@ export class MarkdownImporter {
     const meta: Record<string, unknown> = { import_hash: hash, source_file: filePath };
 
     try {
-      this.brain.db
-        .prepare(
-          `INSERT INTO memory_traces
+      await this.brain.run(
+        `INSERT INTO memory_traces
              (id, type, scope, content, embedding, strength, created_at, last_accessed,
               retrieval_count, tags, emotions, metadata, deleted)
            VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, '{}', ?, 0)`,
-        )
-        .run(
+        [
           traceId,
           typeof fm.type === 'string' ? fm.type : 'episodic',
           typeof fm.scope === 'string' ? fm.scope : 'user',
@@ -211,7 +208,8 @@ export class MarkdownImporter {
           typeof fm.createdAt === 'number' ? fm.createdAt : Date.now(),
           JSON.stringify(tags),
           JSON.stringify(meta),
-        );
+        ],
+      );
 
       // Give subclasses a chance to handle wikilinks, extra tags, etc.
       await this.postProcess(filePath, fm, body, result, traceId);

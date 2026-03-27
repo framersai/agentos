@@ -127,7 +127,7 @@ export class ObsidianImporter extends MarkdownImporter {
     }
 
     if (inlineTags.length > 0) {
-      this._mergeTagsIntoTrace(traceId, inlineTags, result);
+      await this._mergeTagsIntoTrace(traceId, inlineTags, result);
     }
 
     // ---- 3. Parse wikilinks and create knowledge_edges ----
@@ -139,7 +139,7 @@ export class ObsidianImporter extends MarkdownImporter {
     }
 
     for (const target of wikiTargets) {
-      this._upsertWikiEdge(traceId, target, result);
+      await this._upsertWikiEdge(traceId, target, result);
     }
   }
 
@@ -156,17 +156,18 @@ export class ObsidianImporter extends MarkdownImporter {
    * @param newTags    - Hashtag names to add (without the leading `#`).
    * @param result     - Mutable result accumulator (errors recorded here).
    */
-  private _mergeTagsIntoTrace(
+  private async _mergeTagsIntoTrace(
     traceId: string,
     newTags: string[],
     result: ImportResult,
-  ): void {
+  ): Promise<void> {
     try {
-      const db = (this as unknown as { brain: SqliteBrain }).brain.db;
+      const brainRef = (this as unknown as { brain: SqliteBrain }).brain;
 
-      const row = db
-        .prepare<[string], { tags: string }>('SELECT tags FROM memory_traces WHERE id = ?')
-        .get(traceId);
+      const row = await brainRef.get<{ tags: string }>(
+        'SELECT tags FROM memory_traces WHERE id = ?',
+        [traceId],
+      );
 
       if (!row) return;
 
@@ -179,9 +180,9 @@ export class ObsidianImporter extends MarkdownImporter {
 
       const merged = Array.from(new Set([...existing, ...newTags]));
 
-      db.prepare('UPDATE memory_traces SET tags = ? WHERE id = ?').run(
-        JSON.stringify(merged),
-        traceId,
+      await brainRef.run(
+        'UPDATE memory_traces SET tags = ? WHERE id = ?',
+        [JSON.stringify(merged), traceId],
       );
     } catch (err) {
       result.errors.push(`Tag merge error for trace ${traceId}: ${String(err)}`);
@@ -205,14 +206,13 @@ export class ObsidianImporter extends MarkdownImporter {
    * @param targetLabel   - The label of the linked note (wikilink target).
    * @param result        - Mutable result accumulator.
    */
-  private _upsertWikiEdge(
+  private async _upsertWikiEdge(
     sourceTraceId: string,
     targetLabel: string,
     result: ImportResult,
-  ): void {
+  ): Promise<void> {
     try {
-      // Access brain.db through the protected field inherited from MarkdownImporter.
-      const db = (this as unknown as { brain: SqliteBrain }).brain.db;
+      const brainRef = (this as unknown as { brain: SqliteBrain }).brain;
 
       // ---- Upsert source knowledge node for the trace ----
       // We use the trace ID itself as the node label so the graph stays navigable.
@@ -223,25 +223,25 @@ export class ObsidianImporter extends MarkdownImporter {
         .digest('hex');
 
       let sourceNodeId: string;
-      const existingSource = db
-        .prepare<[string], { id: string }>(
-          `SELECT id FROM knowledge_nodes WHERE label = ? LIMIT 1`,
-        )
-        .get(sourceLabel);
+      const existingSource = await brainRef.get<{ id: string }>(
+        `SELECT id FROM knowledge_nodes WHERE label = ? LIMIT 1`,
+        [sourceLabel],
+      );
 
       if (existingSource) {
         sourceNodeId = existingSource.id;
       } else {
         sourceNodeId = `kn_${uuidv4()}`;
-        db.prepare(
+        await brainRef.run(
           `INSERT OR IGNORE INTO knowledge_nodes
              (id, type, label, properties, embedding, confidence, source, created_at)
            VALUES (?, 'trace', ?, ?, NULL, 1.0, '{}', ?)`,
-        ).run(
-          sourceNodeId,
-          sourceLabel,
-          JSON.stringify({ import_hash: sourceHash, trace_id: sourceTraceId }),
-          Date.now(),
+          [
+            sourceNodeId,
+            sourceLabel,
+            JSON.stringify({ import_hash: sourceHash, trace_id: sourceTraceId }),
+            Date.now(),
+          ],
         );
       }
 
@@ -252,25 +252,25 @@ export class ObsidianImporter extends MarkdownImporter {
         .digest('hex');
 
       let targetNodeId: string;
-      const existingTarget = db
-        .prepare<[string], { id: string }>(
-          `SELECT id FROM knowledge_nodes WHERE label = ? LIMIT 1`,
-        )
-        .get(targetLabel);
+      const existingTarget = await brainRef.get<{ id: string }>(
+        `SELECT id FROM knowledge_nodes WHERE label = ? LIMIT 1`,
+        [targetLabel],
+      );
 
       if (existingTarget) {
         targetNodeId = existingTarget.id;
       } else {
         targetNodeId = `kn_${uuidv4()}`;
-        db.prepare(
+        await brainRef.run(
           `INSERT OR IGNORE INTO knowledge_nodes
              (id, type, label, properties, embedding, confidence, source, created_at)
            VALUES (?, 'concept', ?, ?, NULL, 1.0, '{}', ?)`,
-        ).run(
-          targetNodeId,
-          targetLabel,
-          JSON.stringify({ import_hash: targetHash, obsidian_wikilink: true }),
-          Date.now(),
+          [
+            targetNodeId,
+            targetLabel,
+            JSON.stringify({ import_hash: targetHash, obsidian_wikilink: true }),
+            Date.now(),
+          ],
         );
       }
 
@@ -281,24 +281,24 @@ export class ObsidianImporter extends MarkdownImporter {
         .digest('hex');
 
       // Check for existing edge before insert (extra safety beyond OR IGNORE).
-      const existingEdge = db
-        .prepare<[string], { id: string }>(
-          `SELECT id FROM knowledge_edges
+      const existingEdge = await brainRef.get<{ id: string }>(
+        `SELECT id FROM knowledge_edges
            WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
-        )
-        .get(edgeHash);
+        [edgeHash],
+      );
 
       if (!existingEdge) {
-        db.prepare(
+        await brainRef.run(
           `INSERT OR IGNORE INTO knowledge_edges
              (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
            VALUES (?, ?, ?, 'related_to', 1.0, 0, ?, ?)`,
-        ).run(
-          `ke_${uuidv4()}`,
-          sourceNodeId,
-          targetNodeId,
-          JSON.stringify({ import_hash: edgeHash, source: 'obsidian_wikilink', trace_id: sourceTraceId }),
-          Date.now(),
+          [
+            `ke_${uuidv4()}`,
+            sourceNodeId,
+            targetNodeId,
+            JSON.stringify({ import_hash: edgeHash, source: 'obsidian_wikilink', trace_id: sourceTraceId }),
+            Date.now(),
+          ],
         );
       }
     } catch (err) {

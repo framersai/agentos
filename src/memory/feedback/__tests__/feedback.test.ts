@@ -37,18 +37,18 @@ function tempDbPath(): string {
 /** Registry of brains opened during a test run so afterEach can clean up. */
 const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
 
-function openBrain(dbPath?: string): { brain: SqliteBrain; dbPath: string } {
+async function openBrain(dbPath?: string): Promise<{ brain: SqliteBrain; dbPath: string }> {
   const p = dbPath ?? tempDbPath();
-  const brain = new SqliteBrain(p);
+  const brain = await SqliteBrain.open(p);
   openBrains.push({ brain, dbPath: p });
   return { brain, dbPath: p };
 }
 
-afterEach(() => {
+afterEach(async () => {
   while (openBrains.length > 0) {
     const entry = openBrains.pop()!;
     try {
-      entry.brain.close();
+      await entry.brain.close();
     } catch {
       // Already closed.
     }
@@ -114,14 +114,12 @@ function makeTrace(overrides: Partial<MemoryTrace> = {}): MemoryTrace {
  * Insert a minimal memory_traces row so the `retrieval_feedback` FK
  * constraint is satisfied.  Only columns that have no DEFAULT are provided.
  */
-function seedTraceRow(brain: SqliteBrain, trace: MemoryTrace): void {
-  brain.db
-    .prepare(
-      `INSERT OR IGNORE INTO memory_traces
-         (id, type, scope, content, strength, created_at, tags, emotions, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
+async function seedTraceRow(brain: SqliteBrain, trace: MemoryTrace): Promise<void> {
+  await brain.run(
+    `INSERT OR IGNORE INTO memory_traces
+       (id, type, scope, content, strength, created_at, tags, emotions, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
       trace.id,
       trace.type,
       trace.scope,
@@ -131,7 +129,8 @@ function seedTraceRow(brain: SqliteBrain, trace: MemoryTrace): void {
       JSON.stringify(trace.tags),
       JSON.stringify(trace.emotionalContext),
       '{}',
-    );
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -191,13 +190,13 @@ describe('penalizeUnused', () => {
 
 describe('RetrievalFeedbackSignal.detect', () => {
   it('marks a trace as "used" when its keywords appear in the response', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const signal = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({
       content: 'React development with TypeScript components and hooks',
     });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     const response =
       'React development is a modern approach to building user interfaces. ' +
@@ -211,13 +210,13 @@ describe('RetrievalFeedbackSignal.detect', () => {
   });
 
   it('marks a trace as "ignored" when its keywords do not appear in the response', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({
       content: 'Python programming language with machine learning algorithms and neural networks',
     });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     // Response is about cooking — completely unrelated.
     const response =
@@ -231,7 +230,7 @@ describe('RetrievalFeedbackSignal.detect', () => {
   });
 
   it('handles multiple traces in a single detect call', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const usedTrace = makeTrace({
@@ -241,8 +240,8 @@ describe('RetrievalFeedbackSignal.detect', () => {
       content: 'Knitting patterns using yarns and circular needles for comfortable scarves',
     });
 
-    seedTraceRow(brain, usedTrace);
-    seedTraceRow(brain, ignoredTrace);
+    await seedTraceRow(brain, usedTrace);
+    await seedTraceRow(brain, ignoredTrace);
 
     const response =
       'GraphQL queries allow you to request exactly the data you need. Fragments provide ' +
@@ -260,7 +259,7 @@ describe('RetrievalFeedbackSignal.detect', () => {
   });
 
   it('returns an empty array when no traces are injected', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const feedbacks = await sig.detect([], 'Some LLM response text here.');
@@ -268,12 +267,12 @@ describe('RetrievalFeedbackSignal.detect', () => {
   });
 
   it('treats traces with no qualifying keywords (all ≤ 4 chars) as ignored', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     // All words are ≤ 4 characters — no keywords to match.
     const trace = makeTrace({ content: 'I am the one who ran far away' });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     const feedbacks = await sig.detect([trace], 'I am the one who ran far away');
     expect(feedbacks[0].signal).toBe('ignored');
@@ -286,14 +285,14 @@ describe('RetrievalFeedbackSignal.detect', () => {
 
 describe('RetrievalFeedbackSignal persistence', () => {
   it('writes a row to retrieval_feedback for each injected trace', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const traceA = makeTrace({ content: 'distributed systems architecture with microservices' });
     const traceB = makeTrace({ content: 'quantum entanglement experiments in particle physics' });
 
-    seedTraceRow(brain, traceA);
-    seedTraceRow(brain, traceB);
+    await seedTraceRow(brain, traceA);
+    await seedTraceRow(brain, traceB);
 
     await sig.detect(
       [traceA, traceB],
@@ -301,15 +300,15 @@ describe('RetrievalFeedbackSignal persistence', () => {
     );
 
     interface CountRow { total: number }
-    const row = brain.db
-      .prepare<[], CountRow>('SELECT COUNT(*) AS total FROM retrieval_feedback')
-      .get();
+    const row = await brain.get<CountRow>(
+      'SELECT COUNT(*) AS total FROM retrieval_feedback',
+    );
 
     expect(row?.total).toBe(2);
   });
 
   it('persists the correct signal value for each trace', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const usedTrace = makeTrace({
@@ -319,8 +318,8 @@ describe('RetrievalFeedbackSignal persistence', () => {
       content: 'watercolour painting techniques with transparent glazing layers',
     });
 
-    seedTraceRow(brain, usedTrace);
-    seedTraceRow(brain, ignoredTrace);
+    await seedTraceRow(brain, usedTrace);
+    await seedTraceRow(brain, ignoredTrace);
 
     await sig.detect(
       [usedTrace, ignoredTrace],
@@ -328,11 +327,9 @@ describe('RetrievalFeedbackSignal persistence', () => {
     );
 
     interface SignalRow { trace_id: string; signal: string }
-    const rows = brain.db
-      .prepare<[], SignalRow>(
-        'SELECT trace_id, signal FROM retrieval_feedback ORDER BY id',
-      )
-      .all();
+    const rows = await brain.all<SignalRow>(
+      'SELECT trace_id, signal FROM retrieval_feedback ORDER BY id',
+    );
 
     const byId = new Map(rows.map((r) => [r.trace_id, r.signal]));
     expect(byId.get(usedTrace.id)).toBe('used');
@@ -340,7 +337,7 @@ describe('RetrievalFeedbackSignal persistence', () => {
   });
 
   it('reinforces the stored trace when the signal is "used"', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({
@@ -348,7 +345,7 @@ describe('RetrievalFeedbackSignal persistence', () => {
       encodingStrength: 0.8,
       retrievalCount: 0,
     });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     await sig.detect(
       [trace],
@@ -361,13 +358,12 @@ describe('RetrievalFeedbackSignal persistence', () => {
       retrieval_count: number;
     }
 
-    const row = brain.db
-      .prepare<[string], TraceStateRow>(
-        `SELECT strength, last_accessed, retrieval_count
-         FROM memory_traces
-         WHERE id = ?`,
-      )
-      .get(trace.id);
+    const row = await brain.get<TraceStateRow>(
+      `SELECT strength, last_accessed, retrieval_count
+       FROM memory_traces
+       WHERE id = ?`,
+      [trace.id],
+    );
 
     expect(row?.strength ?? 0).toBeGreaterThan(trace.encodingStrength);
     expect(row?.retrieval_count).toBe(1);
@@ -375,7 +371,7 @@ describe('RetrievalFeedbackSignal persistence', () => {
   });
 
   it('penalises the stored trace when the signal is "ignored"', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({
@@ -383,7 +379,7 @@ describe('RetrievalFeedbackSignal persistence', () => {
       encodingStrength: 1.0,
       retrievalCount: 0,
     });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     await sig.detect(
       [trace],
@@ -396,13 +392,12 @@ describe('RetrievalFeedbackSignal persistence', () => {
       retrieval_count: number;
     }
 
-    const row = brain.db
-      .prepare<[string], TraceStateRow>(
-        `SELECT strength, last_accessed, retrieval_count
-         FROM memory_traces
-         WHERE id = ?`,
-      )
-      .get(trace.id);
+    const row = await brain.get<TraceStateRow>(
+      `SELECT strength, last_accessed, retrieval_count
+       FROM memory_traces
+       WHERE id = ?`,
+      [trace.id],
+    );
 
     expect(row?.strength ?? 1).toBeLessThan(trace.encodingStrength);
     expect(row?.retrieval_count).toBe(0);
@@ -416,33 +411,33 @@ describe('RetrievalFeedbackSignal persistence', () => {
 
 describe('RetrievalFeedbackSignal.getHistory', () => {
   it('returns feedback events for the correct trace', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({ content: 'serverless functions with event driven architecture' });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     await sig.detect([trace], 'serverless functions are ideal for event driven architecture.');
     await sig.detect([trace], 'completely unrelated topic about cooking pasta dishes.');
 
-    const history = sig.getHistory(trace.id);
+    const history = await sig.getHistory(trace.id);
     expect(history).toHaveLength(2);
     expect(history.every((h) => h.traceId === trace.id)).toBe(true);
   });
 
   it('returns history ordered most-recent first', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({ content: 'neural networks machine learning training algorithms' });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     // First call → 'used'
     await sig.detect([trace], 'neural networks use training algorithms to optimise machine learning models.');
     // Second call → 'ignored' (unrelated)
     await sig.detect([trace], 'fresh bread tastes great with butter and olive oil.');
 
-    const history = sig.getHistory(trace.id);
+    const history = await sig.getHistory(trace.id);
 
     // Most-recent first → the 'ignored' event (second detect) comes first.
     expect(history[0].signal).toBe('ignored');
@@ -450,25 +445,25 @@ describe('RetrievalFeedbackSignal.getHistory', () => {
   });
 
   it('respects the limit parameter', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({ content: 'event sourcing domain driven design aggregate roots' });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     for (let i = 0; i < 5; i++) {
       await sig.detect([trace], 'event sourcing uses domain driven design with aggregate roots.');
     }
 
-    const limited = sig.getHistory(trace.id, 3);
+    const limited = await sig.getHistory(trace.id, 3);
     expect(limited).toHaveLength(3);
   });
 
-  it('returns empty array for a trace with no feedback history', () => {
-    const { brain } = openBrain();
+  it('returns empty array for a trace with no feedback history', async () => {
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
-    const history = sig.getHistory('nonexistent-trace-id');
+    const history = await sig.getHistory('nonexistent-trace-id');
     expect(history).toHaveLength(0);
   });
 });
@@ -479,13 +474,13 @@ describe('RetrievalFeedbackSignal.getHistory', () => {
 
 describe('RetrievalFeedbackSignal.getStats', () => {
   it('returns correct used and ignored counts after mixed signals', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({
       content: 'progressive web applications service workers offline caching',
     });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     // 2 used signals
     const usedResponse =
@@ -499,35 +494,35 @@ describe('RetrievalFeedbackSignal.getStats', () => {
     await sig.detect([trace], ignoredResponse);
     await sig.detect([trace], ignoredResponse);
 
-    const stats = sig.getStats(trace.id);
+    const stats = await sig.getStats(trace.id);
     expect(stats.used).toBe(2);
     expect(stats.ignored).toBe(3);
   });
 
-  it('returns zero counts for a trace with no feedback', () => {
-    const { brain } = openBrain();
+  it('returns zero counts for a trace with no feedback', async () => {
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
-    const stats = sig.getStats('no-feedback-trace');
+    const stats = await sig.getStats('no-feedback-trace');
     expect(stats.used).toBe(0);
     expect(stats.ignored).toBe(0);
   });
 
   it('counts all signals as "used" when every detect call matches', async () => {
-    const { brain } = openBrain();
+    const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);
 
     const trace = makeTrace({
       content: 'typescript generics conditional types mapped inference',
     });
-    seedTraceRow(brain, trace);
+    await seedTraceRow(brain, trace);
 
     const response =
       'TypeScript generics enable powerful conditional types and mapped inference patterns.';
     await sig.detect([trace], response);
     await sig.detect([trace], response);
 
-    const stats = sig.getStats(trace.id);
+    const stats = await sig.getStats(trace.id);
     expect(stats.used).toBe(2);
     expect(stats.ignored).toBe(0);
   });

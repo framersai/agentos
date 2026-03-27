@@ -93,10 +93,10 @@ describe('AgentOS memory tool auto-registration', () => {
     );
   });
 
-  function createTempMemory(selfImprove = true): Memory {
+  async function createTempMemory(selfImprove = true): Promise<Memory> {
     const dir = mkdtempSync(join(tmpdir(), 'agentos-memory-tools-'));
     tempDirs.push(dir);
-    return new Memory({
+    return await Memory.create({
       path: join(dir, 'brain.sqlite'),
       selfImprove,
     });
@@ -104,7 +104,7 @@ describe('AgentOS memory tool auto-registration', () => {
 
   it('loads standalone memory tools from AgentOS config during initialize()', async () => {
     const agentos = new AgentOS();
-    const memory = createTempMemory(true);
+    const memory = await createTempMemory(true);
 
     await agentos.initialize(
       createConfig({
@@ -131,7 +131,7 @@ describe('AgentOS memory tool auto-registration', () => {
 
   it('respects includeReflect=false in AgentOS memoryTools config', async () => {
     const agentos = new AgentOS();
-    const memory = createTempMemory(true);
+    const memory = await createTempMemory(true);
 
     await agentos.initialize(
       createConfig({
@@ -159,7 +159,7 @@ describe('AgentOS memory tool auto-registration', () => {
 
   it('can manage the standalone memory lifecycle during AgentOS shutdown', async () => {
     const agentos = new AgentOS();
-    const memory = createTempMemory(true);
+    const memory = await createTempMemory(true);
     const closeSpy = vi.spyOn(memory, 'close');
 
     await agentos.initialize(
@@ -178,7 +178,7 @@ describe('AgentOS memory tool auto-registration', () => {
 
   it('derives tools, long-term retrieval, and rolling-summary persistence from standaloneMemory config', async () => {
     const agentos = new AgentOS();
-    const memory = createTempMemory(true);
+    const memory = await createTempMemory(true);
     const closeSpy = vi.spyOn(memory, 'close');
 
     await agentos.initialize(

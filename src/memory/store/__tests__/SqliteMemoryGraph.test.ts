@@ -61,18 +61,18 @@ async function createGraph(): Promise<{
   dbPath: string;
 }> {
   const dbPath = tempDbPath();
-  const brain = new SqliteBrain(dbPath);
+  const brain = await SqliteBrain.open(dbPath);
   openBrains.push({ brain, dbPath });
   const graph = new SqliteMemoryGraph(brain);
   await graph.initialize();
   return { graph, brain, dbPath };
 }
 
-afterEach(() => {
+afterEach(async () => {
   while (openBrains.length > 0) {
     const entry = openBrains.pop()!;
     try {
-      entry.brain.close();
+      await entry.brain.close();
     } catch {
       /* ignore already-closed */
     }
@@ -548,7 +548,7 @@ describe('SqliteMemoryGraph — clear', () => {
     expect(graph.nodeCount()).toBe(2);
     expect(graph.edgeCount()).toBe(1);
 
-    graph.clear();
+    await graph.clear();
 
     expect(graph.nodeCount()).toBe(0);
     expect(graph.edgeCount()).toBe(0);
@@ -563,7 +563,7 @@ describe('SqliteMemoryGraph — clear', () => {
     await graph.addNode('m2', nodeMeta());
     await graph.addEdge({ sourceId: 'm1', targetId: 'm2', type: 'SAME_TOPIC', weight: 0.8, createdAt: Date.now() });
 
-    graph.clear();
+    await graph.clear();
 
     const graph2 = new SqliteMemoryGraph(brain);
     await graph2.initialize();

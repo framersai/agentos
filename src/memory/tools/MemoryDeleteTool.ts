@@ -122,9 +122,10 @@ export class MemoryDeleteTool implements ITool<MemoryDeleteInput, MemoryDeleteOu
     _context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<MemoryDeleteOutput>> {
     try {
-      const info = this.brain.db
-        .prepare(`UPDATE memory_traces SET deleted = 1 WHERE id = ? AND deleted = 0`)
-        .run(args.traceId) as { changes: number };
+      const info = await this.brain.run(
+        `UPDATE memory_traces SET deleted = 1 WHERE id = ? AND deleted = 0`,
+        [args.traceId],
+      );
 
       return { success: true, output: { deleted: info.changes > 0 } };
     } catch (err) {

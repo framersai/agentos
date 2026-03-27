@@ -161,11 +161,11 @@ export class JsonImporter {
     }
 
     // ---- Import in a single transaction for atomicity ----
-    this.brain.db.transaction(() => {
-      this._importTraces(payload.traces, result);
-      this._importNodes(payload.nodes ?? [], result);
-      this._importEdges(payload.edges ?? [], result);
-    })();
+    await this.brain.transaction(async (trx) => {
+      await this._importTraces(trx, payload.traces, result);
+      await this._importNodes(trx, payload.nodes ?? [], result);
+      await this._importEdges(trx, payload.edges ?? [], result);
+    });
 
     return result;
   }
@@ -191,30 +191,26 @@ export class JsonImporter {
    * Each trace is deduplicated by the SHA-256 of its `content` field.
    * If a trace with the same content hash already exists, it is skipped.
    *
+   * @param trx    - Transactional storage adapter.
    * @param traces - Array of serialised trace objects from the export.
    * @param result - Mutable `ImportResult` to accumulate counts.
    */
-  private _importTraces(traces: TraceRecord[], result: ImportResult): void {
-    const db = this.brain.db;
+  private async _importTraces(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    traces: TraceRecord[],
+    result: ImportResult,
+  ): Promise<void> {
+    const checkSql = `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`;
 
-    // Prepare dedup check using a JSON column approach — we store the content
-    // hash in the `metadata` JSON under the key `__import_hash`. This lets us
-    // do a fast exact-match lookup without a schema change.
-    const checkStmt = db.prepare<[string], { id: string }>(
-      `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
-    );
-
-    const insertStmt = db.prepare(
-      `INSERT INTO memory_traces
+    const insertSql = `INSERT INTO memory_traces
          (id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     for (const t of traces) {
       try {
         const hash = this._sha256(t.content);
-        const existing = checkStmt.get(hash);
+        const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;
           continue;
@@ -235,7 +231,7 @@ export class JsonImporter {
           embeddingBuf = Buffer.from(t.embedding, 'base64');
         }
 
-        insertStmt.run(
+        await trx.run(insertSql, [
           t.id ?? `mt_${uuidv4()}`,
           t.type ?? 'episodic',
           t.scope ?? 'user',
@@ -249,7 +245,7 @@ export class JsonImporter {
           t.emotions ?? '{}',
           JSON.stringify(meta),
           t.deleted ?? 0,
-        );
+        ]);
 
         result.imported++;
       } catch (err) {
@@ -263,26 +259,25 @@ export class JsonImporter {
    *
    * Dedup key: SHA-256 of `label` concatenated with `type`.
    *
+   * @param trx    - Transactional storage adapter.
    * @param nodes  - Array of serialised node objects.
    * @param result - Mutable `ImportResult` to accumulate counts.
    */
-  private _importNodes(nodes: NodeRecord[], result: ImportResult): void {
-    const db = this.brain.db;
+  private async _importNodes(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    nodes: NodeRecord[],
+    result: ImportResult,
+  ): Promise<void> {
+    const checkSql = `SELECT id FROM knowledge_nodes WHERE json_extract(properties, '$.import_hash') = ? LIMIT 1`;
 
-    const checkStmt = db.prepare<[string], { id: string }>(
-      `SELECT id FROM knowledge_nodes WHERE json_extract(properties, '$.import_hash') = ? LIMIT 1`,
-    );
-
-    const insertStmt = db.prepare(
-      `INSERT OR IGNORE INTO knowledge_nodes
+    const insertSql = `INSERT OR IGNORE INTO knowledge_nodes
          (id, type, label, properties, embedding, confidence, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
     for (const n of nodes) {
       try {
         const hash = this._sha256(`${n.label ?? ''}::${n.type ?? ''}`);
-        const existing = checkStmt.get(hash);
+        const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;
           continue;
@@ -301,7 +296,7 @@ export class JsonImporter {
           embeddingBuf = Buffer.from(n.embedding, 'base64');
         }
 
-        insertStmt.run(
+        await trx.run(insertSql, [
           n.id ?? `kn_${uuidv4()}`,
           n.type ?? 'concept',
           n.label ?? '',
@@ -310,7 +305,7 @@ export class JsonImporter {
           n.confidence ?? 1.0,
           n.source ?? '{}',
           n.created_at ?? Date.now(),
-        );
+        ]);
 
         result.imported++;
       } catch (err) {
@@ -325,21 +320,20 @@ export class JsonImporter {
    * Dedup key: SHA-256 of `source_id + target_id + type`.
    * Edges referencing non-existent nodes are silently skipped (FK constraint).
    *
+   * @param trx    - Transactional storage adapter.
    * @param edges  - Array of serialised edge objects.
    * @param result - Mutable `ImportResult` to accumulate counts.
    */
-  private _importEdges(edges: EdgeRecord[], result: ImportResult): void {
-    const db = this.brain.db;
+  private async _importEdges(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    edges: EdgeRecord[],
+    result: ImportResult,
+  ): Promise<void> {
+    const checkSql = `SELECT id FROM knowledge_edges WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`;
 
-    const checkStmt = db.prepare<[string], { id: string }>(
-      `SELECT id FROM knowledge_edges WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
-    );
-
-    const insertStmt = db.prepare(
-      `INSERT OR IGNORE INTO knowledge_edges
+    const insertSql = `INSERT OR IGNORE INTO knowledge_edges
          (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
     for (const e of edges) {
       try {
@@ -349,7 +343,7 @@ export class JsonImporter {
         }
 
         const hash = this._sha256(`${e.source_id}::${e.target_id}::${e.type ?? ''}`);
-        const existing = checkStmt.get(hash);
+        const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;
           continue;
@@ -363,7 +357,7 @@ export class JsonImporter {
         }
         meta['import_hash'] = hash;
 
-        insertStmt.run(
+        await trx.run(insertSql, [
           e.id ?? `ke_${uuidv4()}`,
           e.source_id,
           e.target_id,
@@ -372,7 +366,7 @@ export class JsonImporter {
           e.bidirectional ?? 0,
           JSON.stringify(meta),
           e.created_at ?? Date.now(),
-        );
+        ]);
 
         result.imported++;
       } catch (err) {

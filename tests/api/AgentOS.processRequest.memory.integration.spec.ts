@@ -146,11 +146,11 @@ describe('AgentOS.processRequest standalone memory integration', () => {
     vi.restoreAllMocks();
   });
 
-  function createTempMemory(): Memory {
+  async function createTempMemory(): Promise<Memory> {
     const dir = mkdtempSync(join(tmpdir(), 'agentos-process-memory-'));
     tempDirs.push(dir);
 
-    const memory = new Memory({
+    const memory = await Memory.create({
       path: join(dir, 'brain.sqlite'),
       selfImprove: true,
     });
@@ -159,7 +159,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   }
 
   it('injects standalone long-term memory into a live processRequest turn', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: command palettes and keyboard-driven workflows.', {
       type: 'semantic',
       scope: 'user',
@@ -241,7 +241,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('continues a live turn through handleToolResult with the registered memory_search tool', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -491,7 +491,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('recovers a persisted external memory tool pause after restarting AgentOS', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -695,7 +695,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('processRequestWithRegisteredTools auto-resumes a registered memory_search tool', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -797,7 +797,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('processRequestWithRegisteredTools mixes registered memory tools with externalTools registry entries', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -926,7 +926,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('processRequestWithRegisteredTools uses streamed conversation context for thread-scoped tools', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     const conversationContext = new ConversationContext('conv-tool-helper-thread-derived');
     const toolCall = {
       id: 'tool-call-memory-add-thread-helper',
@@ -1023,7 +1023,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('continues a live turn through handleToolResults with registered memory_search and memory_add tools', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -1195,7 +1195,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('processRequestWithExternalTools batches registered memory tools through handleToolResults', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -1341,7 +1341,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('executes memory_search through the real GMI and tool orchestrator during processRequest', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     await memory.remember('User preference: keyboard shortcuts over nested menus.', {
       type: 'semantic',
       scope: 'user',
@@ -2121,7 +2121,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   });
 
   it('executes thread-scoped memory_add through the real GMI and tool orchestrator during processRequest', async () => {
-    const memory = createTempMemory();
+    const memory = await createTempMemory();
     const conversationContext = new ConversationContext('conv-real-gmi-thread');
     let providerCallCount = 0;
 

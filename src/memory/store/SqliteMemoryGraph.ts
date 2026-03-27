@@ -96,13 +96,12 @@ const NODE_TYPE = 'memory_graph';
 /**
  * SQLite-backed implementation of {@link IMemoryGraph}.
  *
- * **Thread safety**: inherits `better-sqlite3`'s single-writer model.
- * All synchronous operations (reads) are safe to call from multiple places
- * concurrently; writes serialise automatically through the WAL.
+ * **Thread safety**: inherits the underlying adapter's concurrency model.
+ * Writes serialise automatically through WAL when using SQLite-backed adapters.
  *
  * **Usage:**
  * ```ts
- * const brain = new SqliteBrain('/path/to/brain.sqlite');
+ * const brain = await SqliteBrain.open('/path/to/brain.sqlite');
  * const graph = new SqliteMemoryGraph(brain);
  * await graph.initialize();
  *
@@ -158,9 +157,10 @@ export class SqliteMemoryGraph implements IMemoryGraph {
     this._edges.clear();
 
     // Load all memory graph nodes.
-    const nodeRows = this.brain.db
-      .prepare<[string], NodeRow>(`SELECT id, properties FROM knowledge_nodes WHERE type = ?`)
-      .all(NODE_TYPE);
+    const nodeRows = await this.brain.all<NodeRow>(
+      `SELECT id, properties FROM knowledge_nodes WHERE type = ?`,
+      [NODE_TYPE],
+    );
 
     for (const row of nodeRows) {
       try {
@@ -176,16 +176,14 @@ export class SqliteMemoryGraph implements IMemoryGraph {
     // We identify them by checking the source_id against known node IDs.
     // Because the edge type column stores the MemoryEdgeType string directly,
     // we can filter by the set of known types.
-    const edgeRows = this.brain.db
-      .prepare<[], EdgeRow>(
-        `SELECT id, source_id, target_id, type, weight, created_at
-         FROM knowledge_edges
-         WHERE type IN (
-           'SHARED_ENTITY','TEMPORAL_SEQUENCE','SAME_TOPIC',
-           'CONTRADICTS','SUPERSEDES','CAUSED_BY','CO_ACTIVATED','SCHEMA_INSTANCE'
-         )`,
-      )
-      .all();
+    const edgeRows = await this.brain.all<EdgeRow>(
+      `SELECT id, source_id, target_id, type, weight, created_at
+       FROM knowledge_edges
+       WHERE type IN (
+         'SHARED_ENTITY','TEMPORAL_SEQUENCE','SAME_TOPIC',
+         'CONTRADICTS','SUPERSEDES','CAUSED_BY','CO_ACTIVATED','SCHEMA_INSTANCE'
+       )`,
+    );
 
     for (const row of edgeRows) {
       const key = `${row.source_id}:${row.target_id}`;
@@ -226,13 +224,11 @@ export class SqliteMemoryGraph implements IMemoryGraph {
   async addNode(memoryId: string, metadata: MemoryGraphNodeMeta): Promise<void> {
     const now = Date.now();
 
-    this.brain.db
-      .prepare(
-        `INSERT OR REPLACE INTO knowledge_nodes
-           (id, type, label, properties, confidence, source, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    await this.brain.run(
+      `INSERT OR REPLACE INTO knowledge_nodes
+         (id, type, label, properties, confidence, source, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
         memoryId,
         NODE_TYPE,
         memoryId,
@@ -240,7 +236,8 @@ export class SqliteMemoryGraph implements IMemoryGraph {
         metadata.strength,
         JSON.stringify({}),
         metadata.createdAt ?? now,
-      );
+      ],
+    );
 
     this._nodes.set(memoryId, metadata);
   }
@@ -264,19 +261,20 @@ export class SqliteMemoryGraph implements IMemoryGraph {
     }
 
     if (toDelete.length > 0) {
-      const delEdge = this.brain.db.prepare(
+      await this.brain.run(
         `DELETE FROM knowledge_edges WHERE source_id = ? OR target_id = ?`,
+        [memoryId, memoryId],
       );
-      delEdge.run(memoryId, memoryId);
       for (const key of toDelete) {
         this._edges.delete(key);
       }
     }
 
     // Now delete the node itself.
-    this.brain.db
-      .prepare(`DELETE FROM knowledge_nodes WHERE id = ? AND type = ?`)
-      .run(memoryId, NODE_TYPE);
+    await this.brain.run(
+      `DELETE FROM knowledge_nodes WHERE id = ? AND type = ?`,
+      [memoryId, NODE_TYPE],
+    );
 
     this._nodes.delete(memoryId);
   }
@@ -311,13 +309,12 @@ export class SqliteMemoryGraph implements IMemoryGraph {
     const edgeId = this._edgeId(edge.sourceId, edge.targetId);
     const key = `${edge.sourceId}:${edge.targetId}`;
 
-    this.brain.db
-      .prepare(
-        `INSERT OR REPLACE INTO knowledge_edges
-           (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-         VALUES (?, ?, ?, ?, ?, 0, '{}', ?)`,
-      )
-      .run(edgeId, edge.sourceId, edge.targetId, edge.type, edge.weight, edge.createdAt);
+    await this.brain.run(
+      `INSERT OR REPLACE INTO knowledge_edges
+         (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, 0, '{}', ?)`,
+      [edgeId, edge.sourceId, edge.targetId, edge.type, edge.weight, edge.createdAt],
+    );
 
     this._edges.set(key, { ...edge });
   }
@@ -356,9 +353,10 @@ export class SqliteMemoryGraph implements IMemoryGraph {
   async removeEdge(sourceId: string, targetId: string): Promise<void> {
     const edgeId = this._edgeId(sourceId, targetId);
 
-    this.brain.db
-      .prepare(`DELETE FROM knowledge_edges WHERE id = ?`)
-      .run(edgeId);
+    await this.brain.run(
+      `DELETE FROM knowledge_edges WHERE id = ?`,
+      [edgeId],
+    );
 
     this._edges.delete(`${sourceId}:${targetId}`);
   }
@@ -543,9 +541,10 @@ export class SqliteMemoryGraph implements IMemoryGraph {
 
           // Update SQLite row weight in-place.
           const edgeId = this._edgeId(sourceId, targetId);
-          this.brain.db
-            .prepare(`UPDATE knowledge_edges SET weight = ? WHERE id = ?`)
-            .run(newWeight, edgeId);
+          await this.brain.run(
+            `UPDATE knowledge_edges SET weight = ? WHERE id = ?`,
+            [newWeight, edgeId],
+          );
         } else {
           // Create a new CO_ACTIVATED edge.
           await this.addEdge({
@@ -737,9 +736,9 @@ export class SqliteMemoryGraph implements IMemoryGraph {
    * This is a destructive, irreversible operation. Intended for tests and
    * administrative resets only.
    */
-  clear(): void {
+  async clear(): Promise<void> {
     // Delete all knowledge_edges whose type is a MemoryEdgeType value.
-    this.brain.db.exec(
+    await this.brain.exec(
       `DELETE FROM knowledge_edges
        WHERE type IN (
          'SHARED_ENTITY','TEMPORAL_SEQUENCE','SAME_TOPIC',
@@ -748,9 +747,10 @@ export class SqliteMemoryGraph implements IMemoryGraph {
     );
 
     // Delete all memory_graph nodes.
-    this.brain.db
-      .prepare(`DELETE FROM knowledge_nodes WHERE type = ?`)
-      .run(NODE_TYPE);
+    await this.brain.run(
+      `DELETE FROM knowledge_nodes WHERE type = ?`,
+      [NODE_TYPE],
+    );
 
     this._nodes.clear();
     this._edges.clear();

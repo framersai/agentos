@@ -79,22 +79,18 @@ export class CsvImporter {
     const tagsIndex = indexOf('tags');
     const metadataIndex = indexOf('metadata');
 
-    const checkStmt = this.brain.db.prepare<[string, string], { id: string }>(
-      `SELECT id
+    const checkSql = `SELECT id
        FROM memory_traces
        WHERE json_extract(metadata, '$.import_hash') = ?
           OR json_extract(metadata, '$.content_hash') = ?
-       LIMIT 1`,
-    );
+       LIMIT 1`;
 
-    const insertStmt = this.brain.db.prepare(
-      `INSERT INTO memory_traces
+    const insertSql = `INSERT INTO memory_traces
          (id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, '{}', ?, ?)`,
-    );
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, '{}', ?, ?)`;
 
-    this.brain.db.transaction(() => {
+    await this.brain.transaction(async (trx) => {
       for (const row of dataRows) {
         try {
           const content = (row[contentIndex] ?? '').trim();
@@ -104,7 +100,8 @@ export class CsvImporter {
           }
 
           const hash = this._sha256(content);
-          if (checkStmt.get(hash, hash)) {
+          const existing = await trx.get<{ id: string }>(checkSql, [hash, hash]);
+          if (existing) {
             result.skipped++;
             continue;
           }
@@ -128,7 +125,7 @@ export class CsvImporter {
           const rawStrength = strengthIndex >= 0 ? row[strengthIndex] ?? '' : '';
           const rawDeleted = deletedIndex >= 0 ? row[deletedIndex] ?? '' : '';
 
-          insertStmt.run(
+          await trx.run(insertSql, [
             this._readCell(row, idIndex) || `mt_${uuidv4()}`,
             this._readCell(row, typeIndex) || 'episodic',
             this._readCell(row, scopeIndex) || 'user',
@@ -140,14 +137,14 @@ export class CsvImporter {
             JSON.stringify(this._parseTags(tagsIndex >= 0 ? row[tagsIndex] ?? '' : '')),
             JSON.stringify(metadata),
             this._toInteger(rawDeleted) ?? 0,
-          );
+          ]);
 
           result.imported++;
         } catch (err) {
           result.errors.push(`CSV trace import error: ${String(err)}`);
         }
       }
-    })();
+    });
 
     return result;
   }

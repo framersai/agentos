@@ -21,8 +21,8 @@ async function createTempDir(): Promise<string> {
   return dir;
 }
 
-function openMemory(dbPath: string): Memory {
-  const memory = new Memory({
+async function openMemory(dbPath: string): Promise<Memory> {
+  const memory = await Memory.create({
     store: 'sqlite',
     path: dbPath,
     graph: false,
@@ -63,7 +63,7 @@ describe('Standalone memory persistence e2e', () => {
       },
     });
 
-    const firstMemory = openMemory(dbPath);
+    const firstMemory = await openMemory(dbPath);
     await firstMemory.remember('User preference: command palette first.', {
       type: 'semantic',
       scope: 'user',
@@ -95,7 +95,7 @@ describe('Standalone memory persistence e2e', () => {
 
     await firstMemory.close();
 
-    const reopenedMemory = openMemory(dbPath);
+    const reopenedMemory = await openMemory(dbPath);
 
     const userHits = await reopenedMemory.recall('command palette', {
       scope: 'user',

@@ -61,8 +61,8 @@ function tempDbPath(): string {
  * Open a fresh {@link SqliteBrain} backed by a temp file and register it
  * for cleanup after the test.
  */
-function openBrain(): SqliteBrain {
-  const brain = new SqliteBrain(tempDbPath());
+async function openBrain(): Promise<SqliteBrain> {
+  const brain = await SqliteBrain.open(tempDbPath());
   openBrains.push(brain);
   return brain;
 }
@@ -77,11 +77,11 @@ const testContext: ToolExecutionContext = {
   userContext: { userId: 'default-user' } as any,
 };
 
-afterEach(() => {
+afterEach(async () => {
   // Close all open brain connections.
   while (openBrains.length > 0) {
     const b = openBrains.pop()!;
-    try { b.close(); } catch { /* already closed */ }
+    try { await b.close(); } catch { /* already closed */ }
   }
 
   // Remove temp SQLite files (including WAL + SHM sidecar files).
@@ -102,7 +102,7 @@ afterEach(() => {
 
 describe('MemoryAddTool', () => {
   it('inserts a trace and returns a traceId', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const tool = new MemoryAddTool(brain);
 
     const result = await tool.execute(
@@ -115,11 +115,10 @@ describe('MemoryAddTool', () => {
     expect(result.output?.traceId).toMatch(/^mt_\d+_\d+$/);
 
     // Verify the row exists in the database.
-    const row = brain.db
-      .prepare<[string], { content: string; type: string; scope: string; deleted: number; tags: string }>(
-        'SELECT content, type, scope, deleted, tags FROM memory_traces WHERE id = ?',
-      )
-      .get(result.output!.traceId);
+    const row = await brain.get<{ content: string; type: string; scope: string; deleted: number; tags: string }>(
+      'SELECT content, type, scope, deleted, tags FROM memory_traces WHERE id = ?',
+      [result.output!.traceId],
+    );
 
     expect(row).toBeDefined();
     expect(row!.content).toBe('The user prefers dark mode.');
@@ -130,7 +129,7 @@ describe('MemoryAddTool', () => {
   });
 
   it('respects explicit type and scope arguments', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const tool = new MemoryAddTool(brain);
 
     const result = await tool.execute(
@@ -140,25 +139,22 @@ describe('MemoryAddTool', () => {
 
     expect(result.success).toBe(true);
 
-    const row = brain.db
-      .prepare<[string], { type: string; scope: string }>(
-        'SELECT type, scope FROM memory_traces WHERE id = ?',
-      )
-      .get(result.output!.traceId);
+    const row = await brain.get<{ type: string; scope: string }>(
+      'SELECT type, scope FROM memory_traces WHERE id = ?',
+      [result.output!.traceId],
+    );
 
     expect(row!.type).toBe('procedural');
     expect(row!.scope).toBe('persona');
   });
 
   it('generates unique IDs for rapid sequential inserts', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const tool = new MemoryAddTool(brain);
 
-    const [r1, r2, r3] = await Promise.all([
-      tool.execute({ content: 'Trace A' }, testContext),
-      tool.execute({ content: 'Trace B' }, testContext),
-      tool.execute({ content: 'Trace C' }, testContext),
-    ]);
+    const r1 = await tool.execute({ content: 'Trace A' }, testContext);
+    const r2 = await tool.execute({ content: 'Trace B' }, testContext);
+    const r3 = await tool.execute({ content: 'Trace C' }, testContext);
 
     const ids = [r1.output?.traceId, r2.output?.traceId, r3.output?.traceId];
     const unique = new Set(ids);
@@ -166,7 +162,7 @@ describe('MemoryAddTool', () => {
   });
 
   it('stores content hash metadata and makes the trace searchable without an FTS rebuild', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -175,9 +171,10 @@ describe('MemoryAddTool', () => {
       testContext,
     );
 
-    const row = brain.db
-      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
-      .get(result.output!.traceId);
+    const row = await brain.get<{ metadata: string }>(
+      'SELECT metadata FROM memory_traces WHERE id = ?',
+      [result.output!.traceId],
+    );
 
     const metadata = JSON.parse(row!.metadata) as {
       content_hash?: string;
@@ -195,7 +192,7 @@ describe('MemoryAddTool', () => {
   });
 
   it('persists the resolved user scopeId from execution context metadata', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const tool = new MemoryAddTool(brain);
 
     const result = await tool.execute(
@@ -206,15 +203,16 @@ describe('MemoryAddTool', () => {
       },
     );
 
-    const row = brain.db
-      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
-      .get(result.output!.traceId);
+    const row = await brain.get<{ metadata: string }>(
+      'SELECT metadata FROM memory_traces WHERE id = ?',
+      [result.output!.traceId],
+    );
 
     expect((JSON.parse(row!.metadata) as { scopeId?: string }).scopeId).toBe('user-42');
   });
 
   it('derives persona scopeId from the active user and persona', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const tool = new MemoryAddTool(brain);
 
     const result = await tool.execute(
@@ -226,15 +224,16 @@ describe('MemoryAddTool', () => {
       },
     );
 
-    const row = brain.db
-      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
-      .get(result.output!.traceId);
+    const row = await brain.get<{ metadata: string }>(
+      'SELECT metadata FROM memory_traces WHERE id = ?',
+      [result.output!.traceId],
+    );
 
     expect((JSON.parse(row!.metadata) as { scopeId?: string }).scopeId).toBe('user-42::designer');
   });
 
   it('derives thread scopeId from sessionData conversationId', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const tool = new MemoryAddTool(brain);
 
     const result = await tool.execute(
@@ -245,9 +244,10 @@ describe('MemoryAddTool', () => {
       },
     );
 
-    const row = brain.db
-      .prepare<[string], { metadata: string }>('SELECT metadata FROM memory_traces WHERE id = ?')
-      .get(result.output!.traceId);
+    const row = await brain.get<{ metadata: string }>(
+      'SELECT metadata FROM memory_traces WHERE id = ?',
+      [result.output!.traceId],
+    );
 
     expect((JSON.parse(row!.metadata) as { scopeId?: string }).scopeId).toBe('conv-42');
   });
@@ -255,7 +255,7 @@ describe('MemoryAddTool', () => {
 
 describe('MemorySearchTool', () => {
   it('falls back to a natural-language-safe FTS query when punctuation would break raw MATCH syntax', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -274,7 +274,7 @@ describe('MemorySearchTool', () => {
   });
 
   it('restricts scoped search results to the active user scopeId', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -311,7 +311,7 @@ describe('MemorySearchTool', () => {
   });
 
   it('restricts organization-scoped results to the active organization context', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -354,7 +354,7 @@ describe('MemorySearchTool', () => {
 
 describe('MemoryUpdateTool', () => {
   it('updates the content of an existing trace and clears the embedding', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const updateTool = new MemoryUpdateTool(brain);
 
@@ -366,9 +366,10 @@ describe('MemoryUpdateTool', () => {
     const traceId = added!.traceId;
 
     // Manually plant a fake embedding so we can confirm it gets cleared.
-    brain.db
-      .prepare('UPDATE memory_traces SET embedding = ? WHERE id = ?')
-      .run(Buffer.alloc(8, 0x01), traceId);
+    await brain.run(
+      'UPDATE memory_traces SET embedding = ? WHERE id = ?',
+      [Buffer.alloc(8, 0x01), traceId],
+    );
 
     // Perform the update.
     const result = await updateTool.execute(
@@ -380,11 +381,10 @@ describe('MemoryUpdateTool', () => {
     expect(result.output?.updated).toBe(true);
 
     // Verify content changed and embedding was cleared.
-    const row = brain.db
-      .prepare<[string], { content: string; embedding: Buffer | null; metadata: string }>(
-        'SELECT content, embedding, metadata FROM memory_traces WHERE id = ?',
-      )
-      .get(traceId);
+    const row = await brain.get<{ content: string; embedding: Buffer | null; metadata: string }>(
+      'SELECT content, embedding, metadata FROM memory_traces WHERE id = ?',
+      [traceId],
+    );
 
     expect(row!.content).toBe('Updated content after reflection.');
     expect(row!.embedding).toBeNull();
@@ -392,7 +392,7 @@ describe('MemoryUpdateTool', () => {
   });
 
   it('updates tags without touching content', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const updateTool = new MemoryUpdateTool(brain);
 
@@ -410,11 +410,10 @@ describe('MemoryUpdateTool', () => {
     expect(result.success).toBe(true);
     expect(result.output?.updated).toBe(true);
 
-    const row = brain.db
-      .prepare<[string], { content: string; tags: string }>(
-        'SELECT content, tags FROM memory_traces WHERE id = ?',
-      )
-      .get(traceId);
+    const row = await brain.get<{ content: string; tags: string }>(
+      'SELECT content, tags FROM memory_traces WHERE id = ?',
+      [traceId],
+    );
 
     // Content should be unchanged.
     expect(row!.content).toBe('Stable content.');
@@ -423,7 +422,7 @@ describe('MemoryUpdateTool', () => {
   });
 
   it('returns updated=false for a non-existent trace', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const updateTool = new MemoryUpdateTool(brain);
 
     const result = await updateTool.execute(
@@ -436,7 +435,7 @@ describe('MemoryUpdateTool', () => {
   });
 
   it('returns updated=false when neither content nor tags is provided', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const updateTool = new MemoryUpdateTool(brain);
 
@@ -452,7 +451,7 @@ describe('MemoryUpdateTool', () => {
   });
 
   it('keeps search results current after a content update without rebuilding FTS', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const updateTool = new MemoryUpdateTool(brain);
     const searchTool = new MemorySearchTool(brain);
@@ -483,7 +482,7 @@ describe('MemoryUpdateTool', () => {
 
 describe('MemoryDeleteTool', () => {
   it('soft-deletes an existing trace (deleted = 1)', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const deleteTool = new MemoryDeleteTool(brain);
 
@@ -502,18 +501,17 @@ describe('MemoryDeleteTool', () => {
     expect(result.output?.deleted).toBe(true);
 
     // Verify the row still exists but is flagged as deleted.
-    const row = brain.db
-      .prepare<[string], { deleted: number }>(
-        'SELECT deleted FROM memory_traces WHERE id = ?',
-      )
-      .get(traceId);
+    const row = await brain.get<{ deleted: number }>(
+      'SELECT deleted FROM memory_traces WHERE id = ?',
+      [traceId],
+    );
 
     expect(row).toBeDefined();
     expect(row!.deleted).toBe(1);
   });
 
   it('returns deleted=false for a non-existent trace', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const deleteTool = new MemoryDeleteTool(brain);
 
     const result = await deleteTool.execute(
@@ -526,7 +524,7 @@ describe('MemoryDeleteTool', () => {
   });
 
   it('returns deleted=false when called twice on the same trace', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const deleteTool = new MemoryDeleteTool(brain);
 
@@ -547,7 +545,7 @@ describe('MemoryDeleteTool', () => {
 
 describe('MemoryMergeTool', () => {
   it('merges 2 traces — survivor has merged content, other is soft-deleted', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const mergeTool = new MemoryMergeTool(brain);
 
@@ -555,9 +553,10 @@ describe('MemoryMergeTool', () => {
     const { output: b } = await addTool.execute({ content: 'Fact B.' }, testContext);
 
     // Boost retrieval_count on trace B so it becomes the survivor.
-    brain.db
-      .prepare('UPDATE memory_traces SET retrieval_count = 5 WHERE id = ?')
-      .run(b!.traceId);
+    await brain.run(
+      'UPDATE memory_traces SET retrieval_count = 5 WHERE id = ?',
+      [b!.traceId],
+    );
 
     const result = await mergeTool.execute(
       {
@@ -572,25 +571,23 @@ describe('MemoryMergeTool', () => {
     expect(result.output?.deletedIds).toContain(a!.traceId);
 
     // Survivor has merged content.
-    const survivor = brain.db
-      .prepare<[string], { content: string; deleted: number }>(
-        'SELECT content, deleted FROM memory_traces WHERE id = ?',
-      )
-      .get(b!.traceId);
+    const survivor = await brain.get<{ content: string; deleted: number }>(
+      'SELECT content, deleted FROM memory_traces WHERE id = ?',
+      [b!.traceId],
+    );
     expect(survivor!.content).toBe('Combined fact A and B.');
     expect(survivor!.deleted).toBe(0);
 
     // Loser is soft-deleted.
-    const loser = brain.db
-      .prepare<[string], { deleted: number }>(
-        'SELECT deleted FROM memory_traces WHERE id = ?',
-      )
-      .get(a!.traceId);
+    const loser = await brain.get<{ deleted: number }>(
+      'SELECT deleted FROM memory_traces WHERE id = ?',
+      [a!.traceId],
+    );
     expect(loser!.deleted).toBe(1);
   });
 
   it('concatenates contents when mergedContent is omitted', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const mergeTool = new MemoryMergeTool(brain);
 
@@ -598,9 +595,10 @@ describe('MemoryMergeTool', () => {
     const { output: b } = await addTool.execute({ content: 'Beta' }, testContext);
 
     // Give A higher retrieval count so it is the survivor.
-    brain.db
-      .prepare('UPDATE memory_traces SET retrieval_count = 10 WHERE id = ?')
-      .run(a!.traceId);
+    await brain.run(
+      'UPDATE memory_traces SET retrieval_count = 10 WHERE id = ?',
+      [a!.traceId],
+    );
 
     const result = await mergeTool.execute(
       { traceIds: [a!.traceId, b!.traceId] },
@@ -610,11 +608,10 @@ describe('MemoryMergeTool', () => {
     expect(result.success).toBe(true);
     expect(result.output?.survivorId).toBe(a!.traceId);
 
-    const survivor = brain.db
-      .prepare<[string], { content: string }>(
-        'SELECT content FROM memory_traces WHERE id = ?',
-      )
-      .get(a!.traceId);
+    const survivor = await brain.get<{ content: string }>(
+      'SELECT content FROM memory_traces WHERE id = ?',
+      [a!.traceId],
+    );
     // Content should be "Alpha | Beta" (survivor first, then loser).
     expect(survivor!.content).toContain('Alpha');
     expect(survivor!.content).toContain('Beta');
@@ -622,7 +619,7 @@ describe('MemoryMergeTool', () => {
   });
 
   it('unions tags from all merged traces', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const mergeTool = new MemoryMergeTool(brain);
 
@@ -641,11 +638,10 @@ describe('MemoryMergeTool', () => {
     );
 
     // Determine which trace survived (higher retrieval_count; both start at 0, so first wins).
-    const survivor = brain.db
-      .prepare<[string, string], { tags: string }>(
-        'SELECT tags FROM memory_traces WHERE deleted = 0 AND id IN (?, ?)',
-      )
-      .get(a!.traceId, b!.traceId);
+    const survivor = await brain.get<{ tags: string }>(
+      'SELECT tags FROM memory_traces WHERE deleted = 0 AND id IN (?, ?)',
+      [a!.traceId, b!.traceId],
+    );
 
     const tags = JSON.parse(survivor!.tags) as string[];
     expect(tags).toContain('tag-a');
@@ -656,7 +652,7 @@ describe('MemoryMergeTool', () => {
   });
 
   it('updates survivor metadata and FTS after merge', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const mergeTool = new MemoryMergeTool(brain);
     const searchTool = new MemorySearchTool(brain);
@@ -672,13 +668,12 @@ describe('MemoryMergeTool', () => {
       testContext,
     );
 
-    const survivor = brain.db
-      .prepare<[string, string], { id: string; retrieval_count: number; metadata: string }>(
-        `SELECT id, retrieval_count, metadata
-         FROM memory_traces
-         WHERE deleted = 0 AND id IN (?, ?)`,
-      )
-      .get(a!.traceId, b!.traceId);
+    const survivor = await brain.get<{ id: string; retrieval_count: number; metadata: string }>(
+      `SELECT id, retrieval_count, metadata
+       FROM memory_traces
+       WHERE deleted = 0 AND id IN (?, ?)`,
+      [a!.traceId, b!.traceId],
+    );
 
     expect(survivor).toBeDefined();
     expect(survivor!.retrieval_count).toBe(0);
@@ -693,7 +688,7 @@ describe('MemoryMergeTool', () => {
   });
 
   it('returns error when fewer than 2 trace IDs are provided', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const mergeTool = new MemoryMergeTool(brain);
 
     const result = await mergeTool.execute(
@@ -706,7 +701,7 @@ describe('MemoryMergeTool', () => {
   });
 
   it('returns error when fewer than 2 active traces are found', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const deleteTool = new MemoryDeleteTool(brain);
     const mergeTool = new MemoryMergeTool(brain);
@@ -733,7 +728,7 @@ describe('MemoryMergeTool', () => {
 
 describe('MemorySearchTool', () => {
   it('returns traces matching the query', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -747,7 +742,7 @@ describe('MemorySearchTool', () => {
     );
 
     // Rebuild FTS index after inserts (required for external-content FTS5).
-    brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    await brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
 
     const result = await searchTool.execute(
       { query: 'TypeScript generics' },
@@ -764,7 +759,7 @@ describe('MemorySearchTool', () => {
   });
 
   it('filters results by type', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -777,7 +772,7 @@ describe('MemorySearchTool', () => {
       testContext,
     );
 
-    brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    await brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
 
     const result = await searchTool.execute(
       { query: 'database', type: 'semantic' },
@@ -791,7 +786,7 @@ describe('MemorySearchTool', () => {
   });
 
   it('filters results by scope', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -804,7 +799,7 @@ describe('MemorySearchTool', () => {
       testContext,
     );
 
-    brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    await brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
 
     const result = await searchTool.execute(
       { query: 'production', scope: 'persona' },
@@ -818,7 +813,7 @@ describe('MemorySearchTool', () => {
   });
 
   it('respects the limit argument', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const searchTool = new MemorySearchTool(brain);
 
@@ -829,7 +824,7 @@ describe('MemorySearchTool', () => {
       );
     }
 
-    brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    await brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
 
     const result = await searchTool.execute(
       { query: 'elephants', limit: 2 },
@@ -841,10 +836,10 @@ describe('MemorySearchTool', () => {
   });
 
   it('returns empty results for a query with no matches', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const searchTool = new MemorySearchTool(brain);
 
-    brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    await brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
 
     const result = await searchTool.execute(
       { query: 'xylophone_unique_term_that_never_appears' },
@@ -856,7 +851,7 @@ describe('MemorySearchTool', () => {
   });
 
   it('excludes soft-deleted traces from results', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const addTool = new MemoryAddTool(brain);
     const deleteTool = new MemoryDeleteTool(brain);
     const searchTool = new MemorySearchTool(brain);
@@ -867,7 +862,7 @@ describe('MemorySearchTool', () => {
     );
     await deleteTool.execute({ traceId: added!.traceId }, testContext);
 
-    brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+    await brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
 
     const result = await searchTool.execute(
       { query: 'deleted' },
@@ -886,7 +881,7 @@ describe('MemorySearchTool', () => {
 
 describe('MemoryReflectTool', () => {
   it('calls ConsolidationLoop.run() and returns the result', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
 
     // Mock ConsolidationLoop — only `run()` is needed.
     const mockResult: ConsolidationResult = {
@@ -911,7 +906,7 @@ describe('MemoryReflectTool', () => {
   });
 
   it('passes an optional topic argument (currently reserved — run() is still called)', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
 
     const mockLoop = {
       run: vi.fn().mockResolvedValue({
@@ -932,7 +927,7 @@ describe('MemoryReflectTool', () => {
   });
 
   it('returns an error result when ConsolidationLoop.run() throws', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
 
     const mockLoop = {
       run: vi.fn().mockRejectedValue(new Error('Consolidation exploded')),
@@ -947,7 +942,7 @@ describe('MemoryReflectTool', () => {
   });
 
   it('surfaces zero-count result when loop is already running (mutex guard)', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
 
     // Simulate the mutex guard: run() returns zeros immediately.
     const mockLoop = {

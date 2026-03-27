@@ -21,7 +21,7 @@ async function createTempDir(): Promise<string> {
 async function createMemory(overrides?: Record<string, unknown>): Promise<Memory> {
   const dir = await createTempDir();
   const dbPath = path.join(dir, 'brain.sqlite');
-  const memory = new Memory({
+  const memory = await Memory.create({
     store: 'sqlite',
     path: dbPath,
     graph: false,

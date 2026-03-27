@@ -80,14 +80,9 @@ export class MarkdownExporter {
    *   accepted for API consistency with other exporters).
    */
   async export(outputDir: string, _options?: ExportOptions): Promise<void> {
-    const db = this.brain.db;
-
-    const traces = db
-      .prepare<
-        [],
-        TraceRow
-      >('SELECT id, type, scope, content, strength, created_at, tags FROM memory_traces WHERE deleted = 0')
-      .all();
+    const traces = await this.brain.all<TraceRow>(
+      'SELECT id, type, scope, content, strength, created_at, tags FROM memory_traces WHERE deleted = 0',
+    );
 
     await Promise.all(traces.map((trace) => this._writeTrace(outputDir, trace)));
   }

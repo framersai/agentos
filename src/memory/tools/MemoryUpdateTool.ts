@@ -143,13 +143,12 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
         return { success: true, output: { updated: false } };
       }
 
-      const current = this.brain.db
-        .prepare<[string], { rowid: number; content: string; tags: string; metadata: string }>(
-          `SELECT rowid AS rowid, content, tags, metadata
-           FROM memory_traces
-           WHERE id = ? AND deleted = 0`,
-        )
-        .get(traceId);
+      const current = await this.brain.get<{ rowid: number; content: string; tags: string; metadata: string }>(
+        `SELECT rowid AS rowid, content, tags, metadata
+         FROM memory_traces
+         WHERE id = ? AND deleted = 0`,
+        [traceId],
+      );
 
       if (!current) {
         return { success: true, output: { updated: false } };
@@ -173,29 +172,25 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
              SET content = ?, tags = ?, metadata = ?
              WHERE id = ? AND deleted = 0`;
 
-      const changes = this.brain.db.transaction(() => {
-        this.brain.db
-          .prepare(
-            `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
-             VALUES ('delete', ?, ?, ?)`,
-          )
-          .run(current.rowid, current.content, current.tags);
+      const changes = await this.brain.transaction(async (trx) => {
+        await trx.run(
+          `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
+           VALUES ('delete', ?, ?, ?)`,
+          [current.rowid, current.content, current.tags],
+        );
 
-        const info = this.brain.db
-          .prepare(sql)
-          .run(nextContent, nextTags, nextMetadata, traceId) as { changes: number };
+        const info = await trx.run(sql, [nextContent, nextTags, nextMetadata, traceId]);
 
         if (info.changes > 0) {
-          this.brain.db
-            .prepare(
-              `INSERT INTO memory_traces_fts (rowid, content, tags)
-               VALUES (?, ?, ?)`,
-            )
-            .run(current.rowid, nextContent, nextTags);
+          await trx.run(
+            `INSERT INTO memory_traces_fts (rowid, content, tags)
+             VALUES (?, ?, ?)`,
+            [current.rowid, nextContent, nextTags],
+          );
         }
 
         return info.changes;
-      })();
+      });
 
       return { success: true, output: { updated: changes > 0 } };
     } catch (err) {

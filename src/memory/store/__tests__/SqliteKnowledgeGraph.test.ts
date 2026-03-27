@@ -46,19 +46,19 @@ function defaultSource(): KnowledgeSource {
 /** Tracks brains opened during each test so afterEach can close + delete them. */
 const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
 
-function createGraph(): { graph: SqliteKnowledgeGraph; brain: SqliteBrain; dbPath: string } {
+async function createGraph(): Promise<{ graph: SqliteKnowledgeGraph; brain: SqliteBrain; dbPath: string }> {
   const dbPath = tempDbPath();
-  const brain = new SqliteBrain(dbPath);
+  const brain = await SqliteBrain.open(dbPath);
   openBrains.push({ brain, dbPath });
   const graph = new SqliteKnowledgeGraph(brain);
   return { graph, brain, dbPath };
 }
 
-afterEach(() => {
+afterEach(async () => {
   while (openBrains.length > 0) {
     const entry = openBrains.pop()!;
     try {
-      entry.brain.close();
+      await entry.brain.close();
     } catch {
       // Already closed.
     }
@@ -84,7 +84,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('entity CRUD', () => {
     it('upserts a new entity with generated ID', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const entity = await graph.upsertEntity({
@@ -105,7 +105,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('upserts an entity with a provided ID', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const entity = await graph.upsertEntity({
@@ -121,7 +121,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('updates an existing entity (upsert semantics)', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const v1 = await graph.upsertEntity({
@@ -151,7 +151,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('gets an entity by ID', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const created = await graph.upsertEntity({
@@ -169,7 +169,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('returns undefined for non-existent entity', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const result = await graph.getEntity('nonexistent');
@@ -177,7 +177,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('queries entities by type', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await graph.upsertEntity({
@@ -208,7 +208,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('queries entities by textSearch', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await graph.upsertEntity({
@@ -233,7 +233,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('deletes an entity and its relations', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const alice = await graph.upsertEntity({
@@ -274,7 +274,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('deleteEntity returns false for non-existent entity', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const deleted = await graph.deleteEntity('nonexistent');
@@ -288,7 +288,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('relation CRUD', () => {
     it('upserts a new relation', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const alice = await graph.upsertEntity({
@@ -327,7 +327,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('gets relations by entity (outgoing)', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const a = await graph.upsertEntity({
@@ -355,7 +355,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('gets relations by entity (incoming)', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const a = await graph.upsertEntity({
@@ -383,7 +383,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('gets relations by entity (both directions)', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const a = await graph.upsertEntity({
@@ -410,7 +410,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('deletes a relation', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const a = await graph.upsertEntity({
@@ -439,7 +439,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('episodic memory', () => {
     it('records and retrieves a memory', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const mem = await graph.recordMemory({
@@ -462,7 +462,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('returns undefined for non-existent memory', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const result = await graph.getMemory('nonexistent');
@@ -470,7 +470,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('queries memories by type', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await graph.recordMemory({
@@ -496,7 +496,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('queries memories by timeRange', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const old = new Date('2024-01-01T00:00:00Z');
@@ -526,7 +526,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('recalls memories by keyword and updates access count', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await graph.recordMemory({
@@ -563,7 +563,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('graph traversal', () => {
     /**
-     * Helper: create a chain A → B → C → D with directed edges.
+     * Helper: create a chain A -> B -> C -> D with directed edges.
      */
     async function createChain(graph: SqliteKnowledgeGraph) {
       const entities = [];
@@ -579,7 +579,7 @@ describe('SqliteKnowledgeGraph', () => {
         entities.push(e);
       }
 
-      // A → B → C → D
+      // A -> B -> C -> D
       for (let i = 0; i < entities.length - 1; i++) {
         await graph.upsertRelation({
           sourceId: entities[i].id,
@@ -597,7 +597,7 @@ describe('SqliteKnowledgeGraph', () => {
     }
 
     it('traverses from A with maxDepth 2 — returns A, B, C only', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
       await createChain(graph);
 
@@ -623,7 +623,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('throws for non-existent start entity', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await expect(graph.traverse('nonexistent')).rejects.toThrow('Entity not found');
@@ -635,11 +635,11 @@ describe('SqliteKnowledgeGraph', () => {
   // =========================================================================
 
   describe('findPath', () => {
-    it('finds shortest path A → B → C → D', async () => {
-      const { graph } = createGraph();
+    it('finds shortest path A -> B -> C -> D', async () => {
+      const { graph } = await createGraph();
       await graph.initialize();
 
-      // Create chain A → B → C → D
+      // Create chain A -> B -> C -> D
       const entities = [];
       for (const label of ['A', 'B', 'C', 'D']) {
         const e = await graph.upsertEntity({
@@ -674,7 +674,7 @@ describe('SqliteKnowledgeGraph', () => {
     });
 
     it('returns null when no path exists', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await graph.upsertEntity({
@@ -705,10 +705,10 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('getNeighborhood', () => {
     it('returns A and C as neighbours of B at depth 1', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
-      // Chain: A → B → C → D
+      // Chain: A -> B -> C -> D
       const entities = [];
       for (const label of ['A', 'B', 'C', 'D']) {
         const e = await graph.upsertEntity({
@@ -755,7 +755,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('mergeEntities', () => {
     it('merges 3 entities — edges re-linked to primary', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const primary = await graph.upsertEntity({
@@ -842,7 +842,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('decayMemories', () => {
     it('reduces confidence of memory nodes by decay factor', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const mem = await graph.recordMemory({
@@ -869,7 +869,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('getStats', () => {
     it('returns correct counts', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       // 2 entities (non-memory).
@@ -914,7 +914,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('clear', () => {
     it('removes all data from knowledge_nodes and knowledge_edges', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       const a = await graph.upsertEntity({
@@ -951,7 +951,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('extractFromText', () => {
     it('throws with LLM requirement message', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await expect(graph.extractFromText('Some text')).rejects.toThrow(
@@ -966,7 +966,7 @@ describe('SqliteKnowledgeGraph', () => {
 
   describe('semanticSearch', () => {
     it('finds entities by keyword in label', async () => {
-      const { graph } = createGraph();
+      const { graph } = await createGraph();
       await graph.initialize();
 
       await graph.upsertEntity({

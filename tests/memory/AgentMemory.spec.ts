@@ -314,7 +314,7 @@ describe('AgentMemory', () => {
   it('sqlite() provides a ready standalone adapter over the new Memory facade', async () => {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), 'agent-memory-'));
     const brainPath = path.join(tempDir, 'brain.sqlite');
-    const memory = AgentMemory.sqlite({
+    const memory = await AgentMemory.sqlite({
       path: brainPath,
       graph: false,
       selfImprove: false,

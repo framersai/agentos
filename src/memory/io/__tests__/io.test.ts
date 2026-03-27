@@ -70,10 +70,10 @@ const openBrains: SqliteBrain[] = [];
 /**
  * Open a `SqliteBrain` at `dbPath` and register it for cleanup.
  */
-function openBrain(dbPath?: string): SqliteBrain {
+async function openBrain(dbPath?: string): Promise<SqliteBrain> {
   const p = dbPath ?? tempDb();
   if (!cleanupPaths.includes(p)) cleanupPaths.push(p);
-  const brain = new SqliteBrain(p);
+  const brain = await SqliteBrain.open(p);
   openBrains.push(brain);
   return brain;
 }
@@ -82,7 +82,7 @@ function openBrain(dbPath?: string): SqliteBrain {
  * Insert a minimal memory trace directly via SQL.
  * Returns the inserted trace ID.
  */
-function seedTrace(
+async function seedTrace(
   brain: SqliteBrain,
   overrides: {
     id?: string;
@@ -92,16 +92,14 @@ function seedTrace(
     strength?: number;
     tags?: string[];
   } = {},
-): string {
+): Promise<string> {
   const id = overrides.id ?? `mt_test_${Math.random().toString(36).slice(2)}`;
-  brain.db
-    .prepare(
-      `INSERT INTO memory_traces
+  await brain.run(
+    `INSERT INTO memory_traces
          (id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
        VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, '{}', '{}', 0)`,
-    )
-    .run(
+    [
       id,
       overrides.type ?? 'episodic',
       overrides.scope ?? 'user',
@@ -109,7 +107,8 @@ function seedTrace(
       overrides.strength ?? 0.85,
       Date.now(),
       JSON.stringify(overrides.tags ?? []),
-    );
+    ],
+  );
   return id;
 }
 
@@ -117,11 +116,11 @@ function seedTrace(
 // Lifecycle hooks
 // ---------------------------------------------------------------------------
 
-afterEach(() => {
+afterEach(async () => {
   // Close all open brains.
   while (openBrains.length > 0) {
     const b = openBrains.pop()!;
-    try { b.close(); } catch { /* already closed */ }
+    try { await b.close(); } catch { /* already closed */ }
   }
 
   // Remove temp files + directories.
@@ -149,8 +148,8 @@ afterEach(() => {
 
 describe('JsonExporter + JsonImporter', () => {
   it('round-trips memory traces through JSON', async () => {
-    const sourceBrain = openBrain();
-    const traceId = seedTrace(sourceBrain, {
+    const sourceBrain = await openBrain();
+    const traceId = await seedTrace(sourceBrain, {
       content: 'A unique episodic memory about the JSON round-trip test.',
       tags: ['json', 'test'],
     });
@@ -174,7 +173,7 @@ describe('JsonExporter + JsonImporter', () => {
     expect(exported!.content).toBe('A unique episodic memory about the JSON round-trip test.');
 
     // Import into a fresh brain.
-    const targetBrain = openBrain();
+    const targetBrain = await openBrain();
     const importer = new JsonImporter(targetBrain);
     const result = await importer.import(jsonPath);
 
@@ -182,27 +181,27 @@ describe('JsonExporter + JsonImporter', () => {
     expect(result.imported).toBeGreaterThan(0);
 
     // Verify the trace exists in the target brain.
-    const row = targetBrain.db
-      .prepare<[string], { content: string }>('SELECT content FROM memory_traces WHERE id = ?')
-      .get(traceId);
+    const row = await targetBrain.get<{ content: string }>(
+      'SELECT content FROM memory_traces WHERE id = ?',
+      [traceId],
+    );
 
     expect(row).toBeDefined();
     expect(row!.content).toBe('A unique episodic memory about the JSON round-trip test.');
   });
 
   it('includes embeddings as base64 when includeEmbeddings = true', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     // Insert a trace with a fake embedding BLOB.
     const id = `mt_embed_test`;
     const fakeEmbedding = Buffer.alloc(8, 0x42); // 8 bytes of 0x42
-    brain.db
-      .prepare(
-        `INSERT INTO memory_traces
+    await brain.run(
+      `INSERT INTO memory_traces
            (id, type, scope, content, embedding, strength, created_at,
             retrieval_count, tags, emotions, metadata, deleted)
          VALUES (?, 'semantic', 'user', 'embedding test', ?, 1.0, ?, 0, '[]', '{}', '{}', 0)`,
-      )
-      .run(id, fakeEmbedding, Date.now());
+      [id, fakeEmbedding, Date.now()],
+    );
 
     const dir = tempDir();
     const jsonPath = path.join(dir, 'export-with-embeddings.json');
@@ -227,15 +226,15 @@ describe('JsonExporter + JsonImporter', () => {
   // -------------------------------------------------------------------------
 
   it('skips duplicate traces on second import', async () => {
-    const sourceBrain = openBrain();
-    seedTrace(sourceBrain, { content: 'Dedup test trace — unique content here.' });
+    const sourceBrain = await openBrain();
+    await seedTrace(sourceBrain, { content: 'Dedup test trace — unique content here.' });
 
     const dir = tempDir();
     const jsonPath = path.join(dir, 'export.json');
 
     await new JsonExporter(sourceBrain).export(jsonPath);
 
-    const targetBrain = openBrain();
+    const targetBrain = await openBrain();
     const importer = new JsonImporter(targetBrain);
 
     const first = await importer.import(jsonPath);
@@ -252,7 +251,7 @@ describe('JsonExporter + JsonImporter', () => {
     const badPath = path.join(dir, 'bad.json');
     fs.writeFileSync(badPath, 'not-json');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new JsonImporter(brain).import(badPath);
     expect(result.errors.length).toBeGreaterThan(0);
   });
@@ -262,7 +261,7 @@ describe('JsonExporter + JsonImporter', () => {
     const badPath = path.join(dir, 'no-traces.json');
     fs.writeFileSync(badPath, JSON.stringify({ meta: {}, nodes: [] }));
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new JsonImporter(brain).import(badPath);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]).toMatch(/traces/);
@@ -275,14 +274,14 @@ describe('JsonExporter + JsonImporter', () => {
 
 describe('MarkdownExporter', () => {
   it('creates one .md file per trace in {scope}/{type}/ folder', async () => {
-    const brain = openBrain();
-    const id1 = seedTrace(brain, {
+    const brain = await openBrain();
+    const id1 = await seedTrace(brain, {
       content: 'First episodic trace',
       type: 'episodic',
       scope: 'user',
       tags: ['react', 'debugging'],
     });
-    const id2 = seedTrace(brain, {
+    const id2 = await seedTrace(brain, {
       content: 'A semantic trace',
       type: 'semantic',
       scope: 'user',
@@ -300,8 +299,8 @@ describe('MarkdownExporter', () => {
   });
 
   it('writes correct YAML front-matter fields', async () => {
-    const brain = openBrain();
-    const id = seedTrace(brain, {
+    const brain = await openBrain();
+    const id = await seedTrace(brain, {
       content: 'Memory with front-matter check',
       type: 'procedural',
       scope: 'persona',
@@ -348,18 +347,17 @@ describe('MarkdownImporter', () => {
 
     fs.writeFileSync(path.join(noteDir, 'mt_md_import_001.md'), noteContent, 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new MarkdownImporter(brain);
     const result = await importer.import(dir);
 
     expect(result.errors).toHaveLength(0);
     expect(result.imported).toBe(1);
 
-    const row = brain.db
-      .prepare<[string], { content: string; strength: number }>(
-        'SELECT content, strength FROM memory_traces WHERE id = ?',
-      )
-      .get('mt_md_import_001');
+    const row = await brain.get<{ content: string; strength: number }>(
+      'SELECT content, strength FROM memory_traces WHERE id = ?',
+      ['mt_md_import_001'],
+    );
 
     expect(row).toBeDefined();
     expect(row!.content).toContain('This is an imported trace from Markdown.');
@@ -378,7 +376,7 @@ describe('MarkdownImporter', () => {
 
     fs.writeFileSync(path.join(noteDir, 'note.md'), noteContent, 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new MarkdownImporter(brain);
 
     const first = await importer.import(dir);
@@ -390,7 +388,7 @@ describe('MarkdownImporter', () => {
   });
 
   it('handles non-existent directory gracefully', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new MarkdownImporter(brain);
     const result = await importer.import('/tmp/does-not-exist-agentos-io-test');
     // Should return 0 imported and 0 errors (walk returns empty for missing dir).
@@ -405,8 +403,8 @@ describe('MarkdownImporter', () => {
 
 describe('ObsidianExporter', () => {
   it('includes #tags in the exported file body', async () => {
-    const brain = openBrain();
-    const id = seedTrace(brain, {
+    const brain = await openBrain();
+    const id = await seedTrace(brain, {
       content: 'Obsidian note with tags',
       tags: ['philosophy', 'ai-safety'],
       scope: 'user',
@@ -424,10 +422,10 @@ describe('ObsidianExporter', () => {
   });
 
   it('includes [[wikilinks]] for related knowledge nodes', async () => {
-    const brain = openBrain();
+    const brain = await openBrain();
 
     // Create source trace.
-    const traceId = seedTrace(brain, {
+    const traceId = await seedTrace(brain, {
       content: 'Trace linked to a knowledge node',
       scope: 'user',
       type: 'episodic',
@@ -439,19 +437,17 @@ describe('ObsidianExporter', () => {
     const sourceNodeId = `kn_src_${Math.random().toString(36).slice(2)}`;
     const targetNodeId = `kn_tgt_${Math.random().toString(36).slice(2)}`;
 
-    brain.db
-      .prepare(
-        `INSERT INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
+    await brain.run(
+      `INSERT INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
          VALUES (?, 'trace', ?, '{}', 1.0, '{}', ?)`,
-      )
-      .run(sourceNodeId, `trace:${traceId}`, Date.now());
+      [sourceNodeId, `trace:${traceId}`, Date.now()],
+    );
 
-    brain.db
-      .prepare(
-        `INSERT INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
+    await brain.run(
+      `INSERT INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
          VALUES (?, 'concept', 'Python Programming', '{}', 1.0, '{}', ?)`,
-      )
-      .run(targetNodeId, Date.now());
+      [targetNodeId, Date.now()],
+    );
 
     // Edge: source trace node → target concept node.
     // The ObsidianExporter joins on source_id = traceId — we use source_id = traceId
@@ -461,24 +457,22 @@ describe('ObsidianExporter', () => {
     // knowledge_nodes. So we insert the source node with id = traceId.
     // Let's create a node whose id equals the traceId so the FK + query both work.
     const traceNodeId = traceId; // reuse trace ID as node ID for test simplicity
-    brain.db
-      .prepare(
-        `INSERT OR IGNORE INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
+    await brain.run(
+      `INSERT OR IGNORE INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
          VALUES (?, 'trace', ?, '{}', 1.0, '{}', ?)`,
-      )
-      .run(traceNodeId, `trace:${traceId}`, Date.now());
+      [traceNodeId, `trace:${traceId}`, Date.now()],
+    );
 
-    brain.db
-      .prepare(
-        `INSERT INTO knowledge_edges (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
+    await brain.run(
+      `INSERT INTO knowledge_edges (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
          VALUES (?, ?, ?, 'related_to', 1.0, 0, '{}', ?)`,
-      )
-      .run(
+      [
         `ke_test_${Math.random().toString(36).slice(2)}`,
         traceNodeId,   // source: knowledge node whose id = traceId
         targetNodeId,  // target: Python Programming concept node
         Date.now(),
-      );
+      ],
+    );
 
     const outDir = tempDir();
     await new ObsidianExporter(brain).export(outDir);
@@ -508,7 +502,7 @@ describe('ObsidianImporter', () => {
 
     fs.writeFileSync(path.join(noteDir, 'trace-with-wikilink.md'), noteContent, 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new ObsidianImporter(brain);
     const result = await importer.import(dir);
 
@@ -516,21 +510,19 @@ describe('ObsidianImporter', () => {
     expect(result.imported).toBe(1);
 
     // Verify that a knowledge_node for "Machine Learning" was created.
-    const node = brain.db
-      .prepare<[string], { id: string; label: string }>(
-        `SELECT id, label FROM knowledge_nodes WHERE label = ?`,
-      )
-      .get('Machine Learning');
+    const node = await brain.get<{ id: string; label: string }>(
+      `SELECT id, label FROM knowledge_nodes WHERE label = ?`,
+      ['Machine Learning'],
+    );
 
     expect(node).toBeDefined();
     expect(node!.label).toBe('Machine Learning');
 
     // Verify that a knowledge_edge was created.
-    const edge = brain.db
-      .prepare<[string], { id: string }>(
-        `SELECT id FROM knowledge_edges WHERE target_id = ? AND type = 'related_to'`,
-      )
-      .get(node!.id);
+    const edge = await brain.get<{ id: string }>(
+      `SELECT id FROM knowledge_edges WHERE target_id = ? AND type = 'related_to'`,
+      [node!.id],
+    );
 
     expect(edge).toBeDefined();
   });
@@ -547,17 +539,15 @@ describe('ObsidianImporter', () => {
 
     fs.writeFileSync(path.join(noteDir, 'tagged-note.md'), noteContent, 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new ObsidianImporter(brain).import(dir);
 
     expect(result.imported).toBe(1);
 
     // Find the trace and check its tags.
-    const trace = brain.db
-      .prepare<[], { id: string; tags: string }>(
-        'SELECT id, tags FROM memory_traces ORDER BY created_at DESC LIMIT 1',
-      )
-      .get();
+    const trace = await brain.get<{ id: string; tags: string }>(
+      'SELECT id, tags FROM memory_traces ORDER BY created_at DESC LIMIT 1',
+    );
 
     expect(trace).toBeDefined();
     const tags = JSON.parse(trace!.tags) as string[];
@@ -577,12 +567,13 @@ describe('ObsidianImporter', () => {
 
     fs.writeFileSync(path.join(noteDir, 'multi-wiki.md'), noteContent, 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     await new ObsidianImporter(brain).import(dir);
 
-    const edgeCount = (brain.db
-      .prepare<[], { c: number }>(`SELECT COUNT(*) as c FROM knowledge_edges`)
-      .get() as { c: number })?.c ?? 0;
+    const countRow = await brain.get<{ c: number }>(
+      `SELECT COUNT(*) as c FROM knowledge_edges`,
+    );
+    const edgeCount = countRow?.c ?? 0;
 
     // 3 wikilinks = 3 edges.
     expect(edgeCount).toBe(3);
@@ -595,8 +586,8 @@ describe('ObsidianImporter', () => {
 
 describe('SqliteExporter', () => {
   it('creates a backup SQLite file at the given path', async () => {
-    const brain = openBrain();
-    seedTrace(brain, { content: 'Data to backup' });
+    const brain = await openBrain();
+    await seedTrace(brain, { content: 'Data to backup' });
 
     const outPath = path.join(tempDir(), 'backup.sqlite');
     await new SqliteExporter(brain).export(outPath);
@@ -606,21 +597,20 @@ describe('SqliteExporter', () => {
     expect(stat.size).toBeGreaterThan(0);
   });
 
-  it('backup is a valid SQLite file readable by better-sqlite3', async () => {
-    const brain = openBrain();
-    seedTrace(brain, { content: 'Backup read test' });
+  it('backup is a valid SQLite file readable by SqliteBrain', async () => {
+    const brain = await openBrain();
+    await seedTrace(brain, { content: 'Backup read test' });
 
     const outPath = path.join(tempDir(), 'backup-readable.sqlite');
     await new SqliteExporter(brain).export(outPath);
 
     // Open the backup as a separate brain and verify data is present.
-    const backupBrain = openBrain(outPath);
+    const backupBrain = await openBrain(outPath);
 
-    const row = backupBrain.db
-      .prepare<[string], { content: string }>(
-        'SELECT content FROM memory_traces WHERE content = ? LIMIT 1',
-      )
-      .get('Backup read test');
+    const row = await backupBrain.get<{ content: string }>(
+      'SELECT content FROM memory_traces WHERE content = ? LIMIT 1',
+      ['Backup read test'],
+    );
 
     expect(row).toBeDefined();
     expect(row!.content).toBe('Backup read test');
@@ -633,8 +623,8 @@ describe('SqliteExporter', () => {
 
 describe('SqliteImporter', () => {
   it('merges traces from brain A into brain B', async () => {
-    const brainA = openBrain();
-    const idA = seedTrace(brainA, {
+    const brainA = await openBrain();
+    const idA = await seedTrace(brainA, {
       content: 'Trace from brain A for SQLite merge',
     });
 
@@ -643,26 +633,25 @@ describe('SqliteImporter', () => {
     await new SqliteExporter(brainA).export(backupPath);
 
     // Import into brand-new brain B.
-    const brainB = openBrain();
+    const brainB = await openBrain();
     const importer = new SqliteImporter(brainB);
     const result = await importer.import(backupPath);
 
     expect(result.errors).toHaveLength(0);
     expect(result.imported).toBeGreaterThan(0);
 
-    const row = brainB.db
-      .prepare<[string], { content: string }>(
-        'SELECT content FROM memory_traces WHERE id = ?',
-      )
-      .get(idA);
+    const row = await brainB.get<{ content: string }>(
+      'SELECT content FROM memory_traces WHERE id = ?',
+      [idA],
+    );
 
     expect(row).toBeDefined();
     expect(row!.content).toBe('Trace from brain A for SQLite merge');
   });
 
   it('skips duplicate traces on second import (tag union)', async () => {
-    const brainA = openBrain();
-    seedTrace(brainA, {
+    const brainA = await openBrain();
+    await seedTrace(brainA, {
       content: 'Duplicate SQLite import check',
       tags: ['original-tag'],
     });
@@ -670,7 +659,7 @@ describe('SqliteImporter', () => {
     const backupPath = path.join(tempDir(), 'brain-a-dup.sqlite');
     await new SqliteExporter(brainA).export(backupPath);
 
-    const brainB = openBrain();
+    const brainB = await openBrain();
     const importer = new SqliteImporter(brainB);
 
     const first = await importer.import(backupPath);
@@ -682,7 +671,7 @@ describe('SqliteImporter', () => {
   });
 
   it('returns an error for a non-existent source file', async () => {
-    const brainB = openBrain();
+    const brainB = await openBrain();
     const result = await new SqliteImporter(brainB).import('/tmp/no-such-file-agentos.sqlite');
     expect(result.errors.length).toBeGreaterThan(0);
   });
@@ -742,7 +731,7 @@ describe('ChatGptImporter', () => {
 
     fs.writeFileSync(jsonPath, JSON.stringify(buildMockConversations()), 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new ChatGptImporter(brain);
     const result = await importer.import(jsonPath);
 
@@ -750,13 +739,11 @@ describe('ChatGptImporter', () => {
     expect(result.imported).toBeGreaterThan(0);
 
     // Verify the trace content contains [user] + [assistant].
-    const trace = brain.db
-      .prepare<[], { content: string; type: string }>(
-        `SELECT content, type FROM memory_traces
+    const trace = await brain.get<{ content: string; type: string }>(
+      `SELECT content, type FROM memory_traces
          WHERE content LIKE '%TypeScript generics%'
          LIMIT 1`,
-      )
-      .get();
+    );
 
     expect(trace).toBeDefined();
     expect(trace!.type).toBe('episodic');
@@ -770,14 +757,13 @@ describe('ChatGptImporter', () => {
 
     fs.writeFileSync(jsonPath, JSON.stringify(buildMockConversations()), 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     await new ChatGptImporter(brain).import(jsonPath);
 
-    const convo = brain.db
-      .prepare<[string], { title: string }>(
-        `SELECT title FROM conversations WHERE title = ? LIMIT 1`,
-      )
-      .get('Discussion about TypeScript generics');
+    const convo = await brain.get<{ title: string }>(
+      `SELECT title FROM conversations WHERE title = ? LIMIT 1`,
+      ['Discussion about TypeScript generics'],
+    );
 
     expect(convo).toBeDefined();
     expect(convo!.title).toBe('Discussion about TypeScript generics');
@@ -788,7 +774,7 @@ describe('ChatGptImporter', () => {
     const jsonPath = path.join(dir, 'conversations.json');
     fs.writeFileSync(jsonPath, JSON.stringify(buildMockConversations()), 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new ChatGptImporter(brain);
 
     const first = await importer.import(jsonPath);
@@ -804,7 +790,7 @@ describe('ChatGptImporter', () => {
     const jsonPath = path.join(dir, 'conversations.json');
     fs.writeFileSync(jsonPath, '[]', 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new ChatGptImporter(brain).import(jsonPath);
 
     expect(result.imported).toBe(0);
@@ -817,7 +803,7 @@ describe('ChatGptImporter', () => {
     const jsonPath = path.join(dir, 'conversations.json');
     fs.writeFileSync(jsonPath, 'not-json', 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new ChatGptImporter(brain).import(jsonPath);
     expect(result.errors.length).toBeGreaterThan(0);
   });
@@ -827,7 +813,7 @@ describe('ChatGptImporter', () => {
     const jsonPath = path.join(dir, 'conversations.json');
     fs.writeFileSync(jsonPath, JSON.stringify({ title: 'oops' }), 'utf8');
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new ChatGptImporter(brain).import(jsonPath);
     expect(result.errors.length).toBeGreaterThan(0);
   });
@@ -852,19 +838,17 @@ describe('CsvImporter', () => {
       'utf8',
     );
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const result = await new CsvImporter(brain).import(csvPath);
 
     expect(result.errors).toHaveLength(0);
     expect(result.imported).toBe(2);
 
-    const rows = brain.db
-      .prepare<[], { content: string; type: string; scope: string; tags: string }>(
-        `SELECT content, type, scope, tags
+    const rows = await brain.all<{ content: string; type: string; scope: string; tags: string }>(
+      `SELECT content, type, scope, tags
          FROM memory_traces
          ORDER BY content`,
-      )
-      .all();
+    );
 
     expect(rows).toHaveLength(2);
     expect(rows[0]?.content).toBe('Alpha note about butterflies');
@@ -886,7 +870,7 @@ describe('CsvImporter', () => {
       'utf8',
     );
 
-    const brain = openBrain();
+    const brain = await openBrain();
     const importer = new CsvImporter(brain);
 
     const first = await importer.import(csvPath);

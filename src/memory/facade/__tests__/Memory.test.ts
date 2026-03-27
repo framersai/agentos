@@ -58,9 +58,9 @@ function tempDb(): string {
 /**
  * Create a Memory instance and register it for cleanup.
  */
-function createMemory(overrides?: Record<string, unknown>): Memory {
+async function createMemory(overrides?: Record<string, unknown>): Promise<Memory> {
   const dbPath = tempDb();
-  const mem = new Memory({
+  const mem = await Memory.create({
     store: 'sqlite',
     path: dbPath,
     graph: true,
@@ -112,7 +112,7 @@ describe('Memory facade', () => {
   // 1. remember + recall
   // -----------------------------------------------------------------------
   it('should remember and recall a memory trace', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     const trace = await mem.remember('cats are great pets', { tags: ['animals'] });
 
@@ -128,7 +128,7 @@ describe('Memory facade', () => {
   });
 
   it('should deduplicate repeated remember() calls by content hash within the same type and scope', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     const first = await mem.remember('The user prefers keyboard shortcuts.', {
       type: 'semantic',
@@ -150,7 +150,7 @@ describe('Memory facade', () => {
   });
 
   it('should allow the same content to exist in different scopes', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     const userTrace = await mem.remember('The user prefers keyboard shortcuts.', {
       type: 'semantic',
@@ -182,7 +182,7 @@ describe('Memory facade', () => {
   });
 
   it('should update retrieval metadata on recall and support scopeId filtering', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('Scoped trace for user alpha', {
       scope: 'user',
@@ -209,7 +209,7 @@ describe('Memory facade', () => {
   });
 
   it('should sanitize natural-language recall queries before hitting FTS5', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('User preference: command palettes and keyboard shortcuts.', {
       type: 'semantic',
@@ -231,7 +231,7 @@ describe('Memory facade', () => {
 
   it('should persist decay state across Memory restarts', async () => {
     const dbPath = tempDb();
-    const first = createMemory({ path: dbPath });
+    const first = await createMemory({ path: dbPath });
 
     await first.remember('Persistent stability test trace');
 
@@ -241,7 +241,7 @@ describe('Memory facade', () => {
 
     await first.close();
 
-    const second = new Memory({
+    const second = await Memory.create({
       store: 'sqlite',
       path: dbPath,
       graph: true,
@@ -260,7 +260,7 @@ describe('Memory facade', () => {
   // 2. forget
   // -----------------------------------------------------------------------
   it('should forget a trace so recall returns empty', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     const trace = await mem.remember('dogs love walks');
     await mem.forget(trace.id);
@@ -275,7 +275,7 @@ describe('Memory facade', () => {
   // 3. ingest file
   // -----------------------------------------------------------------------
   it('should ingest a .txt file and create chunks', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const dir = tempDir();
     const filePath = path.join(dir, 'notes.txt');
 
@@ -292,7 +292,7 @@ describe('Memory facade', () => {
   });
 
   it('should ingest a URL using UrlLoader', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const mockFetch = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -317,7 +317,7 @@ describe('Memory facade', () => {
   });
 
   it('should deduplicate repeated document ingestion by document content hash', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const dir = tempDir();
     const filePath = path.join(dir, 'dedup.txt');
     await fsp.writeFile(filePath, 'Repeated document content for dedup test. '.repeat(20), 'utf8');
@@ -337,7 +337,7 @@ describe('Memory facade', () => {
   // 4. ingest directory
   // -----------------------------------------------------------------------
   it('should ingest a directory with 2 .md files', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const dir = tempDir();
 
     await fsp.writeFile(
@@ -363,7 +363,7 @@ describe('Memory facade', () => {
   // 5. export JSON + import JSON round-trip
   // -----------------------------------------------------------------------
   it('should export to JSON and import into a fresh Memory', async () => {
-    const mem1 = createMemory();
+    const mem1 = await createMemory();
 
     await mem1.remember('fact one: water boils at 100C');
     await mem1.remember('fact two: the sky is blue');
@@ -377,7 +377,7 @@ describe('Memory facade', () => {
     expect(fs.existsSync(jsonPath)).toBe(true);
 
     // Import into a fresh Memory.
-    const mem2 = createMemory();
+    const mem2 = await createMemory();
     const result = await mem2.importFrom(jsonPath, { format: 'json' });
 
     expect(result.imported).toBeGreaterThanOrEqual(3);
@@ -388,7 +388,7 @@ describe('Memory facade', () => {
   });
 
   it('should import CSV via the Memory facade', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const dir = tempDir();
     const csvPath = path.join(dir, 'memories.csv');
 
@@ -415,7 +415,7 @@ describe('Memory facade', () => {
   // 6. export Markdown
   // -----------------------------------------------------------------------
   it('should export to Markdown directory with .md files', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('Markdown export test content', {
       type: 'semantic',
@@ -437,7 +437,7 @@ describe('Memory facade', () => {
   // 7. consolidate
   // -----------------------------------------------------------------------
   it('should consolidate 5 traces and return a ConsolidationResult', async () => {
-    const mem = createMemory({ selfImprove: true });
+    const mem = await createMemory({ selfImprove: true });
 
     for (let i = 0; i < 5; i++) {
       await mem.remember(`consolidation test trace number ${i}`);
@@ -459,13 +459,13 @@ describe('Memory facade', () => {
   // 7b. consolidate throws when disabled
   // -----------------------------------------------------------------------
   it('should throw when consolidate is called with selfImprove disabled', async () => {
-    const mem = createMemory({ selfImprove: false });
+    const mem = await createMemory({ selfImprove: false });
 
     await expect(mem.consolidate()).rejects.toThrow('self-improvement is disabled');
   });
 
-  it('should create runtime memory tools including memory_reflect when self-improvement is enabled', () => {
-    const mem = createMemory({ selfImprove: true });
+  it('should create runtime memory tools including memory_reflect when self-improvement is enabled', async () => {
+    const mem = await createMemory({ selfImprove: true });
 
     const names = mem.createTools().map((tool) => tool.name);
 
@@ -479,8 +479,8 @@ describe('Memory facade', () => {
     ]);
   });
 
-  it('should omit memory_reflect from runtime tools when self-improvement is disabled', () => {
-    const mem = createMemory({ selfImprove: false });
+  it('should omit memory_reflect from runtime tools when self-improvement is disabled', async () => {
+    const mem = await createMemory({ selfImprove: false });
 
     const names = mem.createTools().map((tool) => tool.name);
 
@@ -497,7 +497,7 @@ describe('Memory facade', () => {
   // 8. health
   // -----------------------------------------------------------------------
   it('should return correct health counts', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('health check trace A');
     await mem.remember('health check trace B');
@@ -520,7 +520,7 @@ describe('Memory facade', () => {
   // 9. close
   // -----------------------------------------------------------------------
   it('should close without errors', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     await mem.remember('close test trace');
 
     // close() should resolve without throwing.
@@ -528,26 +528,26 @@ describe('Memory facade', () => {
   });
 
   it('should throw for unsupported non-sqlite stores', async () => {
-    expect(() => new Memory({ store: 'memory' })).toThrow(/only the SQLite-backed facade/i);
+    await expect(Memory.create({ store: 'memory' })).rejects.toThrow(/only the SQLite-backed facade/i);
   });
 
   // -----------------------------------------------------------------------
   // Bonus: feedback does not throw
   // -----------------------------------------------------------------------
   it('should record feedback without throwing', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const trace = await mem.remember('feedback test content');
 
-    // feedback() is fire-and-forget -- should not throw.
-    expect(() => mem.feedback(trace.id, 'used')).not.toThrow();
-    expect(() => mem.feedback(trace.id, 'ignored')).not.toThrow();
+    // feedback() is now async — should not reject.
+    await expect(mem.feedback(trace.id, 'used')).resolves.toBeUndefined();
+    await expect(mem.feedback(trace.id, 'ignored')).resolves.toBeUndefined();
   });
 
   // -----------------------------------------------------------------------
   // Bonus: addEntity and addRelation
   // -----------------------------------------------------------------------
   it('should add entities and relations to the knowledge graph', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     const entity1 = await mem.addEntity({
       type: 'person',

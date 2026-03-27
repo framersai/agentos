@@ -15,7 +15,10 @@
  * - `retrieval_feedback`  → Hebbian reinforcement ("neurons that fire together wire together")
  *
  * ## Storage design choices
- * - **WAL mode**: allows concurrent reads during writes (important for multi-subsystem access).
+ * - **Cross-platform**: Uses `@framers/sql-storage-adapter` StorageAdapter interface,
+ *   enabling browser (IndexedDB/sql.js), mobile (Capacitor), and Postgres backends
+ *   in addition to the default Node.js better-sqlite3 path.
+ * - **WAL mode**: allows concurrent reads during writes (when adapter supports it).
  * - **FTS5 with Porter tokenizer**: enables fast full-text search over memory content with
  *   morphological stemming (retrieval cue → "retriev*").
  * - **Embeddings as BLOBs**: raw Float32Array buffers stored directly — no external vector DB
@@ -26,7 +29,12 @@
  * @module memory/store/SqliteBrain
  */
 
-import Database from 'better-sqlite3';
+import type {
+  StorageAdapter,
+  StorageRunResult,
+  StorageParameters,
+} from '@framers/sql-storage-adapter';
+import { resolveStorageAdapter } from '@framers/sql-storage-adapter';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -270,46 +278,62 @@ CREATE TABLE IF NOT EXISTS messages (
 // ---------------------------------------------------------------------------
 
 /**
- * Unified SQLite connection manager for a single agent's persistent brain.
+ * Unified cross-platform connection manager for a single agent's persistent brain.
+ *
+ * Uses the `StorageAdapter` interface from `@framers/sql-storage-adapter` to
+ * support multiple backends (better-sqlite3, sql.js, IndexedDB, Postgres, etc.)
+ * transparently. All methods are async.
  *
  * **Usage:**
  * ```ts
- * const brain = new SqliteBrain('/path/to/agent/brain.sqlite');
+ * const brain = await SqliteBrain.open('/path/to/agent/brain.sqlite');
  *
- * // Direct DB access for subsystems
- * const row = brain.db.prepare('SELECT * FROM memory_traces WHERE id = ?').get(id);
+ * // Async query API for subsystems
+ * const row = await brain.get<{ value: string }>('SELECT value FROM brain_meta WHERE key = ?', ['schema_version']);
  *
  * // Meta helpers
- * brain.setMeta('last_sync', Date.now().toString());
- * const ver = brain.getMeta('schema_version'); // '1'
+ * await brain.setMeta('last_sync', Date.now().toString());
+ * const ver = await brain.getMeta('schema_version'); // '1'
  *
- * brain.close();
+ * await brain.close();
  * ```
  *
- * Subsystems (MemoryTraceRepository, KnowledgeGraphStore, DocumentChunkStore, etc.)
- * receive the `SqliteBrain` instance and call `brain.db` directly to prepare
- * statements — this avoids redundant connection overhead across subsystems.
+ * Subsystems (KnowledgeGraph, MemoryGraph, ConsolidationLoop, etc.)
+ * receive the `SqliteBrain` instance and call its async proxy methods
+ * (`run`, `get`, `all`, `exec`, `transaction`) for all database operations.
  */
 export class SqliteBrain {
   /**
-   * The raw `better-sqlite3` database handle.
-   *
-   * Exposed as `readonly` so subsystems can prepare their own statements
-   * without going through an intermediary layer. `better-sqlite3` is
-   * synchronous and thread-safe for single-writer, multi-reader scenarios.
+   * The cross-platform storage adapter backing this brain.
+   * Not exposed publicly — consumers use the async proxy methods instead.
    */
-  public readonly db: Database.Database;
+  private readonly _adapter: StorageAdapter;
 
   // ---------------------------------------------------------------------------
-  // Constructor
+  // Constructor (private — use SqliteBrain.open())
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Private constructor — use `SqliteBrain.open(dbPath)` instead.
+   *
+   * @param adapter - A fully initialised StorageAdapter instance.
+   */
+  private constructor(adapter: StorageAdapter) {
+    this._adapter = adapter;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Async factory
   // ---------------------------------------------------------------------------
 
   /**
    * Create or open the agent's brain database at `dbPath`.
    *
+   * Async factory that replaces the previous synchronous constructor.
+   *
    * Initialization sequence:
-   * 1. Open (or create) the SQLite file.
-   * 2. Enable WAL journal mode for concurrent read access.
+   * 1. Resolve the best available storage adapter for the current runtime.
+   * 2. Enable WAL journal mode for concurrent read access (when supported).
    * 3. Enable foreign key enforcement (OFF by default in SQLite).
    * 4. Execute the full DDL schema (all `CREATE TABLE IF NOT EXISTS`).
    * 5. Create the FTS5 virtual table for full-text memory search.
@@ -317,24 +341,104 @@ export class SqliteBrain {
    *
    * @param dbPath - Absolute path to the `.sqlite` file. The file is created
    *   if it does not exist; parent directories must already exist.
+   * @returns A fully initialised `SqliteBrain` instance.
    */
-  constructor(dbPath: string) {
-    this.db = new Database(dbPath);
+  static async open(dbPath: string): Promise<SqliteBrain> {
+    const adapter = await resolveStorageAdapter({
+      filePath: dbPath,
+      priority: ['better-sqlite3', 'sqljs', 'indexeddb'],
+      quiet: true,
+    });
+
+    const brain = new SqliteBrain(adapter);
 
     // Step 1: WAL mode — allows concurrent reads while a write is in progress.
     // Critical for multi-subsystem access patterns (consolidator + retriever + encoder
     // all touching the same file simultaneously).
-    this.db.pragma('journal_mode = WAL');
+    if (adapter.capabilities.has('wal')) {
+      await adapter.exec('PRAGMA journal_mode = WAL');
+    }
 
     // Step 2: Foreign key enforcement — SQLite disables FK checks by default.
     // We want referential integrity between chunks↔documents, edges↔nodes, etc.
-    this.db.pragma('foreign_keys = ON');
+    await adapter.exec('PRAGMA foreign_keys = ON');
 
     // Step 3: Apply full schema in a single transaction for atomicity.
-    this._initSchema();
+    await brain._initSchema();
 
     // Step 4: Seed brain_meta defaults if this is a fresh database.
-    this._seedMeta();
+    await brain._seedMeta();
+
+    return brain;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Async proxy methods (for consumer subsystems)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Execute a mutation statement (INSERT, UPDATE, DELETE).
+   *
+   * @param sql    - SQL statement with `?` positional placeholders.
+   * @param params - Parameter array matching the placeholders.
+   * @returns Metadata about affected rows.
+   */
+  async run(sql: string, params?: StorageParameters): Promise<StorageRunResult> {
+    return this._adapter.run(sql, params);
+  }
+
+  /**
+   * Retrieve a single row (or null if none found).
+   *
+   * @param sql    - SQL SELECT statement.
+   * @param params - Parameter array.
+   * @returns First matching row or null.
+   */
+  async get<T = unknown>(sql: string, params?: StorageParameters): Promise<T | null> {
+    return this._adapter.get<T>(sql, params);
+  }
+
+  /**
+   * Retrieve all rows matching the statement.
+   *
+   * @param sql    - SQL SELECT statement.
+   * @param params - Parameter array.
+   * @returns Array of matching rows (empty array if none).
+   */
+  async all<T = unknown>(sql: string, params?: StorageParameters): Promise<T[]> {
+    return this._adapter.all<T>(sql, params);
+  }
+
+  /**
+   * Execute a script containing multiple SQL statements.
+   *
+   * @param sql - SQL script (semicolon-delimited statements).
+   */
+  async exec(sql: string): Promise<void> {
+    return this._adapter.exec(sql);
+  }
+
+  /**
+   * Execute a callback within a database transaction.
+   *
+   * The transaction is automatically committed on success or rolled back
+   * on error.
+   *
+   * @param fn - Async callback receiving a transactional adapter.
+   * @returns Result of the callback.
+   */
+  async transaction<T>(fn: (trx: StorageAdapter) => Promise<T>): Promise<T> {
+    return this._adapter.transaction(fn);
+  }
+
+  /**
+   * Expose the raw storage adapter for advanced usage.
+   *
+   * Primarily used by SqliteExporter (VACUUM INTO) and SqliteImporter
+   * (which needs direct adapter access for the target brain).
+   */
+  get adapter(): StorageAdapter {
+    return this._adapter;
   }
 
   // ---------------------------------------------------------------------------
@@ -346,41 +450,39 @@ export class SqliteBrain {
    * `CREATE TABLE IF NOT EXISTS` is idempotent, so re-running on an existing
    * database is safe — no data is lost.
    */
-  private _initSchema(): void {
-    const initTx = this.db.transaction(() => {
-      this.db.exec(DDL_BRAIN_META);
-      this.db.exec(DDL_MEMORY_TRACES);
-      this.db.exec(DDL_KNOWLEDGE_NODES);
-      this.db.exec(DDL_KNOWLEDGE_EDGES);
-      this.db.exec(DDL_DOCUMENTS);
-      this.db.exec(DDL_DOCUMENT_CHUNKS);
-      this.db.exec(DDL_DOCUMENT_IMAGES);
-      this.db.exec(DDL_CONSOLIDATION_LOG);
-      this.db.exec(DDL_RETRIEVAL_FEEDBACK);
-      this.db.exec(DDL_CONVERSATIONS);
-      this.db.exec(DDL_MESSAGES);
+  private async _initSchema(): Promise<void> {
+    await this._adapter.transaction(async (trx) => {
+      await trx.exec(DDL_BRAIN_META);
+      await trx.exec(DDL_MEMORY_TRACES);
+      await trx.exec(DDL_KNOWLEDGE_NODES);
+      await trx.exec(DDL_KNOWLEDGE_EDGES);
+      await trx.exec(DDL_DOCUMENTS);
+      await trx.exec(DDL_DOCUMENT_CHUNKS);
+      await trx.exec(DDL_DOCUMENT_IMAGES);
+      await trx.exec(DDL_CONSOLIDATION_LOG);
+      await trx.exec(DDL_RETRIEVAL_FEEDBACK);
+      await trx.exec(DDL_CONVERSATIONS);
+      await trx.exec(DDL_MESSAGES);
       // FTS5 virtual table (must be last; depends on memory_traces existing)
-      this.db.exec(DDL_MEMORY_TRACES_FTS);
+      await trx.exec(DDL_MEMORY_TRACES_FTS);
     });
-
-    initTx();
   }
 
   /**
    * Seed `brain_meta` with mandatory keys on first creation.
    * Uses INSERT OR IGNORE to be idempotent on subsequent opens.
    */
-  private _seedMeta(): void {
-    const insert = this.db.prepare(
-      `INSERT OR IGNORE INTO brain_meta (key, value) VALUES (?, ?)`,
-    );
-
-    const seedTx = this.db.transaction(() => {
-      insert.run('schema_version', SCHEMA_VERSION);
-      insert.run('created_at', Date.now().toString());
+  private async _seedMeta(): Promise<void> {
+    await this._adapter.transaction(async (trx) => {
+      await trx.run(
+        'INSERT OR IGNORE INTO brain_meta (key, value) VALUES (?, ?)',
+        ['schema_version', SCHEMA_VERSION],
+      );
+      await trx.run(
+        'INSERT OR IGNORE INTO brain_meta (key, value) VALUES (?, ?)',
+        ['created_at', Date.now().toString()],
+      );
     });
-
-    seedTx();
   }
 
   // ---------------------------------------------------------------------------
@@ -393,10 +495,11 @@ export class SqliteBrain {
    * @param key - The metadata key to look up.
    * @returns The stored string value, or `undefined` if the key does not exist.
    */
-  getMeta(key: string): string | undefined {
-    const row = this.db
-      .prepare<[string], { value: string }>('SELECT value FROM brain_meta WHERE key = ?')
-      .get(key);
+  async getMeta(key: string): Promise<string | undefined> {
+    const row = await this._adapter.get<{ value: string }>(
+      'SELECT value FROM brain_meta WHERE key = ?',
+      [key],
+    );
 
     return row?.value;
   }
@@ -410,10 +513,11 @@ export class SqliteBrain {
    * @param key   - The metadata key.
    * @param value - The string value to store.
    */
-  setMeta(key: string, value: string): void {
-    this.db
-      .prepare('INSERT OR REPLACE INTO brain_meta (key, value) VALUES (?, ?)')
-      .run(key, value);
+  async setMeta(key: string, value: string): Promise<void> {
+    await this._adapter.run(
+      'INSERT OR REPLACE INTO brain_meta (key, value) VALUES (?, ?)',
+      [key, value],
+    );
   }
 
   /**
@@ -429,12 +533,12 @@ export class SqliteBrain {
    * @param dimensions - The embedding vector length to check (e.g. 1536 for OpenAI ada-002).
    * @returns `true` if compatible (or no prior value), `false` on mismatch.
    */
-  checkEmbeddingCompat(dimensions: number): boolean {
-    const stored = this.getMeta('embedding_dimensions');
+  async checkEmbeddingCompat(dimensions: number): Promise<boolean> {
+    const stored = await this.getMeta('embedding_dimensions');
 
     if (stored === undefined) {
       // First embedding model encounter — store and accept.
-      this.setMeta('embedding_dimensions', String(dimensions));
+      await this.setMeta('embedding_dimensions', String(dimensions));
       return true;
     }
 
@@ -448,7 +552,7 @@ export class SqliteBrain {
    * the file lock. Failing to close may leave the database in WAL mode with
    * an unconsumed WAL file.
    */
-  close(): void {
-    this.db.close();
+  async close(): Promise<void> {
+    await this._adapter.close();
   }
 }

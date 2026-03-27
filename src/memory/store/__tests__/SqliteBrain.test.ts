@@ -32,19 +32,19 @@ function tempDbPath(): string {
 /** Tracks brains opened during each test so afterEach can close + delete them. */
 const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
 
-function openBrain(dbPath?: string): { brain: SqliteBrain; dbPath: string } {
+async function openBrain(dbPath?: string): Promise<{ brain: SqliteBrain; dbPath: string }> {
   const p = dbPath ?? tempDbPath();
-  const brain = new SqliteBrain(p);
+  const brain = await SqliteBrain.open(p);
   openBrains.push({ brain, dbPath: p });
   return { brain, dbPath: p };
 }
 
-afterEach(() => {
+afterEach(async () => {
   // Close all brains opened in this test and delete the temp files.
   while (openBrains.length > 0) {
     const entry = openBrains.pop()!;
     try {
-      entry.brain.close();
+      await entry.brain.close();
     } catch {
       // Already closed — ignore.
     }
@@ -72,15 +72,13 @@ describe('SqliteBrain', () => {
   // -------------------------------------------------------------------------
 
   describe('schema initialisation', () => {
-    it('creates all expected tables', () => {
-      const { brain } = openBrain();
+    it('creates all expected tables', async () => {
+      const { brain } = await openBrain();
 
       // Query sqlite_master for all user-created tables and virtual tables.
-      const rows = brain.db
-        .prepare<[], { name: string }>(
-          `SELECT name FROM sqlite_master WHERE type IN ('table', 'shadow') ORDER BY name`,
-        )
-        .all();
+      const rows = await brain.all<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type IN ('table', 'shadow') ORDER BY name`,
+      );
 
       const tableNames = new Set(rows.map((r) => r.name));
 
@@ -103,45 +101,25 @@ describe('SqliteBrain', () => {
       }
     });
 
-    it('creates the memory_traces_fts virtual table', () => {
-      const { brain } = openBrain();
+    it('creates the memory_traces_fts virtual table', async () => {
+      const { brain } = await openBrain();
 
-      const row = brain.db
-        .prepare<[], { name: string }>(
-          `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_traces_fts'`,
-        )
-        .get();
+      const row = await brain.get<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_traces_fts'`,
+      );
 
       expect(row).toBeDefined();
       expect(row?.name).toBe('memory_traces_fts');
     });
 
-    it('is idempotent — re-opening the same file does not throw', () => {
+    it('is idempotent — re-opening the same file does not throw', async () => {
       const dbPath = tempDbPath();
-      const { brain: first } = openBrain(dbPath);
-      first.close();
+      const { brain: first } = await openBrain(dbPath);
+      await first.close();
 
       // Open again — should not throw (CREATE TABLE IF NOT EXISTS).
-      expect(() => {
-        const brain2 = new SqliteBrain(dbPath);
-        openBrains.push({ brain: brain2, dbPath });
-      }).not.toThrow();
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // WAL mode
-  // -------------------------------------------------------------------------
-
-  describe('WAL mode', () => {
-    it('enables WAL journal mode', () => {
-      const { brain } = openBrain();
-
-      const row = brain.db
-        .prepare<[], { journal_mode: string }>('PRAGMA journal_mode')
-        .get();
-
-      expect(row?.journal_mode).toBe('wal');
+      const brain2 = await SqliteBrain.open(dbPath);
+      openBrains.push({ brain: brain2, dbPath });
     });
   });
 
@@ -150,30 +128,30 @@ describe('SqliteBrain', () => {
   // -------------------------------------------------------------------------
 
   describe('getMeta / setMeta', () => {
-    it('returns undefined for unknown keys', () => {
-      const { brain } = openBrain();
-      expect(brain.getMeta('nonexistent_key')).toBeUndefined();
+    it('returns undefined for unknown keys', async () => {
+      const { brain } = await openBrain();
+      expect(await brain.getMeta('nonexistent_key')).toBeUndefined();
     });
 
-    it('stores and retrieves a value', () => {
-      const { brain } = openBrain();
-      brain.setMeta('test_key', 'hello_world');
-      expect(brain.getMeta('test_key')).toBe('hello_world');
+    it('stores and retrieves a value', async () => {
+      const { brain } = await openBrain();
+      await brain.setMeta('test_key', 'hello_world');
+      expect(await brain.getMeta('test_key')).toBe('hello_world');
     });
 
-    it('overwrites an existing value (upsert semantics)', () => {
-      const { brain } = openBrain();
-      brain.setMeta('overwrite_me', 'first');
-      brain.setMeta('overwrite_me', 'second');
-      expect(brain.getMeta('overwrite_me')).toBe('second');
+    it('overwrites an existing value (upsert semantics)', async () => {
+      const { brain } = await openBrain();
+      await brain.setMeta('overwrite_me', 'first');
+      await brain.setMeta('overwrite_me', 'second');
+      expect(await brain.getMeta('overwrite_me')).toBe('second');
     });
 
-    it('preserves independent keys', () => {
-      const { brain } = openBrain();
-      brain.setMeta('key_a', 'alpha');
-      brain.setMeta('key_b', 'beta');
-      expect(brain.getMeta('key_a')).toBe('alpha');
-      expect(brain.getMeta('key_b')).toBe('beta');
+    it('preserves independent keys', async () => {
+      const { brain } = await openBrain();
+      await brain.setMeta('key_a', 'alpha');
+      await brain.setMeta('key_b', 'beta');
+      expect(await brain.getMeta('key_a')).toBe('alpha');
+      expect(await brain.getMeta('key_b')).toBe('beta');
     });
   });
 
@@ -182,17 +160,17 @@ describe('SqliteBrain', () => {
   // -------------------------------------------------------------------------
 
   describe('schema version', () => {
-    it('sets schema_version to "1" on first creation', () => {
-      const { brain } = openBrain();
-      expect(brain.getMeta('schema_version')).toBe('1');
+    it('sets schema_version to "1" on first creation', async () => {
+      const { brain } = await openBrain();
+      expect(await brain.getMeta('schema_version')).toBe('1');
     });
 
-    it('sets created_at on first creation', () => {
+    it('sets created_at on first creation', async () => {
       const before = Date.now();
-      const { brain } = openBrain();
+      const { brain } = await openBrain();
       const after = Date.now();
 
-      const raw = brain.getMeta('created_at');
+      const raw = await brain.getMeta('created_at');
       expect(raw).toBeDefined();
 
       const ts = parseInt(raw!, 10);
@@ -200,15 +178,15 @@ describe('SqliteBrain', () => {
       expect(ts).toBeLessThanOrEqual(after);
     });
 
-    it('does not overwrite schema_version on re-open', () => {
+    it('does not overwrite schema_version on re-open', async () => {
       const dbPath = tempDbPath();
-      const { brain: first } = openBrain(dbPath);
-      first.close();
+      const { brain: first } = await openBrain(dbPath);
+      await first.close();
 
       // Re-open — schema_version must still be '1' (INSERT OR IGNORE in _seedMeta).
-      const brain2 = new SqliteBrain(dbPath);
+      const brain2 = await SqliteBrain.open(dbPath);
       openBrains.push({ brain: brain2, dbPath });
-      expect(brain2.getMeta('schema_version')).toBe('1');
+      expect(await brain2.getMeta('schema_version')).toBe('1');
     });
   });
 
@@ -217,54 +195,53 @@ describe('SqliteBrain', () => {
   // -------------------------------------------------------------------------
 
   describe('checkEmbeddingCompat', () => {
-    it('returns true when no embedding_dimensions stored yet', () => {
-      const { brain } = openBrain();
+    it('returns true when no embedding_dimensions stored yet', async () => {
+      const { brain } = await openBrain();
       // No prior call — should accept any dimension.
-      expect(brain.checkEmbeddingCompat(1536)).toBe(true);
+      expect(await brain.checkEmbeddingCompat(1536)).toBe(true);
     });
 
-    it('stores the dimension after the first call', () => {
-      const { brain } = openBrain();
-      brain.checkEmbeddingCompat(768);
-      expect(brain.getMeta('embedding_dimensions')).toBe('768');
+    it('stores the dimension after the first call', async () => {
+      const { brain } = await openBrain();
+      await brain.checkEmbeddingCompat(768);
+      expect(await brain.getMeta('embedding_dimensions')).toBe('768');
     });
 
-    it('returns true when dimensions match the stored value', () => {
-      const { brain } = openBrain();
-      brain.checkEmbeddingCompat(1536);      // stores 1536
-      expect(brain.checkEmbeddingCompat(1536)).toBe(true);
+    it('returns true when dimensions match the stored value', async () => {
+      const { brain } = await openBrain();
+      await brain.checkEmbeddingCompat(1536);      // stores 1536
+      expect(await brain.checkEmbeddingCompat(1536)).toBe(true);
     });
 
-    it('returns false on dimension mismatch', () => {
-      const { brain } = openBrain();
-      brain.checkEmbeddingCompat(1536);      // stores 1536
-      expect(brain.checkEmbeddingCompat(768)).toBe(false);
+    it('returns false on dimension mismatch', async () => {
+      const { brain } = await openBrain();
+      await brain.checkEmbeddingCompat(1536);      // stores 1536
+      expect(await brain.checkEmbeddingCompat(768)).toBe(false);
     });
 
-    it('does not overwrite the stored dimension on mismatch', () => {
-      const { brain } = openBrain();
-      brain.checkEmbeddingCompat(1536);
-      brain.checkEmbeddingCompat(768);       // mismatch — should NOT update stored value
-      expect(brain.getMeta('embedding_dimensions')).toBe('1536');
+    it('does not overwrite the stored dimension on mismatch', async () => {
+      const { brain } = await openBrain();
+      await brain.checkEmbeddingCompat(1536);
+      await brain.checkEmbeddingCompat(768);       // mismatch — should NOT update stored value
+      expect(await brain.getMeta('embedding_dimensions')).toBe('1536');
     });
   });
 
   // -------------------------------------------------------------------------
-  // Foreign keys
+  // Foreign key enforcement
   // -------------------------------------------------------------------------
 
   describe('foreign key enforcement', () => {
-    it('enforces foreign keys (inserting edge with missing node throws)', () => {
-      const { brain } = openBrain();
+    it('enforces foreign keys (inserting edge with missing node throws)', async () => {
+      const { brain } = await openBrain();
 
-      expect(() => {
-        brain.db
-          .prepare(
-            `INSERT INTO knowledge_edges (id, source_id, target_id, type, created_at)
-             VALUES ('e1', 'missing-node', 'also-missing', 'RELATED_TO', ?)`,
-          )
-          .run(Date.now());
-      }).toThrow();
+      await expect(
+        brain.run(
+          `INSERT INTO knowledge_edges (id, source_id, target_id, type, created_at)
+           VALUES ('e1', 'missing-node', 'also-missing', 'RELATED_TO', ?)`,
+          [Date.now()],
+        ),
+      ).rejects.toThrow();
     });
   });
 
@@ -273,10 +250,10 @@ describe('SqliteBrain', () => {
   // -------------------------------------------------------------------------
 
   describe('close()', () => {
-    it('closes the database without throwing', () => {
+    it('closes the database without throwing', async () => {
       const dbPath = tempDbPath();
-      const brain = new SqliteBrain(dbPath);
-      expect(() => brain.close()).not.toThrow();
+      const brain = await SqliteBrain.open(dbPath);
+      await brain.close();
       // Manually clean up since we bypassed openBrain().
       for (const suffix of ['', '-wal', '-shm']) {
         const p = dbPath + suffix;

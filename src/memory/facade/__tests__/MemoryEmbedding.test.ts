@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Memory } from '../Memory.js';
+import type { SqliteBrain } from '../../store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
@@ -72,8 +73,8 @@ const mockEmbed = async (text: string): Promise<number[]> => {
 /**
  * Helper: create a Memory with or without embed, configured for 4-dim vectors.
  */
-function createMemory(opts?: { embed?: boolean; dbPath?: string }): Memory {
-  const mem = new Memory({
+async function createMemory(opts?: { embed?: boolean; dbPath?: string }): Promise<Memory> {
+  const mem = await Memory.create({
     store: 'sqlite',
     path: opts?.dbPath ?? tempDb(),
     graph: false,
@@ -96,7 +97,7 @@ describe('Memory embedding integration', () => {
   // =========================================================================
 
   it('remember() with embed function stores non-null embedding in SQLite', async () => {
-    const mem = createMemory({ embed: true });
+    const mem = await createMemory({ embed: true });
 
     const trace = await mem.remember('The capital of France is Paris', {
       type: 'semantic',
@@ -108,14 +109,15 @@ describe('Memory embedding integration', () => {
     expect(trace.content).toBe('The capital of France is Paris');
 
     // Access the internal brain to verify embedding was stored.
-    const brain = (mem as any)._brain;
-    const row = brain.db
-      .prepare('SELECT embedding FROM memory_traces WHERE id = ?')
-      .get(trace.id) as { embedding: Buffer | null };
+    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const row = await brain.get<{ embedding: Buffer | null }>(
+      'SELECT embedding FROM memory_traces WHERE id = ?',
+      [trace.id],
+    );
 
     expect(row).toBeDefined();
-    expect(row.embedding).not.toBeNull();
-    expect(row.embedding!.length).toBeGreaterThan(0);
+    expect(row!.embedding).not.toBeNull();
+    expect(row!.embedding!.length).toBeGreaterThan(0);
   });
 
   // =========================================================================
@@ -123,17 +125,18 @@ describe('Memory embedding integration', () => {
   // =========================================================================
 
   it('remember() without embed stores null embedding (backward compat)', async () => {
-    const mem = createMemory({ embed: false });
+    const mem = await createMemory({ embed: false });
 
     const trace = await mem.remember('Plain text without vector');
 
-    const brain = (mem as any)._brain;
-    const row = brain.db
-      .prepare('SELECT embedding FROM memory_traces WHERE id = ?')
-      .get(trace.id) as { embedding: Buffer | null };
+    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const row = await brain.get<{ embedding: Buffer | null }>(
+      'SELECT embedding FROM memory_traces WHERE id = ?',
+      [trace.id],
+    );
 
     expect(row).toBeDefined();
-    expect(row.embedding).toBeNull();
+    expect(row!.embedding).toBeNull();
   });
 
   // =========================================================================
@@ -141,7 +144,7 @@ describe('Memory embedding integration', () => {
   // =========================================================================
 
   it('recall() without embed falls back to FTS5 only', async () => {
-    const mem = createMemory({ embed: false });
+    const mem = await createMemory({ embed: false });
 
     await mem.remember('TypeScript is a typed superset of JavaScript');
     await mem.remember('Rust has zero-cost abstractions');
@@ -161,7 +164,7 @@ describe('Memory embedding integration', () => {
   // =========================================================================
 
   it('recall() returns relevant results when embed function is provided', async () => {
-    const mem = createMemory({ embed: true });
+    const mem = await createMemory({ embed: true });
 
     // Store several traces covering different topics.
     await mem.remember('Machine learning models require training data');
@@ -187,7 +190,7 @@ describe('Memory embedding integration', () => {
   // =========================================================================
 
   it('HNSW sidecar object is created during Memory initialization', async () => {
-    const mem = createMemory({ embed: true });
+    const mem = await createMemory({ embed: true });
     // Wait for the init promise to resolve (sidecar load attempt).
     await (mem as any)._initPromise;
 
@@ -207,7 +210,7 @@ describe('Memory embedding integration', () => {
 
   it('remember() with embed triggers HNSW add when sidecar is active', async () => {
     const dbPath = tempDb();
-    const mem = createMemory({ embed: true, dbPath });
+    const mem = await createMemory({ embed: true, dbPath });
     await (mem as any)._initPromise;
 
     const sidecar = (mem as any)._hnswSidecar;
@@ -215,13 +218,14 @@ describe('Memory embedding integration', () => {
     // Store a trace and verify it went through the embedding path.
     const trace = await mem.remember('Vector indexed content');
 
-    const brain = (mem as any)._brain;
-    const row = brain.db
-      .prepare('SELECT embedding FROM memory_traces WHERE id = ?')
-      .get(trace.id) as { embedding: Buffer | null };
+    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const row = await brain.get<{ embedding: Buffer | null }>(
+      'SELECT embedding FROM memory_traces WHERE id = ?',
+      [trace.id],
+    );
 
     // Embedding should be stored regardless of HNSW status.
-    expect(row.embedding).not.toBeNull();
+    expect(row!.embedding).not.toBeNull();
 
     // If sidecar is available, check that it was called.
     if (sidecar) {
@@ -236,7 +240,7 @@ describe('Memory embedding integration', () => {
   // =========================================================================
 
   it('remember() deduplicates identical content (even with embeddings)', async () => {
-    const mem = createMemory({ embed: true });
+    const mem = await createMemory({ embed: true });
 
     const trace1 = await mem.remember('Duplicate test content');
     const trace2 = await mem.remember('Duplicate test content');
@@ -245,10 +249,10 @@ describe('Memory embedding integration', () => {
     expect(trace1.id).toBe(trace2.id);
 
     // Verify only one row exists.
-    const brain = (mem as any)._brain;
-    const count = brain.db
-      .prepare("SELECT COUNT(*) as c FROM memory_traces WHERE content = 'Duplicate test content' AND deleted = 0")
-      .get() as { c: number };
-    expect(count.c).toBe(1);
+    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const count = await brain.get<{ c: number }>(
+      "SELECT COUNT(*) as c FROM memory_traces WHERE content = 'Duplicate test content' AND deleted = 0",
+    );
+    expect(count!.c).toBe(1);
   });
 });

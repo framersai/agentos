@@ -157,7 +157,7 @@ function sha256(content: string): string {
  *
  * ## Quick start
  * ```ts
- * const mem = new Memory({ store: 'sqlite', path: './brain.sqlite' });
+ * const mem = await Memory.create({ store: 'sqlite', path: './brain.sqlite' });
  *
  * await mem.remember('The user prefers dark mode');
  * const results = await mem.recall('dark mode preference');
@@ -186,80 +186,40 @@ export class Memory {
   private readonly _embed: ((text: string) => Promise<number[]>) | null;
 
   // -------------------------------------------------------------------
-  // Constructor
+  // Constructor (private — use Memory.create() instead)
   // -------------------------------------------------------------------
 
   /**
-   * Create a new Memory instance and wire together all subsystems.
-   *
-   * Initialization sequence:
-   * 1. Merge `config` with defaults (store='sqlite', path=tmpdir, graph=true,
-   *    selfImprove=true, decay=true).
-   * 2. Create `SqliteBrain(config.path)`.
-   * 3. Check embedding dimension compatibility (warn on mismatch).
-   * 4. Create `SqliteKnowledgeGraph(brain)`.
-   * 5. Create `SqliteMemoryGraph(brain)` and call `.initialize()`.
-   * 6. Create `LoaderRegistry()` (pre-registers all built-in loaders).
-   * 7. Create `FolderScanner(registry)`.
-   * 8. Create `ChunkingEngine()`.
-   * 9. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
-   *    `ConsolidationLoop(brain, memoryGraph)`.
-   *
-   * @param config - Optional configuration; see {@link MemoryConfig}.
+   * Private constructor. Receives an already-opened SqliteBrain and
+   * pre-computed configuration. Use {@link Memory.create} to instantiate.
    */
-  constructor(config?: MemoryConfig) {
-    // Step 1: merge with defaults.
-    const randomSuffix = Math.random().toString(36).slice(2, 10);
-    this._config = {
-      store: 'sqlite',
-      path: path.join(os.tmpdir(), `brain-${randomSuffix}.sqlite`),
-      graph: true,
-      selfImprove: true,
-      decay: true,
-      ...config,
-    };
+  private constructor(
+    brain: SqliteBrain,
+    config: Required<Pick<MemoryConfig, 'store' | 'path' | 'graph' | 'selfImprove' | 'decay'>> & MemoryConfig,
+  ) {
+    this._brain = brain;
+    this._config = config;
 
     // Store the optional embedding function for vector search.
-    this._embed = config?.embed ?? null;
+    this._embed = config.embed ?? null;
 
-    if (this._config.store !== 'sqlite') {
-      throw new Error(
-        `Memory currently supports only the SQLite-backed facade at runtime. ` +
-        `Received store="${this._config.store}".`,
-      );
-    }
-
-    // Step 2: create SqliteBrain.
-    this._brain = new SqliteBrain(this._config.path!);
-
-    // Step 3: check embedding dimension compatibility.
-    const dimensions = this._config.embeddings?.dimensions ?? 1536;
-    const compatible = this._brain.checkEmbeddingCompat(dimensions);
-    if (!compatible) {
-      console.warn(
-        `[Memory] Embedding dimension mismatch: expected ${dimensions} but brain ` +
-        `was previously configured with a different dimension. Vector similarity ` +
-        `searches may produce incorrect results.`,
-      );
-    }
-
-    // Step 4: create SqliteKnowledgeGraph.
+    // Create SqliteKnowledgeGraph.
     this._knowledgeGraph = new SqliteKnowledgeGraph(this._brain);
 
-    // Step 5: create SqliteMemoryGraph and initialize.
+    // Create SqliteMemoryGraph and initialize.
     this._memoryGraph = new SqliteMemoryGraph(this._brain);
     this._initPromise = this._memoryGraph.initialize();
 
-    // Step 6: create LoaderRegistry.
+    // Create LoaderRegistry.
     this._loaderRegistry = new LoaderRegistry();
 
-    // Step 7: create FolderScanner.
+    // Create FolderScanner.
     this._folderScanner = new FolderScanner(this._loaderRegistry);
 
-    // Step 8: create ChunkingEngine.
+    // Create ChunkingEngine.
     this._chunkingEngine = new ChunkingEngine();
 
-    // Step 9: self-improvement subsystems.
+    // Self-improvement subsystems.
     if (this._config.selfImprove) {
       this._feedbackSignal = new RetrievalFeedbackSignal(this._brain);
       this._consolidationLoop = new ConsolidationLoop(this._brain, this._memoryGraph);
@@ -268,7 +228,7 @@ export class Memory {
       this._consolidationLoop = null;
     }
 
-    // Step 10: HNSW sidecar index (O(log n) ANN alongside SQLite).
+    // HNSW sidecar index (O(log n) ANN alongside SQLite).
     // Loads existing index from disk if present; auto-builds when trace count
     // exceeds 1000 and embeddings are available. Falls back to FTS5-only
     // recall if hnswlib-node is not installed or no embeddings exist.
@@ -287,6 +247,65 @@ export class Memory {
         this._hnswSidecar = null;
       }
     });
+  }
+
+  // -------------------------------------------------------------------
+  // Async factory
+  // -------------------------------------------------------------------
+
+  /**
+   * Create a new Memory instance and wire together all subsystems.
+   *
+   * Initialization sequence:
+   * 1. Merge `config` with defaults (store='sqlite', path=tmpdir, graph=true,
+   *    selfImprove=true, decay=true).
+   * 2. Await `SqliteBrain.open(config.path)`.
+   * 3. Check embedding dimension compatibility (warn on mismatch).
+   * 4. Create `SqliteKnowledgeGraph(brain)`.
+   * 5. Create `SqliteMemoryGraph(brain)` and call `.initialize()`.
+   * 6. Create `LoaderRegistry()` (pre-registers all built-in loaders).
+   * 7. Create `FolderScanner(registry)`.
+   * 8. Create `ChunkingEngine()`.
+   * 9. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
+   *    `ConsolidationLoop(brain, memoryGraph)`.
+   *
+   * @param config - Optional configuration; see {@link MemoryConfig}.
+   * @returns A fully initialised Memory instance.
+   */
+  static async create(config?: MemoryConfig): Promise<Memory> {
+    // Step 1: merge with defaults.
+    const randomSuffix = Math.random().toString(36).slice(2, 10);
+    const merged = {
+      store: 'sqlite' as const,
+      path: path.join(os.tmpdir(), `brain-${randomSuffix}.sqlite`),
+      graph: true,
+      selfImprove: true,
+      decay: true,
+      ...config,
+    };
+
+    if (merged.store !== 'sqlite') {
+      throw new Error(
+        `Memory currently supports only the SQLite-backed facade at runtime. ` +
+        `Received store="${merged.store}".`,
+      );
+    }
+
+    // Step 2: create SqliteBrain (async).
+    const brain = await SqliteBrain.open(merged.path!);
+
+    // Step 3: check embedding dimension compatibility.
+    const dimensions = merged.embeddings?.dimensions ?? 1536;
+    const compatible = await brain.checkEmbeddingCompat(dimensions);
+    if (!compatible) {
+      console.warn(
+        `[Memory] Embedding dimension mismatch: expected ${dimensions} but brain ` +
+        `was previously configured with a different dimension. Vector similarity ` +
+        `searches may produce incorrect results.`,
+      );
+    }
+
+    return new Memory(brain, merged);
   }
 
   // =========================================================================
@@ -311,7 +330,7 @@ export class Memory {
     const type = options?.type ?? 'episodic';
     const scope = options?.scope ?? 'user';
     const scopeId = options?.scopeId ?? '';
-    const existing = this._findExistingTraceByHash(contentHash, type, scope, scopeId);
+    const existing = await this._findExistingTraceByHash(contentHash, type, scope, scopeId);
     if (existing) {
       return this._buildTrace(existing);
     }
@@ -336,14 +355,12 @@ export class Memory {
     }
 
     // Insert into memory_traces.
-    this._brain.db
-      .prepare(
-        `INSERT INTO memory_traces
-           (id, type, scope, content, embedding, strength, created_at,
-            last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, 0)`,
-      )
-      .run(
+    await this._brain.run(
+      `INSERT INTO memory_traces
+         (id, type, scope, content, embedding, strength, created_at,
+          last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, 0)`,
+      [
         id,
         type,
         scope,
@@ -354,19 +371,19 @@ export class Memory {
         JSON.stringify(tags),
         JSON.stringify({}),
         JSON.stringify(buildInitialTraceMetadata({}, { contentHash, entities, scopeId })),
-      );
+      ],
+    );
 
     // Sync FTS5 index. The external-content FTS5 table needs explicit insert.
-    this._brain.db
-      .prepare(
-        `INSERT INTO memory_traces_fts (rowid, content, tags)
-         VALUES (
-           (SELECT rowid FROM memory_traces WHERE id = ?),
-           ?,
-           ?
-         )`,
-      )
-      .run(id, content, JSON.stringify(tags));
+    await this._brain.run(
+      `INSERT INTO memory_traces_fts (rowid, content, tags)
+       VALUES (
+         (SELECT rowid FROM memory_traces WHERE id = ?),
+         ?,
+         ?
+       )`,
+      [id, content, JSON.stringify(tags)],
+    );
 
     // Add to memory graph if available.
     if (this._config.graph) {
@@ -383,21 +400,25 @@ export class Memory {
     // The embedding is stored in the memory_traces table; if it's non-null,
     // also index it in the HNSW sidecar for fast ANN recall.
     if (this._hnswSidecar) {
-      const row = this._brain.db
-        .prepare('SELECT embedding FROM memory_traces WHERE id = ?')
-        .get(id) as { embedding: Buffer | null } | undefined;
+      const row = await this._brain.get<{ embedding: Buffer | null }>(
+        'SELECT embedding FROM memory_traces WHERE id = ?',
+        [id],
+      );
       if (row?.embedding && row.embedding.length > 0) {
         const { blobToEmbedding, isLegacyJsonBlob } = await import('../../rag/utils/vectorMath.js');
         const vec = isLegacyJsonBlob(row.embedding)
           ? JSON.parse(row.embedding as unknown as string) as number[]
           : blobToEmbedding(row.embedding);
-        const count = (this._brain.db.prepare('SELECT COUNT(*) as c FROM memory_traces WHERE deleted = 0').get() as { c: number }).c;
+        const countRow = await this._brain.get<{ c: number }>(
+          'SELECT COUNT(*) as c FROM memory_traces WHERE deleted = 0',
+        );
+        const count = countRow?.c ?? 0;
 
         if (!this._hnswSidecar.isActive && count >= 1000) {
           // Threshold crossed — rebuild full index from all embeddings.
-          const allRows = this._brain.db
-            .prepare('SELECT id, embedding FROM memory_traces WHERE deleted = 0 AND embedding IS NOT NULL')
-            .all() as { id: string; embedding: Buffer }[];
+          const allRows = await this._brain.all<{ id: string; embedding: Buffer }>(
+            'SELECT id, embedding FROM memory_traces WHERE deleted = 0 AND embedding IS NOT NULL',
+          );
           const data = allRows
             .filter(r => r.embedding && r.embedding.length > 0)
             .map(r => ({
@@ -519,9 +540,10 @@ export class Memory {
           ORDER BY abs(fts.rank) DESC
           LIMIT ?
         `;
-        const ftsRows = this._brain.db
-          .prepare<unknown[], FtsJoinRow>(ftsSql)
-          .all(...params, ftsQuery, limit * 3);
+        const ftsRows = await this._brain.all<FtsJoinRow>(
+          ftsSql,
+          [...params, ftsQuery, limit * 3],
+        );
 
         const ftsRank = new Map(ftsRows.map((r, i) => [r.id, i + 1]));
 
@@ -545,13 +567,12 @@ export class Memory {
         // Fetch full rows for the top candidates.
         if (topIds.length > 0) {
           const placeholders = topIds.map(() => '?').join(',');
-          const fullRows = this._brain.db
-            .prepare<unknown[], FtsJoinRow>(
-              `SELECT t.*, 0.0 as rank FROM memory_traces t WHERE t.id IN (${placeholders}) AND t.deleted = 0`,
-            )
-            .all(...topIds);
+          const fullRows = await this._brain.all<FtsJoinRow>(
+            `SELECT t.*, 0.0 as rank FROM memory_traces t WHERE t.id IN (${placeholders}) AND t.deleted = 0`,
+            topIds,
+          );
 
-          const updatedRows = this._applyRecallAccessUpdates(fullRows);
+          const updatedRows = await this._applyRecallAccessUpdates(fullRows);
           const rrfMap = new Map(scored.map(s => [s.id, s.rrfScore]));
 
           return updatedRows.map((row) => ({
@@ -577,11 +598,9 @@ export class Memory {
 
     params.push(ftsQuery, limit);
 
-    const rows = this._brain.db
-      .prepare<unknown[], FtsJoinRow>(sql)
-      .all(...params);
+    const rows = await this._brain.all<FtsJoinRow>(sql, params);
 
-    const updatedRows = this._applyRecallAccessUpdates(rows);
+    const updatedRows = await this._applyRecallAccessUpdates(rows);
 
     return updatedRows.map((row) => ({
       trace: this._buildTrace(row),
@@ -600,9 +619,10 @@ export class Memory {
   async forget(traceId: string): Promise<void> {
     await this._initPromise;
 
-    this._brain.db
-      .prepare('UPDATE memory_traces SET deleted = 1 WHERE id = ?')
-      .run(traceId);
+    await this._brain.run(
+      'UPDATE memory_traces SET deleted = 1 WHERE id = ?',
+      [traceId],
+    );
   }
 
   // =========================================================================
@@ -809,33 +829,31 @@ export class Memory {
   /**
    * Record retrieval feedback for a memory trace.
    *
-   * Fire-and-forget: the feedback is persisted asynchronously and this method
-   * returns immediately without waiting for the write to complete.
+   * The feedback is persisted asynchronously. This method returns a Promise
+   * that resolves once the feedback has been written.
    *
    * @param traceId - The ID of the trace being evaluated.
    * @param signal  - Whether the trace was `'used'` or `'ignored'` by the LLM.
    */
-  feedback(traceId: string, signal: 'used' | 'ignored'): void {
+  async feedback(traceId: string, signal: 'used' | 'ignored'): Promise<void> {
     if (!this._feedbackSignal) return;
 
     try {
       const now = Date.now();
-      const row = this._brain.db
-        .prepare<[string], TraceRow>(
-          `SELECT id, type, scope, content, embedding, strength, created_at,
-                  last_accessed, retrieval_count, tags, emotions, metadata, deleted
-           FROM memory_traces
-           WHERE id = ?
-           LIMIT 1`,
-        )
-        .get(traceId);
+      const row = await this._brain.get<TraceRow>(
+        `SELECT id, type, scope, content, embedding, strength, created_at,
+                last_accessed, retrieval_count, tags, emotions, metadata, deleted
+         FROM memory_traces
+         WHERE id = ?
+         LIMIT 1`,
+        [traceId],
+      );
 
-      this._brain.db
-        .prepare(
-          `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-           VALUES (?, ?, NULL, ?)`,
-        )
-        .run(traceId, signal, now);
+      await this._brain.run(
+        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
+         VALUES (?, ?, NULL, ?)`,
+        [traceId, signal, now],
+      );
 
       if (!row) return;
 
@@ -849,19 +867,18 @@ export class Memory {
             nextReinforcementAt: update.nextReinforcementAt,
           }),
         );
-        this._brain.db
-          .prepare(
-            `UPDATE memory_traces
-             SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
-             WHERE id = ?`,
-          )
-          .run(
+        await this._brain.run(
+          `UPDATE memory_traces
+           SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
+           WHERE id = ?`,
+          [
             update.encodingStrength,
             update.lastAccessedAt,
             update.retrievalCount,
             metadata,
             traceId,
-          );
+          ],
+        );
         return;
       }
 
@@ -877,13 +894,12 @@ export class Memory {
             : {}),
         }),
       );
-      this._brain.db
-        .prepare(
-          `UPDATE memory_traces
-           SET strength = ?, last_accessed = ?, metadata = ?
-           WHERE id = ?`,
-        )
-        .run(penalty.encodingStrength, penalty.lastAccessedAt, metadata, traceId);
+      await this._brain.run(
+        `UPDATE memory_traces
+         SET strength = ?, last_accessed = ?, metadata = ?
+         WHERE id = ?`,
+        [penalty.encodingStrength, penalty.lastAccessedAt, metadata, traceId],
+      );
     } catch {
       // Explicit feedback is best-effort; the caller should not fail on analytics updates.
     }
@@ -977,7 +993,7 @@ export class Memory {
     }
 
     if (result.imported > 0) {
-      this._rebuildFtsIndex();
+      await this._rebuildFtsIndex();
     }
 
     return result;
@@ -1034,83 +1050,71 @@ export class Memory {
   async health(): Promise<MemoryHealth> {
     await this._initPromise;
 
-    const db = this._brain.db;
-
     // Total traces (active + deleted).
-    const totalRow = db
-      .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM memory_traces')
-      .get();
+    const totalRow = await this._brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM memory_traces',
+    );
     const totalTraces = totalRow?.cnt ?? 0;
 
     // Active traces (not deleted).
-    const activeRow = db
-      .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM memory_traces WHERE deleted = 0')
-      .get();
+    const activeRow = await this._brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM memory_traces WHERE deleted = 0',
+    );
     const activeTraces = activeRow?.cnt ?? 0;
 
     // Average strength of active traces.
-    const avgRow = db
-      .prepare<[], { avg_s: number | null }>(
-        'SELECT AVG(strength) AS avg_s FROM memory_traces WHERE deleted = 0',
-      )
-      .get();
+    const avgRow = await this._brain.get<{ avg_s: number | null }>(
+      'SELECT AVG(strength) AS avg_s FROM memory_traces WHERE deleted = 0',
+    );
     const avgStrength = avgRow?.avg_s ?? 0;
 
     // Weakest active trace.
-    const weakRow = db
-      .prepare<[], { min_s: number | null }>(
-        'SELECT MIN(strength) AS min_s FROM memory_traces WHERE deleted = 0',
-      )
-      .get();
+    const weakRow = await this._brain.get<{ min_s: number | null }>(
+      'SELECT MIN(strength) AS min_s FROM memory_traces WHERE deleted = 0',
+    );
     const weakestTraceStrength = weakRow?.min_s ?? 0;
 
     // Knowledge graph counts.
-    const nodesRow = db
-      .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM knowledge_nodes')
-      .get();
+    const nodesRow = await this._brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM knowledge_nodes',
+    );
     const graphNodes = nodesRow?.cnt ?? 0;
 
-    const edgesRow = db
-      .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM knowledge_edges')
-      .get();
+    const edgesRow = await this._brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM knowledge_edges',
+    );
     const graphEdges = edgesRow?.cnt ?? 0;
 
     // Last consolidation timestamp.
-    const lastConsolRow = db
-      .prepare<[], { ran_at: number }>(
-        'SELECT ran_at FROM consolidation_log ORDER BY ran_at DESC LIMIT 1',
-      )
-      .get();
+    const lastConsolRow = await this._brain.get<{ ran_at: number }>(
+      'SELECT ran_at FROM consolidation_log ORDER BY ran_at DESC LIMIT 1',
+    );
     const lastConsolidation = lastConsolRow
       ? new Date(lastConsolRow.ran_at).toISOString()
       : null;
 
     // Traces per type.
-    const typeRows = db
-      .prepare<[], { type: string; cnt: number }>(
-        'SELECT type, COUNT(*) AS cnt FROM memory_traces WHERE deleted = 0 GROUP BY type',
-      )
-      .all();
+    const typeRows = await this._brain.all<{ type: string; cnt: number }>(
+      'SELECT type, COUNT(*) AS cnt FROM memory_traces WHERE deleted = 0 GROUP BY type',
+    );
     const tracesPerType: Record<string, number> = {};
     for (const row of typeRows) {
       tracesPerType[row.type] = row.cnt;
     }
 
     // Traces per scope.
-    const scopeRows = db
-      .prepare<[], { scope: string; cnt: number }>(
-        'SELECT scope, COUNT(*) AS cnt FROM memory_traces WHERE deleted = 0 GROUP BY scope',
-      )
-      .all();
+    const scopeRows = await this._brain.all<{ scope: string; cnt: number }>(
+      'SELECT scope, COUNT(*) AS cnt FROM memory_traces WHERE deleted = 0 GROUP BY scope',
+    );
     const tracesPerScope: Record<string, number> = {};
     for (const row of scopeRows) {
       tracesPerScope[row.scope] = row.cnt;
     }
 
     // Total document chunks.
-    const docsRow = db
-      .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM documents')
-      .get();
+    const docsRow = await this._brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM documents',
+    );
     const documentsIngested = docsRow?.cnt ?? 0;
 
     return {
@@ -1139,7 +1143,7 @@ export class Memory {
    */
   async close(): Promise<void> {
     await this._initPromise;
-    this._brain.close();
+    await this._brain.close();
   }
 
   // =========================================================================
@@ -1207,70 +1211,74 @@ export class Memory {
    * importer-used `import_hash` key so dedup works across facade and import
    * workflows.
    */
-  private _findExistingTraceByHash(
+  private async _findExistingTraceByHash(
     contentHash: string,
     type: string,
     scope: string,
     scopeId: string,
-  ): TraceRow | undefined {
-    return this._brain.db
-      .prepare<[string, string, string, string, string], TraceRow>(
-        `SELECT id, type, scope, content, embedding, strength, created_at,
-                last_accessed, retrieval_count, tags, emotions, metadata, deleted
-         FROM memory_traces
-         WHERE deleted = 0
-           AND type = ?
-           AND scope = ?
-           AND ifnull(json_extract(metadata, '$.scopeId'), '') = ?
-           AND (
-             json_extract(metadata, '$.content_hash') = ?
-             OR json_extract(metadata, '$.import_hash') = ?
-           )
-         LIMIT 1`,
-      )
-      .get(type, scope, scopeId, contentHash, contentHash);
+  ): Promise<TraceRow | undefined> {
+    const row = await this._brain.get<TraceRow>(
+      `SELECT id, type, scope, content, embedding, strength, created_at,
+              last_accessed, retrieval_count, tags, emotions, metadata, deleted
+       FROM memory_traces
+       WHERE deleted = 0
+         AND type = ?
+         AND scope = ?
+         AND ifnull(json_extract(metadata, '$.scopeId'), '') = ?
+         AND (
+           json_extract(metadata, '$.content_hash') = ?
+           OR json_extract(metadata, '$.import_hash') = ?
+         )
+       LIMIT 1`,
+      [type, scope, scopeId, contentHash, contentHash],
+    );
+    return row ?? undefined;
   }
 
   /**
    * Apply spaced-repetition access updates to recalled rows and persist the
    * updated retrieval metadata back to SQLite.
    */
-  private _applyRecallAccessUpdates(rows: FtsJoinRow[]): FtsJoinRow[] {
+  private async _applyRecallAccessUpdates(rows: FtsJoinRow[]): Promise<FtsJoinRow[]> {
     if (rows.length === 0) return rows;
 
     const now = Date.now();
-    const updateStmt = this._brain.db.prepare(
-      `UPDATE memory_traces
-       SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
-       WHERE id = ?`,
-    );
 
-    return this._brain.db.transaction(() => rows.map((row) => {
-      const update = updateOnRetrieval(this._buildTrace(row), now);
-      const metadata = JSON.stringify(
-        withPersistedDecayState(parseTraceMetadata(row.metadata), {
-          stability: update.stability,
-          accessCount: update.accessCount,
-          reinforcementInterval: update.reinforcementInterval,
-          nextReinforcementAt: update.nextReinforcementAt,
-        }),
-      );
-      updateStmt.run(
-        update.encodingStrength,
-        update.lastAccessedAt,
-        update.retrievalCount,
-        metadata,
-        row.id,
-      );
+    return this._brain.transaction(async (trx) => {
+      const results: FtsJoinRow[] = [];
+      for (const row of rows) {
+        const update = updateOnRetrieval(this._buildTrace(row), now);
+        const metadata = JSON.stringify(
+          withPersistedDecayState(parseTraceMetadata(row.metadata), {
+            stability: update.stability,
+            accessCount: update.accessCount,
+            reinforcementInterval: update.reinforcementInterval,
+            nextReinforcementAt: update.nextReinforcementAt,
+          }),
+        );
+        await trx.run(
+          `UPDATE memory_traces
+           SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
+           WHERE id = ?`,
+          [
+            update.encodingStrength,
+            update.lastAccessedAt,
+            update.retrievalCount,
+            metadata,
+            row.id,
+          ],
+        );
 
-      return {
-        ...row,
-        strength: update.encodingStrength,
-        last_accessed: update.lastAccessedAt,
-        retrieval_count: update.retrievalCount,
-        metadata,
-      };
-    }))();
+        results.push({
+          ...row,
+          strength: update.encodingStrength,
+          last_accessed: update.lastAccessedAt,
+          retrieval_count: update.retrievalCount,
+          metadata,
+        });
+      }
+      return results;
+    });
   }
 
   /**
@@ -1290,11 +1298,10 @@ export class Memory {
     result: IngestResult,
   ): Promise<void> {
     const contentHash = sha256(doc.content);
-    const existingDoc = this._brain.db
-      .prepare<[string], { id: string }>(
-        `SELECT id FROM documents WHERE content_hash = ? LIMIT 1`,
-      )
-      .get(contentHash);
+    const existingDoc = await this._brain.get<{ id: string }>(
+      `SELECT id FROM documents WHERE content_hash = ? LIMIT 1`,
+      [contentHash],
+    );
 
     if (existingDoc) {
       return;
@@ -1303,13 +1310,11 @@ export class Memory {
     const chunks = await this._chunkingEngine.chunk(doc.content, chunking);
     const docId = `doc_${crypto.randomUUID()}`;
 
-    this._brain.db
-      .prepare(
-        `INSERT INTO documents
-           (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    await this._brain.run(
+      `INSERT INTO documents
+         (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         docId,
         doc.metadata.source ?? source,
         doc.format,
@@ -1318,21 +1323,20 @@ export class Memory {
         chunks.length,
         JSON.stringify(doc.metadata),
         Date.now(),
-      );
+      ],
+    );
 
     for (const chunk of chunks) {
       const chunkId = `chunk_${crypto.randomUUID()}`;
       const traceId = nextTraceId();
       const createdAt = Date.now();
 
-      this._brain.db
-        .prepare(
-          `INSERT INTO memory_traces
-             (id, type, scope, content, embedding, strength, created_at,
-              last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
-        )
-        .run(
+      await this._brain.run(
+        `INSERT INTO memory_traces
+           (id, type, scope, content, embedding, strength, created_at,
+            last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+         VALUES (?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
+        [
           traceId,
           chunk.content,
           createdAt,
@@ -1345,18 +1349,18 @@ export class Memory {
               { contentHash: sha256(chunk.content) },
             ),
           ),
-        );
+        ],
+      );
 
-      this._brain.db
-        .prepare(
-          `INSERT INTO memory_traces_fts (rowid, content, tags)
-           VALUES (
-             (SELECT rowid FROM memory_traces WHERE id = ?),
-             ?,
-             '[]'
-           )`,
-        )
-        .run(traceId, chunk.content);
+      await this._brain.run(
+        `INSERT INTO memory_traces_fts (rowid, content, tags)
+         VALUES (
+           (SELECT rowid FROM memory_traces WHERE id = ?),
+           ?,
+           '[]'
+         )`,
+        [traceId, chunk.content],
+      );
 
       if (this._config.graph && !this._memoryGraph.hasNode(traceId)) {
         await this._memoryGraph.addNode(traceId, {
@@ -1368,19 +1372,18 @@ export class Memory {
         });
       }
 
-      this._brain.db
-        .prepare(
-          `INSERT INTO document_chunks (id, document_id, trace_id, content, chunk_index, page_number, embedding)
-           VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-        )
-        .run(
+      await this._brain.run(
+        `INSERT INTO document_chunks (id, document_id, trace_id, content, chunk_index, page_number, embedding)
+         VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+        [
           chunkId,
           docId,
           traceId,
           chunk.content,
           chunk.index,
           chunk.pageNumber ?? null,
-        );
+        ],
+      );
 
       result.chunksCreated++;
       result.tracesCreated++;
@@ -1390,9 +1393,9 @@ export class Memory {
   /**
    * Rebuild the external-content FTS index after bulk import operations.
    */
-  private _rebuildFtsIndex(): void {
+  private async _rebuildFtsIndex(): Promise<void> {
     try {
-      this._brain.db.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+      await this._brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
     } catch {
       // Best-effort; imports still succeed even if the FTS rebuild is unavailable.
     }

@@ -41,9 +41,9 @@ function tempDb(): string {
   return p;
 }
 
-function createMemory(overrides?: Record<string, unknown>): Memory {
+async function createMemory(overrides?: Record<string, unknown>): Promise<Memory> {
   const dbPath = tempDb();
-  const mem = new Memory({
+  const mem = await Memory.create({
     store: 'sqlite',
     path: dbPath,
     graph: true,
@@ -418,7 +418,7 @@ describe('relativeTimeLabel', () => {
 
 describe('Memory.recall() temporal filtering', () => {
   it('filters traces by after timestamp', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
     const t1 = Date.now() - 5000;
 
     await mem.remember('old memory about cats', { tags: ['cats'] });
@@ -438,7 +438,7 @@ describe('Memory.recall() temporal filtering', () => {
   });
 
   it('filters traces by before timestamp', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('early memory about trees', { tags: ['trees'] });
     await new Promise((r) => setTimeout(r, 50));
@@ -454,7 +454,7 @@ describe('Memory.recall() temporal filtering', () => {
   });
 
   it('filters traces by both after and before timestamps', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('first memory alpha');
     await new Promise((r) => setTimeout(r, 50));
@@ -474,7 +474,7 @@ describe('Memory.recall() temporal filtering', () => {
   });
 
   it('returns empty when no traces match time range', async () => {
-    const mem = createMemory();
+    const mem = await createMemory();
 
     await mem.remember('some memory content');
 

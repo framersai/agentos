@@ -20,10 +20,10 @@
  * detection, but is not required for the default path.
  *
  * ## Persistence
- * Each feedback event is written synchronously to the `retrieval_feedback`
- * table in the agent's `SqliteBrain`.  The `detect()` method therefore
- * requires that a corresponding row exists in `memory_traces` for every
- * trace passed in (i.e. the trace must already be persisted).
+ * Each feedback event is written to the `retrieval_feedback` table in the
+ * agent's `SqliteBrain`.  The `detect()` method therefore requires that a
+ * corresponding row exists in `memory_traces` for every trace passed in
+ * (i.e. the trace must already be persisted).
  *
  * @module agentos/memory/feedback/RetrievalFeedbackSignal
  */
@@ -140,9 +140,6 @@ export class RetrievalFeedbackSignal {
    * When a trace has no qualifying keywords (all words ≤ 4 characters), it is
    * treated as `'ignored'` — there is nothing to match against.
    *
-   * **Note:** `detect()` is synchronous under the hood (better-sqlite3) but
-   * declared `async` to allow future replacement with an LLM-backed detector.
-   *
    * @param injectedTraces - Memory traces that were injected into the prompt.
    * @param response       - The LLM's generated response text.
    * @returns Array of `RetrievalFeedback` events, one per injected trace.
@@ -155,29 +152,25 @@ export class RetrievalFeedbackSignal {
     const feedbacks: RetrievalFeedback[] = [];
     const now = Date.now();
 
-    const insertStmt = this.brain.db.prepare<[string, string, string | null, number]>(
+    const insertSql =
       `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-       VALUES (?, ?, ?, ?)`,
-    );
-    const selectTraceStmt = this.brain.db.prepare<[string], TraceRow>(
+       VALUES (?, ?, ?, ?)`;
+    const selectTraceSql =
       `SELECT id, type, scope, content, strength, created_at, last_accessed,
               retrieval_count, tags, emotions, metadata, deleted
        FROM memory_traces
        WHERE id = ?
-       LIMIT 1`,
-    );
-    const usedUpdateStmt = this.brain.db.prepare<[number, number, number, string, string]>(
+       LIMIT 1`;
+    const usedUpdateSql =
       `UPDATE memory_traces
        SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
-       WHERE id = ?`,
-    );
-    const ignoredUpdateStmt = this.brain.db.prepare<[number, number, string, string]>(
+       WHERE id = ?`;
+    const ignoredUpdateSql =
       `UPDATE memory_traces
        SET strength = ?, last_accessed = ?, metadata = ?
-       WHERE id = ?`,
-    );
+       WHERE id = ?`;
 
-    this.brain.db.transaction(() => {
+    await this.brain.transaction(async (trx) => {
       for (const trace of injectedTraces) {
         const keywords = this._extractKeywords(trace.content);
         let signal: 'used' | 'ignored' = 'ignored';
@@ -190,9 +183,9 @@ export class RetrievalFeedbackSignal {
           }
         }
 
-        insertStmt.run(trace.id, signal, null, now);
+        await trx.run(insertSql, [trace.id, signal, null, now]);
 
-        const row = selectTraceStmt.get(trace.id);
+        const row = await trx.get<TraceRow>(selectTraceSql, [trace.id]);
         if (row) {
           const persistedTrace = this._buildTrace(row);
           if (signal === 'used') {
@@ -205,13 +198,13 @@ export class RetrievalFeedbackSignal {
                 nextReinforcementAt: update.nextReinforcementAt,
               }),
             );
-            usedUpdateStmt.run(
+            await trx.run(usedUpdateSql, [
               update.encodingStrength,
               update.lastAccessedAt,
               update.retrievalCount,
               metadata,
               trace.id,
-            );
+            ]);
           } else {
             const penalty = penalizeUnused(persistedTrace, now);
             const existingDecay = readPersistedDecayState(
@@ -228,12 +221,12 @@ export class RetrievalFeedbackSignal {
                   : {}),
               }),
             );
-            ignoredUpdateStmt.run(
+            await trx.run(ignoredUpdateSql, [
               penalty.encodingStrength,
               penalty.lastAccessedAt,
               metadata,
               trace.id,
-            );
+            ]);
           }
         }
 
@@ -243,7 +236,7 @@ export class RetrievalFeedbackSignal {
           timestamp: now,
         });
       }
-    })();
+    });
 
     return feedbacks;
   }
@@ -256,16 +249,15 @@ export class RetrievalFeedbackSignal {
    * @param limit   - Maximum number of rows to return.  Defaults to 100.
    * @returns Array of `RetrievalFeedback` events, most-recent first.
    */
-  getHistory(traceId: string, limit = 100): RetrievalFeedback[] {
-    const rows = this.brain.db
-      .prepare<[string, number], FeedbackRow>(
-        `SELECT id, trace_id, signal, query, created_at
-         FROM retrieval_feedback
-         WHERE trace_id = ?
-         ORDER BY created_at DESC, id DESC
-         LIMIT ?`,
-      )
-      .all(traceId, limit);
+  async getHistory(traceId: string, limit = 100): Promise<RetrievalFeedback[]> {
+    const rows = await this.brain.all<FeedbackRow>(
+      `SELECT id, trace_id, signal, query, created_at
+       FROM retrieval_feedback
+       WHERE trace_id = ?
+       ORDER BY created_at DESC, id DESC
+       LIMIT ?`,
+      [traceId, limit],
+    );
 
     return rows.map((row) => ({
       traceId: row.trace_id,
@@ -284,15 +276,14 @@ export class RetrievalFeedbackSignal {
    * @param traceId - The memory trace ID to aggregate.
    * @returns `{ used, ignored }` counts.
    */
-  getStats(traceId: string): { used: number; ignored: number } {
-    const rows = this.brain.db
-      .prepare<[string], { signal: string; count: number }>(
-        `SELECT signal, COUNT(*) AS count
-         FROM retrieval_feedback
-         WHERE trace_id = ?
-         GROUP BY signal`,
-      )
-      .all(traceId);
+  async getStats(traceId: string): Promise<{ used: number; ignored: number }> {
+    const rows = await this.brain.all<{ signal: string; count: number }>(
+      `SELECT signal, COUNT(*) AS count
+       FROM retrieval_feedback
+       WHERE trace_id = ?
+       GROUP BY signal`,
+      [traceId],
+    );
 
     let used = 0;
     let ignored = 0;

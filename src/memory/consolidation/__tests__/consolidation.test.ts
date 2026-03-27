@@ -51,18 +51,18 @@ async function createTestEnv(): Promise<{
   dbPath: string;
 }> {
   const dbPath = tempDbPath();
-  const brain = new SqliteBrain(dbPath);
+  const brain = await SqliteBrain.open(dbPath);
   openBrains.push({ brain, dbPath });
   const graph = new SqliteMemoryGraph(brain);
   await graph.initialize();
   return { brain, graph, dbPath };
 }
 
-afterEach(() => {
+afterEach(async () => {
   while (openBrains.length > 0) {
     const entry = openBrains.pop()!;
     try {
-      entry.brain.close();
+      await entry.brain.close();
     } catch {
       /* already closed */
     }
@@ -80,7 +80,7 @@ afterEach(() => {
  * Insert a trace row directly into the `memory_traces` table.
  * Uses the full column set required by tests.
  */
-function insertTrace(
+async function insertTrace(
   brain: SqliteBrain,
   opts: {
     id: string;
@@ -95,15 +95,13 @@ function insertTrace(
     deleted?: number;
     lastAccessed?: number | null;
   },
-): void {
+): Promise<void> {
   const now = Date.now();
-  brain.db
-    .prepare(
-      `INSERT INTO memory_traces
-         (id, type, scope, content, strength, created_at, last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
+  await brain.run(
+    `INSERT INTO memory_traces
+       (id, type, scope, content, strength, created_at, last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
       opts.id,
       opts.type ?? 'episodic',
       opts.scope ?? 'user',
@@ -116,44 +114,44 @@ function insertTrace(
       JSON.stringify(opts.emotions ?? {}),
       '{}',
       opts.deleted ?? 0,
-    );
+    ],
+  );
 }
 
 /**
  * Query whether a trace is soft-deleted.
  */
-function isDeleted(brain: SqliteBrain, id: string): boolean {
-  const row = brain.db
-    .prepare<[string], { deleted: number }>(
-      'SELECT deleted FROM memory_traces WHERE id = ?',
-    )
-    .get(id);
+async function isDeleted(brain: SqliteBrain, id: string): Promise<boolean> {
+  const row = await brain.get<{ deleted: number }>(
+    'SELECT deleted FROM memory_traces WHERE id = ?',
+    [id],
+  );
   return row?.deleted === 1;
 }
 
 /**
  * Get a trace row from the database.
  */
-function getTrace(brain: SqliteBrain, id: string): {
+async function getTrace(brain: SqliteBrain, id: string): Promise<{
   id: string;
   type: string;
   content: string;
   strength: number;
   retrieval_count: number;
   deleted: number;
-} | undefined {
-  return brain.db
-    .prepare<[string], {
-      id: string;
-      type: string;
-      content: string;
-      strength: number;
-      retrieval_count: number;
-      deleted: number;
-    }>(
-      'SELECT id, type, content, strength, retrieval_count, deleted FROM memory_traces WHERE id = ?',
-    )
-    .get(id);
+} | undefined> {
+  const row = await brain.get<{
+    id: string;
+    type: string;
+    content: string;
+    strength: number;
+    retrieval_count: number;
+    deleted: number;
+  }>(
+    'SELECT id, type, content, strength, retrieval_count, deleted FROM memory_traces WHERE id = ?',
+    [id],
+  );
+  return row ?? undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,17 +164,17 @@ describe('ConsolidationLoop — Prune', () => {
 
     // Two traces with high strength (1.0) and one with very low strength (0.01).
     // The low-strength trace should be pruned.
-    insertTrace(brain, { id: 'strong-1', content: 'Important memory alpha', strength: 1.0 });
-    insertTrace(brain, { id: 'strong-2', content: 'Important memory beta', strength: 1.0 });
-    insertTrace(brain, { id: 'weak-1', content: 'Fading memory gamma', strength: 0.01 });
+    await insertTrace(brain, { id: 'strong-1', content: 'Important memory alpha', strength: 1.0 });
+    await insertTrace(brain, { id: 'strong-2', content: 'Important memory beta', strength: 1.0 });
+    await insertTrace(brain, { id: 'weak-1', content: 'Fading memory gamma', strength: 0.01 });
 
     const loop = new ConsolidationLoop(brain, graph);
     const result = await loop.run({ pruneThreshold: 0.05 });
 
     expect(result.pruned).toBe(1);
-    expect(isDeleted(brain, 'weak-1')).toBe(true);
-    expect(isDeleted(brain, 'strong-1')).toBe(false);
-    expect(isDeleted(brain, 'strong-2')).toBe(false);
+    expect(await isDeleted(brain, 'weak-1')).toBe(true);
+    expect(await isDeleted(brain, 'strong-1')).toBe(false);
+    expect(await isDeleted(brain, 'strong-2')).toBe(false);
   });
 });
 
@@ -189,13 +187,13 @@ describe('ConsolidationLoop — Merge', () => {
     const { brain, graph } = await createTestEnv();
 
     // Two traces with identical content, different retrieval counts.
-    insertTrace(brain, {
+    await insertTrace(brain, {
       id: 'dup-a',
       content: 'TypeScript is a strongly typed superset of JavaScript',
       retrievalCount: 5,
       strength: 0.8,
     });
-    insertTrace(brain, {
+    await insertTrace(brain, {
       id: 'dup-b',
       content: 'TypeScript is a strongly typed superset of JavaScript',
       retrievalCount: 2,
@@ -208,11 +206,11 @@ describe('ConsolidationLoop — Merge', () => {
     expect(result.merged).toBe(1);
 
     // dup-a (more retrievals) should survive; dup-b should be deleted.
-    expect(isDeleted(brain, 'dup-a')).toBe(false);
-    expect(isDeleted(brain, 'dup-b')).toBe(true);
+    expect(await isDeleted(brain, 'dup-a')).toBe(false);
+    expect(await isDeleted(brain, 'dup-b')).toBe(true);
 
     // Survivor should have combined retrieval count.
-    const survivor = getTrace(brain, 'dup-a');
+    const survivor = await getTrace(brain, 'dup-a');
     expect(survivor?.retrieval_count).toBe(7);
   });
 });
@@ -226,23 +224,21 @@ describe('ConsolidationLoop — Strengthen', () => {
     const { brain, graph } = await createTestEnv();
 
     // Insert two traces.
-    insertTrace(brain, { id: 'co-a', content: 'Memory about distributed systems' });
-    insertTrace(brain, { id: 'co-b', content: 'Memory about microservices architecture' });
+    await insertTrace(brain, { id: 'co-a', content: 'Memory about distributed systems' });
+    await insertTrace(brain, { id: 'co-b', content: 'Memory about microservices architecture' });
 
     // Add retrieval feedback rows showing both were 'used' for the same query.
     const now = Date.now();
-    brain.db
-      .prepare(
-        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-         VALUES (?, ?, ?, ?)`,
-      )
-      .run('co-a', 'used', 'how do distributed systems work?', now);
-    brain.db
-      .prepare(
-        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-         VALUES (?, ?, ?, ?)`,
-      )
-      .run('co-b', 'used', 'how do distributed systems work?', now);
+    await brain.run(
+      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
+       VALUES (?, ?, ?, ?)`,
+      ['co-a', 'used', 'how do distributed systems work?', now],
+    );
+    await brain.run(
+      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
+       VALUES (?, ?, ?, ?)`,
+      ['co-b', 'used', 'how do distributed systems work?', now],
+    );
 
     const loop = new ConsolidationLoop(brain, graph);
     const result = await loop.run();
@@ -273,7 +269,7 @@ describe('ConsolidationLoop — Derive', () => {
     // Insert a cluster of 5 related traces and connect them in the graph.
     const ids = ['cl-1', 'cl-2', 'cl-3', 'cl-4', 'cl-5'];
     for (const id of ids) {
-      insertTrace(brain, { id, content: `Memory about topic X: ${id}` });
+      await insertTrace(brain, { id, content: `Memory about topic X: ${id}` });
       await graph.addNode(id, {
         type: 'episodic',
         scope: 'user',
@@ -307,12 +303,10 @@ describe('ConsolidationLoop — Derive', () => {
     expect(result.derived).toBeGreaterThanOrEqual(1);
 
     // Verify the insight trace was inserted into the database.
-    const insightRows = brain.db
-      .prepare<[], { id: string; type: string; content: string }>(
-        `SELECT id, type, content FROM memory_traces
-         WHERE type = 'semantic' AND content LIKE '%Topic X%' AND deleted = 0`,
-      )
-      .all();
+    const insightRows = await brain.all<{ id: string; type: string; content: string }>(
+      `SELECT id, type, content FROM memory_traces
+       WHERE type = 'semantic' AND content LIKE '%Topic X%' AND deleted = 0`,
+    );
 
     expect(insightRows.length).toBeGreaterThanOrEqual(1);
     expect(insightRows[0]!.type).toBe('semantic');
@@ -330,7 +324,7 @@ describe('ConsolidationLoop — Derive without LLM', () => {
     // Insert traces with cluster structure, but no LLM.
     const ids = ['nollm-1', 'nollm-2', 'nollm-3', 'nollm-4', 'nollm-5'];
     for (const id of ids) {
-      insertTrace(brain, { id, content: `Related fact: ${id}` });
+      await insertTrace(brain, { id, content: `Related fact: ${id}` });
       await graph.addNode(id, {
         type: 'episodic',
         scope: 'user',
@@ -369,25 +363,23 @@ describe('ConsolidationLoop — Consolidation log', () => {
     const { brain, graph } = await createTestEnv();
 
     // Insert a trace that will be pruned.
-    insertTrace(brain, { id: 'log-weak', content: 'Soon to be pruned', strength: 0.01 });
+    await insertTrace(brain, { id: 'log-weak', content: 'Soon to be pruned', strength: 0.01 });
     // Insert a healthy trace so there is something to process.
-    insertTrace(brain, { id: 'log-strong', content: 'Healthy memory', strength: 1.0 });
+    await insertTrace(brain, { id: 'log-strong', content: 'Healthy memory', strength: 1.0 });
 
     const loop = new ConsolidationLoop(brain, graph);
     const result = await loop.run({ pruneThreshold: 0.05 });
 
-    const logRow = brain.db
-      .prepare<[], {
-        pruned: number;
-        merged: number;
-        derived: number;
-        compacted: number;
-        duration_ms: number;
-      }>(
-        `SELECT pruned, merged, derived, compacted, duration_ms
-         FROM consolidation_log ORDER BY id DESC LIMIT 1`,
-      )
-      .get();
+    const logRow = await brain.get<{
+      pruned: number;
+      merged: number;
+      derived: number;
+      compacted: number;
+      duration_ms: number;
+    }>(
+      `SELECT pruned, merged, derived, compacted, duration_ms
+       FROM consolidation_log ORDER BY id DESC LIMIT 1`,
+    );
 
     expect(logRow).toBeDefined();
     expect(logRow!.pruned).toBe(result.pruned);
@@ -407,12 +399,12 @@ describe('ConsolidationLoop — Mutex', () => {
     const { brain, graph } = await createTestEnv();
 
     // Insert a trace so there's something to process.
-    insertTrace(brain, { id: 'mutex-trace', content: 'Test mutex behavior', strength: 1.0 });
+    await insertTrace(brain, { id: 'mutex-trace', content: 'Test mutex behavior', strength: 1.0 });
 
     // Use a slow LLM invoker to hold the lock. Also create a cluster so derive runs.
     const ids = ['mx-1', 'mx-2', 'mx-3', 'mx-4', 'mx-5'];
     for (const id of ids) {
-      insertTrace(brain, { id, content: `Mutex cluster member ${id}` });
+      await insertTrace(brain, { id, content: `Mutex cluster member ${id}` });
       await graph.addNode(id, {
         type: 'episodic',
         scope: 'user',
@@ -491,16 +483,16 @@ describe('ConsolidationLoop — Full cycle', () => {
     const now = Date.now();
 
     // Prune target: a very weak trace.
-    insertTrace(brain, { id: 'full-weak', content: 'Weak trace for pruning', strength: 0.001 });
+    await insertTrace(brain, { id: 'full-weak', content: 'Weak trace for pruning', strength: 0.001 });
 
     // Merge targets: two identical traces.
-    insertTrace(brain, {
+    await insertTrace(brain, {
       id: 'full-dup-a',
       content: 'Duplicate content for merge test',
       strength: 0.9,
       retrievalCount: 3,
     });
-    insertTrace(brain, {
+    await insertTrace(brain, {
       id: 'full-dup-b',
       content: 'Duplicate content for merge test',
       strength: 0.7,
@@ -508,23 +500,21 @@ describe('ConsolidationLoop — Full cycle', () => {
     });
 
     // Strengthen targets: two traces with co-used feedback.
-    insertTrace(brain, { id: 'full-co-a', content: 'Co-used memory about cats' });
-    insertTrace(brain, { id: 'full-co-b', content: 'Co-used memory about kittens' });
-    brain.db
-      .prepare(
-        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at) VALUES (?, ?, ?, ?)`,
-      )
-      .run('full-co-a', 'used', 'tell me about cats', now);
-    brain.db
-      .prepare(
-        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at) VALUES (?, ?, ?, ?)`,
-      )
-      .run('full-co-b', 'used', 'tell me about cats', now);
+    await insertTrace(brain, { id: 'full-co-a', content: 'Co-used memory about cats' });
+    await insertTrace(brain, { id: 'full-co-b', content: 'Co-used memory about kittens' });
+    await brain.run(
+      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at) VALUES (?, ?, ?, ?)`,
+      ['full-co-a', 'used', 'tell me about cats', now],
+    );
+    await brain.run(
+      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at) VALUES (?, ?, ?, ?)`,
+      ['full-co-b', 'used', 'tell me about cats', now],
+    );
 
     // Derive targets: a cluster of 5 related traces.
     const clusterIds = ['full-cl-1', 'full-cl-2', 'full-cl-3', 'full-cl-4', 'full-cl-5'];
     for (const id of clusterIds) {
-      insertTrace(brain, { id, content: `Cluster memory: ${id} about topic Z` });
+      await insertTrace(brain, { id, content: `Cluster memory: ${id} about topic Z` });
       await graph.addNode(id, {
         type: 'episodic',
         scope: 'user',
@@ -560,9 +550,9 @@ describe('ConsolidationLoop — Full cycle', () => {
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
 
     // Verify the consolidation log was written.
-    const logCount = brain.db
-      .prepare<[], { cnt: number }>('SELECT COUNT(*) AS cnt FROM consolidation_log')
-      .get();
+    const logCount = await brain.get<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM consolidation_log',
+    );
     expect(logCount?.cnt).toBeGreaterThanOrEqual(1);
   });
 });

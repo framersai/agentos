@@ -5,8 +5,7 @@
  * the database file to a specified output path.  This is the highest-fidelity
  * export format — it preserves all tables, indexes, and metadata exactly.
  *
- * Because `better-sqlite3` keeps the file open in WAL mode, we use the
- * built-in `VACUUM INTO` SQL command (SQLite 3.27+) which atomically creates
+ * Uses the `VACUUM INTO` SQL command (SQLite 3.27+) which atomically creates
  * a clean, fully checkpointed copy without any WAL sidecar file.
  *
  * @module memory/io/SqliteExporter
@@ -55,6 +54,6 @@ export class SqliteExporter {
   async export(outputPath: string, _options?: ExportOptions): Promise<void> {
     // VACUUM INTO creates a compact, defragmented copy of the live database.
     // It is an atomic operation from SQLite's perspective.
-    this.brain.db.exec(`VACUUM INTO '${outputPath.replace(/'/g, "''")}'`);
+    await this.brain.exec(`VACUUM INTO '${outputPath.replace(/'/g, "''")}'`);
   }
 }

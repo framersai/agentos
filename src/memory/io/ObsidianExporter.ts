@@ -43,6 +43,7 @@ interface TraceRow {
 
 /** Result row when joining edges → nodes. */
 interface RelatedNodeRow {
+  source_id: string;
   label: string;
 }
 
@@ -60,6 +61,14 @@ interface RelatedNodeRow {
  * ```
  */
 export class ObsidianExporter extends MarkdownExporter {
+  /**
+   * Pre-fetched map of traceId → related node labels.
+   * Populated in `export()` before delegating to the parent, so that the
+   * synchronous `buildFileContent()` override can look up wikilinks without
+   * needing async DB access.
+   */
+  private _relatedNodesCache = new Map<string, string[]>();
+
   // -------------------------------------------------------------------------
   // Public API
   // -------------------------------------------------------------------------
@@ -67,13 +76,16 @@ export class ObsidianExporter extends MarkdownExporter {
   /**
    * Export all memory traces as Obsidian-flavoured `.md` files.
    *
-   * Delegates to the parent `export()` method — directory creation and file
-   * writing are handled there; only `buildFileContent` is overridden.
+   * Pre-fetches all knowledge-edge relationships into an in-memory cache,
+   * then delegates to the parent `export()` method. Directory creation and
+   * file writing are handled there; only `buildFileContent` is overridden.
    *
    * @param outputDir - Root directory to write the Obsidian vault into.
    * @param options   - Optional export configuration.
    */
   override async export(outputDir: string, options?: ExportOptions): Promise<void> {
+    // Pre-fetch all related nodes so buildFileContent can use them synchronously.
+    await this._prefetchRelatedNodes();
     await super.export(outputDir, options);
   }
 
@@ -106,10 +118,8 @@ export class ObsidianExporter extends MarkdownExporter {
         ? '\n\n' + tags.map((t) => `#${t.replace(/\s+/g, '-')}`).join(' ')
         : '';
 
-    // Fetch related knowledge nodes via edges where source === trace ID.
-    // We query knowledge_edges by source_id and join knowledge_nodes to get
-    // the human-readable label for the wikilink.
-    const relatedNodes = this._fetchRelatedNodes(trace.id);
+    // Look up pre-fetched related knowledge nodes for wikilink generation.
+    const relatedNodes = this._relatedNodesCache.get(trace.id) ?? [];
 
     const wikiLinks =
       relatedNodes.length > 0
@@ -134,30 +144,31 @@ export class ObsidianExporter extends MarkdownExporter {
   // -------------------------------------------------------------------------
 
   /**
-   * Query `knowledge_edges` for nodes related to the given trace ID.
+   * Pre-fetch all knowledge-edge relationships and group them by source_id.
    *
-   * Only edges whose `source_id` matches the trace ID are considered.
-   * The target node's `label` is returned for wikilink generation.
-   *
-   * @param traceId - The memory trace ID to look up edges for.
-   * @returns Array of knowledge node labels linked to this trace.
+   * This populates `_relatedNodesCache` so that the synchronous
+   * `buildFileContent` method can look up wikilinks without async DB access.
    */
-  private _fetchRelatedNodes(traceId: string): string[] {
-    try {
-      const rows = this.brain.db
-        .prepare<[string], RelatedNodeRow>(
-          `SELECT kn.label
-           FROM knowledge_edges ke
-           JOIN knowledge_nodes kn ON kn.id = ke.target_id
-           WHERE ke.source_id = ?
-           LIMIT 50`,
-        )
-        .all(traceId);
+  private async _prefetchRelatedNodes(): Promise<void> {
+    this._relatedNodesCache.clear();
 
-      return rows.map((r) => r.label);
+    try {
+      const rows = await this.brain.all<RelatedNodeRow>(
+        `SELECT ke.source_id, kn.label
+         FROM knowledge_edges ke
+         JOIN knowledge_nodes kn ON kn.id = ke.target_id`,
+      );
+
+      for (const row of rows) {
+        const existing = this._relatedNodesCache.get(row.source_id);
+        if (existing) {
+          existing.push(row.label);
+        } else {
+          this._relatedNodesCache.set(row.source_id, [row.label]);
+        }
+      }
     } catch {
-      // If the knowledge graph isn't populated, return empty gracefully.
-      return [];
+      // If the knowledge graph isn't populated, the cache stays empty.
     }
   }
 }

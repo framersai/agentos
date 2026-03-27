@@ -163,7 +163,7 @@ describe('External tool resume persistence e2e', () => {
     const brainDbPath = path.join(dir, 'brain.sqlite');
 
     let memory = trackMemory(
-      new Memory({
+      await Memory.create({
         path: brainDbPath,
         selfImprove: true,
       })
@@ -338,7 +338,7 @@ describe('External tool resume persistence e2e', () => {
     ).toBe(true);
 
     memory = trackMemory(
-      new Memory({
+      await Memory.create({
         path: brainDbPath,
         selfImprove: true,
       })
@@ -430,7 +430,7 @@ describe('External tool resume persistence e2e', () => {
     const brainDbPath = path.join(dir, 'brain.sqlite');
 
     let memory = trackMemory(
-      new Memory({
+      await Memory.create({
         path: brainDbPath,
         selfImprove: true,
       })
@@ -619,7 +619,7 @@ describe('External tool resume persistence e2e', () => {
     ).toBe(true);
 
     memory = trackMemory(
-      new Memory({
+      await Memory.create({
         path: brainDbPath,
         selfImprove: true,
       })
@@ -733,7 +733,7 @@ describe('External tool resume persistence e2e', () => {
     const brainDbPath = path.join(dir, 'brain-org.sqlite');
 
     let memory = trackMemory(
-      new Memory({
+      await Memory.create({
         path: brainDbPath,
         selfImprove: true,
       })
@@ -884,7 +884,7 @@ describe('External tool resume persistence e2e', () => {
     );
 
     memory = trackMemory(
-      new Memory({
+      await Memory.create({
         path: brainDbPath,
         selfImprove: true,
       })

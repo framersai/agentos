@@ -137,7 +137,7 @@ export class ChatGptImporter {
     // ---- Process each conversation ----
     for (const convo of conversations) {
       try {
-        this._importConversation(convo, result);
+        await this._importConversation(convo, result);
       } catch (err) {
         result.errors.push(`Conversation import error: ${String(err)}`);
       }
@@ -160,9 +160,7 @@ export class ChatGptImporter {
    * @param convo  - Raw ChatGPT conversation object.
    * @param result - Mutable result accumulator.
    */
-  private _importConversation(convo: ChatGptConversation, result: ImportResult): void {
-    const db = this.brain.db;
-
+  private async _importConversation(convo: ChatGptConversation, result: ImportResult): Promise<void> {
     const title = convo.title ?? 'Untitled';
     const createdAt = convo.create_time ? Math.round(convo.create_time * 1000) : Date.now();
     const updatedAt = convo.update_time ? Math.round(convo.update_time * 1000) : createdAt;
@@ -171,15 +169,16 @@ export class ChatGptImporter {
     const conversationId = `cv_${uuidv4()}`;
 
     try {
-      db.prepare(
+      await this.brain.run(
         `INSERT OR IGNORE INTO conversations (id, title, created_at, updated_at, metadata)
          VALUES (?, ?, ?, ?, ?)`,
-      ).run(
-        conversationId,
-        title,
-        createdAt,
-        updatedAt,
-        JSON.stringify({ source: 'chatgpt_export' }),
+        [
+          conversationId,
+          title,
+          createdAt,
+          updatedAt,
+          JSON.stringify({ source: 'chatgpt_export' }),
+        ],
       );
     } catch (err) {
       result.errors.push(`Conversation insert error for "${title}": ${String(err)}`);
@@ -255,7 +254,7 @@ export class ChatGptImporter {
             ? `[user]: ${msg.text}\n[assistant]: ${assistantText}`
             : `[user]: ${msg.text}`;
 
-        this._insertEpisodicTrace(content, msg.time, conversationId, result);
+        await this._insertEpisodicTrace(content, msg.time, conversationId, result);
 
         // Skip the assistant message on the next iteration if we consumed it.
         if (assistantText) i++;
@@ -273,20 +272,19 @@ export class ChatGptImporter {
    * @param conversationId - ID of the parent conversation row.
    * @param result         - Mutable result accumulator.
    */
-  private _insertEpisodicTrace(
+  private async _insertEpisodicTrace(
     content: string,
     createdAt: number,
     conversationId: string,
     result: ImportResult,
-  ): void {
+  ): Promise<void> {
     const hash = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
 
     // Dedup check.
-    const existing = this.brain.db
-      .prepare<[string], { id: string }>(
-        `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
-      )
-      .get(hash);
+    const existing = await this.brain.get<{ id: string }>(
+      `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
+      [hash],
+    );
 
     if (existing) {
       result.skipped++;
@@ -294,14 +292,12 @@ export class ChatGptImporter {
     }
 
     try {
-      this.brain.db
-        .prepare(
-          `INSERT INTO memory_traces
+      await this.brain.run(
+        `INSERT INTO memory_traces
              (id, type, scope, content, embedding, strength, created_at, last_accessed,
               retrieval_count, tags, emotions, metadata, deleted)
            VALUES (?, 'episodic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
-        )
-        .run(
+        [
           `mt_${uuidv4()}`,
           content,
           createdAt,
@@ -310,7 +306,8 @@ export class ChatGptImporter {
             source: 'chatgpt_export',
             conversation_id: conversationId,
           }),
-        );
+        ],
+      );
 
       result.imported++;
     } catch (err) {

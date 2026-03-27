@@ -16,7 +16,7 @@
  * const cognitive = AgentMemory.wrap(existingManager);
  *
  * // Option B: Create SQLite-backed standalone memory
- * const memory = AgentMemory.sqlite({ path: './brain.sqlite' });
+ * const memory = await AgentMemory.sqlite({ path: './brain.sqlite' });
  *
  * // Simple API
  * await memory.remember("User prefers dark mode");
@@ -145,8 +145,9 @@ export class AgentMemory {
   /**
    * Create an initialized SQLite-backed AgentMemory for standalone usage.
    */
-  static sqlite(config?: MemoryConfig): AgentMemory {
-    return AgentMemory.wrapMemory(new StandaloneMemory(config));
+  static async sqlite(config?: MemoryConfig): Promise<AgentMemory> {
+    const memory = await StandaloneMemory.create(config);
+    return AgentMemory.wrapMemory(memory);
   }
 
   /**
