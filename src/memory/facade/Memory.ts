@@ -179,6 +179,9 @@ export class Memory {
   private readonly _config: Required<Pick<MemoryConfig, 'store' | 'path' | 'graph' | 'selfImprove' | 'decay'>> & MemoryConfig;
   private _initPromise: Promise<void>;
 
+  /** HNSW sidecar index for O(log n) vector search alongside SQLite. */
+  private _hnswSidecar: import('../store/HnswSidecar.js').HnswSidecar | null = null;
+
   // -------------------------------------------------------------------
   // Constructor
   // -------------------------------------------------------------------
@@ -258,6 +261,26 @@ export class Memory {
       this._feedbackSignal = null;
       this._consolidationLoop = null;
     }
+
+    // Step 10: HNSW sidecar index (O(log n) ANN alongside SQLite).
+    // Loads existing index from disk if present; auto-builds when trace count
+    // exceeds 1000 and embeddings are available. Falls back to FTS5-only
+    // recall if hnswlib-node is not installed or no embeddings exist.
+    this._initPromise = this._initPromise.then(async () => {
+      try {
+        const { HnswSidecar } = await import('../store/HnswSidecar.js');
+        const dims = this._config.embeddings?.dimensions ?? 1536;
+        this._hnswSidecar = new HnswSidecar({
+          sqlitePath: this._config.path!,
+          dimensions: dims,
+        });
+        await this._hnswSidecar.init();
+      } catch {
+        // hnswlib-node not installed or init failed — HNSW stays null.
+        // Recall will use FTS5 only (still works, just O(n) for vectors).
+        this._hnswSidecar = null;
+      }
+    });
   }
 
   // =========================================================================
@@ -336,6 +359,40 @@ export class Memory {
       });
     }
 
+    // Add to HNSW sidecar if embeddings exist for this trace.
+    // The embedding is stored in the memory_traces table; if it's non-null,
+    // also index it in the HNSW sidecar for fast ANN recall.
+    if (this._hnswSidecar) {
+      const row = this._brain.db
+        .prepare('SELECT embedding FROM memory_traces WHERE id = ?')
+        .get(id) as { embedding: Buffer | null } | undefined;
+      if (row?.embedding && row.embedding.length > 0) {
+        const { blobToEmbedding, isLegacyJsonBlob } = await import('../../rag/utils/vectorMath.js');
+        const vec = isLegacyJsonBlob(row.embedding)
+          ? JSON.parse(row.embedding as unknown as string) as number[]
+          : blobToEmbedding(row.embedding);
+        const count = (this._brain.db.prepare('SELECT COUNT(*) as c FROM memory_traces WHERE deleted = 0').get() as { c: number }).c;
+
+        if (!this._hnswSidecar.isActive && count >= 1000) {
+          // Threshold crossed — rebuild full index from all embeddings.
+          const allRows = this._brain.db
+            .prepare('SELECT id, embedding FROM memory_traces WHERE deleted = 0 AND embedding IS NOT NULL')
+            .all() as { id: string; embedding: Buffer }[];
+          const data = allRows
+            .filter(r => r.embedding && r.embedding.length > 0)
+            .map(r => ({
+              id: r.id,
+              embedding: isLegacyJsonBlob(r.embedding)
+                ? JSON.parse(r.embedding as unknown as string) as number[]
+                : blobToEmbedding(r.embedding),
+            }));
+          await this._hnswSidecar.rebuildFromData(data);
+        } else {
+          await this._hnswSidecar.add(id, vec, count);
+        }
+      }
+    }
+
     // Build a MemoryTrace-shaped return value.
     return this._buildTrace({
       id,
@@ -409,8 +466,81 @@ export class Memory {
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
-    // FTS5 MATCH query joined with the main table.
-    // rank is negative (closer to 0 = better match), so we use abs().
+    // ── Path A: HNSW + FTS5 hybrid (if sidecar is active) ──
+    // Uses HNSW for dense vector candidates, FTS5 for lexical candidates,
+    // then merges via reciprocal rank fusion (RRF). This is the fast path
+    // when embeddings exist and the sidecar has been built.
+    if (this._hnswSidecar?.isActive) {
+      // Get vector candidates from HNSW (3x over-fetch for fusion).
+      const hnswCandidates = this._hnswSidecar.query(
+        // Use a query embedding if we can generate one.
+        // For now, fall back to FTS-only if no embedding available.
+        // TODO: Wire EmbeddingManager for query-time embedding generation.
+        [],
+        limit * 3,
+      );
+
+      // If HNSW returned candidates, merge with FTS5 via RRF.
+      if (hnswCandidates.length > 0) {
+        const hnswIds = new Set(hnswCandidates.map(c => c.id));
+        const hnswRank = new Map(hnswCandidates.map((c, i) => [c.id, i + 1]));
+
+        // Get FTS5 candidates.
+        const ftsSql = `
+          SELECT t.*, fts.rank
+          FROM memory_traces_fts fts
+          JOIN memory_traces t ON t.rowid = fts.rowid
+          ${whereClause}
+          AND memory_traces_fts MATCH ?
+          ORDER BY abs(fts.rank) DESC
+          LIMIT ?
+        `;
+        const ftsRows = this._brain.db
+          .prepare<unknown[], FtsJoinRow>(ftsSql)
+          .all(...params, ftsQuery, limit * 3);
+
+        const ftsRank = new Map(ftsRows.map((r, i) => [r.id, i + 1]));
+
+        // Merge all candidate IDs.
+        const allIds = new Set([...hnswIds, ...ftsRows.map(r => r.id)]);
+        const rrfK = 60; // Standard RRF constant.
+
+        // Compute RRF score for each candidate.
+        const scored: { id: string; rrfScore: number }[] = [];
+        for (const id of allIds) {
+          const denseRank = hnswRank.get(id) ?? 10000;
+          const lexRank = ftsRank.get(id) ?? 10000;
+          const rrfScore = 1 / (rrfK + denseRank) + 1 / (rrfK + lexRank);
+          scored.push({ id, rrfScore });
+        }
+
+        // Sort by RRF score descending, take top limit.
+        scored.sort((a, b) => b.rrfScore - a.rrfScore);
+        const topIds = scored.slice(0, limit).map(s => s.id);
+
+        // Fetch full rows for the top candidates.
+        if (topIds.length > 0) {
+          const placeholders = topIds.map(() => '?').join(',');
+          const fullRows = this._brain.db
+            .prepare<unknown[], FtsJoinRow>(
+              `SELECT t.*, 0.0 as rank FROM memory_traces t WHERE t.id IN (${placeholders}) AND t.deleted = 0`,
+            )
+            .all(...topIds);
+
+          const updatedRows = this._applyRecallAccessUpdates(fullRows);
+          const rrfMap = new Map(scored.map(s => [s.id, s.rrfScore]));
+
+          return updatedRows.map((row) => ({
+            trace: this._buildTrace(row),
+            score: rrfMap.get(row.id) ?? 0,
+          })).sort((a, b) => b.score - a.score);
+        }
+      }
+    }
+
+    // ── Path B: FTS5-only (fallback when HNSW is inactive) ──
+    // This is the original behavior — pure text search ranked by
+    // strength * abs(fts_rank). Works without any embeddings.
     const sql = `
       SELECT t.*, fts.rank
       FROM memory_traces_fts fts
