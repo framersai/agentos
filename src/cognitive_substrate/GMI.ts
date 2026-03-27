@@ -806,7 +806,8 @@ export class GMI implements IGMI {
       }
 
       let safetyBreak = 0;
-      main_processing_loop: while (safetyBreak < 5) {
+      const maxToolLoopIterations = this.config.maxToolLoopIterations ?? 5;
+      main_processing_loop: while (safetyBreak < maxToolLoopIterations) {
         safetyBreak++;
         let augmentedContextFromRAG = "";
         const injectedLongTermMemoryContext =

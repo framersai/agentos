@@ -170,6 +170,11 @@ export interface GMIBaseConfig {
   cognitiveMemory?: import('../memory/CognitiveMemoryManager.js').ICognitiveMemoryManager;
   defaultLlmProviderId?: string;
   defaultLlmModelId?: string;
+  /**
+   * Maximum number of tool-loop iterations before the safety break engages.
+   * Prevents runaway tool loops in `processTurnStream()`. Defaults to `5`.
+   */
+  maxToolLoopIterations?: number;
   customSettings?: Record<string, any>;
 }
 
