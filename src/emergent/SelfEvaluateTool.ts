@@ -1,0 +1,525 @@
+/**
+ * @fileoverview SelfEvaluateTool — ITool implementation that enables agents to
+ * evaluate their own response quality, adjust runtime parameters, and report
+ * on performance drift over a session.
+ *
+ * @module @framers/agentos/emergent/SelfEvaluateTool
+ *
+ * Three actions:
+ * - `evaluate` — Score a response using an LLM judge (via generateText).
+ * - `adjust`   — Tweak runtime parameters (temperature, verbosity) or
+ *   delegate personality adjustments to {@link AdaptPersonalityTool}.
+ * - `report`   — Aggregate session evaluation history, compute score averages,
+ *   and list all adjustments made.
+ *
+ * The tool itself is read-only (`hasSideEffects: false`) because evaluate is
+ * observational; adjust delegates its side effects to adapt_personality or
+ * stores changes in an ephemeral session state map.
+ */
+
+import type {
+  ITool,
+  ToolExecutionResult,
+  ToolExecutionContext,
+  JSONSchemaObject,
+} from '../core/tools/ITool.js';
+import { generateText } from '../api/generateText.js';
+import type { AdaptPersonalityTool } from './AdaptPersonalityTool.js';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/**
+ * Score dimensions returned by the LLM evaluation judge.
+ */
+export interface EvaluationScores {
+  /** How relevant the response is to the user's query (0–1). */
+  relevance: number;
+  /** How clear and well-structured the response is (0–1). */
+  clarity: number;
+  /** How accurate the factual content is (0–1). */
+  accuracy: number;
+  /** How helpful the response is for the user's goal (0–1). */
+  helpfulness: number;
+}
+
+/**
+ * A recorded evaluation with scores and timestamp.
+ */
+export interface EvaluationRecord {
+  /** The scores assigned by the LLM judge. */
+  scores: EvaluationScores;
+  /** ISO-8601 timestamp of when the evaluation was performed. */
+  timestamp: string;
+}
+
+/**
+ * A recorded parameter adjustment.
+ */
+export interface AdjustmentRecord {
+  /** The parameter that was adjusted. */
+  param: string;
+  /** Value before adjustment. */
+  prev: unknown;
+  /** Value after adjustment. */
+  new: unknown;
+  /** ISO-8601 timestamp of when the adjustment was made. */
+  timestamp: string;
+}
+
+/**
+ * Memory trace stored via the optional storeMemory callback.
+ */
+export interface MemoryTrace {
+  /** Trace type identifier. */
+  type: string;
+  /** Scope of the trace (e.g. 'session'). */
+  scope: string;
+  /** Serialized trace content. */
+  content: string;
+  /** Tags for categorization and retrieval. */
+  tags: string[];
+}
+
+// ============================================================================
+// INPUT TYPE
+// ============================================================================
+
+/**
+ * Input arguments accepted by the `self_evaluate` tool.
+ * Discriminated on the `action` field.
+ */
+export interface SelfEvaluateInput extends Record<string, any> {
+  /** The action to perform: evaluate, adjust, or report. */
+  action: 'evaluate' | 'adjust' | 'report';
+
+  // --- evaluate fields ---
+  /** The response text to evaluate (required for evaluate). */
+  response?: string;
+  /** The original user query for context (required for evaluate). */
+  query?: string;
+
+  // --- adjust fields ---
+  /** The parameter to adjust (required for adjust). */
+  param?: string;
+  /** The new value for the parameter (required for adjust). */
+  value?: unknown;
+  /** Reasoning for personality adjustments (required when param is a personality trait). */
+  reasoning?: string;
+}
+
+// ============================================================================
+// CONSTRUCTOR DEPS
+// ============================================================================
+
+/**
+ * Dependencies injected into the {@link SelfEvaluateTool} constructor.
+ */
+export interface SelfEvaluateDeps {
+  /** Configuration controlling auto-adjust behaviour and evaluation limits. */
+  config: {
+    /** Whether adjustments are applied automatically after evaluations. */
+    autoAdjust: boolean;
+    /** Parameters that may be adjusted (e.g. 'temperature', 'verbosity', 'openness'). */
+    adjustableParams: string[];
+    /** Maximum number of evaluations allowed per session. */
+    maxEvaluationsPerSession: number;
+  };
+  /** Optional AdaptPersonalityTool for delegating personality adjustments. */
+  adaptPersonality?: AdaptPersonalityTool;
+  /** Optional callback to persist evaluation traces to long-term memory. */
+  storeMemory?: (trace: MemoryTrace) => Promise<void>;
+}
+
+// ============================================================================
+// TOOL IMPLEMENTATION
+// ============================================================================
+
+/**
+ * ITool implementation enabling agents to evaluate their own responses,
+ * adjust runtime parameters, and generate performance reports.
+ *
+ * @example
+ * ```ts
+ * const tool = new SelfEvaluateTool({
+ *   config: {
+ *     autoAdjust: false,
+ *     adjustableParams: ['temperature', 'verbosity'],
+ *     maxEvaluationsPerSession: 20,
+ *   },
+ * });
+ *
+ * const result = await tool.execute({
+ *   action: 'evaluate',
+ *   response: 'The capital of France is Paris.',
+ *   query: 'What is the capital of France?',
+ * }, context);
+ * ```
+ */
+export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
+  /** @inheritdoc */
+  readonly id = 'com.framers.emergent.self-evaluate';
+
+  /** @inheritdoc */
+  readonly name = 'self_evaluate';
+
+  /** @inheritdoc */
+  readonly displayName = 'Self Evaluate';
+
+  /** @inheritdoc */
+  readonly description =
+    'Evaluate response quality, adjust runtime parameters, or generate a ' +
+    'performance report. Evaluate uses an LLM judge to score relevance, ' +
+    'clarity, accuracy, and helpfulness.';
+
+  /** @inheritdoc */
+  readonly category = 'emergent';
+
+  /** @inheritdoc */
+  readonly hasSideEffects = false;
+
+  /** @inheritdoc */
+  readonly inputSchema: JSONSchemaObject = {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['evaluate', 'adjust', 'report'],
+        description: 'The self-evaluation action to perform.',
+      },
+      response: {
+        type: 'string',
+        description: 'The response text to evaluate.',
+      },
+      query: {
+        type: 'string',
+        description: 'The original user query for evaluation context.',
+      },
+      param: {
+        type: 'string',
+        description: 'The parameter to adjust.',
+      },
+      value: {
+        description: 'The new value for the parameter.',
+      },
+      reasoning: {
+        type: 'string',
+        description: 'Reasoning for personality trait adjustments.',
+      },
+    },
+    required: ['action'],
+  };
+
+  /** Session evaluation history. */
+  private readonly evaluations: EvaluationRecord[] = [];
+
+  /** Session adjustment history. */
+  private readonly adjustments: AdjustmentRecord[] = [];
+
+  /** Current session parameter values (non-personality). */
+  private readonly sessionParams: Map<string, unknown> = new Map();
+
+  /** Number of evaluations performed this session. */
+  private evalCount = 0;
+
+  /** Injected dependencies. */
+  private readonly deps: SelfEvaluateDeps;
+
+  /**
+   * Create a new SelfEvaluateTool.
+   *
+   * @param deps - Injected dependencies including config, optional
+   *   adaptPersonality tool, and optional memory store callback.
+   */
+  constructor(deps: SelfEvaluateDeps) {
+    this.deps = deps;
+  }
+
+  // --------------------------------------------------------------------------
+  // EXECUTE
+  // --------------------------------------------------------------------------
+
+  /**
+   * Execute the requested self-evaluation action.
+   *
+   * @param args - Action type and associated parameters.
+   * @param context - Tool execution context.
+   * @returns A {@link ToolExecutionResult} wrapping the action outcome.
+   */
+  async execute(
+    args: SelfEvaluateInput,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    switch (args.action) {
+      case 'evaluate':
+        return this.handleEvaluate(args, context);
+      case 'adjust':
+        return this.handleAdjust(args, context);
+      case 'report':
+        return this.handleReport();
+      default:
+        return {
+          success: false,
+          error: `Unknown action "${args.action}". Must be one of: evaluate, adjust, report`,
+        };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // EVALUATE
+  // --------------------------------------------------------------------------
+
+  /**
+   * Evaluate a response using an LLM judge and record the scores.
+   *
+   * Calls generateText with a small model to produce structured JSON scores,
+   * then persists the evaluation as a memory trace if storeMemory is provided.
+   */
+  private async handleEvaluate(
+    args: SelfEvaluateInput,
+    _context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    const { response, query } = args;
+
+    if (!response || typeof response !== 'string') {
+      return { success: false, error: 'response is required for the evaluate action' };
+    }
+    if (!query || typeof query !== 'string') {
+      return { success: false, error: 'query is required for the evaluate action' };
+    }
+
+    // Check session evaluation limit
+    if (this.evalCount >= this.deps.config.maxEvaluationsPerSession) {
+      return {
+        success: false,
+        error: `Maximum evaluations per session reached (${this.deps.config.maxEvaluationsPerSession})`,
+      };
+    }
+
+    // Call LLM to produce evaluation scores
+    let scores: EvaluationScores;
+    try {
+      const result = await generateText({
+        model: 'openai:gpt-4o-mini',
+        system:
+          'You are a response quality evaluator. Score the following response on four dimensions: ' +
+          'relevance, clarity, accuracy, and helpfulness. Each score is a number between 0 and 1. ' +
+          'Return ONLY a JSON object with these four keys, no other text.',
+        prompt: `User query: ${query}\n\nResponse to evaluate: ${response}`,
+        temperature: 0,
+        maxTokens: 200,
+      });
+
+      scores = JSON.parse(result.text);
+
+      // Validate score structure
+      for (const key of ['relevance', 'clarity', 'accuracy', 'helpfulness'] as const) {
+        if (typeof scores[key] !== 'number' || scores[key] < 0 || scores[key] > 1) {
+          scores[key] = 0.5; // Default to neutral if malformed
+        }
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Evaluation LLM call failed: ${err.message ?? String(err)}`,
+      };
+    }
+
+    // Record the evaluation
+    const record: EvaluationRecord = {
+      scores,
+      timestamp: new Date().toISOString(),
+    };
+    this.evaluations.push(record);
+    this.evalCount++;
+
+    // Store as memory trace if callback is provided
+    if (this.deps.storeMemory) {
+      try {
+        await this.deps.storeMemory({
+          type: 'self-evaluation',
+          scope: 'session',
+          content: JSON.stringify({ query, scores }),
+          tags: ['evaluation', 'quality'],
+        });
+      } catch {
+        // Best-effort memory storage; don't fail the evaluation
+      }
+    }
+
+    return {
+      success: true,
+      output: {
+        scores,
+        evalCount: this.evalCount,
+        remainingEvaluations: this.deps.config.maxEvaluationsPerSession - this.evalCount,
+      },
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // ADJUST
+  // --------------------------------------------------------------------------
+
+  /**
+   * Adjust a runtime parameter.
+   *
+   * For personality traits (openness, conscientiousness, etc.), delegates to
+   * the injected AdaptPersonalityTool. For non-personality params (temperature,
+   * verbosity), stores the value in session state.
+   */
+  private async handleAdjust(
+    args: SelfEvaluateInput,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    const { param, value, reasoning } = args;
+
+    if (!param || typeof param !== 'string') {
+      return { success: false, error: 'param is required for the adjust action' };
+    }
+    if (value === undefined || value === null) {
+      return { success: false, error: 'value is required for the adjust action' };
+    }
+
+    // Check if param is adjustable
+    if (!this.deps.config.adjustableParams.includes(param)) {
+      return {
+        success: false,
+        error: `Parameter "${param}" is not adjustable. Allowed: ${this.deps.config.adjustableParams.join(', ')}`,
+      };
+    }
+
+    const personalityTraits = [
+      'openness',
+      'conscientiousness',
+      'emotionality',
+      'extraversion',
+      'agreeableness',
+      'honesty',
+    ];
+
+    if (personalityTraits.includes(param)) {
+      // Delegate to AdaptPersonalityTool
+      if (!this.deps.adaptPersonality) {
+        return {
+          success: false,
+          error: 'Personality adjustment requires AdaptPersonalityTool but none was provided.',
+        };
+      }
+
+      const delta = typeof value === 'number' ? value : 0;
+      const personalityResult = await this.deps.adaptPersonality.execute(
+        {
+          trait: param,
+          delta,
+          reasoning: reasoning ?? `Self-evaluation adjustment for ${param}`,
+        },
+        context,
+      );
+
+      if (personalityResult.success && personalityResult.output) {
+        this.adjustments.push({
+          param,
+          prev: personalityResult.output.previousValue,
+          new: personalityResult.output.newValue,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return personalityResult;
+    }
+
+    // Non-personality parameter (temperature, verbosity, etc.)
+    const prevValue = this.sessionParams.get(param);
+    this.sessionParams.set(param, value);
+
+    this.adjustments.push({
+      param,
+      prev: prevValue ?? null,
+      new: value,
+      timestamp: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      output: {
+        param,
+        previousValue: prevValue ?? null,
+        newValue: value,
+      },
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // REPORT
+  // --------------------------------------------------------------------------
+
+  /**
+   * Generate a session performance report.
+   *
+   * Aggregates all evaluations, computes score averages, lists all adjustments,
+   * and summarizes personality drift and skill changes.
+   */
+  private async handleReport(): Promise<ToolExecutionResult> {
+    // Compute average scores across all evaluations
+    const averages: EvaluationScores = {
+      relevance: 0,
+      clarity: 0,
+      accuracy: 0,
+      helpfulness: 0,
+    };
+
+    if (this.evaluations.length > 0) {
+      for (const evalRecord of this.evaluations) {
+        averages.relevance += evalRecord.scores.relevance;
+        averages.clarity += evalRecord.scores.clarity;
+        averages.accuracy += evalRecord.scores.accuracy;
+        averages.helpfulness += evalRecord.scores.helpfulness;
+      }
+
+      const count = this.evaluations.length;
+      averages.relevance /= count;
+      averages.clarity /= count;
+      averages.accuracy /= count;
+      averages.helpfulness /= count;
+    }
+
+    // Summarize personality drift from adjustments
+    const personalityDrift: Record<string, { totalDelta: number; adjustmentCount: number }> = {};
+    const paramAdjustments: AdjustmentRecord[] = [];
+
+    for (const adj of this.adjustments) {
+      const personalityTraits = [
+        'openness',
+        'conscientiousness',
+        'emotionality',
+        'extraversion',
+        'agreeableness',
+        'honesty',
+      ];
+
+      if (personalityTraits.includes(adj.param)) {
+        if (!personalityDrift[adj.param]) {
+          personalityDrift[adj.param] = { totalDelta: 0, adjustmentCount: 0 };
+        }
+        personalityDrift[adj.param].totalDelta +=
+          (adj.new as number) - (adj.prev as number);
+        personalityDrift[adj.param].adjustmentCount++;
+      } else {
+        paramAdjustments.push(adj);
+      }
+    }
+
+    return {
+      success: true,
+      output: {
+        totalEvaluations: this.evaluations.length,
+        averageScores: averages,
+        adjustments: paramAdjustments,
+        personalityDrift,
+        evaluations: this.evaluations,
+      },
+    };
+  }
+}
