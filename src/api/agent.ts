@@ -37,6 +37,13 @@ export interface AgentOptions extends BaseAgentConfig {
    * When present, forwarded to `observability.usageLedger` internally.
    */
   usageLedger?: AgentOSUsageLedgerOptions;
+  /**
+   * Chain-of-thought reasoning instruction.
+   * - `false` — disable CoT injection.
+   * - `true` (default for agents) — inject the default CoT instruction when tools are present.
+   * - `string` — inject a custom CoT instruction when tools are present.
+   */
+  chainOfThought?: boolean | string;
 }
 
 /**
@@ -185,6 +192,7 @@ export function agent(opts: AgentOptions): Agent {
     system: buildSystemPrompt(opts),
     tools: opts.tools,
     maxSteps: opts.maxSteps ?? 5,
+    chainOfThought: opts.chainOfThought ?? true,
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
     usageLedger: effectiveLedger,

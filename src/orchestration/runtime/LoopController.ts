@@ -6,6 +6,13 @@
  * that supports parallel/sequential tool dispatch, configurable failure modes, and
  * iteration limits. Yields structured {@link LoopEvent}s for observability.
  *
+ * NOTE: The GMI (src/cognitive_substrate/GMI.ts) still maintains its own inline
+ * tool-calling loop in `processTurnStream()`.  The GMI loop carries RAG retrieval,
+ * prompt reconstruction, persona-scoped tool orchestration, and GMI state
+ * management that this controller does not yet abstract.  The GMI loop documents
+ * a future refactor path to delegate iteration/termination logic here.  See the
+ * comment block in GMI.processTurnStream() for details.
+ *
  * @example
  * ```typescript
  * const controller = new LoopController();

@@ -805,6 +805,31 @@ export class GMI implements IGMI {
         }
       }
 
+      // -------------------------------------------------------------------
+      // Main tool-calling loop (ReAct-style).
+      //
+      // NOTE: This loop duplicates the general-purpose LoopController
+      // (src/orchestration/runtime/LoopController.ts) but carries
+      // GMI-specific concerns that prevent a simple drop-in replacement:
+      //
+      //   - RAG retrieval + cognitive memory assembly on each iteration
+      //   - Full prompt reconstruction via PromptEngine per iteration
+      //   - Tool orchestration through IToolOrchestrator with persona-scoped
+      //     ToolExecutionRequestDetails (gmiId, capabilities, sessionData)
+      //   - GMIPrimeState transitions (PROCESSING <-> AWAITING_TOOL_RESULT)
+      //   - Streaming via provider.generateCompletionStream() rather than
+      //     the LoopController's AsyncGenerator<LoopChunk> abstraction
+      //   - Capability discovery tool filtering per iteration
+      //   - GMIError-based fail_closed semantics with structured error codes
+      //
+      // Future refactor path: extract the RAG + prompt-build phase into a
+      // pre-iteration callback and the tool-dispatch phase into a
+      // LoopContext adapter, then delegate the iteration/termination logic
+      // to LoopController.execute().  This would unify the safety-break,
+      // parallel-tools, and fail_open/fail_closed policies.  For now the
+      // configurable maxToolLoopIterations (GMIBaseConfig) keeps the safety
+      // break in sync with LoopController's maxIterations concept.
+      // -------------------------------------------------------------------
       let safetyBreak = 0;
       const maxToolLoopIterations = this.config.maxToolLoopIterations ?? 5;
       main_processing_loop: while (safetyBreak < maxToolLoopIterations) {
