@@ -182,6 +182,9 @@ export class Memory {
   /** HNSW sidecar index for O(log n) vector search alongside SQLite. */
   private _hnswSidecar: import('../store/HnswSidecar.js').HnswSidecar | null = null;
 
+  /** Optional embedding function for vector search (set via config.embed). */
+  private readonly _embed: ((text: string) => Promise<number[]>) | null;
+
   // -------------------------------------------------------------------
   // Constructor
   // -------------------------------------------------------------------
@@ -215,6 +218,9 @@ export class Memory {
       decay: true,
       ...config,
     };
+
+    // Store the optional embedding function for vector search.
+    this._embed = config?.embed ?? null;
 
     if (this._config.store !== 'sqlite') {
       throw new Error(
@@ -316,19 +322,33 @@ export class Memory {
     const entities = options?.entities ?? [];
     const importance = options?.importance ?? 1.0;
 
+    // Generate embedding if embed function is available.
+    let embeddingBlob: Buffer | null = null;
+    if (this._embed) {
+      try {
+        const vec = await this._embed(content);
+        const { embeddingToBlob: toBlob } = await import('../../rag/utils/vectorMath.js');
+        embeddingBlob = toBlob(vec);
+      } catch {
+        // Embedding generation failed — continue without vector.
+        embeddingBlob = null;
+      }
+    }
+
     // Insert into memory_traces.
     this._brain.db
       .prepare(
         `INSERT INTO memory_traces
            (id, type, scope, content, embedding, strength, created_at,
             last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-         VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, ?, ?, 0)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, 0)`,
       )
       .run(
         id,
         type,
         scope,
         content,
+        embeddingBlob, // Binary blob or null
         importance,
         now,
         JSON.stringify(tags),
@@ -470,15 +490,19 @@ export class Memory {
     // Uses HNSW for dense vector candidates, FTS5 for lexical candidates,
     // then merges via reciprocal rank fusion (RRF). This is the fast path
     // when embeddings exist and the sidecar has been built.
-    if (this._hnswSidecar?.isActive) {
+    if (this._hnswSidecar?.isActive && this._embed) {
+      // Generate query embedding for HNSW vector search.
+      let queryEmbedding: number[] = [];
+      try {
+        queryEmbedding = await this._embed(query);
+      } catch {
+        // Embedding failed — fall through to FTS5-only path.
+      }
+
       // Get vector candidates from HNSW (3x over-fetch for fusion).
-      const hnswCandidates = this._hnswSidecar.query(
-        // Use a query embedding if we can generate one.
-        // For now, fall back to FTS-only if no embedding available.
-        // TODO: Wire EmbeddingManager for query-time embedding generation.
-        [],
-        limit * 3,
-      );
+      const hnswCandidates = queryEmbedding.length > 0
+        ? this._hnswSidecar.query(queryEmbedding, limit * 3)
+        : [];
 
       // If HNSW returned candidates, merge with FTS5 via RRF.
       if (hnswCandidates.length > 0) {

@@ -233,8 +233,25 @@ export interface MemoryConfig {
   /** Qdrant API key for cloud instances. Optional. */
   qdrantApiKey?: string;
 
-  /** Embedding model configuration. */
+  /** Embedding model configuration (provider name + optional model). */
   embeddings?: EmbeddingConfig;
+
+  /**
+   * Optional embedding function for generating vectors at remember/recall time.
+   * When provided, enables HNSW vector search in recall() and stores embeddings
+   * alongside text in remember(). Without this, recall() falls back to FTS5-only.
+   *
+   * @example
+   * ```typescript
+   * const mem = new Memory({
+   *   embed: async (text) => {
+   *     const res = await openai.embeddings.create({ model: 'text-embedding-3-small', input: text });
+   *     return res.data[0].embedding;
+   *   },
+   * });
+   * ```
+   */
+  embed?: (text: string) => Promise<number[]>;
 
   /**
    * Whether to build and maintain a knowledge graph alongside the vector store.
