@@ -30,24 +30,34 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { dirname, extname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { QueryClassifier } from './QueryClassifier.js';
+import { QueryClassifier, heuristicClassify } from './QueryClassifier.js';
 import { QueryDispatcher } from './QueryDispatcher.js';
 import { QueryGenerator } from './QueryGenerator.js';
 import { TopicExtractor } from './TopicExtractor.js';
 import { KeywordFallback } from './KeywordFallback.js';
-import { DEFAULT_QUERY_ROUTER_CONFIG } from './types.js';
+import {
+  DEFAULT_QUERY_ROUTER_CONFIG,
+  DEFAULT_STRATEGY_CONFIG,
+  STRATEGY_TO_TIER,
+  TIER_TO_STRATEGY,
+} from './types.js';
 import type {
   ClassificationResult,
+  ClassifierMode,
   ConversationMessage,
   CorpusChunk,
   QueryResult,
   QueryRouterCorpusStats,
   QueryRouterConfig,
+  QueryRouterEmbeddingStatus,
   QueryRouterEventUnion,
+  QueryRouterStrategyConfig,
   QueryTier,
   RetrievalResult,
+  RetrievalStrategy,
   RetrievedChunk,
   SourceCitation,
   TopicEntry,
@@ -73,12 +83,30 @@ type QueryRouterResolvedConfig = Omit<
   | 'onRetrieval'
   | 'apiKey'
   | 'baseUrl'
+  | 'embeddingApiKey'
+  | 'embeddingBaseUrl'
   | 'githubRepos'
+  | 'strategyConfig'
 > &
   Pick<
     QueryRouterConfig,
-    'graphExpand' | 'rerank' | 'deepResearch' | 'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl' | 'githubRepos'
-  >;
+    | 'graphExpand'
+    | 'rerank'
+    | 'deepResearch'
+    | 'onClassification'
+    | 'onRetrieval'
+    | 'apiKey'
+    | 'baseUrl'
+    | 'embeddingApiKey'
+    | 'embeddingBaseUrl'
+    | 'githubRepos'
+  > & {
+    /** Resolved strategy configuration with defaults applied. */
+    strategyConfig: Required<Omit<QueryRouterStrategyConfig, 'forceStrategy' | 'classifierModel'>> & {
+      forceStrategy: RetrievalStrategy | undefined;
+      classifierModel: string | undefined;
+    };
+  };
 
 /** Regex for splitting markdown by h1-h3 headings. */
 const HEADING_REGEX = /^#{1,3}\s+(.+)/;
@@ -91,6 +119,40 @@ const MIN_CHUNK_CHARS = 20;
 
 /** Supported markdown file extensions for corpus loading. */
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdx']);
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const GITHUB_EXTENSION_LOCAL_ENTRY_CANDIDATES = [
+  resolve(
+    MODULE_DIR,
+    '../../../../packages/agentos-extensions/registry/curated/integrations/github/dist/index.js',
+  ),
+  resolve(
+    MODULE_DIR,
+    '../../../../apps/wunderland-sol/packages/agentos-extensions/registry/curated/integrations/github/dist/index.js',
+  ),
+];
+
+interface GitHubExtensionModule {
+  GitHubRepoIndexer: new (service: unknown) => {
+    indexEcosystem(): Promise<
+      Array<{
+        repo: string;
+        chunks: Array<{ heading: string; content: string; sourcePath: string }>;
+        durationMs: number;
+      }>
+    >;
+    indexRepo(
+      owner: string,
+      repo: string,
+    ): Promise<{
+      repo: string;
+      chunks: Array<{ heading: string; content: string; sourcePath: string }>;
+      durationMs: number;
+    }>;
+  };
+  GitHubService: new (token: string) => {
+    initialize(): Promise<void>;
+  };
+}
 
 // ============================================================================
 // QueryRouter
@@ -157,6 +219,9 @@ export class QueryRouter {
   /** Embedding dimension for the configured model. Zero if embeddings unavailable. */
   private embeddingDimension = 0;
 
+  /** Current embedding availability state for corpus retrieval. */
+  private embeddingStatus: QueryRouterEmbeddingStatus = 'disabled-no-key';
+
   /**
    * The data source ID used for corpus embeddings in the vector store.
    * Matches the collection name configured during init().
@@ -177,6 +242,10 @@ export class QueryRouter {
       ...config,
       deepResearchEnabled: config.deepResearchEnabled ?? Boolean(process.env.SERPER_API_KEY),
       availableTools: config.availableTools ?? [...DEFAULT_QUERY_ROUTER_CONFIG.availableTools],
+      strategyConfig: {
+        ...DEFAULT_STRATEGY_CONFIG,
+        ...config.strategyConfig,
+      },
     };
   }
 
@@ -217,30 +286,23 @@ export class QueryRouter {
     await this.embedCorpus();
 
     // 5. Instantiate the classifier
-    this.classifier = new QueryClassifier({
-      model: this.config.classifierModel,
-      provider: this.config.classifierProvider,
-      confidenceThreshold: this.config.confidenceThreshold,
-      maxTier: this.config.maxTier,
-      topicList,
-      toolList: this.formatToolList(this.config.availableTools),
-      apiKey: this.config.apiKey,
-      baseUrl: this.config.baseUrl,
-    });
+    this.classifier = this.createClassifier(topicList);
 
     // 6. Instantiate the generator
     this.generator = new QueryGenerator({
       model: this.config.generationModel,
       modelDeep: this.config.generationModelDeep,
       provider: this.config.generationProvider,
-      apiKey: this.config.apiKey,
-      baseUrl: this.config.baseUrl,
+      apiKey: this.getLlmApiKey(),
+      baseUrl: this.getLlmBaseUrl(),
       maxContextTokens: this.config.maxContextTokens,
     });
 
     // 7. Instantiate the dispatcher with callback dependencies
     this.dispatcher = new QueryDispatcher({
       vectorSearch: (query: string, topK: number) => this.vectorSearch(query, topK),
+      hydeSearch: (query: string, topK: number) => this.hydeSearch(query, topK),
+      decompose: (query: string, maxSubQueries: number) => this.decomposeQuery(query, maxSubQueries),
       graphExpand: (seeds: RetrievedChunk[]) =>
         this.config.graphExpand ? this.config.graphExpand(seeds) : this.graphExpand(seeds),
       rerank: (query: string, chunks: RetrievedChunk[], topN: number) =>
@@ -254,6 +316,7 @@ export class QueryRouter {
       emit: (event: QueryRouterEventUnion) => this.emit(event),
       graphEnabled: this.config.graphEnabled,
       deepResearchEnabled: this.config.deepResearchEnabled,
+      maxSubQueries: this.config.strategyConfig.maxSubQueries,
     });
 
     this.initialized = true;
@@ -263,28 +326,16 @@ export class QueryRouter {
     // ----------------------------------------------------------------
     // Runs after the router is fully initialized so that query routing
     // is available immediately. Indexed chunks are merged into the
-    // corpus and the keyword fallback is rebuilt once complete.
+    // corpus, then the live retrieval/classification state is refreshed
+    // once indexing completes.
     const repoConfig = this.config.githubRepos ?? {};
     const includeEcosystem = repoConfig.includeEcosystem ?? true;
 
     if (includeEcosystem || (repoConfig.repos && repoConfig.repos.length > 0)) {
       Promise.resolve().then(async () => {
         try {
-          // Dynamic import to keep the dependency optional.
-          // The path is constructed at runtime via a variable to prevent
-          // bundlers (Vite/esbuild) from attempting static resolution of
-          // the deep subpath which is not in the package's exports map.
-          const ghSubpath = 'registry/curated/integrations/github/src';
-          const indexerMod = await import(
-            /* @vite-ignore */ `../../../../agentos-extensions/${ghSubpath}/GitHubRepoIndexer.js`
-          );
-          const { GitHubRepoIndexer } = indexerMod;
-
-          // GitHubService — create minimal instance for public API access
-          const serviceMod = await import(
-            /* @vite-ignore */ `../../../../agentos-extensions/${ghSubpath}/GitHubService.js`
-          );
-          const { GitHubService } = serviceMod;
+          const { GitHubRepoIndexer, GitHubService } = await this.loadGitHubExtensionModule();
+          const indexedChunks: Array<{ heading: string; content: string; sourcePath: string }> = [];
 
           const token = repoConfig.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
           const service = new GitHubService(token);
@@ -299,9 +350,7 @@ export class QueryRouter {
             const results = await indexer.indexEcosystem();
             const totalChunks = results.reduce((s, r) => s + r.chunks.length, 0);
             for (const result of results) {
-              for (const chunk of result.chunks) {
-                this.corpus.push({ id: `gh_${this.corpus.length}`, ...chunk });
-              }
+              indexedChunks.push(...result.chunks);
               this.emit({
                 type: 'github:index:complete',
                 repo: result.repo,
@@ -319,9 +368,7 @@ export class QueryRouter {
             for (const { owner, repo } of repoConfig.repos) {
               try {
                 const result = await indexer.indexRepo(owner, repo);
-                for (const chunk of result.chunks) {
-                  this.corpus.push({ id: `gh_${this.corpus.length}`, ...chunk });
-                }
+                indexedChunks.push(...result.chunks);
                 this.emit({
                   type: 'github:index:complete',
                   repo: result.repo,
@@ -339,19 +386,7 @@ export class QueryRouter {
               }
             }
           }
-
-          // Rebuild keyword fallback with expanded corpus
-          const { KeywordFallback: KF } = await import('./KeywordFallback.js');
-          this.keywordFallback = new KF(this.corpus);
-
-          // Rebuild topic list for classifier
-          const { TopicExtractor: TE } = await import('./TopicExtractor.js');
-          const extractor = new TE();
-          const topics = extractor.extract(this.corpus);
-          this.topics = topics;
-          // Note: classifier topicList is set at init — this update won't affect
-          // the current classifier instance.
-          // Future improvement: allow classifier to refresh its topic list.
+          await this.syncIndexedCorpusChunks(indexedChunks);
 
         } catch (err) {
           console.warn(
@@ -360,6 +395,36 @@ export class QueryRouter {
         }
       });
     }
+  }
+
+  private async loadGitHubExtensionModule(): Promise<GitHubExtensionModule> {
+    const specifiers = [
+      '@framers/agentos-ext-github',
+      ...GITHUB_EXTENSION_LOCAL_ENTRY_CANDIDATES
+        .filter((candidate) => existsSync(candidate))
+        .map((candidate) => pathToFileURL(candidate).href),
+    ];
+    const failures: string[] = [];
+
+    for (const specifier of specifiers) {
+      try {
+        const module = (await import(/* @vite-ignore */ specifier)) as Partial<GitHubExtensionModule>;
+        if (module.GitHubRepoIndexer && module.GitHubService) {
+          return module as GitHubExtensionModule;
+        }
+        failures.push(`${specifier} loaded without GitHubRepoIndexer/GitHubService exports`);
+      } catch (error) {
+        failures.push(
+          `${specifier}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    throw new Error(
+      `Unable to load GitHub extension runtime for QueryRouter indexing. ${failures.join(
+        ' | ',
+      )}`,
+    );
   }
 
   /**
@@ -457,12 +522,21 @@ export class QueryRouter {
     }
 
     // --- Phase 2: Retrieval ---
+    // Use strategy-based dispatch (HyDE-aware) when the classifier provides
+    // a strategy. Falls back to legacy tier-based dispatch if strategy is
+    // absent (backwards compatibility with older classifier outputs).
     const retrievalEventStart = this.events.length;
-    const retrieval = await this.dispatcher!.dispatch(
-      query,
-      classification.tier,
-      classification.suggestedSources,
-    );
+    const retrieval = classification.strategy
+      ? await this.dispatcher!.dispatchByStrategy(
+          query,
+          classification.strategy,
+          classification.suggestedSources,
+        )
+      : await this.dispatcher!.dispatch(
+          query,
+          classification.tier,
+          classification.suggestedSources,
+        );
     const retrievalEvents = this.events.slice(retrievalEventStart);
     const fallbacksUsed = this.collectFallbacks(classification, retrievalEvents);
     const tiersUsed = this.collectTiersUsed(classification, fallbacksUsed);
@@ -509,6 +583,7 @@ export class QueryRouter {
       answer: generateResult.answer,
       classification,
       sources,
+      researchSynthesis: retrieval.researchSynthesis,
       durationMs: totalDuration,
       tiersUsed,
       fallbacksUsed,
@@ -554,6 +629,7 @@ export class QueryRouter {
     this.vectorStoreManager = null;
     this.providerManager = null;
     this.embeddingDimension = 0;
+    this.embeddingStatus = 'disabled-no-key';
     this.classifier = null;
     this.dispatcher = null;
     this.generator = null;
@@ -590,6 +666,7 @@ export class QueryRouter {
       topicCount: this.topics.length,
       sourceCount: new Set(this.corpus.map((chunk) => chunk.sourcePath)).size,
       retrievalMode: vectorActive ? 'vector+keyword-fallback' : 'keyword-only',
+      embeddingStatus: vectorActive ? 'active' : this.embeddingStatus,
       embeddingDimension: vectorActive ? this.embeddingDimension : 0,
       graphEnabled: this.config.graphEnabled,
       deepResearchEnabled: this.config.deepResearchEnabled,
@@ -781,8 +858,9 @@ export class QueryRouter {
     // Quick check: bail out early if there's obviously no API key configured.
     // This avoids the overhead of dynamic imports and provider initialization
     // in test environments and when no embedding provider is available.
-    const apiKey = this.config.apiKey || process.env.OPENAI_API_KEY || '';
-    if (!apiKey) {
+    const embeddingApiKey = this.getEmbeddingApiKey();
+    if (!embeddingApiKey) {
+      this.disableVectorRetrieval('disabled-no-key');
       console.debug(
         '[QueryRouter] No embedding API key configured; skipping vector store embedding (keyword fallback active).',
       );
@@ -809,8 +887,8 @@ export class QueryRouter {
             providerId: this.config.embeddingProvider,
             enabled: true,
             config: {
-              apiKey: this.config.apiKey || process.env.OPENAI_API_KEY || '',
-              ...(this.config.baseUrl ? { baseUrl: this.config.baseUrl } : {}),
+              apiKey: embeddingApiKey,
+              ...(this.getEmbeddingBaseUrl() ? { baseUrl: this.getEmbeddingBaseUrl() } : {}),
             },
             isDefault: true,
           },
@@ -854,6 +932,7 @@ export class QueryRouter {
         }
       }
       this.embeddingDimension = dimension;
+      this.embeddingStatus = 'active';
 
       // --- 3. Initialise the vector store manager (in-memory) ---
       const vsm = new VectorStoreManagerClass();
@@ -930,12 +1009,204 @@ export class QueryRouter {
       console.warn(
         `[QueryRouter] Embedding initialisation failed, falling back to keyword search: ${message}`,
       );
-      // Clean up any partial state
-      this.embeddingManager = null;
-      this.vectorStoreManager = null;
-      this.providerManager = null;
-      this.embeddingDimension = 0;
+      this.disableVectorRetrieval('failed-init');
     }
+  }
+
+  private async syncIndexedCorpusChunks(
+    chunks: Array<{ heading: string; content: string; sourcePath: string }>,
+  ): Promise<void> {
+    if (chunks.length === 0) {
+      return;
+    }
+
+    const appendedChunks = this.appendCorpusChunks(chunks);
+    await this.indexAdditionalCorpusChunks(appendedChunks);
+    this.rebuildCorpusSearchState();
+  }
+
+  private appendCorpusChunks(
+    chunks: Array<{ heading: string; content: string; sourcePath: string }>,
+  ): CorpusChunk[] {
+    const existingKeys = new Set(
+      this.corpus.map((chunk) => `${chunk.sourcePath}\u0000${chunk.heading}\u0000${chunk.content}`),
+    );
+    const filteredChunks = chunks
+      .map((chunk) => ({
+        heading: chunk.heading,
+        sourcePath: chunk.sourcePath,
+        content: chunk.content.slice(0, MAX_CHUNK_CHARS).trim(),
+      }))
+      .filter((chunk) => {
+        if (chunk.content.length < MIN_CHUNK_CHARS) {
+          return false;
+        }
+
+        const dedupeKey = `${chunk.sourcePath}\u0000${chunk.heading}\u0000${chunk.content}`;
+        if (existingKeys.has(dedupeKey)) {
+          return false;
+        }
+
+        existingKeys.add(dedupeKey);
+        return true;
+      });
+    const startIndex = this.corpus.length;
+    const appendedChunks = filteredChunks.map((chunk, index) => ({
+      id: `gh_${startIndex + index}`,
+      heading: chunk.heading,
+      content: chunk.content,
+      sourcePath: chunk.sourcePath,
+    }));
+
+    this.corpus.push(...appendedChunks);
+    return appendedChunks;
+  }
+
+  private rebuildCorpusSearchState(): void {
+    this.keywordFallback = new KeywordFallback(this.corpus);
+
+    const topicExtractor = new TopicExtractor();
+    this.topics = topicExtractor.extract(this.corpus);
+
+    if (this.classifier) {
+      this.classifier = this.createClassifier(topicExtractor.formatForPrompt(this.topics));
+    }
+  }
+
+  private createClassifier(topicList: string): QueryClassifier {
+    return new QueryClassifier({
+      model: this.config.classifierModel,
+      provider: this.config.classifierProvider,
+      confidenceThreshold: this.config.confidenceThreshold,
+      maxTier: this.config.maxTier,
+      topicList,
+      toolList: this.formatToolList(this.config.availableTools),
+      apiKey: this.getLlmApiKey(),
+      baseUrl: this.getLlmBaseUrl(),
+    });
+  }
+
+  private async indexAdditionalCorpusChunks(chunks: CorpusChunk[]): Promise<void> {
+    if (
+      chunks.length === 0 ||
+      !this.embeddingManager ||
+      !this.vectorStoreManager ||
+      this.embeddingStatus !== 'active'
+    ) {
+      return;
+    }
+
+    try {
+      const { store, collectionName } =
+        await this.vectorStoreManager.getStoreForDataSource(this.corpusDataSourceId);
+      const BATCH_SIZE = 50;
+      const allDocuments: VectorDocument[] = [];
+
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batch = chunks.slice(i, i + BATCH_SIZE);
+        const result = await this.embeddingManager.generateEmbeddings({
+          texts: batch.map((chunk) => chunk.content),
+        });
+
+        for (let j = 0; j < batch.length; j++) {
+          const embedding = result.embeddings[j];
+          if (!embedding || embedding.length === 0) {
+            continue;
+          }
+
+          batch[j].embedding = embedding;
+          allDocuments.push({
+            id: batch[j].id,
+            embedding,
+            textContent: batch[j].content,
+            metadata: {
+              heading: batch[j].heading,
+              sourcePath: batch[j].sourcePath,
+            },
+          });
+        }
+      }
+
+      if (allDocuments.length > 0) {
+        await store.upsert(collectionName, allDocuments);
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[QueryRouter] Incremental GitHub corpus embedding failed; falling back to keyword search: ${message}`,
+      );
+      this.disableVectorRetrieval('failed-init');
+    }
+  }
+
+  private disableVectorRetrieval(status: Exclude<QueryRouterEmbeddingStatus, 'active'>): void {
+    this.embeddingManager = null;
+    this.vectorStoreManager = null;
+    this.providerManager = null;
+    this.embeddingDimension = 0;
+    this.embeddingStatus = status;
+  }
+
+  private getEmbeddingApiKey(): string {
+    return (
+      this.config.embeddingApiKey ??
+      this.config.apiKey ??
+      process.env.OPENAI_API_KEY ??
+      process.env.OPENROUTER_API_KEY ??
+      ''
+    );
+  }
+
+  private getEmbeddingBaseUrl(): string | undefined {
+    if (this.config.embeddingBaseUrl !== undefined) {
+      return this.config.embeddingBaseUrl;
+    }
+
+    if (this.config.embeddingApiKey !== undefined) {
+      return undefined;
+    }
+
+    if (this.config.baseUrl !== undefined) {
+      return this.config.baseUrl;
+    }
+
+    if (this.config.apiKey !== undefined) {
+      return undefined;
+    }
+
+    if (process.env.OPENAI_API_KEY) {
+      return undefined;
+    }
+
+    if (process.env.OPENROUTER_API_KEY) {
+      return 'https://openrouter.ai/api/v1';
+    }
+
+    return undefined;
+  }
+
+  private getLlmApiKey(): string {
+    return this.config.apiKey ?? process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY ?? '';
+  }
+
+  private getLlmBaseUrl(): string | undefined {
+    if (this.config.baseUrl !== undefined) {
+      return this.config.baseUrl;
+    }
+
+    if (this.config.apiKey !== undefined) {
+      return undefined;
+    }
+
+    if (process.env.OPENAI_API_KEY) {
+      return undefined;
+    }
+
+    if (process.env.OPENROUTER_API_KEY) {
+      return 'https://openrouter.ai/api/v1';
+    }
+
+    return undefined;
   }
 
   /**
@@ -959,8 +1230,9 @@ export class QueryRouter {
   /**
    * Whether graph expansion is backed by a live implementation.
    *
-   * Today the core router still uses a placeholder `graphExpand()` path, so
-   * hosts should not treat `graphEnabled` as meaning GraphRAG is actually live.
+   * Hosts should not treat `graphEnabled` as meaning GraphRAG is actually live.
+   * `active` is reserved for a host-injected or future provider-backed graph
+   * runtime rather than the built-in heuristic.
    */
   private hasLiveGraphRuntime(): boolean {
     return typeof this.config.graphExpand === 'function';
@@ -976,7 +1248,8 @@ export class QueryRouter {
   /**
    * Whether reranking is backed by a live implementation.
    *
-   * Today the core router still uses a placeholder `rerank()` path.
+   * `active` is reserved for a host-injected or future provider-backed
+   * reranker rather than the built-in lexical heuristic.
    */
   private hasLiveRerankerRuntime(): boolean {
     return typeof this.config.rerank === 'function';
@@ -992,8 +1265,9 @@ export class QueryRouter {
   /**
    * Whether deep research is backed by a live implementation.
    *
-   * Today the core router still uses a placeholder `deepResearch()` path, so
    * `deepResearchEnabled` only means the branch may be attempted by config.
+   * `active` is reserved for a host-injected or future provider-backed
+   * research runtime rather than the built-in local-corpus heuristic.
    */
   private hasLiveDeepResearchRuntime(): boolean {
     return typeof this.config.deepResearch === 'function';
