@@ -120,6 +120,11 @@ export class PostgresVectorStore implements IVectorStore {
     }
   }
 
+  /** Gracefully shut down the store (alias for close). */
+  async shutdown(): Promise<void> {
+    await this.close();
+  }
+
   /**
    * Health check — verifies connection and pgvector availability.
    * @returns True if Postgres + pgvector is reachable.
@@ -134,6 +139,12 @@ export class PostgresVectorStore implements IVectorStore {
     }
   }
 
+  /** IVectorStore-compliant health check. */
+  async checkHealth(): Promise<{ isHealthy: boolean; details?: any }> {
+    const isHealthy = await this.healthCheck();
+    return { isHealthy };
+  }
+
   // =========================================================================
   // Collection Management
   // =========================================================================
@@ -143,10 +154,11 @@ export class PostgresVectorStore implements IVectorStore {
    */
   async createCollection(
     name: string,
+    dimension: number,
     options?: CreateCollectionOptions,
   ): Promise<void> {
     await this._ensureInit();
-    const dim = options?.dimension ?? this.config.defaultDimension ?? 1536;
+    const dim = dimension ?? this.config.defaultDimension ?? 1536;
     const metric = (options?.similarityMetric ?? this.config.similarityMetric ?? 'cosine') as 'cosine' | 'euclidean' | 'dotproduct';
     const table = this._t(name);
 
@@ -253,8 +265,9 @@ export class PostgresVectorStore implements IVectorStore {
     }
 
     return {
-      successCount: documents.length,
-      failedIds: [],
+      upsertedCount: documents.length,
+      upsertedIds: documents.map(d => d.id),
+      failedCount: 0,
     };
   }
 
@@ -425,21 +438,22 @@ export class PostgresVectorStore implements IVectorStore {
   /** Delete documents by ID. */
   async delete(
     collectionName: string,
-    options: DeleteOptions,
+    ids?: string[],
+    options?: DeleteOptions,
   ): Promise<DeleteResult> {
     await this._ensureInit();
     const table = this._t(collectionName);
 
-    if (options.ids && options.ids.length > 0) {
-      const placeholders = options.ids.map((_, i) => `$${i + 1}`).join(', ');
+    if (ids && ids.length > 0) {
+      const placeholders = ids.map((_: unknown, i: number) => `$${i + 1}`).join(', ');
       const result = await this.pool.query(
         `DELETE FROM ${table} WHERE id IN (${placeholders})`,
-        options.ids,
+        ids,
       );
       return { deletedCount: result.rowCount ?? 0 };
     }
 
-    if (options.deleteAll) {
+    if (options?.deleteAll) {
       const result = await this.pool.query(`DELETE FROM ${table}`);
       return { deletedCount: result.rowCount ?? 0 };
     }

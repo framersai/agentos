@@ -90,7 +90,12 @@ export class PineconeVectorStore implements IVectorStore {
     this.isInitialized = false;
   }
 
-  /** Health check — verify index is reachable. */
+  /** Gracefully shut down the store (alias for close). */
+  async shutdown(): Promise<void> {
+    await this.close();
+  }
+
+  /** Health check — verify index is reachable (legacy). */
   async healthCheck(): Promise<boolean> {
     try {
       const res = await this._fetch('/describe_index_stats', { method: 'POST', body: '{}' });
@@ -98,6 +103,12 @@ export class PineconeVectorStore implements IVectorStore {
     } catch {
       return false;
     }
+  }
+
+  /** IVectorStore-compliant health check. */
+  async checkHealth(): Promise<{ isHealthy: boolean; details?: any }> {
+    const isHealthy = await this.healthCheck();
+    return { isHealthy };
   }
 
   // =========================================================================
@@ -110,6 +121,7 @@ export class PineconeVectorStore implements IVectorStore {
    */
   async createCollection(
     _name: string,
+    _dimension: number,
     _options?: CreateCollectionOptions,
   ): Promise<void> {
     await this._ensureInit();
@@ -174,7 +186,11 @@ export class PineconeVectorStore implements IVectorStore {
       }
     }
 
-    return { successCount, failedIds };
+    return {
+      upsertedCount: successCount,
+      upsertedIds: documents.map(d => d.id),
+      failedCount: failedIds.length,
+    };
   }
 
   // =========================================================================
@@ -273,12 +289,13 @@ export class PineconeVectorStore implements IVectorStore {
   /** Delete vectors by ID or delete all in namespace. */
   async delete(
     collectionName: string,
-    options: DeleteOptions,
+    ids?: string[],
+    options?: DeleteOptions,
   ): Promise<DeleteResult> {
     await this._ensureInit();
     const ns = collectionName || this.config.namespace || '';
 
-    if (options.deleteAll) {
+    if (options?.deleteAll) {
       await this._fetch('/vectors/delete', {
         method: 'POST',
         body: JSON.stringify({ deleteAll: true, namespace: ns }),
@@ -286,12 +303,12 @@ export class PineconeVectorStore implements IVectorStore {
       return { deletedCount: -1 }; // Pinecone doesn't return count on deleteAll.
     }
 
-    if (options.ids && options.ids.length > 0) {
+    if (ids && ids.length > 0) {
       // Pinecone supports up to 1000 IDs per delete.
       const batchSize = 1000;
       let deleted = 0;
-      for (let i = 0; i < options.ids.length; i += batchSize) {
-        const batch = options.ids.slice(i, i + batchSize);
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
         const res = await this._fetch('/vectors/delete', {
           method: 'POST',
           body: JSON.stringify({ ids: batch, namespace: ns }),
