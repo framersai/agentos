@@ -12,12 +12,18 @@ import type { AgentKeySource } from '../types.js';
 // Runtime Detection
 // =============================================================================
 
+/**
+ * Lazily-resolved reference to Node.js `crypto` module.
+ * Uses synchronous `require()` to avoid top-level `await`, which breaks CJS
+ * output (esbuild / tsx emit `"cjs"` format that does not support TLA).
+ * Falls back to `undefined` in browser / non-Node runtimes.
+ */
 let nodeCrypto: typeof import('node:crypto') | undefined;
 try {
-  // Dynamic import for Node.js runtime
-  nodeCrypto = await import('node:crypto');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  nodeCrypto = require('node:crypto');
 } catch {
-  // Not in Node.js environment
+  // Not in Node.js environment (browser, Deno without compat, etc.)
 }
 
 // =============================================================================
