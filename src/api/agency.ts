@@ -42,6 +42,8 @@ import type {
   AgentCallRecord,
   RagConfig,
   AgencyStreamPart,
+  AgencyStreamResult,
+  CompiledStrategyStreamResult,
 } from './types.js';
 import { AgencyConfigError } from './types.js';
 import {
@@ -49,6 +51,7 @@ import {
   exportAgentConfigJSON,
   type AgentExportConfig,
 } from './agentExport.js';
+import { createBufferedAsyncReplay } from './streamBuffer.js';
 
 // ---------------------------------------------------------------------------
 // Public factory
@@ -106,6 +109,97 @@ export function agency(opts: AgencyOptions): Agent {
   const sessions = new Map<string, AgencySession>();
   const sessionUsage = new Map<string, UsageTotals>();
 
+  type FinalizedExecutionResult = Record<string, unknown> & {
+    text?: string;
+    usage?: unknown;
+    parsed?: unknown;
+  };
+
+  const prepareExecutionPrompt = async (prompt: string): Promise<string> => {
+    const guardConfig = normalizeGuardrails(opts.guardrails);
+    const inputGuards = guardConfig?.input ?? [];
+
+    let preparedPrompt = prompt;
+    if (inputGuards.length) {
+      preparedPrompt = await runGuardrails(preparedPrompt, inputGuards, 'input', opts.on);
+    }
+
+    if (opts.rag) {
+      preparedPrompt = await injectRagContext(preparedPrompt, opts.rag);
+    }
+
+    if (opts.output) {
+      preparedPrompt = appendSchemaHint(preparedPrompt, opts.output);
+    }
+
+    if (controls) {
+      checkLimits(controls, { usage: agencyUsage }, 0, opts.on);
+    }
+
+    return preparedPrompt;
+  };
+
+  const finalizeExecutionResult = async (
+    result: Record<string, unknown>,
+    start: number,
+    sessionId?: string,
+    streamPartBuffer?: AgencyStreamPart[],
+  ): Promise<FinalizedExecutionResult> => {
+    const guardConfig = normalizeGuardrails(opts.guardrails);
+    const outputGuards = guardConfig?.output ?? [];
+    const finalized: FinalizedExecutionResult = { ...result };
+    const elapsedMs = Date.now() - start;
+
+    if (outputGuards.length && typeof finalized.text === 'string') {
+      finalized.text = await runGuardrails(finalized.text, outputGuards, 'output', opts.on);
+    }
+
+    if (opts.output && typeof finalized.text === 'string') {
+      finalized.parsed = parseStructuredOutput(finalized.text, opts.output);
+    }
+
+    if (controls) {
+      checkLimits(controls, finalized, elapsedMs, opts.on);
+    }
+
+    const resultUsage = normalizeUsage(finalized.usage);
+    finalized.usage = resultUsage;
+    addUsageTotals(agencyUsage, resultUsage);
+    if (sessionId) {
+      addUsageTotals(getSessionUsage(sessionUsage, sessionId), resultUsage);
+    }
+
+    const approvedResult = await maybeApproveFinalResult(
+      opts,
+      agencyName,
+      finalized,
+      elapsedMs,
+      streamPartBuffer
+        ? (part) => {
+            streamPartBuffer.push(part);
+          }
+        : undefined,
+    );
+
+    streamPartBuffer?.push({
+      type: 'final-output',
+      text: (approvedResult.text as string) ?? '',
+      usage: normalizeUsage(approvedResult.usage),
+      agentCalls: ((approvedResult.agentCalls as AgentCallRecord[] | undefined) ?? []),
+      parsed: approvedResult.parsed,
+      durationMs: elapsedMs,
+    });
+
+    opts.on?.agentEnd?.({
+      agent: agencyName,
+      output: (approvedResult.text as string) ?? '',
+      durationMs: elapsedMs,
+      timestamp: Date.now(),
+    });
+
+    return approvedResult;
+  };
+
   // ---------------------------------------------------------------------------
   // Shared execute wrapper — applies resource limit checks and fires callbacks.
   // ---------------------------------------------------------------------------
@@ -131,69 +225,9 @@ export function agency(opts: AgencyOptions): Agent {
     });
 
     try {
-      // Run input guardrails on the prompt before strategy execution.
-      const guardConfig = normalizeGuardrails(opts.guardrails);
-      const inputGuards = guardConfig?.input ?? [];
-      const outputGuards = guardConfig?.output ?? [];
-
-      let sanitizedPrompt = prompt;
-      if (inputGuards.length) {
-        sanitizedPrompt = await runGuardrails(sanitizedPrompt, inputGuards, 'input', opts.on);
-      }
-
-      // Inject RAG context into the prompt when RAG is configured.
-      if (opts.rag) {
-        sanitizedPrompt = await injectRagContext(sanitizedPrompt, opts.rag);
-      }
-
-      // When structured output is configured, append a JSON schema hint to
-      // nudge the LLM into producing parseable output.
-      if (opts.output) {
-        sanitizedPrompt = appendSchemaHint(sanitizedPrompt, opts.output);
-      }
-
-      // Execute the compiled multi-agent strategy.
-      const result = (await strategy.execute(sanitizedPrompt, execOpts)) as Record<string, unknown>;
-      const elapsedMs = Date.now() - start;
-
-      // Run output guardrails on the result text.
-      if (outputGuards.length && typeof result.text === 'string') {
-        result.text = await runGuardrails(result.text, outputGuards, 'output', opts.on);
-      }
-
-      // Parse structured output through Zod schema when configured.
-      if (opts.output && typeof result.text === 'string') {
-        result.parsed = parseStructuredOutput(result.text, opts.output);
-      }
-
-      // Check resource limits and fire callbacks / throw if configured.
-      if (controls) {
-        checkLimits(controls, result, elapsedMs, opts.on);
-      }
-
-      // Persist aggregate usage totals at the agency and session levels.
-      const resultUsage = normalizeUsage(result.usage);
-      addUsageTotals(agencyUsage, resultUsage);
-      if (sessionId) {
-        addUsageTotals(getSessionUsage(sessionUsage, sessionId), resultUsage);
-      }
-
-      const finalResult = await maybeApproveFinalResult(
-        opts,
-        agencyName,
-        result,
-        elapsedMs,
-      );
-
-      // Fire the agentEnd callback with the agency as the pseudo-agent name.
-      opts.on?.agentEnd?.({
-        agent: agencyName,
-        output: (finalResult.text as string) ?? '',
-        durationMs: elapsedMs,
-        timestamp: Date.now(),
-      });
-
-      return finalResult;
+      const preparedPrompt = await prepareExecutionPrompt(prompt);
+      const result = (await strategy.execute(preparedPrompt, execOpts)) as Record<string, unknown>;
+      return await finalizeExecutionResult(result, start, sessionId);
     } catch (error) {
       opts.on?.error?.({
         agent: agencyName,
@@ -202,6 +236,181 @@ export function agency(opts: AgencyOptions): Agent {
       });
       throw error;
     }
+  };
+
+  const createStreamResult = (
+    prompt: string,
+    streamOpts?: Record<string, unknown>,
+    sessionId?: string,
+  ): AgencyStreamResult => {
+    const start = Date.now();
+    let errorReported = false;
+    const postStreamParts: AgencyStreamPart[] = [];
+
+    const reportError = (error: unknown): void => {
+      if (errorReported) return;
+      errorReported = true;
+      opts.on?.error?.({
+        agent: agencyName,
+        error: error instanceof Error ? error : new Error(String(error)),
+        timestamp: Date.now(),
+      });
+    };
+
+    opts.on?.agentStart?.({
+      agent: agencyName,
+      input: prompt,
+      timestamp: start,
+    });
+
+    const deferredStream = (async () => {
+      const preparedPrompt = await prepareExecutionPrompt(prompt);
+      return strategy.stream(preparedPrompt, streamOpts) as CompiledStrategyStreamResult;
+    })();
+
+    const rawPartReplay = createBufferedAsyncReplay<AgencyStreamPart>((async function* () {
+      const streamResult = await deferredStream;
+
+      if (streamResult.fullStream) {
+        yield* streamResult.fullStream;
+        return;
+      }
+
+      if (streamResult.textStream) {
+        for await (const chunk of streamResult.textStream) {
+          yield { type: 'text', text: chunk };
+        }
+        return;
+      }
+
+      if (streamResult.text) {
+        const fullText = await streamResult.text;
+        if (fullText) {
+          yield { type: 'text', text: fullText };
+        }
+      }
+    })());
+
+    const ensureDraining = async (): Promise<void> => {
+      try {
+        await rawPartReplay.ensureDraining();
+      } catch (error) {
+        reportError(error);
+        throw error;
+      }
+    };
+
+    const resolvedTextPromise: Promise<string> = (async () => {
+      await ensureDraining();
+      const bufferedText = rawPartReplay
+        .getBuffered()
+        .filter((part): part is { type: 'text'; text: string; agent?: string } => part.type === 'text')
+        .map((part) => part.text)
+        .join('');
+      if (bufferedText) return bufferedText;
+
+      const streamResult = await deferredStream;
+      return streamResult.text ? await streamResult.text : '';
+    })();
+
+    const resolvedUsagePromise: Promise<unknown> = (async () => {
+      const streamResult = await deferredStream;
+      if (streamResult.usage) {
+        return await streamResult.usage;
+      }
+
+      await ensureDraining();
+      return emptyUsageTotals();
+    })();
+
+    const resolvedAgentCallsPromise: Promise<unknown> = (async () => {
+      const streamResult = await deferredStream;
+      if (streamResult.agentCalls) {
+        return await streamResult.agentCalls;
+      }
+      return [];
+    })();
+
+    const finalizedResultPromise: Promise<FinalizedExecutionResult> = (async () => {
+      try {
+        const [text, usage, agentCalls] = await Promise.all([
+          resolvedTextPromise,
+          resolvedUsagePromise,
+          resolvedAgentCallsPromise,
+        ]);
+
+        const result: Record<string, unknown> = {
+          text,
+          usage,
+          agentCalls: Array.isArray(agentCalls) ? agentCalls : [],
+        };
+
+        return await finalizeExecutionResult(result, start, sessionId, postStreamParts);
+      } catch (error) {
+        reportError(error);
+        throw error;
+      }
+    })();
+
+    return {
+      textStream: (async function* () {
+        try {
+          for await (const part of rawPartReplay.iterable) {
+            if (part.type === 'text') {
+              yield part.text;
+            }
+          }
+        } catch (error) {
+          reportError(error);
+          throw error;
+        }
+      })(),
+      fullStream: (async function* () {
+        try {
+          for await (const part of rawPartReplay.iterable) {
+            yield part;
+          }
+          const finalResult = await finalizedResultPromise;
+          for (const part of postStreamParts) {
+            yield part;
+          }
+          const allBufferedParts = [...rawPartReplay.getBuffered(), ...postStreamParts];
+          const hasMatchingAgencyEnd = allBufferedParts.some(
+            (part) =>
+              part.type === 'agent-end' &&
+              part.agent === agencyName &&
+              part.output === ((finalResult.text as string) ?? ''),
+          );
+          if (!hasMatchingAgencyEnd) {
+            yield {
+              type: 'agent-end',
+              agent: agencyName,
+              output: (finalResult.text as string) ?? '',
+              durationMs: Date.now() - start,
+            };
+          }
+        } catch (error) {
+          reportError(error);
+          throw error;
+        }
+      })(),
+      text: finalizedResultPromise.then((result) => (result.text as string) ?? ''),
+      usage: finalizedResultPromise.then((result) => result.usage as {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        costUSD?: number;
+      }),
+      agentCalls: finalizedResultPromise.then((result) => (result.agentCalls ?? []) as AgentCallRecord[]),
+      parsed: finalizedResultPromise.then((result) => result.parsed),
+      finalTextStream: (async function* () {
+        const finalResult = await finalizedResultPromise;
+        const finalText = (finalResult.text as string) ?? '';
+        if (finalText) {
+          yield finalText;
+        }
+      })(),
+    };
   };
 
   // ---------------------------------------------------------------------------
@@ -232,53 +441,13 @@ export function agency(opts: AgencyOptions): Agent {
      *
      * @param prompt - User prompt text.
      * @param streamOpts - Optional per-call overrides.
-     * @returns An object with `textStream`, `fullStream`, and awaitable `text`/`usage` promises.
+     * @returns An object with raw `textStream`, `fullStream`, awaitable `text`/`usage`
+     *   promises, an awaitable `agentCalls` ledger, an awaitable `parsed` value
+     *   when structured output is configured, and `finalTextStream` for the
+     *   finalized post-processing text.
      */
-    stream(prompt: string, streamOpts?: Record<string, unknown>): unknown {
-      /* Apply input guardrails and resource limit checks before streaming. */
-      const guardConfig = normalizeGuardrails(opts.guardrails);
-      const inputGuards = guardConfig?.input ?? [];
-
-      if (!inputGuards.length && !controls) {
-        /* Fast path: no input guardrails or resource limits configured. */
-        return strategy.stream(prompt, streamOpts);
-      }
-
-      /*
-       * When input guardrails or resource limits are configured, we must
-       * await the async guardrail evaluation before starting the stream.
-       * Wrap in a deferred pattern that returns the same stream shape.
-       */
-      const guardedPromptP = inputGuards.length
-        ? runGuardrails(prompt, inputGuards, 'input', opts.on)
-        : Promise.resolve(prompt);
-
-      /* Check resource limits (pre-flight: verify we haven't already exceeded caps). */
-      if (controls) {
-        checkLimits(controls, { usage: agencyUsage }, 0, opts.on);
-      }
-
-      const deferredStream = guardedPromptP.then((sanitizedPrompt) => {
-        return strategy.stream(sanitizedPrompt, streamOpts) as {
-          textStream: AsyncIterable<string>;
-          fullStream: AsyncIterable<AgencyStreamPart>;
-          text: Promise<string>;
-          usage: Promise<unknown>;
-        };
-      });
-
-      return {
-        textStream: (async function* () {
-          const s = await deferredStream;
-          yield* s.textStream;
-        })(),
-        fullStream: (async function* () {
-          const s = await deferredStream;
-          yield* s.fullStream;
-        })(),
-        text: deferredStream.then((s) => s.text),
-        usage: deferredStream.then((s) => s.usage),
-      };
+    stream(prompt: string, streamOpts?: Record<string, unknown>): AgencyStreamResult {
+      return createStreamResult(prompt, streamOpts);
     },
 
     /**
@@ -330,7 +499,7 @@ export function agency(opts: AgencyOptions): Agent {
             // history (everything before the new turn) is included.
             history.push({ role: 'user', content: text });
             const fullPrompt = buildSessionPrompt(history.slice(0, -1), text);
-            const streamResult = agentObj.stream(fullPrompt) as {
+            const streamResult = createStreamResult(fullPrompt, undefined, sessionId) as {
               text: Promise<string>;
               textStream: AsyncIterable<string>;
               fullStream: AsyncIterable<AgencyStreamPart>;
@@ -1047,6 +1216,7 @@ async function maybeApproveFinalResult(
   agencyName: string,
   result: Record<string, unknown>,
   elapsedMs: number,
+  emitStreamPart?: (part: AgencyStreamPart) => void,
 ): Promise<Record<string, unknown>> {
   if (!opts.hitl?.approvals?.beforeReturn || !opts.hitl.handler) {
     return result;
@@ -1071,8 +1241,14 @@ async function maybeApproveFinalResult(
   };
 
   opts.on?.approvalRequested?.(request);
+  emitStreamPart?.({ type: 'approval-requested', request });
   const decision = await resolveApprovalDecision(opts.hitl, request);
   opts.on?.approvalDecided?.(decision);
+  emitStreamPart?.({
+    type: 'approval-decided',
+    requestId: request.id,
+    approved: decision.approved,
+  });
 
   if (!decision.approved) {
     throw new AgencyConfigError(

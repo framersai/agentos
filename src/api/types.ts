@@ -603,7 +603,11 @@ export interface AgencyCallbacks {
 /**
  * Discriminated union of all streaming events emitted by an `agency()` stream.
  * A superset of the base `StreamPart` type — includes all text/tool events
- * plus agency-level lifecycle events.
+ * plus agency-level lifecycle events and the finalized post-processing snapshot.
+ *
+ * `text` parts are low-latency raw stream chunks. The finalized approved answer
+ * is surfaced separately through the `final-output` part, `AgencyStreamResult.text`,
+ * and `AgencyStreamResult.finalTextStream`.
  */
 export type AgencyStreamPart =
   | { type: 'text'; text: string; agent?: string }
@@ -624,7 +628,143 @@ export type AgencyStreamPart =
     }
   | { type: 'approval-requested'; request: ApprovalRequest }
   | { type: 'approval-decided'; requestId: string; approved: boolean }
+  | {
+      type: 'final-output';
+      text: string;
+      usage: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        costUSD?: number;
+      };
+      agentCalls: AgentCallRecord[];
+      parsed?: unknown;
+      durationMs: number;
+    }
   | { type: 'permission-denied'; agent: string; action: string; reason: string };
+
+/**
+ * Internal stream result shape returned by compiled agency strategies.
+ *
+ * Strategy compilers may return only the live iterables plus aggregate promises.
+ * The outer `agency()` wrapper can enrich this into the public
+ * {@link AgencyStreamResult}.
+ *
+ * This type exists for strategy authors. Most external callers should consume
+ * {@link AgencyStreamResult} from `agency().stream(...)` instead.
+ */
+export interface CompiledStrategyStreamResult {
+  /** Raw live text chunks from the strategy. */
+  textStream?: AsyncIterable<string>;
+  /** Structured live stream parts from the strategy. */
+  fullStream?: AsyncIterable<AgencyStreamPart>;
+  /** Final raw text assembled by the strategy, when available. */
+  text?: Promise<string>;
+  /** Aggregate usage for the strategy run, when available. */
+  usage?: Promise<{
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    costUSD?: number;
+  }>;
+  /** Final per-agent ledger for the strategy run, when available. */
+  agentCalls?: Promise<AgentCallRecord[]>;
+}
+
+/**
+ * Public stream result returned by `agency().stream(...)`.
+ *
+ * This exposes both low-latency raw streaming and finalized post-processing
+ * results so callers can choose the right trade-off for their UI or runtime.
+ *
+ * Prefer:
+ * - `textStream` for raw token-by-token UX
+ * - `fullStream` for structured lifecycle events
+ * - `text` or `finalTextStream` for the finalized approved answer
+ *
+ * `textStream` may differ from the finalized answer when output guardrails or
+ * `beforeReturn` HITL rewrite the result. `finalTextStream` and `text` always
+ * reflect the finalized post-processing output.
+ *
+ * @example
+ * ```ts
+ * const stream = team.stream('Summarize HTTP/3 rollout risks.');
+ *
+ * for await (const chunk of stream.textStream) {
+ *   process.stdout.write(chunk); // raw live output
+ * }
+ *
+ * for await (const approved of stream.finalTextStream) {
+ *   console.log('Approved answer:', approved);
+ * }
+ *
+ * console.log(await stream.agentCalls);
+ * console.log(await stream.text);
+ * ```
+ */
+export interface AgencyStreamResult {
+  /** Raw live text chunks from the underlying strategy. */
+  textStream: AsyncIterable<string>;
+  /**
+   * Structured live + finalized event stream.
+   *
+   * This includes raw text/tool/lifecycle events and also the finalized
+   * `final-output` event after post-processing completes.
+   */
+  fullStream: AsyncIterable<AgencyStreamPart>;
+  /** Finalized scalar text after guardrails, HITL, and parsing hooks. */
+  text: Promise<string>;
+  /** Final aggregate usage for the streamed run. */
+  usage: Promise<{
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    costUSD?: number;
+  }>;
+  /** Final per-agent execution ledger for the streamed run. */
+  agentCalls: Promise<AgentCallRecord[]>;
+  /**
+   * Final structured payload; resolves to `undefined` when structured output
+   * was not configured for the run.
+   */
+  parsed: Promise<unknown>;
+  /**
+   * Finalized approved-only text stream.
+   *
+   * Unlike `textStream`, this yields only the post-guardrail/post-HITL answer.
+   * For most runs it emits a single finalized chunk.
+   */
+  finalTextStream: AsyncIterable<string>;
+}
+
+// ---------------------------------------------------------------------------
+// Base stream result (shared surface for single-agent and multi-agent)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal stream result surface shared by both single-agent (`streamText`)
+ * and multi-agent (`agency().stream()`) returns.
+ *
+ * Single agents return a {@link StreamTextResult} (from `streamText.ts`) which
+ * has additional fields like `toolCalls`. Agencies return an
+ * {@link AgencyStreamResult} which adds `agentCalls`, `parsed`, and
+ * `finalTextStream`. Both are structurally assignable to this base type.
+ *
+ * The {@link Agent} interface uses this as the `stream()` return type so that
+ * callers can swap between `agent()` and `agency()` without changing call
+ * sites. Callers that need the richer surface should narrow to the concrete
+ * sub-type.
+ */
+export interface AgentStreamResult {
+  /** Async iterable yielding raw text chunks. */
+  textStream: AsyncIterable<string>;
+  /** Async iterable yielding all stream events (shape varies by implementation). */
+  fullStream: AsyncIterable<unknown>;
+  /** Resolves to the fully assembled text when the stream completes. */
+  text: Promise<string>;
+  /** Resolves to aggregated token usage when the stream completes. */
+  usage: Promise<unknown>;
+}
 
 // ---------------------------------------------------------------------------
 // Agent / Agency interfaces
@@ -669,13 +809,19 @@ export interface Agent {
    */
   generate(prompt: string, opts?: Record<string, unknown>): Promise<unknown>;
   /**
-   * Streams a reply, returning a `StreamTextResult`-compatible object.
+   * Streams a reply, returning a streaming result surface.
+   *
+   * Single agents return a `StreamTextResult` with `textStream`, `text`,
+   * `usage`, and `toolCalls`. Agencies return an {@link AgencyStreamResult}
+   * with additional `agentCalls`, `parsed`, and `finalTextStream` fields.
+   * Both are assignable to {@link AgentStreamResult}.
    *
    * @param prompt - User prompt text.
    * @param opts - Optional per-call overrides.
-   * @returns An object with `textStream`, `fullStream`, and awaitable `text`/`usage` promises.
+   * @returns A streaming result with at least `textStream`, `fullStream`,
+   *   `text`, and `usage`.
    */
-  stream(prompt: string, opts?: Record<string, unknown>): unknown;
+  stream(prompt: string, opts?: Record<string, unknown>): AgentStreamResult;
   /**
    * Returns (or creates) a named conversation session.
    *
@@ -925,8 +1071,10 @@ export interface CompiledStrategy {
    *
    * @param prompt - User prompt.
    * @param opts - Optional per-call overrides.
+   * @returns The internal strategy stream surface consumed by the outer
+   *   `agency()` wrapper.
    */
-  stream(prompt: string, opts?: Record<string, unknown>): unknown;
+  stream(prompt: string, opts?: Record<string, unknown>): CompiledStrategyStreamResult;
 }
 
 // ---------------------------------------------------------------------------

@@ -204,7 +204,13 @@ export function compileParallel(
           yield { type: 'text' as const, text };
         })(),
         text: textPromise,
-        usage: resultPromise.then((r) => r.usage),
+        usage: resultPromise.then((r) => r.usage as {
+          promptTokens: number;
+          completionTokens: number;
+          totalTokens: number;
+          costUSD?: number;
+        }),
+        agentCalls: resultPromise.then((r) => (r.agentCalls as AgentCallRecord[] | undefined) ?? []),
       };
     },
   };
