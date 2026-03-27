@@ -143,6 +143,7 @@ export {
   type HydeConfig,
   type HydeLlmCaller,
   type HydeRetrievalResult,
+  type HydeMultiRetrievalResult,
   DEFAULT_HYDE_CONFIG,
   resolveHydeConfig,
 } from './HydeRetriever.js';
@@ -212,6 +213,36 @@ export type {
   ISpeechToTextProvider,
   MultimodalIndexerConfig,
 } from './multimodal/index.js';
+
+// ============================================================================
+// Hybrid Search (BM25 + Dense)
+// ============================================================================
+
+export { BM25Index, type BM25Config, type BM25Document, type BM25Result, type BM25Stats } from './search/index.js';
+export { HybridSearcher, type HybridSearcherConfig, type HybridResult } from './search/index.js';
+
+// ============================================================================
+// Semantic Chunking
+// ============================================================================
+
+export {
+  SemanticChunker,
+  type SemanticChunkerConfig,
+  type SemanticChunk,
+  type BoundaryType,
+} from './chunking/index.js';
+
+// ============================================================================
+// RAPTOR (Recursive Abstractive Processing for Tree-Organized Retrieval)
+// ============================================================================
+
+export {
+  RaptorTree,
+  type RaptorTreeConfig,
+  type RaptorInputChunk,
+  type RaptorTreeStats,
+  type RaptorResult,
+} from './raptor/index.js';
 
 // ============================================================================
 // Vector Math Utilities
