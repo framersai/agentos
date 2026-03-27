@@ -57,7 +57,14 @@ export type {
   DocumentPage,
   LayoutBlock,
   VisionPreprocessingConfig,
+  // Scene detection types (used by video analysis pipeline)
+  Frame,
+  SceneBoundary,
+  SceneDetectorConfig,
+  SceneDetectionMethod,
 } from './types.js';
+
+export { SceneDetector } from './SceneDetector.js';
 
 // ---------------------------------------------------------------------------
 // Provider availability probes

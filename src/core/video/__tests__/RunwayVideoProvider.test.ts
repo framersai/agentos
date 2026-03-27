@@ -3,20 +3,18 @@
  *
  * Unit tests for {@link RunwayVideoProvider} (Runway Gen-3 Alpha API).
  *
- * Uses mocked `fetch` to simulate the Runway submit → poll flow.
+ * Uses mocked `fetch` to simulate the Runway submit-then-poll flow.
  *
  * ## What is tested
  *
- * - Initialization with valid/invalid API keys
+ * - Initialization with valid/invalid API keys and custom config
  * - Task submission sends correct URL, headers, and body
  * - Status polling retries until SUCCEEDED
  * - Timeout during polling throws descriptive error
  * - FAILED status during polling throws descriptive error
  * - Image-to-video uses correct endpoint and body
- * - Progress callback fires during polling
  * - Uninitialized provider rejects calls
  * - supports() returns correct capabilities
- * - listAvailableModels returns known models
  * - shutdown resets initialization state
  */
 
@@ -102,7 +100,7 @@ describe('RunwayVideoProvider', () => {
         output: ['https://runway.com/video.mp4'],
       }));
 
-    await provider.generateVideo({ prompt: 'test' });
+    await provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'test' });
 
     const [submitUrl] = fetchSpy.mock.calls[0];
     expect(submitUrl).toBe('https://custom.runway.com/v1/text_to_video');
@@ -127,15 +125,17 @@ describe('RunwayVideoProvider', () => {
     }));
 
     const result = await provider.generateVideo({
+      modelId: 'gen3a_turbo',
       prompt: 'A cinematic sunrise',
-      duration: 5,
+      durationSec: 5,
       aspectRatio: '16:9',
     });
 
-    expect(result.url).toBe('https://runway.com/output/video.mp4');
+    expect(result.videos).toHaveLength(1);
+    expect(result.videos[0].url).toBe('https://runway.com/output/video.mp4');
     expect(result.providerId).toBe('runway');
-    expect(result.mimeType).toBe('video/mp4');
-    expect(result.providerMetadata?.taskId).toBe('task-abc');
+    expect(result.videos[0].mimeType).toBe('video/mp4');
+    expect(result.videos[0].providerMetadata?.taskId).toBe('task-abc');
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
@@ -155,8 +155,9 @@ describe('RunwayVideoProvider', () => {
       }));
 
     await provider.generateVideo({
+      modelId: 'gen3a_turbo',
       prompt: 'test prompt',
-      duration: 10,
+      durationSec: 10,
       aspectRatio: '16:9',
     });
 
@@ -190,33 +191,9 @@ describe('RunwayVideoProvider', () => {
         output: ['https://runway.com/video.mp4'],
       }));
 
-    const result = await provider.generateVideo({ prompt: 'poll test' });
-    expect(result.url).toBe('https://runway.com/video.mp4');
+    const result = await provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'poll test' });
+    expect(result.videos[0].url).toBe('https://runway.com/video.mp4');
     expect(fetchSpy).toHaveBeenCalledTimes(5);
-  });
-
-  it('should fire onProgress callback during polling', async () => {
-    await provider.initialize({ apiKey: 'key', pollIntervalMs: 1 });
-
-    fetchSpy
-      .mockResolvedValueOnce(mockResponse({ id: 'task-1' }))
-      .mockResolvedValueOnce(mockResponse({ id: 'task-1', status: 'PROCESSING' }))
-      .mockResolvedValueOnce(mockResponse({
-        id: 'task-1',
-        status: 'SUCCEEDED',
-        output: ['https://runway.com/video.mp4'],
-      }));
-
-    const progressCalls: Array<{ status: string; percentage?: number }> = [];
-    await provider.generateVideo({
-      prompt: 'progress test',
-      onProgress: (p) => progressCalls.push(p),
-    });
-
-    expect(progressCalls.length).toBe(2);
-    expect(progressCalls[0].status).toBe('PROCESSING');
-    expect(progressCalls[1].status).toBe('SUCCEEDED');
-    expect(progressCalls[1].percentage).toBe(100);
   });
 
   // -------------------------------------------------------------------------
@@ -234,28 +211,32 @@ describe('RunwayVideoProvider', () => {
         output: ['https://runway.com/i2v.mp4'],
       }));
 
+    const imageBuffer = Buffer.from('fake-image-data');
+
     const result = await provider.imageToVideo({
+      modelId: 'gen3a_turbo',
       prompt: 'animate this',
-      imageUrl: 'https://example.com/image.jpg',
-      duration: 5,
+      image: imageBuffer,
+      durationSec: 5,
       aspectRatio: '9:16',
     });
 
-    expect(result.url).toBe('https://runway.com/i2v.mp4');
+    expect(result.videos[0].url).toBe('https://runway.com/i2v.mp4');
 
     const [submitUrl, submitOpts] = fetchSpy.mock.calls[0];
     expect(submitUrl).toBe('https://api.dev.runwayml.com/v1/image_to_video');
 
     const body = JSON.parse(submitOpts.body);
-    expect(body.prompt_image).toBe('https://example.com/image.jpg');
+    expect(body.prompt_image).toContain('data:image/png;base64,');
     expect(body.prompt).toBe('animate this');
     expect(body.duration).toBe(5);
     expect(body.ratio).toBe('9:16');
   });
 
   it('should throw when imageToVideo called while not initialized', async () => {
+    const imageBuffer = Buffer.from('fake-image-data');
     await expect(
-      provider.imageToVideo({ prompt: 'test', imageUrl: 'https://example.com/img.jpg' }),
+      provider.imageToVideo({ modelId: 'gen3a_turbo', prompt: 'test', image: imageBuffer }),
     ).rejects.toThrow(/not initialized/);
   });
 
@@ -275,7 +256,7 @@ describe('RunwayVideoProvider', () => {
       }));
 
     await expect(
-      provider.generateVideo({ prompt: 'bad content' }),
+      provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'bad content' }),
     ).rejects.toThrow(/Runway video generation failed.*Content policy violation/);
   });
 
@@ -285,13 +266,13 @@ describe('RunwayVideoProvider', () => {
     fetchSpy.mockResolvedValueOnce(mockResponse({ error: 'unauthorized' }, false, 401));
 
     await expect(
-      provider.generateVideo({ prompt: 'fail' }),
+      provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'fail' }),
     ).rejects.toThrow(/submission failed \(401\)/);
   });
 
   it('should throw when not initialized', async () => {
     await expect(
-      provider.generateVideo({ prompt: 'fail' }),
+      provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'fail' }),
     ).rejects.toThrow(/not initialized/);
   });
 
@@ -303,7 +284,7 @@ describe('RunwayVideoProvider', () => {
       .mockResolvedValue(mockResponse({ id: 'task-slow', status: 'PROCESSING' }));
 
     await expect(
-      provider.generateVideo({ prompt: 'slow' }),
+      provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'slow' }),
     ).rejects.toThrow(/timed out/);
   });
 
@@ -319,7 +300,7 @@ describe('RunwayVideoProvider', () => {
       }));
 
     await expect(
-      provider.generateVideo({ prompt: 'empty' }),
+      provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'empty' }),
     ).rejects.toThrow(/no video output/);
   });
 
@@ -331,7 +312,7 @@ describe('RunwayVideoProvider', () => {
       .mockResolvedValueOnce(mockResponse({ error: 'server error' }, false, 500));
 
     await expect(
-      provider.generateVideo({ prompt: 'poll error' }),
+      provider.generateVideo({ modelId: 'gen3a_turbo', prompt: 'poll error' }),
     ).rejects.toThrow(/polling failed \(500\)/);
   });
 
@@ -339,21 +320,12 @@ describe('RunwayVideoProvider', () => {
   // supports()
   // -------------------------------------------------------------------------
 
-  it('should report support for text-to-video and image-to-video', () => {
-    const caps = provider.supports();
-    expect(caps.textToVideo).toBe(true);
-    expect(caps.imageToVideo).toBe(true);
+  it('should report support for text-to-video', () => {
+    expect(provider.supports('text-to-video')).toBe(true);
   });
 
-  // -------------------------------------------------------------------------
-  // listAvailableModels
-  // -------------------------------------------------------------------------
-
-  it('should return known Runway models', async () => {
-    const models = await provider.listAvailableModels();
-    expect(models.length).toBeGreaterThanOrEqual(2);
-    expect(models.map((m) => m.modelId)).toContain('gen3a_turbo');
-    expect(models.map((m) => m.modelId)).toContain('gen3a');
+  it('should report support for image-to-video', () => {
+    expect(provider.supports('image-to-video')).toBe(true);
   });
 
   // -------------------------------------------------------------------------

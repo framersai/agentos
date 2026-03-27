@@ -4,9 +4,9 @@
  * Video generation provider for the Runway Gen-3 Alpha API.
  *
  * Runway offers high-quality AI video generation with both text-to-video
- * and image-to-video capabilities. This provider implements the submit →
- * poll pattern: a generation task is created via POST, then polled via
- * GET until the task reaches a terminal state.
+ * and image-to-video capabilities. This provider implements the submit-then-
+ * poll pattern: a generation task is created via POST, then polled via GET
+ * until the task reaches a terminal state.
  *
  * ## Supported models
  *
@@ -18,7 +18,7 @@
  * ## API flow
  *
  * 1. **Submit** — `POST ${baseURL}/text_to_video` or `/image_to_video`.
- *    Returns a task `{ id }`.
+ *    Returns a task object with `{ id }`.
  * 2. **Poll** — `GET ${baseURL}/tasks/${id}` until `status` is
  *    `SUCCEEDED` or `FAILED`.
  * 3. **Result** — `output[0]` on the SUCCEEDED task is the video URL.
@@ -35,8 +35,6 @@ import type {
   VideoGenerateRequest,
   ImageToVideoRequest,
   VideoResult,
-  VideoCapabilities,
-  VideoModelInfo,
 } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -131,19 +129,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Map a standard aspect ratio string to the Runway `ratio` format.
- * Runway accepts ratios like '16:9', '9:16', '1:1'.
- * @param aspectRatio - Standard aspect ratio string.
- * @returns Runway-compatible ratio string.
- * @internal
- */
-function toRunwayRatio(aspectRatio?: string): string | undefined {
-  if (!aspectRatio) return undefined;
-  // Runway natively accepts colon-separated ratios
-  return aspectRatio;
-}
-
 // ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
@@ -163,11 +148,12 @@ function toRunwayRatio(aspectRatio?: string): string | undefined {
  * await provider.initialize({ apiKey: process.env.RUNWAY_API_KEY! });
  *
  * const result = await provider.generateVideo({
+ *   modelId: 'gen3a_turbo',
  *   prompt: 'A cinematic drone shot over a misty forest at dawn',
- *   duration: 5,
+ *   durationSec: 5,
  *   aspectRatio: '16:9',
  * });
- * console.log(result.url);
+ * console.log(result.videos[0].url);
  * ```
  */
 export class RunwayVideoProvider implements IVideoGenerator {
@@ -230,10 +216,10 @@ export class RunwayVideoProvider implements IVideoGenerator {
   /**
    * Generate a video from a text prompt using the Runway text_to_video endpoint.
    *
-   * Submits the task, polls until completion, and returns the video URL.
+   * Submits the task, polls until completion, and returns the video result.
    *
    * @param request - Video generation request with prompt and optional params.
-   * @returns The generated video result.
+   * @returns The generated video result envelope.
    *
    * @throws {Error} If the provider is not initialized.
    * @throws {Error} If the API returns an error or times out.
@@ -250,15 +236,14 @@ export class RunwayVideoProvider implements IVideoGenerator {
       prompt: request.prompt,
     };
 
-    if (request.duration !== undefined) body.duration = request.duration;
-    const ratio = toRunwayRatio(request.aspectRatio);
-    if (ratio) body.ratio = ratio;
+    if (request.durationSec !== undefined) body.duration = request.durationSec;
+    if (request.aspectRatio) body.ratio = request.aspectRatio;
 
     // Step 1: Submit
     const taskId = await this._submitTask('text_to_video', body);
 
     // Step 2: Poll until done
-    const task = await this._pollTask(taskId, request.onProgress);
+    const task = await this._pollTask(taskId);
 
     // Step 3: Extract result
     return this._buildResult(task, model);
@@ -267,8 +252,10 @@ export class RunwayVideoProvider implements IVideoGenerator {
   /**
    * Generate a video from a source image using the Runway image_to_video endpoint.
    *
-   * @param request - Generation parameters including the source image URL or base64.
-   * @returns The generated video result.
+   * The source image Buffer is converted to a base64 data URL for the API.
+   *
+   * @param request - Generation parameters including the source image buffer.
+   * @returns The generated video result envelope.
    *
    * @throws {Error} If the provider is not initialized or the API fails.
    */
@@ -279,52 +266,40 @@ export class RunwayVideoProvider implements IVideoGenerator {
 
     const model = request.modelId || this.defaultModelId || 'gen3a_turbo';
 
+    // Convert the image buffer to a base64 data URL for the Runway API.
+    const imageBase64 = `data:image/png;base64,${request.image.toString('base64')}`;
+
     const body: Record<string, unknown> = {
       model,
-      prompt_image: request.imageUrl,
+      prompt_image: imageBase64,
     };
 
     if (request.prompt) body.prompt = request.prompt;
-    if (request.duration !== undefined) body.duration = request.duration;
-    const ratio = toRunwayRatio(request.aspectRatio);
-    if (ratio) body.ratio = ratio;
+    if (request.durationSec !== undefined) body.duration = request.durationSec;
+    if (request.aspectRatio) body.ratio = request.aspectRatio;
 
     // Step 1: Submit
     const taskId = await this._submitTask('image_to_video', body);
 
     // Step 2: Poll until done
-    const task = await this._pollTask(taskId, request.onProgress);
+    const task = await this._pollTask(taskId);
 
     // Step 3: Extract result
     return this._buildResult(task, model);
   }
 
   // -------------------------------------------------------------------------
-  // Capabilities & Models
+  // Capability query
   // -------------------------------------------------------------------------
 
   /**
    * Runway supports both text-to-video and image-to-video generation.
    *
-   * @returns Capability flags.
+   * @param capability - The capability to check.
+   * @returns `true` for both `'text-to-video'` and `'image-to-video'`.
    */
-  supports(): VideoCapabilities {
-    return {
-      textToVideo: true,
-      imageToVideo: true,
-    };
-  }
-
-  /**
-   * List available Runway video generation models.
-   *
-   * @returns Static list of known Runway model identifiers.
-   */
-  async listAvailableModels(): Promise<VideoModelInfo[]> {
-    return [
-      { providerId: this.providerId, modelId: 'gen3a_turbo', displayName: 'Gen-3 Alpha Turbo' },
-      { providerId: this.providerId, modelId: 'gen3a', displayName: 'Gen-3 Alpha' },
-    ];
+  supports(capability: 'text-to-video' | 'image-to-video'): boolean {
+    return capability === 'text-to-video' || capability === 'image-to-video';
   }
 
   /**
@@ -376,20 +351,13 @@ export class RunwayVideoProvider implements IVideoGenerator {
   /**
    * Poll the Runway task status endpoint until the task reaches a terminal state.
    *
-   * Fires the optional `onProgress` callback on each successful poll iteration
-   * so callers can display real-time status updates.
-   *
    * @param taskId - The task ID from submission.
-   * @param onProgress - Optional progress callback.
    * @returns The completed task status object.
    *
    * @throws {Error} If the task fails or polling times out.
    * @internal
    */
-  private async _pollTask(
-    taskId: string,
-    onProgress?: VideoGenerateRequest['onProgress'],
-  ): Promise<RunwayTaskStatus> {
+  private async _pollTask(taskId: string): Promise<RunwayTaskStatus> {
     const startedAt = Date.now();
 
     while (Date.now() - startedAt < this._config.timeoutMs) {
@@ -409,7 +377,6 @@ export class RunwayVideoProvider implements IVideoGenerator {
       const task = (await response.json()) as RunwayTaskStatus;
 
       if (task.status === 'SUCCEEDED') {
-        onProgress?.({ status: 'SUCCEEDED', percentage: 100 });
         return task;
       }
 
@@ -417,9 +384,6 @@ export class RunwayVideoProvider implements IVideoGenerator {
         const reason = task.failure || task.failureCode || 'unknown error';
         throw new Error(`Runway video generation failed: ${reason}`);
       }
-
-      // Fire progress callback for intermediate states
-      onProgress?.({ status: task.status });
 
       await sleep(this._config.pollIntervalMs);
     }
@@ -434,7 +398,7 @@ export class RunwayVideoProvider implements IVideoGenerator {
    *
    * @param task - The SUCCEEDED task status object.
    * @param model - Model ID used for the generation.
-   * @returns Normalized video result.
+   * @returns Normalized video result envelope.
    *
    * @throws {Error} If the task has no output URLs.
    * @internal
@@ -445,13 +409,18 @@ export class RunwayVideoProvider implements IVideoGenerator {
     }
 
     return {
-      url: task.output[0],
-      mimeType: 'video/mp4',
-      providerId: this.providerId,
-      modelId: model,
       created: Math.floor(Date.now() / 1000),
-      providerMetadata: {
-        taskId: task.id,
+      modelId: model,
+      providerId: this.providerId,
+      videos: task.output.map((url) => ({
+        url,
+        mimeType: 'video/mp4',
+        providerMetadata: {
+          taskId: task.id,
+        },
+      })),
+      usage: {
+        totalVideos: task.output.length,
       },
     };
   }

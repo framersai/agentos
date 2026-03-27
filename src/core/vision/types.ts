@@ -365,3 +365,153 @@ export interface VisionPipelineConfig {
    */
   preprocessing?: VisionPreprocessingConfig;
 }
+
+// ---------------------------------------------------------------------------
+// Frame extraction (used by video analysis pipeline)
+// ---------------------------------------------------------------------------
+
+/**
+ * A single decoded video frame with its timestamp and sequence index.
+ *
+ * Frames are produced by the frame extraction stage of the video
+ * analysis pipeline and consumed by {@link SceneDetector} for visual
+ * change detection.
+ */
+export interface Frame {
+  /** Raw pixel data as a Buffer (RGB, 3 bytes per pixel, row-major). */
+  buffer: Buffer;
+
+  /** Timestamp of this frame within the source video, in seconds. */
+  timestampSec: number;
+
+  /** 0-based sequential index of this frame in the extraction order. */
+  index: number;
+}
+
+// ---------------------------------------------------------------------------
+// Scene boundary detection
+// ---------------------------------------------------------------------------
+
+/**
+ * A detected scene boundary within a video frame sequence.
+ *
+ * Produced by {@link SceneDetector.detectScenes} when visual
+ * discontinuity between consecutive frames exceeds the configured
+ * threshold. Each boundary marks the start of a new scene.
+ */
+export interface SceneBoundary {
+  /** 0-based index of this scene boundary in detection order. */
+  index: number;
+
+  /** Index of the first frame belonging to this scene. */
+  startFrame: number;
+
+  /** Index of the last frame belonging to this scene. */
+  endFrame: number;
+
+  /** Timestamp (seconds) of the first frame in this scene. */
+  startTimeSec: number;
+
+  /** Timestamp (seconds) of the last frame in this scene. */
+  endTimeSec: number;
+
+  /** Duration of this scene in seconds (`endTimeSec - startTimeSec`). */
+  durationSec: number;
+
+  /**
+   * Classification of the visual transition that starts this scene.
+   *
+   * - `'hard-cut'` — Abrupt frame-to-frame change (chi-squared > hardCutThreshold)
+   * - `'dissolve'` — Cross-dissolve / superimposition (diff > 0.25)
+   * - `'fade'`     — Fade from/to black or white (diff > 0.20)
+   * - `'wipe'`     — Directional wipe transition
+   * - `'gradual'`  — Other gradual transition below dissolve threshold
+   */
+  cutType: 'hard-cut' | 'dissolve' | 'fade' | 'wipe' | 'gradual';
+
+  /**
+   * Confidence score (0–1) for this scene boundary.
+   * Derived from the diff score relative to the threshold — higher
+   * values indicate a more definitive visual discontinuity.
+   */
+  confidence: number;
+
+  /**
+   * Raw difference score that triggered the scene boundary.
+   * Useful for debugging threshold tuning. The scale depends on the
+   * detection method (histogram chi-squared, 1 - SSIM, etc.).
+   */
+  diffScore?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Scene detector configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * Detection method used by the {@link SceneDetector}.
+ *
+ * - `'histogram'` — RGB histogram chi-squared distance. Fast, works
+ *   well for hard cuts. No external dependencies.
+ * - `'ssim'`      — Structural Similarity Index. Better for gradual
+ *   transitions. Requires `sharp` (falls back to histogram if missing).
+ * - `'clip'`      — CLIP embedding cosine distance. Semantic scene
+ *   change detection. Requires a CLIP provider (local or OpenAI).
+ */
+export type SceneDetectionMethod = 'histogram' | 'ssim' | 'clip';
+
+/**
+ * Configuration for the {@link SceneDetector}.
+ *
+ * All fields are optional — the detector uses sensible defaults that
+ * work well for typical video content.
+ *
+ * @example
+ * ```typescript
+ * const config: SceneDetectorConfig = {
+ *   methods: ['histogram', 'ssim'],
+ *   hardCutThreshold: 0.3,
+ *   gradualThreshold: 0.15,
+ *   minSceneDurationSec: 1.0,
+ * };
+ * ```
+ */
+export interface SceneDetectorConfig {
+  /**
+   * Detection methods to use. Multiple methods are combined by
+   * taking the maximum diff score across all methods.
+   * @default ['histogram', 'ssim']
+   */
+  methods?: SceneDetectionMethod[];
+
+  /**
+   * Diff score threshold above which a frame transition is classified
+   * as a hard cut. Applied to histogram chi-squared distance (0–1).
+   * @default 0.3
+   */
+  hardCutThreshold?: number;
+
+  /**
+   * Diff score threshold for gradual transitions (dissolves, fades).
+   * Transitions with scores between this and {@link hardCutThreshold}
+   * are classified as gradual cuts.
+   * @default 0.15
+   */
+  gradualThreshold?: number;
+
+  /**
+   * Minimum scene duration in seconds. Scene boundaries that would
+   * create scenes shorter than this are suppressed. Prevents
+   * over-segmentation from flashes, strobe effects, or noise.
+   * @default 1.0
+   */
+  minSceneDurationSec?: number;
+
+  /**
+   * CLIP embedding provider to use when `'clip'` is in {@link methods}.
+   * - `'local'`  — Use local CLIP model via @huggingface/transformers
+   * - `'openai'` — Use OpenAI's CLIP-based embedding endpoint
+   * @default 'local'
+   */
+  clipProvider?: 'local' | 'openai';
+}
