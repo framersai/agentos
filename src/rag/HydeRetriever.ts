@@ -38,6 +38,21 @@ export interface HydeConfig {
   hypothesisSystemPrompt?: string;
   /** Use full-answer granularity (recommended by research). Default: true. */
   fullAnswerGranularity?: boolean;
+  /**
+   * Number of diverse hypothetical documents to generate per query.
+   *
+   * Multi-hypothesis HyDE generates N hypotheses from different perspectives
+   * (technical, practical/example, overview) and searches with each embedding.
+   * Results are deduplicated by chunk ID, keeping the highest score.
+   *
+   * Higher values improve recall at the cost of additional LLM calls.
+   * - 1: Original single-hypothesis HyDE (fastest)
+   * - 3: Recommended default (good diversity/cost tradeoff)
+   * - 5: Maximum diversity (highest recall, most expensive)
+   *
+   * Default: 3.
+   */
+  hypothesisCount?: number;
 }
 
 export const DEFAULT_HYDE_CONFIG: Required<HydeConfig> = {
@@ -51,6 +66,7 @@ export const DEFAULT_HYDE_CONFIG: Required<HydeConfig> = {
     'You are a knowledgeable assistant. Generate a concise, factual answer to the following question. ' +
     'This answer will be used for semantic search, so be specific and include relevant technical terms.',
   fullAnswerGranularity: true,
+  hypothesisCount: 3,
 };
 
 function clampUnitInterval(value: unknown, fallback: number): number {
@@ -78,12 +94,18 @@ export function resolveHydeConfig(partial?: Partial<HydeConfig>): Required<HydeC
       ? Math.floor(merged.maxHypothesisTokens)
       : DEFAULT_HYDE_CONFIG.maxHypothesisTokens;
 
+  const hypothesisCount =
+    typeof merged.hypothesisCount === 'number' && Number.isFinite(merged.hypothesisCount) && merged.hypothesisCount >= 1
+      ? Math.floor(merged.hypothesisCount)
+      : DEFAULT_HYDE_CONFIG.hypothesisCount;
+
   return {
     ...merged,
     initialThreshold,
     minThreshold,
     thresholdStep,
     maxHypothesisTokens,
+    hypothesisCount,
   };
 }
 
@@ -111,6 +133,27 @@ export interface HydeRetrievalResult {
   /** Time taken for hypothesis generation (ms). */
   hypothesisLatencyMs: number;
   /** Time taken for embedding + retrieval (ms). */
+  retrievalLatencyMs: number;
+}
+
+/**
+ * Result from multi-hypothesis HyDE retrieval.
+ *
+ * Contains all generated hypotheses and the deduplicated, merged result set
+ * from searching with each hypothesis embedding.
+ *
+ * @interface HydeMultiRetrievalResult
+ */
+export interface HydeMultiRetrievalResult {
+  /** All generated hypotheses. */
+  hypotheses: string[];
+  /** Deduplicated query result (union of all hypothesis searches, highest score per doc). */
+  queryResult: QueryResult;
+  /** Number of hypotheses generated. */
+  hypothesisCount: number;
+  /** Total time for all hypothesis generations (ms). */
+  hypothesisLatencyMs: number;
+  /** Total time for all embedding + retrieval passes (ms). */
   retrievalLatencyMs: number;
 }
 
@@ -165,6 +208,225 @@ export class HydeRetriever {
     return {
       hypothesis: hypothesis.trim(),
       latencyMs: Date.now() - start,
+    };
+  }
+
+  /**
+   * Generate multiple hypothetical documents from different perspectives.
+   *
+   * Each hypothesis approaches the query from a different angle, improving
+   * recall by covering more of the semantic space. Uses chain-of-thought
+   * prompting to ensure diverse, high-quality hypotheses.
+   *
+   * The system prompt asks the LLM to generate N diverse hypotheses:
+   * - Hypothesis 1: Technical/formal perspective
+   * - Hypothesis 2: Practical/example perspective
+   * - Hypothesis 3: Overview/summary perspective
+   * - (Additional hypotheses explore further angles)
+   *
+   * @param {string} query - The user query to generate hypotheses for.
+   * @param {number} [count] - Number of hypotheses to generate. Default: config.hypothesisCount (3).
+   * @returns {Promise<{ hypotheses: string[]; latencyMs: number }>} Generated hypotheses and timing.
+   * @throws {Error} If the LLM call fails.
+   *
+   * @example
+   * ```typescript
+   * const { hypotheses, latencyMs } = await retriever.generateMultipleHypotheses(
+   *   'How does BM25 scoring work?',
+   *   3,
+   * );
+   * // hypotheses[0]: Technical explanation with formulas
+   * // hypotheses[1]: Practical example with code
+   * // hypotheses[2]: High-level conceptual overview
+   * ```
+   */
+  async generateMultipleHypotheses(
+    query: string,
+    count?: number,
+  ): Promise<{ hypotheses: string[]; latencyMs: number }> {
+    const n = count ?? this.config.hypothesisCount;
+
+    // For n=1, fall back to the single-hypothesis path
+    if (n <= 1) {
+      const result = await this.generateHypothesis(query);
+      return { hypotheses: [result.hypothesis], latencyMs: result.latencyMs };
+    }
+
+    const start = Date.now();
+
+    const systemPrompt = [
+      this.config.hypothesisSystemPrompt,
+      this.config.fullAnswerGranularity
+        ? 'Write complete hypothetical answers in natural language prose.'
+        : 'Write concise hypothetical answers suitable for semantic retrieval.',
+      `Keep each answer under ${this.config.maxHypothesisTokens} tokens.`,
+    ].join(' ');
+
+    const userPrompt = [
+      'Think step by step:',
+      '1. What is this question really asking?',
+      '2. What kind of document would contain the answer?',
+      '3. What vocabulary and terminology would that document use?',
+      '4. Write a brief version of that hypothetical document.',
+      '',
+      `Generate ${n} diverse hypothetical documents that would answer: "${query}"`,
+      '',
+      'Each hypothesis MUST take a DIFFERENT perspective or focus on a',
+      'DIFFERENT aspect of the question. Be diverse in vocabulary and approach.',
+      '',
+      ...Array.from({ length: n }, (_, i) => {
+        const perspectives = [
+          'technical/formal perspective with precise terminology',
+          'practical/example perspective with concrete use cases',
+          'overview/summary perspective with broad context',
+          'troubleshooting/diagnostic perspective',
+          'comparative perspective contrasting with alternatives',
+        ];
+        const perspectiveLabel = perspectives[i % perspectives.length];
+        return `Hypothesis ${i + 1} (${perspectiveLabel}):`;
+      }),
+    ].join('\n');
+
+    const rawResponse = await this.llmCaller(systemPrompt, userPrompt);
+
+    // Parse the response: split on "Hypothesis N:" markers
+    const hypotheses: string[] = [];
+    const hypothesisRegex = /Hypothesis\s+\d+\s*(?:\([^)]*\))?:\s*/gi;
+    const parts = rawResponse.split(hypothesisRegex).filter((p) => p.trim().length > 0);
+
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed.length > 0) {
+        hypotheses.push(trimmed);
+      }
+    }
+
+    // If parsing failed (LLM didn't follow format), treat entire response as one hypothesis
+    // and generate remaining hypotheses individually as fallback
+    if (hypotheses.length === 0) {
+      hypotheses.push(rawResponse.trim());
+    }
+
+    // If we got fewer hypotheses than requested, generate remaining individually
+    while (hypotheses.length < n) {
+      const fallbackResult = await this.generateHypothesis(query);
+      hypotheses.push(fallbackResult.hypothesis);
+    }
+
+    // Trim to exactly n hypotheses
+    return {
+      hypotheses: hypotheses.slice(0, n),
+      latencyMs: Date.now() - start,
+    };
+  }
+
+  /**
+   * Multi-hypothesis retrieval: generates N diverse hypotheses, searches with each,
+   * and merges results by deduplication (keeping the highest score per document).
+   *
+   * This dramatically improves recall compared to single-hypothesis HyDE because
+   * one bad hypothesis doesn't ruin everything — other hypotheses can still find
+   * relevant documents from different angles.
+   *
+   * Pipeline:
+   * 1. Generate N hypotheses via {@link generateMultipleHypotheses}
+   * 2. Embed each hypothesis
+   * 3. Search the vector store with each embedding
+   * 4. Union all results, deduplicate by document ID, keep highest score
+   *
+   * @param {object} opts - Retrieval options.
+   * @param {string} opts.query - The user query.
+   * @param {IVectorStore} opts.vectorStore - Vector store to search.
+   * @param {string} opts.collectionName - Collection to search in.
+   * @param {Partial<QueryOptions>} [opts.queryOptions] - Additional query options.
+   * @param {number} [opts.hypothesisCount] - Override hypothesis count for this call.
+   * @returns {Promise<HydeMultiRetrievalResult>} Deduplicated results from all hypotheses.
+   *
+   * @example
+   * ```typescript
+   * const result = await retriever.retrieveMulti({
+   *   query: 'How does BM25 work?',
+   *   vectorStore: myStore,
+   *   collectionName: 'knowledge-base',
+   *   hypothesisCount: 3,
+   * });
+   * console.log(`Found ${result.queryResult.documents.length} unique docs from ${result.hypothesisCount} hypotheses`);
+   * ```
+   */
+  async retrieveMulti(opts: {
+    query: string;
+    vectorStore: IVectorStore;
+    collectionName: string;
+    queryOptions?: Partial<QueryOptions>;
+    hypothesisCount?: number;
+  }): Promise<HydeMultiRetrievalResult> {
+    const count = opts.hypothesisCount ?? this.config.hypothesisCount;
+
+    // Step 1: Generate multiple hypotheses
+    const { hypotheses, latencyMs: hypothesisLatencyMs } =
+      await this.generateMultipleHypotheses(opts.query, count);
+
+    // Step 2: Embed all hypotheses
+    const retrievalStart = Date.now();
+    const embeddingResponse = await this.embeddingManager.generateEmbeddings({
+      texts: hypotheses,
+    });
+
+    if (!embeddingResponse.embeddings || embeddingResponse.embeddings.length === 0) {
+      return {
+        hypotheses,
+        queryResult: { documents: [] },
+        hypothesisCount: hypotheses.length,
+        hypothesisLatencyMs,
+        retrievalLatencyMs: Date.now() - retrievalStart,
+      };
+    }
+
+    // Step 3: Search with each embedding in parallel
+    const {
+      minSimilarityScore: _ignoredMinSimilarityScore,
+      ...extraQueryOptions
+    } = opts.queryOptions ?? {};
+
+    const searchPromises = embeddingResponse.embeddings
+      .filter((emb) => emb && emb.length > 0)
+      .map((embedding) =>
+        opts.vectorStore.query(opts.collectionName, embedding, {
+          topK: extraQueryOptions.topK ?? 5,
+          includeTextContent: true,
+          includeMetadata: true,
+          ...extraQueryOptions,
+        }),
+      );
+
+    const searchResults = await Promise.all(searchPromises);
+
+    // Step 4: Merge and deduplicate — keep highest score per document ID
+    const docMap = new Map<string, (typeof searchResults)[0]['documents'][0]>();
+
+    for (const result of searchResults) {
+      for (const doc of result.documents) {
+        const existing = docMap.get(doc.id);
+        if (!existing || doc.similarityScore > existing.similarityScore) {
+          docMap.set(doc.id, doc);
+        }
+      }
+    }
+
+    // Sort by similarity score descending
+    const mergedDocs = Array.from(docMap.values()).sort(
+      (a, b) => b.similarityScore - a.similarityScore,
+    );
+
+    // Apply topK limit
+    const topK = opts.queryOptions?.topK ?? 5;
+
+    return {
+      hypotheses,
+      queryResult: { documents: mergedDocs.slice(0, topK) },
+      hypothesisCount: hypotheses.length,
+      hypothesisLatencyMs,
+      retrievalLatencyMs: Date.now() - retrievalStart,
     };
   }
 
