@@ -6,11 +6,16 @@
  * variables or caller-supplied overrides, and invokes the provider's completion
  * endpoint.  Multi-step tool calling is supported: the loop continues until the
  * model produces a plain-text reply or `maxSteps` is exhausted.
+ *
+ * When `planning` is enabled, an upfront LLM call decomposes the user's request
+ * into numbered steps before the tool loop starts.  The plan is injected into
+ * the system prompt so the tool loop executes with awareness of the strategy.
  */
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools, type AdaptableToolInput } from './toolAdapter.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
+import { parseToolCallsFromText } from './TextToolCallParser.js';
 import type { ITool } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
@@ -54,6 +59,54 @@ export interface TokenUsage {
   totalTokens: number;
   /** Total cost reported by the provider across all steps, when available. */
   costUSD?: number;
+}
+
+/**
+ * Configuration for the optional plan-then-execute planning phase.
+ *
+ * When `planning` is set to `true` on {@link GenerateTextOptions}, default
+ * settings are used.  Pass a `PlanningConfig` object for fine-grained control
+ * over the planning LLM call.
+ */
+export interface PlanningConfig {
+  /**
+   * Custom system prompt for the planning call.  When omitted a sensible
+   * default that asks the model to produce a numbered JSON plan is used.
+   */
+  systemPrompt?: string;
+
+  /**
+   * Sampling temperature for the planning call.
+   * Defaults to `0.2` (low creativity, high determinism for plans).
+   */
+  temperature?: number;
+
+  /**
+   * Hard token cap for the planning response.
+   * Defaults to `2048`.
+   */
+  maxTokens?: number;
+}
+
+/**
+ * A single step in a plan produced by the planning phase.
+ * Serialised to / from the JSON plan the LLM emits.
+ */
+export interface PlanStep {
+  /** Human-readable description of what this step accomplishes. */
+  description: string;
+  /** Name of the tool to invoke, or `null` when the step is pure reasoning. */
+  tool: string | null;
+  /** Short explanation of why this step is needed. */
+  reasoning: string;
+}
+
+/**
+ * The complete plan returned by {@link createPlan}.
+ */
+export interface Plan {
+  /** Ordered list of steps the agent should follow. */
+  steps: PlanStep[];
 }
 
 /**
@@ -109,6 +162,15 @@ export interface GenerateTextOptions {
   baseUrl?: string;
   /** Optional durable usage ledger configuration for helper-level accounting. */
   usageLedger?: AgentOSUsageLedgerOptions;
+  /**
+   * Enable plan-then-execute mode.  When `true` (or a {@link PlanningConfig}),
+   * an upfront LLM call decomposes the task into numbered steps before the
+   * tool-calling loop begins.  The plan is injected into the system prompt
+   * so the model executes with full awareness of the strategy.
+   *
+   * Set to `false` or omit to skip planning entirely (the default).
+   */
+  planning?: boolean | PlanningConfig;
 }
 
 /**
@@ -148,6 +210,124 @@ export interface GenerateTextResult {
    * schema.  `undefined` when no output schema is configured.
    */
   parsed?: unknown;
+  /**
+   * The plan produced by the planning phase when `planning` is enabled.
+   * `undefined` when planning is disabled or was not requested.
+   */
+  plan?: Plan;
+}
+
+// ---------------------------------------------------------------------------
+// Planning helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Default system prompt used when planning is enabled without a custom prompt.
+ * Instructs the model to decompose the user's request into a numbered JSON plan.
+ */
+const DEFAULT_PLANNING_SYSTEM_PROMPT = `You are planning how to accomplish the user's request. Break it into numbered steps.
+Describe what tools you'll need for each step. Output a JSON plan:
+{"steps": [{"description": "...", "tool": "tool_name_or_null", "reasoning": "..."}]}
+Return ONLY the JSON object — no markdown fences, no commentary.`;
+
+/**
+ * Makes a single LLM call to create an execution plan before the tool loop.
+ *
+ * The plan is a lightweight JSON object containing ordered steps.  It is
+ * injected into the system prompt for the subsequent tool loop so the model
+ * executes with full awareness of the strategy.
+ *
+ * @param provider - The resolved LLM provider instance.
+ * @param modelId - Model identifier to use for the planning call.
+ * @param userMessages - The user-supplied messages that describe the task.
+ * @param toolNames - Names of available tools (informational context for the planner).
+ * @param config - Optional planning configuration overrides.
+ * @param totalUsage - Mutable usage aggregator — the planning call's tokens are added here.
+ * @returns The parsed {@link Plan}, or `undefined` if parsing fails gracefully.
+ *
+ * @internal
+ */
+export async function createPlan(
+  provider: { generateCompletion: (...args: any[]) => Promise<any> },
+  modelId: string,
+  userMessages: Array<Record<string, unknown>>,
+  toolNames: string[],
+  config: PlanningConfig | undefined,
+  totalUsage: TokenUsage,
+): Promise<Plan | undefined> {
+  const systemPrompt = config?.systemPrompt ?? DEFAULT_PLANNING_SYSTEM_PROMPT;
+  const temperature = config?.temperature ?? 0.2;
+  const maxTokens = config?.maxTokens ?? 2048;
+
+  // Build the planning conversation: system prompt + user context
+  const planMessages: Array<Record<string, unknown>> = [
+    { role: 'system', content: systemPrompt },
+  ];
+
+  // Inject available tool names so the planner knows what's available
+  if (toolNames.length > 0) {
+    planMessages.push({
+      role: 'system',
+      content: `Available tools: ${toolNames.join(', ')}`,
+    });
+  }
+
+  // Append the user messages so the planner can see the actual request
+  for (const msg of userMessages) {
+    planMessages.push(msg);
+  }
+
+  const response = await provider.generateCompletion(modelId, planMessages, {
+    temperature,
+    maxTokens,
+  });
+
+  // Accumulate planning call usage
+  if (response.usage) {
+    totalUsage.promptTokens += response.usage.promptTokens ?? 0;
+    totalUsage.completionTokens += response.usage.completionTokens ?? 0;
+    totalUsage.totalTokens += response.usage.totalTokens ?? 0;
+    if (typeof response.usage.costUSD === 'number') {
+      totalUsage.costUSD = (totalUsage.costUSD ?? 0) + response.usage.costUSD;
+    }
+  }
+
+  const rawContent = response.choices?.[0]?.message?.content;
+  const planText = typeof rawContent === 'string' ? rawContent : '';
+
+  try {
+    const parsed = JSON.parse(planText);
+    if (Array.isArray(parsed.steps)) {
+      return {
+        steps: parsed.steps.map((s: any) => ({
+          description: String(s.description ?? ''),
+          tool: s.tool ?? null,
+          reasoning: String(s.reasoning ?? ''),
+        })),
+      };
+    }
+  } catch {
+    // If the model returns malformed JSON, fall through gracefully —
+    // the tool loop will still proceed, just without an explicit plan.
+  }
+  return undefined;
+}
+
+/**
+ * Formats a {@link Plan} into a human-readable string suitable for injection
+ * into the system prompt of the tool-calling loop.
+ *
+ * @param plan - The plan to format.
+ * @returns A multi-line string with numbered steps.
+ *
+ * @internal
+ */
+function formatPlanForPrompt(plan: Plan): string {
+  const lines = plan.steps.map(
+    (s, i) =>
+      `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]` : ''}`,
+  );
+  return `Follow this plan:\n${lines.join('\n')}`;
 }
 
 /**
@@ -157,6 +337,9 @@ export interface GenerateTextResult {
  * steps (each tool-call round trip counts as one step), and returns the final
  * assembled result.  Provider credentials are resolved from environment
  * variables unless overridden in `opts`.
+ *
+ * When `planning` is enabled, an upfront LLM call produces a step-by-step plan
+ * that is then injected into the system prompt for the tool loop.
  *
  * @param opts - Generation options including model, prompt/messages, and optional tools.
  * @returns A promise that resolves to the final text, token usage, tool call log, and finish reason.
@@ -221,6 +404,43 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       const maxSteps = opts.maxSteps ?? 1;
       span?.setAttribute('agentos.api.max_steps', maxSteps);
 
+      // -----------------------------------------------------------------
+      // Planning phase (optional)
+      // When `opts.planning` is truthy, make one LLM call to decompose the
+      // task into a numbered step list.  The plan is injected into the
+      // message array as a system message so the tool loop is plan-aware.
+      // -----------------------------------------------------------------
+      let resolvedPlan: Plan | undefined;
+      const planningEnabled = !!opts.planning;
+      span?.setAttribute('agentos.api.planning_enabled', planningEnabled);
+
+      if (planningEnabled) {
+        const planConfig = typeof opts.planning === 'object' ? opts.planning : undefined;
+
+        // Collect only user-role messages for the planner
+        const userMessages = messages.filter((m) => m.role === 'user');
+        const toolNames = tools.map((t) => t.name);
+
+        resolvedPlan = await createPlan(
+          provider,
+          resolved.modelId,
+          userMessages,
+          toolNames,
+          planConfig,
+          totalUsage,
+        );
+
+        if (resolvedPlan) {
+          // Inject the plan as a system message right after any existing
+          // system messages so the tool loop executes plan-aware.
+          const planPrompt = formatPlanForPrompt(resolvedPlan);
+          const firstNonSystem = messages.findIndex((m) => m.role !== 'system');
+          const insertIdx = firstNonSystem === -1 ? messages.length : firstNonSystem;
+          messages.splice(insertIdx, 0, { role: 'system', content: planPrompt });
+          span?.setAttribute('agentos.api.plan_steps', resolvedPlan.steps.length);
+        }
+      }
+
       for (let step = 0; step < maxSteps; step++) {
         const response = await withAgentOSSpan(
           'agentos.api.generate_text.step',
@@ -263,7 +483,27 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
 
         const content = choice.message?.content;
         const textContent = typeof content === 'string' ? content : ((content as any)?.text ?? '');
-        const toolCallsInChoice = choice.message?.tool_calls ?? [];
+        let toolCallsInChoice = choice.message?.tool_calls ?? [];
+
+        // --- Text-based tool-call fallback ---
+        // When the provider returns no native tool_calls but tools were
+        // provided and the response text contains structured tool
+        // invocations, parse them from the text so models that lack native
+        // function-calling support (some Ollama / open-source models) still
+        // participate in the tool loop.
+        if (toolCallsInChoice.length === 0 && tools.length > 0 && textContent) {
+          const parsed = parseToolCallsFromText(textContent);
+          if (parsed.length > 0) {
+            toolCallsInChoice = parsed.map((p, idx) => ({
+              id: `text-tc-${step}-${idx}`,
+              type: 'function' as const,
+              function: {
+                name: p.name,
+                arguments: JSON.stringify(p.arguments),
+              },
+            }));
+          }
+        }
 
         if (textContent && toolCallsInChoice.length === 0) {
           metricUsage = totalUsage;
@@ -277,6 +517,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             usage: totalUsage,
             toolCalls: allToolCalls,
             finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
+            plan: resolvedPlan,
           };
         }
 
@@ -339,6 +580,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           usage: totalUsage,
           toolCalls: allToolCalls,
           finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
+          plan: resolvedPlan,
         };
       }
 
@@ -354,6 +596,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         usage: totalUsage,
         toolCalls: allToolCalls,
         finishReason: 'tool-calls',
+        plan: resolvedPlan,
       };
     });
   } catch (error) {
