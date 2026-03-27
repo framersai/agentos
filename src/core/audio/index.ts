@@ -38,7 +38,8 @@ export type AudioProviderFactory = () => IAudioGenerator;
 /**
  * Internal registry mapping provider IDs to lazy factory functions.
  *
- * Built-in providers (Suno, Udio, Stable Audio, ElevenLabs SFX) are
+ * All 8 built-in providers (Suno, Udio, Stable Audio, ElevenLabs SFX,
+ * MusicGen Local, AudioGen Local, Replicate Audio, Fal Audio) are
  * registered with dynamic imports so their modules are only loaded when
  * actually requested — this keeps the barrel import lightweight for
  * consumers who don't use audio generation.
@@ -80,13 +81,50 @@ const audioProviderFactories = new Map<string, AudioProviderFactory>([
       return new ElevenLabsSFXProvider();
     },
   ],
+  [
+    'musicgen-local',
+    () => {
+      const { MusicGenLocalProvider } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('./providers/MusicGenLocalProvider.js') as typeof import('./providers/MusicGenLocalProvider.js');
+      return new MusicGenLocalProvider();
+    },
+  ],
+  [
+    'audiogen-local',
+    () => {
+      const { AudioGenLocalProvider } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('./providers/AudioGenLocalProvider.js') as typeof import('./providers/AudioGenLocalProvider.js');
+      return new AudioGenLocalProvider();
+    },
+  ],
+  [
+    'replicate-audio',
+    () => {
+      const { ReplicateAudioProvider } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('./providers/ReplicateAudioProvider.js') as typeof import('./providers/ReplicateAudioProvider.js');
+      return new ReplicateAudioProvider();
+    },
+  ],
+  [
+    'fal-audio',
+    () => {
+      const { FalAudioProvider } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('./providers/FalAudioProvider.js') as typeof import('./providers/FalAudioProvider.js');
+      return new FalAudioProvider();
+    },
+  ],
 ]);
 
 /**
  * Register an audio provider factory for a given provider ID.
  *
  * Use this to add third-party or custom audio providers at runtime.
- * Built-in providers (suno, udio, stable-audio, elevenlabs-sfx) are
+ * Built-in providers (suno, udio, stable-audio, elevenlabs-sfx,
+ * musicgen-local, audiogen-local, replicate-audio, fal-audio) are
  * pre-registered.
  *
  * @param providerId - Unique identifier for the provider (lowercased for matching).
