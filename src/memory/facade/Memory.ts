@@ -18,10 +18,24 @@
  * @module memory/facade/Memory
  */
 
-import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
+import { sha256 as crossSha256, uuid } from '../util/crossPlatformCrypto.js';
+
+const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
+
+async function _getFs(): Promise<typeof import('node:fs/promises')> {
+  if (!_isNode) throw new Error('Filesystem operations are not available in browser environments.');
+  return import('node:fs/promises');
+}
+
+async function _getPath(): Promise<typeof import('node:path')> {
+  if (!_isNode) throw new Error('Path operations are not available in browser environments.');
+  return import('node:path');
+}
+
+async function _getOs(): Promise<typeof import('node:os')> {
+  if (!_isNode) throw new Error('OS operations are not available in browser environments.');
+  return import('node:os');
+}
 
 import type { MemoryTrace } from '../types.js';
 import type { ITool } from '../../core/tools/ITool.js';
@@ -129,19 +143,19 @@ interface FtsJoinRow extends TraceRow {
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a globally unique, collision-free trace ID using crypto.randomUUID().
+ * Generate a globally unique, collision-free trace ID.
  * Previous implementation used a monotonic counter (`mt_{timestamp}_{counter}`)
  * which could collide across multiple processes or rapid restarts.
  */
 function nextTraceId(): string {
-  return `mt_${crypto.randomUUID()}`;
+  return `mt_${uuid()}`;
 }
 
 /**
  * Compute SHA-256 hex digest of a string.
  */
-function sha256(content: string): string {
-  return crypto.createHash('sha256').update(content).digest('hex');
+async function sha256(content: string): Promise<string> {
+  return crossSha256(content);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,9 +289,17 @@ export class Memory {
   static async create(config?: MemoryConfig): Promise<Memory> {
     // Step 1: merge with defaults.
     const randomSuffix = Math.random().toString(36).slice(2, 10);
+    let defaultPath: string;
+    if (_isNode) {
+      const osModule = await _getOs();
+      const pathModule = await _getPath();
+      defaultPath = pathModule.join(osModule.tmpdir(), `brain-${randomSuffix}.sqlite`);
+    } else {
+      defaultPath = `brain-${randomSuffix}.sqlite`;
+    }
     const merged = {
       store: 'sqlite' as const,
-      path: path.join(os.tmpdir(), `brain-${randomSuffix}.sqlite`),
+      path: defaultPath,
       graph: true,
       selfImprove: true,
       decay: true,
@@ -326,7 +348,7 @@ export class Memory {
   async remember(content: string, options?: RememberOptions): Promise<MemoryTrace> {
     await this._initPromise;
 
-    const contentHash = sha256(content);
+    const contentHash = await sha256(content);
     const type = options?.type ?? 'episodic';
     const scope = options?.scope ?? 'user';
     const scopeId = options?.scopeId ?? '';
@@ -664,7 +686,8 @@ export class Memory {
 
     try {
       // Detect source type.
-      const stat = await fs.stat(source).catch(() => null);
+      const fsModule = await _getFs();
+      const stat = await fsModule.stat(source).catch(() => null);
 
       if (stat?.isDirectory()) {
         // Directory scan.
@@ -925,7 +948,7 @@ export class Memory {
   async export(outputPath: string, options?: ExportOptions): Promise<void> {
     await this._initPromise;
 
-    const format = this._detectExportFormat(outputPath, options);
+    const format = await this._detectExportFormat(outputPath, options);
 
     switch (format) {
       case 'json': {
@@ -999,6 +1022,47 @@ export class Memory {
     }
 
     return result;
+  }
+
+  /**
+   * Import memory data from a string without filesystem access.
+   *
+   * Supports JSON and CSV formats. Useful in browser environments or when
+   * the data is already in memory.
+   *
+   * @param content - The raw string content to import.
+   * @param format  - The format of the content: `'json'` or `'csv'`.
+   * @returns Summary of the import operation.
+   */
+  async importFromString(content: string, format: 'json' | 'csv'): Promise<ImportResult> {
+    await this._initPromise;
+
+    let result: ImportResult;
+    if (format === 'json') {
+      result = await new JsonImporter(this._brain).importFromString(content);
+    } else {
+      result = await new CsvImporter(this._brain).importFromString(content);
+    }
+
+    if (result.imported > 0) {
+      await this._rebuildFtsIndex();
+    }
+
+    return result;
+  }
+
+  /**
+   * Export the full brain state as a JSON string without filesystem access.
+   *
+   * Useful in browser environments or when the data needs to be sent over
+   * a network connection.
+   *
+   * @param options - Optional export configuration (embeddings, conversations).
+   * @returns Pretty-printed JSON string of the full brain payload.
+   */
+  async exportToString(options?: ExportOptions): Promise<string> {
+    await this._initPromise;
+    return new JsonExporter(this._brain).exportToString(options);
   }
 
   // =========================================================================
@@ -1300,7 +1364,7 @@ export class Memory {
     },
     result: IngestResult,
   ): Promise<void> {
-    const contentHash = sha256(doc.content);
+    const contentHash = await sha256(doc.content);
     const existingDoc = await this._brain.get<{ id: string }>(
       `SELECT id FROM documents WHERE content_hash = ? LIMIT 1`,
       [contentHash],
@@ -1311,7 +1375,7 @@ export class Memory {
     }
 
     const chunks = await this._chunkingEngine.chunk(doc.content, chunking);
-    const docId = `doc_${crypto.randomUUID()}`;
+    const docId = `doc_${uuid()}`;
 
     await this._brain.run(
       `INSERT INTO documents
@@ -1330,7 +1394,7 @@ export class Memory {
     );
 
     for (const chunk of chunks) {
-      const chunkId = `chunk_${crypto.randomUUID()}`;
+      const chunkId = `chunk_${uuid()}`;
       const traceId = nextTraceId();
       const createdAt = Date.now();
 
@@ -1349,7 +1413,7 @@ export class Memory {
                 document_id: docId,
                 chunk_index: chunk.index,
               },
-              { contentHash: sha256(chunk.content) },
+              { contentHash: await sha256(chunk.content) },
             ),
           ),
         ],
@@ -1402,13 +1466,14 @@ export class Memory {
   /**
    * Detect the export format from options or file extension.
    */
-  private _detectExportFormat(
+  private async _detectExportFormat(
     outputPath: string,
     options?: ExportOptions,
-  ): 'json' | 'markdown' | 'obsidian' | 'sqlite' {
+  ): Promise<'json' | 'markdown' | 'obsidian' | 'sqlite'> {
     if (options?.format) return options.format;
 
-    const ext = path.extname(outputPath).toLowerCase();
+    const pathModule = await _getPath();
+    const ext = pathModule.extname(outputPath).toLowerCase();
     switch (ext) {
       case '.json': return 'json';
       case '.sqlite':
@@ -1426,12 +1491,14 @@ export class Memory {
   ): Promise<'json' | 'markdown' | 'obsidian' | 'sqlite' | 'chatgpt' | 'csv'> {
     if (options?.format && options.format !== 'auto') return options.format;
 
-    const ext = path.extname(source).toLowerCase();
+    const pathModule = await _getPath();
+    const ext = pathModule.extname(source).toLowerCase();
     switch (ext) {
       case '.json': {
         // Check if it looks like a ChatGPT export.
         try {
-          const head = await fs.readFile(source, { encoding: 'utf8', flag: 'r' });
+          const fsModule = await _getFs();
+          const head = await fsModule.readFile(source, { encoding: 'utf8', flag: 'r' });
           if (head.includes('"mapping"') && head.includes('"conversation_id"')) {
             return 'chatgpt';
           }
@@ -1444,7 +1511,8 @@ export class Memory {
       default: {
         // Check if source is a directory.
         try {
-          const stat = await fs.stat(source);
+          const fsModule = await _getFs();
+          const stat = await fsModule.stat(source);
           if (stat.isDirectory()) return 'markdown';
         } catch { /* fall through */ }
         return 'json';

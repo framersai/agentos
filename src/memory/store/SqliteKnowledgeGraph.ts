@@ -37,7 +37,7 @@ import type {
   KnowledgeSource,
 } from '../../core/knowledge/IKnowledgeGraph.js';
 import type { SqliteBrain } from './SqliteBrain.js';
-import crypto from 'node:crypto';
+import { uuid } from '../util/crossPlatformCrypto.js';
 
 // ---------------------------------------------------------------------------
 // Internal row shapes (what SQLite returns)
@@ -49,7 +49,7 @@ interface NodeRow {
   type: string;
   label: string;
   properties: string;
-  embedding: Buffer | null;
+  embedding: Uint8Array | null;
   confidence: number;
   source: string;
   created_at: number;
@@ -216,7 +216,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     entity: Omit<KnowledgeEntity, 'id' | 'createdAt' | 'updatedAt'> & { id?: EntityId },
   ): Promise<KnowledgeEntity> {
     const now = new Date().toISOString();
-    const id = entity.id ?? crypto.randomUUID();
+    const id = entity.id ?? uuid();
 
     // Check if the entity already exists to preserve createdAt.
     const existing = await this.brain.get<NodeRow>(
@@ -392,7 +392,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     relation: Omit<KnowledgeRelation, 'id' | 'createdAt'> & { id?: RelationId },
   ): Promise<KnowledgeRelation> {
     const now = new Date().toISOString();
-    const id = relation.id ?? crypto.randomUUID();
+    const id = relation.id ?? uuid();
 
     // Preserve createdAt if edge already exists.
     const existing = await this.brain.get<EdgeRow>(
@@ -510,7 +510,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     memory: Omit<EpisodicMemory, 'id' | 'createdAt' | 'accessCount' | 'lastAccessedAt'>,
   ): Promise<EpisodicMemory> {
     const now = new Date().toISOString();
-    const id = crypto.randomUUID();
+    const id = uuid();
 
     const memFields: MemoryNodeFields = {
       _props: {},

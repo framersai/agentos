@@ -9,8 +9,7 @@
  * @module memory/io/JsonImporter
  */
 
-import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
@@ -141,12 +140,35 @@ export class JsonImporter {
     // ---- Load + parse ----
     let raw: string;
     try {
+      const fs = await import('node:fs/promises');
       raw = await fs.readFile(sourcePath, 'utf8');
     } catch (err) {
       result.errors.push(`Failed to read file: ${String(err)}`);
       return result;
     }
 
+    return this._importParsed(raw, result);
+  }
+
+  /**
+   * Import a JSON string directly into the target brain without filesystem access.
+   *
+   * @param jsonContent - The JSON string to parse and import.
+   * @returns `ImportResult` with counts of imported, skipped, and errored items.
+   */
+  async importFromString(jsonContent: string): Promise<ImportResult> {
+    const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
+    return this._importParsed(jsonContent, result);
+  }
+
+  /**
+   * Parse a raw JSON string and import its contents into the brain.
+   *
+   * @param raw    - The raw JSON string to parse.
+   * @param result - Mutable `ImportResult` to accumulate counts.
+   * @returns The populated `ImportResult`.
+   */
+  private async _importParsed(raw: string, result: ImportResult): Promise<ImportResult> {
     let payload: BrainExportPayload;
     try {
       payload = JSON.parse(raw) as BrainExportPayload;
@@ -181,8 +203,8 @@ export class JsonImporter {
    * @param content - The string to hash.
    * @returns 64-character lowercase hex string.
    */
-  private _sha256(content: string): string {
-    return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+  private async _sha256(content: string): Promise<string> {
+    return sha256(content);
   }
 
   /**
@@ -210,7 +232,7 @@ export class JsonImporter {
 
     for (const t of traces) {
       try {
-        const hash = this._sha256(t.content);
+        const hash = await this._sha256(t.content);
         const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;
@@ -280,7 +302,7 @@ export class JsonImporter {
 
     for (const n of nodes) {
       try {
-        const hash = this._sha256(`${n.label ?? ''}::${n.type ?? ''}`);
+        const hash = await this._sha256(`${n.label ?? ''}::${n.type ?? ''}`);
         const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;
@@ -349,7 +371,7 @@ export class JsonImporter {
           continue;
         }
 
-        const hash = this._sha256(`${e.source_id}::${e.target_id}::${e.type ?? ''}`);
+        const hash = await this._sha256(`${e.source_id}::${e.target_id}::${e.type ?? ''}`);
         const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;

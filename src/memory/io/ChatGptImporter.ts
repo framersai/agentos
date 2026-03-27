@@ -35,8 +35,7 @@
  * @module memory/io/ChatGptImporter
  */
 
-import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
@@ -115,6 +114,7 @@ export class ChatGptImporter {
     // ---- Load + parse ----
     let raw: string;
     try {
+      const fs = await import('node:fs/promises');
       raw = await fs.readFile(sourcePath, 'utf8');
     } catch (err) {
       result.errors.push(`Failed to read file: ${String(err)}`);
@@ -282,7 +282,7 @@ export class ChatGptImporter {
     conversationId: string,
     result: ImportResult,
   ): Promise<void> {
-    const hash = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+    const hash = await sha256(content);
 
     // Dedup check.
     const { dialect } = this.brain.features;

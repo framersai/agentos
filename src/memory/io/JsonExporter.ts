@@ -20,7 +20,6 @@
  * @module memory/io/JsonExporter
  */
 
-import fs from 'node:fs/promises';
 import type { ExportOptions } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 
@@ -124,6 +123,29 @@ export class JsonExporter {
    *   omitted from the output. Defaults to `true`.
    */
   async export(outputPath: string, options?: ExportOptions): Promise<void> {
+    const payload = await this._buildPayload(options);
+    const fs = await import('node:fs/promises');
+    await fs.writeFile(outputPath, JSON.stringify(payload, null, 2), 'utf8');
+  }
+
+  /**
+   * Export the full brain state as a JSON string without filesystem access.
+   *
+   * @param options - Optional export configuration (embeddings, conversations).
+   * @returns Pretty-printed JSON string of the full brain payload.
+   */
+  async exportToString(options?: ExportOptions): Promise<string> {
+    const payload = await this._buildPayload(options);
+    return JSON.stringify(payload, null, 2);
+  }
+
+  /**
+   * Build the full export payload from the brain database.
+   *
+   * @param options - Optional export configuration.
+   * @returns The structured payload object ready for serialisation.
+   */
+  private async _buildPayload(options?: ExportOptions): Promise<Record<string, unknown>> {
     const includeEmbeddings = options?.includeEmbeddings ?? false;
     const includeConversations = options?.includeConversations ?? true;
 
@@ -139,12 +161,10 @@ export class JsonExporter {
 
     // ---- memory_traces ----
     const rawTraces = await this.brain.all<TraceRow>('SELECT * FROM memory_traces');
-
     const traces = rawTraces.map((row) => this._serializeTrace(row, includeEmbeddings));
 
     // ---- knowledge_nodes ----
     const rawNodes = await this.brain.all<NodeRow>('SELECT * FROM knowledge_nodes');
-
     const nodes = rawNodes.map((row) => this._serializeNode(row, includeEmbeddings));
 
     // ---- knowledge_edges ----
@@ -158,7 +178,7 @@ export class JsonExporter {
       ? await this.brain.all<ConversationRow>('SELECT * FROM conversations')
       : [];
 
-    const payload = {
+    return {
       meta,
       traces,
       nodes,
@@ -166,8 +186,6 @@ export class JsonExporter {
       documents,
       conversations,
     };
-
-    await fs.writeFile(outputPath, JSON.stringify(payload, null, 2), 'utf8');
   }
 
   // -------------------------------------------------------------------------

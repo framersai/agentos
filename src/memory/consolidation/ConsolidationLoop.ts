@@ -24,7 +24,7 @@
  * @module agentos/memory/consolidation/ConsolidationLoop
  */
 
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import type { ConsolidationResult, ExtendedConsolidationConfig } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 import type { IMemoryGraph } from '../graph/IMemoryGraph.js';
@@ -305,7 +305,7 @@ export class ConsolidationLoop {
 
       for (const row of rows) {
         if (deletedIds.has(row.id)) continue;
-        const hash = crypto.createHash('sha256').update(row.content).digest('hex');
+        const hash = await sha256(row.content);
         const existing = hashMap.get(hash);
         if (existing && !deletedIds.has(existing.id)) {
           await this._mergeTracePair(existing, row, deletedIds);

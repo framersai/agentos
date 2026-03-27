@@ -12,9 +12,7 @@
  * @module memory/io/MarkdownImporter
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import matter from 'gray-matter';
 import type { ImportResult } from '../facade/types.js';
@@ -120,6 +118,8 @@ export class MarkdownImporter {
    * @returns Sorted list of absolute file paths.
    */
   private async _collectMarkdownFiles(dir: string): Promise<string[]> {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
     const results: string[] = [];
 
     async function walk(current: string): Promise<void> {
@@ -151,6 +151,7 @@ export class MarkdownImporter {
    * @param result   - Mutable `ImportResult` accumulator.
    */
   private async _processFile(filePath: string, result: ImportResult): Promise<void> {
+    const fs = await import('node:fs/promises');
     let raw: string;
     try {
       raw = await fs.readFile(filePath, 'utf8');
@@ -175,7 +176,7 @@ export class MarkdownImporter {
       return;
     }
 
-    const hash = crypto.createHash('sha256').update(body, 'utf8').digest('hex');
+    const hash = await sha256(body);
 
     // Dedup check.
     const { dialect } = this.brain.features;

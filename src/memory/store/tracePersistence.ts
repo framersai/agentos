@@ -11,7 +11,7 @@
  * @module memory/store/tracePersistence
  */
 
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 
 /**
  * Default stability for traces that do not yet have an explicit persisted
@@ -177,8 +177,8 @@ export function buildInitialTraceMetadata(
 /**
  * Compute a SHA-256 hex digest for trace content.
  */
-export function sha256Hex(content: string): string {
-  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+export async function sha256Hex(content: string): Promise<string> {
+  return sha256(content);
 }
 
 /**

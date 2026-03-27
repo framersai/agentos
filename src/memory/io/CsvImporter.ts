@@ -23,8 +23,7 @@
  * @module memory/io/CsvImporter
  */
 
-import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
@@ -46,12 +45,35 @@ export class CsvImporter {
 
     let raw: string;
     try {
+      const fs = await import('node:fs/promises');
       raw = await fs.readFile(sourcePath, 'utf8');
     } catch (err) {
       result.errors.push(`Failed to read file: ${String(err)}`);
       return result;
     }
 
+    return this._importCsvContent(raw, result);
+  }
+
+  /**
+   * Import a CSV string directly into the target brain without filesystem access.
+   *
+   * @param csvContent - The raw CSV string to parse and import.
+   * @returns Import summary with imported/skipped/error counts.
+   */
+  async importFromString(csvContent: string): Promise<ImportResult> {
+    const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
+    return this._importCsvContent(csvContent, result);
+  }
+
+  /**
+   * Parse raw CSV content and import its rows into the brain.
+   *
+   * @param raw    - The raw CSV string (may include BOM).
+   * @param result - Mutable `ImportResult` to accumulate counts.
+   * @returns The populated `ImportResult`.
+   */
+  private async _importCsvContent(raw: string, result: ImportResult): Promise<ImportResult> {
     const rows = this._parseCsv(raw.replace(/^\uFEFF/, ''));
     if (rows.length === 0) {
       result.errors.push('CSV import failed: file is empty.');
@@ -100,7 +122,7 @@ export class CsvImporter {
             continue;
           }
 
-          const hash = this._sha256(content);
+          const hash = await this._sha256(content);
           const existing = await trx.get<{ id: string }>(checkSql, [hash, hash]);
           if (existing) {
             result.skipped++;
@@ -150,8 +172,8 @@ export class CsvImporter {
     return result;
   }
 
-  private _sha256(content: string): string {
-    return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+  private async _sha256(content: string): Promise<string> {
+    return sha256(content);
   }
 
   private _readCell(row: string[], index: number): string {

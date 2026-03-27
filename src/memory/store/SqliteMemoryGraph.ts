@@ -31,7 +31,7 @@
  * @module memory/store/SqliteMemoryGraph
  */
 
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import type { SqliteBrain } from './SqliteBrain.js';
 import type {
   IMemoryGraph,
@@ -310,7 +310,7 @@ export class SqliteMemoryGraph implements IMemoryGraph {
    * @param edge - Edge descriptor including type, weight, and timestamp.
    */
   async addEdge(edge: MemoryEdge): Promise<void> {
-    const edgeId = this._edgeId(edge.sourceId, edge.targetId);
+    const edgeId = await this._edgeId(edge.sourceId, edge.targetId);
     const key = `${edge.sourceId}:${edge.targetId}`;
 
     const { dialect } = this.brain.features;
@@ -359,7 +359,7 @@ export class SqliteMemoryGraph implements IMemoryGraph {
    * @param targetId - Target node ID.
    */
   async removeEdge(sourceId: string, targetId: string): Promise<void> {
-    const edgeId = this._edgeId(sourceId, targetId);
+    const edgeId = await this._edgeId(sourceId, targetId);
 
     await this.brain.run(
       `DELETE FROM knowledge_edges WHERE id = ?`,
@@ -548,7 +548,7 @@ export class SqliteMemoryGraph implements IMemoryGraph {
           existing.weight = newWeight;
 
           // Update SQLite row weight in-place.
-          const edgeId = this._edgeId(sourceId, targetId);
+          const edgeId = await this._edgeId(sourceId, targetId);
           await this.brain.run(
             `UPDATE knowledge_edges SET weight = ? WHERE id = ?`,
             [newWeight, edgeId],
@@ -780,11 +780,8 @@ export class SqliteMemoryGraph implements IMemoryGraph {
    * @param targetId - Edge target node ID.
    * @returns A UUID v5-style hex string.
    */
-  private _edgeId(sourceId: string, targetId: string): string {
-    return crypto
-      .createHash('sha256')
-      .update(`mem_edge:${sourceId}:${targetId}`)
-      .digest('hex')
-      .slice(0, 32);
+  private async _edgeId(sourceId: string, targetId: string): Promise<string> {
+    const hash = await sha256(`mem_edge:${sourceId}:${targetId}`);
+    return hash.slice(0, 32);
   }
 }

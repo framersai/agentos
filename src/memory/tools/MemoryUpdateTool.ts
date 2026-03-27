@@ -159,7 +159,7 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
       const nextMetadataObject = parseTraceMetadata(current.metadata);
 
       if (content !== undefined) {
-        nextMetadataObject.content_hash = sha256Hex(nextContent);
+        nextMetadataObject.content_hash = await sha256Hex(nextContent);
         delete nextMetadataObject.import_hash;
       }
 

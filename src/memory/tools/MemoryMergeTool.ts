@@ -207,7 +207,7 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
       }
       const finalTags = JSON.stringify([...allTags]);
       const survivorMetadata = parseTraceMetadata(survivor.metadata);
-      survivorMetadata.content_hash = sha256Hex(finalContent);
+      survivorMetadata.content_hash = await sha256Hex(finalContent);
       delete survivorMetadata.import_hash;
 
       const mergedDecay = rows.map((row) =>

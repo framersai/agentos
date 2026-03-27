@@ -20,7 +20,7 @@
  */
 
 import Database from 'better-sqlite3';
-import crypto from 'node:crypto';
+import { sha256 as crossSha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
@@ -132,8 +132,8 @@ export class SqliteImporter {
   /**
    * SHA-256 of an arbitrary string (hex output).
    */
-  private _sha256(s: string): string {
-    return crypto.createHash('sha256').update(s, 'utf8').digest('hex');
+  private async _sha256(s: string): Promise<string> {
+    return crossSha256(s);
   }
 
   /**
@@ -175,7 +175,7 @@ export class SqliteImporter {
 
     for (const row of sourceRows) {
       try {
-        const hash = this._sha256(row.content);
+        const hash = await this._sha256(row.content);
         const existing = await trx.get<{ id: string; created_at: number; tags: string }>(
           checkSql, [hash, row.content],
         );

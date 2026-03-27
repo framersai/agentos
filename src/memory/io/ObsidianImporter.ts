@@ -18,7 +18,7 @@
  * @module memory/io/ObsidianImporter
  */
 
-import crypto from 'node:crypto';
+import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
@@ -218,10 +218,7 @@ export class ObsidianImporter extends MarkdownImporter {
       // ---- Upsert source knowledge node for the trace ----
       // We use the trace ID itself as the node label so the graph stays navigable.
       const sourceLabel = `trace:${sourceTraceId}`;
-      const sourceHash = crypto
-        .createHash('sha256')
-        .update(`wiki-source::${sourceTraceId}`)
-        .digest('hex');
+      const sourceHash = await sha256(`wiki-source::${sourceTraceId}`);
 
       let sourceNodeId: string;
       const existingSource = await brainRef.get<{ id: string }>(
@@ -249,10 +246,7 @@ export class ObsidianImporter extends MarkdownImporter {
       }
 
       // ---- Upsert target knowledge node for the wikilink label ----
-      const targetHash = crypto
-        .createHash('sha256')
-        .update(`wiki::${targetLabel}`)
-        .digest('hex');
+      const targetHash = await sha256(`wiki::${targetLabel}`);
 
       let targetNodeId: string;
       const existingTarget = await brainRef.get<{ id: string }>(
@@ -280,10 +274,7 @@ export class ObsidianImporter extends MarkdownImporter {
       }
 
       // ---- Create the directed edge: source node → target node ----
-      const edgeHash = crypto
-        .createHash('sha256')
-        .update(`${sourceNodeId}::${targetNodeId}::related_to`)
-        .digest('hex');
+      const edgeHash = await sha256(`${sourceNodeId}::${targetNodeId}::related_to`);
 
       // Check for existing edge before insert (extra safety beyond OR IGNORE).
       const existingEdge = await brainRef.get<{ id: string }>(

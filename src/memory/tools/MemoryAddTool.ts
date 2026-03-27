@@ -171,7 +171,7 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
         buildInitialTraceMetadata(
           {},
           {
-            contentHash: sha256Hex(args.content),
+            contentHash: await sha256Hex(args.content),
             ...(scopeId ? { scopeId } : {}),
           }
         )

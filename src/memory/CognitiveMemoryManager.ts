@@ -10,7 +10,7 @@
  * @module agentos/memory/CognitiveMemoryManager
  */
 
-import crypto from 'node:crypto';
+import { uuid } from './util/crossPlatformCrypto.js';
 
 import type {
   MemoryTrace,
@@ -178,12 +178,12 @@ export interface ICognitiveMemoryManager {
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a globally unique trace ID using crypto.randomUUID().
+ * Generate a globally unique trace ID.
  * Previous implementation used a monotonic counter (`mt_{timestamp}_{counter}`)
  * which could collide across multiple processes or rapid restarts.
  */
 function generateTraceId(): string {
-  return `mt_${crypto.randomUUID()}`;
+  return `mt_${uuid()}`;
 }
 
 export class CognitiveMemoryManager implements ICognitiveMemoryManager {
