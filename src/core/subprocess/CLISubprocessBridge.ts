@@ -179,6 +179,7 @@ export abstract class CLISubprocessBridge {
         input: options.prompt,
         timeout: options.timeout ?? DEFAULT_TIMEOUT_MS,
         cancelSignal: options.abortSignal,
+        ...(options.env ? { env: { ...process.env, ...options.env } } : {}),
       });
 
       const durationMs = Date.now() - startMs;
@@ -206,6 +207,7 @@ export abstract class CLISubprocessBridge {
         input: options.prompt,
         timeout: options.timeout ?? DEFAULT_TIMEOUT_MS,
         cancelSignal: options.abortSignal,
+        ...(options.env ? { env: { ...process.env, ...options.env } } : {}),
       });
     } catch (error: any) {
       throw this.classifyError(error);

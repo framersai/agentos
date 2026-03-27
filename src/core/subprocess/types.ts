@@ -31,6 +31,8 @@ export interface BridgeOptions {
   abortSignal?: AbortSignal;
   /** Extra CLI flags specific to a particular bridge. */
   extraArgs?: string[];
+  /** Extra environment variables merged into the subprocess env. */
+  env?: Record<string, string>;
 }
 
 /** Result from a non-streaming {@link CLISubprocessBridge.execute} call. */
