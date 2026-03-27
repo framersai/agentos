@@ -24,6 +24,7 @@ import type {
   ImageOutputFormat,
 } from '../core/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
+import { resolveProviderOrder, type MediaProviderPreference } from '../core/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
@@ -74,11 +75,16 @@ function detectFallbackImageProviders(primaryProviderId: string): string[] {
  * optionally wrapped in a {@link FallbackImageProxy} when additional
  * image-capable providers are detected in the environment.
  *
+ * When `providerPreferences` is supplied, the fallback chain is reordered
+ * and filtered according to the preference rules before being constructed.
+ *
  * @param resolved - The primary resolved provider credentials.
+ * @param providerPreferences - Optional preferences for reordering/filtering.
  * @returns An initialised image provider (possibly a fallback proxy).
  */
 async function createImageProviderWithFallback(
   resolved: { providerId: string; modelId: string; apiKey?: string; baseUrl?: string },
+  providerPreferences?: MediaProviderPreference,
 ): Promise<IImageProvider> {
   const primary = createImageProvider(resolved.providerId);
   await primary.initialize({
@@ -87,7 +93,15 @@ async function createImageProviderWithFallback(
     defaultModelId: resolved.modelId,
   });
 
-  const fallbackIds = detectFallbackImageProviders(resolved.providerId);
+  let fallbackIds = detectFallbackImageProviders(resolved.providerId);
+
+  // Apply provider preferences to reorder / filter the fallback chain.
+  if (providerPreferences) {
+    const allIds = [resolved.providerId, ...fallbackIds];
+    const ordered = resolveProviderOrder(allIds, providerPreferences);
+    fallbackIds = ordered.filter((id) => id !== resolved.providerId);
+  }
+
   if (fallbackIds.length === 0) {
     return primary;
   }
@@ -167,6 +181,12 @@ export interface GenerateImageOptions {
   negativePrompt?: string;
   /** Arbitrary provider-specific options not covered by the standard fields. */
   providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
+  /**
+   * Provider preferences for reordering or filtering the fallback chain.
+   * When supplied, the available image providers are reordered according to
+   * `preferred` and filtered by `blocked` before building the chain.
+   */
+  providerPreferences?: MediaProviderPreference;
   /** Optional durable usage ledger configuration for helper-level accounting. */
   usageLedger?: AgentOSUsageLedgerOptions;
 }
@@ -228,7 +248,7 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
       span?.setAttribute('llm.provider', resolved.providerId);
       span?.setAttribute('llm.model', resolved.modelId);
 
-      const provider = await createImageProviderWithFallback(resolved);
+      const provider = await createImageProviderWithFallback(resolved, opts.providerPreferences);
 
       const result = await provider.generateImage({
         modelId: resolved.modelId,

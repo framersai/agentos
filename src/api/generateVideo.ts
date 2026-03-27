@@ -23,6 +23,7 @@ import type {
   VideoProgressEvent,
   VideoAspectRatio,
 } from '../core/video/index.js';
+import { resolveProviderOrder, type MediaProviderPreference } from '../core/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
@@ -100,10 +101,14 @@ function envKeyForProvider(providerId: string): string {
  * optionally wrapped in a {@link FallbackVideoProxy} when additional
  * video-capable providers are detected in the environment.
  *
+ * When `providerPreferences` is supplied, the fallback chain is reordered
+ * and filtered according to the preference rules before being constructed.
+ *
  * @param providerId - Primary provider identifier.
  * @param apiKey - API key for the primary provider.
  * @param modelId - Optional model identifier override.
  * @param baseUrl - Optional base URL override.
+ * @param providerPreferences - Optional preferences for reordering/filtering.
  * @returns An initialised video provider (possibly a fallback proxy).
  */
 async function createVideoProviderWithFallback(
@@ -111,6 +116,7 @@ async function createVideoProviderWithFallback(
   apiKey: string,
   modelId?: string,
   baseUrl?: string,
+  providerPreferences?: MediaProviderPreference,
 ): Promise<IVideoGenerator> {
   const primary = createVideoProvider(providerId);
   await primary.initialize({
@@ -119,7 +125,15 @@ async function createVideoProviderWithFallback(
     ...(baseUrl ? { baseURL: baseUrl, baseUrl } : {}),
   });
 
-  const fallbackIds = detectFallbackVideoProviders(providerId);
+  let fallbackIds = detectFallbackVideoProviders(providerId);
+
+  // Apply provider preferences to reorder / filter the fallback chain.
+  if (providerPreferences) {
+    const allIds = [providerId, ...fallbackIds];
+    const ordered = resolveProviderOrder(allIds, providerPreferences);
+    fallbackIds = ordered.filter((id) => id !== providerId);
+  }
+
   if (fallbackIds.length === 0) {
     return primary;
   }
@@ -213,6 +227,13 @@ export interface GenerateVideoOptions {
 
   /** Override the provider base URL. */
   baseUrl?: string;
+
+  /**
+   * Provider preferences for reordering or filtering the fallback chain.
+   * When supplied, the available video providers are reordered according to
+   * `preferred` and filtered by `blocked` before building the chain.
+   */
+  providerPreferences?: MediaProviderPreference;
 
   /** Optional durable usage ledger configuration for accounting. */
   usageLedger?: AgentOSUsageLedgerOptions;
@@ -323,6 +344,7 @@ export async function generateVideo(opts: GenerateVideoOptions): Promise<Generat
         apiKey,
         opts.model,
         opts.baseUrl,
+        opts.providerPreferences,
       );
 
       // --- Dispatch to text-to-video or image-to-video ---
