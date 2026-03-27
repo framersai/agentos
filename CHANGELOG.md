@@ -1,3 +1,17 @@
+## <small>0.1.126 (2026-03-27)</small>
+
+* fix: replace top-level await with synchronous require in AgentKeyManager ([0bcf573](https://github.com/framersai/agentos/commit/0bcf573))
+* fix: use npm sql-storage-adapter >=0.6.0 (now published), remove GitHub devDep hack ([d48a32c](https://github.com/framersai/agentos/commit/d48a32c))
+* fix(ci): add sql-storage-adapter 0.6.0 from GitHub as devDep for CI builds ([c59cb9d](https://github.com/framersai/agentos/commit/c59cb9d))
+* test: close all RAG text-processing coverage gaps + fix preset stop word inconsistency ([89036be](https://github.com/framersai/agentos/commit/89036be))
+* feat: add TextProcessingPipeline and HnswIndexSidecar core modules ([a9248d4](https://github.com/framersai/agentos/commit/a9248d4))
+* feat: use natural's 170-word stop word list as default across all tokenizers ([883763d](https://github.com/framersai/agentos/commit/883763d))
+* feat: wire TextProcessingPipeline + HnswIndexSidecar into RAG system ([ffb4e77](https://github.com/framersai/agentos/commit/ffb4e77))
+* feat(memory): browser compatibility + cross-platform crypto + string I/O ([c2541ca](https://github.com/framersai/agentos/commit/c2541ca))
+* feat(memory): wire SqlDialect, FTS, BlobCodec, Exporter into memory subsystem ([6f32269](https://github.com/framersai/agentos/commit/6f32269))
+* refactor: use shared ENGLISH_STOP_WORDS from text-processing — remove duplicated stop word lists ([d384d7e](https://github.com/framersai/agentos/commit/d384d7e))
+* docs: add cross-references to wunderland CLI docs ([84a39a9](https://github.com/framersai/agentos/commit/84a39a9))
+
 ## <small>0.1.125 (2026-03-27)</small>
 
 * feat(agentos): wire self-improvement tools into emergent bootstrap ([d4b7a80](https://github.com/framersai/agentos/commit/d4b7a80))
