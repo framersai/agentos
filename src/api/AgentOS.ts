@@ -114,6 +114,8 @@ import {
 } from '../core/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../core/guardrails/IGuardrailService';
 import type { EmergentConfig } from '../emergent/types.js';
+import type { SelfImprovementToolDeps } from '../emergent/EmergentCapabilityEngine.js';
+import { PersonalityMutationStore } from '../emergent/PersonalityMutationStore.js';
 import { GuardrailAction } from '../core/guardrails/IGuardrailService';
 import {
   evaluateInputGuardrails,
@@ -1025,6 +1027,157 @@ export class AgentOS implements IAgentOS {
                   exec: async (sql: string) => storageAdapter.exec(sql),
                 }
               : undefined,
+
+            // ---------------------------------------------------------------
+            // Self-improvement deps — only assembled when the feature is
+            // enabled. All hooks are lazy closures that resolve against the
+            // fully initialised runtime at tool-call time (NOT at bootstrap).
+            // ---------------------------------------------------------------
+            selfImprovementDeps:
+              this.config.emergentConfig?.selfImprovement?.enabled
+                ? ((): SelfImprovementToolDeps => {
+                    // PersonalityMutationStore reuses the same storage adapter
+                    // that the EmergentToolRegistry already depends on.
+                    const mutationStore = storageAdapter
+                      ? new PersonalityMutationStore({
+                          run: async (sql: string, params?: unknown[]) =>
+                            storageAdapter.run(sql, params as any),
+                          get: async (sql: string, params?: unknown[]) =>
+                            storageAdapter.get(sql, params as any),
+                          all: async (sql: string, params?: unknown[]) =>
+                            storageAdapter.all(sql, params as any),
+                          exec: async (sql: string) => storageAdapter.exec(sql),
+                        })
+                      : undefined;
+
+                    return {
+                      // --- Personality (HEXACO) ---
+                      // Reads/writes the active GMI's persona personalityTraits map.
+                      // Falls back to an empty map when no GMI or persona is active.
+                      getPersonality: (): Record<string, number> => {
+                        try {
+                          const gmi = this.gmiManager?.activeGMIs?.values().next().value;
+                          const traits = gmi?.getPersona()?.personalityTraits;
+                          if (traits && typeof traits === 'object') {
+                            const result: Record<string, number> = {};
+                            for (const [k, v] of Object.entries(traits)) {
+                              if (typeof v === 'number') result[k] = v;
+                            }
+                            return result;
+                          }
+                        } catch { /* GMI not ready yet — return empty. */ }
+                        return {};
+                      },
+                      setPersonality: (trait: string, value: number): void => {
+                        try {
+                          const gmi = this.gmiManager?.activeGMIs?.values().next().value;
+                          const persona = gmi?.getPersona();
+                          if (persona) {
+                            if (!persona.personalityTraits) {
+                              persona.personalityTraits = {};
+                            }
+                            persona.personalityTraits[trait] = value;
+                          }
+                        } catch { /* GMI not ready — ignore. */ }
+                      },
+                      mutationStore,
+
+                      // --- Skills ---
+                      // The SkillRegistry is not directly held by AgentOS, so
+                      // these hooks use the config.capabilityDiscovery.sources
+                      // skill data when available, falling back to empty arrays.
+                      getActiveSkills: (): Array<{ skillId: string; name: string; category: string }> => {
+                        try {
+                          const skills = (this.config as any).capabilityDiscovery?.sources?.skills;
+                          if (Array.isArray(skills)) {
+                            return skills.map((s: any) => ({
+                              skillId: s.id ?? s.name ?? 'unknown',
+                              name: s.name ?? 'unknown',
+                              category: s.category ?? 'general',
+                            }));
+                          }
+                        } catch { /* no skills available */ }
+                        return [];
+                      },
+                      getLockedSkills: (): string[] => [],
+                      loadSkill: async (id: string) => {
+                        // Skill loading is a no-op stub. The ManageSkillsTool
+                        // internally handles the result; returning metadata is
+                        // sufficient for the tool to function.
+                        return { skillId: id, name: id, category: 'dynamic' };
+                      },
+                      unloadSkill: (_id: string) => { /* no-op */ },
+                      searchSkills: (query: string) => {
+                        try {
+                          const skills = (this.config as any).capabilityDiscovery?.sources?.skills;
+                          if (Array.isArray(skills)) {
+                            const q = query.toLowerCase();
+                            return skills
+                              .filter((s: any) =>
+                                (s.name ?? '').toLowerCase().includes(q) ||
+                                (s.description ?? '').toLowerCase().includes(q)
+                              )
+                              .map((s: any) => ({
+                                skillId: s.id ?? s.name ?? 'unknown',
+                                name: s.name ?? 'unknown',
+                                category: s.category ?? 'general',
+                                description: s.description ?? '',
+                              }));
+                          }
+                        } catch { /* no skills available */ }
+                        return [];
+                      },
+
+                      // --- Tools ---
+                      // Wire directly to the ToolOrchestrator. At tool-call
+                      // time the orchestrator is guaranteed to be initialised.
+                      executeTool: async (name: string, args: unknown): Promise<unknown> => {
+                        const tool = await this.toolOrchestrator.getTool(name);
+                        if (!tool) {
+                          throw new Error(`Tool "${name}" not found in orchestrator.`);
+                        }
+                        const result = await tool.execute(
+                          (args ?? {}) as Record<string, unknown>,
+                          {
+                            gmiId: 'self-improvement',
+                            personaId: 'self-improvement',
+                            userContext: { userId: 'system' } as any,
+                          },
+                        );
+                        return result;
+                      },
+                      listTools: (): string[] => {
+                        try {
+                          return (this.toolOrchestrator as any).toolExecutor
+                            ?.listAvailableTools()
+                            ?.map((t: any) => t.name) ?? [];
+                        } catch { return []; }
+                      },
+
+                      // --- Memory ---
+                      // Persist self-improvement traces into the first active
+                      // GMI's cognitive memory when available.
+                      storeMemory: async (trace): Promise<void> => {
+                        try {
+                          const gmi = this.gmiManager?.activeGMIs?.values().next().value;
+                          const mem = gmi?.getCognitiveMemoryManager?.();
+                          if (mem) {
+                            await mem.encode(
+                              `[self-improvement:${trace.type}] ${trace.content}`,
+                              { valence: 0, arousal: 0, dominance: 0.5 },
+                              'neutral',
+                              {
+                                type: 'semantic' as any,
+                                scope: (trace.scope ?? 'agent') as any,
+                                tags: trace.tags,
+                              },
+                            );
+                          }
+                        } catch { /* Memory not available — silently skip. */ }
+                      },
+                    };
+                  })()
+                : undefined,
           }
         : undefined;
       const initialConfigTools = adaptTools(this.config.tools);

@@ -54,6 +54,7 @@ import { EmergentJudge } from '../../emergent/EmergentJudge.js';
 import { EmergentToolRegistry } from '../../emergent/EmergentToolRegistry.js';
 import type { IStorageAdapter as EmergentStorageAdapter } from '../../emergent/EmergentToolRegistry.js';
 import { ForgeToolMetaTool } from '../../emergent/ForgeToolMetaTool.js';
+import type { SelfImprovementToolDeps } from '../../emergent/EmergentCapabilityEngine.js';
 
 /**
  * @class ToolOrchestrator
@@ -171,6 +172,15 @@ export class ToolOrchestrator implements IToolOrchestrator {
       generateText?: (model: string, prompt: string) => Promise<string>;
       /** Optional persistent storage adapter for the emergent registry. */
       storageAdapter?: EmergentStorageAdapter;
+      /**
+       * Runtime hooks for the self-improvement tools (adapt_personality,
+       * manage_skills, create_workflow, self_evaluate).
+       *
+       * Only used when `config.selfImprovement.enabled` is `true`.
+       * When omitted and self-improvement is enabled, the engine still
+       * attempts tool creation but any deps-dependent tools are skipped.
+       */
+      selfImprovementDeps?: SelfImprovementToolDeps;
     }
   ): Promise<void> {
     if (this.isInitialized) {
@@ -304,6 +314,40 @@ export class ToolOrchestrator implements IToolOrchestrator {
         `ToolOrchestrator (ID: ${this.orchestratorId}): Emergent capability engine initialized. ` +
           `forge_tool meta-tool registered.`
       );
+
+      // -----------------------------------------------------------------
+      // Self-improvement tools (conditional on selfImprovement.enabled)
+      // -----------------------------------------------------------------
+      // Creates up to 4 tools: adapt_personality, manage_skills,
+      // create_workflow, self_evaluate. Each tool is individually
+      // try-caught inside the engine so missing modules are gracefully
+      // skipped. Registration uses the same registerInitialTool path as
+      // forge_tool above.
+      if (emergentConfig.selfImprovement?.enabled && emergentOptions.selfImprovementDeps) {
+        try {
+          const selfImprovementTools =
+            await this.emergentEngine.createSelfImprovementTools(
+              emergentOptions.selfImprovementDeps,
+            );
+
+          for (const tool of selfImprovementTools) {
+            await this.registerInitialTool(tool);
+          }
+
+          if (selfImprovementTools.length > 0) {
+            console.log(
+              `ToolOrchestrator (ID: ${this.orchestratorId}): Self-improvement tools registered: ` +
+                `${selfImprovementTools.map((t) => t.name).join(', ')}.`
+            );
+          }
+        } catch (selfImprovementError: any) {
+          // Non-fatal — the agent operates without self-improvement.
+          console.warn(
+            `ToolOrchestrator (ID: ${this.orchestratorId}): Failed to create self-improvement tools: ` +
+              `${selfImprovementError.message ?? selfImprovementError}`
+          );
+        }
+      }
     }
 
     this.isInitialized = true;

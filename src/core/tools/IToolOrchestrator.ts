@@ -20,6 +20,7 @@ import type { IHumanInteractionManager } from '../hitl/IHumanInteractionManager'
 import type { CapabilityDiscoveryResult } from '../../discovery/types';
 import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
 import type { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
+import type { SelfImprovementToolDeps } from '../../emergent/EmergentCapabilityEngine.js';
 
 /**
  * Represents the information about a tool that is suitable for an LLM
@@ -77,6 +78,11 @@ export interface IToolOrchestrator {
        * When omitted the judge rejects all tools (safe fallback).
        */
       generateText?: (model: string, prompt: string) => Promise<string>;
+      /**
+       * Runtime hooks for self-improvement tools.
+       * Only used when `config.selfImprovement.enabled` is `true`.
+       */
+      selfImprovementDeps?: SelfImprovementToolDeps;
     }
   ): Promise<void>;
 
