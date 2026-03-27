@@ -1,3 +1,7 @@
+## <small>0.1.118 (2026-03-27)</small>
+
+* perf(rag): binary blob embeddings in SqlVectorStore — 3-4x faster queries, shared vectorMath utils ([5d040a0](https://github.com/framersai/agentos/commit/5d040a0))
+
 ## <small>0.1.117 (2026-03-27)</small>
 
 * feat(rag): shared vectorMath utils — cosine similarity, dot product, euclidean distance, binary blob ([97b19cb](https://github.com/framersai/agentos/commit/97b19cb))
