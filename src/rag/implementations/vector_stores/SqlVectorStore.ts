@@ -36,6 +36,14 @@ import {
   type StorageResolutionOptions,
 } from '@framers/sql-storage-adapter';
 import {
+  cosineSimilarity as vecCosineSimilarity,
+  dotProduct as vecDotProduct,
+  euclideanDistance as vecEuclideanDistance,
+  embeddingToBlob,
+  blobToEmbedding,
+  isLegacyJsonBlob,
+} from '../../utils/vectorMath.js';
+import {
   IVectorStore,
   VectorStoreProviderConfig,
   VectorDocument,
@@ -130,7 +138,7 @@ interface CollectionMetadata {
 interface DocumentRow {
   id: string;
   collection_name: string;
-  embedding_blob: string; // JSON array stored as text
+  embedding_blob: Buffer | string; // Binary blob (new) or JSON text (legacy)
   text_content: string | null;
   metadata_json: string | null;
   created_at: number;
@@ -468,7 +476,7 @@ export class SqlVectorStore implements IVectorStore {
           [collectionName, doc.id]
         );
 
-        const embeddingBlob = JSON.stringify(doc.embedding);
+        const embeddingBlob = embeddingToBlob(doc.embedding);
         const metadataJson = doc.metadata ? JSON.stringify(doc.metadata) : null;
 
         if (existing && options?.overwrite === false) {
@@ -566,7 +574,9 @@ export class SqlVectorStore implements IVectorStore {
     const candidates: RetrievedVectorDocument[] = [];
 
     for (const row of rows) {
-      const embedding = JSON.parse(row.embedding_blob) as number[];
+      const embedding = isLegacyJsonBlob(row.embedding_blob)
+        ? JSON.parse(row.embedding_blob as string) as number[]
+        : blobToEmbedding(row.embedding_blob as Buffer);
       const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : undefined;
 
       // Apply metadata filter in application code
@@ -578,14 +588,14 @@ export class SqlVectorStore implements IVectorStore {
       let similarityScore: number;
       switch (collection.similarityMetric) {
         case 'euclidean':
-          similarityScore = -this.euclideanDistance(queryEmbedding, embedding); // Negate for "higher is better"
+          similarityScore = -vecEuclideanDistance(queryEmbedding, embedding); // Negate for "higher is better"
           break;
         case 'dotproduct':
-          similarityScore = this.dotProduct(queryEmbedding, embedding);
+          similarityScore = vecDotProduct(queryEmbedding, embedding);
           break;
         case 'cosine':
         default:
-          similarityScore = this.cosineSimilarity(queryEmbedding, embedding);
+          similarityScore = vecCosineSimilarity(queryEmbedding, embedding);
           break;
       }
 
@@ -703,7 +713,9 @@ export class SqlVectorStore implements IVectorStore {
 
     // First pass: dense score + collect BM25 stats (doc length + df for query terms)
     for (const row of rows) {
-      const embedding = JSON.parse(row.embedding_blob) as number[];
+      const embedding = isLegacyJsonBlob(row.embedding_blob)
+        ? JSON.parse(row.embedding_blob as string) as number[]
+        : blobToEmbedding(row.embedding_blob as Buffer);
       const metadata = row.metadata_json ? (JSON.parse(row.metadata_json) as Record<string, MetadataValue>) : undefined;
 
       if (options?.filter && !this.matchesFilter(metadata, options.filter)) continue;
@@ -711,14 +723,14 @@ export class SqlVectorStore implements IVectorStore {
       let denseScore: number;
       switch (collection.similarityMetric) {
         case 'euclidean':
-          denseScore = -this.euclideanDistance(queryEmbedding, embedding);
+          denseScore = -vecEuclideanDistance(queryEmbedding, embedding);
           break;
         case 'dotproduct':
-          denseScore = this.dotProduct(queryEmbedding, embedding);
+          denseScore = vecDotProduct(queryEmbedding, embedding);
           break;
         case 'cosine':
         default:
-          denseScore = this.cosineSimilarity(queryEmbedding, embedding);
+          denseScore = vecCosineSimilarity(queryEmbedding, embedding);
           break;
       }
 
@@ -1055,55 +1067,7 @@ export class SqlVectorStore implements IVectorStore {
   // Private Helper Methods
   // ============================================================================
 
-  /**
-   * Computes cosine similarity between two vectors.
-   * @private
-   */
-  private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-
-    const magnitudeA = Math.sqrt(normA);
-    const magnitudeB = Math.sqrt(normB);
-
-    if (magnitudeA === 0 || magnitudeB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (magnitudeA * magnitudeB);
-  }
-
-  /**
-   * Computes Euclidean distance between two vectors.
-   * @private
-   */
-  private euclideanDistance(vecA: number[], vecB: number[]): number {
-    let sum = 0;
-    for (let i = 0; i < vecA.length; i++) {
-      const diff = vecA[i] - vecB[i];
-      sum += diff * diff;
-    }
-    return Math.sqrt(sum);
-  }
-
-  /**
-   * Computes dot product between two vectors.
-   * @private
-   */
-  private dotProduct(vecA: number[], vecB: number[]): number {
-    let sum = 0;
-    for (let i = 0; i < vecA.length; i++) {
-      sum += vecA[i] * vecB[i];
-    }
-    return sum;
-  }
+  // Distance methods removed — now imported from rag/utils/vectorMath.ts
 
   /**
    * Checks if metadata matches a filter.
