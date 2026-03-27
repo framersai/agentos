@@ -1,7 +1,8 @@
 /**
  * @fileoverview QueryClassifier — chain-of-thought LLM classifier that
  * determines both the retrieval depth tier (T0-T3) and the retrieval
- * strategy (`none` / `simple` / `moderate` / `complex`) for each query.
+ * strategy (`none` / `simple` / `moderate` / `complex`) for each query,
+ * along with capability recommendations (skills, tools, extensions).
  *
  * The classifier is the first stage of the QueryRouter pipeline. It examines
  * the user's query (and optional conversation history) to decide how much
@@ -20,6 +21,13 @@
  * - Would vocabulary mismatch between query and docs degrade direct search?
  * - Is decomposition needed (multi-part question)?
  *
+ * **Capability selection** (when a CapabilityDiscoveryEngine is attached):
+ * - Tier 0 summaries (~150 tokens) from the discovery engine are injected
+ *   into the classification prompt so the LLM can recommend which skills,
+ *   tools, and extensions to activate.
+ * - When no discovery engine is available, a keyword-based heuristic
+ *   selects capabilities as a zero-cost fallback.
+ *
  * The classifier also includes a zero-cost **heuristic fallback** for offline
  * and cost-constrained scenarios.
  *
@@ -37,8 +45,15 @@ import type {
   QueryTier,
   RetrievalStrategy,
 } from './types.js';
-import { buildDefaultPlan } from '../rag/unified/types.js';
-import type { RetrievalPlan } from '../rag/unified/types.js';
+import { buildDefaultPlan, buildDefaultExecutionPlan } from '../rag/unified/types.js';
+import type {
+  ExecutionPlan,
+  RetrievalPlan,
+  SkillRecommendation,
+  ToolRecommendation,
+  ExtensionRecommendation,
+} from '../rag/unified/types.js';
+import type { CapabilityDiscoveryEngine } from '../discovery/CapabilityDiscoveryEngine.js';
 
 // ============================================================================
 // Configuration
@@ -174,7 +189,10 @@ Respond with ONLY a JSON object (no markdown fences, no extra text):
  * - `{{TOOL_LIST}}` — available tools
  * - `{{CONVERSATION_CONTEXT}}` — recent conversation history (may be empty)
  */
-const PLAN_SYSTEM_PROMPT_TEMPLATE = `You are an advanced query classifier and retrieval plan generator. Your job is to analyze the user's query and produce a structured retrieval plan specifying exactly which sources to query, how to combine them, and what memory types to consult.
+const PLAN_SYSTEM_PROMPT_TEMPLATE = `You are an advanced query classifier, retrieval plan generator, and capability recommender. Your job is to analyze the user's query and produce a structured execution plan specifying:
+1. Which retrieval sources to query and how to combine them
+2. What memory types to consult
+3. Which skills, tools, and extensions should be activated to fulfill the request
 
 ## Source Definitions
 
@@ -198,6 +216,15 @@ const PLAN_SYSTEM_PROMPT_TEMPLATE = `You are an advanced query classifier and re
 ## Available Tools
 {{TOOL_LIST}}
 
+## Available Skill Categories
+{{SKILL_SUMMARIES}}
+
+## Available Tool Categories
+{{TOOL_SUMMARIES}}
+
+## Available Extension Categories
+{{EXTENSION_SUMMARIES}}
+
 ## Conversation Context
 {{CONVERSATION_CONTEXT}}
 
@@ -206,15 +233,19 @@ const PLAN_SYSTEM_PROMPT_TEMPLATE = `You are an advanced query classifier and re
 Think step by step about this query:
 
 1. COMPLEXITY: Is this a simple lookup, moderate analysis, or complex research?
-2. SOURCES NEEDED: Would keyword search help? Would entity relationships help? Would hierarchical summaries help?
+2. RETRIEVAL SOURCES: Would keyword search help? Would entity relationships help? Would hierarchical summaries help?
 3. MEMORY RELEVANCE: Has the agent seen related information before? Should we check episodic or semantic memory?
 4. MODALITY: Does this query reference images, audio, or visual content?
 5. TEMPORAL: Is this about recent events? Should we prefer newer information?
 6. DECOMPOSABILITY: Can this be broken into sub-questions?
+7. SKILLS NEEDED: Based on the available skill categories above, which skills should be activated? Consider skills that would help fulfill the user's request (e.g., web-search for finding information, coding-agent for code tasks, email-intelligence for email tasks). Only recommend skills that are genuinely needed.
+8. TOOLS NEEDED: Based on the available tool categories above, which specific tools should be made available? Consider tools the agent will need to invoke (e.g., generateImage for image requests, webSearch for web queries). Only recommend tools that are genuinely needed.
+9. EXTENSIONS NEEDED: Based on the available extension categories above, which extensions should be loaded? Extensions are heavier than individual tools, so only recommend when their full bundle is needed (e.g., browser-automation for web scraping tasks, voice-synthesis for audio output).
+10. EXTERNAL CALLS: Does this query require calling external APIs or services beyond internal knowledge retrieval?
 
 Based on your analysis, output ONLY a JSON object (no markdown fences, no extra text):
 {
-  "thinking": "<your step-by-step reasoning>",
+  "thinking": "<your step-by-step reasoning covering ALL 10 dimensions above>",
   "strategy": "none|simple|moderate|complex",
   "sources": {
     "vector": true,
@@ -241,6 +272,16 @@ Based on your analysis, output ONLY a JSON object (no markdown fences, no extra 
   },
   "raptorLayers": [0],
   "deepResearch": false,
+  "skills": [
+    {"skillId": "skill-name", "reasoning": "why needed", "confidence": 0.9, "priority": 0}
+  ],
+  "tools": [
+    {"toolId": "tool-name", "reasoning": "why needed", "confidence": 0.9, "priority": 0}
+  ],
+  "extensions": [
+    {"extensionId": "ext-name", "reasoning": "why needed", "confidence": 0.8, "priority": 0}
+  ],
+  "requires_external_calls": false,
   "confidence": 0.9,
   "reasoning": "<concise explanation of why this plan was chosen>",
   "tier": 1,
@@ -276,6 +317,16 @@ interface RawClassifierResponse {
  *
  * @internal
  */
+/**
+ * Shape of the raw JSON response from the plan-aware classifier.
+ *
+ * Extends the base classifier response with full retrieval plan fields
+ * AND capability recommendation arrays. All plan fields are optional —
+ * missing fields are filled from {@link buildDefaultPlan} defaults.
+ * Missing capability arrays default to empty.
+ *
+ * @internal
+ */
 interface RawPlanClassifierResponse extends RawClassifierResponse {
   sources?: {
     vector?: boolean;
@@ -303,6 +354,33 @@ interface RawPlanClassifierResponse extends RawClassifierResponse {
   raptorLayers?: number[];
   deepResearch?: boolean;
   reasoning?: string;
+
+  /** Recommended skills from the LLM classifier. */
+  skills?: Array<{
+    skillId?: string;
+    reasoning?: string;
+    confidence?: number;
+    priority?: number;
+  }>;
+
+  /** Recommended tools from the LLM classifier. */
+  tools?: Array<{
+    toolId?: string;
+    reasoning?: string;
+    confidence?: number;
+    priority?: number;
+  }>;
+
+  /** Recommended extensions from the LLM classifier. */
+  extensions?: Array<{
+    extensionId?: string;
+    reasoning?: string;
+    confidence?: number;
+    priority?: number;
+  }>;
+
+  /** Whether external API calls are required. */
+  requires_external_calls?: boolean;
 }
 
 // ============================================================================
@@ -409,11 +487,51 @@ export class QueryClassifier {
   private readonly config: QueryClassifierConfig;
 
   /**
+   * Optional capability discovery engine for Tier 0 summaries.
+   *
+   * When set, the plan-aware classifier injects category-level capability
+   * summaries (~150 tokens) into the LLM prompt so it can recommend which
+   * skills, tools, and extensions to activate. When absent, the classifier
+   * falls back to keyword-based heuristic capability selection.
+   */
+  private discoveryEngine: CapabilityDiscoveryEngine | null = null;
+
+  /**
    * Creates a new QueryClassifier instance.
    * @param config - Classifier configuration with model, provider, and thresholds.
    */
   constructor(config: QueryClassifierConfig) {
     this.config = config;
+  }
+
+  /**
+   * Attach a {@link CapabilityDiscoveryEngine} for Tier 0 capability summaries.
+   *
+   * When attached, the plan-aware classifier (`classifyWithPlan`) injects
+   * category-level summaries of all available skills, tools, and extensions
+   * into the LLM prompt. This allows the LLM to recommend capability
+   * activations alongside the retrieval plan, without loading full schemas.
+   *
+   * @param engine - A configured and initialized CapabilityDiscoveryEngine, or `null` to detach.
+   *
+   * @example
+   * ```typescript
+   * const engine = new CapabilityDiscoveryEngine(embeddingManager, vectorStore);
+   * await engine.initialize({ tools, skills, extensions, channels });
+   * classifier.setCapabilityDiscoveryEngine(engine);
+   * ```
+   */
+  setCapabilityDiscoveryEngine(engine: CapabilityDiscoveryEngine | null): void {
+    this.discoveryEngine = engine;
+  }
+
+  /**
+   * Get the attached CapabilityDiscoveryEngine, if any.
+   *
+   * @returns The discovery engine instance, or `null` if not configured.
+   */
+  getCapabilityDiscoveryEngine(): CapabilityDiscoveryEngine | null {
+    return this.discoveryEngine;
   }
 
   /**
@@ -462,35 +580,43 @@ export class QueryClassifier {
   // --------------------------------------------------------------------------
 
   /**
-   * Classifies a query and produces a full {@link RetrievalPlan}.
+   * Classifies a query and produces a full {@link ExecutionPlan}.
    *
    * This is an enhanced alternative to {@link classify} that evaluates more
    * dimensions (source selection, memory relevance, modality, temporal
-   * preferences, decomposability) and outputs a structured plan that the
-   * {@link UnifiedRetriever} can execute directly.
+   * preferences, decomposability, capability recommendations) and outputs a
+   * structured plan that the {@link UnifiedRetriever} can execute directly,
+   * along with skill/tool/extension recommendations for the agent runtime.
    *
-   * Falls back to {@link buildDefaultPlan} when classification fails or
-   * the LLM response is malformed.
+   * When a {@link CapabilityDiscoveryEngine} is attached (via
+   * {@link setCapabilityDiscoveryEngine}), the LLM prompt includes Tier 0
+   * summaries (~150 tokens) of all available capabilities, enabling the LLM
+   * to recommend specific skills, tools, and extensions.
+   *
+   * Falls back to {@link buildDefaultExecutionPlan} with heuristic capability
+   * selection when classification fails or the LLM response is malformed.
    *
    * @param query - The user's query text to classify.
    * @param conversationHistory - Optional recent conversation messages for context.
-   * @returns A tuple of [ClassificationResult, RetrievalPlan].
+   * @returns A tuple of [ClassificationResult, ExecutionPlan].
    *
    * @example
    * ```typescript
    * const [classification, plan] = await classifier.classifyWithPlan(
-   *   'How does the auth system integrate with the session store?',
+   *   'Search the web for recent AI news and summarize findings',
    * );
+   * // plan.skills → [{ skillId: 'web-search', ... }]
+   * // plan.tools → []
    * const result = await unifiedRetriever.retrieve(query, plan);
    * ```
    *
    * @see classify for the simpler tier+strategy classification
-   * @see buildDefaultPlan for plan defaults per strategy level
+   * @see buildDefaultExecutionPlan for execution plan defaults per strategy level
    */
   async classifyWithPlan(
     query: string,
     conversationHistory?: ConversationMessage[],
-  ): Promise<[ClassificationResult, RetrievalPlan]> {
+  ): Promise<[ClassificationResult, ExecutionPlan]> {
     try {
       const systemPrompt = this.buildPlanSystemPrompt(conversationHistory);
 
@@ -508,7 +634,7 @@ export class QueryClassifier {
       const constrainedClassification = this.applyConstraints(classification);
 
       // Re-sync plan strategy with constrained classification
-      const constrainedPlan: RetrievalPlan = {
+      const constrainedPlan: ExecutionPlan = {
         ...plan,
         strategy: constrainedClassification.strategy,
         confidence: constrainedClassification.confidence,
@@ -517,7 +643,13 @@ export class QueryClassifier {
       return [constrainedClassification, constrainedPlan];
     } catch {
       const fallback = this.fallbackResult();
-      return [fallback, buildDefaultPlan(fallback.strategy)];
+      const heuristicCaps = heuristicCapabilitySelect(query);
+      return [fallback, buildDefaultExecutionPlan(fallback.strategy, {
+        skills: heuristicCaps.skills,
+        tools: heuristicCaps.tools,
+        requiresExternalCalls: heuristicCaps.skills.length > 0 || heuristicCaps.tools.length > 0,
+        internalKnowledgeSufficient: heuristicCaps.skills.length === 0 && heuristicCaps.tools.length === 0,
+      })];
     }
   }
 
@@ -527,6 +659,15 @@ export class QueryClassifier {
 
   /**
    * Builds the plan-aware system prompt by replacing template placeholders.
+   *
+   * When a {@link CapabilityDiscoveryEngine} is attached, Tier 0 summaries
+   * for skills, tools, and extensions are injected into the prompt via the
+   * `{{SKILL_SUMMARIES}}`, `{{TOOL_SUMMARIES}}`, and `{{EXTENSION_SUMMARIES}}`
+   * placeholders. This costs ~150 extra tokens total but enables the LLM to
+   * make informed capability activation recommendations.
+   *
+   * When no discovery engine is attached, the capability summary placeholders
+   * are replaced with a "Not available" message.
    *
    * @param conversationHistory - Optional conversation messages to include.
    * @returns The fully rendered plan system prompt string.
@@ -540,26 +681,42 @@ export class QueryClassifier {
         .join('\n');
     }
 
+    // Resolve Tier 0 capability summaries from the discovery engine
+    let skillSummaries = 'No skill categories available.';
+    let toolSummaries = 'No tool categories available.';
+    let extensionSummaries = 'No extension categories available.';
+
+    if (this.discoveryEngine?.isInitialized()) {
+      const byKind = this.discoveryEngine.getTier0SummariesByKind();
+      if (byKind.skills) skillSummaries = byKind.skills;
+      if (byKind.tools) toolSummaries = byKind.tools;
+      if (byKind.extensions) extensionSummaries = byKind.extensions;
+    }
+
     return PLAN_SYSTEM_PROMPT_TEMPLATE
       .replace('{{TOPIC_LIST}}', this.config.topicList)
       .replace('{{TOOL_LIST}}', this.config.toolList)
+      .replace('{{SKILL_SUMMARIES}}', skillSummaries)
+      .replace('{{TOOL_SUMMARIES}}', toolSummaries)
+      .replace('{{EXTENSION_SUMMARIES}}', extensionSummaries)
       .replace('{{CONVERSATION_CONTEXT}}', conversationContext);
   }
 
   /**
    * Parses the LLM response for plan-aware classification.
    *
-   * Extracts both the base {@link ClassificationResult} and the full
-   * {@link RetrievalPlan} from the LLM JSON output. Missing plan fields
-   * are filled from {@link buildDefaultPlan} defaults.
+   * Extracts the base {@link ClassificationResult}, the full retrieval
+   * configuration, AND capability recommendations (skills, tools, extensions)
+   * from the LLM JSON output. Missing plan fields are filled from
+   * {@link buildDefaultPlan} defaults. Missing capability arrays default to empty.
    *
    * @param text - Raw text from the LLM response.
-   * @returns Parsed classification result and retrieval plan.
+   * @returns Parsed classification result and execution plan.
    * @throws If the response cannot be parsed as valid JSON.
    */
   private parsePlanResponse(text: string): {
     classification: ClassificationResult;
-    plan: RetrievalPlan;
+    plan: ExecutionPlan;
   } {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -587,7 +744,41 @@ export class QueryClassifier {
     // Build the plan from LLM output, filling gaps from defaults
     const defaults = buildDefaultPlan(strategy);
 
-    const plan: RetrievalPlan = {
+    // Parse capability recommendations — validate and normalize each entry
+    const skills: SkillRecommendation[] = (raw.skills ?? [])
+      .filter((s) => s.skillId)
+      .map((s, i) => ({
+        skillId: s.skillId!,
+        reasoning: s.reasoning ?? 'Recommended by classifier',
+        confidence: Math.max(0, Math.min(1, s.confidence ?? 0.5)),
+        priority: s.priority ?? i,
+      }))
+      .sort((a, b) => a.priority - b.priority);
+
+    const tools: ToolRecommendation[] = (raw.tools ?? [])
+      .filter((t) => t.toolId)
+      .map((t, i) => ({
+        toolId: t.toolId!,
+        reasoning: t.reasoning ?? 'Recommended by classifier',
+        confidence: Math.max(0, Math.min(1, t.confidence ?? 0.5)),
+        priority: t.priority ?? i,
+      }))
+      .sort((a, b) => a.priority - b.priority);
+
+    const extensions: ExtensionRecommendation[] = (raw.extensions ?? [])
+      .filter((e) => e.extensionId)
+      .map((e, i) => ({
+        extensionId: e.extensionId!,
+        reasoning: e.reasoning ?? 'Recommended by classifier',
+        confidence: Math.max(0, Math.min(1, e.confidence ?? 0.5)),
+        priority: e.priority ?? i,
+      }))
+      .sort((a, b) => a.priority - b.priority);
+
+    const requiresExternalCalls = raw.requires_external_calls ??
+      (skills.length > 0 || tools.length > 0 || strategy !== 'none');
+
+    const plan: ExecutionPlan = {
       strategy,
       sources: {
         vector: raw.sources?.vector ?? defaults.sources.vector,
@@ -616,6 +807,11 @@ export class QueryClassifier {
       deepResearch: raw.deepResearch ?? defaults.deepResearch,
       confidence: raw.confidence,
       reasoning: raw.reasoning ?? raw.thinking,
+      skills,
+      tools,
+      extensions,
+      requiresExternalCalls,
+      internalKnowledgeSufficient: raw.internal_knowledge_sufficient,
     };
 
     return { classification, plan };
@@ -745,4 +941,109 @@ export class QueryClassifier {
       toolsNeeded: [],
     };
   }
+}
+
+// ============================================================================
+// Heuristic Capability Selection
+// ============================================================================
+
+/**
+ * Keyword-pattern-based capability matching rules.
+ *
+ * Each entry maps a regex pattern (tested against the lowercased query)
+ * to either a skill ID or a tool ID. When the pattern matches, the
+ * corresponding recommendation is included in the heuristic result.
+ *
+ * @internal
+ */
+const HEURISTIC_SKILL_PATTERNS: Array<{
+  pattern: RegExp;
+  skillId: string;
+  reasoning: string;
+}> = [
+  { pattern: /\b(search|find|look\s*up|research|google|browse)\b/i, skillId: 'web-search', reasoning: 'Query involves finding external information' },
+  { pattern: /\b(code|program|function|debug|refactor|implement|write\s*code|fix\s*bug)\b/i, skillId: 'coding-agent', reasoning: 'Query involves code creation or analysis' },
+  { pattern: /\b(email|send\s*mail|inbox|compose\s*email|mail\s*to)\b/i, skillId: 'email-intelligence', reasoning: 'Query involves email operations' },
+  { pattern: /\b(summarize|tldr|brief|digest|condense|synopsis)\b/i, skillId: 'summarize', reasoning: 'Query asks for content summarization' },
+  { pattern: /\b(deep\s*research|investigate|thorough\s*analysis|literature\s*review)\b/i, skillId: 'deep-research', reasoning: 'Query requires deep investigation' },
+  { pattern: /\b(translate|translation|in\s+\w+\s+language)\b/i, skillId: 'translation', reasoning: 'Query involves language translation' },
+  { pattern: /\b(post\s+to|tweet|publish|share\s+on|social\s*media)\b/i, skillId: 'social-broadcast', reasoning: 'Query involves social media posting' },
+  { pattern: /\b(youtube|video|tiktok|upload\s+video)\b/i, skillId: 'youtube-bot', reasoning: 'Query involves video platform operations' },
+  { pattern: /\b(blog|article|write\s*post|publish\s*article)\b/i, skillId: 'blog-publisher', reasoning: 'Query involves blog or article creation' },
+];
+
+/**
+ * Keyword-pattern-based tool matching rules.
+ *
+ * @internal
+ */
+const HEURISTIC_TOOL_PATTERNS: Array<{
+  pattern: RegExp;
+  toolId: string;
+  reasoning: string;
+}> = [
+  { pattern: /\b(image|picture|photo|draw|generate\s*image|illustration|artwork)\b/i, toolId: 'generateImage', reasoning: 'Query involves image generation' },
+  { pattern: /\b(schedule|calendar|meeting|appointment|event|reminder)\b/i, toolId: 'calendar', reasoning: 'Query involves scheduling or calendar' },
+  { pattern: /\b(web\s*search|search\s*online|look\s*up\s*online)\b/i, toolId: 'webSearch', reasoning: 'Query needs web search tool' },
+  { pattern: /\b(file|read\s*file|write\s*file|save|open\s*document)\b/i, toolId: 'fileSystem', reasoning: 'Query involves file operations' },
+  { pattern: /\b(run\s*code|execute|shell|terminal|command)\b/i, toolId: 'codeExecution', reasoning: 'Query requires code execution' },
+  { pattern: /\b(analyze\s*data|chart|graph|plot|statistics|metrics)\b/i, toolId: 'dataAnalysis', reasoning: 'Query involves data analysis' },
+];
+
+/**
+ * Rule-based heuristic capability selection for when no LLM is available.
+ *
+ * Evaluates the query against a curated set of keyword patterns to recommend
+ * skills and tools. This provides zero-latency capability recommendations
+ * as a fallback when the LLM classifier is unavailable, times out, or
+ * returns an error.
+ *
+ * The heuristic is intentionally conservative — it only recommends
+ * capabilities when there is a strong keyword signal. False negatives
+ * (missing a recommendation) are preferred over false positives (recommending
+ * unnecessary capabilities) to avoid activation overhead.
+ *
+ * @param query - The raw user query string.
+ * @returns Object with `skills` and `tools` recommendation arrays.
+ *
+ * @example
+ * ```typescript
+ * const caps = heuristicCapabilitySelect('Search the web for AI news and generate an image');
+ * // caps.skills → [{ skillId: 'web-search', ... }]
+ * // caps.tools → [{ toolId: 'generateImage', ... }]
+ * ```
+ */
+export function heuristicCapabilitySelect(query: string): {
+  skills: SkillRecommendation[];
+  tools: ToolRecommendation[];
+} {
+  const skills: SkillRecommendation[] = [];
+  const tools: ToolRecommendation[] = [];
+
+  let skillPriority = 0;
+  let toolPriority = 0;
+
+  for (const { pattern, skillId, reasoning } of HEURISTIC_SKILL_PATTERNS) {
+    if (pattern.test(query)) {
+      skills.push({
+        skillId,
+        reasoning,
+        confidence: 0.6, // Heuristic confidence is lower than LLM
+        priority: skillPriority++,
+      });
+    }
+  }
+
+  for (const { pattern, toolId, reasoning } of HEURISTIC_TOOL_PATTERNS) {
+    if (pattern.test(query)) {
+      tools.push({
+        toolId,
+        reasoning,
+        confidence: 0.6, // Heuristic confidence is lower than LLM
+        priority: toolPriority++,
+      });
+    }
+  }
+
+  return { skills, tools };
 }

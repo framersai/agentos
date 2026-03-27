@@ -302,6 +302,39 @@ export class QueryRouter {
   }
 
   // ==========================================================================
+  // CAPABILITY DISCOVERY INTEGRATION
+  // ==========================================================================
+
+  /**
+   * Attach a {@link CapabilityDiscoveryEngine} for capability-aware classification.
+   *
+   * When set, the classifier injects Tier 0 capability summaries (~150 tokens)
+   * into its LLM prompt, enabling it to recommend which skills, tools, and
+   * extensions should be activated for each query. The recommendations are
+   * included in the {@link ExecutionPlan} returned by `classifyWithPlan()`.
+   *
+   * Pass `null` to detach and revert to keyword-based heuristic capability
+   * selection.
+   *
+   * @param engine - A configured and initialized CapabilityDiscoveryEngine, or `null` to detach.
+   *
+   * @example
+   * ```typescript
+   * const engine = new CapabilityDiscoveryEngine(embeddingManager, vectorStore);
+   * await engine.initialize({ tools, skills, extensions, channels });
+   * router.setCapabilityDiscoveryEngine(engine);
+   * // Now route() includes skill/tool/extension recommendations in the execution plan
+   * ```
+   */
+  setCapabilityDiscoveryEngine(
+    engine: import('../discovery/CapabilityDiscoveryEngine.js').CapabilityDiscoveryEngine | null,
+  ): void {
+    if (this.classifier) {
+      this.classifier.setCapabilityDiscoveryEngine(engine);
+    }
+  }
+
+  // ==========================================================================
   // PUBLIC API
   // ==========================================================================
 
@@ -573,22 +606,36 @@ export class QueryRouter {
       this.config.onClassification(classification);
     }
 
-    // --- Phase 2: Retrieval ---
-    // When a UnifiedRetriever is attached, use plan-based retrieval.
+    // --- Phase 2: Retrieval (with capability recommendations) ---
+    // When a UnifiedRetriever is attached, use plan-based retrieval with
+    // full ExecutionPlan (including skill/tool/extension recommendations).
     // Otherwise fall back to the legacy QueryDispatcher pipeline.
     const retrievalEventStart = this.events.length;
     let retrieval: RetrievalResult;
 
     if (this.unifiedRetriever && this.classifier) {
       // Plan-based retrieval via UnifiedRetriever
-      const { buildDefaultPlan } = await import('../rag/unified/types.js');
-      let plan: import('../rag/unified/types.js').RetrievalPlan;
+      const { buildDefaultExecutionPlan } = await import('../rag/unified/types.js');
+      let plan: import('../rag/unified/types.js').ExecutionPlan;
 
       try {
         const [, classifiedPlan] = await this.classifier.classifyWithPlan(query, conversationHistory);
         plan = classifiedPlan;
       } catch {
-        plan = buildDefaultPlan(classification.strategy);
+        plan = buildDefaultExecutionPlan(classification.strategy);
+      }
+
+      // Emit capabilities:activate event when the plan recommends capabilities.
+      // The agent runtime is responsible for deciding which to honor — the
+      // router only recommends, it does not activate.
+      if (plan.skills.length > 0 || plan.tools.length > 0 || plan.extensions.length > 0) {
+        this.emit({
+          type: 'capabilities:activate',
+          skills: plan.skills,
+          tools: plan.tools,
+          extensions: plan.extensions,
+          timestamp: Date.now(),
+        });
       }
 
       const unifiedResult = await this.unifiedRetriever.retrieve(query, plan);

@@ -17,6 +17,11 @@
  */
 
 import type { IVectorStore } from '../rag/IVectorStore.js';
+import type {
+  SkillRecommendation,
+  ToolRecommendation,
+  ExtensionRecommendation,
+} from '../rag/unified/types.js';
 
 // ============================================================================
 // QUERY TIER
@@ -38,6 +43,59 @@ import type { IVectorStore } from '../rag/IVectorStore.js';
 export type QueryTier = 0 | 1 | 2 | 3;
 
 // ============================================================================
+// RETRIEVAL STRATEGY
+// ============================================================================
+
+/**
+ * Retrieval strategy recommendation produced by the query classifier.
+ *
+ * The strategy controls whether HyDE (Hypothetical Document Embedding) is
+ * engaged and at what depth the retrieval pipeline operates.
+ *
+ * - `'none'`     — Skip RAG entirely. The query is answerable from
+ *                  conversation context or general knowledge alone.
+ * - `'simple'`   — Direct embedding search. Fast and cheap. Suitable when the
+ *                  query vocabulary closely matches stored document vocabulary.
+ * - `'moderate'` — HyDE retrieval. Generates a hypothetical answer, embeds
+ *                  *that* for search. Bridges vocabulary mismatch between
+ *                  questions and stored answers. (Gao et al. 2023)
+ * - `'complex'`  — HyDE + deep research. Decomposes multi-part queries into
+ *                  sub-queries, runs HyDE per sub-query, then merges, deduplicates,
+ *                  and ranks the combined results.
+ *
+ * @see ClassificationResult.strategy
+ * @see QueryRouterStrategyConfig
+ */
+export type RetrievalStrategy = 'none' | 'simple' | 'moderate' | 'complex';
+
+/**
+ * Maps a {@link RetrievalStrategy} to the corresponding {@link QueryTier}
+ * used by the dispatcher pipeline.
+ *
+ * This mapping is the canonical bridge between the LLM-as-judge strategy
+ * decision and the existing tier-based dispatch infrastructure.
+ */
+export const STRATEGY_TO_TIER: Record<RetrievalStrategy, QueryTier> = {
+  none: 0,
+  simple: 1,
+  moderate: 2,
+  complex: 3,
+};
+
+/**
+ * Maps a {@link QueryTier} back to the closest {@link RetrievalStrategy}.
+ *
+ * Used when the classifier operates in tier-only mode (legacy) and the
+ * dispatcher needs to infer the intended strategy.
+ */
+export const TIER_TO_STRATEGY: Record<QueryTier, RetrievalStrategy> = {
+  0: 'none',
+  1: 'simple',
+  2: 'moderate',
+  3: 'complex',
+};
+
+// ============================================================================
 // CLASSIFICATION
 // ============================================================================
 
@@ -51,6 +109,18 @@ export interface ClassificationResult {
    * @see QueryTier
    */
   tier: QueryTier;
+
+  /**
+   * Retrieval strategy recommendation from the LLM-as-judge classifier.
+   *
+   * When the classifier operates in strategy-aware mode, this field is
+   * populated directly from the LLM's structured output. When the classifier
+   * runs in legacy tier-only mode, the strategy is inferred from the tier
+   * via {@link TIER_TO_STRATEGY}.
+   *
+   * @see RetrievalStrategy
+   */
+  strategy: RetrievalStrategy;
 
   /**
    * Confidence score for the classification (0 to 1).
@@ -204,6 +274,12 @@ export interface QueryResult {
   /** Citations for the sources used in generating the answer. */
   sources: SourceCitation[];
 
+  /**
+   * Synthesized narrative from the deep research phase, when tier-3 routing
+   * exercised external or host-provided research.
+   */
+  researchSynthesis?: string;
+
   /** Total wall-clock duration of the entire query pipeline in milliseconds. */
   durationMs: number;
 
@@ -229,6 +305,11 @@ export interface QueryResult {
  * Retrieval backend mode currently available to the router.
  */
 export type QueryRouterRetrievalMode = 'vector+keyword-fallback' | 'keyword-only';
+
+/**
+ * Vector embedding availability state for the corpus index.
+ */
+export type QueryRouterEmbeddingStatus = 'active' | 'disabled-no-key' | 'failed-init';
 
 /**
  * Runtime mode for a branch that is always available in some form.
@@ -267,6 +348,9 @@ export interface QueryRouterCorpusStats {
 
   /** Whether retrieval is vector-backed or keyword-only. */
   retrievalMode: QueryRouterRetrievalMode;
+
+  /** Whether corpus embeddings are active, missing credentials, or failed during init. */
+  embeddingStatus: QueryRouterEmbeddingStatus;
 
   /** Embedding dimension for the active vector index, or `0` when inactive. */
   embeddingDimension: number;
@@ -430,11 +514,42 @@ export interface QueryRouterConfig {
    */
   onRetrieval?: (result: RetrievalResult) => void;
 
-  /** Optional API key override for LLM calls. */
+  /**
+   * Optional API key override for classifier and generator LLM calls.
+   *
+   * When omitted, QueryRouter prefers `OPENAI_API_KEY` and falls back to
+   * `OPENROUTER_API_KEY` with the OpenRouter compatibility base URL.
+   */
   apiKey?: string;
 
-  /** Optional base URL override for LLM providers. */
+  /**
+   * Optional base URL override for classifier and generator LLM providers.
+   *
+   * When omitted, QueryRouter auto-selects the OpenRouter compatibility URL
+   * only when `OPENROUTER_API_KEY` is being used implicitly.
+   */
   baseUrl?: string;
+
+  /**
+   * Optional API key override for embeddings only.
+   *
+   * When omitted, embeddings fall back to `apiKey`, then `OPENAI_API_KEY`,
+   * then `OPENROUTER_API_KEY`.
+   * This is useful when generation uses an OpenAI-compatible endpoint like
+   * OpenRouter but embeddings should stay on a direct OpenAI key.
+   */
+  embeddingApiKey?: string;
+
+  /**
+   * Optional base URL override for embeddings only.
+   *
+   * When omitted, embeddings inherit `baseUrl` unless `embeddingApiKey` is
+   * explicitly set, in which case the embedding path assumes the provider's
+   * default endpoint. If neither override is set and QueryRouter falls back to
+   * `OPENROUTER_API_KEY`, it automatically uses the OpenRouter compatibility
+   * URL for embeddings as well.
+   */
+  embeddingBaseUrl?: string;
 
   /**
    * Configuration for background GitHub repository indexing.
@@ -443,6 +558,16 @@ export interface QueryRouterConfig {
    * `init()` completes and merge the resulting chunks into the corpus.
    */
   githubRepos?: RepoIndexConfig;
+
+  /**
+   * Retrieval strategy configuration for the HyDE-aware query router.
+   *
+   * Controls how the classifier selects between `none`, `simple`, `moderate`
+   * (HyDE), and `complex` (HyDE + decompose) retrieval strategies.
+   *
+   * @see QueryRouterStrategyConfig
+   */
+  strategyConfig?: QueryRouterStrategyConfig;
 }
 
 /**
@@ -461,6 +586,105 @@ export interface RepoIndexConfig {
   /** Max doc files to fetch per repo. @default 50 */
   maxFilesPerRepo?: number;
 }
+
+// ============================================================================
+// STRATEGY CONFIGURATION
+// ============================================================================
+
+/**
+ * Classifier mode that controls how the retrieval strategy is decided.
+ *
+ * - `'llm'`       — Use the LLM-as-judge classifier exclusively. Requires an
+ *                   LLM API key. Falls back to heuristic on LLM failure.
+ * - `'heuristic'` — Use the rule-based heuristic classifier only. No LLM call
+ *                   overhead; suitable for offline / cost-constrained scenarios.
+ * - `'hybrid'`    — Run both classifiers; prefer the LLM result when available,
+ *                   fall back to heuristic on error. This is the default mode.
+ */
+export type ClassifierMode = 'llm' | 'heuristic' | 'hybrid';
+
+/**
+ * Configuration for the HyDE-aware retrieval strategy classifier.
+ *
+ * This config controls how the {@link QueryRouter} decides between `none`,
+ * `simple`, `moderate` (HyDE), and `complex` (HyDE + decompose) retrieval
+ * pipelines for each incoming query.
+ *
+ * @example
+ * ```typescript
+ * const router = new QueryRouter({
+ *   knowledgeCorpus: ['./docs'],
+ *   strategyConfig: {
+ *     classifierMode: 'hybrid',
+ *     defaultStrategy: 'simple',
+ *   },
+ * });
+ * ```
+ */
+export interface QueryRouterStrategyConfig {
+  /**
+   * Default strategy when the classifier is unavailable or fails.
+   *
+   * When classification produces no result (LLM down, heuristic indeterminate),
+   * this fallback strategy is used instead of stalling the pipeline.
+   *
+   * @default 'simple'
+   */
+  defaultStrategy?: RetrievalStrategy;
+
+  /**
+   * Force a specific strategy, bypassing the classifier entirely.
+   *
+   * When set, every query uses this strategy regardless of complexity.
+   * Useful for testing, debugging, or cost-constrained environments.
+   *
+   * @default undefined (auto-classify)
+   */
+  forceStrategy?: RetrievalStrategy;
+
+  /**
+   * How the classifier selects the retrieval strategy.
+   *
+   * @default 'hybrid'
+   * @see ClassifierMode
+   */
+  classifierMode?: ClassifierMode;
+
+  /**
+   * LLM model identifier for the strategy classifier.
+   *
+   * Overrides the top-level `classifierModel` for the strategy-selection
+   * prompt only. Useful when you want a cheaper model for tier classification
+   * but a more capable one for strategy selection (or vice versa).
+   *
+   * @default undefined (inherits top-level classifierModel)
+   */
+  classifierModel?: string;
+
+  /**
+   * Maximum number of sub-queries when decomposing a `complex` query.
+   *
+   * The decomposition LLM call is instructed to produce at most this many
+   * sub-queries. Higher values improve coverage but increase latency and cost.
+   *
+   * @default 5
+   */
+  maxSubQueries?: number;
+}
+
+/**
+ * Default values for {@link QueryRouterStrategyConfig}.
+ */
+export const DEFAULT_STRATEGY_CONFIG: Required<Omit<QueryRouterStrategyConfig, 'forceStrategy' | 'classifierModel'>> & {
+  forceStrategy: undefined;
+  classifierModel: undefined;
+} = {
+  defaultStrategy: 'simple',
+  forceStrategy: undefined,
+  classifierMode: 'hybrid',
+  classifierModel: undefined,
+  maxSubQueries: 5,
+};
 
 /**
  * Default configuration values for the QueryRouter.
@@ -492,7 +716,10 @@ export const DEFAULT_QUERY_ROUTER_CONFIG = {
   | 'onRetrieval'
   | 'apiKey'
   | 'baseUrl'
+  | 'embeddingApiKey'
+  | 'embeddingBaseUrl'
   | 'githubRepos'
+  | 'strategyConfig'
 >;
 
 // ============================================================================
@@ -734,6 +961,69 @@ export interface GitHubIndexErrorEvent {
 }
 
 /**
+ * Emitted when the retrieval strategy has been selected for a query.
+ *
+ * Fires after classification but before dispatch, giving observers visibility
+ * into which retrieval path was chosen and why (LLM decision, heuristic,
+ * force-override, or fallback).
+ */
+export interface StrategySelectEvent {
+  type: 'strategy:select';
+  /** The selected retrieval strategy. */
+  strategy: RetrievalStrategy;
+  /**
+   * How the strategy was determined.
+   * - `'llm'`       — LLM classifier chose this strategy.
+   * - `'heuristic'` — Rule-based heuristic chose this strategy.
+   * - `'forced'`    — `forceStrategy` override was active.
+   * - `'fallback'`  — Both classifiers failed; using defaultStrategy.
+   */
+  source: 'llm' | 'heuristic' | 'forced' | 'fallback';
+  /** The query tier this strategy maps to. */
+  tier: QueryTier;
+  /** Timestamp of the event. */
+  timestamp: number;
+}
+
+/**
+ * Emitted when a complex query is decomposed into sub-queries.
+ */
+export interface DecomposeEvent {
+  type: 'strategy:decompose';
+  /** The original user query. */
+  originalQuery: string;
+  /** The generated sub-queries. */
+  subQueries: string[];
+  /** Duration of the decomposition LLM call in milliseconds. */
+  durationMs: number;
+  /** Timestamp of the event. */
+  timestamp: number;
+}
+
+/**
+ * Emitted when the execution plan recommends activating capabilities
+ * (skills, tools, or extensions) for the current query.
+ *
+ * The router emits this event after classification to signal which
+ * capabilities should be made available. The agent runtime is
+ * responsible for deciding which recommendations to honor — the
+ * router only recommends, it does not activate.
+ *
+ * @see ExecutionPlan
+ */
+export interface CapabilitiesActivateEvent {
+  type: 'capabilities:activate';
+  /** Recommended skills to activate (sorted by priority). */
+  skills: SkillRecommendation[];
+  /** Recommended tools to make available (sorted by priority). */
+  tools: ToolRecommendation[];
+  /** Recommended extensions to load (sorted by priority). */
+  extensions: ExtensionRecommendation[];
+  /** Timestamp when the recommendation was produced. */
+  timestamp: number;
+}
+
+/**
  * Discriminated union of all QueryRouter lifecycle events.
  * The `type` field serves as the discriminant for exhaustive matching.
  *
@@ -747,6 +1037,9 @@ export interface GitHubIndexErrorEvent {
  *     case 'retrieve:vector':
  *       console.log(`Vector search returned ${event.chunkCount} chunks`);
  *       break;
+ *     case 'capabilities:activate':
+ *       console.log(`Activating ${event.skills.length} skills, ${event.tools.length} tools`);
+ *       break;
  *     case 'route:complete':
  *       console.log(`Done in ${event.durationMs}ms`);
  *       break;
@@ -758,6 +1051,7 @@ export type QueryRouterEventUnion =
   | ClassifyStartEvent
   | ClassifyCompleteEvent
   | ClassifyErrorEvent
+  | CapabilitiesActivateEvent
   | RetrieveStartEvent
   | RetrieveVectorEvent
   | RetrieveGraphEvent
@@ -770,6 +1064,8 @@ export type QueryRouterEventUnion =
   | GenerateStartEvent
   | GenerateCompleteEvent
   | RouteCompleteEvent
+  | StrategySelectEvent
+  | DecomposeEvent
   | GitHubIndexStartEvent
   | GitHubIndexCompleteEvent
   | GitHubIndexErrorEvent;

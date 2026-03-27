@@ -295,6 +295,59 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     return this.initialized;
   }
 
+  /**
+   * Get Tier 0 category summaries for all indexed capabilities.
+   *
+   * Returns a compact (~150 tokens) overview of available capability
+   * categories, suitable for injection into LLM classification prompts.
+   * This allows the classifier to reason about what capabilities exist
+   * without loading full schemas.
+   *
+   * Returns an empty string when the engine is not initialized.
+   *
+   * @returns Tier 0 summary text, or empty string if uninitialized.
+   *
+   * @example
+   * ```typescript
+   * const summaries = engine.getTier0Summaries();
+   * // "Available capability categories:\n- Information: web-search, deep-research (+2 more) (4)\n..."
+   * ```
+   */
+  getTier0Summaries(): string {
+    if (!this.initialized) {
+      return '';
+    }
+    return this.assembler.buildTier0(this.index.getAllCapabilities(), this.indexVersion);
+  }
+
+  /**
+   * Get Tier 0 category summaries filtered by capability kind.
+   *
+   * Produces separate summaries for skills, tools, and extensions so the
+   * classifier can reason about each category independently.
+   *
+   * @returns Object with `skills`, `tools`, and `extensions` summary strings.
+   */
+  getTier0SummariesByKind(): { skills: string; tools: string; extensions: string } {
+    if (!this.initialized) {
+      return { skills: '', tools: '', extensions: '' };
+    }
+
+    const allCapabilities = this.index.getAllCapabilities();
+
+    const filterByKind = (kinds: string[]): CapabilityDescriptor[] =>
+      allCapabilities.filter((c) => kinds.includes(c.kind));
+
+    // Build separate summaries using a fresh assembler to avoid polluting the cache
+    const tempAssembler = new CapabilityContextAssembler(this.assembler['strategy']);
+
+    return {
+      skills: tempAssembler.buildTier0(filterByKind(['skill']), -1),
+      tools: tempAssembler.buildTier0(filterByKind(['tool', 'emergent-tool']), -2),
+      extensions: tempAssembler.buildTier0(filterByKind(['extension', 'channel', 'voice', 'productivity']), -3),
+    };
+  }
+
   listCapabilityIds(): string[] {
     return this.index.listIds();
   }
