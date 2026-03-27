@@ -5,9 +5,16 @@
  * Parses a `provider:model` string, resolves media-provider credentials, and
  * dispatches the request to the appropriate image provider implementation
  * (e.g. OpenAI DALL-E, Stability AI, Replicate).
+ *
+ * When multiple image-capable providers are configured (via env vars), the
+ * primary provider is wrapped in a {@link FallbackImageProxy} so that a
+ * transient failure automatically retries on the next available provider.
  */
-import { createImageProvider } from '../core/images/index.js';
+import { EventEmitter } from 'events';
+import { createImageProvider, hasImageProviderFactory } from '../core/images/index.js';
+import { FallbackImageProxy } from '../core/images/FallbackImageProxy.js';
 import type {
+  IImageProvider,
   GeneratedImage,
   ImageGenerationResult,
   ImageProviderOptionBag,
@@ -20,6 +27,95 @@ import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
+
+// ---------------------------------------------------------------------------
+// Image provider fallback chain builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Env-var to provider-id mapping used to detect which image providers have
+ * credentials configured in the current environment.  Order determines
+ * fallback priority (first = highest priority).
+ */
+const IMAGE_PROVIDER_ENV_MAP: Array<{ envKey: string; providerId: string }> = [
+  { envKey: 'OPENAI_API_KEY', providerId: 'openai' },
+  { envKey: 'STABILITY_API_KEY', providerId: 'stability' },
+  { envKey: 'REPLICATE_API_TOKEN', providerId: 'replicate' },
+  { envKey: 'BFL_API_KEY', providerId: 'bfl' },
+  { envKey: 'FAL_API_KEY', providerId: 'fal' },
+  { envKey: 'OPENROUTER_API_KEY', providerId: 'openrouter' },
+  { envKey: 'STABLE_DIFFUSION_LOCAL_BASE_URL', providerId: 'stable-diffusion-local' },
+];
+
+/** Shared emitter for image fallback events (singleton per process). */
+const imageFallbackEmitter = new EventEmitter();
+
+/**
+ * Detects all image providers with valid credentials in the environment
+ * and returns their provider IDs in priority order, excluding the primary.
+ *
+ * @param primaryProviderId - The provider that was explicitly selected; it
+ *   is excluded from the fallback list since it is already the first in line.
+ * @returns An array of provider IDs suitable for fallback, in priority order.
+ */
+function detectFallbackImageProviders(primaryProviderId: string): string[] {
+  const fallbacks: string[] = [];
+  for (const { envKey, providerId } of IMAGE_PROVIDER_ENV_MAP) {
+    if (providerId === primaryProviderId) continue;
+    if (!process.env[envKey]) continue;
+    if (!hasImageProviderFactory(providerId)) continue;
+    fallbacks.push(providerId);
+  }
+  return fallbacks;
+}
+
+/**
+ * Creates an {@link IImageProvider} for the resolved primary provider,
+ * optionally wrapped in a {@link FallbackImageProxy} when additional
+ * image-capable providers are detected in the environment.
+ *
+ * @param resolved - The primary resolved provider credentials.
+ * @returns An initialised image provider (possibly a fallback proxy).
+ */
+async function createImageProviderWithFallback(
+  resolved: { providerId: string; modelId: string; apiKey?: string; baseUrl?: string },
+): Promise<IImageProvider> {
+  const primary = createImageProvider(resolved.providerId);
+  await primary.initialize({
+    apiKey: resolved.apiKey,
+    baseURL: resolved.baseUrl,
+    defaultModelId: resolved.modelId,
+  });
+
+  const fallbackIds = detectFallbackImageProviders(resolved.providerId);
+  if (fallbackIds.length === 0) {
+    return primary;
+  }
+
+  // Build and initialise fallback providers. Failures during init are
+  // silently skipped — the provider simply won't be part of the chain.
+  const chain: IImageProvider[] = [primary];
+  for (const fbId of fallbackIds) {
+    try {
+      const fbResolved = resolveMediaProvider(fbId, resolved.modelId);
+      const fb = createImageProvider(fbId);
+      await fb.initialize({
+        apiKey: fbResolved.apiKey,
+        baseURL: fbResolved.baseUrl,
+        defaultModelId: fbResolved.modelId,
+      });
+      chain.push(fb);
+    } catch {
+      // Skip providers that fail to initialise (missing creds, etc.).
+    }
+  }
+
+  if (chain.length <= 1) {
+    return primary;
+  }
+
+  return new FallbackImageProxy(chain, imageFallbackEmitter);
+}
 
 /**
  * Options for a {@link generateImage} call.
@@ -132,12 +228,7 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
       span?.setAttribute('llm.provider', resolved.providerId);
       span?.setAttribute('llm.model', resolved.modelId);
 
-      const provider = createImageProvider(resolved.providerId);
-      await provider.initialize({
-        apiKey: resolved.apiKey,
-        baseURL: resolved.baseUrl,
-        defaultModelId: resolved.modelId,
-      });
+      const provider = await createImageProviderWithFallback(resolved);
 
       const result = await provider.generateImage({
         modelId: resolved.modelId,
