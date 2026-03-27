@@ -223,6 +223,18 @@ export class QueryRouter {
   private embeddingStatus: QueryRouterEmbeddingStatus = 'disabled-no-key';
 
   /**
+   * Optional UnifiedRetriever for plan-based retrieval.
+   *
+   * When set via {@link setUnifiedRetriever}, the `route()` method uses
+   * the UnifiedRetriever instead of the legacy QueryDispatcher for the
+   * retrieval phase. The UnifiedRetriever executes a structured
+   * {@link RetrievalPlan} across all available sources in parallel.
+   *
+   * @see setUnifiedRetriever
+   */
+  private unifiedRetriever: import('../rag/unified/UnifiedRetriever.js').UnifiedRetriever | null = null;
+
+  /**
    * The data source ID used for corpus embeddings in the vector store.
    * Matches the collection name configured during init().
    */
@@ -247,6 +259,46 @@ export class QueryRouter {
         ...config.strategyConfig,
       },
     };
+  }
+
+  // ==========================================================================
+  // UNIFIED RETRIEVER INTEGRATION
+  // ==========================================================================
+
+  /**
+   * Attach a {@link UnifiedRetriever} for plan-based retrieval.
+   *
+   * When set, the `route()` method uses the UnifiedRetriever instead of
+   * the legacy QueryDispatcher for the retrieval phase. The classifier
+   * automatically produces a {@link RetrievalPlan} via `classifyWithPlan()`
+   * and the retriever executes it across all available sources in parallel.
+   *
+   * Pass `null` to revert to the legacy QueryDispatcher pipeline.
+   *
+   * @param retriever - A configured UnifiedRetriever instance, or `null` to disable.
+   *
+   * @example
+   * ```typescript
+   * const retriever = new UnifiedRetriever({
+   *   hybridSearcher, raptorTree, graphEngine, memoryManager,
+   * });
+   * router.setUnifiedRetriever(retriever);
+   * // Now route() uses plan-based retrieval automatically
+   * ```
+   */
+  setUnifiedRetriever(
+    retriever: import('../rag/unified/UnifiedRetriever.js').UnifiedRetriever | null,
+  ): void {
+    this.unifiedRetriever = retriever;
+  }
+
+  /**
+   * Get the attached UnifiedRetriever, or `null` if not configured.
+   *
+   * @returns The UnifiedRetriever instance, or `null`.
+   */
+  getUnifiedRetriever(): import('../rag/unified/UnifiedRetriever.js').UnifiedRetriever | null {
+    return this.unifiedRetriever;
   }
 
   // ==========================================================================
@@ -522,21 +574,44 @@ export class QueryRouter {
     }
 
     // --- Phase 2: Retrieval ---
-    // Use strategy-based dispatch (HyDE-aware) when the classifier provides
-    // a strategy. Falls back to legacy tier-based dispatch if strategy is
-    // absent (backwards compatibility with older classifier outputs).
+    // When a UnifiedRetriever is attached, use plan-based retrieval.
+    // Otherwise fall back to the legacy QueryDispatcher pipeline.
     const retrievalEventStart = this.events.length;
-    const retrieval = classification.strategy
-      ? await this.dispatcher!.dispatchByStrategy(
-          query,
-          classification.strategy,
-          classification.suggestedSources,
-        )
-      : await this.dispatcher!.dispatch(
-          query,
-          classification.tier,
-          classification.suggestedSources,
-        );
+    let retrieval: RetrievalResult;
+
+    if (this.unifiedRetriever && this.classifier) {
+      // Plan-based retrieval via UnifiedRetriever
+      const { buildDefaultPlan } = await import('../rag/unified/types.js');
+      let plan: import('../rag/unified/types.js').RetrievalPlan;
+
+      try {
+        const [, classifiedPlan] = await this.classifier.classifyWithPlan(query, conversationHistory);
+        plan = classifiedPlan;
+      } catch {
+        plan = buildDefaultPlan(classification.strategy);
+      }
+
+      const unifiedResult = await this.unifiedRetriever.retrieve(query, plan);
+      retrieval = {
+        chunks: unifiedResult.chunks,
+        researchSynthesis: unifiedResult.researchSynthesis,
+        durationMs: unifiedResult.durationMs,
+      };
+    } else {
+      // Legacy dispatcher pipeline (HyDE-aware strategy or tier-based)
+      retrieval = classification.strategy
+        ? await this.dispatcher!.dispatchByStrategy(
+            query,
+            classification.strategy,
+            classification.suggestedSources,
+          )
+        : await this.dispatcher!.dispatch(
+            query,
+            classification.tier,
+            classification.suggestedSources,
+          );
+    }
+
     const retrievalEvents = this.events.slice(retrievalEventStart);
     const fallbacksUsed = this.collectFallbacks(classification, retrievalEvents);
     const tiersUsed = this.collectTiersUsed(classification, fallbacksUsed);
@@ -1159,7 +1234,7 @@ export class QueryRouter {
 
   private getEmbeddingBaseUrl(): string | undefined {
     if (this.config.embeddingBaseUrl !== undefined) {
-      return this.config.embeddingBaseUrl;
+      return this.config.embeddingBaseUrl as string;
     }
 
     if (this.config.embeddingApiKey !== undefined) {
@@ -1167,7 +1242,7 @@ export class QueryRouter {
     }
 
     if (this.config.baseUrl !== undefined) {
-      return this.config.baseUrl;
+      return this.config.baseUrl as string;
     }
 
     if (this.config.apiKey !== undefined) {
@@ -1191,7 +1266,7 @@ export class QueryRouter {
 
   private getLlmBaseUrl(): string | undefined {
     if (this.config.baseUrl !== undefined) {
-      return this.config.baseUrl;
+      return this.config.baseUrl as string;
     }
 
     if (this.config.apiKey !== undefined) {

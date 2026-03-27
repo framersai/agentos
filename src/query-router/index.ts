@@ -41,7 +41,7 @@ export * from './types.js';
 // Core Components
 // ============================================================================
 
-export { QueryClassifier } from './QueryClassifier.js';
+export { QueryClassifier, heuristicClassify } from './QueryClassifier.js';
 export { QueryDispatcher } from './QueryDispatcher.js';
 export { QueryGenerator } from './QueryGenerator.js';
 export { QueryRouter } from './QueryRouter.js';

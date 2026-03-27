@@ -245,6 +245,24 @@ export {
 } from './raptor/index.js';
 
 // ============================================================================
+// Unified Retrieval (plan-based orchestrator)
+// ============================================================================
+
+export { UnifiedRetriever, buildDefaultPlan } from './unified/index.js';
+export type {
+  RetrievalPlan,
+  RetrievalPlanSources,
+  MemoryTypeFilter,
+  ModalityFilter,
+  TemporalConfig,
+  GraphTraversalConfig,
+  UnifiedRetrievalResult,
+  SourceDiagnostics,
+  UnifiedRetrieverEvent,
+  UnifiedRetrieverDeps,
+} from './unified/index.js';
+
+// ============================================================================
 // Vector Math Utilities
 // ============================================================================
 
