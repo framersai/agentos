@@ -797,6 +797,8 @@ graph TD
 | `HnswlibVectorStore` | `@framers/agentos/rag` | High-performance local ANN search |
 | `QdrantVectorStore` | `@framers/agentos/rag` | Cloud-hosted vector database |
 | `Neo4jVectorStore` | `@framers/agentos/rag` | Neo4j 5.x native vector indexes with shared connection pooling |
+| `PostgresVectorStore` | `@framers/agentos/rag` | Postgres + pgvector with HNSW indexes and RRF hybrid search |
+| `PineconeVectorStore` | `@framers/agentos/rag` | Pinecone cloud via fetch API with metadata filtering |
 
 > **Database Persistence: [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter)**
 >
@@ -833,6 +835,25 @@ import type { GraphRAGConfig, GraphEntity, GraphRelationship } from '@framers/ag
 ```
 
 See [`docs/RAG_MEMORY_CONFIGURATION.md`](docs/RAG_MEMORY_CONFIGURATION.md) and [`docs/MULTIMODAL_RAG.md`](docs/MULTIMODAL_RAG.md) for detailed configuration guides.
+
+**Memory Scaling:**
+
+AgentOS provides a 4-tier vector storage scaling path that grows with your deployment:
+
+| Tier | Backend | When to Use |
+|------|---------|-------------|
+| 0 | SQLite (default) | Development, small datasets (< 1K vectors) |
+| 1 | HNSW sidecar | Auto-activates at 1K vectors for local ANN search |
+| 2 | Postgres + pgvector | Production cloud deployments with RRF hybrid search |
+| 3 | Qdrant / Pinecone | High-scale managed vector databases |
+
+- **One-command migration** via `MigrationEngine` — move data between any two backends with `migrate({ from, to })`
+- **Docker auto-setup** — `MigrationEngine.ensureBackend('qdrant')` or `ensureBackend('postgres')` pulls and starts containers automatically
+- **Binary blob embedding storage** — 3-4x faster than JSON serialization for high-throughput ingest
+- **HNSW sidecar auto-activation** — transparently upgrades from brute-force to approximate nearest neighbors at 1K vectors
+- **`embed()` config option** — opt-in query-time embedding generation for dynamic content
+
+See [`docs/MEMORY_SCALING.md`](docs/MEMORY_SCALING.md), [`docs/POSTGRES_BACKEND.md`](docs/POSTGRES_BACKEND.md), [`docs/QDRANT_BACKEND.md`](docs/QDRANT_BACKEND.md), and [`docs/PINECONE_BACKEND.md`](docs/PINECONE_BACKEND.md) for backend-specific guides.
 
 ---
 
