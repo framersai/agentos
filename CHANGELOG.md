@@ -1,3 +1,8 @@
+## <small>0.1.120 (2026-03-27)</small>
+
+* fix(ci): add better-sqlite3 to devDependencies for memory tests ([0c15534](https://github.com/framersai/agentos/commit/0c15534))
+* feat(memory): HNSW sidecar index — O(log n) ANN alongside brain.sqlite, auto-activates at 1K vectors ([b171a61](https://github.com/framersai/agentos/commit/b171a61))
+
 ## <small>0.1.119 (2026-03-27)</small>
 
 * perf(rag): SQL-level metadata filtering via json_extract — avoid loading unmatched rows ([9f3618a](https://github.com/framersai/agentos/commit/9f3618a))
