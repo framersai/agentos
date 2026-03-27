@@ -278,6 +278,7 @@ export {
 // --- SQLite Storage ---
 export { SqliteBrain } from './store/SqliteBrain.js';
 export { SqliteKnowledgeGraph } from './store/SqliteKnowledgeGraph.js';
+export { HnswSidecar, type HnswSidecarConfig, type HnswQueryResult } from './store/HnswSidecar.js';
 export { SqliteMemoryGraph } from './store/SqliteMemoryGraph.js';
 
 // --- Agent Memory Tools ---

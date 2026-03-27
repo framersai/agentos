@@ -213,3 +213,46 @@ export type {
   MultimodalIndexerConfig,
 } from './multimodal/index.js';
 
+// ============================================================================
+// Vector Math Utilities
+// ============================================================================
+
+export {
+  cosineSimilarity,
+  dotProduct,
+  euclideanDistance,
+  embeddingToBlob,
+  blobToEmbedding,
+  blobToFloat32,
+  isLegacyJsonBlob,
+  type VectorLike,
+} from './utils/vectorMath.js';
+
+// ============================================================================
+// Migration Engine
+// ============================================================================
+
+export { MigrationEngine } from './migration/MigrationEngine.js';
+export type {
+  BackendType,
+  BackendConfig,
+  MigrationOptions,
+  MigrationResult,
+  IMigrationSource,
+  IMigrationTarget,
+} from './migration/types.js';
+
+// ============================================================================
+// Backend Auto-Setup
+// ============================================================================
+
+export { DockerDetector } from './setup/DockerDetector.js';
+export { QdrantSetup } from './setup/QdrantSetup.js';
+export { PostgresSetup } from './setup/PostgresSetup.js';
+export type {
+  SetupStatus,
+  BackendStatus,
+  SetupConfig,
+  VectorStoreConfig,
+} from './setup/types.js';
+

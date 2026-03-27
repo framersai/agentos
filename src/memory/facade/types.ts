@@ -209,7 +209,7 @@ export interface MemoryConfig {
    * - `'hnsw'`    – reserved for a future ANN-only backend.
    * @default 'sqlite'
    */
-  store?: 'sqlite' | 'memory' | 'qdrant' | 'neo4j' | 'hnsw';
+  store?: 'sqlite' | 'memory' | 'qdrant' | 'neo4j' | 'hnsw' | 'postgres';
 
   /**
    * File-system path for stores that require one (e.g. SQLite db file).
@@ -217,6 +217,21 @@ export interface MemoryConfig {
    * @example './data/agent-memory.sqlite'
    */
   path?: string;
+
+  /**
+   * Postgres connection string. Required when store='postgres'.
+   * @example 'postgresql://postgres:wunderland@localhost:5432/agent_memory'
+   */
+  connectionString?: string;
+
+  /**
+   * Qdrant base URL. Required when store='qdrant'.
+   * @example 'http://localhost:6333'
+   */
+  qdrantUrl?: string;
+
+  /** Qdrant API key for cloud instances. Optional. */
+  qdrantApiKey?: string;
 
   /** Embedding model configuration. */
   embeddings?: EmbeddingConfig;
