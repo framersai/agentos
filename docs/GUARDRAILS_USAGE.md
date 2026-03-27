@@ -1,5 +1,9 @@
 # Guardrails Usage Guide
 
+:::tip See also
+For CLI usage and guardrail configuration, see [Guardrails on docs.wunderland.sh](https://docs.wunderland.sh/guides/guardrails).
+:::
+
 Guardrails are safety mechanisms that intercept and evaluate content before it enters or exits the AgentOS pipeline. They enable content filtering, PII redaction, policy enforcement, and mid-stream decision overrides.
 
 ## Overview

@@ -1,5 +1,9 @@
 # Capability Discovery Engine
 
+:::tip See also
+For CLI usage and discovery configuration, see [Capability Discovery on docs.wunderland.sh](https://docs.wunderland.sh/guides/capability-discovery).
+:::
+
 > Semantic, tiered capability discovery that replaces static tool dumps with per-turn, token-budgeted context — cutting capability context by ~90% (from ~20,000 to ~1,850 tokens) while improving retrieval accuracy.
 
 ---

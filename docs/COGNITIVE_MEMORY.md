@@ -1,5 +1,9 @@
 # Cognitive Memory System
 
+:::tip See also
+For CLI usage and agent configuration, see [Memory System on docs.wunderland.sh](https://docs.wunderland.sh/guides/memory-system).
+:::
+
 > Personality-modulated, decay-aware memory grounded in cognitive science — replacing flat key-value memory with Ebbinghaus forgetting curves, Baddeley's working memory, spreading activation, and HEXACO-driven encoding biases.
 
 ---
