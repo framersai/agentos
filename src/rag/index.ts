@@ -232,6 +232,7 @@ export {
 // Migration Engine
 // ============================================================================
 
+export { PineconeVectorStore, type PineconeVectorStoreConfig } from './implementations/vector_stores/PineconeVectorStore.js';
 export { MigrationEngine } from './migration/MigrationEngine.js';
 export type {
   BackendType,

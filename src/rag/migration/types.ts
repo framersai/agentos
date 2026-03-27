@@ -13,7 +13,7 @@
 // ---------------------------------------------------------------------------
 
 /** Supported backend types for migration. */
-export type BackendType = 'sqlite' | 'postgres' | 'qdrant';
+export type BackendType = 'sqlite' | 'postgres' | 'qdrant' | 'pinecone';
 
 // ---------------------------------------------------------------------------
 // Configuration

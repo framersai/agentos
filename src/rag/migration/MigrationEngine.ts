@@ -147,6 +147,10 @@ export class MigrationEngine {
         const { QdrantSourceAdapter } = await import('./adapters/QdrantSourceAdapter.js');
         return new QdrantSourceAdapter(config.url!, config.apiKey);
       }
+      case 'pinecone': {
+        const { PineconeSourceAdapter } = await import('./adapters/PineconeSourceAdapter.js');
+        return new PineconeSourceAdapter(config.url!, config.apiKey!, config.collectionPrefix);
+      }
       default:
         throw new Error(`Unsupported migration source type: ${(config as BackendConfig).type}`);
     }
@@ -169,6 +173,12 @@ export class MigrationEngine {
       case 'qdrant': {
         const { QdrantTargetAdapter } = await import('./adapters/QdrantTargetAdapter.js');
         return new QdrantTargetAdapter(config.url!, config.apiKey);
+      }
+      case 'pinecone': {
+        // Pinecone as a target: upsert vectors via the same PineconeVectorStore.
+        // For now, use the source adapter pattern — Pinecone is typically a source
+        // for migration TO self-hosted backends, not a target.
+        throw new Error('Pinecone as migration target is not yet supported. Migrate FROM Pinecone to SQLite/Postgres/Qdrant.');
       }
       default:
         throw new Error(`Unsupported migration target type: ${(config as BackendConfig).type}`);
