@@ -156,6 +156,11 @@ export type {
   CorpusChunk,
   TopicEntry,
   QueryResult as QueryRouterResult,
+  QueryRouterEmbeddingStatus,
+  QueryRouterRetrievalMode,
+  QueryRouterRuntimeMode,
+  QueryRouterToggleableRuntimeMode,
+  QueryRouterCorpusStats,
 } from './query-router/types.js';
 // Orchestration Layer (IR, Events, Checkpoint, Runtime)
 export * from './orchestration/index.js';
@@ -208,6 +213,7 @@ export type {
   AgencyStrategy,
   AgencyConfigError as AgencyConfigErrorType,
   AgencyCallbacks,
+  AgencyStreamResult,
   AgencyStreamPart,
   AgencyTraceEvent,
   AgentCallRecord,
@@ -216,6 +222,7 @@ export type {
   ResourceControls,
   HitlConfig,
   CompiledStrategy,
+  CompiledStrategyStreamResult,
   Agency,
 } from './api/types.js';
 export { AgencyConfigError } from './api/types.js';
@@ -227,6 +234,8 @@ export { upscaleImage } from './api/upscaleImage.js';
 export type { UpscaleImageOptions, UpscaleImageResult } from './api/upscaleImage.js';
 export { variateImage } from './api/variateImage.js';
 export type { VariateImageOptions, VariateImageResult } from './api/variateImage.js';
+export { performOCR } from './api/performOCR.js';
+export type { PerformOCROptions, OCRResult } from './api/performOCR.js';
 export { generateObject, ObjectGenerationError } from './api/generateObject.js';
 export type { GenerateObjectOptions, GenerateObjectResult } from './api/generateObject.js';
 export { streamObject } from './api/streamObject.js';
