@@ -159,9 +159,10 @@ export class SqliteImporter {
       return;
     }
 
+    const { dialect } = this.brain.features;
     const checkSql = `SELECT id, created_at, tags
        FROM memory_traces
-       WHERE json_extract(metadata, '$.import_hash') = ?
+       WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ?
           OR content = ?
        LIMIT 1`;
 
@@ -247,9 +248,12 @@ export class SqliteImporter {
 
     const checkSql = `SELECT id FROM knowledge_nodes WHERE label = ? AND type = ? LIMIT 1`;
 
-    const insertSql = `INSERT OR IGNORE INTO knowledge_nodes
-         (id, type, label, properties, embedding, confidence, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const { dialect } = this.brain.features;
+    const insertSql = dialect.insertOrIgnore(
+      'knowledge_nodes',
+      ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?'],
+    );
 
     for (const row of sourceRows) {
       try {
@@ -303,9 +307,12 @@ export class SqliteImporter {
        WHERE source_id = ? AND target_id = ? AND type = ?
        LIMIT 1`;
 
-    const insertSql = `INSERT OR IGNORE INTO knowledge_edges
-         (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const { dialect } = this.brain.features;
+    const insertSql = dialect.insertOrIgnore(
+      'knowledge_edges',
+      ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?'],
+    );
 
     for (const row of sourceRows) {
       try {

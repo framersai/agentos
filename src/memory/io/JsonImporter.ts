@@ -200,7 +200,8 @@ export class JsonImporter {
     traces: TraceRecord[],
     result: ImportResult,
   ): Promise<void> {
-    const checkSql = `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`;
+    const { dialect } = this.brain.features;
+    const checkSql = `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
 
     const insertSql = `INSERT INTO memory_traces
          (id, type, scope, content, embedding, strength, created_at, last_accessed,
@@ -268,11 +269,14 @@ export class JsonImporter {
     nodes: NodeRecord[],
     result: ImportResult,
   ): Promise<void> {
-    const checkSql = `SELECT id FROM knowledge_nodes WHERE json_extract(properties, '$.import_hash') = ? LIMIT 1`;
+    const { dialect } = this.brain.features;
+    const checkSql = `SELECT id FROM knowledge_nodes WHERE ${dialect.jsonExtract('properties', '$.import_hash')} = ? LIMIT 1`;
 
-    const insertSql = `INSERT OR IGNORE INTO knowledge_nodes
-         (id, type, label, properties, embedding, confidence, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const insertSql = dialect.insertOrIgnore(
+      'knowledge_nodes',
+      ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?'],
+    );
 
     for (const n of nodes) {
       try {
@@ -329,11 +333,14 @@ export class JsonImporter {
     edges: EdgeRecord[],
     result: ImportResult,
   ): Promise<void> {
-    const checkSql = `SELECT id FROM knowledge_edges WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`;
+    const { dialect } = this.brain.features;
+    const checkSql = `SELECT id FROM knowledge_edges WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
 
-    const insertSql = `INSERT OR IGNORE INTO knowledge_edges
-         (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const insertSql = dialect.insertOrIgnore(
+      'knowledge_edges',
+      ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?'],
+    );
 
     for (const e of edges) {
       try {

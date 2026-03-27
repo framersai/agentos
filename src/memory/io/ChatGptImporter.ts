@@ -169,9 +169,13 @@ export class ChatGptImporter {
     const conversationId = `cv_${uuidv4()}`;
 
     try {
+      const { dialect } = this.brain.features;
       await this.brain.run(
-        `INSERT OR IGNORE INTO conversations (id, title, created_at, updated_at, metadata)
-         VALUES (?, ?, ?, ?, ?)`,
+        dialect.insertOrIgnore(
+          'conversations',
+          ['id', 'title', 'created_at', 'updated_at', 'metadata'],
+          ['?', '?', '?', '?', '?'],
+        ),
         [
           conversationId,
           title,
@@ -281,8 +285,9 @@ export class ChatGptImporter {
     const hash = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
 
     // Dedup check.
+    const { dialect } = this.brain.features;
     const existing = await this.brain.get<{ id: string }>(
-      `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
+      `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
       [hash],
     );
 

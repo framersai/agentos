@@ -187,12 +187,7 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
         );
 
         await trx.run(
-          `INSERT INTO memory_traces_fts (rowid, content, tags)
-           VALUES (
-             (SELECT rowid FROM memory_traces WHERE id = ?),
-             ?,
-             ?
-           )`,
+          this.brain.features.fts.syncInsert('memory_traces_fts', '(SELECT rowid FROM memory_traces WHERE id = ?)', ['content', 'tags']),
           [traceId, args.content, tags],
         );
       });

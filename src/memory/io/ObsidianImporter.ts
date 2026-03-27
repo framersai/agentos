@@ -213,6 +213,7 @@ export class ObsidianImporter extends MarkdownImporter {
   ): Promise<void> {
     try {
       const brainRef = (this as unknown as { brain: SqliteBrain }).brain;
+      const { dialect } = brainRef.features;
 
       // ---- Upsert source knowledge node for the trace ----
       // We use the trace ID itself as the node label so the graph stays navigable.
@@ -233,9 +234,11 @@ export class ObsidianImporter extends MarkdownImporter {
       } else {
         sourceNodeId = `kn_${uuidv4()}`;
         await brainRef.run(
-          `INSERT OR IGNORE INTO knowledge_nodes
-             (id, type, label, properties, embedding, confidence, source, created_at)
-           VALUES (?, 'trace', ?, ?, NULL, 1.0, '{}', ?)`,
+          dialect.insertOrIgnore(
+            'knowledge_nodes',
+            ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+            ['?', "'trace'", '?', '?', 'NULL', '1.0', "'{}'", '?'],
+          ),
           [
             sourceNodeId,
             sourceLabel,
@@ -262,9 +265,11 @@ export class ObsidianImporter extends MarkdownImporter {
       } else {
         targetNodeId = `kn_${uuidv4()}`;
         await brainRef.run(
-          `INSERT OR IGNORE INTO knowledge_nodes
-             (id, type, label, properties, embedding, confidence, source, created_at)
-           VALUES (?, 'concept', ?, ?, NULL, 1.0, '{}', ?)`,
+          dialect.insertOrIgnore(
+            'knowledge_nodes',
+            ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+            ['?', "'concept'", '?', '?', 'NULL', '1.0', "'{}'", '?'],
+          ),
           [
             targetNodeId,
             targetLabel,
@@ -283,15 +288,17 @@ export class ObsidianImporter extends MarkdownImporter {
       // Check for existing edge before insert (extra safety beyond OR IGNORE).
       const existingEdge = await brainRef.get<{ id: string }>(
         `SELECT id FROM knowledge_edges
-           WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
+           WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
         [edgeHash],
       );
 
       if (!existingEdge) {
         await brainRef.run(
-          `INSERT OR IGNORE INTO knowledge_edges
-             (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-           VALUES (?, ?, ?, 'related_to', 1.0, 0, ?, ?)`,
+          dialect.insertOrIgnore(
+            'knowledge_edges',
+            ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+            ['?', '?', '?', "'related_to'", '1.0', '0', '?', '?'],
+          ),
           [
             `ke_${uuidv4()}`,
             sourceNodeId,

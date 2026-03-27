@@ -224,10 +224,14 @@ export class SqliteMemoryGraph implements IMemoryGraph {
   async addNode(memoryId: string, metadata: MemoryGraphNodeMeta): Promise<void> {
     const now = Date.now();
 
+    const { dialect } = this.brain.features;
     await this.brain.run(
-      `INSERT OR REPLACE INTO knowledge_nodes
-         (id, type, label, properties, confidence, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      dialect.insertOrReplace(
+        'knowledge_nodes',
+        ['id', 'type', 'label', 'properties', 'confidence', 'source', 'created_at'],
+        ['?', '?', '?', '?', '?', '?', '?'],
+        'id',
+      ),
       [
         memoryId,
         NODE_TYPE,
@@ -309,10 +313,14 @@ export class SqliteMemoryGraph implements IMemoryGraph {
     const edgeId = this._edgeId(edge.sourceId, edge.targetId);
     const key = `${edge.sourceId}:${edge.targetId}`;
 
+    const { dialect } = this.brain.features;
     await this.brain.run(
-      `INSERT OR REPLACE INTO knowledge_edges
-         (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, '{}', ?)`,
+      dialect.insertOrReplace(
+        'knowledge_edges',
+        ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+        ['?', '?', '?', '?', '?', '0', "'{}'", '?'],
+        'id',
+      ),
       [edgeId, edge.sourceId, edge.targetId, edge.type, edge.weight, edge.createdAt],
     );
 

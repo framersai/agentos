@@ -79,10 +79,11 @@ export class CsvImporter {
     const tagsIndex = indexOf('tags');
     const metadataIndex = indexOf('metadata');
 
+    const { dialect } = this.brain.features;
     const checkSql = `SELECT id
        FROM memory_traces
-       WHERE json_extract(metadata, '$.import_hash') = ?
-          OR json_extract(metadata, '$.content_hash') = ?
+       WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ?
+          OR ${dialect.jsonExtract('metadata', '$.content_hash')} = ?
        LIMIT 1`;
 
     const insertSql = `INSERT INTO memory_traces

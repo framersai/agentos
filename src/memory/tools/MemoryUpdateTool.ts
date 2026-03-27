@@ -183,8 +183,7 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
 
         if (info.changes > 0) {
           await trx.run(
-            `INSERT INTO memory_traces_fts (rowid, content, tags)
-             VALUES (?, ?, ?)`,
+            this.brain.features.fts.syncInsert('memory_traces_fts', '?', ['content', 'tags']),
             [current.rowid, nextContent, nextTags],
           );
         }

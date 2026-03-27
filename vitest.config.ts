@@ -23,6 +23,7 @@ export default defineConfig({
       { find: /^@agentos\/core\/(.*)$/, replacement: `${srcDir}/$1` },
       { find: '@framers/agentos', replacement: srcDir },
       { find: '@prisma/client', replacement: path.resolve(__dirname, 'src/stubs/prismaClient.ts') },
+      { find: '@framers/sql-storage-adapter', replacement: path.resolve(__dirname, '../sql-storage-adapter/src/index.ts') },
     ],
   },
   test: {

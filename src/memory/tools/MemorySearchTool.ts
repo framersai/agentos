@@ -213,21 +213,22 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
 
         const scopeId = resolveMemoryToolScopeId(args.scope, context);
         if (scopeId) {
-          extraClauses.push(`json_extract(mt.metadata, '$.scopeId') = ?`);
+          const { dialect } = this.brain.features;
+          extraClauses.push(`${dialect.jsonExtract('mt.metadata', '$.scopeId')} = ?`);
           extraParams.push(scopeId);
         }
       }
 
       const extraWhere = extraClauses.length > 0 ? `AND ${extraClauses.join(' AND ')}` : '';
 
+      const { fts } = this.brain.features;
       const sql = `
         SELECT mt.id, mt.content, mt.type, mt.scope, mt.strength, mt.tags
-        FROM memory_traces_fts fts
-        JOIN memory_traces mt ON mt.rowid = fts.rowid
-        WHERE fts.memory_traces_fts MATCH ?
+        FROM ${fts.joinClause('memory_traces', 'mt', 'fts', 'memory_traces_fts')}
+        WHERE ${fts.matchClause('memory_traces_fts', '?')}
           AND mt.deleted = 0
           ${extraWhere}
-        ORDER BY rank
+        ORDER BY ${fts.rankExpression('fts')}
         LIMIT ?
       `;
 

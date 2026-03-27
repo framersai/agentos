@@ -178,8 +178,9 @@ export class MarkdownImporter {
     const hash = crypto.createHash('sha256').update(body, 'utf8').digest('hex');
 
     // Dedup check.
+    const { dialect } = this.brain.features;
     const existing = await this.brain.get<{ id: string }>(
-      `SELECT id FROM memory_traces WHERE json_extract(metadata, '$.import_hash') = ? LIMIT 1`,
+      `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
       [hash],
     );
 

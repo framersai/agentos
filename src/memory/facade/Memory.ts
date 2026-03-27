@@ -342,12 +342,11 @@ export class Memory {
     const importance = options?.importance ?? 1.0;
 
     // Generate embedding if embed function is available.
-    let embeddingBlob: Buffer | null = null;
+    let embeddingBlob: Uint8Array | null = null;
     if (this._embed) {
       try {
         const vec = await this._embed(content);
-        const { embeddingToBlob: toBlob } = await import('../../rag/utils/vectorMath.js');
-        embeddingBlob = toBlob(vec);
+        embeddingBlob = this._brain.features.blobCodec.encode(vec);
       } catch {
         // Embedding generation failed — continue without vector.
         embeddingBlob = null;
@@ -374,14 +373,10 @@ export class Memory {
       ],
     );
 
-    // Sync FTS5 index. The external-content FTS5 table needs explicit insert.
+    // Sync FTS index. The external-content FTS table needs explicit insert.
+    const { fts } = this._brain.features;
     await this._brain.run(
-      `INSERT INTO memory_traces_fts (rowid, content, tags)
-       VALUES (
-         (SELECT rowid FROM memory_traces WHERE id = ?),
-         ?,
-         ?
-       )`,
+      fts.syncInsert('memory_traces_fts', '(SELECT rowid FROM memory_traces WHERE id = ?)', ['content', 'tags']),
       [id, content, JSON.stringify(tags)],
     );
 
@@ -405,10 +400,12 @@ export class Memory {
         [id],
       );
       if (row?.embedding && row.embedding.length > 0) {
-        const { blobToEmbedding, isLegacyJsonBlob } = await import('../../rag/utils/vectorMath.js');
-        const vec = isLegacyJsonBlob(row.embedding)
+        const { blobCodec } = this._brain.features;
+        const isLegacy = typeof row.embedding === 'string' ||
+          (row.embedding && row.embedding[0] === 0x5b); // '[' character = JSON array
+        const vec = isLegacy
           ? JSON.parse(row.embedding as unknown as string) as number[]
-          : blobToEmbedding(row.embedding);
+          : blobCodec.decode(row.embedding);
         const countRow = await this._brain.get<{ c: number }>(
           'SELECT COUNT(*) as c FROM memory_traces WHERE deleted = 0',
         );
@@ -421,12 +418,16 @@ export class Memory {
           );
           const data = allRows
             .filter(r => r.embedding && r.embedding.length > 0)
-            .map(r => ({
-              id: r.id,
-              embedding: isLegacyJsonBlob(r.embedding)
-                ? JSON.parse(r.embedding as unknown as string) as number[]
-                : blobToEmbedding(r.embedding),
-            }));
+            .map(r => {
+              const legacy = typeof r.embedding === 'string' ||
+                (r.embedding && r.embedding[0] === 0x5b);
+              return {
+                id: r.id,
+                embedding: legacy
+                  ? JSON.parse(r.embedding as unknown as string) as number[]
+                  : blobCodec.decode(r.embedding),
+              };
+            });
           await this._hnswSidecar.rebuildFromData(data);
         } else {
           await this._hnswSidecar.add(id, vec, count);
@@ -487,7 +488,8 @@ export class Memory {
       params.push(options.scope);
     }
     if (options?.scopeId) {
-      conditions.push(`json_extract(t.metadata, '$.scopeId') = ?`);
+      const { dialect } = this._brain.features;
+      conditions.push(`${dialect.jsonExtract('t.metadata', '$.scopeId')} = ?`);
       params.push(options.scopeId);
     }
     if (minStrength > 0) {
@@ -530,14 +532,14 @@ export class Memory {
         const hnswIds = new Set(hnswCandidates.map(c => c.id));
         const hnswRank = new Map(hnswCandidates.map((c, i) => [c.id, i + 1]));
 
-        // Get FTS5 candidates.
+        // Get FTS candidates.
+        const { fts: ftsHelper } = this._brain.features;
         const ftsSql = `
-          SELECT t.*, fts.rank
-          FROM memory_traces_fts fts
-          JOIN memory_traces t ON t.rowid = fts.rowid
+          SELECT t.*, ${ftsHelper.rankExpression('fts')} as rank
+          FROM ${ftsHelper.joinClause('memory_traces', 't', 'fts', 'memory_traces_fts')}
           ${whereClause}
-          AND memory_traces_fts MATCH ?
-          ORDER BY abs(fts.rank) DESC
+          AND ${ftsHelper.matchClause('memory_traces_fts', '?')}
+          ORDER BY abs(${ftsHelper.rankExpression('fts')}) DESC
           LIMIT ?
         `;
         const ftsRows = await this._brain.all<FtsJoinRow>(
@@ -583,16 +585,16 @@ export class Memory {
       }
     }
 
-    // ── Path B: FTS5-only (fallback when HNSW is inactive) ──
+    // ── Path B: FTS-only (fallback when HNSW is inactive) ──
     // This is the original behavior — pure text search ranked by
     // strength * abs(fts_rank). Works without any embeddings.
+    const { fts: ftsB } = this._brain.features;
     const sql = `
-      SELECT t.*, fts.rank
-      FROM memory_traces_fts fts
-      JOIN memory_traces t ON t.rowid = fts.rowid
+      SELECT t.*, ${ftsB.rankExpression('fts')} as rank
+      FROM ${ftsB.joinClause('memory_traces', 't', 'fts', 'memory_traces_fts')}
       ${whereClause}
-      AND memory_traces_fts MATCH ?
-      ORDER BY (t.strength * abs(fts.rank)) DESC
+      AND ${ftsB.matchClause('memory_traces_fts', '?')}
+      ORDER BY (t.strength * abs(${ftsB.rankExpression('fts')})) DESC
       LIMIT ?
     `;
 
@@ -1217,6 +1219,7 @@ export class Memory {
     scope: string,
     scopeId: string,
   ): Promise<TraceRow | undefined> {
+    const { dialect } = this._brain.features;
     const row = await this._brain.get<TraceRow>(
       `SELECT id, type, scope, content, embedding, strength, created_at,
               last_accessed, retrieval_count, tags, emotions, metadata, deleted
@@ -1224,10 +1227,10 @@ export class Memory {
        WHERE deleted = 0
          AND type = ?
          AND scope = ?
-         AND ifnull(json_extract(metadata, '$.scopeId'), '') = ?
+         AND ${dialect.ifnull(dialect.jsonExtract('metadata', '$.scopeId'), "''")} = ?
          AND (
-           json_extract(metadata, '$.content_hash') = ?
-           OR json_extract(metadata, '$.import_hash') = ?
+           ${dialect.jsonExtract('metadata', '$.content_hash')} = ?
+           OR ${dialect.jsonExtract('metadata', '$.import_hash')} = ?
          )
        LIMIT 1`,
       [type, scope, scopeId, contentHash, contentHash],
@@ -1353,13 +1356,8 @@ export class Memory {
       );
 
       await this._brain.run(
-        `INSERT INTO memory_traces_fts (rowid, content, tags)
-         VALUES (
-           (SELECT rowid FROM memory_traces WHERE id = ?),
-           ?,
-           '[]'
-         )`,
-        [traceId, chunk.content],
+        this._brain.features.fts.syncInsert('memory_traces_fts', '(SELECT rowid FROM memory_traces WHERE id = ?)', ['content', 'tags']),
+        [traceId, chunk.content, '[]'],
       );
 
       if (this._config.graph && !this._memoryGraph.hasNode(traceId)) {
@@ -1395,7 +1393,7 @@ export class Memory {
    */
   private async _rebuildFtsIndex(): Promise<void> {
     try {
-      await this._brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+      await this._brain.exec(this._brain.features.fts.rebuildCommand('memory_traces_fts'));
     } catch {
       // Best-effort; imports still succeed even if the FTS rebuild is unavailable.
     }

@@ -52,8 +52,6 @@ export class SqliteExporter {
    *   all data including embeddings).
    */
   async export(outputPath: string, _options?: ExportOptions): Promise<void> {
-    // VACUUM INTO creates a compact, defragmented copy of the live database.
-    // It is an atomic operation from SQLite's perspective.
-    await this.brain.exec(`VACUUM INTO '${outputPath.replace(/'/g, "''")}'`);
+    await this.brain.features.exporter.exportToFile(outputPath);
   }
 }

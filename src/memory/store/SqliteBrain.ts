@@ -33,8 +33,9 @@ import type {
   StorageAdapter,
   StorageRunResult,
   StorageParameters,
+  StorageFeatures,
 } from '@framers/sql-storage-adapter';
-import { resolveStorageAdapter } from '@framers/sql-storage-adapter';
+import { resolveStorageAdapter, createStorageFeatures } from '@framers/sql-storage-adapter';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -85,22 +86,8 @@ CREATE TABLE IF NOT EXISTS memory_traces (
 );
 `;
 
-/**
- * FTS5 virtual table for full-text search over memory content and tags.
- * Uses the Porter tokenizer for morphological stemming.
- *
- * Linked to `memory_traces` via the external content mechanism so that
- * content is not duplicated on disk.
- */
-const DDL_MEMORY_TRACES_FTS = `
-CREATE VIRTUAL TABLE IF NOT EXISTS memory_traces_fts USING fts5(
-  content,
-  tags,
-  content='memory_traces',
-  content_rowid='rowid',
-  tokenize='porter ascii'
-);
-`;
+// FTS index DDL is now generated dynamically by features.fts.createIndex()
+// to support both SQLite FTS5 and Postgres tsvector/GIN.
 
 /**
  * Knowledge graph nodes (semantic network).
@@ -309,6 +296,12 @@ export class SqliteBrain {
    */
   private readonly _adapter: StorageAdapter;
 
+  /**
+   * Platform-aware feature bundle (dialect, FTS, BLOB codec, exporter).
+   * Created by `createStorageFeatures(adapter)` during `open()`.
+   */
+  private readonly _features: StorageFeatures;
+
   // ---------------------------------------------------------------------------
   // Constructor (private — use SqliteBrain.open())
   // ---------------------------------------------------------------------------
@@ -316,10 +309,12 @@ export class SqliteBrain {
   /**
    * Private constructor — use `SqliteBrain.open(dbPath)` instead.
    *
-   * @param adapter - A fully initialised StorageAdapter instance.
+   * @param adapter  - A fully initialised StorageAdapter instance.
+   * @param features - Platform-aware feature bundle.
    */
-  private constructor(adapter: StorageAdapter) {
+  private constructor(adapter: StorageAdapter, features: StorageFeatures) {
     this._adapter = adapter;
+    this._features = features;
   }
 
   // ---------------------------------------------------------------------------
@@ -350,18 +345,16 @@ export class SqliteBrain {
       quiet: true,
     });
 
-    const brain = new SqliteBrain(adapter);
+    const features = createStorageFeatures(adapter);
+    const brain = new SqliteBrain(adapter, features);
 
-    // Step 1: WAL mode — allows concurrent reads while a write is in progress.
-    // Critical for multi-subsystem access patterns (consolidator + retriever + encoder
-    // all touching the same file simultaneously).
-    if (adapter.capabilities.has('wal')) {
-      await adapter.exec('PRAGMA journal_mode = WAL');
-    }
+    // Step 1: WAL mode — dialect returns null for non-SQLite adapters.
+    const walPragma = features.dialect.pragma('journal_mode', 'WAL');
+    if (walPragma) await adapter.exec(walPragma);
 
-    // Step 2: Foreign key enforcement — SQLite disables FK checks by default.
-    // We want referential integrity between chunks↔documents, edges↔nodes, etc.
-    await adapter.exec('PRAGMA foreign_keys = ON');
+    // Step 2: Foreign key enforcement — dialect returns null for Postgres (enforced by default).
+    const fkPragma = features.dialect.pragma('foreign_keys', 'ON');
+    if (fkPragma) await adapter.exec(fkPragma);
 
     // Step 3: Apply full schema in a single transaction for atomicity.
     await brain._initSchema();
@@ -441,6 +434,15 @@ export class SqliteBrain {
     return this._adapter;
   }
 
+  /**
+   * Platform-aware feature bundle (dialect, FTS, BLOB codec, exporter).
+   * Consumers use this to generate cross-platform SQL instead of hardcoding
+   * SQLite-specific syntax.
+   */
+  get features(): StorageFeatures {
+    return this._features;
+  }
+
   // ---------------------------------------------------------------------------
   // Private init helpers
   // ---------------------------------------------------------------------------
@@ -463,8 +465,14 @@ export class SqliteBrain {
       await trx.exec(DDL_RETRIEVAL_FEEDBACK);
       await trx.exec(DDL_CONVERSATIONS);
       await trx.exec(DDL_MESSAGES);
-      // FTS5 virtual table (must be last; depends on memory_traces existing)
-      await trx.exec(DDL_MEMORY_TRACES_FTS);
+      // FTS index via feature abstraction (FTS5 on SQLite, tsvector/GIN on Postgres)
+      const ftsDdl = this._features.fts.createIndex({
+        table: 'memory_traces_fts',
+        columns: ['content', 'tags'],
+        contentTable: 'memory_traces',
+        tokenizer: 'porter ascii',
+      });
+      await trx.exec(ftsDdl);
     });
   }
 
@@ -473,13 +481,14 @@ export class SqliteBrain {
    * Uses INSERT OR IGNORE to be idempotent on subsequent opens.
    */
   private async _seedMeta(): Promise<void> {
+    const { dialect } = this._features;
     await this._adapter.transaction(async (trx) => {
       await trx.run(
-        'INSERT OR IGNORE INTO brain_meta (key, value) VALUES (?, ?)',
+        dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']),
         ['schema_version', SCHEMA_VERSION],
       );
       await trx.run(
-        'INSERT OR IGNORE INTO brain_meta (key, value) VALUES (?, ?)',
+        dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']),
         ['created_at', Date.now().toString()],
       );
     });
@@ -515,7 +524,7 @@ export class SqliteBrain {
    */
   async setMeta(key: string, value: string): Promise<void> {
     await this._adapter.run(
-      'INSERT OR REPLACE INTO brain_meta (key, value) VALUES (?, ?)',
+      this._features.dialect.insertOrReplace('brain_meta', ['key', 'value'], ['?', '?'], 'key'),
       [key, value],
     );
   }

@@ -626,7 +626,7 @@ export class ConsolidationLoop {
     // Rebuild FTS5 index.
     // The 'rebuild' command reconstructs the FTS index from the content table.
     try {
-      await this.brain.exec(`INSERT INTO memory_traces_fts(memory_traces_fts) VALUES('rebuild')`);
+      await this.brain.exec(this.brain.features.fts.rebuildCommand('memory_traces_fts'));
     } catch {
       // FTS rebuild may fail if the table structure has drifted; non-critical.
     }

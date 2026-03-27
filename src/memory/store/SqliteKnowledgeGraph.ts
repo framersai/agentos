@@ -145,51 +145,6 @@ interface MemoryNodeFields extends ExtendedNodeFields {
 }
 
 // ---------------------------------------------------------------------------
-// Embedding helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Serialize a number[] embedding into a Buffer (Float32 little-endian)
- * for storage in an SQLite BLOB column.
- */
-function embeddingToBlob(vec: number[]): Buffer {
-  const buf = Buffer.alloc(vec.length * 4);
-  for (let i = 0; i < vec.length; i++) {
-    buf.writeFloatLE(vec[i], i * 4);
-  }
-  return buf;
-}
-
-/**
- * Deserialize a BLOB (Float32 little-endian) back into a number[] embedding.
- */
-function blobToEmbedding(blob: Buffer): number[] {
-  const count = blob.length / 4;
-  const vec: number[] = new Array(count);
-  for (let i = 0; i < count; i++) {
-    vec[i] = blob.readFloatLE(i * 4);
-  }
-  return vec;
-}
-
-/**
- * Compute cosine similarity between two equal-length vectors.
- * Returns 0 if either vector has zero magnitude.
- */
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : dot / denom;
-}
-
-// ---------------------------------------------------------------------------
 // SqliteKnowledgeGraph
 // ---------------------------------------------------------------------------
 
@@ -283,13 +238,17 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     };
 
     const embeddingBlob = entity.embedding
-      ? embeddingToBlob(entity.embedding)
+      ? this.brain.features.blobCodec.encode(entity.embedding)
       : null;
 
+    const { dialect } = this.brain.features;
     await this.brain.run(
-      `INSERT OR REPLACE INTO knowledge_nodes
-         (id, type, label, properties, embedding, confidence, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      dialect.insertOrReplace(
+        'knowledge_nodes',
+        ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+        ['?', '?', '?', '?', '?', '?', '?', '?'],
+        'id',
+      ),
       [
         id,
         entity.type,
@@ -455,10 +414,14 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       _validTo: relation.validTo,
     };
 
+    const { dialect } = this.brain.features;
     await this.brain.run(
-      `INSERT OR REPLACE INTO knowledge_edges
-         (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      dialect.insertOrReplace(
+        'knowledge_edges',
+        ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+        ['?', '?', '?', '?', '?', '?', '?', '?'],
+        'id',
+      ),
       [
         id,
         relation.sourceId,
@@ -569,7 +532,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
     };
 
     const embeddingBlob = memory.embedding
-      ? embeddingToBlob(memory.embedding)
+      ? this.brain.features.blobCodec.encode(memory.embedding)
       : null;
 
     const source: KnowledgeSource = {
@@ -1343,7 +1306,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       type: row.type as EntityType,
       label: row.label,
       properties: extended._props ?? {},
-      embedding: row.embedding ? blobToEmbedding(row.embedding) : undefined,
+      embedding: row.embedding ? this.brain.features.blobCodec.decode(row.embedding) : undefined,
       confidence: row.confidence,
       source,
       createdAt: new Date(row.created_at).toISOString(),
@@ -1405,7 +1368,7 @@ export class SqliteKnowledgeGraph implements IKnowledgeGraph {
       valence: fields._valence,
       importance: row.confidence,
       entityIds: fields._entityIds ?? [],
-      embedding: row.embedding ? blobToEmbedding(row.embedding) : undefined,
+      embedding: row.embedding ? this.brain.features.blobCodec.decode(row.embedding) : undefined,
       occurredAt: fields._occurredAt ?? new Date(row.created_at).toISOString(),
       durationMs: fields._durationMs,
       outcome: fields._outcome,

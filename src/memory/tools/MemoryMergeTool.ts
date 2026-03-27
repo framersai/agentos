@@ -252,8 +252,7 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
         );
 
         await trx.run(
-          `INSERT INTO memory_traces_fts (rowid, content, tags)
-           VALUES (?, ?, ?)`,
+          this.brain.features.fts.syncInsert('memory_traces_fts', '?', ['content', 'tags']),
           [survivor.rowid, finalContent, finalTags],
         );
 
