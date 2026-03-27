@@ -1,3 +1,8 @@
+## <small>0.1.117 (2026-03-27)</small>
+
+* feat(rag): shared vectorMath utils — cosine similarity, dot product, euclidean distance, binary blob ([97b19cb](https://github.com/framersai/agentos/commit/97b19cb))
+* test: add QueryRouter E2E integration test ([2b69b3e](https://github.com/framersai/agentos/commit/2b69b3e))
+
 ## <small>0.1.116 (2026-03-26)</small>
 
 * fix(lint): resolve unreachable else-if branch in orchestrator tool result handler ([ec1acb2](https://github.com/framersai/agentos/commit/ec1acb2))
