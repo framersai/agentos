@@ -103,19 +103,17 @@ export interface BM25Stats {
 
 // ── Stop Words ────────────────────────────────────────────────────────────
 
-import { ENGLISH_STOP_WORDS } from '../../core/text-processing/filters/StopWordFilter';
+import { getNaturalStopWords } from '../../core/text-processing/filters/StopWordFilter';
 
 /**
  * Stop words used by the fallback regex tokenizer (when no pipeline is configured).
- * Uses the curated 120-word set from the TextProcessingPipeline module.
- *
- * For a larger 170-word set from the `natural` NLP library, use
- * `getNaturalStopWords()` from `core/text-processing/filters/StopWordFilter`.
+ * Uses `natural`'s 170-word list when available, falls back to the built-in
+ * 120-word ENGLISH_STOP_WORDS set.
  *
  * When a `TextProcessingPipeline` is configured via `BM25Config.pipeline`,
  * the pipeline handles stop word filtering internally and this set is not used.
  */
-const STOP_WORDS: ReadonlySet<string> = ENGLISH_STOP_WORDS;
+const STOP_WORDS: ReadonlySet<string> = getNaturalStopWords();
 
 // ── BM25 Index ────────────────────────────────────────────────────────────
 

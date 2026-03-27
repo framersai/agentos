@@ -69,8 +69,12 @@ export class StopWordFilter implements ITextProcessor {
   readonly name = 'StopWordFilter';
   private stopWords: ReadonlySet<string>;
 
-  constructor(stopWords: ReadonlySet<string> = ENGLISH_STOP_WORDS) {
-    this.stopWords = stopWords;
+  /**
+   * @param stopWords — stop word set to filter against. Defaults to `natural`'s
+   * 170-word list when available, falls back to the built-in 120-word ENGLISH_STOP_WORDS.
+   */
+  constructor(stopWords?: ReadonlySet<string>) {
+    this.stopWords = stopWords ?? getNaturalStopWords();
   }
 
   process(tokens: Token[]): Token[] {
