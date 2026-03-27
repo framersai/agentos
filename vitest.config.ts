@@ -28,6 +28,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    testTimeout: 120000, // 2 minutes — Memory facade tests take 45s+ for SQLite ops
+    hookTimeout: 30000,
     include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
     exclude: ['dist', 'coverage', 'node_modules'],
     server: {
