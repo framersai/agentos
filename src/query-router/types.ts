@@ -189,6 +189,10 @@ export interface ConversationMessage {
 /**
  * Final result returned by the QueryRouter after classification, retrieval,
  * and answer generation.
+ *
+ * This surface is intentionally provenance-oriented: it includes not only the
+ * generated answer and citations, but also the tier path actually exercised and
+ * the fallback names that were activated during routing.
  */
 export interface QueryResult {
   /** The generated answer text, grounded in retrieved sources. */
@@ -218,6 +222,72 @@ export interface QueryResult {
 }
 
 // ============================================================================
+// CORPUS STATS
+// ============================================================================
+
+/**
+ * Retrieval backend mode currently available to the router.
+ */
+export type QueryRouterRetrievalMode = 'vector+keyword-fallback' | 'keyword-only';
+
+/**
+ * Runtime mode for a branch that is always available in some form.
+ *
+ * - `heuristic` means AgentOS is using its built-in lightweight implementation
+ * - `active` means the host injected or wired a stronger runtime implementation
+ */
+export type QueryRouterRuntimeMode = 'placeholder' | 'heuristic' | 'active';
+
+/**
+ * Runtime mode for a branch that may also be fully disabled in config.
+ */
+export type QueryRouterToggleableRuntimeMode = 'disabled' | QueryRouterRuntimeMode;
+
+/**
+ * Lightweight observability snapshot for router startup logs and host health
+ * checks.
+ *
+ * Returned by `router.getCorpusStats()` after or before initialization.
+ */
+export interface QueryRouterCorpusStats {
+  /** Whether `init()` has completed successfully. */
+  initialized: boolean;
+
+  /** Number of configured corpus directories. */
+  configuredPathCount: number;
+
+  /** Number of loaded markdown chunks in the in-memory corpus. */
+  chunkCount: number;
+
+  /** Number of extracted topic entries used by the classifier. */
+  topicCount: number;
+
+  /** Number of unique source files represented in the loaded corpus. */
+  sourceCount: number;
+
+  /** Whether retrieval is vector-backed or keyword-only. */
+  retrievalMode: QueryRouterRetrievalMode;
+
+  /** Embedding dimension for the active vector index, or `0` when inactive. */
+  embeddingDimension: number;
+
+  /** Whether graph expansion is enabled in config. */
+  graphEnabled: boolean;
+
+  /** Whether deep research is enabled in config. */
+  deepResearchEnabled: boolean;
+
+  /** Runtime truth for graph expansion. */
+  graphRuntimeMode: QueryRouterToggleableRuntimeMode;
+
+  /** Runtime truth for reranking. */
+  rerankRuntimeMode: QueryRouterRuntimeMode;
+
+  /** Runtime truth for deep research. */
+  deepResearchRuntimeMode: QueryRouterToggleableRuntimeMode;
+}
+
+// ============================================================================
 // CONFIGURATION
 // ============================================================================
 
@@ -226,11 +296,23 @@ export interface QueryResult {
  *
  * `knowledgeCorpus` is required. All other fields are optional and default to
  * the values in {@link DEFAULT_QUERY_ROUTER_CONFIG}.
+ *
+ * @example
+ * ```ts
+ * const router = new QueryRouter({
+ *   knowledgeCorpus: ['./docs', './packages/agentos/docs'],
+ *   availableTools: ['web_search', 'deep_research'],
+ *   maxTier: 3,
+ * });
+ * ```
  */
 export interface QueryRouterConfig {
   /**
    * Directories containing `.md` / `.mdx` files to ingest as the knowledge
    * corpus.
+   *
+   * `init()` will throw if these paths resolve to zero readable markdown
+   * sections, because a successful router init should imply a non-empty corpus.
    */
   knowledgeCorpus: string[];
 
@@ -306,6 +388,37 @@ export interface QueryRouterConfig {
   availableTools?: string[];
 
   /**
+   * Optional host-provided graph expansion callback.
+   *
+   * Provide this to replace the built-in placeholder `graphExpand()` branch
+   * with a real GraphRAG or relationship-expansion implementation.
+   */
+  graphExpand?: (seedChunks: RetrievedChunk[]) => Promise<RetrievedChunk[]>;
+
+  /**
+   * Optional host-provided reranker callback.
+   *
+   * Provide this to replace the built-in lexical heuristic reranker with a
+   * provider-backed or cross-encoder reranker.
+   */
+  rerank?: (
+    query: string,
+    chunks: RetrievedChunk[],
+    topN: number,
+  ) => Promise<RetrievedChunk[]>;
+
+  /**
+   * Optional host-provided deep research callback.
+   *
+   * Provide this to replace the built-in placeholder research branch with a
+   * real multi-source research runtime.
+   */
+  deepResearch?: (
+    query: string,
+    sources: string[],
+  ) => Promise<{ synthesis: string; sources: RetrievedChunk[] }>;
+
+  /**
    * Hook called after classification completes.
    * Receives the ClassificationResult for consumer integration.
    */
@@ -322,6 +435,31 @@ export interface QueryRouterConfig {
 
   /** Optional base URL override for LLM providers. */
   baseUrl?: string;
+
+  /**
+   * Configuration for background GitHub repository indexing.
+   *
+   * When provided, the router will asynchronously index GitHub repos after
+   * `init()` completes and merge the resulting chunks into the corpus.
+   */
+  githubRepos?: RepoIndexConfig;
+}
+
+/**
+ * Configuration for GitHub repo indexing in QueryRouter.
+ *
+ * Controls which repositories are indexed in the background after `init()`
+ * and merged into the knowledge corpus for retrieval.
+ */
+export interface RepoIndexConfig {
+  /** Repos to index. Defaults to ecosystem repos when includeEcosystem is true. */
+  repos?: Array<{ owner: string; repo: string }>;
+  /** Include AgentOS ecosystem repos. @default true */
+  includeEcosystem?: boolean;
+  /** GitHub PAT for private repos and higher rate limits. Falls back to GITHUB_TOKEN env. */
+  token?: string;
+  /** Max doc files to fetch per repo. @default 50 */
+  maxFilesPerRepo?: number;
 }
 
 /**
@@ -346,7 +484,15 @@ export const DEFAULT_QUERY_ROUTER_CONFIG = {
   availableTools: [] as string[],
 } satisfies Omit<
   Required<QueryRouterConfig>,
-  'knowledgeCorpus' | 'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl'
+  | 'knowledgeCorpus'
+  | 'graphExpand'
+  | 'rerank'
+  | 'deepResearch'
+  | 'onClassification'
+  | 'onRetrieval'
+  | 'apiKey'
+  | 'baseUrl'
+  | 'githubRepos'
 >;
 
 // ============================================================================
@@ -547,6 +693,47 @@ export interface RouteCompleteEvent {
 }
 
 /**
+ * Emitted when background GitHub repository indexing begins.
+ */
+export interface GitHubIndexStartEvent {
+  type: 'github:index:start';
+  /** Full `owner/repo` slug being indexed. */
+  repo: string;
+  /** Estimated number of doc files that will be fetched. */
+  filesEstimated: number;
+  /** Timestamp when indexing started. */
+  timestamp: number;
+}
+
+/**
+ * Emitted when a single GitHub repository has been indexed successfully.
+ */
+export interface GitHubIndexCompleteEvent {
+  type: 'github:index:complete';
+  /** Full `owner/repo` slug that was indexed. */
+  repo: string;
+  /** Total number of chunks extracted from the repository. */
+  chunksTotal: number;
+  /** Wall-clock duration of the indexing run in milliseconds. */
+  durationMs: number;
+  /** Timestamp when indexing completed. */
+  timestamp: number;
+}
+
+/**
+ * Emitted when indexing a GitHub repository fails.
+ */
+export interface GitHubIndexErrorEvent {
+  type: 'github:index:error';
+  /** Full `owner/repo` slug that failed to index. */
+  repo: string;
+  /** Error message describing the failure. */
+  error: string;
+  /** Timestamp when the error occurred. */
+  timestamp: number;
+}
+
+/**
  * Discriminated union of all QueryRouter lifecycle events.
  * The `type` field serves as the discriminant for exhaustive matching.
  *
@@ -582,7 +769,10 @@ export type QueryRouterEventUnion =
   | ResearchCompleteEvent
   | GenerateStartEvent
   | GenerateCompleteEvent
-  | RouteCompleteEvent;
+  | RouteCompleteEvent
+  | GitHubIndexStartEvent
+  | GitHubIndexCompleteEvent
+  | GitHubIndexErrorEvent;
 
 // ============================================================================
 // CORPUS DATA STRUCTURES

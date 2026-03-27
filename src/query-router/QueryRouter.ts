@@ -43,6 +43,7 @@ import type {
   ConversationMessage,
   CorpusChunk,
   QueryResult,
+  QueryRouterCorpusStats,
   QueryRouterConfig,
   QueryRouterEventUnion,
   QueryTier,
@@ -65,9 +66,19 @@ import type { VectorDocument } from '../rag/IVectorStore.js';
 
 type QueryRouterResolvedConfig = Omit<
   Required<QueryRouterConfig>,
-  'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl'
+  | 'graphExpand'
+  | 'rerank'
+  | 'deepResearch'
+  | 'onClassification'
+  | 'onRetrieval'
+  | 'apiKey'
+  | 'baseUrl'
+  | 'githubRepos'
 > &
-  Pick<QueryRouterConfig, 'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl'>;
+  Pick<
+    QueryRouterConfig,
+    'graphExpand' | 'rerank' | 'deepResearch' | 'onClassification' | 'onRetrieval' | 'apiKey' | 'baseUrl' | 'githubRepos'
+  >;
 
 /** Regex for splitting markdown by h1-h3 headings. */
 const HEADING_REGEX = /^#{1,3}\s+(.+)/;
@@ -188,6 +199,9 @@ export class QueryRouter {
   async init(): Promise<void> {
     // 1. Load corpus chunks from the configured knowledge directories
     this.corpus = this.loadCorpus(this.config.knowledgeCorpus);
+    if (this.corpus.length === 0) {
+      throw new Error(this.buildEmptyCorpusError(this.config.knowledgeCorpus));
+    }
 
     // 2. Extract topics for the classifier's system prompt
     const topicExtractor = new TopicExtractor();
@@ -227,17 +241,125 @@ export class QueryRouter {
     // 7. Instantiate the dispatcher with callback dependencies
     this.dispatcher = new QueryDispatcher({
       vectorSearch: (query: string, topK: number) => this.vectorSearch(query, topK),
-      graphExpand: (seeds: RetrievedChunk[]) => this.graphExpand(seeds),
+      graphExpand: (seeds: RetrievedChunk[]) =>
+        this.config.graphExpand ? this.config.graphExpand(seeds) : this.graphExpand(seeds),
       rerank: (query: string, chunks: RetrievedChunk[], topN: number) =>
-        this.rerank(query, chunks, topN),
+        this.config.rerank
+          ? this.config.rerank(query, chunks, topN)
+          : this.rerank(query, chunks, topN),
       deepResearch: (query: string, sources: string[]) =>
-        this.deepResearch(query, sources),
+        this.config.deepResearch
+          ? this.config.deepResearch(query, sources)
+          : this.deepResearch(query, sources),
       emit: (event: QueryRouterEventUnion) => this.emit(event),
       graphEnabled: this.config.graphEnabled,
       deepResearchEnabled: this.config.deepResearchEnabled,
     });
 
     this.initialized = true;
+
+    // ----------------------------------------------------------------
+    // Background GitHub repo indexing (non-blocking)
+    // ----------------------------------------------------------------
+    // Runs after the router is fully initialized so that query routing
+    // is available immediately. Indexed chunks are merged into the
+    // corpus and the keyword fallback is rebuilt once complete.
+    const repoConfig = this.config.githubRepos ?? {};
+    const includeEcosystem = repoConfig.includeEcosystem ?? true;
+
+    if (includeEcosystem || (repoConfig.repos && repoConfig.repos.length > 0)) {
+      Promise.resolve().then(async () => {
+        try {
+          // Dynamic import to keep the dependency optional.
+          // The path is constructed at runtime via a variable to prevent
+          // bundlers (Vite/esbuild) from attempting static resolution of
+          // the deep subpath which is not in the package's exports map.
+          const ghSubpath = 'registry/curated/integrations/github/src';
+          const indexerMod = await import(
+            /* @vite-ignore */ `../../../../agentos-extensions/${ghSubpath}/GitHubRepoIndexer.js`
+          );
+          const { GitHubRepoIndexer } = indexerMod;
+
+          // GitHubService — create minimal instance for public API access
+          const serviceMod = await import(
+            /* @vite-ignore */ `../../../../agentos-extensions/${ghSubpath}/GitHubService.js`
+          );
+          const { GitHubService } = serviceMod;
+
+          const token = repoConfig.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+          const service = new GitHubService(token);
+          // initialize() creates the Octokit and validates auth.
+          // If the token is empty/invalid, Octokit is still created before
+          // the auth check throws, so public-only API access still works.
+          try { await service.initialize(); } catch { /* public-only mode */ }
+
+          const indexer = new GitHubRepoIndexer(service);
+
+          if (includeEcosystem) {
+            const results = await indexer.indexEcosystem();
+            const totalChunks = results.reduce((s, r) => s + r.chunks.length, 0);
+            for (const result of results) {
+              for (const chunk of result.chunks) {
+                this.corpus.push({ id: `gh_${this.corpus.length}`, ...chunk });
+              }
+              this.emit({
+                type: 'github:index:complete',
+                repo: result.repo,
+                chunksTotal: result.chunks.length,
+                durationMs: result.durationMs,
+                timestamp: Date.now(),
+              });
+            }
+            console.log(
+              `[QueryRouter] GitHub ecosystem indexed: ${results.length} repos, ${totalChunks} chunks`,
+            );
+          }
+
+          if (repoConfig.repos?.length) {
+            for (const { owner, repo } of repoConfig.repos) {
+              try {
+                const result = await indexer.indexRepo(owner, repo);
+                for (const chunk of result.chunks) {
+                  this.corpus.push({ id: `gh_${this.corpus.length}`, ...chunk });
+                }
+                this.emit({
+                  type: 'github:index:complete',
+                  repo: result.repo,
+                  chunksTotal: result.chunks.length,
+                  durationMs: result.durationMs,
+                  timestamp: Date.now(),
+                });
+              } catch (err) {
+                this.emit({
+                  type: 'github:index:error',
+                  repo: `${owner}/${repo}`,
+                  error: err instanceof Error ? err.message : String(err),
+                  timestamp: Date.now(),
+                });
+              }
+            }
+          }
+
+          // Rebuild keyword fallback with expanded corpus
+          const { KeywordFallback: KF } = await import('./KeywordFallback.js');
+          this.keywordFallback = new KF(this.corpus);
+
+          // Rebuild topic list for classifier
+          const { TopicExtractor: TE } = await import('./TopicExtractor.js');
+          const extractor = new TE();
+          const topics = extractor.extract(this.corpus);
+          this.topics = topics;
+          // Note: classifier topicList is set at init — this update won't affect
+          // the current classifier instance.
+          // Future improvement: allow classifier to refresh its topic list.
+
+        } catch (err) {
+          console.warn(
+            `[QueryRouter] GitHub indexing failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      });
+    }
   }
 
   /**
@@ -442,6 +564,45 @@ export class QueryRouter {
     this.initialized = false;
   }
 
+  /**
+   * Return lightweight corpus/index stats for observability and host startup
+   * logs.
+   *
+   * Useful after {@link init} so callers can confirm the router loaded a real
+   * corpus instead of only knowing that initialisation completed.
+   */
+  getCorpusStats(): QueryRouterCorpusStats {
+    const vectorActive = Boolean(this.embeddingManager && this.vectorStoreManager);
+    const graphRuntimeMode = this.config.graphEnabled
+      ? (this.hasLiveGraphRuntime() ? 'active' : this.hasHeuristicGraphRuntime() ? 'heuristic' : 'placeholder')
+      : 'disabled';
+    const deepResearchRuntimeMode = this.config.deepResearchEnabled
+      ? (this.hasLiveDeepResearchRuntime()
+          ? 'active'
+          : this.hasHeuristicDeepResearchRuntime()
+            ? 'heuristic'
+            : 'placeholder')
+      : 'disabled';
+    return {
+      initialized: this.initialized,
+      configuredPathCount: this.config.knowledgeCorpus.length,
+      chunkCount: this.corpus.length,
+      topicCount: this.topics.length,
+      sourceCount: new Set(this.corpus.map((chunk) => chunk.sourcePath)).size,
+      retrievalMode: vectorActive ? 'vector+keyword-fallback' : 'keyword-only',
+      embeddingDimension: vectorActive ? this.embeddingDimension : 0,
+      graphEnabled: this.config.graphEnabled,
+      deepResearchEnabled: this.config.deepResearchEnabled,
+      graphRuntimeMode,
+      rerankRuntimeMode: this.hasLiveRerankerRuntime()
+        ? 'active'
+        : this.hasHeuristicRerankerRuntime()
+          ? 'heuristic'
+          : 'placeholder',
+      deepResearchRuntimeMode,
+    };
+  }
+
   // ==========================================================================
   // PRIVATE — Corpus loading
   // ==========================================================================
@@ -495,6 +656,25 @@ export class QueryRouter {
     }
 
     return chunks;
+  }
+
+  /**
+   * Build a clear init-time error for empty or unreadable corpora.
+   *
+   * The router can technically operate with keyword fallback only, but it
+   * should not silently mark itself ready when no corpus content was loaded
+   * at all. Callers usually interpret a successful `init()` as "docs loaded".
+   *
+   * @param paths - Configured knowledge corpus directory paths.
+   * @returns Human-readable error message for throwing from {@link init}.
+   */
+  private buildEmptyCorpusError(paths: string[]): string {
+    return (
+      'QueryRouter init failed: no readable markdown corpus chunks were loaded. ' +
+      `Checked paths: ${paths.join(', ')}. ` +
+      'Make sure at least one configured directory exists and contains readable ' +
+      '.md or .mdx files with non-trivial section content.'
+    );
   }
 
   /**
@@ -776,6 +956,56 @@ export class QueryRouter {
     return KNOWN_DIMENSIONS[modelId] ?? 0;
   }
 
+  /**
+   * Whether graph expansion is backed by a live implementation.
+   *
+   * Today the core router still uses a placeholder `graphExpand()` path, so
+   * hosts should not treat `graphEnabled` as meaning GraphRAG is actually live.
+   */
+  private hasLiveGraphRuntime(): boolean {
+    return typeof this.config.graphExpand === 'function';
+  }
+
+  /**
+   * Whether graph expansion is backed by the built-in heuristic expansion.
+   */
+  private hasHeuristicGraphRuntime(): boolean {
+    return true;
+  }
+
+  /**
+   * Whether reranking is backed by a live implementation.
+   *
+   * Today the core router still uses a placeholder `rerank()` path.
+   */
+  private hasLiveRerankerRuntime(): boolean {
+    return typeof this.config.rerank === 'function';
+  }
+
+  /**
+   * Whether reranking is backed by the built-in lexical reranker.
+   */
+  private hasHeuristicRerankerRuntime(): boolean {
+    return true;
+  }
+
+  /**
+   * Whether deep research is backed by a live implementation.
+   *
+   * Today the core router still uses a placeholder `deepResearch()` path, so
+   * `deepResearchEnabled` only means the branch may be attempted by config.
+   */
+  private hasLiveDeepResearchRuntime(): boolean {
+    return typeof this.config.deepResearch === 'function';
+  }
+
+  /**
+   * Whether deep research is backed by the built-in corpus-only heuristic.
+   */
+  private hasHeuristicDeepResearchRuntime(): boolean {
+    return true;
+  }
+
   // ==========================================================================
   // PRIVATE — Retrieval callbacks (injected into QueryDispatcher)
   // ==========================================================================
@@ -861,53 +1091,193 @@ export class QueryRouter {
   /**
    * Graph expansion callback for the dispatcher.
    *
-   * Placeholder — returns empty array.
-   * // Follow-up: wire GraphRAGEngine
+   * Built-in heuristic graph expansion over the loaded corpus.
    *
-   * @param _seeds - Seed chunks to expand from (unused for now).
-   * @returns Promise resolving to an empty array.
+   * This is not yet a true GraphRAG engine. It expands from seed chunks by
+   * preferring:
+   * - chunks from the same source document
+   * - heading overlap with seed headings/content
+   * - content overlap with seed headings/content
+   *
+   * @param seeds - Seed chunks to expand from.
+   * @returns Promise resolving to related chunks marked as `graph`.
    */
-  private async graphExpand(_seeds: RetrievedChunk[]): Promise<RetrievedChunk[]> {
-    // Follow-up: wire GraphRAGEngine
-    return [];
+  private async graphExpand(seeds: RetrievedChunk[]): Promise<RetrievedChunk[]> {
+    if (seeds.length === 0 || this.corpus.length === 0) {
+      return [];
+    }
+
+    const seedIds = new Set(seeds.map((seed) => seed.id));
+    const seedSourcePaths = new Set(seeds.map((seed) => seed.sourcePath));
+    const seedTerms = new Set<string>();
+
+    for (const seed of seeds) {
+      for (const term of this.tokenizeForRerank(`${seed.heading} ${seed.content}`)) {
+        seedTerms.add(term);
+      }
+    }
+
+    const scored = this.corpus
+      .filter((chunk) => !seedIds.has(chunk.id))
+      .map((chunk, index) => {
+        const sameSourceBoost = seedSourcePaths.has(chunk.sourcePath) ? 0.48 : 0;
+        const headingOverlap = this.computeTermOverlap(
+          seedTerms,
+          this.tokenizeForRerank(chunk.heading),
+        );
+        const contentOverlap = this.computeTermOverlap(
+          seedTerms,
+          this.tokenizeForRerank(chunk.content),
+        );
+        const score = sameSourceBoost + headingOverlap * 0.32 + contentOverlap * 0.2;
+
+        return { chunk, index, score };
+      })
+      .filter((entry) => entry.score >= 0.18);
+
+    scored.sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      return left.index - right.index;
+    });
+
+    return scored.slice(0, 8).map(({ chunk, score }) => ({
+      id: chunk.id,
+      heading: chunk.heading,
+      content: chunk.content,
+      sourcePath: chunk.sourcePath,
+      relevanceScore: Math.min(0.99, score),
+      matchType: 'graph' as const,
+    }));
   }
 
   /**
    * Reranking callback for the dispatcher.
    *
-   * Placeholder — returns the first topN chunks without actual reranking.
-   * // Follow-up: wire RerankerService
+   * Built-in heuristic reranker.
    *
-   * @param _query - The user's query (unused for now).
+   * This is not yet a cross-encoder. It reorders candidate chunks by combining:
+   * - original retrieval score
+   * - heading term overlap
+   * - content term overlap
+   * - exact phrase containment
+   *
+   * This gives tier-2 routing a real second-pass ranking step today without
+   * pretending the deeper reranker service is already wired.
+   *
+   * @param query - The user's query.
    * @param chunks - Candidate chunks to rerank.
    * @param topN - Maximum number of chunks to keep.
-   * @returns Promise resolving to the first topN chunks.
+   * @returns Promise resolving to the best-ranked chunks.
    */
   private async rerank(
-    _query: string,
+    query: string,
     chunks: RetrievedChunk[],
     topN: number,
   ): Promise<RetrievedChunk[]> {
-    // Follow-up: wire RerankerService
-    return chunks.slice(0, topN);
+    if (chunks.length <= 1) {
+      return chunks.slice(0, topN);
+    }
+
+    const queryTerms = this.tokenizeForRerank(query);
+    const normalizedQuery = this.normalizeForRerank(query);
+
+    const scored = chunks.map((chunk, index) => {
+      const headingTerms = this.tokenizeForRerank(chunk.heading);
+      const contentTerms = this.tokenizeForRerank(chunk.content);
+      const headingOverlap = this.computeTermOverlap(queryTerms, headingTerms);
+      const contentOverlap = this.computeTermOverlap(queryTerms, contentTerms);
+      const normalizedText = this.normalizeForRerank(`${chunk.heading} ${chunk.content}`);
+      const exactPhraseBoost =
+        normalizedQuery.length >= 4 && normalizedText.includes(normalizedQuery) ? 0.2 : 0;
+      const score =
+        chunk.relevanceScore * 0.55 +
+        headingOverlap * 0.25 +
+        contentOverlap * 0.2 +
+        exactPhraseBoost;
+
+      return { chunk, index, score };
+    });
+
+    scored.sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      if (right.chunk.relevanceScore !== left.chunk.relevanceScore) {
+        return right.chunk.relevanceScore - left.chunk.relevanceScore;
+      }
+      return left.index - right.index;
+    });
+
+    return scored.slice(0, topN).map((entry) => entry.chunk);
   }
 
   /**
    * Deep research callback for the dispatcher.
    *
-   * Placeholder — returns empty synthesis and empty sources.
-   * // Follow-up: wire DeepResearchEngine
+   * Built-in corpus-only research heuristic.
    *
-   * @param _query - The user's query (unused for now).
-   * @param _sources - Source identifiers to consult (unused for now).
-   * @returns Promise resolving to empty synthesis and sources.
+   * This is not web-backed research. It runs a few local keyword-based passes
+   * over the loaded corpus using slightly different query formulations, merges
+   * the results, and returns a compact synthesis built from the top findings.
+   *
+   * @param query - The user's query.
+   * @param sources - Optional source hints used to broaden local matching.
+   * @returns Promise resolving to synthesized local-corpus findings.
    */
   private async deepResearch(
-    _query: string,
-    _sources: string[],
+    query: string,
+    sources: string[],
   ): Promise<{ synthesis: string; sources: RetrievedChunk[] }> {
-    // Follow-up: wire DeepResearchEngine
-    return { synthesis: '', sources: [] };
+    if (!this.keywordFallback || this.corpus.length === 0) {
+      return { synthesis: '', sources: [] };
+    }
+
+    const normalizedSourceHints = sources
+      .map((source) => this.normalizeForRerank(source))
+      .filter(Boolean);
+    const queryTerms = [...this.tokenizeForRerank(query)];
+    const narrowedTerms = queryTerms.slice(0, 4).join(' ');
+
+    const researchQueries = [
+      query,
+      [query, normalizedSourceHints.join(' ')].filter(Boolean).join(' ').trim(),
+      [query, 'architecture tradeoffs details'].join(' ').trim(),
+      narrowedTerms,
+    ].filter(Boolean);
+
+    const merged = new Map<string, RetrievedChunk>();
+
+    for (const researchQuery of researchQueries) {
+      const hits = this.keywordFallback.search(researchQuery, 4);
+      for (const hit of hits) {
+        const existing = merged.get(hit.id);
+        const researchChunk: RetrievedChunk = {
+          ...hit,
+          relevanceScore: Math.min(0.99, hit.relevanceScore),
+          matchType: 'research',
+        };
+
+        if (!existing || researchChunk.relevanceScore > existing.relevanceScore) {
+          merged.set(researchChunk.id, researchChunk);
+        }
+      }
+    }
+
+    const researchChunks = [...merged.values()]
+      .sort((left, right) => right.relevanceScore - left.relevanceScore)
+      .slice(0, 5);
+
+    if (researchChunks.length === 0) {
+      return { synthesis: '', sources: [] };
+    }
+
+    const synthesis = researchChunks
+      .map((chunk, index) => `${index + 1}. ${chunk.heading}: ${this.firstSentence(chunk.content)}`)
+      .join('\n');
+
+    return { synthesis, sources: researchChunks };
   }
 
   /**
@@ -915,6 +1285,81 @@ export class QueryRouter {
    */
   private formatToolList(availableTools: string[]): string {
     return availableTools.length > 0 ? availableTools.join(', ') : '(none available)';
+  }
+
+  /**
+   * Normalize text for simple lexical reranking.
+   */
+  private normalizeForRerank(text: string): string {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  /**
+   * Tokenize text for lexical reranking.
+   */
+  private tokenizeForRerank(text: string): Set<string> {
+    const STOP_WORDS = new Set([
+      'a',
+      'an',
+      'and',
+      'are',
+      'as',
+      'at',
+      'be',
+      'by',
+      'for',
+      'from',
+      'how',
+      'in',
+      'is',
+      'it',
+      'of',
+      'on',
+      'or',
+      'that',
+      'the',
+      'this',
+      'to',
+      'what',
+      'when',
+      'where',
+      'which',
+      'why',
+      'with',
+    ]);
+
+    return new Set(
+      this.normalizeForRerank(text)
+        .split(/\s+/)
+        .filter((term) => term.length >= 2 && !STOP_WORDS.has(term)),
+    );
+  }
+
+  /**
+   * Compute overlap ratio between query terms and candidate terms.
+   */
+  private computeTermOverlap(queryTerms: Set<string>, candidateTerms: Set<string>): number {
+    if (queryTerms.size === 0 || candidateTerms.size === 0) {
+      return 0;
+    }
+
+    let matches = 0;
+    for (const term of queryTerms) {
+      if (candidateTerms.has(term)) {
+        matches += 1;
+      }
+    }
+
+    return matches / queryTerms.size;
+  }
+
+  /**
+   * Extract a short first-sentence style summary from a chunk for synthesis.
+   */
+  private firstSentence(text: string): string {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    const sentence = normalized.match(/^(.{1,220}?[.!?])(?:\s|$)/);
+    return sentence?.[1] ?? normalized.slice(0, 220);
   }
 
   /**
