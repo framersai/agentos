@@ -129,6 +129,7 @@ beforeEach(() => {
     fullStream: (async function* () { yield { type: 'text', text: DEFAULT_RESULT.text }; })(),
     text: Promise.resolve(DEFAULT_RESULT.text),
     usage: Promise.resolve(DEFAULT_RESULT.usage),
+    agentCalls: Promise.resolve(DEFAULT_RESULT.agentCalls),
   });
 });
 
@@ -597,7 +598,7 @@ describe('Agency Full Integration', () => {
   // stream()
   // ---------------------------------------------------------------------------
 
-  it('stream() delegates to the compiled strategy', () => {
+  it('stream() delegates to the compiled strategy', async () => {
     const team = agency({
       agents: { a: mockAgentConfig('a') },
       strategy: 'sequential',
@@ -608,9 +609,33 @@ describe('Agency Full Integration', () => {
       textStream: AsyncIterable<string>;
     };
 
+    await streamResult.text;
+
     // The mock strategy stream is invoked and returns a valid object.
     expect(streamResult).toBeDefined();
     expect(hoisted.strategyStream).toHaveBeenCalledWith('stream test', undefined);
+  });
+
+  it('stream() appends the structured-output schema hint before streaming', async () => {
+    hoisted.strategyStream.mockClear();
+
+    const schema = {
+      parse: (v: unknown) => v,
+      shape: { score: {} },
+    };
+
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+      output: schema,
+    });
+
+    const streamResult = team.stream('Return JSON') as { text: Promise<string> };
+    await streamResult.text;
+
+    const calledPrompt = hoisted.strategyStream.mock.calls[0][0] as string;
+    expect(calledPrompt).toContain('Respond with valid JSON');
+    expect(calledPrompt).toContain('score');
   });
 
   it('stream textStream is iterable', async () => {
@@ -628,6 +653,68 @@ describe('Agency Full Integration', () => {
 
     expect(chunks.length).toBeGreaterThan(0);
     expect(chunks[0]).toBe(DEFAULT_RESULT.text);
+  });
+
+  it('stream() applies beforeReturn HITL modifications to the resolved text', async () => {
+    const approvalRequested = vi.fn();
+    const approvalDecided = vi.fn();
+    const agentEnd = vi.fn();
+
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+      hitl: {
+        approvals: { beforeReturn: true },
+        handler: async () => ({
+          approved: true,
+          modifications: { output: 'approved stream output' },
+        }),
+      },
+      on: { approvalRequested, approvalDecided, agentEnd },
+    });
+
+    const streamResult = team.stream('stream approval') as { text: Promise<string> };
+
+    await expect(streamResult.text).resolves.toBe('approved stream output');
+    expect(approvalRequested).toHaveBeenCalledOnce();
+    expect(approvalDecided).toHaveBeenCalledOnce();
+    expect(agentEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ output: 'approved stream output' }),
+    );
+  });
+
+  it('stream() exposes parsed output and aggregates usage once', async () => {
+    const jsonResult = '{"score":42}';
+    hoisted.strategyStream.mockReturnValueOnce({
+      textStream: (async function* () { yield jsonResult; })(),
+      fullStream: (async function* () { yield { type: 'text', text: jsonResult }; })(),
+      text: Promise.resolve(jsonResult),
+      usage: Promise.resolve(DEFAULT_USAGE),
+    });
+
+    const schema = {
+      parse: (v: unknown) => v,
+      shape: { score: {} },
+    };
+
+    const team = agency({
+      agents: { a: mockAgentConfig('a') },
+      strategy: 'sequential',
+      output: schema,
+    });
+
+    const streamResult = team.stream('stream structured') as unknown as {
+      text: Promise<string>;
+      usage: Promise<Record<string, unknown>>;
+      parsed: Promise<unknown>;
+    };
+
+    await expect(streamResult.text).resolves.toBe(jsonResult);
+    await expect(streamResult.parsed).resolves.toEqual({ score: 42 });
+    await expect(streamResult.usage).resolves.toEqual(DEFAULT_USAGE);
+
+    const usage = await team.usage() as Record<string, unknown>;
+    expect(usage.totalTokens).toBe(DEFAULT_USAGE.totalTokens);
   });
 
   // ---------------------------------------------------------------------------
@@ -1180,6 +1267,48 @@ describe('Agency Full Integration', () => {
       expect(chunks.join('')).toBe(DEFAULT_RESULT.text);
     });
 
+    it('stream() yields text chunks incrementally before completion', async () => {
+      let releaseSecondChunk!: () => void;
+      const secondChunkGate = new Promise<void>((resolve) => {
+        releaseSecondChunk = resolve;
+      });
+
+      hoisted.strategyStream.mockReturnValueOnce({
+        textStream: (async function* () {
+          yield 'first ';
+          await secondChunkGate;
+          yield 'second';
+        })(),
+        fullStream: (async function* () {
+          yield { type: 'text', text: 'first ' };
+          await secondChunkGate;
+          yield { type: 'text', text: 'second' };
+        })(),
+        text: (async () => {
+          await secondChunkGate;
+          return 'first second';
+        })(),
+        usage: Promise.resolve(DEFAULT_USAGE),
+        agentCalls: Promise.resolve(DEFAULT_RESULT.agentCalls),
+      });
+
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      const streamResult = team.stream('incremental stream') as {
+        textStream: AsyncIterable<string>;
+        text: Promise<string>;
+      };
+      const iterator = streamResult.textStream[Symbol.asyncIterator]();
+
+      await expect(iterator.next()).resolves.toEqual({ value: 'first ', done: false });
+      releaseSecondChunk();
+      await expect(iterator.next()).resolves.toEqual({ value: 'second', done: false });
+      await expect(streamResult.text).resolves.toBe('first second');
+    });
+
     it('stream() text promise resolves to the full text', async () => {
       const team = agency({
         agents: { worker: mockAgentConfig('worker') },
@@ -1189,6 +1318,94 @@ describe('Agency Full Integration', () => {
       const streamResult = team.stream('stream text') as { text: Promise<string> };
       const text = await streamResult.text;
       expect(text).toBe(DEFAULT_RESULT.text);
+    });
+
+    it('stream() exposes the finalized agentCalls ledger', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+      });
+
+      const streamResult = team.stream('stream ledger') as unknown as {
+        agentCalls: Promise<unknown>;
+      };
+
+      await expect(streamResult.agentCalls).resolves.toEqual(DEFAULT_RESULT.agentCalls);
+    });
+
+    it('stream() fullStream includes approval events and the finalized output event', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        hitl: {
+          approvals: { beforeReturn: true },
+          handler: async () => ({
+            approved: true,
+            modifications: { output: 'approved stream output' },
+          }),
+        },
+      });
+
+      const streamResult = team.stream('stream approval events') as {
+        fullStream: AsyncIterable<Record<string, unknown>>;
+        text: Promise<string>;
+      };
+
+      const parts: Array<Record<string, unknown>> = [];
+      for await (const part of streamResult.fullStream) {
+        parts.push(part);
+      }
+
+      await expect(streamResult.text).resolves.toBe('approved stream output');
+      expect(parts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'approval-requested' }),
+          expect.objectContaining({ type: 'approval-decided', approved: true }),
+          expect.objectContaining({
+            type: 'final-output',
+            text: 'approved stream output',
+            usage: DEFAULT_USAGE,
+            agentCalls: DEFAULT_RESULT.agentCalls,
+          }),
+          expect.objectContaining({
+            type: 'agent-end',
+            agent: '__agency__',
+            output: 'approved stream output',
+          }),
+        ]),
+      );
+    });
+
+    it('stream() exposes finalTextStream with only the finalized approved text', async () => {
+      const team = agency({
+        agents: { worker: mockAgentConfig('worker') },
+        strategy: 'sequential',
+        hitl: {
+          approvals: { beforeReturn: true },
+          handler: async () => ({
+            approved: true,
+            modifications: { output: 'approved stream output' },
+          }),
+        },
+      });
+
+      const streamResult = team.stream('stream finalized text') as unknown as {
+        textStream: AsyncIterable<string>;
+        finalTextStream: AsyncIterable<string>;
+      };
+
+      const rawChunks: string[] = [];
+      for await (const chunk of streamResult.textStream) {
+        rawChunks.push(chunk);
+      }
+
+      const finalizedChunks: string[] = [];
+      for await (const chunk of streamResult.finalTextStream) {
+        finalizedChunks.push(chunk);
+      }
+
+      expect(rawChunks.join('')).toBe(DEFAULT_RESULT.text);
+      expect(finalizedChunks).toEqual(['approved stream output']);
     });
   });
 
@@ -1214,7 +1431,8 @@ describe('Agency Full Integration', () => {
       await session.send('First turn');
 
       // Second turn via stream() — should include the prior history in the prompt.
-      session.stream('Second turn via stream');
+      const result = session.stream('Second turn via stream') as { text: Promise<string> };
+      await result.text;
 
       // The strategy stream should have been called with the history-prefixed prompt.
       expect(hoisted.strategyStream).toHaveBeenCalledWith(
@@ -1242,20 +1460,53 @@ describe('Agency Full Integration', () => {
       expect(chunks.join('')).toBe(DEFAULT_RESULT.text);
     });
 
-    it('session.stream() does not lose history on first call with empty history', () => {
+    it('session.stream() stores the finalized assistant text and session usage', async () => {
+      const team = agency({
+        agents: { a: mockAgentConfig('a') },
+        strategy: 'sequential',
+        hitl: {
+          approvals: { beforeReturn: true },
+          handler: async () => ({
+            approved: true,
+            modifications: { output: 'approved session reply' },
+          }),
+        },
+      });
+
+      const session = team.session('stream-finalized-history') as {
+        stream: (t: string) => { text: Promise<string> };
+        messages: () => Array<{ role: 'user' | 'assistant'; content: string }>;
+        usage: () => Promise<Record<string, unknown>>;
+      };
+
+      const result = session.stream('Hello with approvals');
+      await expect(result.text).resolves.toBe('approved session reply');
+      await Promise.resolve();
+
+      expect(session.messages()).toEqual([
+        { role: 'user', content: 'Hello with approvals' },
+        { role: 'assistant', content: 'approved session reply' },
+      ]);
+
+      const usage = await session.usage();
+      expect(usage.totalTokens).toBe(DEFAULT_USAGE.totalTokens);
+    });
+
+    it('session.stream() does not lose history on first call with empty history', async () => {
       const team = agency({
         agents: { a: mockAgentConfig('a') },
         strategy: 'sequential',
       });
 
       const session = team.session('stream-empty-history') as {
-        stream: (t: string) => unknown;
+        stream: (t: string) => { text: Promise<string> };
       };
 
       hoisted.strategyStream.mockClear();
 
       // When history is empty, the plain text should be passed through unchanged.
-      session.stream('Plain prompt');
+      const result = session.stream('Plain prompt');
+      await result.text;
 
       expect(hoisted.strategyStream).toHaveBeenCalledWith('Plain prompt', undefined);
     });

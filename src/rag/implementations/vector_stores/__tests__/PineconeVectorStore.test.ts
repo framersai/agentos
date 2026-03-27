@@ -45,7 +45,7 @@ function errResponse(status: number, body: string) {
   };
 }
 
-const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+const mockFetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
   fetchCalls.push({ url, init: init ?? {} });
   if (fetchResponseQueue.length > 0) return fetchResponseQueue.shift()!;
@@ -173,8 +173,8 @@ describe('PineconeVectorStore', () => {
       expect(body.vectors[0].values).toEqual([0.1, 0.2, 0.3, 0.4]);
       expect(body.vectors[0].metadata).toEqual({ topic: 'ai' });
 
-      expect(result.successCount).toBe(2);
-      expect(result.failedIds).toEqual([]);
+      expect(result.upsertedCount).toBe(2);
+      expect(result.failedCount).toBe(0);
     });
 
     it('splits into batches of 100', async () => {
@@ -200,7 +200,7 @@ describe('PineconeVectorStore', () => {
       expect(parseFetchBody(fetchCalls[0]).vectors.length).toBe(100);
       expect(parseFetchBody(fetchCalls[1]).vectors.length).toBe(100);
       expect(parseFetchBody(fetchCalls[2]).vectors.length).toBe(50);
-      expect(result.successCount).toBe(250);
+      expect(result.upsertedCount).toBe(250);
     });
 
     it('tracks failed batches', async () => {
@@ -216,8 +216,8 @@ describe('PineconeVectorStore', () => {
         { id: 'f2', embedding: [5, 6, 7, 8] },
       ]);
 
-      expect(result.successCount).toBe(0);
-      expect(result.failedIds).toEqual(['f1', 'f2']);
+      expect(result.upsertedCount).toBe(0);
+      expect(result.failedCount).toBe(2);
     });
   });
 
@@ -287,7 +287,7 @@ describe('PineconeVectorStore', () => {
       resetMocks();
 
       fetchResponseQueue.push(okJson({}));
-      const result = await store.delete('ns', { ids: ['a', 'b', 'c'] });
+      const result = await store.delete('ns', ['a', 'b', 'c']);
 
       const body = parseFetchBody(fetchCalls[0]);
       expect(body.ids).toEqual(['a', 'b', 'c']);
@@ -302,7 +302,7 @@ describe('PineconeVectorStore', () => {
       resetMocks();
 
       fetchResponseQueue.push(okJson({}));
-      const result = await store.delete('ns', { deleteAll: true });
+      const result = await store.delete('ns', undefined, { deleteAll: true });
 
       const body = parseFetchBody(fetchCalls[0]);
       expect(body.deleteAll).toBe(true);
@@ -315,7 +315,7 @@ describe('PineconeVectorStore', () => {
       await store.initialize();
       resetMocks();
 
-      const result = await store.delete('ns', {});
+      const result = await store.delete('ns', []);
       expect(result.deletedCount).toBe(0);
       expect(fetchCalls.length).toBe(0);
     });

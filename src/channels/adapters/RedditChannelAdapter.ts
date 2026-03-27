@@ -434,13 +434,13 @@ export class RedditChannelAdapter extends BaseChannelAdapter<RedditAuthParams> {
       throw new Error(`Reddit OAuth2 authentication failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as Record<string, unknown>;
     if (data.error) {
       throw new Error(`Reddit OAuth2 error: ${data.error}`);
     }
 
-    this.accessToken = data.access_token;
-    this.tokenExpiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
+    this.accessToken = data.access_token as string;
+    this.tokenExpiresAt = Date.now() + ((data.expires_in as number) ?? 3600) * 1000;
 
     // Fetch authenticated user info
     const meResponse = await this.redditApiRequest('GET', '/api/v1/me');

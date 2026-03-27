@@ -1,4 +1,5 @@
 // backend/agentos/core/audio/EnvironmentalCalibrator.ts
+/// <reference lib="dom" />
 
 import { EventEmitter } from 'events';
 

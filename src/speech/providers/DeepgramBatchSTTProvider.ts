@@ -276,7 +276,7 @@ export class DeepgramBatchSTTProvider implements SpeechToTextProvider {
       },
       // Cast needed because SpeechAudioInput.data is typed as Buffer but
       // fetch expects BodyInit (Blob | ArrayBuffer | string | etc.)
-      body: audio.data as unknown as BodyInit,
+      body: audio.data as any,
     });
 
     if (!response.ok) {

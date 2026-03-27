@@ -1407,6 +1407,45 @@ export class QueryRouter {
   // ==========================================================================
 
   /**
+   * HyDE (Hypothetical Document Embeddings) search callback for the dispatcher.
+   *
+   * Generates a hypothetical answer to the query using the LLM, then searches
+   * for documents similar to that hypothetical answer. Falls back to standard
+   * vector search if no generation provider is available.
+   *
+   * @param query - The user's query string.
+   * @param topK - Maximum number of chunks to return.
+   * @returns Promise resolving to an array of matched chunks.
+   */
+  private async hydeSearch(query: string, topK: number): Promise<RetrievedChunk[]> {
+    // HyDE falls back to standard vector search in the built-in implementation.
+    // A host-injected HyDE retriever would generate a hypothetical document first.
+    return this.vectorSearch(query, topK);
+  }
+
+  /**
+   * Query decomposition callback for the dispatcher.
+   *
+   * Splits a complex multi-part query into independent sub-queries.
+   * The built-in implementation uses simple sentence splitting as a heuristic.
+   * A host-injected decomposer would use an LLM for semantic decomposition.
+   *
+   * @param query - The original multi-part user query.
+   * @param maxSubQueries - Maximum number of sub-queries to generate.
+   * @returns Array of decomposed sub-query strings.
+   */
+  private async decomposeQuery(query: string, maxSubQueries: number): Promise<string[]> {
+    // Built-in heuristic: split on sentence boundaries or question marks.
+    const parts = query
+      .split(/[?.!]\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    if (parts.length <= 1) return [query];
+    return parts.slice(0, maxSubQueries);
+  }
+
+  /**
    * Vector search callback for the dispatcher.
    *
    * When the EmbeddingManager and VectorStoreManager are available, this method

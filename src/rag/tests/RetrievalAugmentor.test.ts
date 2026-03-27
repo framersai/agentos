@@ -6,6 +6,7 @@ import { RetrievalAugmentorServiceConfig } from '../../config/RetrievalAugmentor
 import { IEmbeddingManager } from '../IEmbeddingManager';
 import { IVectorStoreManager } from '../IVectorStoreManager';
 import { IVectorStore } from '../IVectorStore';
+import type { HydeLlmCaller } from '../HydeRetriever';
 
 const mockEmbeddingManager: IEmbeddingManager = {
   initialize: vi.fn().mockResolvedValue(undefined),
@@ -307,14 +308,14 @@ describe('RetrievalAugmentor registerRerankerProvider', () => {
 
 describe('RetrievalAugmentor HyDE integration', () => {
   let augmentor: RetrievalAugmentor;
-  let mockHydeLlmCaller: ReturnType<typeof vi.fn>;
+  let mockHydeLlmCaller: HydeLlmCaller;
 
   beforeEach(async () => {
     vi.clearAllMocks();
 
-    mockHydeLlmCaller = vi.fn().mockResolvedValue(
+    mockHydeLlmCaller = vi.fn<[string, string], Promise<string>>().mockResolvedValue(
       'Hypothetical answer about test content that matches stored documents.',
-    );
+    ) as unknown as HydeLlmCaller;
 
     augmentor = new RetrievalAugmentor();
     await augmentor.initialize(mockConfig, mockEmbeddingManager, mockVectorStoreManager);

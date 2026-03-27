@@ -136,7 +136,7 @@ export class MultiRegistryLoader {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      return await response.json();
+      return await response.json() as ExtensionPack;
     } catch (error) {
       console.error(`Failed to load from GitHub: ${source.location}`, error);
       return null;
@@ -186,7 +186,7 @@ export class MultiRegistryLoader {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      return await response.json();
+      return await response.json() as ExtensionPack;
     } catch (error) {
       console.error(`Failed to load from URL: ${source.location}`, error);
       return null;

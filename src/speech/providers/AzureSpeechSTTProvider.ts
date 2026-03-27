@@ -246,7 +246,7 @@ export class AzureSpeechSTTProvider implements SpeechToTextProvider {
         // Hardcoded to audio/wav because Azure's REST endpoint requires WAV format
         'Content-Type': 'audio/wav',
       },
-      body: audio.data as unknown as BodyInit,
+      body: audio.data as any,
     });
 
     if (!response.ok) {

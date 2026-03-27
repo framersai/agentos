@@ -146,7 +146,7 @@ describe('PostgresVectorStore', () => {
       await store.initialize();
       resetMocks();
 
-      await store.createCollection('my_docs', { dimension: 4, similarityMetric: 'cosine' });
+      await store.createCollection('my_docs', 4, { similarityMetric: 'cosine' });
 
       // Should have: CREATE TABLE, CREATE INDEX (hnsw), CREATE INDEX (gin metadata),
       // ALTER TABLE (tsvector), CREATE INDEX (fts), INSERT into _collections.
@@ -179,7 +179,7 @@ describe('PostgresVectorStore', () => {
       await store.initialize();
       resetMocks();
 
-      await store.createCollection('l2_coll', { dimension: 4, similarityMetric: 'euclidean' });
+      await store.createCollection('l2_coll', 4, { similarityMetric: 'euclidean' });
       const hnswIdx = queryCalls.find(c => c.sql.includes('hnsw') && c.sql.includes('vector_l2_ops'));
       expect(hnswIdx).toBeDefined();
     });
@@ -189,7 +189,7 @@ describe('PostgresVectorStore', () => {
       await store.initialize();
       resetMocks();
 
-      await store.createCollection('ip_coll', { dimension: 4, similarityMetric: 'dotproduct' });
+      await store.createCollection('ip_coll', 4, { similarityMetric: 'dotproduct' });
       const hnswIdx = queryCalls.find(c => c.sql.includes('hnsw') && c.sql.includes('vector_ip_ops'));
       expect(hnswIdx).toBeDefined();
     });
@@ -229,8 +229,8 @@ describe('PostgresVectorStore', () => {
       expect(inserts[0].params![3]).toBe('hello world');
 
       // Result counts.
-      expect(result.successCount).toBe(2);
-      expect(result.failedIds).toEqual([]);
+      expect(result.upsertedCount).toBe(2);
+      expect(result.failedCount).toBe(0);
     });
 
     it('rolls back on error', async () => {
@@ -381,7 +381,7 @@ describe('PostgresVectorStore', () => {
       resetMocks();
       nextQueryResult = { rows: [], rowCount: 2 };
 
-      const result = await store.delete('my_docs', { ids: ['a', 'b'] });
+      const result = await store.delete('my_docs', ['a', 'b']);
 
       const delCall = queryCalls.find(c => c.sql.includes('DELETE FROM') && c.sql.includes('IN'));
       expect(delCall).toBeDefined();
@@ -395,7 +395,7 @@ describe('PostgresVectorStore', () => {
       resetMocks();
       nextQueryResult = { rows: [], rowCount: 50 };
 
-      const result = await store.delete('my_docs', { deleteAll: true });
+      const result = await store.delete('my_docs', undefined, { deleteAll: true });
 
       const delCall = queryCalls.find(c => c.sql.includes('DELETE FROM') && !c.sql.includes('IN'));
       expect(delCall).toBeDefined();
@@ -407,7 +407,7 @@ describe('PostgresVectorStore', () => {
       await store.initialize();
       resetMocks();
 
-      const result = await store.delete('my_docs', {});
+      const result = await store.delete('my_docs', []);
       expect(result.deletedCount).toBe(0);
     });
   });

@@ -99,13 +99,13 @@ function generateChunks(count: number): RaptorInputChunk[] {
 describe('RaptorTree', () => {
   let embeddingManager: ReturnType<typeof createMockEmbeddingManager>;
   let vectorStore: ReturnType<typeof createMockVectorStore>;
-  let llmCaller: ReturnType<typeof vi.fn>;
+  let llmCaller: ReturnType<typeof vi.fn<[string], Promise<string>>>;
 
   beforeEach(() => {
     upsertedDocs = [];
     embeddingManager = createMockEmbeddingManager();
     vectorStore = createMockVectorStore();
-    llmCaller = vi.fn().mockImplementation(async (prompt: string) => {
+    llmCaller = vi.fn<[string], Promise<string>>(async (_prompt: string): Promise<string> => {
       return `Summary: This section covers multiple topics including implementation details and best practices. Key themes include software architecture patterns and deployment considerations.`;
     });
   });

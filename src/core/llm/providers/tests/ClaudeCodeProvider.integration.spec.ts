@@ -12,14 +12,19 @@ import { ClaudeCodeCLIBridge } from '../implementations/ClaudeCodeCLIBridge';
 const SKIP = process.env.SKIP_CLI_INTEGRATION === '1' || process.env.CI === 'true';
 
 describe.skipIf(SKIP)('ClaudeCodeProvider integration', () => {
-  let provider: ClaudeCodeProvider;
+  let provider: ClaudeCodeProvider | undefined;
 
   beforeAll(async () => {
     /* Pre-flight: ensure CLI is available */
     const bridge = new ClaudeCodeCLIBridge();
-    const check = await bridge.checkInstalled();
+    const check = await bridge.checkBinaryInstalled();
     if (!check.installed) {
       console.warn('Skipping integration tests: Claude Code CLI not installed');
+      return;
+    }
+    const authenticated = await bridge.checkAuthenticated();
+    if (!authenticated) {
+      console.warn('Skipping integration tests: Claude Code CLI is not authenticated');
       return;
     }
 
@@ -28,6 +33,7 @@ describe.skipIf(SKIP)('ClaudeCodeProvider integration', () => {
   });
 
   it('generates a text completion', async () => {
+    if (!provider) return;
     const response = await provider.generateCompletion(
       'claude-haiku-4-5-20251001',
       [{ role: 'user', content: 'Reply with exactly: hello' }],
@@ -36,12 +42,13 @@ describe.skipIf(SKIP)('ClaudeCodeProvider integration', () => {
 
     expect(response.choices).toHaveLength(1);
     expect(response.choices[0].message.role).toBe('assistant');
-    expect(response.choices[0].message.content?.toLowerCase()).toContain('hello');
+    expect((response.choices[0].message.content as string)?.toLowerCase()).toContain('hello');
     expect(response.choices[0].finishReason).toBe('stop');
     expect(response.usage?.costUSD).toBe(0);
   }, 30_000);
 
   it('streams a text completion', async () => {
+    if (!provider) return;
     const chunks: any[] = [];
     for await (const chunk of provider.generateCompletionStream(
       'claude-haiku-4-5-20251001',
@@ -58,6 +65,7 @@ describe.skipIf(SKIP)('ClaudeCodeProvider integration', () => {
   }, 30_000);
 
   it('handles tool calling via --json-schema', async () => {
+    if (!provider) return;
     const tools = [{
       type: 'function' as const,
       function: {
@@ -87,6 +95,7 @@ describe.skipIf(SKIP)('ClaudeCodeProvider integration', () => {
   }, 30_000);
 
   it('checkHealth() returns healthy with details', async () => {
+    if (!provider) return;
     const health = await provider.checkHealth();
     expect(health.isHealthy).toBe(true);
     expect((health.details as any).cliInstalled).toBe(true);
@@ -95,6 +104,7 @@ describe.skipIf(SKIP)('ClaudeCodeProvider integration', () => {
   });
 
   it('listAvailableModels() returns 3 Claude models', async () => {
+    if (!provider) return;
     const models = await provider.listAvailableModels();
     expect(models).toHaveLength(3);
     expect(models.every(m => m.pricePer1MTokensInput === 0)).toBe(true);

@@ -1,4 +1,5 @@
 // backend/agentos/core/audio/AudioProcessor.ts
+/// <reference lib="dom" />
 /**
  * @fileoverview Main audio processing pipeline with environmental adaptation using Web Audio APIs.
  * This component is intended for client-side execution in a web browser.

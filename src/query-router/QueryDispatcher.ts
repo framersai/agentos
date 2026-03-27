@@ -519,8 +519,7 @@ export class QueryDispatcher {
         graphChunks = await this.deps.graphExpand(allChunks);
         this.deps.emit({
           type: 'retrieve:graph',
-          seedCount: allChunks.length,
-          expandedCount: graphChunks.length,
+          entityCount: graphChunks.length,
           durationMs: 0,
           timestamp: Date.now(),
         });

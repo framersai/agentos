@@ -124,7 +124,7 @@ describe('QueryRouter', () => {
     mockExistsSync.mockReturnValue(true);
     mockReaddirSync.mockReturnValue([
       { name: 'pricing.md', isDirectory: () => false, isFile: () => true },
-    ] as ReturnType<typeof readdirSync>);
+    ] as unknown as ReturnType<typeof readdirSync>);
     mockReadFileSync.mockReturnValue(
       '# Pricing\n\nStarts at $19/month for the Starter plan.'
     );

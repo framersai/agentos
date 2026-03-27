@@ -6,12 +6,12 @@ import type { VisionResult } from '../../core/vision/types.js';
 // Mock the createVisionPipeline factory so we never instantiate real ML models
 // ---------------------------------------------------------------------------
 
-const mockProcess = vi.fn<(image: Buffer) => Promise<VisionResult>>();
-const mockDispose = vi.fn<() => Promise<void>>();
+const mockProcess = vi.fn<[Buffer], Promise<VisionResult>>();
+const mockDispose = vi.fn<[], Promise<void>>();
 
 vi.mock('../../core/vision/index.js', () => ({
   createVisionPipeline: vi.fn().mockResolvedValue({
-    process: (...args: Parameters<typeof mockProcess>) => mockProcess(...args),
+    process: (image: Buffer) => mockProcess(image),
     dispose: () => mockDispose(),
   }),
 }));

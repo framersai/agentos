@@ -1,12 +1,26 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+
+const hoisted = vi.hoisted(() => ({
+  spawnSync: vi.fn((_cmd: string, _args?: string[]) => ({ status: 1 })),
+}));
+
+vi.mock('node:child_process', () => ({
+  spawnSync: hoisted.spawnSync,
+}));
+
 import { PROVIDER_DEFAULTS, autoDetectProvider } from '../provider-defaults.js';
-import { resolveModelOption } from '../model.js';
+import { resolveModelOption, resolveProvider } from '../model.js';
 
 describe('PROVIDER_DEFAULTS', () => {
   it('has text model for all major providers', () => {
     for (const id of ['openai', 'anthropic', 'ollama', 'openrouter', 'gemini']) {
       expect(PROVIDER_DEFAULTS[id]?.text).toBeDefined();
     }
+  });
+
+  it('includes CLI providers with text defaults', () => {
+    expect(PROVIDER_DEFAULTS['claude-code-cli']?.text).toBe('claude-sonnet-4-20250514');
+    expect(PROVIDER_DEFAULTS['gemini-cli']?.text).toBe('gemini-2.5-flash');
   });
 
   it('has image model for image providers', () => {
@@ -20,12 +34,19 @@ describe('autoDetectProvider', () => {
   const origEnv = { ...process.env };
 
   afterEach(() => {
+    hoisted.spawnSync.mockReset();
+    hoisted.spawnSync.mockReturnValue({ status: 1 });
+
     // Restore env after each test
     for (const key of [
+      'OPENROUTER_API_KEY',
       'OPENAI_API_KEY',
       'ANTHROPIC_API_KEY',
-      'OPENROUTER_API_KEY',
       'GEMINI_API_KEY',
+      'GROQ_API_KEY',
+      'TOGETHER_API_KEY',
+      'MISTRAL_API_KEY',
+      'XAI_API_KEY',
       'OLLAMA_BASE_URL',
       'STABILITY_API_KEY',
       'REPLICATE_API_TOKEN',
@@ -45,6 +66,12 @@ describe('autoDetectProvider', () => {
     expect(autoDetectProvider()).toBe('openai');
   });
 
+  it('prefers openrouter over openai when both are set', () => {
+    process.env.OPENROUTER_API_KEY = 'or-test';
+    process.env.OPENAI_API_KEY = 'openai-test';
+    expect(autoDetectProvider()).toBe('openrouter');
+  });
+
   it('detects anthropic from ANTHROPIC_API_KEY', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
@@ -52,15 +79,46 @@ describe('autoDetectProvider', () => {
     expect(autoDetectProvider()).toBe('anthropic');
   });
 
+  it('skips providers without image defaults when detecting for image tasks', () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'anthropic-test';
+    process.env.STABILITY_API_KEY = 'stability-test';
+
+    expect(autoDetectProvider('image')).toBe('stability');
+  });
+
   it('returns undefined when no keys set', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
     delete process.env.GEMINI_API_KEY;
+    delete process.env.GROQ_API_KEY;
+    delete process.env.TOGETHER_API_KEY;
+    delete process.env.MISTRAL_API_KEY;
+    delete process.env.XAI_API_KEY;
     delete process.env.OLLAMA_BASE_URL;
     delete process.env.STABILITY_API_KEY;
     delete process.env.REPLICATE_API_TOKEN;
     expect(autoDetectProvider()).toBeUndefined();
+  });
+
+  it('detects claude-code-cli from PATH when no API-key provider is configured', () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GROQ_API_KEY;
+    delete process.env.TOGETHER_API_KEY;
+    delete process.env.MISTRAL_API_KEY;
+    delete process.env.XAI_API_KEY;
+    delete process.env.OLLAMA_BASE_URL;
+
+    hoisted.spawnSync.mockImplementation((_cmd: string, args?: string[]) => ({
+      status: args?.[0] === 'claude' ? 0 : 1,
+    }));
+
+    expect(autoDetectProvider()).toBe('claude-code-cli');
   });
 });
 
@@ -85,6 +143,11 @@ describe('resolveModelOption', () => {
     expect(result).toEqual({ providerId: 'stability', modelId: 'stable-diffusion-xl-1024-v1-0' });
   });
 
+  it('resolves provider-only for Claude Code CLI', () => {
+    const result = resolveModelOption({ provider: 'claude-code-cli' }, 'text');
+    expect(result).toEqual({ providerId: 'claude-code-cli', modelId: 'claude-sonnet-4-20250514' });
+  });
+
   it('throws for unknown provider', () => {
     expect(() => resolveModelOption({ provider: 'nonexistent' }, 'text')).toThrow(/unknown provider/i);
   });
@@ -107,5 +170,44 @@ describe('resolveModelOption', () => {
         if (saved[k] !== undefined) process.env[k] = saved[k];
       }
     }
+  });
+
+  it('uses task-aware auto-detection for plain image model names', () => {
+    const saved = {
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      STABILITY_API_KEY: process.env.STABILITY_API_KEY,
+    };
+
+    process.env.ANTHROPIC_API_KEY = 'anthropic-test';
+    process.env.STABILITY_API_KEY = 'stability-test';
+
+    try {
+      expect(resolveModelOption({ model: 'stable-image-core' }, 'image')).toEqual({
+        providerId: 'stability',
+        modelId: 'stable-image-core',
+      });
+    } finally {
+      if (saved.ANTHROPIC_API_KEY === undefined) {
+        delete process.env.ANTHROPIC_API_KEY;
+      } else {
+        process.env.ANTHROPIC_API_KEY = saved.ANTHROPIC_API_KEY;
+      }
+      if (saved.STABILITY_API_KEY === undefined) {
+        delete process.env.STABILITY_API_KEY;
+      } else {
+        process.env.STABILITY_API_KEY = saved.STABILITY_API_KEY;
+      }
+    }
+  });
+
+  it('resolves CLI providers without requiring API keys', () => {
+    expect(resolveProvider('claude-code-cli', 'claude-sonnet-4-20250514')).toEqual({
+      providerId: 'claude-code-cli',
+      modelId: 'claude-sonnet-4-20250514',
+    });
+    expect(resolveProvider('gemini-cli', 'gemini-2.5-flash')).toEqual({
+      providerId: 'gemini-cli',
+      modelId: 'gemini-2.5-flash',
+    });
   });
 });

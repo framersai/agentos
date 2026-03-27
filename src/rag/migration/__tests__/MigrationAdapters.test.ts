@@ -73,7 +73,7 @@ function errResponse(status: number) {
   };
 }
 
-const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+const mockFetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
   fetchCalls.push({ url, init: init ?? {} });
   if (fetchResponseQueue.length > 0) return fetchResponseQueue.shift()!;

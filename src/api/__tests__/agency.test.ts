@@ -8,7 +8,7 @@
  * so that aggregation and chaining logic can be verified precisely.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Agent, AgentCallRecord, AgencyOptions, BaseAgentConfig } from '../types.js';
+import type { Agent, AgentStreamResult, AgentCallRecord, AgencyOptions, BaseAgentConfig } from '../types.js';
 import { AgencyConfigError } from '../types.js';
 
 /* ------------------------------------------------------------------ */
@@ -40,6 +40,7 @@ import { compileDebate } from '../strategies/debate.js';
 import { compileReviewLoop } from '../strategies/review-loop.js';
 import { compileHierarchical } from '../strategies/hierarchical.js';
 import { compileStrategy, isAgent, mergeDefaults } from '../strategies/index.js';
+import { agency } from '../agency.js';
 
 /* ------------------------------------------------------------------ */
 /* Helper: create a mock pre-built Agent                               */
@@ -85,6 +86,27 @@ function mockAgentSequence(
   return {
     generate: gen,
     stream: vi.fn(),
+    session: vi.fn(),
+    usage: vi.fn().mockResolvedValue({}),
+    close: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function mockStreamingAgent(text: string): Agent {
+  return {
+    generate: vi.fn().mockResolvedValue({
+      text,
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      toolCalls: [],
+    }),
+    stream: vi.fn((() => ({
+      textStream: (async function* () {
+        yield text;
+      })(),
+      fullStream: (async function* () {
+        yield { type: 'text' as const, text };
+      })(),
+    })) as unknown as () => AgentStreamResult),
     session: vi.fn(),
     usage: vi.fn().mockResolvedValue({}),
     close: vi.fn().mockResolvedValue(undefined),
@@ -373,10 +395,65 @@ describe('Sequential Strategy', () => {
     const streamResult = strategy.stream('task') as {
       textStream: AsyncIterable<string>;
       text: Promise<string>;
+      usage: Promise<{ promptTokens: number; completionTokens: number; totalTokens: number }>;
+      agentCalls: Promise<AgentCallRecord[]>;
     };
 
     const text = await streamResult.text;
     expect(text).toBe('streamed text');
+    await expect(streamResult.usage).resolves.toEqual({
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: 15,
+    });
+    await expect(streamResult.agentCalls).resolves.toMatchObject([
+      { agent: 'a', output: 'streamed text' },
+    ]);
+  });
+
+  it('streams sequential text incrementally before completion', async () => {
+    let releaseSecondChunk!: () => void;
+    const secondChunkGate = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+
+    const streamingAgent: Agent = {
+      generate: vi.fn(),
+      stream: vi.fn(() => ({
+        textStream: (async function* () {
+          yield 'first ';
+          await secondChunkGate;
+          yield 'second';
+        })(),
+        fullStream: (async function* () {
+          yield { type: 'text' as const, text: 'first ' };
+          await secondChunkGate;
+          yield { type: 'text' as const, text: 'second' };
+        })(),
+        text: (async () => {
+          await secondChunkGate;
+          return 'first second';
+        })(),
+        usage: Promise.resolve({ promptTokens: 2, completionTokens: 1, totalTokens: 3 }),
+        toolCalls: Promise.resolve([]),
+      })),
+      session: vi.fn(),
+      usage: vi.fn().mockResolvedValue({}),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const agencyConfig = { agents: { a: streamingAgent } } as AgencyOptions;
+    const strategy = compileSequential({ a: streamingAgent }, agencyConfig);
+    const streamResult = strategy.stream('task') as {
+      textStream: AsyncIterable<string>;
+      text: Promise<string>;
+    };
+    const iterator = streamResult.textStream[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toEqual({ value: 'first ', done: false });
+    releaseSecondChunk();
+    await expect(iterator.next()).resolves.toEqual({ value: 'second', done: false });
+    await expect(streamResult.text).resolves.toBe('first second');
   });
 });
 
@@ -1142,6 +1219,46 @@ describe('Hierarchical Strategy', () => {
 
     const text = await streamResult.text;
     expect(text).toBe('hierarchical stream');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Agency stream normalization                                         */
+/* ------------------------------------------------------------------ */
+
+describe('agency() stream normalization', () => {
+  it('normalizes graph streams that do not expose text or usage promises', async () => {
+    const team = agency({
+      strategy: 'graph',
+      agents: {
+        a: mockStreamingAgent('A'),
+        b: mockStreamingAgent('B'),
+      },
+    });
+
+    const result = team.stream('task') as unknown as {
+      text: Promise<string>;
+      usage: Promise<Record<string, unknown>>;
+      agentCalls: Promise<AgentCallRecord[]>;
+      textStream: AsyncIterable<string>;
+    };
+
+    const chunks: string[] = [];
+    for await (const chunk of result.textStream) {
+      chunks.push(chunk);
+    }
+
+    await expect(result.text).resolves.toBe('AB');
+    await expect(result.usage).resolves.toEqual({
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    });
+    await expect(result.agentCalls).resolves.toMatchObject([
+      { agent: 'a', output: 'A' },
+      { agent: 'b', output: 'B' },
+    ]);
+    expect(chunks.join('')).toBe('AB');
   });
 });
 

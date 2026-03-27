@@ -27,7 +27,7 @@
  */
 
 import type { IEmbeddingManager } from '../IEmbeddingManager.js';
-import type { IVectorStore, QueryResult, RetrievedVectorDocument } from '../IVectorStore.js';
+import type { IVectorStore, QueryResult, RetrievedVectorDocument, VectorDocument } from '../IVectorStore.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -622,12 +622,7 @@ export class RaptorTree {
           },
         };
       })
-      .filter(Boolean) as Array<{
-        id: string;
-        embedding: number[];
-        textContent: string;
-        metadata: Record<string, unknown>;
-      }>;
+      .filter(Boolean) as VectorDocument[];
 
     if (vectorDocs.length > 0) {
       await this.vectorStore.upsert(this.collectionName, vectorDocs);

@@ -162,7 +162,7 @@ export class CohereReranker implements IRerankerProvider {
         throw new Error(`Cohere API error (${response.status}): ${errorText}`);
       }
 
-      const data: CohereRerankResponse = await response.json();
+      const data = await response.json() as CohereRerankResponse;
       const latencyMs = Date.now() - startTime;
 
       // Map results back to documents (Cohere returns indices)

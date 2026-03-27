@@ -293,7 +293,7 @@ export class AssemblyAISTTProvider implements SpeechToTextProvider {
         Authorization: this.config.apiKey,
         'Content-Type': audio.mimeType ?? 'audio/wav',
       },
-      body: audio.data as unknown as BodyInit,
+      body: audio.data as any,
       signal,
     });
 

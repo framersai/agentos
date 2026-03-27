@@ -66,7 +66,8 @@ import type { HybridSearcher, HybridResult } from '../search/HybridSearcher.js';
 import type { RaptorTree, RaptorResult } from '../raptor/RaptorTree.js';
 import type { HydeRetriever } from '../HydeRetriever.js';
 import type { ICognitiveMemoryManager } from '../../memory/CognitiveMemoryManager.js';
-import type { MultimodalIndexer, MultimodalSearchResult } from '../multimodal/MultimodalIndexer.js';
+import type { MultimodalIndexer } from '../multimodal/MultimodalIndexer.js';
+import type { MultimodalSearchResult } from '../multimodal/types.js';
 import type { IGraphRAGEngine, LocalSearchResult } from '../graphrag/IGraphRAG.js';
 import type { ContentModality } from '../multimodal/types.js';
 
@@ -688,7 +689,6 @@ export class UnifiedRetriever extends EventEmitter {
     try {
       const result: LocalSearchResult = await this.deps.graphEngine!.localSearch(query, {
         topK: 10,
-        maxDepth: plan.graphConfig.maxDepth,
       });
 
       const chunks: RetrievedChunk[] = (result.entities ?? []).map((entity, idx) => ({
