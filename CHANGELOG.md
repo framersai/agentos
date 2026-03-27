@@ -1,3 +1,7 @@
+## <small>0.1.119 (2026-03-27)</small>
+
+* perf(rag): SQL-level metadata filtering via json_extract — avoid loading unmatched rows ([9f3618a](https://github.com/framersai/agentos/commit/9f3618a))
+
 ## <small>0.1.118 (2026-03-27)</small>
 
 * perf(rag): binary blob embeddings in SqlVectorStore — 3-4x faster queries, shared vectorMath utils ([5d040a0](https://github.com/framersai/agentos/commit/5d040a0))
