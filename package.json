@@ -217,6 +217,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/natural": "^5.1.5",
     "@types/node": "^20.12.12",
+    "better-sqlite3": "^12.4.1",
     "conventional-changelog-conventionalcommits": "^7.0.2",
     "eslint": "^9.11.0",
     "eslint-config-prettier": "^9.1.0",
