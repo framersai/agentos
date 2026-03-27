@@ -1,6 +1,6 @@
 # LLM Providers — Multi-Provider Configuration & Routing
 
-> Configure and switch between 9 LLM providers with automatic detection, fallback, and cost-aware routing.
+> Configure and switch between 11 LLM providers (including 2 CLI-based) with automatic detection, fallback, and cost-aware routing.
 
 ---
 
@@ -38,8 +38,9 @@ selection, streaming, tool calling, retries, and fallback routing.
 
 **Key features:**
 
-- **9 providers** supported out of the box
-- **Auto-detection**: Set an API key and the provider is available
+- **11 providers** supported out of the box (9 API-key + 2 CLI-based)
+- **CLI providers**: Use your Claude Max or Google account subscription via local CLI — no API key needed
+- **Auto-detection**: Set an API key or install a CLI and the provider is available
 - **Fallback**: Automatic retry with alternate providers on failure
 - **Cost-aware routing**: Route requests to cheaper models when quality allows
 - **Streaming**: All providers support streaming with a unified async iterator
@@ -60,6 +61,13 @@ selection, streaming, tool calling, retries, and fallback routing.
 | **xAI** | `XAI_API_KEY` | `grok-2` | Yes | Yes | Yes | No | $$ |
 | **OpenRouter** | `OPENROUTER_API_KEY` | `openai/gpt-4o` | Yes | Yes | Yes* | Yes* | Varies |
 | **Ollama** | `OLLAMA_BASE_URL` | `llama3.2` | Yes | Partial | Model-dep. | Yes | Free |
+| **Claude Code CLI** | _(PATH detection)_ | `claude-sonnet-4-20250514` | Yes | Yes | Yes | No | Free* |
+| **Gemini CLI** | _(PATH detection)_ | `gemini-2.5-flash` | Yes | Partial** | Yes | No | Free* |
+
+*CLI providers use your existing subscription — $0 per token.
+**Gemini CLI tool calling uses XML prompt-based parsing (less reliable than native API tool calling).
+
+> **Gemini CLI ToS Warning**: Google's Gemini CLI ToS may prohibit third-party subprocess invocation with OAuth auth. Use `gemini` with API key for production. See [CLI Providers](./CLI_PROVIDERS.md) for details.
 
 *OpenRouter capabilities depend on the underlying model selected.
 
@@ -111,15 +119,17 @@ const agent = await createAgent({
 When no provider is explicitly configured, AgentOS checks for API keys in this
 order and uses the first one found:
 
-1. `OPENAI_API_KEY` → OpenAI
-2. `ANTHROPIC_API_KEY` → Anthropic
-3. `GEMINI_API_KEY` → Google Gemini
-4. `GROQ_API_KEY` → Groq
-5. `TOGETHER_API_KEY` → Together AI
-6. `MISTRAL_API_KEY` → Mistral
-7. `XAI_API_KEY` → xAI
-8. `OPENROUTER_API_KEY` → OpenRouter
-9. `OLLAMA_BASE_URL` → Ollama
+1. `OPENROUTER_API_KEY` → OpenRouter
+2. `OPENAI_API_KEY` → OpenAI
+3. `ANTHROPIC_API_KEY` → Anthropic
+4. `GEMINI_API_KEY` → Google Gemini
+5. `GROQ_API_KEY` → Groq
+6. `TOGETHER_API_KEY` → Together AI
+7. `MISTRAL_API_KEY` → Mistral
+8. `XAI_API_KEY` → xAI
+9. `which claude` → Claude Code CLI (PATH detection — no API key, uses Max subscription)
+10. `which gemini` → Gemini CLI (PATH detection — no API key, uses Google account)
+11. `OLLAMA_BASE_URL` → Ollama
 
 You can override auto-detection by setting `llmProvider` explicitly in your
 configuration or passing `--provider <name>` to CLI commands.

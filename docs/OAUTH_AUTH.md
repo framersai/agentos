@@ -141,13 +141,23 @@ The `FileTokenStore` automatically namespaces by `providerId`, so multiple provi
 
 ### Current Provider Support
 
-| Provider | Status | Reason |
-|----------|--------|--------|
-| OpenAI | Supported | Codex CLI device code flow |
-| Anthropic | Not supported | No consumer OAuth API; session tokens violate ToS |
-| Google Gemini | Not supported | API keys only; no consumer OAuth for API access |
+| Provider | OAuth Status | CLI Provider Alternative |
+|----------|-------------|------------------------|
+| OpenAI | **Supported** — Codex CLI PKCE flow with public client ID `app_EMoamEEZ73f0CkXaXp7hrann`. OpenAI maintainers have [confirmed](https://github.com/openai/codex/discussions/8338) permissive terms for third-party usage. | N/A (OAuth works directly) |
+| Anthropic | Not available — no consumer OAuth API | **`claude-code-cli`** — use Claude Code CLI with Max subscription. Anthropic [explicitly supports](https://code.claude.com/docs/en/headless) programmatic `claude -p` calls. See [CLI Providers](./CLI_PROVIDERS.md). |
+| Google Gemini | Not available — API keys only | **`gemini-cli`** — use Gemini CLI with Google account. **WARNING**: Google's ToS may prohibit third-party CLI invocation with OAuth auth. Use at your own risk. See [CLI Providers](./CLI_PROVIDERS.md). |
 
-Only providers with legitimate, Terms of Service-compliant OAuth flows should be implemented. Session token extraction from consumer web products is not supported.
+### Authentication Strategy by Use Case
+
+| Use Case | Recommended Auth | Provider |
+|----------|-----------------|----------|
+| Production deployment | API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) | `anthropic`, `openai` |
+| Personal development (Claude) | Claude Code CLI login | `claude-code-cli` |
+| Personal development (Gemini) | API key from AI Studio (free) | `gemini` |
+| ChatGPT subscription users | OpenAI OAuth (Codex flow) | `openai` with OAuth |
+| Multi-provider fallback | OpenRouter API key | `openrouter` |
+
+Only providers with legitimate, Terms of Service-compliant authentication flows should be implemented. Session token extraction from consumer web products is not supported.
 
 ## Subpath Export
 
