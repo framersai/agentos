@@ -28,6 +28,7 @@ import { TogetherProvider, TogetherProviderConfig } from './implementations/Toge
 import { MistralProvider, MistralProviderConfig } from './implementations/MistralProvider';
 import { XAIProvider, XAIProviderConfig } from './implementations/XAIProvider';
 import { GeminiProvider, GeminiProviderConfig } from './implementations/GeminiProvider';
+import { ClaudeCodeProvider, ClaudeCodeProviderConfig } from './implementations/ClaudeCodeProvider';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors'; // Corrected import path
 
 /**
@@ -37,7 +38,7 @@ import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agento
 export interface ProviderConfigEntry {
   providerId: string;
   enabled: boolean;
-  config: Partial<OpenAIProviderConfig | OpenRouterProviderConfig | OllamaProviderConfig | AnthropicProviderConfig | GroqProviderConfig | TogetherProviderConfig | MistralProviderConfig | XAIProviderConfig | GeminiProviderConfig | Record<string, any>>;
+  config: Partial<OpenAIProviderConfig | OpenRouterProviderConfig | OllamaProviderConfig | AnthropicProviderConfig | GroqProviderConfig | TogetherProviderConfig | MistralProviderConfig | XAIProviderConfig | GeminiProviderConfig | ClaudeCodeProviderConfig | Record<string, any>>;
   isDefault?: boolean;
 }
 
@@ -129,6 +130,9 @@ export class AIModelProviderManager {
             break;
           case 'gemini':
             providerInstance = new GeminiProvider();
+            break;
+          case 'claude-code-cli':
+            providerInstance = new ClaudeCodeProvider();
             break;
           default:
             console.warn(`AIModelProviderManager: Unknown provider ID '${providerEntry.providerId}'. Skipping.`);
