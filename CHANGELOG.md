@@ -1,3 +1,13 @@
+## <small>0.1.122 (2026-03-27)</small>
+
+* feat(emergent): add AdaptPersonalityTool for runtime HEXACO trait mutation ([f7a75ae](https://github.com/framersai/agentos/commit/f7a75ae))
+* feat(emergent): add CreateWorkflowTool for multi-step tool composition ([9f1cd6b](https://github.com/framersai/agentos/commit/9f1cd6b))
+* feat(emergent): add ManageSkillsTool for runtime skill enable/disable/search ([be0a5aa](https://github.com/framersai/agentos/commit/be0a5aa))
+* feat(emergent): add PersonalityMutationStore with SQLite persistence and decay ([cbe058a](https://github.com/framersai/agentos/commit/cbe058a))
+* feat(emergent): add SelfEvaluateTool for response quality evaluation and parameter adjustment ([4d46b85](https://github.com/framersai/agentos/commit/4d46b85))
+* feat(emergent): add SelfImprovementConfig types and defaults ([8b77827](https://github.com/framersai/agentos/commit/8b77827))
+* docs: explain why type stubs exist for optional native dependencies ([64411c5](https://github.com/framersai/agentos/commit/64411c5))
+
 ## <small>0.1.121 (2026-03-27)</small>
 
 * fix: align Pinecone/Postgres vector stores with IVectorStore interface ([0055bd6](https://github.com/framersai/agentos/commit/0055bd6))
