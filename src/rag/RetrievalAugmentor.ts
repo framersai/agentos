@@ -40,6 +40,7 @@ import { CohereReranker } from './reranking/providers/CohereReranker';
 import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncoderReranker';
 import { RAGAuditCollector } from './audit/RAGAuditCollector';
 import { HydeRetriever, resolveHydeConfig, type HydeLlmCaller } from './HydeRetriever';
+import { SemanticChunker } from './chunking/SemanticChunker';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -618,8 +619,24 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     }
 
     if (strategy.type === 'semantic') {
-      console.warn(`RetrievalAugmentor (ID: ${this.augmenterId}): Semantic chunking for doc '${doc.id}' requested but not yet implemented. Falling back to 'none'.`);
-      return [{ id: `${doc.id}_chunk_0`, content: doc.content, originalDocumentId: doc.id, sequence: 0 }];
+      const semanticChunker = new SemanticChunker({
+        targetSize: strategy.chunkSize ?? DEFAULT_CHUNK_SIZE,
+        maxSize: (strategy.chunkSize ?? DEFAULT_CHUNK_SIZE) * 2,
+        minSize: Math.max(100, Math.floor((strategy.chunkSize ?? DEFAULT_CHUNK_SIZE) / 5)),
+        overlap: strategy.chunkOverlap ?? DEFAULT_CHUNK_OVERLAP,
+        preserveCodeBlocks: strategy.strategySpecificParams?.preserveCodeBlocks ?? true,
+        respectHeadings: strategy.strategySpecificParams?.respectHeadings ?? true,
+      });
+      const semanticChunks = semanticChunker.chunk(doc.content, doc.metadata as Record<string, unknown>);
+      if (semanticChunks.length === 0) {
+        return [{ id: `${doc.id}_chunk_0`, content: doc.content, originalDocumentId: doc.id, sequence: 0 }];
+      }
+      return semanticChunks.map((sc, idx) => ({
+        id: `${doc.id}_chunk_${idx}`,
+        content: sc.text,
+        originalDocumentId: doc.id,
+        sequence: idx,
+      }));
     }
 
     console.warn(`RetrievalAugmentor (ID: ${this.augmenterId}): Unknown chunking strategy '${strategy.type}' for doc '${doc.id}'. Using 'none'.`);
