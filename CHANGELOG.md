@@ -1,3 +1,13 @@
+## <small>0.1.123 (2026-03-27)</small>
+
+* feat: self-improvement tool factory, consolidation personality decay, barrel exports ([c580042](https://github.com/framersai/agentos/commit/c580042))
+* feat(api): add text-based tool-call fallback parser for non-native models ([c136f25](https://github.com/framersai/agentos/commit/c136f25))
+* feat(api): wire PlanningEngine into generateText tool loop ([a97e059](https://github.com/framersai/agentos/commit/a97e059))
+* feat(emergent): add self-improvement tools — personality adaptation, skill management, workflow crea ([3614f50](https://github.com/framersai/agentos/commit/3614f50))
+* feat(gmi): make tool-loop safety break configurable via maxToolLoopIterations ([d9c4767](https://github.com/framersai/agentos/commit/d9c4767))
+* feat(memory): migrate from better-sqlite3 to cross-platform StorageAdapter ([aaab1b8](https://github.com/framersai/agentos/commit/aaab1b8))
+* docs(gmi): document LoopController duplication and future refactor path ([337f539](https://github.com/framersai/agentos/commit/337f539))
+
 ## <small>0.1.122 (2026-03-27)</small>
 
 * feat(emergent): add AdaptPersonalityTool for runtime HEXACO trait mutation ([f7a75ae](https://github.com/framersai/agentos/commit/f7a75ae))
