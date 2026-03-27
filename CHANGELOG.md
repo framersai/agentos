@@ -1,3 +1,7 @@
+## <small>0.1.125 (2026-03-27)</small>
+
+* feat(agentos): wire self-improvement tools into emergent bootstrap ([d4b7a80](https://github.com/framersai/agentos/commit/d4b7a80))
+
 ## <small>0.1.124 (2026-03-27)</small>
 
 * fix(lint): remove unnecessary escape characters in BM25 tokenizer regex ([caf2be9](https://github.com/framersai/agentos/commit/caf2be9))
