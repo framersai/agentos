@@ -226,7 +226,7 @@ export class BM25Index {
   private tokenize(text: string): string[] {
     return text
       .toLowerCase()
-      .split(/[\s\-_.,;:!?'"()\[\]{}<>\/\\|@#$%^&*~`+=]+/)
+      .split(/[\s\-_.,;:!?'"()[\]{}<>/\\|@#$%^&*~`+=]+/)
       .filter((token) => token.length >= 2 && !STOP_WORDS.has(token));
   }
 
