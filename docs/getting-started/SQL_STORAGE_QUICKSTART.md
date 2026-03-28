@@ -246,7 +246,7 @@ CREATE INDEX idx_conversations_user ON conversations(userId, lastActivity DESC);
 
 ### Performance
 
-- **SQLite queries**: Same speed (uses better-sqlite3 under the hood)
+- **SQLite queries**: Same speed on native Node when the resolver selects `better-sqlite3`; browser-style environments fall back to `sql.js`/IndexedDB
 - **PostgreSQL queries**: Similar to direct pg usage
 - **Backup creation**: ~5-10 seconds for 10k conversations
 - **Backup restore**: ~10-20 seconds for 10k conversations

@@ -719,8 +719,28 @@ export class GMIManager {
   public async processUserFeedback(userId: string, sessionId: string, personaId: string, feedbackData: any): Promise<void> {
     this.ensureInitialized();
     console.log(`GMIManager (ID: ${this.managerId}): Received feedback for User: ${userId}, Session: ${sessionId}, Persona: ${personaId}`, feedbackData);
-    // TODO: Implement actual feedback processing logic
-    this.addTraceEntryToRelevantGMI(sessionId, ReasoningEntryType.DEBUG, 'User feedback received by manager.', { userId, feedbackData });
+
+    const gmiInstanceId = this.gmiSessionMap.get(sessionId);
+    const gmi = gmiInstanceId ? this.activeGMIs.get(gmiInstanceId) as GMI | undefined : undefined;
+
+    if (gmi && feedbackData) {
+      const rating = feedbackData.rating ?? feedbackData.score;
+      const isPositive = typeof rating === 'number' ? rating >= 4 : feedbackData.type === 'positive';
+      const feedbackText = feedbackData.comment ?? feedbackData.text ?? '';
+
+      if (isPositive) {
+        this.addTraceEntryToRelevantGMI(sessionId, ReasoningEntryType.DEBUG, 'Positive feedback recorded.', { userId, rating, feedbackText });
+      } else {
+        this.addTraceEntryToRelevantGMI(sessionId, ReasoningEntryType.WARNING, 'Negative feedback recorded — flagged for review.', { userId, rating, feedbackText });
+      }
+
+      if ((gmi as any).memoryBridge?.observe) {
+        const summary = `User feedback (${isPositive ? 'positive' : 'negative'}${rating != null ? `, rating: ${rating}` : ''}): ${feedbackText}`.trim();
+        await (gmi as any).memoryBridge.observe('system', summary);
+      }
+    } else {
+      this.addTraceEntryToRelevantGMI(sessionId, ReasoningEntryType.DEBUG, 'User feedback received by manager.', { userId, feedbackData });
+    }
   }
 
   private addTraceEntryToRelevantGMI(sessionId: string, type: ReasoningEntryType, message: string, details?: Record<string, any>): void {

@@ -1,8 +1,8 @@
 import { createServer, IncomingMessage, Server as HTTPServer, ServerResponse } from 'http';
-import { AgentOS } from '../api/AgentOS';
-import type { AgentOSConfig } from '../api/AgentOS';
-import type { AgentOSInput } from '../api/types/AgentOSInput';
-import type { AgentOSResponse } from '../api/types/AgentOSResponse';
+import { AgentOS } from '../AgentOS.js';
+import type { AgentOSConfig } from '../AgentOS.js';
+import type { AgentOSInput } from '../types/AgentOSInput.js';
+import type { AgentOSResponse } from '../types/AgentOSResponse.js';
 import { AgentOSServerConfig } from './config/ServerConfig';
 
 interface ChatRequestPayload {

@@ -69,8 +69,8 @@ export class ManageGraphTool implements ITool<ManageGraphInput, ManageGraphOutpu
   };
 
   async execute(
-    _context: ToolExecutionContext,
     args: ManageGraphInput,
+    _context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<ManageGraphOutput>> {
     return {
       success: true,

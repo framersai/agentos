@@ -50,6 +50,18 @@ type ConfiguredSkill = NonNullable<CapabilityIndexSources['skills']>[number] & {
   id?: string;
 };
 
+function resolveSessionKey(
+  context?: import('../core/tools/ITool.js').ToolExecutionContext,
+): string {
+  return resolveSelfImprovementSessionKey(
+    (context ?? {
+      gmiId: 'self-improvement',
+      personaId: 'self-improvement',
+      userContext: { userId: 'system' } as any,
+    }) as import('../core/tools/ITool.js').ToolExecutionContext,
+  );
+}
+
 /**
  * Lazy accessors injected by AgentOS so that `buildToolDeps()` closures
  * can resolve runtime services at tool-call time rather than at bootstrap.
@@ -297,7 +309,7 @@ export class SelfImprovementSessionManager {
       getActiveSkills: (
         context?: import('../core/tools/ITool.js').ToolExecutionContext,
       ): Array<{ skillId: string; name: string; category: string }> => {
-        const sessionKey = resolveSelfImprovementSessionKey(context);
+        const sessionKey = resolveSessionKey(context);
         return this.listSessionSkills(sessionKey).map((skill) => ({
           skillId: skill.skillId,
           name: skill.name,
@@ -309,7 +321,7 @@ export class SelfImprovementSessionManager {
         id: string,
         context?: import('../core/tools/ITool.js').ToolExecutionContext,
       ) => {
-        const sessionKey = resolveSelfImprovementSessionKey(context);
+        const sessionKey = resolveSessionKey(context);
         const resolvedSkill = this.resolveConfiguredSkill(id) ?? {
           skillId: id,
           name: id,
@@ -326,7 +338,7 @@ export class SelfImprovementSessionManager {
         id: string,
         context?: import('../core/tools/ITool.js').ToolExecutionContext,
       ) => {
-        const sessionKey = resolveSelfImprovementSessionKey(context);
+        const sessionKey = resolveSessionKey(context);
         const resolvedSkill = this.resolveConfiguredSkill(id);
         disableSessionSkill(this.sessionRuntime, sessionKey, resolvedSkill?.name ?? id);
       },
@@ -384,11 +396,11 @@ export class SelfImprovementSessionManager {
         }
       },
       getSessionParam: (param: string, context) => {
-        const sessionKey = resolveSelfImprovementSessionKey(context);
+        const sessionKey = resolveSessionKey(context);
         return this.getRuntimeParam(sessionKey, param);
       },
       setSessionParam: (param: string, value: unknown, context) => {
-        const sessionKey = resolveSelfImprovementSessionKey(context);
+        const sessionKey = resolveSessionKey(context);
         this.setRuntimeParam(sessionKey, param, value);
       },
 

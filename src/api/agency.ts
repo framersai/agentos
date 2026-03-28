@@ -643,16 +643,26 @@ export function agency(opts: AgencyOptions): Agent {
         const address = wss.address() as { port: number } | null;
         const actualPort = address?.port ?? port;
 
-        /*
-         * Connection handler: each WS client is a voice session.
-         * v1 stub — real audio bridging (STT → agency.generate() → TTS) is
-         * wired in the full voice pipeline via `src/voice-pipeline/`.
-         * TODO: integrate `src/voice-pipeline/` STT+TTS pipeline here by
-         * passing `agentObj.generate` as the LLM backend.
+        /**
+         * Connection handler: each WebSocket client is a voice session.
+         * Bridges audio frames through the voice pipeline (STT → LLM → TTS)
+         * when the voice-pipeline module is available, otherwise logs a warning.
          */
-        wss.on('connection', (_ws: unknown) => {
-          // Audio bytes → STT → agency.generate() → TTS → audio bytes
-          // Full pipeline: see packages/agentos/src/voice-pipeline/
+        wss.on('connection', async (ws: any) => {
+          try {
+            const { createVoicePipeline } = await import('../hearing/index.js');
+            const pipeline = createVoicePipeline({
+              llmBackend: async (text: string) => {
+                const result = await agentObj.generate(text);
+                return typeof result === 'string' ? result : result?.text ?? '';
+              },
+            });
+            ws.on('message', (data: Buffer) => pipeline.processAudio(data));
+            ws.on('close', () => pipeline.destroy?.());
+          } catch {
+            ws.send(JSON.stringify({ error: 'Voice pipeline not available. Install hearing dependencies.' }));
+            ws.close();
+          }
         });
 
         return {
@@ -689,16 +699,26 @@ export function agency(opts: AgencyOptions): Agent {
     agentObj.connect = async (): Promise<void> => {
       for (const [channelName, channelConfig] of Object.entries(opts.channels!)) {
         try {
-          /*
-           * Dynamic import of the channel adapter.  Each adapter is registered
-           * under `channels/<name>/index.js` in the extensions registry.
-           * TODO: resolve adapters from the ExtensionRegistry and call
-           *   adapter.connect(channelConfig, (msg) => agentObj.generate(msg))
+          /**
+           * Dynamically import the channel adapter from the extensions registry
+           * and connect it with the agent's generate function as the message handler.
            */
-          void channelConfig; // suppress unused warning until full wiring
-          console.log(
-            `[agency] Channel "${channelName}" configured (connection deferred to runtime)`,
-          );
+          const adapterModule = await import(`../channels/${channelName}/index.js`).catch(() => null);
+          if (adapterModule?.createExtensionPack) {
+            const pack = adapterModule.createExtensionPack();
+            const adapter = pack.channelAdapters?.[0];
+            if (adapter && typeof adapter.connect === 'function') {
+              await adapter.connect(channelConfig, async (msg: string) => {
+                const result = await agentObj.generate(msg);
+                return typeof result === 'string' ? result : result?.text ?? '';
+              });
+              console.log(`[agency] Channel "${channelName}" connected`);
+            } else {
+              console.log(`[agency] Channel "${channelName}" adapter loaded but no connect() method`);
+            }
+          } else {
+            console.log(`[agency] Channel "${channelName}" configured (adapter not found at channels/${channelName}/)`);
+          }
         } catch {
           console.warn(`[agency] Channel "${channelName}" adapter not available`);
         }
@@ -1060,9 +1080,9 @@ async function runGuardrails(
  * `EmbeddingManager` + `VectorStoreManager` is a heavyweight operation best
  * suited to the full `AgentOSOrchestrator` pipeline.
  *
- * TODO: wire live retrieval by importing `EmbeddingManager` + `VectorStoreManager`
- * from `../../rag/index.js`, embedding the query, and returning the top-K chunks
- * joined as a context block.  See `src/rag/IVectorStore.ts` for the query API.
+ * When a `ragConfig.vectorStore` is configured, delegates to `retrieveRagContext()`
+ * which dynamically imports the embedding manager to embed the query and search
+ * the configured vector store.  See `src/rag/IVectorStore.ts` for the query API.
  *
  * When `ragConfig.documents` is set (but a live vector store is not) an info
  * message is logged directing the caller to `AgentOSOrchestrator` for full RAG.
@@ -1098,27 +1118,49 @@ async function injectRagContext(prompt: string, ragConfig: RagConfig): Promise<s
 /**
  * Queries the configured vector store for chunks relevant to `query`.
  *
- * This is a placeholder for v1.  In a full implementation this would:
- * 1. Import and initialise `EmbeddingManager` from `../../rag/EmbeddingManager.js`.
- * 2. Embed `query` with the provider from `ragConfig.vectorStore.embeddingModel`.
- * 3. Call `vectorStore.search(embedding, topK, minScore)` on the active store.
- * 4. Join the returned chunks into a context string.
+ * Dynamically imports the embedding manager, embeds the query, and searches
+ * the configured vector store for relevant chunks.
  *
- * TODO: implement live retrieval once `EmbeddingManager` + `VectorStoreManager`
- * are available as lightweight imports without NestJS / heavy DI overhead.
- * See `src/rag/EmbeddingManager.ts` and `src/rag/IVectorStore.ts`.
- *
- * @param _query - The text to embed and search for.
- * @param _ragConfig - The active RAG configuration.
+ * @param query - The text to embed and search for.
+ * @param ragConfig - The active RAG configuration.
  * @returns A joined context string, or `null` when retrieval is unavailable.
  */
 async function retrieveRagContext(
-  _query: string,
-  _ragConfig: RagConfig,
+  query: string,
+  ragConfig: RagConfig,
 ): Promise<string | null> {
-  // v1 placeholder — returns null (no-op).
-  // Full wiring: EmbeddingManager.embed(_query) → vectorStore.search(embedding, topK, minScore)
-  return null;
+  try {
+    const vsCfg = ragConfig.vectorStore;
+    if (!vsCfg) return null;
+
+    const { EmbeddingManager } = await import('../core/embeddings/index.js');
+    const embeddingManager = new EmbeddingManager(
+      vsCfg.embeddingModel ?? 'text-embedding-3-small',
+      vsCfg.embeddingProvider ?? 'openai',
+      { apiKey: vsCfg.apiKey ?? process.env.OPENAI_API_KEY },
+    );
+
+    const embedding = await embeddingManager.embed(query);
+    if (!embedding?.length) return null;
+
+    const topK = ragConfig.topK ?? 5;
+    const minScore = ragConfig.minScore ?? 0.5;
+
+    const store = vsCfg.store;
+    if (!store || typeof store.search !== 'function') return null;
+
+    const results = await store.search(
+      vsCfg.collectionName ?? 'default',
+      embedding,
+      topK,
+      minScore,
+    );
+
+    if (!results?.length) return null;
+    return results.map((r: any) => r.content ?? r.text ?? '').filter(Boolean).join('\n\n');
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -155,7 +155,7 @@ describe('MissionPlanner', () => {
               executorConfig: { type: 'gmi', instructions: 'Verify claims' },
               executionMode: 'single_turn',
               effectClass: 'read',
-              checkpoint: true,
+              checkpoint: 'after',
             },
           },
         ],

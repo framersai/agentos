@@ -63,8 +63,8 @@ export class RequestExpansionTool implements ITool<RequestExpansionInput, Reques
   };
 
   async execute(
-    _context: ToolExecutionContext,
     args: RequestExpansionInput,
+    _context: ToolExecutionContext,
   ): Promise<ToolExecutionResult<RequestExpansionOutput>> {
     return {
       success: true,

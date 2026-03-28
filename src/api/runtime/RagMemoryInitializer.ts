@@ -126,7 +126,7 @@ export class RagMemoryInitializer {
 
     if (!resolved.longTermMemoryRetriever && standalone.longTermRetriever) {
       resolved.longTermMemoryRetriever = createStandaloneMemoryLongTermRetriever(
-        memory as Pick<Memory, 'recall' | 'feedbackFromResponse'>,
+        memory as unknown as Pick<Memory, 'recall' | 'feedbackFromResponse'>,
         standalone.longTermRetriever === true ? undefined : standalone.longTermRetriever,
       );
     }

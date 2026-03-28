@@ -1,7 +1,7 @@
 // File: backend/agentos/core/orchestration/IAgentOrchestrator.ts
 // backend/agentos/core/orchestration/IAgentOrchestrator.ts
 
-import { ConversationContext } from '../conversation/ConversationContext';
+import { ConversationContext } from '../../core/conversation/ConversationContext.js';
 import { AgentOutput } from '../../agents/definitions/IAgent'; // Assuming AgentOutput is defined in IAgent
 import { AgentOSOrchestratorDependencies as AgentOrchestratorDependencies } from '../../api/types/OrchestratorConfig';
 

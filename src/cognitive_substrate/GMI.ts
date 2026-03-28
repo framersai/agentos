@@ -514,18 +514,60 @@ export class GMI implements IGMI {
    * @param {string} query - The current user query.
    * @returns {boolean} True if RAG should be triggered, false otherwise.
    */
-  private shouldTriggerRAGRetrieval(query: string): boolean {
+  private shouldTriggerRAGRetrieval(query: string, context?: { lastToolFailed?: boolean; detectedIntents?: string[] }): boolean {
     if (!query || query.trim() === '') return false;
 
     const ragConfig = this.activePersona.memoryConfig?.ragConfig;
     const retrievalTriggers = ragConfig?.retrievalTriggers;
+    if (!retrievalTriggers) return false;
 
-    if (retrievalTriggers?.onUserQuery) {
+    if (retrievalTriggers.onUserQuery) return true;
+
+    if (retrievalTriggers.onToolFailure?.length && context?.lastToolFailed) {
       return true;
     }
-    // TODO: Implement more sophisticated logic based on other retrievalTriggers
-    // (e.g., onIntentDetected, onToolFailure, customLogicFunctionName)
-    return false; // Default
+
+    if (retrievalTriggers.onIntentDetected?.length && context?.detectedIntents?.length) {
+      const matched = retrievalTriggers.onIntentDetected.some(
+        intent => context.detectedIntents!.includes(intent),
+      );
+      if (matched) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Determines the prompt format type based on model provider.
+   * @param modelDetails - Model metadata from the provider manager.
+   * @param providerId - The provider identifier.
+   * @returns The prompt format type string.
+   */
+  private determinePromptFormat(
+    modelDetails: { providerId?: string } | null | undefined,
+    providerId?: string,
+  ): string {
+    const pid = (modelDetails?.providerId || providerId || '').toLowerCase();
+    if (pid.includes('anthropic')) return 'anthropic_messages';
+    if (pid.includes('google') || pid.includes('gemini')) return 'google_gemini';
+    if (pid.includes('cohere')) return 'cohere_chat';
+    return 'openai_chat';
+  }
+
+  /**
+   * Determines the tool calling format based on model provider.
+   * @param modelDetails - Model metadata from the provider manager.
+   * @param providerId - The provider identifier.
+   * @returns The tool format string.
+   */
+  private determineToolFormat(
+    modelDetails: { providerId?: string; capabilities?: string[] } | null | undefined,
+    providerId?: string,
+  ): string {
+    const pid = (modelDetails?.providerId || providerId || '').toLowerCase();
+    if (pid.includes('anthropic')) return 'anthropic_tools';
+    if (pid.includes('google') || pid.includes('gemini')) return 'google_function_calling';
+    return 'openai_functions';
   }
 
   /** @inheritdoc */
@@ -649,10 +691,13 @@ export class GMI implements IGMI {
           const currentQueryForRag = currentTurnText;
           if (this.shouldTriggerRAGRetrieval(currentQueryForRag)) {
             this.addTraceEntry(ReasoningEntryType.RAG_QUERY_START, "RAG retrieval triggered.", { queryPreview: currentQueryForRag.substring(0, 100) });
+            const ragCfg = this.activePersona.memoryConfig?.ragConfig;
             const retrievalOptions: RagRetrievalOptions = {
-                topK: this.activePersona.memoryConfig?.ragConfig?.defaultRetrievalTopK || 5,
-                targetDataSourceIds: this.activePersona.memoryConfig?.ragConfig?.dataSources?.filter(ds => ds.isEnabled).map(ds => ds.dataSourceNameOrId),
-                // TODO: Populate other options like metadataFilter, strategy from persona config
+                topK: ragCfg?.defaultRetrievalTopK || 5,
+                targetDataSourceIds: ragCfg?.dataSources?.filter(ds => ds.isEnabled).map(ds => ds.dataSourceNameOrId),
+                ...(ragCfg?.metadataFilter && { metadataFilter: ragCfg.metadataFilter }),
+                ...(ragCfg?.retrievalStrategy && { strategy: ragCfg.retrievalStrategy }),
+                ...(ragCfg?.similarityThreshold != null && { similarityThreshold: ragCfg.similarityThreshold }),
             };
             const ragResult = await this.retrievalAugmentor.retrieveContext(currentQueryForRag, retrievalOptions);
             augmentedContextFromRAG = ragResult.augmentedContext;
@@ -745,8 +790,11 @@ export class GMI implements IGMI {
             providerId: modelDetails?.providerId || providerIdForModel || this.llmProviderManager.getProviderForModel(modelIdToUse)?.providerId || 'unknown',
             maxContextTokens: modelDetails?.contextWindowSize || 8192, // Default fallback
             capabilities: modelDetails?.capabilities || [],
-            promptFormatType: 'openai_chat', // TODO: Determine from modelDetails or provider features
-            toolSupport: { supported: modelDetails?.capabilities.includes('tool_use') || false, format: 'openai_functions' }, // TODO: Determine format
+            promptFormatType: this.determinePromptFormat(modelDetails, providerIdForModel),
+            toolSupport: {
+              supported: modelDetails?.capabilities.includes('tool_use') || false,
+              format: this.determineToolFormat(modelDetails, providerIdForModel),
+            },
         };
 
         const promptEngineResult: PromptEngineResult = await this.promptEngine.constructPrompt(

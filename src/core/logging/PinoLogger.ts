@@ -7,7 +7,7 @@ import {
   getAgentOSOtelLoggerName,
   shouldExportAgentOSLogsToOtel,
   shouldIncludeTraceIdsInAgentOSLogs,
-} from '../evaluation/observability/otel';
+} from '../../evaluation/observability/otel.js';
 
 function maybeAttachTraceMeta(meta?: Record<string, any>): Record<string, any> {
   if (!shouldIncludeTraceIdsInAgentOSLogs()) return meta ?? {};

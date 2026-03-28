@@ -367,6 +367,13 @@ export class MissionPlanner {
   }
 
   private normalizeNode(raw: Record<string, unknown>): GraphNode {
+    const checkpoint =
+      raw.checkpoint === true
+        ? 'after'
+        : raw.checkpoint === false
+          ? 'none'
+          : (raw.checkpoint as GraphNode['checkpoint'] | undefined) ?? 'after';
+
     return {
       id: String(raw.id ?? `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`),
       type: String(raw.type ?? 'gmi') as GraphNode['type'],
@@ -376,7 +383,7 @@ export class MissionPlanner {
       },
       executionMode: (raw.executionMode as GraphNode['executionMode']) ?? 'single_turn',
       effectClass: (raw.effectClass as GraphNode['effectClass']) ?? 'read',
-      checkpoint: raw.checkpoint !== false,
+      checkpoint,
     };
   }
 

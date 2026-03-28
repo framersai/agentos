@@ -16,8 +16,8 @@ import {
   RagMemoryCategory,
   RagRetrievalOptions, // Assuming this is defined in IRetrievalAugmentor.ts
   RagIngestionOptions, // Assuming this is defined in IRetrievalAugmentor.ts
-} from '../rag/IRetrievalAugmentor';
-import type { RerankerServiceConfig } from '../rag/reranking/IRerankerService';
+} from '../../rag/IRetrievalAugmentor.js';
+import type { RerankerServiceConfig } from '../../rag/reranking/IRerankerService.js';
 
 /**
  * Defines default behaviors and mappings for different RAG memory categories.

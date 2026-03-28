@@ -18,8 +18,11 @@ export interface ExpansionState {
   currentAgentCount: number;
   currentExpansions: number;
   currentToolForges: number;
+  currentDepth?: number;
   patchCostDelta: number;
   patchAgentDelta: number;
+  patchToolForgeDelta?: number;
+  patchDepthDelta?: number;
 }
 
 /**
@@ -83,10 +86,16 @@ export class GraphExpander {
     if (autonomy === 'autonomous') return true;
     if (autonomy === 'guided') return false;
 
+    const patchToolForgeDelta = state.patchToolForgeDelta ?? 0;
+    const currentDepth = state.currentDepth ?? 0;
+    const patchDepthDelta = state.patchDepthDelta ?? 0;
+
     // Guardrailed: check every threshold
     if (state.currentCost + state.patchCostDelta > this.thresholds.maxTotalCost) return false;
     if (state.currentAgentCount + state.patchAgentDelta > this.thresholds.maxAgentCount) return false;
+    if (state.currentToolForges + patchToolForgeDelta > this.thresholds.maxToolForges) return false;
     if (state.currentExpansions + 1 > this.thresholds.maxExpansions) return false;
+    if (currentDepth + patchDepthDelta > this.thresholds.maxDepth) return false;
     if (state.patchCostDelta > this.thresholds.costPerExpansionCap) return false;
 
     return true;
@@ -99,6 +108,10 @@ export class GraphExpander {
   getExceededThreshold(
     state: ExpansionState,
   ): { threshold: string; value: number; cap: number } | null {
+    const patchToolForgeDelta = state.patchToolForgeDelta ?? 0;
+    const currentDepth = state.currentDepth ?? 0;
+    const patchDepthDelta = state.patchDepthDelta ?? 0;
+
     if (state.currentCost + state.patchCostDelta > this.thresholds.maxTotalCost) {
       return {
         threshold: 'maxTotalCost',
@@ -113,11 +126,25 @@ export class GraphExpander {
         cap: this.thresholds.maxAgentCount,
       };
     }
+    if (state.currentToolForges + patchToolForgeDelta > this.thresholds.maxToolForges) {
+      return {
+        threshold: 'maxToolForges',
+        value: state.currentToolForges + patchToolForgeDelta,
+        cap: this.thresholds.maxToolForges,
+      };
+    }
     if (state.currentExpansions + 1 > this.thresholds.maxExpansions) {
       return {
         threshold: 'maxExpansions',
         value: state.currentExpansions + 1,
         cap: this.thresholds.maxExpansions,
+      };
+    }
+    if (currentDepth + patchDepthDelta > this.thresholds.maxDepth) {
+      return {
+        threshold: 'maxDepth',
+        value: currentDepth + patchDepthDelta,
+        cap: this.thresholds.maxDepth,
       };
     }
     if (state.patchCostDelta > this.thresholds.costPerExpansionCap) {

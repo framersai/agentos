@@ -7,7 +7,30 @@
  * `on()` / `off()` for push-based handling, or via `stream()` for pull-based async iteration.
  */
 
-import type { GraphState } from '../ir/types.js';
+import type { GraphState, GraphNode, GraphEdge } from '../ir/types.js';
+
+export interface MissionEvalScores {
+  feasibility: number;
+  costEfficiency: number;
+  latency: number;
+  robustness: number;
+  overall: number;
+}
+
+export interface MissionGraphPatch {
+  addNodes: GraphNode[];
+  addEdges: GraphEdge[];
+  removeNodes?: string[];
+  rewireEdges?: Array<{ from: string; to: string; newTarget: string }>;
+  reason: string;
+  estimatedCostDelta: number;
+  estimatedLatencyDelta: number;
+}
+
+export type MissionExpansionTrigger =
+  | 'agent_request'
+  | 'supervisor_manage'
+  | 'planner_reeval';
 
 // ---------------------------------------------------------------------------
 // GraphEvent discriminated union
@@ -202,7 +225,12 @@ export type GraphEvent =
   | { type: 'mission:planning_start'; goal: string }
 
   /** Emitted for each candidate branch generated during Phase 1 (divergent exploration). */
-  | { type: 'mission:branch_generated'; branchId: string; summary: string }
+  | {
+      type: 'mission:branch_generated';
+      branchId: string;
+      summary: string;
+      scores?: MissionEvalScores;
+    }
 
   /** Emitted when the evaluator selects a branch in Phase 2. */
   | { type: 'mission:branch_selected'; branchId: string; reason: string }
@@ -214,13 +242,21 @@ export type GraphEvent =
   | { type: 'mission:graph_compiled'; nodeCount: number; edgeCount: number; estimatedCost: number }
 
   /** Emitted when an expansion is proposed (agent request, supervisor, or planner loop). */
-  | { type: 'mission:expansion_proposed'; reason: string }
+  | {
+      type: 'mission:expansion_proposed';
+      patch: MissionGraphPatch;
+      trigger: MissionExpansionTrigger;
+      reason?: string;
+    }
 
   /** Emitted when an expansion is approved (auto or user). */
   | { type: 'mission:expansion_approved'; by: 'auto' | 'user' }
 
   /** Emitted after an expansion GraphPatch is applied. */
-  | { type: 'mission:expansion_applied'; nodesAdded: number }
+  | { type: 'mission:expansion_applied'; nodesAdded: number; edgesAdded?: number }
+
+  /** Emitted when a mission checkpoint is saved for later replay/resume. */
+  | { type: 'mission:checkpoint_saved'; checkpointId: string; nodeId: string }
 
   /** Emitted when a guardrail threshold is hit (agent count, cost, etc). */
   | { type: 'mission:threshold_reached'; threshold: string; value: number; cap: number }
@@ -238,7 +274,7 @@ export type GraphEvent =
   | { type: 'mission:tool_forged'; toolId: string; name: string; mode: 'compose' | 'sandbox' }
 
   /** Emitted when user approval is required before continuing. */
-  | { type: 'mission:approval_required'; action: string };
+  | { type: 'mission:approval_required'; action: string; details?: unknown };
 
 // ---------------------------------------------------------------------------
 // GraphEventEmitter

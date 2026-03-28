@@ -13,9 +13,9 @@
  * @see ../core/vector-store/IVectorStore.ts for MetadataFilter
  */
 
-import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
-import { MetadataFilter } from '../core/vector-store/IVectorStore';
-import { LifecycleAction } from '../cognitive_substrate/IGMI'; // For defaultActionOnTimeout
+import { RagMemoryCategory } from '../../rag/IRetrievalAugmentor.js';
+import type { MetadataFilter } from '../vector-store/IVectorStore.js';
+import type { LifecycleAction } from '../../cognitive_substrate/IGMI.js'; // For defaultActionOnTimeout
 
 /**
  * Specifies the conditions under which a MemoryLifecyclePolicy is triggered.

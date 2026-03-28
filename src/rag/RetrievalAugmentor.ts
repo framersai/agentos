@@ -1174,12 +1174,31 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     for (const dsId of targetDsIds) {
         try {
             const { store, collectionName } = await this.vectorStoreManager.getStoreForDataSource(dsId);
-            // Note: Deleting by document ID might delete multiple chunks if chunks inherit/are prefixed by doc ID.
-            // The IVectorStore.delete interface takes IDs which are expected to be chunk IDs.
-            // This requires a way to find all chunk IDs for a given original document ID.
-            // This is a simplification: assuming documentIds are actually chunk/vector IDs for now.
-            // TODO: Enhance to find all chunks for a doc ID and delete them.
-            const deleteResult = await store.delete(collectionName, documentIds);
+            // Attempt to resolve chunk IDs for each document ID. If the store
+            // supports metadata filtering, query for chunks whose sourceDocumentId
+            // matches the provided document IDs. Fall back to treating them as
+            // direct chunk IDs when metadata filtering is unavailable.
+            let chunkIdsToDelete = documentIds;
+            if (typeof store.listDocuments === 'function') {
+              try {
+                const allChunkIds: string[] = [];
+                for (const docId of documentIds) {
+                  const matches = await store.listDocuments(collectionName, {
+                    filter: { sourceDocumentId: docId },
+                    limit: 1000,
+                  });
+                  if (matches?.documents?.length) {
+                    allChunkIds.push(...matches.documents.map((d: any) => d.id));
+                  } else {
+                    allChunkIds.push(docId);
+                  }
+                }
+                if (allChunkIds.length > 0) chunkIdsToDelete = allChunkIds;
+              } catch {
+                // Fall back to direct IDs if metadata query fails
+              }
+            }
+            const deleteResult = await store.delete(collectionName, chunkIdsToDelete);
             successCount += deleteResult.deletedCount;
             if (deleteResult.errors) {
                 deleteResult.errors.forEach((err: any) => {

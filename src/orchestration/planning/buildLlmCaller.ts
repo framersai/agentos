@@ -81,6 +81,9 @@ export async function buildLlmCaller(options: BuildLlmCallerOptions = {}): Promi
   // Create and initialize the provider manager
   const manager = await createProviderManager(resolved);
   const provider = manager.getProvider(resolved.providerId);
+  if (!provider) {
+    throw new Error(`Provider "${resolved.providerId}" could not be initialized.`);
+  }
 
   // Return a caller function that wraps generateCompletion
   return async (system: string, user: string): Promise<string> => {
@@ -97,7 +100,16 @@ export async function buildLlmCaller(options: BuildLlmCallerOptions = {}): Promi
       },
     );
 
-    return response.choices?.[0]?.message?.content ?? '';
+    const content = response.choices?.[0]?.message?.content;
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return content
+        .map((part) => (part?.type === 'text' && typeof part.text === 'string' ? part.text : ''))
+        .join('');
+    }
+    return '';
   };
 }
 

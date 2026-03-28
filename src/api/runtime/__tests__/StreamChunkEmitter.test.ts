@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the otel module before importing StreamChunkEmitter
-vi.mock('../../evaluation/observability/otel', () => ({
+vi.mock('../../../evaluation/observability/otel', () => ({
   shouldIncludeTraceInAgentOSResponses: vi.fn(() => false),
   getActiveTraceMetadata: vi.fn(() => null),
 }));
 
 // Mock normalizeUsage
-vi.mock('../../orchestration/turn-planner/helpers', () => ({
+vi.mock('../../../orchestration/turn-planner/helpers', () => ({
   normalizeUsage: vi.fn((u: any) => u ?? {}),
 }));
 
@@ -16,7 +16,7 @@ import { AgentOSResponseChunkType } from '../../types/AgentOSResponse';
 import {
   shouldIncludeTraceInAgentOSResponses,
   getActiveTraceMetadata,
-} from '../../evaluation/observability/otel';
+} from '../../../evaluation/observability/otel';
 import type { StreamingManager } from '../../../core/streaming/StreamingManager';
 
 function createMockStreamingManager(): StreamingManager {

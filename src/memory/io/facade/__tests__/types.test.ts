@@ -239,7 +239,7 @@ describe('IngestOptions', () => {
       include: ['**/*.md'],
       exclude: ['node_modules/**'],
       format: 'obsidian',
-      onProgress: (processed, total, current) => {
+      onProgress: (processed: number, total: number, current: string) => {
         calls.push({ processed, total, current });
       },
     };

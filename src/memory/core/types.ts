@@ -107,6 +107,8 @@ export interface MemoryTrace {
   // --- Ebbinghaus decay model ---
   /** S_0: initial encoding strength, set at creation. */
   encodingStrength: number;
+  /** Optional normalized salience score used by some consolidation/retrieval paths. */
+  importance?: number;
   /** Time constant (ms); grows with each successful retrieval. */
   stability: number;
   /** Number of times this trace has been successfully retrieved. */
@@ -272,3 +274,35 @@ export interface MemoryHealthReport {
   tracesPerType: Record<MemoryType, number>;
   tracesPerScope: Record<MemoryScope, number>;
 }
+
+export type {
+  EmbeddingConfig,
+  ExtendedConsolidationConfig,
+  IngestionConfig,
+  MemoryConfig,
+  RememberOptions,
+  RecallOptions,
+  IngestOptions,
+  IngestResult,
+  ExportOptions,
+  ImportOptions,
+  ImportResult,
+  ConsolidationResult,
+  MemoryHealth,
+  LoadOptions,
+  LoadedDocument,
+  DocumentMetadata,
+  DocumentChunk,
+  ExtractedImage,
+  ExtractedTable,
+} from '../io/facade/types.js';
+
+export type {
+  CompactionEntry,
+  CompactionInput,
+  CompactionResult,
+  ContextMessage,
+  ICompactionStrategy,
+  InfiniteContextConfig,
+  SummaryChainNode,
+} from '../pipeline/context/types.js';

@@ -35,19 +35,24 @@ allows each perception channel to evolve independently, with shared media genera
 
 Three former monolithic classes were decomposed during the restructuring:
 
-- **GMIManager** was split into four focused components: `GMIManager` (lifecycle),
-  `SentimentTracker` (mood/affect), `MetapromptExecutor` (dynamic prompt rewriting),
-  and `PersonaOverlayManager` (persona layering). All live under `cognitive_substrate/`.
+- **GMI** now delegates focused responsibilities to `ConversationHistoryManager`
+  (history trimming + formatting), `CognitiveMemoryBridge` (PAD/memory context),
+  `SentimentTracker` (mood/affect), and `MetapromptExecutor` (dynamic prompt
+  rewriting). Persona layering remains in `PersonaOverlayManager` under
+  `cognitive_substrate/persona_overlays/`.
 
-- **AgentOS** was split into four facades: `AgentOS` (lifecycle + request entry),
-  `generateText`/`streamText` (high-level AI SDK), `agent`/`agency` (session wrappers),
-  and media helpers (`generateImage`, `generateVideo`, `generateMusic`, etc.). All
-  live under `api/`.
+- **AgentOS** remains the public lifecycle facade, but substantial setup and
+  runtime concerns were extracted into `WorkflowFacade`,
+  `CapabilityDiscoveryInitializer`, `SelfImprovementSessionManager`, and
+  `RagMemoryInitializer` under `api/runtime/`. High-level helpers like
+  `generateText`, `streamText`, `agent`, `agency`, and media APIs still live
+  under `api/`.
 
-- **AgentOSOrchestrator** was split into three runtime components:
-  `AgentOSOrchestrator` (turn coordination), `processRequestWithExternalTools`
-  (external tool pause/resume loop), and `processRequestWithRegisteredTools`
-  (registered tool auto-execution). All live under `api/runtime/`.
+- **AgentOSOrchestrator** remains the request coordinator while delegating major
+  hot-path responsibilities to `TurnExecutionPipeline` (pre-LLM turn
+  preparation), `GMIChunkTransformer` (stream chunk mapping), and
+  `ExternalToolResultHandler` (tool-result continuation and resume flow). All
+  live under `api/runtime/`.
 
 ```
 src/
@@ -56,7 +61,7 @@ src/
 │   └── agency/              # Multi-agent coordination (AgencyRegistry, etc.)
 │
 ├── api/                     # Public API surface (AgentOS, high-level helpers)
-│   ├── runtime/             # AgentOSOrchestrator, tool adapters, provider defaults
+│   ├── runtime/             # Orchestrator collaborators, tool adapters, provider defaults
 │   └── types/               # AgentOSInput, AgentOSResponse, etc.
 │
 ├── channels/                # Channel adapters + telephony + social posting
@@ -64,11 +69,13 @@ src/
 │   ├── telephony/           # Voice call providers (Twilio, Vonage, etc.)
 │   └── social-posting/      # Social media post management
 │
-├── cognitive_substrate/     # GMI + extracted components
+├── cognitive_substrate/     # GMI + extracted collaborators
 │   ├── personas/            # Persona definitions + loader
 │   ├── persona_overlays/    # PersonaOverlayManager
-│   ├── SentimentTracker     # Mood/affect tracking (extracted from GMI)
-│   └── MetapromptExecutor   # Dynamic prompt rewriting (extracted from GMI)
+│   ├── ConversationHistoryManager.ts
+│   ├── CognitiveMemoryBridge.ts
+│   ├── SentimentTracker.ts
+│   └── MetapromptExecutor.ts
 │
 ├── core/                    # Infrastructure (11 dirs)
 │   ├── config/              # Configuration types
@@ -104,10 +111,12 @@ src/
 │   └── video/               # Video generation & analysis
 │
 ├── memory/                  # Cognitive memory system
-│   ├── graph/               # Knowledge graph (IMemoryGraph, GraphRAG, Neo4j)
-│   ├── mechanisms/          # 8 neuroscience-grounded cognitive mechanisms
-│   ├── facade/              # Standalone Memory API (remember/recall)
-│   └── ...                  # consolidation, decay, encoding, ingestion, retrieval, etc.
+│   ├── core/                # Shared memory types, decay, working-memory helpers
+│   ├── io/facade/           # Standalone Memory API (remember/recall)
+│   ├── io/tools/            # MemoryAdd/Search/Update/Delete/Merge tools
+│   ├── mechanisms/          # Neuroscience-grounded cognitive mechanisms
+│   ├── pipeline/            # Consolidation, context, lifecycle, observation
+│   └── retrieval/           # SqliteBrain, graphs, feedback, prospective memory
 │
 ├── nlp/                     # NLP processing
 │   ├── ai_utilities/        # AI utility helpers (LLM-backed summarization, etc.)

@@ -1549,7 +1549,7 @@ export class QueryRouter {
           content: doc.textContent ?? '',
           heading: (doc.metadata?.heading as string) ?? '',
           sourcePath: (doc.metadata?.sourcePath as string) ?? '',
-          relevanceScore: doc.similarityScore,
+          relevanceScore: doc.similarityScore ?? 0,
           matchType: 'vector' as const,
         }));
       } catch (error: unknown) {

@@ -9,7 +9,7 @@ function makeGmiNode(id: string, complexity: number): GraphNode & { complexity: 
     executorConfig: { type: 'gmi' as const, instructions: `Do ${id}` },
     executionMode: 'single_turn',
     effectClass: 'read',
-    checkpoint: true,
+    checkpoint: 'after',
     complexity,
   };
 }

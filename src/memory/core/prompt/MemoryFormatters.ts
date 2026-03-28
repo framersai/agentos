@@ -10,9 +10,10 @@
  * @module agentos/memory/prompt/MemoryFormatters
  */
 
-import type { ScoredMemoryTrace } from '../types.js';
+import type { MemoryTrace, ScoredMemoryTrace } from '../types.js';
 
 export type FormattingStyle = 'structured' | 'narrative' | 'emotional';
+type FormatTrace = MemoryTrace & Partial<Pick<ScoredMemoryTrace, 'retrievalScore'>>;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -47,7 +48,7 @@ function valenceEmoji(valence: number): string {
 // Formatters
 // ---------------------------------------------------------------------------
 
-function formatStructured(trace: ScoredMemoryTrace): string {
+function formatStructured(trace: FormatTrace): string {
   const parts = [
     `- [${trace.type}]`,
     trace.content.substring(0, 300),
@@ -56,7 +57,7 @@ function formatStructured(trace: ScoredMemoryTrace): string {
   const meta: string[] = [];
   meta.push(timeAgo(trace.createdAt));
   meta.push(confidenceLabel(trace.provenance.confidence));
-  meta.push(`relevance: ${trace.retrievalScore.toFixed(2)}`);
+  meta.push(`relevance: ${(trace.retrievalScore ?? trace.provenance.confidence).toFixed(2)}`);
   if (trace.tags.length > 0) {
     meta.push(`tags: ${trace.tags.slice(0, 3).join(', ')}`);
   }
@@ -65,7 +66,7 @@ function formatStructured(trace: ScoredMemoryTrace): string {
   return parts.join(' ');
 }
 
-function formatNarrative(trace: ScoredMemoryTrace): string {
+function formatNarrative(trace: FormatTrace): string {
   const time = timeAgo(trace.createdAt);
   const content = trace.content.substring(0, 350);
 
@@ -79,7 +80,7 @@ function formatNarrative(trace: ScoredMemoryTrace): string {
   return text;
 }
 
-function formatEmotional(trace: ScoredMemoryTrace): string {
+function formatEmotional(trace: FormatTrace): string {
   const time = timeAgo(trace.createdAt);
   const emoji = valenceEmoji(trace.emotionalContext.valence);
   const content = trace.content.substring(0, 300);
@@ -101,7 +102,7 @@ function formatEmotional(trace: ScoredMemoryTrace): string {
 /**
  * Format a single memory trace according to the given style.
  */
-export function formatMemoryTrace(trace: ScoredMemoryTrace, style: FormattingStyle): string {
+export function formatMemoryTrace(trace: FormatTrace, style: FormattingStyle): string {
   switch (style) {
     case 'structured':
       return formatStructured(trace);
@@ -117,6 +118,6 @@ export function formatMemoryTrace(trace: ScoredMemoryTrace, style: FormattingSty
 /**
  * Format multiple traces with a separator appropriate for the style.
  */
-export function formatMemoryTraces(traces: ScoredMemoryTrace[], style: FormattingStyle): string {
+export function formatMemoryTraces(traces: FormatTrace[], style: FormattingStyle): string {
   return traces.map((t) => formatMemoryTrace(t, style)).join('\n');
 }

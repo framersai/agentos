@@ -275,7 +275,7 @@ describe('ConsolidationLoop — Strengthen', () => {
         encodingStrength: 1,
         importance: 1,
         createdAt: Date.now(),
-      },
+      } as unknown as MemoryTrace,
       {
         id: 'detect-b',
         type: 'episodic',
@@ -284,7 +284,7 @@ describe('ConsolidationLoop — Strengthen', () => {
         encodingStrength: 1,
         importance: 1,
         createdAt: Date.now(),
-      },
+      } as unknown as MemoryTrace,
     ];
 
     await signal.detect(

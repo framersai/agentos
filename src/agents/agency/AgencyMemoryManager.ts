@@ -549,14 +549,27 @@ export class AgencyMemoryManager {
       }
 
       const stats = await provider.getStats(collectionId);
+      const totalDocuments = (stats?.documentCount as number) ?? 0;
+      const totalChunks = (stats?.vectorCount as number) ?? 0;
 
-      // TODO: Aggregate by role and category from metadata
-      return {
-        totalDocuments: (stats?.documentCount as number) ?? 0,
-        totalChunks: (stats?.vectorCount as number) ?? 0,
-        documentsByRole: {},
-        documentsByCategory: {},
-      };
+      // Aggregate by role and category from metadata when the store supports listing
+      const documentsByRole: Record<string, number> = {};
+      const documentsByCategory: Record<string, number> = {};
+      if (typeof provider.listDocuments === 'function') {
+        try {
+          const listing = await provider.listDocuments(collectionId, { limit: 5000 });
+          for (const doc of listing?.documents ?? []) {
+            const role = doc.metadata?.role ?? 'unknown';
+            const category = doc.metadata?.category ?? 'uncategorized';
+            documentsByRole[role] = (documentsByRole[role] ?? 0) + 1;
+            documentsByCategory[category] = (documentsByCategory[category] ?? 0) + 1;
+          }
+        } catch {
+          // Store doesn't support listing — return empty breakdowns
+        }
+      }
+
+      return { totalDocuments, totalChunks, documentsByRole, documentsByCategory };
     } catch {
       return null;
     }

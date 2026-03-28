@@ -161,7 +161,7 @@ describe('Mission Orchestrator Integration', () => {
           executorConfig: { type: 'gmi', instructions: 'Verify claims' },
           executionMode: 'single_turn',
           effectClass: 'read',
-          checkpoint: true,
+          checkpoint: 'after',
         },
       ],
       addEdges: [{ id: 'e_new', source: 'merger', target: 'fact_checker', type: 'static' }],
@@ -192,20 +192,20 @@ describe('Mission Orchestrator Integration', () => {
 
     const requestTool = new RequestExpansionTool();
     const requestResult = await requestTool.execute(
-      { gmiId: 'gmi-1', personaId: 'p-1', userContext: {} as any },
       { need: 'Web scraper for changelog parsing', urgency: 'blocking' },
+      { gmiId: 'gmi-1', personaId: 'p-1', userContext: {} as any },
     );
     expect(requestResult.success).toBe(true);
     expect(requestResult.output?.acknowledged).toBe(true);
 
     const manageTool = new ManageGraphTool();
     const manageResult = await manageTool.execute(
-      { gmiId: 'gmi-1', personaId: 'p-1', userContext: {} as any },
       {
         action: 'spawn_agent',
         spec: { role: 'fact_checker', instructions: 'Verify all claims' },
         reason: 'Quality assurance needed',
       },
+      { gmiId: 'gmi-1', personaId: 'p-1', userContext: {} as any },
     );
     expect(manageResult.success).toBe(true);
     expect(manageResult.output?.acknowledged).toBe(true);

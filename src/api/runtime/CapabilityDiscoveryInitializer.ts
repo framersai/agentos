@@ -160,7 +160,9 @@ async function loadCuratedManifestDescriptors(
 
         return descriptors;
       } catch (error) {
-        logger?.warn?.('Capability discovery could not load curated registry manifests', error);
+        logger?.warn?.('Capability discovery could not load curated registry manifests', {
+          error,
+        });
         return [];
       }
     })();

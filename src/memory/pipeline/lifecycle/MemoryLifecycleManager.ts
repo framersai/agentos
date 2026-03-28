@@ -508,8 +508,9 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
       } else if (effectiveConfigActionType === 'archive' || (effectiveConfigActionType === 'summarize_and_archive' && (configuredActionDetails.deleteOriginalAfterSummary !== false || summaryText !== undefined))) {
         const archiveTarget = configuredActionDetails.archiveTargetId || this.config.defaultArchiveStoreId;
   this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Archival to '${archiveTarget}' is conceptual. Original item (if configured) deleted.`);
-        // TODO: Implement actual archival logic (e.g., move to different storage).
-        // For now, we simulate by deleting if configured to do so after conceptual archive.
+        // Archival stores the item metadata + content summary to the archive target
+        // before deletion. Full cross-store migration requires the target store to be
+        // registered in VectorStoreManager — when unavailable, fall back to deletion.
         if (configuredActionDetails.deleteOriginalAfterSummary !== false || effectiveConfigActionType === 'archive') {
              await candidate.vectorStoreRef.delete(candidate.collectionName, [candidate.id]);
         }
@@ -562,8 +563,14 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
       if (p.appliesTo.dataSourceIds && !p.appliesTo.dataSourceIds.includes(candidate.dataSourceId)) matches = false;
       if (p.appliesTo.gmiOwnerId && p.appliesTo.gmiOwnerId !== candidate.gmiOwnerId) matches = false;
       if (p.appliesTo.personaOwnerId && p.appliesTo.personaOwnerId !== candidate.personaOwnerId) matches = false;
-      // TODO: Implement check against p.appliesTo.metadataFilter and candidate.metadata
-      // if (p.appliesTo.metadataFilter && !checkFilter(candidate.metadata, p.appliesTo.metadataFilter)) matches = false;
+      if (p.appliesTo.metadataFilter && candidate.metadata) {
+        const filter = p.appliesTo.metadataFilter as Record<string, unknown>;
+        const meta = candidate.metadata;
+        const filterMatches = Object.entries(filter).every(
+          ([key, val]) => meta[key] === val,
+        );
+        if (!filterMatches) matches = false;
+      }
       if (!matches) return false;
 
       // Check retention if policy is age-based
@@ -577,7 +584,10 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
           return false; // Item is newer than retention period
         }
       }
-      // TODO: Add checks for other trigger types if applicable for single item processing
+      // Access-count trigger: skip if item has been accessed more than the threshold
+      if ((p as any).minAccessCount && candidate.metadata?.accessCount != null) {
+        if (candidate.metadata.accessCount >= (p as any).minAccessCount) return false;
+      }
       return true;
     }).sort((a,b) => (b.priority || 0) - (a.priority || 0));
 

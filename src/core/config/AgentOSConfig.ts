@@ -9,25 +9,25 @@
  * @module backend/agentos/config/AgentOSConfig
  */
 
-import { PrismaClient } from '@prisma/client';
-import { AgentOSConfig } from '../api/AgentOS';
-import type { ExternalToolRegistry } from '../api/externalToolRegistry';
-import type { AdaptableToolInput } from '../api/toolAdapter';
-import { GMIManagerConfig } from '../cognitive_substrate/GMIManager';
-import { AgentOSOrchestratorConfig } from '../api/AgentOSOrchestrator';
-import { PromptEngineConfig } from '../core/llm/IPromptEngine';
+import { PrismaClient } from '../storage/prismaClient.js';
+import type { AgentOSConfig } from '../../api/AgentOS.js';
+import type { ExternalToolRegistry } from '../../api/runtime/externalToolRegistry.js';
+import type { AdaptableToolInput } from '../../api/runtime/toolAdapter.js';
+import type { GMIManagerConfig } from '../../cognitive_substrate/GMIManager.js';
+import type { AgentOSOrchestratorConfig } from '../../api/types/OrchestratorConfig.js';
+import type { PromptEngineConfig } from '../llm/IPromptEngine.js';
 import { ToolOrchestratorConfig } from './ToolOrchestratorConfig';
-import { ToolPermissionManagerConfig } from '../core/tools/permissions/IToolPermissionManager';
-import { ConversationManagerConfig } from '../core/conversation/ConversationManager';
-import { StreamingManagerConfig } from '../core/streaming/StreamingManager';
-import {
+import type { ToolPermissionManagerConfig } from '../tools/permissions/IToolPermissionManager.js';
+import type { ConversationManagerConfig } from '../conversation/ConversationManager.js';
+import type { StreamingManagerConfig } from '../streaming/StreamingManager.js';
+import type {
   AIModelProviderManagerConfig,
   ProviderConfigEntry,
-} from '../core/llm/providers/AIModelProviderManager';
-import { PersonaLoaderConfig } from '../cognitive_substrate/personas/IPersonaLoader';
+} from '../llm/providers/AIModelProviderManager.js';
+import type { PersonaLoaderConfig } from '../../cognitive_substrate/personas/IPersonaLoader.js';
 
-import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
-import { IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
+import type { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI.js';
+import type { IPromptEngineUtilityAI } from '../llm/IPromptEngine.js';
 
 // Utility for error handling
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';

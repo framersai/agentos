@@ -94,7 +94,7 @@ import type {
   RagDataSourceConfig,
   VectorStoreManagerConfig,
 } from '../config/VectorStoreConfiguration';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../core/storage/prismaClient.js';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { IPersonaDefinition } from '../cognitive_substrate/personas/IPersonaDefinition';
 import {

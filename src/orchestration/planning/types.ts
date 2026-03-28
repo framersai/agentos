@@ -8,7 +8,12 @@
  */
 
 import type { GraphNode, GraphEdge, CompiledExecutionGraph } from '../ir/types.js';
-import type { GraphEvent } from '../events/GraphEvent.js';
+import type {
+  GraphEvent,
+  MissionEvalScores,
+  MissionGraphPatch,
+  MissionExpansionTrigger,
+} from '../events/GraphEvent.js';
 
 // ---------------------------------------------------------------------------
 // Autonomy
@@ -86,14 +91,7 @@ export interface NodeProviderAssignment {
 // ---------------------------------------------------------------------------
 
 /** Evaluation scores for a candidate branch (all 0-1). */
-export interface EvalScores {
-  feasibility: number;
-  costEfficiency: number;
-  latency: number;
-  robustness: number;
-  /** Weighted average of the four dimensions. */
-  overall: number;
-}
+export type EvalScores = MissionEvalScores;
 
 /** A single candidate decomposition from Phase 1. */
 export interface CandidateBranch {
@@ -159,19 +157,10 @@ export interface PlanResult {
 // ---------------------------------------------------------------------------
 
 /** Atomic modification to a running graph. Applied between node executions. */
-export interface GraphPatch {
-  addNodes: GraphNode[];
-  addEdges: GraphEdge[];
-  removeNodes?: string[];
-  rewireEdges?: Array<{ from: string; to: string; newTarget: string }>;
-  /** Human-readable reason for this expansion. */
-  reason: string;
-  estimatedCostDelta: number;
-  estimatedLatencyDelta: number;
-}
+export type GraphPatch = MissionGraphPatch;
 
 /** What triggered the expansion. */
-export type ExpansionTrigger = 'agent_request' | 'supervisor_manage' | 'planner_reeval';
+export type ExpansionTrigger = MissionExpansionTrigger;
 
 /** Record of an applied expansion for audit trail. */
 export interface ExpansionRecord {
@@ -186,24 +175,8 @@ export interface ExpansionRecord {
 // Mission Events
 // ---------------------------------------------------------------------------
 
-/** All events emitted during mission execution. Superset of GraphEvent. */
-export type MissionEvent =
-  | GraphEvent
-  | { type: 'mission:planning_start'; goal: string }
-  | { type: 'mission:branch_generated'; branchId: string; summary: string; scores: EvalScores }
-  | { type: 'mission:branch_selected'; branchId: string; reason: string }
-  | { type: 'mission:refinement_applied'; changes: string[] }
-  | { type: 'mission:graph_compiled'; nodeCount: number; edgeCount: number; estimatedCost: number }
-  | { type: 'mission:expansion_proposed'; patch: GraphPatch; trigger: ExpansionTrigger }
-  | { type: 'mission:expansion_approved'; by: 'auto' | 'user' }
-  | { type: 'mission:expansion_applied'; nodesAdded: number; edgesAdded: number }
-  | { type: 'mission:threshold_reached'; threshold: string; value: number; cap: number }
-  | { type: 'mission:checkpoint_saved'; checkpointId: string; nodeId: string }
-  | { type: 'mission:cost_update'; totalSpent: number; costCap: number }
-  | { type: 'mission:complete'; summary: string; totalCost: number; totalDurationMs: number; agentCount: number }
-  | { type: 'mission:agent_spawned'; agentId: string; role: string; provider: string; model: string }
-  | { type: 'mission:tool_forged'; toolId: string; name: string; mode: 'compose' | 'sandbox' }
-  | { type: 'mission:approval_required'; action: string; details: unknown };
+/** All events emitted during mission execution. */
+export type MissionEvent = GraphEvent;
 
 // ---------------------------------------------------------------------------
 // Extended Mission Config

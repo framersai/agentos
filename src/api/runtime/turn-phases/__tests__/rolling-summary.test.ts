@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the RollingSummaryCompactor module
-vi.mock('../../../core/conversation/RollingSummaryCompactor', () => ({
+vi.mock('../../../../core/conversation/RollingSummaryCompactor', () => ({
   maybeCompactConversationMessages: vi.fn(),
 }));
 

@@ -11,7 +11,7 @@ function makeNode(id: string): GraphNode {
     executorConfig: { type: 'gmi' as const, instructions: `Do ${id}` },
     executionMode: 'single_turn',
     effectClass: 'read',
-    checkpoint: true,
+    checkpoint: 'after',
   };
 }
 
@@ -195,6 +195,35 @@ describe('GraphExpander', () => {
       });
       expect(approved).toBe(false);
     });
+
+    it('blocks in guardrailed mode when tool forge cap exceeded', () => {
+      const expander = new GraphExpander({ ...DEFAULT_THRESHOLDS, maxToolForges: 2 });
+      const approved = expander.shouldAutoApprove('guardrailed', {
+        currentCost: 1.0,
+        currentAgentCount: 2,
+        currentExpansions: 0,
+        currentToolForges: 2,
+        patchCostDelta: 0.1,
+        patchAgentDelta: 0,
+        patchToolForgeDelta: 1,
+      });
+      expect(approved).toBe(false);
+    });
+
+    it('blocks in guardrailed mode when depth cap exceeded', () => {
+      const expander = new GraphExpander({ ...DEFAULT_THRESHOLDS, maxDepth: 3 });
+      const approved = expander.shouldAutoApprove('guardrailed', {
+        currentCost: 1.0,
+        currentAgentCount: 2,
+        currentExpansions: 0,
+        currentToolForges: 0,
+        currentDepth: 3,
+        patchCostDelta: 0.1,
+        patchAgentDelta: 0,
+        patchDepthDelta: 1,
+      });
+      expect(approved).toBe(false);
+    });
   });
 
   describe('getExceededThreshold', () => {
@@ -222,6 +251,35 @@ describe('GraphExpander', () => {
         patchAgentDelta: 1,
       });
       expect(result).toEqual({ threshold: 'maxAgentCount', value: 6, cap: 5 });
+    });
+
+    it('identifies tool forge threshold overruns', () => {
+      const expander = new GraphExpander({ ...DEFAULT_THRESHOLDS, maxToolForges: 1 });
+      const result = expander.getExceededThreshold({
+        currentCost: 1.0,
+        currentAgentCount: 2,
+        currentExpansions: 0,
+        currentToolForges: 1,
+        patchCostDelta: 0.1,
+        patchAgentDelta: 0,
+        patchToolForgeDelta: 1,
+      });
+      expect(result).toEqual({ threshold: 'maxToolForges', value: 2, cap: 1 });
+    });
+
+    it('identifies depth threshold overruns', () => {
+      const expander = new GraphExpander({ ...DEFAULT_THRESHOLDS, maxDepth: 2 });
+      const result = expander.getExceededThreshold({
+        currentCost: 1.0,
+        currentAgentCount: 2,
+        currentExpansions: 0,
+        currentToolForges: 0,
+        currentDepth: 2,
+        patchCostDelta: 0.1,
+        patchAgentDelta: 0,
+        patchDepthDelta: 1,
+      });
+      expect(result).toEqual({ threshold: 'maxDepth', value: 3, cap: 2 });
     });
   });
 });

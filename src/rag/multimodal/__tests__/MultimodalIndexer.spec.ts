@@ -196,7 +196,7 @@ describe('MultimodalIndexer', () => {
 
   it('should index image URLs even when the Buffer global is unavailable', async () => {
     const originalBuffer = (globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer;
-    delete (globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer;
+    Reflect.deleteProperty(globalThis as typeof globalThis & Record<string, unknown>, 'Buffer');
 
     try {
       await indexer.indexImage({
