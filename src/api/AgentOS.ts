@@ -76,7 +76,7 @@ import {
   ToolPermissionManagerConfig,
 } from '../core/tools/permissions/IToolPermissionManager';
 import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionManager';
-import type { IAuthService, ISubscriptionService } from '../services/auth';
+import type { IAuthService, ISubscriptionService } from '../types/auth';
 import type { IHumanInteractionManager } from '../planning/hitl/IHumanInteractionManager';
 import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI';

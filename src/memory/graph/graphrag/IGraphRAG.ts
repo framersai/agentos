@@ -8,8 +8,8 @@
  * @version 1.0.0
  */
 
-import type { MetadataValue } from '../../core/vector-store/IVectorStore.js';
-import type { RAGAuditCollector } from '../../rag/audit/RAGAuditCollector.js';
+import type { MetadataValue } from '../../../../core/vector-store/IVectorStore.js';
+import type { RAGAuditCollector } from '../../../../rag/audit/RAGAuditCollector.js';
 
 // =============================================================================
 // Entity & Relationship Types

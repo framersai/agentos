@@ -1491,7 +1491,7 @@ export class QueryRouter {
         });
 
         // Map retrieved vector documents to RetrievedChunk[]
-        return searchResults.documents.map((doc) => ({
+        return searchResults.documents.map((doc: { id: string; textContent?: string; metadata?: Record<string, unknown>; similarityScore?: number }) => ({
           id: doc.id,
           content: doc.textContent ?? '',
           heading: (doc.metadata?.heading as string) ?? '',

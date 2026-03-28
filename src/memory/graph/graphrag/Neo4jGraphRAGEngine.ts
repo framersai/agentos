@@ -30,7 +30,7 @@ import type {
   GlobalSearchResult,
   LocalSearchResult,
 } from './IGraphRAG.js';
-import type { MetadataValue } from '../../core/vector-store/IVectorStore.js';
+import type { MetadataValue } from '../../../../core/vector-store/IVectorStore.js';
 import type { Neo4jConnectionManager } from '../neo4j/Neo4jConnectionManager.js';
 import { Neo4jCypherRunner } from '../neo4j/Neo4jCypherRunner.js';
 

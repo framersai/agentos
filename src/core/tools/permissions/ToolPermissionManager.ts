@@ -39,7 +39,7 @@
  * such as `FeatureFlag` and `ToolPermissionManagerConfig`.
  * See `ITool` and `ToolDefinition` for capability-gated tool metadata.
  * See `UserContext` in `IGMI` for invoking-user context.
- * See `ISubscriptionService` and `ISubscriptionTier` in `services/auth`.
+ * See `ISubscriptionService` and `ISubscriptionTier` in `types/auth`.
  * See `GMIError` and `GMIErrorCode` in `@framers/agentos/utils/errors`.
  */
 
@@ -54,7 +54,7 @@ import type {
   IAuthService,
   ISubscriptionService,
   ISubscriptionTier,
-} from '../../../services/auth';
+} from '../../../types/auth';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 

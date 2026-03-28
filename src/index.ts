@@ -67,7 +67,7 @@ export * from './evaluation/observability';
 // Evaluation Framework
 export * from './evaluation';
 // Knowledge Graph
-export * from './knowledge';
+export * from './memory/graph/index';
 // Agent Marketplace
 export * from './marketplace/store';
 // Per-agent workspace helpers
