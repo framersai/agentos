@@ -74,6 +74,12 @@ export interface MemoryAssemblerInput {
   observationNotes?: string[];
   /** Persistent markdown memory (MEMORY.md contents). */
   persistentMemoryText?: string;
+
+  // --- Cognitive Mechanisms (optional) ---
+  /** Optional cognitive mechanisms engine for involuntary recall. */
+  mechanismsEngine?: import('../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
+  /** All available traces for involuntary recall pool. */
+  allTraces?: import('../types.js').MemoryTrace[];
 }
 
 /**
@@ -222,6 +228,21 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
     if (observationLines.length > 0) {
       sections.push(`## Observations\n${observationLines.join('\n')}`);
       totalTokens += observationUsed;
+    }
+  }
+
+  // --- Involuntary Recall (Cognitive Mechanisms) ---
+  if (input.mechanismsEngine && input.allTraces) {
+    const retrievedSet = new Set(includedIds);
+    const { involuntaryMemory } = input.mechanismsEngine.onPromptAssembly(input.allTraces, retrievedSet);
+    if (involuntaryMemory) {
+      const formatted = `[spontaneous memory] ${formatMemoryTrace(involuntaryMemory, style)}`;
+      const tokens = estimateTokens(formatted);
+      if (totalTokens + tokens <= budget) {
+        sections.push(`## Something This Reminds Me Of\n${formatted}`);
+        totalTokens += tokens;
+        includedIds.push(involuntaryMemory.id);
+      }
     }
   }
 

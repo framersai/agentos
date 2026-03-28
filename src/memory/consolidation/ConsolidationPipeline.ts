@@ -49,6 +49,8 @@ export interface ConsolidationPipelineConfig {
   consolidation?: Partial<ConsolidationConfig>;
   /** LLM invoker for schema integration (optional). */
   llmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
+  /** Optional cognitive mechanisms engine for consolidation-time hooks. */
+  mechanismsEngine?: import('../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +154,14 @@ export class ConsolidationPipeline {
 
     // --- Step 5: Spaced repetition reinforcement ---
     result.reinforcedCount = await this.spacedRepetitionSweep(batch, now);
+
+    // --- Step 6: Cognitive mechanisms (temporal gist, source decay, emotion regulation) ---
+    if (this.config.mechanismsEngine) {
+      const llmFn = this.config.llmInvoker
+        ? (prompt: string) => this.config.llmInvoker!('You are a memory consolidation assistant.', prompt)
+        : undefined;
+      await this.config.mechanismsEngine.onConsolidation(batch, llmFn);
+    }
 
     result.durationMs = Date.now() - startTime;
     this.lastRunAt = now;

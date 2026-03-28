@@ -203,6 +203,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   // Batch 3: Infinite Context (optional)
   private contextWindow: ContextWindowManager | null = null;
 
+  // Cognitive Mechanisms (optional)
+  private mechanismsEngine: import('./mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine | null = null;
+
   /**
    * Optional HyDE retriever for hypothesis-driven memory recall.
    *
@@ -216,6 +219,12 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   async initialize(config: CognitiveMemoryConfig): Promise<void> {
     this.config = config;
 
+    // Cognitive Mechanisms (optional — dynamic import to avoid loading when unused)
+    if (config.cognitiveMechanisms) {
+      const { CognitiveMechanismsEngine } = await import('./mechanisms/CognitiveMechanismsEngine.js');
+      this.mechanismsEngine = new CognitiveMechanismsEngine(config.cognitiveMechanisms, config.traits);
+    }
+
     // Memory store
     this.store = new MemoryStore({
       vectorStore: config.vectorStore,
@@ -223,6 +232,8 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       knowledgeGraph: config.knowledgeGraph,
       collectionPrefix: config.collectionPrefix ?? 'cogmem',
       decayConfig: config.decay ? { ...DEFAULT_DECAY_CONFIG, ...config.decay } : undefined,
+      mechanismsEngine: this.mechanismsEngine ?? undefined,
+      moodProvider: config.moodProvider,
     });
 
     // Cognitive working memory (wraps the existing IWorkingMemory)
@@ -279,6 +290,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         decay: config.decay,
         consolidation: config.consolidation,
         llmInvoker: config.reflector?.llmInvoker ?? config.featureDetectionLlmInvoker,
+        mechanismsEngine: this.mechanismsEngine ?? undefined,
       });
       // Auto-start periodic consolidation
       this.consolidation.start();
@@ -393,6 +405,16 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       updatedAt: now,
       isActive: true,
     };
+
+    // Cognitive mechanisms: schema encoding (before store, so adjusted strength persists)
+    if (this.mechanismsEngine) {
+      try {
+        const embResp = await this.config.embeddingManager.generateEmbeddings({ texts: input });
+        this.mechanismsEngine.onEncoding(trace, embResp.embeddings[0]);
+      } catch {
+        // Non-critical — schema encoding is best-effort
+      }
+    }
 
     // Store in long-term memory
     await this.store.store(trace);

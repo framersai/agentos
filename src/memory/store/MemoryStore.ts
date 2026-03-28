@@ -53,6 +53,10 @@ export interface MemoryStoreConfig {
   /** Embedding dimension (auto-detected if possible). */
   embeddingDimension?: number;
   decayConfig?: DecayConfig;
+  /** Optional cognitive mechanisms engine for retrieval-time hooks. */
+  mechanismsEngine?: import('../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
+  /** Optional mood provider for reconsolidation drift during recordAccess. */
+  moodProvider?: () => PADState;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,10 +138,13 @@ export class MemoryStore {
   private embeddingCache: Map<string, number[]> = new Map();
   /** Track concrete scopes we have seen, so retrieval never falls back to a fake wildcard scope. */
   private knownScopes: Map<string, { scope: MemoryScope; scopeId: string }> = new Map();
+  /** Optional cognitive mechanisms engine for retrieval-time hooks. */
+  private mechanismsEngine?: import('../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
 
   constructor(config: MemoryStoreConfig) {
     this.config = config;
     this.decay = config.decayConfig ?? DEFAULT_DECAY_CONFIG;
+    this.mechanismsEngine = config.mechanismsEngine;
   }
 
   // =========================================================================
@@ -309,6 +316,12 @@ export class MemoryStore {
     const scored = scoreAndRankTraces(allCandidates, scoringContext).slice(0, topK);
     const partial = detectPartiallyRetrieved(allCandidates, now);
 
+    // Cognitive mechanisms: RIF + FOK
+    if (this.mechanismsEngine && scored.length > 0) {
+      const cutoff = scored[scored.length - 1].retrievalScore;
+      this.mechanismsEngine.onRetrieval(scored, allCandidates, cutoff, []);
+    }
+
     return { scored, partial };
   }
 
@@ -336,6 +349,12 @@ export class MemoryStore {
     trace.reinforcementInterval = update.reinforcementInterval;
     trace.nextReinforcementAt = update.nextReinforcementAt;
     trace.updatedAt = now;
+
+    // Cognitive mechanisms: reconsolidation drift on access
+    if (this.mechanismsEngine && this.config.moodProvider) {
+      const mood = this.config.moodProvider();
+      this.mechanismsEngine.onAccess(trace, mood);
+    }
 
     // Update vector store metadata, reusing cached embedding to avoid
     // wasteful re-embedding on every access.

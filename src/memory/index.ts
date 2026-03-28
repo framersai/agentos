@@ -290,3 +290,14 @@ export {
   MemorySearchTool,
   MemoryReflectTool,
 } from './tools/index.js';
+
+// --- Cognitive Mechanisms (optional) ---
+export { CognitiveMechanismsEngine, DEFAULT_MECHANISMS_CONFIG } from './mechanisms/index.js';
+export { resolveConfig as resolveMechanismsConfig } from './mechanisms/index.js';
+export type {
+  CognitiveMechanismsConfig,
+  ResolvedMechanismsConfig,
+  MetacognitiveSignal,
+  MechanismMetadata,
+  DriftEvent,
+} from './mechanisms/index.js';

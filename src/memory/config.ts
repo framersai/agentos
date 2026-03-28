@@ -210,6 +210,10 @@ export interface CognitiveMemoryConfig {
   graph?: Partial<MemoryGraphConfig>;
   consolidation?: Partial<ConsolidationConfig>;
 
+  // --- Cognitive Mechanisms (optional, no-op when absent) ---
+  /** Optional per-mechanism cognitive science extensions (reconsolidation, RIF, FOK, etc.). */
+  cognitiveMechanisms?: import('./mechanisms/types.js').CognitiveMechanismsConfig;
+
   // --- Batch 3: Infinite Context (optional, no-op when absent) ---
   /** Infinite context window config. Enables transparent compaction for forever conversations. */
   infiniteContext?: Partial<InfiniteContextConfig>;

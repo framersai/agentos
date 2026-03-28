@@ -70,6 +70,17 @@ applySourceConfidenceDecay(traces, config): number
 applyEmotionRegulation(traces, config): number
 ```
 
+## HEXACO Personality Modulation
+
+The `CognitiveMechanismsEngine` constructor accepts optional `HexacoTraits`. When provided, mechanism parameters are scaled by personality dimensions before any hooks fire:
+
+```typescript
+// In CognitiveMemoryManager.initialize():
+this.mechanismsEngine = new CognitiveMechanismsEngine(config.cognitiveMechanisms, config.traits);
+```
+
+Modulation is applied once at construction time via `applyPersonalityModulation()`. Each trait maps to a specific mechanism parameter via empirically-grounded scaling formulas documented in `CognitiveMechanismsEngine.ts`.
+
 ## Guard Conditions
 
 All mechanisms share common guard patterns:
