@@ -237,7 +237,7 @@ export class TurnExecutionPipeline {
     // -------------------------------------------------------------------
     // Phase 3: Stream context registration
     // -------------------------------------------------------------------
-    const organizationIdForMemory: string | undefined;
+    let organizationIdForMemory: string | undefined;
     const streamContext: PipelineStreamContext = {
       gmi,
       userId: input.userId,

@@ -12,9 +12,11 @@ import { fileURLToPath } from 'node:url';
 
 import type {
   CompiledExecutionGraph,
+  GraphCondition,
   GraphEdge,
   GraphNode,
   NodeLlmConfig,
+  VoiceNodeConfig,
 } from '../ir/types.js';
 import { END, START } from '../ir/types.js';
 import type { GraphEvent, MissionGraphPatch } from '../events/GraphEvent.js';
@@ -134,8 +136,9 @@ function buildExecutorConfig(
     case 'router':
       return {
         type: 'router',
-        condition: (raw.condition as GraphNode['executorConfig'] & { condition?: unknown }).condition
-          ?? { type: 'expression', expr: `'${END}'` },
+        condition: ((raw.condition as unknown as Record<string, unknown>)?.type
+          ? raw.condition as unknown as GraphCondition
+          : { type: 'expression' as const, expr: `'${END}'` }),
       };
     case 'subgraph':
       return {
@@ -148,8 +151,8 @@ function buildExecutorConfig(
       return {
         type: 'voice',
         voiceConfig: isRecord(raw.voiceConfig)
-          ? raw.voiceConfig as GraphNode['executorConfig'] & { voiceConfig: unknown }['voiceConfig']
-          : { mode: 'conversation' },
+          ? raw.voiceConfig as unknown as VoiceNodeConfig
+          : { mode: 'conversation' as const },
       };
     case 'gmi':
     default:
@@ -188,20 +191,20 @@ function normalizeNode(raw: Record<string, unknown>): GraphNode {
     complexity: clampComplexity(raw.complexity as number | undefined),
     ...(isRecord(raw.llm) ? { llm: raw.llm as unknown as NodeLlmConfig } : {}),
     ...(typeof raw.timeout === 'number' ? { timeout: raw.timeout } : {}),
-    ...(isRecord(raw.retryPolicy) ? { retryPolicy: raw.retryPolicy as GraphNode['retryPolicy'] } : {}),
+    ...(isRecord(raw.retryPolicy) ? { retryPolicy: raw.retryPolicy as unknown as GraphNode['retryPolicy'] } : {}),
     ...(isRecord(raw.inputSchema) ? { inputSchema: raw.inputSchema } : {}),
     ...(isRecord(raw.outputSchema) ? { outputSchema: raw.outputSchema } : {}),
     ...(isRecord(raw.memoryPolicy)
-      ? { memoryPolicy: raw.memoryPolicy as GraphNode['memoryPolicy'] }
+      ? { memoryPolicy: raw.memoryPolicy as unknown as GraphNode['memoryPolicy'] }
       : {}),
     ...(isRecord(raw.discoveryPolicy)
-      ? { discoveryPolicy: raw.discoveryPolicy as GraphNode['discoveryPolicy'] }
+      ? { discoveryPolicy: raw.discoveryPolicy as unknown as GraphNode['discoveryPolicy'] }
       : {}),
     ...(isRecord(raw.personaPolicy)
-      ? { personaPolicy: raw.personaPolicy as GraphNode['personaPolicy'] }
+      ? { personaPolicy: raw.personaPolicy as unknown as GraphNode['personaPolicy'] }
       : {}),
     ...(isRecord(raw.guardrailPolicy)
-      ? { guardrailPolicy: raw.guardrailPolicy as GraphNode['guardrailPolicy'] }
+      ? { guardrailPolicy: raw.guardrailPolicy as unknown as GraphNode['guardrailPolicy'] }
       : {}),
   };
 }
@@ -530,7 +533,7 @@ function buildReassignedNode(existing: GraphNode, spec: Record<string, unknown>)
       ?? existing.complexity,
     ...(nextType === 'gmi'
       ? isRecord(spec.llm)
-        ? { llm: spec.llm as NodeLlmConfig }
+        ? { llm: spec.llm as unknown as NodeLlmConfig }
         : existing.llm
           ? { llm: existing.llm }
           : {}
@@ -786,7 +789,7 @@ export function createMissionExpansionHandler(
 
   let currentEstimatedCost = options.initialEstimatedCost ?? 0;
   let currentExpansions = 0;
-  const currentToolForges = 0;
+  let currentToolForges = 0;
 
   const assignProviders = (patch: MissionGraphPatch): MissionGraphPatch => {
     const nodes = [...patch.addNodes];
