@@ -195,6 +195,18 @@ export interface IToolOrchestrator {
   setEmergentDiscoveryIndexer?(indexer: (tools: EmergentTool[]) => Promise<void>): void;
 
   /**
+   * Dynamically load an extension at runtime and register its tools.
+   *
+   * Used by the discovery engine when the agent encounters a request
+   * outside its loaded toolset. The extension is loaded for the current
+   * session only — it does not persist to config.
+   *
+   * @param extensionId - The extension ID from the tool catalog (e.g., 'omdb').
+   * @returns The names of newly registered tools, or empty array on failure.
+   */
+  loadExtensionAtRuntime?(extensionId: string): Promise<string[]>;
+
+  /**
    * Checks the health of the ToolOrchestrator and its critical dependencies.
    *
    * @async

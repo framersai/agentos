@@ -978,6 +978,84 @@ export class ToolOrchestrator implements IToolOrchestrator {
   }
 
   /**
+   * Dynamically load an extension at runtime and register its tools.
+   *
+   * Used by the discovery engine when the agent encounters a request
+   * outside its loaded toolset. The extension is loaded for the current
+   * session only — it does not persist to config.
+   *
+   * @param extensionId - The extension ID from the tool catalog (e.g., 'omdb').
+   * @returns The names of newly registered tools, or empty array on failure.
+   */
+  public async loadExtensionAtRuntime(extensionId: string): Promise<string[]> {
+    this.ensureInitialized();
+    const logPrefix = `ToolOrchestrator (ID: ${this.orchestratorId})`;
+
+    try {
+      const registry = await import('@framers/agentos-extensions-registry');
+      const catalog: Array<{
+        name: string;
+        createPack?: (context: import('@framers/agentos-extensions-registry').RegistryOptions & Record<string, unknown>) => Promise<unknown> | unknown;
+        [key: string]: unknown;
+      }> = (registry.TOOL_CATALOG as any[]) ?? [];
+      const entry = catalog.find((e) => e.name === extensionId);
+
+      if (!entry) {
+        console.warn(
+          `${logPrefix}: Runtime load — extension "${extensionId}" not found in catalog.`
+        );
+        return [];
+      }
+
+      if (!entry.createPack) {
+        console.warn(
+          `${logPrefix}: Runtime load — extension "${extensionId}" has no createPack factory.`
+        );
+        return [];
+      }
+
+      const envMap: Record<string, { envVar: string }> = (registry.SECRET_ENV_MAP as any) ?? {};
+
+      const pack: any = await entry.createPack({
+        options: {},
+        getSecret: (id: string) => {
+          const mapping = envMap[id];
+          return mapping ? process.env[mapping.envVar] : undefined;
+        },
+        logger: console,
+      } as any);
+
+      if (!pack?.descriptors) return [];
+
+      const registered: string[] = [];
+      for (const desc of pack.descriptors as Array<{ kind?: string; id: string; payload?: ITool }>) {
+        if (desc.kind === 'tool' && desc.payload) {
+          await this.registerTool(desc.payload);
+          registered.push(desc.payload.name ?? desc.id);
+        }
+      }
+
+      if (typeof pack.onActivate === 'function') {
+        await pack.onActivate({ logger: console });
+      }
+
+      if (registered.length > 0) {
+        console.log(
+          `${logPrefix}: Runtime loaded "${extensionId}": ${registered.join(', ')}.`
+        );
+      }
+
+      return registered;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `${logPrefix}: Runtime load failed for "${extensionId}": ${msg}`
+      );
+      return [];
+    }
+  }
+
+  /**
    * @inheritdoc
    */
   public async checkHealth(): Promise<{ isHealthy: boolean; details?: any }> {
