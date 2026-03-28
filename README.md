@@ -529,6 +529,7 @@ graph TB
   - **Episodic memory** -- Timestamped events and interactions
   - **Semantic memory** -- Extracted facts, entity relationships, domain knowledge
   - **Procedural memory** -- Learned skills, patterns, and execution strategies
+  - **Cognitive mechanisms** (`memory/mechanisms/`) -- 8 optional neuroscience-grounded mechanisms: reconsolidation drift (Nader et al., 2000), retrieval-induced forgetting (Anderson et al., 1994), involuntary recall (Berntsen, 2009), metacognitive feeling-of-knowing (Nelson & Narens, 1990), temporal gist extraction (Reyna & Brainerd, 1995), schema encoding (Bartlett, 1932), source confidence decay (Johnson et al., 1993), emotion regulation (Gross, 1998). All HEXACO personality-modulated, individually configurable. See `docs/memory/COGNITIVE_MECHANISMS.md`.
 
 ---
 

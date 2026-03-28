@@ -6,6 +6,10 @@ For CLI usage and agent configuration, see [Memory System on docs.wunderland.sh]
 
 > Personality-modulated, decay-aware memory grounded in cognitive science — replacing flat key-value memory with Ebbinghaus forgetting curves, Baddeley's working memory, spreading activation, and HEXACO-driven encoding biases.
 
+:::tip Cognitive Mechanisms
+The memory system now includes 8 optional neuroscience-grounded cognitive mechanisms (reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist, schema encoding, source confidence decay, emotion regulation). All are HEXACO personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing. See [Cognitive Mechanisms Reference](../../../../docs/memory/cognitive-mechanisms.md) for full science citations and Wunderland integration.
+:::
+
 ---
 
 ## Overview
