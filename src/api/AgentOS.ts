@@ -1889,7 +1889,7 @@ export class AgentOS implements IAgentOS {
     if (discoveryConfig?.registerMetaTool !== false) {
       const existing = await this.toolOrchestrator.getTool('discover_capabilities');
       if (!existing) {
-        await this.toolOrchestrator.registerTool(createDiscoverCapabilitiesTool(engine));
+        await this.toolOrchestrator.registerTool(createDiscoverCapabilitiesTool(engine, this.toolOrchestrator));
       }
     }
 
