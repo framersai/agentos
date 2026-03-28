@@ -1,3 +1,7 @@
+## <small>0.1.130 (2026-03-28)</small>
+
+* fix(lint): suppress prefer-const for organizationIdForMemory (assigned in later phase) ([12b12de](https://github.com/framersai/agentos/commit/12b12de))
+
 ## <small>0.1.129 (2026-03-28)</small>
 
 * fix(build): restore let declarations and add unknown casts for strict type safety ([6693e00](https://github.com/framersai/agentos/commit/6693e00))
