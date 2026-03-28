@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ProspectiveMemoryManager } from '../../src/memory/prospective/ProspectiveMemoryManager';
+import { ProspectiveMemoryManager } from '../../src/memory/retrieval/prospective/ProspectiveMemoryManager';
 
 describe('ProspectiveMemoryManager', () => {
   let pm: ProspectiveMemoryManager;

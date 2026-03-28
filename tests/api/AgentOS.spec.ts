@@ -17,7 +17,7 @@ import {
 } from '../../src/api/types/AgentOSResponse';
 import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
-import { Memory } from '../../src/memory/facade/Memory';
+import { Memory } from '../../src/memory/io/facade/Memory';
 
 function createConfig(overrides: Partial<AgentOSConfig> = {}): AgentOSConfig {
   return {

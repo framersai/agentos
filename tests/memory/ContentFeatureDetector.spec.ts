@@ -9,7 +9,7 @@ import {
   LlmFeatureDetector,
   HybridFeatureDetector,
   createFeatureDetector,
-} from '../../src/memory/encoding/ContentFeatureDetector';
+} from '../../src/memory/core/encoding/ContentFeatureDetector';
 
 describe('ContentFeatureDetector', () => {
   describe('KeywordFeatureDetector', () => {

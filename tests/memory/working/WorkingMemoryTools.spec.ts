@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { MarkdownWorkingMemory } from '../../../src/memory/working/MarkdownWorkingMemory.js';
-import { UpdateWorkingMemoryTool } from '../../../src/memory/working/UpdateWorkingMemoryTool.js';
-import { ReadWorkingMemoryTool } from '../../../src/memory/working/ReadWorkingMemoryTool.js';
+import { MarkdownWorkingMemory } from '../../../src/memory/core/working/MarkdownWorkingMemory.js';
+import { UpdateWorkingMemoryTool } from '../../../src/memory/core/working/UpdateWorkingMemoryTool.js';
+import { ReadWorkingMemoryTool } from '../../../src/memory/core/working/ReadWorkingMemoryTool.js';
 
 const mockContext = {
   gmiId: 'test-gmi',

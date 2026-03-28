@@ -121,7 +121,7 @@ function buildParameterTable(schema: JSONSchemaObject): string {
  * Converts an {@link EmergentTool} into a SKILL.md markdown string.
  *
  * The generated SKILL.md follows the standard format used by the curated
- * skills in `packages/agentos-skills-registry/registry/curated/`. It includes
+ * skills in `packages/agentos-skills/registry/curated/`. It includes
  * YAML frontmatter, a purpose section, usage guidance, a parameter table,
  * and implementation notes.
  *

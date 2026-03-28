@@ -692,12 +692,15 @@ export class GMI implements IGMI {
           if (this.shouldTriggerRAGRetrieval(currentQueryForRag)) {
             this.addTraceEntry(ReasoningEntryType.RAG_QUERY_START, "RAG retrieval triggered.", { queryPreview: currentQueryForRag.substring(0, 100) });
             const ragCfg = this.activePersona.memoryConfig?.ragConfig;
+            const strategyMap: Record<string, RagRetrievalOptions['strategy']> = {
+              similarity: 'similarity', mmr: 'mmr', hybrid_search: 'hybrid',
+            };
             const retrievalOptions: RagRetrievalOptions = {
                 topK: ragCfg?.defaultRetrievalTopK || 5,
                 targetDataSourceIds: ragCfg?.dataSources?.filter(ds => ds.isEnabled).map(ds => ds.dataSourceNameOrId),
-                ...(ragCfg?.metadataFilter && { metadataFilter: ragCfg.metadataFilter }),
-                ...(ragCfg?.retrievalStrategy && { strategy: ragCfg.retrievalStrategy }),
-                ...(ragCfg?.similarityThreshold != null && { similarityThreshold: ragCfg.similarityThreshold }),
+                ...(ragCfg?.defaultRetrievalStrategy && {
+                  strategy: strategyMap[ragCfg.defaultRetrievalStrategy] ?? 'similarity',
+                }),
             };
             const ragResult = await this.retrievalAugmentor.retrieveContext(currentQueryForRag, retrievalOptions);
             augmentedContextFromRAG = ragResult.augmentedContext;

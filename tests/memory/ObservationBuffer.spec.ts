@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ObservationBuffer } from '../../src/memory/observation/ObservationBuffer';
+import { ObservationBuffer } from '../../src/memory/pipeline/observation/ObservationBuffer';
 
 describe('ObservationBuffer', () => {
   let buffer: ObservationBuffer;

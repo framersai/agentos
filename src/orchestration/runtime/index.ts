@@ -19,4 +19,10 @@ export type {
 export { NodeExecutor } from './NodeExecutor.js';
 export type { NodeExecutionResult } from './NodeExecutor.js';
 export { GraphRuntime } from './GraphRuntime.js';
-export type { GraphRuntimeConfig } from './GraphRuntime.js';
+export type {
+  GraphRuntimeConfig,
+  GraphExpansionRequest,
+  GraphExpansionContext,
+  GraphExpansionResult,
+  GraphExpansionHandler,
+} from './GraphRuntime.js';

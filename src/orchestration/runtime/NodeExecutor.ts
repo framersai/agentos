@@ -14,7 +14,11 @@
  */
 
 import type { GraphNode, GraphState, GraphCondition, CompiledExecutionGraph } from '../ir/types.js';
-import type { GraphEvent } from '../events/GraphEvent.js';
+import type {
+  GraphEvent,
+  MissionExpansionTrigger,
+  MissionGraphPatch,
+} from '../events/GraphEvent.js';
 import type { LoopController, LoopChunk, LoopOutput } from './LoopController.js';
 import type { VoiceNodeExecutor } from './VoiceNodeExecutor.js';
 import { safeEvaluateExpression } from './safeExpressionEvaluator.js';
@@ -52,6 +56,13 @@ export interface NodeExecutionResult {
   artifactsUpdate?: Record<string, unknown>;
   /** Extra runtime events the executor wants to surface to callers. */
   events?: GraphEvent[];
+  /** Mission graph expansion requests emitted by this node's tool usage. */
+  expansionRequests?: Array<{
+    trigger: MissionExpansionTrigger;
+    reason: string;
+    request: unknown;
+    patch?: MissionGraphPatch;
+  }>;
   /** When `true`, the runtime must suspend and await human resolution. */
   interrupt?: boolean;
 }

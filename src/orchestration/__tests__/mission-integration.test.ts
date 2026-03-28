@@ -125,6 +125,8 @@ describe('Mission Orchestrator Integration', () => {
     expect(result.compiledGraph.nodes.length).toBe(3);
     expect(events.some((e) => e.type === 'mission:planning_start')).toBe(true);
     expect(events.some((e) => e.type === 'mission:graph_compiled')).toBe(true);
+    expect(result.selectedBranch.providerAssignments).toHaveLength(3);
+    expect(result.compiledGraph.nodes.every((node) => node.llm)).toBe(true);
 
     // -----------------------------------------------------------------------
     // Provider assignment
@@ -142,7 +144,8 @@ describe('Mission Orchestrator Integration', () => {
     expect(merger.model).toBe('gpt-4o-mini');
 
     const researcher = assignments.find((a) => a.nodeId === 'researcher_1')!;
-    expect(researcher.model).toBe('gpt-4o');
+    expect(researcher.provider).toBe('anthropic');
+    expect(researcher.model).toBe('claude-sonnet-4-20250514');
 
     // Availability check
     const availability = engine.checkAvailability(assignments);

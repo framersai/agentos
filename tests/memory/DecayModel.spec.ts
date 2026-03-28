@@ -9,9 +9,9 @@ import {
   updateOnRetrieval,
   computeInterference,
   findPrunableTraces,
-} from '../../src/memory/decay/DecayModel';
-import type { MemoryTrace } from '../../src/memory/types';
-import { DEFAULT_DECAY_CONFIG } from '../../src/memory/config';
+} from '../../src/memory/core/decay/DecayModel';
+import type { MemoryTrace } from '../../src/memory/core/types';
+import { DEFAULT_DECAY_CONFIG } from '../../src/memory/core/config';
 
 // ---------------------------------------------------------------------------
 // Test helper: create a minimal MemoryTrace

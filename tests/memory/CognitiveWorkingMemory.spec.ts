@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CognitiveWorkingMemory } from '../../src/memory/working/CognitiveWorkingMemory';
+import { CognitiveWorkingMemory } from '../../src/memory/core/working/CognitiveWorkingMemory';
 import type { IWorkingMemory } from '../../src/cognitive_substrate/memory/IWorkingMemory';
 
 // ---------------------------------------------------------------------------

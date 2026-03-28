@@ -131,7 +131,7 @@ Source types: `user_statement`, `agent_inference`, `tool_result`, `observation`,
 
 ## Encoding Model
 
-Source: `src/memory/encoding/EncodingModel.ts`
+Source: `src/memory/core/encoding/EncodingModel.ts`
 
 Encoding determines **how strongly** a new input is committed to memory. The system combines four cognitive mechanisms:
 
@@ -215,7 +215,7 @@ Configure via `featureDetectionStrategy` in `CognitiveMemoryConfig`.
 
 ## Forgetting & Decay
 
-Source: `src/memory/decay/DecayModel.ts`
+Source: `src/memory/core/decay/DecayModel.ts`
 
 ### Ebbinghaus Forgetting Curve
 
@@ -255,7 +255,7 @@ Traces with `currentStrength < pruningThreshold` (default: 0.05) are soft-delete
 
 ## Retrieval Priority Scoring
 
-Source: `src/memory/decay/RetrievalPriorityScorer.ts`
+Source: `src/memory/core/decay/RetrievalPriorityScorer.ts`
 
 Retrieval combines six signals into a composite score:
 
@@ -291,7 +291,7 @@ Traces with high vector similarity (>0.6) but low strength (<0.3) or low confide
 
 ## Working Memory (Baddeley's Model)
 
-Source: `src/memory/working/CognitiveWorkingMemory.ts`
+Source: `src/memory/core/working/CognitiveWorkingMemory.ts`
 
 Working memory is a **slot-based, capacity-limited** buffer that tracks what the agent is currently "thinking about."
 
@@ -335,7 +335,7 @@ Each `WorkingMemorySlot` tracks:
 
 ## Memory Store
 
-Source: `src/memory/store/MemoryStore.ts`
+Source: `src/memory/retrieval/store/MemoryStore.ts`
 
 The `MemoryStore` wraps `IVectorStore` + `IKnowledgeGraph` into a unified persistence layer:
 
@@ -359,7 +359,7 @@ cogmem_organization_acme-org
 
 ## Memory Graph
 
-Source: `src/memory/graph/IMemoryGraph.ts`
+Source: `src/memory/retrieval/graph/IMemoryGraph.ts`
 
 The `IMemoryGraph` interface abstracts over two backends:
 
@@ -387,7 +387,7 @@ Configure via `graph.backend` (default: `'knowledge-graph'`).
 
 ## Spreading Activation
 
-Source: `src/memory/graph/SpreadingActivation.ts`
+Source: `src/memory/retrieval/graph/SpreadingActivation.ts`
 
 Implements Anderson's ACT-R spreading activation model. Given seed nodes (top retrieval results), activation spreads through the graph to surface associated memories.
 
@@ -420,7 +420,7 @@ The learning rate (default 0.1) controls how quickly edge weights grow.
 
 ### Memory Observer
 
-Source: `src/memory/observation/MemoryObserver.ts`
+Source: `src/memory/pipeline/observation/MemoryObserver.ts`
 
 The observer monitors accumulated conversation tokens via a buffer. When the threshold is reached (default: 30,000 tokens), it extracts concise observation notes via a persona-configured LLM.
 
@@ -438,7 +438,7 @@ Observation notes are typed: `factual`, `emotional`, `commitment`, `preference`,
 
 ### Memory Reflector
 
-Source: `src/memory/observation/MemoryReflector.ts`
+Source: `src/memory/pipeline/observation/MemoryReflector.ts`
 
 The reflector consolidates accumulated observation notes into long-term memory traces. Activates when note tokens exceed threshold (default: 40,000 tokens).
 
@@ -462,7 +462,7 @@ Personality also controls **memory style**:
 
 ## Prospective Memory
 
-Source: `src/memory/prospective/ProspectiveMemoryManager.ts`
+Source: `src/memory/retrieval/prospective/ProspectiveMemoryManager.ts`
 
 Prospective memory handles **future intentions** — "remember to do X when Y happens."
 
@@ -496,7 +496,7 @@ Context-based triggers use cosine similarity between the cue embedding and the c
 
 ## Consolidation Pipeline
 
-Source: `src/memory/consolidation/ConsolidationPipeline.ts`
+Source: `src/memory/pipeline/consolidation/ConsolidationPipeline.ts`
 
 Runs periodically (default: every hour) to maintain memory health. Five steps:
 
@@ -542,7 +542,7 @@ interface ConsolidationResult {
 
 ## Prompt Assembly
 
-Source: `src/memory/prompt/MemoryPromptAssembler.ts`
+Source: `src/memory/core/prompt/MemoryPromptAssembler.ts`
 
 Assembles memory context into a single formatted string within a token budget, split across six sections with overflow redistribution.
 

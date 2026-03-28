@@ -273,7 +273,7 @@ async function createUtilityAIService(
     try {
       const { StatisticalUtilityAI } = await import('../../nlp/ai_utilities/StatisticalUtilityAI.js');
       const utilityAI = new StatisticalUtilityAI();
-      return utilityAI as IUtilityAI & IPromptEngineUtilityAI;
+      return utilityAI as unknown as IUtilityAI & IPromptEngineUtilityAI;
     } catch {
       console.warn('[AgentOS] ENABLE_UTILITY_AI=true but StatisticalUtilityAI failed to load');
     }

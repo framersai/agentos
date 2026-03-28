@@ -1138,7 +1138,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
   public async deleteDocuments(
     documentIds: string[],
     dataSourceId?: string,
-    _options?: { ignoreNotFound?: boolean },
+    options?: { ignoreNotFound?: boolean },
   ): Promise<{
     successCount: number;
     failureCount: number;
@@ -1174,37 +1174,61 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     for (const dsId of targetDsIds) {
         try {
             const { store, collectionName } = await this.vectorStoreManager.getStoreForDataSource(dsId);
-            // Attempt to resolve chunk IDs for each document ID. If the store
-            // supports metadata filtering, query for chunks whose sourceDocumentId
-            // matches the provided document IDs. Fall back to treating them as
-            // direct chunk IDs when metadata filtering is unavailable.
-            let chunkIdsToDelete = documentIds;
-            if (typeof store.listDocuments === 'function') {
-              try {
-                const allChunkIds: string[] = [];
-                for (const docId of documentIds) {
-                  const matches = await store.listDocuments(collectionName, {
-                    filter: { sourceDocumentId: docId },
-                    limit: 1000,
-                  });
-                  if (matches?.documents?.length) {
-                    allChunkIds.push(...matches.documents.map((d: any) => d.id));
-                  } else {
-                    allChunkIds.push(docId);
-                  }
+            for (const docId of documentIds) {
+                let filterDeleteFailed = false;
+
+                try {
+                    // Chunks are ingested with `originalDocumentId`, so delete
+                    // against that metadata key to remove the full logical document.
+                    const filterDeleteResult = await store.delete(collectionName, undefined, {
+                        filter: { originalDocumentId: docId },
+                    });
+                    successCount += filterDeleteResult.deletedCount;
+                    if (filterDeleteResult.errors) {
+                        filterDeleteResult.errors.forEach((err: any) => {
+                            errors.push({
+                                documentId: docId,
+                                message: `Failed to delete chunks for '${docId}' from ${dsId}: ${err.message}`,
+                                details: err.details,
+                            });
+                            failureCount++;
+                        });
+                    }
+
+                    // If the provider deleted matching chunks (or surfaced concrete
+                    // errors), we do not need to fall back to direct ID deletion.
+                    if (filterDeleteResult.deletedCount > 0 || filterDeleteResult.errors?.length) {
+                        continue;
+                    }
+                } catch {
+                    filterDeleteFailed = true;
                 }
-                if (allChunkIds.length > 0) chunkIdsToDelete = allChunkIds;
-              } catch {
-                // Fall back to direct IDs if metadata query fails
-              }
-            }
-            const deleteResult = await store.delete(collectionName, chunkIdsToDelete);
-            successCount += deleteResult.deletedCount;
-            if (deleteResult.errors) {
-                deleteResult.errors.forEach((err: any) => {
-                    errors.push({ documentId: err.id || 'unknown', message: `Failed to delete from ${dsId}: ${err.message}`, details: err.details});
+
+                const deleteResult = await store.delete(collectionName, [docId]);
+                successCount += deleteResult.deletedCount;
+                if (deleteResult.errors) {
+                    deleteResult.errors.forEach((err: any) => {
+                        errors.push({
+                            documentId: err.id || docId,
+                            message: `Failed to delete from ${dsId}: ${err.message}`,
+                            details: err.details,
+                        });
+                        failureCount++;
+                    });
+                }
+
+                if (
+                    filterDeleteFailed &&
+                    deleteResult.deletedCount === 0 &&
+                    !deleteResult.errors?.length &&
+                    !options?.ignoreNotFound
+                ) {
+                    errors.push({
+                        documentId: docId,
+                        message: `Unable to confirm deletion for '${docId}' in data source '${dsId}'.`,
+                    });
                     failureCount++;
-                });
+                }
             }
         } catch (error: any) {
             documentIds.forEach(docId => {
@@ -1230,20 +1254,8 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     const docsArray = Array.isArray(documents) ? documents : [documents];
     const docIdsToUpdate = docsArray.map(doc => doc.id);
 
-    // Simplistic implementation: delete then ingest.
-    // This assumes doc.id in RagDocumentInput is the original document ID.
-    // The deleteDocuments currently expects chunk IDs or needs enhancement.
-    // For a true update, need to ensure all old chunks of a doc are deleted.
-    // This is a placeholder for a more sophisticated update.
-    console.warn(`RetrievalAugmentor (ID: ${this.augmenterId}): updateDocuments is currently a best-effort delete-then-ingest. Deletion targets document IDs, which might not map directly to all chunks without further logic.`);
-
     try {
-      // This delete is problematic if docIdsToUpdate are original doc IDs and deleteDocuments expects chunk IDs.
-      // Assuming for now a conceptual deletion of the "document" entry.
-      // A proper implementation would first query for all chunks associated with docIdsToUpdate and delete those.
-      // await this.deleteDocuments(docIdsToUpdate, options?.targetDataSourceId, { ignoreNotFound: true });
-      // For now, a more robust update would require managing mapping of doc ID to chunk IDs.
-      // So, we directly proceed to ingest with overwrite capability.
+      await this.deleteDocuments(docIdsToUpdate, options?.targetDataSourceId, { ignoreNotFound: true });
     } catch (deleteError: any) {
       console.error(`RetrievalAugmentor (ID: ${this.augmenterId}): Error during delete phase of update for documents [${docIdsToUpdate.join(', ')}]. Ingest will still be attempted. Error: ${deleteError.message}`);
     }

@@ -127,11 +127,39 @@ describe('RetrievalAugmentor Functionality', () => {
     );
   });
 
-  // Add more tests:
-  // - Ingestion with different chunking strategies (once implemented)
-  // - Retrieval with metadata filters
-  // - Error handling during ingestion and retrieval
-  // - deleteDocuments and updateDocuments
+  it('should delete by originalDocumentId metadata when removing a document', async () => {
+    const result = await augmentor.deleteDocuments(['doc1'], 'test-ds-1');
+
+    expect(result.successCount).toBe(1);
+    expect(result.failureCount).toBe(0);
+    expect(mockVectorStore.delete).toHaveBeenCalledWith(
+      'test-collection',
+      undefined,
+      { filter: { originalDocumentId: 'doc1' } },
+    );
+  });
+
+  it('should delete old chunks before ingesting document updates', async () => {
+    const deleteSpy = vi
+      .spyOn(augmentor as RetrievalAugmentor, 'deleteDocuments')
+      .mockResolvedValue({ successCount: 1, failureCount: 0, errors: [] });
+
+    const doc: RagDocumentInput = {
+      id: 'doc-update',
+      content: 'Updated content for an existing document.',
+      dataSourceId: 'test-ds-1',
+    };
+
+    const result = await augmentor.updateDocuments(doc, { targetDataSourceId: 'test-ds-1' });
+
+    expect(deleteSpy).toHaveBeenCalledWith(
+      ['doc-update'],
+      'test-ds-1',
+      { ignoreNotFound: true },
+    );
+    expect(result.processedCount).toBe(1);
+    expect(mockVectorStore.upsert).toHaveBeenCalled();
+  });
 });
 
 describe('RetrievalAugmentor Reranking', () => {

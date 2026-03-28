@@ -16,15 +16,20 @@ function makeGmiNode(id: string, complexity: number): GraphNode & { complexity: 
 
 describe('ProviderAssignmentEngine', () => {
   describe('cheapest strategy', () => {
-    it('assigns cheapest models to all nodes', () => {
+    it('assigns cheapest models to all nodes, rotating across available providers', () => {
       const engine = new ProviderAssignmentEngine(['openai', 'anthropic']);
       const nodes = [makeGmiNode('researcher', 0.8), makeGmiNode('summarizer', 0.2)];
       const assignments = engine.assign(nodes, { strategy: 'cheapest' });
 
       expect(assignments).toHaveLength(2);
-      for (const a of assignments) {
-        expect(a.model).toBe('gpt-4o-mini');
-      }
+      expect(assignments[0]).toMatchObject({
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+      });
+      expect(assignments[1]).toMatchObject({
+        provider: 'anthropic',
+        model: 'claude-haiku-4-5-20251001',
+      });
     });
   });
 
@@ -35,6 +40,15 @@ describe('ProviderAssignmentEngine', () => {
       const assignments = engine.assign(nodes, { strategy: 'best' });
 
       expect(assignments[0]!.model).toBe('gpt-4o');
+    });
+
+    it('prefers stronger providers when multiple are available', () => {
+      const engine = new ProviderAssignmentEngine(['openai', 'anthropic']);
+      const nodes = [makeGmiNode('researcher', 0.8)];
+      const assignments = engine.assign(nodes, { strategy: 'best' });
+
+      expect(assignments[0]!.provider).toBe('anthropic');
+      expect(assignments[0]!.model).toBe('claude-sonnet-4-20250514');
     });
   });
 

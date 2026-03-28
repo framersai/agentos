@@ -8,5 +8,7 @@ export { MissionPlanner } from './MissionPlanner.js';
 export type { PlanContext } from './MissionPlanner.js';
 export { ProviderAssignmentEngine } from './ProviderAssignmentEngine.js';
 export { GraphExpander } from './GraphExpander.js';
+export { createMissionExpansionHandler } from './MissionExpansionHandler.js';
+export type { CreateMissionExpansionHandlerOptions } from './MissionExpansionHandler.js';
 export { buildLlmCaller, buildSplitCallers } from './buildLlmCaller.js';
 export type { BuildLlmCallerOptions, LlmCallerFn } from './buildLlmCaller.js';

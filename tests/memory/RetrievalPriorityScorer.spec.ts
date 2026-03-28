@@ -11,9 +11,9 @@ import {
   scoreAndRankTraces,
   detectPartiallyRetrieved,
   DEFAULT_SCORING_WEIGHTS,
-} from '../../src/memory/decay/RetrievalPriorityScorer';
-import type { MemoryTrace } from '../../src/memory/types';
-import type { PADState } from '../../src/memory/config';
+} from '../../src/memory/core/decay/RetrievalPriorityScorer';
+import type { MemoryTrace } from '../../src/memory/core/types';
+import type { PADState } from '../../src/memory/core/config';
 
 function makeTrace(overrides: Partial<MemoryTrace> = {}): MemoryTrace {
   return {

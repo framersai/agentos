@@ -180,6 +180,35 @@ describe('MissionPlanner', () => {
     });
   });
 
+  describe('Provider assignment', () => {
+    it('attaches node-level provider assignments to compiled gmi nodes', async () => {
+      const llmCaller = createMockLlmCaller([
+        makeBranchResponse('linear', 'Linear approach'),
+        makeBranchResponse('parallel', 'Parallel approach'),
+        makeBranchResponse('hierarchical', 'Hierarchical approach'),
+        makeEvalResponse('branch_0', [{ branchId: 'branch_0', overall: 0.8 }]),
+        makeRefineResponse(),
+      ]);
+
+      const planner = new MissionPlanner(basePlannerConfig(llmCaller));
+      const result = await planner.plan('Research agent runtimes', {
+        tools: [],
+        providers: ['openai', 'anthropic'],
+      });
+
+      expect(result.selectedBranch.providerAssignments).toHaveLength(1);
+      const assignment = result.selectedBranch.providerAssignments[0]!;
+      const node = result.compiledGraph.nodes.find((item) => item.id === assignment.nodeId);
+
+      expect(node?.llm).toEqual({
+        providerId: assignment.provider,
+        model: assignment.model,
+        reason: assignment.reason,
+      });
+      expect(node?.complexity).toBe(assignment.complexity);
+    });
+  });
+
   describe('Event streaming', () => {
     it('emits planning events in order', async () => {
       const branch = makeBranchResponse('linear', 'Sequential');

@@ -160,6 +160,41 @@ describe('GraphRuntime', () => {
     }
   });
 
+  it('emits node-supplied execution events before node_end', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockResolvedValue({
+      success: true,
+      output: 'step-output',
+      events: [
+        { type: 'text_delta', nodeId: 'a', content: 'thinking...' },
+        { type: 'tool_call', nodeId: 'a', toolName: 'web_search', args: { q: 'agent graphs' } },
+        { type: 'tool_result', nodeId: 'a', toolName: 'web_search', result: { success: true } },
+      ],
+    } satisfies NodeExecutionResult);
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph = makeLinearGraph('g-node-events', [makeNode('a')]);
+    const events = [];
+
+    for await (const event of runtime.stream(graph, {})) {
+      events.push(event.type);
+    }
+
+    expect(events).toEqual([
+      'run_start',
+      'node_start',
+      'text_delta',
+      'tool_call',
+      'tool_result',
+      'node_end',
+      'run_end',
+    ]);
+  });
+
   // ── 3. Checkpoints saved ───────────────────────────────────────────────────
 
   it('saves checkpoints after every node when checkpointPolicy is every_node', async () => {
@@ -400,6 +435,41 @@ describe('GraphRuntime', () => {
 
     expect(resumeResult).toBeDefined();
     expect(executeMock).toHaveBeenCalled();
+  });
+
+  it('streams resumed events from the checkpoint forward', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => ({
+      success: true,
+      output: `${node.id}-done`,
+    }));
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+    });
+
+    const graph = makeLinearGraph(
+      'g-stream-resume',
+      [makeNode('a'), makeNode('b')],
+      { checkpointPolicy: 'every_node' },
+    );
+
+    await runtime.invoke(graph, { seed: 9 });
+    const checkpoints = await store.list('g-stream-resume');
+    const checkpointForA = checkpoints.find((cp) => cp.nodeId === 'a');
+    expect(checkpointForA).toBeDefined();
+
+    executeMock.mockClear();
+    const resumedNodeIds: string[] = [];
+    for await (const event of runtime.streamResume(graph, checkpointForA!.id)) {
+      if (event.type === 'node_start') {
+        resumedNodeIds.push(event.nodeId);
+      }
+    }
+
+    expect(resumedNodeIds).toEqual(['b']);
+    expect(executeMock).toHaveBeenCalledTimes(1);
   });
 
   it('halts on node failure and emits error/interruption events', async () => {

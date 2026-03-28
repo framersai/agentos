@@ -18,9 +18,13 @@
  * - Edge evaluation is a pure function of `GraphEdge[]`, `GraphState`, and `NodeExecutionResult`.
  */
 
-import type { CompiledExecutionGraph, GraphEdge, GraphState } from '../ir/types.js';
+import type { CompiledExecutionGraph, EffectClass, GraphEdge, GraphState } from '../ir/types.js';
 import { END } from '../ir/types.js';
-import type { GraphEvent } from '../events/GraphEvent.js';
+import type {
+  GraphEvent,
+  MissionExpansionTrigger,
+  MissionGraphPatch,
+} from '../events/GraphEvent.js';
 import type { ICheckpointStore, Checkpoint } from '../checkpoint/ICheckpointStore.js';
 import { StateManager } from './StateManager.js';
 import { NodeScheduler } from './NodeScheduler.js';
@@ -42,6 +46,8 @@ export interface GraphRuntimeConfig {
   checkpointStore: ICheckpointStore;
   /** Dispatcher that executes individual `GraphNode` instances. */
   nodeExecutor: NodeExecutor;
+  /** Optional mission graph expansion hook applied between node executions. */
+  expansionHandler?: GraphExpansionHandler;
   /**
    * Optional discovery engine for `discovery`-type edge routing.
    * When present and an edge has a `discoveryQuery`, the engine is called to
@@ -56,6 +62,38 @@ export interface GraphRuntimeConfig {
    * When absent, traits are read from `state.scratch._personaTraits` or default to 0.5.
    */
   personaTraits?: Record<string, number>;
+}
+
+export interface GraphExpansionRequest {
+  trigger: MissionExpansionTrigger;
+  reason: string;
+  request: unknown;
+  patch?: MissionGraphPatch;
+}
+
+export interface GraphExpansionContext {
+  graph: CompiledExecutionGraph;
+  runId: string;
+  nodeId: string;
+  state: GraphState;
+  request: GraphExpansionRequest;
+  checkpointIdBefore?: string;
+  completedNodes: string[];
+  skippedNodes: string[];
+  nodeResults: Record<string, {
+    effectClass: EffectClass;
+    output: unknown;
+    durationMs: number;
+  }>;
+}
+
+export interface GraphExpansionResult {
+  graph?: CompiledExecutionGraph;
+  events?: GraphEvent[];
+}
+
+export interface GraphExpansionHandler {
+  handle(context: GraphExpansionContext): Promise<GraphExpansionResult | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +158,7 @@ export class GraphRuntime {
   async *stream(graph: CompiledExecutionGraph, input: unknown): AsyncGenerator<GraphEvent> {
     const runId = crypto.randomUUID();
     const stateManager = new StateManager(graph.reducers);
-    const scheduler = new NodeScheduler(graph.nodes, graph.edges);
+    let activeGraph = graph;
 
     let state = stateManager.initialize(input);
     const startTime = Date.now();
@@ -130,11 +168,12 @@ export class GraphRuntime {
     /** Node ids that were bypassed due to conditional routing. */
     const skippedNodes: string[] = [];
     /** Per-node execution results accumulated for checkpoint persistence. */
-    const nodeResults: Record<string, { effectClass: string; output: unknown; durationMs: number }> = {};
+    const nodeResults: Record<string, { effectClass: EffectClass; output: unknown; durationMs: number }> = {};
 
     yield { type: 'run_start', runId, graphId: graph.id };
 
     while (true) {
+      const scheduler = new NodeScheduler(activeGraph.nodes, activeGraph.edges);
       const readyNodes = scheduler.getReadyNodes(completedNodes, skippedNodes);
       if (readyNodes.length === 0) break; // All work is done (or no START edge).
 
@@ -147,7 +186,7 @@ export class GraphRuntime {
       //
       // Single-node batches fall through to the same code path (Promise.all
       // with a single element) so the logic is unified.
-      if (readyNodes.length > 1) {
+      if (!this.config.expansionHandler && readyNodes.length > 1) {
         // Snapshot the state before fan-out so each branch starts from the
         // same baseline. After all branches complete, we merge their scratch
         // updates back into this baseline.
@@ -168,7 +207,7 @@ export class GraphRuntime {
 
         const parallelOutcomes = await Promise.all(
           readyNodes.map(async (nodeId) => {
-            const node = graph.nodes.find(n => n.id === nodeId);
+            const node = activeGraph.nodes.find(n => n.id === nodeId);
             if (!node) {
               skippedNodes.push(nodeId);
               return null;
@@ -180,7 +219,7 @@ export class GraphRuntime {
             // Checkpoint BEFORE (parallel branch).
             if (node.checkpoint === 'before' || node.checkpoint === 'both') {
               const checkpointId = await this.saveCheckpoint(
-                graph, runId, nodeId, branchState, nodeResults,
+                activeGraph, runId, nodeId, branchState, nodeResults,
                 completedNodes, skippedNodes, [],
               );
               branchState = this.attachCheckpointMetadata(branchState, checkpointId);
@@ -216,6 +255,7 @@ export class GraphRuntime {
             if (result.artifactsUpdate) {
               branchState = stateManager.updateArtifacts(branchState, result.artifactsUpdate);
             }
+            events.push(...getResultEvents(result));
 
             // Check for interrupt / error in the parallel branch.
             if (result.interrupt) {
@@ -244,7 +284,7 @@ export class GraphRuntime {
             completedNodes.push(nodeId);
 
             // Edge routing for this parallel branch.
-            const outEdges = graph.edges.filter(e => e.source === nodeId);
+            const outEdges = activeGraph.edges.filter(e => e.source === nodeId);
             const targets = await this.evaluateEdges(outEdges, branchState, result);
 
             for (const potentialTarget of outEdges.map(e => e.target)) {
@@ -263,7 +303,7 @@ export class GraphRuntime {
             // Checkpoint AFTER (parallel branch).
             if (node.checkpoint === 'after' || node.checkpoint === 'both' || graph.checkpointPolicy === 'every_node') {
               const checkpointId = await this.saveCheckpoint(
-                graph, runId, nodeId, branchState, nodeResults,
+                activeGraph, runId, nodeId, branchState, nodeResults,
                 completedNodes, skippedNodes, this.resolvePendingEdgeIds(outEdges, targets),
               );
               branchState = this.attachCheckpointMetadata(branchState, checkpointId);
@@ -294,7 +334,7 @@ export class GraphRuntime {
             }
             // Save checkpoint and terminate.
             const checkpointId = await this.saveCheckpoint(
-              graph, runId, outcome.nodeId, outcome.branchState,
+              activeGraph, runId, outcome.nodeId, outcome.branchState,
               nodeResults, completedNodes, skippedNodes, [],
             );
             state = this.attachCheckpointMetadata(outcome.branchState, checkpointId);
@@ -327,7 +367,7 @@ export class GraphRuntime {
         // Original single-node path preserved for simplicity and to avoid
         // the overhead of Promise.all for the common single-node case.
         const nodeId = readyNodes[0];
-        const node = graph.nodes.find(n => n.id === nodeId);
+        const node = activeGraph.nodes.find(n => n.id === nodeId);
         if (!node) {
           // Node declared in edges but missing from nodes array — skip defensively.
           skippedNodes.push(nodeId);
@@ -339,7 +379,7 @@ export class GraphRuntime {
         // ── Checkpoint BEFORE ────────────────────────────────────────────────
         if (node.checkpoint === 'before' || node.checkpoint === 'both') {
           const checkpointId = await this.saveCheckpoint(
-            graph,
+            activeGraph,
             runId,
             nodeId,
             state,
@@ -386,6 +426,9 @@ export class GraphRuntime {
         if (result.artifactsUpdate) {
           state = stateManager.updateArtifacts(state, result.artifactsUpdate);
         }
+        for (const event of getResultEvents(result)) {
+          yield event;
+        }
 
         // ── Human interrupt ───────────────────────────────────────────────────
         if (result.interrupt) {
@@ -393,7 +436,7 @@ export class GraphRuntime {
           yield { type: 'interrupt', nodeId, reason: 'human_approval' };
           // Persist so the run can be resumed later.
           const checkpointId = await this.saveCheckpoint(
-            graph,
+            activeGraph,
             runId,
             nodeId,
             state,
@@ -423,7 +466,7 @@ export class GraphRuntime {
             },
           };
           const checkpointId = await this.saveCheckpoint(
-            graph,
+            activeGraph,
             runId,
             nodeId,
             state,
@@ -447,8 +490,50 @@ export class GraphRuntime {
 
         completedNodes.push(nodeId);
 
+        if (this.config.expansionHandler && result.expansionRequests?.length) {
+          let checkpointIdBefore: string | undefined;
+
+          for (const request of result.expansionRequests) {
+            if (!checkpointIdBefore) {
+              checkpointIdBefore = await this.saveCheckpoint(
+                activeGraph,
+                runId,
+                nodeId,
+                state,
+                nodeResults,
+                completedNodes,
+                skippedNodes,
+                [],
+              );
+              state = this.attachCheckpointMetadata(state, checkpointIdBefore);
+              yield { type: 'checkpoint_saved', checkpointId: checkpointIdBefore, nodeId };
+              yield { type: 'mission:checkpoint_saved', checkpointId: checkpointIdBefore, nodeId };
+            }
+
+            const outcome = await this.config.expansionHandler.handle({
+              graph: activeGraph,
+              runId,
+              nodeId,
+              state,
+              request,
+              checkpointIdBefore,
+              completedNodes: [...completedNodes],
+              skippedNodes: [...skippedNodes],
+              nodeResults: nodeResults as GraphExpansionContext['nodeResults'],
+            });
+
+            for (const event of outcome?.events ?? []) {
+              yield event;
+            }
+
+            if (outcome?.graph) {
+              activeGraph = outcome.graph;
+            }
+          }
+        }
+
         // ── Edge routing ──────────────────────────────────────────────────────
-        const outEdges = graph.edges.filter(e => e.source === nodeId);
+        const outEdges = activeGraph.edges.filter(e => e.source === nodeId);
         const targets = await this.evaluateEdges(outEdges, state, result);
 
         // Any outgoing-edge target that was NOT selected is marked as skipped
@@ -476,10 +561,10 @@ export class GraphRuntime {
         if (
           node.checkpoint === 'after' ||
           node.checkpoint === 'both' ||
-          graph.checkpointPolicy === 'every_node'
+          activeGraph.checkpointPolicy === 'every_node'
         ) {
           const checkpointId = await this.saveCheckpoint(
-            graph,
+            activeGraph,
             runId,
             nodeId,
             state,
@@ -516,6 +601,29 @@ export class GraphRuntime {
    * @throws {Error} When no checkpoint exists for the given identifier.
    */
   async resume(graph: CompiledExecutionGraph, runOrCheckpointId: string): Promise<unknown> {
+    let finalOutput: unknown;
+    for await (const event of this.streamResume(graph, runOrCheckpointId)) {
+      if (event.type === 'run_end') finalOutput = event.finalOutput;
+    }
+    return finalOutput;
+  }
+
+  /**
+   * Resume a previously interrupted run and stream runtime events from the restore point.
+   *
+   * Accepts either the original run id or an exact checkpoint id. The resolved checkpoint
+   * is used to reconstruct `GraphState`, then execution continues through the same event
+   * stream contract as {@link stream()}.
+   *
+   * @param graph - Compiled execution graph to resume.
+   * @param runOrCheckpointId - Either the original run id or an exact checkpoint id.
+   * @yields {GraphEvent} Runtime events in causal order from the checkpoint onward.
+   * @throws {Error} When no checkpoint exists for the given identifier.
+   */
+  async *streamResume(
+    graph: CompiledExecutionGraph,
+    runOrCheckpointId: string,
+  ): AsyncGenerator<GraphEvent> {
     const checkpoint =
       await this.config.checkpointStore.latest(runOrCheckpointId)
       ?? await this.config.checkpointStore.get(runOrCheckpointId);
@@ -531,12 +639,7 @@ export class GraphRuntime {
       visitedNodes: [...checkpoint.visitedNodes],
       iteration: checkpoint.visitedNodes.length,
     };
-
-    let finalOutput: unknown;
-    for await (const event of this.continueFromCheckpoint(graph, checkpoint.runId, state, checkpoint)) {
-      if (event.type === 'run_end') finalOutput = event.finalOutput;
-    }
-    return finalOutput;
+    yield* this.continueFromCheckpoint(graph, checkpoint.runId, state, checkpoint);
   }
 
   // ---------------------------------------------------------------------------
@@ -562,8 +665,8 @@ export class GraphRuntime {
     state: GraphState,
     checkpoint: Checkpoint,
   ): AsyncGenerator<GraphEvent> {
-    const scheduler = new NodeScheduler(graph.nodes, graph.edges);
     const stateManager = new StateManager(graph.reducers);
+    let activeGraph = graph;
 
     const completedNodes = [...checkpoint.visitedNodes];
     const skippedNodes = [...(checkpoint.skippedNodes ?? [])];
@@ -573,11 +676,12 @@ export class GraphRuntime {
     yield { type: 'run_start', runId, graphId: graph.id };
 
     while (true) {
+      const scheduler = new NodeScheduler(activeGraph.nodes, activeGraph.edges);
       const readyNodes = scheduler.getReadyNodes(completedNodes, skippedNodes);
       if (readyNodes.length === 0) break;
 
       for (const nodeId of readyNodes) {
-        const node = graph.nodes.find(n => n.id === nodeId);
+        const node = activeGraph.nodes.find(n => n.id === nodeId);
         if (!node) {
           skippedNodes.push(nodeId);
           continue;
@@ -623,12 +727,15 @@ export class GraphRuntime {
 
         if (result.scratchUpdate) state = stateManager.updateScratch(state, result.scratchUpdate);
         if (result.artifactsUpdate) state = stateManager.updateArtifacts(state, result.artifactsUpdate);
+        for (const event of getResultEvents(result)) {
+          yield event;
+        }
 
         if (result.interrupt) {
           yield { type: 'node_end', nodeId, output: result.output, durationMs };
           yield { type: 'interrupt', nodeId, reason: 'human_approval' };
           const checkpointId = await this.saveCheckpoint(
-            graph,
+            activeGraph,
             runId,
             nodeId,
             state,
@@ -658,7 +765,7 @@ export class GraphRuntime {
             },
           };
           const checkpointId = await this.saveCheckpoint(
-            graph,
+            activeGraph,
             runId,
             nodeId,
             state,
@@ -681,8 +788,50 @@ export class GraphRuntime {
         yield { type: 'node_end', nodeId, output: result.output, durationMs };
         completedNodes.push(nodeId);
 
+        if (this.config.expansionHandler && result.expansionRequests?.length) {
+          let checkpointIdBefore: string | undefined;
+
+          for (const request of result.expansionRequests) {
+            if (!checkpointIdBefore) {
+              checkpointIdBefore = await this.saveCheckpoint(
+                activeGraph,
+                runId,
+                nodeId,
+                state,
+                nodeResults,
+                completedNodes,
+                skippedNodes,
+                [],
+              );
+              state = this.attachCheckpointMetadata(state, checkpointIdBefore);
+              yield { type: 'checkpoint_saved', checkpointId: checkpointIdBefore, nodeId };
+              yield { type: 'mission:checkpoint_saved', checkpointId: checkpointIdBefore, nodeId };
+            }
+
+            const outcome = await this.config.expansionHandler.handle({
+              graph: activeGraph,
+              runId,
+              nodeId,
+              state,
+              request,
+              checkpointIdBefore,
+              completedNodes: [...completedNodes],
+              skippedNodes: [...skippedNodes],
+              nodeResults: nodeResults as GraphExpansionContext['nodeResults'],
+            });
+
+            for (const event of outcome?.events ?? []) {
+              yield event;
+            }
+
+            if (outcome?.graph) {
+              activeGraph = outcome.graph;
+            }
+          }
+        }
+
         // Evaluate outgoing edges for the resumed node.
-        const outEdges = graph.edges.filter(e => e.source === nodeId);
+        const outEdges = activeGraph.edges.filter(e => e.source === nodeId);
         const targets = await this.evaluateEdges(outEdges, state, result);
 
         for (const potentialTarget of outEdges.map(e => e.target)) {
@@ -826,7 +975,7 @@ export class GraphRuntime {
     runId: string,
     nodeId: string,
     state: GraphState,
-    nodeResults: Record<string, { effectClass: string; output: unknown; durationMs: number }>,
+    nodeResults: Record<string, { effectClass: EffectClass; output: unknown; durationMs: number }>,
     visitedNodes: string[],
     skippedNodes: string[],
     pendingEdges: string[],
@@ -910,6 +1059,10 @@ function shouldRetry(policy: RetryPolicy, errorMessage?: string): boolean {
 
 function evaluateConditionExpression(expr: string, state: GraphState): unknown {
   return safeEvaluateExpression(expr, state);
+}
+
+function getResultEvents(result: NodeExecutionResult): GraphEvent[] {
+  return Array.isArray(result.events) ? result.events : [];
 }
 
 /**

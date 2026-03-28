@@ -555,11 +555,11 @@ export class AgencyMemoryManager {
       // Aggregate by role and category from metadata when the store supports listing
       const documentsByRole: Record<string, number> = {};
       const documentsByCategory: Record<string, number> = {};
-      if (typeof provider.listDocuments === 'function') {
+      if (typeof (provider as any).listDocuments === 'function') {
         try {
-          const listing = await provider.listDocuments(collectionId, { limit: 5000 });
+          const listing = await (provider as any).listDocuments(collectionId, { limit: 5000 });
           for (const doc of listing?.documents ?? []) {
-            const role = doc.metadata?.role ?? 'unknown';
+            const role = doc.metadata?.contributorRoleId ?? 'unknown';
             const category = doc.metadata?.category ?? 'uncategorized';
             documentsByRole[role] = (documentsByRole[role] ?? 0) + 1;
             documentsByCategory[category] = (documentsByCategory[category] ?? 0) + 1;

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CognitiveMemoryManager } from '../../src/memory/CognitiveMemoryManager';
-import type { CognitiveMemoryConfig, PADState } from '../../src/memory/config';
+import type { CognitiveMemoryConfig, PADState } from '../../src/memory/core/config';
 import type { IVectorStore, VectorDocument, QueryResult } from '../../src/rag/IVectorStore';
 import type { IEmbeddingManager } from '../../src/rag/IEmbeddingManager';
 import type { IKnowledgeGraph } from '../../src/core/knowledge/IKnowledgeGraph';

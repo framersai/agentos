@@ -29,7 +29,7 @@ import type { ChatMessage, ModelCompletionResponse } from '../../src/core/llm/pr
 import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import { ConversationContext } from '../../src/core/conversation/ConversationContext';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
-import { Memory } from '../../src/memory/facade/Memory';
+import { Memory } from '../../src/memory/io/facade/Memory';
 
 function createConfig(overrides: Partial<AgentOSConfig> = {}): AgentOSConfig {
   return {

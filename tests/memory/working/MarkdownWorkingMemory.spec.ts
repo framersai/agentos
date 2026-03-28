@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MarkdownWorkingMemory } from '../../../src/memory/working/MarkdownWorkingMemory.js';
+import { MarkdownWorkingMemory } from '../../../src/memory/core/working/MarkdownWorkingMemory.js';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

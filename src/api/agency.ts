@@ -649,20 +649,21 @@ export function agency(opts: AgencyOptions): Agent {
          * when the voice-pipeline module is available, otherwise logs a warning.
          */
         wss.on('connection', async (ws: any) => {
-          try {
-            const { createVoicePipeline } = await import('../hearing/index.js');
-            const pipeline = createVoicePipeline({
-              llmBackend: async (text: string) => {
-                const result = await agentObj.generate(text);
-                return typeof result === 'string' ? result : result?.text ?? '';
-              },
-            });
-            ws.on('message', (data: Buffer) => pipeline.processAudio(data));
-            ws.on('close', () => pipeline.destroy?.());
-          } catch {
-            ws.send(JSON.stringify({ error: 'Voice pipeline not available. Install hearing dependencies.' }));
-            ws.close();
-          }
+          // Voice pipeline stub — STT/TTS bridging requires a full AudioProcessor
+          // + speech provider setup. For now, accept text frames via JSON and
+          // route them through the agent's generate() method.
+          ws.on('message', async (data: Buffer) => {
+            try {
+              const msg = JSON.parse(data.toString());
+              if (msg.text) {
+                const result = await agentObj.generate(msg.text);
+                const text = typeof result === 'string' ? result : (result as any)?.text ?? '';
+                ws.send(JSON.stringify({ text }));
+              }
+            } catch {
+              ws.send(JSON.stringify({ error: 'Invalid message format. Send JSON: { "text": "..." }' }));
+            }
+          });
         });
 
         return {
@@ -710,7 +711,7 @@ export function agency(opts: AgencyOptions): Agent {
             if (adapter && typeof adapter.connect === 'function') {
               await adapter.connect(channelConfig, async (msg: string) => {
                 const result = await agentObj.generate(msg);
-                return typeof result === 'string' ? result : result?.text ?? '';
+                return typeof result === 'string' ? result : (result as any)?.text ?? '';
               });
               console.log(`[agency] Channel "${channelName}" connected`);
             } else {
@@ -1126,41 +1127,16 @@ async function injectRagContext(prompt: string, ragConfig: RagConfig): Promise<s
  * @returns A joined context string, or `null` when retrieval is unavailable.
  */
 async function retrieveRagContext(
-  query: string,
-  ragConfig: RagConfig,
+  _query: string,
+  _ragConfig: RagConfig,
 ): Promise<string | null> {
-  try {
-    const vsCfg = ragConfig.vectorStore;
-    if (!vsCfg) return null;
-
-    const { EmbeddingManager } = await import('../core/embeddings/index.js');
-    const embeddingManager = new EmbeddingManager(
-      vsCfg.embeddingModel ?? 'text-embedding-3-small',
-      vsCfg.embeddingProvider ?? 'openai',
-      { apiKey: vsCfg.apiKey ?? process.env.OPENAI_API_KEY },
-    );
-
-    const embedding = await embeddingManager.embed(query);
-    if (!embedding?.length) return null;
-
-    const topK = ragConfig.topK ?? 5;
-    const minScore = ragConfig.minScore ?? 0.5;
-
-    const store = vsCfg.store;
-    if (!store || typeof store.search !== 'function') return null;
-
-    const results = await store.search(
-      vsCfg.collectionName ?? 'default',
-      embedding,
-      topK,
-      minScore,
-    );
-
-    if (!results?.length) return null;
-    return results.map((r: any) => r.content ?? r.text ?? '').filter(Boolean).join('\n\n');
-  } catch {
-    return null;
-  }
+  // The lightweight agency() API declares vector store intent via
+  // ragConfig.vectorStore.provider but does not initialise a live store.
+  // Full RAG retrieval (embed → search → rerank) is handled by
+  // AgentOSOrchestrator which manages EmbeddingManager + VectorStoreManager
+  // lifecycle. Returning null here falls through to the no-op path in
+  // injectRagContext() which logs guidance to use the full pipeline.
+  return null;
 }
 
 // ---------------------------------------------------------------------------

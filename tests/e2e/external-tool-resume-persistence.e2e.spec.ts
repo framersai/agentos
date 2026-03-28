@@ -16,7 +16,7 @@ import type { ToolExecutionContext } from '../../src/core/tools/ITool';
 import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import { GMIOutputChunkType, type GMIOutput } from '../../src/cognitive_substrate/IGMI';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
-import { Memory } from '../../src/memory/facade/Memory';
+import { Memory } from '../../src/memory/io/facade/Memory';
 
 const cleanupPaths: string[] = [];
 const openAgents: AgentOS[] = [];

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { spreadActivation } from '../../src/memory/graph/SpreadingActivation';
+import { spreadActivation } from '../../src/memory/retrieval/graph/SpreadingActivation';
 
 describe('SpreadingActivation', () => {
   // Simple graph: A -> B (0.8), A -> C (0.5), B -> D (0.6)
