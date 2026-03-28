@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
-import { AdaptiveVAD } from '../media/audio/AdaptiveVAD.js';
-import type { VADResult } from '../media/audio/AdaptiveVAD.js';
-import { EnvironmentalCalibrator } from '../media/audio/EnvironmentalCalibrator.js';
-import { SilenceDetector } from '../media/audio/SilenceDetector.js';
+import { AdaptiveVAD } from '../hearing/AdaptiveVAD.js';
+import type { VADResult } from '../hearing/AdaptiveVAD.js';
+import { EnvironmentalCalibrator } from '../hearing/EnvironmentalCalibrator.js';
+import { SilenceDetector } from '../hearing/SilenceDetector.js';
 import { encodeFloat32ToWav } from './audio.js';
 import type {
   SpeechSessionConfig,

@@ -13,8 +13,8 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Agent, BaseAgentConfig, AgencyOptions } from '../types.js';
-import { AgencyConfigError } from '../types.js';
+import type { Agent, BaseAgentConfig, AgencyOptions } from '../../types.js';
+import { AgencyConfigError } from '../../types.js';
 
 // ---------------------------------------------------------------------------
 // Mock the strategy compiler so tests never call a real LLM
@@ -46,7 +46,7 @@ vi.mock('../strategies/index.js', () => ({
     typeof (value as Agent).generate === 'function',
 }));
 
-import { agency } from '../agency.js';
+import { agency } from '../../agency.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

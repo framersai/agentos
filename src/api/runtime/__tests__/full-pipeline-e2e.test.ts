@@ -41,7 +41,7 @@ import { generateObject } from '../generateObject.js';
 import { streamText } from '../streamText.js';
 import { embedText } from '../embedText.js';
 import { agent } from '../agent.js';
-import { agency } from '../agency.js';
+import { agency } from '../../agency.js';
 import { generateImage } from '../generateImage.js';
 import { validateAgentExport } from '../agentExport.js';
 

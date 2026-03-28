@@ -30,7 +30,7 @@
  * ```
  */
 
-import { compileStrategy, isAgent } from './strategies/index.js';
+import { compileStrategy, isAgent } from './runtime/strategies/index.js';
 import type {
   AgencyOptions,
   Agent,
@@ -51,7 +51,7 @@ import {
   exportAgentConfigJSON,
   type AgentExportConfig,
 } from './agentExport.js';
-import { createBufferedAsyncReplay } from './runtime/streamBuffer.js';
+import { createBufferedAsyncReplay } from './runtime/streamBuffer';
 
 // ---------------------------------------------------------------------------
 // Public factory

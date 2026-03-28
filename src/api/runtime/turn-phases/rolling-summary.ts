@@ -3,14 +3,14 @@
  * Selects a compaction profile and runs maybeCompactConversationMessages.
  */
 
-import type { ConversationContext } from '../../core/conversation/ConversationContext';
-import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
+import type { ConversationContext } from '../../../core/conversation/ConversationContext';
+import type { AIModelProviderManager } from '../../../core/llm/providers/AIModelProviderManager';
 import {
   maybeCompactConversationMessages,
   type RollingSummaryCompactionConfig,
   type RollingSummaryCompactionResult,
-} from '../../core/conversation/RollingSummaryCompactor';
-import type { RollingSummaryCompactionProfilesConfig } from '../types/OrchestratorConfig';
+} from '../../../core/conversation/RollingSummaryCompactor';
+import type { RollingSummaryCompactionProfilesConfig } from '../../types/OrchestratorConfig';
 
 /** Picks a profile ID by matching `mode` against keys in a map (prefix/substring match). */
 function pickByMode(map: Record<string, string> | undefined, mode: string): string | null {

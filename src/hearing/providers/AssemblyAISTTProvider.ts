@@ -4,7 +4,7 @@ import type {
   SpeechTranscriptionOptions,
   SpeechTranscriptionResult,
   SpeechTranscriptionSegment,
-} from '../types.js';
+} from '../../speech/types.js';
 
 /**
  * Configuration for the {@link AssemblyAISTTProvider}.

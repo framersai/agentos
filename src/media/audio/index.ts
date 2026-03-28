@@ -1,10 +1,13 @@
 /**
  * @file index.ts
- * Barrel export for the audio generation and processing subsystem.
+ * Barrel export for the audio generation subsystem.
  *
- * Re-exports all public types, interfaces, processing utilities, and the
- * fallback proxy so consumers can import from `@agentos/media/audio` (or the
- * relative path) without reaching into individual files.
+ * Re-exports all public types, interfaces, and the fallback proxy so
+ * consumers can import from `@agentos/media/audio` (or the relative path)
+ * without reaching into individual files.
+ *
+ * Audio processing utilities (AdaptiveVAD, SilenceDetector, etc.) have
+ * moved to the `hearing/` module.
  *
  * Also provides a provider factory registry (modelled on the video
  * subsystem's pattern) so that built-in and third-party audio providers
@@ -20,14 +23,6 @@ import { ReplicateAudioProvider } from './providers/ReplicateAudioProvider.js';
 import { StableAudioProvider } from './providers/StableAudioProvider.js';
 import { SunoProvider } from './providers/SunoProvider.js';
 import { UdioProvider } from './providers/UdioProvider.js';
-
-// ---------------------------------------------------------------------------
-// Audio processing (VAD, silence detection, calibration)
-// ---------------------------------------------------------------------------
-export * from './AdaptiveVAD.js';
-export * from './AudioProcessor.js';
-export * from './EnvironmentalCalibrator.js';
-export * from './SilenceDetector.js';
 
 // ---------------------------------------------------------------------------
 // Audio generation (types, interface, fallback proxy)

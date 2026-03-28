@@ -3,10 +3,10 @@
  * Builds a trimmed, deduplicated history snapshot for prompt construction.
  */
 
-import type { ConversationContext } from '../../core/conversation/ConversationContext';
-import { MessageRole } from '../../core/conversation/ConversationMessage';
-import { GMIInteractionType, type GMITurnInput } from '../../cognitive_substrate/IGMI';
-import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../../core/conversation/RollingSummaryCompactor';
+import type { ConversationContext } from '../../../core/conversation/ConversationContext';
+import { MessageRole } from '../../../core/conversation/ConversationMessage';
+import { GMIInteractionType, type GMITurnInput } from '../../../cognitive_substrate/IGMI';
+import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../../../core/conversation/RollingSummaryCompactor';
 
 export interface ConversationHistoryPhaseInput {
   conversationContext: ConversationContext | undefined;

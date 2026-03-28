@@ -27,8 +27,8 @@ import type {
   GraphNode,
   GraphEdge,
   StateReducers,
-} from '../../orchestration/ir/types.js';
-import { START, END } from '../../orchestration/ir/types.js';
+} from '../../../orchestration/ir/types.js';
+import { START, END } from '../../../orchestration/ir/types.js';
 import type {
   AgencyOptions,
   Agent,

@@ -3,13 +3,13 @@
  * Selects a prompt profile (concise/deep/planner/reviewer) based on conversation state.
  */
 
-import type { ConversationContext } from '../../core/conversation/ConversationContext';
+import type { ConversationContext } from '../../../core/conversation/ConversationContext';
 import {
   selectPromptProfile,
   type PromptProfileConfig,
   type PromptProfileConversationState,
 } from '../../structured/prompting/PromptProfileRouter';
-import { GMIInteractionType, type GMITurnInput } from '../../cognitive_substrate/IGMI';
+import { GMIInteractionType, type GMITurnInput } from '../../../cognitive_substrate/IGMI';
 
 export interface PromptProfilePhaseInput {
   conversationContext: ConversationContext | undefined;

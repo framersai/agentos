@@ -70,7 +70,7 @@ vi.mock('../usageLedger.js', () => ({
 }));
 
 import { agent } from '../agent.js';
-import { agency } from '../agency.js';
+import { agency } from '../../agency.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures

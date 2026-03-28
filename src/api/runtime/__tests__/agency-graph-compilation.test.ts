@@ -24,7 +24,7 @@ import {
   mapGraphEventToAgencyEvent,
 } from '../strategies/graphCompiler.js';
 import { agentGraph, AgentGraphBuilder } from '../strategies/agentGraphBuilder.js';
-import type { AgencyOptions, BaseAgentConfig } from '../types.js';
+import type { AgencyOptions, BaseAgentConfig } from '../../types.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

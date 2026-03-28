@@ -6,8 +6,8 @@ vi.mock('../../../core/conversation/RollingSummaryCompactor', () => ({
 }));
 
 import { executeRollingSummaryPhase, type RollingSummaryPhaseInput } from '../rolling-summary';
-import { maybeCompactConversationMessages } from '../../../core/conversation/RollingSummaryCompactor';
-import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../../../core/conversation/RollingSummaryCompactor';
+import { maybeCompactConversationMessages } from '../../../../core/conversation/RollingSummaryCompactor';
+import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../../../../core/conversation/RollingSummaryCompactor';
 import type { RollingSummaryCompactionProfilesConfig } from '../../types/OrchestratorConfig';
 
 // ---------------------------------------------------------------------------

@@ -45,8 +45,8 @@ import type {
   CompiledStrategyStreamResult,
   Agent,
   Agency,
-} from '../types.js';
-import { AgencyConfigError } from '../types.js';
+} from '../../types.js';
+import { AgencyConfigError } from '../../types.js';
 
 // ---------------------------------------------------------------------------
 // AgencyConfigError — runtime class behaviour

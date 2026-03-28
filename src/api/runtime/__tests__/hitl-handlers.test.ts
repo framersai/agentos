@@ -12,7 +12,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { hitl } from '../hitl.js';
-import type { ApprovalRequest } from '../types.js';
+import type { ApprovalRequest } from '../../types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -3,7 +3,7 @@ import type {
   SpeechToTextProvider,
   SpeechTranscriptionOptions,
   SpeechTranscriptionResult,
-} from '../types.js';
+} from '../../speech/types.js';
 
 /**
  * Configuration for the {@link AzureSpeechSTTProvider}.

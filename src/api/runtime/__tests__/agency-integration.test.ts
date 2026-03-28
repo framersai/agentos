@@ -24,8 +24,8 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Agent, BaseAgentConfig } from '../types.js';
-import { AgencyConfigError } from '../types.js';
+import type { Agent, BaseAgentConfig } from '../../types.js';
+import { AgencyConfigError } from '../../types.js';
 
 // ---------------------------------------------------------------------------
 // Mock the strategy module so strategy compilers use our controllable spy
@@ -60,7 +60,7 @@ vi.mock('../strategies/index.js', () => ({
     typeof (value as Agent).generate === 'function',
 }));
 
-import { agency } from '../agency.js';
+import { agency } from '../../agency.js';
 import { hitl } from '../hitl.js';
 
 // ---------------------------------------------------------------------------

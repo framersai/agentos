@@ -3,14 +3,14 @@
  * Checks cadence, retrieves durable memories, and updates retrieval state.
  */
 
-import type { ConversationContext } from '../../core/conversation/ConversationContext';
-import type { ILongTermMemoryRetriever } from '../../core/conversation/ILongTermMemoryRetriever';
+import type { ConversationContext } from '../../../core/conversation/ConversationContext';
+import type { ILongTermMemoryRetriever } from '../../../core/conversation/ILongTermMemoryRetriever';
 import {
   DEFAULT_LONG_TERM_MEMORY_POLICY,
   type ResolvedLongTermMemoryPolicy,
-} from '../../core/conversation/LongTermMemoryPolicy';
-import { MessageRole } from '../../core/conversation/ConversationMessage';
-import { GMIInteractionType, type GMITurnInput } from '../../cognitive_substrate/IGMI';
+} from '../../../core/conversation/LongTermMemoryPolicy';
+import { MessageRole } from '../../../core/conversation/ConversationMessage';
+import { GMIInteractionType, type GMITurnInput } from '../../../cognitive_substrate/IGMI';
 
 type LongTermMemoryRetrievalState = {
   lastReviewedUserTurn: number;

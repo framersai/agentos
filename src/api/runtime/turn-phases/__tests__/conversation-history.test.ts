@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assembleConversationHistory, type ConversationHistoryPhaseInput } from '../conversation-history';
-import { MessageRole } from '../../../core/conversation/ConversationMessage';
+import { MessageRole } from '../../../../core/conversation/ConversationMessage';
 import { GMIInteractionType } from '../../../cognitive_substrate/IGMI';
 
 // ---------------------------------------------------------------------------

@@ -33,7 +33,7 @@ import type { GMIManager } from '../../cognitive_substrate/GMIManager';
 import type { ExtensionManager } from '../../extensions';
 import type { IToolOrchestrator, ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
-import type { ExternalToolRegistry } from '../externalToolRegistry';
+import type { ExternalToolRegistry } from '../runtime/externalToolRegistry';
 
 /**
  * @interface IAgentOS

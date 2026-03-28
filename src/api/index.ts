@@ -12,8 +12,8 @@
 export { AgentOS, type AgentOSConfig } from './AgentOS.js';
 export type { AgentOSInput } from './types/AgentOSInput.js';
 export type { AgentOSResponse } from './types/AgentOSResponse.js';
-export type { AgentOSToolResult } from './types/AgentOSToolResult.js';
-export type { AgentOSExternalToolRequest } from './types/AgentOSExternalToolRequest.js';
+export type { AgentOSToolResultInput } from './types/AgentOSToolResultInput.js';
+export type { AgentOSPendingExternalToolRequest } from './types/AgentOSPendingExternalToolRequest.js';
 
 // --- High-level generation functions ---
 export { generateText, type GenerateTextOptions, type GenerateTextResult } from './generateText.js';
@@ -26,7 +26,7 @@ export { generateImage } from './generateImage.js';
 // --- Agent & Agency ---
 export { agent } from './agent.js';
 export { agency } from './agency.js';
-export { agentExport } from './agentExport.js';
+export { exportAgent } from './exportAgent.js';
 
 // --- Errors ---
 export * from './errors.js';

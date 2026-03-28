@@ -46,7 +46,7 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { SilenceDetector, type SilenceDetectorConfig } from '../media/audio/SilenceDetector.js';
+import { SilenceDetector, type SilenceDetectorConfig } from '../hearing/SilenceDetector.js';
 import type { IEndpointDetector, VadEvent, TranscriptEvent, TurnCompleteEvent } from './types.js';
 
 // ---------------------------------------------------------------------------

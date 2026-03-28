@@ -5,7 +5,7 @@
  */
 
 export * from './api/AgentOS.js';
-export * from './api/AgentOSOrchestrator';
+export * from './api/runtime/AgentOSOrchestrator';
 export * from './api/types/AgentOSInput';
 export * from './api/types/AgentOSResponse';
 export * from './api/types/AgentOSExternalToolRequest';
@@ -210,10 +210,10 @@ export {
 export type { AgentExportConfig } from './api/agentExport.js';
 export { hitl } from './api/hitl.js';
 export type { HitlHandler } from './api/hitl.js';
-export * from './api/processRequestWithExternalTools.js';
-export * from './api/externalToolRegistry.js';
-export * from './api/processRequestWithRegisteredTools.js';
-export * from './api/resumeExternalToolRequestWithRegisteredTools.js';
+export * from './api/runtime/processRequestWithExternalTools.js';
+export * from './api/runtime/externalToolRegistry.js';
+export * from './api/runtime/processRequestWithRegisteredTools.js';
+export * from './api/runtime/resumeExternalToolRequestWithRegisteredTools.js';
 export type {
   AgencyOptions,
   AgencyStrategy,
@@ -259,11 +259,11 @@ export type { StreamObjectOptions, StreamObjectResult, DeepPartial } from './api
 export { embedText } from './api/embedText.js';
 export type { EmbedTextOptions, EmbedTextResult } from './api/embedText.js';
 export { parseModelString, resolveProvider, resolveModelOption } from './api/model.js';
-export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/provider-defaults.js';
-export type { ProviderDefaults } from './api/provider-defaults.js';
+export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/runtime/provider-defaults.js';
+export type { ProviderDefaults } from './api/runtime/provider-defaults.js';
 export type { TaskType, ModelOption } from './api/model.js';
-export { adaptTools, adaptToolsToMap, mergeAdaptableTools } from './api/toolAdapter.js';
-export type { AdaptableToolInput, ToolDefinitionMap } from './api/toolAdapter.js';
+export { adaptTools, adaptToolsToMap, mergeAdaptableTools } from './api/runtime/toolAdapter.js';
+export type { AdaptableToolInput, ToolDefinitionMap } from './api/runtime/toolAdapter.js';
 export {
   getDefaultAgentOSUsageLedgerPath,
   resolveAgentOSUsageLedgerPath,
@@ -271,10 +271,10 @@ export {
   recordAgentOSUsage,
   getRecordedAgentOSUsage,
   clearRecordedAgentOSUsage,
-} from './api/usageLedger.js';
+} from './api/runtime/usageLedger.js';
 export type {
   AgentOSUsageLedgerOptions,
   AgentOSUsageEvent,
   AgentOSUsageRecordInput,
   AgentOSUsageAggregate,
-} from './api/usageLedger.js';
+} from './api/runtime/usageLedger.js';

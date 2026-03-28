@@ -8,8 +8,8 @@
  * so that aggregation and chaining logic can be verified precisely.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Agent, AgentStreamResult, AgentCallRecord, AgencyOptions, BaseAgentConfig } from '../types.js';
-import { AgencyConfigError } from '../types.js';
+import type { Agent, AgentStreamResult, AgentCallRecord, AgencyOptions, BaseAgentConfig } from '../../types.js';
+import { AgencyConfigError } from '../../types.js';
 
 /* ------------------------------------------------------------------ */
 /* Hoist mocks so agent() calls inside strategy compilers are captured */
@@ -40,7 +40,7 @@ import { compileDebate } from '../strategies/debate.js';
 import { compileReviewLoop } from '../strategies/review-loop.js';
 import { compileHierarchical } from '../strategies/hierarchical.js';
 import { compileStrategy, isAgent, mergeDefaults } from '../strategies/index.js';
-import { agency } from '../agency.js';
+import { agency } from '../../agency.js';
 
 /* ------------------------------------------------------------------ */
 /* Helper: create a mock pre-built Agent                               */
