@@ -134,8 +134,6 @@ import {
   type ExtensionLifecycleContext,
   type ExtensionManifest,
   type ExtensionOverrides,
-  type ExtensionEvent,
-  type ExtensionEventListener,
 } from '../extensions';
 import { createMemoryToolsPack } from '../memory/extension/MemoryToolsExtension.js';
 import type { MemoryToolsExtensionOptions } from '../memory/extension/MemoryToolsExtension.js';
@@ -155,8 +153,7 @@ import {
 } from './externalToolRegistry';
 import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './toolAdapter';
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
-import { WorkflowRuntime } from '../planning/workflows/runtime/WorkflowRuntime';
-import { AgencyRegistry } from '../agents/agency/AgencyRegistry';
+import { WorkflowFacade } from './WorkflowFacade';
 import {
   AgentOSTurnPlanner,
   type ITurnPlanner,
@@ -172,16 +169,10 @@ import type {
 } from '../discovery/types';
 import { EmbeddingManager } from '../rag/EmbeddingManager';
 import { InMemoryVectorStore } from '../rag/vector_stores/InMemoryVectorStore';
-import type { WorkflowDescriptor } from '../extensions/types';
-import { WorkflowEngine } from '../planning/workflows/WorkflowEngine';
-import type {
-  WorkflowEngineConfig,
-  WorkflowEngineEventListener,
-} from '../planning/workflows/IWorkflowEngine';
+import type { WorkflowEngineConfig } from '../planning/workflows/IWorkflowEngine';
 import type {
   WorkflowDefinition,
   WorkflowDescriptorPayload,
-  WorkflowEvent,
   WorkflowInstance,
   WorkflowProgressUpdate,
   WorkflowStatus,
@@ -191,7 +182,6 @@ import type {
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
 } from '../planning/workflows/storage/IWorkflowStore';
-import { InMemoryWorkflowStore } from '../planning/workflows/storage/InMemoryWorkflowStore';
 import type { MessagingChannelPayload } from '../extensions/MessagingChannelPayload';
 import {
   applySelfImprovementSessionOverrides as applySessionRuntimeOverrides,
@@ -825,12 +815,7 @@ export class AgentOS implements IAgentOS {
   private agentOSOrchestrator!: AgentOSOrchestrator;
   private languageService?: import('../nlp/language').LanguageService;
   private guardrailService?: IGuardrailService;
-  private workflowEngine!: WorkflowEngine;
-  private workflowStore!: IWorkflowStore;
-  private workflowEngineListener?: WorkflowEngineEventListener;
-  private workflowExtensionListener?: ExtensionEventListener;
-  private workflowRuntime?: WorkflowRuntime;
-  private agencyRegistry?: AgencyRegistry;
+  private workflowFacade?: WorkflowFacade;
   private turnPlanner?: ITurnPlanner;
   private capabilityDiscoveryEngine?: ICapabilityDiscoveryEngine;
   private discoveryEmbeddingManager?: EmbeddingManager;
@@ -1056,7 +1041,13 @@ export class AgentOS implements IAgentOS {
     }
 
     try {
-      await this.initializeWorkflowRuntime(extensionLifecycleContext);
+      this.workflowFacade = new WorkflowFacade({
+        extensionManager: this.extensionManager,
+        logger: this.logger,
+        workflowEngineConfig: this.config.workflowEngineConfig,
+        workflowStore: this.config.workflowStore,
+      });
+      await this.workflowFacade.initialize(extensionLifecycleContext);
       // Initialize AI Model Provider Manager
       this.modelProviderManager = new AIModelProviderManager();
       await this.modelProviderManager.initialize(this.config.modelProviderManagerConfig);
@@ -1368,7 +1359,14 @@ export class AgentOS implements IAgentOS {
       await this.gmiManager.initialize();
       console.log('AgentOS: GMIManager initialized.');
 
-      await this.startWorkflowRuntime();
+      if (this.workflowFacade) {
+        this.workflowFacade.setRuntimeDependencies({
+          gmiManager: this.gmiManager,
+          streamingManager: this.streamingManager,
+          toolOrchestrator: this.toolOrchestrator,
+        });
+        await this.workflowFacade.startRuntime();
+      }
 
       // Initialize AgentOS Orchestrator
       const orchestratorDependencies: AgentOSOrchestratorDependencies = {
@@ -1388,6 +1386,15 @@ export class AgentOS implements IAgentOS {
         orchestratorDependencies
       );
       this.logger.info('AgentOS orchestrator initialized');
+      // Wire the orchestrator into the workflow facade for progress broadcasts.
+      if (this.workflowFacade) {
+        this.workflowFacade.setRuntimeDependencies({
+          gmiManager: this.gmiManager,
+          streamingManager: this.streamingManager,
+          toolOrchestrator: this.toolOrchestrator,
+          orchestrator: this.agentOSOrchestrator,
+        });
+      }
     } catch (error: unknown) {
       this.logger.error('AgentOS initialization failed', { error });
       const err =
@@ -1619,167 +1626,6 @@ export class AgentOS implements IAgentOS {
       packName: pack.name,
       toolCount: pack.descriptors.length,
     });
-  }
-
-  private async initializeWorkflowRuntime(_context: ExtensionLifecycleContext): Promise<void> {
-    this.workflowStore = this.config.workflowStore ?? new InMemoryWorkflowStore();
-    this.workflowEngine = new WorkflowEngine();
-
-    const workflowLogger = this.logger.child?.({ component: 'WorkflowEngine' }) ?? this.logger;
-    await this.workflowEngine.initialize(this.config.workflowEngineConfig ?? {}, {
-      store: this.workflowStore,
-      logger: workflowLogger,
-    });
-
-    const agencyLogger = this.logger.child?.({ component: 'AgencyRegistry' }) ?? this.logger;
-    this.agencyRegistry = new AgencyRegistry(agencyLogger);
-
-    await this.registerWorkflowDescriptorsFromRegistry();
-
-    this.workflowExtensionListener = async (event: ExtensionEvent) => {
-      if (!this.workflowEngine) {
-        return;
-      }
-      if (event.type === 'descriptor:activated' && event.kind === EXTENSION_KIND_WORKFLOW) {
-        const descriptor = event.descriptor as WorkflowDescriptor;
-        await this.handleWorkflowDescriptorActivated({
-          id: descriptor.id,
-          payload: descriptor.payload,
-        });
-      } else if (
-        event.type === 'descriptor:deactivated' &&
-        event.kind === EXTENSION_KIND_WORKFLOW
-      ) {
-        const descriptor = event.descriptor as WorkflowDescriptor;
-        await this.handleWorkflowDescriptorDeactivated({
-          id: descriptor.id,
-          payload: descriptor.payload,
-        });
-      }
-    };
-    this.extensionManager.on(this.workflowExtensionListener);
-
-    this.workflowEngineListener = async (event: WorkflowEvent) => {
-      await this.handleWorkflowEngineEvent(event);
-    };
-    this.workflowEngine.onEvent(this.workflowEngineListener);
-  }
-
-  private async startWorkflowRuntime(): Promise<void> {
-    if (!this.workflowEngine) {
-      return;
-    }
-    if (this.workflowRuntime) {
-      return;
-    }
-    if (!this.gmiManager || !this.streamingManager || !this.toolOrchestrator) {
-      this.logger.warn('Workflow runtime start skipped because core dependencies are not ready.');
-      return;
-    }
-
-    if (!this.agencyRegistry) {
-      const agencyLogger = this.logger.child?.({ component: 'AgencyRegistry' }) ?? this.logger;
-      this.agencyRegistry = new AgencyRegistry(agencyLogger);
-    }
-
-    const runtimeLogger = this.logger.child?.({ component: 'WorkflowRuntime' }) ?? this.logger;
-    this.workflowRuntime = new WorkflowRuntime({
-      workflowEngine: this.workflowEngine,
-      gmiManager: this.gmiManager,
-      streamingManager: this.streamingManager,
-      toolOrchestrator: this.toolOrchestrator,
-      extensionManager: this.extensionManager,
-      agencyRegistry: this.agencyRegistry,
-      logger: runtimeLogger,
-    });
-    await this.workflowRuntime.start();
-  }
-
-  private async registerWorkflowDescriptorsFromRegistry(): Promise<void> {
-    const registry =
-      this.extensionManager.getRegistry<WorkflowDescriptorPayload>(EXTENSION_KIND_WORKFLOW);
-    const activeDescriptors = registry.listActive();
-    for (const descriptor of activeDescriptors) {
-      await this.handleWorkflowDescriptorActivated({
-        id: descriptor.id,
-        payload: descriptor.payload,
-      });
-    }
-  }
-
-  private async handleWorkflowDescriptorActivated(descriptor: {
-    id: string;
-    payload: WorkflowDescriptorPayload;
-  }): Promise<void> {
-    try {
-      await this.workflowEngine.registerWorkflowDescriptor(descriptor.payload);
-      this.logger.debug?.('Workflow descriptor registered', {
-        descriptorId: descriptor.id,
-        workflowDefinitionId: descriptor.payload.definition.id,
-      });
-    } catch (error) {
-      this.logger.error('Failed to register workflow descriptor', {
-        descriptorId: descriptor.id,
-        workflowDefinitionId: descriptor.payload.definition.id,
-        error,
-      });
-    }
-  }
-
-  private async handleWorkflowDescriptorDeactivated(descriptor: {
-    id: string;
-    payload: WorkflowDescriptorPayload;
-  }): Promise<void> {
-    try {
-      await this.workflowEngine.unregisterWorkflowDescriptor(descriptor.payload.definition.id);
-      this.logger.debug?.('Workflow descriptor unregistered', {
-        descriptorId: descriptor.id,
-        workflowDefinitionId: descriptor.payload.definition.id,
-      });
-    } catch (error) {
-      this.logger.error('Failed to unregister workflow descriptor', {
-        descriptorId: descriptor.id,
-        workflowDefinitionId: descriptor.payload.definition.id,
-        error,
-      });
-    }
-  }
-
-  private async handleWorkflowEngineEvent(event: WorkflowEvent): Promise<void> {
-    try {
-      await this.emitWorkflowUpdate(event.workflowId);
-    } catch (error) {
-      this.logger.error('Failed to handle workflow engine event', {
-        workflowId: event.workflowId,
-        eventType: event.type,
-        error,
-      });
-    }
-  }
-
-  private async emitWorkflowUpdate(workflowId: string): Promise<void> {
-    if (!this.workflowEngine) {
-      return;
-    }
-    try {
-      const update = await this.workflowEngine.getWorkflowProgress(workflowId);
-      if (!update) {
-        return;
-      }
-      this.logger.debug?.('Workflow progress update ready', {
-        workflowId,
-        status: update.workflow.status,
-      });
-      if (typeof this.agentOSOrchestrator?.broadcastWorkflowUpdate === 'function') {
-        await this.agentOSOrchestrator.broadcastWorkflowUpdate(update);
-      } else {
-        this.logger.warn('Workflow update could not be broadcast - orchestrator unavailable', {
-          workflowId,
-        });
-      }
-    } catch (error) {
-      this.logger.error('Failed to generate workflow progress update', { workflowId, error });
-    }
   }
 
   private async initializeTurnPlanner(): Promise<void> {
@@ -2134,7 +1980,7 @@ export class AgentOS implements IAgentOS {
         toolOrchestrator: Boolean(this.toolOrchestrator),
         modelProviderManager: Boolean(this.modelProviderManager),
         retrievalAugmentor: Boolean(this.retrievalAugmentor),
-        workflowEngine: Boolean(this.workflowEngine),
+        workflowEngine: Boolean(this.workflowFacade),
       },
       providers: {
         configured: providerIds,
@@ -2549,7 +2395,7 @@ export class AgentOS implements IAgentOS {
 
   public listWorkflowDefinitions(): WorkflowDefinition[] {
     this.ensureInitialized();
-    return this.workflowEngine.listWorkflowDefinitions();
+    return this.workflowFacade!.listWorkflowDefinitions();
   }
 
   public async startWorkflow(
@@ -2565,36 +2411,17 @@ export class AgentOS implements IAgentOS {
     } = {}
   ): Promise<WorkflowInstance> {
     this.ensureInitialized();
-    const definition = this.workflowEngine
-      .listWorkflowDefinitions()
-      .find((item) => item.id === definitionId);
-    if (!definition) {
-      throw new AgentOSServiceError(
-        `Workflow definition '${definitionId}' not found.`,
-        GMIErrorCode.CONFIGURATION_ERROR,
-        { definitionId }
-      );
-    }
-    return this.workflowEngine.startWorkflow({
-      input,
-      definition,
-      workflowId: options.workflowId,
-      conversationId: options.conversationId,
-      createdByUserId: options.createdByUserId,
-      context: options.context,
-      roleAssignments: options.roleAssignments,
-      metadata: options.metadata,
-    });
+    return this.workflowFacade!.startWorkflow(definitionId, input, options);
   }
 
   public async getWorkflow(workflowId: string): Promise<WorkflowInstance | null> {
     this.ensureInitialized();
-    return this.workflowEngine.getWorkflow(workflowId);
+    return this.workflowFacade!.getWorkflow(workflowId);
   }
 
   public async listWorkflows(options?: WorkflowQueryOptions): Promise<WorkflowInstance[]> {
     this.ensureInitialized();
-    return this.workflowEngine.listWorkflows(options);
+    return this.workflowFacade!.listWorkflows(options);
   }
 
   public async getWorkflowProgress(
@@ -2602,7 +2429,7 @@ export class AgentOS implements IAgentOS {
     sinceTimestamp?: string
   ): Promise<WorkflowProgressUpdate | null> {
     this.ensureInitialized();
-    return this.workflowEngine.getWorkflowProgress(workflowId, sinceTimestamp);
+    return this.workflowFacade!.getWorkflowProgress(workflowId, sinceTimestamp);
   }
 
   public async updateWorkflowStatus(
@@ -2610,7 +2437,7 @@ export class AgentOS implements IAgentOS {
     status: WorkflowStatus
   ): Promise<WorkflowInstance | null> {
     this.ensureInitialized();
-    return this.workflowEngine.updateWorkflowStatus(workflowId, status);
+    return this.workflowFacade!.updateWorkflowStatus(workflowId, status);
   }
 
   public async applyWorkflowTaskUpdates(
@@ -2618,7 +2445,7 @@ export class AgentOS implements IAgentOS {
     updates: WorkflowTaskUpdate[]
   ): Promise<WorkflowInstance | null> {
     this.ensureInitialized();
-    return this.workflowEngine.applyTaskUpdates(workflowId, updates);
+    return this.workflowFacade!.applyWorkflowTaskUpdates(workflowId, updates);
   }
 
   /**
@@ -2868,20 +2695,7 @@ export class AgentOS implements IAgentOS {
     // 3. Streaming Manager (closes active client connections)
     // 4. Other services (ConversationManager, ToolOrchestrator, PromptEngine, ModelProviderManager)
     try {
-      if (this.workflowEngineListener && this.workflowEngine) {
-        this.workflowEngine.offEvent(this.workflowEngineListener);
-        this.workflowEngineListener = undefined;
-      }
-      if (this.workflowExtensionListener && this.extensionManager) {
-        this.extensionManager.off(this.workflowExtensionListener);
-        this.workflowExtensionListener = undefined;
-      }
-
-      if (this.workflowRuntime) {
-        await this.workflowRuntime.stop();
-        this.workflowRuntime = undefined;
-      }
-      this.agencyRegistry = undefined;
+      await this.workflowFacade?.shutdown();
       if (this.agentOSOrchestrator?.shutdown) {
         await this.agentOSOrchestrator.shutdown();
         console.log('AgentOS: AgentOSOrchestrator shut down.');
