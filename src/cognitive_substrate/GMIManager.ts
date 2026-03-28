@@ -18,7 +18,7 @@ import {
 } from './personas/PersonaValidation';
 import { IPersonaLoader, PersonaLoaderConfig } from './personas/IPersonaLoader';
 import { PersonaLoader } from './personas/PersonaLoader';
-import type { IAuthService, ISubscriptionService, ISubscriptionTier } from '../types/auth';
+import type { IAuthService, ISubscriptionService, ISubscriptionTier } from '../services/auth';
 import { InMemoryWorkingMemory } from './memory/InMemoryWorkingMemory';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';

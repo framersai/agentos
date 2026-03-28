@@ -82,7 +82,7 @@ export * from './extensions';
 // Messaging Channels (external platform adapters)
 export * from './channels';
 // Voice Calls (telephony providers)
-export * from './voice';
+export * from './telephony';
 // Unified speech runtime (STT/TTS/VAD/wake-word)
 export * from './speech';
 // Unified image generation providers
@@ -117,7 +117,7 @@ export * from './nlp/language/LanguageService';
 export type { ILogger } from './logging/ILogger';
 export { createLogger, setLoggerFactory, resetLoggerFactory } from './logging/loggerFactory';
 // Rate limit types
-export * from './types/rateLimitTypes';
+export * from './core/rate-limiting/types';
 // Storage adapters
 export * from './core/storage';
 // Usage & cost accounting

@@ -118,10 +118,10 @@
       "default": "./dist/orchestration/index.js",
       "types": "./dist/orchestration/index.d.ts"
     },
-    "./voice": {
-      "import": "./dist/voice/index.js",
-      "default": "./dist/voice/index.js",
-      "types": "./dist/voice/index.d.ts"
+    "./telephony": {
+      "import": "./dist/telephony/index.js",
+      "default": "./dist/telephony/index.js",
+      "types": "./dist/telephony/index.d.ts"
     },
     "./voice-pipeline": {
       "import": "./dist/voice-pipeline/index.js",
