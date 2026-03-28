@@ -55,12 +55,13 @@ import { IUtilityAI, SummarizationOptions, ParseJsonOptions } from '../nlp/ai_ut
 import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 
 import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
-import { ConversationMessage, createConversationMessage, MessageRole } from '../core/conversation/ConversationMessage';
+import { ConversationMessage } from '../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { GMIEventType, GMIEvent, SentimentHistoryState, createGMIEvent } from './GMIEvent.js';
 import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
 import type { PADState } from '../memory/config.js';
 import type { AssembledMemoryContext, MemorySourceType, MemoryType } from '../memory/types.js';
+import { ConversationHistoryManager } from './ConversationHistoryManager';
 
 const DEFAULT_MAX_CONVERSATION_HISTORY_TURNS = 20;
 const DEFAULT_SELF_REFLECTION_INTERVAL_TURNS = 5;
@@ -95,7 +96,7 @@ export class GMI implements IGMI {
   private currentUserContext!: UserContext;
   private currentTaskContext!: TaskContext;
   private reasoningTrace: ReasoningTrace;
-  private conversationHistory: ChatMessage[];
+  private conversationHistoryManager!: ConversationHistoryManager;
 
   // Self-Reflection Control
   private selfReflectionIntervalTurns: number;
@@ -120,7 +121,7 @@ export class GMI implements IGMI {
     this.currentUserContext = { userId: 'uninitialized-user', skillLevel: 'novice', preferences: {} };
     this.currentTaskContext = { taskId: `task-${uuidv4()}`, domain: 'general', complexity: 'low', status: 'not_started' };
     this.reasoningTrace = { gmiId: this.gmiId, personaId: '', entries: [] };
-    this.conversationHistory = [];
+    this.conversationHistoryManager = new ConversationHistoryManager();
     this.selfReflectionIntervalTurns = DEFAULT_SELF_REFLECTION_INTERVAL_TURNS;
     this.turnsSinceLastReflection = 0;
   }
@@ -133,7 +134,7 @@ export class GMI implements IGMI {
       console.warn(`GMI (ID: ${this.gmiId}) already initialized (state: ${this.state}). Re-initializing parts.`);
       // Selective re-initialization logic can be more granular if needed
       this.reasoningTrace = { gmiId: this.gmiId, personaId: '', entries: [] };
-      this.conversationHistory = [];
+      this.conversationHistoryManager.clear();
     }
 
     this.validateInitializationInputs(persona, config);
@@ -499,151 +500,8 @@ export class GMI implements IGMI {
     };
   }
 
-  /**
-   * Updates the internal conversation history with new input.
-   * @private
-   */
-  private updateConversationHistory(turnInput: GMITurnInput): void {
-    let messageToAdd: ChatMessage | null = null;
-
-    switch (turnInput.type) {
-      case GMIInteractionType.TEXT:
-        messageToAdd = { role: 'user', content: turnInput.content as string, name: turnInput.metadata?.userName || turnInput.userId };
-        break;
-      case GMIInteractionType.MULTIMODAL_CONTENT:
-        messageToAdd = { role: 'user', content: turnInput.content as any, name: turnInput.metadata?.userName || turnInput.userId };
-        break;
-      case GMIInteractionType.TOOL_RESPONSE: {
-        const results = Array.isArray(turnInput.content) ? turnInput.content as ToolCallResult[] : [turnInput.content as ToolCallResult];
-        results.forEach(result => {
-          this.conversationHistory.push({
-            role: 'tool',
-            tool_call_id: result.toolCallId,
-            name: result.toolName,
-            content: typeof result.output === 'string' ? result.output : JSON.stringify(result.output),
-          });
-        });
-        break;
-      }
-      case GMIInteractionType.SYSTEM_MESSAGE:
-        messageToAdd = { role: 'system', content: turnInput.content as string };
-        break;
-    }
-    if (messageToAdd) this.conversationHistory.push(messageToAdd);
-
-    const maxHistoryMessages = this.activePersona.conversationContextConfig?.maxMessages ||
-                               this.activePersona.memoryConfig?.conversationContext?.maxMessages ||
-                               DEFAULT_MAX_CONVERSATION_HISTORY_TURNS;
-
-    if (this.conversationHistory.length > maxHistoryMessages) {
-      const removeCount = this.conversationHistory.length - maxHistoryMessages;
-      this.conversationHistory.splice(0, removeCount);
-      this.addTraceEntry(ReasoningEntryType.DEBUG, `Conversation history trimmed to ${maxHistoryMessages} messages.`);
-    }
-  }
-
-  /**
-   * Adds a tool call result to the GMI's internal conversation history.
-   * @private
-   * @param {ToolCallResult} toolCallResult - The result from the tool execution.
-   */
-  private updateConversationHistoryWithToolResult(toolCallResult: ToolCallResult): void {
-    this.conversationHistory.push({
-      role: 'tool',
-      tool_call_id: toolCallResult.toolCallId,
-      name: toolCallResult.toolName, // Name of the tool
-      content: toolCallResult.isError
-        ? `Error from tool '${toolCallResult.toolName}': ${JSON.stringify(toolCallResult.errorDetails || toolCallResult.output)}`
-        : (typeof toolCallResult.output === 'string' ? toolCallResult.output : JSON.stringify(toolCallResult.output)),
-    });
-  }
-
-  /**
-   * Creates a conversation-history snapshot compatible with `PromptComponents`.
-   * @private
-   */
-  private buildConversationHistoryForPrompt(): ConversationMessage[] {
-    return this.conversationHistory.map(msg => this.convertChatMessageToConversationMessage(msg));
-  }
-
-  private convertChatMessageToConversationMessage(chatMsg: ChatMessage): ConversationMessage {
-    const conversationMessage = createConversationMessage(
-      this.mapChatRoleToMessageRole(chatMsg.role),
-      this.normalizeChatMessageContent(chatMsg.content),
-      {
-        name: chatMsg.name,
-        tool_call_id: chatMsg.tool_call_id,
-      }
-    );
-
-    if (chatMsg.tool_calls && chatMsg.tool_calls.length > 0) {
-      conversationMessage.tool_calls = chatMsg.tool_calls
-        .filter(tc => !!tc?.function?.name)
-        .map(tc => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: this.parseToolCallArguments(tc.function.arguments),
-        }));
-    }
-
-    return conversationMessage;
-  }
-
-  private convertConversationMessageToChatMessage(
-    message: ConversationMessage,
-  ): ChatMessage | null {
-    if (message.role === MessageRole.ERROR || message.role === MessageRole.THOUGHT) {
-      return null;
-    }
-
-    const role: ChatMessage['role'] =
-      message.role === MessageRole.SYSTEM || message.role === MessageRole.SUMMARY
-        ? 'system'
-        : message.role === MessageRole.ASSISTANT
-          ? 'assistant'
-          : message.role === MessageRole.TOOL
-            ? 'tool'
-            : 'user';
-
-    const content =
-      message.role === MessageRole.SUMMARY && typeof message.content === 'string'
-        ? `[Conversation Summary]\n${message.content}`
-        : this.normalizeConversationMessageContent(message.content);
-
-    return {
-      role,
-      content,
-      name: message.name,
-      tool_call_id: message.tool_call_id,
-      tool_calls: Array.isArray(message.tool_calls)
-        ? message.tool_calls.map((toolCall) => ({
-            id: toolCall.id,
-            type: 'function' as const,
-            function: {
-              name: toolCall.name,
-              arguments: JSON.stringify(toolCall.arguments ?? {}),
-            },
-          }))
-        : undefined,
-    };
-  }
-
-  private normalizeConversationMessageContent(
-    content: ConversationMessage['content'],
-  ): ChatMessage['content'] {
-    if (content === null || typeof content === 'string') {
-      return content;
-    }
-    if (Array.isArray(content)) {
-      return content.map((part) => ({ ...part })) as ChatMessage['content'];
-    }
-    return JSON.stringify(content);
-  }
-
   public hydrateConversationHistory(conversationHistory: ConversationMessage[]): void {
-    this.conversationHistory = conversationHistory
-      .map((message) => this.convertConversationMessageToChatMessage(message))
-      .filter((message): message is ChatMessage => message !== null);
+    this.conversationHistoryManager.hydrate(conversationHistory);
   }
 
   public hydrateTurnContext(context: {
@@ -660,49 +518,6 @@ export class GMI implements IGMI {
     if (typeof context.organizationId === 'string' && context.organizationId.trim()) {
       this.reasoningTrace.organizationId = context.organizationId.trim();
     }
-  }
-
-  private mapChatRoleToMessageRole(role: ChatMessage['role']): MessageRole {
-    switch (role) {
-      case 'system':
-        return MessageRole.SYSTEM;
-      case 'assistant':
-        return MessageRole.ASSISTANT;
-      case 'tool':
-        return MessageRole.TOOL;
-      default:
-        return MessageRole.USER;
-    }
-  }
-
-  private normalizeChatMessageContent(content: ChatMessage['content']): ConversationMessage['content'] {
-    if (typeof content === 'undefined') {
-      return null;
-    }
-    if (content === null || typeof content === 'string') {
-      return content;
-    }
-    if (Array.isArray(content)) {
-      return content.map(part => ({ ...part }));
-    }
-    return content as unknown as ConversationMessage['content'];
-  }
-
-  private parseToolCallArguments(args: unknown): Record<string, any> {
-    if (!args) {
-      return {};
-    }
-    if (typeof args === 'string') {
-      try {
-        return JSON.parse(args);
-      } catch {
-        return {};
-      }
-    }
-    if (typeof args === 'object') {
-      return args as Record<string, any>;
-    }
-    return {};
   }
 
   /**
@@ -803,12 +618,15 @@ export class GMI implements IGMI {
         this.currentUserContext.userId = turnInput.userId;
         await this.workingMemory.set('currentUserContext', this.currentUserContext);
       }
-      this.updateConversationHistory(turnInput);
+      const maxHistoryMessages = this.activePersona.conversationContextConfig?.maxMessages ||
+                               this.activePersona.memoryConfig?.conversationContext?.maxMessages ||
+                               DEFAULT_MAX_CONVERSATION_HISTORY_TURNS;
+      this.conversationHistoryManager.update(turnInput, maxHistoryMessages);
 
       // Analyze sentiment of user input only when sentiment tracking is enabled
       if (this.activePersona.sentimentTracking?.enabled) {
-        const lastMsg = this.conversationHistory.length > 0
-          ? this.conversationHistory[this.conversationHistory.length - 1]
+        const lastMsg = this.conversationHistoryManager.history.length > 0
+          ? this.conversationHistoryManager.history[this.conversationHistoryManager.history.length - 1]
           : null;
         if (lastMsg?.role === 'user' && lastMsg?.content) {
           const userInputText = typeof lastMsg.content === 'string'
@@ -854,7 +672,7 @@ export class GMI implements IGMI {
             : "";
         let assembledMemoryContext: AssembledMemoryContext | null = null;
 
-        const lastMessage = this.conversationHistory.length > 0 ? this.conversationHistory[this.conversationHistory.length - 1] : null;
+        const lastMessage = this.conversationHistoryManager.history.length > 0 ? this.conversationHistoryManager.history[this.conversationHistoryManager.history.length - 1] : null;
         const isUserInitiatedTurn = lastMessage?.role === 'user';
         const currentTurnText =
           isUserInitiatedTurn && lastMessage?.content
@@ -938,7 +756,7 @@ export class GMI implements IGMI {
 
         const promptComponents: PromptComponents = {
           systemPrompts,
-          conversationHistory: durableHistoryForPrompt ?? this.buildConversationHistoryForPrompt(),
+          conversationHistory: durableHistoryForPrompt ?? this.conversationHistoryManager.buildForPrompt(),
           userInput: isUserInitiatedTurn ? currentTurnText : null,
           retrievedContext: [
             assembledMemoryContext?.contextText,
@@ -1084,7 +902,7 @@ export class GMI implements IGMI {
           yield this.createOutputChunk(turnInput.interactionId, GMIOutputChunkType.TEXT_DELTA, aggregatedResponseText);
         }
 
-        this.conversationHistory.push({
+        this.conversationHistoryManager.push({
           role: 'assistant',
           content: currentIterationTextResponse || null,
           tool_calls: currentIterationToolCallRequests.length > 0
@@ -1123,7 +941,7 @@ export class GMI implements IGMI {
               );
             }
           }
-          toolExecutionResults.forEach(tcResult => this.updateConversationHistoryWithToolResult(tcResult));
+          toolExecutionResults.forEach(tcResult => this.conversationHistoryManager.updateWithToolResult(tcResult));
           currentIterationTextResponse = ""; // Reset for next iteration if any
           currentIterationToolCallRequests = []; // Reset
           this.state = GMIPrimeState.PROCESSING;
@@ -1253,7 +1071,7 @@ export class GMI implements IGMI {
       },
     );
 
-    toolResults.forEach((toolResult) => this.updateConversationHistoryWithToolResult(toolResult));
+    toolResults.forEach((toolResult) => this.conversationHistoryManager.updateWithToolResult(toolResult));
 
     // Construct a system turn input to represent the continuation after tool result
     const systemTurnInput: GMITurnInput = {
@@ -1640,7 +1458,7 @@ export class GMI implements IGMI {
     }
 
     // Low engagement detection (consecutive neutral with short responses)
-    const recentUserMessages = this.conversationHistory
+    const recentUserMessages = this.conversationHistoryManager.history
       .slice(-5)
       .filter((msg) => msg.role === 'user');
 
@@ -1913,7 +1731,7 @@ export class GMI implements IGMI {
     metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
   ): Promise<void> {
     // Gather evidence for self-reflection
-    const evidenceHistory = this.conversationHistory.slice(-10);
+    const evidenceHistory = this.conversationHistoryManager.history.slice(-10);
     const evidenceTrace = this.reasoningTrace.entries.slice(-20);
 
     const evidence = {
@@ -1955,7 +1773,7 @@ export class GMI implements IGMI {
       current_sentiment: this.currentUserContext.currentSentiment || 'negative',
       sentiment_score: (sentimentHistory?.trends[sentimentHistory.trends.length - 1]?.score || -0.5).toString(),
       consecutive_frustration: (sentimentHistory?.consecutiveFrustration || 1).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
       recent_errors: JSON.stringify(recentErrors.map((e) => e.message)),
       current_mood: this.currentGmiMood,
       user_skill: this.currentUserContext.skillLevel || 'unknown',
@@ -1988,7 +1806,7 @@ export class GMI implements IGMI {
     const variables = {
       current_sentiment: this.currentUserContext.currentSentiment || 'neutral',
       consecutive_confusion: (sentimentHistory?.consecutiveConfusion || 1).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
       confusion_keywords: lastConfusionEvent?.metadata.triggerKeywords
         ? JSON.stringify(lastConfusionEvent.metadata.triggerKeywords)
         : '[]',
@@ -2018,7 +1836,7 @@ export class GMI implements IGMI {
       current_sentiment: this.currentUserContext.currentSentiment || 'positive',
       sentiment_score: (sentimentHistory?.trends[sentimentHistory.trends.length - 1]?.score || 0.5).toString(),
       consecutive_satisfaction: (sentimentHistory?.consecutiveSatisfaction || 1).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
       current_mood: this.currentGmiMood,
       user_skill: this.currentUserContext.skillLevel || 'unknown',
       task_complexity: this.currentTaskContext.complexity || 'unknown',
@@ -2043,7 +1861,7 @@ export class GMI implements IGMI {
 
     const variables = {
       recent_errors: JSON.stringify(recentErrors.map((e) => ({ message: e.message, details: e.details }))),
-      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
       current_mood: this.currentGmiMood,
       user_skill: this.currentUserContext.skillLevel || 'unknown',
       task_complexity: this.currentTaskContext.complexity || 'unknown',
@@ -2068,7 +1886,7 @@ export class GMI implements IGMI {
 
     const variables = {
       consecutive_neutral: (sentimentHistory?.consecutiveConfusion || 4).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
       current_mood: this.currentGmiMood,
       user_skill: this.currentUserContext.skillLevel || 'unknown',
       task_complexity: this.currentTaskContext.complexity || 'unknown',
@@ -2089,7 +1907,7 @@ export class GMI implements IGMI {
   ): Promise<void> {
     // Generic handler that provides all available context
     const variables = {
-      recent_conversation: JSON.stringify(this.conversationHistory.slice(-5)),
+      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
       recent_reasoning: JSON.stringify(this.reasoningTrace.entries.slice(-10)),
       current_mood: this.currentGmiMood,
       user_skill: this.currentUserContext.skillLevel || 'unknown',
@@ -2281,7 +2099,7 @@ export class GMI implements IGMI {
 
     try {
       const evidence = {
-        recentConversation: this.conversationHistory.slice(-10),
+        recentConversation: this.conversationHistoryManager.history.slice(-10),
         recentTraceEntries: this.reasoningTrace.entries.slice(-20),
         currentMood: this.currentGmiMood,
         currentUserContext: this.currentUserContext,
