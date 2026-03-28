@@ -57,11 +57,12 @@ import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
 import { ConversationMessage } from '../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
-import { GMIEventType, GMIEvent, SentimentHistoryState, createGMIEvent } from './GMIEvent.js';
+import { GMIEventType, SentimentHistoryState } from './GMIEvent.js';
 import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
 import type { AssembledMemoryContext } from '../memory/types.js';
 import { ConversationHistoryManager } from './ConversationHistoryManager';
 import { CognitiveMemoryBridge } from './CognitiveMemoryBridge';
+import { SentimentTracker } from './SentimentTracker';
 
 const DEFAULT_MAX_CONVERSATION_HISTORY_TURNS = 20;
 const DEFAULT_SELF_REFLECTION_INTERVAL_TURNS = 5;
@@ -106,8 +107,7 @@ export class GMI implements IGMI {
   private memoryBridge: CognitiveMemoryBridge | null = null;
 
   // Sentiment & Event Tracking
-  private pendingGMIEvents: Set<GMIEventType> = new Set();
-  private eventHistory: GMIEvent[] = []; // Last 20 events for debugging
+  private sentimentTracker!: SentimentTracker;
   private metaPromptTriggerCounters: Map<string, number> = new Map();
 
   /**
@@ -173,6 +173,22 @@ export class GMI implements IGMI {
     this.addTraceEntry(ReasoningEntryType.LIFECYCLE, 'GMI Initializing with Persona and Config.', { personaId: persona.id });
 
     await this.loadStateFromMemoryAndPersona();
+
+    // Initialize sentiment tracker
+    this.sentimentTracker = new SentimentTracker(
+      this.utilityAI,
+      this.workingMemory,
+      () => this.activePersona,
+      () => this.conversationHistoryManager.history,
+      () => this.reasoningTrace.entries,
+      () => this.currentUserContext,
+      async (ctx) => {
+        this.currentUserContext = ctx;
+        await this.workingMemory.set('currentUserContext', this.currentUserContext);
+      },
+      (type, message, details) => this.addTraceEntry(type as ReasoningEntryType, message, details),
+      () => this.gmiId,
+    );
 
     const reflectionMetaPrompt = this.activePersona.metaPrompts?.find(mp => mp.id === 'gmi_self_trait_adjustment');
     this.selfReflectionIntervalTurns = reflectionMetaPrompt?.trigger?.type === 'turn_interval' && typeof reflectionMetaPrompt.trigger.intervalTurns === 'number'
@@ -537,7 +553,7 @@ export class GMI implements IGMI {
           const userInputText = typeof lastMsg.content === 'string'
             ? lastMsg.content
             : JSON.stringify(lastMsg.content);
-          await this.analyzeTurnSentiment(turnId, userInputText);
+          await this.sentimentTracker.analyzeTurnSentiment(turnId, userInputText);
         }
       }
 
@@ -1118,309 +1134,6 @@ export class GMI implements IGMI {
   }
 
   /**
-   * Analyzes sentiment of user input and updates sentiment history.
-   * Triggers event detection based on sentiment patterns.
-   *
-   * @param turnId - Current turn identifier
-   * @param userInput - User's input text
-   * @private
-   */
-  private async analyzeTurnSentiment(turnId: string, userInput: string): Promise<void> {
-    // Skip if input is not a string or is empty
-    if (!userInput || typeof userInput !== 'string') {
-      return;
-    }
-
-    try {
-      // Analyze sentiment using configurable method from sentimentTracking config
-      const stConfig = this.activePersona.sentimentTracking;
-      const sentimentResult = await this.utilityAI.analyzeSentiment(userInput, {
-        method: stConfig?.method || 'lexicon_based',
-        modelId: stConfig?.modelId || this.activePersona.defaultModelId,
-        providerId: stConfig?.providerId || this.activePersona.defaultProviderId,
-        language: (this.currentUserContext.language as string) || 'en',
-      });
-
-      // Update UserContext with current sentiment
-      this.currentUserContext.currentSentiment = sentimentResult.polarity;
-      await this.workingMemory.set('currentUserContext', this.currentUserContext);
-
-      // Get or initialize sentiment history
-      let sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
-        'gmi_sentiment_history'
-      );
-
-      if (!sentimentHistory) {
-        sentimentHistory = {
-          trends: [],
-          consecutiveFrustration: 0,
-          consecutiveConfusion: 0,
-          consecutiveSatisfaction: 0,
-        };
-      }
-
-      // Add to sentiment trends
-      const trend = {
-        turnId,
-        timestamp: new Date(),
-        score: sentimentResult.score,
-        polarity: sentimentResult.polarity,
-        intensity: sentimentResult.intensity || 0,
-        context: userInput.substring(0, 100), // First 100 chars
-      };
-
-      sentimentHistory.trends.push(trend);
-
-      // Keep only last N trends (configurable sliding window)
-      const historyWindow = stConfig?.historyWindow || 10;
-      if (sentimentHistory.trends.length > historyWindow) {
-        sentimentHistory.trends.shift();
-      }
-
-      // Update consecutive counters based on configurable thresholds
-      const frustrationThreshold = stConfig?.frustrationThreshold ?? -0.3;
-      const satisfactionThreshold = stConfig?.satisfactionThreshold ?? 0.3;
-
-      if (sentimentResult.score < frustrationThreshold) {
-        // Negative sentiment
-        sentimentHistory.consecutiveFrustration++;
-        sentimentHistory.consecutiveConfusion = 0;
-        sentimentHistory.consecutiveSatisfaction = 0;
-      } else if (sentimentResult.score > satisfactionThreshold) {
-        // Positive sentiment
-        sentimentHistory.consecutiveSatisfaction++;
-        sentimentHistory.consecutiveFrustration = 0;
-        sentimentHistory.consecutiveConfusion = 0;
-      } else {
-        // Neutral sentiment (or close to it)
-        sentimentHistory.consecutiveConfusion++;
-        sentimentHistory.consecutiveFrustration = 0;
-        sentimentHistory.consecutiveSatisfaction = 0;
-      }
-
-      sentimentHistory.lastAnalyzedTurnId = turnId;
-
-      // Store updated sentiment history
-      await this.workingMemory.set('gmi_sentiment_history', sentimentHistory);
-
-      this.addTraceEntry(
-        ReasoningEntryType.DEBUG,
-        'Turn sentiment analyzed',
-        {
-          sentiment: {
-            score: sentimentResult.score,
-            polarity: sentimentResult.polarity,
-            intensity: sentimentResult.intensity,
-          },
-          consecutiveCounters: {
-            frustration: sentimentHistory.consecutiveFrustration,
-            confusion: sentimentHistory.consecutiveConfusion,
-            satisfaction: sentimentHistory.consecutiveSatisfaction,
-          },
-        }
-      );
-
-      // Detect and emit events based on sentiment patterns
-      await this.detectAndEmitEvents(turnId, userInput, sentimentResult, sentimentHistory);
-
-    } catch (error: any) {
-      // Don't fail the turn if sentiment analysis fails - log and continue
-      console.error(`GMI (ID: ${this.gmiId}): Sentiment analysis error:`, error);
-      this.addTraceEntry(
-        ReasoningEntryType.WARNING,
-        'Sentiment analysis failed',
-        { error: error.message }
-      );
-    }
-  }
-
-  /**
-   * Detects emotional patterns and emits appropriate GMI events.
-   *
-   * @param turnId - Current turn identifier
-   * @param userInput - User's input text
-   * @param sentimentResult - Sentiment analysis result
-   * @param sentimentHistory - Historical sentiment data
-   * @private
-   */
-  private async detectAndEmitEvents(
-    turnId: string,
-    userInput: string,
-    sentimentResult: { score: number; polarity: 'positive' | 'negative' | 'neutral'; intensity?: number; negativeTokens?: any[] },
-    sentimentHistory: SentimentHistoryState
-  ): Promise<void> {
-    // Read configurable thresholds
-    const stConfig = this.activePersona.sentimentTracking;
-    const frustThreshold = stConfig?.frustrationThreshold ?? -0.3;
-    const satisThreshold = stConfig?.satisfactionThreshold ?? 0.3;
-    const consecutiveRequired = stConfig?.consecutiveTurnsForTrigger ?? 2;
-
-    // Frustration detection
-    if (
-      (sentimentResult.score < frustThreshold && (sentimentResult.intensity || 0) > 0.6) ||
-      sentimentHistory.consecutiveFrustration >= consecutiveRequired
-    ) {
-      this.emitEvent(
-        createGMIEvent(
-          GMIEventType.USER_FRUSTRATED,
-          turnId,
-          sentimentHistory.consecutiveFrustration >= 2 ? 'high' : 'medium',
-          {
-            sentimentScore: sentimentResult.score,
-            sentimentPolarity: sentimentResult.polarity,
-            sentimentIntensity: sentimentResult.intensity,
-            consecutiveTurns: sentimentHistory.consecutiveFrustration,
-            triggeredBy: 'sentiment',
-          }
-        )
-      );
-    }
-
-    // Confusion detection (keyword-based + sentiment)
-    const confusionKeywords = [
-      'confused',
-      "don't understand",
-      "dont understand",
-      'unclear',
-      'what do you mean',
-      'explain',
-      'clarify',
-      'huh',
-      '??',
-      "doesn't make sense",
-      "doesnt make sense",
-      'not sure',
-    ];
-
-    const lowerInput = userInput.toLowerCase();
-    const hasConfusionKeyword = confusionKeywords.some((keyword) =>
-      lowerInput.includes(keyword)
-    );
-    const triggerKeywords = hasConfusionKeyword
-      ? confusionKeywords.filter((keyword) => lowerInput.includes(keyword))
-      : [];
-
-    if (
-      hasConfusionKeyword ||
-      (sentimentResult.polarity === 'neutral' &&
-        sentimentResult.negativeTokens &&
-        sentimentResult.negativeTokens.length > 2)
-    ) {
-      this.emitEvent(
-        createGMIEvent(
-          GMIEventType.USER_CONFUSED,
-          turnId,
-          sentimentHistory.consecutiveConfusion >= 2 ? 'high' : 'medium',
-          {
-            triggeredBy: hasConfusionKeyword ? 'keyword' : 'sentiment',
-            consecutiveTurns: sentimentHistory.consecutiveConfusion,
-            evidencePreview: userInput.substring(0, 100),
-            triggerKeywords: hasConfusionKeyword ? triggerKeywords : undefined,
-          }
-        )
-      );
-    }
-
-    // Satisfaction detection
-    if (
-      (sentimentResult.score > satisThreshold && (sentimentResult.intensity || 0) > 0.5) ||
-      sentimentHistory.consecutiveSatisfaction >= (consecutiveRequired + 1)
-    ) {
-      this.emitEvent(
-        createGMIEvent(
-          GMIEventType.USER_SATISFIED,
-          turnId,
-          'low',
-          {
-            sentimentScore: sentimentResult.score,
-            sentimentPolarity: sentimentResult.polarity,
-            sentimentIntensity: sentimentResult.intensity,
-            consecutiveTurns: sentimentHistory.consecutiveSatisfaction,
-            triggeredBy: 'sentiment',
-          }
-        )
-      );
-    }
-
-    // Error threshold detection (check reasoning trace for recent errors)
-    const recentErrors = this.reasoningTrace.entries
-      .slice(-10)
-      .filter((entry) => entry.type === ReasoningEntryType.ERROR);
-
-    if (recentErrors.length >= 2) {
-      this.emitEvent(
-        createGMIEvent(
-          GMIEventType.ERROR_THRESHOLD_EXCEEDED,
-          turnId,
-          'high',
-          {
-            triggeredBy: 'error',
-            errorCount: recentErrors.length,
-            consecutiveTurns: recentErrors.length,
-          }
-        )
-      );
-    }
-
-    // Low engagement detection (consecutive neutral with short responses)
-    const recentUserMessages = this.conversationHistoryManager.history
-      .slice(-5)
-      .filter((msg) => msg.role === 'user');
-
-    const avgLength = recentUserMessages.length > 0
-      ? recentUserMessages.reduce(
-          (sum, msg) => sum + String(msg.content).length,
-          0
-        ) / recentUserMessages.length
-      : 0;
-
-    if (sentimentHistory.consecutiveConfusion >= 4 && avgLength < 50) {
-      this.emitEvent(
-        createGMIEvent(
-          GMIEventType.LOW_ENGAGEMENT,
-          turnId,
-          'medium',
-          {
-            triggeredBy: 'pattern',
-            consecutiveTurns: sentimentHistory.consecutiveConfusion,
-            evidencePreview: `Avg response length: ${avgLength.toFixed(0)} chars`,
-          }
-        )
-      );
-    }
-  }
-
-  /**
-   * Emits a GMI event and stores it in event history.
-   *
-   * @param event - The event to emit
-   * @private
-   */
-  private emitEvent(event: GMIEvent): void {
-    // Add to pending events (will be consumed by trigger checking)
-    this.pendingGMIEvents.add(event.eventType);
-
-    // Add to event history for debugging (circular buffer, max 20)
-    this.eventHistory.push(event);
-    if (this.eventHistory.length > 20) {
-      this.eventHistory.shift();
-    }
-
-    this.addTraceEntry(
-      ReasoningEntryType.DEBUG,
-      `GMI Event Emitted: ${event.eventType}`,
-      {
-        event: {
-          eventType: event.eventType,
-          turnId: event.turnId,
-          severity: event.severity,
-          metadata: event.metadata,
-        },
-      }
-    );
-  }
-
-  /**
    * Checks all metaprompt triggers (turn_interval, event_based, manual) and executes triggered ones.
    *
    * @param turnId - Current turn identifier
@@ -1448,10 +1161,10 @@ export class GMI implements IGMI {
       } else if (metaPrompt.trigger.type === 'event_based') {
         // NEW: Event-based trigger checking
         const eventName = metaPrompt.trigger.eventName;
-        if (this.pendingGMIEvents.has(eventName as GMIEventType)) {
+        if (this.sentimentTracker.pendingEvents.has(eventName as GMIEventType)) {
           triggeredMetaPrompts.push(metaPrompt);
           // Consume the event (remove from pending)
-          this.pendingGMIEvents.delete(eventName as GMIEventType);
+          this.sentimentTracker.pendingEvents.delete(eventName as GMIEventType);
         }
       } else if (metaPrompt.trigger.type === 'manual') {
         // NEW: Manual trigger checking
@@ -1703,7 +1416,7 @@ export class GMI implements IGMI {
     );
 
     // Get the last event for confusion keywords
-    const lastConfusionEvent = this.eventHistory
+    const lastConfusionEvent = this.sentimentTracker.events
       .slice()
       .reverse()
       .find((e) => e.eventType === GMIEventType.USER_CONFUSED);
