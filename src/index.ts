@@ -29,11 +29,11 @@ export * from './core/streaming/StreamingManager';
 export * from './core/llm/providers/AIModelProviderManager';
 export * from './orchestration/turn-planner/TurnPlanner';
 export * from './orchestration/turn-planner/SqlTaskOutcomeTelemetryStore';
-export * from './planning/workflows/WorkflowTypes';
-export * from './planning/workflows/IWorkflowEngine';
-export * from './planning/workflows/storage/IWorkflowStore';
-export { WorkflowEngine } from './planning/workflows/WorkflowEngine';
-export { InMemoryWorkflowStore } from './planning/workflows/storage/InMemoryWorkflowStore';
+export * from './orchestration/workflows/WorkflowTypes';
+export * from './orchestration/workflows/IWorkflowEngine';
+export * from './orchestration/workflows/storage/IWorkflowStore';
+export { WorkflowEngine } from './orchestration/workflows/WorkflowEngine';
+export { InMemoryWorkflowStore } from './orchestration/workflows/storage/InMemoryWorkflowStore';
 // Agency (Multi-Agent Collectives)
 export * from './agents/agency/AgencyTypes';
 export { AgencyRegistry } from './agents/agency/AgencyRegistry';
@@ -55,9 +55,9 @@ export type {
   HandoffResult,
 } from './agents/agency/IAgentCommunicationBus';
 // Planning Engine
-export * from './planning/planner';
+export * from './orchestration/planner';
 // Human-in-the-Loop (HITL)
-export * from './planning/hitl';
+export * from './orchestration/hitl';
 // Structured Outputs (JSON Schema, Function Calling)
 export * from './structured/output';
 // Code Execution Sandbox

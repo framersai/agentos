@@ -1,5 +1,5 @@
 import type { IPersonaDefinition } from '../personas/IPersonaDefinition';
-import type { PersonaEvolutionRule } from '../../planning/workflows/WorkflowTypes';
+import type { PersonaEvolutionRule } from '../../orchestration/workflows/WorkflowTypes';
 import {
   type ApplyPersonaRulesArgs,
   type PersonaEvolutionContext,

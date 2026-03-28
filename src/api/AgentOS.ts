@@ -77,7 +77,7 @@ import {
 } from '../core/tools/permissions/IToolPermissionManager';
 import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionManager';
 import type { IAuthService, ISubscriptionService } from '../types/auth';
-import type { IHumanInteractionManager } from '../planning/hitl/IHumanInteractionManager';
+import type { IHumanInteractionManager } from '../orchestration/hitl/IHumanInteractionManager';
 import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI';
 import {
@@ -156,19 +156,19 @@ import type {
   ICapabilityDiscoveryEngine,
   PresetCoOccurrence,
 } from '../discovery/types';
-import type { WorkflowEngineConfig } from '../planning/workflows/IWorkflowEngine';
+import type { WorkflowEngineConfig } from '../orchestration/workflows/IWorkflowEngine';
 import type {
   WorkflowDefinition,
   WorkflowDescriptorPayload,
   WorkflowInstance,
   WorkflowProgressUpdate,
   WorkflowStatus,
-} from '../planning/workflows/WorkflowTypes';
+} from '../orchestration/workflows/WorkflowTypes';
 import type {
   IWorkflowStore,
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
-} from '../planning/workflows/storage/IWorkflowStore';
+} from '../orchestration/workflows/storage/IWorkflowStore';
 
 type StorageWriteHookContext = {
   readonly operation: 'run' | 'batch';

@@ -23,11 +23,11 @@ import type {
   WorkflowInstance,
   WorkflowProgressUpdate,
   WorkflowStatus,
-} from '../../planning/workflows/WorkflowTypes';
+} from '../../orchestration/workflows/WorkflowTypes';
 import type {
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
-} from '../../planning/workflows/storage/IWorkflowStore';
+} from '../../orchestration/workflows/storage/IWorkflowStore';
 import type { ConversationManager } from '../../core/conversation/ConversationManager';
 import type { GMIManager } from '../../cognitive_substrate/GMIManager';
 import type { ExtensionManager } from '../../extensions';

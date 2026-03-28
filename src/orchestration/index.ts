@@ -31,3 +31,14 @@ export * from './tools/index.js';
 
 // Turn planner (moved from core/orchestration/)
 export * from './turn-planner/index.js';
+
+// Planning Engine (goal pursuit, task decomposition)
+export * from './planner/index.js';
+// Human-in-the-Loop (HITL)
+export * from './hitl/index.js';
+// Workflows (engine, runtime, storage)
+export * from './workflows/IWorkflowEngine.js';
+export { WorkflowEngine } from './workflows/WorkflowEngine.js';
+export * from './workflows/WorkflowTypes.js';
+export * from './workflows/storage/IWorkflowStore.js';
+export { InMemoryWorkflowStore } from './workflows/storage/InMemoryWorkflowStore.js';

@@ -47,7 +47,7 @@ import { MessageRole } from '../../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { type StreamId } from '../../core/streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers';
-import type { WorkflowProgressUpdate } from '../../planning/workflows/WorkflowTypes';
+import type { WorkflowProgressUpdate } from '../../orchestration/workflows/WorkflowTypes';
 // AIModelProviderManager — referenced via AgentOSOrchestratorDependencies
 import {
   DEFAULT_PROMPT_PROFILE_CONFIG,

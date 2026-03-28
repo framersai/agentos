@@ -16,7 +16,7 @@ import { IToolPermissionManager } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
-import type { IHumanInteractionManager } from '../../planning/hitl/IHumanInteractionManager';
+import type { IHumanInteractionManager } from '../../orchestration/hitl/IHumanInteractionManager';
 import type { CapabilityDiscoveryResult } from '../../discovery/types';
 import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
 import type { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';

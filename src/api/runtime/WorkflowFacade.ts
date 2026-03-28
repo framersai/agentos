@@ -31,11 +31,11 @@ import type { AgentOSOrchestrator } from './AgentOSOrchestrator';
 import type { GMIManager } from '../../cognitive_substrate/GMIManager';
 import type { StreamingManager } from '../../core/streaming/StreamingManager';
 
-import { WorkflowEngine } from '../../planning/workflows/WorkflowEngine';
+import { WorkflowEngine } from '../../orchestration/workflows/WorkflowEngine';
 import type {
   WorkflowEngineConfig,
   WorkflowEngineEventListener,
-} from '../../planning/workflows/IWorkflowEngine';
+} from '../../orchestration/workflows/IWorkflowEngine';
 import type {
   WorkflowDefinition,
   WorkflowDescriptorPayload,
@@ -43,14 +43,14 @@ import type {
   WorkflowInstance,
   WorkflowProgressUpdate,
   WorkflowStatus,
-} from '../../planning/workflows/WorkflowTypes';
+} from '../../orchestration/workflows/WorkflowTypes';
 import type {
   IWorkflowStore,
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
-} from '../../planning/workflows/storage/IWorkflowStore';
-import { InMemoryWorkflowStore } from '../../planning/workflows/storage/InMemoryWorkflowStore';
-import { WorkflowRuntime } from '../../planning/workflows/runtime/WorkflowRuntime';
+} from '../../orchestration/workflows/storage/IWorkflowStore';
+import { InMemoryWorkflowStore } from '../../orchestration/workflows/storage/InMemoryWorkflowStore';
+import { WorkflowRuntime } from '../../orchestration/workflows/runtime/WorkflowRuntime';
 import { AgencyRegistry } from '../../agents/agency/AgencyRegistry';
 
 import type { AgentOSInput } from '../types/AgentOSInput';

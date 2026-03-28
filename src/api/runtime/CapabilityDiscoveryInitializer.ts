@@ -44,7 +44,7 @@ import type {
 } from '../../discovery/types';
 import { EmbeddingManager } from '../../rag/EmbeddingManager';
 import { InMemoryVectorStore } from '../../rag/vector_stores/InMemoryVectorStore';
-import type { WorkflowDescriptorPayload } from '../../planning/workflows/WorkflowTypes';
+import type { WorkflowDescriptorPayload } from '../../orchestration/workflows/WorkflowTypes';
 
 import type {
   AgentOSTurnPlanningConfig,
