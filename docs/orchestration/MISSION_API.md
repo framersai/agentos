@@ -1,8 +1,10 @@
 # mission() API
 
-`mission()` is the intent-driven authoring API in the Unified Orchestration Layer. Instead of declaring nodes and edges, you describe a goal. The PlanningEngine decomposes the goal into an execution graph at runtime.
+`mission()` is the goal-first authoring API in the Unified Orchestration Layer. Instead of declaring nodes and edges directly, you describe the mission intent and let the compiler build the execution graph.
 
-Use `mission()` when you don't know the exact steps upfront, when you're prototyping, or when the planner should adapt based on what it discovers. When the steps stabilise, call `.toWorkflow()` to export a fixed `CompiledExecutionGraph` and switch to [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
+Current status: `mission()` compiles to a fixed phase-ordered stub graph (`gather` → `process` → `deliver`) with anchors and mission-level policies applied on top. Planner config is accepted and preserved, but it does not yet change graph shape at runtime.
+
+Use `mission()` when you want a goal-centric builder API today, when you're prototyping around anchors and policies, or when you want a forward-compatible path to richer planner-backed compilation later. When the steps stabilise, call `.toWorkflow()` to export a fixed `CompiledExecutionGraph` and switch to [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
 
 ## Quick Start
 
@@ -43,17 +45,17 @@ Declares the input schema. Accepts a Zod schema or a plain JSON Schema object.
 }))
 ```
 
-Variables declared in the input schema can be referenced in the goal template via `{{variable}}` syntax.
+Variables declared in the input schema can be referenced in the goal template via `{{variable}}` syntax. The current stub compiler preserves that template verbatim in generated node instructions rather than interpolating it from runtime input.
 
 ### .goal(template)
 
-Sets the goal template. The template is a free-form string with optional `{{variable}}` placeholders that are interpolated from the input payload at plan-generation time.
+Sets the goal template. The template is a free-form string with optional `{{variable}}` placeholders.
 
 ```typescript
 .goal('Research {{topic}} at {{depth}} depth and produce a structured report')
 ```
 
-The PlanningEngine receives the interpolated goal and decomposes it into a sequence of steps. The template is the primary instruction to the planner.
+The goal template is the primary authoring input for `mission()`. In the current implementation it is passed through into the generated reasoning nodes; future planner-backed compilation can use the same template for dynamic decomposition.
 
 ### .returns(schema)
 
@@ -69,7 +71,7 @@ Declares the output schema. Accepts a Zod schema or a plain JSON Schema object.
 
 ### .planner(config)
 
-Configures the planner that decomposes the goal.
+Configures planner hints for the mission.
 
 ```typescript
 .planner({
@@ -82,12 +84,12 @@ Configures the planner that decomposes the goal.
 
 | Strategy | Description |
 |---|---|
-| `linear` | Plans steps sequentially, no branching. Fastest, most predictable. |
-| `tree` | Generates a branching plan; the runtime selects paths based on intermediate results. |
-| `adaptive` | Re-plans after each step based on what was learned. Slowest, most flexible. |
-| `critic` | Generates a draft plan, then a critic pass refines it before execution. |
-| `hierarchical` | Decomposes goal into sub-goals, each planned independently. |
-| `react` | Plans one step at a time in a ReAct loop (plan → act → observe → plan). |
+| `linear` | Accepted planner hint. The current compiler still emits the same fixed stub graph. |
+| `tree` | Accepted planner hint for future branching planners. No graph-shape change today. |
+| `adaptive` | Accepted planner hint for future replanning support. No runtime replanning today. |
+| `critic` | Accepted planner hint for future critique/refinement passes. |
+| `hierarchical` | Accepted planner hint for future sub-goal decomposition. |
+| `react` | Accepted planner hint for future stepwise planning loops. |
 
 ### .policy(config)
 
@@ -124,7 +126,7 @@ mission('research')
   .anchor(
     'human-review',
     humanNode({ prompt: 'Review the draft before publishing.' }),
-    { phase: 'output', after: 'draft' }
+    { phase: 'deliver', after: 'draft' }
   )
 ```
 
@@ -132,7 +134,7 @@ mission('research')
 
 | Field | Description |
 |---|---|
-| `phase` | The plan phase to inject into (planner-defined: `gather`, `analyze`, `output`, etc.) |
+| `phase` | The current compiler supports `gather`, `process`, `validate`, and `deliver` |
 | `after` | Node id this anchor must run after |
 | `before` | Node id this anchor must run before |
 
@@ -146,7 +148,7 @@ const compiled = mission(...).compile({
 });
 ```
 
-`compile()` validates that all required fields are present and returns a `CompiledMission`. The IR is compiled lazily on each invocation, so the same `CompiledMission` always reflects the current builder state.
+`compile()` validates that all required fields are present and returns a `CompiledMission`. The IR is compiled lazily on each invocation from the current builder config; today that means the same stub graph shape is regenerated each time with anchors and policies applied.
 
 ## Execution
 
@@ -167,7 +169,7 @@ const result = await compiled.resume(checkpointId);
 
 ### explain()
 
-Returns a human-readable execution plan without running the mission. Useful for debugging, testing, and "what will happen" previews in UIs.
+Returns the compiled mission steps without running the mission. Useful for debugging, testing, and "what will happen" previews in UIs.
 
 ```typescript
 const { steps, ir } = await compiled.explain({ topic: 'quantum computing' });
@@ -182,7 +184,7 @@ console.log(steps);
 
 ### toWorkflow() / toIR()
 
-Exports the compiled plan as a static `CompiledExecutionGraph`. Use this to "graduate" a dynamically-planned mission to a fixed workflow once you're satisfied with the plan shape.
+Exports the compiled mission as a static `CompiledExecutionGraph`. Use this when you want to inspect or reuse the generated IR directly.
 
 ```typescript
 const ir = compiled.toWorkflow();
@@ -212,7 +214,7 @@ const deepResearch = mission('deep-research')
     confidence: z.number().min(0).max(1),
   }))
   .planner({
-    strategy: 'adaptive',
+    strategy: 'adaptive', // accepted today, used by planner-backed compilation later
     maxSteps: 12,
   })
   .policy({
@@ -235,7 +237,7 @@ const deepResearch = mission('deep-research')
   .anchor(
     'human-review',
     humanNode({ prompt: 'Review the draft report. Approve to publish.' }),
-    { phase: 'output', before: 'finalize' }
+    { phase: 'deliver', before: 'finalize' }
   )
 
   .compile({

@@ -40,6 +40,7 @@ type AnnotatedNode = GraphNode & { complexity?: number };
  */
 export class ProviderAssignmentEngine {
   private readonly availableProviders: string[];
+  private readonly rotation = new Map<string, number>();
 
   constructor(availableProviders: string[]) {
     // Prefer providers we have defaults for, fall back to raw list
@@ -87,7 +88,10 @@ export class ProviderAssignmentEngine {
   // ---------------------------------------------------------------------------
 
   private assignBest(node: AnnotatedNode): NodeProviderAssignment {
-    const provider = this.pickProvider();
+    const provider = this.pickProvider(
+      'best',
+      ['anthropic', 'openai', 'openrouter', 'gemini', 'groq', 'xai', 'mistral', 'together', 'ollama'],
+    );
     const defaults = DEFAULTS[provider];
     return {
       nodeId: node.id,
@@ -99,7 +103,10 @@ export class ProviderAssignmentEngine {
   }
 
   private assignCheapest(node: AnnotatedNode): NodeProviderAssignment {
-    const provider = this.pickProvider();
+    const provider = this.pickProvider(
+      'cheapest',
+      ['groq', 'gemini', 'openai', 'openrouter', 'together', 'mistral', 'xai', 'anthropic', 'ollama'],
+    );
     const defaults = DEFAULTS[provider];
     return {
       nodeId: node.id,
@@ -112,7 +119,21 @@ export class ProviderAssignmentEngine {
 
   private assignBalanced(node: AnnotatedNode): NodeProviderAssignment {
     const complexity = node.complexity ?? 0.5;
-    const provider = this.pickProvider();
+    const provider =
+      complexity < 0.3
+        ? this.pickProvider(
+            'balanced:cheap',
+            ['groq', 'gemini', 'openai', 'openrouter', 'together', 'mistral', 'xai', 'anthropic', 'ollama'],
+          )
+        : complexity >= 0.7
+          ? this.pickProvider(
+              'balanced:strong',
+              ['anthropic', 'openai', 'openrouter', 'gemini', 'groq', 'xai', 'mistral', 'together', 'ollama'],
+            )
+          : this.pickProvider(
+              'balanced:standard',
+              ['openai', 'openrouter', 'anthropic', 'gemini', 'groq', 'mistral', 'xai', 'together', 'ollama'],
+            );
     const defaults = DEFAULTS[provider];
 
     const model =
@@ -169,8 +190,18 @@ export class ProviderAssignmentEngine {
     }
   }
 
-  /** Pick the first available provider with known defaults. */
-  private pickProvider(): string {
-    return this.availableProviders[0] ?? 'openai';
+  /** Pick a provider from the preferred list, rotating to avoid pinning all nodes to one provider. */
+  private pickProvider(bucket: string, preferred?: string[]): string {
+    const candidates =
+      preferred?.filter((provider) => this.availableProviders.includes(provider))
+        ?? this.availableProviders;
+
+    const pool = candidates.length > 0 ? candidates : this.availableProviders;
+    if (pool.length === 0) return 'openai';
+
+    const cursor = this.rotation.get(bucket) ?? 0;
+    const provider = pool[cursor % pool.length] ?? pool[0] ?? 'openai';
+    this.rotation.set(bucket, cursor + 1);
+    return provider;
   }
 }

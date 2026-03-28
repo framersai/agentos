@@ -234,11 +234,9 @@ export class AudioProcessor extends EventEmitter {
       // Forcing sample rate can be tricky; browser might use its own.
       // It's better to adapt to audioContext.sampleRate if they differ significantly.
       if (Math.abs(this.audioContext.sampleRate - this.config.sampleRate) > 100) {
-          console.warn(`AudioContext sample rate (${this.audioContext.sampleRate}Hz) differs significantly from configured (${this.config.sampleRate}Hz). Using AudioContext's rate.`);
-          // Re-calculate frameDurationMs if sampleRate changed
-          // this.config.sampleRate = this.audioContext.sampleRate; // Update config if we decide to follow context's rate
-          // this.frameDurationMs = (this.config.bufferSize / this.config.sampleRate) * 1000;
-          // TODO: Decide if VAD needs re-initialization or if its config can adapt.
+          console.warn(`AudioContext sample rate (${this.audioContext.sampleRate}Hz) differs significantly from configured (${this.config.sampleRate}Hz). Adapting to AudioContext rate.`);
+          this.config.sampleRate = this.audioContext.sampleRate;
+          this.frameDurationMs = (this.config.bufferSize / this.config.sampleRate) * 1000;
       }
 
 

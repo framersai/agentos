@@ -18,9 +18,11 @@ import type {
   PlanResult,
   CandidateBranch,
   EvalScores,
+  NodeProviderAssignment,
 } from './types.js';
 import type { GraphNode, GraphEdge, CompiledExecutionGraph } from '../ir/types.js';
 import { START, END } from '../ir/types.js';
+import { ProviderAssignmentEngine } from './ProviderAssignmentEngine.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -107,17 +109,24 @@ export class MissionPlanner {
       onEvent,
     );
 
+    const providerAssignedBranch = this.assignProviders(refinedBranch, context);
+
     // Compile to IR
-    const compiledGraph = this.compileToIR(refinedBranch);
+    const compiledGraph = this.compileToIR(providerAssignedBranch);
 
     onEvent?.({
       type: 'mission:graph_compiled',
       nodeCount: compiledGraph.nodes.length,
       edgeCount: compiledGraph.edges.length,
-      estimatedCost: refinedBranch.estimatedCost,
+      estimatedCost: providerAssignedBranch.estimatedCost,
     });
 
-    return { selectedBranch: refinedBranch, allBranches, refinements, compiledGraph };
+    return {
+      selectedBranch: providerAssignedBranch,
+      allBranches,
+      refinements,
+      compiledGraph,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -345,6 +354,37 @@ export class MissionPlanner {
   // Compile to IR
   // ---------------------------------------------------------------------------
 
+  private assignProviders(
+    branch: CandidateBranch,
+    context: PlanContext,
+  ): CandidateBranch {
+    const gmiNodes = branch.nodes.filter((node) => node.type === 'gmi');
+    if (gmiNodes.length === 0) {
+      return { ...branch, providerAssignments: [] };
+    }
+
+    const engine = new ProviderAssignmentEngine(context.providers);
+    const assignments = engine.assign(
+      gmiNodes.map((node) => ({
+        ...node,
+        complexity: node.complexity ?? this.estimateComplexity(node),
+      })),
+      this.config.providerStrategy,
+    );
+    const availability = engine.checkAvailability(assignments);
+    if (!availability.available) {
+      throw new Error(
+        `Mission provider assignment requires unavailable providers: ${availability.missing.join(', ')}`,
+      );
+    }
+
+    return {
+      ...branch,
+      providerAssignments: assignments,
+      nodes: branch.nodes.map((node) => this.applyProviderAssignment(node, assignments)),
+    };
+  }
+
   private compileToIR(branch: CandidateBranch): CompiledExecutionGraph {
     return {
       id: `mission-${Date.now()}`,
@@ -384,6 +424,10 @@ export class MissionPlanner {
       executionMode: (raw.executionMode as GraphNode['executionMode']) ?? 'single_turn',
       effectClass: (raw.effectClass as GraphNode['effectClass']) ?? 'read',
       checkpoint,
+      complexity:
+        typeof raw.complexity === 'number' && Number.isFinite(raw.complexity)
+          ? Math.max(0, Math.min(1, raw.complexity))
+          : undefined,
     };
   }
 
@@ -398,5 +442,53 @@ export class MissionPlanner {
       target: String(raw.target ?? END),
       type: String(raw.type ?? 'static') as GraphEdge['type'],
     };
+  }
+
+  private applyProviderAssignment(
+    node: GraphNode,
+    assignments: NodeProviderAssignment[],
+  ): GraphNode {
+    const assignment = assignments.find((item) => item.nodeId === node.id);
+    if (!assignment) return node;
+
+    return {
+      ...node,
+      complexity: assignment.complexity,
+      llm: {
+        providerId: assignment.provider,
+        model: assignment.model,
+        reason: assignment.reason,
+      },
+    };
+  }
+
+  private estimateComplexity(node: GraphNode): number {
+    if (typeof node.complexity === 'number' && Number.isFinite(node.complexity)) {
+      return Math.max(0, Math.min(1, node.complexity));
+    }
+
+    if (node.type !== 'gmi') return 0.1;
+    if (node.executionMode === 'planner_controlled') return 0.85;
+    if (node.executionMode === 'react_bounded') return 0.75;
+
+    const instructions =
+      node.executorConfig.type === 'gmi'
+        ? node.executorConfig.instructions.toLowerCase()
+        : node.id.toLowerCase();
+
+    if (/\b(research|analy[sz]e|compare|evaluate|reason|judge|plan)\b/.test(instructions)) {
+      return 0.75;
+    }
+    if (/\b(summary|summari[sz]e|draft|write|deliver|merge|final)\b/.test(instructions)) {
+      return 0.35;
+    }
+    if (instructions.length > 180) {
+      return 0.65;
+    }
+    if (instructions.length > 80) {
+      return 0.5;
+    }
+
+    return 0.4;
   }
 }

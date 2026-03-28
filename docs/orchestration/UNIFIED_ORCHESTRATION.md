@@ -98,7 +98,7 @@ const wf = workflow('onboarding')
 
 ### mission() — Intent-Driven Orchestration
 
-Describe what you want to achieve; the planner figures out the steps. Provide a goal template, input/output schemas, and a planner strategy — the PlanningEngine decomposes the goal into an execution graph at runtime.
+Describe what you want to achieve and let the mission compiler generate the current stub graph shape for you. Today that means a fixed phase-ordered mission skeleton with your goal preserved in generated reasoning nodes, plus any anchors and mission-level policies you attach.
 
 ```typescript
 import { mission } from '@framers/agentos/orchestration';
@@ -111,7 +111,7 @@ const m = mission('deep-research')
   .compile();
 ```
 
-**When to use**: Open-ended tasks where you don't know the exact steps upfront, rapid prototyping, tasks where the planner should adapt based on what it discovers.
+**When to use**: Goal-first authoring, rapid prototyping around anchors and policies, and cases where you want a forward-compatible mission API even though planner-driven graph shaping is still partial.
 
 ### Decision Guide
 
@@ -119,10 +119,10 @@ const m = mission('deep-research')
 |---|---|
 | Exact steps known upfront | `workflow()` |
 | Steps known but complex branching needed | `AgentGraph` |
-| Goal-oriented, steps emerge at runtime | `mission()` |
+| Goal-first authoring with a fixed mission skeleton today | `mission()` |
 | Need agent loops / cycles | `AgentGraph` |
 | Cost-bounded, deterministic | `workflow()` |
-| Prototype quickly, graduate to fixed graph later | `mission()` → `toWorkflow()` |
+| Prototype quickly, then reuse the generated IR directly | `mission()` → `toWorkflow()` |
 
 ## Five Differentiators
 

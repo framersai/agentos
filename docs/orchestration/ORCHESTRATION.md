@@ -27,7 +27,7 @@ embed a workflow as a subgraph step; a graph can call a compiled workflow node.
 ```
 AgentGraph   — explicit nodes + edges, supports cycles
 workflow()   — strict DAG with sequential steps and parallel joins
-mission()    — goal-first, planner-controlled step generation
+mission()    — goal-first mission authoring with a stub-compiled step skeleton today
      ↓ compile()
 CompiledExecutionGraph (IR)
      ↓
@@ -236,8 +236,10 @@ workflow('content-approval')
 
 ## MissionBuilder — Goal-Oriented Execution
 
-Use `mission()` when the execution path should emerge from a goal, not be
-declared upfront. The PlanningEngine decomposes the goal into steps at runtime.
+Use `mission()` when you want to author around a goal instead of declaring
+every step by hand. Today the compiler emits a fixed phase-ordered skeleton
+and layers anchors and policies on top; planner-driven graph shaping is not
+wired end to end yet.
 
 ### Quick Start
 
@@ -261,7 +263,7 @@ console.log(result.summary);
 
 ```typescript
 .planner({
-  strategy: 'linear',   // 'linear' | 'tree' | 'react'
+  strategy: 'linear',   // accepted as a planner hint; graph shape is fixed today
   maxSteps: 10,
   maxIterations: 3,     // retry budget per step
 })

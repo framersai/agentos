@@ -1,11 +1,10 @@
 /**
  * @file MissionCompiler.ts
- * @description Bridges PlanningEngine output (or the stub planner) to a
- * `CompiledExecutionGraph` IR, enabling goal-oriented mission authoring via
- * the `mission()` builder API.
+ * @description Compiles `mission()` builder configuration to a
+ * `CompiledExecutionGraph` IR using the current stub planning pipeline.
  *
  * Compilation pipeline:
- *   1. Run stub planner → `SimplePlan` (real PlanningEngine wired later)
+ *   1. Generate the current stub `SimplePlan`
  *   2. Map plan steps to `GraphNode` objects via `stepToNode()`
  *   3. Splice declared anchors into the phase-ordered node sequence
  *   4. Build a linear edge chain (START → … → END)
@@ -38,8 +37,8 @@ export interface MissionConfig {
   /** Zod schema (or plain JSON-Schema object) describing the mission's input payload. */
   inputSchema: any;
   /**
-   * Goal prompt template.  Supports `{{variable}}` interpolation (e.g. `{{topic}}`).
-   * Injected as the system instruction for the stub planner and `gmi` reasoning nodes.
+   * Goal prompt template. Supports `{{variable}}` placeholders (e.g. `{{topic}}`).
+   * The current stub compiler passes it through to generated reasoning nodes.
    */
   goalTemplate: string;
   /** Zod schema (or plain JSON-Schema object) describing the mission's output artifacts. */
@@ -111,8 +110,8 @@ export interface MissionConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * Minimal plan structure produced by the stub planner (and, eventually, by the
- * real `PlanningEngine`).  Each step maps 1-to-1 to a `GraphNode` in the compiled IR.
+ * Minimal plan structure produced by the current stub planner. Each step maps
+ * 1-to-1 to a `GraphNode` in the compiled IR.
  */
 export interface SimplePlan {
   steps: Array<{
@@ -165,16 +164,16 @@ export class MissionCompiler {
   /**
    * Compile a mission config into a `CompiledExecutionGraph`.
    *
-   * Uses a stub planner that generates a simple linear plan based on the goal template.
-   * Real `PlanningEngine` integration will be wired in a future task once the planner
-   * interface is stable.
+   * Uses the current stub planner that generates a simple phase-ordered plan based
+   * on the mission goal template. Planner-backed decomposition is not wired into
+   * this compiler yet.
    *
    * @param config - Fully-populated `MissionConfig` object produced by `MissionBuilder`.
    * @returns A validated `CompiledExecutionGraph` ready for `GraphRuntime`.
    * @throws {Error} When `GraphValidator.validate()` reports structural errors.
    */
   static compile(config: MissionConfig): CompiledExecutionGraph {
-    // 1. Generate a linear plan (stub — real planner integration planned for Task 16+)
+    // 1. Generate the current phase-ordered stub plan
     const plan = this.generateStubPlan(config);
 
     // 2. Map plan steps to GraphNode objects

@@ -270,10 +270,13 @@ async function createUtilityAIService(
   env: EnvironmentConfig
 ): Promise<(IUtilityAI & IPromptEngineUtilityAI) | undefined> {
   if (env.ENABLE_UTILITY_AI === 'true') {
-    // TODO: Implement your UtilityAI service
-    // const utilityAI = new YourUtilityAIService();
-    // await utilityAI.initialize({ ... });
-    // return utilityAI;
+    try {
+      const { StatisticalUtilityAI } = await import('../../nlp/ai_utilities/StatisticalUtilityAI.js');
+      const utilityAI = new StatisticalUtilityAI();
+      return utilityAI as IUtilityAI & IPromptEngineUtilityAI;
+    } catch {
+      console.warn('[AgentOS] ENABLE_UTILITY_AI=true but StatisticalUtilityAI failed to load');
+    }
   }
   return undefined;
 }

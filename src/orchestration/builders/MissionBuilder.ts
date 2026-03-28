@@ -4,8 +4,8 @@
  *
  * The `mission()` factory function returns a `MissionBuilder` that collects
  * configuration through a chainable interface before compiling the mission into
- * a `CompiledMission` — the execution-ready wrapper that exposes `invoke()`,
- * `stream()`, `resume()`, `explain()`, and `toIR()`.
+ * a `CompiledMission`. The current compiler emits a fixed phase-ordered graph
+ * and applies anchors and mission-wide policies on top of that stub plan.
  *
  * Typical usage:
  * ```ts
@@ -121,8 +121,9 @@ export class MissionBuilder {
    * Set the goal template for this mission.
    *
    * The template is a free-form string that describes what the mission should achieve.
-   * It may include `{{variable}}` placeholders that will be interpolated with values
-   * from the input payload at plan generation time.
+   * It may include `{{variable}}` placeholders. The current stub compiler passes
+   * the template through verbatim into generated node instructions; future planner
+   * integrations may interpolate it from runtime input.
    *
    * Example: `'Research {{topic}} and produce a concise summary'`
    *
@@ -147,7 +148,11 @@ export class MissionBuilder {
   }
 
   /**
-   * Configure the planner used to decompose the goal into execution steps.
+   * Configure planner hints recorded on the mission config.
+   *
+   * Today the compiler emits a fixed stub plan regardless of strategy. These
+   * settings are still preserved so planner-backed mission compilation can adopt
+   * them without changing the authoring API.
    *
    * @param config - Planner settings including strategy name, step budget, and
    *                 per-node iteration and tool-parallelism caps.

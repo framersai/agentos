@@ -316,6 +316,21 @@ export interface GuardrailPolicy {
   rerouteTarget?: string;
 }
 
+/**
+ * Optional per-node LLM override attached during planning or compilation.
+ *
+ * The runtime may use this to route different graph nodes to different
+ * providers/models without changing the graph-level default LLM config.
+ */
+export interface NodeLlmConfig {
+  /** Logical provider identifier selected for this node (e.g. `openai`, `anthropic`, `groq`). */
+  providerId: string;
+  /** Model identifier selected for this node. */
+  model: string;
+  /** Human-readable explanation for audit/debugging. */
+  reason?: string;
+}
+
 // ---------------------------------------------------------------------------
 // View interfaces (read-only runtime surfaces)
 // ---------------------------------------------------------------------------
@@ -408,6 +423,10 @@ export interface GraphNode {
   inputSchema?: Record<string, unknown>;
   /** JSON-Schema-compatible description of the expected output shape. */
   outputSchema?: Record<string, unknown>;
+  /** Optional planner-estimated node complexity (0-1). */
+  complexity?: number;
+  /** Optional per-node LLM provider/model override. */
+  llm?: NodeLlmConfig;
   /** Memory read/write configuration applied by the runtime around execution. */
   memoryPolicy?: MemoryPolicy;
   /** Dynamic capability discovery configuration applied before execution. */
