@@ -32,7 +32,7 @@
  * @example
  * ```typescript
  * import { SpeechProviderResolver } from '../../speech/SpeechProviderResolver.js';
- * import { createVisionPipeline } from '../../core/vision/index.js';
+ * import { createVisionPipeline } from '../../media/vision/index.js';
  * import { createMultimodalIndexerFromResolver } from './createMultimodalIndexerFromResolver.js';
  *
  * const resolver = new SpeechProviderResolver(config, process.env);
@@ -55,12 +55,12 @@
 import type { IEmbeddingManager } from '../IEmbeddingManager.js';
 import type { IVectorStore } from '../IVectorStore.js';
 import type { SpeechProviderResolver } from '../../speech/SpeechProviderResolver.js';
-import type { VisionPipeline } from '../../core/vision/VisionPipeline.js';
+import type { VisionPipeline } from '../../media/vision/VisionPipeline.js';
 import type { IVisionProvider, ISpeechToTextProvider, MultimodalIndexerConfig } from './types.js';
 
 import { MultimodalIndexer } from './MultimodalIndexer.js';
 import { SpeechProviderAdapter } from './SpeechProviderAdapter.js';
-import { PipelineVisionProvider } from '../../core/vision/providers/PipelineVisionProvider.js';
+import { PipelineVisionProvider } from '../../media/vision/providers/PipelineVisionProvider.js';
 
 // ---------------------------------------------------------------------------
 // Factory options

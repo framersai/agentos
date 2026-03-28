@@ -15,9 +15,9 @@ import type {
   DescriptionDetail,
   SceneDescription,
   VideoAnalysisProgressEvent,
-} from '../core/video/types.js';
-import { VideoAnalyzer } from '../core/video/VideoAnalyzer.js';
-import { createVisionPipeline } from '../core/vision/index.js';
+} from '../media/video/types.js';
+import { VideoAnalyzer } from '../media/video/VideoAnalyzer.js';
+import { createVisionPipeline } from '../media/vision/index.js';
 import type { SpeechToTextProvider } from '../speech/types.js';
 import { toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';

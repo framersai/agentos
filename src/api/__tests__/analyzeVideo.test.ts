@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { analyzeVideo } from '../analyzeVideo.js';
 
-vi.mock('../../core/vision/index.js', () => {
+vi.mock('../../media/vision/index.js', () => {
   const holder = {
     createVisionPipeline: vi.fn().mockResolvedValue({ process: vi.fn() }),
   };
@@ -12,7 +12,7 @@ vi.mock('../../core/vision/index.js', () => {
   };
 });
 
-vi.mock('../../core/video/VideoAnalyzer.js', () => {
+vi.mock('../../media/video/VideoAnalyzer.js', () => {
   const holder = {
     constructorArgs: [] as unknown[],
     analyze: vi.fn(),
@@ -85,11 +85,11 @@ describe('analyzeVideo', () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
 
-    const analyzerMod = await import('../../core/video/VideoAnalyzer.js') as any;
+    const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
     analyzerMod.__holder.constructorArgs.length = 0;
     analyzerMod.__holder.analyze.mockReset();
 
-    const visionMod = await import('../../core/vision/index.js') as any;
+    const visionMod = await import('../../media/vision/index.js') as any;
     visionMod.__holder.createVisionPipeline.mockClear();
 
     const sttMod = await import('../../speech/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
@@ -102,8 +102,8 @@ describe('analyzeVideo', () => {
   });
 
   it('wires the real analyzer with a vision pipeline and passes options through', async () => {
-    const visionMod = await import('../../core/vision/index.js') as any;
-    const analyzerMod = await import('../../core/video/VideoAnalyzer.js') as any;
+    const visionMod = await import('../../media/vision/index.js') as any;
+    const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({
       durationSec: 12,
@@ -167,7 +167,7 @@ describe('analyzeVideo', () => {
   it('auto-wires OpenAI Whisper when transcription is enabled and OPENAI_API_KEY is set', async () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
 
-    const analyzerMod = await import('../../core/video/VideoAnalyzer.js') as any;
+    const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
     const sttMod = await import('../../speech/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({

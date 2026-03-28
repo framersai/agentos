@@ -1,6 +1,6 @@
-import type { AdaptiveVADConfig, VADResult } from '../core/audio/AdaptiveVAD.js';
-import type { NoiseProfile } from '../core/audio/EnvironmentalCalibrator.js';
-import type { SilenceDetectorConfig } from '../core/audio/SilenceDetector.js';
+import type { AdaptiveVADConfig, VADResult } from '../media/audio/AdaptiveVAD.js';
+import type { NoiseProfile } from '../media/audio/EnvironmentalCalibrator.js';
+import type { SilenceDetectorConfig } from '../media/audio/SilenceDetector.js';
 
 export type SpeechProviderKind = 'telephony' | 'stt' | 'tts' | 'vad' | 'wake-word';
 

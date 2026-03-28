@@ -11,8 +11,8 @@
  * transient failure automatically retries on the next available provider.
  */
 import { EventEmitter } from 'events';
-import { createImageProvider, hasImageProviderFactory } from '../core/images/index.js';
-import { FallbackImageProxy } from '../core/images/FallbackImageProxy.js';
+import { createImageProvider, hasImageProviderFactory } from '../media/images/index.js';
+import { FallbackImageProxy } from '../media/images/FallbackImageProxy.js';
 import type {
   IImageProvider,
   GeneratedImage,
@@ -22,13 +22,13 @@ import type {
   ImageBackground,
   ImageModality,
   ImageOutputFormat,
-} from '../core/images/IImageProvider.js';
+} from '../media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import {
   resolveProviderChain,
   resolveProviderOrder,
   type MediaProviderPreference,
-} from '../core/media/ProviderPreferences.js';
+} from '../media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';

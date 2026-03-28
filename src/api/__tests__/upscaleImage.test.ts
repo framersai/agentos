@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { upscaleImage } from '../upscaleImage.js';
-import { ImageUpscaleNotSupportedError } from '../../core/images/ImageOperationError.js';
+import { ImageUpscaleNotSupportedError } from '../../media/images/ImageOperationError.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

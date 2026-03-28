@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { editImage } from '../editImage.js';
-import { ImageEditNotSupportedError } from '../../core/images/ImageOperationError.js';
+import { ImageEditNotSupportedError } from '../../media/images/ImageOperationError.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -4,20 +4,20 @@
  * Unit tests for the {@link LLMVisionAdapter} re-export.
  *
  * The LLMVisionAdapter is a convenience re-export of `LLMVisionProvider`
- * from `core/vision/providers/`. These tests verify that:
+ * from `media/vision/providers/`. These tests verify that:
  *
  * - The re-export resolves to the correct class
  * - The adapter implements IVisionProvider
  * - Constructor validates required config
  *
  * More thorough LLMVisionProvider tests live in
- * `core/vision/__tests__/LLMVisionProvider.spec.ts`. This file only
+ * `media/vision/__tests__/LLMVisionProvider.spec.ts`. This file only
  * validates the re-export wiring and basic contract.
  */
 
 import { describe, it, expect } from 'vitest';
 import { LLMVisionAdapter, type LLMVisionAdapterConfig } from '../LLMVisionAdapter.js';
-import { LLMVisionProvider } from '../../../core/vision/providers/LLMVisionProvider.js';
+import { LLMVisionProvider } from '../../../media/vision/providers/LLMVisionProvider.js';
 
 // ---------------------------------------------------------------------------
 // Tests

@@ -12,15 +12,15 @@
  * Routing and credential resolution follow the same `provider:model` pattern
  * established by {@link generateImage}.
  */
-import { createImageProvider } from '../core/images/index.js';
-import { ImageEditNotSupportedError } from '../core/images/ImageOperationError.js';
-import { imageToBuffer } from '../core/images/imageToBuffer.js';
+import { createImageProvider } from '../media/images/index.js';
+import { ImageEditNotSupportedError } from '../media/images/ImageOperationError.js';
+import { imageToBuffer } from '../media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageEditMode,
   ImageGenerationResult,
   ImageProviderOptionBag,
-} from '../core/images/IImageProvider.js';
+} from '../media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';

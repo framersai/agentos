@@ -12,14 +12,14 @@
  * - **Stable Diffusion Local** — Implemented via img2img with low `denoising_strength`.
  * - **Replicate** — Model-specific (img2img with low strength).
  */
-import { createImageProvider } from '../core/images/index.js';
-import { ImageVariationNotSupportedError } from '../core/images/ImageOperationError.js';
-import { imageToBuffer } from '../core/images/imageToBuffer.js';
+import { createImageProvider } from '../media/images/index.js';
+import { ImageVariationNotSupportedError } from '../media/images/ImageOperationError.js';
+import { imageToBuffer } from '../media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageGenerationResult,
   ImageProviderOptionBag,
-} from '../core/images/IImageProvider.js';
+} from '../media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';

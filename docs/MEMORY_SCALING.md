@@ -73,10 +73,7 @@ const store = new PostgresVectorStore({
 });
 
 await store.initialize();
-await store.createCollection({
-  name: 'agent_memory',
-  dimension: 1536,
-});
+await store.createCollection('agent_memory', 1536);
 ```
 
 The standalone `Memory` facade does not yet open a Postgres brain directly.

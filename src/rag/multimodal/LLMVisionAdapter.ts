@@ -11,10 +11,10 @@
  *
  * ## Relationship to LLMVisionProvider
  *
- * The `core/vision/providers/LLMVisionProvider` class fills the same
+ * The `media/vision/providers/LLMVisionProvider` class fills the same
  * role and already exists. This file re-exports it under the multimodal
  * module namespace so consumers importing from `rag/multimodal` can
- * access it without reaching into `core/vision/`. The underlying
+ * access it without reaching into `media/vision/`. The underlying
  * implementation is identical — this is a convenience re-export plus
  * an alias type.
  *
@@ -40,10 +40,10 @@
  * ```
  */
 
-// Re-export the existing LLMVisionProvider from core/vision so that
+// Re-export the existing LLMVisionProvider from media/vision so that
 // consumers importing from the multimodal module don't need to reach
-// into core/vision/ directly. The underlying class is unchanged.
+// into media/vision/ directly. The underlying class is unchanged.
 export {
   LLMVisionProvider as LLMVisionAdapter,
   type LLMVisionProviderConfig as LLMVisionAdapterConfig,
-} from '../../core/vision/providers/LLMVisionProvider.js';
+} from '../../media/vision/providers/LLMVisionProvider.js';

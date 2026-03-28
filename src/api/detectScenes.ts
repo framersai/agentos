@@ -11,13 +11,13 @@
  * and configuration so callers only need to supply frames and optional
  * thresholds.
  */
-import { SceneDetector } from '../core/vision/SceneDetector.js';
+import { SceneDetector } from '../media/vision/SceneDetector.js';
 import type {
   Frame,
   SceneBoundary,
   SceneDetectorConfig,
   SceneDetectionMethod,
-} from '../core/vision/types.js';
+} from '../media/vision/types.js';
 
 // ---------------------------------------------------------------------------
 // Public options

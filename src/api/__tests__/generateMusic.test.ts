@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateMusic } from '../generateMusic.js';
 
-vi.mock('../../core/audio/index.js', () => {
+vi.mock('../../media/audio/index.js', () => {
   const providers = new Map<string, any>();
 
   const defaultModelFor = (providerId: string): string => {
@@ -99,7 +99,7 @@ describe('generateMusic', () => {
 
   beforeEach(async () => {
     process.env = { ...originalEnv };
-    const mod = await import('../../core/audio/index.js') as any;
+    const mod = await import('../../media/audio/index.js') as any;
     mod.__resetMockProviders();
     mod.hasAudioProviderFactory.mockReturnValue(true);
   });
@@ -120,7 +120,7 @@ describe('generateMusic', () => {
       onProgress,
     });
 
-    const { __getMockProvider } = await import('../../core/audio/index.js') as any;
+    const { __getMockProvider } = await import('../../media/audio/index.js') as any;
     expect(result.provider).toBe('suno');
     expect(result.model).toBe('suno-ai/suno');
     expect(result.audio).toHaveLength(1);
@@ -172,7 +172,7 @@ describe('generateMusic', () => {
     delete process.env.REPLICATE_API_TOKEN;
     delete process.env.FAL_API_KEY;
 
-    const mod = await import('../../core/audio/index.js') as any;
+    const mod = await import('../../media/audio/index.js') as any;
     mod.hasAudioProviderFactory.mockReturnValue(false);
 
     await expect(

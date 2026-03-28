@@ -9,7 +9,7 @@
  * ## How it works
  *
  * This detector delegates all silence timing to a {@link SilenceDetector} instance
- * (from `core/audio/`). The SilenceDetector maintains an internal timer that
+ * (from `media/audio/`). The SilenceDetector maintains an internal timer that
  * starts when `handleSpeechEnd()` is called and fires `'utterance_end_detected'`
  * when silence exceeds the configured `utteranceEndThresholdMs`. A
  * `handleSpeechStart()` call cancels the timer.
@@ -46,7 +46,7 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { SilenceDetector, type SilenceDetectorConfig } from '../core/audio/SilenceDetector.js';
+import { SilenceDetector, type SilenceDetectorConfig } from '../media/audio/SilenceDetector.js';
 import type { IEndpointDetector, VadEvent, TranscriptEvent, TurnCompleteEvent } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ export class AcousticEndpointDetector extends EventEmitter implements IEndpointD
   public readonly mode = 'acoustic' as const;
 
   /**
-   * Underlying silence-duration tracker from `core/audio/`.
+   * Underlying silence-duration tracker from `media/audio/`.
    * Handles the actual timer management and threshold comparison.
    */
   private readonly silenceDetector: SilenceDetector;

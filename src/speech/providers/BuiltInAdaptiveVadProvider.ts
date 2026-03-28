@@ -1,7 +1,7 @@
-import { AdaptiveVAD } from '../../core/audio/AdaptiveVAD.js';
-import { EnvironmentalCalibrator } from '../../core/audio/EnvironmentalCalibrator.js';
-import type { AdaptiveVADConfig } from '../../core/audio/AdaptiveVAD.js';
-import type { CalibrationConfig } from '../../core/audio/EnvironmentalCalibrator.js';
+import { AdaptiveVAD } from '../../media/audio/AdaptiveVAD.js';
+import { EnvironmentalCalibrator } from '../../media/audio/EnvironmentalCalibrator.js';
+import type { AdaptiveVADConfig } from '../../media/audio/AdaptiveVAD.js';
+import type { CalibrationConfig } from '../../media/audio/EnvironmentalCalibrator.js';
 import type { SpeechVadDecision, SpeechVadProvider } from '../types.js';
 
 /**

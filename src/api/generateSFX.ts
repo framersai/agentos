@@ -15,19 +15,19 @@
  * the fallback chain at the caller's discretion.
  */
 import { EventEmitter } from 'events';
-import { createAudioProvider, hasAudioProviderFactory } from '../core/audio/index.js';
-import { FallbackAudioProxy } from '../core/audio/FallbackAudioProxy.js';
-import type { IAudioGenerator } from '../core/audio/IAudioGenerator.js';
+import { createAudioProvider, hasAudioProviderFactory } from '../media/audio/index.js';
+import { FallbackAudioProxy } from '../media/audio/FallbackAudioProxy.js';
+import type { IAudioGenerator } from '../media/audio/IAudioGenerator.js';
 import type {
   AudioResult,
   AudioOutputFormat,
   AudioProgressEvent,
-} from '../core/audio/types.js';
+} from '../media/audio/types.js';
 import {
   resolveProviderChain,
   resolveProviderOrder,
   type MediaProviderPreference,
-} from '../core/media/ProviderPreferences.js';
+} from '../media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';

@@ -584,10 +584,16 @@ describe('ObsidianImporter', () => {
     const brain = await openBrain();
     await new ObsidianImporter(brain).import(dir);
 
+    const trace = await brain.get<{ id: string }>(
+      'SELECT id FROM memory_traces ORDER BY created_at DESC LIMIT 1',
+    );
+
+    expect(trace).toBeDefined();
+
     const outDir = tempDir();
     await new ObsidianExporter(brain).export(outDir);
 
-    const filePath = path.join(outDir, 'user', 'episodic', 'trace-with-wikilink.md');
+    const filePath = path.join(outDir, 'user', 'episodic', `${trace!.id}.md`);
     const raw = fs.readFileSync(filePath, 'utf8');
     expect(raw).toContain('[[Machine Learning]]');
   });

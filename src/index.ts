@@ -86,15 +86,15 @@ export * from './voice';
 // Unified speech runtime (STT/TTS/VAD/wake-word)
 export * from './speech';
 // Unified image generation providers
-export * from './core/images';
+export * from './media/images';
 // Unified video generation, analysis, and scene detection
-export * from './core/video/index.js';
+export * from './media/video/index.js';
 // Unified audio generation (music + SFX), processing, and provider registry
-export * from './core/audio/index.js';
+export * from './media/audio/index.js';
 // Media provider preference resolver (shared across image/video/audio)
-export * from './core/media/ProviderPreferences.js';
+export * from './media/ProviderPreferences.js';
 // Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)
-export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './core/vision/index.js';
+export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './media/vision/index.js';
 export type {
   VisionPipelineConfig,
   VisionResult,
@@ -107,8 +107,8 @@ export type {
   DocumentPage,
   LayoutBlock,
   VisionPreprocessingConfig,
-} from './core/vision/types.js';
-export type { LLMVisionProviderConfig } from './core/vision/providers/LLMVisionProvider.js';
+} from './media/vision/types.js';
+export type { LLMVisionProviderConfig } from './media/vision/providers/LLMVisionProvider.js';
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports

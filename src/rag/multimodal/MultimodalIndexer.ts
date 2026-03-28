@@ -51,7 +51,7 @@ import type {
   ISpeechToTextProvider,
   MultimodalIndexerConfig,
 } from './types.js';
-import type { VisionPipeline } from '../../core/vision/VisionPipeline.js';
+import type { VisionPipeline } from '../../media/vision/VisionPipeline.js';
 import type { HydeRetriever } from '../HydeRetriever.js';
 
 // ---------------------------------------------------------------------------
@@ -227,7 +227,7 @@ export class MultimodalIndexer {
       const {
         PipelineVisionProvider,
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-      } = require('../../core/vision/providers/PipelineVisionProvider.js');
+      } = require('../../media/vision/providers/PipelineVisionProvider.js');
       this._visionProvider = new PipelineVisionProvider(deps.visionPipeline);
     } else {
       this._visionProvider = deps.visionProvider;

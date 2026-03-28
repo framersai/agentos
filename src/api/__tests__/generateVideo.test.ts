@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateVideo } from '../generateVideo.js';
 
-vi.mock('../../core/video/index.js', () => {
+vi.mock('../../media/video/index.js', () => {
   const providers = new Map<string, any>();
 
   const defaultModelFor = (providerId: string): string => {
@@ -97,7 +97,7 @@ describe('generateVideo', () => {
 
   beforeEach(async () => {
     process.env = { ...originalEnv };
-    const mod = await import('../../core/video/index.js') as any;
+    const mod = await import('../../media/video/index.js') as any;
     mod.__resetMockProviders();
     mod.hasVideoProviderFactory.mockReturnValue(true);
   });
@@ -118,7 +118,7 @@ describe('generateVideo', () => {
       onProgress,
     });
 
-    const { __getMockProvider } = await import('../../core/video/index.js') as any;
+    const { __getMockProvider } = await import('../../media/video/index.js') as any;
     expect(result.provider).toBe('runway');
     expect(result.model).toBe('gen3a_turbo');
     expect(result.videos).toHaveLength(1);
@@ -152,7 +152,7 @@ describe('generateVideo', () => {
     expect(result.videos[0].url).toContain('i2v.mp4');
     expect(result.usage?.totalCostUSD).toBe(0.30);
 
-    const { __getMockProvider } = await import('../../core/video/index.js') as any;
+    const { __getMockProvider } = await import('../../media/video/index.js') as any;
     expect(__getMockProvider('runway').imageToVideo).toHaveBeenCalled();
   });
 
@@ -175,7 +175,7 @@ describe('generateVideo', () => {
   });
 
   it('throws a friendly error when image-to-video is unsupported', async () => {
-    const mod = await import('../../core/video/index.js') as any;
+    const mod = await import('../../media/video/index.js') as any;
     const provider = mod.__getMockProvider('runway');
     provider.imageToVideo = undefined;
     provider.supports.mockImplementation((capability: 'text-to-video' | 'image-to-video') => {
@@ -197,7 +197,7 @@ describe('generateVideo', () => {
     delete process.env.REPLICATE_API_TOKEN;
     delete process.env.FAL_API_KEY;
 
-    const mod = await import('../../core/video/index.js') as any;
+    const mod = await import('../../media/video/index.js') as any;
     mod.hasVideoProviderFactory.mockReturnValue(false);
 
     await expect(

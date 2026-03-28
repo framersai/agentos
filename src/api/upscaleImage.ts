@@ -12,14 +12,14 @@
  * - **Replicate** — `nightmareai/real-esrgan` (or caller-specified model)
  * - **OpenAI** — not supported (throws {@link ImageUpscaleNotSupportedError})
  */
-import { createImageProvider } from '../core/images/index.js';
-import { ImageUpscaleNotSupportedError } from '../core/images/ImageOperationError.js';
-import { imageToBuffer } from '../core/images/imageToBuffer.js';
+import { createImageProvider } from '../media/images/index.js';
+import { ImageUpscaleNotSupportedError } from '../media/images/ImageOperationError.js';
+import { imageToBuffer } from '../media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageGenerationResult,
   ImageProviderOptionBag,
-} from '../core/images/IImageProvider.js';
+} from '../media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
