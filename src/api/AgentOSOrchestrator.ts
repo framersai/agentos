@@ -46,7 +46,7 @@ import type {
   AgentOSPendingExternalToolRequest,
   AgentOSResumeExternalToolRequestOptions,
 } from './types/AgentOSExternalToolRequest';
-import { AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY } from './types/AgentOSExternalToolRequest';
+// AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY now used only by ExternalToolResultHandler
 import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
 import { GMIManager } from '../cognitive_substrate/GMIManager';
 import {
@@ -55,7 +55,7 @@ import {
   GMIOutputChunk,
   GMIOutput,
   ToolCallRequest, // Corrected from ToolCall
-  ToolResultPayload,
+  // ToolResultPayload — now used by ExternalToolResultHandler
   GMIInteractionType, // Added for GMITurnInput
   GMIOutputChunkType, // Added for comparisons
   UICommand, // For GMIOutput
@@ -91,13 +91,13 @@ import {
   DEFAULT_LONG_TERM_MEMORY_POLICY,
   hasAnyLongTermMemoryScope,
   LONG_TERM_MEMORY_POLICY_METADATA_KEY,
-  ORGANIZATION_ID_METADATA_KEY,
+  // ORGANIZATION_ID_METADATA_KEY — now used by ExternalToolResultHandler
   resolveLongTermMemoryPolicy,
   type ResolvedLongTermMemoryPolicy,
 } from '../core/conversation/LongTermMemoryPolicy';
 import {
   getActiveTraceMetadata,
-  recordAgentOSToolResultMetrics,
+  // recordAgentOSToolResultMetrics — now used by ExternalToolResultHandler
   recordAgentOSTurnMetrics,
   recordExceptionOnActiveSpan,
   runWithSpanContext,
@@ -108,6 +108,7 @@ import {
 import type { ITurnPlanner, TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
 import { CapabilityContextAssembler } from '../discovery/CapabilityContextAssembler.js';
 import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';
+import { ExternalToolResultHandler } from './ExternalToolResultHandler';
 
 // Public config types extracted to types/OrchestratorConfig.ts
 export type {
@@ -353,6 +354,7 @@ export class AgentOSOrchestrator {
   private dependencies!: AgentOSOrchestratorDependencies;
   private telemetry!: TaskOutcomeTelemetryManager;
   private chunks!: StreamChunkEmitter;
+  private toolResultHandler!: ExternalToolResultHandler;
 
   /**
    * A map to hold ongoing stream contexts.
@@ -429,6 +431,14 @@ export class AgentOSOrchestrator {
       this.config.taskOutcomeTelemetry,
       this.config.adaptiveExecution,
       dependencies.taskOutcomeTelemetryStore
+    );
+    this.toolResultHandler = new ExternalToolResultHandler(
+      this.activeStreamContexts as Map<string, any>,
+      this.chunks,
+      this.dependencies,
+      this.config.enableConversationalPersistence,
+      this.processGMIOutput.bind(this),
+      this.resolveOrganizationContext.bind(this),
     );
     await this.telemetry.loadPersistedWindows();
     this.initialized = true;
@@ -634,7 +644,7 @@ export class AgentOSOrchestrator {
     });
 
     const run = async () =>
-      this._resumeToolResultsInternal(agentOSStreamId, pendingRequest, toolResults, options);
+      this.toolResultHandler.resumeToolResultsInternal(agentOSStreamId, pendingRequest, toolResults, options);
 
     const promise = rootSpan ? runWithSpanContext(rootSpan, run) : run();
     promise
@@ -681,89 +691,6 @@ export class AgentOSOrchestrator {
       });
 
     return agentOSStreamId;
-  }
-
-  private async _resumeToolResultsInternal(
-    agentOSStreamId: StreamId,
-    pendingRequest: AgentOSPendingExternalToolRequest,
-    toolResults: AgentOSToolResultInput[],
-    options: AgentOSResumeExternalToolRequestOptions
-  ): Promise<void> {
-    if (!Array.isArray(toolResults) || toolResults.length === 0) {
-      throw new GMIError(
-        'At least one tool result is required to resume an external tool request.',
-        GMIErrorCode.VALIDATION_ERROR,
-        { agentOSStreamId, conversationId: pendingRequest.conversationId }
-      );
-    }
-
-    const gmiResult = await withAgentOSSpan('agentos.gmi.resume_get_or_create', async (span) => {
-      span?.setAttribute('agentos.user_id', pendingRequest.userId);
-      span?.setAttribute('agentos.session_id', pendingRequest.sessionId);
-      span?.setAttribute('agentos.conversation_id', pendingRequest.conversationId);
-      span?.setAttribute('agentos.persona_id', pendingRequest.personaId);
-      return this.dependencies.gmiManager.getOrCreateGMIForSession(
-        pendingRequest.userId,
-        pendingRequest.sessionId,
-        pendingRequest.personaId,
-        pendingRequest.conversationId,
-        options.preferredModelId,
-        options.preferredProviderId,
-        options.userApiKeys
-      );
-    });
-
-    const gmi = gmiResult.gmi;
-    const conversationContext = gmiResult.conversationContext;
-    const currentPersonaId = gmi.getCurrentPrimaryPersonaId();
-    const gmiInstanceIdForChunks = gmi.getGMIId();
-    const storedOrganizationId = conversationContext.getMetadata(ORGANIZATION_ID_METADATA_KEY);
-    const resolvedOrganizationId = this.resolveOrganizationContext(
-      options.organizationId ?? storedOrganizationId
-    );
-
-    const streamContext: ActiveStreamContext = {
-      gmi,
-      userId: pendingRequest.userId,
-      sessionId: pendingRequest.sessionId,
-      personaId: currentPersonaId,
-      conversationId: conversationContext.sessionId,
-      organizationId: resolvedOrganizationId,
-      conversationContext,
-      userApiKeys: options.userApiKeys,
-      processingOptions: {
-        preferredModelId: options.preferredModelId,
-        preferredProviderId: options.preferredProviderId,
-      },
-    };
-    this.activeStreamContexts.set(agentOSStreamId, streamContext);
-
-    if (gmi.hydrateConversationHistory) {
-      gmi.hydrateConversationHistory(
-        conversationContext.getHistory(undefined, [MessageRole.ERROR, MessageRole.THOUGHT]) as any
-      );
-    }
-    if (gmi.hydrateTurnContext) {
-      gmi.hydrateTurnContext({
-        sessionId: pendingRequest.sessionId,
-        conversationId: conversationContext.sessionId,
-        organizationId: resolvedOrganizationId,
-      });
-    }
-
-    await this.chunks.pushChunk(
-      agentOSStreamId,
-      AgentOSResponseChunkType.SYSTEM_PROGRESS,
-      gmiInstanceIdForChunks,
-      currentPersonaId,
-      false,
-      {
-        message: `Resuming external tool request for conversation ${conversationContext.sessionId}...`,
-        progressPercentage: 10,
-      }
-    );
-
-    await this.orchestrateToolResults(agentOSStreamId, toolResults);
   }
 
   /**
@@ -1355,7 +1282,7 @@ export class AgentOSOrchestrator {
         keepStreamContextActive = true;
 
         if (conversationContext) {
-          await this.persistPendingExternalToolRequest(
+          await this.toolResultHandler.persistPendingExternalToolRequest(
             agentOSStreamId,
             streamContext,
             gmiInstanceIdForChunks,
@@ -1471,7 +1398,7 @@ export class AgentOSOrchestrator {
       }
 
       if (conversationContext) {
-        await this.clearPendingExternalToolRequest(conversationContext);
+        await this.toolResultHandler.clearPendingExternalToolRequest(conversationContext);
       }
 
       if (
@@ -1630,7 +1557,7 @@ export class AgentOSOrchestrator {
         gmiErr.message,
         gmiErr.details
       );
-      await this.clearPendingExternalToolRequest(conversationContext);
+      await this.toolResultHandler.clearPendingExternalToolRequest(conversationContext);
       await this.dependencies.streamingManager.closeStream(
         agentOSStreamId,
         'Error during turn processing.'
@@ -1664,18 +1591,7 @@ export class AgentOSOrchestrator {
   /**
    * Handles the result of an external tool execution, feeding it back into the
    * relevant GMI instance for continued processing.
-   * Uses StreamingManager to push subsequent GMI outputs.
-   *
-   * @public
-   * @async
-   * @param {string} agentOSStreamId - The orchestrator's stream ID for this interaction flow.
-   * @param {string} toolCallId - The ID of the tool call being responded to.
-   * @param {string} toolName - The name of the tool.
-   * @param {any} toolOutput - The output from the tool.
-   * @param {boolean} isSuccess - Whether the tool execution was successful.
-   * @param {string} [errorMessage] - Error message if not successful.
-   * @returns {Promise<void>}
-   * @throws {GMIError} If stream context is not found or GMI fails to handle result.
+   * Delegates to {@link ExternalToolResultHandler}.
    */
   public async orchestrateToolResult(
     agentOSStreamId: StreamId,
@@ -1685,430 +1601,22 @@ export class AgentOSOrchestrator {
     isSuccess: boolean,
     errorMessage?: string
   ): Promise<void> {
-    return this.orchestrateToolResults(agentOSStreamId, [
-      {
-        toolCallId,
-        toolName,
-        toolOutput,
-        isSuccess,
-        errorMessage,
-      },
-    ]);
+    this.ensureInitialized();
+    return this.toolResultHandler.orchestrateToolResult(
+      agentOSStreamId, toolCallId, toolName, toolOutput, isSuccess, errorMessage
+    );
   }
 
+  /**
+   * Handles one or more external tool results in batch.
+   * Delegates to {@link ExternalToolResultHandler}.
+   */
   public async orchestrateToolResults(
     agentOSStreamId: StreamId,
     toolResults: AgentOSToolResultInput[]
   ): Promise<void> {
     this.ensureInitialized();
-
-    const startedAt = Date.now();
-    if (!Array.isArray(toolResults) || toolResults.length === 0) {
-      throw new GMIError(
-        'At least one tool result is required to continue the stream.',
-        GMIErrorCode.VALIDATION_ERROR,
-        { agentOSStreamId }
-      );
-    }
-
-    const streamContext = this.activeStreamContexts.get(agentOSStreamId);
-    if (!streamContext) {
-      const errMsg = `Orchestrator: Received tool result for unknown or inactive streamId: ${agentOSStreamId}.`;
-      console.error(errMsg);
-      // Cannot push to a non-existent stream context. This is a critical failure.
-      throw new GMIError(errMsg, GMIErrorCode.RESOURCE_NOT_FOUND, {
-        agentOSStreamId,
-        toolResults: toolResults.map((toolResult) => ({
-          toolCallId: toolResult.toolCallId,
-          toolName: toolResult.toolName,
-        })),
-      });
-    }
-
-    const { gmi, userId, personaId, conversationContext, userApiKeys } = streamContext;
-    const gmiInstanceIdForChunks = gmi.getGMIId();
-    const metricToolName =
-      toolResults.length === 1 ? toolResults[0].toolName : '__batch_external_tools__';
-    const metricToolSuccess = toolResults.every((toolResult) => toolResult.isSuccess);
-
-    console.log(
-      `AgentOSOrchestrator: Feeding ${toolResults.length} tool result(s) for stream ${agentOSStreamId}, GMI ${gmiInstanceIdForChunks} back to GMI.`
-    );
-
-    try {
-      await withAgentOSSpan('agentos.tool_result', async (span) => {
-        span?.setAttribute('agentos.stream_id', agentOSStreamId);
-        span?.setAttribute('agentos.gmi_id', gmiInstanceIdForChunks);
-        span?.setAttribute('agentos.tool_result_count', toolResults.length);
-        span?.setAttribute(
-          'agentos.tool_call_ids',
-          JSON.stringify(toolResults.map((toolResult) => toolResult.toolCallId))
-        );
-        span?.setAttribute(
-          'agentos.tool_names',
-          JSON.stringify(toolResults.map((toolResult) => toolResult.toolName))
-        );
-        span?.setAttribute('agentos.tool_success', metricToolSuccess);
-
-        try {
-          await this.clearPendingExternalToolRequest(conversationContext);
-
-          for (const toolResult of toolResults) {
-            await this.chunks.pushChunk(
-              agentOSStreamId,
-              AgentOSResponseChunkType.TOOL_RESULT_EMISSION,
-              gmiInstanceIdForChunks,
-              personaId,
-              false,
-              {
-                toolCallId: toolResult.toolCallId,
-                toolName: toolResult.toolName,
-                toolResult: toolResult.toolOutput,
-                isSuccess: toolResult.isSuccess,
-                errorMessage: toolResult.errorMessage,
-              }
-            );
-
-            if (this.config.enableConversationalPersistence && conversationContext) {
-              conversationContext.addMessage({
-                role: MessageRole.TOOL,
-                content:
-                  typeof toolResult.toolOutput === 'string'
-                    ? toolResult.toolOutput
-                    : JSON.stringify(toolResult.toolOutput),
-                tool_call_id: toolResult.toolCallId,
-                name: toolResult.toolName,
-                metadata: {
-                  agentPersonaId: personaId,
-                  source: 'agentos_tool_result',
-                  isSuccess: toolResult.isSuccess,
-                },
-              });
-            }
-          }
-
-          if (this.config.enableConversationalPersistence && conversationContext) {
-            try {
-              await withAgentOSSpan('agentos.conversation.save', async (child) => {
-                child?.setAttribute('agentos.stage', 'tool_result');
-                child?.setAttribute('agentos.stream_id', agentOSStreamId);
-                child?.setAttribute('agentos.tool_result_count', toolResults.length);
-                await this.dependencies.conversationManager.saveConversation(conversationContext);
-              });
-            } catch (persistError: any) {
-              console.warn(
-                `AgentOSOrchestrator: Failed to persist tool results to ConversationContext for stream ${agentOSStreamId}.`,
-                persistError
-              );
-            }
-          }
-
-          // GMI processes the tool result and gives a *final output for that step*
-          const gmiOutputAfterTool: GMIOutput = await withAgentOSSpan(
-            'agentos.gmi.handle_tool_result',
-            async (child) => {
-              child?.setAttribute('agentos.stream_id', agentOSStreamId);
-              child?.setAttribute('agentos.tool_result_count', toolResults.length);
-              child?.setAttribute(
-                'agentos.tool_call_ids',
-                JSON.stringify(toolResults.map((toolResult) => toolResult.toolCallId))
-              );
-              child?.setAttribute(
-                'agentos.tool_names',
-                JSON.stringify(toolResults.map((toolResult) => toolResult.toolName))
-              );
-              child?.setAttribute('agentos.tool_success', metricToolSuccess);
-
-              if (toolResults.length > 1) {
-                if (!gmi.handleToolResults) {
-                  throw new GMIError(
-                    `GMI ${gmiInstanceIdForChunks} does not support batched external tool continuation.`,
-                    GMIErrorCode.INVALID_STATE,
-                    {
-                      agentOSStreamId,
-                      gmiInstanceId: gmiInstanceIdForChunks,
-                      toolResults: toolResults.map((toolResult) => ({
-                        toolCallId: toolResult.toolCallId,
-                        toolName: toolResult.toolName,
-                      })),
-                    }
-                  );
-                }
-
-                return gmi.handleToolResults(
-                  toolResults.map((toolResult) => ({
-                    toolCallId: toolResult.toolCallId,
-                    toolName: toolResult.toolName,
-                    output: toolResult.isSuccess
-                      ? toolResult.toolOutput
-                      : {
-                          code: 'EXTERNAL_TOOL_ERROR',
-                          message:
-                            toolResult.errorMessage ||
-                            `External tool '${toolResult.toolName}' execution failed.`,
-                        },
-                    isError: !toolResult.isSuccess,
-                    errorDetails: toolResult.isSuccess
-                      ? undefined
-                      : {
-                          code: 'EXTERNAL_TOOL_ERROR',
-                          message:
-                            toolResult.errorMessage ||
-                            `External tool '${toolResult.toolName}' execution failed.`,
-                        },
-                  })),
-                  userId,
-                  userApiKeys || {}
-                );
-              }
-
-              const [toolResult] = toolResults;
-              const toolResultPayload: ToolResultPayload = toolResult.isSuccess
-                ? { type: 'success', result: toolResult.toolOutput }
-                : {
-                    type: 'error',
-                    error: {
-                      code: 'EXTERNAL_TOOL_ERROR',
-                      message:
-                        toolResult.errorMessage ||
-                        `External tool '${toolResult.toolName}' execution failed.`,
-                    },
-                  };
-
-              return gmi.handleToolResult(
-                toolResult.toolCallId,
-                toolResult.toolName,
-                toolResultPayload,
-                userId,
-                userApiKeys || {}
-              );
-            }
-          );
-
-          // Process the GMIOutput (which is not a stream of chunks)
-          await this.processGMIOutput(agentOSStreamId, streamContext, gmiOutputAfterTool, false);
-
-          // If GMIOutput indicates further tool calls are needed by the GMI
-          if (gmiOutputAfterTool.toolCalls && gmiOutputAfterTool.toolCalls.length > 0) {
-            await this.persistPendingExternalToolRequest(
-              agentOSStreamId,
-              streamContext,
-              gmiInstanceIdForChunks,
-              gmiOutputAfterTool.toolCalls,
-              gmiOutputAfterTool.responseText || 'Agent requires further tool execution.'
-            );
-            await this.chunks.pushChunk(
-              agentOSStreamId,
-              AgentOSResponseChunkType.TOOL_CALL_REQUEST,
-              gmiInstanceIdForChunks,
-              personaId,
-              false, // Not final, more interaction expected
-              {
-                toolCalls: gmiOutputAfterTool.toolCalls,
-                rationale:
-                  gmiOutputAfterTool.responseText || 'Agent requires further tool execution.',
-                executionMode: 'external',
-                requiresExternalToolResult: true,
-                metadata: buildToolCallChunkMetadata(streamContext),
-              }
-            );
-            // The orchestrator now waits for another external call to `orchestrateToolResult` for these new calls.
-          } else if (gmiOutputAfterTool.isFinal) {
-            if (this.config.enableConversationalPersistence && conversationContext) {
-              try {
-                if (
-                  typeof gmiOutputAfterTool.responseText === 'string' &&
-                  gmiOutputAfterTool.responseText.trim()
-                ) {
-                  conversationContext.addMessage({
-                    role: MessageRole.ASSISTANT,
-                    content: gmiOutputAfterTool.responseText,
-                    metadata: { agentPersonaId: personaId, source: 'agentos_output' },
-                  });
-                } else if (
-                  gmiOutputAfterTool.toolCalls &&
-                  gmiOutputAfterTool.toolCalls.length > 0
-                ) {
-                  conversationContext.addMessage({
-                    role: MessageRole.ASSISTANT,
-                    content: null,
-                    tool_calls: gmiOutputAfterTool.toolCalls as any,
-                    metadata: { agentPersonaId: personaId, source: 'agentos_output_tool_calls' },
-                  });
-                }
-                await withAgentOSSpan('agentos.conversation.save', async (child) => {
-                  child?.setAttribute('agentos.stage', 'assistant_output_after_tool');
-                  child?.setAttribute('agentos.stream_id', agentOSStreamId);
-                  await this.dependencies.conversationManager.saveConversation(conversationContext);
-                });
-              } catch (persistError: any) {
-                console.warn(
-                  `AgentOSOrchestrator: Failed to persist assistant output after tool result for stream ${agentOSStreamId}.`,
-                  persistError
-                );
-              }
-            }
-            // If it's final and no more tool calls, the interaction for this GMI processing cycle might be done.
-            // Push a final response marker or the already pushed final data from processGMIOutput takes precedence.
-            await this.chunks.pushChunk(
-              agentOSStreamId,
-              AgentOSResponseChunkType.FINAL_RESPONSE,
-              gmiInstanceIdForChunks,
-              personaId,
-              true,
-              {
-                finalResponseText: gmiOutputAfterTool.responseText,
-                finalToolCalls: gmiOutputAfterTool.toolCalls,
-                finalUiCommands: gmiOutputAfterTool.uiCommands,
-                audioOutput: gmiOutputAfterTool.audioOutput,
-                imageOutput: gmiOutputAfterTool.imageOutput,
-                usage: normalizeUsage(gmiOutputAfterTool.usage),
-                reasoningTrace: gmiOutputAfterTool.reasoningTrace,
-                error: gmiOutputAfterTool.error,
-                updatedConversationContext: conversationContext.toJSON(),
-                activePersonaDetails: snapshotPersonaDetails(gmi.getPersona?.()),
-              }
-            );
-            this.activeStreamContexts.delete(agentOSStreamId); // Clean up context for this completed flow
-            await this.dependencies.streamingManager.closeStream(
-              agentOSStreamId,
-              'Tool processing complete and final response generated.'
-            );
-          }
-          // If not final and no tool calls, the GMI might have provided intermediate text.
-          // The stream remains open for further GMI internal processing or new user input.
-        } catch (error: any) {
-          const gmiErr =
-            GMIError.wrap?.(
-              error,
-              GMIErrorCode.TOOL_ERROR,
-              `Error in orchestrateToolResult for stream ${agentOSStreamId}`
-            ) ||
-            new GMIError(
-              `Error in orchestrateToolResult for stream ${agentOSStreamId}: ${error.message}`,
-              GMIErrorCode.TOOL_ERROR,
-              error
-            );
-          console.error(
-            `AgentOSOrchestrator: Critical error processing tool result for stream ${agentOSStreamId}:`,
-            gmiErr
-          );
-          await this.clearPendingExternalToolRequest(conversationContext);
-          await this.chunks.pushError(
-            agentOSStreamId,
-            personaId,
-            gmiInstanceIdForChunks,
-            gmiErr.code,
-            gmiErr.message,
-            gmiErr.details
-          );
-          this.activeStreamContexts.delete(agentOSStreamId);
-          await this.dependencies.streamingManager.closeStream(
-            agentOSStreamId,
-            'Critical error during tool result processing.'
-          );
-          throw gmiErr; // Re-throw to signal failure to caller if necessary
-        }
-      });
-
-      recordAgentOSToolResultMetrics({
-        durationMs: Date.now() - startedAt,
-        status: 'ok',
-        toolName: metricToolName,
-        toolSuccess: metricToolSuccess,
-      });
-    } catch (error) {
-      recordAgentOSToolResultMetrics({
-        durationMs: Date.now() - startedAt,
-        status: 'error',
-        toolName: metricToolName,
-        toolSuccess: metricToolSuccess,
-      });
-      throw error;
-    }
-  }
-
-  private buildPendingExternalToolRequest(
-    agentOSStreamId: string,
-    streamContext: ActiveStreamContext,
-    gmiInstanceId: string,
-    toolCalls: ToolCallRequest[],
-    rationale?: string
-  ): AgentOSPendingExternalToolRequest {
-    return {
-      streamId: agentOSStreamId,
-      sessionId: streamContext.sessionId,
-      conversationId: streamContext.conversationId,
-      userId: streamContext.userId,
-      personaId: streamContext.personaId,
-      gmiInstanceId,
-      toolCalls,
-      rationale,
-      requestedAt: new Date().toISOString(),
-    };
-  }
-
-  private async persistPendingExternalToolRequest(
-    agentOSStreamId: string,
-    streamContext: ActiveStreamContext,
-    gmiInstanceId: string,
-    toolCalls: ToolCallRequest[],
-    rationale?: string
-  ): Promise<AgentOSPendingExternalToolRequest> {
-    const { conversationContext, personaId } = streamContext;
-    const pendingRequest = this.buildPendingExternalToolRequest(
-      agentOSStreamId,
-      streamContext,
-      gmiInstanceId,
-      toolCalls,
-      rationale
-    );
-
-    if (toolCalls.length > 0) {
-      conversationContext.addMessage({
-        role: MessageRole.ASSISTANT,
-        content: null,
-        tool_calls: toolCalls as any,
-        metadata: { agentPersonaId: personaId, source: 'agentos_output_tool_calls' },
-      });
-    }
-    conversationContext.setMetadata(
-      AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY,
-      pendingRequest
-    );
-
-    if (this.config.enableConversationalPersistence) {
-      await withAgentOSSpan('agentos.conversation.save', async (span) => {
-        span?.setAttribute('agentos.stage', 'pending_external_tool_request');
-        span?.setAttribute('agentos.stream_id', agentOSStreamId);
-        await this.dependencies.conversationManager.saveConversation(conversationContext);
-      });
-    }
-
-    return pendingRequest;
-  }
-
-  private async clearPendingExternalToolRequest(
-    conversationContext: ConversationContext | undefined
-  ): Promise<void> {
-    if (!conversationContext) {
-      return;
-    }
-    if (
-      conversationContext.getMetadata(AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY) ===
-      undefined
-    ) {
-      return;
-    }
-
-    conversationContext.setMetadata(AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY, undefined);
-
-    if (this.config.enableConversationalPersistence) {
-      await withAgentOSSpan('agentos.conversation.save', async (span) => {
-        span?.setAttribute('agentos.stage', 'clear_pending_external_tool_request');
-        await this.dependencies.conversationManager.saveConversation(conversationContext);
-      });
-    }
+    return this.toolResultHandler.orchestrateToolResults(agentOSStreamId, toolResults);
   }
 
   /**
@@ -2146,7 +1654,7 @@ export class AgentOSOrchestrator {
       );
     }
     if (gmiOutput.error) {
-      await this.clearPendingExternalToolRequest(conversationContext);
+      await this.toolResultHandler.clearPendingExternalToolRequest(conversationContext);
       await this.chunks.pushError(
         agentOSStreamId,
         personaId,
@@ -2170,7 +1678,7 @@ export class AgentOSOrchestrator {
     // to decide on looping or yielding ToolCallRequestChunks.
 
     if (gmiOutput.isFinal && (!gmiOutput.toolCalls || gmiOutput.toolCalls.length === 0)) {
-      await this.clearPendingExternalToolRequest(conversationContext);
+      await this.toolResultHandler.clearPendingExternalToolRequest(conversationContext);
       if (this.config.enableConversationalPersistence && conversationContext) {
         await withAgentOSSpan('agentos.conversation.save', async (span) => {
           span?.setAttribute('agentos.stage', 'gmi_output_final');
