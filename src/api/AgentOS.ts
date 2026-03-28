@@ -115,8 +115,6 @@ import {
 import type { IGuardrailService, GuardrailContext } from '../safety/guardrails/IGuardrailService';
 import type { EmergentConfig } from '../emergent/types.js';
 import type { SelfImprovementToolDeps } from '../emergent/EmergentCapabilityEngine.js';
-import { PersonalityMutationStore } from '../emergent/PersonalityMutationStore.js';
-import { resolveSelfImprovementSessionKey } from '../emergent/sessionScope.js';
 import { GuardrailAction } from '../safety/guardrails/IGuardrailService';
 import {
   evaluateInputGuardrails,
@@ -154,6 +152,7 @@ import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './toolAdap
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
 import { WorkflowFacade } from './WorkflowFacade';
 import { CapabilityDiscoveryInitializer } from './CapabilityDiscoveryInitializer';
+import { SelfImprovementSessionManager } from './SelfImprovementSessionManager';
 import type { TurnPlannerConfig } from '../core/orchestration/TurnPlanner';
 import type {
   CapabilityDescriptor,
@@ -175,19 +174,6 @@ import type {
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
 } from '../planning/workflows/storage/IWorkflowStore';
-import {
-  applySelfImprovementSessionOverrides as applySessionRuntimeOverrides,
-  buildSelfImprovementSkillPromptContext as buildSessionSkillPromptContext,
-  buildSelfImprovementSessionRuntimeKey as buildSessionRuntimeKey,
-  disableSelfImprovementSessionSkill as disableSessionSkill,
-  enableSelfImprovementSessionSkill as enableSessionSkill,
-  getSelfImprovementRuntimeParam as getSessionRuntimeParam,
-  listSelfImprovementDisabledSkillIds as listDisabledSessionSkillIds,
-  listSelfImprovementSessionSkills as listSessionSkills,
-  type SelfImprovementSkillDescriptor,
-  type SelfImprovementSessionRuntimeState,
-  setSelfImprovementRuntimeParam as setSessionRuntimeParam,
-} from './selfImprovementRuntime.js';
 
 type StorageWriteHookContext = {
   readonly operation: 'run' | 'batch';
@@ -209,10 +195,6 @@ type StorageWriteHooks = {
     context: StorageWriteHookContext,
     result: { changes: number; lastInsertRowid?: unknown }
   ) => Promise<void>;
-};
-
-type AgentOSConfiguredSkill = NonNullable<CapabilityIndexSources['skills']>[number] & {
-  id?: string;
 };
 
 function wrapStorageAdapterWithWriteHooks(
@@ -786,7 +768,7 @@ export class AgentOS implements IAgentOS {
   private initialized: boolean = false;
   private config!: Readonly<AgentOSConfig>;
   private managedStandaloneMemoryClosers: Array<() => Promise<void>> = [];
-  private readonly selfImprovementSessionRuntime = new Map<string, SelfImprovementSessionRuntimeState>();
+  private selfImprovementManager!: SelfImprovementSessionManager;
 
   private modelProviderManager!: AIModelProviderManager;
   private utilityAIService!: IUtilityAI & IPromptEngineUtilityAI;
@@ -818,84 +800,6 @@ export class AgentOS implements IAgentOS {
    * `initialize()` is called and successfully completes.
    */
   constructor(private readonly logger: ILogger = createLogger('AgentOS')) {}
-
-  private buildSelfImprovementSessionRuntimeKey(sessionId: string): string {
-    return buildSessionRuntimeKey(sessionId);
-  }
-
-  private getSelfImprovementRuntimeParam(
-    sessionKey: string,
-    param: string,
-  ): unknown {
-    return getSessionRuntimeParam(this.selfImprovementSessionRuntime, sessionKey, param);
-  }
-
-  private setSelfImprovementRuntimeParam(
-    sessionKey: string,
-    param: string,
-    value: unknown,
-  ): void {
-    setSessionRuntimeParam(this.selfImprovementSessionRuntime, sessionKey, param, value);
-  }
-
-  private applySelfImprovementSessionOverrides(input: AgentOSInput): AgentOSInput {
-    return applySessionRuntimeOverrides(this.selfImprovementSessionRuntime, input);
-  }
-
-  private getConfiguredDiscoverySkills(): AgentOSConfiguredSkill[] {
-    try {
-      const turnPlanningSkills = this.config.turnPlanning?.discovery?.sources?.skills;
-      if (Array.isArray(turnPlanningSkills)) {
-        return turnPlanningSkills as AgentOSConfiguredSkill[];
-      }
-
-      const legacySkills = (this.config as any).capabilityDiscovery?.sources?.skills;
-      if (Array.isArray(legacySkills)) {
-        return legacySkills as AgentOSConfiguredSkill[];
-      }
-    } catch {
-      // Fall through to empty set.
-    }
-
-    return [];
-  }
-
-  private normalizeConfiguredSkill(
-    skill: Partial<AgentOSConfiguredSkill>,
-    fallbackId?: string,
-  ): SelfImprovementSkillDescriptor {
-    const skillId = String(skill.id ?? skill.name ?? fallbackId ?? 'unknown');
-    return {
-      skillId,
-      name: String(skill.name ?? fallbackId ?? skillId),
-      category: String(skill.category ?? 'general'),
-      ...(typeof skill.description === 'string' ? { description: skill.description } : {}),
-      ...(typeof skill.content === 'string' ? { content: skill.content } : {}),
-      ...(typeof skill.sourcePath === 'string' ? { sourcePath: skill.sourcePath } : {}),
-    };
-  }
-
-  private resolveConfiguredSelfImprovementSkill(
-    skillId: string,
-  ): SelfImprovementSkillDescriptor | undefined {
-    const configured = this.getConfiguredDiscoverySkills().find(
-      (skill) => String(skill.id ?? skill.name ?? '') === skillId,
-    );
-    return configured ? this.normalizeConfiguredSkill(configured, skillId) : undefined;
-  }
-
-  private listSelfImprovementSessionSkills(sessionKey: string): SelfImprovementSkillDescriptor[] {
-    return listSessionSkills(this.selfImprovementSessionRuntime, sessionKey);
-  }
-
-  private listSelfImprovementDisabledSkillIds(sessionKey: string): string[] {
-    return listDisabledSessionSkillIds(this.selfImprovementSessionRuntime, sessionKey);
-  }
-
-  private buildSelfImprovementSkillPromptContext(sessionId: string): string | undefined {
-    const sessionKey = this.buildSelfImprovementSessionRuntimeKey(sessionId);
-    return buildSessionSkillPromptContext(this.selfImprovementSessionRuntime, sessionKey);
-  }
 
   /**
    * Initializes the `AgentOS` service and all its core dependencies.
@@ -932,6 +836,24 @@ export class AgentOS implements IAgentOS {
       ...(normalizedExternalTools ? { externalTools: normalizedExternalTools } : {}),
     });
     this.configureManagedStandaloneMemory();
+
+    // Initialize self-improvement session manager early (before emergent deps are assembled).
+    this.selfImprovementManager = new SelfImprovementSessionManager(this.logger);
+    this.selfImprovementManager.setConfiguredSkillsGetter(() => {
+      try {
+        const turnPlanningSkills = this.config.turnPlanning?.discovery?.sources?.skills;
+        if (Array.isArray(turnPlanningSkills)) {
+          return turnPlanningSkills as any[];
+        }
+        const legacySkills = (this.config as any).capabilityDiscovery?.sources?.skills;
+        if (Array.isArray(legacySkills)) {
+          return legacySkills as any[];
+        }
+      } catch {
+        // Fall through to empty set.
+      }
+      return [];
+    });
 
     // Observability is opt-in (config + env). Safe no-op if OTEL is not installed by host.
     configureAgentOSObservability(this.config.observability);
@@ -1099,190 +1021,12 @@ export class AgentOS implements IAgentOS {
                 }
               : undefined,
 
-            // ---------------------------------------------------------------
-            // Self-improvement deps — only assembled when the feature is
-            // enabled. All hooks are lazy closures that resolve against the
-            // fully initialised runtime at tool-call time (NOT at bootstrap).
-            // ---------------------------------------------------------------
             selfImprovementDeps:
               this.config.emergentConfig?.selfImprovement?.enabled
-                ? ((): SelfImprovementToolDeps => {
-                    // PersonalityMutationStore reuses the same storage adapter
-                    // that the EmergentToolRegistry already depends on.
-                    const mutationStore = storageAdapter
-                      ? new PersonalityMutationStore({
-                          run: async (sql: string, params?: unknown[]) =>
-                            storageAdapter.run(sql, params as any),
-                          get: async (sql: string, params?: unknown[]) =>
-                            storageAdapter.get(sql, params as any),
-                          all: async (sql: string, params?: unknown[]) =>
-                            storageAdapter.all(sql, params as any),
-                          exec: async (sql: string) => storageAdapter.exec(sql),
-                        })
-                      : undefined;
-
-                    return {
-                      // --- Personality (HEXACO) ---
-                      // Reads/writes the active GMI's persona personalityTraits map.
-                      // Falls back to an empty map when no GMI or persona is active.
-                      getPersonality: (): Record<string, number> => {
-                        try {
-                          const gmi = this.gmiManager?.activeGMIs?.values().next().value;
-                          const traits = gmi?.getPersona()?.personalityTraits;
-                          if (traits && typeof traits === 'object') {
-                            const result: Record<string, number> = {};
-                            for (const [k, v] of Object.entries(traits)) {
-                              if (typeof v === 'number') result[k] = v;
-                            }
-                            return result;
-                          }
-                        } catch { /* GMI not ready yet — return empty. */ }
-                        return {};
-                      },
-                      setPersonality: (trait: string, value: number): void => {
-                        try {
-                          const gmi = this.gmiManager?.activeGMIs?.values().next().value;
-                          const persona = gmi?.getPersona();
-                          if (persona) {
-                            if (!persona.personalityTraits) {
-                              persona.personalityTraits = {};
-                            }
-                            persona.personalityTraits[trait] = value;
-                          }
-                        } catch { /* GMI not ready — ignore. */ }
-                      },
-                      mutationStore,
-
-                      // --- Skills ---
-                      // AgentOS does not own a mutable SkillRegistry here, so
-                      // skill activation is tracked as session-scoped overlay
-                      // state keyed by the self-improvement session.
-                      getActiveSkills: (
-                        context?: import('../core/tools/ITool.js').ToolExecutionContext,
-                      ): Array<{ skillId: string; name: string; category: string }> => {
-                        const sessionKey = resolveSelfImprovementSessionKey(context);
-                        return this.listSelfImprovementSessionSkills(sessionKey).map((skill) => ({
-                          skillId: skill.skillId,
-                          name: skill.name,
-                          category: skill.category,
-                        }));
-                      },
-                      getLockedSkills: (): string[] => [],
-                      loadSkill: async (
-                        id: string,
-                        context?: import('../core/tools/ITool.js').ToolExecutionContext,
-                      ) => {
-                        const sessionKey = resolveSelfImprovementSessionKey(context);
-                        const resolvedSkill = this.resolveConfiguredSelfImprovementSkill(id) ?? {
-                          skillId: id,
-                          name: id,
-                          category: 'dynamic',
-                        };
-                        enableSessionSkill(
-                          this.selfImprovementSessionRuntime,
-                          sessionKey,
-                          resolvedSkill,
-                        );
-                        return {
-                          skillId: resolvedSkill.skillId,
-                          name: resolvedSkill.name,
-                          category: resolvedSkill.category,
-                        };
-                      },
-                      unloadSkill: (
-                        id: string,
-                        context?: import('../core/tools/ITool.js').ToolExecutionContext,
-                      ) => {
-                        const sessionKey = resolveSelfImprovementSessionKey(context);
-                        const resolvedSkill = this.resolveConfiguredSelfImprovementSkill(id);
-                        disableSessionSkill(
-                          this.selfImprovementSessionRuntime,
-                          sessionKey,
-                          resolvedSkill?.name ?? id,
-                        );
-                      },
-                      searchSkills: (query: string) => {
-                        const q = query.toLowerCase();
-                        return this.getConfiguredDiscoverySkills()
-                          .filter((skill) =>
-                            (skill.name ?? '').toLowerCase().includes(q) ||
-                            (skill.description ?? '').toLowerCase().includes(q)
-                          )
-                          .map((skill) => {
-                            const normalizedSkill = this.normalizeConfiguredSkill(skill);
-                            return {
-                              skillId: normalizedSkill.skillId,
-                              name: normalizedSkill.name,
-                              category: normalizedSkill.category,
-                              description: normalizedSkill.description ?? '',
-                            };
-                          });
-                      },
-
-                      // --- Tools ---
-                      // Wire directly to the ToolOrchestrator. At tool-call
-                      // time the orchestrator is guaranteed to be initialised.
-                      executeTool: async (
-                        name: string,
-                        args: unknown,
-                        context?: import('../core/tools/ITool.js').ToolExecutionContext,
-                      ): Promise<unknown> => {
-                        const tool = await this.toolOrchestrator.getTool(name);
-                        if (!tool) {
-                          throw new Error(`Tool "${name}" not found in orchestrator.`);
-                        }
-                        const result = await tool.execute(
-                          (args ?? {}) as Record<string, unknown>,
-                          context ?? {
-                            gmiId: 'self-improvement',
-                            personaId: 'self-improvement',
-                            userContext: { userId: 'system' } as any,
-                          },
-                        );
-                        if (!result.success) {
-                          throw new Error(result.error ?? `Tool "${name}" failed.`);
-                        }
-                        return result.output;
-                      },
-                      listTools: (): string[] => {
-                        try {
-                          return (this.toolOrchestrator as any).toolExecutor
-                            ?.listAvailableTools()
-                            ?.map((t: any) => t.name) ?? [];
-                        } catch { return []; }
-                      },
-                      getSessionParam: (param: string, context) => {
-                        const sessionKey = resolveSelfImprovementSessionKey(context);
-                        return this.getSelfImprovementRuntimeParam(sessionKey, param);
-                      },
-                      setSessionParam: (param: string, value: unknown, context) => {
-                        const sessionKey = resolveSelfImprovementSessionKey(context);
-                        this.setSelfImprovementRuntimeParam(sessionKey, param, value);
-                      },
-
-                      // --- Memory ---
-                      // Persist self-improvement traces into the first active
-                      // GMI's cognitive memory when available.
-                      storeMemory: async (trace): Promise<void> => {
-                        try {
-                          const gmi = this.gmiManager?.activeGMIs?.values().next().value;
-                          const mem = gmi?.getCognitiveMemoryManager?.();
-                          if (mem) {
-                            await mem.encode(
-                              `[self-improvement:${trace.type}] ${trace.content}`,
-                              { valence: 0, arousal: 0, dominance: 0.5 },
-                              'neutral',
-                              {
-                                type: 'semantic' as any,
-                                scope: (trace.scope ?? 'agent') as any,
-                                tags: trace.tags,
-                              },
-                            );
-                          }
-                        } catch { /* Memory not available — silently skip. */ }
-                      },
-                    };
-                  })()
+                ? this.selfImprovementManager.buildToolDeps(storageAdapter, {
+                    getActiveGMI: () => this.gmiManager?.activeGMIs?.values().next().value,
+                    getToolOrchestrator: () => this.toolOrchestrator,
+                  })
                 : undefined,
           }
         : undefined;
@@ -1895,14 +1639,14 @@ export class AgentOS implements IAgentOS {
       return;
     }
 
-    const orchestratorInput: AgentOSInput = this.applySelfImprovementSessionOverrides({
+    const orchestratorInput: AgentOSInput = this.selfImprovementManager.applySessionOverrides({
       ...guardrailInputOutcome.sanitizedInput,
       selectedPersonaId: effectivePersonaId,
-      skillPromptContext: this.buildSelfImprovementSkillPromptContext(
+      skillPromptContext: this.selfImprovementManager.buildSkillPromptContext(
         guardrailInputOutcome.sanitizedInput.sessionId,
       ),
-      disabledSessionSkillIds: this.listSelfImprovementDisabledSkillIds(
-        this.buildSelfImprovementSessionRuntimeKey(guardrailInputOutcome.sanitizedInput.sessionId),
+      disabledSessionSkillIds: this.selfImprovementManager.listDisabledSkillIds(
+        this.selfImprovementManager.buildSessionRuntimeKey(guardrailInputOutcome.sanitizedInput.sessionId),
       ),
     });
     // Language negotiation (non-blocking)
