@@ -13,7 +13,7 @@
  *   type IPlanningEngine,
  *   type ExecutionPlan,
  *   type PlanStep,
- * } from '@framers/agentos/core/planning';
+ * } from '@framers/agentos/planning/planner';
  *
  * const engine = new PlanningEngine({ llmProvider, logger });
  * const plan = await engine.generatePlan('Analyze customer data');

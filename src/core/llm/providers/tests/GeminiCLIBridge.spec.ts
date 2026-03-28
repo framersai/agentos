@@ -18,7 +18,7 @@ const fsMocks = vi.hoisted(() => ({
 vi.mock('fs/promises', () => fsMocks);
 
 import { GeminiCLIBridge } from '../implementations/GeminiCLIBridge';
-import type { StreamEvent } from '../../../../core/subprocess/types';
+import type { StreamEvent } from '../../../../sandbox/subprocess/types';
 
 describe('GeminiCLIBridge', () => {
   let bridge: GeminiCLIBridge;

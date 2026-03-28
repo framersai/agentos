@@ -68,14 +68,14 @@ import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { StreamingManager, StreamId } from '../core/streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from '../core/orchestration/helpers';
-import type { WorkflowProgressUpdate } from '../core/workflows/WorkflowTypes';
+import type { WorkflowProgressUpdate } from '../planning/workflows/WorkflowTypes';
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import {
   DEFAULT_PROMPT_PROFILE_CONFIG,
   selectPromptProfile,
   type PromptProfileConfig,
   type PromptProfileConversationState,
-} from '../core/prompting/PromptProfileRouter';
+} from '../structured/prompting/PromptProfileRouter';
 import {
   DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG,
   maybeCompactConversationMessages,
@@ -104,7 +104,7 @@ import {
   shouldIncludeTraceInAgentOSResponses,
   startAgentOSSpan,
   withAgentOSSpan,
-} from '../core/observability/otel';
+} from '../evaluation/observability/otel';
 import type { ITurnPlanner, TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
 import { CapabilityContextAssembler } from '../discovery/CapabilityContextAssembler.js';
 import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';

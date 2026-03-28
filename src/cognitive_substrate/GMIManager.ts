@@ -31,7 +31,7 @@ import { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
 import { PersonaOverlayManager } from './persona_overlays/PersonaOverlayManager';
 import type { PersonaStateOverlay, PersonaEvolutionContext } from './persona_overlays/PersonaOverlayTypes';
 import { resolveSecretForProvider } from '../config/extensionSecrets';
-import type { PersonaEvolutionRule } from '../core/workflows/WorkflowTypes';
+import type { PersonaEvolutionRule } from '../planning/workflows/WorkflowTypes';
 import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
 
 /**

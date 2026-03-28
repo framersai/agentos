@@ -21,7 +21,7 @@ import { createVisionPipeline } from '../media/vision/index.js';
 import type { SpeechToTextProvider } from '../speech/types.js';
 import { toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Public options / result types

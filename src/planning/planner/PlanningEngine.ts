@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { PlanningEngine } from '@framers/agentos/core/planning';
+ * import { PlanningEngine } from '@framers/agentos/planning/planner';
  *
  * const engine = new PlanningEngine({
  *   llmProvider: aiModelProviderManager,
@@ -24,8 +24,8 @@
  */
 
 import type { ILogger } from '../../logging/ILogger';
-import type { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
-import type { ChatMessage } from '../llm/providers/IProvider';
+import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
+import type { ChatMessage } from '../../core/llm/providers/IProvider';
 import { uuidv4 } from '../../utils/uuid';
 import type {
   IPlanningEngine,

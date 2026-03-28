@@ -56,7 +56,7 @@ import type {
   IKnowledgeGraph,
   KnowledgeEntity,
   KnowledgeRelation,
-} from '../../core/knowledge/IKnowledgeGraph.js';
+} from '../../knowledge/IKnowledgeGraph.js';
 
 import { SqliteBrain } from '../store/SqliteBrain.js';
 import {

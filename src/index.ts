@@ -29,11 +29,11 @@ export * from './core/streaming/StreamingManager';
 export * from './core/llm/providers/AIModelProviderManager';
 export * from './core/orchestration/TurnPlanner';
 export * from './core/orchestration/SqlTaskOutcomeTelemetryStore';
-export * from './core/workflows/WorkflowTypes';
-export * from './core/workflows/IWorkflowEngine';
-export * from './core/workflows/storage/IWorkflowStore';
-export { WorkflowEngine } from './core/workflows/WorkflowEngine';
-export { InMemoryWorkflowStore } from './core/workflows/storage/InMemoryWorkflowStore';
+export * from './planning/workflows/WorkflowTypes';
+export * from './planning/workflows/IWorkflowEngine';
+export * from './planning/workflows/storage/IWorkflowStore';
+export { WorkflowEngine } from './planning/workflows/WorkflowEngine';
+export { InMemoryWorkflowStore } from './planning/workflows/storage/InMemoryWorkflowStore';
 // Agency (Multi-Agent Collectives)
 export * from './agents/agency/AgencyTypes';
 export { AgencyRegistry } from './agents/agency/AgencyRegistry';
@@ -55,23 +55,23 @@ export type {
   HandoffResult,
 } from './agents/agency/IAgentCommunicationBus';
 // Planning Engine
-export * from './core/planning';
+export * from './planning/planner';
 // Human-in-the-Loop (HITL)
-export * from './core/hitl';
+export * from './planning/hitl';
 // Structured Outputs (JSON Schema, Function Calling)
-export * from './core/structured';
+export * from './structured/output';
 // Code Execution Sandbox
-export * from './core/sandbox';
+export * from './sandbox/executor';
 // Observability & Tracing
-export * from './core/observability';
+export * from './evaluation/observability';
 // Evaluation Framework
-export * from './core/evaluation';
+export * from './evaluation';
 // Knowledge Graph
-export * from './core/knowledge';
+export * from './knowledge';
 // Agent Marketplace
-export * from './core/marketplace';
+export * from './marketplace/store';
 // Per-agent workspace helpers
-export * from './core/workspace';
+export * from './marketplace/workspace';
 export * from './cognitive_substrate/personas/definitions';
 export * from './cognitive_substrate/personas/IPersonaDefinition';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';

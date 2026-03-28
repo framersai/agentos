@@ -1,5 +1,5 @@
 import type { IPersonaDefinition } from '../personas/IPersonaDefinition';
-import type { PersonaEvolutionRule } from '../../core/workflows/WorkflowTypes';
+import type { PersonaEvolutionRule } from '../../planning/workflows/WorkflowTypes';
 
 /**
  * Captures the overlay state applied to a persona at runtime.

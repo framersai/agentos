@@ -29,7 +29,7 @@
  * ```
  */
 
-import type { ITool } from '../tools/ITool';
+import type { ITool } from '../../core/tools/ITool';
 
 // ============================================================================
 // Plan Types

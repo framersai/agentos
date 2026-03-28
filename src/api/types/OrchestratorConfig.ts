@@ -4,7 +4,7 @@
  */
 
 import type { RollingSummaryCompactionConfig } from '../../core/conversation/RollingSummaryCompactor';
-import type { PromptProfileConfig } from '../../core/prompting/PromptProfileRouter';
+import type { PromptProfileConfig } from '../../structured/prompting/PromptProfileRouter';
 import type { GMIManager } from '../../cognitive_substrate/GMIManager';
 import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type { ConversationManager } from '../../core/conversation/ConversationManager';

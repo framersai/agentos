@@ -17,7 +17,7 @@ import { SqliteKnowledgeGraph } from '../SqliteKnowledgeGraph.js';
 import type {
   KnowledgeSource,
   EntityType,
-} from '../../../core/knowledge/IKnowledgeGraph.js';
+} from '../../../knowledge/IKnowledgeGraph.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

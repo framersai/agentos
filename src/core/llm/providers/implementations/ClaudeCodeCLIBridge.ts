@@ -12,13 +12,13 @@
  * @see ClaudeCodeProvider
  */
 
-import { CLISubprocessBridge } from '../../../../core/subprocess/CLISubprocessBridge';
+import { CLISubprocessBridge } from '../../../../sandbox/subprocess/CLISubprocessBridge';
 import { ClaudeCodeProviderError } from '../errors/ClaudeCodeProviderError';
-import type { BridgeOptions, StreamEvent, OutputFormat } from '../../../../core/subprocess/types';
+import type { BridgeOptions, StreamEvent, OutputFormat } from '../../../../sandbox/subprocess/types';
 
 /* Re-export shared types for backwards compatibility with ClaudeCodeProvider imports */
-export type { BridgeOptions as CLIBridgeOptions, BridgeResult as CLIBridgeResult, StreamEvent } from '../../../../core/subprocess/types';
-export type { InstallCheckResult } from '../../../../core/subprocess/types';
+export type { BridgeOptions as CLIBridgeOptions, BridgeResult as CLIBridgeResult, StreamEvent } from '../../../../sandbox/subprocess/types';
+export type { InstallCheckResult } from '../../../../sandbox/subprocess/types';
 
 /**
  * Claude Code CLI subprocess bridge.

@@ -17,13 +17,13 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { CLISubprocessBridge } from '../../../../core/subprocess/CLISubprocessBridge';
+import { CLISubprocessBridge } from '../../../../sandbox/subprocess/CLISubprocessBridge';
 import { GeminiCLIProviderError } from '../errors/GeminiCLIProviderError';
-import type { BridgeOptions, BridgeResult, StreamEvent, OutputFormat } from '../../../../core/subprocess/types';
+import type { BridgeOptions, BridgeResult, StreamEvent, OutputFormat } from '../../../../sandbox/subprocess/types';
 
 /* Re-export shared types for provider imports */
-export type { BridgeOptions, BridgeResult, StreamEvent } from '../../../../core/subprocess/types';
-export type { InstallCheckResult } from '../../../../core/subprocess/types';
+export type { BridgeOptions, BridgeResult, StreamEvent } from '../../../../sandbox/subprocess/types';
+export type { InstallCheckResult } from '../../../../sandbox/subprocess/types';
 
 /**
  * Gemini CLI subprocess bridge.

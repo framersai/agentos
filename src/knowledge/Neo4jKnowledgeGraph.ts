@@ -13,7 +13,7 @@
  * - Memory decay via Cypher-based exponential formula
  * - Shared Neo4jConnectionManager for connection pooling
  *
- * @module @framers/agentos/core/knowledge/Neo4jKnowledgeGraph
+ * @module @framers/agentos/knowledge/Neo4jKnowledgeGraph
  * @see ./IKnowledgeGraph.ts for the interface definition.
  */
 
@@ -33,8 +33,8 @@ import type {
   SemanticSearchResult,
   KnowledgeGraphStats,
 } from './IKnowledgeGraph.js';
-import type { Neo4jConnectionManager } from '../../neo4j/Neo4jConnectionManager.js';
-import { Neo4jCypherRunner } from '../../neo4j/Neo4jCypherRunner.js';
+import type { Neo4jConnectionManager } from '../neo4j/Neo4jConnectionManager.js';
+import { Neo4jCypherRunner } from '../neo4j/Neo4jCypherRunner.js';
 
 // ============================================================================
 // Constants

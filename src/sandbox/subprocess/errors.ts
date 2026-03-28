@@ -3,7 +3,7 @@
  * Fully generic — works for any binary (LLM CLIs, dev tools, media tools, etc.).
  * Error codes are open strings so each consumer can define their own.
  *
- * @module agentos/core/subprocess/errors
+ * @module agentos/sandbox/subprocess/errors
  */
 
 /**

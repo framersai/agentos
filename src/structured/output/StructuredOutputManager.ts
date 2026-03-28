@@ -11,8 +11,8 @@
  */
 
 import type { ILogger } from '../../logging/ILogger';
-import type { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
-import type { ChatMessage } from '../llm/providers/IProvider';
+import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
+import type { ChatMessage } from '../../core/llm/providers/IProvider';
 import {
   IStructuredOutputManager,
   JSONSchema,

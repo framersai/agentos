@@ -83,7 +83,7 @@ vi.mock('../observability.js', () => ({
   toTurnMetricUsage: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock('../../core/observability/otel.js', () => ({
+vi.mock('../../evaluation/observability/otel.js', () => ({
   withAgentOSSpan: vi.fn((_name: string, fn: (span: null) => unknown) => fn(null)),
   recordAgentOSTurnMetrics: vi.fn(),
 }));

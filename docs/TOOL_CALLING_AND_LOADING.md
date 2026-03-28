@@ -83,7 +83,7 @@ If a descriptor declares a non-optional secret and it can’t be resolved, it’
 
 Skills are prompt modules loaded from `SKILL.md` files. Hosts can inject skills into a system prompt via `SkillRegistry.buildSnapshot()`.
 
-For “lazy” skills, `SkillRegistry` from `@framers/agentos-skills` exposes tools that let the model fetch `SKILL.md` content on demand (via tool calls) instead of pre-injecting everything.
+For “lazy” skills, `SkillRegistry` from `@framers/agentos/skills` (the engine) exposes tools that let the model fetch `SKILL.md` content on demand (via tool calls) instead of pre-injecting everything. Curated skill content ships in `@framers/agentos-skills`.
 
 ## What “Lazy Loading” Means Here
 

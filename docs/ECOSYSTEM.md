@@ -86,7 +86,7 @@ npm install @framers/agentos-extensions
 ---
 
 ### [@framers/agentos-skills-registry](https://github.com/framersai/agentos-skills-registry)
-**Curated Skills Registry** — 40 SKILL.md prompt modules + typed catalog + lazy-loading factories for `SkillRegistry` and snapshots.
+**Curated Skills Catalog SDK** — typed catalog (SKILLS_CATALOG), query helpers, and lazy-loading factories for `SkillRegistry` and snapshots.
 
 ```bash
 npm install @framers/agentos-skills-registry
@@ -104,19 +104,18 @@ const snapshot = await createCuratedSkillSnapshot({ skills: ['github', 'weather'
 ---
 
 ### [@framers/agentos-skills](https://github.com/framersai/agentos-skills)
-**Skills Runtime** — Standalone runtime for loading, parsing, filtering, and snapshotting SKILL.md skills.
+**Skills Content** — 69 curated SKILL.md prompt modules + `registry.json` index.
 
 ```bash
 npm install @framers/agentos-skills
 ```
 
-```typescript
-import { SkillRegistry, resolveDefaultSkillsDirs } from '@framers/agentos-skills';
+This is the content package for skills. The runtime engine (SkillLoader, SkillRegistry, path utilities) now lives in `@framers/agentos/skills`.
 
-const registry = new SkillRegistry();
-await registry.loadFromDirs(resolveDefaultSkillsDirs());
-
-const snapshot = registry.buildSnapshot({ platform: process.platform, strict: true });
+```
+@framers/agentos/skills               <- Engine (SkillLoader, SkillRegistry, path utils)
+@framers/agentos-skills               <- Content (69 SKILL.md files + registry.json)
+@framers/agentos-skills-registry      <- Catalog SDK (SKILLS_CATALOG, query helpers, factories)
 ```
 
 ---

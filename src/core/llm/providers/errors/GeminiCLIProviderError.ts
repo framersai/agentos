@@ -6,7 +6,7 @@
  * @see {@link CLISubprocessError}
  */
 
-import { CLISubprocessError } from '../../../../core/subprocess/errors';
+import { CLISubprocessError } from '../../../../sandbox/subprocess/errors';
 
 /**
  * All recognized error codes for the Gemini CLI provider.

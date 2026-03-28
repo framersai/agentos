@@ -8,7 +8,7 @@ import {
   selectPromptProfile,
   type PromptProfileConfig,
   type PromptProfileConversationState,
-} from '../../core/prompting/PromptProfileRouter';
+} from '../../structured/prompting/PromptProfileRouter';
 import { GMIInteractionType, type GMITurnInput } from '../../cognitive_substrate/IGMI';
 
 export interface PromptProfilePhaseInput {

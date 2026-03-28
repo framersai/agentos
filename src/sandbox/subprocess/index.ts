@@ -2,7 +2,7 @@
  * @fileoverview Core subprocess management — first-class AgentOS capability
  * for spawning and managing external CLI binaries.
  *
- * @module agentos/core/subprocess
+ * @module agentos/sandbox/subprocess
  */
 
 export { CLISubprocessBridge } from './CLISubprocessBridge';

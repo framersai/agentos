@@ -4,7 +4,7 @@
  */
 
 import type { IWorkingMemory } from '../cognitive_substrate/memory/IWorkingMemory.js';
-import type { IKnowledgeGraph } from '../core/knowledge/IKnowledgeGraph.js';
+import type { IKnowledgeGraph } from '../knowledge/IKnowledgeGraph.js';
 import type { IVectorStore } from '../rag/IVectorStore.js';
 import type { IEmbeddingManager } from '../rag/IEmbeddingManager.js';
 import type { MemoryBudgetAllocation } from './types.js';

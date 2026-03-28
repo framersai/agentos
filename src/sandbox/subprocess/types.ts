@@ -3,7 +3,7 @@
  * These types are CLI-agnostic — they work for any binary managed
  * by {@link CLISubprocessBridge} (LLM CLIs, dev tools, media tools, etc.).
  *
- * @module agentos/core/subprocess/types
+ * @module agentos/sandbox/subprocess/types
  */
 
 /* ------------------------------------------------------------------ */

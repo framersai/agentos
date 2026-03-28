@@ -23,7 +23,7 @@ import type {
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Public types

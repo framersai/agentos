@@ -16,7 +16,7 @@
  *   StructuredOutputManager,
  *   JSONSchema,
  *   StructuredGenerationOptions,
- * } from '@framers/agentos/core/structured';
+ * } from '@framers/agentos/structured/output';
  *
  * const manager = new StructuredOutputManager({ llmProviderManager });
  *

@@ -10,7 +10,7 @@
  * @module agentos/memory/graph/KnowledgeGraphMemoryGraph
  */
 
-import type { IKnowledgeGraph, KnowledgeEntity, KnowledgeRelation } from '../../core/knowledge/IKnowledgeGraph.js';
+import type { IKnowledgeGraph, KnowledgeEntity, KnowledgeRelation } from '../../knowledge/IKnowledgeGraph.js';
 import type {
   IMemoryGraph,
   MemoryGraphNodeMeta,

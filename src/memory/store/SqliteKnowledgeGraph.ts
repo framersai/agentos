@@ -35,7 +35,7 @@ import type {
   SemanticSearchResult,
   KnowledgeGraphStats,
   KnowledgeSource,
-} from '../../core/knowledge/IKnowledgeGraph.js';
+} from '../../knowledge/IKnowledgeGraph.js';
 import type { SqliteBrain } from './SqliteBrain.js';
 import { uuid } from '../util/crossPlatformCrypto.js';
 

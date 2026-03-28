@@ -7,7 +7,7 @@
  * This is a first-class AgentOS core capability — any provider, extension,
  * tool, or skill can extend this to manage external CLI binaries.
  *
- * @module agentos/core/subprocess/CLISubprocessBridge
+ * @module agentos/sandbox/subprocess/CLISubprocessBridge
  * @see ClaudeCodeCLIBridge
  */
 

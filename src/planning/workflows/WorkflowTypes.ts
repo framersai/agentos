@@ -1,5 +1,5 @@
-import type { JSONSchemaObject } from '../tools/ITool';
-import type { AgencySeatHistoryEntry } from '../agency/AgencyTypes';
+import type { JSONSchemaObject } from '../../core/tools/ITool';
+import type { AgencySeatHistoryEntry } from '../../agents/agency/AgencyTypes';
 
 /**
  * High-level lifecycle states for a workflow instance.

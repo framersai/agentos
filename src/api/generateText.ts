@@ -18,7 +18,7 @@ import { adaptTools, type AdaptableToolInput } from './toolAdapter.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { parseToolCallsFromText } from './TextToolCallParser.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 
 /**

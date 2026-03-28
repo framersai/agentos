@@ -77,7 +77,7 @@ import {
 } from '../core/tools/permissions/IToolPermissionManager';
 import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionManager';
 import type { IAuthService, ISubscriptionService } from '../types/auth';
-import type { IHumanInteractionManager } from '../core/hitl/IHumanInteractionManager';
+import type { IHumanInteractionManager } from '../planning/hitl/IHumanInteractionManager';
 import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI';
 import {
@@ -111,7 +111,7 @@ import { createLogger } from '../logging/loggerFactory';
 import {
   configureAgentOSObservability,
   type AgentOSObservabilityConfig,
-} from '../core/observability/otel';
+} from '../evaluation/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../safety/guardrails/IGuardrailService';
 import type { EmergentConfig } from '../emergent/types.js';
 import type { SelfImprovementToolDeps } from '../emergent/EmergentCapabilityEngine.js';
@@ -155,7 +155,7 @@ import {
 } from './externalToolRegistry';
 import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './toolAdapter';
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
-import { WorkflowRuntime } from '../core/workflows/runtime/WorkflowRuntime';
+import { WorkflowRuntime } from '../planning/workflows/runtime/WorkflowRuntime';
 import { AgencyRegistry } from '../agents/agency/AgencyRegistry';
 import {
   AgentOSTurnPlanner,
@@ -173,11 +173,11 @@ import type {
 import { EmbeddingManager } from '../rag/EmbeddingManager';
 import { InMemoryVectorStore } from '../rag/implementations/vector_stores/InMemoryVectorStore';
 import type { WorkflowDescriptor } from '../extensions/types';
-import { WorkflowEngine } from '../core/workflows/WorkflowEngine';
+import { WorkflowEngine } from '../planning/workflows/WorkflowEngine';
 import type {
   WorkflowEngineConfig,
   WorkflowEngineEventListener,
-} from '../core/workflows/IWorkflowEngine';
+} from '../planning/workflows/IWorkflowEngine';
 import type {
   WorkflowDefinition,
   WorkflowDescriptorPayload,
@@ -185,13 +185,13 @@ import type {
   WorkflowInstance,
   WorkflowProgressUpdate,
   WorkflowStatus,
-} from '../core/workflows/WorkflowTypes';
+} from '../planning/workflows/WorkflowTypes';
 import type {
   IWorkflowStore,
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
-} from '../core/workflows/storage/IWorkflowStore';
-import { InMemoryWorkflowStore } from '../core/workflows/storage/InMemoryWorkflowStore';
+} from '../planning/workflows/storage/IWorkflowStore';
+import { InMemoryWorkflowStore } from '../planning/workflows/storage/InMemoryWorkflowStore';
 import type { MessagingChannelPayload } from '../extensions/MessagingChannelPayload';
 import {
   applySelfImprovementSessionOverrides as applySessionRuntimeOverrides,

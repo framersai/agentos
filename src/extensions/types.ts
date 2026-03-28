@@ -7,7 +7,7 @@ import type {
   WorkflowInstance,
   WorkflowTaskDefinition,
   WorkflowTaskStatus,
-} from '../core/workflows/WorkflowTypes';
+} from '../planning/workflows/WorkflowTypes';
 import type { MessagingChannelPayload } from './MessagingChannelPayload';
 import type { ISharedServiceRegistry } from './ISharedServiceRegistry';
 import type {

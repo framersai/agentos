@@ -23,7 +23,7 @@ import { parseToolCallsFromText } from './TextToolCallParser.js';
 import { recordAgentOSUsage } from './usageLedger.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
-import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../core/observability/otel.js';
+import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../evaluation/observability/otel.js';
 
 /**
  * A discriminated union representing a single event emitted by the

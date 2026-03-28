@@ -30,7 +30,7 @@ import {
 } from '../media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Music provider fallback chain builder

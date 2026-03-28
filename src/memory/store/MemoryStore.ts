@@ -17,7 +17,7 @@ import type {
   MetadataFilter,
 } from '../../rag/IVectorStore.js';
 import type { IEmbeddingManager } from '../../rag/IEmbeddingManager.js';
-import type { IKnowledgeGraph } from '../../core/knowledge/IKnowledgeGraph.js';
+import type { IKnowledgeGraph } from '../../knowledge/IKnowledgeGraph.js';
 import type {
   MemoryTrace,
   MemoryType,

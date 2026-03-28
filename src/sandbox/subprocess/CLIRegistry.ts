@@ -5,7 +5,7 @@
  * Providers and extensions register their CLI dependencies at startup.
  * A curated set of well-known CLIs ships as defaults.
  *
- * @module agentos/core/subprocess/CLIRegistry
+ * @module agentos/sandbox/subprocess/CLIRegistry
  */
 
 import { execa } from 'execa';

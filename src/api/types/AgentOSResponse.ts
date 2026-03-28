@@ -16,7 +16,7 @@ import {
 } from '../../cognitive_substrate/IGMI';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
-import type { WorkflowProgressUpdate } from '../../core/workflows/WorkflowTypes';
+import type { WorkflowProgressUpdate } from '../../planning/workflows/WorkflowTypes';
 
 /**
  * @enum {string} AgentOSResponseChunkType
