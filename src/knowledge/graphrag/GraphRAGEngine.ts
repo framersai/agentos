@@ -63,8 +63,8 @@ import type {
   LocalSearchResult,
   ExtractionResult,
 } from './IGraphRAG.js';
-import type { IVectorStore, VectorDocument, MetadataValue } from '../IVectorStore.js';
-import type { IEmbeddingManager } from '../IEmbeddingManager.js';
+import type { IVectorStore, VectorDocument, MetadataValue } from '../../core/vector-store/IVectorStore.js';
+import type { IEmbeddingManager } from '../../core/embeddings/IEmbeddingManager.js';
 import { GMIError, GMIErrorCode } from '../../utils/errors.js';
 
 // =============================================================================

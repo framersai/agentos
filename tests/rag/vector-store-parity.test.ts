@@ -31,7 +31,7 @@ function testEmbedding(seed: number, dim = 4): number[] {
 async function createSqliteStore(): Promise<IVectorStore> {
   const tmpDir = mkdtempSync(join(tmpdir(), 'parity-sqlite-'));
   const { SqlVectorStore } = await import(
-    '../../src/rag/implementations/vector_stores/SqlVectorStore.js'
+    '../../src/rag/vector_stores/SqlVectorStore.js'
   );
   const store = new SqlVectorStore();
   await store.initialize({
@@ -52,7 +52,7 @@ async function createSqliteStore(): Promise<IVectorStore> {
 async function createPostgresStore(): Promise<IVectorStore | null> {
   try {
     const { PostgresVectorStore } = await import(
-      '../../src/rag/implementations/vector_stores/PostgresVectorStore.js'
+      '../../src/rag/vector_stores/PostgresVectorStore.js'
     );
     const connStr = process.env.TEST_POSTGRES_URL ?? 'postgresql://postgres:wunderland@localhost:5432/agent_memory';
     const store = new PostgresVectorStore({
@@ -77,7 +77,7 @@ async function createQdrantStore(): Promise<IVectorStore | null> {
     if (!res.ok) return null;
 
     const { QdrantVectorStore } = await import(
-      '../../src/rag/implementations/vector_stores/QdrantVectorStore.js'
+      '../../src/rag/vector_stores/QdrantVectorStore.js'
     );
     const store = new QdrantVectorStore();
     await store.initialize({
@@ -94,7 +94,7 @@ async function createQdrantStore(): Promise<IVectorStore | null> {
 async function isPostgresAvailable(): Promise<boolean> {
   try {
     const { PostgresVectorStore } = await import(
-      '../../src/rag/implementations/vector_stores/PostgresVectorStore.js'
+      '../../src/rag/vector_stores/PostgresVectorStore.js'
     );
     const connStr =
       process.env.TEST_POSTGRES_URL ?? 'postgresql://postgres:wunderland@localhost:5432/agent_memory';
@@ -151,7 +151,7 @@ describe.each([
     } catch {
       store = null;
     }
-  });
+  }, 120000);
 
   afterAll(async () => {
     if (store) {
@@ -163,7 +163,7 @@ describe.each([
       }
       await store.shutdown();
     }
-  });
+  }, 120000);
 
   // --- Vector operations ---
 

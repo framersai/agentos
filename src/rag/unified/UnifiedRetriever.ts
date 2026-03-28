@@ -68,7 +68,7 @@ import type { HydeRetriever } from '../HydeRetriever.js';
 import type { ICognitiveMemoryManager } from '../../memory/CognitiveMemoryManager.js';
 import type { MultimodalIndexer } from '../multimodal/MultimodalIndexer.js';
 import type { MultimodalSearchResult } from '../multimodal/types.js';
-import type { IGraphRAGEngine, LocalSearchResult } from '../graphrag/IGraphRAG.js';
+import type { IGraphRAGEngine, LocalSearchResult } from '../../knowledge/graphrag/IGraphRAG.js';
 import type { ContentModality } from '../multimodal/types.js';
 
 // ============================================================================

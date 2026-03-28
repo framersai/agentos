@@ -33,8 +33,8 @@ import type {
   SemanticSearchResult,
   KnowledgeGraphStats,
 } from './IKnowledgeGraph.js';
-import type { Neo4jConnectionManager } from '../neo4j/Neo4jConnectionManager.js';
-import { Neo4jCypherRunner } from '../neo4j/Neo4jCypherRunner.js';
+import type { Neo4jConnectionManager } from './neo4j/Neo4jConnectionManager.js';
+import { Neo4jCypherRunner } from './neo4j/Neo4jCypherRunner.js';
 
 // ============================================================================
 // Constants

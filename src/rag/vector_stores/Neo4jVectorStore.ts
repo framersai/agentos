@@ -33,9 +33,9 @@ import type {
   MetadataScalarValue,
   MetadataValue,
 } from '../IVectorStore.js';
-import type { Neo4jConnectionConfig } from '../../neo4j/types.js';
-import { Neo4jConnectionManager } from '../../neo4j/Neo4jConnectionManager.js';
-import { Neo4jCypherRunner } from '../../neo4j/Neo4jCypherRunner.js';
+import type { Neo4jConnectionConfig } from '../../knowledge/neo4j/types.js';
+import { Neo4jConnectionManager } from '../../knowledge/neo4j/Neo4jConnectionManager.js';
+import { Neo4jCypherRunner } from '../../knowledge/neo4j/Neo4jCypherRunner.js';
 
 // ============================================================================
 // Configuration
