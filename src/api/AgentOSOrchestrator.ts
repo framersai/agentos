@@ -30,17 +30,7 @@ import { executePromptProfilePhase } from './turn-phases/prompt-profile';
 import { executeLongTermMemoryPhase } from './turn-phases/long-term-memory';
 import { assembleConversationHistory } from './turn-phases/conversation-history';
 import {
-  AgentOSResponse,
   AgentOSResponseChunkType,
-  AgentOSTextDeltaChunk,
-  AgentOSFinalResponseChunk,
-  AgentOSErrorChunk,
-  AgentOSSystemProgressChunk,
-  AgentOSToolCallRequestChunk,
-  AgentOSToolResultEmissionChunk,
-  AgentOSUICommandChunk,
-  AgentOSMetadataUpdateChunk,
-  AgentOSWorkflowUpdateChunk,
 } from './types/AgentOSResponse';
 import type {
   AgentOSPendingExternalToolRequest,
@@ -52,19 +42,15 @@ import { GMIManager } from '../cognitive_substrate/GMIManager';
 import {
   IGMI,
   GMITurnInput,
-  GMIOutputChunk,
   GMIOutput,
-  ToolCallRequest, // Corrected from ToolCall
-  // ToolResultPayload — now used by ExternalToolResultHandler
-  GMIInteractionType, // Added for GMITurnInput
-  GMIOutputChunkType, // Added for comparisons
-  UICommand, // For GMIOutput
+  GMIInteractionType,
+  GMIOutputChunkType,
 } from '../cognitive_substrate/IGMI';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
 import { MessageRole } from '../core/conversation/ConversationMessage';
-import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
-import { uuidv4 } from '@framers/agentos/utils/uuid';
+// IToolOrchestrator — referenced via AgentOSOrchestratorDependencies
+// uuidv4 — now used by GMIChunkTransformer
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { StreamingManager, StreamId } from '../core/streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from '../core/orchestration/helpers';
@@ -96,19 +82,16 @@ import {
   type ResolvedLongTermMemoryPolicy,
 } from '../core/conversation/LongTermMemoryPolicy';
 import {
-  getActiveTraceMetadata,
-  // recordAgentOSToolResultMetrics — now used by ExternalToolResultHandler
   recordAgentOSTurnMetrics,
   recordExceptionOnActiveSpan,
   runWithSpanContext,
-  shouldIncludeTraceInAgentOSResponses,
   startAgentOSSpan,
   withAgentOSSpan,
 } from '../evaluation/observability/otel';
-import type { ITurnPlanner, TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
-import { CapabilityContextAssembler } from '../discovery/CapabilityContextAssembler.js';
-import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';
+import type { ITurnPlanner, TurnPlan } from '../core/orchestration/TurnPlanner';
+// CapabilityContextAssembler, filterCapabilityDiscoveryResultByDisabledSkills — now used by GMIChunkTransformer
 import { ExternalToolResultHandler } from './ExternalToolResultHandler';
+import { GMIChunkTransformer } from './GMIChunkTransformer';
 
 // Public config types extracted to types/OrchestratorConfig.ts
 export type {
@@ -347,7 +330,7 @@ type ResolvedAgentOSOrchestratorConfig = Required<
  * and handles the complex dance of tool calls and streaming responses.
  */
 export class AgentOSOrchestrator {
-  private readonly capabilityContextAssembler = new CapabilityContextAssembler();
+  // capabilityContextAssembler — moved to GMIChunkTransformer
 
   private initialized: boolean = false;
   private config!: ResolvedAgentOSOrchestratorConfig;
@@ -355,6 +338,7 @@ export class AgentOSOrchestrator {
   private telemetry!: TaskOutcomeTelemetryManager;
   private chunks!: StreamChunkEmitter;
   private toolResultHandler!: ExternalToolResultHandler;
+  private chunkTransformer!: GMIChunkTransformer;
 
   /**
    * A map to hold ongoing stream contexts.
@@ -432,13 +416,25 @@ export class AgentOSOrchestrator {
       this.config.adaptiveExecution,
       dependencies.taskOutcomeTelemetryStore
     );
+    this.chunkTransformer = new GMIChunkTransformer(
+      this.activeStreamContexts as Map<string, any>,
+      this.chunks,
+      this.dependencies,
+      this.config.enableConversationalPersistence,
+      // clearPendingRequest callback — wired after toolResultHandler is created below
+      async () => {},
+    );
     this.toolResultHandler = new ExternalToolResultHandler(
       this.activeStreamContexts as Map<string, any>,
       this.chunks,
       this.dependencies,
       this.config.enableConversationalPersistence,
-      this.processGMIOutput.bind(this),
+      this.chunkTransformer.processGMIOutput.bind(this.chunkTransformer),
       this.resolveOrganizationContext.bind(this),
+    );
+    // Wire the chunkTransformer's clearPendingRequest to the toolResultHandler
+    this.chunkTransformer.setClearPendingRequestCallback(
+      this.toolResultHandler.clearPendingExternalToolRequest.bind(this.toolResultHandler),
     );
     await this.telemetry.loadPersistedWindows();
     this.initialized = true;
@@ -783,7 +779,7 @@ export class AgentOSOrchestrator {
         }
       );
 
-      const gmiInput = this.constructGMITurnInput(agentOSStreamId, input, streamContext);
+      const gmiInput = this.chunkTransformer.constructGMITurnInput(agentOSStreamId, input, streamContext);
       let turnPlan: TurnPlan | null = null;
       const resolvedOrganizationId = this.resolveOrganizationContext(input.organizationId);
       streamContext.organizationId = resolvedOrganizationId;
@@ -814,7 +810,7 @@ export class AgentOSOrchestrator {
           );
         }
       }
-      turnPlan = this.filterTurnPlanForDisabledSessionSkills(turnPlan, input);
+      turnPlan = this.chunkTransformer.filterTurnPlanForDisabledSessionSkills(turnPlan, input);
       const adaptiveExecution = this.telemetry.maybeApplyAdaptivePolicy({
         turnPlan,
         organizationId: resolvedOrganizationId,
@@ -1176,7 +1172,7 @@ export class AgentOSOrchestrator {
           // This part of the loop might need to re-evaluate if GMI.handleToolResult directly returns new tool_calls.
           // Based on GMI.ts, handleToolResult calls processTurnStream internally and returns a final GMIOutput for that step.
           // So, we'd take the tool_calls from that GMIOutput and then break this loop to let orchestrateToolResult handle them.
-          await this.processGMIOutput(
+          await this.chunkTransformer.processGMIOutput(
             agentOSStreamId,
             streamContext,
             lastGMIOutput,
@@ -1232,7 +1228,7 @@ export class AgentOSOrchestrator {
             ) {
               streamedToolCallRequest = true;
             }
-            await this.transformAndPushGMIChunk(agentOSStreamId, streamContext, gmiChunk);
+            await this.chunkTransformer.transformAndPushGMIChunk(agentOSStreamId, streamContext, gmiChunk);
 
             // NOTE: Tool calls may be executed internally by the GMI/tool orchestrator. Do not stop
             // streaming on TOOL_CALL_REQUEST; treat it as informational for observers/UI.
@@ -1619,321 +1615,8 @@ export class AgentOSOrchestrator {
     return this.toolResultHandler.orchestrateToolResults(agentOSStreamId, toolResults);
   }
 
-  /**
-   * Processes a GMIOutput object (typically from handleToolResult or the end of a processTurnStream)
-   * and pushes relevant chunks to the client stream.
-   * @private
-   */
-  private async processGMIOutput(
-    agentOSStreamId: string,
-    streamContext: ActiveStreamContext,
-    gmiOutput: GMIOutput,
-    _isContinuation: boolean // True if this GMIOutput is from an internal GMI continuation, false if from initial turn/tool result
-  ): Promise<void> {
-    const { gmi, personaId, conversationContext } = streamContext;
-    const gmiInstanceIdForChunks = gmi.getGMIId();
-
-    if (gmiOutput.responseText) {
-      await this.chunks.pushChunk(
-        agentOSStreamId,
-        AgentOSResponseChunkType.TEXT_DELTA,
-        gmiInstanceIdForChunks,
-        personaId,
-        false, // text delta is not final by itself
-        { textDelta: gmiOutput.responseText }
-      );
-    }
-    if (gmiOutput.uiCommands && gmiOutput.uiCommands.length > 0) {
-      await this.chunks.pushChunk(
-        agentOSStreamId,
-        AgentOSResponseChunkType.UI_COMMAND,
-        gmiInstanceIdForChunks,
-        personaId,
-        false,
-        { uiCommands: gmiOutput.uiCommands }
-      );
-    }
-    if (gmiOutput.error) {
-      await this.toolResultHandler.clearPendingExternalToolRequest(conversationContext);
-      await this.chunks.pushError(
-        agentOSStreamId,
-        personaId,
-        gmiInstanceIdForChunks,
-        gmiOutput.error.code,
-        gmiOutput.error.message,
-        gmiOutput.error.details
-      );
-      // If an error occurs in GMIOutput, it's usually final for this interaction path
-      if (gmiOutput.isFinal) {
-        this.activeStreamContexts.delete(agentOSStreamId);
-        await this.dependencies.streamingManager.closeStream(
-          agentOSStreamId,
-          `GMI reported an error: ${gmiOutput.error.message}`
-        );
-      }
-      return; // Stop further processing of this GMIOutput if there's an error
-    }
-
-    // Note: Tool calls from GMIOutput are handled by the calling method (orchestrateTurn or orchestrateToolResult)
-    // to decide on looping or yielding ToolCallRequestChunks.
-
-    if (gmiOutput.isFinal && (!gmiOutput.toolCalls || gmiOutput.toolCalls.length === 0)) {
-      await this.toolResultHandler.clearPendingExternalToolRequest(conversationContext);
-      if (this.config.enableConversationalPersistence && conversationContext) {
-        await withAgentOSSpan('agentos.conversation.save', async (span) => {
-          span?.setAttribute('agentos.stage', 'gmi_output_final');
-          span?.setAttribute('agentos.stream_id', agentOSStreamId);
-          await this.dependencies.conversationManager.saveConversation(conversationContext);
-        });
-      }
-      // This is a final response without further tool calls
-      await this.chunks.pushChunk(
-        agentOSStreamId,
-        AgentOSResponseChunkType.FINAL_RESPONSE,
-        gmiInstanceIdForChunks,
-        personaId,
-        true,
-        {
-          finalResponseText: gmiOutput.responseText,
-          finalToolCalls: gmiOutput.toolCalls, // Should be empty or undefined here
-          finalUiCommands: gmiOutput.uiCommands,
-          audioOutput: gmiOutput.audioOutput,
-          imageOutput: gmiOutput.imageOutput,
-          usage: normalizeUsage(gmiOutput.usage),
-          reasoningTrace: gmiOutput.reasoningTrace,
-          error: gmiOutput.error, // Should be undefined here if we reached this point
-          updatedConversationContext: conversationContext.toJSON(),
-          activePersonaDetails: snapshotPersonaDetails(gmi.getPersona?.()),
-        }
-      );
-      this.activeStreamContexts.delete(agentOSStreamId);
-      await this.dependencies.streamingManager.closeStream(agentOSStreamId, 'Processing complete.');
-    }
-  }
-
-  /**
-   * Transforms a GMIOutputChunk into one or more AgentOSResponse chunks and pushes them.
-   * @private
-   */
-  private async transformAndPushGMIChunk(
-    agentOSStreamId: string,
-    streamContext: ActiveStreamContext,
-    gmiChunk: GMIOutputChunk
-  ): Promise<void> {
-    const { gmi, personaId } = streamContext;
-    const gmiInstanceIdForChunks = gmi.getGMIId();
-
-    switch (gmiChunk.type) {
-      case GMIOutputChunkType.TEXT_DELTA:
-        if (gmiChunk.content && typeof gmiChunk.content === 'string') {
-          await this.chunks.pushChunk(
-            agentOSStreamId,
-            AgentOSResponseChunkType.TEXT_DELTA,
-            gmiInstanceIdForChunks,
-            personaId,
-            gmiChunk.isFinal ?? false,
-            { textDelta: gmiChunk.content }
-          );
-        }
-        break;
-      case GMIOutputChunkType.SYSTEM_MESSAGE: // Was SystemProgress
-        if (gmiChunk.content && typeof gmiChunk.content === 'object') {
-          const progressContent = gmiChunk.content as {
-            message: string;
-            progressPercentage?: number;
-            statusCode?: string;
-          };
-          await this.chunks.pushChunk(
-            agentOSStreamId,
-            AgentOSResponseChunkType.SYSTEM_PROGRESS,
-            gmiInstanceIdForChunks,
-            personaId,
-            gmiChunk.isFinal ?? false,
-            progressContent
-          );
-        }
-        break;
-      case GMIOutputChunkType.TOOL_CALL_REQUEST:
-        if (gmiChunk.content && Array.isArray(gmiChunk.content)) {
-          const toolCalls = gmiChunk.content as ToolCallRequest[];
-          const executionMode =
-            gmiChunk.metadata?.executionMode === 'external' ? 'external' : 'internal';
-          await this.chunks.pushChunk(
-            agentOSStreamId,
-            AgentOSResponseChunkType.TOOL_CALL_REQUEST,
-            gmiInstanceIdForChunks,
-            personaId,
-            false, // Tool call request is not final for the AgentOS turn
-            {
-              toolCalls,
-              rationale: gmiChunk.metadata?.rationale || 'Agent requires tool execution.',
-              executionMode,
-              requiresExternalToolResult:
-                typeof gmiChunk.metadata?.requiresExternalToolResult === 'boolean'
-                  ? gmiChunk.metadata.requiresExternalToolResult
-                  : executionMode === 'external',
-              metadata: buildToolCallChunkMetadata(streamContext, gmiChunk.metadata),
-            }
-          );
-        }
-        break;
-      case GMIOutputChunkType.UI_COMMAND:
-        if (gmiChunk.content && Array.isArray(gmiChunk.content)) {
-          await this.chunks.pushChunk(
-            agentOSStreamId,
-            AgentOSResponseChunkType.UI_COMMAND,
-            gmiInstanceIdForChunks,
-            personaId,
-            gmiChunk.isFinal ?? false,
-            { uiCommands: gmiChunk.content as UICommand[] }
-          );
-        }
-        break;
-      case GMIOutputChunkType.ERROR: {
-        const errDetails = gmiChunk.errorDetails || { message: gmiChunk.content };
-        await this.chunks.pushError(
-          agentOSStreamId,
-          personaId,
-          gmiInstanceIdForChunks,
-          errDetails.code || GMIErrorCode.GMI_PROCESSING_ERROR,
-          errDetails.message || String(gmiChunk.content) || 'Unknown GMI processing error.',
-          errDetails.details || errDetails
-        );
-        // If GMI sends an error chunk that it considers final for its operation
-        if (gmiChunk.isFinal) {
-          this.activeStreamContexts.delete(agentOSStreamId);
-          await this.dependencies.streamingManager.closeStream(
-            agentOSStreamId,
-            `GMI stream error: ${errDetails.message || String(gmiChunk.content)}`
-          );
-        }
-        break;
-      }
-      case GMIOutputChunkType.FINAL_RESPONSE_MARKER:
-        // Marker chunk emitted at end-of-stream. Do not surface to clients as a response.
-        // The real final response is the AsyncGenerator return value (GMIOutput), handled by _processTurnInternal.
-        break;
-      case GMIOutputChunkType.USAGE_UPDATE:
-        // TODO: Could send a specific AgentOSMetadataUpdateChunk if defined, or log.
-        console.log(
-          `AgentOSOrchestrator: UsageUpdate from GMI on stream ${agentOSStreamId}:`,
-          gmiChunk.content
-        );
-        break;
-      default:
-        console.warn(
-          `AgentOSOrchestrator: Unhandled GMIOutputChunkType '${gmiChunk.type}' on stream ${agentOSStreamId}. Content:`,
-          gmiChunk.content
-        );
-    }
-  }
-
-  /**
-   * Constructs GMITurnInput from AgentOSInput.
-   * @private
-   */
-  private constructGMITurnInput(
-    agentOSStreamId: string,
-    input: AgentOSInput,
-    streamContext: ActiveStreamContext
-  ): GMITurnInput {
-    const { userId, sessionId, options } = input;
-    const { gmi } = streamContext;
-
-    const gmiInputMetadata: Record<string, any> = {
-      gmiId: gmi.getGMIId(),
-      // Pass relevant options to GMI if it needs them
-      options: options,
-      sessionId,
-      conversationId: streamContext.conversationId,
-      // User API keys are handled by GMIManager when fetching/creating GMI,
-      // but can be passed in metadata if GMI needs them per-turn for some reason.
-      userApiKeys: input.userApiKeys,
-      userFeedback: input.userFeedback,
-      explicitPersonaSwitchId: input.selectedPersonaId,
-      skillPromptContext: input.skillPromptContext,
-      // Task hint can be more sophisticated, based on input analysis
-      taskHint: input.textInput
-        ? 'user_text_query'
-        : input.visionInputs || input.audioInput
-          ? 'user_multimodal_query'
-          : 'general_query',
-      // GMI.ts specific fields if any, not standard in IGMI.GMITurnInput
-      modelSelectionOverrides: {
-        preferredModelId: options?.preferredModelId,
-        preferredProviderId: options?.preferredProviderId,
-        temperature: options?.temperature,
-        topP: options?.topP,
-        maxTokens: options?.maxTokens,
-      },
-      personaStateOverrides: [], // Example
-    };
-
-    let type: GMIInteractionType;
-    let content: GMITurnInput['content'];
-
-    if ((input.visionInputs && input.visionInputs.length > 0) || input.audioInput) {
-      type = GMIInteractionType.MULTIMODAL_CONTENT;
-      const multiModalContent: { text?: string | null; vision?: any[]; audio?: any } = {};
-      if (input.textInput) multiModalContent.text = input.textInput;
-      if (input.visionInputs) multiModalContent.vision = input.visionInputs;
-      if (input.audioInput) multiModalContent.audio = input.audioInput;
-      content = multiModalContent;
-    } else if (input.textInput) {
-      type = GMIInteractionType.TEXT;
-      content = input.textInput;
-    } else {
-      // Fallback or error if no meaningful input
-      type = GMIInteractionType.SYSTEM_MESSAGE; // E.g. an empty ping or keep-alive
-      content = 'No primary user input provided for this turn.';
-      console.warn(
-        `AgentOSOrchestrator: No primary input in AgentOSInput for stream ${agentOSStreamId}. Sending as system message to GMI.`
-      );
-    }
-
-    return {
-      interactionId: agentOSStreamId + `_turn_${uuidv4()}`, // More specific interaction ID for GMI
-      userId,
-      sessionId, // AgentOS session ID
-      type,
-      content,
-      userContextOverride: input.userContextOverride,
-      metadata: gmiInputMetadata,
-      timestamp: new Date(),
-    };
-  }
-
-  private filterTurnPlanForDisabledSessionSkills(
-    turnPlan: TurnPlan | null,
-    input: AgentOSInput,
-  ): TurnPlan | null {
-    const disabledSessionSkillIds = Array.isArray(input.disabledSessionSkillIds)
-      ? input.disabledSessionSkillIds.filter(
-          (skillId): skillId is string => typeof skillId === 'string' && skillId.trim().length > 0,
-        )
-      : [];
-
-    if (!turnPlan?.capability.result || disabledSessionSkillIds.length === 0) {
-      return turnPlan;
-    }
-
-    const filteredResult = filterCapabilityDiscoveryResultByDisabledSkills(
-      turnPlan.capability.result,
-      disabledSessionSkillIds,
-    );
-    if (filteredResult === turnPlan.capability.result) {
-      return turnPlan;
-    }
-
-    return {
-      ...turnPlan,
-      capability: {
-        ...turnPlan.capability,
-        result: filteredResult,
-        promptContext: this.capabilityContextAssembler.renderForPrompt(filteredResult),
-      },
-    };
-  }
+  // processGMIOutput, transformAndPushGMIChunk, constructGMITurnInput, and
+  // filterTurnPlanForDisabledSessionSkills — delegated to this.chunkTransformer (GMIChunkTransformer)
 
   /**
    * Shuts down the AgentOSOrchestrator.
