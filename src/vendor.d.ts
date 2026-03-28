@@ -56,3 +56,25 @@ declare module '@huggingface/transformers' {
   export const env: any;
   export const pipeline: any;
 }
+
+declare module '@framers/agentos-extensions-registry' {
+  export interface RegistryOptions {
+    [key: string]: unknown;
+  }
+  export interface CuratedRegistryEntry {
+    id: string;
+    name: string;
+    category: string;
+    [key: string]: any;
+  }
+  export function createCuratedManifest(options?: RegistryOptions): any;
+  export const CHANNEL_CATALOG: Record<string, any>;
+  export const TOOL_CATALOG: CuratedRegistryEntry[];
+  export const SECRET_ENV_MAP: Record<string, string>;
+}
+
+declare module '@prisma/client' {
+  export class PrismaClient {
+    [key: string]: any;
+  }
+}

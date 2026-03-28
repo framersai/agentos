@@ -105,8 +105,8 @@ async function loadCuratedManifestDescriptors(
     curatedManifestDescriptorCache = (async () => {
       try {
         const registry = await import('@framers/agentos-extensions-registry');
-        const catalog = Array.isArray((registry as { TOOL_CATALOG?: unknown }).TOOL_CATALOG)
-          ? ((registry as { TOOL_CATALOG: CuratedRegistryEntry[] }).TOOL_CATALOG ?? [])
+        const catalog = Array.isArray((registry as any).TOOL_CATALOG)
+          ? ((registry as any).TOOL_CATALOG as CuratedRegistryEntry[] ?? [])
           : [];
         const descriptors: CapabilityDescriptor[] = [];
 

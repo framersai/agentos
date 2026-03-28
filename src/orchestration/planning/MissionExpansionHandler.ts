@@ -112,7 +112,7 @@ function normalizeNode(raw: Record<string, unknown>): GraphNode {
     effectClass: (raw.effectClass as GraphNode['effectClass']) ?? 'read',
     checkpoint,
     complexity: clampComplexity(raw.complexity as number | undefined),
-    ...(isRecord(raw.llm) ? { llm: raw.llm as NodeLlmConfig } : {}),
+    ...(isRecord(raw.llm) ? { llm: raw.llm as unknown as NodeLlmConfig } : {}),
   };
 }
 
@@ -130,7 +130,7 @@ function normalizeEdge(raw: Record<string, unknown>, index: number): GraphEdge {
       ? { personalityCondition: raw.personalityCondition as GraphEdge['personalityCondition'] }
       : {}),
     ...(isRecord(raw.guardrailPolicy)
-      ? { guardrailPolicy: raw.guardrailPolicy as GraphEdge['guardrailPolicy'] }
+      ? { guardrailPolicy: raw.guardrailPolicy as unknown as GraphEdge['guardrailPolicy'] }
       : {}),
   };
 }

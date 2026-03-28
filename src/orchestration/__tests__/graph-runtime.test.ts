@@ -884,4 +884,162 @@ describe('GraphRuntime', () => {
     expect(aCalls).toHaveLength(1);
     expect(events).toContain('error');
   });
+
+  it('applies approved expansion patches between node executions', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') {
+        return {
+          success: true,
+          output: 'a-done',
+          expansionRequests: [
+            {
+              trigger: 'agent_request',
+              reason: 'Need a verifier',
+              request: { need: 'Need a verifier', urgency: 'blocking' },
+            },
+          ],
+        };
+      }
+
+      return {
+        success: true,
+        output: `${node.id}-done`,
+      };
+    });
+
+    const expansionHandler = {
+      handle: vi.fn(async (context: {
+        graph: CompiledExecutionGraph;
+      }) => ({
+        graph: {
+          ...context.graph,
+          nodes: [
+            ...context.graph.nodes,
+            makeNode('verifier', {
+              executorConfig: { type: 'gmi', instructions: 'Verify the prior result' },
+            }),
+          ],
+          edges: [
+            { id: 'start-a', source: START, target: 'a', type: 'static' as const },
+            { id: 'a-verifier', source: 'a', target: 'verifier', type: 'static' as const },
+            { id: 'verifier-end', source: 'verifier', target: END, type: 'static' as const },
+          ],
+        },
+        events: [
+          {
+            type: 'mission:expansion_proposed' as const,
+            patch: {
+              addNodes: [makeNode('verifier')],
+              addEdges: [{ id: 'a-verifier', source: 'a', target: 'verifier', type: 'static' as const }],
+              removeNodes: [],
+              rewireEdges: [{ from: 'a', to: END, newTarget: 'verifier' }],
+              reason: 'Need a verifier',
+              estimatedCostDelta: 0.25,
+              estimatedLatencyDelta: 500,
+            },
+            trigger: 'agent_request' as const,
+            reason: 'Need a verifier',
+          },
+          { type: 'mission:expansion_approved' as const, by: 'auto' as const },
+          { type: 'mission:expansion_applied' as const, nodesAdded: 1, edgesAdded: 2 },
+        ],
+      })),
+    };
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      expansionHandler,
+    });
+
+    const graph = makeLinearGraph('g-expansion-approved', [makeNode('a')]);
+    const visitedIds: string[] = [];
+    const eventTypes: string[] = [];
+
+    for await (const event of runtime.stream(graph, {})) {
+      eventTypes.push(event.type);
+      if (event.type === 'node_start') {
+        visitedIds.push(event.nodeId);
+      }
+    }
+
+    expect(expansionHandler.handle).toHaveBeenCalledTimes(1);
+    expect(visitedIds).toEqual(['a', 'verifier']);
+    expect(eventTypes).toContain('mission:checkpoint_saved');
+    expect(eventTypes).toContain('mission:expansion_proposed');
+    expect(eventTypes).toContain('mission:expansion_applied');
+  });
+
+  it('keeps executing the original graph when an expansion still needs approval', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      if (node.id === 'a') {
+        return {
+          success: true,
+          output: 'a-done',
+          expansionRequests: [
+            {
+              trigger: 'agent_request',
+              reason: 'Need a verifier',
+              request: { need: 'Need a verifier', urgency: 'blocking' },
+            },
+          ],
+        };
+      }
+
+      return {
+        success: true,
+        output: `${node.id}-done`,
+      };
+    });
+
+    const expansionHandler = {
+      handle: vi.fn(async () => ({
+        events: [
+          {
+            type: 'mission:expansion_proposed' as const,
+            patch: {
+              addNodes: [makeNode('verifier')],
+              addEdges: [{ id: 'a-verifier', source: 'a', target: 'verifier', type: 'static' as const }],
+              removeNodes: [],
+              rewireEdges: [{ from: 'a', to: END, newTarget: 'verifier' }],
+              reason: 'Need a verifier',
+              estimatedCostDelta: 0.25,
+              estimatedLatencyDelta: 500,
+            },
+            trigger: 'agent_request' as const,
+            reason: 'Need a verifier',
+          },
+          {
+            type: 'mission:approval_required' as const,
+            action: 'apply_graph_patch',
+            details: { requesterNodeId: 'a' },
+          },
+        ],
+      })),
+    };
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      expansionHandler,
+    });
+
+    const graph = makeLinearGraph('g-expansion-guided', [makeNode('a')]);
+    const visitedIds: string[] = [];
+    const eventTypes: string[] = [];
+
+    for await (const event of runtime.stream(graph, {})) {
+      eventTypes.push(event.type);
+      if (event.type === 'node_start') {
+        visitedIds.push(event.nodeId);
+      }
+    }
+
+    expect(expansionHandler.handle).toHaveBeenCalledTimes(1);
+    expect(visitedIds).toEqual(['a']);
+    expect(eventTypes).toContain('mission:approval_required');
+    expect(eventTypes).not.toContain('mission:expansion_applied');
+  });
 });
