@@ -243,6 +243,184 @@ describe('QueryRouter', () => {
     expect(result.tiersUsed).toContain(0);
   });
 
+  it('route() forwards request exclusions to plan-aware classification', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(0, 0.95))
+      .mockResolvedValueOnce(generatorResponse('Filtered answer.'));
+
+    const router = createRouter();
+    await router.init();
+
+    const classifier = (router as any).classifier;
+    const classifyWithPlanSpy = vi
+      .spyOn(classifier, 'classifyWithPlan')
+      .mockResolvedValue([
+        {
+          tier: 0,
+          strategy: 'none',
+          confidence: 0.95,
+          reasoning: 'Plan-aware classification.',
+          internalKnowledgeSufficient: true,
+          suggestedSources: [],
+          toolsNeeded: [],
+        },
+        {
+          strategy: 'none',
+          confidence: 0.95,
+          shouldRetrieve: false,
+          retrieval: {
+            sources: [],
+            mode: 'keyword-only',
+          },
+          graph: { expand: false, maxHops: 0 },
+          rerank: { enabled: false },
+          memory: { enabled: false },
+          modalities: { includeText: true, includeCode: false, includeImages: false },
+          planning: { decompose: false, steps: [] },
+          answer: { style: 'concise', includeCitations: true, includeCodeExamples: false },
+          skills: [],
+          tools: [],
+          extensions: [],
+        },
+      ] as any);
+    router.setUnifiedRetriever({
+      retrieve: vi.fn().mockResolvedValue({
+        chunks: [],
+        citations: [],
+        retrievalPlan: { sources: [], mode: 'keyword-only' },
+        graphContext: undefined,
+        memoryContext: undefined,
+      }),
+    } as any);
+
+    await router.route('How much does it cost?', undefined, {
+      excludedCapabilityIds: ['research-skill'],
+    });
+
+    expect(classifyWithPlanSpy).toHaveBeenCalledWith(
+      'How much does it cost?',
+      undefined,
+      { excludedCapabilityIds: ['research-skill'] },
+    );
+  });
+
+  it('route() does not emit excluded skills in capabilities:activate events', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(0, 0.95))
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          thinking: 'Browsing is excluded, so do not activate it.',
+          tier: 0,
+          strategy: 'none',
+          confidence: 0.92,
+          internal_knowledge_sufficient: true,
+          suggested_sources: [],
+          tools_needed: [],
+          skills: [
+            { skillId: 'skill:web-search', reasoning: 'Would browse externally', confidence: 0.9, priority: 0 },
+          ],
+          tools: [],
+          extensions: [],
+          requires_external_calls: true,
+        }),
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
+        toolCalls: [],
+        finishReason: 'stop' as const,
+      })
+      .mockResolvedValueOnce(generatorResponse('Handled without external skills.'));
+
+    const router = createRouter();
+    await router.init();
+    router.setUnifiedRetriever({
+      retrieve: vi.fn().mockResolvedValue({
+        chunks: [],
+        citations: [],
+        retrievalPlan: { sources: [], mode: 'keyword-only' },
+        graphContext: undefined,
+        memoryContext: undefined,
+      }),
+    } as any);
+
+    await router.route('Help without browsing', undefined, {
+      excludedCapabilityIds: ['web-search'],
+    });
+
+    const activationEvent = (router as any).events.find(
+      (event: any) => event.type === 'capabilities:activate',
+    );
+
+    expect(activationEvent).toBeUndefined();
+  });
+
+  it('route() emits normalized capability ids in capabilities:activate events', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(1, 0.9))
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          thinking: 'Use discovery-style ids but normalize them before emission.',
+          tier: 1,
+          strategy: 'simple',
+          confidence: 0.9,
+          internal_knowledge_sufficient: false,
+          suggested_sources: ['vector'],
+          tools_needed: ['webSearch'],
+          skills: [
+            { skillId: 'skill:web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
+          ],
+          tools: [
+            { toolId: 'tool:webSearch', reasoning: 'Need the web tool', confidence: 0.85, priority: 0 },
+          ],
+          extensions: [
+            { extensionId: 'extension:browser-automation', reasoning: 'Need browser automation', confidence: 0.8, priority: 0 },
+          ],
+          requires_external_calls: true,
+        }),
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
+        toolCalls: [],
+        finishReason: 'stop' as const,
+      })
+      .mockResolvedValueOnce(generatorResponse('Handled with normalized capability ids.'));
+
+    const router = createRouter();
+    await router.init();
+    router.setUnifiedRetriever({
+      retrieve: vi.fn().mockResolvedValue({
+        chunks: [],
+        citations: [],
+        retrievalPlan: { sources: [], mode: 'keyword-only' },
+        graphContext: undefined,
+        memoryContext: undefined,
+      }),
+    } as any);
+
+    await router.route('Search the web', undefined);
+
+    const activationEvent = (router as any).events.find(
+      (event: any) => event.type === 'capabilities:activate',
+    );
+
+    expect(activationEvent).toMatchObject({
+      skills: [
+        { skillId: 'web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
+      ],
+      tools: [
+        { toolId: 'webSearch', reasoning: 'Need the web tool', confidence: 0.85, priority: 0 },
+      ],
+      extensions: [
+        {
+          extensionId: 'browser-automation',
+          reasoning: 'Need browser automation',
+          confidence: 0.8,
+          priority: 0,
+        },
+      ],
+    });
+  });
+
   it('getCorpusStats() reports loaded chunk, topic, and source counts after init', async () => {
     const router = createRouter();
 

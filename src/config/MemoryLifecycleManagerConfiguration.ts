@@ -8,7 +8,7 @@
  * negotiation with GMI instances for critical data.
  *
  * @module backend/agentos/config/MemoryLifecycleManagerConfiguration
- * @see ../memory_lifecycle/IMemoryLifecycleManager.ts
+ * @see ../memory/lifecycle/IMemoryLifecycleManager.ts
  * @see ../rag/IRetrievalAugmentor.ts for RagMemoryCategory
  * @see ../rag/IVectorStore.ts for MetadataFilter
  */

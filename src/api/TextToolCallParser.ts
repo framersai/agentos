@@ -133,14 +133,34 @@ function parseReActStyle(text: string): ParsedToolCall[] {
 }
 
 /**
+ * Deduplicate semantic duplicates while preserving first-seen order.
+ *
+ * Models sometimes emit the same tool call twice in different encodings
+ * (for example a JSON fence followed by a ReAct `Action/Input` block). The
+ * high-level tool loop should execute that intent once, not once per format.
+ */
+function dedupeToolCalls(calls: ParsedToolCall[]): ParsedToolCall[] {
+  const seen = new Set<string>();
+  const deduped: ParsedToolCall[] = [];
+
+  for (const call of calls) {
+    const key = `${call.name}\u0000${JSON.stringify(call.arguments ?? {})}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(call);
+  }
+
+  return deduped;
+}
+
+/**
  * Parses tool invocations from an LLM's plain-text response.
  *
  * This is the primary entry point for the text-based tool-call fallback.
  * It first attempts to extract JSON tool calls from markdown code fences
  * (Format A), then falls back to ReAct-style `Action: / Input:` patterns
- * (Format B).  Results from both passes are concatenated and de-duplicated
- * by position (i.e. if the same tool call appears in both formats, both
- * are included — the caller is responsible for deduplication if needed).
+ * (Format B). Semantic duplicates are removed while preserving first-seen
+ * order so the same tool invocation is not executed twice.
  *
  * @param text - Raw text from an LLM response.
  * @returns An array of parsed tool calls, or an empty array if none were found.
@@ -159,5 +179,5 @@ export function parseToolCallsFromText(text: string): ParsedToolCall[] {
   const fromFences = parseJsonFences(text);
   const fromReAct = parseReActStyle(text);
 
-  return [...fromFences, ...fromReAct];
+  return dedupeToolCalls([...fromFences, ...fromReAct]);
 }

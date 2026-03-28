@@ -13,6 +13,7 @@ import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import { base64ToBytes } from './base64.js';
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -184,9 +185,12 @@ export class JsonImporter {
 
     // ---- Import in a single transaction for atomicity ----
     await this.brain.transaction(async (trx) => {
+      await this._importMeta(trx, payload.meta);
       await this._importTraces(trx, payload.traces, result);
       await this._importNodes(trx, payload.nodes ?? [], result);
       await this._importEdges(trx, payload.edges ?? [], result);
+      await this._importDocuments(trx, payload.documents ?? [], result);
+      await this._importConversations(trx, payload.conversations ?? [], result);
     });
 
     return result;
@@ -205,6 +209,30 @@ export class JsonImporter {
    */
   private async _sha256(content: string): Promise<string> {
     return sha256(content);
+  }
+
+  /**
+   * Restore brain metadata keys from the export payload.
+   *
+   * `exported_at` is export-specific and intentionally ignored on import.
+   */
+  private async _importMeta(
+    trx: { run: SqliteBrain['run'] },
+    meta?: Record<string, string>,
+  ): Promise<void> {
+    if (!meta) return;
+    const { dialect } = this.brain.features;
+    const upsertSql = dialect.insertOrReplace(
+      'brain_meta',
+      ['key', 'value'],
+      ['?', '?'],
+      'key',
+    );
+
+    for (const [key, value] of Object.entries(meta)) {
+      if (key === 'exported_at') continue;
+      await trx.run(upsertSql, [key, value]);
+    }
   }
 
   /**
@@ -249,9 +277,9 @@ export class JsonImporter {
         meta['import_hash'] = hash;
 
         // Decode embedding if present.
-        let embeddingBuf: Buffer | null = null;
+        let embeddingBuf: Uint8Array | null = null;
         if (typeof t.embedding === 'string') {
-          embeddingBuf = Buffer.from(t.embedding, 'base64');
+          embeddingBuf = base64ToBytes(t.embedding);
         }
 
         await trx.run(insertSql, [
@@ -317,9 +345,9 @@ export class JsonImporter {
         }
         props['import_hash'] = hash;
 
-        let embeddingBuf: Buffer | null = null;
+        let embeddingBuf: Uint8Array | null = null;
         if (typeof n.embedding === 'string') {
-          embeddingBuf = Buffer.from(n.embedding, 'base64');
+          embeddingBuf = base64ToBytes(n.embedding);
         }
 
         await trx.run(insertSql, [
@@ -402,6 +430,95 @@ export class JsonImporter {
         // FK constraint violation (referenced node doesn't exist) is common
         // when importing partial exports — log but don't fail.
         result.errors.push(`Edge import error: ${String(err)}`);
+      }
+    }
+  }
+
+  /**
+   * Import document registry rows.
+   *
+   * Documents are deduplicated by their exported `id`.
+   */
+  private async _importDocuments(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    documents: DocumentRecord[],
+    result: ImportResult,
+  ): Promise<void> {
+    const { dialect } = this.brain.features;
+    const checkSql = 'SELECT id FROM documents WHERE id = ? LIMIT 1';
+    const upsertSql = dialect.insertOrReplace(
+      'documents',
+      ['id', 'path', 'format', 'title', 'content_hash', 'chunk_count', 'metadata', 'ingested_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?'],
+      'id',
+    );
+
+    for (const doc of documents) {
+      try {
+        const id = doc.id ?? `doc_${uuidv4()}`;
+        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        if (existing) {
+          result.skipped++;
+          continue;
+        }
+
+        await trx.run(upsertSql, [
+          id,
+          doc.path ?? '',
+          doc.format ?? 'unknown',
+          doc.title ?? null,
+          doc.content_hash ?? '',
+          doc.chunk_count ?? 0,
+          doc.metadata ?? '{}',
+          doc.ingested_at ?? Date.now(),
+        ]);
+        result.imported++;
+      } catch (err) {
+        result.errors.push(`Document import error: ${String(err)}`);
+      }
+    }
+  }
+
+  /**
+   * Import conversation session rows.
+   *
+   * Conversation messages are not part of the current JSON payload shape, but
+   * restoring the conversation registry still preserves session-level metadata.
+   */
+  private async _importConversations(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    conversations: ConversationRecord[],
+    result: ImportResult,
+  ): Promise<void> {
+    const { dialect } = this.brain.features;
+    const checkSql = 'SELECT id FROM conversations WHERE id = ? LIMIT 1';
+    const upsertSql = dialect.insertOrReplace(
+      'conversations',
+      ['id', 'title', 'created_at', 'updated_at', 'metadata'],
+      ['?', '?', '?', '?', '?'],
+      'id',
+    );
+
+    for (const convo of conversations) {
+      try {
+        const id = convo.id ?? `conv_${uuidv4()}`;
+        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        if (existing) {
+          result.skipped++;
+          continue;
+        }
+
+        const createdAt = convo.created_at ?? Date.now();
+        await trx.run(upsertSql, [
+          id,
+          convo.title ?? null,
+          createdAt,
+          convo.updated_at ?? createdAt,
+          convo.metadata ?? '{}',
+        ]);
+        result.imported++;
+      } catch (err) {
+        result.errors.push(`Conversation import error: ${String(err)}`);
       }
     }
   }

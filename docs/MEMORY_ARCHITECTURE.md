@@ -28,7 +28,7 @@ AgentOS memory ships as three concentric API tiers. Each tier wraps the one belo
    │
 ┌──▼──────────────────────────────────────────────────────────────────┐
 │                    Memory Facade Layer                              │
-│  new Memory({ store: 'sqlite', path: './brain.sqlite' })           │
+│  await Memory.create({ path: './brain.sqlite' })                   │
 │  (remember, recall, ingest, export, import, consolidate, tools)    │
 │                                                                     │
 │  Composes:                                                          │
@@ -43,7 +43,7 @@ AgentOS memory ships as three concentric API tiers. Each tier wraps the one belo
 
 | Layer | Import | Best For | LLM Required |
 |-------|--------|----------|--------------|
-| **Memory** | `new Memory(config)` | Any TypeScript app, CLI tools, scripts, ingestion pipelines | No |
+| **Memory** | `await Memory.create(config)` | Any TypeScript app, CLI tools, scripts, ingestion pipelines | No |
 | **AgentCognitiveMemory** | `CognitiveMemoryManager` or `AgentMemory.wrap()` | Agents with HEXACO personality, PAD mood, observer/reflector | Optional (Batch 2) |
 | **Wunderland CLI** | `wunderland memory <cmd>` | End-user interaction, shell scripts, CI pipelines | No |
 
@@ -51,24 +51,25 @@ AgentOS memory ships as three concentric API tiers. Each tier wraps the one belo
 
 ## Memory Facade Composition
 
-The `Memory` class is the primary standalone entry point. It wires together every subsystem at construction time:
+The `Memory` class is the primary standalone entry point. It wires together every subsystem at initialization time:
 
 ```ts
 import { Memory } from '@framers/agentos';
 
-const mem = new Memory({
-  store: 'sqlite',
+const mem = await Memory.create({
   path: './brain.sqlite',
   graph: true,
   selfImprove: true,
 });
 ```
 
+`Memory.create()` currently opens the SQLite-backed memory facade at runtime. The lower-level storage-adapter abstractions and RAG/vector-store backends cover Postgres and browser-specific paths separately.
+
 ### Subsystem Wiring
 
 | Step | Subsystem Created | Purpose |
 |------|-------------------|---------|
-| 1 | `SqliteBrain(path)` | Single WAL-mode SQLite connection, 12-table schema |
+| 1 | `await SqliteBrain.open(path)` | Single brain connection, schema bootstrap, storage feature bundle |
 | 2 | `SqliteKnowledgeGraph(brain)` | Entity and relationship store for knowledge graph |
 | 3 | `SqliteMemoryGraph(brain)` | Memory association graph with spreading activation |
 | 4 | `LoaderRegistry()` | File-type detection and document parsing |

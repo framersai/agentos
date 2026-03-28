@@ -220,7 +220,11 @@ export class PromptEngine implements IPromptEngine {
         selectedElements.forEach(el => this.statistics.contextualElementSelections[el.id || el.type] = (this.statistics.contextualElementSelections[el.id || el.type] || 0) + 1);
       }
 
-      const augmentedComponents = this.augmentBaseComponents(baseComponents, selectedElements);
+      const augmentedComponents = this.augmentBaseComponents(
+        baseComponents,
+        selectedElements,
+        executionContext,
+      );
 
       const timerIdBudget = 'tokenBudgeting';
       const budgetStart = Date.now();
@@ -530,6 +534,7 @@ export class PromptEngine implements IPromptEngine {
       personaId: executionContext?.activePersona.id,
       mood: executionContext?.currentMood,
       task: executionContext?.taskHint,
+      userPreferences: this.buildUserPreferenceCacheKey(executionContext?.userPreferences),
     };
     const keyString = Object.values(relevantData).filter(v => v !== undefined).join('||');
     let hash = 0;
@@ -580,7 +585,8 @@ export class PromptEngine implements IPromptEngine {
 
   private augmentBaseComponents(
     base: Readonly<PromptComponents>,
-    selectedElements: ReadonlyArray<ContextualPromptElement>
+    selectedElements: ReadonlyArray<ContextualPromptElement>,
+    executionContext?: Readonly<PromptExecutionContext>,
   ): PromptComponents {
     /**
      * Applies selected contextual elements onto the immutable base components producing a mutable augmented copy.
@@ -595,6 +601,8 @@ export class PromptEngine implements IPromptEngine {
 
     if (!augmented.systemPrompts) augmented.systemPrompts = [];
     if (!augmented.customComponents) augmented.customComponents = {};
+
+    augmented.systemPrompts.push(...this.buildUserPreferencePrompts(executionContext));
 
     for (const element of selectedElements) {
       switch (element.type) {
@@ -624,6 +632,115 @@ export class PromptEngine implements IPromptEngine {
     }
     augmented.systemPrompts.sort((a, b) => (a.priority || 0) - (b.priority || 0));
     return augmented;
+  }
+
+  private buildUserPreferencePrompts(
+    executionContext?: Readonly<PromptExecutionContext>,
+  ): Array<{ content: string; priority?: number; source?: string }> {
+    const preferences = executionContext?.userPreferences;
+    if (!preferences || typeof preferences !== 'object') {
+      return [];
+    }
+
+    const prompts: Array<{ content: string; priority?: number; source?: string }> = [];
+    const verbosity = this.normalizeVerbosityPreference(preferences.verbosity);
+    if (verbosity === 'concise') {
+      prompts.push({
+        content:
+          'User response preference: keep the answer concise and efficient. Prefer brief explanations unless more detail is necessary.',
+        priority: 90,
+        source: 'user_preference:verbosity',
+      });
+    } else if (verbosity === 'balanced') {
+      prompts.push({
+        content:
+          'User response preference: use a balanced level of detail. Be clear and complete without over-explaining.',
+        priority: 90,
+        source: 'user_preference:verbosity',
+      });
+    } else if (verbosity === 'detailed') {
+      prompts.push({
+        content:
+          'User response preference: provide a detailed, thorough answer with enough explanation to justify the result.',
+        priority: 90,
+        source: 'user_preference:verbosity',
+      });
+    }
+
+    const preferredFormat = this.normalizePreferredFormatPreference(preferences);
+    if (preferredFormat) {
+      prompts.push({
+        content: `User response preference: when practical, format the response as ${preferredFormat}.`,
+        priority: 91,
+        source: 'user_preference:format',
+      });
+    }
+
+    return prompts;
+  }
+
+  private normalizeVerbosityPreference(
+    rawValue: unknown,
+  ): 'concise' | 'balanced' | 'detailed' | undefined {
+    if (typeof rawValue !== 'string') {
+      return undefined;
+    }
+
+    const normalized = rawValue.trim().toLowerCase();
+    if (!normalized) {
+      return undefined;
+    }
+
+    if (['low', 'brief', 'concise', 'short', 'minimal'].includes(normalized)) {
+      return 'concise';
+    }
+
+    if (['medium', 'balanced', 'normal', 'default', 'moderate'].includes(normalized)) {
+      return 'balanced';
+    }
+
+    if (['high', 'verbose', 'detailed', 'comprehensive', 'thorough'].includes(normalized)) {
+      return 'detailed';
+    }
+
+    return undefined;
+  }
+
+  private normalizePreferredFormatPreference(preferences: Record<string, unknown>): string | undefined {
+    const directFormat = preferences.preferredFormat ?? preferences.responseFormat ?? preferences.format;
+    if (typeof directFormat === 'string' && directFormat.trim()) {
+      return directFormat.trim();
+    }
+
+    const preferredFormats = preferences.preferredFormats;
+    if (Array.isArray(preferredFormats)) {
+      const normalizedFormats = preferredFormats
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (normalizedFormats.length > 0) {
+        return normalizedFormats.join(' or ');
+      }
+    }
+
+    return undefined;
+  }
+
+  private buildUserPreferenceCacheKey(preferences?: Record<string, unknown>): string | undefined {
+    if (!preferences || typeof preferences !== 'object') {
+      return undefined;
+    }
+
+    const verbosity = this.normalizeVerbosityPreference(preferences.verbosity);
+    const preferredFormat = this.normalizePreferredFormatPreference(preferences);
+    if (!verbosity && !preferredFormat) {
+      return undefined;
+    }
+
+    return JSON.stringify({
+      ...(verbosity ? { verbosity } : {}),
+      ...(preferredFormat ? { preferredFormat } : {}),
+    });
   }
 
   private async applyTokenBudget(

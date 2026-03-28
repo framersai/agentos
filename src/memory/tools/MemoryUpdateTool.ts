@@ -143,8 +143,8 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
         return { success: true, output: { updated: false } };
       }
 
-      const current = await this.brain.get<{ rowid: number; content: string; tags: string; metadata: string }>(
-        `SELECT rowid AS rowid, content, tags, metadata
+      const current = await this.brain.get<{ content: string; tags: string; metadata: string }>(
+        `SELECT content, tags, metadata
          FROM memory_traces
          WHERE id = ? AND deleted = 0`,
         [traceId],
@@ -173,19 +173,10 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
              WHERE id = ? AND deleted = 0`;
 
       const changes = await this.brain.transaction(async (trx) => {
-        await trx.run(
-          `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
-           VALUES ('delete', ?, ?, ?)`,
-          [current.rowid, current.content, current.tags],
-        );
-
         const info = await trx.run(sql, [nextContent, nextTags, nextMetadata, traceId]);
 
         if (info.changes > 0) {
-          await trx.run(
-            this.brain.features.fts.syncInsert('memory_traces_fts', '?', ['content', 'tags']),
-            [current.rowid, nextContent, nextTags],
-          );
+          await trx.exec(this.brain.features.fts.rebuildCommand('memory_traces_fts'));
         }
 
         return info.changes;

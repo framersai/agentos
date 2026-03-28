@@ -62,6 +62,8 @@ import {
 } from '../../IVectorStore.js';
 import { GMIError, GMIErrorCode } from '../../../utils/errors.js';
 import { uuidv4 } from '../../../utils/uuid.js';
+import { getNaturalStopWords } from '../../../core/text-processing/filters/StopWordFilter.js';
+import type { HnswIndexSidecar } from '../../../core/vector-search/HnswIndexSidecar.js';
 
 // ============================================================================
 // Configuration Types
@@ -134,6 +136,13 @@ export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
    * @default 1536
    */
   hnswDimensions?: number;
+
+  /**
+   * Optional custom HNSW sidecar factory.
+   * Primarily useful for tests or advanced hosts that need to provide their
+   * own ANN sidecar implementation.
+   */
+  hnswSidecarFactory?: () => HnswIndexSidecar;
 }
 
 // ============================================================================
@@ -218,8 +227,11 @@ export class SqlVectorStore implements IVectorStore {
   private readonly providerId: string;
   private tablePrefix: string = 'agentos_rag_';
 
-  /** Optional HNSW sidecar for O(log n) vector search when available. */
-  private sidecar: import('../../../core/vector-search/HnswIndexSidecar').HnswIndexSidecar | null = null;
+  /** Per-collection HNSW sidecars for accelerated vector search. */
+  private sidecars: Map<string, HnswIndexSidecar> = new Map();
+
+  /** Cached HNSW sidecar constructor when the dependency is available. */
+  private hnswSidecarClass: (new () => HnswIndexSidecar) | null | undefined;
 
   /** Optional text processing pipeline for hybrid search tokenization. */
   private pipeline?: import('../../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
@@ -276,31 +288,11 @@ export class SqlVectorStore implements IVectorStore {
 
     // Store pipeline reference
     this.pipeline = this.config.pipeline;
-
-    // Initialize HNSW sidecar for accelerated vector search
-    if (this.config.hnswThreshold !== Infinity) {
-      try {
-        const { HnswIndexSidecar } = await import('../../../core/vector-search/HnswIndexSidecar');
-        this.sidecar = new HnswIndexSidecar();
-
-        // Derive sidecar index path from adapter config
-        const storagePath = (this.config.storage as any)?.filePath ?? (this.config.storage as any)?.database;
-        const indexPath = storagePath ? `${storagePath}.hnsw` : `/tmp/agentos-rag-${this.providerId}.hnsw`;
-
-        await this.sidecar.initialize({
-          indexPath,
-          dimensions: this.config.hnswDimensions ?? this.config.defaultEmbeddingDimension ?? 1536,
-          metric: this.config.similarityMetric ?? 'cosine',
-          activationThreshold: this.config.hnswThreshold ?? 1000,
-        });
-      } catch {
-        /* HNSW sidecar unavailable (hnswlib-node not installed) — brute-force fallback */
-        this.sidecar = null;
-      }
-    }
+    this.sidecars.clear();
+    this.hnswSidecarClass = undefined;
 
     this.isInitialized = true;
-    console.log(`SqlVectorStore (ID: ${this.providerId}, Config ID: ${this.config.id}) initialized successfully${this.sidecar?.isAvailable() ? ' (HNSW sidecar ready)' : ''}.`);
+    console.log(`SqlVectorStore (ID: ${this.providerId}, Config ID: ${this.config.id}) initialized successfully.`);
   }
 
   /**
@@ -460,6 +452,12 @@ export class SqlVectorStore implements IVectorStore {
       [collectionName]
     );
 
+    const sidecar = this.sidecars.get(collectionName);
+    if (sidecar) {
+      await sidecar.shutdown();
+      this.sidecars.delete(collectionName);
+    }
+
     console.log(`SqlVectorStore (ID: ${this.providerId}): Collection '${collectionName}' deleted.`);
   }
 
@@ -580,13 +578,14 @@ export class SqlVectorStore implements IVectorStore {
     );
 
     // ── HNSW sidecar: add upserted vectors + check threshold ──────────
-    if (this.sidecar?.isAvailable() && upsertedIds.length > 0) {
+    const sidecar = await this.getOrCreateSidecar(collection);
+    if (sidecar?.isAvailable() && upsertedIds.length > 0) {
       const docsWithEmbeddings = documents
         .filter(d => upsertedIds.includes(d.id) && d.embedding?.length > 0)
         .map(d => ({ id: d.id, embedding: d.embedding }));
 
-      if (this.sidecar.isActive()) {
-        await this.sidecar.addBatch(docsWithEmbeddings);
+      if (sidecar.isActive()) {
+        await sidecar.upsertBatch(docsWithEmbeddings);
       } else {
         // Check if we just crossed the activation threshold
         const docCount = countResult?.count ?? 0;
@@ -605,7 +604,7 @@ export class SqlVectorStore implements IVectorStore {
                 : blobToEmbedding(row.embedding_blob as Buffer),
             }))
             .filter(item => item.embedding.length > 0);
-          await this.sidecar.rebuildFromData(allItems);
+          await sidecar.rebuildFromData(allItems);
         }
       }
     }
@@ -649,8 +648,9 @@ export class SqlVectorStore implements IVectorStore {
     // When the sidecar is active, use O(log n) ANN search to get top
     // candidates by ID, then fetch full documents from SQLite. Falls through
     // to brute-force when the sidecar is inactive or unavailable.
-    if (this.sidecar?.isActive()) {
-      const hnswCandidates = await this.sidecar.search(queryEmbedding, topK * 3);
+    const sidecar = await this.getOrCreateSidecar(collection);
+    if (sidecar?.isActive()) {
+      const hnswCandidates = await sidecar.search(queryEmbedding, topK * 3);
       if (hnswCandidates.length > 0) {
         const candidateIds = hnswCandidates.map(c => c.id);
         const placeholders = candidateIds.map(() => '?').join(',');
@@ -681,11 +681,17 @@ export class SqlVectorStore implements IVectorStore {
 
         candidates.sort((a, b) => b.similarityScore - a.similarityScore);
         const results = candidates.slice(0, topK);
-        return {
-          documents: results,
-          queryId: `sql-hnsw-query-${uuidv4()}`,
-          stats: { totalCandidates: hnswCandidates.length, filteredCandidates: candidates.length, returnedCount: results.length },
-        };
+        const requiresExactFallback =
+          (options?.filter !== undefined || options?.minSimilarityScore !== undefined)
+          && results.length < topK;
+
+        if (results.length > 0 && !requiresExactFallback) {
+          return {
+            documents: results,
+            queryId: `sql-hnsw-query-${uuidv4()}`,
+            stats: { totalCandidates: hnswCandidates.length, filteredCandidates: candidates.length, returnedCount: results.length },
+          };
+        }
       }
     }
 
@@ -825,7 +831,6 @@ export class SqlVectorStore implements IVectorStore {
       /* Use pluggable pipeline when configured */
       if (this.pipeline) return this.pipeline.processToStrings(text);
       /* Fallback: built-in regex tokenizer with natural's 170-word stop word list */
-      const { getNaturalStopWords } = require('../../../core/text-processing/filters/StopWordFilter');
       const stopWords = getNaturalStopWords();
       return text.toLowerCase().split(/[^a-z0-9_]+/g).filter((t: string) => t.length > 2 && !stopWords.has(t));
     };
@@ -1050,11 +1055,18 @@ export class SqlVectorStore implements IVectorStore {
   ): Promise<DeleteResult> {
     this.ensureInitialized();
 
+    const collection = await this.getCollectionMetadata(collectionName);
     let deletedCount = 0;
+    let deletedIds: string[] = [];
     const errors: Array<{ id?: string; message: string; details?: any }> = [];
 
     if (options?.deleteAll && !ids && !options.filter) {
       // Delete all documents in collection
+      const rows = await this.adapter.all<{ id: string }>(
+        `SELECT id FROM ${this.tablePrefix}documents WHERE collection_name = ?`,
+        [collectionName],
+      );
+      deletedIds = rows.map(row => row.id);
       const result = await this.adapter.run(
         `DELETE FROM ${this.tablePrefix}documents WHERE collection_name = ?`,
         [collectionName]
@@ -1063,6 +1075,7 @@ export class SqlVectorStore implements IVectorStore {
       console.warn(`SqlVectorStore (ID: ${this.providerId}): All ${deletedCount} documents deleted from '${collectionName}'.`);
     } else if (ids && ids.length > 0) {
       // Delete specific IDs
+      deletedIds = [...ids];
       const placeholders = ids.map(() => '?').join(',');
       const result = await this.adapter.run(
         `DELETE FROM ${this.tablePrefix}documents WHERE collection_name = ? AND id IN (${placeholders})`,
@@ -1085,6 +1098,7 @@ export class SqlVectorStore implements IVectorStore {
       }
 
       if (idsToDelete.length > 0) {
+        deletedIds = idsToDelete;
         const placeholders = idsToDelete.map(() => '?').join(',');
         const result = await this.adapter.run(
           `DELETE FROM ${this.tablePrefix}documents WHERE collection_name = ? AND id IN (${placeholders})`,
@@ -1104,6 +1118,11 @@ export class SqlVectorStore implements IVectorStore {
       `UPDATE ${this.tablePrefix}collections SET document_count = ?, updated_at = ? WHERE name = ?`,
       [countResult?.count ?? 0, now, collectionName]
     );
+
+    const sidecar = await this.getOrCreateSidecar(collection);
+    if (sidecar?.isActive() && deletedIds.length > 0) {
+      await sidecar.removeBatch(deletedIds);
+    }
 
     return {
       deletedCount,
@@ -1158,10 +1177,11 @@ export class SqlVectorStore implements IVectorStore {
       return;
     }
 
-    if (this.sidecar) {
-      await this.sidecar.shutdown();
-      this.sidecar = null;
+    for (const sidecar of this.sidecars.values()) {
+      await sidecar.shutdown();
     }
+    this.sidecars.clear();
+    this.hnswSidecarClass = undefined;
 
     if (this.ownsAdapter && this.adapter) {
       await this.adapter.close();
@@ -1213,6 +1233,82 @@ export class SqlVectorStore implements IVectorStore {
   // ============================================================================
   // Private Helper Methods
   // ============================================================================
+
+  /**
+   * Lazily load the HNSW sidecar class once for this store instance.
+   */
+  private async loadHnswSidecarClass(): Promise<(new () => HnswIndexSidecar) | null> {
+    if (this.config.hnswThreshold === Infinity) {
+      return null;
+    }
+
+    if (this.hnswSidecarClass !== undefined) {
+      return this.hnswSidecarClass;
+    }
+
+    try {
+      const { HnswIndexSidecar } = await import('../../../core/vector-search/HnswIndexSidecar.js');
+      this.hnswSidecarClass = HnswIndexSidecar as new () => HnswIndexSidecar;
+    } catch {
+      this.hnswSidecarClass = null;
+    }
+
+    return this.hnswSidecarClass;
+  }
+
+  /**
+   * Get or create the HNSW sidecar for a specific collection.
+   *
+   * Sidecars are collection-scoped so dimensions, metrics, and document IDs
+   * stay isolated between collections.
+   */
+  private async getOrCreateSidecar(collection: CollectionMetadata): Promise<HnswIndexSidecar | null> {
+    const existing = this.sidecars.get(collection.name);
+    if (existing) {
+      return existing;
+    }
+
+    const sidecar = this.config.hnswSidecarFactory
+      ? this.config.hnswSidecarFactory()
+      : await (async () => {
+        const HnswSidecarClass = await this.loadHnswSidecarClass();
+        return HnswSidecarClass ? new HnswSidecarClass() : null;
+      })();
+
+    if (!sidecar) {
+      return null;
+    }
+
+    await sidecar.initialize({
+      indexPath: this.getSidecarIndexPath(collection.name),
+      dimensions: this.config.hnswDimensions ?? collection.dimension,
+      metric: collection.similarityMetric,
+      activationThreshold: this.config.hnswThreshold ?? 1000,
+    });
+
+    if (!sidecar.isAvailable()) {
+      this.hnswSidecarClass = null;
+      return null;
+    }
+
+    this.sidecars.set(collection.name, sidecar);
+    return sidecar;
+  }
+
+  /**
+   * Derive a stable per-collection sidecar path from the configured SQL store.
+   */
+  private getSidecarIndexPath(collectionName: string): string {
+    const storageConfig = this.config.storage as
+      | { filePath?: string; database?: string }
+      | undefined;
+    const storagePath = storageConfig?.filePath ?? storageConfig?.database;
+    const safeCollectionName = collectionName.replace(/[^a-z0-9._-]+/gi, '_');
+
+    return storagePath
+      ? `${storagePath}.${safeCollectionName}.hnsw`
+      : `/tmp/agentos-rag-${this.providerId}-${safeCollectionName}.hnsw`;
+  }
 
   /**
    * Translate a MetadataFilter into SQL WHERE clauses using json_extract().

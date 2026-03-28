@@ -23,12 +23,13 @@ import type { ToolExecutionContext } from '../../core/tools/ITool.js';
 // ---------------------------------------------------------------------------
 
 /** Minimal ToolExecutionContext for testing. */
-function makeContext(): ToolExecutionContext {
+function makeContext(overrides: Partial<ToolExecutionContext> = {}): ToolExecutionContext {
   return {
     gmiId: 'test-gmi',
     personaId: 'test-persona',
     userContext: { userId: 'test-user' } as any,
     correlationId: 'test-session',
+    ...overrides,
   };
 }
 
@@ -111,16 +112,44 @@ describe('AdaptPersonalityTool', () => {
     // First mutation: +0.1
     await tool.execute(
       { trait: 'openness', delta: 0.1, reasoning: 'Step 1.' },
-      ctx,
+      makeContext({
+        correlationId: 'call-1',
+        sessionData: { sessionId: 'shared-session' },
+      }),
     );
 
     // Second mutation: +0.1 (total = 0.2)
     const result = await tool.execute(
       { trait: 'openness', delta: 0.1, reasoning: 'Step 2.' },
-      ctx,
+      makeContext({
+        correlationId: 'call-2',
+        sessionData: { sessionId: 'shared-session' },
+      }),
     );
 
     expect(result.success).toBe(true);
+    expect(result.output!.sessionTotal).toBeCloseTo(0.2);
+  });
+
+  it('should isolate session budgets across different sessions', async () => {
+    await tool.execute(
+      { trait: 'openness', delta: 0.2, reasoning: 'Session one.' },
+      makeContext({
+        correlationId: 'call-1',
+        sessionData: { sessionId: 'session-one' },
+      }),
+    );
+
+    const result = await tool.execute(
+      { trait: 'openness', delta: 0.2, reasoning: 'Session two.' },
+      makeContext({
+        correlationId: 'call-1',
+        sessionData: { sessionId: 'session-two' },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.output!.delta).toBeCloseTo(0.2);
     expect(result.output!.sessionTotal).toBeCloseTo(0.2);
   });
 

@@ -7,21 +7,21 @@
 
 import type { Token } from '../types';
 import type { ITextProcessor } from '../ITextProcessor';
+import { getNaturalModule } from '../naturalInterop';
 
 /** Lazy-loaded stem function from the `natural` package. */
-let stemFn: ((word: string) => string) | null = null;
-let loadAttempted = false;
+let stemFn: ((word: string) => string) | null | undefined;
 
-async function loadStemmer(): Promise<void> {
-  if (loadAttempted) return;
-  loadAttempted = true;
-  try {
-    const natural = await import('natural');
-    stemFn = (word: string) => natural.PorterStemmer.stem(word);
-  } catch {
-    /* natural not installed — stemmer will be a no-op */
-    stemFn = null;
+function loadStemmer(): void {
+  if (stemFn !== undefined) return;
+  const natural = getNaturalModule();
+  const porterStemmer = natural?.PorterStemmer;
+  if (porterStemmer && typeof porterStemmer.stem === 'function') {
+    stemFn = (word: string) => porterStemmer.stem(word);
+    return;
   }
+  /* natural not installed — stemmer will be a no-op */
+  stemFn = null;
 }
 
 /**
@@ -37,17 +37,8 @@ async function loadStemmer(): Promise<void> {
 export class PorterStemmer implements ITextProcessor {
   readonly name = 'PorterStemmer';
 
-  private initialized = false;
-
-  private async ensureLoaded(): Promise<void> {
-    if (!this.initialized) {
-      await loadStemmer();
-      this.initialized = true;
-    }
-  }
-
   process(tokens: Token[]): Token[] {
-    /* Synchronous path if already loaded */
+    loadStemmer();
     if (!stemFn) return tokens;
 
     return tokens.map(t => {
@@ -57,11 +48,10 @@ export class PorterStemmer implements ITextProcessor {
   }
 
   /**
-   * Async initialization — call once before first use to load `natural`.
-   * The pipeline calls this automatically, but you can call it early
-   * to avoid the lazy-load delay on first process() call.
+   * Optional eager initialization hook for callers that want to load
+   * `natural` ahead of the first `process()` call.
    */
   async initialize(): Promise<void> {
-    await this.ensureLoaded();
+    loadStemmer();
   }
 }

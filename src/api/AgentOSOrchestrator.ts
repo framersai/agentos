@@ -106,6 +106,8 @@ import {
   withAgentOSSpan,
 } from '../core/observability/otel';
 import type { ITurnPlanner, TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
+import { CapabilityContextAssembler } from '../discovery/CapabilityContextAssembler.js';
+import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';
 
 // Public config types extracted to types/OrchestratorConfig.ts
 export type {
@@ -344,6 +346,8 @@ type ResolvedAgentOSOrchestratorConfig = Required<
  * and handles the complex dance of tool calls and streaming responses.
  */
 export class AgentOSOrchestrator {
+  private readonly capabilityContextAssembler = new CapabilityContextAssembler();
+
   private initialized: boolean = false;
   private config!: ResolvedAgentOSOrchestratorConfig;
   private dependencies!: AgentOSOrchestratorDependencies;
@@ -873,6 +877,7 @@ export class AgentOSOrchestrator {
             persona: gmi.getPersona(),
             userMessage: planningMessage,
             options: input.options,
+            excludedCapabilityIds: input.disabledSessionSkillIds,
           });
         } catch (planningError: any) {
           throw new GMIError(
@@ -882,6 +887,7 @@ export class AgentOSOrchestrator {
           );
         }
       }
+      turnPlan = this.filterTurnPlanForDisabledSessionSkills(turnPlan, input);
       const adaptiveExecution = this.telemetry.maybeApplyAdaptivePolicy({
         turnPlan,
         organizationId: resolvedOrganizationId,
@@ -2309,6 +2315,7 @@ export class AgentOSOrchestrator {
       userApiKeys: input.userApiKeys,
       userFeedback: input.userFeedback,
       explicitPersonaSwitchId: input.selectedPersonaId,
+      skillPromptContext: input.skillPromptContext,
       // Task hint can be more sophisticated, based on input analysis
       taskHint: input.textInput
         ? 'user_text_query'
@@ -2354,8 +2361,41 @@ export class AgentOSOrchestrator {
       sessionId, // AgentOS session ID
       type,
       content,
+      userContextOverride: input.userContextOverride,
       metadata: gmiInputMetadata,
       timestamp: new Date(),
+    };
+  }
+
+  private filterTurnPlanForDisabledSessionSkills(
+    turnPlan: TurnPlan | null,
+    input: AgentOSInput,
+  ): TurnPlan | null {
+    const disabledSessionSkillIds = Array.isArray(input.disabledSessionSkillIds)
+      ? input.disabledSessionSkillIds.filter(
+          (skillId): skillId is string => typeof skillId === 'string' && skillId.trim().length > 0,
+        )
+      : [];
+
+    if (!turnPlan?.capability.result || disabledSessionSkillIds.length === 0) {
+      return turnPlan;
+    }
+
+    const filteredResult = filterCapabilityDiscoveryResultByDisabledSkills(
+      turnPlan.capability.result,
+      disabledSessionSkillIds,
+    );
+    if (filteredResult === turnPlan.capability.result) {
+      return turnPlan;
+    }
+
+    return {
+      ...turnPlan,
+      capability: {
+        ...turnPlan.capability,
+        result: filteredResult,
+        promptContext: this.capabilityContextAssembler.renderForPrompt(filteredResult),
+      },
     };
   }
 

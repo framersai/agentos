@@ -142,11 +142,13 @@ export class RetrievalFeedbackSignal {
    *
    * @param injectedTraces - Memory traces that were injected into the prompt.
    * @param response       - The LLM's generated response text.
+   * @param context        - Optional retrieval context, typically the original query.
    * @returns Array of `RetrievalFeedback` events, one per injected trace.
    */
   async detect(
     injectedTraces: MemoryTrace[],
     response: string,
+    context?: string,
   ): Promise<RetrievalFeedback[]> {
     const responseLower = response.toLowerCase();
     const feedbacks: RetrievalFeedback[] = [];
@@ -183,7 +185,7 @@ export class RetrievalFeedbackSignal {
           }
         }
 
-        await trx.run(insertSql, [trace.id, signal, null, now]);
+        await trx.run(insertSql, [trace.id, signal, context ?? null, now]);
 
         const row = await trx.get<TraceRow>(selectTraceSql, [trace.id]);
         if (row) {
@@ -233,6 +235,7 @@ export class RetrievalFeedbackSignal {
         feedbacks.push({
           traceId: trace.id,
           signal,
+          ...(context ? { context } : {}),
           timestamp: now,
         });
       }

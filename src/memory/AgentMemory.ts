@@ -374,12 +374,12 @@ export class AgentMemory {
    * Record used/ignored retrieval feedback. Available only when backed by the
    * standalone SQLite-first Memory facade.
    */
-  feedback(traceId: string, signal: 'used' | 'ignored'): void {
+  feedback(traceId: string, signal: 'used' | 'ignored', query?: string): void {
     this.ensureReady();
     if (!this.standalone) {
       this.throwUnsupportedForCognitive('feedback');
     }
-    this.standalone.feedback(traceId, signal);
+    void this.standalone.feedback(traceId, signal, query);
   }
 
   get isInitialized(): boolean {

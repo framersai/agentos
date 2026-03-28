@@ -4,7 +4,7 @@
  * across various memory stores, particularly those managed by the RAG system.
  * It can interact with GMI instances to negotiate decisions about critical memories.
  *
- * @module backend/agentos/memory_lifecycle/IMemoryLifecycleManager
+ * @module backend/agentos/memory/lifecycle/IMemoryLifecycleManager
  * @see ../config/MemoryLifecycleManagerConfiguration.ts for configuration.
  * @see ../cognitive_substrate/IGMI.ts for GMI interaction types.
  * @see ../rag/IVectorStoreManager.ts for interaction with storage.

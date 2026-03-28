@@ -10,7 +10,11 @@
  * @see ../../cognitive_substrate/IGMI.ts For VisionInputData and AudioInputData definitions.
  */
 
-import { VisionInputData, AudioInputData } from '../../cognitive_substrate/IGMI';
+import {
+  VisionInputData,
+  AudioInputData,
+  type UserContext,
+} from '../../cognitive_substrate/IGMI';
 import type { AgentOSMemoryControl } from '../../core/conversation/LongTermMemoryPolicy';
 
 /**
@@ -98,6 +102,9 @@ export interface AgentOSInput {
   workflowRequest?: WorkflowInvocationRequest;
   agencyRequest?: AgencyInvocationRequest;
   options?: ProcessingOptions;
+  userContextOverride?: Partial<UserContext>;
+  skillPromptContext?: string;
+  disabledSessionSkillIds?: string[];
 }
 
 /**

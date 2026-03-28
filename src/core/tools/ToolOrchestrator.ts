@@ -47,6 +47,7 @@ import type {
 } from '../hitl/IHumanInteractionManager';
 import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
 import { DEFAULT_EMERGENT_CONFIG } from '../../emergent/types.js';
+import { DEFAULT_SELF_IMPROVEMENT_CONFIG } from '../../emergent/SelfImprovementConfig.js';
 import { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
 import { ComposableToolBuilder } from '../../emergent/ComposableToolBuilder.js';
 import { SandboxedToolForge } from '../../emergent/SandboxedToolForge.js';
@@ -246,9 +247,32 @@ export class ToolOrchestrator implements IToolOrchestrator {
     // Emergent Capability Engine (optional — only when emergent: true)
     // -----------------------------------------------------------------------
     if (emergentOptions?.enabled) {
+      const selfImprovementConfig = emergentOptions.config?.selfImprovement
+        ? {
+            ...DEFAULT_SELF_IMPROVEMENT_CONFIG,
+            ...emergentOptions.config.selfImprovement,
+            personality: {
+              ...DEFAULT_SELF_IMPROVEMENT_CONFIG.personality,
+              ...(emergentOptions.config.selfImprovement.personality ?? {}),
+            },
+            skills: {
+              ...DEFAULT_SELF_IMPROVEMENT_CONFIG.skills,
+              ...(emergentOptions.config.selfImprovement.skills ?? {}),
+            },
+            workflows: {
+              ...DEFAULT_SELF_IMPROVEMENT_CONFIG.workflows,
+              ...(emergentOptions.config.selfImprovement.workflows ?? {}),
+            },
+            selfEval: {
+              ...DEFAULT_SELF_IMPROVEMENT_CONFIG.selfEval,
+              ...(emergentOptions.config.selfImprovement.selfEval ?? {}),
+            },
+          }
+        : undefined;
       const emergentConfig: EmergentConfig = {
         ...DEFAULT_EMERGENT_CONFIG,
         ...(emergentOptions.config ?? {}),
+        ...(selfImprovementConfig ? { selfImprovement: selfImprovementConfig } : {}),
         enabled: true,
       };
 

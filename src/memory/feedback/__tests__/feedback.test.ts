@@ -336,6 +336,29 @@ describe('RetrievalFeedbackSignal persistence', () => {
     expect(byId.get(ignoredTrace.id)).toBe('ignored');
   });
 
+  it('persists the optional retrieval context when provided', async () => {
+    const { brain } = await openBrain();
+    const sig = new RetrievalFeedbackSignal(brain);
+
+    const trace = makeTrace({
+      content: 'distributed systems architecture with microservices',
+    });
+    await seedTraceRow(brain, trace);
+
+    await sig.detect(
+      [trace],
+      'Distributed systems often rely on microservices to scale independently.',
+      'how do distributed systems work?',
+    );
+
+    const row = await brain.get<{ query: string | null }>(
+      'SELECT query FROM retrieval_feedback WHERE trace_id = ? ORDER BY id DESC LIMIT 1',
+      [trace.id],
+    );
+
+    expect(row?.query).toBe('how do distributed systems work?');
+  });
+
   it('reinforces the stored trace when the signal is "used"', async () => {
     const { brain } = await openBrain();
     const sig = new RetrievalFeedbackSignal(brain);

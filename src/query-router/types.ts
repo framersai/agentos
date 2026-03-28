@@ -495,7 +495,9 @@ export interface QueryRouterConfig {
    * Optional host-provided deep research callback.
    *
    * Provide this to replace the built-in placeholder research branch with a
-   * real multi-source research runtime.
+   * real multi-source research runtime. The `sources` argument receives
+   * normalized research-source hints such as `web`, `docs`, or `media`,
+   * not raw classifier retrieval labels.
    */
   deepResearch?: (
     query: string,
@@ -568,6 +570,17 @@ export interface QueryRouterConfig {
    * @see QueryRouterStrategyConfig
    */
   strategyConfig?: QueryRouterStrategyConfig;
+}
+
+/**
+ * Optional per-request overrides for QueryRouter classification and routing.
+ */
+export interface QueryRouterRequestOptions {
+  /**
+   * Skill capability IDs or aliases to suppress from capability-summary prompts
+   * and plan-aware capability recommendations for this request.
+   */
+  excludedCapabilityIds?: string[];
 }
 
 /**

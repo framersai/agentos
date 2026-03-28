@@ -33,7 +33,7 @@ Source (file / directory / URL)
 ```ts
 import { Memory } from '@framers/agentos';
 
-const mem = new Memory({ path: './brain.sqlite' });
+const mem = await Memory.create({ path: './brain.sqlite' });
 
 // Single file
 await mem.ingest('./report.pdf');
@@ -109,7 +109,7 @@ PDF buffer arrives
 ### Configuration
 
 ```ts
-const mem = new Memory({
+const mem = await Memory.create({
   path: './brain.sqlite',
   ingestion: {
     extractImages: true,   // Pull images from PDFs/DOCX
@@ -135,7 +135,7 @@ The `ChunkingEngine` splits document text into indexable chunks. Four strategies
 ### Configuration
 
 ```ts
-const mem = new Memory({
+const mem = await Memory.create({
   path: './brain.sqlite',
   ingestion: {
     chunkStrategy: 'semantic',   // 'fixed' | 'semantic' | 'hierarchical' | 'layout'
@@ -205,7 +205,7 @@ interface IngestResult {
 When `extractImages: true` is configured, document loaders (PDF, DOCX) extract embedded images as `ExtractedImage` objects. The `MultimodalAggregator` enriches them with natural-language captions via a vision-capable LLM:
 
 ```ts
-const mem = new Memory({
+const mem = await Memory.create({
   path: './brain.sqlite',
   ingestion: {
     extractImages: true,

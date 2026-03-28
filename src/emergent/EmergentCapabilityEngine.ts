@@ -53,28 +53,53 @@ export interface SelfImprovementToolDeps {
   mutationStore?: PersonalityMutationStore;
 
   /** Returns the agent's currently active skills. */
-  getActiveSkills: () => Array<{ skillId: string; name: string; category: string }>;
+  getActiveSkills: (
+    context?: ToolExecutionContext,
+  ) => Array<{ skillId: string; name: string; category: string }>;
 
   /** Returns skill IDs that may not be disabled (core skills). */
   getLockedSkills: () => string[];
 
   /** Dynamically loads a skill by ID and returns its metadata. */
-  loadSkill: (id: string) => Promise<{ skillId: string; name: string; category: string }>;
+  loadSkill: (
+    id: string,
+    context?: ToolExecutionContext,
+  ) => Promise<{ skillId: string; name: string; category: string }>;
 
   /** Unloads (disables) a previously loaded skill. */
-  unloadSkill: (id: string) => void;
+  unloadSkill: (id: string, context?: ToolExecutionContext) => void;
 
   /** Searches the skill registry by query string, returning matching skill metadata. */
-  searchSkills: (query: string) => Array<{ skillId: string; name: string; category: string; description: string }>;
+  searchSkills: (
+    query: string,
+    context?: ToolExecutionContext,
+  ) => Array<{ skillId: string; name: string; category: string; description: string }>;
 
   /** Executes a registered tool by name with the given arguments. */
-  executeTool: (name: string, args: unknown) => Promise<unknown>;
+  executeTool: (
+    name: string,
+    args: unknown,
+    context?: ToolExecutionContext,
+  ) => Promise<unknown>;
 
   /** Returns the names of all currently registered tools. */
   listTools: () => string[];
 
   /** Optional callback for persisting self-improvement trace memories. */
   storeMemory?: (trace: { type: string; scope: string; content: string; tags: string[] }) => Promise<void>;
+
+  /** Optional host-level getter for session-scoped runtime params such as temperature. */
+  getSessionParam?: (
+    param: string,
+    context: ToolExecutionContext,
+  ) => unknown;
+
+  /** Optional host-level setter for session-scoped runtime params such as temperature. */
+  setSessionParam?: (
+    param: string,
+    value: unknown,
+    context: ToolExecutionContext,
+  ) => void;
 }
 
 // ============================================================================
@@ -653,6 +678,8 @@ export class EmergentCapabilityEngine {
             },
             adaptPersonality: adaptPersonalityTool,
             storeMemory: deps.storeMemory,
+            getSessionParam: deps.getSessionParam,
+            setSessionParam: deps.setSessionParam,
           }),
         );
       } catch {

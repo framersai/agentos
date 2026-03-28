@@ -207,6 +207,70 @@ describe('GMI Core Functionality', () => {
     expect(promptComponents.retrievedContext).toContain('Prefers TypeScript');
   });
 
+  it('merges user preference overrides without dropping existing preferences', async () => {
+    (gmi as any).currentUserContext = {
+      userId: 'user-test',
+      preferences: {
+        preferredFormat: 'markdown table',
+      },
+    };
+
+    const input: GMITurnInput = {
+      interactionId: 'turn-pref-merge-1',
+      userId: 'user-test',
+      type: GMIInteractionType.TEXT,
+      content: 'How should you respond?',
+      userContextOverride: {
+        preferences: {
+          verbosity: 'high',
+        },
+      },
+    };
+
+    for await (const _chunk of gmi.processTurnStream(input)) {
+      // exhaust stream
+    }
+
+    expect((gmi as any).currentUserContext.preferences).toEqual({
+      preferredFormat: 'markdown table',
+      verbosity: 'high',
+    });
+
+    const constructCalls = (mockPromptEngine.constructPrompt as any).mock.calls as any[];
+    const promptExecContext = constructCalls[constructCalls.length - 1][2];
+    expect(promptExecContext.userPreferences).toEqual({
+      preferredFormat: 'markdown table',
+      verbosity: 'high',
+    });
+  });
+
+  it('injects session skill prompt context into system prompts', async () => {
+    const input: GMITurnInput = {
+      interactionId: 'turn-skill-prompt-1',
+      userId: 'user-test',
+      type: GMIInteractionType.TEXT,
+      content: 'Use the enabled skill.',
+      metadata: {
+        skillPromptContext:
+          'Session Skill Modules\n### Research Skill (research)\nUse web search and synthesize the strongest evidence.',
+      } as any,
+    };
+
+    for await (const _chunk of gmi.processTurnStream(input)) {
+      // exhaust stream
+    }
+
+    const constructCalls = (mockPromptEngine.constructPrompt as any).mock.calls as any[];
+    const promptComponents = constructCalls[constructCalls.length - 1][0];
+    expect(promptComponents.systemPrompts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          content: expect.stringContaining('Session Skill Modules'),
+        }),
+      ]),
+    );
+  });
+
   it('performPostTurnIngestion should call utilityAI.summarize if RAG ingestion is enabled', async () => {
     const ragEnabledPersona: IPersonaDefinition = {
       ...mockPersona,

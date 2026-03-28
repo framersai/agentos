@@ -13,7 +13,7 @@
 
 import { IProvider, ModelInfo } from '../providers/IProvider';
 import { IPersonaDefinition } from '../../../cognitive_substrate/personas/IPersonaDefinition';
-import type { ISubscriptionTier } from '../../../services/user_auth/types';
+import type { ISubscriptionTier } from '../../../types/auth';
 
 /**
  * Parameters provided to the model router to aid in its selection process.

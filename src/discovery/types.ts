@@ -406,6 +406,8 @@ export interface DiscoveryQueryOptions {
   category?: string;
   /** Only include available capabilities */
   onlyAvailable?: boolean;
+  /** Exclude specific skill capability IDs or aliases from this query result. */
+  excludedCapabilityIds?: string[];
 }
 
 /**

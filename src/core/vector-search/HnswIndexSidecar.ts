@@ -161,6 +161,29 @@ export class HnswIndexSidecar {
   }
 
   /**
+   * Upsert a single vector into an active index.
+   * Replaces the previous vector when the ID already exists.
+   */
+  async upsert(id: string, embedding: number[]): Promise<void> {
+    if (!this.hnswAvailable) return;
+
+    if (this.idToLabel.has(id)) {
+      await this.remove(id);
+    }
+
+    await this.add(id, embedding);
+  }
+
+  /**
+   * Upsert multiple vectors, replacing existing IDs in place.
+   */
+  async upsertBatch(items: Array<{ id: string; embedding: number[] }>): Promise<void> {
+    for (const item of items) {
+      await this.upsert(item.id, item.embedding);
+    }
+  }
+
+  /**
    * Soft-delete a vector by marking its label as deleted in the HNSW graph.
    */
   async remove(id: string): Promise<void> {
@@ -172,6 +195,15 @@ export class HnswIndexSidecar {
     this.labelToId.delete(label);
     this.idToLabel.delete(id);
     this.dirty = true;
+  }
+
+  /**
+   * Soft-delete multiple vectors in one pass.
+   */
+  async removeBatch(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      await this.remove(id);
+    }
   }
 
   /**

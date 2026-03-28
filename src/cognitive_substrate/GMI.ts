@@ -775,11 +775,24 @@ export class GMI implements IGMI {
     const aggregatedToolCalls: ToolCallRequest[] = [];
     const aggregatedUiCommands: UICommand[] = [];
     const aggregatedUsage: CostAggregator = { totalTokens: 0, promptTokens: 0, completionTokens: 0, breakdown: [] };
-    let lastErrorForOutput: GMIOutput['error'] = undefined;
+      let lastErrorForOutput: GMIOutput['error'] = undefined;
 
     try {
       if (turnInput.userContextOverride) {
-        this.currentUserContext = { ...this.currentUserContext, ...turnInput.userContextOverride };
+        const mergedPreferences =
+          turnInput.userContextOverride.preferences &&
+          typeof turnInput.userContextOverride.preferences === 'object'
+            ? {
+                ...(this.currentUserContext.preferences ?? {}),
+                ...turnInput.userContextOverride.preferences,
+              }
+            : this.currentUserContext.preferences;
+
+        this.currentUserContext = {
+          ...this.currentUserContext,
+          ...turnInput.userContextOverride,
+          ...(mergedPreferences ? { preferences: mergedPreferences } : {}),
+        };
         await this.workingMemory.set('currentUserContext', this.currentUserContext);
       }
       if (turnInput.taskContextOverride) {
@@ -905,6 +918,16 @@ export class GMI implements IGMI {
           systemPrompts.push({
             content: `Capability Discovery Context\n${discoveryPromptContext}`,
             priority: 55,
+          });
+        }
+        const skillPromptContext =
+          typeof turnInput.metadata?.skillPromptContext === 'string'
+            ? turnInput.metadata.skillPromptContext.trim()
+            : '';
+        if (skillPromptContext) {
+          systemPrompts.push({
+            content: skillPromptContext,
+            priority: 57,
           });
         }
 

@@ -5,6 +5,7 @@
 
 import type { Token } from '../types';
 import type { ITextProcessor } from '../ITextProcessor';
+import { getNaturalModule } from '../naturalInterop';
 
 /** ~120 common English stop words. */
 export const ENGLISH_STOP_WORDS: ReadonlySet<string> = new Set([
@@ -49,14 +50,11 @@ export const CODE_STOP_WORDS: ReadonlySet<string> = new Set([
 let _naturalStopWords: ReadonlySet<string> | null = null;
 export function getNaturalStopWords(): ReadonlySet<string> {
   if (_naturalStopWords) return _naturalStopWords;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const natural = require('natural');
-    if (natural.stopwords && Array.isArray(natural.stopwords)) {
-      _naturalStopWords = new Set(natural.stopwords as string[]);
-      return _naturalStopWords;
-    }
-  } catch { /* natural not installed */ }
+  const natural = getNaturalModule();
+  if (natural?.stopwords && Array.isArray(natural.stopwords)) {
+    _naturalStopWords = new Set(natural.stopwords as string[]);
+    return _naturalStopWords;
+  }
   _naturalStopWords = ENGLISH_STOP_WORDS;
   return _naturalStopWords;
 }

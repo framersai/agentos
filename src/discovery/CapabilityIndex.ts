@@ -174,6 +174,7 @@ export class CapabilityIndex {
       kind?: CapabilityKind | 'any';
       category?: string;
       onlyAvailable?: boolean;
+      excludedCapabilityIds?: string[];
     },
   ): Promise<CapabilitySearchResult[]> {
     if (!this.built || this.descriptors.size === 0) {
@@ -190,6 +191,10 @@ export class CapabilityIndex {
       return [];
     }
 
+    const normalizedExcludedCapabilityIds = normalizeExcludedCapabilityIds(
+      filters?.excludedCapabilityIds,
+    );
+
     // Build metadata filter
     const metadataFilter: MetadataFilter = {};
     if (filters?.kind && filters.kind !== 'any') {
@@ -203,8 +208,15 @@ export class CapabilityIndex {
     }
 
     // Query vector store
+    const queryTopK =
+      normalizedExcludedCapabilityIds.length > 0
+        ? Math.min(
+            this.descriptors.size,
+            Math.max(topK, topK + normalizedExcludedCapabilityIds.length * 4),
+          )
+        : topK;
     const result = await this.vectorStore.query(this.collectionName, queryEmbedding, {
-      topK,
+      topK: queryTopK,
       filter: Object.keys(metadataFilter).length > 0 ? metadataFilter : undefined,
       includeMetadata: true,
     });
@@ -214,12 +226,19 @@ export class CapabilityIndex {
       .map((doc) => {
         const descriptor = this.descriptors.get(doc.id);
         if (!descriptor) return null;
+        if (
+          normalizedExcludedCapabilityIds.length > 0 &&
+          matchesExcludedCapability(descriptor, normalizedExcludedCapabilityIds)
+        ) {
+          return null;
+        }
         return {
           descriptor,
           score: doc.similarityScore,
         };
       })
-      .filter((r): r is CapabilitySearchResult => r !== null);
+      .filter((r): r is CapabilitySearchResult => r !== null)
+      .slice(0, topK);
   }
 
   // ============================================================================
@@ -398,4 +417,42 @@ export class CapabilityIndex {
       sourceRef: { type: 'channel', platform: ch.platform },
     };
   }
+}
+
+function normalizeExcludedCapabilityIds(values?: string[]): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0),
+    ),
+  );
+}
+
+function matchesExcludedCapability(
+  descriptor: CapabilityDescriptor,
+  normalizedExcludedCapabilityIds: string[],
+): boolean {
+  if (descriptor.kind !== 'skill') {
+    return false;
+  }
+
+  const aliases = Array.from(
+    new Set(
+      [
+        descriptor.id,
+        descriptor.name,
+        descriptor.displayName,
+        descriptor.sourceRef.type === 'skill' ? descriptor.sourceRef.skillName : '',
+      ]
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0),
+    ),
+  );
+
+  return normalizedExcludedCapabilityIds.some((excludedId) => aliases.includes(excludedId));
 }

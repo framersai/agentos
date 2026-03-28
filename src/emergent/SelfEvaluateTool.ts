@@ -25,6 +25,7 @@ import type {
 import { generateText } from '../api/generateText.js';
 import { PROVIDER_DEFAULTS, autoDetectProvider } from '../api/provider-defaults.js';
 import { VALID_TRAITS, type AdaptPersonalityTool, type HEXACOTrait } from './AdaptPersonalityTool.js';
+import { resolveSelfImprovementSessionKey } from './sessionScope.js';
 
 // ============================================================================
 // TYPES
@@ -68,6 +69,17 @@ export interface AdjustmentRecord {
   timestamp: string;
 }
 
+interface SuggestedAdjustment {
+  param: string;
+  value: unknown;
+  reasoning?: string;
+}
+
+interface ParsedEvaluation {
+  scores: EvaluationScores;
+  adjustments: SuggestedAdjustment[];
+}
+
 /**
  * Memory trace stored via the optional storeMemory callback.
  */
@@ -80,6 +92,13 @@ export interface MemoryTrace {
   content: string;
   /** Tags for categorization and retrieval. */
   tags: string[];
+}
+
+interface SelfEvaluateSessionState {
+  evaluations: EvaluationRecord[];
+  adjustments: AdjustmentRecord[];
+  params: Map<string, unknown>;
+  evalCount: number;
 }
 
 // ============================================================================
@@ -134,6 +153,10 @@ export interface SelfEvaluateDeps {
   storeMemory?: (trace: MemoryTrace) => Promise<void>;
   /** Optional override for tests or custom judge routing. */
   generateTextImpl?: typeof generateText;
+  /** Optional host-level getter for session runtime parameters. */
+  getSessionParam?: (param: string, context: ToolExecutionContext) => unknown;
+  /** Optional host-level setter for session runtime parameters. */
+  setSessionParam?: (param: string, value: unknown, context: ToolExecutionContext) => void;
 }
 
 // ============================================================================
@@ -215,17 +238,8 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     required: ['action'],
   };
 
-  /** Session evaluation history. */
-  private readonly evaluations: EvaluationRecord[] = [];
-
-  /** Session adjustment history. */
-  private readonly adjustments: AdjustmentRecord[] = [];
-
-  /** Current session parameter values (non-personality). */
-  private readonly sessionParams: Map<string, unknown> = new Map();
-
-  /** Number of evaluations performed this session. */
-  private evalCount = 0;
+  /** Mutable self-evaluation state keyed by session identity. */
+  private readonly sessionStates: Map<string, SelfEvaluateSessionState> = new Map();
 
   /** Injected dependencies. */
   private readonly deps: SelfEvaluateDeps;
@@ -261,7 +275,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
       case 'adjust':
         return this.handleAdjust(args, context);
       case 'report':
-        return this.handleReport();
+        return this.handleReport(context);
       default:
         return {
           success: false,
@@ -282,7 +296,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
    */
   private async handleEvaluate(
     args: SelfEvaluateInput,
-    _context: ToolExecutionContext,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     const { response, query } = args;
 
@@ -294,7 +308,9 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     }
 
     // Check session evaluation limit
-    if (this.evalCount >= this.deps.config.maxEvaluationsPerSession) {
+    const sessionState = this.getSessionState(context);
+
+    if (sessionState.evalCount >= this.deps.config.maxEvaluationsPerSession) {
       return {
         success: false,
         error: `Maximum evaluations per session reached (${this.deps.config.maxEvaluationsPerSession})`,
@@ -306,53 +322,61 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     try {
       const result = await (this.deps.generateTextImpl ?? generateText)({
         model: this.resolveEvaluationModel(),
-        system:
-          'You are a response quality evaluator. Score the following response on four dimensions: ' +
-          'relevance, clarity, accuracy, and helpfulness. Each score is a number between 0 and 1. ' +
-          'Return ONLY a JSON object with these four keys, no other text.',
+        system: this.buildEvaluationPrompt(),
         prompt: `User query: ${query}\n\nResponse to evaluate: ${response}`,
         temperature: 0,
         maxTokens: 200,
       });
 
-      scores = this.parseScores(result.text);
+      const parsed = this.parseEvaluation(result.text);
+      scores = parsed.scores;
+
+      const autoAdjustResults = this.deps.config.autoAdjust
+        ? await this.applySuggestedAdjustments(parsed.adjustments, context)
+        : undefined;
+
+      // Record the evaluation
+      const record: EvaluationRecord = {
+        scores,
+        timestamp: new Date().toISOString(),
+      };
+      sessionState.evaluations.push(record);
+      sessionState.evalCount++;
+
+      // Store as memory trace if callback is provided
+      if (this.deps.storeMemory) {
+        try {
+          await this.deps.storeMemory({
+            type: 'self-evaluation',
+            scope: 'session',
+            content: JSON.stringify({
+              query,
+              scores,
+              autoAdjustments: autoAdjustResults?.appliedAdjustments ?? [],
+            }),
+            tags: ['evaluation', 'quality'],
+          });
+        } catch {
+          // Best-effort memory storage; don't fail the evaluation
+        }
+      }
+
+      return {
+        success: true,
+        output: {
+          scores,
+          evalCount: sessionState.evalCount,
+          remainingEvaluations:
+            this.deps.config.maxEvaluationsPerSession - sessionState.evalCount,
+          ...(autoAdjustResults ?? {}),
+        },
+      };
     } catch (err: any) {
       return {
         success: false,
         error: `Evaluation LLM call failed: ${err.message ?? String(err)}`,
       };
     }
-
-    // Record the evaluation
-    const record: EvaluationRecord = {
-      scores,
-      timestamp: new Date().toISOString(),
-    };
-    this.evaluations.push(record);
-    this.evalCount++;
-
-    // Store as memory trace if callback is provided
-    if (this.deps.storeMemory) {
-      try {
-        await this.deps.storeMemory({
-          type: 'self-evaluation',
-          scope: 'session',
-          content: JSON.stringify({ query, scores }),
-          tags: ['evaluation', 'quality'],
-        });
-      } catch {
-        // Best-effort memory storage; don't fail the evaluation
-      }
-    }
-
-    return {
-      success: true,
-      output: {
-        scores,
-        evalCount: this.evalCount,
-        remainingEvaluations: this.deps.config.maxEvaluationsPerSession - this.evalCount,
-      },
-    };
   }
 
   // --------------------------------------------------------------------------
@@ -371,6 +395,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     const { param, value, reasoning } = args;
+    const sessionState = this.getSessionState(context);
 
     if (!param || typeof param !== 'string') {
       return { success: false, error: 'param is required for the adjust action' };
@@ -414,6 +439,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
         delta,
         reasoning ?? `Self-evaluation adjustment for ${trait}`,
         context,
+        sessionState,
       );
     }
 
@@ -439,6 +465,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
         value,
         reasoning ?? `Self-evaluation adjustment for ${param}`,
         context,
+        sessionState,
       );
     }
 
@@ -450,10 +477,12 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     }
 
     // Non-personality parameter (temperature, verbosity, etc.)
-    const prevValue = this.sessionParams.get(param);
-    this.sessionParams.set(param, value);
+    const prevValue =
+      this.deps.getSessionParam?.(param, context) ?? sessionState.params.get(param);
+    sessionState.params.set(param, value);
+    this.deps.setSessionParam?.(param, value, context);
 
-    this.adjustments.push({
+    sessionState.adjustments.push({
       param,
       prev: prevValue ?? null,
       new: value,
@@ -480,7 +509,10 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
    * Aggregates all evaluations, computes score averages, lists all adjustments,
    * and summarizes personality drift and skill changes.
    */
-  private async handleReport(): Promise<ToolExecutionResult> {
+  private async handleReport(
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    const sessionState = this.getSessionState(context, false);
     // Compute average scores across all evaluations
     const averages: EvaluationScores = {
       relevance: 0,
@@ -489,15 +521,15 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
       helpfulness: 0,
     };
 
-    if (this.evaluations.length > 0) {
-      for (const evalRecord of this.evaluations) {
+    if (sessionState.evaluations.length > 0) {
+      for (const evalRecord of sessionState.evaluations) {
         averages.relevance += evalRecord.scores.relevance;
         averages.clarity += evalRecord.scores.clarity;
         averages.accuracy += evalRecord.scores.accuracy;
         averages.helpfulness += evalRecord.scores.helpfulness;
       }
 
-      const count = this.evaluations.length;
+      const count = sessionState.evaluations.length;
       averages.relevance /= count;
       averages.clarity /= count;
       averages.accuracy /= count;
@@ -508,7 +540,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     const personalityDrift: Record<string, { totalDelta: number; adjustmentCount: number }> = {};
     const paramAdjustments: AdjustmentRecord[] = [];
 
-    for (const adj of this.adjustments) {
+    for (const adj of sessionState.adjustments) {
       if (this.isPersonalityTrait(adj.param)) {
         if (!personalityDrift[adj.param]) {
           personalityDrift[adj.param] = { totalDelta: 0, adjustmentCount: 0 };
@@ -524,11 +556,11 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     return {
       success: true,
       output: {
-        totalEvaluations: this.evaluations.length,
+        totalEvaluations: sessionState.evaluations.length,
         averageScores: averages,
         adjustments: paramAdjustments,
         personalityDrift,
-        evaluations: this.evaluations,
+        evaluations: sessionState.evaluations,
       },
     };
   }
@@ -549,14 +581,46 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     return 'openai:gpt-4o-mini';
   }
 
-  private parseScores(rawText: string): EvaluationScores {
-    const parsed = this.extractJsonPayload(rawText) as Partial<EvaluationScores>;
+  private buildEvaluationPrompt(): string {
+    const basePrompt =
+      'You are a response quality evaluator. Score the following response on four dimensions: ' +
+      'relevance, clarity, accuracy, and helpfulness. Each score is a number between 0 and 1.';
+
+    if (!this.deps.config.autoAdjust || this.deps.config.adjustableParams.length === 0) {
+      return `${basePrompt} Return ONLY a JSON object with these four keys, no other text.`;
+    }
+
+    return (
+      `${basePrompt} Return ONLY JSON with numeric keys ` +
+      `"relevance", "clarity", "accuracy", and "helpfulness". ` +
+      `You MAY also include an "adjustments" array of recommended changes using only these allowed params: ` +
+      `${this.deps.config.adjustableParams.join(', ')}. ` +
+      `Each adjustment must be an object like {"param":"temperature","value":0.2,"reasoning":"..."} or ` +
+      `{"param":"personality","value":{"trait":"openness","delta":0.05},"reasoning":"..."}. ` +
+      `Only propose small bounded changes when they are clearly justified.`
+    );
+  }
+
+  private parseEvaluation(rawText: string): ParsedEvaluation {
+    const parsedPayload = this.extractJsonPayload(rawText);
+    const parsedRecord =
+      parsedPayload && typeof parsedPayload === 'object'
+        ? (parsedPayload as Record<string, unknown>)
+        : {};
+    const nestedScores = parsedRecord.scores;
+    const scoreSource =
+      nestedScores && typeof nestedScores === 'object'
+        ? (nestedScores as Record<string, unknown>)
+        : parsedRecord;
 
     return {
-      relevance: this.normalizeScore(parsed.relevance),
-      clarity: this.normalizeScore(parsed.clarity),
-      accuracy: this.normalizeScore(parsed.accuracy),
-      helpfulness: this.normalizeScore(parsed.helpfulness),
+      scores: {
+        relevance: this.normalizeScore(scoreSource.relevance),
+        clarity: this.normalizeScore(scoreSource.clarity),
+        accuracy: this.normalizeScore(scoreSource.accuracy),
+        helpfulness: this.normalizeScore(scoreSource.helpfulness),
+      },
+      adjustments: this.normalizeAdjustments(parsedRecord.adjustments),
     };
   }
 
@@ -579,6 +643,38 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
       : 0.5;
   }
 
+  private normalizeAdjustments(value: unknown): SuggestedAdjustment[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const normalized: SuggestedAdjustment[] = [];
+
+    for (const item of value) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const record = item as Record<string, unknown>;
+      const param = typeof record.param === 'string' ? record.param : undefined;
+      const reasoning =
+        typeof record.reasoning === 'string' ? record.reasoning : undefined;
+      const adjustmentValue = record.value;
+
+      if (!param || adjustmentValue === undefined) {
+        continue;
+      }
+
+      normalized.push({
+        param,
+        value: adjustmentValue,
+        reasoning,
+      });
+    }
+
+    return normalized;
+  }
+
   private isPersonalityTrait(param: unknown): param is HEXACOTrait {
     return typeof param === 'string' && VALID_TRAITS.includes(param as HEXACOTrait);
   }
@@ -588,6 +684,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     delta: number,
     reasoning: string,
     context: ToolExecutionContext,
+    sessionState: SelfEvaluateSessionState,
   ): Promise<ToolExecutionResult> {
     if (!this.deps.adaptPersonality) {
       return {
@@ -602,7 +699,7 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     );
 
     if (personalityResult.success && personalityResult.output) {
-      this.adjustments.push({
+      sessionState.adjustments.push({
         param: trait,
         prev: personalityResult.output.previousValue,
         new: personalityResult.output.newValue,
@@ -611,5 +708,66 @@ export class SelfEvaluateTool implements ITool<SelfEvaluateInput> {
     }
 
     return personalityResult;
+  }
+
+  private async applySuggestedAdjustments(
+    adjustments: SuggestedAdjustment[],
+    context: ToolExecutionContext,
+  ): Promise<{
+    appliedAdjustments: Array<{ param: string; output: unknown }>;
+    skippedAdjustments: Array<{ param: string; reason: string }>;
+  }> {
+    const appliedAdjustments: Array<{ param: string; output: unknown }> = [];
+    const skippedAdjustments: Array<{ param: string; reason: string }> = [];
+
+    for (const adjustment of adjustments.slice(0, 3)) {
+      const result = await this.handleAdjust(
+        {
+          action: 'adjust',
+          param: adjustment.param,
+          value: adjustment.value,
+          reasoning: adjustment.reasoning,
+        },
+        context,
+      );
+
+      if (result.success) {
+        appliedAdjustments.push({
+          param: adjustment.param,
+          output: result.output ?? null,
+        });
+      } else {
+        skippedAdjustments.push({
+          param: adjustment.param,
+          reason: result.error ?? 'Unknown adjustment error',
+        });
+      }
+    }
+
+    return { appliedAdjustments, skippedAdjustments };
+  }
+
+  private getSessionState(
+    context: ToolExecutionContext,
+    createIfMissing = true,
+  ): SelfEvaluateSessionState {
+    const sessionKey = resolveSelfImprovementSessionKey(context);
+    const existing = this.sessionStates.get(sessionKey);
+    if (existing) {
+      return existing;
+    }
+
+    const emptyState: SelfEvaluateSessionState = {
+      evaluations: [],
+      adjustments: [],
+      params: new Map<string, unknown>(),
+      evalCount: 0,
+    };
+
+    if (createIfMissing) {
+      this.sessionStates.set(sessionKey, emptyState);
+    }
+
+    return emptyState;
   }
 }

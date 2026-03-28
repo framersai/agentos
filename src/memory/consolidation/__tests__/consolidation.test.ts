@@ -19,8 +19,10 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { MemoryTrace } from '../../types.js';
 import { SqliteBrain } from '../../store/SqliteBrain.js';
 import { SqliteMemoryGraph } from '../../store/SqliteMemoryGraph.js';
+import { RetrievalFeedbackSignal } from '../../feedback/RetrievalFeedbackSignal.js';
 import { ConsolidationLoop } from '../ConsolidationLoop.js';
 
 // ---------------------------------------------------------------------------
@@ -255,6 +257,51 @@ describe('ConsolidationLoop — Strengthen', () => {
              (e.sourceId === 'co-b' && e.targetId === 'co-a'),
     );
     expect(coEdge).toBeDefined();
+  });
+
+  it('records CO_ACTIVATED edges from RetrievalFeedbackSignal.detect when context is provided', async () => {
+    const { brain, graph } = await createTestEnv();
+    const signal = new RetrievalFeedbackSignal(brain);
+
+    await insertTrace(brain, { id: 'detect-a', content: 'Distributed systems rely on consensus protocols' });
+    await insertTrace(brain, { id: 'detect-b', content: 'Microservices architecture benefits from service discovery' });
+
+    const traces: MemoryTrace[] = [
+      {
+        id: 'detect-a',
+        type: 'episodic',
+        scope: 'user',
+        content: 'Distributed systems rely on consensus protocols',
+        encodingStrength: 1,
+        importance: 1,
+        createdAt: Date.now(),
+      },
+      {
+        id: 'detect-b',
+        type: 'episodic',
+        scope: 'user',
+        content: 'Microservices architecture benefits from service discovery',
+        encodingStrength: 1,
+        importance: 1,
+        createdAt: Date.now(),
+      },
+    ];
+
+    await signal.detect(
+      traces,
+      'Distributed systems and microservices both require careful service coordination.',
+      'how do distributed systems work?',
+    );
+
+    const loop = new ConsolidationLoop(brain, graph);
+    const result = await loop.run();
+
+    expect(result.derived).toBeGreaterThanOrEqual(1);
+    const edges = graph.getEdges('detect-a', 'CO_ACTIVATED');
+    expect(edges.some((e) =>
+      (e.sourceId === 'detect-a' && e.targetId === 'detect-b') ||
+      (e.sourceId === 'detect-b' && e.targetId === 'detect-a'),
+    )).toBe(true);
   });
 });
 

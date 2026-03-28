@@ -4,10 +4,12 @@ import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => {
+  const generateCompletion = vi.fn();
   const generateCompletionStream = vi.fn();
-  const getProvider = vi.fn(() => ({ generateCompletionStream }));
+  const getProvider = vi.fn(() => ({ generateCompletion, generateCompletionStream }));
   const createProviderManager = vi.fn(async () => ({ getProvider }));
   return {
+    generateCompletion,
     generateCompletionStream,
     getProvider,
     createProviderManager,
@@ -26,11 +28,95 @@ vi.mock('../model.js', () => ({
 }));
 
 import { streamText } from '../streamText.js';
+import { DEFAULT_COT_INSTRUCTION } from '../generateText.js';
 import { clearRecordedAgentOSUsage, getRecordedAgentOSUsage } from '../usageLedger.js';
 
 describe('streamText', () => {
   beforeEach(() => {
+    hoisted.generateCompletion.mockReset();
     hoisted.generateCompletionStream.mockReset();
+  });
+
+  it('applies planning and chain-of-thought before the streaming loop', async () => {
+    hoisted.generateCompletion.mockResolvedValueOnce({
+      modelId: 'gpt-4.1-mini',
+      usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: JSON.stringify({
+              steps: [
+                {
+                  description: 'Look up protocol context',
+                  tool: 'lookup',
+                  reasoning: 'Need supporting information',
+                },
+              ],
+            }),
+          },
+          finishReason: 'stop',
+        },
+      ],
+    });
+
+    hoisted.generateCompletionStream.mockImplementationOnce(async function* () {
+      yield {
+        id: 'step-1',
+        object: 'chat.completion.chunk',
+        created: 1,
+        modelId: 'gpt-4.1-mini',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: 'Done.' },
+            finishReason: 'stop',
+          },
+        ],
+        responseTextDelta: 'Done.',
+        isFinal: true,
+        usage: { promptTokens: 4, completionTokens: 3, totalTokens: 7 },
+      };
+    });
+
+    const result = streamText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Explain QUIC.',
+      system: 'You are a helper.',
+      planning: true,
+      chainOfThought: true,
+      tools: {
+        lookup: {
+          description: 'Look up protocol context',
+          parameters: {
+            type: 'object',
+            properties: { topic: { type: 'string' } },
+            required: ['topic'],
+          },
+        },
+      },
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of result.textStream) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(['Done.']);
+    expect(hoisted.generateCompletion).toHaveBeenCalledTimes(1);
+    const planningCallMessages = hoisted.generateCompletion.mock.calls[0][1];
+    expect(planningCallMessages[0].content).toContain('planning');
+
+    const streamedMessages = hoisted.generateCompletionStream.mock.calls[0][1];
+    const systemMessages = streamedMessages.filter((m: any) => m.role === 'system');
+    expect(systemMessages[0].content).toContain(DEFAULT_COT_INSTRUCTION);
+    expect(systemMessages[0].content).toContain('You are a helper.');
+    expect(systemMessages.some((m: any) => String(m.content).includes('Follow this plan'))).toBe(true);
+    await expect(result.usage).resolves.toEqual({
+      promptTokens: 24,
+      completionTokens: 13,
+      totalTokens: 37,
+    });
   });
 
   it('executes streamed tool calls before continuing to the next step', async () => {
@@ -133,6 +219,91 @@ describe('streamText', () => {
     ]);
   });
 
+  it('parses text-based tool calls during streaming and continues the loop', async () => {
+    hoisted.generateCompletionStream
+      .mockImplementationOnce(async function* () {
+        const toolText = [
+          'Thought: I should use the lookup tool.',
+          'Action: lookup',
+          'Input: {"topic":"QUIC"}',
+        ].join('\n');
+
+        yield {
+          id: 'step-1',
+          object: 'chat.completion.chunk',
+          created: 1,
+          modelId: 'gpt-4.1-mini',
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: toolText },
+              finishReason: 'stop',
+            },
+          ],
+          responseTextDelta: toolText,
+          isFinal: true,
+          usage: { promptTokens: 8, completionTokens: 5, totalTokens: 13 },
+        };
+      })
+      .mockImplementationOnce(async function* () {
+        yield {
+          id: 'step-2',
+          object: 'chat.completion.chunk',
+          created: 2,
+          modelId: 'gpt-4.1-mini',
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: 'QUIC reduces handshake overhead.' },
+              finishReason: 'stop',
+            },
+          ],
+          responseTextDelta: 'QUIC reduces handshake overhead.',
+          isFinal: true,
+          usage: { promptTokens: 7, completionTokens: 4, totalTokens: 11 },
+        };
+      });
+
+    const execute = vi.fn(async ({ topic }: { topic: string }) => ({
+      success: true,
+      output: { summary: `context for ${topic}` },
+    }));
+
+    const result = streamText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Explain QUIC.',
+      maxSteps: 2,
+      tools: {
+        lookup: {
+          description: 'Look up protocol context',
+          parameters: {
+            type: 'object',
+            properties: { topic: { type: 'string' } },
+            required: ['topic'],
+          },
+          execute,
+        },
+      },
+    });
+
+    const parts: Array<{ type: string; [key: string]: unknown }> = [];
+    for await (const part of result.fullStream) {
+      parts.push(part as any);
+    }
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(parts.some((part) => part.type === 'tool-call' && part.toolName === 'lookup')).toBe(true);
+    expect(parts.some((part) => part.type === 'tool-result' && part.toolName === 'lookup')).toBe(true);
+    await expect(result.text).resolves.toBe('QUIC reduces handshake overhead.');
+    await expect(result.toolCalls).resolves.toEqual([
+      {
+        name: 'lookup',
+        args: { topic: 'QUIC' },
+        result: { summary: 'context for QUIC' },
+      },
+    ]);
+  });
+
   it('persists streaming usage when a ledger path is configured', async () => {
     const ledgerPath = path.join(os.tmpdir(), `agentos-stream-text-${Date.now()}.jsonl`);
 
@@ -183,6 +354,8 @@ describe('streamText', () => {
   });
 
   it('accepts external tool registries provided as Map instances', async () => {
+    const observedContexts: any[] = [];
+
     hoisted.generateCompletionStream
       .mockImplementationOnce(async function* () {
         yield {
@@ -249,10 +422,13 @@ describe('streamText', () => {
               },
               required: ['profileId'],
             },
-            execute: vi.fn(async ({ profileId }: { profileId: string }) => ({
-              success: true,
-              output: { profile: { id: profileId, preferredTheme: 'solarized' } },
-            })),
+            execute: vi.fn(async ({ profileId }: { profileId: string }, context: any) => {
+              observedContexts.push(context);
+              return {
+                success: true,
+                output: { profile: { id: profileId, preferredTheme: 'solarized' } },
+              };
+            }),
           },
         ],
       ]),
@@ -292,5 +468,16 @@ describe('streamText', () => {
         result: { profile: { id: 'profile-1', preferredTheme: 'solarized' } },
       },
     ]);
+    expect(observedContexts[0]).toMatchObject({
+      gmiId: expect.stringMatching(/^streamText:/),
+      personaId: 'streamText:persona',
+      userContext: { userId: 'system', source: 'streamText' },
+      correlationId: 'tool-1',
+      sessionData: {
+        source: 'streamText',
+        stepIndex: 0,
+        sessionId: expect.stringMatching(/^streamText:/),
+      },
+    });
   });
 });

@@ -43,6 +43,7 @@ import type {
   ClassificationResult,
   ConversationMessage,
   QueryTier,
+  QueryRouterRequestOptions,
   RetrievalStrategy,
 } from './types.js';
 import { buildDefaultPlan, buildDefaultExecutionPlan } from '../rag/unified/types.js';
@@ -170,7 +171,7 @@ Respond with ONLY a JSON object (no markdown fences, no extra text):
   "confidence": <0.0 to 1.0>,
   "internal_knowledge_sufficient": <true|false>,
   "suggested_sources": [<"vector"|"graph"|"research">],
-  "tools_needed": [<tool names or empty>]
+  "tools_needed": [<plain tool IDs like "webSearch" or empty; never "tool:webSearch">]
 }`;
 
 // ============================================================================
@@ -238,9 +239,9 @@ Think step by step about this query:
 4. MODALITY: Does this query reference images, audio, or visual content?
 5. TEMPORAL: Is this about recent events? Should we prefer newer information?
 6. DECOMPOSABILITY: Can this be broken into sub-questions?
-7. SKILLS NEEDED: Based on the available skill categories above, which skills should be activated? Consider skills that would help fulfill the user's request (e.g., web-search for finding information, coding-agent for code tasks, email-intelligence for email tasks). Only recommend skills that are genuinely needed.
-8. TOOLS NEEDED: Based on the available tool categories above, which specific tools should be made available? Consider tools the agent will need to invoke (e.g., generateImage for image requests, webSearch for web queries). Only recommend tools that are genuinely needed.
-9. EXTENSIONS NEEDED: Based on the available extension categories above, which extensions should be loaded? Extensions are heavier than individual tools, so only recommend when their full bundle is needed (e.g., browser-automation for web scraping tasks, voice-synthesis for audio output).
+7. SKILLS NEEDED: Based on the available skill categories above, which skills should be activated? Consider skills that would help fulfill the user's request (e.g., web-search for finding information, coding-agent for code tasks, email-intelligence for email tasks). Only recommend skills that are genuinely needed. Return plain registry skill IDs like "web-search", not capability IDs like "skill:web-search".
+8. TOOLS NEEDED: Based on the available tool categories above, which specific tools should be made available? Consider tools the agent will need to invoke (e.g., generateImage for image requests, webSearch for web queries). Only recommend tools that are genuinely needed. Return plain tool IDs like "webSearch", not capability IDs like "tool:webSearch".
+9. EXTENSIONS NEEDED: Based on the available extension categories above, which extensions should be loaded? Extensions are heavier than individual tools, so only recommend when their full bundle is needed (e.g., browser-automation for web scraping tasks, voice-synthesis for audio output). Return plain extension IDs like "browser-automation", not capability IDs like "extension:browser-automation".
 10. EXTERNAL CALLS: Does this query require calling external APIs or services beyond internal knowledge retrieval?
 
 Based on your analysis, output ONLY a JSON object (no markdown fences, no extra text):
@@ -273,13 +274,13 @@ Based on your analysis, output ONLY a JSON object (no markdown fences, no extra 
   "raptorLayers": [0],
   "deepResearch": false,
   "skills": [
-    {"skillId": "skill-name", "reasoning": "why needed", "confidence": 0.9, "priority": 0}
+    {"skillId": "web-search", "reasoning": "why needed", "confidence": 0.9, "priority": 0}
   ],
   "tools": [
-    {"toolId": "tool-name", "reasoning": "why needed", "confidence": 0.9, "priority": 0}
+    {"toolId": "webSearch", "reasoning": "why needed", "confidence": 0.9, "priority": 0}
   ],
   "extensions": [
-    {"extensionId": "ext-name", "reasoning": "why needed", "confidence": 0.8, "priority": 0}
+    {"extensionId": "browser-automation", "reasoning": "why needed", "confidence": 0.8, "priority": 0}
   ],
   "requires_external_calls": false,
   "confidence": 0.9,
@@ -554,6 +555,7 @@ export class QueryClassifier {
   async classify(
     query: string,
     conversationHistory?: ConversationMessage[],
+    _options?: QueryRouterRequestOptions,
   ): Promise<ClassificationResult> {
     try {
       const systemPrompt = this.buildSystemPrompt(conversationHistory);
@@ -616,9 +618,10 @@ export class QueryClassifier {
   async classifyWithPlan(
     query: string,
     conversationHistory?: ConversationMessage[],
+    options?: QueryRouterRequestOptions,
   ): Promise<[ClassificationResult, ExecutionPlan]> {
     try {
-      const systemPrompt = this.buildPlanSystemPrompt(conversationHistory);
+      const systemPrompt = this.buildPlanSystemPrompt(conversationHistory, options);
 
       const response = await generateText({
         provider: this.config.provider,
@@ -632,18 +635,42 @@ export class QueryClassifier {
 
       const { classification, plan } = this.parsePlanResponse(response.text);
       const constrainedClassification = this.applyConstraints(classification);
+      const filteredSkills = filterExcludedSkillRecommendations(plan.skills, options);
+      const strategyWasEscalated =
+        STRATEGY_TO_TIER[constrainedClassification.strategy] > STRATEGY_TO_TIER[plan.strategy];
 
       // Re-sync plan strategy with constrained classification
-      const constrainedPlan: ExecutionPlan = {
-        ...plan,
-        strategy: constrainedClassification.strategy,
-        confidence: constrainedClassification.confidence,
-      };
+      const constrainedPlan: ExecutionPlan = strategyWasEscalated
+        ? buildDefaultExecutionPlan(constrainedClassification.strategy, {
+            confidence: constrainedClassification.confidence,
+            reasoning: plan.reasoning,
+            skills: filteredSkills,
+            tools: plan.tools,
+            extensions: plan.extensions,
+            requiresExternalCalls:
+              constrainedClassification.strategy !== 'none' ||
+              filteredSkills.length > 0 ||
+              plan.tools.length > 0 ||
+              plan.extensions.length > 0,
+            internalKnowledgeSufficient: constrainedClassification.internalKnowledgeSufficient,
+          })
+        : {
+            ...plan,
+            strategy: constrainedClassification.strategy,
+            confidence: constrainedClassification.confidence,
+            internalKnowledgeSufficient: constrainedClassification.internalKnowledgeSufficient,
+            skills: filteredSkills,
+            requiresExternalCalls:
+              constrainedClassification.strategy !== 'none' ||
+              filteredSkills.length > 0 ||
+              plan.tools.length > 0 ||
+              plan.extensions.length > 0,
+          };
 
       return [constrainedClassification, constrainedPlan];
     } catch {
       const fallback = this.fallbackResult();
-      const heuristicCaps = heuristicCapabilitySelect(query);
+      const heuristicCaps = heuristicCapabilitySelect(query, options);
       return [fallback, buildDefaultExecutionPlan(fallback.strategy, {
         skills: heuristicCaps.skills,
         tools: heuristicCaps.tools,
@@ -672,7 +699,10 @@ export class QueryClassifier {
    * @param conversationHistory - Optional conversation messages to include.
    * @returns The fully rendered plan system prompt string.
    */
-  private buildPlanSystemPrompt(conversationHistory?: ConversationMessage[]): string {
+  private buildPlanSystemPrompt(
+    conversationHistory?: ConversationMessage[],
+    options?: QueryRouterRequestOptions,
+  ): string {
     let conversationContext = 'No prior conversation.';
 
     if (conversationHistory && conversationHistory.length > 0) {
@@ -687,7 +717,9 @@ export class QueryClassifier {
     let extensionSummaries = 'No extension categories available.';
 
     if (this.discoveryEngine?.isInitialized()) {
-      const byKind = this.discoveryEngine.getTier0SummariesByKind();
+      const byKind = this.discoveryEngine.getTier0SummariesByKind(
+        options?.excludedCapabilityIds,
+      );
       if (byKind.skills) skillSummaries = byKind.skills;
       if (byKind.tools) toolSummaries = byKind.tools;
       if (byKind.extensions) extensionSummaries = byKind.extensions;
@@ -725,93 +757,122 @@ export class QueryClassifier {
 
     const raw: RawPlanClassifierResponse = JSON.parse(jsonMatch[0]);
 
-    const tier = raw.tier as QueryTier;
+    const tier = normalizeClassificationTier(raw.tier);
     const strategy: RetrievalStrategy =
       raw.strategy && VALID_STRATEGIES.has(raw.strategy)
         ? (raw.strategy as RetrievalStrategy)
         : TIER_TO_STRATEGY[tier] ?? 'simple';
+    const normalizedConfidence = clampUnitInterval(raw.confidence);
+    const internalKnowledgeSufficient = normalizeBoolean(
+      raw.internal_knowledge_sufficient,
+      false,
+    );
 
     const classification: ClassificationResult = {
       tier,
       strategy,
-      confidence: raw.confidence,
+      confidence: normalizedConfidence,
       reasoning: raw.thinking,
-      internalKnowledgeSufficient: raw.internal_knowledge_sufficient,
-      suggestedSources: raw.suggested_sources as ClassificationResult['suggestedSources'],
-      toolsNeeded: raw.tools_needed,
+      internalKnowledgeSufficient,
+      suggestedSources: normalizeSuggestedSources(raw.suggested_sources),
+      toolsNeeded: normalizeToolIdList(raw.tools_needed),
     };
 
     // Build the plan from LLM output, filling gaps from defaults
     const defaults = buildDefaultPlan(strategy);
 
     // Parse capability recommendations — validate and normalize each entry
-    const skills: SkillRecommendation[] = (raw.skills ?? [])
+    const skills: SkillRecommendation[] = normalizeSkillRecommendations((raw.skills ?? [])
       .filter((s) => s.skillId)
       .map((s, i) => ({
-        skillId: s.skillId!,
+        skillId: normalizeCapabilityRecommendationId('skill', s.skillId!),
         reasoning: s.reasoning ?? 'Recommended by classifier',
         confidence: Math.max(0, Math.min(1, s.confidence ?? 0.5)),
         priority: s.priority ?? i,
       }))
-      .sort((a, b) => a.priority - b.priority);
+      .sort((a, b) => a.priority - b.priority));
 
-    const tools: ToolRecommendation[] = (raw.tools ?? [])
+    const tools: ToolRecommendation[] = normalizeToolRecommendations((raw.tools ?? [])
       .filter((t) => t.toolId)
       .map((t, i) => ({
-        toolId: t.toolId!,
+        toolId: normalizeCapabilityRecommendationId('tool', t.toolId!),
         reasoning: t.reasoning ?? 'Recommended by classifier',
         confidence: Math.max(0, Math.min(1, t.confidence ?? 0.5)),
         priority: t.priority ?? i,
       }))
-      .sort((a, b) => a.priority - b.priority);
+      .sort((a, b) => a.priority - b.priority));
 
-    const extensions: ExtensionRecommendation[] = (raw.extensions ?? [])
+    const extensions: ExtensionRecommendation[] = normalizeExtensionRecommendations((raw.extensions ?? [])
       .filter((e) => e.extensionId)
       .map((e, i) => ({
-        extensionId: e.extensionId!,
+        extensionId: normalizeCapabilityRecommendationId('extension', e.extensionId!),
         reasoning: e.reasoning ?? 'Recommended by classifier',
         confidence: Math.max(0, Math.min(1, e.confidence ?? 0.5)),
         priority: e.priority ?? i,
       }))
-      .sort((a, b) => a.priority - b.priority);
+      .sort((a, b) => a.priority - b.priority));
 
-    const requiresExternalCalls = raw.requires_external_calls ??
-      (skills.length > 0 || tools.length > 0 || strategy !== 'none');
+    const memoryTypes = normalizeMemoryTypes(raw.memoryTypes, defaults.memoryTypes);
+    const modalities = normalizeModalities(raw.modalities, defaults.modalities);
+    const requiresMultimodalSource = modalities.some((modality) => modality !== 'text');
+    const requiresExternalCalls = typeof raw.requires_external_calls === 'boolean'
+      ? raw.requires_external_calls
+      : (skills.length > 0 || tools.length > 0 || extensions.length > 0 || strategy !== 'none');
 
     const plan: ExecutionPlan = {
       strategy,
       sources: {
-        vector: raw.sources?.vector ?? defaults.sources.vector,
-        bm25: raw.sources?.bm25 ?? defaults.sources.bm25,
-        graph: raw.sources?.graph ?? defaults.sources.graph,
-        raptor: raw.sources?.raptor ?? defaults.sources.raptor,
-        memory: raw.sources?.memory ?? defaults.sources.memory,
-        multimodal: raw.sources?.multimodal ?? defaults.sources.multimodal,
+        vector: normalizeBoolean(raw.sources?.vector, defaults.sources.vector),
+        bm25: normalizeBoolean(raw.sources?.bm25, defaults.sources.bm25),
+        graph: normalizeBoolean(raw.sources?.graph, defaults.sources.graph),
+        raptor: normalizeBoolean(raw.sources?.raptor, defaults.sources.raptor),
+        memory: normalizeBoolean(raw.sources?.memory, defaults.sources.memory),
+        multimodal:
+          normalizeBoolean(raw.sources?.multimodal, defaults.sources.multimodal) ||
+          requiresMultimodalSource,
       },
       hyde: {
-        enabled: raw.hyde?.enabled ?? defaults.hyde.enabled,
-        hypothesisCount: raw.hyde?.hypothesisCount ?? defaults.hyde.hypothesisCount,
+        enabled: normalizeBoolean(raw.hyde?.enabled, defaults.hyde.enabled),
+        hypothesisCount: normalizeNonNegativeInteger(
+          raw.hyde?.hypothesisCount,
+          defaults.hyde.hypothesisCount,
+        ),
       },
-      memoryTypes: (raw.memoryTypes ?? defaults.memoryTypes) as RetrievalPlan['memoryTypes'],
-      modalities: (raw.modalities ?? defaults.modalities) as RetrievalPlan['modalities'],
+      memoryTypes,
+      modalities,
       temporal: {
-        preferRecent: raw.temporal?.preferRecent ?? defaults.temporal.preferRecent,
-        recencyBoost: raw.temporal?.recencyBoost ?? defaults.temporal.recencyBoost,
-        maxAgeMs: raw.temporal?.maxAgeMs !== undefined ? raw.temporal.maxAgeMs : defaults.temporal.maxAgeMs,
+        preferRecent: normalizeBoolean(
+          raw.temporal?.preferRecent,
+          defaults.temporal.preferRecent,
+        ),
+        recencyBoost: normalizeNonNegativeNumber(
+          raw.temporal?.recencyBoost,
+          defaults.temporal.recencyBoost,
+        ),
+        maxAgeMs: normalizeNullableNonNegativeInteger(
+          raw.temporal?.maxAgeMs,
+          defaults.temporal.maxAgeMs,
+        ),
       },
       graphConfig: {
-        maxDepth: raw.graphConfig?.maxDepth ?? defaults.graphConfig.maxDepth,
-        minEdgeWeight: raw.graphConfig?.minEdgeWeight ?? defaults.graphConfig.minEdgeWeight,
+        maxDepth: normalizeNonNegativeInteger(
+          raw.graphConfig?.maxDepth,
+          defaults.graphConfig.maxDepth,
+        ),
+        minEdgeWeight: normalizeUnitInterval(
+          raw.graphConfig?.minEdgeWeight,
+          defaults.graphConfig.minEdgeWeight,
+        ),
       },
-      raptorLayers: raw.raptorLayers ?? defaults.raptorLayers,
-      deepResearch: raw.deepResearch ?? defaults.deepResearch,
-      confidence: raw.confidence,
+      raptorLayers: normalizeNonNegativeIntegerList(raw.raptorLayers, defaults.raptorLayers),
+      deepResearch: normalizeBoolean(raw.deepResearch, defaults.deepResearch),
+      confidence: normalizedConfidence,
       reasoning: raw.reasoning ?? raw.thinking,
       skills,
       tools,
       extensions,
       requiresExternalCalls,
-      internalKnowledgeSufficient: raw.internal_knowledge_sufficient,
+      internalKnowledgeSufficient,
     };
 
     return { classification, plan };
@@ -863,22 +924,23 @@ export class QueryClassifier {
 
     const raw: RawClassifierResponse = JSON.parse(jsonMatch[0]);
 
-    const tier = raw.tier as QueryTier;
+    const tier = normalizeClassificationTier(raw.tier);
 
     // Validate the strategy field — fall back to tier-inferred if invalid or missing
     const strategy: RetrievalStrategy =
       raw.strategy && VALID_STRATEGIES.has(raw.strategy)
         ? (raw.strategy as RetrievalStrategy)
         : TIER_TO_STRATEGY[tier] ?? 'simple';
+    const normalizedConfidence = clampUnitInterval(raw.confidence);
 
     return {
       tier,
       strategy,
-      confidence: raw.confidence,
+      confidence: normalizedConfidence,
       reasoning: raw.thinking,
-      internalKnowledgeSufficient: raw.internal_knowledge_sufficient,
-      suggestedSources: raw.suggested_sources as ClassificationResult['suggestedSources'],
-      toolsNeeded: raw.tools_needed,
+      internalKnowledgeSufficient: normalizeBoolean(raw.internal_knowledge_sufficient, false),
+      suggestedSources: normalizeSuggestedSources(raw.suggested_sources),
+      toolsNeeded: normalizeToolIdList(raw.tools_needed),
     };
   }
 
@@ -903,21 +965,25 @@ export class QueryClassifier {
     // Cap at maxTier
     tier = Math.min(tier, this.config.maxTier) as QueryTier;
 
-    // Re-synchronise strategy with the (possibly adjusted) tier.
-    // If the tier was bumped and strategy didn't change, upgrade strategy
-    // to match the new tier level.
-    if (tier !== result.tier) {
-      const tierStrategy = TIER_TO_STRATEGY[tier];
-      // Only upgrade, never downgrade — STRATEGY_TO_TIER values ascend
-      if (STRATEGY_TO_TIER[tierStrategy] > STRATEGY_TO_TIER[strategy]) {
-        strategy = tierStrategy;
-      }
+    // Re-synchronise strategy with the final tier.
+    // Only upgrade, never downgrade — strategy can be more aggressive than
+    // tier, but it should never be weaker than the chosen tier level.
+    const tierStrategy = TIER_TO_STRATEGY[tier];
+    if (STRATEGY_TO_TIER[tierStrategy] > STRATEGY_TO_TIER[strategy]) {
+      strategy = tierStrategy;
     }
 
     return {
       ...result,
       tier,
       strategy,
+      suggestedSources: mergeSuggestedSources(
+        result.suggestedSources,
+        getDefaultSuggestedSourcesForStrategy(strategy),
+      ),
+      internalKnowledgeSufficient: strategy === 'none'
+        ? result.internalKnowledgeSufficient
+        : false,
     };
   }
 
@@ -1013,18 +1079,22 @@ const HEURISTIC_TOOL_PATTERNS: Array<{
  * // caps.tools → [{ toolId: 'generateImage', ... }]
  * ```
  */
-export function heuristicCapabilitySelect(query: string): {
+export function heuristicCapabilitySelect(
+  query: string,
+  options?: QueryRouterRequestOptions,
+): {
   skills: SkillRecommendation[];
   tools: ToolRecommendation[];
 } {
   const skills: SkillRecommendation[] = [];
   const tools: ToolRecommendation[] = [];
+  const excludedCapabilityIds = normalizeExcludedCapabilityIds(options?.excludedCapabilityIds);
 
   let skillPriority = 0;
   let toolPriority = 0;
 
   for (const { pattern, skillId, reasoning } of HEURISTIC_SKILL_PATTERNS) {
-    if (pattern.test(query)) {
+    if (pattern.test(query) && !isExcludedSkillRecommendation(skillId, excludedCapabilityIds)) {
       skills.push({
         skillId,
         reasoning,
@@ -1046,4 +1116,385 @@ export function heuristicCapabilitySelect(query: string): {
   }
 
   return { skills, tools };
+}
+
+function filterExcludedSkillRecommendations(
+  skills: SkillRecommendation[],
+  options?: QueryRouterRequestOptions,
+): SkillRecommendation[] {
+  const excludedCapabilityIds = normalizeExcludedCapabilityIds(options?.excludedCapabilityIds);
+
+  if (skills.length === 0 || excludedCapabilityIds.size === 0) {
+    return skills;
+  }
+
+  const filteredSkills = skills.filter(
+    (skill) => !isExcludedSkillRecommendation(skill.skillId, excludedCapabilityIds),
+  );
+
+  if (filteredSkills.length === skills.length) {
+    return skills;
+  }
+
+  return filteredSkills.map((skill, index) => ({
+    ...skill,
+    priority: index,
+  }));
+}
+
+function normalizeExcludedCapabilityIds(values?: string[]): Set<string> {
+  return new Set(
+    (values ?? [])
+      .map((value) => value.trim().toLowerCase())
+      .filter((value) => value.length > 0),
+  );
+}
+
+function isExcludedSkillRecommendation(skillId: string, excludedCapabilityIds: Set<string>): boolean {
+  if (excludedCapabilityIds.size === 0) {
+    return false;
+  }
+
+  const normalizedSkillId = skillId.trim().toLowerCase();
+  if (!normalizedSkillId) {
+    return false;
+  }
+
+  const canonicalSkillId = normalizedSkillId.startsWith('skill:')
+    ? normalizedSkillId.slice('skill:'.length)
+    : normalizedSkillId;
+
+  return excludedCapabilityIds.has(normalizedSkillId) ||
+    excludedCapabilityIds.has(canonicalSkillId) ||
+    excludedCapabilityIds.has(`skill:${canonicalSkillId}`);
+}
+
+function normalizeCapabilityRecommendationId(
+  kind: 'skill' | 'tool' | 'extension',
+  id: string,
+): string {
+  const trimmed = id.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  if (kind === 'skill') {
+    return trimmed.replace(/^skill:/i, '').trim();
+  }
+
+  if (kind === 'tool') {
+    return trimmed.replace(/^tool:/i, '').trim();
+  }
+
+  return trimmed.replace(/^(extension|ext):/i, '').trim();
+}
+
+function normalizeSkillRecommendations(
+  skills: SkillRecommendation[],
+): SkillRecommendation[] {
+  return dedupeNormalizedRecommendations(skills, (skill) => skill.skillId, (skill, priority) => ({
+    ...skill,
+    priority,
+  }));
+}
+
+function normalizeToolRecommendations(
+  tools: ToolRecommendation[],
+): ToolRecommendation[] {
+  return dedupeNormalizedRecommendations(tools, (tool) => tool.toolId, (tool, priority) => ({
+    ...tool,
+    priority,
+  }));
+}
+
+function normalizeExtensionRecommendations(
+  extensions: ExtensionRecommendation[],
+): ExtensionRecommendation[] {
+  return dedupeNormalizedRecommendations(
+    extensions,
+    (extension) => extension.extensionId,
+    (extension, priority) => ({
+      ...extension,
+      priority,
+    }),
+  );
+}
+
+function dedupeNormalizedRecommendations<T>(
+  recommendations: T[],
+  getId: (recommendation: T) => string,
+  withPriority: (recommendation: T, priority: number) => T,
+): T[] {
+  if (recommendations.length <= 1) {
+    return recommendations;
+  }
+
+  const seenIds = new Set<string>();
+  const uniqueRecommendations: T[] = [];
+
+  for (const recommendation of recommendations) {
+    const normalizedId = getId(recommendation).trim().toLowerCase();
+    if (!normalizedId || seenIds.has(normalizedId)) {
+      continue;
+    }
+
+    seenIds.add(normalizedId);
+    uniqueRecommendations.push(recommendation);
+  }
+
+  if (uniqueRecommendations.length === recommendations.length) {
+    return recommendations;
+  }
+
+  return uniqueRecommendations.map((recommendation, index) => withPriority(recommendation, index));
+}
+
+function normalizeToolIdList(toolIds: string[]): string[] {
+  if (toolIds.length === 0) {
+    return toolIds;
+  }
+
+  const normalizedToolIds: string[] = [];
+  const seenToolIds = new Set<string>();
+
+  for (const toolId of toolIds) {
+    const normalizedToolId = normalizeCapabilityRecommendationId('tool', toolId);
+    const dedupeKey = normalizedToolId.trim().toLowerCase();
+    if (!dedupeKey || seenToolIds.has(dedupeKey)) {
+      continue;
+    }
+
+    seenToolIds.add(dedupeKey);
+    normalizedToolIds.push(normalizedToolId);
+  }
+
+  return normalizedToolIds;
+}
+
+function normalizeSuggestedSources(
+  suggestedSources: string[],
+): ClassificationResult['suggestedSources'] {
+  if (suggestedSources.length === 0) {
+    return suggestedSources as ClassificationResult['suggestedSources'];
+  }
+
+  const validSources = new Set<ClassificationResult['suggestedSources'][number]>([
+    'vector',
+    'graph',
+    'research',
+  ]);
+  const normalizedSources: ClassificationResult['suggestedSources'] = [];
+  const seenSources = new Set<string>();
+
+  for (const source of suggestedSources) {
+    const normalizedSource = source.trim().toLowerCase();
+    if (!validSources.has(normalizedSource as ClassificationResult['suggestedSources'][number])) {
+      continue;
+    }
+    if (seenSources.has(normalizedSource)) {
+      continue;
+    }
+
+    seenSources.add(normalizedSource);
+    normalizedSources.push(normalizedSource as ClassificationResult['suggestedSources'][number]);
+  }
+
+  return normalizedSources;
+}
+
+function getDefaultSuggestedSourcesForStrategy(
+  strategy: RetrievalStrategy,
+): ClassificationResult['suggestedSources'] {
+  switch (strategy) {
+    case 'none':
+      return [];
+    case 'simple':
+      return ['vector'];
+    case 'moderate':
+      return ['vector', 'graph'];
+    case 'complex':
+      return ['vector', 'graph', 'research'];
+  }
+}
+
+function mergeSuggestedSources(
+  current: ClassificationResult['suggestedSources'],
+  defaults: ClassificationResult['suggestedSources'],
+): ClassificationResult['suggestedSources'] {
+  if (defaults.length === 0) {
+    return current;
+  }
+
+  const mergedSources: ClassificationResult['suggestedSources'] = [];
+  const seenSources = new Set<string>();
+
+  for (const source of [...current, ...defaults]) {
+    if (seenSources.has(source)) {
+      continue;
+    }
+
+    seenSources.add(source);
+    mergedSources.push(source);
+  }
+
+  return mergedSources;
+}
+
+function normalizeMemoryTypes(
+  memoryTypes: string[] | undefined,
+  defaults: RetrievalPlan['memoryTypes'],
+): RetrievalPlan['memoryTypes'] {
+  return normalizeRetrievalEnumList(
+    memoryTypes,
+    new Set<RetrievalPlan['memoryTypes'][number]>([
+      'episodic',
+      'semantic',
+      'procedural',
+      'prospective',
+    ]),
+    defaults,
+  );
+}
+
+function normalizeModalities(
+  modalities: string[] | undefined,
+  defaults: RetrievalPlan['modalities'],
+): RetrievalPlan['modalities'] {
+  return normalizeRetrievalEnumList(
+    modalities,
+    new Set<RetrievalPlan['modalities'][number]>([
+      'text',
+      'image',
+      'audio',
+      'video',
+    ]),
+    defaults,
+  );
+}
+
+function normalizeRetrievalEnumList<T extends string>(
+  values: string[] | undefined,
+  validValues: Set<T>,
+  defaults: readonly T[],
+): T[] {
+  if (!values) {
+    return [...defaults];
+  }
+  if (values.length === 0) {
+    return [];
+  }
+
+  const normalizedValues: T[] = [];
+  const seenValues = new Set<string>();
+
+  for (const value of values) {
+    const normalizedValue = value.trim().toLowerCase();
+    if (!validValues.has(normalizedValue as T) || seenValues.has(normalizedValue)) {
+      continue;
+    }
+
+    seenValues.add(normalizedValue);
+    normalizedValues.push(normalizedValue as T);
+  }
+
+  return normalizedValues.length > 0 ? normalizedValues : [...defaults];
+}
+
+function normalizeClassificationTier(value: number): QueryTier {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+
+  const normalizedTier = Math.trunc(value);
+  if (normalizedTier <= 0) {
+    return 0;
+  }
+  if (normalizedTier >= 3) {
+    return 3;
+  }
+
+  return normalizedTier as QueryTier;
+}
+
+function clampUnitInterval(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeBoolean(value: unknown, defaultValue: boolean): boolean {
+  return typeof value === 'boolean' ? value : defaultValue;
+}
+
+function normalizeNonNegativeInteger(value: unknown, defaultValue: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return defaultValue;
+  }
+
+  const normalizedValue = Math.trunc(value);
+  return normalizedValue >= 0 ? normalizedValue : defaultValue;
+}
+
+function normalizeNonNegativeNumber(value: unknown, defaultValue: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return defaultValue;
+  }
+
+  return value;
+}
+
+function normalizeNullableNonNegativeInteger(
+  value: unknown,
+  defaultValue: number | null,
+): number | null {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return defaultValue;
+  }
+
+  const normalizedValue = Math.trunc(value);
+  return normalizedValue >= 0 ? normalizedValue : defaultValue;
+}
+
+function normalizeUnitInterval(value: unknown, defaultValue: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return defaultValue;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeNonNegativeIntegerList(
+  values: unknown,
+  defaults: number[],
+): number[] {
+  if (!Array.isArray(values)) {
+    return [...defaults];
+  }
+  if (values.length === 0) {
+    return [];
+  }
+
+  const normalizedValues: number[] = [];
+  const seenValues = new Set<number>();
+
+  for (const value of values) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      continue;
+    }
+
+    const normalizedValue = Math.trunc(value);
+    if (normalizedValue < 0 || seenValues.has(normalizedValue)) {
+      continue;
+    }
+
+    seenValues.add(normalizedValue);
+    normalizedValues.push(normalizedValue);
+  }
+
+  return normalizedValues.length > 0 ? normalizedValues : [...defaults];
 }

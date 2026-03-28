@@ -43,7 +43,7 @@ interface TraceRow {
 
 /** Result row when joining edges → nodes. */
 interface RelatedNodeRow {
-  source_id: string;
+  trace_id: string;
   label: string;
 }
 
@@ -153,18 +153,24 @@ export class ObsidianExporter extends MarkdownExporter {
     this._relatedNodesCache.clear();
 
     try {
+      const { dialect } = this.brain.features;
+      const sourceTraceExpr = dialect.ifnull(
+        dialect.jsonExtract('src.properties', '$.trace_id'),
+        'ke.source_id',
+      );
       const rows = await this.brain.all<RelatedNodeRow>(
-        `SELECT ke.source_id, kn.label
+        `SELECT ${sourceTraceExpr} AS trace_id, kn.label
          FROM knowledge_edges ke
+         JOIN knowledge_nodes src ON src.id = ke.source_id
          JOIN knowledge_nodes kn ON kn.id = ke.target_id`,
       );
 
       for (const row of rows) {
-        const existing = this._relatedNodesCache.get(row.source_id);
+        const existing = this._relatedNodesCache.get(row.trace_id);
         if (existing) {
           existing.push(row.label);
         } else {
-          this._relatedNodesCache.set(row.source_id, [row.label]);
+          this._relatedNodesCache.set(row.trace_id, [row.label]);
         }
       }
     } catch {

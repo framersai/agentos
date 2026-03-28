@@ -23,6 +23,7 @@ import type {
   ToolExecutionContext,
   JSONSchemaObject,
 } from '../core/tools/ITool.js';
+import { resolveSelfImprovementSessionKey } from './sessionScope.js';
 
 // ============================================================================
 // TYPES
@@ -95,7 +96,11 @@ export interface CreateWorkflowDeps {
     allowedTools: string[];
   };
   /** Execute a tool by name with the given arguments. */
-  executeTool: (name: string, args: unknown) => Promise<unknown>;
+  executeTool: (
+    name: string,
+    args: unknown,
+    context?: ToolExecutionContext,
+  ) => Promise<unknown>;
   /** Return the list of all currently available tool names. */
   listTools: () => string[];
 }
@@ -197,7 +202,7 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
   };
 
   /** Session-scoped workflow storage. */
-  private readonly workflows: Map<string, Workflow> = new Map();
+  private readonly workflowsBySession: Map<string, Map<string, Workflow>> = new Map();
 
   /** Monotonic counter for generating workflow IDs. */
   private nextId = 1;
@@ -228,15 +233,15 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
    */
   async execute(
     args: CreateWorkflowInput,
-    _context: ToolExecutionContext,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     switch (args.action) {
       case 'create':
-        return this.handleCreate(args);
+        return this.handleCreate(args, context);
       case 'run':
-        return this.handleRun(args);
+        return this.handleRun(args, context);
       case 'list':
-        return this.handleList();
+        return this.handleList(context);
       default:
         return {
           success: false,
@@ -258,7 +263,10 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
    * - No step references `create_workflow` (prevent recursion)
    * - All step tools exist in the available tool list
    */
-  private async handleCreate(args: CreateWorkflowInput): Promise<ToolExecutionResult> {
+  private async handleCreate(
+    args: CreateWorkflowInput,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
     const { name, description, steps } = args;
 
     if (!name || typeof name !== 'string') {
@@ -317,7 +325,7 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
       runCount: 0,
     };
 
-    this.workflows.set(id, workflow);
+    this.getSessionWorkflows(context).set(id, workflow);
 
     return {
       success: true,
@@ -335,14 +343,17 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
    *
    * Each step has a 30-second timeout enforced via Promise.race.
    */
-  private async handleRun(args: CreateWorkflowInput): Promise<ToolExecutionResult> {
+  private async handleRun(
+    args: CreateWorkflowInput,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
     const { workflowId, input } = args;
 
     if (!workflowId) {
       return { success: false, error: 'workflowId is required for the run action' };
     }
 
-    const workflow = this.workflows.get(workflowId);
+    const workflow = this.getSessionWorkflows(context, false).get(workflowId);
     if (!workflow) {
       return { success: false, error: `Workflow "${workflowId}" not found` };
     }
@@ -357,7 +368,12 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
       const resolvedArgs = this.resolveReferences(step.args, input, prev, stepResults);
 
       try {
-        const result = await this.executeStepWithTimeout(step.tool, resolvedArgs, i);
+        const result = await this.executeStepWithTimeout(
+          step.tool,
+          resolvedArgs,
+          i,
+          context,
+        );
 
         stepResults.push(result);
         prev = result;
@@ -386,8 +402,10 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
   /**
    * List all stored workflows.
    */
-  private async handleList(): Promise<ToolExecutionResult> {
-    const workflows = Array.from(this.workflows.values()).map((w) => ({
+  private async handleList(
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    const workflows = Array.from(this.getSessionWorkflows(context, false).values()).map((w) => ({
       id: w.id,
       name: w.name,
       description: w.description,
@@ -397,6 +415,25 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
     }));
 
     return { success: true, output: { workflows } };
+  }
+
+  private getSessionWorkflows(
+    context: ToolExecutionContext,
+    createIfMissing = true,
+  ): Map<string, Workflow> {
+    const sessionKey = resolveSelfImprovementSessionKey(context);
+    const existing = this.workflowsBySession.get(sessionKey);
+    if (existing) {
+      return existing;
+    }
+
+    if (!createIfMissing) {
+      return new Map<string, Workflow>();
+    }
+
+    const created = new Map<string, Workflow>();
+    this.workflowsBySession.set(sessionKey, created);
+    return created;
   }
 
   // --------------------------------------------------------------------------
@@ -449,12 +486,13 @@ export class CreateWorkflowTool implements ITool<CreateWorkflowInput> {
     toolName: string,
     args: Record<string, unknown>,
     stepIndex: number,
+    context: ToolExecutionContext,
   ): Promise<unknown> {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     try {
       return await Promise.race([
-        this.deps.executeTool(toolName, args),
+        this.deps.executeTool(toolName, args, context),
         new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => {
             reject(

@@ -128,6 +128,17 @@ describe('HnswIndexSidecar', () => {
       await sidecar.add('a', [1, 0, 0, 0]);
       expect(sidecar.getStats().vectorCount).toBe(1);
     });
+
+    it('upsertBatch replaces existing vectors in an active index', async () => {
+      await sidecar.upsertBatch([
+        { id: 'a', embedding: [0, 1, 0, 0] },
+        { id: 'b', embedding: [0, 0, 1, 0] },
+      ]);
+
+      expect(mockIndex.markDelete).toHaveBeenCalledTimes(1);
+      expect(mockIndex.addPoint).toHaveBeenCalledTimes(3);
+      expect(sidecar.getStats().vectorCount).toBe(2);
+    });
   });
 
   describe('remove()', () => {
@@ -148,6 +159,12 @@ describe('HnswIndexSidecar', () => {
     it('does nothing for unknown ID', async () => {
       await sidecar.remove('nonexistent');
       expect(mockIndex.markDelete).not.toHaveBeenCalled();
+    });
+
+    it('removeBatch soft-deletes all known ids', async () => {
+      await sidecar.removeBatch(['a', 'b', 'missing']);
+      expect(mockIndex.markDelete).toHaveBeenCalledTimes(2);
+      expect(sidecar.getStats().vectorCount).toBe(0);
     });
   });
 

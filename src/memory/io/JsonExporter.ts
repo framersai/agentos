@@ -22,6 +22,7 @@
 
 import type { ExportOptions } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
+import { asBinaryBytes, bytesToBase64 } from './base64.js';
 
 // ---------------------------------------------------------------------------
 // Row types (internal — matched to SqliteBrain DDL)
@@ -33,7 +34,7 @@ interface TraceRow {
   type: string;
   scope: string;
   content: string;
-  embedding: Buffer | null;
+  embedding: Uint8Array | null;
   strength: number;
   created_at: number;
   last_accessed: number | null;
@@ -50,7 +51,7 @@ interface NodeRow {
   type: string;
   label: string;
   properties: string;
-  embedding: Buffer | null;
+  embedding: Uint8Array | null;
   confidence: number;
   source: string;
   created_at: number;
@@ -201,8 +202,9 @@ export class JsonExporter {
    */
   private _serializeTrace(row: TraceRow, includeEmbeddings: boolean): Record<string, unknown> {
     const out: Record<string, unknown> = { ...row };
-    if (row.embedding instanceof Buffer) {
-      out['embedding'] = includeEmbeddings ? row.embedding.toString('base64') : undefined;
+    const embedding = asBinaryBytes(row.embedding);
+    if (embedding) {
+      out['embedding'] = includeEmbeddings ? bytesToBase64(embedding) : undefined;
     }
     return out;
   }
@@ -216,8 +218,9 @@ export class JsonExporter {
    */
   private _serializeNode(row: NodeRow, includeEmbeddings: boolean): Record<string, unknown> {
     const out: Record<string, unknown> = { ...row };
-    if (row.embedding instanceof Buffer) {
-      out['embedding'] = includeEmbeddings ? row.embedding.toString('base64') : undefined;
+    const embedding = asBinaryBytes(row.embedding);
+    if (embedding) {
+      out['embedding'] = includeEmbeddings ? bytesToBase64(embedding) : undefined;
     }
     return out;
   }

@@ -76,18 +76,6 @@ import { RetrievalFeedbackSignal } from '../feedback/RetrievalFeedbackSignal.js'
 import { ConsolidationLoop } from '../consolidation/ConsolidationLoop.js';
 import { penalizeUnused, updateOnRetrieval } from '../decay/DecayModel.js';
 import {
-  JsonExporter,
-  JsonImporter,
-  MarkdownExporter,
-  MarkdownImporter,
-  ObsidianExporter,
-  ObsidianImporter,
-  SqliteExporter,
-  SqliteImporter,
-  ChatGptImporter,
-  CsvImporter,
-} from '../io/index.js';
-import {
   MemoryAddTool,
   MemoryUpdateTool,
   MemoryDeleteTool,
@@ -859,8 +847,9 @@ export class Memory {
    *
    * @param traceId - The ID of the trace being evaluated.
    * @param signal  - Whether the trace was `'used'` or `'ignored'` by the LLM.
+   * @param query   - Optional retrieval context, typically the original user query.
    */
-  async feedback(traceId: string, signal: 'used' | 'ignored'): Promise<void> {
+  async feedback(traceId: string, signal: 'used' | 'ignored', query?: string): Promise<void> {
     if (!this._feedbackSignal) return;
 
     try {
@@ -876,8 +865,8 @@ export class Memory {
 
       await this._brain.run(
         `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-         VALUES (?, ?, NULL, ?)`,
-        [traceId, signal, now],
+         VALUES (?, ?, ?, ?)`,
+        [traceId, signal, query ?? null, now],
       );
 
       if (!row) return;
@@ -952,21 +941,25 @@ export class Memory {
 
     switch (format) {
       case 'json': {
+        const { JsonExporter } = await import('../io/JsonExporter.js');
         const exporter = new JsonExporter(this._brain);
         await exporter.export(outputPath, options);
         break;
       }
       case 'markdown': {
+        const { MarkdownExporter } = await import('../io/MarkdownExporter.js');
         const exporter = new MarkdownExporter(this._brain);
         await exporter.export(outputPath, options);
         break;
       }
       case 'obsidian': {
+        const { ObsidianExporter } = await import('../io/ObsidianExporter.js');
         const exporter = new ObsidianExporter(this._brain);
         await exporter.export(outputPath, options);
         break;
       }
       case 'sqlite': {
+        const { SqliteExporter } = await import('../io/SqliteExporter.js');
         const exporter = new SqliteExporter(this._brain);
         await exporter.export(outputPath, options);
         break;
@@ -994,24 +987,36 @@ export class Memory {
     let result: ImportResult;
 
     switch (format) {
-      case 'json':
+      case 'json': {
+        const { JsonImporter } = await import('../io/JsonImporter.js');
         result = await new JsonImporter(this._brain).import(source);
         break;
-      case 'markdown':
+      }
+      case 'markdown': {
+        const { MarkdownImporter } = await import('../io/MarkdownImporter.js');
         result = await new MarkdownImporter(this._brain).import(source);
         break;
-      case 'obsidian':
+      }
+      case 'obsidian': {
+        const { ObsidianImporter } = await import('../io/ObsidianImporter.js');
         result = await new ObsidianImporter(this._brain).import(source);
         break;
-      case 'sqlite':
+      }
+      case 'sqlite': {
+        const { SqliteImporter } = await import('../io/SqliteImporter.js');
         result = await new SqliteImporter(this._brain).import(source);
         break;
-      case 'chatgpt':
+      }
+      case 'chatgpt': {
+        const { ChatGptImporter } = await import('../io/ChatGptImporter.js');
         result = await new ChatGptImporter(this._brain).import(source);
         break;
-      case 'csv':
+      }
+      case 'csv': {
+        const { CsvImporter } = await import('../io/CsvImporter.js');
         result = await new CsvImporter(this._brain).import(source);
         break;
+      }
       default:
         result = { imported: 0, skipped: 0, errors: [`Unsupported import format: "${format}"`] };
         break;
@@ -1019,6 +1024,7 @@ export class Memory {
 
     if (result.imported > 0) {
       await this._rebuildFtsIndex();
+      await this._rebuildHnswIndex();
     }
 
     return result;
@@ -1039,13 +1045,16 @@ export class Memory {
 
     let result: ImportResult;
     if (format === 'json') {
+      const { JsonImporter } = await import('../io/JsonImporter.js');
       result = await new JsonImporter(this._brain).importFromString(content);
     } else {
+      const { CsvImporter } = await import('../io/CsvImporter.js');
       result = await new CsvImporter(this._brain).importFromString(content);
     }
 
     if (result.imported > 0) {
       await this._rebuildFtsIndex();
+      await this._rebuildHnswIndex();
     }
 
     return result;
@@ -1062,6 +1071,7 @@ export class Memory {
    */
   async exportToString(options?: ExportOptions): Promise<string> {
     await this._initPromise;
+    const { JsonExporter } = await import('../io/JsonExporter.js');
     return new JsonExporter(this._brain).exportToString(options);
   }
 
@@ -1460,6 +1470,43 @@ export class Memory {
       await this._brain.exec(this._brain.features.fts.rebuildCommand('memory_traces_fts'));
     } catch {
       // Best-effort; imports still succeed even if the FTS rebuild is unavailable.
+    }
+  }
+
+  /**
+   * Rebuild the HNSW sidecar after bulk import operations.
+   *
+   * Imports bypass `remember()`, so any embedded traces need to be replayed
+   * into the ANN sidecar explicitly to keep hybrid recall accurate.
+   */
+  private async _rebuildHnswIndex(): Promise<void> {
+    if (!this._hnswSidecar) return;
+
+    try {
+      const rows = await this._brain.all<{ id: string; embedding: Uint8Array | string | null }>(
+        'SELECT id, embedding FROM memory_traces WHERE deleted = 0 AND embedding IS NOT NULL',
+      );
+      if (rows.length === 0) return;
+
+      const { blobCodec } = this._brain.features;
+      const items = rows
+        .filter((row) => row.embedding && row.embedding.length > 0)
+        .map((row) => {
+          const embedding = row.embedding!;
+          const isLegacy = typeof embedding === 'string' || embedding[0] === 0x5b;
+          return {
+            id: row.id,
+            embedding: isLegacy
+              ? JSON.parse(embedding as unknown as string) as number[]
+              : blobCodec.decode(embedding),
+          };
+        });
+
+      if (items.length > 0) {
+        await this._hnswSidecar.rebuildFromData(items);
+      }
+    } catch {
+      // Best-effort; import should still succeed even if HNSW rebuild fails.
     }
   }
 

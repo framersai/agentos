@@ -10,29 +10,30 @@
 
 import type { Token } from '../types';
 import type { ITextProcessor } from '../ITextProcessor';
+import { getNaturalModule } from '../naturalInterop';
 
 /** Lazy-loaded lemmatize function from the `natural` package. */
-let lemmatizeFn: ((word: string) => string) | null = null;
-let loadAttempted = false;
+let lemmatizeFn: ((word: string) => string) | null | undefined;
 
-async function loadLemmatizer(): Promise<void> {
-  if (loadAttempted) return;
-  loadAttempted = true;
-  try {
-    const natural = await import('natural');
-    const wordnet = new natural.WordNet();
+function loadLemmatizer(): void {
+  if (lemmatizeFn !== undefined) return;
+
+  const natural = getNaturalModule();
+  const lancasterStemmer = natural?.LancasterStemmer;
+  if (lancasterStemmer && typeof lancasterStemmer.stem === 'function') {
     lemmatizeFn = (word: string) => {
-      /* WordNet lookup is async in natural, but we need sync for the pipeline.
-         Use the synchronous stemmer-based lemmatizer as a practical fallback. */
+      /* `natural` exposes async WordNet lookup only, so keep the sync contract by
+         using Lancaster stemming as a pragmatic lemma approximation. */
       try {
-        return natural.LancasterStemmer.stem(word);
+        return lancasterStemmer.stem(word);
       } catch {
         return word;
       }
     };
-  } catch {
-    lemmatizeFn = null;
+    return;
   }
+
+  lemmatizeFn = null;
 }
 
 /**
@@ -44,16 +45,8 @@ async function loadLemmatizer(): Promise<void> {
 export class WordNetLemmatizer implements ITextProcessor {
   readonly name = 'WordNetLemmatizer';
 
-  private initialized = false;
-
-  private async ensureLoaded(): Promise<void> {
-    if (!this.initialized) {
-      await loadLemmatizer();
-      this.initialized = true;
-    }
-  }
-
   process(tokens: Token[]): Token[] {
+    loadLemmatizer();
     if (!lemmatizeFn) return tokens;
 
     return tokens.map(t => {
@@ -63,6 +56,6 @@ export class WordNetLemmatizer implements ITextProcessor {
   }
 
   async initialize(): Promise<void> {
-    await this.ensureLoaded();
+    loadLemmatizer();
   }
 }

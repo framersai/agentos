@@ -156,4 +156,156 @@ describe('generateText', () => {
       },
     ]);
   });
+
+  it('parses text tool calls once and passes a real execution context to external tools', async () => {
+    const observedContexts: any[] = [];
+
+    hoisted.generateCompletion
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 10, completionTokens: 6, totalTokens: 16 },
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: [
+                'I should use a tool.',
+                '```json',
+                '{"tool": "lookup", "arguments": {"topic": "QUIC"}}',
+                '```',
+                'Thought: I should confirm with the same tool.',
+                'Action: lookup',
+                'Input: {"topic":"QUIC"}',
+              ].join('\n'),
+            },
+            finishReason: 'stop',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 8, completionTokens: 4, totalTokens: 12 },
+        choices: [
+          {
+            message: { role: 'assistant', content: 'QUIC reduces handshake overhead.' },
+            finishReason: 'stop',
+          },
+        ],
+      });
+
+    const execute = vi.fn(async (args: { topic: string }, context: any) => {
+      observedContexts.push(context);
+      return { summary: `context for ${args.topic}` };
+    });
+
+    const result = await generateText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Explain QUIC.',
+      maxSteps: 2,
+      tools: new Map([
+        [
+          'lookup',
+          {
+            description: 'Look up protocol context',
+            inputSchema: {
+              type: 'object',
+              properties: { topic: { type: 'string' } },
+              required: ['topic'],
+            },
+            execute,
+          },
+        ],
+      ]) as any,
+    });
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(observedContexts[0]).toMatchObject({
+      gmiId: expect.stringMatching(/^generateText:/),
+      personaId: 'generateText:persona',
+      userContext: { userId: 'system', source: 'generateText' },
+      correlationId: 'text-tc-0-0',
+      sessionData: {
+        source: 'generateText',
+        stepIndex: 0,
+        sessionId: expect.stringMatching(/^generateText:/),
+      },
+    });
+    expect(result.text).toBe('QUIC reduces handshake overhead.');
+    expect(result.toolCalls).toEqual([
+      {
+        name: 'lookup',
+        args: { topic: 'QUIC' },
+        result: { summary: 'context for QUIC' },
+      },
+    ]);
+  });
+
+  it('records malformed native tool arguments as a tool error without executing the tool', async () => {
+    const execute = vi.fn(async () => ({ ok: true }));
+
+    hoisted.generateCompletion
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 8, completionTokens: 2, totalTokens: 10 },
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'tool-1',
+                  type: 'function',
+                  function: {
+                    name: 'lookup',
+                    arguments: '{"topic":',
+                  },
+                },
+              ],
+            },
+            finishReason: 'tool_calls',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 6, completionTokens: 3, totalTokens: 9 },
+        choices: [
+          {
+            message: { role: 'assistant', content: 'I could not execute that tool call.' },
+            finishReason: 'stop',
+          },
+        ],
+      });
+
+    const result = await generateText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Explain QUIC.',
+      maxSteps: 2,
+      tools: new Map([
+        [
+          'lookup',
+          {
+            description: 'Look up protocol context',
+            inputSchema: {
+              type: 'object',
+              properties: { topic: { type: 'string' } },
+              required: ['topic'],
+            },
+            execute,
+          },
+        ],
+      ]) as any,
+    });
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.toolCalls).toEqual([
+      {
+        name: 'lookup',
+        args: '{"topic":',
+        error: 'Tool "lookup" arguments were not valid JSON.',
+      },
+    ]);
+    expect(result.text).toBe('I could not execute that tool call.');
+  });
 });

@@ -255,7 +255,7 @@ describe('AgentMemory', () => {
     const ingest = await memory.ingest('./docs');
     await memory.export('./backup.json', { format: 'json' });
     const imported = await memory.importFrom('./backup.json', { format: 'json' });
-    memory.feedback('trace-1', 'used');
+    memory.feedback('trace-1', 'used', 'dark mode');
     await memory.shutdown();
 
     expect(recall.memories).toHaveLength(1);
@@ -269,7 +269,7 @@ describe('AgentMemory', () => {
     expect(standalone.ingest).toHaveBeenCalledWith('./docs', undefined);
     expect(standalone.export).toHaveBeenCalledWith('./backup.json', { format: 'json' });
     expect(standalone.importFrom).toHaveBeenCalledWith('./backup.json', { format: 'json' });
-    expect(standalone.feedback).toHaveBeenCalledWith('trace-1', 'used');
+    expect(standalone.feedback).toHaveBeenCalledWith('trace-1', 'used', 'dark mode');
     expect(standalone.close).toHaveBeenCalledTimes(1);
     expect(memory.isInitialized).toBe(false);
   });

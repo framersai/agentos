@@ -100,4 +100,23 @@ describe('TextToolCallParser', () => {
       arguments: { path: '/tmp/data.txt' },
     });
   });
+
+  it('deduplicates the same semantic tool call emitted in multiple formats', () => {
+    const text = [
+      '```json',
+      '{"tool": "web_search", "arguments": {"query": "AgentOS"}}',
+      '```',
+      'Thought: I should do the same search.',
+      'Action: web_search',
+      'Input: {"query":"AgentOS"}',
+    ].join('\n');
+
+    const calls = parseToolCallsFromText(text);
+    expect(calls).toEqual([
+      {
+        name: 'web_search',
+        arguments: { query: 'AgentOS' },
+      },
+    ]);
+  });
 });

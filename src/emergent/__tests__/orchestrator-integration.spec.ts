@@ -132,6 +132,130 @@ describe('ToolOrchestrator — emergent engine integration', () => {
     expect(forgeToolDef!.description).toContain('Create a new tool');
   });
 
+  it('registers self-improvement tools when enabled and deps are provided', async () => {
+    const executeTool = vi.fn(async (name: string, args: unknown) => ({
+      name,
+      args,
+      ok: true,
+    }));
+
+    await orchestrator.initialize(
+      undefined,
+      permissionManager,
+      toolExecutor,
+      undefined,
+      undefined,
+      {
+        enabled: true,
+        config: {
+          selfImprovement: {
+            enabled: true,
+          } as any,
+        },
+        selfImprovementDeps: {
+          getPersonality: () => ({
+            openness: 0.5,
+            conscientiousness: 0.5,
+            emotionality: 0.5,
+            extraversion: 0.5,
+            agreeableness: 0.5,
+            honesty: 0.5,
+          }),
+          setPersonality: vi.fn(),
+          getActiveSkills: () => [],
+          getLockedSkills: () => [],
+          loadSkill: async (id) => ({ skillId: id, name: id, category: 'test' }),
+          unloadSkill: vi.fn(),
+          searchSkills: () => [],
+          executeTool,
+          listTools: () => ['lookup', 'summarize', 'create_workflow'],
+        },
+      },
+    );
+
+    const tools = await orchestrator.listAvailableTools();
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        'forge_tool',
+        'adapt_personality',
+        'manage_skills',
+        'create_workflow',
+        'self_evaluate',
+      ]),
+    );
+
+    const workflowTool = await orchestrator.getTool('create_workflow');
+    expect(workflowTool).toBeDefined();
+
+    const createResult = await workflowTool!.execute(
+      {
+        action: 'create',
+        name: 'lookup-and-summarize',
+        description: 'Look up a topic and summarize it.',
+        steps: [
+          { tool: 'lookup', args: { query: '$input' } },
+          { tool: 'summarize', args: { text: '$prev' } },
+        ],
+      } as any,
+      {
+        gmiId: 'agent-1',
+        personaId: 'persona-1',
+        userContext: { userId: 'user-1' } as any,
+        correlationId: 'sess-1',
+      },
+    );
+
+    expect(createResult.success).toBe(true);
+
+    const runResult = await workflowTool!.execute(
+      {
+        action: 'run',
+        workflowId: createResult.output.workflowId,
+        input: 'QUIC',
+      } as any,
+      {
+        gmiId: 'agent-1',
+        personaId: 'persona-1',
+        userContext: { userId: 'user-1' } as any,
+        correlationId: 'sess-1',
+      },
+    );
+
+    expect(runResult.success).toBe(true);
+    expect(executeTool).toHaveBeenNthCalledWith(
+      1,
+      'lookup',
+      { query: 'QUIC' },
+      expect.objectContaining({
+        correlationId: 'sess-1',
+      }),
+    );
+    expect(executeTool).toHaveBeenNthCalledWith(
+      2,
+      'summarize',
+      {
+        text: { name: 'lookup', args: { query: 'QUIC' }, ok: true },
+      },
+      expect.objectContaining({
+        correlationId: 'sess-1',
+      }),
+    );
+
+    const otherSessionList = await workflowTool!.execute(
+      { action: 'list' } as any,
+      {
+        gmiId: 'agent-2',
+        personaId: 'persona-2',
+        userContext: { userId: 'user-2' } as any,
+        correlationId: 'sess-2',
+        sessionData: { sessionId: 'sess-2' },
+      },
+    );
+
+    expect(otherSessionList.success).toBe(true);
+    expect(otherSessionList.output.workflows).toHaveLength(0);
+  });
+
   // -------------------------------------------------------------------------
   // 3. Engine is accessible
   // -------------------------------------------------------------------------

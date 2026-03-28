@@ -1,6 +1,8 @@
 # Memory Scaling Guide
 
-> How to scale AgentOS memory from a single-agent SQLite file to billions of vectors across Postgres and Qdrant — with one-command migration and Docker auto-setup.
+> How to scale AgentOS retrieval from a single-agent SQLite file to billions of vectors across Postgres and Qdrant.
+
+`Memory.create()` currently opens the SQLite-backed standalone memory facade. The Postgres, Qdrant, and Pinecone material below applies to the lower-level RAG/vector-store layer and migration tooling while the high-level memory facade remains SQLite-backed.
 
 ---
 
@@ -34,10 +36,9 @@ The first transition (brute-force → HNSW sidecar) is **automatic** — no user
 Every agent starts here. Zero infrastructure, zero configuration.
 
 ```typescript
-const mem = new Memory(); // Defaults to SQLite at tmpdir
+const mem = await Memory.create(); // Defaults to SQLite at tmpdir
 // or
-const mem = new Memory({
-  store: 'sqlite',
+const mem = await Memory.create({
   path: './brain.sqlite',
   embed: async (text) => yourEmbeddingFunction(text),
 });
@@ -60,15 +61,25 @@ const mem = new Memory({
 
 ## Tier 2: Postgres + pgvector
 
-One database for everything — vectors, text search, knowledge graph, metadata.
+For Postgres-backed retrieval today, use the lower-level vector-store path.
 
 ```typescript
-const mem = new Memory({
-  store: 'postgres',
+import { PostgresVectorStore } from '@framers/agentos';
+
+const store = new PostgresVectorStore({
+  id: 'agent-memory',
+  type: 'postgres',
   connectionString: 'postgresql://postgres:wunderland@localhost:5432/agent_memory',
-  embed: async (text) => yourEmbeddingFunction(text),
+});
+
+await store.initialize();
+await store.createCollection({
+  name: 'agent_memory',
+  dimension: 1536,
 });
 ```
+
+The standalone `Memory` facade does not yet open a Postgres brain directly.
 
 ### Auto-Setup
 

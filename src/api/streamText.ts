@@ -7,12 +7,21 @@
  * Multi-step tool calling is supported: tool-call and tool-result parts are
  * yielded inline before the next LLM step begins.
  */
+import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools } from './toolAdapter.js';
-import type { GenerateTextOptions, TokenUsage, ToolCallRecord } from './generateText.js';
+import {
+  createPlan,
+  resolveChainOfThought,
+  type GenerateTextOptions,
+  type Plan,
+  type TokenUsage,
+  type ToolCallRecord,
+} from './generateText.js';
+import { parseToolCallsFromText } from './TextToolCallParser.js';
 import { recordAgentOSUsage } from './usageLedger.js';
-import type { ITool } from '../core/tools/ITool.js';
+import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
 import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../core/observability/otel.js';
 
@@ -49,6 +58,36 @@ export interface StreamTextResult {
   usage: Promise<TokenUsage>;
   /** Resolves to the ordered list of {@link ToolCallRecord}s when the stream completes. */
   toolCalls: Promise<ToolCallRecord[]>;
+}
+
+function buildHelperToolExecutionContext(
+  source: 'streamText',
+  runId: string,
+  stepIndex: number,
+  correlationId?: string,
+): ToolExecutionContext {
+  return {
+    gmiId: `${source}:${runId}`,
+    personaId: `${source}:persona`,
+    userContext: {
+      userId: 'system',
+      source,
+    },
+    correlationId: correlationId ?? `${source}:tool:${stepIndex + 1}:${randomUUID()}`,
+    sessionData: {
+      sessionId: `${source}:${runId}`,
+      source,
+      stepIndex,
+    },
+  };
+}
+
+function formatPlanForPrompt(plan: Plan): string {
+  const lines = plan.steps.map(
+    (s, i) =>
+      `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]` : ''}`,
+  );
+  return `Follow this plan:\n${lines.join('\n')}`;
 }
 
 /**
@@ -111,15 +150,28 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       rootSpan?.setAttribute('llm.provider', resolved.providerId);
       rootSpan?.setAttribute('llm.model', resolved.modelId);
 
+      const tools = adaptTools(opts.tools);
+      const toolMap = new Map<string, ITool>();
+      for (const tool of tools) toolMap.set(tool.name, tool);
+      const helperToolRunId = randomUUID();
+
       const messages: Array<Record<string, unknown>> = [];
-      if (opts.system) messages.push({ role: 'system', content: opts.system });
+
+      const cotInstruction = resolveChainOfThought(opts.chainOfThought);
+      const hasTools = tools.length > 0;
+      if (cotInstruction && hasTools) {
+        const systemContent = opts.system
+          ? `${cotInstruction}\n\n${opts.system}`
+          : cotInstruction;
+        messages.push({ role: 'system', content: systemContent });
+      } else if (opts.system) {
+        messages.push({ role: 'system', content: opts.system });
+      }
+
       if (opts.messages)
         for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
       if (opts.prompt) messages.push({ role: 'user', content: opts.prompt });
 
-      const tools = adaptTools(opts.tools);
-      const toolMap = new Map<string, ITool>();
-      for (const tool of tools) toolMap.set(tool.name, tool);
       rootSpan?.setAttribute('agentos.api.tool_count', tools.length);
 
       const toolSchemas =
@@ -136,6 +188,30 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
       const maxSteps = opts.maxSteps ?? 1;
       rootSpan?.setAttribute('agentos.api.max_steps', maxSteps);
+      const planningEnabled = !!opts.planning;
+      rootSpan?.setAttribute('agentos.api.planning_enabled', planningEnabled);
+
+      if (planningEnabled) {
+        const planConfig = typeof opts.planning === 'object' ? opts.planning : undefined;
+        const userMessages = messages.filter((m) => m.role === 'user');
+        const toolNames = tools.map((tool) => tool.name);
+        const resolvedPlan = await createPlan(
+          provider,
+          resolved.modelId,
+          userMessages,
+          toolNames,
+          planConfig,
+          usage,
+        );
+
+        if (resolvedPlan) {
+          const planPrompt = formatPlanForPrompt(resolvedPlan);
+          const firstNonSystem = messages.findIndex((m) => m.role !== 'system');
+          const insertIdx = firstNonSystem === -1 ? messages.length : firstNonSystem;
+          messages.splice(insertIdx, 0, { role: 'system', content: planPrompt });
+          rootSpan?.setAttribute('agentos.api.plan_steps', resolvedPlan.steps.length);
+        }
+      }
 
       for (let step = 0; step < maxSteps; step++) {
         const stepSpan = startAgentOSSpan('agentos.api.stream_text.step', {
@@ -202,7 +278,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         const stepText = reconstructor.getFullText();
         const finalChunk = reconstructor.getFinalChunk();
-        const streamedToolCalls =
+        let streamedToolCalls =
           finalChunk?.choices?.[0]?.message?.tool_calls ??
           reconstructor
             .getToolCalls()
@@ -215,6 +291,20 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
                 arguments: toolCall.rawArguments || JSON.stringify(toolCall.arguments ?? {}),
               },
             }));
+
+        if ((!streamedToolCalls || streamedToolCalls.length === 0) && tools.length > 0 && stepText) {
+          const parsedToolCalls = parseToolCallsFromText(stepText);
+          if (parsedToolCalls.length > 0) {
+            streamedToolCalls = parsedToolCalls.map((toolCall, idx) => ({
+              id: `text-tc-${step}-${idx}`,
+              type: 'function' as const,
+              function: {
+                name: toolCall.name,
+                arguments: JSON.stringify(toolCall.arguments),
+              },
+            }));
+          }
+        }
 
         // Always track the latest step's text so finalText is available even
         // when maxSteps is exhausted with outstanding tool calls.
@@ -242,18 +332,32 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           const fnName = toolCall.function?.name ?? '';
           const rawArgs = toolCall.function?.arguments ?? '{}';
           const toolCallId = toolCall.id ?? '';
+          const toolCallRecord: ToolCallRecord = {
+            name: fnName,
+            args: rawArgs,
+          };
           let parsedArgs: unknown;
 
           try {
             parsedArgs = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+            toolCallRecord.args = parsedArgs;
           } catch {
-            parsedArgs = {};
+            toolCallRecord.error = `Tool "${fnName}" arguments were not valid JSON.`;
+            const resultPart: StreamPart = {
+              type: 'tool-result',
+              toolName: fnName,
+              result: { error: toolCallRecord.error },
+            };
+            parts.push(resultPart);
+            yield resultPart;
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCallId,
+              content: JSON.stringify({ error: toolCallRecord.error }),
+            } as any);
+            allToolCalls.push(toolCallRecord);
+            continue;
           }
-
-          const toolCallRecord: ToolCallRecord = {
-            name: fnName,
-            args: parsedArgs,
-          };
           const requestPart: StreamPart = { type: 'tool-call', toolName: fnName, args: parsedArgs };
           parts.push(requestPart);
           yield requestPart;
@@ -278,7 +382,15 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           }
 
           try {
-            const result = await tool.execute(parsedArgs as any, {} as any);
+            const result = await tool.execute(
+              parsedArgs as any,
+              buildHelperToolExecutionContext(
+                'streamText',
+                helperToolRunId,
+                step,
+                toolCallId || undefined,
+              ),
+            );
             toolCallRecord.result = result.output;
             toolCallRecord.error = result.success ? undefined : result.error;
             const resultPart: StreamPart = {

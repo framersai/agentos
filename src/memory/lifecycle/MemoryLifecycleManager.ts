@@ -5,7 +5,7 @@
  * and interacts with IVectorStoreManager to query and act on stored items.
  * GMI negotiation is a key feature for handling potentially critical memories.
  *
- * @module backend/agentos/memory_lifecycle/MemoryLifecycleManager
+ * @module backend/agentos/memory/lifecycle/MemoryLifecycleManager
  * @see ./IMemoryLifecycleManager.ts for the interface definition.
  * @see ../config/MemoryLifecycleManagerConfiguration.ts for configuration.
  * @see ../core/ai_utilities/IUtilityAI.ts for summarization.

@@ -2,7 +2,7 @@
  * @fileoverview Integration tests verifying the TextProcessingPipeline
  * works correctly with BM25Index and preset pipelines end-to-end.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createRagPipeline, createCodePipeline, createProsePipeline } from '../presets';
 import { TextProcessingPipeline } from '../TextProcessingPipeline';
 import { StandardTokenizer } from '../tokenizers/StandardTokenizer';
@@ -12,8 +12,8 @@ import { StopWordFilter } from '../filters/StopWordFilter';
 
 describe('Pipeline presets integration', () => {
   /**
-   * PorterStemmer uses lazy async import of `natural`.
-   * We must initialize it before any pipeline that includes it will stem.
+   * Optional eager warm-up helper for tests that want to preload `natural`
+   * before exercising the pipeline.
    */
   const initStemmer = async () => {
     const stemmer = new PorterStemmer();
@@ -21,6 +21,16 @@ describe('Pipeline presets integration', () => {
   };
 
   describe('createRagPipeline()', () => {
+    it('stems without manual warm-up', async () => {
+      vi.resetModules();
+      const { createRagPipeline } = await import('../presets');
+
+      const pipeline = createRagPipeline();
+      const result = pipeline.processToStrings('running runs');
+
+      expect(result).toEqual(['run', 'run']);
+    });
+
     it('tokenizes, lowercases, removes stop words, and stems', async () => {
       await initStemmer();
       const pipeline = createRagPipeline();

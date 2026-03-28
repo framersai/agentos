@@ -11,12 +11,13 @@
  * into numbered steps before the tool loop starts.  The plan is injected into
  * the system prompt so the tool loop executes with awareness of the strategy.
  */
+import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools, type AdaptableToolInput } from './toolAdapter.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
 import { parseToolCallsFromText } from './TextToolCallParser.js';
-import type { ITool } from '../core/tools/ITool.js';
+import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../core/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 
@@ -369,6 +370,28 @@ function formatPlanForPrompt(plan: Plan): string {
   return `Follow this plan:\n${lines.join('\n')}`;
 }
 
+function buildHelperToolExecutionContext(
+  source: 'generateText',
+  runId: string,
+  stepIndex: number,
+  correlationId?: string,
+): ToolExecutionContext {
+  return {
+    gmiId: `${source}:${runId}`,
+    personaId: `${source}:persona`,
+    userContext: {
+      userId: 'system',
+      source,
+    },
+    correlationId: correlationId ?? `${source}:tool:${stepIndex + 1}:${randomUUID()}`,
+    sessionData: {
+      sessionId: `${source}:${runId}`,
+      source,
+      stepIndex,
+    },
+  };
+}
+
 /**
  * Stateless text generation with optional multi-step tool calling.
  *
@@ -416,6 +439,11 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       span?.setAttribute('llm.provider', resolved.providerId);
       span?.setAttribute('llm.model', resolved.modelId);
 
+      const tools = adaptTools(opts.tools);
+      const toolMap = new Map<string, ITool>();
+      for (const t of tools) toolMap.set(t.name, t);
+      const helperToolRunId = randomUUID();
+
       // Build messages
       const messages: Array<Record<string, unknown>> = [];
 
@@ -424,7 +452,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       // instruction to the system prompt so the model explicitly reasons
       // before selecting a tool or composing a response.
       const cotInstruction = resolveChainOfThought(opts.chainOfThought);
-      const hasTools = !!(opts.tools && (Array.isArray(opts.tools) ? opts.tools.length > 0 : Object.keys(opts.tools).length > 0));
+      const hasTools = tools.length > 0;
       if (cotInstruction && hasTools) {
         const systemContent = opts.system
           ? `${cotInstruction}\n\n${opts.system}`
@@ -438,10 +466,6 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         for (const m of opts.messages) messages.push({ role: m.role, content: m.content });
       }
       if (opts.prompt) messages.push({ role: 'user', content: opts.prompt });
-
-      const tools = adaptTools(opts.tools);
-      const toolMap = new Map<string, ITool>();
-      for (const t of tools) toolMap.set(t.name, t);
 
       span?.setAttribute('agentos.api.tool_count', tools.length);
 
@@ -589,12 +613,36 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             const tool = toolMap.get(fnName);
             const record: ToolCallRecord = {
               name: fnName,
-              args: JSON.parse(typeof fnArgs === 'string' ? fnArgs : JSON.stringify(fnArgs)),
+              args: fnArgs,
             };
+
+            let parsedArgs: unknown;
+            try {
+              parsedArgs =
+                typeof fnArgs === 'string' ? JSON.parse(fnArgs) : fnArgs;
+              record.args = parsedArgs;
+            } catch {
+              record.error = `Tool "${fnName}" arguments were not valid JSON.`;
+              messages.push({
+                role: 'tool',
+                tool_call_id: tcId,
+                content: JSON.stringify({ error: record.error }),
+              } as any);
+              allToolCalls.push(record);
+              continue;
+            }
 
             if (tool) {
               try {
-                const result = await tool.execute(record.args as any, {} as any);
+                const result = await tool.execute(
+                  parsedArgs as any,
+                  buildHelperToolExecutionContext(
+                    'generateText',
+                    helperToolRunId,
+                    step,
+                    tcId || undefined,
+                  ),
+                );
                 record.result = result.output;
                 record.error = result.success ? undefined : result.error;
                 messages.push({

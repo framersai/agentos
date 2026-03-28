@@ -20,12 +20,13 @@ import type { ToolExecutionContext } from '../../core/tools/ITool.js';
 // ---------------------------------------------------------------------------
 
 /** Minimal ToolExecutionContext for testing. */
-function makeContext(): ToolExecutionContext {
+function makeContext(overrides: Partial<ToolExecutionContext> = {}): ToolExecutionContext {
   return {
     gmiId: 'test-gmi',
     personaId: 'test-persona',
     userContext: { userId: 'test-user' } as any,
     correlationId: 'test-session',
+    ...overrides,
   };
 }
 
@@ -72,7 +73,7 @@ describe('ManageSkillsTool', () => {
     expect(result.success).toBe(true);
     expect(result.output.status).toBe('enabled');
     expect(result.output.skill.skillId).toBe('data-analysis');
-    expect(deps.loadSkill).toHaveBeenCalledWith('data-analysis');
+    expect(deps.loadSkill).toHaveBeenCalledWith('data-analysis', ctx);
   });
 
   it('should enable a skill by exact skillId match in allowlist', async () => {
@@ -127,7 +128,7 @@ describe('ManageSkillsTool', () => {
     expect(result.output.status).toBe('requires_approval');
     expect(result.output.category).toBe('analytics');
     // Should unload the speculatively loaded skill
-    expect(deps.unloadSkill).toHaveBeenCalledWith('data-analysis');
+    expect(deps.unloadSkill).toHaveBeenCalledWith('data-analysis', ctx);
   });
 
   it('should deny skill when not in allowlist and approval not required', async () => {
@@ -141,7 +142,7 @@ describe('ManageSkillsTool', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('not permitted');
-    expect(deps.unloadSkill).toHaveBeenCalledWith('data-analysis');
+    expect(deps.unloadSkill).toHaveBeenCalledWith('data-analysis', ctx);
   });
 
   it('should reject disabling a locked skill', async () => {
@@ -155,5 +156,76 @@ describe('ManageSkillsTool', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('locked');
     expect(deps.unloadSkill).not.toHaveBeenCalled();
+  });
+
+  it('should list skills enabled in the current session', async () => {
+    const deps = makeDeps({
+      config: { allowlist: ['*'], requireApprovalForNewCategories: false },
+    });
+    const tool = new ManageSkillsTool(deps);
+    const ctx = makeContext({
+      correlationId: 'call-1',
+      sessionData: { sessionId: 'session-one' },
+    });
+
+    await tool.execute({ action: 'enable', skillId: 'data-analysis' }, ctx);
+    const listResult = await tool.execute({ action: 'list' }, ctx);
+
+    expect(listResult.success).toBe(true);
+    expect(listResult.output.skills).toEqual([
+      expect.objectContaining({
+        skillId: 'data-analysis',
+        category: 'analytics',
+      }),
+    ]);
+  });
+
+  it('should hide disabled skills from the current session list', async () => {
+    const deps = makeDeps({
+      getActiveSkills: () => [
+        { skillId: 'core-search', name: 'Core Search', category: 'research' },
+      ],
+    });
+    const tool = new ManageSkillsTool(deps);
+    const ctx = makeContext({
+      correlationId: 'call-1',
+      sessionData: { sessionId: 'session-one' },
+    });
+
+    const disableResult = await tool.execute(
+      { action: 'disable', skillId: 'core-search' },
+      ctx,
+    );
+    const listResult = await tool.execute({ action: 'list' }, ctx);
+
+    expect(disableResult.success).toBe(true);
+    expect(listResult.success).toBe(true);
+    expect(listResult.output.skills).toEqual([]);
+  });
+
+  it('should isolate enabled skills across sessions', async () => {
+    const deps = makeDeps({
+      config: { allowlist: ['*'], requireApprovalForNewCategories: false },
+    });
+    const tool = new ManageSkillsTool(deps);
+
+    await tool.execute(
+      { action: 'enable', skillId: 'data-analysis' },
+      makeContext({
+        correlationId: 'call-1',
+        sessionData: { sessionId: 'session-one' },
+      }),
+    );
+
+    const otherSessionList = await tool.execute(
+      { action: 'list' },
+      makeContext({
+        correlationId: 'call-1',
+        sessionData: { sessionId: 'session-two' },
+      }),
+    );
+
+    expect(otherSessionList.success).toBe(true);
+    expect(otherSessionList.output.skills).toEqual([]);
   });
 });

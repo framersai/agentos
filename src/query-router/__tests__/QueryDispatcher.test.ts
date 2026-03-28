@@ -221,6 +221,46 @@ describe('QueryDispatcher', () => {
     expect(retrieveCompleteEvents.at(-1)?.result.researchSynthesis).toBe('Deep research synthesis.');
   });
 
+  it('normalizes classifier retrieval hints before deep research dispatch', async () => {
+    const deps = makeDeps();
+    const dispatcher = new QueryDispatcher(deps);
+
+    await dispatcher.dispatch(
+      'Compare all caching strategies in this codebase.',
+      3 as QueryTier,
+      ['vector', 'graph', 'research'],
+    );
+
+    expect(deps.deepResearch).toHaveBeenCalledWith(
+      'Compare all caching strategies in this codebase.',
+      ['docs', 'web'],
+    );
+  });
+
+  it('preserves explicit research hints for strategy-based complex dispatch', async () => {
+    const deps = makeDeps({
+      hydeSearch: vi.fn().mockResolvedValue([
+        makeChunk({ id: 'h1', relevanceScore: 0.91 }),
+      ]),
+      decompose: vi.fn().mockResolvedValue([
+        'compare caching layers',
+        'trace invalidation paths',
+      ]),
+    });
+    const dispatcher = new QueryDispatcher(deps);
+
+    await dispatcher.dispatchByStrategy(
+      'Compare all caching strategies in this codebase.',
+      'complex',
+      ['web', 'docs'],
+    );
+
+    expect(deps.deepResearch).toHaveBeenCalledWith(
+      'Compare all caching strategies in this codebase.',
+      ['web', 'docs'],
+    );
+  });
+
   // -----------------------------------------------------------------------
   // 5. Fallback: graph fails → vector-only, emit fallback event
   // -----------------------------------------------------------------------
@@ -264,6 +304,65 @@ describe('QueryDispatcher', () => {
     });
   });
 
+  it('degrades to an empty result when tier 1 vector search fails', async () => {
+    const deps = makeDeps({
+      vectorSearch: vi.fn().mockRejectedValue(new Error('Vector service unavailable')),
+    });
+    const dispatcher = new QueryDispatcher(deps);
+
+    const result = await dispatcher.dispatch('What port does the API run on?', 1 as QueryTier);
+
+    expect(result.chunks).toEqual([]);
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    expect(deps.graphExpand).not.toHaveBeenCalled();
+    expect(deps.rerank).not.toHaveBeenCalled();
+    expect(deps.deepResearch).not.toHaveBeenCalled();
+
+    const emitCalls = (deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>;
+    const fallbackEvents = emitCalls
+      .map(([event]) => event)
+      .filter((event): event is Extract<QueryRouterEventUnion, { type: 'retrieve:fallback' }> =>
+        event.type === 'retrieve:fallback',
+      );
+    expect(fallbackEvents).toContainEqual(expect.objectContaining({
+      type: 'retrieve:fallback',
+      strategy: 'vector-empty',
+      reason: expect.stringContaining('Vector service unavailable'),
+    }));
+    expect(emitCalls.map(([event]) => event.type)).toContain('retrieve:complete');
+  });
+
+  it('degrades to an empty result when tier 2 vector search fails', async () => {
+    const deps = makeDeps({
+      vectorSearch: vi.fn().mockRejectedValue(new Error('Vector index unavailable')),
+      graphExpand: vi.fn().mockResolvedValue([]),
+    });
+    const dispatcher = new QueryDispatcher(deps);
+
+    const result = await dispatcher.dispatch(
+      'How does auth flow from frontend to backend?',
+      2 as QueryTier,
+    );
+
+    expect(result.chunks).toEqual([]);
+    expect(deps.graphExpand).toHaveBeenCalledWith([]);
+    expect(deps.rerank).not.toHaveBeenCalled();
+
+    const emitCalls = (deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>;
+    const fallbackEvents = emitCalls
+      .map(([event]) => event)
+      .filter((event): event is Extract<QueryRouterEventUnion, { type: 'retrieve:fallback' }> =>
+        event.type === 'retrieve:fallback',
+      );
+    expect(fallbackEvents).toContainEqual(expect.objectContaining({
+      type: 'retrieve:fallback',
+      strategy: 'vector-empty',
+      reason: expect.stringContaining('Vector index unavailable'),
+    }));
+  });
+
   // -----------------------------------------------------------------------
   // 6. Fallback: deep research fails → downgrades T3 to T2, emit fallback
   // -----------------------------------------------------------------------
@@ -302,5 +401,43 @@ describe('QueryDispatcher', () => {
       (e) => (e as { strategy: string }).strategy === 'research-skip',
     );
     expect(researchFallback).toBeDefined();
+  });
+
+  it('skips failed complex sub-queries when direct vector search throws', async () => {
+    const deps = makeDeps({
+      vectorSearch: vi.fn().mockRejectedValue(new Error('Vector backend offline')),
+      graphExpand: vi.fn().mockResolvedValue([]),
+      deepResearchEnabled: false,
+    });
+    const dispatcher = new QueryDispatcher(deps);
+
+    const result = await dispatcher.dispatchByStrategy(
+      'Compare all caching strategies in this codebase.',
+      'complex',
+      ['vector', 'research'],
+    );
+
+    expect(result.chunks).toEqual([]);
+    expect(deps.graphExpand).toHaveBeenCalledWith([]);
+    expect(deps.rerank).not.toHaveBeenCalled();
+    expect(deps.deepResearch).not.toHaveBeenCalled();
+
+    const fallbackEvents = ((deps.emit as ReturnType<typeof vi.fn>).mock
+      .calls as Array<[QueryRouterEventUnion]>)
+      .map(([event]) => event)
+      .filter((event): event is Extract<QueryRouterEventUnion, { type: 'retrieve:fallback' }> =>
+        event.type === 'retrieve:fallback',
+      );
+
+    expect(fallbackEvents).toContainEqual(expect.objectContaining({
+      type: 'retrieve:fallback',
+      strategy: 'sub-query-fallback',
+      reason: expect.stringContaining('Vector backend offline'),
+    }));
+    expect(fallbackEvents).toContainEqual(expect.objectContaining({
+      type: 'retrieve:fallback',
+      strategy: 'sub-query-skip',
+      reason: expect.stringContaining('Vector backend offline'),
+    }));
   });
 });

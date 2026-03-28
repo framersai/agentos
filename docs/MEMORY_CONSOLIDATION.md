@@ -91,7 +91,7 @@ Rebuild the FTS5 full-text search index over `memory_traces` and log the consoli
 ```ts
 import { Memory } from '@framers/agentos';
 
-const mem = new Memory({
+const mem = await Memory.create({
   path: './brain.sqlite',
   selfImprove: true,
   consolidation: {
@@ -130,7 +130,7 @@ wunderland memory health   # Shows last consolidation timestamp + stats
 
 ```ts
 // Turn-based: consolidate every 50 conversation turns
-const mem = new Memory({
+const mem = await Memory.create({
   path: './brain.sqlite',
   selfImprove: true,
   consolidation: {
@@ -140,7 +140,7 @@ const mem = new Memory({
 });
 
 // Manual only
-const mem2 = new Memory({
+const mem2 = await Memory.create({
   path: './brain.sqlite',
   selfImprove: true,
   consolidation: {
@@ -202,10 +202,11 @@ CREATE TABLE retrieval_feedback (
 
 ### API
 
+Automatic detection uses `RetrievalFeedbackSignal.detect(injectedTraces, llmResponse, query)` internally. If you want to persist explicit application-level feedback through the public facade, use:
+
 ```ts
-// Detect and record feedback automatically
-const feedback = mem.feedback(injectedTraces, llmResponse, query);
-// feedback: RetrievalFeedback[] — one per injected trace
+await mem.feedback(traceId, 'used', query);
+await mem.feedback(traceId, 'ignored', query);
 ```
 
 ---

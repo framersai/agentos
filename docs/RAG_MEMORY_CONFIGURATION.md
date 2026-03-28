@@ -6,13 +6,14 @@ AgentOS provides three levels of memory API:
 2. **`AgentMemory`** — Compatibility facade that can wrap either `CognitiveMemoryManager` or the standalone `Memory` engine.
 3. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `GraphRAGEngine` for custom pipelines.
 
+`Memory.create()` currently supports the SQLite-backed standalone memory facade at runtime. Postgres, Qdrant, Pinecone, and other backends are available through the lower-level RAG/vector-store layer.
+
 ## Standalone Memory Facade
 
 ```ts
 import { Memory } from '@framers/agentos';
 
-const mem = new Memory({
-  store: 'sqlite',
+const mem = await Memory.create({
   path: './brain.sqlite',
   graph: true,
   selfImprove: true,
@@ -33,7 +34,7 @@ tools directly or load them through the extension system:
 ```ts
 import { createMemoryToolsPack, Memory } from '@framers/agentos';
 
-const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
 
 // Direct registration
 for (const tool of memory.createTools()) {
@@ -53,7 +54,7 @@ from `AgentOS.initialize()`:
 ```ts
 import { AgentOS, Memory } from '@framers/agentos';
 
-const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
 const agentos = new AgentOS();
 
 await agentos.initialize({
@@ -80,7 +81,7 @@ unified `standaloneMemory` config bridge:
 ```ts
 import { AgentOS, Memory } from '@framers/agentos';
 
-const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
 const agentos = new AgentOS();
 
 await agentos.initialize({
@@ -107,7 +108,7 @@ import { AgentMemory } from '@framers/agentos';
 const cognitive = AgentMemory.wrap(existingManager);
 
 // Option B: create a standalone SQLite-backed adapter
-const memory = AgentMemory.sqlite({ path: './brain.sqlite' });
+const memory = await AgentMemory.sqlite({ path: './brain.sqlite' });
 
 // Store information
 await memory.remember('User prefers dark mode');

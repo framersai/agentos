@@ -7,13 +7,12 @@
  * @module backend/agentos/core/tools/IToolPermissionManager
  * @see ./ITool.ts for ITool definition (which includes requiredCapabilities).
  * @see ../cognitive_substrate/IGMI.ts for UserContext.
- * @see ../../../../services/user_auth/IAuthService.ts for authentication context.
- * @see ../../../../services/user_auth/SubscriptionService.ts for subscription and feature flags.
+ * @see ../../../types/auth.ts for authentication and subscription type definitions.
  */
 
 import { ITool } from '../ITool';
 import { UserContext } from '../../../cognitive_substrate/IGMI'; // Path from core/tools/ to cognitive_substrate/
-import type { IAuthService, ISubscriptionService } from '../../../services/user_auth/types';
+import type { IAuthService, ISubscriptionService } from '../../../types/auth';
 
 /**
  * @interface FeatureFlag

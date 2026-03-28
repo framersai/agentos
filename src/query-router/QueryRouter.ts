@@ -54,6 +54,7 @@ import type {
   QueryRouterConfig,
   QueryRouterEmbeddingStatus,
   QueryRouterEventUnion,
+  QueryRouterRequestOptions,
   QueryRouterStrategyConfig,
   QueryTier,
   RetrievalResult,
@@ -526,6 +527,7 @@ export class QueryRouter {
   async classify(
     query: string,
     conversationHistory?: ConversationMessage[],
+    options?: QueryRouterRequestOptions,
   ): Promise<ClassificationResult> {
     this.ensureInitialized();
 
@@ -540,7 +542,7 @@ export class QueryRouter {
       -this.config.conversationWindowSize,
     );
 
-    const result = await this.classifier!.classify(query, trimmedHistory);
+    const result = await this.classifier!.classify(query, trimmedHistory, options);
 
     if (result.reasoning.startsWith('Classification failed;')) {
       this.emit({
@@ -593,13 +595,14 @@ export class QueryRouter {
   async route(
     query: string,
     conversationHistory?: ConversationMessage[],
+    options?: QueryRouterRequestOptions,
   ): Promise<QueryResult> {
     this.ensureInitialized();
 
     const routeStart = Date.now();
 
     // --- Phase 1: Classification ---
-    const classification = await this.classify(query, conversationHistory);
+    const classification = await this.classify(query, conversationHistory, options);
 
     // Fire the onClassification hook if configured
     if (this.config.onClassification) {
@@ -619,7 +622,11 @@ export class QueryRouter {
       let plan: import('../rag/unified/types.js').ExecutionPlan;
 
       try {
-        const [, classifiedPlan] = await this.classifier.classifyWithPlan(query, conversationHistory);
+        const [, classifiedPlan] = await this.classifier.classifyWithPlan(
+          query,
+          conversationHistory,
+          options,
+        );
         plan = classifiedPlan;
       } catch {
         plan = buildDefaultExecutionPlan(classification.strategy);
@@ -1658,7 +1665,8 @@ export class QueryRouter {
    * the results, and returns a compact synthesis built from the top findings.
    *
    * @param query - The user's query.
-   * @param sources - Optional source hints used to broaden local matching.
+   * @param sources - Normalized research-source hints used to broaden local
+   *                  matching.
    * @returns Promise resolving to synthesized local-corpus findings.
    */
   private async deepResearch(

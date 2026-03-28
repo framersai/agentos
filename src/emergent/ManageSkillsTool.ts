@@ -22,6 +22,7 @@ import type {
   ToolExecutionContext,
   JSONSchemaObject,
 } from '../core/tools/ITool.js';
+import { resolveSelfImprovementSessionKey } from './sessionScope.js';
 
 // ============================================================================
 // TYPES
@@ -45,6 +46,11 @@ export interface SkillDescriptor {
 export interface SkillSearchResult extends SkillDescriptor {
   /** Natural language description of the skill's purpose. */
   description: string;
+}
+
+interface ManageSkillsSessionState {
+  enabledSkills: Map<string, SkillDescriptor>;
+  disabledSkillIds: Set<string>;
 }
 
 // ============================================================================
@@ -85,15 +91,15 @@ export interface ManageSkillsDeps {
     requireApprovalForNewCategories: boolean;
   };
   /** Returns the currently active skills for the agent. */
-  getActiveSkills: () => SkillDescriptor[];
+  getActiveSkills: (context?: ToolExecutionContext) => SkillDescriptor[];
   /** Returns the list of skill IDs that cannot be disabled. */
   getLockedSkills: () => string[];
   /** Load and activate a skill by its ID. Returns the skill descriptor. */
-  loadSkill: (id: string) => Promise<SkillDescriptor>;
+  loadSkill: (id: string, context?: ToolExecutionContext) => Promise<SkillDescriptor>;
   /** Unload and deactivate a skill by its ID. */
-  unloadSkill: (id: string) => void;
+  unloadSkill: (id: string, context?: ToolExecutionContext) => void;
   /** Search for available skills matching a query string. */
-  searchSkills: (query: string) => SkillSearchResult[];
+  searchSkills: (query: string, context?: ToolExecutionContext) => SkillSearchResult[];
 }
 
 // ============================================================================
@@ -161,6 +167,9 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
   /** Injected dependencies. */
   private readonly deps: ManageSkillsDeps;
 
+  /** Session-local active skill overlays. */
+  private readonly sessionStates: Map<string, ManageSkillsSessionState> = new Map();
+
   /**
    * Create a new ManageSkillsTool.
    *
@@ -184,17 +193,17 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
    */
   async execute(
     args: ManageSkillsInput,
-    _context: ToolExecutionContext,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     switch (args.action) {
       case 'enable':
-        return this.handleEnable(args.skillId);
+        return this.handleEnable(args.skillId, context);
       case 'disable':
-        return this.handleDisable(args.skillId);
+        return this.handleDisable(args.skillId, context);
       case 'search':
-        return this.handleSearch(args.query);
+        return this.handleSearch(args.query, context);
       case 'list':
-        return this.handleList();
+        return this.handleList(context);
       default:
         return {
           success: false,
@@ -219,15 +228,29 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
    */
   private async handleEnable(
     skillId: string | undefined,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     if (!skillId) {
       return { success: false, error: 'skillId is required for the enable action' };
     }
 
+    const activeSkills = this.getEffectiveActiveSkills(context);
+    const existingSkill = activeSkills.find((skill) => skill.skillId === skillId);
+    if (existingSkill) {
+      return {
+        success: true,
+        output: {
+          status: 'enabled',
+          alreadyActive: true,
+          skill: existingSkill,
+        },
+      };
+    }
+
     // Load the skill first to get its metadata
     let skill: SkillDescriptor;
     try {
-      skill = await this.deps.loadSkill(skillId);
+      skill = await this.deps.loadSkill(skillId, context);
     } catch (err: any) {
       return {
         success: false,
@@ -236,9 +259,13 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
     }
 
     // Resolve allowlist permission
-    const permissionResult = this.resolvePermission(skill);
+    const permissionResult = this.resolvePermission(skill, activeSkills);
 
     if (permissionResult === 'allowed') {
+      const sessionState = this.getSessionState(context);
+      sessionState.disabledSkillIds.delete(skill.skillId);
+      sessionState.enabledSkills.set(skill.skillId, skill);
+
       return {
         success: true,
         output: {
@@ -250,7 +277,7 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
 
     // Not allowed — unload the skill we speculatively loaded
     try {
-      this.deps.unloadSkill(skillId);
+      this.deps.unloadSkill(skillId, context);
     } catch {
       // Best-effort unload; skill may not have been fully registered
     }
@@ -280,6 +307,7 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
    */
   private resolvePermission(
     skill: SkillDescriptor,
+    activeSkills = this.deps.getActiveSkills(),
   ): 'allowed' | 'requires_approval' | 'denied' {
     const { allowlist, requireApprovalForNewCategories } = this.deps.config;
 
@@ -299,7 +327,6 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
     }
 
     // 4. Same-category expansion: category already represented in active skills
-    const activeSkills = this.deps.getActiveSkills();
     const activeCategories = new Set(activeSkills.map((s) => s.category));
     if (activeCategories.has(skill.category)) {
       return 'allowed';
@@ -314,6 +341,7 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
    */
   private async handleDisable(
     skillId: string | undefined,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     if (!skillId) {
       return { success: false, error: 'skillId is required for the disable action' };
@@ -327,7 +355,18 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
       };
     }
 
-    this.deps.unloadSkill(skillId);
+    const activeSkills = this.getEffectiveActiveSkills(context);
+    if (!activeSkills.some((skill) => skill.skillId === skillId)) {
+      return {
+        success: false,
+        error: `Skill "${skillId}" is not currently active.`,
+      };
+    }
+
+    this.deps.unloadSkill(skillId, context);
+    const sessionState = this.getSessionState(context);
+    sessionState.enabledSkills.delete(skillId);
+    sessionState.disabledSkillIds.add(skillId);
 
     return {
       success: true,
@@ -340,12 +379,13 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
    */
   private async handleSearch(
     query: string | undefined,
+    context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
     if (!query) {
       return { success: false, error: 'query is required for the search action' };
     }
 
-    const results = this.deps.searchSkills(query);
+    const results = this.deps.searchSkills(query, context);
 
     return {
       success: true,
@@ -356,12 +396,57 @@ export class ManageSkillsTool implements ITool<ManageSkillsInput> {
   /**
    * List currently active skills.
    */
-  private async handleList(): Promise<ToolExecutionResult> {
-    const skills = this.deps.getActiveSkills();
+  private async handleList(
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult> {
+    const skills = this.getEffectiveActiveSkills(context);
 
     return {
       success: true,
       output: { skills },
     };
+  }
+
+  private getEffectiveActiveSkills(
+    context: ToolExecutionContext,
+  ): SkillDescriptor[] {
+    const sessionState = this.getSessionState(context, false);
+    const skillsById = new Map<string, SkillDescriptor>();
+
+    for (const skill of this.deps.getActiveSkills(context)) {
+      if (!sessionState.disabledSkillIds.has(skill.skillId)) {
+        skillsById.set(skill.skillId, skill);
+      }
+    }
+
+    for (const [skillId, skill] of sessionState.enabledSkills) {
+      if (!sessionState.disabledSkillIds.has(skillId)) {
+        skillsById.set(skillId, skill);
+      }
+    }
+
+    return Array.from(skillsById.values());
+  }
+
+  private getSessionState(
+    context: ToolExecutionContext,
+    createIfMissing = true,
+  ): ManageSkillsSessionState {
+    const sessionKey = resolveSelfImprovementSessionKey(context);
+    const existing = this.sessionStates.get(sessionKey);
+    if (existing) {
+      return existing;
+    }
+
+    const emptyState: ManageSkillsSessionState = {
+      enabledSkills: new Map<string, SkillDescriptor>(),
+      disabledSkillIds: new Set<string>(),
+    };
+
+    if (createIfMissing) {
+      this.sessionStates.set(sessionKey, emptyState);
+    }
+
+    return emptyState;
   }
 }

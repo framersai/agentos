@@ -86,4 +86,26 @@ describe('chainOfThought', () => {
     expect(systemMsg.content).toContain('You are a helper.');
     expect(systemMsg.content).not.toContain(DEFAULT_COT_INSTRUCTION);
   });
+
+  it('detects tools supplied as a Map and still injects CoT', async () => {
+    await generateText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'hello',
+      tools: new Map([
+        [
+          'lookup',
+          {
+            description: 'A tool',
+            inputSchema: { type: 'object', properties: {} },
+            execute: vi.fn(async () => ({ ok: true })),
+          },
+        ],
+      ]) as any,
+      chainOfThought: true,
+    });
+
+    const messages = hoisted.generateCompletion.mock.calls[0][1];
+    const systemMsg = messages.find((m: any) => m.role === 'system');
+    expect(systemMsg.content).toContain(DEFAULT_COT_INSTRUCTION);
+  });
 });

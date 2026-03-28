@@ -214,6 +214,22 @@ describe('heuristicCapabilitySelect', () => {
 
     expect(result.skills.some(s => s.skillId === 'social-broadcast')).toBe(true);
   });
+
+  it('respects excluded capability ids for heuristic skill recommendations', () => {
+    const result = heuristicCapabilitySelect('Search for recent AI papers', {
+      excludedCapabilityIds: ['web-search'],
+    });
+
+    expect(result.skills.some((s) => s.skillId === 'web-search')).toBe(false);
+  });
+
+  it('treats skill-prefixed exclusions as aliases for heuristic skill recommendations', () => {
+    const result = heuristicCapabilitySelect('Search for recent AI papers', {
+      excludedCapabilityIds: ['skill:web-search'],
+    });
+
+    expect(result.skills.some((s) => s.skillId === 'web-search')).toBe(false);
+  });
 });
 
 // ============================================================================
@@ -289,6 +305,138 @@ describe('QueryClassifier.classifyWithPlan — ExecutionPlan', () => {
     expect(plan.extensions).toEqual([]);
   });
 
+  it('upgrades the execution plan to broader strategy defaults when low confidence escalates strategy', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'Maybe internal knowledge is enough, but I am not sure.',
+        strategy: 'none',
+        tier: 0,
+        confidence: 0.2,
+        internal_knowledge_sufficient: true,
+        suggested_sources: [],
+        tools_needed: [],
+        sources: {
+          vector: false,
+          bm25: false,
+          graph: false,
+          raptor: false,
+          memory: false,
+          multimodal: false,
+        },
+        hyde: {
+          enabled: false,
+          hypothesisCount: 0,
+        },
+        memoryTypes: [],
+        modalities: [],
+        deepResearch: false,
+        skills: [],
+        tools: [],
+        extensions: [],
+        requires_external_calls: false,
+      }),
+    );
+
+    const classifier = createClassifier({ confidenceThreshold: 0.7 });
+    const [classification, plan] = await classifier.classifyWithPlan('Tell me about the system');
+
+    expect(classification.tier).toBe(1);
+    expect(classification.strategy).toBe('simple');
+    expect(classification.internalKnowledgeSufficient).toBe(false);
+    expect(plan.strategy).toBe('simple');
+    expect(plan.sources).toEqual({
+      vector: true,
+      bm25: true,
+      graph: false,
+      raptor: false,
+      memory: true,
+      multimodal: false,
+    });
+    expect(plan.hyde).toEqual({ enabled: false, hypothesisCount: 0 });
+    expect(plan.memoryTypes).toEqual(['episodic', 'semantic']);
+    expect(plan.modalities).toEqual(['text']);
+    expect(plan.requiresExternalCalls).toBe(true);
+    expect(plan.internalKnowledgeSufficient).toBe(false);
+  });
+
+  it('upgrades the execution plan when the model returns a tier-strategy mismatch', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'Research-level query, but the strategy came back too weak.',
+        strategy: 'simple',
+        tier: 3,
+        confidence: 0.95,
+        internal_knowledge_sufficient: false,
+        suggested_sources: [],
+        tools_needed: [],
+        sources: {
+          vector: true,
+          bm25: true,
+          graph: false,
+          raptor: false,
+          memory: true,
+          multimodal: false,
+        },
+        hyde: {
+          enabled: false,
+          hypothesisCount: 0,
+        },
+        memoryTypes: ['semantic'],
+        modalities: ['text'],
+        deepResearch: false,
+        skills: [],
+        tools: [],
+        extensions: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [classification, plan] = await classifier.classifyWithPlan(
+      'Compare all caching strategies in the codebase',
+    );
+
+    expect(classification.tier).toBe(3);
+    expect(classification.strategy).toBe('complex');
+    expect(classification.suggestedSources).toEqual(['vector', 'graph', 'research']);
+    expect(plan.strategy).toBe('complex');
+    expect(plan.sources).toEqual({
+      vector: true,
+      bm25: true,
+      graph: true,
+      raptor: true,
+      memory: true,
+      multimodal: false,
+    });
+    expect(plan.hyde).toEqual({ enabled: true, hypothesisCount: 3 });
+    expect(plan.memoryTypes).toEqual(['episodic', 'semantic', 'procedural', 'prospective']);
+    expect(plan.deepResearch).toBe(true);
+  });
+
+  it('treats extension-only recommendations as requiring external calls', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'Need an extension, but no direct tools or skills.',
+        strategy: 'none',
+        tier: 0,
+        confidence: 0.95,
+        internal_knowledge_sufficient: false,
+        suggested_sources: [],
+        tools_needed: [],
+        skills: [],
+        tools: [],
+        extensions: [
+          { extensionId: 'browser-automation', reasoning: 'Need browser automation', confidence: 0.8, priority: 0 },
+        ],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [, plan] = await classifier.classifyWithPlan('Use browser automation only');
+
+    expect(plan.extensions).toHaveLength(1);
+    expect(plan.requiresExternalCalls).toBe(true);
+  });
+
   it('falls back to heuristic capability selection on LLM error', async () => {
     mockGenerateText.mockRejectedValue(new Error('API rate limited'));
 
@@ -305,6 +453,83 @@ describe('QueryClassifier.classifyWithPlan — ExecutionPlan', () => {
     expect(plan.skills.some(s => s.skillId === 'web-search')).toBe(true);
     expect(plan.requiresExternalCalls).toBe(true);
     expect(plan.internalKnowledgeSufficient).toBe(false);
+  });
+
+  it('respects excluded capability ids in heuristic fallback on LLM error', async () => {
+    mockGenerateText.mockRejectedValue(new Error('API rate limited'));
+
+    const classifier = createClassifier();
+    const [, plan] = await classifier.classifyWithPlan(
+      'Search the web for recent papers on RAG',
+      undefined,
+      { excludedCapabilityIds: ['web-search'] },
+    );
+
+    expect(plan.skills.some((s) => s.skillId === 'web-search')).toBe(false);
+    expect(plan.requiresExternalCalls).toBe(false);
+  });
+
+  it('filters excluded skills from successful LLM plans and reindexes remaining priorities', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'Search is disabled, keep only coding help.',
+        strategy: 'none',
+        tier: 0,
+        confidence: 0.91,
+        internal_knowledge_sufficient: true,
+        suggested_sources: [],
+        tools_needed: [],
+        skills: [
+          { skillId: 'skill:web-search', reasoning: 'Would browse the web', confidence: 0.9, priority: 0 },
+          { skillId: 'coding-agent', reasoning: 'Can reason locally', confidence: 0.8, priority: 1 },
+        ],
+        tools: [],
+        extensions: [],
+        requires_external_calls: true,
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [, plan] = await classifier.classifyWithPlan(
+      'Help me debug this without browsing',
+      undefined,
+      { excludedCapabilityIds: ['web-search'] },
+    );
+
+    expect(plan.skills).toHaveLength(1);
+    expect(plan.skills[0].skillId).toBe('coding-agent');
+    expect(plan.skills[0].priority).toBe(0);
+    expect(plan.requiresExternalCalls).toBe(true);
+  });
+
+  it('clears requiresExternalCalls when exclusions remove the only recommended skill', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'Browsing is disabled, so no capability should remain.',
+        strategy: 'none',
+        tier: 0,
+        confidence: 0.91,
+        internal_knowledge_sufficient: true,
+        suggested_sources: [],
+        tools_needed: [],
+        skills: [
+          { skillId: 'skill:web-search', reasoning: 'Would browse the web', confidence: 0.9, priority: 0 },
+        ],
+        tools: [],
+        extensions: [],
+        requires_external_calls: true,
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [, plan] = await classifier.classifyWithPlan(
+      'Answer locally without browsing',
+      undefined,
+      { excludedCapabilityIds: ['web-search'] },
+    );
+
+    expect(plan.skills).toEqual([]);
+    expect(plan.requiresExternalCalls).toBe(false);
   });
 
   it('falls back to empty capabilities on LLM error for trivial query', async () => {
@@ -370,6 +595,30 @@ describe('QueryClassifier.classifyWithPlan — ExecutionPlan', () => {
     expect(plan.skills[1].confidence).toBe(0);
   });
 
+  it('clamps top-level tier and confidence in successful LLM plans', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'Returned out-of-range classifier metadata.',
+        strategy: 'simple',
+        tier: 99,
+        confidence: -0.5,
+        internal_knowledge_sufficient: false,
+        suggested_sources: ['vector'],
+        tools_needed: [],
+        skills: [],
+        tools: [],
+        extensions: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [classification, plan] = await classifier.classifyWithPlan('Investigate auth flow');
+
+    expect(classification.tier).toBe(3);
+    expect(classification.confidence).toBe(0);
+    expect(plan.confidence).toBe(0);
+  });
+
   it('sorts recommendations by priority', async () => {
     mockGenerateText.mockResolvedValue(
       mockPlanLlmResponse({
@@ -394,6 +643,178 @@ describe('QueryClassifier.classifyWithPlan — ExecutionPlan', () => {
     expect(plan.skills[0].skillId).toBe('high-priority');
     expect(plan.skills[1].skillId).toBe('mid-priority');
     expect(plan.skills[2].skillId).toBe('low-priority');
+  });
+
+  it('normalizes and deduplicates prefixed capability ids from successful LLM plans', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'The model returned discovery-style capability ids.',
+        strategy: 'moderate',
+        tier: 2,
+        confidence: 0.88,
+        internal_knowledge_sufficient: false,
+        suggested_sources: ['vector'],
+        tools_needed: ['webSearch'],
+        skills: [
+          { skillId: 'skill:web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
+          { skillId: 'web-search', reasoning: 'Duplicate plain id', confidence: 0.7, priority: 1 },
+        ],
+        tools: [
+          { toolId: 'tool:webSearch', reasoning: 'Need the web tool', confidence: 0.85, priority: 0 },
+          { toolId: 'webSearch', reasoning: 'Duplicate plain tool id', confidence: 0.6, priority: 1 },
+        ],
+        extensions: [
+          { extensionId: 'extension:browser-automation', reasoning: 'Need browser automation', confidence: 0.8, priority: 0 },
+          { extensionId: 'ext:browser-automation', reasoning: 'Duplicate ext alias', confidence: 0.5, priority: 1 },
+        ],
+        requires_external_calls: true,
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [classification, plan] = await classifier.classifyWithPlan('Search the web with browser automation');
+
+    expect(classification.toolsNeeded).toEqual(['webSearch']);
+
+    expect(plan.skills).toEqual([
+      { skillId: 'web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
+    ]);
+    expect(plan.tools).toEqual([
+      { toolId: 'webSearch', reasoning: 'Need the web tool', confidence: 0.85, priority: 0 },
+    ]);
+    expect(plan.extensions).toEqual([
+      {
+        extensionId: 'browser-automation',
+        reasoning: 'Need browser automation',
+        confidence: 0.8,
+        priority: 0,
+      },
+    ]);
+  });
+
+  it('normalizes retrieval enum lists and enables multimodal source for non-text modalities', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'The model returned mixed retrieval enum values.',
+        strategy: 'moderate',
+        tier: 2,
+        confidence: 0.87,
+        internal_knowledge_sufficient: false,
+        suggested_sources: ['vector'],
+        tools_needed: [],
+        sources: {
+          vector: true,
+          bm25: true,
+          graph: true,
+          raptor: false,
+          memory: true,
+          multimodal: false,
+        },
+        memoryTypes: ['semantic', 'SEMANTIC', 'invalid-memory', 'procedural'],
+        modalities: ['text', 'IMAGE', 'invalid-modality', 'image'],
+        skills: [],
+        tools: [],
+        extensions: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [, plan] = await classifier.classifyWithPlan('Analyze the screenshot and related notes');
+
+    expect(plan.memoryTypes).toEqual(['semantic', 'procedural']);
+    expect(plan.modalities).toEqual(['text', 'image']);
+    expect(plan.sources.multimodal).toBe(true);
+  });
+
+  it('falls back to strategy defaults when retrieval enum lists are invalid-only', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'The model returned only invalid retrieval enum values.',
+        strategy: 'simple',
+        tier: 1,
+        confidence: 0.82,
+        internal_knowledge_sufficient: false,
+        suggested_sources: ['vector'],
+        tools_needed: [],
+        memoryTypes: ['bad-memory-type'],
+        modalities: ['bad-modality'],
+        skills: [],
+        tools: [],
+        extensions: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [, plan] = await classifier.classifyWithPlan('What port does the API use?');
+
+    expect(plan.memoryTypes).toEqual(['episodic', 'semantic']);
+    expect(plan.modalities).toEqual(['text']);
+    expect(plan.sources.multimodal).toBe(false);
+  });
+
+  it('falls back to sane defaults for malformed boolean and numeric plan metadata', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockPlanLlmResponse({
+        thinking: 'The model returned malformed plan metadata.',
+        strategy: 'simple',
+        tier: 1,
+        confidence: 0.82,
+        internal_knowledge_sufficient: 'yes',
+        suggested_sources: ['vector'],
+        tools_needed: [],
+        sources: {
+          vector: 'yes',
+          bm25: 1,
+          graph: 'no',
+          raptor: 'no',
+          memory: 'yes',
+          multimodal: 'yes',
+        },
+        hyde: {
+          enabled: 'no',
+          hypothesisCount: -3,
+        },
+        temporal: {
+          preferRecent: 'yes',
+          recencyBoost: -5,
+          maxAgeMs: 'never',
+        },
+        graphConfig: {
+          maxDepth: -4,
+          minEdgeWeight: 3,
+        },
+        raptorLayers: ['bad', -1, 1.9, 1, 2],
+        deepResearch: 'no',
+        requires_external_calls: 'yes',
+        skills: [],
+        tools: [],
+        extensions: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const [classification, plan] = await classifier.classifyWithPlan('What port does the API use?');
+
+    expect(classification.internalKnowledgeSufficient).toBe(false);
+    expect(plan.sources).toEqual({
+      vector: true,
+      bm25: true,
+      graph: false,
+      raptor: false,
+      memory: true,
+      multimodal: false,
+    });
+    expect(plan.hyde).toEqual({ enabled: false, hypothesisCount: 0 });
+    expect(plan.temporal).toEqual({
+      preferRecent: false,
+      recencyBoost: 1,
+      maxAgeMs: null,
+    });
+    expect(plan.graphConfig).toEqual({ maxDepth: 0, minEdgeWeight: 1 });
+    expect(plan.raptorLayers).toEqual([1, 2]);
+    expect(plan.deepResearch).toBe(false);
+    expect(plan.requiresExternalCalls).toBe(true);
+    expect(plan.internalKnowledgeSufficient).toBe(false);
   });
 
   it('complex queries recommend more capabilities than simple ones', async () => {
@@ -510,10 +931,13 @@ describe('QueryClassifier.setCapabilityDiscoveryEngine', () => {
     const classifier = createClassifier();
     classifier.setCapabilityDiscoveryEngine(mockEngine);
 
-    await classifier.classifyWithPlan('Find recent AI papers');
+    await classifier.classifyWithPlan('Find recent AI papers', undefined, {
+      excludedCapabilityIds: ['research-skill'],
+    });
 
     // Verify the system prompt includes the summaries
     expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(mockEngine.getTier0SummariesByKind).toHaveBeenCalledWith(['research-skill']);
     const callArgs = mockGenerateText.mock.calls[0][0];
     expect(callArgs.system).toContain('Skills: web-search (information)');
     expect(callArgs.system).toContain('Tools: generateImage (creative)');

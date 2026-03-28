@@ -23,6 +23,7 @@ import type {
   JSONSchemaObject,
 } from '../core/tools/ITool.js';
 import type { RecordMutationInput } from './PersonalityMutationStore.js';
+import { resolveSelfImprovementSessionKey } from './sessionScope.js';
 
 // ============================================================================
 // VALID TRAITS
@@ -193,8 +194,8 @@ export class AdaptPersonalityTool
     required: ['trait', 'delta', 'reasoning'],
   };
 
-  /** Per-session accumulated |delta| per trait. Reset on tool construction. */
-  private readonly sessionDeltas: Map<string, number> = new Map();
+  /** Per-session accumulated |delta| per trait. */
+  private readonly sessionDeltas: Map<string, Map<string, number>> = new Map();
 
   /** Injected dependencies. */
   private readonly deps: AdaptPersonalityDeps;
@@ -251,7 +252,8 @@ export class AdaptPersonalityTool
 
     // 3. Check session budget — track total |delta| per trait
     const { maxDeltaPerSession } = this.deps.config;
-    const currentSessionTotal = this.sessionDeltas.get(trait) ?? 0;
+    const sessionDeltas = this.getSessionDeltas(context);
+    const currentSessionTotal = sessionDeltas.get(trait) ?? 0;
     const remainingBudget = maxDeltaPerSession - currentSessionTotal;
 
     // 4. Clamp delta to remaining budget
@@ -289,7 +291,7 @@ export class AdaptPersonalityTool
 
     // Update session tracking
     const newSessionTotal = currentSessionTotal + Math.abs(effectiveDelta);
-    this.sessionDeltas.set(trait, newSessionTotal);
+    sessionDeltas.set(trait, newSessionTotal);
 
     // 6. Record in mutation store when persistence is enabled.
     if (this.deps.mutationStore) {
@@ -317,5 +319,17 @@ export class AdaptPersonalityTool
     };
 
     return { success: true, output };
+  }
+
+  private getSessionDeltas(context: ToolExecutionContext): Map<string, number> {
+    const sessionKey = resolveSelfImprovementSessionKey(context);
+    const existing = this.sessionDeltas.get(sessionKey);
+    if (existing) {
+      return existing;
+    }
+
+    const created = new Map<string, number>();
+    this.sessionDeltas.set(sessionKey, created);
+    return created;
   }
 }

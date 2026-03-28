@@ -31,7 +31,6 @@ import {
 
 /** Minimal column set needed for the merge operation. */
 interface TraceRow {
-  rowid: number;
   id: string;
   content: string;
   retrieval_count: number;
@@ -171,7 +170,7 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
       // Load all matching active traces.
       const placeholders = traceIds.map(() => '?').join(', ');
       const rows = await this.brain.all<TraceRow>(
-        `SELECT rowid AS rowid, id, content, retrieval_count, tags, metadata, last_accessed, created_at
+        `SELECT id, content, retrieval_count, tags, metadata, last_accessed, created_at
          FROM memory_traces
          WHERE id IN (${placeholders}) AND deleted = 0`,
         traceIds,
@@ -239,21 +238,10 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
 
       await this.brain.transaction(async (trx) => {
         await trx.run(
-          `INSERT INTO memory_traces_fts (memory_traces_fts, rowid, content, tags)
-           VALUES ('delete', ?, ?, ?)`,
-          [survivor.rowid, survivor.content, survivor.tags],
-        );
-
-        await trx.run(
           `UPDATE memory_traces
            SET content = ?, embedding = NULL, tags = ?, metadata = ?, retrieval_count = ?, last_accessed = ?
            WHERE id = ?`,
           [finalContent, finalTags, mergedMetadata, mergedRetrievalCount, mergedLastAccessed, survivor.id],
-        );
-
-        await trx.run(
-          this.brain.features.fts.syncInsert('memory_traces_fts', '?', ['content', 'tags']),
-          [survivor.rowid, finalContent, finalTags],
         );
 
         // Soft-delete all non-survivors.
@@ -266,6 +254,8 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
             deletedIds.push(row.id);
           }
         }
+
+        await trx.exec(this.brain.features.fts.rebuildCommand('memory_traces_fts'));
       });
       return {
         success: true,

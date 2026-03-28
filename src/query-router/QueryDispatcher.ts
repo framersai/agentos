@@ -110,7 +110,8 @@ export interface QueryDispatcherDeps {
   /**
    * Multi-pass deep research synthesis.
    * @param query   - The user query string.
-   * @param sources - Source identifiers to consult (e.g., ['web', 'docs']).
+   * @param sources - Normalized research source hints to consult
+   *                  (e.g., ['web', 'docs']).
    */
   deepResearch: (
     query: string,
@@ -190,7 +191,10 @@ export class QueryDispatcher {
    *
    * @param query    - The user's natural-language query.
    * @param strategy - Retrieval strategy (`none`, `simple`, `moderate`, `complex`).
-   * @param suggestedSources - Optional source hints for deep research (complex).
+   * @param suggestedSources - Optional retrieval or research source hints for
+   *                           deep research (complex). Internal classifier
+   *                           hints such as `vector`/`graph`/`research` are
+   *                           normalized to research hints before dispatch.
    * @returns Aggregated retrieval result with chunks, optional synthesis,
    *          and timing metadata.
    */
@@ -223,7 +227,7 @@ export class QueryDispatcher {
         return this.dispatchModerate(query, start);
 
       case 'complex':
-        return this.dispatchComplex(query, suggestedSources ?? ['web'], start);
+        return this.dispatchComplex(query, this.normalizeResearchSources(suggestedSources), start);
 
       default:
         // Unreachable for valid RetrievalStrategy, but TypeScript exhaustiveness
@@ -243,8 +247,10 @@ export class QueryDispatcher {
    *
    * @param query            - The user's natural-language query.
    * @param tier             - Complexity tier assigned by the QueryClassifier.
-   * @param suggestedSources - Optional source hints for deep research (T3).
-   *                           Defaults to `['web']` when not provided.
+   * @param suggestedSources - Optional retrieval or research source hints for
+   *                           deep research (T3). Internal classifier hints
+   *                           are normalized before dispatch. Defaults to
+   *                           `['web']` when not provided.
    * @returns Aggregated retrieval result with chunks, optional synthesis,
    *          and timing metadata.
    */
@@ -277,7 +283,7 @@ export class QueryDispatcher {
     }
 
     // T3 — hybrid + deep research
-    return this.dispatchTier3(query, suggestedSources ?? ['web'], start);
+    return this.dispatchTier3(query, this.normalizeResearchSources(suggestedSources), start);
   }
 
   // --------------------------------------------------------------------------
@@ -292,7 +298,7 @@ export class QueryDispatcher {
    */
   private async dispatchSimple(query: string, start: number): Promise<RetrievalResult> {
     const vectorStart = Date.now();
-    const chunks = await this.deps.vectorSearch(query, 5);
+    const chunks = await this.safeVectorSearch(query, 5);
     const vectorDuration = Date.now() - vectorStart;
 
     this.deps.emit({
@@ -339,7 +345,12 @@ export class QueryDispatcher {
           reason: `HyDE search failed: ${(err as Error).message}`,
           timestamp: Date.now(),
         });
-        hydeChunks = await this.deps.vectorSearch(query, 15);
+        hydeChunks = await this.safeVectorSearch(
+          query,
+          15,
+          'vector-empty',
+          'Vector search fallback failed',
+        );
       }
     } else {
       // HyDE not available — use direct vector search
@@ -349,7 +360,7 @@ export class QueryDispatcher {
         reason: 'HyDE search not configured; using direct vector search',
         timestamp: Date.now(),
       });
-      hydeChunks = await this.deps.vectorSearch(query, 15);
+      hydeChunks = await this.safeVectorSearch(query, 15);
     }
 
     const hydeDuration = Date.now() - hydeStart;
@@ -390,31 +401,33 @@ export class QueryDispatcher {
     const merged = this.mergeAndDedup(hydeChunks, graphChunks);
 
     // --- Rerank (fallback-safe) ---
-    let finalChunks: RetrievedChunk[];
-    const rerankStart = Date.now();
+    let finalChunks: RetrievedChunk[] = [];
+    if (merged.length > 0) {
+      const rerankStart = Date.now();
 
-    try {
-      finalChunks = await this.deps.rerank(query, merged, 5);
-      const rerankDuration = Date.now() - rerankStart;
+      try {
+        finalChunks = await this.deps.rerank(query, merged, 5);
+        const rerankDuration = Date.now() - rerankStart;
 
-      this.deps.emit({
-        type: 'retrieve:rerank',
-        inputCount: merged.length,
-        outputCount: finalChunks.length,
-        durationMs: rerankDuration,
-        timestamp: Date.now(),
-      });
-    } catch (err) {
-      finalChunks = [...merged]
-        .sort((a, b) => b.relevanceScore - a.relevanceScore)
-        .slice(0, 5);
+        this.deps.emit({
+          type: 'retrieve:rerank',
+          inputCount: merged.length,
+          outputCount: finalChunks.length,
+          durationMs: rerankDuration,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        finalChunks = [...merged]
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .slice(0, 5);
 
-      this.deps.emit({
-        type: 'retrieve:fallback',
-        strategy: 'rerank-skip',
-        reason: `Rerank failed: ${(err as Error).message}`,
-        timestamp: Date.now(),
-      });
+        this.deps.emit({
+          type: 'retrieve:fallback',
+          strategy: 'rerank-skip',
+          reason: `Rerank failed: ${(err as Error).message}`,
+          timestamp: Date.now(),
+        });
+      }
     }
 
     const result: RetrievalResult = {
@@ -481,6 +494,7 @@ export class QueryDispatcher {
     // --- Step 2: HyDE search per sub-query ---
     const allChunks: RetrievedChunk[] = [];
     const searchFn = this.deps.hydeSearch ?? this.deps.vectorSearch;
+    const usesHyde = this.deps.hydeSearch !== undefined;
 
     for (const subQuery of subQueries) {
       const subStart = Date.now();
@@ -502,12 +516,21 @@ export class QueryDispatcher {
           reason: `Sub-query search failed for "${subQuery.slice(0, 60)}": ${(err as Error).message}`,
           timestamp: Date.now(),
         });
-
-        try {
-          const fallbackChunks = await this.deps.vectorSearch(subQuery, 10);
+        if (usesHyde) {
+          const fallbackChunks = await this.safeVectorSearch(
+            subQuery,
+            10,
+            'sub-query-skip',
+            `Direct vector fallback failed for "${subQuery.slice(0, 60)}"`,
+          );
           allChunks.push(...fallbackChunks);
-        } catch {
-          // Both failed — skip this sub-query
+        } else {
+          this.deps.emit({
+            type: 'retrieve:fallback',
+            strategy: 'sub-query-skip',
+            reason: `Sub-query skipped for "${subQuery.slice(0, 60)}": ${(err as Error).message}`,
+            timestamp: Date.now(),
+          });
         }
       }
     }
@@ -535,32 +558,34 @@ export class QueryDispatcher {
 
     // --- Step 3: Deduplicate and rank ---
     const deduped = this.mergeAndDedup(allChunks, graphChunks);
-    let finalChunks: RetrievedChunk[];
+    let finalChunks: RetrievedChunk[] = [];
 
     // Rerank the merged results against the original query
-    const rerankStart = Date.now();
-    try {
-      finalChunks = await this.deps.rerank(query, deduped, 10);
-      const rerankDuration = Date.now() - rerankStart;
+    if (deduped.length > 0) {
+      const rerankStart = Date.now();
+      try {
+        finalChunks = await this.deps.rerank(query, deduped, 10);
+        const rerankDuration = Date.now() - rerankStart;
 
-      this.deps.emit({
-        type: 'retrieve:rerank',
-        inputCount: deduped.length,
-        outputCount: finalChunks.length,
-        durationMs: rerankDuration,
-        timestamp: Date.now(),
-      });
-    } catch (err) {
-      finalChunks = [...deduped]
-        .sort((a, b) => b.relevanceScore - a.relevanceScore)
-        .slice(0, 10);
+        this.deps.emit({
+          type: 'retrieve:rerank',
+          inputCount: deduped.length,
+          outputCount: finalChunks.length,
+          durationMs: rerankDuration,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        finalChunks = [...deduped]
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .slice(0, 10);
 
-      this.deps.emit({
-        type: 'retrieve:fallback',
-        strategy: 'rerank-skip',
-        reason: `Rerank failed: ${(err as Error).message}`,
-        timestamp: Date.now(),
-      });
+        this.deps.emit({
+          type: 'retrieve:fallback',
+          strategy: 'rerank-skip',
+          reason: `Rerank failed: ${(err as Error).message}`,
+          timestamp: Date.now(),
+        });
+      }
     }
 
     // --- Step 4: Optional deep research synthesis ---
@@ -642,7 +667,7 @@ export class QueryDispatcher {
    */
   private async dispatchTier1(query: string, start: number): Promise<RetrievalResult> {
     const vectorStart = Date.now();
-    const chunks = await this.deps.vectorSearch(query, 5);
+    const chunks = await this.safeVectorSearch(query, 5);
     const vectorDuration = Date.now() - vectorStart;
 
     this.deps.emit({
@@ -689,7 +714,7 @@ export class QueryDispatcher {
   ): Promise<RetrievalResult> {
     // --- Vector search (topK=15) ---
     const vectorStart = Date.now();
-    const vectorChunks = await this.deps.vectorSearch(query, 15);
+    const vectorChunks = await this.safeVectorSearch(query, 15);
     const vectorDuration = Date.now() - vectorStart;
 
     this.deps.emit({
@@ -728,32 +753,34 @@ export class QueryDispatcher {
     const merged = this.mergeAndDedup(vectorChunks, graphChunks);
 
     // --- Rerank (fallback-safe) ---
-    let finalChunks: RetrievedChunk[];
-    const rerankStart = Date.now();
+    let finalChunks: RetrievedChunk[] = [];
+    if (merged.length > 0) {
+      const rerankStart = Date.now();
 
-    try {
-      finalChunks = await this.deps.rerank(query, merged, 5);
-      const rerankDuration = Date.now() - rerankStart;
+      try {
+        finalChunks = await this.deps.rerank(query, merged, 5);
+        const rerankDuration = Date.now() - rerankStart;
 
-      this.deps.emit({
-        type: 'retrieve:rerank',
-        inputCount: merged.length,
-        outputCount: finalChunks.length,
-        durationMs: rerankDuration,
-        timestamp: Date.now(),
-      });
-    } catch (err) {
-      // Fallback: sort by score descending, take top 5
-      finalChunks = [...merged]
-        .sort((a, b) => b.relevanceScore - a.relevanceScore)
-        .slice(0, 5);
+        this.deps.emit({
+          type: 'retrieve:rerank',
+          inputCount: merged.length,
+          outputCount: finalChunks.length,
+          durationMs: rerankDuration,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        // Fallback: sort by score descending, take top 5
+        finalChunks = [...merged]
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .slice(0, 5);
 
-      this.deps.emit({
-        type: 'retrieve:fallback',
-        strategy: 'rerank-skip',
-        reason: `Rerank failed: ${(err as Error).message}`,
-        timestamp: Date.now(),
-      });
+        this.deps.emit({
+          type: 'retrieve:fallback',
+          strategy: 'rerank-skip',
+          reason: `Rerank failed: ${(err as Error).message}`,
+          timestamp: Date.now(),
+        });
+      }
     }
 
     const result: RetrievalResult = {
@@ -888,5 +915,89 @@ export class QueryDispatcher {
     }
 
     return Array.from(seen.values());
+  }
+
+  /**
+   * Normalize classifier retrieval hints into the research-source vocabulary
+   * expected by deep-research runtimes.
+   */
+  private normalizeResearchSources(suggestedSources?: string[]): string[] {
+    const sources = suggestedSources?.length ? suggestedSources : ['web'];
+    const normalizedSources: string[] = [];
+    const seen = new Set<string>();
+
+    const push = (source: string): void => {
+      const normalizedSource = source.trim().toLowerCase();
+      if (!normalizedSource || seen.has(normalizedSource)) {
+        return;
+      }
+
+      seen.add(normalizedSource);
+      normalizedSources.push(normalizedSource);
+    };
+
+    for (const source of sources) {
+      const normalizedSource = source.trim().toLowerCase();
+
+      switch (normalizedSource) {
+        case 'vector':
+        case 'graph':
+        case 'bm25':
+        case 'memory':
+        case 'raptor':
+        case 'docs':
+        case 'documentation':
+        case 'repo':
+        case 'repository':
+        case 'code':
+          push('docs');
+          break;
+
+        case 'research':
+        case 'web':
+        case 'search':
+        case 'internet':
+          push('web');
+          break;
+
+        case 'multimodal':
+        case 'media':
+        case 'image':
+        case 'images':
+        case 'audio':
+        case 'video':
+          push('media');
+          break;
+
+        default:
+          push(normalizedSource);
+          break;
+      }
+    }
+
+    return normalizedSources.length > 0 ? normalizedSources : ['web'];
+  }
+
+  /**
+   * Best-effort vector search that degrades to an empty result set instead of
+   * aborting the entire retrieval pipeline.
+   */
+  private async safeVectorSearch(
+    query: string,
+    topK: number,
+    fallbackStrategy = 'vector-empty',
+    reasonPrefix = 'Vector search failed',
+  ): Promise<RetrievedChunk[]> {
+    try {
+      return await this.deps.vectorSearch(query, topK);
+    } catch (err) {
+      this.deps.emit({
+        type: 'retrieve:fallback',
+        strategy: fallbackStrategy,
+        reason: `${reasonPrefix}: ${(err as Error).message}`,
+        timestamp: Date.now(),
+      });
+      return [];
+    }
   }
 }

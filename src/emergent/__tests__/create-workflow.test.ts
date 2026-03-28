@@ -19,12 +19,13 @@ import type { ToolExecutionContext } from '../../core/tools/ITool.js';
 // ---------------------------------------------------------------------------
 
 /** Minimal ToolExecutionContext for testing. */
-function makeContext(): ToolExecutionContext {
+function makeContext(overrides: Partial<ToolExecutionContext> = {}): ToolExecutionContext {
   return {
     gmiId: 'test-gmi',
     personaId: 'test-persona',
     userContext: { userId: 'test-user' } as any,
     correlationId: 'test-session',
+    ...overrides,
   };
 }
 
@@ -81,6 +82,15 @@ describe('CreateWorkflowTool', () => {
   });
 
   it('should run a workflow and resolve $input / $prev references', async () => {
+    const createCtx = makeContext({
+      correlationId: 'call-1',
+      sessionData: { sessionId: 'shared-session' },
+    });
+    const runCtx = makeContext({
+      correlationId: 'call-2',
+      sessionData: { sessionId: 'shared-session' },
+    });
+
     // Create workflow
     const createResult = await tool.execute(
       {
@@ -92,7 +102,7 @@ describe('CreateWorkflowTool', () => {
           { tool: 'summarize', args: { text: '$prev' } },
         ],
       },
-      ctx,
+      createCtx,
     );
 
     const workflowId = createResult.output.workflowId;
@@ -100,7 +110,7 @@ describe('CreateWorkflowTool', () => {
     // Run workflow
     const runResult = await tool.execute(
       { action: 'run', workflowId, input: 'climate change' },
-      ctx,
+      runCtx,
     );
 
     expect(runResult.success).toBe(true);
@@ -108,11 +118,63 @@ describe('CreateWorkflowTool', () => {
     expect(runResult.output.finalOutput).toBeDefined();
 
     // Verify executeTool was called with resolved args
-    expect(deps.executeTool).toHaveBeenCalledWith('web_search', { query: 'climate change' });
+    expect(deps.executeTool).toHaveBeenCalledWith(
+      'web_search',
+      { query: 'climate change' },
+      expect.objectContaining({
+        correlationId: 'call-2',
+        sessionData: { sessionId: 'shared-session' },
+      }),
+    );
     // The second call should have received the output of web_search as $prev
     expect(deps.executeTool).toHaveBeenCalledWith('summarize', {
       text: { results: ['result-1', 'result-2'] },
+    }, expect.objectContaining({
+      correlationId: 'call-2',
+      sessionData: { sessionId: 'shared-session' },
+    }));
+  });
+
+  it('should isolate workflows by session', async () => {
+    const sessionOneCtx = makeContext({
+      correlationId: 'call-1',
+      sessionData: { sessionId: 'session-one' },
     });
+    const sessionTwoCtx = makeContext({
+      correlationId: 'call-1',
+      sessionData: { sessionId: 'session-two' },
+    });
+
+    const createResult = await tool.execute(
+      {
+        action: 'create',
+        name: 'search-summarize',
+        description: 'Search and summarize.',
+        steps: [
+          { tool: 'web_search', args: { query: '$input' } },
+          { tool: 'summarize', args: { text: '$prev' } },
+        ],
+      },
+      sessionOneCtx,
+    );
+
+    expect(createResult.success).toBe(true);
+
+    const otherSessionList = await tool.execute({ action: 'list' }, sessionTwoCtx);
+    expect(otherSessionList.success).toBe(true);
+    expect(otherSessionList.output.workflows).toHaveLength(0);
+
+    const crossSessionRun = await tool.execute(
+      {
+        action: 'run',
+        workflowId: createResult.output.workflowId,
+        input: 'climate change',
+      },
+      sessionTwoCtx,
+    );
+
+    expect(crossSessionRun.success).toBe(false);
+    expect(crossSessionRun.error).toContain('not found');
   });
 
   it('should reject workflow exceeding maxSteps', async () => {

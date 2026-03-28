@@ -117,6 +117,7 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
       kind: options?.kind,
       category: options?.category,
       onlyAvailable: options?.onlyAvailable,
+      excludedCapabilityIds: options?.excludedCapabilityIds,
     });
 
     const embeddingTimeMs = performance.now() - embeddingStart;
@@ -146,7 +147,10 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     }
 
     // 3. Build Tier 0 category summary
-    const tier0 = this.assembler.buildTier0(this.index.getAllCapabilities(), this.indexVersion);
+    const tier0 = this.assembler.buildTier0(
+      filterCapabilitiesForDiscovery(this.index.getAllCapabilities(), options?.excludedCapabilityIds),
+      this.indexVersion,
+    );
 
     // 4. Assemble tiered result with token budgets
     return this.assembler.assemble(tier0, finalResults, queryConfig, {
@@ -328,12 +332,17 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
    *
    * @returns Object with `skills`, `tools`, and `extensions` summary strings.
    */
-  getTier0SummariesByKind(): { skills: string; tools: string; extensions: string } {
+  getTier0SummariesByKind(
+    excludedCapabilityIds?: string[],
+  ): { skills: string; tools: string; extensions: string } {
     if (!this.initialized) {
       return { skills: '', tools: '', extensions: '' };
     }
 
-    const allCapabilities = this.index.getAllCapabilities();
+    const allCapabilities = filterCapabilitiesForDiscovery(
+      this.index.getAllCapabilities(),
+      excludedCapabilityIds,
+    );
 
     const filterByKind = (kinds: string[]): CapabilityDescriptor[] =>
       allCapabilities.filter((c) => kinds.includes(c.kind));
@@ -407,4 +416,42 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
       },
     };
   }
+}
+
+function filterCapabilitiesForDiscovery(
+  capabilities: CapabilityDescriptor[],
+  excludedCapabilityIds?: string[],
+): CapabilityDescriptor[] {
+  const normalizedExcludedCapabilityIds = Array.from(
+    new Set(
+      (excludedCapabilityIds ?? [])
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0),
+    ),
+  );
+
+  if (normalizedExcludedCapabilityIds.length === 0) {
+    return capabilities;
+  }
+
+  return capabilities.filter((capability) => {
+    if (capability.kind !== 'skill') {
+      return true;
+    }
+
+    const aliases = Array.from(
+      new Set(
+        [
+          capability.id,
+          capability.name,
+          capability.displayName,
+          capability.sourceRef.type === 'skill' ? capability.sourceRef.skillName : '',
+        ]
+          .map((value) => value.trim().toLowerCase())
+          .filter((value) => value.length > 0),
+      ),
+    );
+
+    return !normalizedExcludedCapabilityIds.some((excludedId) => aliases.includes(excludedId));
+  });
 }

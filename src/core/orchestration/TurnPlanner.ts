@@ -60,6 +60,7 @@ export interface TurnPlanningRequestContext {
   persona: IPersonaDefinition;
   userMessage: string;
   options?: ProcessingOptions;
+  excludedCapabilityIds?: string[];
 }
 
 export interface TurnExecutionPolicy {
@@ -161,11 +162,13 @@ function readFlag(flags: Record<string, any> | undefined, keys: string[]): unkno
 
 function buildDiscoveryQueryOptions(
   capability: TurnCapabilityPlan,
+  excludedCapabilityIds?: string[],
 ): DiscoveryQueryOptions {
   return {
     kind: capability.kind,
     category: capability.category,
     onlyAvailable: capability.onlyAvailable,
+    excludedCapabilityIds,
   };
 }
 
@@ -305,7 +308,7 @@ export class AgentOSTurnPlanner implements ITurnPlanner {
         try {
           const result = await this.discoveryEngine.discover(
             capability.query,
-            buildDiscoveryQueryOptions(capability),
+            buildDiscoveryQueryOptions(capability, input.excludedCapabilityIds),
           );
           capability.result = result;
           capability.selectedToolNames = extractDiscoveredToolNames(result);

@@ -118,6 +118,28 @@ describe('QueryClassifier', () => {
     // tier 0 + bump = tier 1
     expect(result.tier).toBe(1);
     expect(result.confidence).toBe(0.5);
+    expect(result.strategy).toBe('simple');
+    expect(result.suggestedSources).toEqual(['vector']);
+    expect(result.internalKnowledgeSufficient).toBe(false);
+  });
+
+  it('clamps invalid tier and confidence values before returning classification', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockLlmResponse({
+        thinking: 'The model returned out-of-range values.',
+        tier: -5,
+        confidence: 1.4,
+        internal_knowledge_sufficient: true,
+        suggested_sources: [],
+        tools_needed: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const result = await classifier.classify('Hello again');
+
+    expect(result.tier).toBe(0);
+    expect(result.confidence).toBe(1);
   });
 
   it('caps tier at maxTier', async () => {
@@ -137,6 +159,27 @@ describe('QueryClassifier', () => {
     const result = await classifier.classify('Compare all caching strategies in the codebase.');
 
     expect(result.tier).toBe(1);
+  });
+
+  it('upgrades strategy when the model returns a tier-strategy mismatch', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockLlmResponse({
+        thinking: 'Research-level query, but strategy came back too weak.',
+        tier: 3,
+        confidence: 0.95,
+        internal_knowledge_sufficient: false,
+        suggested_sources: [],
+        tools_needed: [],
+        strategy: 'simple',
+      } as any),
+    );
+
+    const classifier = createClassifier();
+    const result = await classifier.classify('Compare all caching strategies in the codebase');
+
+    expect(result.tier).toBe(3);
+    expect(result.strategy).toBe('complex');
+    expect(result.suggestedSources).toEqual(['vector', 'graph', 'research']);
   });
 
   it('falls back to T1 on LLM error', async () => {
@@ -179,5 +222,60 @@ describe('QueryClassifier', () => {
     expect(callArgs.system).toBeDefined();
     expect(callArgs.system).toContain('How does auth work?');
     expect(callArgs.system).toContain('Auth uses JWT tokens...');
+  });
+
+  it('normalizes and deduplicates tools_needed ids', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockLlmResponse({
+        thinking: 'Need one tool, but the model used mixed identifier forms.',
+        tier: 1,
+        confidence: 0.9,
+        internal_knowledge_sufficient: false,
+        suggested_sources: ['vector'],
+        tools_needed: ['tool:webSearch', 'webSearch'],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const result = await classifier.classify('Search the web for pricing');
+
+    expect(result.toolsNeeded).toEqual(['webSearch']);
+  });
+
+  it('filters and deduplicates suggested_sources to valid router values', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockLlmResponse({
+        thinking: 'The model returned mixed source hints.',
+        tier: 2,
+        confidence: 0.9,
+        internal_knowledge_sufficient: false,
+        suggested_sources: ['vector', 'GRAPH', 'vector', 'web', 'unknown', 'research'],
+        tools_needed: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const result = await classifier.classify('Compare auth and billing flows');
+
+    expect(result.suggestedSources).toEqual(['vector', 'graph', 'research']);
+  });
+
+  it('adds default suggested sources for the chosen strategy when the model omits them', async () => {
+    mockGenerateText.mockResolvedValue(
+      mockLlmResponse({
+        thinking: 'Complex query but missing explicit source hints.',
+        tier: 3,
+        confidence: 0.95,
+        internal_knowledge_sufficient: false,
+        suggested_sources: [],
+        tools_needed: [],
+      }),
+    );
+
+    const classifier = createClassifier();
+    const result = await classifier.classify('Compare all caching strategies in the codebase');
+
+    expect(result.strategy).toBe('complex');
+    expect(result.suggestedSources).toEqual(['vector', 'graph', 'research']);
   });
 });

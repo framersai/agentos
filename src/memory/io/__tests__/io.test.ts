@@ -221,6 +221,48 @@ describe('JsonExporter + JsonImporter', () => {
     expect(decoded.equals(fakeEmbedding)).toBe(true);
   });
 
+  it('round-trips brain meta, documents, and conversations through JSON strings', async () => {
+    const sourceBrain = await openBrain();
+    await sourceBrain.run(
+      `INSERT OR REPLACE INTO brain_meta (key, value) VALUES ('last_sync', '1234567890')`,
+    );
+    await sourceBrain.run(
+      `INSERT INTO documents
+         (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['doc_json_1', '/tmp/notes.md', 'markdown', 'Notes', 'hash-1', 3, '{"source":"test"}', Date.now()],
+    );
+    await sourceBrain.run(
+      `INSERT INTO conversations
+         (id, title, created_at, updated_at, metadata)
+       VALUES (?, ?, ?, ?, ?)`,
+      ['conv_json_1', 'Import Export', Date.now(), Date.now(), '{"channel":"test"}'],
+    );
+
+    const payload = await new JsonExporter(sourceBrain).exportToString();
+
+    const targetBrain = await openBrain();
+    const result = await new JsonImporter(targetBrain).importFromString(payload);
+
+    expect(result.errors).toHaveLength(0);
+
+    const meta = await targetBrain.get<{ value: string }>(
+      `SELECT value FROM brain_meta WHERE key = 'last_sync'`,
+    );
+    const document = await targetBrain.get<{ title: string }>(
+      `SELECT title FROM documents WHERE id = ?`,
+      ['doc_json_1'],
+    );
+    const conversation = await targetBrain.get<{ title: string }>(
+      `SELECT title FROM conversations WHERE id = ?`,
+      ['conv_json_1'],
+    );
+
+    expect(meta?.value).toBe('1234567890');
+    expect(document?.title).toBe('Notes');
+    expect(conversation?.title).toBe('Import Export');
+  });
+
   // -------------------------------------------------------------------------
   // 2. JSON dedup
   // -------------------------------------------------------------------------
@@ -525,6 +567,29 @@ describe('ObsidianImporter', () => {
     );
 
     expect(edge).toBeDefined();
+  });
+
+  it('round-trips imported wikilinks back out through Obsidian export', async () => {
+    const dir = tempDir();
+    const noteDir = path.join(dir, 'user', 'episodic');
+    fs.mkdirSync(noteDir, { recursive: true });
+
+    const noteContent = matter.stringify(
+      'This note references [[Machine Learning]] as a key topic.',
+      { type: 'episodic', scope: 'user' },
+    );
+
+    fs.writeFileSync(path.join(noteDir, 'trace-with-wikilink.md'), noteContent, 'utf8');
+
+    const brain = await openBrain();
+    await new ObsidianImporter(brain).import(dir);
+
+    const outDir = tempDir();
+    await new ObsidianExporter(brain).export(outDir);
+
+    const filePath = path.join(outDir, 'user', 'episodic', 'trace-with-wikilink.md');
+    const raw = fs.readFileSync(filePath, 'utf8');
+    expect(raw).toContain('[[Machine Learning]]');
   });
 
   it('extracts inline #tags and merges them into the trace', async () => {

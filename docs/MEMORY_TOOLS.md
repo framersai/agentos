@@ -30,7 +30,7 @@ All tools implement the `ITool` interface and belong to the `memory` category.
 ```ts
 import { createMemoryToolsPack, Memory } from '@framers/agentos';
 
-const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
 
 // Register all 6 tools at once
 for (const tool of memory.createTools()) {
@@ -43,7 +43,7 @@ for (const tool of memory.createTools()) {
 ```ts
 import { AgentOS, Memory } from '@framers/agentos';
 
-const memory = new Memory({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
 const agentos = new AgentOS();
 
 await agentos.initialize({
