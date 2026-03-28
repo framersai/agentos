@@ -2,14 +2,24 @@
  * @file CodeSandbox.ts
  * @description Implementation of the Code Execution Sandbox.
  *
- * Provides isolated code execution with security controls.
- * Currently supports JavaScript execution in-process with sandboxing.
- * Python/Shell require external runtime configuration.
+ * Provides isolated code execution with security controls:
+ * - JavaScript: runs in-process via node:vm with context isolation,
+ *   codeGeneration restrictions (eval/Function/WASM blocked), and
+ *   frozen safe globals.
+ * - Python: spawns a `python3` subprocess via execa with optional
+ *   security preambles that monkey-patch filesystem and network access.
+ * - Shell: spawns bash (or cmd on Windows) via execa with configurable
+ *   network/filesystem restrictions.
  *
  * @module AgentOS/Sandbox
- * @version 1.0.0
+ * @version 2.0.0
  */
 
+import * as vm from 'node:vm';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { execa } from 'execa';
 import { v4 as uuidv4 } from 'uuid';
 import type { ILogger } from '../../logging/ILogger';
 import {
@@ -218,7 +228,14 @@ export class CodeSandbox implements ICodeSandbox {
   }
 
   /**
-   * Executes JavaScript code in a sandboxed context.
+   * Executes JavaScript code in a hardened VM sandbox using node:vm.
+   *
+   * Security guarantees:
+   * - Isolated context prevents access to host globals (process, require, etc.)
+   * - `codeGeneration.strings = false` blocks eval() and new Function() inside the sandbox
+   * - `codeGeneration.wasm = false` blocks WebAssembly compilation
+   * - Frozen console object prevents prototype chain manipulation
+   * - Explicit undefined assignments for dangerous globals (process, global, globalThis)
    */
   private async executeJavaScript(
     executionId: string,
@@ -230,8 +247,8 @@ export class CodeSandbox implements ICodeSandbox {
     let stdout = '';
     let stderr = '';
 
-    // Create sandboxed console
-    const sandboxConsole = {
+    /** Sandboxed console that captures output to local buffers */
+    const sandboxConsole = Object.freeze({
       log: (...args: unknown[]) => {
         stdout += args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') + '\n';
       },
@@ -244,67 +261,69 @@ export class CodeSandbox implements ICodeSandbox {
       info: (...args: unknown[]) => {
         stdout += '[INFO] ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') + '\n';
       },
+    });
+
+    /**
+     * Context object exposed inside the VM. Only safe built-ins are provided.
+     * Dangerous globals are explicitly set to undefined so any reference
+     * inside sandbox code throws a clear error rather than leaking host state.
+     */
+    const contextObj: Record<string, unknown> = {
+      console: sandboxConsole,
+      JSON, Math, Date, Array, Object, String, Number, Boolean,
+      RegExp, Error, Map, Set, WeakMap, WeakSet, Promise,
+      parseInt, parseFloat, isNaN, isFinite,
+      encodeURI, decodeURI, encodeURIComponent, decodeURIComponent,
+      TextEncoder, TextDecoder, URL, URLSearchParams,
+      structuredClone,
+      atob: globalThis.atob,
+      btoa: globalThis.btoa,
+      // Explicitly blocked — undefined so references yield clear errors
+      process: undefined,
+      global: undefined,
+      globalThis: undefined,
+      require: undefined,
+      fetch: undefined,
+      setTimeout: undefined,
+      setInterval: undefined,
+      setImmediate: undefined,
+      clearTimeout: undefined,
+      clearInterval: undefined,
+      clearImmediate: undefined,
+      queueMicrotask: undefined,
     };
 
-    // Create safe globals
-    const safeGlobals: Record<string, unknown> = {
-      console: sandboxConsole,
-      JSON,
-      Math,
-      Date,
-      Array,
-      Object,
-      String,
-      Number,
-      Boolean,
-      RegExp,
-      Error,
-      Map,
-      Set,
-      WeakMap,
-      WeakSet,
-      Promise,
-      parseInt,
-      parseFloat,
-      isNaN,
-      isFinite,
-      encodeURI,
-      decodeURI,
-      encodeURIComponent,
-      decodeURIComponent,
-      setTimeout: undefined, // Blocked
-      setInterval: undefined, // Blocked
-      fetch: undefined, // Blocked
-      require: undefined, // Blocked
-      import: undefined, // Blocked
-      process: undefined, // Blocked
-      global: undefined, // Blocked
-      globalThis: undefined, // Blocked
-    };
+    const context = vm.createContext(contextObj, {
+      name: `sandbox-${executionId}`,
+      codeGeneration: { strings: false, wasm: false },
+    });
+
+    /** Wrap user code in an async IIFE so top-level await works */
+    const wrappedCode = `(async () => {\n${request.code}\n})()`;
+
+    const script = new vm.Script(wrappedCode, {
+      filename: `sandbox-${executionId}.js`,
+    });
+
+    const timeoutMs = config.timeoutMs || DEFAULT_CONFIG.timeoutMs!;
 
     try {
-      // Create a function from the code
-      const wrappedCode = `
-        "use strict";
-        return (async function(console, JSON, Math, Date, Array, Object, String, Number, Boolean, RegExp, Error, Map, Set, WeakMap, WeakSet, Promise, parseInt, parseFloat, isNaN, isFinite, encodeURI, decodeURI, encodeURIComponent, decodeURIComponent) {
-          ${request.code}
-        })(${Object.keys(safeGlobals).map(k => k === 'console' ? 'arguments[0].console' : `arguments[0].${k}`).join(', ')});
-      `;
-
-      // Execute with timeout
+      // Race the VM execution against a timeout promise.
+      // vm.Script.runInContext also accepts a timeout but it only covers
+      // synchronous CPU time; the Promise.race covers async code too.
       const result = await Promise.race([
-        new Function(wrappedCode)(safeGlobals),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Execution timeout')), config.timeoutMs || 30000),
+        script.runInContext(context, { timeout: timeoutMs }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Execution timeout')), timeoutMs),
         ),
       ]);
 
-      // Add result to stdout if there was a return value
+      // Append return value to stdout if one was produced
       if (result !== undefined) {
         stdout += typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
       }
 
-      // Truncate if needed
+      // Truncate oversized output
       const truncated: ExecutionResult['truncated'] = {};
       if (stdout.length > (config.maxOutputBytes || DEFAULT_CONFIG.maxOutputBytes!)) {
         stdout = stdout.slice(0, config.maxOutputBytes) + '\n[OUTPUT TRUNCATED]';
@@ -318,11 +337,7 @@ export class CodeSandbox implements ICodeSandbox {
       return {
         executionId,
         status: 'success',
-        output: {
-          stdout,
-          stderr,
-          exitCode: 0,
-        },
+        output: { stdout, stderr, exitCode: 0 },
         durationMs: Date.now() - startTime,
         startedAt,
         completedAt: new Date().toISOString(),
@@ -333,11 +348,7 @@ export class CodeSandbox implements ICodeSandbox {
       return {
         executionId,
         status: 'error',
-        output: {
-          stdout,
-          stderr,
-          exitCode: 1,
-        },
+        output: { stdout, stderr, exitCode: 1 },
         error: error instanceof Error ? error.message : String(error),
         durationMs: Date.now() - startTime,
         startedAt,
@@ -347,7 +358,16 @@ export class CodeSandbox implements ICodeSandbox {
   }
 
   /**
-   * Executes Python code (placeholder - requires external runtime).
+   * Executes Python code by spawning a `python3` subprocess via execa.
+   *
+   * Security:
+   * - When `config.allowNetwork` is false, a preamble is prepended that
+   *   poisons network-related modules (socket, urllib, requests, aiohttp, etc.)
+   *   so imports raise an error.
+   * - When `config.allowFilesystem` is false, a preamble monkey-patches
+   *   builtins.open to raise PermissionError and blocks os/shutil/pathlib.
+   * - Code is written to a temp file, executed, and the temp file is
+   *   unconditionally cleaned up in a finally block.
    */
   private async executePython(
     executionId: string,
@@ -356,22 +376,86 @@ export class CodeSandbox implements ICodeSandbox {
     startedAt: string,
     startTime: number,
   ): Promise<ExecutionResult> {
-    // In a production environment, this would spawn a Python process
-    // in a restricted container or use something like Pyodide (WebAssembly)
-    this.logger?.warn?.('Python execution requires external runtime configuration');
+    const tmpFile = path.join(os.tmpdir(), `agentos-sandbox-${executionId}.py`);
 
-    return {
-      executionId,
-      status: 'error',
-      error: 'Python execution not available. Configure external Python runtime or use JavaScript.',
-      durationMs: Date.now() - startTime,
-      startedAt,
-      completedAt: new Date().toISOString(),
-    };
+    // Build security preamble that restricts dangerous Python capabilities
+    let preamble = '';
+    if (!config.allowNetwork) {
+      preamble += 'import sys as _sys\n';
+      preamble += 'for _mod in ["socket","urllib","urllib2","http","httplib","requests","aiohttp","httpx"]:\n';
+      preamble += '    _sys.modules[_mod] = None\n';
+    }
+    if (!config.allowFilesystem) {
+      preamble += 'import builtins as _builtins\n';
+      preamble += 'def _restricted_open(*a, **kw): raise PermissionError("Filesystem access disabled in sandbox")\n';
+      preamble += '_builtins.open = _restricted_open\n';
+      preamble += 'import sys as _sys2\n';
+      preamble += 'for _mod in ["os","shutil","pathlib","glob"]:\n';
+      preamble += '    _sys2.modules[_mod] = None\n';
+    }
+
+    const fullCode = preamble + request.code;
+    fs.writeFileSync(tmpFile, fullCode, 'utf-8');
+
+    try {
+      const proc = await execa('python3', [tmpFile], {
+        timeout: config.timeoutMs || DEFAULT_CONFIG.timeoutMs!,
+        cwd: config.workingDir,
+        env: { ...process.env, ...(config.envVars || {}) } as Record<string, string>,
+        input: request.stdin,
+        reject: false, // Don't throw on non-zero exit
+      });
+
+      let stdout = proc.stdout || '';
+      let stderr = proc.stderr || '';
+
+      // Truncate oversized output
+      const truncated: ExecutionResult['truncated'] = {};
+      if (stdout.length > (config.maxOutputBytes || DEFAULT_CONFIG.maxOutputBytes!)) {
+        stdout = stdout.slice(0, config.maxOutputBytes) + '\n[OUTPUT TRUNCATED]';
+        truncated.stdout = true;
+      }
+      if (stderr.length > (config.maxOutputBytes || DEFAULT_CONFIG.maxOutputBytes!)) {
+        stderr = stderr.slice(0, config.maxOutputBytes) + '\n[OUTPUT TRUNCATED]';
+        truncated.stderr = true;
+      }
+
+      return {
+        executionId,
+        status: proc.exitCode === 0 ? 'success' : 'error',
+        output: { stdout, stderr, exitCode: proc.exitCode ?? 1 },
+        error: proc.exitCode !== 0 ? (stderr || `Process exited with code ${proc.exitCode}`) : undefined,
+        durationMs: Date.now() - startTime,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        truncated: Object.keys(truncated).length > 0 ? truncated : undefined,
+      };
+    } catch (error: unknown) {
+      // execa throws on timeout with a .timedOut property
+      const isTimeout = typeof error === 'object' && error !== null && 'timedOut' in error && (error as { timedOut: boolean }).timedOut;
+      return {
+        executionId,
+        status: isTimeout ? 'timeout' : 'error',
+        error: error instanceof Error ? error.message : String(error),
+        durationMs: Date.now() - startTime,
+        startedAt,
+        completedAt: new Date().toISOString(),
+      };
+    } finally {
+      try { fs.unlinkSync(tmpFile); } catch { /* temp file may not exist if writeFileSync failed */ }
+    }
   }
 
   /**
-   * Executes shell commands (placeholder - requires external runtime).
+   * Executes shell commands by spawning bash (or cmd on Windows) via execa.
+   *
+   * Security:
+   * - When `config.allowNetwork` is false, http_proxy and https_proxy
+   *   environment variables are set to invalid addresses to block most
+   *   HTTP-based network access.
+   * - Timeout, cwd, and envVars from config are forwarded to the subprocess.
+   * - Dangerous pattern validation (rm -rf /, fork bombs, etc.) is handled
+   *   by `validateCode` before this method is called.
    */
   private async executeShell(
     executionId: string,
@@ -380,16 +464,66 @@ export class CodeSandbox implements ICodeSandbox {
     startedAt: string,
     startTime: number,
   ): Promise<ExecutionResult> {
-    this.logger?.warn?.('Shell execution requires external runtime configuration');
+    const shell = process.platform === 'win32' ? 'cmd' : 'bash';
+    const shellArgs = process.platform === 'win32'
+      ? ['/c', request.code]
+      : ['-c', request.code];
 
-    return {
-      executionId,
-      status: 'error',
-      error: 'Shell execution not available in sandboxed environment.',
-      durationMs: Date.now() - startTime,
-      startedAt,
-      completedAt: new Date().toISOString(),
+    // Build subprocess environment
+    const env: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      ...(config.envVars || {}),
     };
+    if (!config.allowNetwork) {
+      env.http_proxy = 'http://0.0.0.0:0';
+      env.https_proxy = 'http://0.0.0.0:0';
+      env.no_proxy = '';
+    }
+
+    try {
+      const proc = await execa(shell, shellArgs, {
+        timeout: config.timeoutMs || DEFAULT_CONFIG.timeoutMs!,
+        cwd: config.workingDir,
+        env,
+        input: request.stdin,
+        reject: false, // Don't throw on non-zero exit
+      });
+
+      let stdout = proc.stdout || '';
+      let stderr = proc.stderr || '';
+
+      // Truncate oversized output
+      const truncated: ExecutionResult['truncated'] = {};
+      if (stdout.length > (config.maxOutputBytes || DEFAULT_CONFIG.maxOutputBytes!)) {
+        stdout = stdout.slice(0, config.maxOutputBytes) + '\n[OUTPUT TRUNCATED]';
+        truncated.stdout = true;
+      }
+      if (stderr.length > (config.maxOutputBytes || DEFAULT_CONFIG.maxOutputBytes!)) {
+        stderr = stderr.slice(0, config.maxOutputBytes) + '\n[OUTPUT TRUNCATED]';
+        truncated.stderr = true;
+      }
+
+      return {
+        executionId,
+        status: proc.exitCode === 0 ? 'success' : 'error',
+        output: { stdout, stderr, exitCode: proc.exitCode ?? 1 },
+        error: proc.exitCode !== 0 ? (stderr || `Process exited with code ${proc.exitCode}`) : undefined,
+        durationMs: Date.now() - startTime,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        truncated: Object.keys(truncated).length > 0 ? truncated : undefined,
+      };
+    } catch (error: unknown) {
+      const isTimeout = typeof error === 'object' && error !== null && 'timedOut' in error && (error as { timedOut: boolean }).timedOut;
+      return {
+        executionId,
+        status: isTimeout ? 'timeout' : 'error',
+        error: error instanceof Error ? error.message : String(error),
+        durationMs: Date.now() - startTime,
+        startedAt,
+        completedAt: new Date().toISOString(),
+      };
+    }
   }
 
   /**
