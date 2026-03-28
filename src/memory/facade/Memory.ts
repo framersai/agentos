@@ -989,32 +989,32 @@ export class Memory {
     switch (format) {
       case 'json': {
         const { JsonImporter } = await import('../io/JsonImporter.js');
-        result = await new JsonImporter(this._brain).import(source);
+        result = await new JsonImporter(this._brain).import(source, options);
         break;
       }
       case 'markdown': {
         const { MarkdownImporter } = await import('../io/MarkdownImporter.js');
-        result = await new MarkdownImporter(this._brain).import(source);
+        result = await new MarkdownImporter(this._brain).import(source, options);
         break;
       }
       case 'obsidian': {
         const { ObsidianImporter } = await import('../io/ObsidianImporter.js');
-        result = await new ObsidianImporter(this._brain).import(source);
+        result = await new ObsidianImporter(this._brain).import(source, options);
         break;
       }
       case 'sqlite': {
         const { SqliteImporter } = await import('../io/SqliteImporter.js');
-        result = await new SqliteImporter(this._brain).import(source);
+        result = await new SqliteImporter(this._brain).import(source, options);
         break;
       }
       case 'chatgpt': {
         const { ChatGptImporter } = await import('../io/ChatGptImporter.js');
-        result = await new ChatGptImporter(this._brain).import(source);
+        result = await new ChatGptImporter(this._brain).import(source, options);
         break;
       }
       case 'csv': {
         const { CsvImporter } = await import('../io/CsvImporter.js');
-        result = await new CsvImporter(this._brain).import(source);
+        result = await new CsvImporter(this._brain).import(source, options);
         break;
       }
       default:
@@ -1038,18 +1038,23 @@ export class Memory {
    *
    * @param content - The raw string content to import.
    * @param format  - The format of the content: `'json'` or `'csv'`.
+   * @param options - Optional deduplication controls.
    * @returns Summary of the import operation.
    */
-  async importFromString(content: string, format: 'json' | 'csv'): Promise<ImportResult> {
+  async importFromString(
+    content: string,
+    format: 'json' | 'csv',
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<ImportResult> {
     await this._initPromise;
 
     let result: ImportResult;
     if (format === 'json') {
       const { JsonImporter } = await import('../io/JsonImporter.js');
-      result = await new JsonImporter(this._brain).importFromString(content);
+      result = await new JsonImporter(this._brain).importFromString(content, options);
     } else {
       const { CsvImporter } = await import('../io/CsvImporter.js');
-      result = await new CsvImporter(this._brain).importFromString(content);
+      result = await new CsvImporter(this._brain).importFromString(content, options);
     }
 
     if (result.imported > 0) {

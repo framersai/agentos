@@ -37,7 +37,7 @@
 
 import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
-import type { ImportResult } from '../facade/types.js';
+import type { ImportOptions, ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ export class ChatGptImporter {
    * @returns `ImportResult` with counts of imported traces, skipped duplicates,
    *   and any per-item error messages.
    */
-  async import(sourcePath: string): Promise<ImportResult> {
+  async import(sourcePath: string, options?: Pick<ImportOptions, 'dedup'>): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
     // ---- Load + parse ----
@@ -137,7 +137,7 @@ export class ChatGptImporter {
     // ---- Process each conversation ----
     for (const convo of conversations) {
       try {
-        await this._importConversation(convo, result);
+        await this._importConversation(convo, result, options);
       } catch (err) {
         result.errors.push(`Conversation import error: ${String(err)}`);
       }
@@ -160,7 +160,11 @@ export class ChatGptImporter {
    * @param convo  - Raw ChatGPT conversation object.
    * @param result - Mutable result accumulator.
    */
-  private async _importConversation(convo: ChatGptConversation, result: ImportResult): Promise<void> {
+  private async _importConversation(
+    convo: ChatGptConversation,
+    result: ImportResult,
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<void> {
     const title = convo.title ?? 'Untitled';
     const createdAt = convo.create_time ? Math.round(convo.create_time * 1000) : Date.now();
     const updatedAt = convo.update_time ? Math.round(convo.update_time * 1000) : createdAt;
@@ -258,7 +262,7 @@ export class ChatGptImporter {
             ? `[user]: ${msg.text}\n[assistant]: ${assistantText}`
             : `[user]: ${msg.text}`;
 
-        await this._insertEpisodicTrace(content, msg.time, conversationId, result);
+        await this._insertEpisodicTrace(content, msg.time, conversationId, result, options);
 
         // Skip the assistant message on the next iteration if we consumed it.
         if (assistantText) i++;
@@ -281,19 +285,22 @@ export class ChatGptImporter {
     createdAt: number,
     conversationId: string,
     result: ImportResult,
+    options?: Pick<ImportOptions, 'dedup'>,
   ): Promise<void> {
     const hash = await sha256(content);
 
     // Dedup check.
-    const { dialect } = this.brain.features;
-    const existing = await this.brain.get<{ id: string }>(
-      `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
-      [hash],
-    );
+    if (options?.dedup ?? true) {
+      const { dialect } = this.brain.features;
+      const existing = await this.brain.get<{ id: string }>(
+        `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
+        [hash],
+      );
 
-    if (existing) {
-      result.skipped++;
-      return;
+      if (existing) {
+        result.skipped++;
+        return;
+      }
     }
 
     try {

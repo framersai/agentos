@@ -1,8 +1,9 @@
 /**
  * @fileoverview JSON exporter for AgentOS memory brain.
  *
- * Serialises all memory traces, knowledge graph nodes/edges, documents, and
- * conversations from a `SqliteBrain` into a single structured JSON file.
+ * Serialises all memory traces, knowledge graph nodes/edges, document registry
+ * rows, document chunks/images, conversations, and conversation messages from
+ * a `SqliteBrain` into a single structured JSON file.
  * Optionally includes raw embedding vectors encoded as base64 strings.
  *
  * ## Output shape
@@ -13,7 +14,10 @@
  *   "nodes": [...],
  *   "edges": [...],
  *   "documents": [...],
- *   "conversations": [...]
+ *   "chunks": [...],
+ *   "images": [...],
+ *   "conversations": [...],
+ *   "messages": [...]
  * }
  * ```
  *
@@ -81,12 +85,45 @@ interface DocumentRow {
   ingested_at: number;
 }
 
+/** Raw row shape from the `document_chunks` table. */
+interface DocumentChunkRow {
+  id: string;
+  document_id: string;
+  trace_id: string | null;
+  content: string;
+  chunk_index: number;
+  page_number: number | null;
+  embedding: Uint8Array | null;
+}
+
+/** Raw row shape from the `document_images` table. */
+interface DocumentImageRow {
+  id: string;
+  document_id: string;
+  chunk_id: string | null;
+  data: Uint8Array;
+  mime_type: string;
+  caption: string | null;
+  page_number: number | null;
+  embedding: Uint8Array | null;
+}
+
 /** Raw row shape from the `conversations` table. */
 interface ConversationRow {
   id: string;
   title: string | null;
   created_at: number;
   updated_at: number;
+  metadata: string;
+}
+
+/** Raw row shape from the `messages` table. */
+interface MessageRow {
+  id: string;
+  conversation_id: string;
+  role: string;
+  content: string;
+  created_at: number;
   metadata: string;
 }
 
@@ -174,9 +211,22 @@ export class JsonExporter {
     // ---- documents ----
     const documents = await this.brain.all<DocumentRow>('SELECT * FROM documents');
 
+    // ---- document_chunks ----
+    const rawChunks = await this.brain.all<DocumentChunkRow>('SELECT * FROM document_chunks');
+    const chunks = rawChunks.map((row) => this._serializeChunk(row, includeEmbeddings));
+
+    // ---- document_images ----
+    const rawImages = await this.brain.all<DocumentImageRow>('SELECT * FROM document_images');
+    const images = rawImages.map((row) => this._serializeImage(row, includeEmbeddings));
+
     // ---- conversations ----
     const conversations: ConversationRow[] = includeConversations
       ? await this.brain.all<ConversationRow>('SELECT * FROM conversations')
+      : [];
+
+    // ---- messages ----
+    const messages: MessageRow[] = includeConversations
+      ? await this.brain.all<MessageRow>('SELECT * FROM messages')
       : [];
 
     return {
@@ -185,7 +235,10 @@ export class JsonExporter {
       nodes,
       edges,
       documents,
+      chunks,
+      images,
       conversations,
+      messages,
     };
   }
 
@@ -218,6 +271,33 @@ export class JsonExporter {
    */
   private _serializeNode(row: NodeRow, includeEmbeddings: boolean): Record<string, unknown> {
     const out: Record<string, unknown> = { ...row };
+    const embedding = asBinaryBytes(row.embedding);
+    if (embedding) {
+      out['embedding'] = includeEmbeddings ? bytesToBase64(embedding) : undefined;
+    }
+    return out;
+  }
+
+  /**
+   * Serialise a single `document_chunks` row.
+   */
+  private _serializeChunk(row: DocumentChunkRow, includeEmbeddings: boolean): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...row };
+    const embedding = asBinaryBytes(row.embedding);
+    if (embedding) {
+      out['embedding'] = includeEmbeddings ? bytesToBase64(embedding) : undefined;
+    }
+    return out;
+  }
+
+  /**
+   * Serialise a single `document_images` row.
+   *
+   * Raw image bytes are always exported as base64 because they are primary
+   * data, while the optional image embedding follows `includeEmbeddings`.
+   */
+  private _serializeImage(row: DocumentImageRow, includeEmbeddings: boolean): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...row, data: bytesToBase64(row.data) };
     const embedding = asBinaryBytes(row.embedding);
     if (embedding) {
       out['embedding'] = includeEmbeddings ? bytesToBase64(embedding) : undefined;

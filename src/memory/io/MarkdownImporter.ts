@@ -15,7 +15,7 @@
 import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import matter from 'gray-matter';
-import type { ImportResult } from '../facade/types.js';
+import type { ImportOptions, ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
@@ -69,13 +69,13 @@ export class MarkdownImporter {
    * @param sourceDir - Directory to recursively scan for `.md` files.
    * @returns `ImportResult` with counts of imported, skipped, and errored items.
    */
-  async import(sourceDir: string): Promise<ImportResult> {
+  async import(sourceDir: string, options?: Pick<ImportOptions, 'dedup'>): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
     const files = await this._collectMarkdownFiles(sourceDir);
 
     for (const filePath of files) {
-      await this._processFile(filePath, result);
+      await this._processFile(filePath, result, options);
     }
 
     return result;
@@ -150,7 +150,11 @@ export class MarkdownImporter {
    * @param filePath - Absolute path to the `.md` file.
    * @param result   - Mutable `ImportResult` accumulator.
    */
-  private async _processFile(filePath: string, result: ImportResult): Promise<void> {
+  private async _processFile(
+    filePath: string,
+    result: ImportResult,
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<void> {
     const fs = await import('node:fs/promises');
     let raw: string;
     try {
@@ -180,17 +184,21 @@ export class MarkdownImporter {
 
     // Dedup check.
     const { dialect } = this.brain.features;
-    const existing = await this.brain.get<{ id: string }>(
-      `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
-      [hash],
-    );
+    if (options?.dedup ?? true) {
+      const existing = await this.brain.get<{ id: string }>(
+        `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
+        [hash],
+      );
 
-    if (existing) {
-      result.skipped++;
-      return;
+      if (existing) {
+        result.skipped++;
+        return;
+      }
     }
 
-    const traceId = (typeof fm.id === 'string' && fm.id) ? fm.id : `mt_${uuidv4()}`;
+    const traceId = await this._resolveTraceId(
+      (typeof fm.id === 'string' && fm.id) ? fm.id : `mt_${uuidv4()}`,
+    );
 
     const tags: string[] = Array.isArray(fm.tags) ? (fm.tags as string[]) : [];
     const meta: Record<string, unknown> = { import_hash: hash, source_file: filePath };
@@ -220,5 +228,13 @@ export class MarkdownImporter {
     } catch (err) {
       result.errors.push(`Insert error for ${filePath}: ${String(err)}`);
     }
+  }
+
+  private async _resolveTraceId(preferredId: string): Promise<string> {
+    const existing = await this.brain.get<{ id: string }>(
+      'SELECT id FROM memory_traces WHERE id = ? LIMIT 1',
+      [preferredId],
+    );
+    return existing ? `mt_${uuidv4()}` : preferredId;
   }
 }

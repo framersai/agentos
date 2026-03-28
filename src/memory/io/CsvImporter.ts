@@ -25,7 +25,7 @@
 
 import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
-import type { ImportResult } from '../facade/types.js';
+import type { ImportOptions, ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 
 /**
@@ -40,7 +40,7 @@ export class CsvImporter {
    * @param sourcePath - Absolute or relative path to the CSV file.
    * @returns Import summary with imported/skipped/error counts.
    */
-  async import(sourcePath: string): Promise<ImportResult> {
+  async import(sourcePath: string, options?: Pick<ImportOptions, 'dedup'>): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
     let raw: string;
@@ -52,7 +52,7 @@ export class CsvImporter {
       return result;
     }
 
-    return this._importCsvContent(raw, result);
+    return this._importCsvContent(raw, result, options);
   }
 
   /**
@@ -61,9 +61,12 @@ export class CsvImporter {
    * @param csvContent - The raw CSV string to parse and import.
    * @returns Import summary with imported/skipped/error counts.
    */
-  async importFromString(csvContent: string): Promise<ImportResult> {
+  async importFromString(
+    csvContent: string,
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
-    return this._importCsvContent(csvContent, result);
+    return this._importCsvContent(csvContent, result, options);
   }
 
   /**
@@ -73,7 +76,11 @@ export class CsvImporter {
    * @param result - Mutable `ImportResult` to accumulate counts.
    * @returns The populated `ImportResult`.
    */
-  private async _importCsvContent(raw: string, result: ImportResult): Promise<ImportResult> {
+  private async _importCsvContent(
+    raw: string,
+    result: ImportResult,
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<ImportResult> {
     const rows = this._parseCsv(raw.replace(/^\uFEFF/, ''));
     if (rows.length === 0) {
       result.errors.push('CSV import failed: file is empty.');
@@ -123,10 +130,12 @@ export class CsvImporter {
           }
 
           const hash = await this._sha256(content);
-          const existing = await trx.get<{ id: string }>(checkSql, [hash, hash]);
-          if (existing) {
-            result.skipped++;
-            continue;
+          if (options?.dedup ?? true) {
+            const existing = await trx.get<{ id: string }>(checkSql, [hash, hash]);
+            if (existing) {
+              result.skipped++;
+              continue;
+            }
           }
 
           let metadata: Record<string, unknown> = {};
@@ -148,8 +157,11 @@ export class CsvImporter {
           const rawStrength = strengthIndex >= 0 ? row[strengthIndex] ?? '' : '';
           const rawDeleted = deletedIndex >= 0 ? row[deletedIndex] ?? '' : '';
 
+          const preferredId = this._readCell(row, idIndex) || `mt_${uuidv4()}`;
+          const traceId = await this._resolveTraceId(trx, preferredId);
+
           await trx.run(insertSql, [
-            this._readCell(row, idIndex) || `mt_${uuidv4()}`,
+            traceId,
             this._readCell(row, typeIndex) || 'episodic',
             this._readCell(row, scopeIndex) || 'user',
             content,
@@ -174,6 +186,17 @@ export class CsvImporter {
 
   private async _sha256(content: string): Promise<string> {
     return sha256(content);
+  }
+
+  private async _resolveTraceId(
+    trx: { get: SqliteBrain['get'] },
+    preferredId: string,
+  ): Promise<string> {
+    const existing = await trx.get<{ id: string }>(
+      'SELECT id FROM memory_traces WHERE id = ? LIMIT 1',
+      [preferredId],
+    );
+    return existing ? `mt_${uuidv4()}` : preferredId;
   }
 
   private _readCell(row: string[], index: number): string {

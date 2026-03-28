@@ -11,7 +11,7 @@
 
 import { sha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
-import type { ImportResult } from '../facade/types.js';
+import type { ImportOptions, ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 import { base64ToBytes } from './base64.js';
 
@@ -30,7 +30,10 @@ interface BrainExportPayload {
   nodes?: NodeRecord[];
   edges?: EdgeRecord[];
   documents?: DocumentRecord[];
+  chunks?: DocumentChunkRecord[];
+  images?: DocumentImageRecord[];
   conversations?: ConversationRecord[];
+  messages?: MessageRecord[];
 }
 
 /** Serialised memory trace from the export file. */
@@ -86,6 +89,29 @@ interface DocumentRecord {
   ingested_at?: number;
 }
 
+/** Serialised document chunk record. */
+interface DocumentChunkRecord {
+  id?: string;
+  document_id?: string;
+  trace_id?: string | null;
+  content?: string;
+  chunk_index?: number;
+  page_number?: number | null;
+  embedding?: string | null;
+}
+
+/** Serialised document image record. */
+interface DocumentImageRecord {
+  id?: string;
+  document_id?: string;
+  chunk_id?: string | null;
+  data?: string;
+  mime_type?: string;
+  caption?: string | null;
+  page_number?: number | null;
+  embedding?: string | null;
+}
+
 /** Serialised conversation record. */
 interface ConversationRecord {
   id?: string;
@@ -93,6 +119,25 @@ interface ConversationRecord {
   created_at?: number;
   updated_at?: number;
   metadata?: string;
+}
+
+/** Serialised conversation message record. */
+interface MessageRecord {
+  id?: string;
+  conversation_id?: string;
+  role?: string;
+  content?: string;
+  created_at?: number;
+  metadata?: string;
+}
+
+interface ImportContext {
+  dedup: boolean;
+  traceIds: Map<string, string>;
+  nodeIds: Map<string, string>;
+  documentIds: Map<string, string>;
+  chunkIds: Map<string, string>;
+  conversationIds: Map<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +180,7 @@ export class JsonImporter {
    * @param sourcePath - Absolute path to the JSON file to import.
    * @returns `ImportResult` with counts of imported, skipped, and errored items.
    */
-  async import(sourcePath: string): Promise<ImportResult> {
+  async import(sourcePath: string, options?: Pick<ImportOptions, 'dedup'>): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
     // ---- Load + parse ----
@@ -148,7 +193,7 @@ export class JsonImporter {
       return result;
     }
 
-    return this._importParsed(raw, result);
+    return this._importParsed(raw, result, options);
   }
 
   /**
@@ -157,9 +202,12 @@ export class JsonImporter {
    * @param jsonContent - The JSON string to parse and import.
    * @returns `ImportResult` with counts of imported, skipped, and errored items.
    */
-  async importFromString(jsonContent: string): Promise<ImportResult> {
+  async importFromString(
+    jsonContent: string,
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
-    return this._importParsed(jsonContent, result);
+    return this._importParsed(jsonContent, result, options);
   }
 
   /**
@@ -169,7 +217,11 @@ export class JsonImporter {
    * @param result - Mutable `ImportResult` to accumulate counts.
    * @returns The populated `ImportResult`.
    */
-  private async _importParsed(raw: string, result: ImportResult): Promise<ImportResult> {
+  private async _importParsed(
+    raw: string,
+    result: ImportResult,
+    options?: Pick<ImportOptions, 'dedup'>,
+  ): Promise<ImportResult> {
     let payload: BrainExportPayload;
     try {
       payload = JSON.parse(raw) as BrainExportPayload;
@@ -184,13 +236,25 @@ export class JsonImporter {
     }
 
     // ---- Import in a single transaction for atomicity ----
+    const context: ImportContext = {
+      dedup: options?.dedup ?? true,
+      traceIds: new Map<string, string>(),
+      nodeIds: new Map<string, string>(),
+      documentIds: new Map<string, string>(),
+      chunkIds: new Map<string, string>(),
+      conversationIds: new Map<string, string>(),
+    };
+
     await this.brain.transaction(async (trx) => {
       await this._importMeta(trx, payload.meta);
-      await this._importTraces(trx, payload.traces, result);
-      await this._importNodes(trx, payload.nodes ?? [], result);
-      await this._importEdges(trx, payload.edges ?? [], result);
-      await this._importDocuments(trx, payload.documents ?? [], result);
-      await this._importConversations(trx, payload.conversations ?? [], result);
+      await this._importTraces(trx, payload.traces, result, context);
+      await this._importNodes(trx, payload.nodes ?? [], result, context);
+      await this._importEdges(trx, payload.edges ?? [], result, context);
+      await this._importDocuments(trx, payload.documents ?? [], result, context);
+      await this._importChunks(trx, payload.chunks ?? [], result, context);
+      await this._importImages(trx, payload.images ?? [], result, context);
+      await this._importConversations(trx, payload.conversations ?? [], result, context);
+      await this._importMessages(trx, payload.messages ?? [], result, context);
     });
 
     return result;
@@ -249,6 +313,7 @@ export class JsonImporter {
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
     traces: TraceRecord[],
     result: ImportResult,
+    context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
     const checkSql = `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
@@ -261,10 +326,14 @@ export class JsonImporter {
     for (const t of traces) {
       try {
         const hash = await this._sha256(t.content);
-        const existing = await trx.get<{ id: string }>(checkSql, [hash]);
-        if (existing) {
-          result.skipped++;
-          continue;
+        const sourceId = t.id;
+        if (context.dedup) {
+          const existing = await trx.get<{ id: string }>(checkSql, [hash]);
+          if (existing) {
+            if (sourceId) context.traceIds.set(sourceId, existing.id);
+            result.skipped++;
+            continue;
+          }
         }
 
         // Merge import_hash into the metadata JSON so future imports can dedup.
@@ -282,8 +351,15 @@ export class JsonImporter {
           embeddingBuf = base64ToBytes(t.embedding);
         }
 
+        const id = await this._resolveUniqueId(
+          trx,
+          'memory_traces',
+          sourceId ?? `mt_${uuidv4()}`,
+          'mt_',
+        );
+
         await trx.run(insertSql, [
-          t.id ?? `mt_${uuidv4()}`,
+          id,
           t.type ?? 'episodic',
           t.scope ?? 'user',
           t.content,
@@ -298,6 +374,7 @@ export class JsonImporter {
           t.deleted ?? 0,
         ]);
 
+        if (sourceId) context.traceIds.set(sourceId, id);
         result.imported++;
       } catch (err) {
         result.errors.push(`Trace import error: ${String(err)}`);
@@ -318,6 +395,7 @@ export class JsonImporter {
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
     nodes: NodeRecord[],
     result: ImportResult,
+    context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
     const checkSql = `SELECT id FROM knowledge_nodes WHERE ${dialect.jsonExtract('properties', '$.import_hash')} = ? LIMIT 1`;
@@ -331,8 +409,10 @@ export class JsonImporter {
     for (const n of nodes) {
       try {
         const hash = await this._sha256(`${n.label ?? ''}::${n.type ?? ''}`);
+        const sourceId = n.id;
         const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
+          if (sourceId) context.nodeIds.set(sourceId, existing.id);
           result.skipped++;
           continue;
         }
@@ -350,8 +430,15 @@ export class JsonImporter {
           embeddingBuf = base64ToBytes(n.embedding);
         }
 
+        const id = await this._resolveUniqueId(
+          trx,
+          'knowledge_nodes',
+          sourceId ?? `kn_${uuidv4()}`,
+          'kn_',
+        );
+
         await trx.run(insertSql, [
-          n.id ?? `kn_${uuidv4()}`,
+          id,
           n.type ?? 'concept',
           n.label ?? '',
           JSON.stringify(props),
@@ -361,6 +448,7 @@ export class JsonImporter {
           n.created_at ?? Date.now(),
         ]);
 
+        if (sourceId) context.nodeIds.set(sourceId, id);
         result.imported++;
       } catch (err) {
         result.errors.push(`Node import error: ${String(err)}`);
@@ -382,6 +470,7 @@ export class JsonImporter {
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
     edges: EdgeRecord[],
     result: ImportResult,
+    context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
     const checkSql = `SELECT id FROM knowledge_edges WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
@@ -394,12 +483,14 @@ export class JsonImporter {
 
     for (const e of edges) {
       try {
-        if (!e.source_id || !e.target_id) {
+        const sourceId = e.source_id ? (context.nodeIds.get(e.source_id) ?? e.source_id) : null;
+        const targetId = e.target_id ? (context.nodeIds.get(e.target_id) ?? e.target_id) : null;
+        if (!sourceId || !targetId) {
           result.skipped++;
           continue;
         }
 
-        const hash = await this._sha256(`${e.source_id}::${e.target_id}::${e.type ?? ''}`);
+        const hash = await this._sha256(`${sourceId}::${targetId}::${e.type ?? ''}`);
         const existing = await trx.get<{ id: string }>(checkSql, [hash]);
         if (existing) {
           result.skipped++;
@@ -415,9 +506,14 @@ export class JsonImporter {
         meta['import_hash'] = hash;
 
         await trx.run(insertSql, [
-          e.id ?? `ke_${uuidv4()}`,
-          e.source_id,
-          e.target_id,
+          await this._resolveUniqueId(
+            trx,
+            'knowledge_edges',
+            e.id ?? `ke_${uuidv4()}`,
+            'ke_',
+          ),
+          sourceId,
+          targetId,
           e.type ?? 'related_to',
           e.weight ?? 1.0,
           e.bidirectional ?? 0,
@@ -443,6 +539,7 @@ export class JsonImporter {
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
     documents: DocumentRecord[],
     result: ImportResult,
+    context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
     const checkSql = 'SELECT id FROM documents WHERE id = ? LIMIT 1';
@@ -455,9 +552,11 @@ export class JsonImporter {
 
     for (const doc of documents) {
       try {
-        const id = doc.id ?? `doc_${uuidv4()}`;
+        const sourceId = doc.id;
+        const id = sourceId ?? `doc_${uuidv4()}`;
         const existing = await trx.get<{ id: string }>(checkSql, [id]);
         if (existing) {
+          if (sourceId) context.documentIds.set(sourceId, existing.id);
           result.skipped++;
           continue;
         }
@@ -472,9 +571,126 @@ export class JsonImporter {
           doc.metadata ?? '{}',
           doc.ingested_at ?? Date.now(),
         ]);
+        if (sourceId) context.documentIds.set(sourceId, id);
         result.imported++;
       } catch (err) {
         result.errors.push(`Document import error: ${String(err)}`);
+      }
+    }
+  }
+
+  /**
+   * Import document chunk rows.
+   */
+  private async _importChunks(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    chunks: DocumentChunkRecord[],
+    result: ImportResult,
+    context: ImportContext,
+  ): Promise<void> {
+    const checkSql = 'SELECT id FROM document_chunks WHERE id = ? LIMIT 1';
+    const insertSql = `INSERT INTO document_chunks
+         (id, document_id, trace_id, content, chunk_index, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+    for (const chunk of chunks) {
+      try {
+        const sourceId = chunk.id;
+        const id = sourceId ?? `chunk_${uuidv4()}`;
+        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        if (existing) {
+          if (sourceId) context.chunkIds.set(sourceId, existing.id);
+          result.skipped++;
+          continue;
+        }
+
+        const documentId = chunk.document_id
+          ? (context.documentIds.get(chunk.document_id) ?? chunk.document_id)
+          : null;
+        if (!documentId || !chunk.content) {
+          result.skipped++;
+          continue;
+        }
+
+        const traceId = chunk.trace_id
+          ? (context.traceIds.get(chunk.trace_id) ?? chunk.trace_id)
+          : null;
+
+        const embedding = typeof chunk.embedding === 'string'
+          ? base64ToBytes(chunk.embedding)
+          : null;
+
+        await trx.run(insertSql, [
+          id,
+          documentId,
+          traceId,
+          chunk.content,
+          chunk.chunk_index ?? 0,
+          chunk.page_number ?? null,
+          embedding,
+        ]);
+
+        if (sourceId) context.chunkIds.set(sourceId, id);
+        result.imported++;
+      } catch (err) {
+        result.errors.push(`Chunk import error: ${String(err)}`);
+      }
+    }
+  }
+
+  /**
+   * Import document image rows.
+   */
+  private async _importImages(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    images: DocumentImageRecord[],
+    result: ImportResult,
+    context: ImportContext,
+  ): Promise<void> {
+    const checkSql = 'SELECT id FROM document_images WHERE id = ? LIMIT 1';
+    const insertSql = `INSERT INTO document_images
+         (id, document_id, chunk_id, data, mime_type, caption, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    for (const image of images) {
+      try {
+        const id = image.id ?? `img_${uuidv4()}`;
+        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        if (existing) {
+          result.skipped++;
+          continue;
+        }
+
+        const documentId = image.document_id
+          ? (context.documentIds.get(image.document_id) ?? image.document_id)
+          : null;
+        if (!documentId || !image.data || !image.mime_type) {
+          result.skipped++;
+          continue;
+        }
+
+        const chunkId = image.chunk_id
+          ? (context.chunkIds.get(image.chunk_id) ?? image.chunk_id)
+          : null;
+        const data = base64ToBytes(image.data);
+        const embedding = typeof image.embedding === 'string'
+          ? base64ToBytes(image.embedding)
+          : null;
+
+        await trx.run(insertSql, [
+          id,
+          documentId,
+          chunkId,
+          data,
+          image.mime_type,
+          image.caption ?? null,
+          image.page_number ?? null,
+          embedding,
+        ]);
+
+        result.imported++;
+      } catch (err) {
+        result.errors.push(`Image import error: ${String(err)}`);
       }
     }
   }
@@ -489,6 +705,7 @@ export class JsonImporter {
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
     conversations: ConversationRecord[],
     result: ImportResult,
+    context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
     const checkSql = 'SELECT id FROM conversations WHERE id = ? LIMIT 1';
@@ -501,9 +718,11 @@ export class JsonImporter {
 
     for (const convo of conversations) {
       try {
-        const id = convo.id ?? `conv_${uuidv4()}`;
+        const sourceId = convo.id;
+        const id = sourceId ?? `conv_${uuidv4()}`;
         const existing = await trx.get<{ id: string }>(checkSql, [id]);
         if (existing) {
+          if (sourceId) context.conversationIds.set(sourceId, existing.id);
           result.skipped++;
           continue;
         }
@@ -516,10 +735,68 @@ export class JsonImporter {
           convo.updated_at ?? createdAt,
           convo.metadata ?? '{}',
         ]);
+        if (sourceId) context.conversationIds.set(sourceId, id);
         result.imported++;
       } catch (err) {
         result.errors.push(`Conversation import error: ${String(err)}`);
       }
     }
+  }
+
+  /**
+   * Import conversation message rows.
+   */
+  private async _importMessages(
+    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    messages: MessageRecord[],
+    result: ImportResult,
+    context: ImportContext,
+  ): Promise<void> {
+    const checkSql = 'SELECT id FROM messages WHERE id = ? LIMIT 1';
+    const insertSql = `INSERT INTO messages
+         (id, conversation_id, role, content, created_at, metadata)
+       VALUES (?, ?, ?, ?, ?, ?)`;
+
+    for (const message of messages) {
+      try {
+        const id = message.id ?? `msg_${uuidv4()}`;
+        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        if (existing) {
+          result.skipped++;
+          continue;
+        }
+
+        const conversationId = message.conversation_id
+          ? (context.conversationIds.get(message.conversation_id) ?? message.conversation_id)
+          : null;
+        if (!conversationId || !message.role || !message.content) {
+          result.skipped++;
+          continue;
+        }
+
+        await trx.run(insertSql, [
+          id,
+          conversationId,
+          message.role,
+          message.content,
+          message.created_at ?? Date.now(),
+          message.metadata ?? '{}',
+        ]);
+
+        result.imported++;
+      } catch (err) {
+        result.errors.push(`Message import error: ${String(err)}`);
+      }
+    }
+  }
+
+  private async _resolveUniqueId(
+    trx: { get: SqliteBrain['get'] },
+    table: string,
+    preferredId: string,
+    prefix: string,
+  ): Promise<string> {
+    const existing = await trx.get<{ id: string }>(`SELECT id FROM ${table} WHERE id = ? LIMIT 1`, [preferredId]);
+    return existing ? `${prefix}${uuidv4()}` : preferredId;
   }
 }

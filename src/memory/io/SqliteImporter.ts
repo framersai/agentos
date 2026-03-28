@@ -22,7 +22,7 @@
 import Database from 'better-sqlite3';
 import { sha256 as crossSha256 } from '../util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
-import type { ImportResult } from '../facade/types.js';
+import type { ImportOptions, ImportResult } from '../facade/types.js';
 import type { SqliteBrain } from '../store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ export class SqliteImporter {
    * @param sourcePath - Absolute path to the source `.sqlite` file to import.
    * @returns `ImportResult` with counts of imported, skipped, and errored items.
    */
-  async import(sourcePath: string): Promise<ImportResult> {
+  async import(sourcePath: string, options?: Pick<ImportOptions, 'dedup'>): Promise<ImportResult> {
     const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
     // Open the source file read-only so we cannot accidentally corrupt it.
@@ -114,7 +114,7 @@ export class SqliteImporter {
     try {
       // Run the whole merge in a single transaction on the target brain.
       await this.brain.transaction(async (trx) => {
-        await this._mergeTraces(sourceDb, result, trx);
+        await this._mergeTraces(sourceDb, result, trx, options);
         await this._mergeNodes(sourceDb, result, trx);
         await this._mergeEdges(sourceDb, result, trx);
       });
@@ -150,6 +150,7 @@ export class SqliteImporter {
     src: Database.Database,
     result: ImportResult,
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    options?: Pick<ImportOptions, 'dedup'>,
   ): Promise<void> {
     let sourceRows: TraceRow[];
     try {
@@ -176,25 +177,27 @@ export class SqliteImporter {
     for (const row of sourceRows) {
       try {
         const hash = await this._sha256(row.content);
-        const existing = await trx.get<{ id: string; created_at: number; tags: string }>(
-          checkSql, [hash, row.content],
-        );
+        if (options?.dedup ?? true) {
+          const existing = await trx.get<{ id: string; created_at: number; tags: string }>(
+            checkSql, [hash, row.content],
+          );
 
-        if (existing) {
-          // Keep the newer timestamp and union the tags.
-          const newerAt = Math.max(existing.created_at, row.created_at);
+          if (existing) {
+            // Keep the newer timestamp and union the tags.
+            const newerAt = Math.max(existing.created_at, row.created_at);
 
-          let existingTags: string[] = [];
-          try { existingTags = JSON.parse(existing.tags) as string[]; } catch { /* ignore */ }
+            let existingTags: string[] = [];
+            try { existingTags = JSON.parse(existing.tags) as string[]; } catch { /* ignore */ }
 
-          let sourceTags: string[] = [];
-          try { sourceTags = JSON.parse(row.tags) as string[]; } catch { /* ignore */ }
+            let sourceTags: string[] = [];
+            try { sourceTags = JSON.parse(row.tags) as string[]; } catch { /* ignore */ }
 
-          const merged = Array.from(new Set([...existingTags, ...sourceTags]));
-          await trx.run(updateTimestampSql, [newerAt, JSON.stringify(merged), existing.id]);
+            const merged = Array.from(new Set([...existingTags, ...sourceTags]));
+            await trx.run(updateTimestampSql, [newerAt, JSON.stringify(merged), existing.id]);
 
-          result.skipped++;
-          continue;
+            result.skipped++;
+            continue;
+          }
         }
 
         // New trace — enrich metadata with import_hash.
@@ -202,8 +205,10 @@ export class SqliteImporter {
         try { meta = JSON.parse(row.metadata) as Record<string, unknown>; } catch { /* ignore */ }
         meta['import_hash'] = hash;
 
+        const id = await this._resolveTraceId(trx, row.id ?? `mt_${uuidv4()}`);
+
         await trx.run(insertSql, [
-          row.id ?? `mt_${uuidv4()}`,
+          id,
           row.type ?? 'episodic',
           row.scope ?? 'user',
           row.content,
@@ -279,6 +284,17 @@ export class SqliteImporter {
         result.errors.push(`Node merge error: ${String(err)}`);
       }
     }
+  }
+
+  private async _resolveTraceId(
+    trx: { get: SqliteBrain['get'] },
+    preferredId: string,
+  ): Promise<string> {
+    const existing = await trx.get<{ id: string }>(
+      'SELECT id FROM memory_traces WHERE id = ? LIMIT 1',
+      [preferredId],
+    );
+    return existing ? `mt_${uuidv4()}` : preferredId;
   }
 
   /**
