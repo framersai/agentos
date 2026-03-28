@@ -68,7 +68,7 @@ import { PromptEngine } from '../core/llm/PromptEngine';
 import { PromptEngineConfig, IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
 import type { ITool } from '../core/tools/ITool';
 import { IToolOrchestrator, type ToolDefinitionForLLM } from '../core/tools/IToolOrchestrator';
-import { ToolOrchestratorConfig } from '../config/ToolOrchestratorConfig';
+import { ToolOrchestratorConfig } from '../core/config/ToolOrchestratorConfig';
 import { ToolOrchestrator } from '../core/tools/ToolOrchestrator';
 import { ToolExecutor } from '../core/tools/ToolExecutor';
 import {
@@ -131,12 +131,12 @@ import {
   type ExtensionManifest,
   type ExtensionOverrides,
 } from '../extensions';
-import type { MemoryToolsExtensionOptions } from '../memory/extension/MemoryToolsExtension.js';
-import type { Memory } from '../memory/facade/Memory.js';
+import type { MemoryToolsExtensionOptions } from '../memory/io/extension/MemoryToolsExtension.js';
+import type { Memory } from '../memory/io/facade/Memory.js';
 import type {
   StandaloneMemoryLongTermRetrieverOptions,
   StandaloneMemoryRollingSummarySinkOptions,
-} from '../memory/integration/StandaloneMemoryBridge.js';
+} from '../memory/io/integration/StandaloneMemoryBridge.js';
 import {
   listExternalToolDefinitionsForLLM,
   normalizeExternalToolRegistry,

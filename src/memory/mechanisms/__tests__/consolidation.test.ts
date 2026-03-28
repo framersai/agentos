@@ -9,7 +9,7 @@ import { applySchemaEncoding } from '../consolidation/SchemaEncoding.js';
 import { applySourceConfidenceDecay } from '../consolidation/SourceConfidenceDecay.js';
 import { applyEmotionRegulation } from '../consolidation/EmotionRegulation.js';
 import { DEFAULT_MECHANISMS_CONFIG } from '../defaults.js';
-import type { MemoryTrace } from '../../types.js';
+import type { MemoryTrace } from '../../core/types.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

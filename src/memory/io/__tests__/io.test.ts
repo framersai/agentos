@@ -21,7 +21,7 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { SqliteBrain } from '../../store/SqliteBrain.js';
+import { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
 import {
   JsonExporter,
   JsonImporter,

@@ -13,6 +13,7 @@
  *   CapabilityDiscoveryEngine,
  *   CapabilityManifestScanner,
  *   createDiscoverCapabilitiesTool,
+ *   createLoadCapabilityExtensionTool,
  * } from '@framers/agentos/discovery';
  *
  * // Initialize
@@ -26,6 +27,10 @@
  * // Register meta-tool for agent self-discovery
  * const metaTool = createDiscoverCapabilitiesTool(engine);
  * toolOrchestrator.registerTool(metaTool);
+ *
+ * // Activate lazy-loadable extension packs on demand
+ * const loadTool = createLoadCapabilityExtensionTool(toolOrchestrator);
+ * toolOrchestrator.registerTool(loadTool);
  * ```
  */
 
@@ -67,3 +72,4 @@ export { CapabilityManifestScanner } from './CapabilityManifestScanner.js';
 
 // Meta-tool
 export { createDiscoverCapabilitiesTool } from './DiscoverCapabilitiesTool.js';
+export { createLoadCapabilityExtensionTool } from './LoadCapabilityExtensionTool.js';

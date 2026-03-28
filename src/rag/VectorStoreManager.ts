@@ -27,7 +27,7 @@ import {
   RagDataSourceConfig,
   AnyVectorStoreProviderConfig,
   // Import other specific store configs like PineconeVectorStoreConfig if they are directly instantiated here.
-} from '../config/VectorStoreConfiguration';
+} from '../core/config/VectorStoreConfiguration';
 import { InMemoryVectorStore } from './vector_stores/InMemoryVectorStore';
 import { SqlVectorStore } from './vector_stores/SqlVectorStore';
 import { HnswlibVectorStore } from './vector_stores/HnswlibVectorStore';

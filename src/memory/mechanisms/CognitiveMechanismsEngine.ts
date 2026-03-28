@@ -22,9 +22,9 @@ import type {
   ResolvedMechanismsConfig,
   MetacognitiveSignal,
 } from './types.js';
-import type { MemoryTrace, ScoredMemoryTrace, AssembledMemoryContext } from '../types.js';
-import type { PADState, HexacoTraits } from '../config.js';
-import type { CandidateTrace } from '../decay/RetrievalPriorityScorer.js';
+import type { MemoryTrace, ScoredMemoryTrace, AssembledMemoryContext } from '../core/types.js';
+import type { PADState, HexacoTraits } from '../core/config.js';
+import type { CandidateTrace } from '../core/decay/RetrievalPriorityScorer.js';
 import { resolveConfig } from './defaults.js';
 import { applyReconsolidation } from './retrieval/Reconsolidation.js';
 import { applyRetrievalInducedForgetting } from './retrieval/RetrievalInducedForgetting.js';

@@ -25,7 +25,7 @@ import {
 import {
   EmbeddingManagerConfig,
   EmbeddingModelConfig,
-} from '../config/EmbeddingManagerConfiguration';
+} from '../core/config/EmbeddingManagerConfiguration';
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import {
   ProviderEmbeddingOptions,

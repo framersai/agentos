@@ -13,7 +13,7 @@
  * @module agentos/memory/mechanisms/retrieval/MetacognitiveFOK
  */
 
-import type { ScoredMemoryTrace } from '../../types.js';
+import type { ScoredMemoryTrace } from '../../core/types.js';
 import type { ResolvedMetacognitiveFOKConfig, MetacognitiveSignal } from '../types.js';
 
 const DAY_MS = 86_400_000;

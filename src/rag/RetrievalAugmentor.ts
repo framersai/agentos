@@ -29,7 +29,7 @@ import {
   RagRetrievalResult,
   RagRetrievedChunk,
 } from './IRetrievalAugmentor';
-import { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
+import { RetrievalAugmentorServiceConfig } from '../core/config/RetrievalAugmentorConfiguration';
 import { IEmbeddingManager } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataValue } from './IVectorStore';

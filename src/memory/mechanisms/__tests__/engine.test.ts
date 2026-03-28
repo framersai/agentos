@@ -5,9 +5,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { CognitiveMechanismsEngine } from '../CognitiveMechanismsEngine.js';
-import type { MemoryTrace, ScoredMemoryTrace } from '../../types.js';
-import type { PADState } from '../../config.js';
-import type { CandidateTrace } from '../../decay/RetrievalPriorityScorer.js';
+import type { MemoryTrace, ScoredMemoryTrace } from '../../core/types.js';
+import type { PADState } from '../../core/config.js';
+import type { CandidateTrace } from '../../core/decay/RetrievalPriorityScorer.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

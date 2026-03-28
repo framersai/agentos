@@ -9,8 +9,8 @@ import { applyRetrievalInducedForgetting } from '../retrieval/RetrievalInducedFo
 import { selectInvoluntaryMemory } from '../retrieval/InvoluntaryRecall.js';
 import { detectFeelingOfKnowing } from '../retrieval/MetacognitiveFOK.js';
 import { DEFAULT_MECHANISMS_CONFIG } from '../defaults.js';
-import type { MemoryTrace, ScoredMemoryTrace } from '../../types.js';
-import type { PADState } from '../../config.js';
+import type { MemoryTrace, ScoredMemoryTrace } from '../../core/types.js';
+import type { PADState } from '../../core/config.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

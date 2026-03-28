@@ -10,7 +10,7 @@
  * @module agentos/memory/CognitiveMemoryManager
  */
 
-import { uuid } from './util/crossPlatformCrypto.js';
+import { uuid } from './core/util/crossPlatformCrypto.js';
 
 import type {
   MemoryTrace,
@@ -21,45 +21,45 @@ import type {
   AssembledMemoryContext,
   MemoryHealthReport,
   ContentFeatures,
-} from './types.js';
-import type { CognitiveMemoryConfig, PADState, HexacoTraits } from './config.js';
+} from './core/types.js';
+import type { CognitiveMemoryConfig, PADState, HexacoTraits } from './core/config.js';
 import {
   DEFAULT_ENCODING_CONFIG,
   DEFAULT_DECAY_CONFIG,
   DEFAULT_BUDGET_ALLOCATION,
-} from './config.js';
-import { computeEncodingStrength, buildEmotionalContext } from './encoding/EncodingModel.js';
+} from './core/config.js';
+import { computeEncodingStrength, buildEmotionalContext } from './core/encoding/EncodingModel.js';
 import {
   createFeatureDetector,
   type IContentFeatureDetector,
-} from './encoding/ContentFeatureDetector.js';
-import { computeCurrentStrength } from './decay/DecayModel.js';
-import { MemoryStore } from './store/MemoryStore.js';
-import { CognitiveWorkingMemory } from './working/CognitiveWorkingMemory.js';
+} from './core/encoding/ContentFeatureDetector.js';
+import { computeCurrentStrength } from './core/decay/DecayModel.js';
+import { MemoryStore } from './retrieval/store/MemoryStore.js';
+import { CognitiveWorkingMemory } from './core/working/CognitiveWorkingMemory.js';
 import {
   assembleMemoryContext,
   type MemoryAssemblerInput,
-} from './prompt/MemoryPromptAssembler.js';
+} from './core/prompt/MemoryPromptAssembler.js';
 
 // Batch 2 imports
-import type { IMemoryGraph, ActivatedNode } from './graph/IMemoryGraph.js';
-import { GraphologyMemoryGraph } from './graph/GraphologyMemoryGraph.js';
-import { KnowledgeGraphMemoryGraph } from './graph/KnowledgeGraphMemoryGraph.js';
-import { MemoryObserver, type ObservationNote } from './observation/MemoryObserver.js';
-import { MemoryReflector } from './observation/MemoryReflector.js';
+import type { IMemoryGraph, ActivatedNode } from './retrieval/graph/IMemoryGraph.js';
+import { GraphologyMemoryGraph } from './retrieval/graph/GraphologyMemoryGraph.js';
+import { KnowledgeGraphMemoryGraph } from './retrieval/graph/KnowledgeGraphMemoryGraph.js';
+import { MemoryObserver, type ObservationNote } from './pipeline/observation/MemoryObserver.js';
+import { MemoryReflector } from './pipeline/observation/MemoryReflector.js';
 import {
   ProspectiveMemoryManager,
   type ProspectiveMemoryItem,
-} from './prospective/ProspectiveMemoryManager.js';
+} from './retrieval/prospective/ProspectiveMemoryManager.js';
 import {
   ConsolidationPipeline,
   type ConsolidationResult,
-} from './consolidation/ConsolidationPipeline.js';
+} from './pipeline/consolidation/ConsolidationPipeline.js';
 
 // Batch 3: Infinite Context
-import { ContextWindowManager } from './context/ContextWindowManager.js';
-import type { ContextMessage, CompactionEntry } from './context/types.js';
-import type { ContextWindowStats } from './context/ContextWindowManager.js';
+import { ContextWindowManager } from './pipeline/context/ContextWindowManager.js';
+import type { ContextMessage, CompactionEntry } from './pipeline/context/types.js';
+import type { ContextWindowStats } from './pipeline/context/ContextWindowManager.js';
 
 // HyDE (Hypothetical Document Embedding) for improved memory retrieval
 import type { HydeRetriever } from '../rag/HydeRetriever.js';

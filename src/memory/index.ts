@@ -1,8 +1,19 @@
 /**
  * Barrel exports for the Cognitive Memory System.
  *
+ * Organized into four tiers:
+ * - **core/**: foundational types, config, encoding, decay, working memory, prompts
+ * - **retrieval/**: store, graph, prospective memory, feedback
+ * - **pipeline/**: consolidation, observation, context window management
+ * - **io/**: ingestion, import/export, facade, tools, extensions, integration
+ * - **mechanisms/**: optional cognitive mechanisms (reconsolidation, RIF, etc.)
+ *
  * @module agentos/memory
  */
+
+// ---------------------------------------------------------------------------
+// Core Tier — types, config, encoding, decay, working, prompt
+// ---------------------------------------------------------------------------
 
 // --- Core types ---
 export type {
@@ -23,7 +34,7 @@ export type {
   MemoryBudgetAllocation,
   AssembledMemoryContext,
   MemoryHealthReport,
-} from './types.js';
+} from './core/types.js';
 
 // --- Configuration ---
 export type {
@@ -37,12 +48,12 @@ export type {
   ReflectorConfig,
   MemoryGraphConfig,
   ConsolidationConfig,
-} from './config.js';
+} from './core/config.js';
 export {
   DEFAULT_ENCODING_CONFIG,
   DEFAULT_DECAY_CONFIG,
   DEFAULT_BUDGET_ALLOCATION,
-} from './config.js';
+} from './core/config.js';
 
 // --- Encoding ---
 export {
@@ -53,14 +64,14 @@ export {
   moodCongruenceBoost,
   isFlashbulbMemory,
   buildEmotionalContext,
-} from './encoding/EncodingModel.js';
+} from './core/encoding/EncodingModel.js';
 export {
   createFeatureDetector,
   KeywordFeatureDetector,
   LlmFeatureDetector,
   HybridFeatureDetector,
-} from './encoding/ContentFeatureDetector.js';
-export type { IContentFeatureDetector } from './encoding/ContentFeatureDetector.js';
+} from './core/encoding/ContentFeatureDetector.js';
+export type { IContentFeatureDetector } from './core/encoding/ContentFeatureDetector.js';
 
 // --- Decay ---
 export {
@@ -68,69 +79,56 @@ export {
   updateOnRetrieval,
   computeInterference,
   findPrunableTraces,
-} from './decay/DecayModel.js';
+} from './core/decay/DecayModel.js';
 export type {
   RetrievalUpdateResult,
   InterferenceResult,
   InterferenceVictim,
-} from './decay/DecayModel.js';
+} from './core/decay/DecayModel.js';
 export {
   scoreAndRankTraces,
   detectPartiallyRetrieved,
   computeRecencyBoost,
   computeEmotionalCongruence,
   DEFAULT_SCORING_WEIGHTS,
-} from './decay/RetrievalPriorityScorer.js';
+} from './core/decay/RetrievalPriorityScorer.js';
 export type {
   ScoringWeights,
   ScoringContext,
   CandidateTrace,
-} from './decay/RetrievalPriorityScorer.js';
+} from './core/decay/RetrievalPriorityScorer.js';
 
 // --- Working Memory ---
-export { CognitiveWorkingMemory } from './working/CognitiveWorkingMemory.js';
-export type { CognitiveWorkingMemoryConfig } from './working/CognitiveWorkingMemory.js';
-
-// --- Store ---
-export { MemoryStore } from './store/MemoryStore.js';
-export type { MemoryStoreConfig } from './store/MemoryStore.js';
+export { CognitiveWorkingMemory } from './core/working/CognitiveWorkingMemory.js';
+export type { CognitiveWorkingMemoryConfig } from './core/working/CognitiveWorkingMemory.js';
 
 // --- Prompt Assembly ---
-export { assembleMemoryContext } from './prompt/MemoryPromptAssembler.js';
-export type { MemoryAssemblerInput } from './prompt/MemoryPromptAssembler.js';
-export { formatMemoryTrace, formatMemoryTraces } from './prompt/MemoryFormatters.js';
-export type { FormattingStyle } from './prompt/MemoryFormatters.js';
+export { assembleMemoryContext } from './core/prompt/MemoryPromptAssembler.js';
+export type { MemoryAssemblerInput } from './core/prompt/MemoryPromptAssembler.js';
+export { formatMemoryTrace, formatMemoryTraces } from './core/prompt/MemoryFormatters.js';
+export type { FormattingStyle } from './core/prompt/MemoryFormatters.js';
 
-// --- High-level facade ---
-export { AgentMemory } from './AgentMemory.js';
-export type { RecallResult, RememberResult, SearchOptions } from './AgentMemory.js';
+// --- Persistent Markdown Working Memory ---
+export { MarkdownWorkingMemory } from './core/working/MarkdownWorkingMemory.js';
+export type { WriteResult } from './core/working/MarkdownWorkingMemory.js';
+export { UpdateWorkingMemoryTool } from './core/working/UpdateWorkingMemoryTool.js';
+export { ReadWorkingMemoryTool } from './core/working/ReadWorkingMemoryTool.js';
 
-// --- Orchestrator (advanced) ---
-export { CognitiveMemoryManager } from './CognitiveMemoryManager.js';
-export type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
+// ---------------------------------------------------------------------------
+// Retrieval Tier — store, graph, prospective memory, feedback
+// ---------------------------------------------------------------------------
 
-// --- Extension ---
-export { createCognitiveMemoryDescriptor } from './extension/CognitiveMemoryExtension.js';
-export { createStandaloneMemoryDescriptor } from './extension/StandaloneMemoryExtension.js';
-export {
-  createMemoryToolDescriptors,
-  createMemoryToolsPack,
-} from './extension/MemoryToolsExtension.js';
-export type { MemoryToolsExtensionOptions } from './extension/MemoryToolsExtension.js';
-export type { StandaloneMemoryDescriptorOptions } from './extension/StandaloneMemoryExtension.js';
+// --- Store ---
+export { MemoryStore } from './retrieval/store/MemoryStore.js';
+export type { MemoryStoreConfig } from './retrieval/store/MemoryStore.js';
 
-// --- Standalone Memory Bridges ---
-export {
-  buildStandaloneMemoryPersonaScopeId,
-  createStandaloneMemoryLongTermRetriever,
-  createStandaloneMemoryRollingSummarySink,
-} from './integration/StandaloneMemoryBridge.js';
-export type {
-  StandaloneMemoryLongTermRetrieverOptions,
-  StandaloneMemoryRollingSummarySinkOptions,
-} from './integration/StandaloneMemoryBridge.js';
+// --- SQLite Storage ---
+export { SqliteBrain } from './retrieval/store/SqliteBrain.js';
+export { SqliteKnowledgeGraph } from './retrieval/store/SqliteKnowledgeGraph.js';
+export { HnswSidecar, type HnswSidecarConfig, type HnswQueryResult } from './retrieval/store/HnswSidecar.js';
+export { SqliteMemoryGraph } from './retrieval/store/SqliteMemoryGraph.js';
 
-// --- Memory Graph (Batch 2) ---
+// --- Memory Graph ---
 export type {
   IMemoryGraph,
   MemoryGraphNodeMeta,
@@ -139,60 +137,71 @@ export type {
   SpreadingActivationConfig,
   ActivatedNode,
   MemoryCluster,
-} from './graph/IMemoryGraph.js';
-export { GraphologyMemoryGraph } from './graph/GraphologyMemoryGraph.js';
-export { KnowledgeGraphMemoryGraph } from './graph/KnowledgeGraphMemoryGraph.js';
-export { spreadActivation } from './graph/SpreadingActivation.js';
-export type { SpreadingActivationInput } from './graph/SpreadingActivation.js';
+} from './retrieval/graph/IMemoryGraph.js';
+export { GraphologyMemoryGraph } from './retrieval/graph/GraphologyMemoryGraph.js';
+export { KnowledgeGraphMemoryGraph } from './retrieval/graph/KnowledgeGraphMemoryGraph.js';
+export { spreadActivation } from './retrieval/graph/SpreadingActivation.js';
+export type { SpreadingActivationInput } from './retrieval/graph/SpreadingActivation.js';
 
-// --- Observation System (Batch 2) ---
-export { ObservationBuffer } from './observation/ObservationBuffer.js';
-export type { BufferedMessage, ObservationBufferConfig } from './observation/ObservationBuffer.js';
-export { MemoryObserver } from './observation/MemoryObserver.js';
-export type { ObservationNote } from './observation/MemoryObserver.js';
-export { MemoryReflector } from './observation/MemoryReflector.js';
-export type { MemoryReflectionResult } from './observation/MemoryReflector.js';
-
-// --- Observation Compression & Reflection (Mastra-style agentic compression) ---
-export { ObservationCompressor } from './observation/ObservationCompressor.js';
-export type {
-  CompressedObservation,
-  CompressionPriority,
-} from './observation/ObservationCompressor.js';
-export { ObservationReflector } from './observation/ObservationReflector.js';
-export type { Reflection, ReflectionPatternType } from './observation/ObservationReflector.js';
-
-// --- Temporal Reasoning ---
-export { relativeTimeLabel } from './observation/temporal.js';
-export type { TemporalMetadata } from './observation/temporal.js';
-
-// --- Prospective Memory (Batch 2) ---
-export { ProspectiveMemoryManager } from './prospective/ProspectiveMemoryManager.js';
+// --- Prospective Memory ---
+export { ProspectiveMemoryManager } from './retrieval/prospective/ProspectiveMemoryManager.js';
 export type {
   ProspectiveMemoryItem,
   ProspectiveTriggerType,
-} from './prospective/ProspectiveMemoryManager.js';
+} from './retrieval/prospective/ProspectiveMemoryManager.js';
 
-// --- Consolidation Pipeline (Batch 2) ---
-export { ConsolidationPipeline } from './consolidation/ConsolidationPipeline.js';
+// --- Retrieval Feedback ---
+export { RetrievalFeedbackSignal } from './retrieval/feedback/index.js';
+export type { RetrievalFeedback } from './retrieval/feedback/index.js';
+
+// ---------------------------------------------------------------------------
+// Pipeline Tier — consolidation, observation, context
+// ---------------------------------------------------------------------------
+
+// --- Observation System ---
+export { ObservationBuffer } from './pipeline/observation/ObservationBuffer.js';
+export type { BufferedMessage, ObservationBufferConfig } from './pipeline/observation/ObservationBuffer.js';
+export { MemoryObserver } from './pipeline/observation/MemoryObserver.js';
+export type { ObservationNote } from './pipeline/observation/MemoryObserver.js';
+export { MemoryReflector } from './pipeline/observation/MemoryReflector.js';
+export type { MemoryReflectionResult } from './pipeline/observation/MemoryReflector.js';
+
+// --- Observation Compression & Reflection ---
+export { ObservationCompressor } from './pipeline/observation/ObservationCompressor.js';
+export type {
+  CompressedObservation,
+  CompressionPriority,
+} from './pipeline/observation/ObservationCompressor.js';
+export { ObservationReflector } from './pipeline/observation/ObservationReflector.js';
+export type { Reflection, ReflectionPatternType } from './pipeline/observation/ObservationReflector.js';
+
+// --- Temporal Reasoning ---
+export { relativeTimeLabel } from './pipeline/observation/temporal.js';
+export type { TemporalMetadata } from './pipeline/observation/temporal.js';
+
+// --- Consolidation Pipeline ---
+export { ConsolidationPipeline } from './pipeline/consolidation/ConsolidationPipeline.js';
 export type {
   ConsolidationResult,
   ConsolidationPipelineConfig,
-} from './consolidation/ConsolidationPipeline.js';
+} from './pipeline/consolidation/ConsolidationPipeline.js';
 
-// --- Infinite Context Window (Batch 3) ---
-export { ContextWindowManager } from './context/ContextWindowManager.js';
+// --- Self-Improving Consolidation ---
+export { ConsolidationLoop } from './pipeline/consolidation/index.js';
+
+// --- Infinite Context Window ---
+export { ContextWindowManager } from './pipeline/context/ContextWindowManager.js';
 export type {
   ContextWindowManagerConfig,
   ContextWindowStats,
-} from './context/ContextWindowManager.js';
-export { CompactionEngine } from './context/CompactionEngine.js';
-export { CompactionLog } from './context/CompactionLog.js';
-export type { CompactionLogStats } from './context/CompactionLog.js';
-export { RollingSummaryChain } from './context/RollingSummaryChain.js';
-export { SlidingSummaryStrategy } from './context/strategies/SlidingSummaryStrategy.js';
-export { HierarchicalStrategy } from './context/strategies/HierarchicalStrategy.js';
-export { HybridStrategy } from './context/strategies/HybridStrategy.js';
+} from './pipeline/context/ContextWindowManager.js';
+export { CompactionEngine } from './pipeline/context/CompactionEngine.js';
+export { CompactionLog } from './pipeline/context/CompactionLog.js';
+export type { CompactionLogStats } from './pipeline/context/CompactionLog.js';
+export { RollingSummaryChain } from './pipeline/context/RollingSummaryChain.js';
+export { SlidingSummaryStrategy } from './pipeline/context/strategies/SlidingSummaryStrategy.js';
+export { HierarchicalStrategy } from './pipeline/context/strategies/HierarchicalStrategy.js';
+export { HybridStrategy } from './pipeline/context/strategies/HybridStrategy.js';
 export type {
   InfiniteContextConfig,
   CompactionStrategy,
@@ -203,22 +212,22 @@ export type {
   CompactionInput,
   CompactionResult,
   ICompactionStrategy,
-} from './context/types.js';
-export { DEFAULT_INFINITE_CONTEXT_CONFIG } from './context/types.js';
+} from './pipeline/context/types.js';
+export { DEFAULT_INFINITE_CONTEXT_CONFIG } from './pipeline/context/types.js';
 
-// --- Persistent Markdown Working Memory ---
-export { MarkdownWorkingMemory } from './working/MarkdownWorkingMemory.js';
-export type { WriteResult } from './working/MarkdownWorkingMemory.js';
-export { UpdateWorkingMemoryTool } from './working/UpdateWorkingMemoryTool.js';
-export { ReadWorkingMemoryTool } from './working/ReadWorkingMemoryTool.js';
+// ---------------------------------------------------------------------------
+// IO Tier — ingestion, import/export, facade, tools, extensions, integration
+// ---------------------------------------------------------------------------
+
+// --- High-level facade ---
+export { AgentMemory } from './AgentMemory.js';
+export type { RecallResult, RememberResult, SearchOptions } from './AgentMemory.js';
 
 // --- Memory Facade (Phase 1: Ingestion + Self-Improving Graph) ---
-export { Memory } from './facade/index.js';
-export type { ScoredTrace } from './facade/index.js';
-export { createOcrPdfLoader } from './ingestion/OcrPdfLoader.js';
-export { createDoclingLoader } from './ingestion/DoclingLoader.js';
-// Note: ConsolidationResult from the facade is aliased to MemoryConsolidationResult
-// to avoid collision with the existing ConsolidationResult from ConsolidationPipeline.
+export { Memory } from './io/facade/index.js';
+export type { ScoredTrace } from './io/facade/index.js';
+export { createOcrPdfLoader } from './io/ingestion/OcrPdfLoader.js';
+export { createDoclingLoader } from './io/ingestion/DoclingLoader.js';
 export type {
   MemoryConfig,
   EmbeddingConfig,
@@ -239,27 +248,51 @@ export type {
   DocumentChunk,
   ExtractedImage,
   ExtractedTable,
-} from './facade/index.js';
+} from './io/facade/index.js';
 
 // --- Document Ingestion ---
-export type { IDocumentLoader } from './ingestion/IDocumentLoader.js';
-export { TextLoader } from './ingestion/TextLoader.js';
-export { MarkdownLoader } from './ingestion/MarkdownLoader.js';
-export { HtmlLoader } from './ingestion/HtmlLoader.js';
-export { PdfLoader } from './ingestion/PdfLoader.js';
-export { DocxLoader } from './ingestion/DocxLoader.js';
-export { LoaderRegistry } from './ingestion/LoaderRegistry.js';
-export { FolderScanner } from './ingestion/FolderScanner.js';
-export { ChunkingEngine } from './ingestion/ChunkingEngine.js';
-export { MultimodalAggregator } from './ingestion/MultimodalAggregator.js';
-export { UrlLoader } from './ingestion/UrlLoader.js';
+export type { IDocumentLoader } from './io/ingestion/IDocumentLoader.js';
+export { TextLoader } from './io/ingestion/TextLoader.js';
+export { MarkdownLoader } from './io/ingestion/MarkdownLoader.js';
+export { HtmlLoader } from './io/ingestion/HtmlLoader.js';
+export { PdfLoader } from './io/ingestion/PdfLoader.js';
+export { DocxLoader } from './io/ingestion/DocxLoader.js';
+export { LoaderRegistry } from './io/ingestion/LoaderRegistry.js';
+export { FolderScanner } from './io/ingestion/FolderScanner.js';
+export { ChunkingEngine } from './io/ingestion/ChunkingEngine.js';
+export { MultimodalAggregator } from './io/ingestion/MultimodalAggregator.js';
+export { UrlLoader } from './io/ingestion/UrlLoader.js';
 
-// --- Retrieval Feedback ---
-export { RetrievalFeedbackSignal } from './feedback/index.js';
-export type { RetrievalFeedback } from './feedback/index.js';
+// --- Agent Memory Tools ---
+export {
+  MemoryAddTool,
+  MemoryUpdateTool,
+  MemoryDeleteTool,
+  MemoryMergeTool,
+  MemorySearchTool,
+  MemoryReflectTool,
+} from './io/tools/index.js';
 
-// --- Self-Improving Consolidation ---
-export { ConsolidationLoop } from './consolidation/index.js';
+// --- Extension ---
+export { createCognitiveMemoryDescriptor } from './io/extension/CognitiveMemoryExtension.js';
+export { createStandaloneMemoryDescriptor } from './io/extension/StandaloneMemoryExtension.js';
+export {
+  createMemoryToolDescriptors,
+  createMemoryToolsPack,
+} from './io/extension/MemoryToolsExtension.js';
+export type { MemoryToolsExtensionOptions } from './io/extension/MemoryToolsExtension.js';
+export type { StandaloneMemoryDescriptorOptions } from './io/extension/StandaloneMemoryExtension.js';
+
+// --- Standalone Memory Bridges ---
+export {
+  buildStandaloneMemoryPersonaScopeId,
+  createStandaloneMemoryLongTermRetriever,
+  createStandaloneMemoryRollingSummarySink,
+} from './io/integration/StandaloneMemoryBridge.js';
+export type {
+  StandaloneMemoryLongTermRetrieverOptions,
+  StandaloneMemoryRollingSummarySinkOptions,
+} from './io/integration/StandaloneMemoryBridge.js';
 
 // --- Import/Export ---
 export {
@@ -275,23 +308,17 @@ export {
   CsvImporter,
 } from './io/index.js';
 
-// --- SQLite Storage ---
-export { SqliteBrain } from './store/SqliteBrain.js';
-export { SqliteKnowledgeGraph } from './store/SqliteKnowledgeGraph.js';
-export { HnswSidecar, type HnswSidecarConfig, type HnswQueryResult } from './store/HnswSidecar.js';
-export { SqliteMemoryGraph } from './store/SqliteMemoryGraph.js';
+// ---------------------------------------------------------------------------
+// Orchestrator (root level)
+// ---------------------------------------------------------------------------
 
-// --- Agent Memory Tools ---
-export {
-  MemoryAddTool,
-  MemoryUpdateTool,
-  MemoryDeleteTool,
-  MemoryMergeTool,
-  MemorySearchTool,
-  MemoryReflectTool,
-} from './tools/index.js';
+export { CognitiveMemoryManager } from './CognitiveMemoryManager.js';
+export type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 
-// --- Cognitive Mechanisms (optional) ---
+// ---------------------------------------------------------------------------
+// Cognitive Mechanisms (optional)
+// ---------------------------------------------------------------------------
+
 export { CognitiveMechanismsEngine, DEFAULT_MECHANISMS_CONFIG } from './mechanisms/index.js';
 export { resolveConfig as resolveMechanismsConfig } from './mechanisms/index.js';
 export type {

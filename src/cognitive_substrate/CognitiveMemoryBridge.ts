@@ -12,8 +12,8 @@
  */
 
 import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
-import type { PADState } from '../memory/config.js';
-import type { AssembledMemoryContext, MemorySourceType, MemoryType } from '../memory/types.js';
+import type { PADState } from '../memory/core/config.js';
+import type { AssembledMemoryContext, MemorySourceType, MemoryType } from '../memory/core/types.js';
 import { GMIMood, GMIInteractionType } from './IGMI';
 import type { UserContext, GMITurnInput } from './IGMI';
 

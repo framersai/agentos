@@ -23,7 +23,7 @@
  */
 
 import matter from 'gray-matter';
-import type { ExportOptions } from '../facade/types.js';
+import type { ExportOptions } from './facade/types.js';
 import { MarkdownExporter } from './MarkdownExporter.js';
 
 // ---------------------------------------------------------------------------

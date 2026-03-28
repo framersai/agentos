@@ -11,8 +11,8 @@
  * @module memory/io/SqliteExporter
  */
 
-import type { ExportOptions } from '../facade/types.js';
-import type { SqliteBrain } from '../store/SqliteBrain.js';
+import type { ExportOptions } from './facade/types.js';
+import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
 // SqliteExporter

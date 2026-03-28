@@ -161,7 +161,7 @@ export { QdrantVectorStore, type QdrantVectorStoreConfig } from './vector_stores
 // GraphRAG
 // ============================================================================
 
-export { GraphRAGEngine } from '../memory/graph/knowledge/graphrag/index.js';
+export { GraphRAGEngine } from '../memory/retrieval/graph/graphrag/index.js';
 export type {
   IGraphRAGEngine,
   GraphRAGConfig,
@@ -171,7 +171,7 @@ export type {
   GraphRAGSearchOptions,
   GlobalSearchResult,
   LocalSearchResult,
-} from '../memory/graph/knowledge/graphrag/index.js';
+} from '../memory/retrieval/graph/graphrag/index.js';
 
 // ============================================================================
 // Audit Trail

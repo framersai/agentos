@@ -19,7 +19,7 @@ export type {
   JSONSchemaObject,
 } from './core/tools/ITool';
 export * from './core/llm/IPromptEngine';
-export * from './config/ToolOrchestratorConfig';
+export * from './core/config/ToolOrchestratorConfig';
 export * from './core/tools/permissions/IToolPermissionManager';
 export * from './core/conversation/ConversationManager';
 export * from './core/conversation/IRollingSummaryMemorySink';
@@ -67,7 +67,7 @@ export * from './evaluation/observability';
 // Evaluation Framework
 export * from './evaluation';
 // Knowledge Graph
-export * from './memory/graph/index';
+export * from './memory/retrieval/graph/index';
 // Agent Marketplace
 export * from './marketplace/store';
 // Per-agent workspace helpers
@@ -116,8 +116,8 @@ export * from './skills';
 // Multilingual exports
 export * from './nlp/language/interfaces';
 export * from './nlp/language/LanguageService';
-export type { ILogger } from './logging/ILogger';
-export { createLogger, setLoggerFactory, resetLoggerFactory } from './logging/loggerFactory';
+export type { ILogger } from './core/logging/ILogger';
+export { createLogger, setLoggerFactory, resetLoggerFactory } from './core/logging/loggerFactory';
 // Rate limit types
 export * from './core/rate-limiting/types';
 // Storage adapters
@@ -184,7 +184,7 @@ export {
   type ExtensionSecretDefinition,
   getSecretDefinition,
   resolveSecretForProvider,
-} from './config/extensionSecrets.js';
+} from './core/config/extensionSecrets.js';
 
 // --- High-Level API (AI SDK style) ---
 export { generateText } from './api/generateText.js';

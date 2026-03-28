@@ -29,8 +29,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import type { ExportOptions } from '../facade/types.js';
-import type { SqliteBrain } from '../store/SqliteBrain.js';
+import type { ExportOptions } from './facade/types.js';
+import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
 // Internal types

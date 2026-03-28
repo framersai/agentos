@@ -20,8 +20,8 @@ import type {
   RelatedCapability,
   PresetCoOccurrence,
 } from './types.js';
-import type { Neo4jConnectionManager } from '../memory/graph/knowledge/neo4j/Neo4jConnectionManager.js';
-import { Neo4jCypherRunner } from '../memory/graph/knowledge/neo4j/Neo4jCypherRunner.js';
+import type { Neo4jConnectionManager } from '../memory/retrieval/graph/neo4j/Neo4jConnectionManager.js';
+import { Neo4jCypherRunner } from '../memory/retrieval/graph/neo4j/Neo4jCypherRunner.js';
 
 // ============================================================================
 // Constants

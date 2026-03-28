@@ -35,7 +35,7 @@ import {
   EXTENSION_KIND_VAD_PROVIDER,
   EXTENSION_KIND_WAKE_WORD_PROVIDER,
 } from './types';
-import { getSecretDefinition } from '../config/extensionSecrets';
+import { getSecretDefinition } from '../core/config/extensionSecrets';
 
 const DEFAULT_EXTENSIONS_KIND_TOOL = 'tool';
 const DEFAULT_EXTENSIONS_KIND_GUARDRAIL = 'guardrail';

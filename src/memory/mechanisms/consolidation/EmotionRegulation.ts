@@ -12,7 +12,7 @@
  * @module agentos/memory/mechanisms/consolidation/EmotionRegulation
  */
 
-import type { MemoryTrace } from '../../types.js';
+import type { MemoryTrace } from '../../core/types.js';
 import type { ResolvedEmotionRegulationConfig, MechanismMetadata } from '../types.js';
 
 /** Flashbulb-grade encoding strength threshold. */

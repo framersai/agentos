@@ -1,0 +1,257 @@
+/**
+ * SlidingSummaryStrategy — Default compaction strategy.
+ *
+ * Summarizes the oldest N messages into a single paragraph, preserving
+ * the most recent K turns raw. Simple, predictable, low latency.
+ */
+
+import type {
+  CompactionEntry,
+  CompactionInput,
+  CompactionResult,
+  ContextMessage,
+  ICompactionStrategy,
+  InfiniteContextConfig,
+  SummaryChainNode,
+} from '../../../core/types.js';
+
+/** ~4 chars per token. */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+function generateId(): string {
+  return `compact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export class SlidingSummaryStrategy implements ICompactionStrategy {
+  readonly name = 'sliding' as const;
+  private readonly llmInvoker: (prompt: string) => Promise<string>;
+
+  constructor(llmInvoker: (prompt: string) => Promise<string>) {
+    this.llmInvoker = llmInvoker;
+  }
+
+  async compact(
+    input: CompactionInput,
+    config: InfiniteContextConfig,
+  ): Promise<CompactionResult> {
+    const startTime = Date.now();
+    const { messages, maxContextTokens } = input;
+
+    // Determine how many messages to keep raw.
+    const preserveCount = Math.min(
+      config.preserveRecentTurns * 2, // turns → messages (user+assistant)
+      messages.length - 2, // must compact at least 2 messages
+    );
+    const splitIdx = messages.length - preserveCount;
+    if (splitIdx <= 0) {
+      // Nothing to compact.
+      return this.noopResult(messages, startTime);
+    }
+
+    const toCompact = messages.slice(0, splitIdx);
+    const toKeep = messages.slice(splitIdx);
+
+    // Calculate input tokens.
+    const inputTokens = toCompact.reduce((s, m) => s + m.tokenEstimate, 0);
+
+    // Build the summarization prompt.
+    const targetTokens = Math.max(
+      100,
+      Math.ceil(inputTokens / config.targetCompressionRatio),
+    );
+    const conversationText = toCompact
+      .map((m) => `[${m.role}] ${m.content}`)
+      .join('\n');
+
+    const prompt = [
+      'Summarize this conversation segment concisely, preserving:',
+      '- All decisions made and their rationale',
+      '- Action items and commitments',
+      '- Named entities (people, projects, URLs, file paths)',
+      '- Technical details that affect ongoing work',
+      '- Any unresolved questions or open threads',
+      '',
+      'Drop: greetings, filler, repeated information, verbose explanations of things already decided.',
+      `Target length: ~${targetTokens} tokens.`,
+      '',
+      `Conversation (turns ${toCompact[0].turnIndex}–${toCompact[toCompact.length - 1].turnIndex}):`,
+      '',
+      conversationText,
+      '',
+      'Summary:',
+    ].join('\n');
+
+    let summary: string;
+    let entities: string[];
+    let droppedContent: string[] = [];
+
+    try {
+      const raw = await this.llmInvoker(prompt);
+      summary = raw.trim();
+      entities = this.extractEntities(summary);
+      droppedContent = this.detectDropped(toCompact, summary);
+    } catch {
+      // Fallback: take first and last messages as crude summary.
+      summary = this.fallbackSummary(toCompact);
+      entities = this.extractEntities(summary);
+    }
+
+    const outputTokens = estimateTokens(summary);
+    const turnRange: [number, number] = [
+      toCompact[0].turnIndex,
+      toCompact[toCompact.length - 1].turnIndex,
+    ];
+
+    // Build the summary message that replaces compacted messages.
+    const summaryMessage: ContextMessage = {
+      role: 'system',
+      content: `[Conversation summary — turns ${turnRange[0]}–${turnRange[1]}, ${inputTokens} tokens compressed to ${outputTokens}]\n${summary}`,
+      timestamp: Date.now(),
+      turnIndex: toCompact[0].turnIndex,
+      tokenEstimate: outputTokens + 20, // overhead for the header
+      compacted: true,
+    };
+
+    const entryId = generateId();
+
+    const node: SummaryChainNode = {
+      id: `chain-${entryId}`,
+      level: 0,
+      turnRange,
+      summary,
+      tokenEstimate: outputTokens,
+      createdAt: Date.now(),
+      childIds: [],
+      entities,
+      compactionEntryId: entryId,
+    };
+
+    const entry: CompactionEntry = {
+      id: entryId,
+      timestamp: Date.now(),
+      turnRange,
+      strategy: 'sliding',
+      inputTokens,
+      outputTokens,
+      compressionRatio:
+        outputTokens > 0
+          ? Math.round((inputTokens / outputTokens) * 10) / 10
+          : inputTokens,
+      summary,
+      droppedContent,
+      preservedEntities: entities,
+      tracesCreated: [],
+      emotionalContext: input.emotionalContext,
+      durationMs: Date.now() - startTime,
+    };
+
+    return {
+      messages: [summaryMessage, ...toKeep],
+      newNodes: [node],
+      entry,
+      tracesToEncode: [],
+    };
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────
+
+  /** Extract likely entity names from summary text. */
+  private extractEntities(text: string): string[] {
+    const entities = new Set<string>();
+
+    // File paths.
+    const pathMatches = text.match(/[\w/.-]+\.\w{1,5}/g);
+    if (pathMatches) {
+      for (const p of pathMatches) entities.add(p);
+    }
+
+    // URLs.
+    const urlMatches = text.match(/https?:\/\/[^\s)]+/g);
+    if (urlMatches) {
+      for (const u of urlMatches) entities.add(u);
+    }
+
+    // Capitalized multi-word names (simple heuristic).
+    const nameMatches = text.match(/[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+/g);
+    if (nameMatches) {
+      for (const n of nameMatches) entities.add(n);
+    }
+
+    // Backtick-quoted identifiers.
+    const codeMatches = text.match(/`[^`]+`/g);
+    if (codeMatches) {
+      for (const c of codeMatches) entities.add(c.replace(/`/g, ''));
+    }
+
+    return Array.from(entities).slice(0, 50); // cap at 50
+  }
+
+  /** Detect content fragments from compacted messages missing from summary. */
+  private detectDropped(
+    messages: ContextMessage[],
+    summary: string,
+  ): string[] {
+    const dropped: string[] = [];
+    const summaryLower = summary.toLowerCase();
+
+    for (const msg of messages) {
+      // Check if any significant user statements are absent.
+      if (msg.role !== 'user' || msg.content.length < 30) continue;
+      // Extract key phrases (first sentence or up to 80 chars).
+      const firstSentence = msg.content.split(/[.!?\n]/)[0].trim();
+      if (
+        firstSentence.length > 15 &&
+        !summaryLower.includes(firstSentence.toLowerCase().slice(0, 30))
+      ) {
+        dropped.push(
+          `Turn ${msg.turnIndex}: "${firstSentence.slice(0, 100)}"`,
+        );
+      }
+    }
+
+    return dropped.slice(0, 20); // cap
+  }
+
+  /** Crude fallback when LLM is unavailable. */
+  private fallbackSummary(messages: ContextMessage[]): string {
+    const userMsgs = messages.filter((m) => m.role === 'user');
+    if (userMsgs.length === 0) return 'Previous conversation context.';
+
+    // Take first and last user messages as anchors.
+    const first = userMsgs[0].content.slice(0, 200);
+    const last = userMsgs[userMsgs.length - 1].content.slice(0, 200);
+
+    if (userMsgs.length === 1) {
+      return `User discussed: ${first}`;
+    }
+    return `Conversation started with: ${first}\n\nMost recently discussed: ${last}`;
+  }
+
+  /** No-op result when nothing needs compaction. */
+  private noopResult(
+    messages: ContextMessage[],
+    startTime: number,
+  ): CompactionResult {
+    return {
+      messages,
+      newNodes: [],
+      entry: {
+        id: generateId(),
+        timestamp: Date.now(),
+        turnRange: [0, 0],
+        strategy: 'sliding',
+        inputTokens: 0,
+        outputTokens: 0,
+        compressionRatio: 1,
+        summary: '',
+        droppedContent: [],
+        preservedEntities: [],
+        tracesCreated: [],
+        durationMs: Date.now() - startTime,
+      },
+      tracesToEncode: [],
+    };
+  }
+}

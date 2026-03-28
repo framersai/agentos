@@ -615,8 +615,9 @@ export class ToolOrchestrator implements IToolOrchestrator {
       }
     }
 
-    // Always include the discover_capabilities meta-tool
+    // Always include the discovery meta-tools
     discoveredToolNames.add('discover_capabilities');
+    discoveredToolNames.add('load_capability_extension');
 
     // Get all available tools and filter to discovered ones
     const allTools = await this.listAvailableTools(context);

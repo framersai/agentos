@@ -10,9 +10,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { CognitiveMechanismsEngine } from '../CognitiveMechanismsEngine.js';
-import { assembleMemoryContext } from '../../prompt/MemoryPromptAssembler.js';
-import type { MemoryTrace, ScoredMemoryTrace } from '../../types.js';
-import type { PADState, HexacoTraits } from '../../config.js';
+import { assembleMemoryContext } from '../../core/prompt/MemoryPromptAssembler.js';
+import type { MemoryTrace, ScoredMemoryTrace } from '../../core/types.js';
+import type { PADState, HexacoTraits } from '../../core/config.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

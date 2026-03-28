@@ -7,7 +7,7 @@
  * @module agentos/memory/mechanisms/defaults
  */
 
-import type { MemorySourceType } from '../types.js';
+import type { MemorySourceType } from '../core/types.js';
 import type {
   CognitiveMechanismsConfig,
   ResolvedMechanismsConfig,

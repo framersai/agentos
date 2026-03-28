@@ -33,9 +33,9 @@ import type {
   MetadataScalarValue,
   MetadataValue,
 } from '../IVectorStore.js';
-import type { Neo4jConnectionConfig } from '../../memory/graph/knowledge/neo4j/types.js';
-import { Neo4jConnectionManager } from '../../memory/graph/knowledge/neo4j/Neo4jConnectionManager.js';
-import { Neo4jCypherRunner } from '../../memory/graph/knowledge/neo4j/Neo4jCypherRunner.js';
+import type { Neo4jConnectionConfig } from '../../memory/retrieval/graph/neo4j/types.js';
+import { Neo4jConnectionManager } from '../../memory/retrieval/graph/neo4j/Neo4jConnectionManager.js';
+import { Neo4jCypherRunner } from '../../memory/retrieval/graph/neo4j/Neo4jCypherRunner.js';
 
 // ============================================================================
 // Configuration

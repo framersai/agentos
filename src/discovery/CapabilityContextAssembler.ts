@@ -83,6 +83,7 @@ export class CapabilityContextAssembler {
       lines.push(`- ${capitalize(category)}: ${displayNames}${suffix} (${count})`);
     }
     lines.push('Use discover_capabilities tool to get details on any capability.');
+    lines.push('Use load_capability_extension to activate a loadable curated extension at runtime.');
 
     const text = lines.join('\n');
     this.cachedTier0 = text;

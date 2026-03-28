@@ -12,7 +12,7 @@
  * @module agentos/memory/mechanisms/retrieval/RetrievalInducedForgetting
  */
 
-import type { MemoryTrace, ScoredMemoryTrace } from '../../types.js';
+import type { MemoryTrace, ScoredMemoryTrace } from '../../core/types.js';
 import type { ResolvedRIFConfig } from '../types.js';
 
 // ---------------------------------------------------------------------------

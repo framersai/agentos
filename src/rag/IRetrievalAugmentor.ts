@@ -10,7 +10,7 @@
 import { IEmbeddingManager } from './IEmbeddingManager';
 import { MetadataFilter, MetadataValue } from './IVectorStore';
 import { IVectorStoreManager } from './IVectorStoreManager';
-import { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
+import { RetrievalAugmentorServiceConfig } from '../core/config/RetrievalAugmentorConfiguration';
 import type { RAGAuditTrail } from './audit/RAGAuditTypes';
 
 /**

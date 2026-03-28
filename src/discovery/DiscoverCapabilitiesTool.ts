@@ -13,7 +13,7 @@
  * When a ToolOrchestrator reference is provided, each result includes a
  * `loadable` flag indicating whether the capability exists in the extension
  * registry but is not yet loaded. The agent can use this to trigger runtime
- * loading via `loadExtensionAtRuntime`.
+ * loading via the `load_capability_extension` meta-tool.
  *
  * Usage by the agent:
  *   discover_capabilities({ query: "search the web", kind: "tool" })
@@ -129,6 +129,25 @@ function getLoadableCatalogNames(): Promise<Set<string>> {
   return _catalogCachePromise;
 }
 
+function resolveCandidateExtensionId(
+  capabilityName: string,
+  sourceRef: { type: string; packageName?: string; extensionId?: string },
+): string {
+  if (sourceRef.type !== 'extension') {
+    return capabilityName;
+  }
+
+  if (typeof sourceRef.extensionId === 'string' && sourceRef.extensionId.trim()) {
+    return sourceRef.extensionId.replace(/^extension:/, '');
+  }
+
+  if (typeof sourceRef.packageName === 'string' && sourceRef.packageName.trim()) {
+    return sourceRef.packageName;
+  }
+
+  return capabilityName;
+}
+
 /**
  * Create the discover_capabilities meta-tool.
  *
@@ -136,7 +155,7 @@ function getLoadableCatalogNames(): Promise<Set<string>> {
  * @param toolOrchestrator - Optional ToolOrchestrator reference used to
  *   determine whether a discovered capability is already loaded or can
  *   be loaded at runtime. When provided, results include `loadable` and
- *   `extensionId` fields.
+ *   `extensionId` fields that can be passed to `load_capability_extension`.
  * @returns An ITool instance ready for registration with ToolOrchestrator
  */
 export function createDiscoverCapabilitiesTool(
@@ -151,7 +170,7 @@ export function createDiscoverCapabilitiesTool(
       'Search for available tools, skills, extensions, and channels by describing what you need. ' +
       'Use when you need a capability not already visible in your context. ' +
       'Returns matched capabilities with relevance scores. ' +
-      'Capabilities marked loadable=true can be activated at runtime.',
+      'Capabilities marked loadable=true can be activated at runtime with load_capability_extension.',
     inputSchema: INPUT_SCHEMA,
     outputSchema: OUTPUT_SCHEMA,
     category: 'meta',
@@ -202,9 +221,10 @@ export function createDiscoverCapabilitiesTool(
             // or fall back to the capability's machine-readable name.
             const capName = r.capability.name;
             const sourceRef = r.capability.sourceRef;
-            const candidateExtensionId =
-              (sourceRef.type === 'extension' ? (sourceRef as { packageName: string }).packageName : undefined) ??
-              capName;
+            const candidateExtensionId = resolveCandidateExtensionId(
+              capName,
+              sourceRef as { type: string; packageName?: string; extensionId?: string },
+            );
 
             // Check if the tool is already registered in the orchestrator.
             const existingTool = await toolOrchestrator.getTool(capName);

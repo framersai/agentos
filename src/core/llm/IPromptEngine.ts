@@ -139,7 +139,7 @@ export interface PromptComponents {
     | string
     | Array<{ source: string; content: string; relevance?: number; type?: string }>;
   /** Assembled cognitive memory context (personality-affected, token-budgeted). Merged with retrievedContext by the prompt template. */
-  assembledMemoryContext?: import('../../memory/types.js').AssembledMemoryContext;
+  assembledMemoryContext?: import('../../memory/core/types.js').AssembledMemoryContext;
   /** Task-specific data or parameters that need to be included in the prompt. */
   taskSpecificData?: Record<string, unknown>;
   /** Additional custom components that templates might use. */

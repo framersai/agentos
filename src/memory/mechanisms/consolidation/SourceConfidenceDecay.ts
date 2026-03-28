@@ -13,7 +13,7 @@
  * @module agentos/memory/mechanisms/consolidation/SourceConfidenceDecay
  */
 
-import type { MemoryTrace } from '../../types.js';
+import type { MemoryTrace } from '../../core/types.js';
 import type { ResolvedSourceConfidenceDecayConfig, MechanismMetadata } from '../types.js';
 
 /** Importance floor: high-importance traces get a minimum multiplier. */

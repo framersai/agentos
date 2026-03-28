@@ -31,16 +31,16 @@ import type {
   ExtensionManager,
   ExtensionLifecycleContext,
 } from '../extensions';
-import { createMemoryToolsPack } from '../../memory/extension/MemoryToolsExtension.js';
-import type { Memory } from '../../memory/facade/Memory.js';
+import { createMemoryToolsPack } from '../../memory/io/extension/MemoryToolsExtension.js';
+import type { Memory } from '../../memory/io/facade/Memory.js';
 import {
   createStandaloneMemoryLongTermRetriever,
   createStandaloneMemoryRollingSummarySink,
-} from '../../memory/integration/StandaloneMemoryBridge.js';
+} from '../../memory/io/integration/StandaloneMemoryBridge.js';
 import type {
   StandaloneMemoryLongTermRetrieverOptions,
   StandaloneMemoryRollingSummarySinkOptions,
-} from '../../memory/integration/StandaloneMemoryBridge.js';
+} from '../../memory/io/integration/StandaloneMemoryBridge.js';
 
 import type {
   AgentOSConfig,

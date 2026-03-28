@@ -10,7 +10,7 @@
  * - Creating an `InMemoryVectorStore` for capability embeddings.
  * - Initializing the `CapabilityDiscoveryEngine` with sources derived from
  *   the active tool, extension, workflow, and messaging registries.
- * - Registering the `discover_capabilities` meta-tool.
+ * - Registering the discovery meta-tools.
  * - Creating the `AgentOSTurnPlanner`.
  *
  * AgentOS replaces its old `this.turnPlanner`, `this.capabilityDiscoveryEngine`,
@@ -20,6 +20,7 @@
  */
 
 import type { ILogger } from '../../logging/ILogger';
+import { createRequire } from 'node:module';
 import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type { ITool } from '../../core/tools/ITool';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
@@ -37,8 +38,10 @@ import {
 import {
   CapabilityDiscoveryEngine,
   createDiscoverCapabilitiesTool,
+  createLoadCapabilityExtensionTool,
 } from '../discovery';
 import type {
+  CapabilityDescriptor,
   CapabilityIndexSources,
   ICapabilityDiscoveryEngine,
 } from '../../discovery/types';
@@ -60,6 +63,111 @@ const DISCOVERY_EMBEDDING_DEFAULTS: Record<string, { modelId: string; dimension:
   openrouter: { modelId: 'openai/text-embedding-3-small', dimension: 1536 },
   ollama: { modelId: 'nomic-embed-text', dimension: 768 },
 };
+
+const require = createRequire(import.meta.url);
+
+type CuratedRegistryEntry = {
+  name: string;
+  packageName: string;
+  category?: string;
+  displayName?: string;
+  description?: string;
+  requiredSecrets?: string[];
+  available?: boolean;
+};
+
+type CuratedManifest = {
+  description?: string;
+  categories?: string[];
+  keywords?: string[];
+  extensions?: Array<{
+    kind?: string;
+    id?: string;
+    displayName?: string;
+    description?: string;
+  }>;
+};
+
+let curatedManifestDescriptorCache: Promise<CapabilityDescriptor[]> | undefined;
+
+function titleCase(value: string): string {
+  return value
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+async function loadCuratedManifestDescriptors(
+  logger?: Pick<ILogger, 'warn'>,
+): Promise<CapabilityDescriptor[]> {
+  if (!curatedManifestDescriptorCache) {
+    curatedManifestDescriptorCache = (async () => {
+      try {
+        const registry = await import('@framers/agentos-extensions-registry');
+        const catalog = Array.isArray((registry as { TOOL_CATALOG?: unknown }).TOOL_CATALOG)
+          ? ((registry as { TOOL_CATALOG: CuratedRegistryEntry[] }).TOOL_CATALOG ?? [])
+          : [];
+        const descriptors: CapabilityDescriptor[] = [];
+
+        for (const entry of catalog) {
+          if (typeof entry.packageName !== 'string' || !entry.packageName.trim()) {
+            continue;
+          }
+
+          let manifest: CuratedManifest | null = null;
+          try {
+            manifest = require(`${entry.packageName}/manifest.json`) as CuratedManifest;
+          } catch {
+            continue;
+          }
+
+          const extensions = Array.isArray(manifest.extensions) ? manifest.extensions : [];
+          for (const extension of extensions) {
+            if (extension?.kind !== 'tool' || typeof extension.id !== 'string' || !extension.id.trim()) {
+              continue;
+            }
+
+            const tags = Array.from(
+              new Set([
+                ...(Array.isArray(manifest.keywords) ? manifest.keywords : []),
+                ...(Array.isArray(manifest.categories) ? manifest.categories : []),
+              ].filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)),
+            );
+
+            descriptors.push({
+              id: `tool:${extension.id}`,
+              kind: 'tool',
+              name: extension.id,
+              displayName: extension.displayName || titleCase(extension.id),
+              description: extension.description || entry.description || manifest.description || '',
+              category:
+                (Array.isArray(manifest.categories) && manifest.categories[0]) ||
+                entry.category ||
+                'general',
+              tags,
+              requiredSecrets: Array.isArray(entry.requiredSecrets) ? entry.requiredSecrets : [],
+              requiredTools: [],
+              available: entry.available !== false,
+              sourceRef: {
+                type: 'extension',
+                packageName: entry.name,
+                extensionId: entry.name,
+              },
+            });
+          }
+        }
+
+        return descriptors;
+      } catch (error) {
+        logger?.warn?.('Capability discovery could not load curated registry manifests', error);
+        return [];
+      }
+    })();
+  }
+
+  return curatedManifestDescriptorCache;
+}
 
 /**
  * Dependencies injected into the initializer at construction time.
@@ -199,13 +307,6 @@ export class CapabilityDiscoveryInitializer {
   public buildCapabilityIndexSources(
     overrides?: AgentOSCapabilityDiscoverySources,
   ): CapabilityIndexSources {
-    const titleCase = (value: string): string =>
-      value
-        .replace(/[-_]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-
     const toolRegistry = this.deps.extensionManager.getRegistry<ITool>(EXTENSION_KIND_TOOL);
     const runtimeTools = new Map<string, ITool>();
     for (const tool of toolRegistry
@@ -357,14 +458,27 @@ export class CapabilityDiscoveryInitializer {
       vectorStore,
       discoveryConfig?.config,
     );
-    const sources = this.buildCapabilityIndexSources(discoveryConfig?.sources);
+    const curatedManifestDescriptors = await loadCuratedManifestDescriptors(this.deps.logger);
+    const sources = this.buildCapabilityIndexSources({
+      ...discoveryConfig?.sources,
+      manifests: [
+        ...(discoveryConfig?.sources?.manifests ?? []),
+        ...curatedManifestDescriptors,
+      ],
+    });
     await engine.initialize(sources, discoveryConfig?.sources?.presetCoOccurrences);
 
     if (discoveryConfig?.registerMetaTool !== false) {
-      const existing = await this.deps.toolOrchestrator.getTool('discover_capabilities');
-      if (!existing) {
+      const existingDiscover = await this.deps.toolOrchestrator.getTool('discover_capabilities');
+      if (!existingDiscover) {
         await this.deps.toolOrchestrator.registerTool(
           createDiscoverCapabilitiesTool(engine, this.deps.toolOrchestrator),
+        );
+      }
+      const existingLoad = await this.deps.toolOrchestrator.getTool('load_capability_extension');
+      if (!existingLoad) {
+        await this.deps.toolOrchestrator.registerTool(
+          createLoadCapabilityExtensionTool(this.deps.toolOrchestrator),
         );
       }
     }

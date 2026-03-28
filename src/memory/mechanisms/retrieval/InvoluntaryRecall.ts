@@ -12,7 +12,7 @@
  * @module agentos/memory/mechanisms/retrieval/InvoluntaryRecall
  */
 
-import type { MemoryTrace } from '../../types.js';
+import type { MemoryTrace } from '../../core/types.js';
 import type { ResolvedInvoluntaryRecallConfig } from '../types.js';
 
 const DAY_MS = 86_400_000;

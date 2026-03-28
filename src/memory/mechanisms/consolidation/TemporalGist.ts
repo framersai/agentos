@@ -11,9 +11,9 @@
  * @module agentos/memory/mechanisms/consolidation/TemporalGist
  */
 
-import type { MemoryTrace } from '../../types.js';
+import type { MemoryTrace } from '../../core/types.js';
 import type { ResolvedTemporalGistConfig, MechanismMetadata } from '../types.js';
-import { sha256 } from '../../util/crossPlatformCrypto.js';
+import { sha256 } from '../../core/util/crossPlatformCrypto.js';
 
 const DAY_MS = 86_400_000;
 

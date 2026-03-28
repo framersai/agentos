@@ -11,8 +11,8 @@
  * @module agentos/memory/mechanisms/retrieval/Reconsolidation
  */
 
-import type { MemoryTrace } from '../../types.js';
-import type { PADState } from '../../config.js';
+import type { MemoryTrace } from '../../core/types.js';
+import type { PADState } from '../../core/config.js';
 import type { ResolvedReconsolidationConfig, MechanismMetadata } from '../types.js';
 
 // ---------------------------------------------------------------------------

@@ -35,10 +35,10 @@
  * @module memory/io/ChatGptImporter
  */
 
-import { sha256 } from '../util/crossPlatformCrypto.js';
+import { sha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
-import type { ImportOptions, ImportResult } from '../facade/types.js';
-import type { SqliteBrain } from '../store/SqliteBrain.js';
+import type { ImportOptions, ImportResult } from './facade/types.js';
+import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
 
 // ---------------------------------------------------------------------------
 // ChatGPT export format types

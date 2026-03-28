@@ -430,7 +430,7 @@ export interface IPersonaDefinition {
   /** Memory subsystem tuning (retention horizons, summarization cadence, pinning rules). */
   memoryConfig?: PersonaMemoryConfig;
   /** Cognitive memory system per-persona overrides (encoding, decay, working memory capacity, etc.). */
-  cognitiveMemoryConfig?: import('../../memory/config.js').CognitiveMemoryPersonaConfig;
+  cognitiveMemoryConfig?: import('../../memory/core/config.js').CognitiveMemoryPersonaConfig;
   /** Conversation context override strategy (message importance heuristics, summarization triggers). */
   conversationContextConfig?: PersonaConversationContextConfig;
 

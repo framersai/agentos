@@ -8,8 +8,8 @@
  * @module agentos/memory/mechanisms/types
  */
 
-import type { PADState } from '../config.js';
-import type { MemorySourceType } from '../types.js';
+import type { PADState } from '../core/config.js';
+import type { MemorySourceType } from '../core/types.js';
 
 // ---------------------------------------------------------------------------
 // Per-mechanism configs

@@ -12,7 +12,7 @@
  * @module agentos/memory/mechanisms/consolidation/SchemaEncoding
  */
 
-import type { MemoryTrace } from '../../types.js';
+import type { MemoryTrace } from '../../core/types.js';
 import type { ResolvedSchemaEncodingConfig, MechanismMetadata } from '../types.js';
 
 // ---------------------------------------------------------------------------

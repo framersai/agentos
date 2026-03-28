@@ -24,8 +24,8 @@
  * @module memory/io/JsonExporter
  */
 
-import type { ExportOptions } from '../facade/types.js';
-import type { SqliteBrain } from '../store/SqliteBrain.js';
+import type { ExportOptions } from './facade/types.js';
+import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
 import { asBinaryBytes, bytesToBase64 } from './base64.js';
 
 // ---------------------------------------------------------------------------

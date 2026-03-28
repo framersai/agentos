@@ -40,13 +40,13 @@ import type {
   AssembledMemoryContext,
   MemoryHealthReport,
   CognitiveRetrievalResult,
-} from './types.js';
-import type { PADState, CognitiveMemoryConfig } from './config.js';
+} from './core/types.js';
+import type { PADState, CognitiveMemoryConfig } from './core/config.js';
 import type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 import { CognitiveMemoryManager } from './CognitiveMemoryManager.js';
-import type { ObservationNote } from './observation/MemoryObserver.js';
-import type { ProspectiveMemoryItem } from './prospective/ProspectiveMemoryManager.js';
-import { Memory as StandaloneMemory } from './facade/Memory.js';
+import type { ObservationNote } from './pipeline/observation/MemoryObserver.js';
+import type { ProspectiveMemoryItem } from './retrieval/prospective/ProspectiveMemoryManager.js';
+import { Memory as StandaloneMemory } from './io/facade/Memory.js';
 import type {
   MemoryConfig,
   IngestOptions,
@@ -55,7 +55,7 @@ import type {
   ImportOptions,
   ImportResult,
   MemoryHealth as StandaloneMemoryHealth,
-} from './facade/types.js';
+} from './io/facade/types.js';
 
 // ── Neutral mood (no emotional bias in encoding/retrieval) ──
 const NEUTRAL_MOOD: PADState = { valence: 0, arousal: 0, dominance: 0 };

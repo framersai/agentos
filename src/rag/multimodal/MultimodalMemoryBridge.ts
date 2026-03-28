@@ -63,8 +63,8 @@ import { join } from 'node:path';
 
 import type { MultimodalIndexer } from './MultimodalIndexer.js';
 import type { ICognitiveMemoryManager } from '../../memory/CognitiveMemoryManager.js';
-import type { PADState } from '../../memory/config.js';
-import type { MemoryTrace, MemoryType } from '../../memory/types.js';
+import type { PADState } from '../../memory/core/config.js';
+import type { MemoryTrace, MemoryType } from '../../memory/core/types.js';
 
 const exec = promisify(execCb);
 

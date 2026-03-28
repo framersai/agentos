@@ -30,7 +30,7 @@ import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
 import { PersonaOverlayManager } from './persona_overlays/PersonaOverlayManager';
 import type { PersonaStateOverlay, PersonaEvolutionContext } from './persona_overlays/PersonaOverlayTypes';
-import { resolveSecretForProvider } from '../config/extensionSecrets';
+import { resolveSecretForProvider } from '../core/config/extensionSecrets';
 import type { PersonaEvolutionRule } from '../orchestration/workflows/WorkflowTypes';
 import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
 
