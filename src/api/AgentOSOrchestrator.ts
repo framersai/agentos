@@ -22,13 +22,8 @@ import {
   type ResolvedAdaptiveExecutionConfig,
 } from './TaskOutcomeTelemetryManager';
 import { StreamChunkEmitter } from './StreamChunkEmitter';
-import {
-  executeRollingSummaryPhase,
-  type RollingSummaryPhaseResult,
-} from './turn-phases/rolling-summary';
-import { executePromptProfilePhase } from './turn-phases/prompt-profile';
-import { executeLongTermMemoryPhase } from './turn-phases/long-term-memory';
-import { assembleConversationHistory } from './turn-phases/conversation-history';
+// Turn-phase helpers (rolling-summary, prompt-profile, long-term-memory,
+// conversation-history) now used by TurnExecutionPipeline
 import {
   AgentOSResponseChunkType,
 } from './types/AgentOSResponse';
@@ -41,9 +36,7 @@ import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
 import { GMIManager } from '../cognitive_substrate/GMIManager';
 import {
   IGMI,
-  GMITurnInput,
   GMIOutput,
-  GMIInteractionType,
   GMIOutputChunkType,
 } from '../cognitive_substrate/IGMI';
 import { ConversationManager } from '../core/conversation/ConversationManager';
@@ -52,33 +45,19 @@ import { MessageRole } from '../core/conversation/ConversationMessage';
 // IToolOrchestrator — referenced via AgentOSOrchestratorDependencies
 // uuidv4 — now used by GMIChunkTransformer
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-import { StreamingManager, StreamId } from '../core/streaming/StreamingManager';
+import { type StreamId } from '../core/streaming/StreamingManager';
 import { normalizeUsage, snapshotPersonaDetails } from '../core/orchestration/helpers';
 import type { WorkflowProgressUpdate } from '../planning/workflows/WorkflowTypes';
-import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
+// AIModelProviderManager — referenced via AgentOSOrchestratorDependencies
 import {
   DEFAULT_PROMPT_PROFILE_CONFIG,
-  selectPromptProfile,
-  type PromptProfileConfig,
-  type PromptProfileConversationState,
 } from '../structured/prompting/PromptProfileRouter';
 import {
   DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG,
-  maybeCompactConversationMessages,
-  type RollingSummaryCompactionConfig,
-  type RollingSummaryCompactionResult,
 } from '../core/conversation/RollingSummaryCompactor';
-import type {
-  IRollingSummaryMemorySink,
-  RollingSummaryMemoryUpdate,
-} from '../core/conversation/IRollingSummaryMemorySink';
-import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
+// IRollingSummaryMemorySink, RollingSummaryMemoryUpdate — now used by TurnExecutionPipeline
+// ILongTermMemoryRetriever — referenced via AgentOSOrchestratorDependencies
 import {
-  DEFAULT_LONG_TERM_MEMORY_POLICY,
-  hasAnyLongTermMemoryScope,
-  LONG_TERM_MEMORY_POLICY_METADATA_KEY,
-  // ORGANIZATION_ID_METADATA_KEY — now used by ExternalToolResultHandler
-  resolveLongTermMemoryPolicy,
   type ResolvedLongTermMemoryPolicy,
 } from '../core/conversation/LongTermMemoryPolicy';
 import {
@@ -88,10 +67,11 @@ import {
   startAgentOSSpan,
   withAgentOSSpan,
 } from '../evaluation/observability/otel';
-import type { ITurnPlanner, TurnPlan } from '../core/orchestration/TurnPlanner';
+// ITurnPlanner, TurnPlan — now used by TurnExecutionPipeline
 // CapabilityContextAssembler, filterCapabilityDiscoveryResultByDisabledSkills — now used by GMIChunkTransformer
 import { ExternalToolResultHandler } from './ExternalToolResultHandler';
 import { GMIChunkTransformer } from './GMIChunkTransformer';
+import { TurnExecutionPipeline, type PreparedTurnContext } from './TurnExecutionPipeline';
 
 // Public config types extracted to types/OrchestratorConfig.ts
 export type {
@@ -339,6 +319,7 @@ export class AgentOSOrchestrator {
   private chunks!: StreamChunkEmitter;
   private toolResultHandler!: ExternalToolResultHandler;
   private chunkTransformer!: GMIChunkTransformer;
+  private turnPipeline!: TurnExecutionPipeline;
 
   /**
    * A map to hold ongoing stream contexts.
@@ -435,6 +416,15 @@ export class AgentOSOrchestrator {
     // Wire the chunkTransformer's clearPendingRequest to the toolResultHandler
     this.chunkTransformer.setClearPendingRequestCallback(
       this.toolResultHandler.clearPendingExternalToolRequest.bind(this.toolResultHandler),
+    );
+    this.turnPipeline = new TurnExecutionPipeline(
+      this.activeStreamContexts as Map<string, any>,
+      this.chunks,
+      this.dependencies,
+      this.config,
+      this.chunkTransformer,
+      this.telemetry,
+      this.resolveOrganizationContext.bind(this),
     );
     await this.telemetry.loadPersistedWindows();
     this.initialized = true;
@@ -710,8 +700,6 @@ export class AgentOSOrchestrator {
         }
       | undefined;
 
-    const selectedPersonaId = input.selectedPersonaId;
-
     let gmi: IGMI | undefined;
     let conversationContext: ConversationContext | undefined;
     let currentPersonaId = input.selectedPersonaId;
@@ -724,427 +712,21 @@ export class AgentOSOrchestrator {
     let streamedToolCallRequest = false;
 
     try {
-      if (!selectedPersonaId) {
-        throw new GMIError(
-          'AgentOSOrchestrator requires a selectedPersonaId on AgentOSInput.',
-          GMIErrorCode.VALIDATION_ERROR
-        );
-      }
+      // --- Pre-LLM pipeline (phases 1-12) delegated to TurnExecutionPipeline ---
+      const prepared = await this.turnPipeline.prepareTurn(agentOSStreamId, input);
 
-      const gmiResult = await withAgentOSSpan('agentos.gmi.get_or_create', async (span) => {
-        span?.setAttribute('agentos.user_id', input.userId);
-        span?.setAttribute('agentos.session_id', input.sessionId);
-        span?.setAttribute('agentos.persona_id', selectedPersonaId);
-        if (typeof input.conversationId === 'string' && input.conversationId.trim()) {
-          span?.setAttribute('agentos.conversation_id', input.conversationId.trim());
-        }
-        return this.dependencies.gmiManager.getOrCreateGMIForSession(
-          input.userId,
-          input.sessionId, // This is AgentOS's session ID, GMI might have its own.
-          selectedPersonaId,
-          input.conversationId, // Can be undefined, GMIManager might default to sessionId.
-          input.options?.preferredModelId,
-          input.options?.preferredProviderId,
-          input.userApiKeys
-        );
-      });
-      gmi = gmiResult.gmi;
-      conversationContext = gmiResult.conversationContext;
-      currentPersonaId = gmi.getCurrentPrimaryPersonaId(); // Get actual personaId from GMI
-      gmiInstanceIdForChunks = gmi.getGMIId();
+      gmi = prepared.gmi;
+      conversationContext = prepared.conversationContext;
+      currentPersonaId = prepared.currentPersonaId;
+      gmiInstanceIdForChunks = prepared.gmiInstanceIdForChunks;
+      organizationIdForMemory = prepared.organizationIdForMemory;
+      longTermMemoryPolicy = prepared.longTermMemoryPolicy;
+      lifecycleDegraded = prepared.lifecycleDegraded;
       turnMetricsPersonaId = currentPersonaId;
 
-      const streamContext: ActiveStreamContext = {
-        gmi,
-        userId: input.userId,
-        sessionId: input.sessionId,
-        personaId: currentPersonaId,
-        organizationId: organizationIdForMemory,
-        conversationId: conversationContext.sessionId, // Use actual conversation ID from context
-        conversationContext,
-        userApiKeys: input.userApiKeys,
-        processingOptions: input.options,
-      };
-      this.activeStreamContexts.set(agentOSStreamId, streamContext);
-
-      await this.chunks.pushChunk(
-        agentOSStreamId,
-        AgentOSResponseChunkType.SYSTEM_PROGRESS,
-        gmiInstanceIdForChunks,
-        currentPersonaId,
-        false,
-        {
-          message: `Initializing persona ${currentPersonaId}... GMI: ${gmiInstanceIdForChunks}`,
-          progressPercentage: 10,
-        }
-      );
-
-      const gmiInput = this.chunkTransformer.constructGMITurnInput(agentOSStreamId, input, streamContext);
-      let turnPlan: TurnPlan | null = null;
-      const resolvedOrganizationId = this.resolveOrganizationContext(input.organizationId);
-      streamContext.organizationId = resolvedOrganizationId;
-
-      if (this.dependencies.turnPlanner) {
-        const planningMessage =
-          gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string'
-            ? gmiInput.content
-            : gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT
-              ? JSON.stringify(gmiInput.content)
-              : '';
-        try {
-          turnPlan = await this.dependencies.turnPlanner.planTurn({
-            userId: input.userId,
-            organizationId: resolvedOrganizationId,
-            sessionId: input.sessionId,
-            conversationId: input.conversationId,
-            persona: gmi.getPersona(),
-            userMessage: planningMessage,
-            options: input.options,
-            excludedCapabilityIds: input.disabledSessionSkillIds,
-          });
-        } catch (planningError: any) {
-          throw new GMIError(
-            `Turn planning failed before execution: ${planningError?.message || String(planningError)}`,
-            GMIErrorCode.PROCESSING_ERROR,
-            { streamId: agentOSStreamId, planningError }
-          );
-        }
-      }
-      turnPlan = this.chunkTransformer.filterTurnPlanForDisabledSessionSkills(turnPlan, input);
-      const adaptiveExecution = this.telemetry.maybeApplyAdaptivePolicy({
-        turnPlan,
-        organizationId: resolvedOrganizationId,
-        personaId: currentPersonaId,
-        requestCustomFlags: input.options?.customFlags,
-      });
-      const adaptiveExecutionPayload =
-        adaptiveExecution.applied || adaptiveExecution.kpi || adaptiveExecution.actions
-          ? {
-              applied: adaptiveExecution.applied,
-              reason: adaptiveExecution.reason,
-              kpi: adaptiveExecution.kpi,
-              actions: adaptiveExecution.actions,
-            }
-          : undefined;
-      await this.chunks.emitLifecycleUpdate({
-        streamId: agentOSStreamId,
-        gmiInstanceId: gmiInstanceIdForChunks,
-        personaId: currentPersonaId,
-        phase: 'planned',
-        status: 'ok',
-        details: turnPlan
-          ? {
-              plannerVersion: turnPlan.policy.plannerVersion,
-              toolFailureMode: turnPlan.policy.toolFailureMode,
-              toolSelectionMode: turnPlan.policy.toolSelectionMode,
-              adaptiveExecution: adaptiveExecutionPayload,
-            }
-          : { plannerVersion: 'none' },
-      });
-      if (turnPlan?.capability.fallbackApplied || adaptiveExecution.applied) {
-        lifecycleDegraded = true;
-        await this.chunks.emitLifecycleUpdate({
-          streamId: agentOSStreamId,
-          gmiInstanceId: gmiInstanceIdForChunks,
-          personaId: currentPersonaId,
-          phase: 'degraded',
-          status: 'degraded',
-          details: {
-            reason:
-              turnPlan?.capability.fallbackReason || adaptiveExecution.reason || 'fallback applied',
-            discoveryAttempts: turnPlan?.diagnostics.discoveryAttempts,
-            adaptiveExecution: adaptiveExecutionPayload,
-          },
-        });
-      }
-
-      // --- Org context + long-term memory policy (persisted per conversation) ---
-      organizationIdForMemory = resolvedOrganizationId;
-      if (conversationContext) {
-        // SECURITY NOTE: do not persist organizationId in conversation metadata. The org context
-        // should be asserted by the trusted caller each request (after membership checks).
-
-        const rawPrevPolicy = conversationContext.getMetadata(LONG_TERM_MEMORY_POLICY_METADATA_KEY);
-        const prevPolicy =
-          rawPrevPolicy && typeof rawPrevPolicy === 'object'
-            ? (rawPrevPolicy as ResolvedLongTermMemoryPolicy)
-            : null;
-        const inputPolicy = input.memoryControl?.longTermMemory ?? null;
-
-        longTermMemoryPolicy = resolveLongTermMemoryPolicy({
-          previous: prevPolicy,
-          input: inputPolicy,
-          defaults: DEFAULT_LONG_TERM_MEMORY_POLICY,
-        });
-
-        // Only write back when the client supplies overrides or no prior policy exists.
-        if (inputPolicy || !prevPolicy) {
-          conversationContext.setMetadata(
-            LONG_TERM_MEMORY_POLICY_METADATA_KEY,
-            longTermMemoryPolicy
-          );
-        }
-      } else {
-        longTermMemoryPolicy = resolveLongTermMemoryPolicy({
-          defaults: DEFAULT_LONG_TERM_MEMORY_POLICY,
-        });
-      }
-
-      if (turnPlan) {
-        (gmiInput.metadata ??= {} as any).executionPolicy = turnPlan.policy;
-        (gmiInput.metadata as any).capabilityDiscovery = turnPlan.capability;
-      }
-
-      (gmiInput.metadata ??= {} as any).organizationId = organizationIdForMemory ?? null;
-      (gmiInput.metadata as any).longTermMemoryPolicy = longTermMemoryPolicy;
-
-      // Persist inbound user/system message to ConversationContext BEFORE any LLM call so persona switches
-      // and restarts preserve memory, even if the LLM fails.
-      if (this.config.enableConversationalPersistence && conversationContext) {
-        const persistContext = conversationContext;
-        try {
-          if (gmiInput.type === GMIInteractionType.TEXT && typeof gmiInput.content === 'string') {
-            conversationContext.addMessage({
-              role: MessageRole.USER,
-              content: gmiInput.content,
-              name: input.userId,
-              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_input' },
-            });
-          } else if (gmiInput.type === GMIInteractionType.MULTIMODAL_CONTENT) {
-            conversationContext.addMessage({
-              role: MessageRole.USER,
-              content: JSON.stringify(gmiInput.content),
-              name: input.userId,
-              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_input_multimodal' },
-            });
-          } else if (gmiInput.type === GMIInteractionType.SYSTEM_MESSAGE) {
-            conversationContext.addMessage({
-              role: MessageRole.SYSTEM,
-              content:
-                typeof gmiInput.content === 'string'
-                  ? gmiInput.content
-                  : JSON.stringify(gmiInput.content),
-              metadata: { agentPersonaId: currentPersonaId, source: 'agentos_input_system' },
-            });
-          }
-          await withAgentOSSpan('agentos.conversation.save', async (span) => {
-            span?.setAttribute('agentos.stage', 'inbound');
-            span?.setAttribute('agentos.stream_id', agentOSStreamId);
-            await this.dependencies.conversationManager.saveConversation(persistContext);
-          });
-        } catch (persistError: any) {
-          console.warn(
-            `AgentOSOrchestrator: Failed to persist inbound message to ConversationContext for stream ${agentOSStreamId}.`,
-            persistError
-          );
-        }
-      }
-
-      // Build conversationHistoryForPrompt after compaction/routing so it can reflect rolling-summary trimming.
-
-      const modeForRouting =
-        typeof input.options?.customFlags?.mode === 'string' &&
-        input.options.customFlags.mode.trim()
-          ? input.options.customFlags.mode.trim()
-          : currentPersonaId;
-
-      // --- Rolling summary compaction (delegated to turn-phases/rolling-summary) ---
-      const rollingSummaryPhase = await executeRollingSummaryPhase({
-        conversationContext,
-        modeForRouting,
-        streamId: agentOSStreamId,
-        rollingSummaryCompactionConfig: this.config.rollingSummaryCompactionConfig,
-        rollingSummaryCompactionProfilesConfig: this.config.rollingSummaryCompactionProfilesConfig,
-        rollingSummarySystemPrompt: this.config.rollingSummarySystemPrompt,
-        rollingSummaryStateKey: this.config.rollingSummaryStateKey,
-        modelProviderManager: this.dependencies.modelProviderManager,
-      });
-      const {
-        result: rollingSummaryResult,
-        profileId: rollingSummaryProfileId,
-        configForTurn: rollingSummaryConfigForTurn,
-      } = rollingSummaryPhase;
-      const rollingSummaryEnabled = rollingSummaryPhase.enabled;
-      const rollingSummaryText = rollingSummaryPhase.summaryText;
-
-      if (!gmiInput.metadata) {
-        gmiInput.metadata = {};
-      }
-      (gmiInput.metadata as any).rollingSummary =
-        rollingSummaryEnabled && rollingSummaryText
-          ? { text: rollingSummaryText, json: rollingSummaryResult?.summaryJson ?? undefined }
-          : null;
-
-      // --- Prompt-profile routing (delegated to turn-phases/prompt-profile) ---
-      const promptProfileSelection = executePromptProfilePhase({
-        conversationContext,
-        promptProfileConfig: this.config.promptProfileConfig,
-        modeForRouting,
-        gmiInput,
-        didCompact: Boolean(rollingSummaryResult?.didCompact),
-      });
-
-      (gmiInput.metadata as any).promptProfile = promptProfileSelection
-        ? {
-            id: promptProfileSelection.presetId,
-            systemInstructions: promptProfileSelection.systemInstructions,
-            reason: promptProfileSelection.reason,
-          }
-        : null;
-
-      // --- Long-term memory retrieval (delegated to turn-phases/long-term-memory) ---
-      const longTermMemoryPhase = await executeLongTermMemoryPhase({
-        conversationContext,
-        longTermMemoryRetriever: this.dependencies.longTermMemoryRetriever,
-        longTermMemoryPolicy,
-        gmiInput,
-        streamId: agentOSStreamId,
-        userId: streamContext.userId,
-        organizationId: organizationIdForMemory,
-        conversationId: streamContext.conversationId,
-        personaId: currentPersonaId,
-        modeForRouting,
-        recallConfig: this.config.longTermMemoryRecall,
-        didCompact: Boolean(rollingSummaryResult?.didCompact),
-      });
-      const longTermMemoryContextText = longTermMemoryPhase.contextText;
-      const longTermMemoryRetrievalDiagnostics = longTermMemoryPhase.diagnostics;
-      const longTermMemoryFeedbackPayload = longTermMemoryPhase.feedbackPayload;
-      const longTermMemoryShouldReview = longTermMemoryPhase.shouldReview;
-      const longTermMemoryReviewReason = longTermMemoryPhase.reviewReason;
-
-      (gmiInput.metadata as any).longTermMemoryContext =
-        typeof longTermMemoryContextText === 'string' && longTermMemoryContextText.length > 0
-          ? longTermMemoryContextText
-          : null;
-
-      // --- Conversation history assembly (delegated to turn-phases/conversation-history) ---
-      const historyForPrompt = assembleConversationHistory({
-        conversationContext,
-        gmiInput,
-        rollingSummaryEnabled,
-        rollingSummaryResult,
-        rollingSummaryText,
-        rollingSummaryConfigForTurn,
-      });
-      if (historyForPrompt) {
-        (gmiInput.metadata as any).conversationHistoryForPrompt = historyForPrompt;
-      }
-
-      // Persist any compaction/router metadata updates prior to the main LLM call.
-      if (this.config.enableConversationalPersistence && conversationContext) {
-        const persistContext = conversationContext;
-        try {
-          await withAgentOSSpan('agentos.conversation.save', async (span) => {
-            span?.setAttribute('agentos.stage', 'metadata');
-            span?.setAttribute('agentos.stream_id', agentOSStreamId);
-            await this.dependencies.conversationManager.saveConversation(persistContext);
-          });
-        } catch (metadataPersistError: any) {
-          console.warn(
-            `AgentOSOrchestrator: Failed to persist conversation metadata updates for stream ${agentOSStreamId}.`,
-            metadataPersistError
-          );
-        }
-      }
-
-      // Best-effort: persist structured rolling memory (`memory_json`) to an external store for retrieval.
-      if (
-        rollingSummaryEnabled &&
-        rollingSummaryResult?.didCompact &&
-        typeof rollingSummaryResult.summaryText === 'string' &&
-        this.dependencies.rollingSummaryMemorySink &&
-        Boolean(longTermMemoryPolicy?.enabled) &&
-        hasAnyLongTermMemoryScope(longTermMemoryPolicy ?? DEFAULT_LONG_TERM_MEMORY_POLICY)
-      ) {
-        const update: RollingSummaryMemoryUpdate = {
-          userId: streamContext.userId,
-          organizationId: organizationIdForMemory,
-          sessionId: streamContext.sessionId,
-          conversationId: streamContext.conversationId,
-          personaId: currentPersonaId,
-          mode: modeForRouting,
-          profileId: rollingSummaryProfileId,
-          memoryPolicy: longTermMemoryPolicy ?? undefined,
-          summaryText: rollingSummaryResult.summaryText,
-          summaryJson: rollingSummaryResult.summaryJson ?? null,
-          summaryUptoTimestamp: rollingSummaryResult.summaryUptoTimestamp ?? null,
-          summaryUpdatedAt: rollingSummaryResult.summaryUpdatedAt ?? null,
-        };
-        void this.dependencies.rollingSummaryMemorySink
-          .upsertRollingSummaryMemory(update)
-          .catch((error: any) => {
-            console.warn(
-              `AgentOSOrchestrator: Rolling summary sink failed for stream ${agentOSStreamId} (continuing).`,
-              error
-            );
-          });
-      }
-
-      // Emit routing + memory metadata as a first-class chunk for clients.
-      await this.chunks.pushChunk(
-        agentOSStreamId,
-        AgentOSResponseChunkType.METADATA_UPDATE,
-        gmiInstanceIdForChunks,
-        currentPersonaId,
-        false,
-        {
-          updates: {
-            promptProfile: promptProfileSelection,
-            organizationId: organizationIdForMemory ?? null,
-            tenantRouting: {
-              mode: this.config.tenantRouting.mode,
-              strictOrganizationIsolation: this.config.tenantRouting.strictOrganizationIsolation,
-              defaultOrganizationId: this.config.tenantRouting.defaultOrganizationId ?? null,
-            },
-            longTermMemoryPolicy,
-            longTermMemoryRecall: this.config.longTermMemoryRecall,
-            taskOutcomeTelemetry: this.config.taskOutcomeTelemetry,
-            adaptiveExecution: this.config.adaptiveExecution,
-            turnPlanning: turnPlan
-              ? {
-                  policy: turnPlan.policy,
-                  diagnostics: turnPlan.diagnostics,
-                  adaptiveExecution: adaptiveExecutionPayload ?? null,
-                  discovery: {
-                    enabled: turnPlan.capability.enabled,
-                    kind: turnPlan.capability.kind,
-                    selectedToolNames: turnPlan.capability.selectedToolNames,
-                    fallbackApplied: turnPlan.capability.fallbackApplied,
-                    fallbackReason: turnPlan.capability.fallbackReason,
-                    tokenEstimate: turnPlan.capability.result?.tokenEstimate,
-                    diagnostics: turnPlan.capability.result?.diagnostics,
-                  },
-                }
-              : null,
-            longTermMemoryRetrieval: longTermMemoryContextText
-              ? {
-                  shouldReview: longTermMemoryShouldReview,
-                  reviewReason: longTermMemoryReviewReason,
-                  didRetrieve: true,
-                  contextChars: longTermMemoryContextText.length,
-                  diagnostics: longTermMemoryRetrievalDiagnostics,
-                }
-              : {
-                  shouldReview: longTermMemoryShouldReview,
-                  reviewReason: longTermMemoryReviewReason,
-                  didRetrieve: false,
-                },
-            rollingSummary: rollingSummaryResult
-              ? {
-                  profileId: rollingSummaryProfileId,
-                  enabled: rollingSummaryResult.enabled,
-                  didCompact: rollingSummaryResult.didCompact,
-                  summaryText: rollingSummaryResult.summaryText,
-                  summaryJson: rollingSummaryResult.summaryJson,
-                  summaryUptoTimestamp: rollingSummaryResult.summaryUptoTimestamp,
-                  summaryUpdatedAt: rollingSummaryResult.summaryUpdatedAt,
-                  reason: rollingSummaryResult.reason,
-                }
-              : null,
-          },
-        }
-      );
+      const { gmiInput, streamContext } = prepared;
+      const longTermMemoryFeedbackPayload = prepared.longTermMemoryFeedbackPayload;
+      const longTermMemoryRetrievalDiagnostics = prepared.longTermMemoryRetrievalDiagnostics;
 
       let currentToolCallIteration = 0;
       let continueProcessing = true;
@@ -1403,12 +985,7 @@ export class AgentOSOrchestrator {
         longTermMemoryFeedbackPayload !== undefined &&
         typeof this.dependencies.longTermMemoryRetriever?.recordRetrievalFeedback === 'function'
       ) {
-        const feedbackQueryText =
-          typeof (longTermMemoryRetrievalDiagnostics as any)?.queryText === 'string'
-            ? ((longTermMemoryRetrievalDiagnostics as any).queryText as string)
-            : typeof gmiInput.content === 'string'
-              ? gmiInput.content
-              : JSON.stringify(gmiInput.content);
+        const feedbackQueryText = prepared.longTermMemoryQueryText ?? '';
 
         try {
           await this.dependencies.longTermMemoryRetriever.recordRetrievalFeedback({
