@@ -1,7 +1,11 @@
 /**
  * Domain-organized barrel for all core subsystems.
  *
- * Subsystems are grouped into 7 domains for navigability:
+ * Modules that remain in core/:
+ *   llm/, tools/, conversation/, orchestration/, streaming/, storage/, utils/
+ *
+ * Modules that have been relocated to top-level domains are re-exported here
+ * for backward compatibility:
  *
  * INTELLIGENCE — LLM providers, structured outputs, AI utilities, planning, prompt routing
  * SAFETY       — Guardrails, safety primitives (circuit breaker, cost guard), HITL, sandbox
@@ -18,24 +22,24 @@
 export * from './llm/IPromptEngine.js';
 export { PromptEngine } from './llm/PromptEngine.js';
 export * from './llm/providers/AIModelProviderManager.js';
-export * from './structured/index.js';
-export * from './ai_utilities/index.js';
-export * from './planning/index.js';
-export * from './prompting/PromptProfileRouter.js';
+export * from '../structured/output/index.js';
+export * from '../nlp/ai_utilities/index.js';
+export * from '../planning/planner/index.js';
+export * from '../structured/prompting/PromptProfileRouter.js';
 
 // ============================================================================
 // SAFETY — Safety + human oversight
 // ============================================================================
-export * from './guardrails/index.js';
-export * from './safety/index.js';
-export * from './hitl/index.js';
-export * from './sandbox/index.js';
+export * from '../safety/guardrails/index.js';
+export * from '../safety/runtime/index.js';
+export * from '../planning/hitl/index.js';
+export * from '../sandbox/executor/index.js';
 
 // ============================================================================
 // AGENTS — Agent runtime + multi-agent orchestration
 // ============================================================================
-export * from './agents/index.js';
-export * from './agency/index.js';
+export * from '../agents/definitions/index.js';
+export * from '../agents/agency/index.js';
 export * from './orchestration/index.js';
 export * from './conversation/index.js';
 export * from './streaming/index.js';
@@ -48,25 +52,25 @@ export * from './tools/index.js';
 // ============================================================================
 // AUTOMATION — Workflow engine
 // ============================================================================
-export * from './workflows/IWorkflowEngine.js';
-export { WorkflowEngine } from './workflows/WorkflowEngine.js';
-export * from './workflows/WorkflowTypes.js';
-export * from './workflows/storage/IWorkflowStore.js';
-export { InMemoryWorkflowStore } from './workflows/storage/InMemoryWorkflowStore.js';
+export * from '../planning/workflows/IWorkflowEngine.js';
+export { WorkflowEngine } from '../planning/workflows/WorkflowEngine.js';
+export * from '../planning/workflows/WorkflowTypes.js';
+export * from '../planning/workflows/storage/IWorkflowStore.js';
+export { InMemoryWorkflowStore } from '../planning/workflows/storage/InMemoryWorkflowStore.js';
 
 // ============================================================================
 // PERSISTENCE — Data + audit
 // ============================================================================
 export * from './storage/index.js';
-export * from './knowledge/index.js';
-export * from './provenance/index.js';
+export * from '../knowledge/index.js';
+export * from '../provenance/index.js';
 
 // ============================================================================
 // PLATFORM — Cross-cutting infrastructure
 // ============================================================================
-export * from './audio/index.js';
-export * from './language/index.js';
-export * from './observability/index.js';
-export * from './evaluation/index.js';
-export * from './marketplace/index.js';
-export * from './workspace/index.js';
+export * from '../media/audio/index.js';
+export * from '../nlp/language/index.js';
+export * from '../evaluation/observability/index.js';
+export * from '../evaluation/index.js';
+export * from '../marketplace/store/index.js';
+export * from '../marketplace/workspace/index.js';

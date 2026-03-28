@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LLMUtilityAI, LLMUtilityAIConfig } from '../LLMUtilityAI';
 import { IUtilityAI, SummarizationOptions } from '../IUtilityAI';
-import { AIModelProviderManager } from '../../llm/providers/AIModelProviderManager';
-import { IProvider, ChatMessage, ModelCompletionResponse } from '../../llm/providers/IProvider';
+import { AIModelProviderManager } from '../../../core/llm/providers/AIModelProviderManager';
+import { IProvider, ChatMessage, ModelCompletionResponse } from '../../../core/llm/providers/IProvider';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 
 // Updated mock provider aligned with new IProvider interface

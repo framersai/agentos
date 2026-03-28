@@ -71,7 +71,7 @@ import {
   selectPromptProfile,
   type PromptProfileConfig,
   type PromptProfileConversationState,
-} from '../prompting/PromptProfileRouter';
+} from '../../structured/prompting/PromptProfileRouter';
 import {
   DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG,
   maybeCompactConversationMessages,

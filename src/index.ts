@@ -171,7 +171,7 @@ export type {
 // Orchestration Layer (IR, Events, Checkpoint, Runtime)
 export * from './orchestration/index.js';
 // Provenance, Audit & Immutability
-export * from './core/provenance';
+export * from './provenance';
 // Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)
 export * from './safety/runtime';
 // Emergent Capability Engine (runtime tool creation)

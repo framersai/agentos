@@ -13,7 +13,7 @@
 
 import { ConversationContext, ConversationContextConfig } from './ConversationContext';
 import { ConversationMessage as InternalConversationMessage, MessageRole, createConversationMessage } from './ConversationMessage';
-import { IUtilityAI } from '../ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';

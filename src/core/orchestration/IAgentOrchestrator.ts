@@ -2,7 +2,7 @@
 // backend/agentos/core/orchestration/IAgentOrchestrator.ts
 
 import { ConversationContext } from '../conversation/ConversationContext';
-import { AgentOutput } from '../agents/IAgent'; // Assuming AgentOutput is defined in IAgent
+import { AgentOutput } from '../../agents/definitions/IAgent'; // Assuming AgentOutput is defined in IAgent
 // Corrected: Ensure AgentOrchestratorDependencies is imported from the concrete implementation or a shared types file if it exists
 import { AgentOSOrchestratorDependencies as AgentOrchestratorDependencies } from './AgentOrchestrator'; // Changed to concrete from AgentOS
 

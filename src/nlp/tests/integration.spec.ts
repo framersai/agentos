@@ -109,7 +109,7 @@ describe('Pipeline presets integration', () => {
   describe('BM25Index with pipeline', () => {
     it('uses pipeline for tokenization when configured', async () => {
       /* Dynamically import BM25Index to avoid circular dependency issues */
-      const { BM25Index } = await import('../../../rag/search/BM25Index');
+      const { BM25Index } = await import('../../rag/search/BM25Index');
 
       const pipeline = createRagPipeline();
       /* Initialize the PorterStemmer inside the pipeline */
@@ -133,7 +133,7 @@ describe('Pipeline presets integration', () => {
     });
 
     it('falls back to regex tokenizer when no pipeline configured', async () => {
-      const { BM25Index } = await import('../../../rag/search/BM25Index');
+      const { BM25Index } = await import('../../rag/search/BM25Index');
 
       /* No pipeline — uses built-in regex tokenizer + getNaturalStopWords */
       const index = new BM25Index();
@@ -148,7 +148,7 @@ describe('Pipeline presets integration', () => {
     });
 
     it('pipeline stemming improves recall for morphological variants', async () => {
-      const { BM25Index } = await import('../../../rag/search/BM25Index');
+      const { BM25Index } = await import('../../rag/search/BM25Index');
 
       const pipeline = createRagPipeline();
       const stemmer = new PorterStemmer();

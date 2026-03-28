@@ -130,10 +130,10 @@ export interface AgentConfig {
    * Agent-specific overrides for the global `PromptEngine` configuration.
    * This allows fine-tuning of prompt construction aspects like history truncation
    * or summarization strategies specifically for this agent.
-   * @type {Partial<import('../llm/IPromptEngine').PromptEngineConfig>}
+   * @type {Partial<import('../../core/llm/IPromptEngine').PromptEngineConfig>}
    * @optional
    */
-  promptEngineConfigOverrides?: Partial<import('../llm/IPromptEngine').PromptEngineConfig>;
+  promptEngineConfigOverrides?: Partial<import('../../core/llm/IPromptEngine').PromptEngineConfig>;
 
   /**
    * Optional: Identifier for a specific `IUtilityAI` service instance that this agent
@@ -169,7 +169,7 @@ export interface AgentConfig {
    * `profiles.sealedAutonomous()` for preset configurations.
    * @optional
    */
-  provenanceConfig?: import('../provenance/types.js').ProvenanceSystemConfig;
+  provenanceConfig?: import('../../provenance/types.js').ProvenanceSystemConfig;
 
   /**
    * Allows for adding any other agent-specific custom settings or metadata.

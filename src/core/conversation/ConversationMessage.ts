@@ -11,7 +11,7 @@
  */
 
 import { ToolCallRequest as GMIToolCallRequest } from '../../cognitive_substrate/IGMI'; // Use the one from IGMI
-import { SentimentResult } from '../ai_utilities/IUtilityAI';
+import { SentimentResult } from '../../nlp/ai_utilities/IUtilityAI';
 import { uuidv4 } from '@framers/agentos/utils/uuid';
 
 /**

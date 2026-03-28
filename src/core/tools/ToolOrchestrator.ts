@@ -44,7 +44,7 @@ import type {
   ActionSeverity,
   IHumanInteractionManager,
   PendingAction,
-} from '../hitl/IHumanInteractionManager';
+} from '../../planning/hitl/IHumanInteractionManager';
 import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
 import { DEFAULT_EMERGENT_CONFIG } from '../../emergent/types.js';
 import { DEFAULT_SELF_IMPROVEMENT_CONFIG } from '../../emergent/SelfImprovementConfig.js';

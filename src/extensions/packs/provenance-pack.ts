@@ -9,17 +9,17 @@
  */
 
 import type { ExtensionPack } from '../manifest.js';
-import type { ProvenanceSystemConfig } from '../../core/provenance/types.js';
+import type { ProvenanceSystemConfig } from '../../provenance/types.js';
 import { EXTENSION_KIND_PROVENANCE } from '../types.js';
-import { AgentKeyManager } from '../../core/provenance/crypto/AgentKeyManager.js';
-import { SignedEventLedger } from '../../core/provenance/ledger/SignedEventLedger.js';
-import { RevisionManager } from '../../core/provenance/enforcement/RevisionManager.js';
-import { TombstoneManager } from '../../core/provenance/enforcement/TombstoneManager.js';
-import { AutonomyGuard } from '../../core/provenance/enforcement/AutonomyGuard.js';
-import { AnchorManager } from '../../core/provenance/anchoring/AnchorManager.js';
-import { createAnchorProvider } from '../../core/provenance/anchoring/providers/createAnchorProvider.js';
-import { createProvenanceHooks } from '../../core/provenance/enforcement/ProvenanceStorageHooks.js';
-import { getProvenanceSchema } from '../../core/provenance/schema/provenance-schema.js';
+import { AgentKeyManager } from '../../provenance/crypto/AgentKeyManager.js';
+import { SignedEventLedger } from '../../provenance/ledger/SignedEventLedger.js';
+import { RevisionManager } from '../../provenance/enforcement/RevisionManager.js';
+import { TombstoneManager } from '../../provenance/enforcement/TombstoneManager.js';
+import { AutonomyGuard } from '../../provenance/enforcement/AutonomyGuard.js';
+import { AnchorManager } from '../../provenance/anchoring/AnchorManager.js';
+import { createAnchorProvider } from '../../provenance/anchoring/providers/createAnchorProvider.js';
+import { createProvenanceHooks } from '../../provenance/enforcement/ProvenanceStorageHooks.js';
+import { getProvenanceSchema } from '../../provenance/schema/provenance-schema.js';
 
 // =============================================================================
 // Storage Adapter Interface (subset needed for setup)
@@ -60,7 +60,7 @@ export interface ProvenancePackResult {
  *
  * Usage:
  * ```ts
- * import { profiles } from '@framers/agentos/core/provenance';
+ * import { profiles } from '@framers/agentos/provenance';
  * import { createProvenancePack } from '@framers/agentos/extensions/packs/provenance-pack';
  *
  * const pack = createProvenancePack(
