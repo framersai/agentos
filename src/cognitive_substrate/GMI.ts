@@ -50,19 +50,19 @@ import { IRetrievalAugmentor, RagRetrievalOptions, RagDocumentInput, RagIngestio
 import { ChatMessage, ModelCompletionOptions } from '../core/llm/providers/IProvider';
 
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
-import { IUtilityAI, SummarizationOptions, ParseJsonOptions } from '../nlp/ai_utilities/IUtilityAI';
+import { IUtilityAI, SummarizationOptions } from '../nlp/ai_utilities/IUtilityAI';
 
 import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 
 import { ToolExecutionRequestDetails } from '../core/tools/ToolExecutor';
 import { ConversationMessage } from '../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
-import { GMIEventType, SentimentHistoryState } from './GMIEvent.js';
 import type { ICognitiveMemoryManager } from '../memory/CognitiveMemoryManager.js';
 import type { AssembledMemoryContext } from '../memory/types.js';
 import { ConversationHistoryManager } from './ConversationHistoryManager';
 import { CognitiveMemoryBridge } from './CognitiveMemoryBridge';
 import { SentimentTracker } from './SentimentTracker';
+import { MetapromptExecutor } from './MetapromptExecutor';
 
 const DEFAULT_MAX_CONVERSATION_HISTORY_TURNS = 20;
 const DEFAULT_SELF_REFLECTION_INTERVAL_TURNS = 5;
@@ -99,16 +99,16 @@ export class GMI implements IGMI {
   private reasoningTrace: ReasoningTrace;
   private conversationHistoryManager!: ConversationHistoryManager;
 
-  // Self-Reflection Control
-  private selfReflectionIntervalTurns: number;
-  private turnsSinceLastReflection: number;
+  // (Self-reflection state is owned by MetapromptExecutor)
 
   // Cognitive Memory Bridge
   private memoryBridge: CognitiveMemoryBridge | null = null;
 
   // Sentiment & Event Tracking
   private sentimentTracker!: SentimentTracker;
-  private metaPromptTriggerCounters: Map<string, number> = new Map();
+
+  // Metaprompt Executor
+  private metapromptExecutor!: MetapromptExecutor;
 
   /**
    * Constructs a GMI instance.
@@ -125,8 +125,6 @@ export class GMI implements IGMI {
     this.currentTaskContext = { taskId: `task-${uuidv4()}`, domain: 'general', complexity: 'low', status: 'not_started' };
     this.reasoningTrace = { gmiId: this.gmiId, personaId: '', entries: [] };
     this.conversationHistoryManager = new ConversationHistoryManager();
-    this.selfReflectionIntervalTurns = DEFAULT_SELF_REFLECTION_INTERVAL_TURNS;
-    this.turnsSinceLastReflection = 0;
   }
 
   /**
@@ -190,11 +188,56 @@ export class GMI implements IGMI {
       () => this.gmiId,
     );
 
+    // Initialize metaprompt executor
+    this.metapromptExecutor = new MetapromptExecutor({
+      workingMemory: this.workingMemory,
+      llmProviderManager: this.llmProviderManager,
+      utilityAI: this.utilityAI,
+      getPersona: () => this.activePersona,
+      addTraceEntry: (type, message, details) => this.addTraceEntry(type as ReasoningEntryType, message, details),
+      getModelAndProvider: (preferredModel, preferredProvider) => this.getModelAndProviderForLLMCall(
+        preferredModel,
+        preferredProvider,
+        this.activePersona.defaultModelId || this.config.defaultLlmModelId,
+        this.activePersona.defaultProviderId || this.config.defaultLlmProviderId,
+      ),
+      onMoodUpdate: (mood) => {
+        this.currentGmiMood = mood;
+        this.workingMemory.set('currentGmiMood', this.currentGmiMood);
+      },
+      onUserContextUpdate: (updates) => {
+        Object.assign(this.currentUserContext, updates);
+        this.workingMemory.set('currentUserContext', this.currentUserContext);
+      },
+      onTaskContextUpdate: (updates) => {
+        Object.assign(this.currentTaskContext, updates);
+        this.workingMemory.set('currentTaskContext', this.currentTaskContext);
+      },
+      onMemoryImprint: async (content, tags) => {
+        await this.memoryBridge?.encode(content, {
+          type: 'semantic',
+          sourceType: 'agent_inference',
+          role: 'system',
+          tags,
+        });
+      },
+      getPendingEvents: () => this.sentimentTracker.pendingEvents,
+      getEventHistory: () => this.sentimentTracker.events,
+      getConversationHistory: () => this.conversationHistoryManager.history,
+      getReasoningTraceEntries: () => this.reasoningTrace.entries,
+      getMood: () => this.currentGmiMood,
+      getUserContext: () => this.currentUserContext,
+      getTaskContext: () => this.currentTaskContext,
+      setState: (state) => { this.state = state; },
+      getState: () => this.state,
+      getGmiId: () => this.gmiId,
+    });
+
     const reflectionMetaPrompt = this.activePersona.metaPrompts?.find(mp => mp.id === 'gmi_self_trait_adjustment');
-    this.selfReflectionIntervalTurns = reflectionMetaPrompt?.trigger?.type === 'turn_interval' && typeof reflectionMetaPrompt.trigger.intervalTurns === 'number'
+    this.metapromptExecutor.selfReflectionIntervalTurns = reflectionMetaPrompt?.trigger?.type === 'turn_interval' && typeof reflectionMetaPrompt.trigger.intervalTurns === 'number'
       ? reflectionMetaPrompt.trigger.intervalTurns
       : DEFAULT_SELF_REFLECTION_INTERVAL_TURNS;
-    this.turnsSinceLastReflection = 0;
+    this.metapromptExecutor.turnsSinceLastReflection = 0;
 
     this.isInitialized = true; // Set after all essential initializations
     this.state = GMIPrimeState.READY;
@@ -879,7 +922,7 @@ export class GMI implements IGMI {
       );
 
       // Check and trigger all metaprompts (turn_interval, event_based, manual)
-      await this.checkAndTriggerMetaprompts(turnId);
+      await this.metapromptExecutor.checkAndTriggerMetaprompts(turnId);
 
       // Prepare the final GMIOutput for the generator's return value
       const finalTurnOutput: GMIOutput = {
@@ -1133,697 +1176,9 @@ export class GMI implements IGMI {
     }
   }
 
-  /**
-   * Checks all metaprompt triggers (turn_interval, event_based, manual) and executes triggered ones.
-   *
-   * @param turnId - Current turn identifier
-   * @private
-   */
-  private async checkAndTriggerMetaprompts(turnId: string): Promise<void> {
-    if (!this.activePersona.metaPrompts || this.activePersona.metaPrompts.length === 0) {
-      return;
-    }
-
-    const triggeredMetaPrompts: import('./personas/IPersonaDefinition').MetaPromptDefinition[] = [];
-
-    for (const metaPrompt of this.activePersona.metaPrompts) {
-      if (!metaPrompt.trigger) continue;
-
-      if (metaPrompt.trigger.type === 'turn_interval') {
-        // Existing turn_interval logic
-        const counter = await this.getMetapromptTurnCounter(metaPrompt.id);
-        if (counter >= metaPrompt.trigger.intervalTurns) {
-          triggeredMetaPrompts.push(metaPrompt);
-          await this.resetMetapromptTurnCounter(metaPrompt.id);
-        } else {
-          await this.incrementMetapromptTurnCounter(metaPrompt.id);
-        }
-      } else if (metaPrompt.trigger.type === 'event_based') {
-        // NEW: Event-based trigger checking
-        const eventName = metaPrompt.trigger.eventName;
-        if (this.sentimentTracker.pendingEvents.has(eventName as GMIEventType)) {
-          triggeredMetaPrompts.push(metaPrompt);
-          // Consume the event (remove from pending)
-          this.sentimentTracker.pendingEvents.delete(eventName as GMIEventType);
-        }
-      } else if (metaPrompt.trigger.type === 'manual') {
-        // NEW: Manual trigger checking
-        // Check for manual trigger flag in working memory
-        const manualFlag = await this.workingMemory.get<boolean>(
-          `manual_trigger_${metaPrompt.id}`
-        );
-        if (manualFlag) {
-          triggeredMetaPrompts.push(metaPrompt);
-          // Clear the flag
-          await this.workingMemory.delete(`manual_trigger_${metaPrompt.id}`);
-        }
-      }
-    }
-
-    if (triggeredMetaPrompts.length > 0) {
-      this.addTraceEntry(
-        ReasoningEntryType.SELF_REFLECTION_TRIGGERED,
-        `${triggeredMetaPrompts.length} metaprompt(s) triggered`,
-        { ids: triggeredMetaPrompts.map((m) => m.id), turnId }
-      );
-
-      // Execute metaprompts (background task, don't block turn)
-      this.executeMetaprompts(triggeredMetaPrompts).catch((err) => {
-        console.error(`GMI (ID: ${this.gmiId}): Metaprompt execution error:`, err);
-        this.addTraceEntry(
-          ReasoningEntryType.ERROR,
-          'Metaprompt execution failed',
-          { error: (err as Error).message }
-        );
-      });
-    }
-  }
-
-  /**
-   * Gets the turn counter for a specific metaprompt.
-   *
-   * @param metapromptId - Metaprompt identifier
-   * @returns Current counter value
-   * @private
-   */
-  private async getMetapromptTurnCounter(metapromptId: string): Promise<number> {
-    const counter = this.metaPromptTriggerCounters.get(metapromptId);
-    if (counter !== undefined) {
-      return counter;
-    }
-
-    // Try loading from working memory (for persistence across GMI instances)
-    const storedCounter = await this.workingMemory.get<number>(
-      `metaprompt_turn_counter_${metapromptId}`
-    );
-    return storedCounter || 0;
-  }
-
-  /**
-   * Increments the turn counter for a specific metaprompt.
-   *
-   * @param metapromptId - Metaprompt identifier
-   * @private
-   */
-  private async incrementMetapromptTurnCounter(metapromptId: string): Promise<void> {
-    const current = await this.getMetapromptTurnCounter(metapromptId);
-    const newValue = current + 1;
-    this.metaPromptTriggerCounters.set(metapromptId, newValue);
-    await this.workingMemory.set(`metaprompt_turn_counter_${metapromptId}`, newValue);
-  }
-
-  /**
-   * Resets the turn counter for a specific metaprompt to zero.
-   *
-   * @param metapromptId - Metaprompt identifier
-   * @private
-   */
-  private async resetMetapromptTurnCounter(metapromptId: string): Promise<void> {
-    this.metaPromptTriggerCounters.set(metapromptId, 0);
-    await this.workingMemory.set(`metaprompt_turn_counter_${metapromptId}`, 0);
-  }
-
-  /**
-   * Executes multiple metaprompts in parallel or sequence.
-   * Replaces the single-metaprompt _triggerAndProcessSelfReflection().
-   *
-   * @param metaPrompts - Array of metaprompts to execute
-   * @private
-   */
-  private async executeMetaprompts(
-    metaPrompts: import('./personas/IPersonaDefinition').MetaPromptDefinition[]
-  ): Promise<void> {
-    if (metaPrompts.length === 0) return;
-
-    const previousState = this.state;
-    this.state = GMIPrimeState.REFLECTING;
-
-    this.addTraceEntry(
-      ReasoningEntryType.SELF_REFLECTION_START,
-      `Executing ${metaPrompts.length} metaprompt(s)`,
-      { ids: metaPrompts.map((m) => m.id) }
-    );
-
-    try {
-      // Execute metaprompts in parallel using Promise.allSettled
-      // This allows all to run even if some fail
-      const results = await Promise.allSettled(
-        metaPrompts.map((mp) => this.executeMetapromptHandler(mp))
-      );
-
-      // Log any failures
-      results.forEach((result, idx) => {
-        if (result.status === 'rejected') {
-          this.addTraceEntry(
-            ReasoningEntryType.ERROR,
-            `Metaprompt '${metaPrompts[idx].id}' failed: ${result.reason}`,
-            { error: result.reason }
-          );
-        }
-      });
-    } catch (error: any) {
-      const gmiError = createGMIErrorFromError(
-        error,
-        GMIErrorCode.GMI_PROCESSING_ERROR,
-        undefined,
-        'Error during metaprompt execution'
-      );
-      this.addTraceEntry(
-        ReasoningEntryType.ERROR,
-        gmiError.message,
-        gmiError.toPlainObject()
-      );
-    } finally {
-      // Restore state
-      const disallowedStates = new Set([
-        GMIPrimeState.IDLE,
-        GMIPrimeState.INITIALIZING,
-      ]);
-      this.state = disallowedStates.has(previousState)
-        ? GMIPrimeState.READY
-        : previousState;
-
-      this.addTraceEntry(
-        ReasoningEntryType.SELF_REFLECTION_COMPLETE,
-        'Metaprompt execution cycle complete'
-      );
-    }
-  }
-
-  /**
-   * Routes a metaprompt to its appropriate handler based on ID.
-   *
-   * @param metaPrompt - Metaprompt definition to execute
-   * @private
-   */
-  private async executeMetapromptHandler(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    // Handler routing map
-    switch (metaPrompt.id) {
-      case 'gmi_self_trait_adjustment':
-        return this.handleTraitAdjustment(metaPrompt);
-      case 'gmi_frustration_recovery':
-        return this.handleFrustrationRecovery(metaPrompt);
-      case 'gmi_confusion_clarification':
-        return this.handleConfusionClarification(metaPrompt);
-      case 'gmi_satisfaction_reinforcement':
-        return this.handleSatisfactionReinforcement(metaPrompt);
-      case 'gmi_error_recovery':
-        return this.handleErrorRecovery(metaPrompt);
-      case 'gmi_engagement_boost':
-        return this.handleEngagementBoost(metaPrompt);
-      default:
-        // Generic handler for custom metaprompts
-        return this.handleGenericMetaprompt(metaPrompt);
-    }
-  }
-
-  /**
-   * Handler for trait adjustment metaprompt (existing self-reflection logic).
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleTraitAdjustment(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    // Gather evidence for self-reflection
-    const evidenceHistory = this.conversationHistoryManager.history.slice(-10);
-    const evidenceTrace = this.reasoningTrace.entries.slice(-20);
-
-    const evidence = {
-      recentHistory: evidenceHistory,
-      recentReasoning: evidenceTrace,
-      currentMood: this.currentGmiMood,
-      userContext: this.currentUserContext,
-      taskContext: this.currentTaskContext,
-    };
-
-    const variables = {
-      evidence: JSON.stringify(evidence).substring(0, 4000), // Limit size
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Handler for frustration recovery metaprompt.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleFrustrationRecovery(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
-      'gmi_sentiment_history'
-    );
-    const recentErrors = this.reasoningTrace.entries
-      .slice(-10)
-      .filter((e) => e.type === ReasoningEntryType.ERROR);
-
-    const variables = {
-      current_sentiment: this.currentUserContext.currentSentiment || 'negative',
-      sentiment_score: (sentimentHistory?.trends[sentimentHistory.trends.length - 1]?.score || -0.5).toString(),
-      consecutive_frustration: (sentimentHistory?.consecutiveFrustration || 1).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
-      recent_errors: JSON.stringify(recentErrors.map((e) => e.message)),
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Handler for confusion clarification metaprompt.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleConfusionClarification(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
-      'gmi_sentiment_history'
-    );
-
-    // Get the last event for confusion keywords
-    const lastConfusionEvent = this.sentimentTracker.events
-      .slice()
-      .reverse()
-      .find((e) => e.eventType === GMIEventType.USER_CONFUSED);
-
-    const variables = {
-      current_sentiment: this.currentUserContext.currentSentiment || 'neutral',
-      consecutive_confusion: (sentimentHistory?.consecutiveConfusion || 1).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
-      confusion_keywords: lastConfusionEvent?.metadata.triggerKeywords
-        ? JSON.stringify(lastConfusionEvent.metadata.triggerKeywords)
-        : '[]',
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Handler for satisfaction reinforcement metaprompt.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleSatisfactionReinforcement(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
-      'gmi_sentiment_history'
-    );
-
-    const variables = {
-      current_sentiment: this.currentUserContext.currentSentiment || 'positive',
-      sentiment_score: (sentimentHistory?.trends[sentimentHistory.trends.length - 1]?.score || 0.5).toString(),
-      consecutive_satisfaction: (sentimentHistory?.consecutiveSatisfaction || 1).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Handler for error recovery metaprompt.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleErrorRecovery(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    const recentErrors = this.reasoningTrace.entries
-      .slice(-10)
-      .filter((e) => e.type === ReasoningEntryType.ERROR);
-
-    const variables = {
-      recent_errors: JSON.stringify(recentErrors.map((e) => ({ message: e.message, details: e.details }))),
-      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Handler for engagement boost metaprompt.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleEngagementBoost(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    const sentimentHistory = await this.workingMemory.get<SentimentHistoryState>(
-      'gmi_sentiment_history'
-    );
-
-    const variables = {
-      consecutive_neutral: (sentimentHistory?.consecutiveConfusion || 4).toString(),
-      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Generic handler for custom metaprompts not in the preset list.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @private
-   */
-  private async handleGenericMetaprompt(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition
-  ): Promise<void> {
-    // Generic handler that provides all available context
-    const variables = {
-      recent_conversation: JSON.stringify(this.conversationHistoryManager.history.slice(-5)),
-      recent_reasoning: JSON.stringify(this.reasoningTrace.entries.slice(-10)),
-      current_mood: this.currentGmiMood,
-      user_skill: this.currentUserContext.skillLevel || 'unknown',
-      task_complexity: this.currentTaskContext.complexity || 'unknown',
-      current_sentiment: this.currentUserContext.currentSentiment || 'neutral',
-    };
-
-    const response = await this.executeMetapromptWithVariables(metaPrompt, variables);
-    await this.applyMetapromptUpdates(response, metaPrompt.id);
-  }
-
-  /**
-   * Executes a metaprompt with variable substitution.
-   *
-   * @param metaPrompt - Metaprompt definition
-   * @param variables - Variables to substitute in the template
-   * @returns Parsed JSON response from LLM
-   * @private
-   */
-  private async executeMetapromptWithVariables(
-    metaPrompt: import('./personas/IPersonaDefinition').MetaPromptDefinition,
-    variables: Record<string, string>
-  ): Promise<any> {
-    // Extract template
-    let template: string;
-    if (typeof metaPrompt.promptTemplate === 'string') {
-      template = metaPrompt.promptTemplate;
-    } else {
-      template = metaPrompt.promptTemplate.template;
-    }
-
-    // Substitute variables
-    let finalPrompt = template;
-    for (const [key, value] of Object.entries(variables)) {
-      finalPrompt = finalPrompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-    }
-
-    // Get model and provider info
-    const modelId = metaPrompt.modelId || this.activePersona.defaultModelId;
-    const providerId = metaPrompt.providerId || this.activePersona.defaultProviderId;
-
-    if (!modelId || !providerId) {
-      throw new GMIError(
-        'No model or provider specified for metaprompt',
-        GMIErrorCode.CONFIGURATION_ERROR
-      );
-    }
-
-    // Call LLM
-    this.addTraceEntry(
-      ReasoningEntryType.DEBUG,
-      `Executing metaprompt '${metaPrompt.id}'`,
-      { modelId, providerId }
-    );
-
-    const completionOptions: ModelCompletionOptions = {
-      temperature: metaPrompt.temperature ?? 0.3,
-      maxTokens: metaPrompt.maxOutputTokens ?? 512,
-      responseFormat: { type: 'json_object' },
-    };
-
-    const provider = this.llmProviderManager.getProvider(providerId);
-    if (!provider) {
-      throw new GMIError(
-        `Provider '${providerId}' not found for metaprompt '${metaPrompt.id}'.`,
-        GMIErrorCode.LLM_PROVIDER_UNAVAILABLE,
-      );
-    }
-
-    const result = await provider.generateCompletion(
-      modelId,
-      [{ role: 'user', content: finalPrompt }],
-      completionOptions,
-    );
-
-    const responseContent = result.choices?.[0]?.message?.content;
-    if (!responseContent || typeof responseContent !== 'string') {
-      throw new GMIError(
-        `Metaprompt '${metaPrompt.id}' returned no valid content.`,
-        GMIErrorCode.LLM_PROVIDER_ERROR,
-        { response: result },
-      );
-    }
-
-    // Parse JSON with LLM-based recovery
-    const parseOptions: ParseJsonOptions = {
-      attemptFixWithLLM: true,
-      llmModelIdForFix: modelId,
-      llmProviderIdForFix: providerId,
-    };
-
-    const parsedResponse = await this.utilityAI.parseJsonSafe(
-      responseContent,
-      parseOptions
-    );
-
-    return parsedResponse;
-  }
-
-  /**
-   * Applies metaprompt updates to GMI state (mood, user skill, task complexity, memory).
-   *
-   * @param updates - Parsed updates from metaprompt response
-   * @param metapromptId - ID of the metaprompt that generated these updates
-   * @private
-   */
-  private async applyMetapromptUpdates(updates: any, metapromptId: string): Promise<void> {
-    if (!updates) return;
-
-    let stateChanged = false;
-
-    // Mood update
-    if (updates.updatedGmiMood && this.currentGmiMood !== updates.updatedGmiMood) {
-      // Validate that the mood is a valid GMIMood value
-      const validMoods = Object.values(GMIMood);
-      if (validMoods.includes(updates.updatedGmiMood.toUpperCase())) {
-        this.currentGmiMood = updates.updatedGmiMood.toUpperCase() as GMIMood;
-        await this.workingMemory.set('currentGmiMood', this.currentGmiMood);
-        stateChanged = true;
-      }
-    }
-
-    // User skill level update
-    if (updates.updatedUserSkillLevel &&
-        this.currentUserContext.skillLevel !== updates.updatedUserSkillLevel) {
-      this.currentUserContext.skillLevel = updates.updatedUserSkillLevel;
-      await this.workingMemory.set('currentUserContext', this.currentUserContext);
-      stateChanged = true;
-    }
-
-    // Task complexity update
-    if (updates.updatedTaskComplexity &&
-        this.currentTaskContext.complexity !== updates.updatedTaskComplexity) {
-      this.currentTaskContext.complexity = updates.updatedTaskComplexity;
-      await this.workingMemory.set('currentTaskContext', this.currentTaskContext);
-      stateChanged = true;
-    }
-
-    // Memory imprints
-    if (updates.newMemoryImprints && Array.isArray(updates.newMemoryImprints)) {
-      for (const imprint of updates.newMemoryImprints) {
-        if (imprint.key) {
-          await this.workingMemory.set(imprint.key, imprint.value);
-        }
-      }
-      if (updates.newMemoryImprints.length > 0) {
-        stateChanged = true;
-      }
-    }
-
-    // Log state change
-    if (stateChanged) {
-      this.addTraceEntry(
-        ReasoningEntryType.STATE_CHANGE,
-        `GMI state updated by metaprompt '${metapromptId}'`,
-        {
-          newMood: this.currentGmiMood,
-          newUserSkill: this.currentUserContext.skillLevel,
-          newTaskComplexity: this.currentTaskContext.complexity,
-          rationale: updates.adjustmentRationale || updates.recoveryStrategy || updates.clarificationStrategy || updates.engagementStrategy || updates.mitigationStrategy,
-        }
-      );
-    }
-  }
-
   /** @inheritdoc */
   public async _triggerAndProcessSelfReflection(): Promise<void> {
-    // ... (GMI.ts code for _triggerAndProcessSelfReflection provided by user, with my error fixes)
-    // Key fixes to apply within this method based on error list:
-    // - Error 32: Use GMIErrorCode.PARSING_ERROR (ensure it's added to errors.ts)
-    // - Error 33, 34: GMIError.wrap -> createGMIErrorFromError or new GMIError; PROCESSING_ERROR -> GMI_PROCESSING_ERROR
-    // - Error 35: Review logic for `this.state = previousState === ...`
-    // - Error 27 (ModelCompletionOptions.modelId): Fix in getModelAndProviderForLLMCall or here if directly accessed.
-    // - Error 31 (PROVIDER_ERROR): Change to LLM_PROVIDER_ERROR.
-
-    const reflectionMetaPromptDef = this.activePersona.metaPrompts?.find(mp => mp.id === 'gmi_self_trait_adjustment');
-    if (!reflectionMetaPromptDef?.promptTemplate) {
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_SKIPPED, "Self-reflection disabled or no 'gmi_self_trait_adjustment' meta-prompt.");
-      return;
-    }
-    if (this.state === GMIPrimeState.REFLECTING) {
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_SKIPPED, "Self-reflection already in progress.");
-      return;
-    }
-
-    const previousState = this.state;
-    this.state = GMIPrimeState.REFLECTING;
-    this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_START, "Starting self-reflection cycle.");
-
-    try {
-      const evidence = {
-        recentConversation: this.conversationHistoryManager.history.slice(-10),
-        recentTraceEntries: this.reasoningTrace.entries.slice(-20),
-        currentMood: this.currentGmiMood,
-        currentUserContext: this.currentUserContext,
-        currentTaskContext: this.currentTaskContext,
-      };
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_DETAIL, "Gathered evidence for reflection.", {
-        conversationSampleCount: evidence.recentConversation.length,
-        traceSampleCount: evidence.recentTraceEntries.length
-      });
-
-      let metaPromptText = (typeof reflectionMetaPromptDef.promptTemplate === 'string')
-          ? reflectionMetaPromptDef.promptTemplate
-          : reflectionMetaPromptDef.promptTemplate.template;
-
-      metaPromptText = metaPromptText
-        .replace(/\{\{\s*evidence\s*\}\}/gi, JSON.stringify(evidence).substring(0, 4000) + "...")
-        .replace(/\{\{\s*current_mood\s*\}\}/gi, this.currentGmiMood)
-        .replace(/\{\{\s*user_skill\s*\}\}/gi, this.currentUserContext.skillLevel || "unknown")
-        .replace(/\{\{\s*task_complexity\s*\}\}/gi, this.currentTaskContext.complexity || "unknown");
-      
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_DETAIL, "Constructed meta-prompt.", { preview: metaPromptText.substring(0,100) });
-
-      const { modelId, providerId } = this.getModelAndProviderForLLMCall(
-        reflectionMetaPromptDef.modelId,
-        reflectionMetaPromptDef.providerId,
-        this.activePersona.defaultModelId || this.config.defaultLlmModelId,
-        this.activePersona.defaultProviderId || this.config.defaultLlmProviderId
-      );
-      const provider = this.llmProviderManager.getProvider(providerId);
-      if (!provider) {
-        throw new GMIError(`Provider '${providerId}' not found for self-reflection.`, GMIErrorCode.LLM_PROVIDER_UNAVAILABLE);
-      }
-
-      // Using generateCompletion as generate is often for older text completion models
-      const llmResponse = await provider.generateCompletion(modelId, [{role: 'user', content: metaPromptText}], {
-        maxTokens: reflectionMetaPromptDef.maxOutputTokens || 512,
-        temperature: reflectionMetaPromptDef.temperature || 0.3,
-        responseFormat: { type: "json_object" } // Request JSON output
-      });
-
-      const responseContent = llmResponse.choices?.[0]?.message?.content;
-      if (!responseContent || typeof responseContent !== 'string') {
-
-        throw new GMIError("Self-reflection LLM call returned no valid content.", GMIErrorCode.LLM_PROVIDER_ERROR, { response: llmResponse });
-      }
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_DETAIL, "LLM response for reflection received.", { preview: responseContent.substring(0,100) });
-
-      const parseOptions: ParseJsonOptions = {
-        attemptFixWithLLM: true,
-        llmModelIdForFix: reflectionMetaPromptDef.modelId || modelId,
-        llmProviderIdForFix: reflectionMetaPromptDef.providerId || providerId,
-      };
-      type ExpectedReflectionOutput = {
-        updatedGmiMood?: GMIMood; updatedUserSkillLevel?: string; updatedTaskComplexity?: string;
-        adjustmentRationale?: string; newMemoryImprints?: Array<{key: string; value: any; description?: string}>;
-      };
-      const parsedUpdates = await this.utilityAI.parseJsonSafe<ExpectedReflectionOutput>(responseContent, parseOptions);
-
-      if (!parsedUpdates) {
-
-        throw new GMIError("Failed to parse/fix JSON from self-reflection LLM.", GMIErrorCode.PARSING_ERROR, { responseText: responseContent });
-      }
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_DETAIL, "Parsed trait update suggestions.", { suggestions: parsedUpdates });
-
-      let stateChanged = false;
-      // ... (Apply updates as in the original GMI.ts code, ensuring null checks if needed)
-      if (parsedUpdates.updatedGmiMood && Object.values(GMIMood).includes(parsedUpdates.updatedGmiMood) && this.currentGmiMood !== parsedUpdates.updatedGmiMood) {
-        this.currentGmiMood = parsedUpdates.updatedGmiMood;
-        await this.workingMemory.set('currentGmiMood', this.currentGmiMood); stateChanged = true;
-      }
-      if (parsedUpdates.updatedUserSkillLevel && this.currentUserContext.skillLevel !== parsedUpdates.updatedUserSkillLevel) {
-        this.currentUserContext.skillLevel = parsedUpdates.updatedUserSkillLevel;
-        await this.workingMemory.set('currentUserContext', this.currentUserContext); stateChanged = true;
-      }
-      if (parsedUpdates.updatedTaskComplexity && this.currentTaskContext.complexity !== parsedUpdates.updatedTaskComplexity) {
-        this.currentTaskContext.complexity = parsedUpdates.updatedTaskComplexity;
-        await this.workingMemory.set('currentTaskContext', this.currentTaskContext); stateChanged = true;
-      }
-      if (parsedUpdates.newMemoryImprints && parsedUpdates.newMemoryImprints.length > 0) {
-          for (const imprint of parsedUpdates.newMemoryImprints) {
-              if (imprint.key) await this.workingMemory.set(imprint.key, imprint.value);
-          }
-          stateChanged = true;
-          this.addTraceEntry(ReasoningEntryType.STATE_CHANGE, "New memory imprints added from self-reflection.", { imprints: parsedUpdates.newMemoryImprints.map(i=>i.key) });
-      }
-
-      if (stateChanged) {
-        this.addTraceEntry(ReasoningEntryType.STATE_CHANGE, "GMI state updated via self-reflection.", {
-          newMood: this.currentGmiMood, newUserSkill: this.currentUserContext.skillLevel, newTaskComplexity: this.currentTaskContext.complexity,
-          rationale: parsedUpdates.adjustmentRationale
-        });
-      } else {
-        this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_DETAIL, "No state changes applied from self-reflection.", { rationale: parsedUpdates.adjustmentRationale });
-      }
-    } catch (error: any) {
-
-      const gmiError = createGMIErrorFromError(error, GMIErrorCode.GMI_PROCESSING_ERROR, undefined, `Error during self-reflection.`);
-      this.addTraceEntry(ReasoningEntryType.ERROR, `Self-reflection failed: ${gmiError.message}`, gmiError.toPlainObject());
-      console.error(`GMI (ID: ${this.gmiId}) self-reflection error:`, gmiError);
-    } finally {
-
-      // Or, if specific state is needed, previousState should be one of the valid non-reflecting states.
-      const disallowedStates = new Set<GMIPrimeState>([GMIPrimeState.IDLE, GMIPrimeState.INITIALIZING]);
-      this.state = disallowedStates.has(previousState) ? GMIPrimeState.READY : previousState;
-      this.addTraceEntry(ReasoningEntryType.SELF_REFLECTION_COMPLETE, "Self-reflection cycle finished.");
-    }
+    await this.metapromptExecutor.triggerAndProcessSelfReflection();
   }
 
   /**
