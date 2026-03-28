@@ -24,8 +24,8 @@ import {
   MemoryLifecyclePolicy,
   PolicyAction as ConfigPolicyActionDetails, // Renamed to avoid conflict in this file
 } from '../config/MemoryLifecycleManagerConfiguration';
-import { IVectorStoreManager } from '../rag/IVectorStoreManager';
-import { IVectorStore, MetadataFilter } from '../rag/IVectorStore';
+import { IVectorStoreManager } from '../../core/vector-store/IVectorStoreManager';
+import { IVectorStore, MetadataFilter } from '../../core/vector-store/IVectorStore';
 import { IUtilityAI, SummarizationOptions } from '../nlp/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';

@@ -15,8 +15,8 @@ import type {
   VectorDocument,
   QueryOptions,
   MetadataFilter,
-} from '../../rag/IVectorStore.js';
-import type { IEmbeddingManager } from '../../rag/IEmbeddingManager.js';
+} from '../../core/vector-store/IVectorStore.js';
+import type { IEmbeddingManager } from '../../core/embeddings/IEmbeddingManager.js';
 import type { IKnowledgeGraph } from '../../knowledge/IKnowledgeGraph.js';
 import type {
   MemoryTrace,

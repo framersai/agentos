@@ -16,7 +16,7 @@
  * - Event system: Discriminated union of lifecycle events for observability
  */
 
-import type { IVectorStore } from '../rag/IVectorStore.js';
+import type { IVectorStore } from '../core/vector-store/IVectorStore.js';
 import type {
   SkillRecommendation,
   ToolRecommendation,

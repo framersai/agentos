@@ -15,8 +15,8 @@
  * - Search: <1ms HNSW lookup + ~50ms embedding cold / <5ms warm
  */
 
-import type { IEmbeddingManager } from '../rag/IEmbeddingManager.js';
-import type { IVectorStore, VectorDocument, MetadataFilter } from '../rag/IVectorStore.js';
+import type { IEmbeddingManager } from '../core/embeddings/IEmbeddingManager.js';
+import type { IVectorStore, VectorDocument, MetadataFilter } from '../core/vector-store/IVectorStore.js';
 import type {
   CapabilityDescriptor,
   CapabilityKind,

@@ -14,7 +14,7 @@
  */
 
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
-import { MetadataFilter } from '../rag/IVectorStore';
+import { MetadataFilter } from '../core/vector-store/IVectorStore';
 import { LifecycleAction } from '../cognitive_substrate/IGMI'; // For defaultActionOnTimeout
 
 /**

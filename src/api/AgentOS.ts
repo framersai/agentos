@@ -88,7 +88,7 @@ import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
 import type { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
-import type { IVectorStoreManager } from '../rag/IVectorStoreManager';
+import type { IVectorStoreManager } from '../core/vector-store/IVectorStoreManager';
 import type { EmbeddingManagerConfig } from '../config/EmbeddingManagerConfiguration';
 import type { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
 import type {

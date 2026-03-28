@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryLifecycleManager } from '../MemoryLifecycleManager';
 import { IMemoryLifecycleManager, GMIResolverFunction } from '../IMemoryLifecycleManager';
 import { MemoryLifecycleManagerConfig, MemoryLifecyclePolicy, PolicyAction } from '../../config/MemoryLifecycleManagerConfiguration';
-import { IVectorStoreManager } from '../../rag/IVectorStoreManager';
-import { IVectorStore } from '../../rag/IVectorStore';
+import { IVectorStoreManager } from '../../../core/vector-store/IVectorStoreManager';
+import { IVectorStore } from '../../../core/vector-store/IVectorStore';
 import { IUtilityAI, SummarizationOptions } from '../../nlp/ai_utilities/IUtilityAI';
 import { IGMI, LifecycleAction, LifecycleActionResponse, MemoryLifecycleEvent } from '../../cognitive_substrate/IGMI';
 

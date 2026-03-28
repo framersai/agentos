@@ -15,8 +15,8 @@
  *   - Context tokens: ~1,850 (down from ~20,000 with static dumps)
  */
 
-import type { IEmbeddingManager } from '../rag/IEmbeddingManager.js';
-import type { IVectorStore } from '../rag/IVectorStore.js';
+import type { IEmbeddingManager } from '../core/embeddings/IEmbeddingManager.js';
+import type { IVectorStore } from '../core/vector-store/IVectorStore.js';
 import type {
   CapabilityDiscoveryConfig,
   CapabilityDiscoveryResult,

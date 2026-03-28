@@ -15,7 +15,7 @@
  * @module agentos/memory/prospective/ProspectiveMemoryManager
  */
 
-import type { IEmbeddingManager } from '../../rag/IEmbeddingManager.js';
+import type { IEmbeddingManager } from '../../core/embeddings/IEmbeddingManager.js';
 
 // ---------------------------------------------------------------------------
 // Types

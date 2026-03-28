@@ -59,6 +59,16 @@ export * from '../planning/workflows/storage/IWorkflowStore.js';
 export { InMemoryWorkflowStore } from '../planning/workflows/storage/InMemoryWorkflowStore.js';
 
 // ============================================================================
+// EMBEDDINGS — Shared embedding interfaces
+// ============================================================================
+export * from './embeddings/index.js';
+
+// ============================================================================
+// VECTOR STORE — Shared vector storage interfaces
+// ============================================================================
+export * from './vector-store/index.js';
+
+// ============================================================================
 // PERSISTENCE — Data + audit
 // ============================================================================
 export * from './storage/index.js';

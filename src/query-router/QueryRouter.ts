@@ -69,7 +69,7 @@ import type {
 import type { EmbeddingManager } from '../rag/EmbeddingManager.js';
 import type { VectorStoreManager } from '../rag/VectorStoreManager.js';
 import type { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager.js';
-import type { VectorDocument } from '../rag/IVectorStore.js';
+import type { VectorDocument } from '../core/vector-store/IVectorStore.js';
 
 // ============================================================================
 // Configuration

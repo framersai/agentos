@@ -11,7 +11,7 @@
 
 // This import is crucial. VectorStoreProviderConfig is the base for all specific provider configs.
 // It will be defined in `../rag/IVectorStore.ts`.
-import { VectorStoreProviderConfig } from '../rag/IVectorStore';
+import { VectorStoreProviderConfig } from '../core/vector-store/IVectorStore';
 import type { StorageAdapter, StorageResolutionOptions } from '@framers/sql-storage-adapter';
 import type { HnswlibVectorStoreConfig } from '../rag/vector_stores/HnswlibVectorStore';
 import type { QdrantVectorStoreConfig } from '../rag/vector_stores/QdrantVectorStore';

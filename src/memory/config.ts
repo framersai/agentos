@@ -5,8 +5,8 @@
 
 import type { IWorkingMemory } from '../cognitive_substrate/memory/IWorkingMemory.js';
 import type { IKnowledgeGraph } from '../knowledge/IKnowledgeGraph.js';
-import type { IVectorStore } from '../rag/IVectorStore.js';
-import type { IEmbeddingManager } from '../rag/IEmbeddingManager.js';
+import type { IVectorStore } from '../core/vector-store/IVectorStore.js';
+import type { IEmbeddingManager } from '../core/embeddings/IEmbeddingManager.js';
 import type { MemoryBudgetAllocation } from './types.js';
 import type { InfiniteContextConfig } from './context/types.js';
 

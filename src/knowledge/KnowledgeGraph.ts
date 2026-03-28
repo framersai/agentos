@@ -26,7 +26,7 @@ import type {
   KnowledgeSource,
 } from './IKnowledgeGraph';
 import type { ILogger } from '../logging/ILogger';
-import type { IEmbeddingManager } from '../rag/IEmbeddingManager';
+import type { IEmbeddingManager } from '../core/embeddings/IEmbeddingManager';
 
 /**
  * Configuration for KnowledgeGraph

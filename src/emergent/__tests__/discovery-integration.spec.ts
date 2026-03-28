@@ -11,8 +11,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CapabilityDiscoveryEngine } from '../../discovery/CapabilityDiscoveryEngine.js';
 import type { EmergentTool, ToolUsageStats } from '../types.js';
 import type { JSONSchemaObject } from '../../core/tools/ITool.js';
-import type { IEmbeddingManager } from '../../rag/IEmbeddingManager.js';
-import type { IVectorStore } from '../../rag/IVectorStore.js';
+import type { IEmbeddingManager } from '../../core/embeddings/IEmbeddingManager.js';
+import type { IVectorStore } from '../../core/vector-store/IVectorStore.js';
 
 // ---------------------------------------------------------------------------
 // Helpers — build valid objects without relying on runtime constructors
