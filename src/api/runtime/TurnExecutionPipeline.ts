@@ -237,6 +237,7 @@ export class TurnExecutionPipeline {
     // -------------------------------------------------------------------
     // Phase 3: Stream context registration
     // -------------------------------------------------------------------
+    // eslint-disable-next-line prefer-const -- assigned in Phase 7, used in later phases
     let organizationIdForMemory: string | undefined;
     const streamContext: PipelineStreamContext = {
       gmi,
