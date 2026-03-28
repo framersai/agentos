@@ -1,3 +1,7 @@
+## <small>0.1.128 (2026-03-28)</small>
+
+* fix(ci): add @framers/agentos-extensions-registry as devDependency ([11e6151](https://github.com/framersai/agentos/commit/11e6151))
+
 ## <small>0.1.127 (2026-03-28)</small>
 
 * fix: resolve 16 TODO stubs across GMI, agency, memory, and RAG ([e1c4822](https://github.com/framersai/agentos/commit/e1c4822))
