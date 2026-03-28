@@ -88,7 +88,6 @@ import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
 import type { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
-import type { IVectorStoreManager } from '../core/vector-store/IVectorStoreManager';
 import type { EmbeddingManagerConfig } from '../config/EmbeddingManagerConfiguration';
 import type { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
 import type {
@@ -132,12 +131,7 @@ import {
   type ExtensionManifest,
   type ExtensionOverrides,
 } from '../extensions';
-import { createMemoryToolsPack } from '../memory/extension/MemoryToolsExtension.js';
 import type { MemoryToolsExtensionOptions } from '../memory/extension/MemoryToolsExtension.js';
-import {
-  createStandaloneMemoryLongTermRetriever,
-  createStandaloneMemoryRollingSummarySink,
-} from '../memory/integration/StandaloneMemoryBridge.js';
 import type { Memory } from '../memory/facade/Memory.js';
 import type {
   StandaloneMemoryLongTermRetrieverOptions,
@@ -153,6 +147,7 @@ import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-p
 import { WorkflowFacade } from './WorkflowFacade';
 import { CapabilityDiscoveryInitializer } from './CapabilityDiscoveryInitializer';
 import { SelfImprovementSessionManager } from './SelfImprovementSessionManager';
+import { RagMemoryInitializer } from './RagMemoryInitializer';
 import type { TurnPlannerConfig } from '../core/orchestration/TurnPlanner';
 import type {
   CapabilityDescriptor,
@@ -767,7 +762,6 @@ export interface AgentOSRuntimeSnapshot {
 export class AgentOS implements IAgentOS {
   private initialized: boolean = false;
   private config!: Readonly<AgentOSConfig>;
-  private managedStandaloneMemoryClosers: Array<() => Promise<void>> = [];
   private selfImprovementManager!: SelfImprovementSessionManager;
 
   private modelProviderManager!: AIModelProviderManager;
@@ -786,9 +780,7 @@ export class AgentOS implements IAgentOS {
   private workflowFacade?: WorkflowFacade;
   private discoveryInitializer?: CapabilityDiscoveryInitializer;
 
-  private retrievalAugmentor?: IRetrievalAugmentor;
-  private ragVectorStoreManager?: IVectorStoreManager;
-  private manageRetrievalAugmentorLifecycle: boolean = false;
+  private ragMemoryInitializer!: RagMemoryInitializer;
 
   private authService?: IAuthService;
 
@@ -821,7 +813,7 @@ export class AgentOS implements IAgentOS {
     }
 
     this.validateConfiguration(config);
-    const resolvedConfig = this.resolveStandaloneMemoryConfig(config);
+    const resolvedConfig = RagMemoryInitializer.resolveConfig(config);
     const normalizedConfigTools = adaptToolsToMap(resolvedConfig.tools);
     const normalizedExternalTools = normalizeExternalToolRegistry(resolvedConfig.externalTools);
     const {
@@ -835,8 +827,6 @@ export class AgentOS implements IAgentOS {
       ...(Object.keys(normalizedConfigTools).length > 0 ? { tools: normalizedConfigTools } : {}),
       ...(normalizedExternalTools ? { externalTools: normalizedExternalTools } : {}),
     });
-    this.configureManagedStandaloneMemory();
-
     // Initialize self-improvement session manager early (before emergent deps are assembled).
     this.selfImprovementManager = new SelfImprovementSessionManager(this.logger);
     this.selfImprovementManager.setConfiguredSkillsGetter(() => {
@@ -923,7 +913,18 @@ export class AgentOS implements IAgentOS {
       this.logger.info('[AgentOS] Schema-on-demand tools enabled');
     }
 
-    await this.registerConfigMemoryTools(extensionLifecycleContext);
+    // Create RagMemoryInitializer now that extensionManager is available.
+    // modelProviderManager is wired later (after AI model provider init).
+    this.ragMemoryInitializer = new RagMemoryInitializer({
+      extensionManager: this.extensionManager,
+      modelProviderManager: undefined as any,
+      logger: this.logger,
+    });
+    this.ragMemoryInitializer.configureManaged(this.config);
+    await this.ragMemoryInitializer.registerMemoryTools(
+      this.config.memoryTools,
+      extensionLifecycleContext,
+    );
 
     let storageAdapter = this.config.storageAdapter;
     if (storageAdapter) {
@@ -958,7 +959,14 @@ export class AgentOS implements IAgentOS {
       await this.modelProviderManager.initialize(this.config.modelProviderManagerConfig);
       console.log('AgentOS: AIModelProviderManager initialized.');
       await this.ensureUtilityAIService();
-      await this.initializeRagSubsystem(storageAdapter);
+      // Re-create RagMemoryInitializer with model provider now available.
+      this.ragMemoryInitializer = new RagMemoryInitializer({
+        extensionManager: this.extensionManager,
+        modelProviderManager: this.modelProviderManager,
+        logger: this.logger,
+      });
+      this.ragMemoryInitializer.configureManaged(this.config);
+      await this.ragMemoryInitializer.initializeRag(this.config, storageAdapter);
 
       // Initialize Prompt Engine
       this.promptEngine = new PromptEngine();
@@ -1089,7 +1097,7 @@ export class AgentOS implements IAgentOS {
         this.modelProviderManager,
         this.utilityAIService, // Pass the potentially dual-role utility service
         this.toolOrchestrator,
-        this.retrievalAugmentor,
+        this.ragMemoryInitializer.retrievalAugmentor,
         this.config.personaLoader
       );
       await this.gmiManager.initialize();
@@ -1279,91 +1287,6 @@ export class AgentOS implements IAgentOS {
     );
   }
 
-  private resolveStandaloneMemoryConfig(config: AgentOSConfig): AgentOSConfig {
-    const standalone = config.standaloneMemory;
-    if (!standalone || standalone.enabled === false) {
-      return { ...config };
-    }
-
-    const resolved: AgentOSConfig = { ...config };
-    const memory = standalone.memory;
-
-    if (!resolved.memoryTools && standalone.tools) {
-      resolved.memoryTools = {
-        memory: memory as Pick<Memory, 'createTools'> & Partial<Pick<Memory, 'close'>>,
-        ...(standalone.tools === true ? {} : standalone.tools),
-      };
-    }
-
-    if (!resolved.longTermMemoryRetriever && standalone.longTermRetriever) {
-      resolved.longTermMemoryRetriever = createStandaloneMemoryLongTermRetriever(
-        memory as Pick<Memory, 'recall' | 'feedbackFromResponse'>,
-        standalone.longTermRetriever === true ? undefined : standalone.longTermRetriever
-      );
-    }
-
-    if (!resolved.rollingSummaryMemorySink && standalone.rollingSummarySink) {
-      resolved.rollingSummaryMemorySink = createStandaloneMemoryRollingSummarySink(
-        memory as Pick<Memory, 'remember' | 'recall' | 'forget'> &
-          Partial<Pick<Memory, 'health' | 'close'>>,
-        standalone.rollingSummarySink === true ? undefined : standalone.rollingSummarySink
-      );
-    }
-
-    return resolved;
-  }
-
-  private configureManagedStandaloneMemory(): void {
-    this.managedStandaloneMemoryClosers = [];
-
-    const standalone = this.config.standaloneMemory;
-    if (!standalone || standalone.enabled === false || standalone.manageLifecycle !== true) {
-      return;
-    }
-    if (this.config.memoryTools?.manageLifecycle === true) {
-      return;
-    }
-    if (typeof standalone.memory.close !== 'function') {
-      return;
-    }
-
-    this.managedStandaloneMemoryClosers.push(async () => {
-      await standalone.memory.close?.();
-    });
-  }
-
-  private async registerConfigMemoryTools(context: ExtensionLifecycleContext): Promise<void> {
-    if (!this.config.memoryTools || this.config.memoryTools.enabled === false) {
-      return;
-    }
-
-    const {
-      memory,
-      enabled: _enabled,
-      identifier,
-      manageLifecycle,
-      ...packOptions
-    } = this.config.memoryTools;
-
-    const pack = createMemoryToolsPack(memory, packOptions);
-    const packIdentifier = identifier ?? 'config-memory-tools';
-    if (manageLifecycle) {
-      const existingOnDeactivate = pack.onDeactivate;
-      pack.onDeactivate = async (lifecycleContext) => {
-        await existingOnDeactivate?.(lifecycleContext);
-        await memory.close?.();
-      };
-    }
-
-    await this.extensionManager.loadPackFromFactory(pack, packIdentifier, undefined, context);
-
-    this.logger.info('[AgentOS] Config memory tools enabled', {
-      identifier: packIdentifier,
-      packName: pack.name,
-      toolCount: pack.descriptors.length,
-    });
-  }
-
   private getActiveGuardrailServices(): IGuardrailService[] {
     const services: IGuardrailService[] = [];
 
@@ -1505,7 +1428,7 @@ export class AgentOS implements IAgentOS {
         extensionManager: Boolean(this.extensionManager),
         toolOrchestrator: Boolean(this.toolOrchestrator),
         modelProviderManager: Boolean(this.modelProviderManager),
-        retrievalAugmentor: Boolean(this.retrievalAugmentor),
+        retrievalAugmentor: Boolean(this.ragMemoryInitializer?.retrievalAugmentor),
         workflowEngine: Boolean(this.workflowFacade),
       },
       providers: {
@@ -2246,17 +2169,7 @@ export class AgentOS implements IAgentOS {
         console.log('AgentOS: ToolOrchestrator shut down.');
       }
       await this.discoveryInitializer?.shutdown();
-      if (this.manageRetrievalAugmentorLifecycle && this.retrievalAugmentor?.shutdown) {
-        await this.retrievalAugmentor.shutdown();
-        console.log('AgentOS: RetrievalAugmentor shut down.');
-      }
-      if (
-        this.manageRetrievalAugmentorLifecycle &&
-        this.ragVectorStoreManager?.shutdownAllProviders
-      ) {
-        await this.ragVectorStoreManager.shutdownAllProviders();
-        console.log('AgentOS: VectorStore providers shut down.');
-      }
+      await this.ragMemoryInitializer?.shutdown();
       // PromptEngine might have a cleanup method like clearCache
       if (this.promptEngine && typeof this.promptEngine.clearCache === 'function') {
         await this.promptEngine.clearCache();
@@ -2270,10 +2183,7 @@ export class AgentOS implements IAgentOS {
         await this.extensionManager.shutdown({ logger: this.logger });
         console.log('AgentOS: ExtensionManager shut down.');
       }
-      for (const closeMemory of this.managedStandaloneMemoryClosers) {
-        await closeMemory();
-      }
-      this.managedStandaloneMemoryClosers = [];
+      // Standalone memory closers are handled by ragMemoryInitializer.shutdown() above.
       // Other services like authService, subscriptionService, prisma might not have explicit async shutdown methods
       // if they manage connections passively or are handled by process exit.
 
@@ -2294,75 +2204,6 @@ export class AgentOS implements IAgentOS {
     }
   }
 
-  private async initializeRagSubsystem(storageAdapter?: StorageAdapter): Promise<void> {
-    // Prefer caller-provided augmentor instance.
-    if (this.config.retrievalAugmentor) {
-      this.retrievalAugmentor = this.config.retrievalAugmentor;
-      this.manageRetrievalAugmentorLifecycle =
-        this.config.manageRetrievalAugmentorLifecycle === true;
-      return;
-    }
-
-    const ragConfig = this.config.ragConfig;
-    if (!ragConfig || ragConfig.enabled === false) {
-      return;
-    }
-
-    try {
-      const { EmbeddingManager } = await import('../rag/EmbeddingManager');
-      const { VectorStoreManager } = await import('../rag/VectorStoreManager');
-      const { RetrievalAugmentor } = await import('../rag/RetrievalAugmentor');
-
-      const embeddingManager = new EmbeddingManager();
-      await embeddingManager.initialize(
-        ragConfig.embeddingManagerConfig,
-        this.modelProviderManager
-      );
-
-      const bindToStorageAdapter =
-        ragConfig.bindToStorageAdapter === undefined
-          ? true
-          : ragConfig.bindToStorageAdapter === true;
-
-      const patchedVectorStoreConfig: VectorStoreManagerConfig = {
-        ...ragConfig.vectorStoreManagerConfig,
-        providers: ragConfig.vectorStoreManagerConfig.providers.map((provider) => {
-          if (
-            bindToStorageAdapter &&
-            storageAdapter &&
-            (provider as any)?.type === 'sql' &&
-            !(provider as any).adapter &&
-            !(provider as any).storage
-          ) {
-            return { ...(provider as any), adapter: storageAdapter };
-          }
-          return provider;
-        }),
-      };
-
-      const vectorStoreManager = new VectorStoreManager();
-      await vectorStoreManager.initialize(patchedVectorStoreConfig, ragConfig.dataSourceConfigs);
-
-      const retrievalAugmentor = new RetrievalAugmentor();
-      await retrievalAugmentor.initialize(
-        ragConfig.retrievalAugmentorConfig,
-        embeddingManager,
-        vectorStoreManager
-      );
-
-      this.retrievalAugmentor = retrievalAugmentor;
-      this.ragVectorStoreManager = vectorStoreManager;
-      this.manageRetrievalAugmentorLifecycle = ragConfig.manageLifecycle !== false;
-      console.log('AgentOS: RAG subsystem initialized.');
-    } catch (error: any) {
-      this.logger.error(
-        'AgentOS: Failed to initialize RAG subsystem; continuing without retrieval augmentor.',
-        {
-          error: error?.message ?? error,
-        }
-      );
-    }
-  }
 }
 
 // Imported from extracted module
