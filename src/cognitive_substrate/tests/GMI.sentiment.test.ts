@@ -14,7 +14,7 @@ import { IWorkingMemory } from '../memory/IWorkingMemory';
 import { IPromptEngine } from '../../core/llm/IPromptEngine';
 import { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 import { IProvider, ChatMessage, ModelCompletionResponse } from '../../core/llm/providers/IProvider';
-import { IUtilityAI, SentimentResult } from '../../core/ai_utilities/IUtilityAI';
+import { IUtilityAI, SentimentResult } from '../../nlp/ai_utilities/IUtilityAI';
 import { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import { IRetrievalAugmentor } from '../../rag/IRetrievalAugmentor';
 import { GMIEventType, SentimentHistoryState } from '../GMIEvent';

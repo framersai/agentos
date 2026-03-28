@@ -2,7 +2,7 @@
  * @fileoverview Porter stemmer wrapping the `natural` package.
  * Falls back to no-op if `natural` is not installed.
  *
- * @module agentos/core/text-processing/stemmers/PorterStemmer
+ * @module agentos/nlp/stemmers/PorterStemmer
  */
 
 import type { Token } from '../types';

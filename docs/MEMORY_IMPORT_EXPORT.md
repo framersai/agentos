@@ -4,7 +4,7 @@ sidebar_position: 22
 description: 'Export agent memories to SQLite, JSON, Markdown, or Obsidian vaults, and import from SQLite, JSON, Markdown, Obsidian, ChatGPT exports, and CSV.'
 ---
 
-> The Memory I/O subsystem provides lossless round-trip serialisation across four export formats and six import formats. Every import uses SHA-256 content-hash deduplication to prevent duplicate traces.
+> The Memory I/O subsystem provides lossless round-trip serialisation across four export formats and six import formats. JSON round-trips traces, graph rows, documents, chunks, images, conversations, and messages, and trace deduplication is enabled by default on import.
 
 ---
 
@@ -35,7 +35,7 @@ await mem.export('./backup.sqlite', { format: 'sqlite' });
 
 ### JSON (Programmatic)
 
-Newline-delimited JSON with one object per memory trace. Designed for programmatic consumption and integration with external tools.
+A single structured JSON document containing the full portable brain payload. Designed for programmatic consumption, browser-safe transfer, and cross-runtime restore.
 
 ```ts
 await mem.export('./memories.json', { format: 'json' });
@@ -47,7 +47,7 @@ await mem.export('./memories-with-embeddings.json', {
 });
 ```
 
-Each JSON object contains:
+Each trace entry contains fields like:
 
 ```json
 {
@@ -58,7 +58,7 @@ Each JSON object contains:
   "strength": 0.87,
   "tags": ["preference", "language"],
   "emotions": {},
-  "metadata": { "contentHash": "a1b2c3..." },
+  "metadata": { "source": "user_statement" },
   "createdAt": 1711234567890,
   "lastAccessed": 1711234600000,
   "retrievalCount": 3
@@ -155,7 +155,7 @@ console.log(`Imported: ${result.imported}, Skipped: ${result.skipped}`);
 
 ### JSON
 
-Parses a `JsonExporter`-format JSON file (one object per line or a JSON array).
+Parses a `JsonExporter`-format JSON file and restores traces plus any included graph/document/conversation rows.
 
 ```ts
 const result = await mem.importFrom('./memories.json', { format: 'json' });
@@ -218,7 +218,7 @@ content,type,tags
 All import paths use SHA-256 content hashing to prevent duplicate traces:
 
 1. Before inserting a new trace, the importer computes `SHA-256(content)`.
-2. The hash is compared against existing traces in the `memory_traces.metadata` JSON column (field: `contentHash`).
+2. The hash is compared against existing traces in the `memory_traces.metadata` JSON column (field: `import_hash`).
 3. If a matching hash exists with the same `type` and `scope`, the trace is skipped.
 4. Deduplication is enabled by default (`dedup: true`) and can be disabled per-import.
 

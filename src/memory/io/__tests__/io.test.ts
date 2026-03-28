@@ -221,8 +221,12 @@ describe('JsonExporter + JsonImporter', () => {
     expect(decoded.equals(fakeEmbedding)).toBe(true);
   });
 
-  it('round-trips brain meta, documents, and conversations through JSON strings', async () => {
+  it('round-trips brain meta, documents, chunks, images, conversations, and messages through JSON strings', async () => {
     const sourceBrain = await openBrain();
+    const traceId = await seedTrace(sourceBrain, {
+      id: 'mt_json_chunk_1',
+      content: 'Chunk-backed trace',
+    });
     await sourceBrain.run(
       `INSERT OR REPLACE INTO brain_meta (key, value) VALUES ('last_sync', '1234567890')`,
     );
@@ -238,8 +242,26 @@ describe('JsonExporter + JsonImporter', () => {
        VALUES (?, ?, ?, ?, ?)`,
       ['conv_json_1', 'Import Export', Date.now(), Date.now(), '{"channel":"test"}'],
     );
+    await sourceBrain.run(
+      `INSERT INTO document_chunks
+         (id, document_id, trace_id, content, chunk_index, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ['chunk_json_1', 'doc_json_1', traceId, 'Chunk content', 0, 2, Buffer.from([1, 2, 3, 4])],
+    );
+    await sourceBrain.run(
+      `INSERT INTO document_images
+         (id, document_id, chunk_id, data, mime_type, caption, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['img_json_1', 'doc_json_1', 'chunk_json_1', Buffer.from([0xde, 0xad, 0xbe, 0xef]), 'image/png', 'Diagram', 2, Buffer.from([5, 6, 7, 8])],
+    );
+    await sourceBrain.run(
+      `INSERT INTO messages
+         (id, conversation_id, role, content, created_at, metadata)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      ['msg_json_1', 'conv_json_1', 'user', 'Hello export', Date.now(), '{"turn":1}'],
+    );
 
-    const payload = await new JsonExporter(sourceBrain).exportToString();
+    const payload = await new JsonExporter(sourceBrain).exportToString({ includeEmbeddings: true });
 
     const targetBrain = await openBrain();
     const result = await new JsonImporter(targetBrain).importFromString(payload);
@@ -253,14 +275,35 @@ describe('JsonExporter + JsonImporter', () => {
       `SELECT title FROM documents WHERE id = ?`,
       ['doc_json_1'],
     );
+    const chunk = await targetBrain.get<{ content: string; embedding_hex: string }>(
+      `SELECT content, hex(embedding) AS embedding_hex FROM document_chunks WHERE id = ?`,
+      ['chunk_json_1'],
+    );
+    const image = await targetBrain.get<{ caption: string; data_hex: string; embedding_hex: string }>(
+      `SELECT caption, hex(data) AS data_hex, hex(embedding) AS embedding_hex
+       FROM document_images
+       WHERE id = ?`,
+      ['img_json_1'],
+    );
     const conversation = await targetBrain.get<{ title: string }>(
       `SELECT title FROM conversations WHERE id = ?`,
       ['conv_json_1'],
     );
+    const message = await targetBrain.get<{ role: string; content: string }>(
+      `SELECT role, content FROM messages WHERE id = ?`,
+      ['msg_json_1'],
+    );
 
     expect(meta?.value).toBe('1234567890');
     expect(document?.title).toBe('Notes');
+    expect(chunk?.content).toBe('Chunk content');
+    expect(chunk?.embedding_hex).toBe('01020304');
+    expect(image?.caption).toBe('Diagram');
+    expect(image?.data_hex).toBe('DEADBEEF');
+    expect(image?.embedding_hex).toBe('05060708');
     expect(conversation?.title).toBe('Import Export');
+    expect(message?.role).toBe('user');
+    expect(message?.content).toBe('Hello export');
   });
 
   // -------------------------------------------------------------------------

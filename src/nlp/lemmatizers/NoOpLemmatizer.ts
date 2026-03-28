@@ -1,6 +1,6 @@
 /**
  * @fileoverview Pass-through lemmatizer that does nothing.
- * @module agentos/core/text-processing/lemmatizers/NoOpLemmatizer
+ * @module agentos/nlp/lemmatizers/NoOpLemmatizer
  */
 
 import type { Token } from '../types';

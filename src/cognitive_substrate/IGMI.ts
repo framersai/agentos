@@ -13,7 +13,7 @@ import { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
 import type { ConversationMessage } from '../core/conversation/ConversationMessage';
 // Assuming AIModelProviderManager is correctly exported from this path
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
-import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 // Assuming IToolOrchestrator is correctly exported from this path
 import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { ModelUsage } from '../core/llm/providers/IProvider';

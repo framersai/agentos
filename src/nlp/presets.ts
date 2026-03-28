@@ -1,6 +1,6 @@
 /**
  * @fileoverview Pre-built pipeline configurations for common use cases.
- * @module agentos/core/text-processing/presets
+ * @module agentos/nlp/presets
  */
 
 import { TextProcessingPipeline } from './TextProcessingPipeline';

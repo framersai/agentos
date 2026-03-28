@@ -2,7 +2,7 @@
  * @fileoverview Pluggable text processing pipeline for AgentOS.
  * Feeds into BM25 keyword search, FTS5, and embedding generation.
  *
- * @module agentos/core/text-processing
+ * @module agentos/nlp
  */
 
 export { TextProcessingPipeline } from './TextProcessingPipeline';

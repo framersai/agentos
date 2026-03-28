@@ -2,7 +2,7 @@
  * @fileoverview Code-aware tokenizer that splits camelCase, snake_case,
  * SCREAMING_SNAKE, and dot-separated identifiers into individual words.
  *
- * @module agentos/core/text-processing/tokenizers/CodeTokenizer
+ * @module agentos/nlp/tokenizers/CodeTokenizer
  */
 
 import type { Token } from '../types';

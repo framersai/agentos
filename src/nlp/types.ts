@@ -1,6 +1,6 @@
 /**
  * @fileoverview Core types for the text processing pipeline.
- * @module agentos/core/text-processing/types
+ * @module agentos/nlp/types
  */
 
 /** A single processed token with position and optional linguistic annotations. */

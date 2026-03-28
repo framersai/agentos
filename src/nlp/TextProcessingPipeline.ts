@@ -2,7 +2,7 @@
  * @fileoverview Configurable text processing pipeline.
  * Chains a tokenizer + N processors to produce processed tokens from raw text.
  *
- * @module agentos/core/text-processing/TextProcessingPipeline
+ * @module agentos/nlp/TextProcessingPipeline
  */
 
 import type { Token } from './types';

@@ -1,7 +1,7 @@
 /**
  * @fileoverview Synchronous interop helpers for the CommonJS `natural` package
  * from AgentOS's ESM runtime.
- * @module agentos/core/text-processing/naturalInterop
+ * @module agentos/nlp/naturalInterop
  */
 
 import { createRequire } from 'node:module';

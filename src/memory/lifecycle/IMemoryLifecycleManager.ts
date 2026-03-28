@@ -13,7 +13,7 @@
 import { MemoryLifecycleManagerConfig } from '../config/MemoryLifecycleManagerConfiguration';
 import { IGMI, LifecycleAction } from '../cognitive_substrate/IGMI';
 import { IVectorStoreManager } from '../rag/IVectorStoreManager';
-import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
 
 /**

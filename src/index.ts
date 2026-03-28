@@ -112,8 +112,8 @@ export type { LLMVisionProviderConfig } from './media/vision/providers/LLMVision
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports
-export * from './core/language/interfaces';
-export * from './core/language/LanguageService';
+export * from './nlp/language/interfaces';
+export * from './nlp/language/LanguageService';
 export type { ILogger } from './logging/ILogger';
 export { createLogger, setLoggerFactory, resetLoggerFactory } from './logging/loggerFactory';
 // Rate limit types

@@ -3,9 +3,9 @@
  * via an AIModelProviderManager to perform its tasks. For tasks not suited to LLMs,
  * it may provide basic fallbacks or indicate non-support.
  *
- * @module backend/agentos/core/ai_utilities/LLMUtilityAI
+ * @module backend/agentos/nlp/ai_utilities/LLMUtilityAI
  * @see ./IUtilityAI.ts
- * @see ../llm/providers/AIModelProviderManager.ts
+ * @see ../../core/llm/providers/AIModelProviderManager.ts
  */
 
 import {
@@ -28,10 +28,10 @@ import {
   ReadabilityOptions,
   ReadabilityResult,
 } from './IUtilityAI';
-import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
-import { ModelCompletionOptions, ChatMessage } from '../llm/providers/IProvider';
-import { IPromptEngineUtilityAI, ModelTargetInfo } from '../llm/IPromptEngine';
-import { ConversationMessage as Message, MessageRole } from '../conversation/ConversationMessage';
+import { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
+import { ModelCompletionOptions, ChatMessage } from '../../core/llm/providers/IProvider';
+import { IPromptEngineUtilityAI, ModelTargetInfo } from '../../core/llm/IPromptEngine';
+import { ConversationMessage as Message, MessageRole } from '../../core/conversation/ConversationMessage';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { uuidv4 } from '../../utils/uuid';
 import Ajv from 'ajv';

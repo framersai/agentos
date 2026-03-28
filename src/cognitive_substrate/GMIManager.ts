@@ -25,7 +25,7 @@ import { ConversationContext } from '../core/conversation/ConversationContext';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
 import { IPromptEngine } from '../core/llm/IPromptEngine';
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
-import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 import { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
 import { PersonaOverlayManager } from './persona_overlays/PersonaOverlayManager';

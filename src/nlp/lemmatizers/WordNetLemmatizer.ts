@@ -5,7 +5,7 @@
  * Lemmatization produces the dictionary form of a word:
  * `ran` → `run`, `better` → `good`, `mice` → `mouse`.
  *
- * @module agentos/core/text-processing/lemmatizers/WordNetLemmatizer
+ * @module agentos/nlp/lemmatizers/WordNetLemmatizer
  */
 
 import type { Token } from '../types';

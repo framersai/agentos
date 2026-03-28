@@ -1,6 +1,6 @@
 /**
  * @fileoverview Interface for a single stage in the text processing pipeline.
- * @module agentos/core/text-processing/ITextProcessor
+ * @module agentos/nlp/ITextProcessor
  */
 
 import type { Token } from './types';

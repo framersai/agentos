@@ -2,9 +2,11 @@
  * @fileoverview JSON importer for AgentOS memory brain.
  *
  * Reads a JSON file produced by `JsonExporter` (or a compatible schema) and
- * merges its traces, knowledge nodes, and edges into a target `SqliteBrain`.
- * Deduplication is performed via SHA-256 content hash — any trace whose hash
- * already exists in the target brain is skipped rather than duplicated.
+ * merges traces, graph rows, documents, document chunks/images, conversations,
+ * and messages into a target `SqliteBrain`.
+ *
+ * Trace deduplication is performed via SHA-256 content hash by default, but it
+ * can be disabled via `{ dedup: false }` on the importer or `Memory.importFrom`.
  *
  * @module memory/io/JsonImporter
  */
@@ -698,8 +700,8 @@ export class JsonImporter {
   /**
    * Import conversation session rows.
    *
-   * Conversation messages are not part of the current JSON payload shape, but
-   * restoring the conversation registry still preserves session-level metadata.
+   * Conversation session rows are imported before messages so message foreign
+   * keys can be remapped safely when IDs collide or sessions already exist.
    */
   private async _importConversations(
     trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },

@@ -411,6 +411,26 @@ describe('Memory facade', () => {
     expect(recalled.some((entry) => entry.trace.content.includes('butterflies'))).toBe(true);
   });
 
+  it('should honor dedup: false for JSON imports through the Memory facade', async () => {
+    const mem1 = await createMemory();
+    await mem1.remember('duplicate me from json import');
+
+    const dir = tempDir();
+    const jsonPath = path.join(dir, 'dedup-off.json');
+    await mem1.export(jsonPath, { format: 'json' });
+
+    const mem2 = await createMemory();
+    const first = await mem2.importFrom(jsonPath, { format: 'json' });
+    const second = await mem2.importFrom(jsonPath, { format: 'json', dedup: false });
+
+    expect(first.errors).toHaveLength(0);
+    expect(second.errors).toHaveLength(0);
+    expect(second.imported).toBeGreaterThanOrEqual(1);
+
+    const health = await mem2.health();
+    expect(health.totalTraces).toBe(2);
+  });
+
   // -----------------------------------------------------------------------
   // 6. export Markdown
   // -----------------------------------------------------------------------

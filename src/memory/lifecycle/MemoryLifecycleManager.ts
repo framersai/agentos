@@ -8,7 +8,7 @@
  * @module backend/agentos/memory/lifecycle/MemoryLifecycleManager
  * @see ./IMemoryLifecycleManager.ts for the interface definition.
  * @see ../config/MemoryLifecycleManagerConfiguration.ts for configuration.
- * @see ../core/ai_utilities/IUtilityAI.ts for summarization.
+ * @see ../nlp/ai_utilities/IUtilityAI.ts for summarization.
  * @see ../rag/IVectorStore.ts and ../rag/IVectorStoreManager.ts
  */
 
@@ -26,7 +26,7 @@ import {
 } from '../config/MemoryLifecycleManagerConfiguration';
 import { IVectorStoreManager } from '../rag/IVectorStoreManager';
 import { IVectorStore, MetadataFilter } from '../rag/IVectorStore';
-import { IUtilityAI, SummarizationOptions } from '../core/ai_utilities/IUtilityAI';
+import { IUtilityAI, SummarizationOptions } from '../nlp/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import {

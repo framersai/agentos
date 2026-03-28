@@ -6,7 +6,7 @@ import { IWorkingMemory } from '../memory/IWorkingMemory';
 import { IPromptEngine } from '../../core/llm/IPromptEngine';
 import { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 import { IProvider, ChatMessage, ModelCompletionResponse } from '../../core/llm/providers/IProvider';
-import { IUtilityAI, ParseJsonOptions, SummarizationOptions } from '../../core/ai_utilities/IUtilityAI';
+import { IUtilityAI, ParseJsonOptions, SummarizationOptions } from '../../nlp/ai_utilities/IUtilityAI';
 import { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import { IRetrievalAugmentor } from '../../rag/IRetrievalAugmentor';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';

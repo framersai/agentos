@@ -79,9 +79,9 @@ export interface BM25Config {
    * Optional text processing pipeline for tokenization.
    * When provided, replaces the built-in regex tokenizer with configurable
    * stemming, lemmatization, and stop word handling.
-   * @see createRagPipeline from core/text-processing for the recommended default.
+   * @see createRagPipeline from nlp for the recommended default.
    */
-  pipeline?: import('../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+  pipeline?: import('../../nlp/TextProcessingPipeline').TextProcessingPipeline;
 }
 
 /**
@@ -103,7 +103,7 @@ export interface BM25Stats {
 
 // ── Stop Words ────────────────────────────────────────────────────────────
 
-import { getNaturalStopWords } from '../../core/text-processing/filters/StopWordFilter';
+import { getNaturalStopWords } from '../../nlp/filters/StopWordFilter';
 
 /**
  * Stop words used by the fallback regex tokenizer (when no pipeline is configured).
@@ -182,7 +182,7 @@ export class BM25Index {
    * built-in regex tokenizer with configurable stemming, lemmatization,
    * and stop word handling.
    */
-  private pipeline?: import('../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+  private pipeline?: import('../../nlp/TextProcessingPipeline').TextProcessingPipeline;
 
   /**
    * Creates a new BM25 index.

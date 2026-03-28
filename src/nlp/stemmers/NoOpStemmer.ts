@@ -3,7 +3,7 @@
  * Use for code identifiers where stemming would be harmful
  * (e.g. `kubernetes` → `kubernet` is wrong).
  *
- * @module agentos/core/text-processing/stemmers/NoOpStemmer
+ * @module agentos/nlp/stemmers/NoOpStemmer
  */
 
 import type { Token } from '../types';

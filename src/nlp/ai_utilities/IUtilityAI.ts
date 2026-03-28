@@ -5,10 +5,10 @@
  * language detection, text normalization, JSON parsing, similarity calculation, n-gram generation,
  * and readability assessment. The interface allows for diverse underlying implementations
  * (e.g., LLM-based, statistical NLP libraries, or other machine learning models).
- * @module backend/agentos/core/ai_utilities/IUtilityAI
+ * @module backend/agentos/nlp/ai_utilities/IUtilityAI
  */
 
-import { JSONSchemaObject } from '../tools/ITool'; // Re-using from ITool for schema definition
+import { JSONSchemaObject } from '../../core/tools/ITool'; // Re-using from ITool for schema definition
 
 // --- Configuration for Implementations ---
 /**

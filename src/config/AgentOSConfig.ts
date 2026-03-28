@@ -26,7 +26,7 @@ import {
 } from '../core/llm/providers/AIModelProviderManager';
 import { PersonaLoaderConfig } from '../cognitive_substrate/personas/IPersonaLoader';
 
-import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
 
 // Utility for error handling

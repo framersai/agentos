@@ -9,7 +9,7 @@
  * @see ./IGMI.ts for the interface definition.
  * @see ./personas/IPersonaDefinition.ts for persona structure.
  * @see ../core/tools/IToolOrchestrator.ts for tool orchestration.
- * @see ../core/ai_utilities/IUtilityAI.ts for utility functions.
+ * @see ../nlp/ai_utilities/IUtilityAI.ts for utility functions.
  */
 
 import { uuidv4 } from '../utils/uuid';
@@ -50,7 +50,7 @@ import { IRetrievalAugmentor, RagRetrievalOptions, RagDocumentInput, RagIngestio
 import { ChatMessage, ModelCompletionOptions } from '../core/llm/providers/IProvider';
 
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
-import { IUtilityAI, SummarizationOptions, ParseJsonOptions } from '../core/ai_utilities/IUtilityAI';
+import { IUtilityAI, SummarizationOptions, ParseJsonOptions } from '../nlp/ai_utilities/IUtilityAI';
 
 import { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
 

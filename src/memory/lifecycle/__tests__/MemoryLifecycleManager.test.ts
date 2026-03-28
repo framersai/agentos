@@ -4,7 +4,7 @@ import { IMemoryLifecycleManager, GMIResolverFunction } from '../IMemoryLifecycl
 import { MemoryLifecycleManagerConfig, MemoryLifecyclePolicy, PolicyAction } from '../../config/MemoryLifecycleManagerConfiguration';
 import { IVectorStoreManager } from '../../rag/IVectorStoreManager';
 import { IVectorStore } from '../../rag/IVectorStore';
-import { IUtilityAI, SummarizationOptions } from '../../core/ai_utilities/IUtilityAI';
+import { IUtilityAI, SummarizationOptions } from '../../nlp/ai_utilities/IUtilityAI';
 import { IGMI, LifecycleAction, LifecycleActionResponse, MemoryLifecycleEvent } from '../../cognitive_substrate/IGMI';
 
 // --- Mock Dependencies ---

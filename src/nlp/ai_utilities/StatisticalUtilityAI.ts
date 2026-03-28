@@ -4,7 +4,7 @@
  * This utility is suited for tasks where deterministic, fast, and often offline
  * processing is preferred over LLM-based approaches.
  *
- * @module backend/agentos/core/ai_utilities/StatisticalUtilityAI
+ * @module backend/agentos/nlp/ai_utilities/StatisticalUtilityAI
  * @see ./IUtilityAI.ts
  * @see 'natural' library documentation
  */

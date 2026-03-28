@@ -2,7 +2,7 @@
  * @fileoverview Strips diacritics/accents from token text.
  * `café` → `cafe`, `naïve` → `naive`.
  *
- * @module agentos/core/text-processing/normalizers/AccentStripper
+ * @module agentos/nlp/normalizers/AccentStripper
  */
 
 import type { Token } from '../types';

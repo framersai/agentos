@@ -62,7 +62,7 @@ import {
 } from '../../IVectorStore.js';
 import { GMIError, GMIErrorCode } from '../../../utils/errors.js';
 import { uuidv4 } from '../../../utils/uuid.js';
-import { getNaturalStopWords } from '../../../core/text-processing/filters/StopWordFilter.js';
+import { getNaturalStopWords } from '../../../nlp/filters/StopWordFilter.js';
 import type { HnswIndexSidecar } from '../../../core/vector-search/HnswIndexSidecar.js';
 
 // ============================================================================
@@ -119,9 +119,9 @@ export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
    * Optional text processing pipeline for hybrid search tokenization.
    * Replaces the built-in regex tokenizer with configurable stemming,
    * lemmatization, and stop word handling.
-   * @see createRagPipeline from core/text-processing
+   * @see createRagPipeline from nlp
    */
-  pipeline?: import('../../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+  pipeline?: import('../../../nlp/TextProcessingPipeline').TextProcessingPipeline;
 
   /**
    * Document count threshold before HNSW sidecar activates.
@@ -234,7 +234,7 @@ export class SqlVectorStore implements IVectorStore {
   private hnswSidecarClass: (new () => HnswIndexSidecar) | null | undefined;
 
   /** Optional text processing pipeline for hybrid search tokenization. */
-  private pipeline?: import('../../../core/text-processing/TextProcessingPipeline').TextProcessingPipeline;
+  private pipeline?: import('../../../nlp/TextProcessingPipeline').TextProcessingPipeline;
 
   /**
    * Constructs a SqlVectorStore instance.

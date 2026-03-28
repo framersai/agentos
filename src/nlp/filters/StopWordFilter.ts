@@ -1,6 +1,6 @@
 /**
  * @fileoverview Removes tokens that match a configurable stop word list.
- * @module agentos/core/text-processing/filters/StopWordFilter
+ * @module agentos/nlp/filters/StopWordFilter
  */
 
 import type { Token } from '../types';

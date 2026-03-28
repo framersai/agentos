@@ -1,6 +1,6 @@
 /**
  * @fileoverview Lowercases all token text. Preserves original.
- * @module agentos/core/text-processing/normalizers/LowercaseNormalizer
+ * @module agentos/nlp/normalizers/LowercaseNormalizer
  */
 
 import type { Token } from '../types';

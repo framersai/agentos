@@ -78,8 +78,8 @@ import {
 import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionManager';
 import type { IAuthService, ISubscriptionService } from '../types/auth';
 import type { IHumanInteractionManager } from '../core/hitl/IHumanInteractionManager';
-import { IUtilityAI } from '../core/ai_utilities/IUtilityAI';
-import { LLMUtilityAI } from '../core/ai_utilities/LLMUtilityAI';
+import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
+import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI';
 import {
   ConversationManager,
   ConversationManagerConfig,
@@ -687,7 +687,7 @@ export interface AgentOSConfig {
   /** Optional workflow store implementation. Defaults to the in-memory store if omitted. */
   workflowStore?: IWorkflowStore;
   /** Optional multilingual configuration enabling detection, negotiation, translation. */
-  languageConfig?: import('../core/language').AgentOSLanguageConfig;
+  languageConfig?: import('../nlp/language').AgentOSLanguageConfig;
   /** Optional custom persona loader (useful for browser/local runtimes). */
   personaLoader?: IPersonaLoader;
   /**
@@ -823,7 +823,7 @@ export class AgentOS implements IAgentOS {
   private streamingManager!: StreamingManager;
   private gmiManager!: GMIManager;
   private agentOSOrchestrator!: AgentOSOrchestrator;
-  private languageService?: import('../core/language').LanguageService;
+  private languageService?: import('../nlp/language').LanguageService;
   private guardrailService?: IGuardrailService;
   private workflowEngine!: WorkflowEngine;
   private workflowStore!: IWorkflowStore;
@@ -972,7 +972,7 @@ export class AgentOS implements IAgentOS {
     if (config.languageConfig) {
       try {
         // Dynamic import may fail under certain bundler path resolutions; using explicit relative path.
-        const { LanguageService } = await import('../core/language');
+        const { LanguageService } = await import('../nlp/language');
         this.languageService = new LanguageService(config.languageConfig);
         await this.languageService.initialize();
         this.logger.info('AgentOS LanguageService initialized');

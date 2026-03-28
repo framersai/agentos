@@ -3,7 +3,7 @@
  * Splits on whitespace, punctuation, and special characters.
  * Produces tokens with position tracking.
  *
- * @module agentos/core/text-processing/tokenizers/StandardTokenizer
+ * @module agentos/nlp/tokenizers/StandardTokenizer
  */
 
 import type { Token } from '../types';
