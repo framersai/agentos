@@ -19,76 +19,147 @@ Current runtime memory note:
 
 ### Source Directory Layout
 
-After the `core/` flattening refactor, the `src/` tree is organized into domain-specific
-top-level directories. Only the foundational infrastructure modules remain under `core/`.
+After the hierarchy restructuring, the `src/` tree is organized into 26 domain-specific
+top-level modules. Only foundational infrastructure remains under `core/`.
+
+#### Perception model
+
+Vision, hearing, and speech are separated into three independent modules following
+the biological perception analogy: **vision/** (seeing -- OCR, scene detection, image
+analysis), **hearing/** (listening -- STT providers, VAD, silence detection), and
+**speech/** (speaking -- TTS providers, resolver, session). This clean separation
+allows each perception channel to evolve independently, with shared media generation
+(images, video, music, SFX) remaining under **media/**.
+
+#### God-object decompositions
+
+Three former monolithic classes were decomposed during the restructuring:
+
+- **GMIManager** was split into four focused components: `GMIManager` (lifecycle),
+  `SentimentTracker` (mood/affect), `MetapromptExecutor` (dynamic prompt rewriting),
+  and `PersonaOverlayManager` (persona layering). All live under `cognitive_substrate/`.
+
+- **AgentOS** was split into four facades: `AgentOS` (lifecycle + request entry),
+  `generateText`/`streamText` (high-level AI SDK), `agent`/`agency` (session wrappers),
+  and media helpers (`generateImage`, `generateVideo`, `generateMusic`, etc.). All
+  live under `api/`.
+
+- **AgentOSOrchestrator** was split into three runtime components:
+  `AgentOSOrchestrator` (turn coordination), `processRequestWithExternalTools`
+  (external tool pause/resume loop), and `processRequestWithRegisteredTools`
+  (registered tool auto-execution). All live under `api/runtime/`.
 
 ```
 src/
-├── core/                    # Core infrastructure (7 dirs)
-│   ├── llm/                 # LLM providers, routing, streaming
-│   ├── tools/               # ITool, ToolOrchestrator, permissions
-│   ├── conversation/        # ConversationManager
-│   ├── orchestration/       # IAgentOrchestrator, telemetry
-│   ├── streaming/           # StreamingManager
-│   ├── storage/             # IStorageAdapter, SqlStorageAdapter
-│   └── utils/               # Shared helpers, usage tracking
-│
-├── media/                   # Media generation & processing
-│   ├── audio/               # TTS, music, SFX generation
-│   ├── images/              # Image generation (DALL-E, Stability, etc.)
-│   ├── video/               # Video generation & analysis
-│   └── vision/              # OCR, document AI, CLIP
-│
-├── provenance/              # Content provenance & blockchain anchoring
-│
-├── nlp/                     # NLP: tokenizers, stemmers, sentiment, i18n
-│   ├── language/            # Language detection & translation
-│   └── ai_utilities/        # AI utility helpers
-│
-├── safety/                  # Guardrails & runtime safety
-│   ├── guardrails/          # IGuardrailService, ParallelGuardrailDispatcher
-│   └── runtime/             # Runtime safety checks
-│
-├── agents/                  # Agent definitions & multi-agent collectives
+├── agents/                  # Agent definitions + multi-agent collectives
 │   ├── definitions/         # Agent type definitions
-│   └── agency/              # Multi-agent coordination
+│   └── agency/              # Multi-agent coordination (AgencyRegistry, etc.)
 │
-├── evaluation/              # Eval framework & observability
+├── api/                     # Public API surface (AgentOS, high-level helpers)
+│   ├── runtime/             # AgentOSOrchestrator, tool adapters, provider defaults
+│   └── types/               # AgentOSInput, AgentOSResponse, etc.
+│
+├── channels/                # Channel adapters + telephony + social posting
+│   ├── adapters/            # Platform-specific adapters (Discord, Slack, etc.)
+│   ├── telephony/           # Voice call providers (Twilio, Vonage, etc.)
+│   └── social-posting/      # Social media post management
+│
+├── cognitive_substrate/     # GMI + extracted components
+│   ├── personas/            # Persona definitions + loader
+│   ├── persona_overlays/    # PersonaOverlayManager
+│   ├── SentimentTracker     # Mood/affect tracking (extracted from GMI)
+│   └── MetapromptExecutor   # Dynamic prompt rewriting (extracted from GMI)
+│
+├── core/                    # Infrastructure (11 dirs)
+│   ├── config/              # Configuration types
+│   ├── conversation/        # ConversationManager
+│   ├── embeddings/          # IEmbeddingManager (shared interface)
+│   ├── llm/                 # LLM providers, routing
+│   ├── logging/             # Logger abstraction
+│   ├── rate-limiting/       # Rate limiter
+│   ├── storage/             # IStorageAdapter
+│   ├── streaming/           # StreamingManager
+│   ├── tools/               # ITool, ToolOrchestrator
+│   ├── utils/               # Shared helpers
+│   └── vector-store/        # IVectorStore, IVectorStoreManager (shared interfaces)
+│
+├── discovery/               # Capability discovery engine (tiered semantic search)
+│
+├── emergent/                # Emergent capabilities (self-improvement)
+│
+├── evaluation/              # Eval framework + observability
 │   └── observability/       # OpenTelemetry tracing & metrics
 │
-├── knowledge/               # Knowledge graph (interface + implementations)
+├── extensions/              # Extension system
 │
-├── planning/                # Planning engine, HITL, workflows
+├── hearing/                 # Listening: STT providers, VAD, silence detection
+│
+├── marketplace/             # Agent marketplace + workspace
+│   ├── store/               # Marketplace listings & search
+│   └── workspace/           # Per-agent workspace helpers
+│
+├── media/                   # Creative generation (images, video, music, SFX)
+│   ├── audio/               # Music + SFX generation
+│   ├── images/              # Image generation (DALL-E, Stability, etc.)
+│   └── video/               # Video generation & analysis
+│
+├── memory/                  # Cognitive memory system
+│   ├── graph/               # Knowledge graph (IMemoryGraph, GraphRAG, Neo4j)
+│   ├── mechanisms/          # 8 neuroscience-grounded cognitive mechanisms
+│   ├── facade/              # Standalone Memory API (remember/recall)
+│   └── ...                  # consolidation, decay, encoding, ingestion, retrieval, etc.
+│
+├── nlp/                     # NLP processing
+│   ├── ai_utilities/        # AI utility helpers (LLM-backed summarization, etc.)
+│   ├── language/            # Language detection & translation
+│   ├── tokenizers/          # Tokenizer implementations
+│   ├── stemmers/            # Stemmer implementations
+│   └── ...                  # normalizers, lemmatizers, filters
+│
+├── orchestration/           # DAG workflow engine + planner + HITL
 │   ├── planner/             # PlanningEngine, ReAct loops
 │   ├── hitl/                # Human-in-the-loop approval
-│   └── workflows/           # Workflow definitions & execution
+│   ├── workflows/           # Workflow definitions & execution
+│   ├── turn-planner/        # TurnPlanner + telemetry
+│   ├── ir/                  # Intermediate representation
+│   ├── compiler/            # Graph compiler
+│   ├── runtime/             # Workflow runtime
+│   ├── checkpoint/          # Checkpoint/restore
+│   └── events/              # Event bus
 │
-├── sandbox/                 # Sandboxed execution & subprocess
+├── provenance/              # Content provenance + blockchain anchoring
+│
+├── query-router/            # Query classification + routing
+│
+├── rag/                     # Retrieval-augmented generation
+│   ├── vector-search/       # HNSW sidecar, Postgres, etc.
+│   ├── vector_stores/       # Vector store implementations
+│   ├── chunking/            # Document chunking strategies
+│   ├── reranking/           # Reranking models
+│   ├── unified/             # Unified retriever
+│   └── graphrag/            # Graph-augmented retrieval
+│
+├── safety/                  # Guardrails + runtime safety
+│   ├── guardrails/          # IGuardrailService, ParallelGuardrailDispatcher
+│   └── runtime/             # CircuitBreaker, CostGuard, StuckDetector, etc.
+│
+├── sandbox/                 # Sandboxed execution + subprocess
 │   ├── executor/            # Sandboxed code execution
 │   └── subprocess/          # CLISubprocessBridge, CLIRegistry
 │
-├── structured/              # Structured output & prompt routing
+├── skills/                  # SKILL.md loader (content lives in agentos-skills)
+│
+├── speech/                  # Speaking: TTS providers, resolver, session
+│
+├── structured/              # Structured output + prompt routing
 │   ├── output/              # StructuredOutputManager, JSON schema
 │   └── prompting/           # Prompt routing & construction
 │
-├── marketplace/             # Agent marketplace & workspace
-│   ├── store/               # Marketplace listings & search
-│   └── workspace/           # Workspace management
+├── types/                   # Shared types (auth)
 │
-├── rag/                     # Retrieval-augmented generation
-│   └── vector-search/       # HNSW, Pinecone, Qdrant, Postgres
+├── vision/                  # Seeing: OCR, scene detection, image analysis
 │
-├── api/                     # Public API surface
-├── memory/                  # Cognitive memory system
-├── channels/                # Messaging channel adapters (37 platforms)
-├── cognitive_substrate/     # GMI (Generalized Mind Instance)
-├── discovery/               # Capability discovery engine
-├── emergent/                # Emergent capabilities
-├── extensions/              # Extension system
-├── orchestration/           # Graph-based workflow DAG engine
-├── query-router/            # Query classification & routing
-├── social-posting/          # Social media post management
-└── ...
+└── voice-pipeline/          # Real-time voice conversation orchestrator
 ```
 
 ### The Complete AgentOS Ecosystem

@@ -150,8 +150,8 @@ npm install @framers/agentos
 
 **Start here:**
 
-- Use [`agency()`](./docs/AGENCY_API.md) to coordinate a team of agents with a single call.
-- Use [`generateText()` / `streamText()` / `generateObject()` / `streamObject()` / `embedText()` / `generateImage()` / `agent()`](./docs/HIGH_LEVEL_API.md) for the fastest path from prompt to working code.
+- Use [`agency()`](./docs/orchestration/AGENCY_API.md) to coordinate a team of agents with a single call.
+- Use [`generateText()` / `streamText()` / `generateObject()` / `streamObject()` / `embedText()` / `generateImage()` / `agent()`](./docs/getting-started/HIGH_LEVEL_API.md) for the fastest path from prompt to working code.
 - Use [`AgentOS`](#advanced-agentgraph-and-full-runtime) when you need extensions, workflows, personas, or full runtime lifecycle control.
 - Browse the live docs at [docs.agentos.sh/getting-started/high-level-api](https://docs.agentos.sh/getting-started/high-level-api) and [docs.agentos.sh/api](https://docs.agentos.sh/api).
 
@@ -206,7 +206,7 @@ const team = agency({
 Add guardrails, HITL, resource controls, observability, `listen()` for voice
 transport, `connect()` for channel adapters, RAG context injection, and real
 per-agent stream events in the same config object — see
-[`docs/AGENCY_API.md`](./docs/AGENCY_API.md) for the full reference.
+[`docs/orchestration/AGENCY_API.md`](./docs/orchestration/AGENCY_API.md) for the full reference.
 
 ### Single-Agent and Low-Level Helpers
 
@@ -352,8 +352,8 @@ for await (const chunk of agent.processRequest({
 }
 ```
 
-See [`docs/AGENT_GRAPH.md`](./docs/AGENT_GRAPH.md) for the `AgentGraph` programmatic
-graph builder and [`docs/WORKFLOW_DSL.md`](./docs/WORKFLOW_DSL.md) for the workflow
+See [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md) for the `AgentGraph` programmatic
+graph builder and [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md) for the workflow
 DSL.
 
 ---
@@ -730,7 +730,7 @@ type ExtensionPackResolver =
 
 ### Planning Engine
 
-**Location:** `src/core/planning/`
+**Location:** `src/orchestration/planner/`
 
 The planning engine enables multi-step task decomposition and execution using ReAct (Reasoning + Acting) patterns.
 
@@ -752,7 +752,7 @@ Plans are composed of typed steps that the agent executes sequentially, with the
 - **HITL** for human approval of high-risk steps
 - **Memory** for persisting plan state across sessions
 
-See [`docs/PLANNING_ENGINE.md`](docs/PLANNING_ENGINE.md) for the full planning system specification.
+See [`docs/orchestration/PLANNING_ENGINE.md`](./docs/orchestration/PLANNING_ENGINE.md) for the full planning system specification.
 
 ---
 
@@ -835,7 +835,7 @@ import { Neo4jGraphRAGEngine } from '@framers/agentos/rag/graphrag';
 import type { GraphRAGConfig, GraphEntity, GraphRelationship } from '@framers/agentos/rag/graphrag';
 ```
 
-See [`docs/RAG_MEMORY_CONFIGURATION.md`](docs/RAG_MEMORY_CONFIGURATION.md) and [`docs/MULTIMODAL_RAG.md`](docs/MULTIMODAL_RAG.md) for detailed configuration guides.
+See [`docs/memory/RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) and [`docs/memory/MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md) for detailed configuration guides.
 
 **Memory Scaling:**
 
@@ -854,17 +854,17 @@ AgentOS provides a 4-tier vector storage scaling path that grows with your deplo
 - **HNSW sidecar auto-activation** — transparently upgrades from brute-force to approximate nearest neighbors at 1K vectors
 - **`embed()` config option** — opt-in query-time embedding generation for dynamic content
 
-See [`docs/MEMORY_SCALING.md`](docs/MEMORY_SCALING.md), [`docs/POSTGRES_BACKEND.md`](docs/POSTGRES_BACKEND.md), [`docs/QDRANT_BACKEND.md`](docs/QDRANT_BACKEND.md), and [`docs/PINECONE_BACKEND.md`](docs/PINECONE_BACKEND.md) for backend-specific guides.
+See [`docs/memory/MEMORY_SCALING.md`](./docs/memory/MEMORY_SCALING.md), [`docs/memory/POSTGRES_BACKEND.md`](./docs/memory/POSTGRES_BACKEND.md), [`docs/memory/QDRANT_BACKEND.md`](./docs/memory/QDRANT_BACKEND.md), and [`docs/memory/PINECONE_BACKEND.md`](./docs/memory/PINECONE_BACKEND.md) for backend-specific guides.
 
 ---
 
 ### Safety and Guardrails
 
-**Location:** `src/core/safety/` and `src/core/guardrails/`
+**Location:** `src/safety/runtime/` and `src/safety/guardrails/`
 
 AgentOS provides defense-in-depth safety through two complementary systems.
 
-#### Safety Primitives (`core/safety/`)
+#### Safety Primitives (`safety/runtime/`)
 
 Five runtime safety components:
 
@@ -883,12 +883,12 @@ import {
   StuckDetector,
   ActionDeduplicator,
   ToolExecutionGuard,
-} from '@framers/agentos/core/safety';
+} from '@framers/agentos/safety/runtime';
 ```
 
-See [`docs/SAFETY_PRIMITIVES.md`](docs/SAFETY_PRIMITIVES.md) for the full safety API reference.
+See [`docs/safety/SAFETY_PRIMITIVES.md`](./docs/safety/SAFETY_PRIMITIVES.md) for the full safety API reference.
 
-#### Guardrails (`core/guardrails/`)
+#### Guardrails (`safety/guardrails/`)
 
 Content-level input/output filtering:
 
@@ -920,13 +920,13 @@ When multiple guardrails are registered, AgentOS uses a **two-phase dispatcher**
 
 Multiple guardrails can be composed via the extension system, and each receives full context (user ID, session ID, persona ID, conversation ID, metadata) for context-aware policy decisions.
 
-See [`docs/GUARDRAILS_USAGE.md`](docs/GUARDRAILS_USAGE.md) for implementation patterns.
+See [`docs/safety/GUARDRAILS_USAGE.md`](./docs/safety/GUARDRAILS_USAGE.md) for implementation patterns.
 
 ---
 
 ### Human-in-the-Loop (HITL)
 
-**Location:** `src/core/hitl/`
+**Location:** `src/orchestration/hitl/`
 
 The HITL system enables agents to request human approval, clarification, and collaboration at key decision points.
 
@@ -961,7 +961,7 @@ interface PendingAction {
 
 HITL integrates with the planning engine so individual plan steps can require approval, and with the extension system via `EXTENSION_KIND_HITL_HANDLER` for custom approval UIs.
 
-See [`docs/HUMAN_IN_THE_LOOP.md`](docs/HUMAN_IN_THE_LOOP.md) for the full HITL specification.
+See [`docs/safety/HUMAN_IN_THE_LOOP.md`](./docs/safety/HUMAN_IN_THE_LOOP.md) for the full HITL specification.
 
 ---
 
@@ -1007,7 +1007,7 @@ engagement_metrics, scheduling, dm_automation, content_discovery
 
 Channel adapters are registered as extensions via `EXTENSION_KIND_MESSAGING_CHANNEL`.
 
-See [`docs/PLATFORM_SUPPORT.md`](docs/PLATFORM_SUPPORT.md) for platform-specific configuration.
+See [`docs/architecture/PLATFORM_SUPPORT.md`](./docs/architecture/PLATFORM_SUPPORT.md) for platform-specific configuration.
 
 ---
 
@@ -1107,13 +1107,13 @@ const researcher = mission('research')
 const plan = await researcher.explain({ topic: 'AI safety' }); // preview plan without executing
 ```
 
-See [`docs/UNIFIED_ORCHESTRATION.md`](docs/UNIFIED_ORCHESTRATION.md), [`docs/AGENT_GRAPH.md`](docs/AGENT_GRAPH.md), [`docs/WORKFLOW_DSL.md`](docs/WORKFLOW_DSL.md), [`docs/MISSION_API.md`](docs/MISSION_API.md), [`docs/CHECKPOINTING.md`](docs/CHECKPOINTING.md).
+See [`docs/orchestration/UNIFIED_ORCHESTRATION.md`](./docs/orchestration/UNIFIED_ORCHESTRATION.md), [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md), [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md), [`docs/orchestration/MISSION_API.md`](./docs/orchestration/MISSION_API.md), [`docs/orchestration/CHECKPOINTING.md`](./docs/orchestration/CHECKPOINTING.md).
 
 Runnable examples: [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs)
 
 #### Legacy WorkflowEngine
 
-The original `WorkflowEngine` (`src/core/workflows/`) continues to work for existing consumers. The new orchestration layer is opt-in and runs alongside it.
+The original `WorkflowEngine` (`src/orchestration/workflows/`) continues to work for existing consumers. The new orchestration layer is opt-in and runs alongside it.
 
 ```typescript
 const definitions = agent.listWorkflowDefinitions();
@@ -1125,7 +1125,7 @@ const status = await agent.getWorkflow(instance.workflowId);
 
 ### Multi-Agent Coordination
 
-**Location:** `src/core/agency/`
+**Location:** `src/agents/agency/`
 
 Enables teams of agents to collaborate on shared goals.
 
@@ -1147,13 +1147,13 @@ graph TD
     style Mem fill:#151520,stroke:#8b5cf6,color:#f2f2fa
 ```
 
-See [`docs/AGENT_COMMUNICATION.md`](docs/AGENT_COMMUNICATION.md) for the full multi-agent specification.
+See [`docs/architecture/AGENT_COMMUNICATION.md`](./docs/architecture/AGENT_COMMUNICATION.md) for the full multi-agent specification.
 
 ---
 
 ### Observability
 
-**Location:** `src/core/observability/`
+**Location:** `src/evaluation/observability/`
 
 OpenTelemetry-native observability for tracing, metrics, and cost tracking.
 
@@ -1172,7 +1172,7 @@ configureAgentOSObservability({
 });
 ```
 
-See [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) and [`docs/COST_OPTIMIZATION.md`](docs/COST_OPTIMIZATION.md) for setup guides.
+See [`docs/observability/OBSERVABILITY.md`](./docs/observability/OBSERVABILITY.md) and [`docs/safety/COST_OPTIMIZATION.md`](./docs/safety/COST_OPTIMIZATION.md) for setup guides.
 
 ---
 
@@ -1186,13 +1186,13 @@ Skills are portable, self-describing agent capabilities defined in `SKILL.md` fi
 - **SkillLoader** -- Parses SKILL.md format (YAML frontmatter + markdown body)
 - **SKILL.md format** -- Declarative skill definition with name, description, required tools, and behavioral instructions
 
-See [`docs/SKILLS.md`](docs/SKILLS.md) for the skill authoring guide.
+See [`docs/extensions/SKILLS.md`](./docs/extensions/SKILLS.md) for the skill authoring guide.
 
 ---
 
 ### Structured Output
 
-**Location:** `src/core/structured/`
+**Location:** `src/structured/output/`
 
 Extract typed, validated data from unstructured text using JSON Schema.
 
@@ -1201,7 +1201,7 @@ Extract typed, validated data from unstructured text using JSON Schema.
 - **Parallel function calls** -- Multiple tool invocations in a single LLM turn
 - **Entity extraction** -- Named entity recognition with schema constraints
 
-See [`docs/STRUCTURED_OUTPUT.md`](docs/STRUCTURED_OUTPUT.md) for usage patterns.
+See [`docs/orchestration/STRUCTURED_OUTPUT.md`](./docs/orchestration/STRUCTURED_OUTPUT.md) for usage patterns.
 
 ---
 
@@ -1211,7 +1211,7 @@ See [`docs/STRUCTURED_OUTPUT.md`](docs/STRUCTURED_OUTPUT.md) for usage patterns.
 
 Agents with `emergent: true` create new tools at runtime — compose existing tools via a step DSL or write sandboxed JavaScript. An LLM-as-judge evaluates safety and correctness. Tools earn trust through tiered promotion: session (in-memory) → agent (persisted, auto-promoted after 5+ uses with >0.8 confidence) → shared (human-approved HITL gate).
 
-See [`docs/EMERGENT_CAPABILITIES.md`](docs/EMERGENT_CAPABILITIES.md) for details.
+See [`docs/architecture/EMERGENT_CAPABILITIES.md`](./docs/architecture/EMERGENT_CAPABILITIES.md) for details.
 
 ---
 
@@ -1527,7 +1527,7 @@ const preview = await researcher.explain({ topic: 'AI safety' });
 console.log(preview.steps.map((step) => step.id));
 ```
 
-For deeper examples, see [`docs/AGENT_GRAPH.md`](docs/AGENT_GRAPH.md), [`docs/WORKFLOW_DSL.md`](docs/WORKFLOW_DSL.md), [`docs/MISSION_API.md`](docs/MISSION_API.md), the runnable examples [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs), and the legacy dependency-ordered example [`examples/multi-agent-workflow.mjs`](./examples/multi-agent-workflow.mjs).
+For deeper examples, see [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md), [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md), [`docs/orchestration/MISSION_API.md`](./docs/orchestration/MISSION_API.md), the runnable examples [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs), and the legacy dependency-ordered example [`examples/multi-agent-workflow.mjs`](./examples/multi-agent-workflow.mjs).
 
 ### Streaming Chat
 
@@ -1849,7 +1849,7 @@ await agent.initialize({ ...config, guardrailService: piiGuardrail });
 > **For production PII redaction**, use the built-in `createPiiRedactionGuardrail()` extension
 > instead of hand-rolled regex. It provides four-tier detection (regex + NLP + BERT NER +
 > LLM-as-judge), streaming support, and configurable redaction styles. See
-> [GUARDRAILS_USAGE.md](docs/GUARDRAILS_USAGE.md) for full examples.
+> [GUARDRAILS_USAGE.md](./docs/safety/GUARDRAILS_USAGE.md) for full examples.
 
 ### Channel Adapters
 
@@ -1932,17 +1932,17 @@ import { AgentOS, AgentOSResponseChunkType, /* ... */ } from '@framers/agentos';
 import { createAgentOSConfig, createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
 
 // Safety primitives
-import { CircuitBreaker, CostGuard, StuckDetector } from '@framers/agentos/core/safety';
+import { CircuitBreaker, CostGuard, StuckDetector } from '@framers/agentos/safety/runtime';
 
 // Guardrails
-import { GuardrailAction } from '@framers/agentos/core/guardrails';
-import { ParallelGuardrailDispatcher } from '@framers/agentos/core/guardrails';
+import { GuardrailAction } from '@framers/agentos/safety/guardrails';
+import { ParallelGuardrailDispatcher } from '@framers/agentos/safety/guardrails';
 
 // Tools
 import type { ITool, ToolExecutionResult } from '@framers/agentos/core/tools';
 
 // HITL
-import type { IHumanInteractionManager } from '@framers/agentos/core/hitl';
+import type { IHumanInteractionManager } from '@framers/agentos/orchestration/hitl';
 
 // RAG
 import { VectorStoreManager, EmbeddingManager, RetrievalAugmentor } from '@framers/agentos/rag';
@@ -1960,7 +1960,7 @@ import { createCodeSafetyGuardrail } from '@framers/agentos-ext-code-safety';
 import { createGroundingGuardrail } from '@framers/agentos-ext-grounding-guard';
 
 // Deep imports (wildcard exports)
-import { SomeType } from '@framers/agentos/core/safety/CircuitBreaker';
+import { SomeType } from '@framers/agentos/safety/runtime/CircuitBreaker';
 import { SomeConfig } from '@framers/agentos/config/ToolOrchestratorConfig';
 ```
 
@@ -1978,32 +1978,32 @@ The `docs/` directory contains specification and reference documents:
 
 | Document | Description |
 |----------|-------------|
-| [`AGENCY_API.md`](docs/AGENCY_API.md) | `agency()` reference: all 5 strategies, HITL, guardrails, RAG, voice, nested agencies, full-featured example |
-| [`HIGH_LEVEL_API.md`](docs/HIGH_LEVEL_API.md) | `generateText()`, `streamText()`, `generateObject()`, `streamObject()`, `embedText()`, `generateImage()`, single `agent()` |
-| [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Complete system architecture with data flow diagrams |
-| [`SAFETY_PRIMITIVES.md`](docs/SAFETY_PRIMITIVES.md) | Circuit breaker, cost guard, stuck detection, dedup API reference |
-| [`PLANNING_ENGINE.md`](docs/PLANNING_ENGINE.md) | ReAct reasoning, multi-step task planning specification |
-| [`HUMAN_IN_THE_LOOP.md`](docs/HUMAN_IN_THE_LOOP.md) | Approval workflows, clarification, escalation patterns |
-| [`GUARDRAILS_USAGE.md`](docs/GUARDRAILS_USAGE.md) | Input/output guardrail implementation patterns |
-| [`RAG_MEMORY_CONFIGURATION.md`](docs/RAG_MEMORY_CONFIGURATION.md) | Vector store setup, embedding models, data source config |
-| [`MULTIMODAL_RAG.md`](docs/MULTIMODAL_RAG.md) | Image, audio, and document RAG pipelines |
-| [`STRUCTURED_OUTPUT.md`](docs/STRUCTURED_OUTPUT.md) | JSON schema validation, entity extraction, function calling |
-| [`AGENT_COMMUNICATION.md`](docs/AGENT_COMMUNICATION.md) | Inter-agent messaging, handoffs, shared memory |
-| [`TOOL_CALLING_AND_LOADING.md`](docs/TOOL_CALLING_AND_LOADING.md) | Tool registration, discovery, execution pipeline |
-| [`OBSERVABILITY.md`](docs/OBSERVABILITY.md) | OpenTelemetry setup, custom spans, metrics export |
-| [`COST_OPTIMIZATION.md`](docs/COST_OPTIMIZATION.md) | Token usage monitoring, caching strategies, model routing |
-| [`SKILLS.md`](docs/SKILLS.md) | SKILL.md format specification, skill authoring guide |
-| [`PLATFORM_SUPPORT.md`](docs/PLATFORM_SUPPORT.md) | Channel platform capabilities and adapter configuration |
-| [`ECOSYSTEM.md`](docs/ECOSYSTEM.md) | Extension ecosystem, official packs, community extensions |
-| [`PROVENANCE_IMMUTABILITY.md`](docs/PROVENANCE_IMMUTABILITY.md) | Sealed agents, signed event ledger, external anchoring |
-| [`IMMUTABLE_AGENTS.md`](docs/IMMUTABLE_AGENTS.md) | Agent sealing, toolset manifests, revision tracking |
-| [`RFC_EXTENSION_STANDARDS.md`](docs/RFC_EXTENSION_STANDARDS.md) | Extension pack authoring standards and conventions |
-| [`EVALUATION_FRAMEWORK.md`](docs/EVALUATION_FRAMEWORK.md) | Agent evaluation, benchmarking, quality metrics |
-| [`RECURSIVE_SELF_BUILDING_AGENTS.md`](docs/RECURSIVE_SELF_BUILDING_AGENTS.md) | Self-modifying agent patterns |
-| [`LOGGING.md`](docs/LOGGING.md) | Structured logging configuration with pino |
-| [`CLIENT_SIDE_STORAGE.md`](docs/CLIENT_SIDE_STORAGE.md) | Browser-compatible storage adapters |
-| [`SQL_STORAGE_QUICKSTART.md`](docs/SQL_STORAGE_QUICKSTART.md) | SQLite/Postgres setup with `@framers/sql-storage-adapter` |
-| [`RELEASING.md`](docs/RELEASING.md) | Release process and semantic versioning |
+| [`AGENCY_API.md`](./docs/orchestration/AGENCY_API.md) | `agency()` reference: all 5 strategies, HITL, guardrails, RAG, voice, nested agencies, full-featured example |
+| [`HIGH_LEVEL_API.md`](./docs/getting-started/HIGH_LEVEL_API.md) | `generateText()`, `streamText()`, `generateObject()`, `streamObject()`, `embedText()`, `generateImage()`, single `agent()` |
+| [`ARCHITECTURE.md`](./docs/architecture/ARCHITECTURE.md) | Complete system architecture with data flow diagrams |
+| [`SAFETY_PRIMITIVES.md`](./docs/safety/SAFETY_PRIMITIVES.md) | Circuit breaker, cost guard, stuck detection, dedup API reference |
+| [`PLANNING_ENGINE.md`](./docs/orchestration/PLANNING_ENGINE.md) | ReAct reasoning, multi-step task planning specification |
+| [`HUMAN_IN_THE_LOOP.md`](./docs/safety/HUMAN_IN_THE_LOOP.md) | Approval workflows, clarification, escalation patterns |
+| [`GUARDRAILS_USAGE.md`](./docs/safety/GUARDRAILS_USAGE.md) | Input/output guardrail implementation patterns |
+| [`RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) | Vector store setup, embedding models, data source config |
+| [`MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md) | Image, audio, and document RAG pipelines |
+| [`STRUCTURED_OUTPUT.md`](./docs/orchestration/STRUCTURED_OUTPUT.md) | JSON schema validation, entity extraction, function calling |
+| [`AGENT_COMMUNICATION.md`](./docs/architecture/AGENT_COMMUNICATION.md) | Inter-agent messaging, handoffs, shared memory |
+| [`TOOL_CALLING_AND_LOADING.md`](./docs/extensions/TOOL_CALLING_AND_LOADING.md) | Tool registration, discovery, execution pipeline |
+| [`OBSERVABILITY.md`](./docs/observability/OBSERVABILITY.md) | OpenTelemetry setup, custom spans, metrics export |
+| [`COST_OPTIMIZATION.md`](./docs/safety/COST_OPTIMIZATION.md) | Token usage monitoring, caching strategies, model routing |
+| [`SKILLS.md`](./docs/extensions/SKILLS.md) | SKILL.md format specification, skill authoring guide |
+| [`PLATFORM_SUPPORT.md`](./docs/architecture/PLATFORM_SUPPORT.md) | Channel platform capabilities and adapter configuration |
+| [`ECOSYSTEM.md`](./docs/architecture/ECOSYSTEM.md) | Extension ecosystem, official packs, community extensions |
+| [`PROVENANCE_IMMUTABILITY.md`](./docs/safety/PROVENANCE_IMMUTABILITY.md) | Sealed agents, signed event ledger, external anchoring |
+| [`IMMUTABLE_AGENTS.md`](./docs/safety/IMMUTABLE_AGENTS.md) | Agent sealing, toolset manifests, revision tracking |
+| [`RFC_EXTENSION_STANDARDS.md`](./docs/extensions/RFC_EXTENSION_STANDARDS.md) | Extension pack authoring standards and conventions |
+| [`EVALUATION_FRAMEWORK.md`](./docs/observability/EVALUATION_FRAMEWORK.md) | Agent evaluation, benchmarking, quality metrics |
+| [`RECURSIVE_SELF_BUILDING_AGENTS.md`](./docs/architecture/RECURSIVE_SELF_BUILDING_AGENTS.md) | Self-modifying agent patterns |
+| [`LOGGING.md`](./docs/observability/LOGGING.md) | Structured logging configuration with pino |
+| [`CLIENT_SIDE_STORAGE.md`](./docs/memory/CLIENT_SIDE_STORAGE.md) | Browser-compatible storage adapters |
+| [`SQL_STORAGE_QUICKSTART.md`](./docs/getting-started/SQL_STORAGE_QUICKSTART.md) | SQLite/Postgres setup with `@framers/sql-storage-adapter` |
+| [`RELEASING.md`](./docs/getting-started/RELEASING.md) | Release process and semantic versioning |
 
 ---
 

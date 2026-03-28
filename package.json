@@ -34,39 +34,54 @@
       "types": "./dist/hearing/index.d.ts"
     },
     "./images": {
-      "import": "./dist/core/images/index.js",
-      "default": "./dist/core/images/index.js",
-      "types": "./dist/core/images/index.d.ts"
+      "import": "./dist/media/images/index.js",
+      "default": "./dist/media/images/index.js",
+      "types": "./dist/media/images/index.d.ts"
+    },
+    "./safety/guardrails": {
+      "import": "./dist/safety/guardrails/index.js",
+      "default": "./dist/safety/guardrails/index.js",
+      "types": "./dist/safety/guardrails/index.d.ts"
+    },
+    "./safety/guardrails/index": {
+      "import": "./dist/safety/guardrails/index.js",
+      "default": "./dist/safety/guardrails/index.js",
+      "types": "./dist/safety/guardrails/index.d.ts"
     },
     "./core/guardrails": {
-      "import": "./dist/core/guardrails/index.js",
-      "default": "./dist/core/guardrails/index.js",
-      "types": "./dist/core/guardrails/index.d.ts"
+      "import": "./dist/safety/guardrails/index.js",
+      "default": "./dist/safety/guardrails/index.js",
+      "types": "./dist/safety/guardrails/index.d.ts"
     },
-    "./core/guardrails/index": {
-      "import": "./dist/core/guardrails/index.js",
-      "default": "./dist/core/guardrails/index.js",
-      "types": "./dist/core/guardrails/index.d.ts"
+    "./safety/runtime": {
+      "import": "./dist/safety/runtime/index.js",
+      "default": "./dist/safety/runtime/index.js",
+      "types": "./dist/safety/runtime/index.d.ts"
+    },
+    "./safety/runtime/index": {
+      "import": "./dist/safety/runtime/index.js",
+      "default": "./dist/safety/runtime/index.js",
+      "types": "./dist/safety/runtime/index.d.ts"
+    },
+    "./safety/runtime/*": {
+      "import": "./dist/safety/runtime/*.js",
+      "default": "./dist/safety/runtime/*.js",
+      "types": "./dist/safety/runtime/*.d.ts"
     },
     "./core/safety": {
-      "import": "./dist/core/safety/index.js",
-      "default": "./dist/core/safety/index.js",
-      "types": "./dist/core/safety/index.d.ts"
+      "import": "./dist/safety/runtime/index.js",
+      "default": "./dist/safety/runtime/index.js",
+      "types": "./dist/safety/runtime/index.d.ts"
     },
-    "./core/safety/index": {
-      "import": "./dist/core/safety/index.js",
-      "default": "./dist/core/safety/index.js",
-      "types": "./dist/core/safety/index.d.ts"
-    },
-    "./core/safety/*": {
-      "import": "./dist/core/safety/*.js",
-      "default": "./dist/core/safety/*.js",
-      "types": "./dist/core/safety/*.d.ts"
+    "./orchestration/hitl": {
+      "import": "./dist/orchestration/hitl/index.js",
+      "default": "./dist/orchestration/hitl/index.js",
+      "types": "./dist/orchestration/hitl/index.d.ts"
     },
     "./core/hitl": {
-      "import": "./dist/core/hitl/index.js",
-      "default": "./dist/core/hitl/index.js",
-      "types": "./dist/core/hitl/index.d.ts"
+      "import": "./dist/orchestration/hitl/index.js",
+      "default": "./dist/orchestration/hitl/index.js",
+      "types": "./dist/orchestration/hitl/index.d.ts"
     },
     "./rag": {
       "import": "./dist/rag/index.js",
@@ -124,9 +139,9 @@
       "types": "./dist/orchestration/index.d.ts"
     },
     "./telephony": {
-      "import": "./dist/telephony/index.js",
-      "default": "./dist/telephony/index.js",
-      "types": "./dist/telephony/index.d.ts"
+      "import": "./dist/channels/telephony/index.js",
+      "default": "./dist/channels/telephony/index.js",
+      "types": "./dist/channels/telephony/index.d.ts"
     },
     "./voice-pipeline": {
       "import": "./dist/voice-pipeline/index.js",
