@@ -7,9 +7,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   AgentOSOrchestrator,
-  type AgentOSOrchestratorConfig,
-  type AgentOSOrchestratorDependencies,
-} from '../AgentOrchestrator';
+} from '../../../api/AgentOSOrchestrator';
+import type {
+  AgentOSOrchestratorConfig,
+  AgentOSOrchestratorDependencies,
+} from '../../../api/types/OrchestratorConfig';
 import type { GMIManager } from '../../../cognitive_substrate/GMIManager';
 import type { ToolOrchestrator } from '../../tools/ToolOrchestrator';
 import type { ConversationManager } from '../../conversation/ConversationManager';

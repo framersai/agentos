@@ -1,37 +1,25 @@
 /**
- * @fileoverview HNSW sidecar index for SqliteBrain.
+ * @fileoverview Memory-specific HNSW sidecar adapter.
  * @module memory/store/HnswSidecar
  *
- * Maintains an HNSW index file alongside brain.sqlite for O(log n)
- * approximate nearest neighbor search. SQLite remains the source of
- * truth; the HNSW index is rebuildable from SQLite data at any time.
+ * Thin compatibility wrapper around the canonical {@link HnswIndexSidecar}
+ * from `rag/vector-search/`. Preserves the Memory subsystem's constructor-based
+ * API (sqlitePath, autoThreshold, etc.) and delegates to the shared implementation.
  *
- * Auto-activates when trace count exceeds threshold (default: 1000).
- * Below that, brute-force cosine in the Memory facade is fast enough.
- *
- * NOTE: The generalized version of this pattern is now available at
- * `rag/vector-search/HnswIndexSidecar`. This Memory-specific version
- * will be migrated to delegate to the shared module in a future update.
  * New code should use `HnswIndexSidecar` from `rag/vector-search/` directly.
  *
- * Architecture:
- * ```
- * ~/.wunderland/agents/{name}/
- *   ├── brain.sqlite   ← source of truth
- *   └── brain.hnsw     ← HNSW index (rebuildable)
- *        brain.hnsw.map.json ← label↔id mapping
- * ```
- *
- * @see rag/vector-search/HnswIndexSidecar for the shared generalized version
+ * @see rag/vector-search/HnswIndexSidecar for the canonical implementation
  */
 
-import { existsSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { HnswIndexSidecar } from '../../rag/vector-search/HnswIndexSidecar.js';
 
 // ---------------------------------------------------------------------------
-// Types
+// Types (kept for backward compatibility)
 // ---------------------------------------------------------------------------
 
+/** Configuration for the memory-specific HNSW sidecar wrapper. */
 export interface HnswSidecarConfig {
   /** Path to brain.sqlite — HNSW file will be at same dir with .hnsw extension. */
   sqlitePath: string;
@@ -56,44 +44,43 @@ export interface HnswQueryResult {
 }
 
 // ---------------------------------------------------------------------------
-// HnswSidecar
+// HnswSidecar — thin adapter over HnswIndexSidecar
 // ---------------------------------------------------------------------------
 
+/**
+ * Memory-specific HNSW sidecar that wraps the canonical {@link HnswIndexSidecar}.
+ *
+ * Maintains the original constructor-based API expected by `Memory` facade
+ * and `SqliteBrain` consumers, while delegating all index operations to the
+ * shared RAG implementation.
+ */
 export class HnswSidecar {
-  private index: any = null; // HierarchicalNSW instance (dynamic import)
-  private HierarchicalNSW: any = null; // Constructor reference
-  private readonly indexPath: string;
-  private readonly mapPath: string;
-  private readonly config: Required<HnswSidecarConfig>;
-
-  /** Maps HNSW internal integer labels → trace ID strings. */
-  private labelToId: Map<number, string> = new Map();
-  /** Maps trace ID strings → HNSW internal integer labels. */
-  private idToLabel: Map<string, number> = new Map();
-  private nextLabel = 0;
-  private _isActive = false;
-  private _hnswAvailable: boolean | null = null;
+  private readonly _delegate: HnswIndexSidecar;
+  private readonly _indexPath: string;
+  private readonly _mapPath: string;
+  private readonly _config: Required<HnswSidecarConfig>;
 
   constructor(config: HnswSidecarConfig) {
-    this.config = {
+    this._config = {
       autoThreshold: 1000,
       m: 16,
       efConstruction: 200,
       efSearch: 50,
       ...config,
     };
-    this.indexPath = join(dirname(this.config.sqlitePath), 'brain.hnsw');
-    this.mapPath = this.indexPath + '.map.json';
+    this._indexPath = join(dirname(this._config.sqlitePath), 'brain.hnsw');
+    this._mapPath = this._indexPath + '.map.json';
+    this._delegate = new HnswIndexSidecar();
   }
 
   /** Whether the HNSW index is currently active and queryable. */
   get isActive(): boolean {
-    return this._isActive;
+    return this._delegate.isActive();
   }
 
   /** Number of vectors currently indexed. */
   get size(): number {
-    return this.labelToId.size;
+    return this._delegate.getStats().vectorCount;
   }
 
   // ---------------------------------------------------------------------------
@@ -105,17 +92,15 @@ export class HnswSidecar {
    * If hnswlib-node is not installed, silently stays inactive.
    */
   async init(): Promise<void> {
-    if (!(await this._ensureHnswlib())) return;
-
-    if (existsSync(this.indexPath) && existsSync(this.mapPath)) {
-      try {
-        await this._loadFromDisk();
-      } catch {
-        // Corrupt index — will rebuild when threshold is reached
-        this._isActive = false;
-        this.index = null;
-      }
-    }
+    await this._delegate.initialize({
+      indexPath: this._indexPath,
+      dimensions: this._config.dimensions,
+      metric: 'cosine',
+      activationThreshold: this._config.autoThreshold,
+      hnswM: this._config.m,
+      hnswEfConstruction: this._config.efConstruction,
+      hnswEfSearch: this._config.efSearch,
+    });
   }
 
   /**
@@ -124,27 +109,10 @@ export class HnswSidecar {
    *
    * @param traceId    - The trace ID to associate with this vector.
    * @param embedding  - The embedding vector.
-   * @param totalCount - Current total trace count (to check threshold).
+   * @param _totalCount - Current total trace count (unused, kept for API compat).
    */
-  async add(traceId: string, embedding: number[], totalCount: number): Promise<void> {
-    if (!this._isActive) {
-      // If we just crossed the threshold, caller needs to rebuildFromData()
-      if (totalCount >= this.config.autoThreshold) return;
-      return;
-    }
-    if (!this.index) return;
-    if (this.idToLabel.has(traceId)) return; // Already indexed
-
-    // Resize if needed
-    const currentMax = this.index.getMaxElements();
-    if (this.nextLabel >= currentMax) {
-      this.index.resizeIndex(currentMax + 1000);
-    }
-
-    const label = this.nextLabel++;
-    this.index.addPoint(embedding, label);
-    this.labelToId.set(label, traceId);
-    this.idToLabel.set(traceId, label);
+  async add(traceId: string, embedding: number[], _totalCount: number): Promise<void> {
+    await this._delegate.add(traceId, embedding);
   }
 
   /**
@@ -156,24 +124,39 @@ export class HnswSidecar {
    * @returns Array of { id, distance } sorted by distance ascending.
    */
   query(embedding: number[], topK: number): HnswQueryResult[] {
-    if (!this._isActive || !this.index) return [];
+    /* Synchronous wrapper — HnswIndexSidecar.search() is async but the
+       underlying hnswlib-node searchKnn is synchronous, so we call it
+       via a blocking pattern for backward compatibility. We convert the
+       score-based results back to distance-based results. */
 
-    const currentCount = this.index.getCurrentCount();
-    if (currentCount === 0) return [];
+    // We need synchronous access, but the delegate is async. Since the
+    // underlying hnswlib-node operations are synchronous, we access
+    // the delegate's internal state directly for search. To maintain
+    // the sync API, we perform the search synchronously by calling
+    // the delegate's search and using a workaround.
+    // Instead, we return empty if not active and do a direct sync call.
+    if (!this._delegate.isActive()) return [];
 
-    const k = Math.min(topK, currentCount);
-    const result = this.index.searchKnn(embedding, k);
-    const hits: HnswQueryResult[] = [];
+    // Use a sync approach: we know the delegate wraps hnswlib-node which
+    // is synchronous under the hood. We'll collect results asynchronously
+    // but since this is called from sync code, we need a different approach.
+    // The simplest backward-compatible fix is to cache results. However,
+    // looking at usage in Memory.ts, query() is always called within an
+    // async context. We'll return via a promise-like pattern.
 
-    for (let i = 0; i < result.neighbors.length; i++) {
-      const label = result.neighbors[i];
-      const id = this.labelToId.get(label);
-      if (id) {
-        hits.push({ id, distance: result.distances[i] });
-      }
-    }
+    // Actually, re-examining: the delegate's search() returns a Promise,
+    // but the original HnswSidecar.query() was synchronous. The underlying
+    // hnswlib-node searchKnn IS synchronous. The delegate just wraps it
+    // in async. We need to keep this sync for backward compatibility.
+    // Solution: access the delegate's internal index directly since both
+    // implementations use the same hnswlib-node API.
+    const stats = this._delegate.getStats();
+    if (stats.vectorCount === 0) return [];
 
-    return hits;
+    // For backward compat, perform the search via the async delegate
+    // and return a placeholder. But this breaks the sync contract.
+    // Better solution: keep the original sync search logic here.
+    return this._syncQuery(embedding, topK);
   }
 
   /**
@@ -183,51 +166,23 @@ export class HnswSidecar {
    * @param traceId - The trace ID to remove.
    */
   remove(traceId: string): void {
-    const label = this.idToLabel.get(traceId);
-    if (label !== undefined && this.index) {
-      try {
-        this.index.markDelete(label);
-      } catch {
-        // markDelete may not be available in all hnswlib-node versions
-      }
-      this.labelToId.delete(label);
-      this.idToLabel.delete(traceId);
-    }
+    // Fire-and-forget since original was sync
+    void this._delegate.remove(traceId);
   }
 
   /**
    * Rebuild the entire index from a set of id/embedding pairs.
    * Called on first threshold crossing or when brain.hnsw is missing/corrupt.
+   * Filters out dimension-mismatched vectors before delegating.
    *
    * @param data - Array of { id, embedding } to index.
    */
   async rebuildFromData(data: { id: string; embedding: number[] }[]): Promise<void> {
     if (data.length === 0) return;
-    if (!(await this._ensureHnswlib())) return;
-
-    const dim = this.config.dimensions;
-    this.index = new this.HierarchicalNSW('cosine', dim);
-    this.index.initIndex(
-      Math.max(data.length + 1000, data.length * 1.2 | 0),
-      this.config.m,
-      this.config.efConstruction,
-    );
-    this.index.setEf(this.config.efSearch);
-
-    this.labelToId.clear();
-    this.idToLabel.clear();
-    this.nextLabel = 0;
-
-    for (const { id, embedding } of data) {
-      if (embedding.length !== dim) continue; // Skip dimension mismatches
-      const label = this.nextLabel++;
-      this.index.addPoint(embedding, label);
-      this.labelToId.set(label, id);
-      this.idToLabel.set(id, label);
-    }
-
-    this._isActive = true;
-    this._saveToDisk();
+    // Filter out dimension-mismatched vectors (feature from original impl)
+    const dim = this._config.dimensions;
+    const filtered = data.filter(item => item.embedding.length === dim);
+    await this._delegate.rebuildFromData(filtered);
   }
 
   /**
@@ -235,84 +190,56 @@ export class HnswSidecar {
    * Called after rebuildFromData() and periodically after adds.
    */
   saveToDisk(): void {
-    this._saveToDisk();
+    void this._delegate.save();
   }
 
   /**
    * Delete index files from disk and deactivate.
    */
   destroy(): void {
-    this._isActive = false;
-    this.index = null;
-    this.labelToId.clear();
-    this.idToLabel.clear();
-    this.nextLabel = 0;
+    void this._delegate.shutdown();
     try {
-      if (existsSync(this.indexPath)) unlinkSync(this.indexPath);
-      if (existsSync(this.mapPath)) unlinkSync(this.mapPath);
+      if (existsSync(this._indexPath)) unlinkSync(this._indexPath);
+      if (existsSync(this._mapPath)) unlinkSync(this._mapPath);
     } catch {
       // Best effort cleanup
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Internal
+  // Internal — sync query for backward compatibility
   // ---------------------------------------------------------------------------
 
-  /** Try to load hnswlib-node. Returns false if not installed. */
-  private async _ensureHnswlib(): Promise<boolean> {
-    if (this._hnswAvailable === true) return true;
-    if (this._hnswAvailable === false) return false;
+  /**
+   * Synchronous query that accesses the delegate's internal index.
+   * This is needed because the original HnswSidecar.query() was synchronous,
+   * and Memory.ts calls it in a synchronous context within an async function.
+   */
+  private _syncQuery(embedding: number[], topK: number): HnswQueryResult[] {
+    // Access the delegate's internals for sync search. The delegate stores
+    // its state in private fields; we use a type assertion to reach them.
+    const delegate = this._delegate as any;
+    const index = delegate.index;
+    const labelToId: Map<number, string> = delegate.labelToId;
 
+    if (!index || labelToId.size === 0) return [];
+
+    const k = Math.min(topK, labelToId.size);
     try {
-      const mod = await import('hnswlib-node');
-      this.HierarchicalNSW = mod.HierarchicalNSW;
-      this._hnswAvailable = true;
-      return true;
+      const result = index.searchKnn(embedding, k);
+      const hits: HnswQueryResult[] = [];
+
+      for (let i = 0; i < result.neighbors.length; i++) {
+        const label = result.neighbors[i];
+        const id = labelToId.get(label);
+        if (id) {
+          hits.push({ id, distance: result.distances[i] });
+        }
+      }
+
+      return hits;
     } catch {
-      this._hnswAvailable = false;
-      return false;
-    }
-  }
-
-  /** Load index + label map from disk. */
-  private async _loadFromDisk(): Promise<void> {
-    if (!(await this._ensureHnswlib())) return;
-
-    const dim = this.config.dimensions;
-    this.index = new this.HierarchicalNSW('cosine', dim);
-    this.index.readIndexSync(this.indexPath);
-    this.index.setEf(this.config.efSearch);
-
-    // Load label map
-    const raw = readFileSync(this.mapPath, 'utf-8');
-    const data = JSON.parse(raw) as {
-      labelToId: [number, string][];
-      nextLabel: number;
-    };
-
-    this.labelToId = new Map(data.labelToId);
-    this.idToLabel = new Map(
-      data.labelToId.map(([label, id]) => [id, label]),
-    );
-    this.nextLabel = data.nextLabel ?? this.labelToId.size;
-    this._isActive = true;
-  }
-
-  /** Persist index + label map to disk. */
-  private _saveToDisk(): void {
-    if (!this.index) return;
-    try {
-      this.index.writeIndexSync(this.indexPath);
-      writeFileSync(
-        this.mapPath,
-        JSON.stringify({
-          labelToId: Array.from(this.labelToId.entries()),
-          nextLabel: this.nextLabel,
-        }),
-      );
-    } catch {
-      // Best effort — index can always be rebuilt from SQLite
+      return [];
     }
   }
 }
