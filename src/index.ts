@@ -89,8 +89,10 @@ export * from './speech';
 export * from './media/images';
 // Unified video generation, analysis, and scene detection
 export * from './media/video/index.js';
-// Unified audio generation (music + SFX), processing, and provider registry
+// Unified audio generation (music + SFX) and provider registry
 export * from './media/audio/index.js';
+// Hearing module (audio processing + STT/VAD providers)
+export * from './hearing';
 // Media provider preference resolver (shared across image/video/audio)
 export * from './media/ProviderPreferences.js';
 // Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)

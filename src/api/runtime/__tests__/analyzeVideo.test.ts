@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { analyzeVideo } from '../analyzeVideo.js';
 
-vi.mock('../../vision/index.js', () => {
+vi.mock('../../../vision/index.js', () => {
   const holder = {
     createVisionPipeline: vi.fn().mockResolvedValue({ process: vi.fn() }),
   };
@@ -89,7 +89,7 @@ describe('analyzeVideo', () => {
     analyzerMod.__holder.constructorArgs.length = 0;
     analyzerMod.__holder.analyze.mockReset();
 
-    const visionMod = await import('../../vision/index.js') as any;
+    const visionMod = await import('../../../vision/index.js') as any;
     visionMod.__holder.createVisionPipeline.mockClear();
 
     const sttMod = await import('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
@@ -102,7 +102,7 @@ describe('analyzeVideo', () => {
   });
 
   it('wires the real analyzer with a vision pipeline and passes options through', async () => {
-    const visionMod = await import('../../vision/index.js') as any;
+    const visionMod = await import('../../../vision/index.js') as any;
     const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({

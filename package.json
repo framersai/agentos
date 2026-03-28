@@ -28,6 +28,11 @@
       "default": "./dist/speech/index.js",
       "types": "./dist/speech/index.d.ts"
     },
+    "./hearing": {
+      "import": "./dist/hearing/index.js",
+      "default": "./dist/hearing/index.js",
+      "types": "./dist/hearing/index.d.ts"
+    },
     "./images": {
       "import": "./dist/core/images/index.js",
       "default": "./dist/core/images/index.js",
