@@ -1007,7 +1007,7 @@ async function runGuardrails(
 
   try {
     const { ParallelGuardrailDispatcher, GuardrailAction } = await import(
-      '../core/guardrails/index.js'
+      '../safety/guardrails/index.js'
     );
 
     /*

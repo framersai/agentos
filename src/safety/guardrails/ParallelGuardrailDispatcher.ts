@@ -19,7 +19,7 @@
  *
  * @example
  * ```typescript
- * import { ParallelGuardrailDispatcher } from '@framers/agentos/core/guardrails';
+ * import { ParallelGuardrailDispatcher } from '@framers/agentos/safety/guardrails';
  *
  * const outcome = await ParallelGuardrailDispatcher.evaluateInput(
  *   [piiRedactor, toxicityClassifier, policyGuard],

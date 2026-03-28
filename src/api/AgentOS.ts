@@ -112,17 +112,17 @@ import {
   configureAgentOSObservability,
   type AgentOSObservabilityConfig,
 } from '../core/observability/otel';
-import type { IGuardrailService, GuardrailContext } from '../core/guardrails/IGuardrailService';
+import type { IGuardrailService, GuardrailContext } from '../safety/guardrails/IGuardrailService';
 import type { EmergentConfig } from '../emergent/types.js';
 import type { SelfImprovementToolDeps } from '../emergent/EmergentCapabilityEngine.js';
 import { PersonalityMutationStore } from '../emergent/PersonalityMutationStore.js';
 import { resolveSelfImprovementSessionKey } from '../emergent/sessionScope.js';
-import { GuardrailAction } from '../core/guardrails/IGuardrailService';
+import { GuardrailAction } from '../safety/guardrails/IGuardrailService';
 import {
   evaluateInputGuardrails,
   createGuardrailBlockedStream,
   wrapOutputGuardrails,
-} from '../core/guardrails/guardrailDispatcher';
+} from '../safety/guardrails/guardrailDispatcher';
 import type { IPersonaLoader } from '../cognitive_substrate/personas/IPersonaLoader';
 import {
   ExtensionManager,

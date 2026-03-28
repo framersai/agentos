@@ -1,5 +1,5 @@
 import type { ILogger } from '../logging/ILogger';
-import type { IGuardrailService } from '../core/guardrails/IGuardrailService';
+import type { IGuardrailService } from '../safety/guardrails/IGuardrailService';
 import type { ITool } from '../core/tools/ITool';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type {

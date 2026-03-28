@@ -77,7 +77,7 @@ export * from './cognitive_substrate/personas/IPersonaDefinition';
 export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
 export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
 // Guardrails
-export * from './core/guardrails';
+export * from './safety/guardrails';
 export * from './extensions';
 // Messaging Channels (external platform adapters)
 export * from './channels';
@@ -173,7 +173,7 @@ export * from './orchestration/index.js';
 // Provenance, Audit & Immutability
 export * from './core/provenance';
 // Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)
-export * from './core/safety';
+export * from './safety/runtime';
 // Emergent Capability Engine (runtime tool creation)
 export * from './emergent/index.js';
 // Extension Secrets Catalog
