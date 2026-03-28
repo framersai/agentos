@@ -36,9 +36,9 @@
  * @see {@link RetrievalAugmentor} for the text-only RAG pipeline.
  */
 
-import { randomUUID } from 'node:crypto';
 import type { IEmbeddingManager, EmbeddingRequest } from '../IEmbeddingManager.js';
 import type { IVectorStore, VectorDocument, MetadataValue } from '../IVectorStore.js';
+import { uuidv4 } from '../../utils/uuid.js';
 import type {
   ContentModality,
   ImageIndexOptions,
@@ -70,6 +70,9 @@ const DEFAULT_IMAGE_DESCRIPTION_PROMPT =
   'Describe this image in detail for use in a search index. ' +
   'Include objects, actions, colors, text, spatial relationships, ' +
   'and any notable characteristics. Be thorough but concise.';
+
+const isNodeBuffer = (value: unknown): value is Buffer =>
+  typeof Buffer !== 'undefined' && Buffer.isBuffer(value);
 
 // ---------------------------------------------------------------------------
 // Implementation
@@ -306,7 +309,7 @@ export class MultimodalIndexer {
     // Convert Buffer to base64 data URL so the vision LLM can process it.
     // URL strings are passed through unchanged.
     let imageUrl: string;
-    if (Buffer.isBuffer(opts.image)) {
+    if (isNodeBuffer(opts.image)) {
       const base64 = opts.image.toString('base64');
       // Default to PNG MIME type since we don't inspect the magic bytes.
       // Most vision LLMs accept any common image format regardless of the
@@ -325,7 +328,7 @@ export class MultimodalIndexer {
 
     // Step 2: Generate embedding from the description text
     const collection = opts.collection ?? this._config.defaultCollection;
-    const docId = randomUUID();
+    const docId = uuidv4();
 
     const embeddingRequest: EmbeddingRequest = {
       texts: [description],
@@ -405,7 +408,7 @@ export class MultimodalIndexer {
 
     // Step 2: Generate embedding from the transcript text
     const collection = opts.collection ?? this._config.defaultCollection;
-    const docId = randomUUID();
+    const docId = uuidv4();
 
     const embeddingRequest: EmbeddingRequest = {
       texts: [transcript],

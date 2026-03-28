@@ -13,9 +13,9 @@
 // It will be defined in `../rag/IVectorStore.ts`.
 import { VectorStoreProviderConfig } from '../rag/IVectorStore';
 import type { StorageAdapter, StorageResolutionOptions } from '@framers/sql-storage-adapter';
-import type { HnswlibVectorStoreConfig } from '../rag/implementations/vector_stores/HnswlibVectorStore';
-import type { QdrantVectorStoreConfig } from '../rag/implementations/vector_stores/QdrantVectorStore';
-import type { Neo4jVectorStoreConfig } from '../rag/implementations/vector_stores/Neo4jVectorStore';
+import type { HnswlibVectorStoreConfig } from '../rag/vector_stores/HnswlibVectorStore';
+import type { QdrantVectorStoreConfig } from '../rag/vector_stores/QdrantVectorStore';
+import type { Neo4jVectorStoreConfig } from '../rag/vector_stores/Neo4jVectorStore';
 
 /**
  * Specific configuration for an InMemoryVectorStore.

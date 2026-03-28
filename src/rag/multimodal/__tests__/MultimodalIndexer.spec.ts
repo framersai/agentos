@@ -194,6 +194,21 @@ describe('MultimodalIndexer', () => {
     expect(result.description).toContain('golden retriever');
   });
 
+  it('should index image URLs even when the Buffer global is unavailable', async () => {
+    const originalBuffer = (globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer;
+    delete (globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer;
+
+    try {
+      await indexer.indexImage({
+        image: 'https://example.com/no-buffer.jpg',
+      });
+    } finally {
+      (globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer = originalBuffer;
+    }
+
+    expect(visionProvider.describeImage).toHaveBeenCalledWith('https://example.com/no-buffer.jpg');
+  });
+
   it('should convert Buffer to base64 data URL for vision provider', async () => {
     const imageBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG magic bytes
     await indexer.indexImage({ image: imageBuffer });

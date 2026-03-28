@@ -171,7 +171,7 @@ import type {
   PresetCoOccurrence,
 } from '../discovery/types';
 import { EmbeddingManager } from '../rag/EmbeddingManager';
-import { InMemoryVectorStore } from '../rag/implementations/vector_stores/InMemoryVectorStore';
+import { InMemoryVectorStore } from '../rag/vector_stores/InMemoryVectorStore';
 import type { WorkflowDescriptor } from '../extensions/types';
 import { WorkflowEngine } from '../planning/workflows/WorkflowEngine';
 import type {
@@ -1554,7 +1554,7 @@ export class AgentOS implements IAgentOS {
 
     if (!resolved.longTermMemoryRetriever && standalone.longTermRetriever) {
       resolved.longTermMemoryRetriever = createStandaloneMemoryLongTermRetriever(
-        memory as Pick<Memory, 'recall'>,
+        memory as Pick<Memory, 'recall' | 'feedbackFromResponse'>,
         standalone.longTermRetriever === true ? undefined : standalone.longTermRetriever
       );
     }

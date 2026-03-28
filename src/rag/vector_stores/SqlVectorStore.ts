@@ -7,10 +7,10 @@
  * 
  * **Key Features:**
  * - Cross-platform persistence using sql-storage-adapter
- * - Full-text search support via SQLite FTS5 / PostgreSQL tsvector
+ * - Storage-feature-aware SQL, FTS, and blob encoding
  * - Hybrid search (vector similarity + keyword matching)
  * - Automatic schema management
- * - Works with pgvector extension for PostgreSQL (when available)
+ * - Portable embedding storage across SQLite, PostgreSQL, IndexedDB, etc.
  * 
  * **Architecture:**
  * ```
@@ -25,7 +25,7 @@
  *   Database (SQLite/PostgreSQL/IndexedDB/etc.)
  * ```
  * 
- * @module @framers/agentos/rag/implementations/vector_stores/SqlVectorStore
+ * @module @framers/agentos/rag/vector_stores/SqlVectorStore
  * @see ../../IVectorStore.ts for the interface definition.
  * @see @framers/sql-storage-adapter for storage abstraction.
  */
@@ -34,14 +34,13 @@ import {
   type StorageAdapter,
   resolveStorageAdapter,
   type StorageResolutionOptions,
+  createStorageFeatures,
+  type StorageFeatures,
 } from '@framers/sql-storage-adapter';
 import {
   cosineSimilarity as vecCosineSimilarity,
   dotProduct as vecDotProduct,
   euclideanDistance as vecEuclideanDistance,
-  embeddingToBlob,
-  blobToEmbedding,
-  isLegacyJsonBlob,
 } from '../../utils/vectorMath.js';
 import {
   IVectorStore,
@@ -103,7 +102,7 @@ export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
   similarityMetric?: 'cosine' | 'euclidean' | 'dotproduct';
   
   /**
-   * Enable full-text search indexing.
+   * Enable full-text search index provisioning.
    * Creates FTS5 virtual tables for SQLite or tsvector columns for PostgreSQL.
    * @default true
    */
@@ -169,7 +168,7 @@ interface CollectionMetadata {
 interface DocumentRow {
   id: string;
   collection_name: string;
-  embedding_blob: Buffer | string; // Binary blob (new) or JSON text (legacy)
+  embedding_blob: unknown; // base64 text (current), raw binary blob, or legacy JSON text
   text_content: string | null;
   metadata_json: string | null;
   created_at: number;
@@ -184,8 +183,8 @@ interface DocumentRow {
  * SQL-backed vector store implementation.
  * 
  * Uses `@framers/sql-storage-adapter` for cross-platform persistence.
- * Stores embeddings as JSON blobs and computes similarity in application code
- * (with optional native vector extensions for PostgreSQL).
+ * Stores embeddings as base64-encoded Float32 payloads and computes similarity
+ * in application code.
  * 
  * @class SqlVectorStore
  * @implements {IVectorStore}
@@ -222,6 +221,7 @@ interface DocumentRow {
 export class SqlVectorStore implements IVectorStore {
   private config!: SqlVectorStoreConfig;
   private adapter!: StorageAdapter;
+  private features!: StorageFeatures;
   private ownsAdapter: boolean = false; // Whether we created the adapter
   private isInitialized: boolean = false;
   private readonly providerId: string;
@@ -283,6 +283,8 @@ export class SqlVectorStore implements IVectorStore {
       console.warn(`SqlVectorStore (ID: ${this.providerId}): No storage config provided, using sql.js (in-memory).`);
     }
 
+    this.features = createStorageFeatures(this.adapter);
+
     // Create schema
     await this.createSchema();
 
@@ -312,7 +314,7 @@ export class SqlVectorStore implements IVectorStore {
       );
     `);
 
-    // Documents table - stores vectors as JSON blobs
+    // Documents table - stores vectors as base64-encoded binary blobs
     await this.adapter.exec(`
       CREATE TABLE IF NOT EXISTS ${this.tablePrefix}documents (
         id TEXT NOT NULL,
@@ -333,23 +335,20 @@ export class SqlVectorStore implements IVectorStore {
         ON ${this.tablePrefix}documents(updated_at);
     `);
 
-    // Full-text search virtual table (SQLite FTS5)
+    // Full-text search index
     if (this.config.enableFullTextSearch !== false) {
       try {
-        await this.adapter.exec(`
-          CREATE VIRTUAL TABLE IF NOT EXISTS ${this.tablePrefix}documents_fts 
-          USING fts5(
-            id,
-            collection_name,
-            text_content,
-            content='${this.tablePrefix}documents',
-            content_rowid='rowid'
-          );
-        `);
-        console.log(`SqlVectorStore (ID: ${this.providerId}): FTS5 index created.`);
+        await this.adapter.exec(
+          this.features.fts.createIndex({
+            table: `${this.tablePrefix}documents_fts`,
+            columns: ['id', 'collection_name', 'text_content'],
+            contentTable: `${this.tablePrefix}documents`,
+            tokenizer: 'porter ascii',
+          }),
+        );
+        console.log(`SqlVectorStore (ID: ${this.providerId}): search index created.`);
       } catch (error: any) {
-        // FTS5 might not be available (e.g., in some SQL.js builds)
-        console.warn(`SqlVectorStore (ID: ${this.providerId}): FTS5 not available: ${error.message}`);
+        console.warn(`SqlVectorStore (ID: ${this.providerId}): search index not available: ${error.message}`);
       }
     }
   }
@@ -527,7 +526,7 @@ export class SqlVectorStore implements IVectorStore {
           [collectionName, doc.id]
         );
 
-        const embeddingBlob = embeddingToBlob(doc.embedding);
+        const embeddingBlob = this.encodeEmbedding(doc.embedding);
         const metadataJson = doc.metadata ? JSON.stringify(doc.metadata) : null;
 
         if (existing && options?.overwrite === false) {
@@ -599,9 +598,7 @@ export class SqlVectorStore implements IVectorStore {
           const allItems = allRows
             .map(row => ({
               id: row.id,
-              embedding: isLegacyJsonBlob(row.embedding_blob)
-                ? JSON.parse(row.embedding_blob as string) as number[]
-                : blobToEmbedding(row.embedding_blob as Buffer),
+              embedding: this.decodeStoredEmbedding(row.embedding_blob),
             }))
             .filter(item => item.embedding.length > 0);
           await sidecar.rebuildFromData(allItems);
@@ -666,8 +663,11 @@ export class SqlVectorStore implements IVectorStore {
         const scoreMap = new Map(hnswCandidates.map(c => [c.id, c.score]));
         const candidates: RetrievedVectorDocument[] = rows.map(row => {
           const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : undefined;
+          if (options?.filter && !this.matchesFilter(metadata, options.filter)) {
+            return null;
+          }
           const embedding = options?.includeEmbedding
-            ? (isLegacyJsonBlob(row.embedding_blob) ? JSON.parse(row.embedding_blob as string) : blobToEmbedding(row.embedding_blob as Buffer))
+            ? this.decodeStoredEmbedding(row.embedding_blob)
             : [];
           const doc: RetrievedVectorDocument = {
             id: row.id,
@@ -677,7 +677,10 @@ export class SqlVectorStore implements IVectorStore {
           if (options?.includeMetadata !== false && metadata) doc.metadata = metadata;
           if (options?.includeTextContent && row.text_content) doc.textContent = row.text_content;
           return doc;
-        }).filter(d => options?.minSimilarityScore === undefined || d.similarityScore >= options.minSimilarityScore);
+        }).filter((d): d is RetrievedVectorDocument => {
+          if (!d) return false;
+          return options?.minSimilarityScore === undefined || d.similarityScore >= options.minSimilarityScore;
+        });
 
         candidates.sort((a, b) => b.similarityScore - a.similarityScore);
         const results = candidates.slice(0, topK);
@@ -696,7 +699,8 @@ export class SqlVectorStore implements IVectorStore {
     }
 
     // ── Brute-force fallback ──────────────────────────────────────────
-    // Build query with SQL-level metadata filtering via json_extract()
+    // Pre-filter in SQL, then apply exact JS filter semantics for any
+    // operators the SQL fragment cannot fully express.
     let query = `SELECT * FROM ${this.tablePrefix}documents WHERE collection_name = ?`;
     const params: unknown[] = [collectionName];
 
@@ -713,10 +717,11 @@ export class SqlVectorStore implements IVectorStore {
     const candidates: RetrievedVectorDocument[] = [];
 
     for (const row of rows) {
-      const embedding = isLegacyJsonBlob(row.embedding_blob)
-        ? JSON.parse(row.embedding_blob as string) as number[]
-        : blobToEmbedding(row.embedding_blob as Buffer);
+      const embedding = this.decodeStoredEmbedding(row.embedding_blob);
       const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : undefined;
+      if (options?.filter && !this.matchesFilter(metadata, options.filter)) {
+        continue;
+      }
 
       // Compute similarity
       let similarityScore: number;
@@ -853,18 +858,13 @@ export class SqlVectorStore implements IVectorStore {
 
     // First pass: dense score + collect BM25 stats (doc length + df for query terms)
     for (const row of rows) {
-      const embedding = isLegacyJsonBlob(row.embedding_blob)
-        ? JSON.parse(row.embedding_blob as string) as number[]
-        : blobToEmbedding(row.embedding_blob as Buffer);
+      const embedding = this.decodeStoredEmbedding(row.embedding_blob);
       const metadata = row.metadata_json ? (JSON.parse(row.metadata_json) as Record<string, MetadataValue>) : undefined;
 
-      // Metadata filtering is now done at SQL level via buildMetadataFilterSQL().
-      // JS-level matchesFilter kept as fallback for $all operator (requires JSON array parsing).
-      if (options?.filter && metadata) {
-        const hasAll = Object.values(options.filter).some(
-          (c) => typeof c === 'object' && c !== null && '$all' in (c as MetadataFieldCondition),
-        );
-        if (hasAll && !this.matchesFilter(metadata, options.filter)) continue;
+      // SQL pre-filter narrows the candidate set; JS post-filter keeps the
+      // full MetadataFilter semantics for array and mixed-type operators.
+      if (options?.filter && !this.matchesFilter(metadata, options.filter)) {
+        continue;
       }
 
       let denseScore: number;
@@ -1311,8 +1311,9 @@ export class SqlVectorStore implements IVectorStore {
   }
 
   /**
-   * Translate a MetadataFilter into SQL WHERE clauses using json_extract().
-   * Pushes filtering into SQLite so only matching rows are loaded into JS.
+   * Translate a MetadataFilter into dialect-aware SQL WHERE clauses.
+   * Pushes the easy scalar predicates into SQL so fewer rows are loaded into JS.
+   * Exact semantics are enforced by `matchesFilter()` after row hydration.
    *
    * @param filter   - The metadata filter to translate.
    * @param column   - The JSON column name (default: 'metadata_json').
@@ -1326,7 +1327,7 @@ export class SqlVectorStore implements IVectorStore {
     const params: unknown[] = [];
 
     for (const [field, condition] of Object.entries(filter)) {
-      const path = `json_extract(${column}, '$.${field}')`;
+      const path = this.features.dialect.jsonExtract(column, `$.${field}`);
 
       // Direct scalar match (implicit $eq)
       if (typeof condition !== 'object' || condition === null) {
@@ -1389,6 +1390,72 @@ export class SqlVectorStore implements IVectorStore {
       clause: conditions.length > 0 ? ` AND ${conditions.join(' AND ')}` : '',
       params,
     };
+  }
+
+  private encodeEmbedding(embedding: number[]): string {
+    return this.bytesToBase64(this.features.blobCodec.encode(embedding));
+  }
+
+  private decodeStoredEmbedding(value: unknown): number[] {
+    if (typeof value === 'string') {
+      if (this.isLegacyJsonEmbedding(value)) {
+        return JSON.parse(value) as number[];
+      }
+      return this.features.blobCodec.decode(this.base64ToBytes(value));
+    }
+
+    const bytes = this.asBinaryBytes(value);
+    return bytes ? this.features.blobCodec.decode(bytes) : [];
+  }
+
+  private isLegacyJsonEmbedding(value: string): boolean {
+    return value.trimStart().startsWith('[');
+  }
+
+  private asBinaryBytes(value: unknown): Uint8Array | null {
+    if (value == null) return null;
+    if (value instanceof Uint8Array) return value;
+    if (value instanceof ArrayBuffer) return new Uint8Array(value);
+    if (ArrayBuffer.isView(value)) {
+      return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    }
+    return null;
+  }
+
+  private bytesToBase64(bytes: Uint8Array): string {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(bytes).toString('base64');
+    }
+
+    const btoaFn = (globalThis as { btoa?: (input: string) => string }).btoa;
+    if (!btoaFn) {
+      throw new Error('No base64 encoder available in this runtime.');
+    }
+
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoaFn(binary);
+  }
+
+  private base64ToBytes(encoded: string): Uint8Array {
+    if (typeof Buffer !== 'undefined') {
+      return new Uint8Array(Buffer.from(encoded, 'base64'));
+    }
+
+    const atobFn = (globalThis as { atob?: (input: string) => string }).atob;
+    if (!atobFn) {
+      throw new Error('No base64 decoder available in this runtime.');
+    }
+
+    const binary = atobFn(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
   }
 
   // Distance methods removed — now imported from rag/utils/vectorMath.ts

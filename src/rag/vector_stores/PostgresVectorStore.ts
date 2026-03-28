@@ -1,6 +1,6 @@
 /**
  * @fileoverview Postgres + pgvector Vector Store Implementation.
- * @module rag/implementations/vector_stores/PostgresVectorStore
+ * @module rag/vector_stores/PostgresVectorStore
  *
  * Implements `IVectorStore` using Postgres with the pgvector extension
  * for native HNSW-indexed approximate nearest neighbor search. Supports:

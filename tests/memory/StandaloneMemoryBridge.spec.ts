@@ -2,7 +2,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveLongTermMemoryPolicy } from '../../src/core/conversation/LongTermMemoryPolicy.js';
 import {
@@ -160,6 +160,63 @@ describe('Standalone memory bridges', () => {
         user: 1,
       },
     });
+  });
+
+  it('records used/ignored feedback for retrieved standalone-memory traces', async () => {
+    const feedbackFromResponse = vi.fn().mockResolvedValue([]);
+    const memoryLike = {
+      recall: vi.fn().mockResolvedValue([
+        {
+          trace: {
+            id: 'mt_feedback_1',
+            content: 'User prefers dark mode.',
+          },
+          score: 0.91,
+        },
+      ]),
+      feedbackFromResponse,
+    };
+
+    const retriever = createStandaloneMemoryLongTermRetriever(memoryLike as any);
+    const policy = resolveLongTermMemoryPolicy({
+      input: {
+        enabled: true,
+        scopes: { user: true },
+      },
+    });
+
+    const result = await retriever.retrieveLongTermMemory({
+      userId: 'user-1',
+      conversationId: 'conv-1',
+      personaId: 'designer',
+      mode: 'chat',
+      queryText: 'theme preference',
+      memoryPolicy: policy,
+      maxContextChars: 2000,
+      topKByScope: {
+        user: 3,
+        persona: 3,
+        organization: 3,
+      },
+    });
+
+    await retriever.recordRetrievalFeedback?.({
+      queryText: 'theme preference',
+      responseText: 'The user prefers dark mode.',
+      feedbackPayload: result?.feedbackPayload,
+    });
+
+    expect(feedbackFromResponse).toHaveBeenCalledTimes(1);
+    expect(feedbackFromResponse).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          id: 'mt_feedback_1',
+          content: 'User prefers dark mode.',
+        }),
+      ],
+      'The user prefers dark mode.',
+      'theme preference',
+    );
   });
 
   it('persists rolling summaries and atomic docs into standalone memory with in-process upsert semantics', async () => {

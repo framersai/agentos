@@ -12,7 +12,7 @@
  * - Shared Neo4jConnectionManager for connection pooling
  * - Dynamic import of neo4j-driver (optional peer dep)
  *
- * @module @framers/agentos/rag/implementations/vector_stores/Neo4jVectorStore
+ * @module @framers/agentos/rag/vector_stores/Neo4jVectorStore
  * @see ../../IVectorStore.ts for the interface definition.
  */
 

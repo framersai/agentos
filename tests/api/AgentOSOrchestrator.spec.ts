@@ -480,6 +480,68 @@ describe('AgentOSOrchestrator (API layer)', () => {
       expect(recallUpdateChunk?.updates?.longTermMemoryRecall?.cadenceTurns).toBe(2);
     });
 
+    it('records long-term-memory feedback after the final response when the retriever supports it', async () => {
+      const feedbackPayload = {
+        traces: [{ id: 'mt_feedback_1', content: 'User prefers dark mode.' }],
+      };
+      const mockLongTermMemoryRetriever = {
+        retrieveLongTermMemory: vi.fn().mockResolvedValue({
+          contextText: '## User Memory\n- User prefers dark mode.',
+          diagnostics: { hits: 1, queryText: 'remember my theme preference' },
+          feedbackPayload,
+        }),
+        recordRetrievalFeedback: vi.fn().mockResolvedValue(undefined),
+      };
+
+      mockConversationContext.getAllMessages = vi.fn().mockReturnValue([
+        { id: 'u-1', role: 'user', content: 'first', timestamp: 1 },
+        { id: 'u-2', role: 'user', content: 'second', timestamp: 2 },
+      ]);
+
+      await orchestrator.shutdown();
+      await orchestrator.initialize(
+        {
+          maxToolCallIterations: 5,
+          defaultAgentTurnTimeoutMs: 120000,
+        },
+        {
+          gmiManager: mockGMIManager,
+          toolOrchestrator: mockToolOrchestrator,
+          conversationManager: mockConversationManager,
+          streamingManager: mockStreamingManager,
+          modelProviderManager: {
+            getProvider: vi.fn(),
+            getProviderForModel: vi.fn(),
+            getModelInfo: vi.fn(),
+            listProviders: vi.fn().mockReturnValue([]),
+            listModels: vi.fn().mockReturnValue([]),
+          } as any,
+          longTermMemoryRetriever: mockLongTermMemoryRetriever as any,
+        }
+      );
+
+      const input: AgentOSInput = {
+        userId: 'test-user',
+        sessionId: 'test-session',
+        textInput: 'remember my theme preference',
+        selectedPersonaId: 'persona-1',
+        memoryControl: {
+          longTermMemory: {
+            scopes: { user: true },
+          },
+        },
+      };
+
+      await orchestrator.orchestrateTurn(input);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      expect(mockLongTermMemoryRetriever.recordRetrievalFeedback).toHaveBeenCalledWith({
+        queryText: 'remember my theme preference',
+        responseText: 'Hello',
+        feedbackPayload,
+      });
+    });
+
     it('emits taskOutcome metadata for final turn evaluation', async () => {
       (mockGMI.processTurnStream as any).mockImplementation(async function* (input: GMITurnInput) {
         capturedGMIInput = input;

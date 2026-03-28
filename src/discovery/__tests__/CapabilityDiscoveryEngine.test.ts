@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CapabilityDiscoveryEngine } from '../CapabilityDiscoveryEngine.js';
-import { InMemoryVectorStore } from '../../rag/implementations/vector_stores/InMemoryVectorStore.js';
+import { InMemoryVectorStore } from '../../rag/vector_stores/InMemoryVectorStore.js';
 
 describe('CapabilityDiscoveryEngine disabled capability filtering', () => {
   let engine: CapabilityDiscoveryEngine;

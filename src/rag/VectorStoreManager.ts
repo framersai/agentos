@@ -12,7 +12,7 @@
  * @see ./IVectorStoreManager.ts for the interface definition.
  * @see ./IVectorStore.ts for the underlying vector store interface.
  * @see ../config/VectorStoreConfiguration.ts for configuration structures.
- * @see ./implementations/vector_stores/InMemoryVectorStore.ts for an example provider.
+ * @see ./vector_stores/InMemoryVectorStore.ts for an example provider.
  */
 
 import {
@@ -28,13 +28,13 @@ import {
   AnyVectorStoreProviderConfig,
   // Import other specific store configs like PineconeVectorStoreConfig if they are directly instantiated here.
 } from '../config/VectorStoreConfiguration';
-import { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore';
-import { SqlVectorStore } from './implementations/vector_stores/SqlVectorStore';
-import { HnswlibVectorStore } from './implementations/vector_stores/HnswlibVectorStore';
-import { QdrantVectorStore } from './implementations/vector_stores/QdrantVectorStore';
+import { InMemoryVectorStore } from './vector_stores/InMemoryVectorStore';
+import { SqlVectorStore } from './vector_stores/SqlVectorStore';
+import { HnswlibVectorStore } from './vector_stores/HnswlibVectorStore';
+import { QdrantVectorStore } from './vector_stores/QdrantVectorStore';
 // Import other IVectorStore implementations as they are created, e.g.:
-// import { PineconeVectorStore } from './implementations/vector_stores/PineconeVectorStore';
-// import { WeaviateVectorStore } from './implementations/vector_stores/WeaviateVectorStore';
+// import { PineconeVectorStore } from './vector_stores/PineconeVectorStore';
+// import { WeaviateVectorStore } from './vector_stores/WeaviateVectorStore';
 import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
 import { uuidv4 } from '../utils/uuid';
 
@@ -194,7 +194,7 @@ export class VectorStoreManager implements IVectorStoreManager {
         // Neo4j vector store via native vector indexes (requires neo4j-driver)
         // Dynamic import to keep neo4j-driver optional
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { Neo4jVectorStore } = require('./implementations/vector_stores/Neo4jVectorStore');
+        const { Neo4jVectorStore } = require('./vector_stores/Neo4jVectorStore');
         return new Neo4jVectorStore();
       }
       default:

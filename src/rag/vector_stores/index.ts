@@ -3,7 +3,7 @@
  * 
  * This module exports all available vector store implementations for AgentOS RAG.
  * 
- * @module @framers/agentos/rag/implementations/vector_stores
+ * @module @framers/agentos/rag/vector_stores
  */
 
 // In-memory vector store (development/testing)

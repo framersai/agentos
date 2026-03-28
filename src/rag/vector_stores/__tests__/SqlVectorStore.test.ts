@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createStorageFeatures } from '@framers/sql-storage-adapter';
 
 type SidecarItem = { id: string; embedding: number[] };
 
@@ -124,5 +125,85 @@ describe('SqlVectorStore HNSW integration', () => {
     await store.delete('gamma', ['gamma-1']);
 
     expect(gammaSidecar.removeBatch).toHaveBeenCalledWith(['gamma-1']);
+  });
+
+  it('stores embeddings as portable base64 text and decodes them on query', async () => {
+    const config: SqlVectorStoreConfig = {
+      id: 'sql-vector-store-test',
+      type: 'sql',
+      hnswThreshold: Infinity,
+    };
+
+    await store.initialize(config);
+    await store.createCollection('portable', 2, { overwriteIfExists: true });
+    await store.upsert('portable', [
+      { id: 'portable-1', embedding: [0.25, -0.5], textContent: 'portable embedding' },
+    ]);
+
+    const row = await (store as any).adapter.get(
+      `SELECT embedding_blob FROM ${(store as any).tablePrefix}documents WHERE collection_name = ? AND id = ?`,
+      ['portable', 'portable-1'],
+    );
+
+    expect(typeof row?.embedding_blob).toBe('string');
+    expect((row?.embedding_blob as string).startsWith('[')).toBe(false);
+
+    const result = await store.query('portable', [0.25, -0.5], {
+      topK: 1,
+      includeEmbedding: true,
+    });
+
+    expect(result.documents[0]?.embedding).toEqual([0.25, -0.5]);
+  });
+
+  it('uses the dialect abstraction for metadata filter SQL', async () => {
+    (store as any).features = createStorageFeatures({ kind: 'postgres' } as any);
+
+    const sql = (store as any).buildMetadataFilterSQL({
+      theme: 'dark',
+      priority: { $gte: 2 },
+    });
+
+    expect(sql.clause).toContain('::jsonb');
+    expect(sql.params).toEqual(['dark', 2]);
+  });
+
+  it('applies exact metadata filter semantics after SQL prefiltering', async () => {
+    const config: SqlVectorStoreConfig = {
+      id: 'sql-vector-store-test',
+      type: 'sql',
+      hnswThreshold: Infinity,
+    };
+
+    await store.initialize(config);
+    await store.createCollection('filters', 2, { overwriteIfExists: true });
+    await store.upsert('filters', [
+      {
+        id: 'match',
+        embedding: [1, 0],
+        textContent: 'alpha beta',
+        metadata: { tags: ['alpha', 'beta'], title: 'alpha beta doc' },
+      },
+      {
+        id: 'partial',
+        embedding: [0.9, 0.1],
+        textContent: 'alpha only',
+        metadata: { tags: ['alpha'], title: 'alpha doc' },
+      },
+    ]);
+
+    const result = await store.query('filters', [1, 0], {
+      topK: 5,
+      filter: {
+        tags: { $all: ['alpha', 'beta'] },
+      },
+      includeMetadata: true,
+    });
+
+    expect(result.documents.map((doc) => doc.id)).toEqual(['match']);
+    expect(result.documents[0]?.metadata).toEqual({
+      tags: ['alpha', 'beta'],
+      title: 'alpha beta doc',
+    });
   });
 });

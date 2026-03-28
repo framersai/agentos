@@ -1,6 +1,6 @@
 /**
  * @fileoverview Pinecone Vector Store Implementation.
- * @module rag/implementations/vector_stores/PineconeVectorStore
+ * @module rag/vector_stores/PineconeVectorStore
  *
  * Implements `IVectorStore` using Pinecone's REST API via native `fetch`.
  * No SDK dependency — works in any runtime that supports fetch (Node 18+,

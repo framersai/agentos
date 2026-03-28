@@ -152,10 +152,10 @@ export {
 // Vector Store Implementations
 // ============================================================================
 
-export { InMemoryVectorStore } from './implementations/vector_stores/InMemoryVectorStore.js';
-export { SqlVectorStore, type SqlVectorStoreConfig } from './implementations/vector_stores/SqlVectorStore.js';
-export { HnswlibVectorStore, type HnswlibVectorStoreConfig } from './implementations/vector_stores/HnswlibVectorStore.js';
-export { QdrantVectorStore, type QdrantVectorStoreConfig } from './implementations/vector_stores/QdrantVectorStore.js';
+export { InMemoryVectorStore } from './vector_stores/InMemoryVectorStore.js';
+export { SqlVectorStore, type SqlVectorStoreConfig } from './vector_stores/SqlVectorStore.js';
+export { HnswlibVectorStore, type HnswlibVectorStoreConfig } from './vector_stores/HnswlibVectorStore.js';
+export { QdrantVectorStore, type QdrantVectorStoreConfig } from './vector_stores/QdrantVectorStore.js';
 
 // ============================================================================
 // GraphRAG
@@ -281,7 +281,7 @@ export {
 // Migration Engine
 // ============================================================================
 
-export { PineconeVectorStore, type PineconeVectorStoreConfig } from './implementations/vector_stores/PineconeVectorStore.js';
+export { PineconeVectorStore, type PineconeVectorStoreConfig } from './vector_stores/PineconeVectorStore.js';
 export { MigrationEngine } from './migration/MigrationEngine.js';
 export type {
   BackendType,

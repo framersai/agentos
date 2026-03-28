@@ -5,7 +5,7 @@
  * method WITHOUT requiring a running Postgres instance. The pg module is
  * replaced by vi.mock() stubs that record calls and return canned results.
  *
- * @module rag/implementations/vector_stores/__tests__/PostgresVectorStore.test
+ * @module rag/vector_stores/__tests__/PostgresVectorStore.test
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

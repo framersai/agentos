@@ -13,8 +13,6 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-// Import the store implementations.
-import { SqlVectorStore } from '../../src/rag/implementations/vector_stores/SqlVectorStore.js';
 import type { IVectorStore } from '../../src/rag/IVectorStore.js';
 
 // ---------------------------------------------------------------------------
@@ -32,15 +30,19 @@ function testEmbedding(seed: number, dim = 4): number[] {
 
 async function createSqliteStore(): Promise<IVectorStore> {
   const tmpDir = mkdtempSync(join(tmpdir(), 'parity-sqlite-'));
-  const store = new SqlVectorStore({
+  const { SqlVectorStore } = await import(
+    '../../src/rag/implementations/vector_stores/SqlVectorStore.js'
+  );
+  const store = new SqlVectorStore();
+  await store.initialize({
     id: 'test-sqlite',
     type: 'sql',
-    customProps: {
-      storageType: 'sqlite',
-      dbPath: join(tmpDir, 'test.sqlite'),
+    storage: {
+      filePath: join(tmpDir, 'test.sqlite'),
+      priority: ['sqljs'],
     },
+    hnswThreshold: Infinity,
   });
-  await store.initialize();
   // Attach cleanup metadata.
   (store as any).__tmpDir = tmpDir;
   return store;
@@ -77,15 +79,46 @@ async function createQdrantStore(): Promise<IVectorStore | null> {
     const { QdrantVectorStore } = await import(
       '../../src/rag/implementations/vector_stores/QdrantVectorStore.js'
     );
-    const store = new QdrantVectorStore({
+    const store = new QdrantVectorStore();
+    await store.initialize({
       id: 'test-qdrant',
       type: 'qdrant',
-      customProps: { url },
+      url,
     });
-    await store.initialize();
     return store;
   } catch {
     return null;
+  }
+}
+
+async function isPostgresAvailable(): Promise<boolean> {
+  try {
+    const { PostgresVectorStore } = await import(
+      '../../src/rag/implementations/vector_stores/PostgresVectorStore.js'
+    );
+    const connStr =
+      process.env.TEST_POSTGRES_URL ?? 'postgresql://postgres:wunderland@localhost:5432/agent_memory';
+    const store = new PostgresVectorStore({
+      id: 'test-postgres-health',
+      type: 'postgres',
+      connectionString: connStr,
+      tablePrefix: 'parity_test_health_',
+    });
+    await store.initialize();
+    await store.shutdown();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isQdrantAvailable(): Promise<boolean> {
+  try {
+    const url = process.env.TEST_QDRANT_URL ?? 'http://localhost:6333';
+    const res = await fetch(`${url}/healthz`);
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -94,40 +127,41 @@ async function createQdrantStore(): Promise<IVectorStore | null> {
 // ---------------------------------------------------------------------------
 
 const COLLECTION = 'parity-test';
+const POSTGRES_AVAILABLE = await isPostgresAvailable();
+const QDRANT_AVAILABLE = await isQdrantAvailable();
 
 describe.each([
-  ['sqlite', createSqliteStore],
-  ['postgres', createPostgresStore],
-  ['qdrant', createQdrantStore],
-] as const)('IVectorStore parity: %s', (name, factory) => {
+  { name: 'sqlite', available: true, factory: createSqliteStore },
+  { name: 'postgres', available: POSTGRES_AVAILABLE, factory: createPostgresStore },
+  { name: 'qdrant', available: QDRANT_AVAILABLE, factory: createQdrantStore },
+] as const)('IVectorStore parity: $name', ({ available, factory }) => {
   let store: IVectorStore | null = null;
-  let available = false;
 
   beforeAll(async () => {
+    if (!available) {
+      return;
+    }
+
     try {
       store = await factory();
-      available = store !== null;
-      if (store) {
+      if (store?.createCollection) {
         // Create a fresh collection for tests.
-        await store.createCollection(COLLECTION, {
-          dimension: 4,
-          similarityMetric: 'cosine',
-        });
+        await store.createCollection(COLLECTION, 4, { similarityMetric: 'cosine' });
       }
     } catch {
-      available = false;
+      store = null;
     }
   });
 
   afterAll(async () => {
     if (store) {
-      try { await store.dropCollection(COLLECTION); } catch { /* ignore */ }
+      const backendStore = store as IVectorStore & { dropCollection?: (name: string) => Promise<void> };
+      try { await store.deleteCollection?.(COLLECTION); } catch { /* ignore */ }
+      try { await backendStore.dropCollection?.(COLLECTION); } catch { /* ignore */ }
       if ((store as any).__tmpDir) {
         rmSync((store as any).__tmpDir, { recursive: true, force: true });
       }
-      if ('close' in store && typeof (store as any).close === 'function') {
-        await (store as any).close();
-      }
+      await store.shutdown();
     }
   });
 
@@ -139,7 +173,7 @@ describe.each([
       { id: 'v2', embedding: testEmbedding(2), metadata: { tag: 'beta' } },
       { id: 'v3', embedding: testEmbedding(3), metadata: { tag: 'alpha', score: 90 } },
     ]);
-    expect(result.successCount).toBe(3);
+    expect(result.upsertedCount).toBe(3);
   });
 
   it.skipIf(!available)('queries top-K by cosine similarity', async () => {
@@ -190,7 +224,7 @@ describe.each([
     await store!.upsert(COLLECTION, [
       { id: 'del-1', embedding: testEmbedding(99) },
     ]);
-    const delResult = await store!.delete(COLLECTION, { ids: ['del-1'] });
+    const delResult = await store!.delete(COLLECTION, ['del-1']);
     expect(delResult.deletedCount).toBeGreaterThanOrEqual(1);
 
     // Verify it's gone.

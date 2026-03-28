@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { QdrantVectorStore } from '../implementations/vector_stores/QdrantVectorStore';
+import { QdrantVectorStore } from '../vector_stores/QdrantVectorStore';
 import type { VectorDocument } from '../IVectorStore';
 
 type FetchCall = { url: string; init?: RequestInit };

@@ -15,7 +15,7 @@
  * - This implementation uses `fetch` for runtime portability (Node 18+, browser, edge runtimes).
  * - Text content is stored in payload under a reserved key to support `includeTextContent`.
  *
- * @module @framers/agentos/rag/implementations/vector_stores/QdrantVectorStore
+ * @module @framers/agentos/rag/vector_stores/QdrantVectorStore
  * @see ../../IVectorStore.ts for the interface definition.
  */
 

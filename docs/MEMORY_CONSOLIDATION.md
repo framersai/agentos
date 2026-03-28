@@ -202,7 +202,13 @@ CREATE TABLE retrieval_feedback (
 
 ### API
 
-Automatic detection uses `RetrievalFeedbackSignal.detect(injectedTraces, llmResponse, query)` internally. If you want to persist explicit application-level feedback through the public facade, use:
+Use the public facade when you already have the injected traces and the final assistant reply:
+
+```ts
+await mem.feedbackFromResponse(injectedTraces, llmResponse, query);
+```
+
+If you want to persist explicit application-level feedback by trace ID instead, use:
 
 ```ts
 await mem.feedback(traceId, 'used', query);

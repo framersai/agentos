@@ -73,6 +73,7 @@ import { FolderScanner } from '../ingestion/FolderScanner.js';
 import { ChunkingEngine } from '../ingestion/ChunkingEngine.js';
 import { UrlLoader } from '../ingestion/UrlLoader.js';
 import { RetrievalFeedbackSignal } from '../feedback/RetrievalFeedbackSignal.js';
+import type { RetrievalFeedback } from '../feedback/RetrievalFeedbackSignal.js';
 import { ConsolidationLoop } from '../consolidation/ConsolidationLoop.js';
 import { penalizeUnused, updateOnRetrieval } from '../decay/DecayModel.js';
 import {
@@ -917,6 +918,22 @@ export class Memory {
     } catch {
       // Explicit feedback is best-effort; the caller should not fail on analytics updates.
     }
+  }
+
+  /**
+   * Detect and persist used/ignored feedback for a batch of injected traces
+   * based on the assistant's final response text.
+   *
+   * This is the high-level bridge used by long-term-memory integrations that
+   * already know which traces were injected into the prompt.
+   */
+  async feedbackFromResponse(
+    injectedTraces: MemoryTrace[],
+    response: string,
+    query?: string,
+  ): Promise<RetrievalFeedback[]> {
+    if (!this._feedbackSignal) return [];
+    return this._feedbackSignal.detect(injectedTraces, response, query);
   }
 
   // =========================================================================

@@ -12,6 +12,7 @@
  */
 
 import type {
+  LongTermMemoryFeedbackInput,
   ILongTermMemoryRetriever,
   LongTermMemoryRetrievalInput,
   LongTermMemoryRetrievalResult,
@@ -27,9 +28,13 @@ import {
 } from '../../core/conversation/LongTermMemoryPolicy.js';
 import type { Memory } from '../facade/Memory.js';
 import type { ScoredTrace, RememberOptions, RecallOptions } from '../facade/index.js';
+import type { MemoryTrace } from '../types.js';
 
 type RuntimeStandaloneMemory = Pick<Memory, 'remember' | 'forget'> &
   Partial<Pick<Memory, 'close'>>;
+
+type FeedbackCapableLongTermMemory = Pick<Memory, 'recall'> &
+  Partial<Pick<Memory, 'feedbackFromResponse'>>;
 
 type MemoryScopeTarget = {
   key: string;
@@ -241,7 +246,7 @@ function renderScopeHeading(label: MemoryScopeTarget['label']): string {
 }
 
 export function createStandaloneMemoryLongTermRetriever(
-  memory: Pick<Memory, 'recall'>,
+  memory: FeedbackCapableLongTermMemory,
   options?: StandaloneMemoryLongTermRetrieverOptions,
 ): ILongTermMemoryRetriever {
   const resolvedOptions: Required<StandaloneMemoryLongTermRetrieverOptions> = {
@@ -289,7 +294,9 @@ export function createStandaloneMemoryLongTermRetriever(
       }
 
       const seenContent = new Set<string>();
+      const seenTraceIds = new Set<string>();
       const sections: string[] = [];
+      const selectedTraces: MemoryTrace[] = [];
       const diagnostics: Record<string, unknown> = {
         totalHits: 0,
         queryText: input.queryText,
@@ -303,6 +310,10 @@ export function createStandaloneMemoryLongTermRetriever(
           if (!content) continue;
           if (seenContent.has(content)) continue;
           seenContent.add(content);
+          if (!seenTraceIds.has(hit.trace.id)) {
+            seenTraceIds.add(hit.trace.id);
+            selectedTraces.push(hit.trace);
+          }
           lines.push(`- ${content}`);
         }
 
@@ -330,7 +341,28 @@ export function createStandaloneMemoryLongTermRetriever(
       return {
         contextText,
         diagnostics,
+        feedbackPayload: selectedTraces.length > 0
+          ? { traces: selectedTraces }
+          : undefined,
       };
+    },
+
+    async recordRetrievalFeedback(
+      input: LongTermMemoryFeedbackInput,
+    ): Promise<void> {
+      if (typeof memory.feedbackFromResponse !== 'function') {
+        return;
+      }
+
+      const traces = Array.isArray((input.feedbackPayload as any)?.traces)
+        ? ((input.feedbackPayload as any).traces as MemoryTrace[])
+        : [];
+
+      if (!input.responseText.trim() || traces.length === 0) {
+        return;
+      }
+
+      await memory.feedbackFromResponse(traces, input.responseText, input.queryText);
     },
   };
 }

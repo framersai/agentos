@@ -40,6 +40,7 @@ export interface LongTermMemoryPhaseInput {
 export interface LongTermMemoryPhaseResult {
   contextText: string | null;
   diagnostics: Record<string, unknown> | undefined;
+  feedbackPayload?: unknown;
   shouldReview: boolean;
   reviewReason: string | null;
 }
@@ -63,6 +64,7 @@ export async function executeLongTermMemoryPhase(
     return {
       contextText: null,
       diagnostics: undefined,
+      feedbackPayload: undefined,
       shouldReview: false,
       reviewReason: 'retriever_not_applicable',
     };
@@ -106,6 +108,7 @@ export async function executeLongTermMemoryPhase(
 
     let contextText: string | null = null;
     let diagnostics: Record<string, unknown> | undefined;
+    let feedbackPayload: unknown;
 
     if (shouldReview && queryText.length > 0) {
       const retrievalResult = await longTermMemoryRetriever.retrieveLongTermMemory({
@@ -123,6 +126,7 @@ export async function executeLongTermMemoryPhase(
       if (retrievalResult?.contextText?.trim()) {
         contextText = retrievalResult.contextText.trim();
         diagnostics = retrievalResult.diagnostics;
+        feedbackPayload = retrievalResult.feedbackPayload;
       }
 
       conversationContext.setMetadata('longTermMemoryRetrievalState', {
@@ -133,12 +137,18 @@ export async function executeLongTermMemoryPhase(
       reviewReason = 'empty_query';
     }
 
-    return { contextText, diagnostics, shouldReview, reviewReason };
+    return { contextText, diagnostics, feedbackPayload, shouldReview, reviewReason };
   } catch (retrievalError: any) {
     console.warn(
       `Long-term memory retrieval failed for stream ${input.streamId} (continuing without it).`,
       retrievalError,
     );
-    return { contextText: null, diagnostics: undefined, shouldReview: true, reviewReason: 'retrieval_error' };
+    return {
+      contextText: null,
+      diagnostics: undefined,
+      feedbackPayload: undefined,
+      shouldReview: true,
+      reviewReason: 'retrieval_error',
+    };
   }
 }

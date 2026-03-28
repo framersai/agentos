@@ -14,7 +14,7 @@
  * - Supports metadata filtering.
  * - Implements cosine similarity for vector searches.
  *
- * @module backend/agentos/rag/implementations/vector_stores/InMemoryVectorStore
+ * @module backend/agentos/rag/vector_stores/InMemoryVectorStore
  * @see ../../IVectorStore.ts for the interface definition.
  * @see ../../../config/VectorStoreConfiguration.ts for `InMemoryVectorStoreConfig`.
  */

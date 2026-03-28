@@ -1086,6 +1086,7 @@ export class AgentOSOrchestrator {
       });
       const longTermMemoryContextText = longTermMemoryPhase.contextText;
       const longTermMemoryRetrievalDiagnostics = longTermMemoryPhase.diagnostics;
+      const longTermMemoryFeedbackPayload = longTermMemoryPhase.feedbackPayload;
       const longTermMemoryShouldReview = longTermMemoryPhase.shouldReview;
       const longTermMemoryReviewReason = longTermMemoryPhase.reviewReason;
 
@@ -1471,6 +1472,33 @@ export class AgentOSOrchestrator {
 
       if (conversationContext) {
         await this.clearPendingExternalToolRequest(conversationContext);
+      }
+
+      if (
+        typeof finalGMIStateForResponse.responseText === 'string' &&
+        finalGMIStateForResponse.responseText.trim() &&
+        longTermMemoryFeedbackPayload !== undefined &&
+        typeof this.dependencies.longTermMemoryRetriever?.recordRetrievalFeedback === 'function'
+      ) {
+        const feedbackQueryText =
+          typeof (longTermMemoryRetrievalDiagnostics as any)?.queryText === 'string'
+            ? ((longTermMemoryRetrievalDiagnostics as any).queryText as string)
+            : typeof gmiInput.content === 'string'
+              ? gmiInput.content
+              : JSON.stringify(gmiInput.content);
+
+        try {
+          await this.dependencies.longTermMemoryRetriever.recordRetrievalFeedback({
+            queryText: feedbackQueryText,
+            responseText: finalGMIStateForResponse.responseText,
+            feedbackPayload: longTermMemoryFeedbackPayload,
+          });
+        } catch (feedbackError: any) {
+          console.warn(
+            `AgentOSOrchestrator: Failed to record long-term memory feedback for stream ${agentOSStreamId}.`,
+            feedbackError
+          );
+        }
       }
 
       // Persist assistant output into ConversationContext for durable memory / prompt reconstruction.

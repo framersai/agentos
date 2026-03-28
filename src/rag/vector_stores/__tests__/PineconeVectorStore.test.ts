@@ -5,7 +5,7 @@
  * no network access is required. Tests verify correct URL construction,
  * request bodies, header handling, batch splitting, and response parsing.
  *
- * @module rag/implementations/vector_stores/__tests__/PineconeVectorStore.test
+ * @module rag/vector_stores/__tests__/PineconeVectorStore.test
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

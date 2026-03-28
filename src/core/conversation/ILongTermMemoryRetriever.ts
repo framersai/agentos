@@ -25,11 +25,25 @@ export interface LongTermMemoryRetrievalResult {
   contextText: string;
   /** Optional lightweight diagnostics for UI/debugging. */
   diagnostics?: Record<string, unknown>;
+  /**
+   * Opaque implementation-specific payload used to record used/ignored
+   * feedback after the assistant produces a final response.
+   */
+  feedbackPayload?: unknown;
+}
+
+export interface LongTermMemoryFeedbackInput {
+  queryText: string;
+  responseText: string;
+  feedbackPayload?: unknown;
 }
 
 export interface ILongTermMemoryRetriever {
   retrieveLongTermMemory(
     input: LongTermMemoryRetrievalInput,
   ): Promise<LongTermMemoryRetrievalResult | null>;
-}
 
+  recordRetrievalFeedback?(
+    input: LongTermMemoryFeedbackInput,
+  ): Promise<void>;
+}
