@@ -192,7 +192,53 @@ export type GraphEvent =
    * See `VoiceNodeExecutor` for node-level lifecycle emission.
    * See `VoiceTransportAdapter` for transport-level lifecycle emission.
    */
-  | { type: 'voice_session'; nodeId: string; action: 'started' | 'ended'; exitReason?: string };
+  | { type: 'voice_session'; nodeId: string; action: 'started' | 'ended'; exitReason?: string }
+
+  // -------------------------------------------------------------------------
+  // Mission orchestrator events
+  // -------------------------------------------------------------------------
+
+  /** Emitted when the Tree of Thought planner begins decomposing a goal. */
+  | { type: 'mission:planning_start'; goal: string }
+
+  /** Emitted for each candidate branch generated during Phase 1 (divergent exploration). */
+  | { type: 'mission:branch_generated'; branchId: string; summary: string }
+
+  /** Emitted when the evaluator selects a branch in Phase 2. */
+  | { type: 'mission:branch_selected'; branchId: string; reason: string }
+
+  /** Emitted when Phase 3 (Reflexion) applies refinements to the selected branch. */
+  | { type: 'mission:refinement_applied'; changes: string[] }
+
+  /** Emitted when the planned graph compiles to `CompiledExecutionGraph`. */
+  | { type: 'mission:graph_compiled'; nodeCount: number; edgeCount: number; estimatedCost: number }
+
+  /** Emitted when an expansion is proposed (agent request, supervisor, or planner loop). */
+  | { type: 'mission:expansion_proposed'; reason: string }
+
+  /** Emitted when an expansion is approved (auto or user). */
+  | { type: 'mission:expansion_approved'; by: 'auto' | 'user' }
+
+  /** Emitted after an expansion GraphPatch is applied. */
+  | { type: 'mission:expansion_applied'; nodesAdded: number }
+
+  /** Emitted when a guardrail threshold is hit (agent count, cost, etc). */
+  | { type: 'mission:threshold_reached'; threshold: string; value: number; cap: number }
+
+  /** Periodic cost update for live dashboards and CLI. */
+  | { type: 'mission:cost_update'; totalSpent: number; costCap: number }
+
+  /** Emitted once when the mission finishes. */
+  | { type: 'mission:complete'; summary: string; totalCost: number; totalDurationMs: number; agentCount: number }
+
+  /** Emitted when a new agent is spawned during execution. */
+  | { type: 'mission:agent_spawned'; agentId: string; role: string; provider: string; model: string }
+
+  /** Emitted when the EmergentCapabilityEngine forges a new tool. */
+  | { type: 'mission:tool_forged'; toolId: string; name: string; mode: 'compose' | 'sandbox' }
+
+  /** Emitted when user approval is required before continuing. */
+  | { type: 'mission:approval_required'; action: string };
 
 // ---------------------------------------------------------------------------
 // GraphEventEmitter

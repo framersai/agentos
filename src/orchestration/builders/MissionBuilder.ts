@@ -78,6 +78,18 @@ export class MissionBuilder {
   /** @internal Declarative anchor node splice descriptors. */
   private _anchors: MissionConfig['anchors'] = [];
 
+  // -- Self-expanding mission orchestrator extensions --
+  /** @internal Autonomy mode: autonomous, guided, guardrailed. */
+  private _autonomy: 'autonomous' | 'guided' | 'guardrailed' | undefined;
+  /** @internal Provider assignment strategy configuration. */
+  private _providerStrategy: { strategy: string; assignments?: Record<string, { provider: string; model?: string }>; fallback?: string } | undefined;
+  /** @internal Maximum cost cap in USD. */
+  private _costCap: number | undefined;
+  /** @internal Maximum concurrent agent count. */
+  private _maxAgents: number | undefined;
+  /** @internal Number of Tree of Thought branches to explore. */
+  private _branchCount: number | undefined;
+
   /**
    * @param name - Display name for this mission; passed through to the compiled graph.
    */
@@ -176,6 +188,75 @@ export class MissionBuilder {
   }
 
   // -------------------------------------------------------------------------
+  // Self-expanding mission orchestrator extensions
+  // -------------------------------------------------------------------------
+
+  /**
+   * Set the autonomy mode for this mission.
+   *
+   * - `autonomous` — all expansion gates auto-approve. Only stops at hard caps.
+   * - `guided` — every expansion requires explicit user approval.
+   * - `guardrailed` — auto-approves below configurable thresholds, asks above.
+   *
+   * @param mode - Autonomy mode.
+   */
+  autonomy(mode: 'autonomous' | 'guided' | 'guardrailed'): this {
+    this._autonomy = mode;
+    return this;
+  }
+
+  /**
+   * Set the provider assignment strategy for this mission.
+   *
+   * @param strategy - Strategy name: best, cheapest, balanced, explicit, mixed.
+   * @param options - Optional explicit assignments and fallback strategy.
+   */
+  providerStrategy(
+    strategy: string,
+    options?: {
+      assignments?: Record<string, { provider: string; model?: string }>;
+      fallback?: string;
+    },
+  ): this {
+    this._providerStrategy = {
+      strategy,
+      assignments: options?.assignments,
+      fallback: options?.fallback,
+    };
+    return this;
+  }
+
+  /**
+   * Set the maximum cost in USD before execution pauses for approval.
+   *
+   * @param amount - Cost cap in USD.
+   */
+  costCap(amount: number): this {
+    this._costCap = amount;
+    return this;
+  }
+
+  /**
+   * Set the maximum number of concurrent agents.
+   *
+   * @param count - Agent count cap.
+   */
+  maxAgents(count: number): this {
+    this._maxAgents = count;
+    return this;
+  }
+
+  /**
+   * Set the number of Tree of Thought branches to explore during planning.
+   *
+   * @param count - Branch count (default: 3, max: 3 for linear/parallel/hierarchical).
+   */
+  branches(count: number): this {
+    this._branchCount = count;
+    return this;
+  }
+
+  // -------------------------------------------------------------------------
   // Compile
   // -------------------------------------------------------------------------
 
@@ -212,6 +293,12 @@ export class MissionBuilder {
       plannerConfig: this._plannerConfig,
       policyConfig: this._policyConfig,
       anchors: this._anchors,
+      // Self-expanding mission orchestrator extensions
+      ...(this._autonomy && { autonomy: this._autonomy }),
+      ...(this._providerStrategy && { providerStrategy: this._providerStrategy }),
+      ...(this._costCap !== undefined && { costCap: this._costCap }),
+      ...(this._maxAgents !== undefined && { maxAgents: this._maxAgents }),
+      ...(this._branchCount !== undefined && { branchCount: this._branchCount }),
     };
 
     const store = options?.checkpointStore ?? new InMemoryCheckpointStore();
