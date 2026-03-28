@@ -8,13 +8,15 @@
  */
 
 import type { IMigrationTarget } from '../types.js';
+import Database from 'better-sqlite3';
 
 /** Tables that go into Qdrant as point collections. */
 const QDRANT_COLLECTIONS = new Set(['memory_traces', 'document_chunks']);
 
 export class QdrantTargetAdapter implements IMigrationTarget {
   private createdCollections = new Set<string>();
-  private sidecarDb: any = null; // For non-vector tables
+  private createdSidecarTables = new Set<string>();
+  private sidecarDb: Database.Database | null = null; // For non-vector tables
 
   /**
    * @param url    - Qdrant base URL.
@@ -23,7 +25,14 @@ export class QdrantTargetAdapter implements IMigrationTarget {
   constructor(
     private readonly url: string,
     private readonly apiKey?: string,
-  ) {}
+    sidecarPath?: string,
+  ) {
+    if (sidecarPath) {
+      this.sidecarDb = new Database(sidecarPath);
+      this.sidecarDb.pragma('journal_mode = WAL');
+      this.sidecarDb.pragma('foreign_keys = ON');
+    }
+  }
 
   /** Build fetch headers. */
   private _headers(): Record<string, string> {
@@ -37,9 +46,8 @@ export class QdrantTargetAdapter implements IMigrationTarget {
    * For non-vector tables, ensures the sidecar SQLite file has the table.
    */
   async ensureTable(table: string, sampleRow: Record<string, unknown>): Promise<void> {
-    if (this.createdCollections.has(table)) return;
-
     if (QDRANT_COLLECTIONS.has(table)) {
+      if (this.createdCollections.has(table)) return;
       // Determine vector dimensions from sample row.
       const embedding = sampleRow['embedding'];
       const dim = Array.isArray(embedding)
@@ -63,9 +71,25 @@ export class QdrantTargetAdapter implements IMigrationTarget {
       }
 
       this.createdCollections.add(table);
+      return;
     }
-    // Non-vector tables would go to sidecar SQLite — not implemented here.
-    // TODO: Wire sidecar SQLite for graph/document metadata tables.
+
+    if (!this.sidecarDb) {
+      throw new Error(`Qdrant target requires sidecarPath to migrate non-vector table '${table}'.`);
+    }
+    if (this.createdSidecarTables.has(table)) return;
+
+    const columns = Object.keys(sampleRow);
+    const colDefs = columns.map((col) => {
+      const val = sampleRow[col];
+      if (val instanceof Buffer || val instanceof Uint8Array) return `"${col}" BLOB`;
+      if (typeof val === 'number') return `"${col}" ${Number.isInteger(val) ? 'INTEGER' : 'REAL'}`;
+      if (typeof val === 'boolean') return `"${col}" INTEGER`;
+      return `"${col}" TEXT`;
+    }).join(', ');
+
+    this.sidecarDb.exec(`CREATE TABLE IF NOT EXISTS "${table}" (${colDefs})`);
+    this.createdSidecarTables.add(table);
   }
 
   /**
@@ -107,9 +131,35 @@ export class QdrantTargetAdapter implements IMigrationTarget {
       return res.ok ? points.length : 0;
     }
 
-    // Non-vector tables: would write to sidecar SQLite.
-    // TODO: Implement sidecar write for graph/metadata tables.
-    return 0;
+    if (!this.sidecarDb) {
+      throw new Error(`Qdrant target requires sidecarPath to migrate non-vector table '${table}'.`);
+    }
+
+    const columns = Object.keys(rows[0]);
+    const quotedCols = columns.map((c) => `"${c}"`).join(', ');
+    const placeholders = columns.map(() => '?').join(', ');
+    const stmt = this.sidecarDb.prepare(
+      `INSERT OR REPLACE INTO "${table}" (${quotedCols}) VALUES (${placeholders})`,
+    );
+
+    const tx = this.sidecarDb.transaction((batch: Record<string, unknown>[]) => {
+      let count = 0;
+      for (const row of batch) {
+        const values = columns.map((column) => {
+          const value = row[column];
+          if (typeof value === 'boolean') return value ? 1 : 0;
+          if (typeof value === 'object' && value !== null && !(value instanceof Buffer) && !(value instanceof Uint8Array)) {
+            return JSON.stringify(value);
+          }
+          return value;
+        });
+        stmt.run(...values);
+        count++;
+      }
+      return count;
+    });
+
+    return tx(rows);
   }
 
   /** Close connections. */

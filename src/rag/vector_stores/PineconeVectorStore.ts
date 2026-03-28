@@ -151,23 +151,28 @@ export class PineconeVectorStore implements IVectorStore {
   async upsert(
     collectionName: string,
     documents: VectorDocument[],
-    _options?: UpsertOptions,
+    options?: UpsertOptions,
   ): Promise<UpsertResult> {
     await this._ensureInit();
     const ns = collectionName || this.config.namespace || '';
     const batchSize = 100; // Pinecone max vectors per upsert request.
     let successCount = 0;
     const failedIds: string[] = [];
+    const sparseVectorsById = this._readSparseVectorsById(options?.customParams);
 
     for (let i = 0; i < documents.length; i += batchSize) {
       const batch = documents.slice(i, i + batchSize);
-      const vectors = batch.map(doc => ({
-        id: doc.id,
-        values: doc.embedding,
-        metadata: doc.metadata
-          ? this._flattenMetadata(doc.metadata)
-          : undefined,
-      }));
+      const vectors = batch.map(doc => {
+        const sparseValues = sparseVectorsById?.[doc.id];
+        return {
+          id: doc.id,
+          values: doc.embedding,
+          sparse_values: sparseValues,
+          metadata: doc.metadata
+            ? this._flattenMetadata(doc.metadata)
+            : undefined,
+        };
+      });
 
       try {
         const res = await this._fetch('/vectors/upsert', {
@@ -274,12 +279,79 @@ export class PineconeVectorStore implements IVectorStore {
     collectionName: string,
     queryEmbedding: number[],
     _queryText: string,
-    options?: QueryOptions,
+    options?: QueryOptions & { alpha?: number },
   ): Promise<QueryResult> {
-    // Pinecone supports sparse vectors for hybrid, but requires a separate
-    // sparse encoder (e.g., SPLADE). For simplicity, fall back to dense-only.
-    // TODO: Add sparse vector support when Pinecone's sparse API stabilizes.
-    return this.query(collectionName, queryEmbedding, options);
+    await this._ensureInit();
+
+    const sparseVector = this._normalizeSparseVector(
+      options?.customParams?.sparseVector ?? options?.customParams?.sparseValues,
+    );
+    if (!sparseVector) {
+      return this.query(collectionName, queryEmbedding, options);
+    }
+
+    const ns = collectionName || this.config.namespace || '';
+    const topK = options?.topK ?? 10;
+    const alphaRaw = typeof options?.alpha === 'number' ? options.alpha : 0.7;
+    const alpha = Number.isFinite(alphaRaw) ? Math.max(0, Math.min(1, alphaRaw)) : 0.7;
+
+    const body: Record<string, unknown> = {
+      vector: queryEmbedding.map((value) => value * alpha),
+      sparseVector: {
+        indices: sparseVector.indices,
+        values: sparseVector.values.map((value) => value * (1 - alpha)),
+      },
+      topK,
+      namespace: ns,
+      includeMetadata: options?.includeMetadata !== false,
+      includeValues: options?.includeEmbedding ?? false,
+    };
+
+    if (options?.filter) {
+      body.filter = this._buildPineconeFilter(options.filter);
+    }
+
+    const res = await this._fetch('/query', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Pinecone query failed (${res.status}): ${text}`);
+    }
+
+    const data = await res.json() as {
+      matches?: Array<{
+        id: string;
+        score?: number;
+        values?: number[];
+        metadata?: Record<string, unknown>;
+      }>;
+    };
+
+    const documents: RetrievedVectorDocument[] = (data.matches ?? []).map(m => {
+      const doc: RetrievedVectorDocument = {
+        id: m.id,
+        similarityScore: m.score ?? 0,
+        embedding: m.values ?? [],
+      };
+      if (m.metadata && options?.includeMetadata !== false) {
+        doc.metadata = m.metadata as Record<string, MetadataValue>;
+      }
+      return doc;
+    });
+
+    return {
+      documents,
+      queryId: `pinecone-hybrid-${Date.now()}`,
+      stats: {
+        totalCandidates: documents.length,
+        filteredCandidates: documents.length,
+        returnedCount: documents.length,
+        alpha,
+      },
+    };
   }
 
   // =========================================================================
@@ -368,6 +440,50 @@ export class PineconeVectorStore implements IVectorStore {
       }
     }
     return flat;
+  }
+
+  private _normalizeSparseVector(
+    input: unknown,
+  ): { indices: number[]; values: number[] } | undefined {
+    if (!input || typeof input !== 'object') {
+      return undefined;
+    }
+
+    const candidate = input as { indices?: unknown; values?: unknown };
+    const indices = Array.isArray(candidate.indices)
+      ? candidate.indices.filter((value): value is number => typeof value === 'number' && Number.isInteger(value))
+      : [];
+    const values = Array.isArray(candidate.values)
+      ? candidate.values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+      : [];
+
+    if (indices.length === 0 || indices.length !== values.length) {
+      return undefined;
+    }
+
+    return { indices, values };
+  }
+
+  private _readSparseVectorsById(
+    customParams?: Record<string, unknown>,
+  ): Record<string, { indices: number[]; values: number[] }> | undefined {
+    if (!customParams || typeof customParams !== 'object') {
+      return undefined;
+    }
+
+    const source = customParams.sparseVectorsById;
+    if (!source || typeof source !== 'object') {
+      return undefined;
+    }
+
+    const parsedEntries = Object.entries(source as Record<string, unknown>)
+      .map(([id, sparseVector]) => [id, this._normalizeSparseVector(sparseVector)] as const)
+      .filter(
+        (entry): entry is readonly [string, { indices: number[]; values: number[] }] =>
+          Boolean(entry[1]),
+      );
+
+    return parsedEntries.length > 0 ? Object.fromEntries(parsedEntries) : undefined;
   }
 
   /**

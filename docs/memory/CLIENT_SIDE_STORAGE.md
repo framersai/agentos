@@ -268,12 +268,12 @@ const storage = await createAgentOSStorage({ platform: 'auto' });
 const agentos = new AgentOS();
 await agentos.initialize({
   storageAdapter: storage.getAdapter(),  // 🆕 Client-side
-  prisma: mockPrisma,  // Stub for compatibility (TODO: make optional)
+  prisma: mockPrisma,  // Compatibility stub while Prisma remains required
   // ...
 });
 ```
 
-**Note:** Currently, AgentOS still requires a Prisma instance. We're working on making it optional when `storageAdapter` is provided.
+**Note:** Client-side AgentOS initialization still expects a Prisma-compatible object even when `storageAdapter` is provided, so keep the stub in place for now.
 
 ---
 
@@ -376,4 +376,3 @@ const storage = new IndexedDbAdapter({
 ---
 
 **TL;DR:** Use `createAgentOSStorage({ platform: 'auto' })` and AgentOS works offline everywhere. IndexedDB for web, better-sqlite3 for desktop, capacitor for mobile.
-

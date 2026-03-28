@@ -46,6 +46,20 @@ describe('StatisticalUtilityAI', () => {
     expect(summary).toBe("Sentence one. Sentence two.");
   });
 
+  it('should use language-specific stemmers when available', async () => {
+    const spanishStem = await statUtility.stemTokens(['corriendo'], {
+      algorithm: 'porter',
+      language: 'es',
+    });
+    const russianStem = await statUtility.stemTokens(['машины'], {
+      algorithm: 'porter',
+      language: 'ru',
+    });
+
+    expect(spanishStem).toEqual(['corr']);
+    expect(russianStem).toEqual(['машин']);
+  });
+
   it('checkHealth should report as healthy if initialized', async () => {
     const health = await statUtility.checkHealth();
     expect(health.isHealthy).toBe(true);

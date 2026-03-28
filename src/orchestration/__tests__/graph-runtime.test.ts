@@ -1042,4 +1042,74 @@ describe('GraphRuntime', () => {
     expect(eventTypes).toContain('mission:approval_required');
     expect(eventTypes).not.toContain('mission:expansion_applied');
   });
+
+  it('triggers periodic planner reevaluation after the configured number of completed nodes', async () => {
+    const store = new InMemoryCheckpointStore();
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => ({
+      success: true,
+      output: `${node.id}-done`,
+    }));
+
+    const expansionHandler = {
+      handle: vi.fn(async (context: { graph: CompiledExecutionGraph; request: { trigger: string } }) => ({
+        graph: {
+          ...context.graph,
+          nodes: [
+            ...context.graph.nodes,
+            makeNode('verifier', {
+              executorConfig: { type: 'gmi', instructions: 'Verify after reevaluation' },
+            }),
+          ],
+          edges: [
+            { id: 'start-a', source: START, target: 'a', type: 'static' as const },
+            { id: 'a-verifier', source: 'a', target: 'verifier', type: 'static' as const },
+            { id: 'verifier-end', source: 'verifier', target: END, type: 'static' as const },
+          ],
+        },
+        events: [
+          {
+            type: 'mission:expansion_proposed' as const,
+            patch: {
+              addNodes: [makeNode('verifier')],
+              addEdges: [{ id: 'a-verifier', source: 'a', target: 'verifier', type: 'static' as const }],
+              removeNodes: [],
+              rewireEdges: [{ from: 'a', to: END, newTarget: 'verifier' }],
+              reason: 'Planner reevaluation inserted a verifier',
+              estimatedCostDelta: 0.1,
+              estimatedLatencyDelta: 200,
+            },
+            trigger: 'planner_reeval' as const,
+            reason: 'Planner reevaluation inserted a verifier',
+          },
+          { type: 'mission:expansion_applied' as const, nodesAdded: 1, edgesAdded: 2 },
+        ],
+      })),
+    };
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      expansionHandler,
+      reevalInterval: 2,
+    });
+
+    const graph = makeLinearGraph('g-planner-reeval', [makeNode('a'), makeNode('b')]);
+    const visitedIds: string[] = [];
+
+    for await (const event of runtime.stream(graph, {})) {
+      if (event.type === 'node_start') {
+        visitedIds.push(event.nodeId);
+      }
+    }
+
+    expect(expansionHandler.handle).toHaveBeenCalledTimes(1);
+    expect(expansionHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          trigger: 'planner_reeval',
+        }),
+      }),
+    );
+    expect(visitedIds).toEqual(['a', 'b', 'verifier']);
+  });
 });

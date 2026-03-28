@@ -34,7 +34,7 @@ export type UsageSummary = UsageBucket;
 /** Persistence adapter contract enabling storage engines. */
 export interface IUsageLedgerPersistence {
   save(bucket: UsageBucket): Promise<void>;
-  loadAll(): Promise<UsageBucket[]>; // For bootstrapping (may be large; future pagination TBD)
+  loadAll(): Promise<UsageBucket[]>; // For bootstrapping only; callers should avoid using this for routine large scans.
 }
 
 /** Options for UsageLedger behavior. */

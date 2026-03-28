@@ -34,6 +34,11 @@ export interface BackendConfig {
   url?: string;
   /** Qdrant API key for cloud instances. Optional. */
   apiKey?: string;
+  /**
+   * Optional SQLite sidecar path used by Qdrant deployments for non-vector
+   * tables such as graph metadata and documents.
+   */
+  sidecarPath?: string;
   /** Qdrant collection name prefix. @default 'wunderland' */
   collectionPrefix?: string;
 }

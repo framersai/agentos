@@ -177,6 +177,35 @@ describe('PineconeVectorStore', () => {
       expect(result.failedCount).toBe(0);
     });
 
+    it('includes sparse values when provided via customParams.sparseVectorsById', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+
+      fetchResponseQueue.push(okJson({ upsertedCount: 1 }));
+      await store.upsert(
+        'hybrid-ns',
+        [{ id: 'hybrid-1', embedding: [0.1, 0.2, 0.3, 0.4] }],
+        {
+          customParams: {
+            sparseVectorsById: {
+              'hybrid-1': {
+                indices: [10, 45, 16],
+                values: [0.5, 0.25, 0.2],
+              },
+            },
+          },
+        },
+      );
+
+      const body = parseFetchBody(fetchCalls[0]);
+      expect(body.vectors[0].sparse_values).toEqual({
+        indices: [10, 45, 16],
+        values: [0.5, 0.25, 0.2],
+      });
+    });
+
     it('splits into batches of 100', async () => {
       fetchResponseQueue.push(okJson({})); // init
       store = new PineconeVectorStore(makeConfig());
@@ -272,6 +301,46 @@ describe('PineconeVectorStore', () => {
       await expect(
         store.query('ns', [1, 2, 3, 4]),
       ).rejects.toThrow('Pinecone query failed');
+    });
+  });
+
+  describe('hybridSearch()', () => {
+    it('sends sparseVector payload when sparse query coordinates are supplied', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+
+      fetchResponseQueue.push(okJson({
+        matches: [{ id: 'hybrid-1', score: 0.91, metadata: { topic: 'hybrid' } }],
+      }));
+
+      const result = await store.hybridSearch(
+        'hybrid-ns',
+        [0.2, 0.4, 0.6, 0.8],
+        'hybrid query',
+        {
+          topK: 4,
+          includeMetadata: true,
+          alpha: 0.75,
+          customParams: {
+            sparseVector: {
+              indices: [2, 9],
+              values: [0.8, 0.4],
+            },
+          },
+        },
+      );
+
+      const body = parseFetchBody(fetchCalls[0]);
+      expect(body.vector).toEqual([0.15000000000000002, 0.30000000000000004, 0.44999999999999996, 0.6000000000000001]);
+      expect(body.sparseVector).toEqual({
+        indices: [2, 9],
+        values: [0.2, 0.1],
+      });
+      expect(body.topK).toBe(4);
+      expect(result.queryId).toContain('pinecone-hybrid-');
+      expect(result.documents[0].id).toBe('hybrid-1');
     });
   });
 

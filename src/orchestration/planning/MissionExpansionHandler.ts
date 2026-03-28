@@ -89,6 +89,83 @@ function estimateComplexity(node: GraphNode): number {
   return 0.35;
 }
 
+function buildExecutorConfig(
+  raw: Record<string, unknown>,
+  fallbackId: string,
+): GraphNode['executorConfig'] {
+  if (isRecord(raw.executorConfig)) {
+    return raw.executorConfig as GraphNode['executorConfig'];
+  }
+
+  const type = String(raw.type ?? 'gmi') as GraphNode['type'];
+
+  switch (type) {
+    case 'tool':
+      return {
+        type: 'tool',
+        toolName: String(raw.toolName ?? raw.name ?? fallbackId),
+        ...(isRecord(raw.args) ? { args: raw.args } : {}),
+      };
+    case 'extension':
+      return {
+        type: 'extension',
+        extensionId: String(raw.extensionId ?? 'extension'),
+        method: String(raw.method ?? 'run'),
+      };
+    case 'human':
+      return {
+        type: 'human',
+        prompt: String(raw.prompt ?? raw.instructions ?? raw.role ?? `Review ${fallbackId}`),
+      };
+    case 'guardrail':
+      return {
+        type: 'guardrail',
+        guardrailIds: Array.isArray(raw.guardrailIds)
+          ? raw.guardrailIds.filter((value): value is string => typeof value === 'string')
+          : [],
+        onViolation:
+          raw.onViolation === 'reroute'
+          || raw.onViolation === 'warn'
+          || raw.onViolation === 'sanitize'
+            ? raw.onViolation
+            : 'block',
+        ...(typeof raw.rerouteTarget === 'string' ? { rerouteTarget: raw.rerouteTarget } : {}),
+      };
+    case 'router':
+      return {
+        type: 'router',
+        condition: (raw.condition as GraphNode['executorConfig'] & { condition?: unknown }).condition
+          ?? { type: 'expression', expr: `'${END}'` },
+      };
+    case 'subgraph':
+      return {
+        type: 'subgraph',
+        graphId: String(raw.graphId ?? fallbackId),
+        ...(isRecord(raw.inputMapping) ? { inputMapping: raw.inputMapping as Record<string, string> } : {}),
+        ...(isRecord(raw.outputMapping) ? { outputMapping: raw.outputMapping as Record<string, string> } : {}),
+      };
+    case 'voice':
+      return {
+        type: 'voice',
+        voiceConfig: isRecord(raw.voiceConfig)
+          ? raw.voiceConfig as GraphNode['executorConfig'] & { voiceConfig: unknown }['voiceConfig']
+          : { mode: 'conversation' },
+      };
+    case 'gmi':
+    default:
+      return {
+        type: 'gmi',
+        instructions: String(raw.instructions ?? raw.role ?? `Execute ${fallbackId}`),
+        ...(typeof raw.maxInternalIterations === 'number'
+          ? { maxInternalIterations: raw.maxInternalIterations }
+          : {}),
+        ...(typeof raw.parallelTools === 'boolean' ? { parallelTools: raw.parallelTools } : {}),
+        ...(typeof raw.temperature === 'number' ? { temperature: raw.temperature } : {}),
+        ...(typeof raw.maxTokens === 'number' ? { maxTokens: raw.maxTokens } : {}),
+      };
+  }
+}
+
 function normalizeNode(raw: Record<string, unknown>): GraphNode {
   const checkpoint =
     raw.checkpoint === true
@@ -104,15 +181,28 @@ function normalizeNode(raw: Record<string, unknown>): GraphNode {
   return {
     id,
     type: String(raw.type ?? 'gmi') as GraphNode['type'],
-    executorConfig: (raw.executorConfig as GraphNode['executorConfig']) ?? {
-      type: 'gmi',
-      instructions: String(raw.instructions ?? raw.role ?? `Execute ${id}`),
-    },
+    executorConfig: buildExecutorConfig(raw, id),
     executionMode: (raw.executionMode as GraphNode['executionMode']) ?? 'single_turn',
     effectClass: (raw.effectClass as GraphNode['effectClass']) ?? 'read',
     checkpoint,
     complexity: clampComplexity(raw.complexity as number | undefined),
     ...(isRecord(raw.llm) ? { llm: raw.llm as unknown as NodeLlmConfig } : {}),
+    ...(typeof raw.timeout === 'number' ? { timeout: raw.timeout } : {}),
+    ...(isRecord(raw.retryPolicy) ? { retryPolicy: raw.retryPolicy as GraphNode['retryPolicy'] } : {}),
+    ...(isRecord(raw.inputSchema) ? { inputSchema: raw.inputSchema } : {}),
+    ...(isRecord(raw.outputSchema) ? { outputSchema: raw.outputSchema } : {}),
+    ...(isRecord(raw.memoryPolicy)
+      ? { memoryPolicy: raw.memoryPolicy as GraphNode['memoryPolicy'] }
+      : {}),
+    ...(isRecord(raw.discoveryPolicy)
+      ? { discoveryPolicy: raw.discoveryPolicy as GraphNode['discoveryPolicy'] }
+      : {}),
+    ...(isRecord(raw.personaPolicy)
+      ? { personaPolicy: raw.personaPolicy as GraphNode['personaPolicy'] }
+      : {}),
+    ...(isRecord(raw.guardrailPolicy)
+      ? { guardrailPolicy: raw.guardrailPolicy as GraphNode['guardrailPolicy'] }
+      : {}),
   };
 }
 
@@ -178,6 +268,131 @@ function describeRole(node: GraphNode): string {
   return node.id;
 }
 
+function isToolLikeNode(node: GraphNode): boolean {
+  return node.type === 'tool' || node.executorConfig.type === 'tool';
+}
+
+function computeGraphDepth(graph: CompiledExecutionGraph): number {
+  const depths = new Map<string, number>();
+  const queue: Array<{ nodeId: string; depth: number }> = [];
+
+  for (const edge of graph.edges) {
+    if (edge.source !== START || edge.target === END) continue;
+    queue.push({ nodeId: edge.target, depth: 1 });
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const previousDepth = depths.get(current.nodeId) ?? Number.POSITIVE_INFINITY;
+    if (current.depth >= previousDepth) continue;
+
+    depths.set(current.nodeId, current.depth);
+
+    for (const edge of graph.edges) {
+      if (edge.source !== current.nodeId || edge.target === END) continue;
+      queue.push({ nodeId: edge.target, depth: current.depth + 1 });
+    }
+  }
+
+  return Math.max(0, ...depths.values());
+}
+
+function resolveSourceNodeId(spec: Record<string, unknown>, requesterNodeId: string): string {
+  for (const key of ['afterNodeId', 'sourceNodeId', 'parentNodeId'] as const) {
+    const value = spec[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return requesterNodeId;
+}
+
+function resolveTargetNodeId(spec: Record<string, unknown>): string {
+  for (const key of ['nodeId', 'targetNodeId', 'agentId'] as const) {
+    const value = spec[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+function cloneEdge(edge: GraphEdge, overrides: Partial<GraphEdge>, suffix: string): GraphEdge {
+  return {
+    ...edge,
+    ...overrides,
+    id: `${edge.id}_${suffix}`,
+  };
+}
+
+function dedupeEdges(edges: GraphEdge[]): GraphEdge[] {
+  const seen = new Set<string>();
+  const result: GraphEdge[] = [];
+
+  for (const edge of edges) {
+    const key = JSON.stringify({
+      source: edge.source,
+      target: edge.target,
+      type: edge.type,
+      condition: edge.condition,
+      discoveryQuery: edge.discoveryQuery,
+      discoveryKind: edge.discoveryKind,
+      discoveryFallback: edge.discoveryFallback,
+      personalityCondition: edge.personalityCondition,
+      guardrailPolicy: edge.guardrailPolicy,
+    });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(edge);
+  }
+
+  return result;
+}
+
+function buildInlineInsertionPatch(
+  newNode: GraphNode,
+  graph: CompiledExecutionGraph,
+  sourceNodeId: string,
+  reason: string,
+  estimates: { cost: number; latencyMs: number },
+): MissionGraphPatch {
+  const outEdges = graph.edges.filter((edge) => edge.source === sourceNodeId);
+  const staticOutEdges = outEdges.filter((edge) => edge.type === 'static');
+  const addEdges: GraphEdge[] = [
+    {
+      id: `expansion_edge_${sourceNodeId}_${newNode.id}`,
+      source: sourceNodeId,
+      target: newNode.id,
+      type: 'static',
+    },
+  ];
+  const rewireEdges: MissionGraphPatch['rewireEdges'] = [];
+
+  if (staticOutEdges.length > 0) {
+    for (const edge of staticOutEdges) {
+      rewireEdges.push({
+        from: sourceNodeId,
+        to: edge.target,
+        newTarget: newNode.id,
+      });
+      addEdges.push(cloneEdge(edge, { source: newNode.id }, `after_${newNode.id}`));
+    }
+  } else {
+    addEdges.push({
+      id: `expansion_edge_${newNode.id}_end`,
+      source: newNode.id,
+      target: END,
+      type: 'static',
+    });
+  }
+
+  return {
+    addNodes: [newNode],
+    addEdges: dedupeEdges(addEdges),
+    removeNodes: [],
+    rewireEdges,
+    reason,
+    estimatedCostDelta: estimates.cost,
+    estimatedLatencyDelta: estimates.latencyMs,
+  };
+}
+
 function buildSpawnAgentPatch(
   spec: Record<string, unknown>,
   graph: CompiledExecutionGraph,
@@ -190,72 +405,322 @@ function buildSpawnAgentPatch(
     typeof spec.nodeId === 'string' && spec.nodeId.trim()
       ? spec.nodeId.trim()
       : slugify(role);
+  const sourceNodeId = resolveSourceNodeId(spec, requesterNodeId);
 
   const newNode = normalizeNode({
     id: nodeId,
     type: spec.type ?? 'gmi',
-    executorConfig:
-      isRecord(spec.executorConfig)
-        ? spec.executorConfig
-        : {
-            type: 'gmi',
-            instructions,
-          },
+    executorConfig: isRecord(spec.executorConfig)
+      ? spec.executorConfig
+      : buildExecutorConfig({
+          ...spec,
+          type: spec.type ?? 'gmi',
+          instructions,
+        }, nodeId),
     executionMode: spec.executionMode ?? 'single_turn',
     effectClass: spec.effectClass ?? 'read',
     checkpoint: spec.checkpoint ?? 'after',
     complexity: spec.complexity,
+    ...(isRecord(spec.llm) ? { llm: spec.llm } : {}),
   });
 
-  const outEdges = graph.edges.filter((edge) => edge.source === requesterNodeId);
-  const staticOutEdges = outEdges.filter((edge) => edge.type === 'static');
+  return buildInlineInsertionPatch(newNode, graph, sourceNodeId, reason, {
+    cost:
+      typeof spec.estimatedCostDelta === 'number' && Number.isFinite(spec.estimatedCostDelta)
+        ? spec.estimatedCostDelta
+        : 0.5,
+    latencyMs:
+      typeof spec.estimatedLatencyDelta === 'number' && Number.isFinite(spec.estimatedLatencyDelta)
+        ? spec.estimatedLatencyDelta
+        : 30_000,
+  });
+}
+
+function buildRemoveAgentPatch(
+  spec: Record<string, unknown>,
+  graph: CompiledExecutionGraph,
+  reason: string,
+): MissionGraphPatch | null {
+  const nodeId = resolveTargetNodeId(spec);
+  if (!nodeId) return null;
+
+  const incomingStatic = graph.edges.filter((edge) => edge.target === nodeId && edge.type === 'static');
+  const outgoingStatic = graph.edges.filter((edge) => edge.source === nodeId && edge.type === 'static');
+  const nextTargets = outgoingStatic.length > 0
+    ? outgoingStatic.map((edge) => edge.target)
+    : [END];
   const addEdges: GraphEdge[] = [];
-  const rewireEdges: MissionGraphPatch['rewireEdges'] = [];
 
-  addEdges.push({
-    id: `expansion_edge_${requesterNodeId}_${nodeId}`,
-    source: requesterNodeId,
-    target: nodeId,
-    type: 'static',
+  for (const edge of incomingStatic) {
+    for (const nextTarget of nextTargets) {
+      if (edge.source === nextTarget) continue;
+      addEdges.push(
+        cloneEdge(
+          edge,
+          { target: nextTarget },
+          `remove_${nodeId}_${nextTarget.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+        ),
+      );
+    }
+  }
+
+  return {
+    addNodes: [],
+    addEdges: dedupeEdges(addEdges),
+    removeNodes: [nodeId],
+    rewireEdges: [],
+    reason,
+    estimatedCostDelta: 0,
+    estimatedLatencyDelta: 0,
+  };
+}
+
+function buildReassignedNode(existing: GraphNode, spec: Record<string, unknown>): GraphNode {
+  const nextType = (typeof spec.type === 'string' && spec.type.trim()
+    ? spec.type.trim()
+    : existing.type) as GraphNode['type'];
+
+  let executorConfig = existing.executorConfig;
+  if (isRecord(spec.executorConfig)) {
+    executorConfig = spec.executorConfig as GraphNode['executorConfig'];
+  } else {
+    const nextRole = typeof spec.role === 'string' ? spec.role : undefined;
+    const nextInstructions = typeof spec.instructions === 'string' ? spec.instructions : nextRole;
+    if (nextType === 'gmi' && nextInstructions) {
+      executorConfig = {
+        type: 'gmi',
+        ...(existing.executorConfig.type === 'gmi' ? existing.executorConfig : {}),
+        instructions: nextInstructions,
+      };
+    } else if (nextType === 'tool') {
+      const existingArgs = existing.executorConfig.type === 'tool' ? existing.executorConfig.args : undefined;
+      executorConfig = {
+        type: 'tool',
+        toolName: String(
+          spec.toolName
+          ?? (existing.executorConfig.type === 'tool' ? existing.executorConfig.toolName : existing.id),
+        ),
+        ...(isRecord(spec.args)
+          ? { args: spec.args }
+          : existingArgs
+            ? { args: existingArgs }
+            : {}),
+      };
+    } else if (nextType === 'human' && nextInstructions) {
+      executorConfig = { type: 'human', prompt: nextInstructions };
+    } else if (nextType !== existing.type) {
+      executorConfig = buildExecutorConfig({ ...spec, type: nextType }, existing.id);
+    }
+  }
+
+  return {
+    ...existing,
+    type: nextType,
+    executorConfig,
+    executionMode: (spec.executionMode as GraphNode['executionMode']) ?? existing.executionMode,
+    effectClass: (spec.effectClass as GraphNode['effectClass']) ?? existing.effectClass,
+    checkpoint:
+      spec.checkpoint === true
+        ? 'after'
+        : spec.checkpoint === false
+          ? 'none'
+          : (spec.checkpoint as GraphNode['checkpoint'] | undefined) ?? existing.checkpoint,
+    complexity:
+      clampComplexity(spec.complexity as number | undefined)
+      ?? existing.complexity,
+    ...(nextType === 'gmi'
+      ? isRecord(spec.llm)
+        ? { llm: spec.llm as NodeLlmConfig }
+        : existing.llm
+          ? { llm: existing.llm }
+          : {}
+      : {}),
+    ...('timeout' in spec && typeof spec.timeout === 'number' ? { timeout: spec.timeout } : {}),
+  };
+}
+
+function buildReassignRolePatch(
+  spec: Record<string, unknown>,
+  graph: CompiledExecutionGraph,
+  reason: string,
+): MissionGraphPatch | null {
+  const nodeId = resolveTargetNodeId(spec);
+  if (!nodeId) return null;
+
+  const existing = graph.nodes.find((node) => node.id === nodeId);
+  if (!existing) return null;
+
+  const replacementNode = buildReassignedNode(existing, spec);
+  const incomingEdges = graph.edges.filter((edge) => edge.target === nodeId);
+  const outgoingEdges = graph.edges.filter((edge) => edge.source === nodeId);
+  const addEdges = dedupeEdges([
+    ...incomingEdges.map((edge) => cloneEdge(edge, { target: nodeId }, 'reassign_in')),
+    ...outgoingEdges.map((edge) => cloneEdge(edge, { source: nodeId }, 'reassign_out')),
+  ]);
+
+  return {
+    addNodes: [replacementNode],
+    addEdges,
+    removeNodes: [nodeId],
+    rewireEdges: [],
+    reason,
+    estimatedCostDelta:
+      typeof spec.estimatedCostDelta === 'number' && Number.isFinite(spec.estimatedCostDelta)
+        ? spec.estimatedCostDelta
+        : 0.1,
+    estimatedLatencyDelta:
+      typeof spec.estimatedLatencyDelta === 'number' && Number.isFinite(spec.estimatedLatencyDelta)
+        ? spec.estimatedLatencyDelta
+        : 0,
+  };
+}
+
+function buildAddToolPatch(
+  spec: Record<string, unknown>,
+  graph: CompiledExecutionGraph,
+  requesterNodeId: string,
+  reason: string,
+): MissionGraphPatch | null {
+  const sourceNodeId = resolveSourceNodeId(spec, requesterNodeId);
+  const toolName = typeof spec.toolName === 'string' && spec.toolName.trim()
+    ? spec.toolName.trim()
+    : typeof spec.name === 'string' && spec.name.trim()
+      ? spec.name.trim()
+      : '';
+  if (!toolName && !isRecord(spec.executorConfig)) return null;
+
+  const nodeId =
+    typeof spec.nodeId === 'string' && spec.nodeId.trim()
+      ? spec.nodeId.trim()
+      : slugify(toolName || 'tool_step');
+  const newNode = normalizeNode({
+    ...spec,
+    id: nodeId,
+    type: 'tool',
+    executorConfig: isRecord(spec.executorConfig)
+      ? spec.executorConfig
+      : {
+          type: 'tool',
+          toolName,
+          ...(isRecord(spec.args) ? { args: spec.args } : {}),
+        },
+    executionMode: spec.executionMode ?? 'single_turn',
+    effectClass: spec.effectClass ?? 'read',
+    checkpoint: spec.checkpoint ?? 'after',
   });
 
-  if (staticOutEdges.length > 0) {
-    for (const edge of staticOutEdges) {
-      rewireEdges.push({
-        from: requesterNodeId,
-        to: edge.target,
-        newTarget: nodeId,
-      });
-      addEdges.push({
-        id: `expansion_edge_${nodeId}_${edge.target}`,
-        source: nodeId,
-        target: edge.target,
-        type: 'static',
-      });
-    }
-  } else {
+  return buildInlineInsertionPatch(newNode, graph, sourceNodeId, reason, {
+    cost:
+      typeof spec.estimatedCostDelta === 'number' && Number.isFinite(spec.estimatedCostDelta)
+        ? spec.estimatedCostDelta
+        : 0.15,
+    latencyMs:
+      typeof spec.estimatedLatencyDelta === 'number' && Number.isFinite(spec.estimatedLatencyDelta)
+        ? spec.estimatedLatencyDelta
+        : 5_000,
+  });
+}
+
+function buildForkBranchPatch(
+  spec: Record<string, unknown>,
+  graph: CompiledExecutionGraph,
+  requesterNodeId: string,
+  reason: string,
+): MissionGraphPatch | null {
+  const sourceNodeId = resolveSourceNodeId(spec, requesterNodeId);
+  const branchNodes = Array.isArray(spec.nodes)
+    ? spec.nodes.filter(isRecord).map((node) => normalizeNode(node))
+    : [];
+
+  if (branchNodes.length === 0) {
+    const role = String(spec.role ?? spec.nodeId ?? spec.name ?? 'branch_worker');
+    const branchNodeId =
+      typeof spec.nodeId === 'string' && spec.nodeId.trim()
+        ? spec.nodeId.trim()
+        : slugify(role);
+    branchNodes.push(
+      normalizeNode({
+        ...spec,
+        id: branchNodeId,
+        type: spec.type ?? 'gmi',
+        executorConfig: isRecord(spec.executorConfig)
+          ? spec.executorConfig
+          : buildExecutorConfig({
+              ...spec,
+              type: spec.type ?? 'gmi',
+              instructions: spec.instructions ?? `Handle ${role}`,
+            }, branchNodeId),
+        executionMode: spec.executionMode ?? 'single_turn',
+        effectClass: spec.effectClass ?? 'read',
+        checkpoint: spec.checkpoint ?? 'after',
+        complexity: spec.complexity,
+      }),
+    );
+  }
+
+  if (branchNodes.length === 0) return null;
+
+  const explicitJoinTargets = Array.isArray(spec.joinTargets)
+    ? spec.joinTargets.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : [];
+  const joinTarget = typeof spec.joinTarget === 'string' && spec.joinTarget.trim()
+    ? spec.joinTarget.trim()
+    : typeof spec.joinTargetId === 'string' && spec.joinTargetId.trim()
+      ? spec.joinTargetId.trim()
+      : '';
+  const sourceStaticTargets = graph.edges
+    .filter((edge) => edge.source === sourceNodeId && edge.type === 'static')
+    .map((edge) => edge.target);
+  const joinTargets = explicitJoinTargets.length > 0
+    ? explicitJoinTargets
+    : joinTarget
+      ? [joinTarget]
+      : sourceStaticTargets.length > 0
+        ? sourceStaticTargets
+        : [END];
+
+  const addEdges: GraphEdge[] = [
+    {
+      id: `expansion_edge_${sourceNodeId}_${branchNodes[0]!.id}`,
+      source: sourceNodeId,
+      target: branchNodes[0]!.id,
+      type: 'static',
+    },
+  ];
+
+  for (let index = 0; index < branchNodes.length - 1; index++) {
     addEdges.push({
-      id: `expansion_edge_${nodeId}_end`,
-      source: nodeId,
-      target: END,
+      id: `expansion_edge_${branchNodes[index]!.id}_${branchNodes[index + 1]!.id}`,
+      source: branchNodes[index]!.id,
+      target: branchNodes[index + 1]!.id,
+      type: 'static',
+    });
+  }
+
+  const lastNodeId = branchNodes[branchNodes.length - 1]!.id;
+  for (const target of joinTargets) {
+    addEdges.push({
+      id: `expansion_edge_${lastNodeId}_${target.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+      source: lastNodeId,
+      target,
       type: 'static',
     });
   }
 
   return {
-    addNodes: [newNode],
-    addEdges,
+    addNodes: branchNodes,
+    addEdges: dedupeEdges(addEdges),
     removeNodes: [],
-    rewireEdges,
+    rewireEdges: [],
     reason,
     estimatedCostDelta:
       typeof spec.estimatedCostDelta === 'number' && Number.isFinite(spec.estimatedCostDelta)
         ? spec.estimatedCostDelta
-        : 0.5,
+        : 0.35 * branchNodes.length,
     estimatedLatencyDelta:
       typeof spec.estimatedLatencyDelta === 'number' && Number.isFinite(spec.estimatedLatencyDelta)
         ? spec.estimatedLatencyDelta
-        : 30_000,
+        : 20_000 * branchNodes.length,
   };
 }
 
@@ -279,17 +744,19 @@ function buildManageGraphPatch(
   }
 
   if (action === 'remove_agent') {
-    const nodeId = typeof spec.nodeId === 'string' ? spec.nodeId.trim() : '';
-    if (!nodeId) return null;
-    return {
-      addNodes: [],
-      addEdges: [],
-      removeNodes: [nodeId],
-      rewireEdges: [],
-      reason,
-      estimatedCostDelta: 0,
-      estimatedLatencyDelta: 0,
-    };
+    return buildRemoveAgentPatch(spec, graph, reason);
+  }
+
+  if (action === 'reassign_role') {
+    return buildReassignRolePatch(spec, graph, reason);
+  }
+
+  if (action === 'add_tool') {
+    return buildAddToolPatch(spec, graph, requesterNodeId, reason);
+  }
+
+  if (action === 'fork_branch') {
+    return buildForkBranchPatch(spec, graph, requesterNodeId, reason);
   }
 
   return null;
@@ -319,8 +786,7 @@ export function createMissionExpansionHandler(
 
   let currentEstimatedCost = options.initialEstimatedCost ?? 0;
   let currentExpansions = 0;
-  let currentToolForges = 0;
-  let currentDepth = 0;
+  const currentToolForges = 0;
 
   const assignProviders = (patch: MissionGraphPatch): MissionGraphPatch => {
     const nodes = [...patch.addNodes];
@@ -465,6 +931,11 @@ export function createMissionExpansionHandler(
       }
 
       const assignedPatch = assignProviders(patch);
+      const currentDepth = computeGraphDepth(context.graph);
+      const previewGraph = expander.applyPatch(context.graph, assignedPatch);
+      const nextDepth = computeGraphDepth(previewGraph);
+      const patchToolForgeDelta = assignedPatch.addNodes.filter(isToolLikeNode).length;
+      const patchDepthDelta = Math.max(0, nextDepth - currentDepth);
       const patchAgentDelta =
         assignedPatch.addNodes.length - (assignedPatch.removeNodes?.length ?? 0);
       const state = {
@@ -475,8 +946,8 @@ export function createMissionExpansionHandler(
         currentDepth,
         patchCostDelta: assignedPatch.estimatedCostDelta,
         patchAgentDelta,
-        patchToolForgeDelta: 0,
-        patchDepthDelta: 0,
+        patchToolForgeDelta,
+        patchDepthDelta,
       };
 
       const events: GraphEvent[] = [
@@ -511,9 +982,10 @@ export function createMissionExpansionHandler(
         return { events };
       }
 
-      const nextGraph = expander.applyPatch(context.graph, assignedPatch);
+      const nextGraph = previewGraph;
       currentEstimatedCost += assignedPatch.estimatedCostDelta;
       currentExpansions += 1;
+      currentToolForges += patchToolForgeDelta;
 
       events.push({ type: 'mission:expansion_approved', by: 'auto' });
       events.push({

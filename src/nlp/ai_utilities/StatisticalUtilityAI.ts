@@ -23,6 +23,20 @@ import {
 import * as natural from 'natural';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
+const NATURAL_STEMMER_LANGUAGE_KEYS: Record<string, string> = {
+  De: 'de',
+  Es: 'es',
+  Fa: 'fa',
+  Fr: 'fr',
+  It: 'it',
+  Nl: 'nl',
+  No: 'no',
+  Pt: 'pt',
+  Ru: 'ru',
+  Sv: 'sv',
+  Uk: 'uk',
+};
+
 // Default English stop words list (can be expanded or loaded from file)
 const DEFAULT_ENGLISH_STOP_WORDS = new Set([
   'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours', 'yourself', 'yourselves',
@@ -85,6 +99,37 @@ export class StatisticalUtilityAI implements IUtilityAI {
   // For sentiment analysis
   private sentimentAnalyzers: Map<string, natural.SentimentAnalyzer>; // language -> analyzer
 
+  private createStemmerRegistry(): Record<string, natural.Stemmer> {
+    const registry: Record<string, natural.Stemmer> = {
+      porter: natural.PorterStemmer,
+      lancaster: natural.LancasterStemmer,
+    };
+
+    const naturalWithVariants = natural as unknown as Record<string, unknown>;
+    for (const [suffix, langCode] of Object.entries(NATURAL_STEMMER_LANGUAGE_KEYS)) {
+      const porterVariant = naturalWithVariants[`PorterStemmer${suffix}`];
+      if (porterVariant && typeof (porterVariant as natural.Stemmer).stem === 'function') {
+        registry[`porter_${langCode}`] = porterVariant as natural.Stemmer;
+      }
+    }
+
+    const carryFrench = naturalWithVariants.CarryStemmerFr;
+    if (carryFrench && typeof (carryFrench as natural.Stemmer).stem === 'function') {
+      registry.carry_fr = carryFrench as natural.Stemmer;
+    }
+
+    const stemmerId = naturalWithVariants.StemmerId;
+    if (stemmerId && typeof (stemmerId as natural.Stemmer).stem === 'function') {
+      registry.default_id = stemmerId as natural.Stemmer;
+    }
+
+    const stemmerJa = naturalWithVariants.StemmerJa;
+    if (stemmerJa && typeof (stemmerJa as natural.Stemmer).stem === 'function') {
+      registry.default_ja = stemmerJa as natural.Stemmer;
+    }
+
+    return registry;
+  }
 
   constructor(utilityId?: string) {
     this.utilityId = utilityId || `stat-utility-${uuidv4()}`;
@@ -92,11 +137,7 @@ export class StatisticalUtilityAI implements IUtilityAI {
       word: new natural.WordTokenizer(),
       sentence: new natural.SentenceTokenizer(),
     };
-    this.stemmers = {
-      porter: natural.PorterStemmer, // Static access to stem method
-      lancaster: natural.LancasterStemmer, // Static access
-      // PorterStemmerRu, PorterStemmerEs, etc. can be added if 'natural' supports them or via external libraries
-    };
+    this.stemmers = this.createStemmerRegistry();
     this.stopWords = new Map<string, Set<string>>([['en', DEFAULT_ENGLISH_STOP_WORDS]]);
     this.classifiers = new Map();
     this.sentimentAnalyzers = new Map();
@@ -165,11 +206,12 @@ export class StatisticalUtilityAI implements IUtilityAI {
 
   private getStemmer(algorithm?: string, language?: string): natural.Stemmer {
     const algo = (algorithm || 'porter').toLowerCase();
-    // TODO: Add language-specific stemmers from 'natural' if they exist (e.g., PorterStemmerRu)
-    // This requires checking the 'natural' library for available stemmers beyond the basic English ones.
-    // For now, defaults to English Porter if language-specific is not found.
-    if (language && language.toLowerCase() !== 'en' && this.stemmers[`${algo}_${language.toLowerCase()}`]) {
-        return this.stemmers[`${algo}_${language.toLowerCase()}`];
+    const langCode = language?.toLowerCase().split('-')[0];
+    if (langCode && langCode !== 'en' && this.stemmers[`${algo}_${langCode}`]) {
+        return this.stemmers[`${algo}_${langCode}`];
+    }
+    if (langCode && this.stemmers[`default_${langCode}`]) {
+        return this.stemmers[`default_${langCode}`];
     }
     return this.stemmers[algo] || natural.PorterStemmer; // Fallback to Porter
   }
@@ -722,4 +764,3 @@ export class StatisticalUtilityAI implements IUtilityAI {
     console.log(`StatisticalUtilityAI (ID: ${this.utilityId}) shut down.`);
   }
 }
-

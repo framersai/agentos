@@ -122,6 +122,7 @@ export interface ProcessingOptions {
   temperature?: number;
   topP?: number;
   maxTokens?: number;
+  responseFormat?: { type: 'text' | 'json_object' | string };
   disableAdaptation?: boolean;
   debugMode?: boolean;
   forceNewConversation?: boolean;

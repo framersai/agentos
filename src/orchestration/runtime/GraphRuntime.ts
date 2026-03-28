@@ -48,6 +48,8 @@ export interface GraphRuntimeConfig {
   nodeExecutor: NodeExecutor;
   /** Optional mission graph expansion hook applied between node executions. */
   expansionHandler?: GraphExpansionHandler;
+  /** Optional periodic planner reevaluation cadence, in completed nodes. */
+  reevalInterval?: number;
   /**
    * Optional discovery engine for `discovery`-type edge routing.
    * When present and an edge has a `discoveryQuery`, the engine is called to
@@ -94,6 +96,17 @@ export interface GraphExpansionResult {
 
 export interface GraphExpansionHandler {
   handle(context: GraphExpansionContext): Promise<GraphExpansionResult | null>;
+}
+
+function shouldTriggerPlannerReevaluation(
+  reevalInterval: number | undefined,
+  completedNodeCount: number,
+): boolean {
+  return typeof reevalInterval === 'number'
+    && Number.isFinite(reevalInterval)
+    && reevalInterval > 0
+    && completedNodeCount > 0
+    && completedNodeCount % reevalInterval === 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -490,10 +503,25 @@ export class GraphRuntime {
 
         completedNodes.push(nodeId);
 
-        if (this.config.expansionHandler && result.expansionRequests?.length) {
+        const expansionRequests = [...(result.expansionRequests ?? [])];
+        if (
+          this.config.expansionHandler
+          && shouldTriggerPlannerReevaluation(this.config.reevalInterval, completedNodes.length)
+        ) {
+          expansionRequests.push({
+            trigger: 'planner_reeval',
+            reason: `Periodic reevaluation after ${completedNodes.length} completed nodes`,
+            request: {
+              completedNodeCount: completedNodes.length,
+              lastCompletedNodeId: nodeId,
+            },
+          });
+        }
+
+        if (this.config.expansionHandler && expansionRequests.length > 0) {
           let checkpointIdBefore: string | undefined;
 
-          for (const request of result.expansionRequests) {
+          for (const request of expansionRequests) {
             if (!checkpointIdBefore) {
               checkpointIdBefore = await this.saveCheckpoint(
                 activeGraph,
@@ -788,10 +816,25 @@ export class GraphRuntime {
         yield { type: 'node_end', nodeId, output: result.output, durationMs };
         completedNodes.push(nodeId);
 
-        if (this.config.expansionHandler && result.expansionRequests?.length) {
+        const expansionRequests = [...(result.expansionRequests ?? [])];
+        if (
+          this.config.expansionHandler
+          && shouldTriggerPlannerReevaluation(this.config.reevalInterval, completedNodes.length)
+        ) {
+          expansionRequests.push({
+            trigger: 'planner_reeval',
+            reason: `Periodic reevaluation after ${completedNodes.length} completed nodes`,
+            request: {
+              completedNodeCount: completedNodes.length,
+              lastCompletedNodeId: nodeId,
+            },
+          });
+        }
+
+        if (this.config.expansionHandler && expansionRequests.length > 0) {
           let checkpointIdBefore: string | undefined;
 
-          for (const request of result.expansionRequests) {
+          for (const request of expansionRequests) {
             if (!checkpointIdBefore) {
               checkpointIdBefore = await this.saveCheckpoint(
                 activeGraph,

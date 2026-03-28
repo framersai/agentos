@@ -127,6 +127,21 @@ describe('ProviderAssignmentEngine', () => {
       expect(writer.provider).toBe('anthropic');
       expect(helper.model).toBe('gpt-4o-mini'); // cheapest fallback
     });
+
+    it('applies _default before falling back to the named strategy', () => {
+      const engine = new ProviderAssignmentEngine(['openai', 'anthropic']);
+      const nodes = [makeGmiNode('helper', 0.1)];
+      const assignments = engine.assign(nodes, {
+        strategy: 'mixed',
+        assignments: { _default: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' } },
+        fallback: 'cheapest',
+      });
+
+      expect(assignments[0]).toMatchObject({
+        provider: 'anthropic',
+        model: 'claude-haiku-4-5-20251001',
+      });
+    });
   });
 
   describe('availability check', () => {

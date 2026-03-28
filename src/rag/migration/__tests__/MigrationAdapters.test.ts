@@ -9,6 +9,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import Database from 'better-sqlite3';
 
 // ---------------------------------------------------------------------------
 // Mock pg module for Postgres adapters
@@ -339,6 +343,34 @@ describe('QdrantSourceAdapter', () => {
     const headers = fetchCalls[0].init.headers as Record<string, string>;
     expect(headers['api-key']).toBe('test-key');
   });
+
+  it('includes sidecar SQLite tables when sidecarPath is provided', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'qdrant-source-sidecar-'));
+    const sidecarPath = join(tempDir, 'sidecar.sqlite');
+    const db = new Database(sidecarPath);
+    db.exec('CREATE TABLE documents (id TEXT, title TEXT)');
+    db.exec(`INSERT INTO documents (id, title) VALUES ('doc-1', 'hello')`);
+    db.close();
+
+    const sidecarAdapter = new QdrantSourceAdapter('http://localhost:6333', 'test-key', sidecarPath);
+
+    try {
+      fetchResponseQueue.push(okJson({
+        result: { collections: [{ name: 'memory_traces' }] },
+      }));
+
+      const tables = await sidecarAdapter.listTables();
+      expect(tables).toContain('memory_traces');
+      expect(tables).toContain('documents');
+      expect(await sidecarAdapter.countRows('documents')).toBe(1);
+      expect(await sidecarAdapter.readBatch('documents', 0, 10)).toEqual([
+        { id: 'doc-1', title: 'hello' },
+      ]);
+    } finally {
+      await sidecarAdapter.close();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -410,9 +442,45 @@ describe('QdrantTargetAdapter', () => {
   });
 
   it('writeBatch() returns 0 for non-collection tables', async () => {
-    const count = await adapter.writeBatch('brain_meta', [{ id: 'x' }]);
-    expect(count).toBe(0);
+    await expect(adapter.writeBatch('brain_meta', [{ id: 'x' }])).rejects.toThrow(
+      'sidecarPath',
+    );
     expect(fetchCalls.length).toBe(0);
+  });
+
+  it('writes non-vector tables to sidecar SQLite when configured', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'qdrant-target-sidecar-'));
+    const sidecarPath = join(tempDir, 'sidecar.sqlite');
+    const sidecarAdapter = new QdrantTargetAdapter('http://localhost:6333', 'test-key', sidecarPath);
+
+    try {
+      await sidecarAdapter.ensureTable('documents', {
+        id: 'doc-1',
+        title: 'hello',
+        metadata: { source: 'test' },
+        isActive: true,
+      });
+
+      const count = await sidecarAdapter.writeBatch('documents', [
+        { id: 'doc-1', title: 'hello', metadata: { source: 'test' }, isActive: true },
+      ]);
+      expect(count).toBe(1);
+
+      const db = new Database(sidecarPath, { readonly: true });
+      const rows = db.prepare('SELECT * FROM documents').all() as Array<Record<string, unknown>>;
+      db.close();
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        id: 'doc-1',
+        title: 'hello',
+        metadata: JSON.stringify({ source: 'test' }),
+        isActive: 1,
+      });
+    } finally {
+      await sidecarAdapter.close();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 

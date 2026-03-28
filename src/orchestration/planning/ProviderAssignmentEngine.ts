@@ -119,13 +119,19 @@ export class ProviderAssignmentEngine {
 
   private assignBalanced(node: AnnotatedNode): NodeProviderAssignment {
     const complexity = node.complexity ?? 0.5;
-    const provider =
+    const tier =
       complexity < 0.3
+        ? 'cheap'
+        : complexity >= 0.7
+          ? 'strong'
+          : 'standard';
+    const provider =
+      tier === 'cheap'
         ? this.pickProvider(
             'balanced:cheap',
             ['groq', 'gemini', 'openai', 'openrouter', 'together', 'mistral', 'xai', 'anthropic', 'ollama'],
           )
-        : complexity >= 0.7
+        : tier === 'strong'
           ? this.pickProvider(
               'balanced:strong',
               ['anthropic', 'openai', 'openrouter', 'gemini', 'groq', 'xai', 'mistral', 'together', 'ollama'],
@@ -137,7 +143,7 @@ export class ProviderAssignmentEngine {
     const defaults = DEFAULTS[provider];
 
     const model =
-      complexity < 0.3
+      tier === 'cheap'
         ? (defaults?.cheap ?? 'gpt-4o-mini')
         : (defaults?.text ?? 'gpt-4o');
 
@@ -146,7 +152,7 @@ export class ProviderAssignmentEngine {
       provider,
       model,
       complexity,
-      reason: `balanced strategy: complexity ${complexity.toFixed(2)} → ${complexity < 0.3 ? 'cheap' : 'standard'} model`,
+      reason: `balanced strategy: complexity ${complexity.toFixed(2)} → ${tier} model`,
     };
   }
 
@@ -175,7 +181,7 @@ export class ProviderAssignmentEngine {
     fallback: string,
   ): NodeProviderAssignment {
     // Check for explicit assignment first
-    if (assignments[node.id]) {
+    if (assignments[node.id] || assignments._default) {
       return this.assignExplicit(node, assignments);
     }
 

@@ -252,6 +252,9 @@ export type GraphEvent =
   /** Emitted when an expansion is approved (auto or user). */
   | { type: 'mission:expansion_approved'; by: 'auto' | 'user' }
 
+  /** Emitted when a proposed expansion is explicitly rejected. */
+  | { type: 'mission:expansion_rejected'; by: 'user'; reason: string }
+
   /** Emitted after an expansion GraphPatch is applied. */
   | { type: 'mission:expansion_applied'; nodesAdded: number; edgesAdded?: number }
 

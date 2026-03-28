@@ -8,6 +8,7 @@
  */
 
 import type { IMigrationSource } from '../types.js';
+import Database from 'better-sqlite3';
 
 /** Tables stored as Qdrant collections (vector data). */
 const QDRANT_COLLECTIONS = ['memory_traces', 'document_chunks'];
@@ -29,7 +30,12 @@ export class QdrantSourceAdapter implements IMigrationSource {
   constructor(
     private readonly url: string,
     private readonly apiKey?: string,
-  ) {}
+    sidecarPath?: string,
+  ) {
+    if (sidecarPath) {
+      this.sidecarDb = new Database(sidecarPath, { readonly: true });
+    }
+  }
 
   /** Build fetch headers with optional API key. */
   private _headers(): Record<string, string> {
@@ -59,11 +65,15 @@ export class QdrantSourceAdapter implements IMigrationSource {
       // Qdrant not reachable — skip vector tables.
     }
 
-    // Check sidecar SQLite tables.
-    // Sidecar path convention: same directory as Qdrant data, file 'sidecar.sqlite'.
-    // For source adapter, this is typically not needed (data comes from the API).
-    // We include sidecar tables only if the sidecar DB path is available via env.
-    // TODO: Accept sidecar path in constructor for full migration support.
+    if (this.sidecarDb) {
+      const rows = this.sidecarDb
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .all() as { name: string }[];
+      const existing = new Set(rows.map((row) => row.name));
+      for (const table of SIDECAR_TABLES) {
+        if (existing.has(table)) tables.push(table);
+      }
+    }
 
     return tables;
   }
@@ -77,6 +87,10 @@ export class QdrantSourceAdapter implements IMigrationSource {
         return data.result.points_count;
       }
     }
+    if (this.sidecarDb && SIDECAR_TABLES.includes(table)) {
+      const row = this.sidecarDb.prepare(`SELECT COUNT(*) as c FROM "${table}"`).get() as { c: number };
+      return row.c;
+    }
     return 0;
   }
 
@@ -85,6 +99,11 @@ export class QdrantSourceAdapter implements IMigrationSource {
    * Converts Qdrant point format to flat row objects.
    */
   async readBatch(table: string, offset: number, limit: number): Promise<Record<string, unknown>[]> {
+    if (this.sidecarDb && SIDECAR_TABLES.includes(table)) {
+      return this.sidecarDb
+        .prepare(`SELECT * FROM "${table}" LIMIT ? OFFSET ?`)
+        .all(limit, offset) as Record<string, unknown>[];
+    }
     if (!QDRANT_COLLECTIONS.includes(table)) return [];
 
     const body = JSON.stringify({

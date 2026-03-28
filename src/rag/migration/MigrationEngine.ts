@@ -145,7 +145,7 @@ export class MigrationEngine {
       }
       case 'qdrant': {
         const { QdrantSourceAdapter } = await import('./adapters/QdrantSourceAdapter.js');
-        return new QdrantSourceAdapter(config.url!, config.apiKey);
+        return new QdrantSourceAdapter(config.url!, config.apiKey, config.sidecarPath);
       }
       case 'pinecone': {
         const { PineconeSourceAdapter } = await import('./adapters/PineconeSourceAdapter.js');
@@ -172,7 +172,7 @@ export class MigrationEngine {
       }
       case 'qdrant': {
         const { QdrantTargetAdapter } = await import('./adapters/QdrantTargetAdapter.js');
-        return new QdrantTargetAdapter(config.url!, config.apiKey);
+        return new QdrantTargetAdapter(config.url!, config.apiKey, config.sidecarPath);
       }
       case 'pinecone': {
         // Pinecone as a target: upsert vectors via the same PineconeVectorStore.
