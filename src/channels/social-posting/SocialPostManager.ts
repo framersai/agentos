@@ -28,7 +28,7 @@
  * ```
  */
 
-import { generateUUID } from '../core/utils/uuid';
+import { generateUUID } from '../../core/utils/uuid';
 
 // ============================================================================
 // Types
