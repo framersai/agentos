@@ -24,3 +24,7 @@ export * from './runtime/index.js';
 export * from './builders/index.js';
 // Compiler (advanced use)
 export * from './compiler/index.js';
+// Planning (self-expanding mission orchestrator)
+export * from './planning/index.js';
+// Orchestration tools (request_expansion, manage_graph)
+export * from './tools/index.js';
