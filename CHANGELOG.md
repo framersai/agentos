@@ -1,3 +1,8 @@
+## <small>0.1.129 (2026-03-28)</small>
+
+* fix(build): restore let declarations and add unknown casts for strict type safety ([6693e00](https://github.com/framersai/agentos/commit/6693e00))
+* fix(lint): prefer-const for organizationIdForMemory and currentToolForges ([8afba95](https://github.com/framersai/agentos/commit/8afba95))
+
 ## <small>0.1.128 (2026-03-28)</small>
 
 * fix(ci): add @framers/agentos-extensions-registry as devDependency ([11e6151](https://github.com/framersai/agentos/commit/11e6151))
