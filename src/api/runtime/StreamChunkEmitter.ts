@@ -3,7 +3,7 @@
  * Extracted from AgentOSOrchestrator for focused chunk construction logic.
  */
 
-import type { StreamId, StreamingManager } from '../core/streaming/StreamingManager';
+import type { StreamId, StreamingManager } from '../../core/streaming/StreamingManager';
 import {
   type AgentOSResponse,
   AgentOSResponseChunkType,
@@ -16,13 +16,13 @@ import {
   type AgentOSUICommandChunk,
   type AgentOSMetadataUpdateChunk,
   type AgentOSWorkflowUpdateChunk,
-} from './types/AgentOSResponse';
+} from '../types/AgentOSResponse';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { normalizeUsage } from '../orchestration/turn-planner/helpers';
+import { normalizeUsage } from '../../orchestration/turn-planner/helpers';
 import {
   getActiveTraceMetadata,
   shouldIncludeTraceInAgentOSResponses,
-} from '../evaluation/observability/otel';
+} from '../../evaluation/observability/otel';
 
 type TurnExecutionLifecyclePhase =
   | 'planned'

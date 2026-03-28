@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { detectScenes } from '../detectScenes.js';
-import type { Frame, SceneBoundary } from '../../vision/types.js';
+import type { Frame, SceneBoundary } from '../../../vision/types.js';
 
 /**
  * Helper to create a frame with a given RGB colour filling the buffer.

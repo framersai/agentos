@@ -8,7 +8,7 @@
  * @module backend/agentos/api/AgentOSOrchestrator
  */
 
-import { AgentOSInput, ProcessingOptions } from './types/AgentOSInput';
+import { AgentOSInput, ProcessingOptions } from '../types/AgentOSInput';
 import {
   TaskOutcomeTelemetryManager,
   evaluateTaskOutcome,
@@ -26,47 +26,47 @@ import { StreamChunkEmitter } from './StreamChunkEmitter';
 // conversation-history) now used by TurnExecutionPipeline
 import {
   AgentOSResponseChunkType,
-} from './types/AgentOSResponse';
+} from '../types/AgentOSResponse';
 import type {
   AgentOSPendingExternalToolRequest,
   AgentOSResumeExternalToolRequestOptions,
-} from './types/AgentOSExternalToolRequest';
+} from '../types/AgentOSExternalToolRequest';
 // AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY now used only by ExternalToolResultHandler
-import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
-import { GMIManager } from '../cognitive_substrate/GMIManager';
+import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
+import { GMIManager } from '../../cognitive_substrate/GMIManager';
 import {
   IGMI,
   GMIOutput,
   GMIOutputChunkType,
-} from '../cognitive_substrate/IGMI';
-import { ConversationManager } from '../core/conversation/ConversationManager';
-import { ConversationContext } from '../core/conversation/ConversationContext';
-import { MessageRole } from '../core/conversation/ConversationMessage';
+} from '../../cognitive_substrate/IGMI';
+import { ConversationManager } from '../../core/conversation/ConversationManager';
+import { ConversationContext } from '../../core/conversation/ConversationContext';
+import { MessageRole } from '../../core/conversation/ConversationMessage';
 // IToolOrchestrator — referenced via AgentOSOrchestratorDependencies
 // uuidv4 — now used by GMIChunkTransformer
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { type StreamId } from '../core/streaming/StreamingManager';
-import { normalizeUsage, snapshotPersonaDetails } from '../orchestration/turn-planner/helpers';
-import type { WorkflowProgressUpdate } from '../planning/workflows/WorkflowTypes';
+import { type StreamId } from '../../core/streaming/StreamingManager';
+import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers';
+import type { WorkflowProgressUpdate } from '../../planning/workflows/WorkflowTypes';
 // AIModelProviderManager — referenced via AgentOSOrchestratorDependencies
 import {
   DEFAULT_PROMPT_PROFILE_CONFIG,
-} from '../structured/prompting/PromptProfileRouter';
+} from '../../structured/prompting/PromptProfileRouter';
 import {
   DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG,
-} from '../core/conversation/RollingSummaryCompactor';
+} from '../../core/conversation/RollingSummaryCompactor';
 // IRollingSummaryMemorySink, RollingSummaryMemoryUpdate — now used by TurnExecutionPipeline
 // ILongTermMemoryRetriever — referenced via AgentOSOrchestratorDependencies
 import {
   type ResolvedLongTermMemoryPolicy,
-} from '../core/conversation/LongTermMemoryPolicy';
+} from '../../core/conversation/LongTermMemoryPolicy';
 import {
   recordAgentOSTurnMetrics,
   recordExceptionOnActiveSpan,
   runWithSpanContext,
   startAgentOSSpan,
   withAgentOSSpan,
-} from '../evaluation/observability/otel';
+} from '../../evaluation/observability/otel';
 // ITurnPlanner, TurnPlan — now used by TurnExecutionPipeline
 // CapabilityContextAssembler, filterCapabilityDiscoveryResultByDisabledSkills — now used by GMIChunkTransformer
 import { ExternalToolResultHandler } from './ExternalToolResultHandler';
@@ -88,7 +88,7 @@ export type {
   ITaskOutcomeTelemetryStore,
   AgentOSOrchestratorConfig,
   AgentOSOrchestratorDependencies,
-} from './types/OrchestratorConfig';
+} from '../types/OrchestratorConfig';
 
 import type {
   LongTermMemoryRecallProfile,
@@ -97,7 +97,7 @@ import type {
   AgentOSTenantRoutingConfig,
   AgentOSOrchestratorConfig,
   AgentOSOrchestratorDependencies,
-} from './types/OrchestratorConfig';
+} from '../types/OrchestratorConfig';
 
 type ResolvedLongTermMemoryRecallConfig = {
   profile: LongTermMemoryRecallProfile;

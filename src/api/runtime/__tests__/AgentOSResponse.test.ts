@@ -4,7 +4,7 @@ import {
   AgentOSResponseChunkType,
   isActionableToolCallRequestChunk,
   isToolCallRequestChunk,
-} from '../types/AgentOSResponse';
+} from '../../types/AgentOSResponse';
 
 describe('AgentOSResponse helpers', () => {
   it('detects tool-call request chunks', () => {

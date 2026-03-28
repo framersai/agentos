@@ -7,7 +7,7 @@
  * event types, callback maps, and the discriminated `AgencyStreamPart` union.
  */
 
-import type { AdaptableToolInput } from './toolAdapter.js';
+import type { AdaptableToolInput } from './runtime/toolAdapter.js';
 
 // ---------------------------------------------------------------------------
 // Scalar union literals

@@ -19,21 +19,21 @@
  * through public read-only accessors.
  */
 
-import type { ILogger } from '../logging/ILogger';
-import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
-import type { ITool } from '../core/tools/ITool';
-import type { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
+import type { ILogger } from '../../logging/ILogger';
+import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
+import type { ITool } from '../../core/tools/ITool';
+import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 import {
   type ExtensionManager,
   EXTENSION_KIND_TOOL,
   EXTENSION_KIND_WORKFLOW,
   EXTENSION_KIND_MESSAGING_CHANNEL,
 } from '../extensions';
-import type { MessagingChannelPayload } from '../extensions/MessagingChannelPayload';
+import type { MessagingChannelPayload } from '../../extensions/MessagingChannelPayload';
 import {
   AgentOSTurnPlanner,
   type ITurnPlanner,
-} from '../orchestration/turn-planner/TurnPlanner';
+} from '../../orchestration/turn-planner/TurnPlanner';
 import {
   CapabilityDiscoveryEngine,
   createDiscoverCapabilitiesTool,
@@ -41,10 +41,10 @@ import {
 import type {
   CapabilityIndexSources,
   ICapabilityDiscoveryEngine,
-} from '../discovery/types';
-import { EmbeddingManager } from '../rag/EmbeddingManager';
-import { InMemoryVectorStore } from '../rag/vector_stores/InMemoryVectorStore';
-import type { WorkflowDescriptorPayload } from '../planning/workflows/WorkflowTypes';
+} from '../../discovery/types';
+import { EmbeddingManager } from '../../rag/EmbeddingManager';
+import { InMemoryVectorStore } from '../../rag/vector_stores/InMemoryVectorStore';
+import type { WorkflowDescriptorPayload } from '../../planning/workflows/WorkflowTypes';
 
 import type {
   AgentOSTurnPlanningConfig,
@@ -52,7 +52,7 @@ import type {
 } from './AgentOS';
 import { adaptTools } from './toolAdapter';
 import type { AdaptableToolInput } from './toolAdapter';
-import type { AIModelProviderManagerConfig } from '../core/llm/providers/AIModelProviderManager';
+import type { AIModelProviderManagerConfig } from '../../core/llm/providers/AIModelProviderManager';
 
 /** Provider-keyed defaults for discovery embedding model and dimension. */
 const DISCOVERY_EMBEDDING_DEFAULTS: Record<string, { modelId: string; dimension: number }> = {

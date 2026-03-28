@@ -758,7 +758,7 @@ export class VideoAnalyzer implements IVideoAnalyzer {
    */
   private async _ensureVisionPipeline(): Promise<VisionPipeline> {
     if (!this._visionPipeline) {
-      const { createVisionPipeline } = await import('../vision/index.js');
+      const { createVisionPipeline } = await import('../../vision/index.js');
       this._visionPipeline = await createVisionPipeline();
     }
     return this._visionPipeline;

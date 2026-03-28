@@ -1,8 +1,8 @@
-import type { UserContext } from '../cognitive_substrate/IGMI';
-import type { ToolExecutionContext } from '../core/tools/ITool';
-import type { IAgentOS } from './interfaces/IAgentOS';
-import type { AgentOSInput } from './types/AgentOSInput';
-import { AgentOSServiceError } from './errors';
+import type { UserContext } from '../../cognitive_substrate/IGMI';
+import type { ToolExecutionContext } from '../../core/tools/ITool';
+import type { IAgentOS } from '../interfaces/IAgentOS';
+import type { AgentOSInput } from '../types/AgentOSInput';
+import { AgentOSServiceError } from '../errors';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import {
   executeExternalToolFromRegistry,
@@ -15,7 +15,7 @@ import {
   type AgentOSExternalToolHandler,
   type AgentOSExternalToolHandlerContext,
 } from './processRequestWithExternalTools';
-import type { AgentOSResponse } from './types/AgentOSResponse';
+import type { AgentOSResponse } from '../types/AgentOSResponse';
 
 function normalizeOptionalString(value: unknown): string | undefined {
   if (typeof value !== 'string') {

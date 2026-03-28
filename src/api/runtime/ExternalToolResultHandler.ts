@@ -11,35 +11,35 @@
  * @module backend/agentos/api/ExternalToolResultHandler
  */
 
-import type { StreamId } from '../core/streaming/StreamingManager';
+import type { StreamId } from '../../core/streaming/StreamingManager';
 import type { StreamChunkEmitter } from './StreamChunkEmitter';
-import type { AgentOSOrchestratorDependencies } from './types/OrchestratorConfig';
-import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
+import type { AgentOSOrchestratorDependencies } from '../types/OrchestratorConfig';
+import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
 import type {
   AgentOSPendingExternalToolRequest,
   AgentOSResumeExternalToolRequestOptions,
-} from './types/AgentOSExternalToolRequest';
-import { AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY } from './types/AgentOSExternalToolRequest';
+} from '../types/AgentOSExternalToolRequest';
+import { AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY } from '../types/AgentOSExternalToolRequest';
 import {
   AgentOSResponseChunkType,
-} from './types/AgentOSResponse';
-import type { ConversationContext } from '../core/conversation/ConversationContext';
-import { MessageRole } from '../core/conversation/ConversationMessage';
+} from '../types/AgentOSResponse';
+import type { ConversationContext } from '../../core/conversation/ConversationContext';
+import { MessageRole } from '../../core/conversation/ConversationMessage';
 import type {
   IGMI,
   GMIOutput,
   ToolCallRequest,
   ToolResultPayload,
-} from '../cognitive_substrate/IGMI';
+} from '../../cognitive_substrate/IGMI';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { normalizeUsage, snapshotPersonaDetails } from '../orchestration/turn-planner/helpers';
+import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers';
 import {
   withAgentOSSpan,
   recordAgentOSToolResultMetrics,
   startAgentOSSpan,
   runWithSpanContext,
-} from '../evaluation/observability/otel';
-import { ORGANIZATION_ID_METADATA_KEY } from '../core/conversation/LongTermMemoryPolicy';
+} from '../../evaluation/observability/otel';
+import { ORGANIZATION_ID_METADATA_KEY } from '../../core/conversation/LongTermMemoryPolicy';
 
 /**
  * Internal state for managing an active stream of GMI interaction.

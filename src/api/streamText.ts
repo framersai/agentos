@@ -10,7 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
-import { adaptTools } from './toolAdapter.js';
+import { adaptTools } from './runtime/toolAdapter.js';
 import {
   createPlan,
   resolveChainOfThought,
@@ -19,8 +19,8 @@ import {
   type TokenUsage,
   type ToolCallRecord,
 } from './generateText.js';
-import { parseToolCallsFromText } from './TextToolCallParser.js';
-import { recordAgentOSUsage } from './usageLedger.js';
+import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
+import { recordAgentOSUsage } from './runtime/usageLedger.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
 import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../evaluation/observability/otel.js';

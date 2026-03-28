@@ -1,13 +1,13 @@
-import type { AgentOSInput } from './types/AgentOSInput';
-import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
+import type { AgentOSInput } from '../types/AgentOSInput';
+import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
 import {
   isActionableToolCallRequestChunk,
   type AgentOSActionableToolCallRequestChunk,
   type AgentOSResponse,
-} from './types/AgentOSResponse';
-import type { IAgentOS } from './interfaces/IAgentOS';
-import type { ToolCallRequest } from '../cognitive_substrate/IGMI';
-import { AgentOSServiceError } from './errors';
+} from '../types/AgentOSResponse';
+import type { IAgentOS } from '../interfaces/IAgentOS';
+import type { ToolCallRequest } from '../../cognitive_substrate/IGMI';
+import { AgentOSServiceError } from '../errors';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
 export interface AgentOSExternalToolHandlerContext {

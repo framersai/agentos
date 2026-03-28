@@ -51,7 +51,7 @@ import {
   exportAgentConfigJSON,
   type AgentExportConfig,
 } from './agentExport.js';
-import { createBufferedAsyncReplay } from './streamBuffer.js';
+import { createBufferedAsyncReplay } from './runtime/streamBuffer.js';
 
 // ---------------------------------------------------------------------------
 // Public factory

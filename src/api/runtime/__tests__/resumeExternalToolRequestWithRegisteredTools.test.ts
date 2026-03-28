@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { AgentOSServiceError } from '../errors';
+import { AgentOSServiceError } from '../../errors';
 import {
   buildPendingExternalToolExecutionContext,
   executePendingExternalToolCall,
   executePendingExternalToolCalls,
   resumeExternalToolRequestWithRegisteredTools,
 } from '../resumeExternalToolRequestWithRegisteredTools';
-import type { AgentOSPendingExternalToolRequest } from '../types/AgentOSExternalToolRequest';
-import { AgentOSResponseChunkType, type AgentOSResponse } from '../types/AgentOSResponse';
-import type { ITool, ToolExecutionContext } from '../../core/tools/ITool';
+import type { AgentOSPendingExternalToolRequest } from '../../types/AgentOSExternalToolRequest';
+import { AgentOSResponseChunkType, type AgentOSResponse } from '../../types/AgentOSResponse';
+import type { ITool, ToolExecutionContext } from '../../../core/tools/ITool';
 
 const pendingRequest: AgentOSPendingExternalToolRequest = {
   streamId: 'stream-pending',

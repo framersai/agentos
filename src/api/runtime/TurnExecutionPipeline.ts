@@ -17,25 +17,25 @@
  * @module backend/agentos/api/TurnExecutionPipeline
  */
 
-import type { StreamId } from '../core/streaming/StreamingManager';
+import type { StreamId } from '../../core/streaming/StreamingManager';
 import type { StreamChunkEmitter } from './StreamChunkEmitter';
-import type { AgentOSOrchestratorDependencies } from './types/OrchestratorConfig';
-import type { AgentOSInput } from './types/AgentOSInput';
+import type { AgentOSOrchestratorDependencies } from '../types/OrchestratorConfig';
+import type { AgentOSInput } from '../types/AgentOSInput';
 import type { GMIChunkTransformer } from './GMIChunkTransformer';
 import type { TaskOutcomeTelemetryManager, AdaptiveExecutionDecision } from './TaskOutcomeTelemetryManager';
 import {
   AgentOSResponseChunkType,
-} from './types/AgentOSResponse';
-import type { ConversationContext } from '../core/conversation/ConversationContext';
-import { MessageRole } from '../core/conversation/ConversationMessage';
+} from '../types/AgentOSResponse';
+import type { ConversationContext } from '../../core/conversation/ConversationContext';
+import { MessageRole } from '../../core/conversation/ConversationMessage';
 import type {
   IGMI,
   GMITurnInput,
-} from '../cognitive_substrate/IGMI';
-import { GMIInteractionType } from '../cognitive_substrate/IGMI';
+} from '../../cognitive_substrate/IGMI';
+import { GMIInteractionType } from '../../cognitive_substrate/IGMI';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { withAgentOSSpan } from '../evaluation/observability/otel';
-import type { TurnPlan } from '../orchestration/turn-planner/TurnPlanner';
+import { withAgentOSSpan } from '../../evaluation/observability/otel';
+import type { TurnPlan } from '../../orchestration/turn-planner/TurnPlanner';
 import {
   executeRollingSummaryPhase,
   type RollingSummaryPhaseResult,
@@ -43,23 +43,23 @@ import {
 import { executePromptProfilePhase } from './turn-phases/prompt-profile';
 import { executeLongTermMemoryPhase } from './turn-phases/long-term-memory';
 import { assembleConversationHistory } from './turn-phases/conversation-history';
-import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../core/conversation/RollingSummaryCompactor';
+import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../../core/conversation/RollingSummaryCompactor';
 import type {
   IRollingSummaryMemorySink,
   RollingSummaryMemoryUpdate,
-} from '../core/conversation/IRollingSummaryMemorySink';
+} from '../../core/conversation/IRollingSummaryMemorySink';
 import {
   DEFAULT_LONG_TERM_MEMORY_POLICY,
   hasAnyLongTermMemoryScope,
   LONG_TERM_MEMORY_POLICY_METADATA_KEY,
   resolveLongTermMemoryPolicy,
   type ResolvedLongTermMemoryPolicy,
-} from '../core/conversation/LongTermMemoryPolicy';
+} from '../../core/conversation/LongTermMemoryPolicy';
 import type {
   LongTermMemoryRecallProfile,
   AgentOSLongTermMemoryRecallConfig,
   AgentOSTenantRoutingConfig,
-} from './types/OrchestratorConfig';
+} from '../types/OrchestratorConfig';
 
 /**
  * Minimal stream context shape, matching the ActiveStreamContext used by

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { AgentOSServiceError } from '../errors';
+import { AgentOSServiceError } from '../../errors';
 import {
   buildRegisteredExternalToolExecutionContext,
   processRequestWithRegisteredTools,
@@ -9,8 +9,8 @@ import {
   AgentOSResponseChunkType,
   type AgentOSActionableToolCallRequestChunk,
   type AgentOSResponse,
-} from '../types/AgentOSResponse';
-import type { ToolExecutionContext, ITool } from '../../core/tools/ITool';
+} from '../../types/AgentOSResponse';
+import type { ToolExecutionContext, ITool } from '../../../core/tools/ITool';
 
 function createChunk(chunk: Record<string, unknown>): AgentOSResponse {
   return {

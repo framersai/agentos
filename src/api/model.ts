@@ -8,7 +8,7 @@
  * {@link streamText}.
  */
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager.js';
-import { PROVIDER_DEFAULTS, autoDetectProvider } from './provider-defaults.js';
+import { PROVIDER_DEFAULTS, autoDetectProvider } from './runtime/provider-defaults.js';
 
 /**
  * The result of splitting a `provider:model` string at the first colon.

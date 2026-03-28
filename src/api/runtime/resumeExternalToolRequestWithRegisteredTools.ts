@@ -1,13 +1,13 @@
-import type { UserContext, ToolCallRequest } from '../cognitive_substrate/IGMI';
-import type { ToolExecutionContext } from '../core/tools/ITool';
-import type { IAgentOS } from './interfaces/IAgentOS';
-import { AgentOSServiceError } from './errors';
+import type { UserContext, ToolCallRequest } from '../../cognitive_substrate/IGMI';
+import type { ToolExecutionContext } from '../../core/tools/ITool';
+import type { IAgentOS } from '../interfaces/IAgentOS';
+import { AgentOSServiceError } from '../errors';
 import type {
   AgentOSPendingExternalToolRequest,
   AgentOSResumeExternalToolRequestOptions,
-} from './types/AgentOSExternalToolRequest';
-import type { AgentOSResponse } from './types/AgentOSResponse';
-import type { AgentOSToolResultInput } from './types/AgentOSToolResult';
+} from '../types/AgentOSExternalToolRequest';
+import type { AgentOSResponse } from '../types/AgentOSResponse';
+import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import {
   executeExternalToolFromRegistry,

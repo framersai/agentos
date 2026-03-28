@@ -12,14 +12,14 @@
  * @module backend/agentos/api/GMIChunkTransformer
  */
 
-import type { StreamId } from '../core/streaming/StreamingManager';
+import type { StreamId } from '../../core/streaming/StreamingManager';
 import type { StreamChunkEmitter } from './StreamChunkEmitter';
-import type { AgentOSOrchestratorDependencies } from './types/OrchestratorConfig';
+import type { AgentOSOrchestratorDependencies } from '../types/OrchestratorConfig';
 import {
   AgentOSResponseChunkType,
-} from './types/AgentOSResponse';
-import type { AgentOSInput } from './types/AgentOSInput';
-import type { ConversationContext } from '../core/conversation/ConversationContext';
+} from '../types/AgentOSResponse';
+import type { AgentOSInput } from '../types/AgentOSInput';
+import type { ConversationContext } from '../../core/conversation/ConversationContext';
 import type {
   IGMI,
   GMITurnInput,
@@ -27,17 +27,17 @@ import type {
   GMIOutput,
   ToolCallRequest,
   UICommand,
-} from '../cognitive_substrate/IGMI';
+} from '../../cognitive_substrate/IGMI';
 import {
   GMIInteractionType,
   GMIOutputChunkType,
-} from '../cognitive_substrate/IGMI';
+} from '../../cognitive_substrate/IGMI';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { normalizeUsage, snapshotPersonaDetails } from '../orchestration/turn-planner/helpers';
-import { withAgentOSSpan } from '../evaluation/observability/otel';
+import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers';
+import { withAgentOSSpan } from '../../evaluation/observability/otel';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
-import type { ITurnPlanner, TurnPlan } from '../orchestration/turn-planner/TurnPlanner';
-import { CapabilityContextAssembler } from '../discovery/CapabilityContextAssembler.js';
+import type { ITurnPlanner, TurnPlan } from '../../orchestration/turn-planner/TurnPlanner';
+import { CapabilityContextAssembler } from '../../discovery/CapabilityContextAssembler.js';
 import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';
 
 /**

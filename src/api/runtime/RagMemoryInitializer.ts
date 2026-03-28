@@ -21,26 +21,26 @@
  * read-only accessors.
  */
 
-import type { ILogger } from '../logging/ILogger';
-import type { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
-import type { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
-import type { IVectorStoreManager } from '../core/vector-store/IVectorStoreManager';
-import type { VectorStoreManagerConfig } from '../config/VectorStoreConfiguration';
+import type { ILogger } from '../../logging/ILogger';
+import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
+import type { IRetrievalAugmentor } from '../../rag/IRetrievalAugmentor';
+import type { IVectorStoreManager } from '../../core/vector-store/IVectorStoreManager';
+import type { VectorStoreManagerConfig } from '../../config/VectorStoreConfiguration';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import type {
   ExtensionManager,
   ExtensionLifecycleContext,
 } from '../extensions';
-import { createMemoryToolsPack } from '../memory/extension/MemoryToolsExtension.js';
-import type { Memory } from '../memory/facade/Memory.js';
+import { createMemoryToolsPack } from '../../memory/extension/MemoryToolsExtension.js';
+import type { Memory } from '../../memory/facade/Memory.js';
 import {
   createStandaloneMemoryLongTermRetriever,
   createStandaloneMemoryRollingSummarySink,
-} from '../memory/integration/StandaloneMemoryBridge.js';
+} from '../../memory/integration/StandaloneMemoryBridge.js';
 import type {
   StandaloneMemoryLongTermRetrieverOptions,
   StandaloneMemoryRollingSummarySinkOptions,
-} from '../memory/integration/StandaloneMemoryBridge.js';
+} from '../../memory/integration/StandaloneMemoryBridge.js';
 
 import type {
   AgentOSConfig,

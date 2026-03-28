@@ -14,9 +14,9 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
-import { adaptTools, type AdaptableToolInput } from './toolAdapter.js';
-import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './usageLedger.js';
-import { parseToolCallsFromText } from './TextToolCallParser.js';
+import { adaptTools, type AdaptableToolInput } from './runtime/toolAdapter.js';
+import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
+import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';

@@ -1,14 +1,14 @@
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
-import type { ToolDefinitionForLLM } from '../core/tools/IToolOrchestrator';
-import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
+import type { ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator';
+import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type {
   ToolExecutionContext,
   ToolExecutionResult,
   ITool,
   JSONSchemaObject,
-} from '../core/tools/ITool';
-import { AgentOSServiceError } from './errors';
+} from '../../core/tools/ITool';
+import { AgentOSServiceError } from '../errors';
 import type { AgentOSExternalToolHandlerResult } from './processRequestWithExternalTools';
 
 export type ExternalToolExecutor<

@@ -1,5 +1,5 @@
-import type { CapabilityDescriptor, CapabilityDiscoveryResult } from '../discovery/types.js';
-import type { AgentOSInput } from './types/AgentOSInput.js';
+import type { CapabilityDescriptor, CapabilityDiscoveryResult } from '../../discovery/types.js';
+import type { AgentOSInput } from '../types/AgentOSInput.js';
 
 export type SelfImprovementSkillDescriptor = {
   skillId: string;

@@ -58,7 +58,7 @@ import {
   type AgentOSOrchestratorDependencies,
   type AgentOSOrchestratorConfig,
   type ITaskOutcomeTelemetryStore,
-} from './AgentOSOrchestrator';
+} from './runtime/AgentOSOrchestrator';
 import { GMIManager, GMIManagerConfig } from '../cognitive_substrate/GMIManager';
 import {
   AIModelProviderManager,
@@ -141,13 +141,13 @@ import {
   listExternalToolDefinitionsForLLM,
   normalizeExternalToolRegistry,
   type ExternalToolRegistry,
-} from './externalToolRegistry';
-import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './toolAdapter';
+} from './runtime/externalToolRegistry';
+import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './runtime/toolAdapter';
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
-import { WorkflowFacade } from './WorkflowFacade';
-import { CapabilityDiscoveryInitializer } from './CapabilityDiscoveryInitializer';
-import { SelfImprovementSessionManager } from './SelfImprovementSessionManager';
-import { RagMemoryInitializer } from './RagMemoryInitializer';
+import { WorkflowFacade } from './runtime/WorkflowFacade';
+import { CapabilityDiscoveryInitializer } from './runtime/CapabilityDiscoveryInitializer';
+import { SelfImprovementSessionManager } from './runtime/SelfImprovementSessionManager';
+import { RagMemoryInitializer } from './runtime/RagMemoryInitializer';
 import type { TurnPlannerConfig } from '../orchestration/turn-planner/TurnPlanner';
 import type {
   CapabilityDescriptor,

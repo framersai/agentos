@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { VisionResult } from '../../vision/types.js';
+import type { VisionResult } from '../../../vision/types.js';
 
 // ---------------------------------------------------------------------------
 // Mock the createVisionPipeline factory so we never instantiate real ML models
@@ -18,7 +18,7 @@ vi.mock('../../vision/index.js', () => ({
 
 // Import AFTER mocks are set up (vitest hoists vi.mock automatically)
 import { performOCR } from '../performOCR.js';
-import { createVisionPipeline } from '../../vision/index.js';
+import { createVisionPipeline } from '../../../vision/index.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

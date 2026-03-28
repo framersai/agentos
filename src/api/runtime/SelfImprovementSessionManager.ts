@@ -19,12 +19,12 @@
  * bootstrap.
  */
 
-import type { AgentOSInput } from './types/AgentOSInput';
-import type { ILogger } from '../logging/ILogger';
-import type { SelfImprovementToolDeps } from '../emergent/EmergentCapabilityEngine.js';
-import { PersonalityMutationStore } from '../emergent/PersonalityMutationStore.js';
-import { resolveSelfImprovementSessionKey } from '../emergent/sessionScope.js';
-import type { CapabilityIndexSources } from '../discovery/types';
+import type { AgentOSInput } from '../types/AgentOSInput';
+import type { ILogger } from '../../logging/ILogger';
+import type { SelfImprovementToolDeps } from '../../emergent/EmergentCapabilityEngine.js';
+import { PersonalityMutationStore } from '../../emergent/PersonalityMutationStore.js';
+import { resolveSelfImprovementSessionKey } from '../../emergent/sessionScope.js';
+import type { CapabilityIndexSources } from '../../discovery/types';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 
 import {

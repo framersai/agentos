@@ -3,15 +3,15 @@
  * and alert generation. Extracted from AgentOSOrchestrator for readability.
  */
 
-import type { GMIOutput } from '../cognitive_substrate/IGMI';
+import type { GMIOutput } from '../../cognitive_substrate/IGMI';
 import type {
   TaskOutcomeTelemetryScope,
   AgentOSTaskOutcomeTelemetryConfig,
   AgentOSAdaptiveExecutionConfig,
   TaskOutcomeKpiWindowEntry,
   ITaskOutcomeTelemetryStore,
-} from './types/OrchestratorConfig';
-import type { TurnPlan, ToolFailureMode } from '../orchestration/turn-planner/TurnPlanner';
+} from '../types/OrchestratorConfig';
+import type { TurnPlan, ToolFailureMode } from '../../orchestration/turn-planner/TurnPlanner';
 
 // ---------------------------------------------------------------------------
 // Internal types

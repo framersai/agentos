@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { AgentOSServiceError } from '../errors';
+import { AgentOSServiceError } from '../../errors';
 import { processRequestWithExternalTools } from '../processRequestWithExternalTools';
 import {
   AgentOSResponseChunkType,
   type AgentOSResponse,
-} from '../types/AgentOSResponse';
+} from '../../types/AgentOSResponse';
 
 function createChunk(
   chunk: Record<string, unknown>,

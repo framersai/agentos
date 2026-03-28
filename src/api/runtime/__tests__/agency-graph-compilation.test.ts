@@ -11,13 +11,13 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { START, END } from '../../orchestration/ir/types.js';
+import { START, END } from '../../../orchestration/ir/types.js';
 import type {
   CompiledExecutionGraph,
   GraphNode,
   GraphEdge,
   GraphState,
-} from '../../orchestration/ir/types.js';
+} from '../../../orchestration/ir/types.js';
 import {
   compileAgencyToGraph,
   mapGraphResultToAgencyResult,

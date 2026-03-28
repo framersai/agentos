@@ -12,12 +12,12 @@ vi.mock('../../orchestration/turn-planner/helpers', () => ({
 }));
 
 import { StreamChunkEmitter } from '../StreamChunkEmitter';
-import { AgentOSResponseChunkType } from '../types/AgentOSResponse';
+import { AgentOSResponseChunkType } from '../../types/AgentOSResponse';
 import {
   shouldIncludeTraceInAgentOSResponses,
   getActiveTraceMetadata,
 } from '../../evaluation/observability/otel';
-import type { StreamingManager } from '../../core/streaming/StreamingManager';
+import type { StreamingManager } from '../../../core/streaming/StreamingManager';
 
 function createMockStreamingManager(): StreamingManager {
   return {

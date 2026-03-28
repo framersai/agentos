@@ -17,8 +17,8 @@
  * external API surface remains unchanged.
  */
 
-import type { ILogger } from '../logging/ILogger';
-import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';
+import type { ILogger } from '../../logging/ILogger';
+import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type {
   ExtensionManager,
   ExtensionEvent,
@@ -26,16 +26,16 @@ import type {
   ExtensionLifecycleContext,
 } from '../extensions';
 import { EXTENSION_KIND_WORKFLOW } from '../extensions';
-import type { WorkflowDescriptor } from '../extensions/types';
+import type { WorkflowDescriptor } from '../../extensions/types';
 import type { AgentOSOrchestrator } from './AgentOSOrchestrator';
-import type { GMIManager } from '../cognitive_substrate/GMIManager';
-import type { StreamingManager } from '../core/streaming/StreamingManager';
+import type { GMIManager } from '../../cognitive_substrate/GMIManager';
+import type { StreamingManager } from '../../core/streaming/StreamingManager';
 
-import { WorkflowEngine } from '../planning/workflows/WorkflowEngine';
+import { WorkflowEngine } from '../../planning/workflows/WorkflowEngine';
 import type {
   WorkflowEngineConfig,
   WorkflowEngineEventListener,
-} from '../planning/workflows/IWorkflowEngine';
+} from '../../planning/workflows/IWorkflowEngine';
 import type {
   WorkflowDefinition,
   WorkflowDescriptorPayload,
@@ -43,18 +43,18 @@ import type {
   WorkflowInstance,
   WorkflowProgressUpdate,
   WorkflowStatus,
-} from '../planning/workflows/WorkflowTypes';
+} from '../../planning/workflows/WorkflowTypes';
 import type {
   IWorkflowStore,
   WorkflowQueryOptions,
   WorkflowTaskUpdate,
-} from '../planning/workflows/storage/IWorkflowStore';
-import { InMemoryWorkflowStore } from '../planning/workflows/storage/InMemoryWorkflowStore';
-import { WorkflowRuntime } from '../planning/workflows/runtime/WorkflowRuntime';
-import { AgencyRegistry } from '../agents/agency/AgencyRegistry';
+} from '../../planning/workflows/storage/IWorkflowStore';
+import { InMemoryWorkflowStore } from '../../planning/workflows/storage/InMemoryWorkflowStore';
+import { WorkflowRuntime } from '../../planning/workflows/runtime/WorkflowRuntime';
+import { AgencyRegistry } from '../../agents/agency/AgencyRegistry';
 
-import type { AgentOSInput } from './types/AgentOSInput';
-import { AgentOSServiceError } from './errors';
+import type { AgentOSInput } from '../types/AgentOSInput';
+import { AgentOSServiceError } from '../errors';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
 /**

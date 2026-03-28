@@ -174,7 +174,7 @@ export class LLMVisionProvider implements IVisionProvider {
    */
   async describeImage(image: string): Promise<string> {
     // Lazy import to avoid loading the full API machinery until needed
-    const { generateText } = await import('../../../api/generateText.js');
+    const { generateText } = await import('../../api/generateText.js');
 
     // Build the multimodal message with text prompt + image.
     // The content array format is the standard multimodal message shape

@@ -899,7 +899,7 @@ export class VisionPipeline {
     }
 
     // Import the high-level API to avoid coupling to any specific provider
-    const { generateText } = await import('../../api/generateText.js');
+    const { generateText } = await import('../api/generateText.js');
 
     // Build the base64 data URL for the image
     const base64 = Buffer.isBuffer(image)

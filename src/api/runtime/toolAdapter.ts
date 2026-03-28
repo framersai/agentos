@@ -11,8 +11,8 @@ import type {
   ToolExecutionResult,
   ToolExecutionContext,
   JSONSchemaObject,
-} from '../core/tools/ITool.js';
-import type { ToolDefinitionForLLM } from '../core/tools/IToolOrchestrator.js';
+} from '../../core/tools/ITool.js';
+import type { ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator.js';
 import type { ExternalToolRegistry } from './externalToolRegistry.js';
 
 /**
