@@ -82,7 +82,7 @@ export * from './extensions';
 // Messaging Channels (external platform adapters)
 export * from './channels';
 // Voice Calls (telephony providers)
-export * from './telephony';
+export * from './channels/telephony';
 // Unified speech runtime (STT/TTS/VAD/wake-word)
 export * from './speech';
 // Unified image generation providers

@@ -21,7 +21,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { TelephonyStreamTransport } from '../TelephonyStreamTransport.js';
 import type { MediaStreamParser, MediaStreamIncoming } from '../MediaStreamParser.js';
-import type { EncodedAudioChunk } from '../../voice-pipeline/types.js';
+import type { EncodedAudioChunk } from '../../../voice-pipeline/types.js';
 
 // ---------------------------------------------------------------------------
 // Mock factories

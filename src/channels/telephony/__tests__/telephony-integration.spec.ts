@@ -29,7 +29,7 @@ import { TwilioMediaStreamParser } from '../parsers/TwilioMediaStreamParser.js';
 import { TelephonyStreamTransport } from '../TelephonyStreamTransport.js';
 import { CallManager } from '../CallManager.js';
 import { TwilioVoiceProvider } from '../providers/twilio.js';
-import type { AudioFrame } from '../../voice-pipeline/types.js';
+import type { AudioFrame } from '../../../voice-pipeline/types.js';
 
 // ---------------------------------------------------------------------------
 // Shared helpers

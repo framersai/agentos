@@ -70,7 +70,7 @@ import type {
   EncodedAudioChunk,
   IStreamTransport,
   ServerTextMessage,
-} from '../voice-pipeline/types.js';
+} from '../../voice-pipeline/types.js';
 
 // ============================================================================
 // TelephonyStreamTransport
