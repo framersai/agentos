@@ -1,6 +1,6 @@
 /**
  * @fileoverview Types for the HNSW index sidecar.
- * @module agentos/core/vector-search/types
+ * @module agentos/rag/vector-search/types
  */
 
 /** Configuration for {@link HnswIndexSidecar}. */

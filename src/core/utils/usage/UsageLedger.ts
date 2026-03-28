@@ -1,4 +1,4 @@
-// File: packages/agentos/src/core/usage/UsageLedger.ts
+// File: packages/agentos/src/core/utils/usage/UsageLedger.ts
 /**
  * @fileoverview Aggregates model usage (tokens, cost) across sessions, personas, and providers.
  * Serves as a foundational accounting component for later billing, analytics, and dynamic routing decisions.
@@ -9,7 +9,7 @@
  * 3. Query Flexibility: Summaries per session, persona, provider, model.
  * 4. Cost Normalization: Uses `ModelUsage.costUSD` when present; can apply fallback pricing from a model catalog.
  */
-import { ModelCompletionResponse, ModelUsage } from '../llm/providers/IProvider';
+import { ModelCompletionResponse, ModelUsage } from '../../llm/providers/IProvider';
 
 /** Canonical key dimensions tracked for each usage record. */
 export interface UsageDimensions {

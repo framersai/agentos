@@ -121,7 +121,7 @@ export * from './types/rateLimitTypes';
 // Storage adapters
 export * from './core/storage';
 // Usage & cost accounting
-export * from './core/usage/UsageLedger';
+export * from './core/utils/usage/UsageLedger';
 // RAG (Retrieval Augmented Generation)
 export * from './rag';
 // Cognitive Memory System

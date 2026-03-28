@@ -1,6 +1,6 @@
 /**
  * @fileoverview Shared vector search utilities — HNSW index sidecar.
- * @module agentos/core/vector-search
+ * @module agentos/rag/vector-search
  */
 
 export { HnswIndexSidecar } from './HnswIndexSidecar';

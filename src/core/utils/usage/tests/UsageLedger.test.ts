@@ -1,7 +1,7 @@
-// File: packages/agentos/src/core/usage/tests/UsageLedger.test.ts
+// File: packages/agentos/src/core/utils/usage/tests/UsageLedger.test.ts
 import { describe, it, expect } from 'vitest';
 import UsageLedger from '../UsageLedger';
-import { ModelCompletionResponse } from '../../llm/providers/IProvider';
+import { ModelCompletionResponse } from '../../../llm/providers/IProvider';
 
 function makeChunk(id: string, isFinal: boolean, usage?: any): ModelCompletionResponse {
   return {

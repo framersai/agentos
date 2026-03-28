@@ -63,7 +63,7 @@ import {
 import { GMIError, GMIErrorCode } from '../../../utils/errors.js';
 import { uuidv4 } from '../../../utils/uuid.js';
 import { getNaturalStopWords } from '../../../nlp/filters/StopWordFilter.js';
-import type { HnswIndexSidecar } from '../../../core/vector-search/HnswIndexSidecar.js';
+import type { HnswIndexSidecar } from '../../../rag/vector-search/HnswIndexSidecar.js';
 
 // ============================================================================
 // Configuration Types
@@ -1247,7 +1247,7 @@ export class SqlVectorStore implements IVectorStore {
     }
 
     try {
-      const { HnswIndexSidecar } = await import('../../../core/vector-search/HnswIndexSidecar.js');
+      const { HnswIndexSidecar } = await import('../../../rag/vector-search/HnswIndexSidecar.js');
       this.hnswSidecarClass = HnswIndexSidecar as new () => HnswIndexSidecar;
     } catch {
       this.hnswSidecarClass = null;

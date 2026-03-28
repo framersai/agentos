@@ -13,7 +13,7 @@
 
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 import { Tool } from './tools/Tool'; // Assuming Tool is a class/interface representing an executable tool
-import { UIComponentSpecification } from '../../core/ui/IUIComponent'; // Assuming this defines UI block structure
+import { UIComponentSpecification } from '../../core/utils/IUIComponent'; // Assuming this defines UI block structure
 import { AgentConfig } from './AgentCore'; // AgentConfig will be defined in AgentCore.ts
 
 /**

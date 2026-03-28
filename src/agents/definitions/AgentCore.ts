@@ -23,7 +23,7 @@ import { IProvider, ModelCompletionOptions, ModelCompletionResponse, ChatMessage
 import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult } from '../../core/llm/IPromptEngine';
 import type { Tool, ToolDefinition } from './tools/Tool';
 import type { ITool } from '../../core/tools/ITool';
-import type { UIComponentSpecification } from '../../core/ui/IUIComponent';
+import type { UIComponentSpecification } from '../../core/utils/IUIComponent';
 import { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI';
 import { MessageRole } from '../../core/conversation/ConversationMessage';
 import { AgentPoolConfig } from './AgentPoolConfig';

@@ -27,7 +27,7 @@ function nextId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${(++_idCounter).toString(36)}`;
 }
 
-/** Minimal UsageLedger interface to avoid hard dependency on core/usage. */
+/** Minimal UsageLedger interface to avoid hard dependency on core/utils/usage. */
 interface UsageLedgerLike {
   ingestUsage(
     dim: { sessionId: string; personaId?: string; providerId?: string; modelId?: string },

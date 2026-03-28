@@ -6,7 +6,7 @@
  *
  * Used by both the RAG system (SqlVectorStore) and the Memory system (SqliteBrain).
  *
- * @module agentos/core/vector-search/HnswIndexSidecar
+ * @module agentos/rag/vector-search/HnswIndexSidecar
  */
 
 import * as fs from 'fs/promises';

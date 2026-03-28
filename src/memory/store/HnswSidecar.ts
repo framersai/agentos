@@ -10,9 +10,9 @@
  * Below that, brute-force cosine in the Memory facade is fast enough.
  *
  * NOTE: The generalized version of this pattern is now available at
- * `core/vector-search/HnswIndexSidecar`. This Memory-specific version
+ * `rag/vector-search/HnswIndexSidecar`. This Memory-specific version
  * will be migrated to delegate to the shared module in a future update.
- * New code should use `HnswIndexSidecar` from `core/vector-search/` directly.
+ * New code should use `HnswIndexSidecar` from `rag/vector-search/` directly.
  *
  * Architecture:
  * ```
@@ -22,7 +22,7 @@
  *        brain.hnsw.map.json ← label↔id mapping
  * ```
  *
- * @see core/vector-search/HnswIndexSidecar for the shared generalized version
+ * @see rag/vector-search/HnswIndexSidecar for the shared generalized version
  */
 
 import { existsSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';
