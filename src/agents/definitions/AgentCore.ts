@@ -14,18 +14,18 @@
  * - Configurability: Agents are defined by an `AgentConfig` object.
  * - Extensibility: Easy to create new agent types by inheriting from `AgentCore`.
  * - Dependency Injection: Core services (PromptEngine, ProviderManager, etc.) are injected.
- * @module backend/agentos/core/agents/AgentCore
+ * @module backend/agentos/agents/definitions/AgentCore
  */
 
 import { IAgent, AgentOutput, AgentToolCall } from './IAgent';
-import { ConversationContext } from '../conversation/ConversationContext';
-import { IProvider, ModelCompletionOptions, ModelCompletionResponse, ChatMessage, MessageContent } from '../llm/providers/IProvider';
-import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult } from '../llm/IPromptEngine';
+import { ConversationContext } from '../../core/conversation/ConversationContext';
+import { IProvider, ModelCompletionOptions, ModelCompletionResponse, ChatMessage, MessageContent } from '../../core/llm/providers/IProvider';
+import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult } from '../../core/llm/IPromptEngine';
 import type { Tool, ToolDefinition } from './tools/Tool';
-import type { ITool } from '../tools/ITool';
-import type { UIComponentSpecification } from '../ui/IUIComponent';
-import { IUtilityAI } from '../ai_utilities/IUtilityAI';
-import { MessageRole } from '../conversation/ConversationMessage';
+import type { ITool } from '../../core/tools/ITool';
+import type { UIComponentSpecification } from '../../core/ui/IUIComponent';
+import { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI';
+import { MessageRole } from '../../core/conversation/ConversationMessage';
 import { AgentPoolConfig } from './AgentPoolConfig';
 import { IAgentFactory } from './IAgentFactory';
 // AIModelProviderManager import moved to IAgentFactory (used for AgentDependencies type)

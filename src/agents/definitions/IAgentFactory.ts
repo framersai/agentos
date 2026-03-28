@@ -7,15 +7,15 @@
  *
  * The factory pattern employed here promotes loose coupling between the agent
  * consumers (e.g., an orchestrator) and the concrete agent implementations.
- * @module backend/agentos/core/agents/IAgentFactory
+ * @module backend/agentos/agents/definitions/IAgentFactory
  */
 
 import { IAgent } from './IAgent';
 import { AgentConfig } from './AgentCore';
-import { IPromptEngine } from '../llm/IPromptEngine';
-import { IProvider } from '../llm/providers/IProvider';
-import { IUtilityAI } from '../ai_utilities/IUtilityAI';
-import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager';
+import { IPromptEngine } from '../../core/llm/IPromptEngine';
+import { IProvider } from '../../core/llm/providers/IProvider';
+import { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI';
+import { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 
 /**
  * Defines the set of shared dependencies that an agent instance typically requires.

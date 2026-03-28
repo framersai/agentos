@@ -13,7 +13,7 @@
  *
  * This centralized approach to agent creation promotes modularity, testability,
  * and simplifies the process of extending the system with new agent types.
- * @module backend/agentos/core/agents/AgentFactory
+ * @module backend/agentos/agents/definitions/AgentFactory
  */
 
 import { IAgentFactory, AgentDependencies, AgentClassConstructor } from './IAgentFactory';

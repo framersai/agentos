@@ -7,11 +7,11 @@
  *
  * This module also defines the `AgentPoolStrategy` enum, which specifies the
  * operational mode of the pool.
- * @module backend/agentos/core/agents/AgentPoolConfig
+ * @module backend/agentos/agents/definitions/AgentPoolConfig
  */
 
-import { ModelTargetInfo } from '../llm/IPromptEngine'; // For model preferences in routing/synthesis
-import { ModelCompletionOptions } from '../llm/providers/IProvider';
+import { ModelTargetInfo } from '../../core/llm/IPromptEngine'; // For model preferences in routing/synthesis
+import { ModelCompletionOptions } from '../../core/llm/providers/IProvider';
 
 /**
  * Defines the strategy an Agent Pool uses to interact with its sub-agents

@@ -8,12 +8,12 @@
  * This interface is designed to be flexible enough to accommodate various types of agents,
  * from simple task-oriented bots to complex, persona-driven entities like GMIs, or
  * specialized agents within an Agent Pool.
- * @module backend/agentos/core/agents/IAgent
+ * @module backend/agentos/agents/definitions/IAgent
  */
 
-import { ConversationContext } from '../conversation/ConversationContext';
+import { ConversationContext } from '../../core/conversation/ConversationContext';
 import { Tool } from './tools/Tool'; // Assuming Tool is a class/interface representing an executable tool
-import { UIComponentSpecification } from '../ui/IUIComponent'; // Assuming this defines UI block structure
+import { UIComponentSpecification } from '../../core/ui/IUIComponent'; // Assuming this defines UI block structure
 import { AgentConfig } from './AgentCore'; // AgentConfig will be defined in AgentCore.ts
 
 /**

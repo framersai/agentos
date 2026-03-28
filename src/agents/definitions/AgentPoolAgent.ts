@@ -16,19 +16,19 @@
  * have distinct characteristics.
  * - Utilizes its own LLM provider and prompt engine for meta-tasks like routing
  * decisions or synthesizing sub-agent outputs.
- * @module backend/agentos/core/agents/AgentPoolAgent
+ * @module backend/agentos/agents/definitions/AgentPoolAgent
  */
 
 import { AgentCore, AgentConfig, AgentType, AgentCoreError } from './AgentCore';
 import { IAgent, AgentOutput } from './IAgent';
 import { AgentPoolConfig, AgentPoolStrategy } from './AgentPoolConfig';
-import { ConversationContext } from '../conversation/ConversationContext';
-import { IProvider, ModelCompletionResponse } from '../llm/providers/IProvider';
-import { IPromptEngine, PromptComponents } from '../llm/IPromptEngine';
+import { ConversationContext } from '../../core/conversation/ConversationContext';
+import { IProvider, ModelCompletionResponse } from '../../core/llm/providers/IProvider';
+import { IPromptEngine, PromptComponents } from '../../core/llm/IPromptEngine';
 import { Tool } from './tools/Tool';
-import { IUtilityAI } from '../ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI';
 import { IAgentFactory, AgentDependencies } from './IAgentFactory';
-import { MessageRole } from '../conversation/ConversationMessage'; // Ensure ConversationMessage is imported if used directly
+import { MessageRole } from '../../core/conversation/ConversationMessage'; // Ensure ConversationMessage is imported if used directly
 
 /**
  * Configuration specific to an `AgentPoolAgent`.

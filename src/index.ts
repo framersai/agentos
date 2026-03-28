@@ -35,16 +35,16 @@ export * from './core/workflows/storage/IWorkflowStore';
 export { WorkflowEngine } from './core/workflows/WorkflowEngine';
 export { InMemoryWorkflowStore } from './core/workflows/storage/InMemoryWorkflowStore';
 // Agency (Multi-Agent Collectives)
-export * from './core/agency/AgencyTypes';
-export { AgencyRegistry } from './core/agency/AgencyRegistry';
-export { AgencyMemoryManager } from './core/agency/AgencyMemoryManager';
+export * from './agents/agency/AgencyTypes';
+export { AgencyRegistry } from './agents/agency/AgencyRegistry';
+export { AgencyMemoryManager } from './agents/agency/AgencyMemoryManager';
 export type {
   AgencyMemoryIngestInput,
   AgencyMemoryChunk,
   AgencyMemoryQueryResult,
   AgencyMemoryStats,
-} from './core/agency/AgencyMemoryManager';
-export { AgentCommunicationBus } from './core/agency/AgentCommunicationBus';
+} from './agents/agency/AgencyMemoryManager';
+export { AgentCommunicationBus } from './agents/agency/AgentCommunicationBus';
 export type {
   IAgentCommunicationBus,
   AgentMessage,
@@ -53,7 +53,7 @@ export type {
   AgentResponse,
   HandoffContext,
   HandoffResult,
-} from './core/agency/IAgentCommunicationBus';
+} from './agents/agency/IAgentCommunicationBus';
 // Planning Engine
 export * from './core/planning';
 // Human-in-the-Loop (HITL)

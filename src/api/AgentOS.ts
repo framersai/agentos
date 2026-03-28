@@ -156,7 +156,7 @@ import {
 import { adaptTools, adaptToolsToMap, type AdaptableToolInput } from './toolAdapter';
 import { createSchemaOnDemandPack } from '../extensions/packs/schema-on-demand-pack.js';
 import { WorkflowRuntime } from '../core/workflows/runtime/WorkflowRuntime';
-import { AgencyRegistry } from '../core/agency/AgencyRegistry';
+import { AgencyRegistry } from '../agents/agency/AgencyRegistry';
 import {
   AgentOSTurnPlanner,
   type ITurnPlanner,
