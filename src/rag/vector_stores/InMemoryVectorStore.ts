@@ -35,10 +35,10 @@ import {
   MetadataValue,
   MetadataFieldCondition,
   MetadataScalarValue,
-} from '../../IVectorStore';
-import { InMemoryVectorStoreConfig } from '../../../config/VectorStoreConfiguration';
+} from '../IVectorStore';
+import { InMemoryVectorStoreConfig } from '../../config/VectorStoreConfiguration';
 import { GMIError } from '@framers/agentos/utils/errors'; // Assuming a GMIError utility
-import { uuidv4 } from '../../../utils/uuid';
+import { uuidv4 } from '../../utils/uuid';
 
 // Node.js built-in modules for optional file persistence
 import * as fs from 'fs/promises';

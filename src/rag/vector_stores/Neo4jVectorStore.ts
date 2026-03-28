@@ -32,10 +32,10 @@ import type {
   MetadataFieldCondition,
   MetadataScalarValue,
   MetadataValue,
-} from '../../IVectorStore.js';
-import type { Neo4jConnectionConfig } from '../../../neo4j/types.js';
-import { Neo4jConnectionManager } from '../../../neo4j/Neo4jConnectionManager.js';
-import { Neo4jCypherRunner } from '../../../neo4j/Neo4jCypherRunner.js';
+} from '../IVectorStore.js';
+import type { Neo4jConnectionConfig } from '../../neo4j/types.js';
+import { Neo4jConnectionManager } from '../../neo4j/Neo4jConnectionManager.js';
+import { Neo4jCypherRunner } from '../../neo4j/Neo4jCypherRunner.js';
 
 // ============================================================================
 // Configuration

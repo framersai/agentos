@@ -30,8 +30,8 @@ import type {
   MetadataFieldCondition,
   MetadataScalarValue,
   MetadataValue,
-} from '../../IVectorStore.js';
-import { GMIError, GMIErrorCode } from '../../../utils/errors.js';
+} from '../IVectorStore.js';
+import { GMIError, GMIErrorCode } from '../../utils/errors.js';
 
 /**
  * Configuration for HnswlibVectorStore

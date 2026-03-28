@@ -32,7 +32,7 @@ import type {
   MetadataFilter,
   MetadataFieldCondition,
   MetadataValue,
-} from '../../IVectorStore.js';
+} from '../IVectorStore.js';
 
 // ---------------------------------------------------------------------------
 // Configuration

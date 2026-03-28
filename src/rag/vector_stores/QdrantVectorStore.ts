@@ -35,9 +35,9 @@ import type {
   MetadataFieldCondition,
   MetadataScalarValue,
   MetadataValue,
-} from '../../IVectorStore.js';
-import { GMIError, GMIErrorCode } from '../../../utils/errors.js';
-import { uuidv4 } from '../../../utils/uuid.js';
+} from '../IVectorStore.js';
+import { GMIError, GMIErrorCode } from '../../utils/errors.js';
+import { uuidv4 } from '../../utils/uuid.js';
 
 // ============================================================================
 // Configuration Types

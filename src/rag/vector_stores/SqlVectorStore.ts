@@ -41,7 +41,7 @@ import {
   cosineSimilarity as vecCosineSimilarity,
   dotProduct as vecDotProduct,
   euclideanDistance as vecEuclideanDistance,
-} from '../../utils/vectorMath.js';
+} from '../utils/vectorMath.js';
 import {
   IVectorStore,
   VectorStoreProviderConfig,
@@ -58,11 +58,11 @@ import {
   MetadataValue,
   MetadataFieldCondition,
   MetadataScalarValue,
-} from '../../IVectorStore.js';
-import { GMIError, GMIErrorCode } from '../../../utils/errors.js';
-import { uuidv4 } from '../../../utils/uuid.js';
-import { getNaturalStopWords } from '../../../nlp/filters/StopWordFilter.js';
-import type { HnswIndexSidecar } from '../../../rag/vector-search/HnswIndexSidecar.js';
+} from '../IVectorStore.js';
+import { GMIError, GMIErrorCode } from '../../utils/errors.js';
+import { uuidv4 } from '../../utils/uuid.js';
+import { getNaturalStopWords } from '../../nlp/filters/StopWordFilter.js';
+import type { HnswIndexSidecar } from '../vector-search/HnswIndexSidecar.js';
 
 // ============================================================================
 // Configuration Types
@@ -120,7 +120,7 @@ export interface SqlVectorStoreConfig extends VectorStoreProviderConfig {
    * lemmatization, and stop word handling.
    * @see createRagPipeline from nlp
    */
-  pipeline?: import('../../../nlp/TextProcessingPipeline').TextProcessingPipeline;
+  pipeline?: import('../../nlp/TextProcessingPipeline').TextProcessingPipeline;
 
   /**
    * Document count threshold before HNSW sidecar activates.
@@ -234,7 +234,7 @@ export class SqlVectorStore implements IVectorStore {
   private hnswSidecarClass: (new () => HnswIndexSidecar) | null | undefined;
 
   /** Optional text processing pipeline for hybrid search tokenization. */
-  private pipeline?: import('../../../nlp/TextProcessingPipeline').TextProcessingPipeline;
+  private pipeline?: import('../../nlp/TextProcessingPipeline').TextProcessingPipeline;
 
   /**
    * Constructs a SqlVectorStore instance.
@@ -1247,7 +1247,7 @@ export class SqlVectorStore implements IVectorStore {
     }
 
     try {
-      const { HnswIndexSidecar } = await import('../../../rag/vector-search/HnswIndexSidecar.js');
+      const { HnswIndexSidecar } = await import('../vector-search/HnswIndexSidecar.js');
       this.hnswSidecarClass = HnswIndexSidecar as new () => HnswIndexSidecar;
     } catch {
       this.hnswSidecarClass = null;
