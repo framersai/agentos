@@ -135,8 +135,12 @@ vi.mock('@huggingface/transformers', () => {
   };
 });
 
-// Mock generateText for cloud vision
-vi.mock('../../../api/generateText.js', () => {
+// Mock generateText for cloud vision.
+// VisionPipeline dynamically imports '../api/generateText.js' (relative to
+// src/vision/), which resolves to src/api/generateText.js. From this test
+// file's location (src/vision/__tests__/) the equivalent relative path is
+// two levels up.
+vi.mock('../../api/generateText.js', () => {
   return {
     generateText: (...args: any[]) => mockGenerateText(...args),
   };

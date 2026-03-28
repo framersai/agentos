@@ -1324,9 +1324,11 @@ export class QueryRouter {
   private getLlmApiKey(): string {
     if (this.config.apiKey) return this.config.apiKey;
 
-    // Check all providers in priority order
+    // Check all providers in priority order.
+    // Direct provider keys (OpenAI, Anthropic, etc.) take precedence over
+    // aggregator keys (OpenRouter) so that the native endpoint is used when
+    // both are configured.
     const envKeys = [
-      'OPENROUTER_API_KEY',
       'OPENAI_API_KEY',
       'ANTHROPIC_API_KEY',
       'GEMINI_API_KEY',
@@ -1334,6 +1336,7 @@ export class QueryRouter {
       'TOGETHER_API_KEY',
       'MISTRAL_API_KEY',
       'XAI_API_KEY',
+      'OPENROUTER_API_KEY',
     ];
 
     for (const key of envKeys) {
@@ -1357,6 +1360,21 @@ export class QueryRouter {
 
     // If user provided an explicit API key, don't override the URL
     if (this.config.apiKey !== undefined) {
+      return undefined;
+    }
+
+    // Direct provider keys don't need a custom base URL — only fall through
+    // to OpenRouter when no direct key is present.
+    const directKeys = [
+      'OPENAI_API_KEY',
+      'ANTHROPIC_API_KEY',
+      'GEMINI_API_KEY',
+      'GROQ_API_KEY',
+      'TOGETHER_API_KEY',
+      'MISTRAL_API_KEY',
+      'XAI_API_KEY',
+    ];
+    if (directKeys.some((k) => process.env[k])) {
       return undefined;
     }
 

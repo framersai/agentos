@@ -23,7 +23,7 @@ import type {
   JSONSchemaObject,
 } from '../core/tools/ITool.js';
 import { generateText } from '../api/generateText.js';
-import { PROVIDER_DEFAULTS, autoDetectProvider } from '../api/provider-defaults.js';
+import { PROVIDER_DEFAULTS, autoDetectProvider } from '../api/runtime/provider-defaults.js';
 import { VALID_TRAITS, type AdaptPersonalityTool, type HEXACOTrait } from './AdaptPersonalityTool.js';
 import { resolveSelfImprovementSessionKey } from './sessionScope.js';
 
