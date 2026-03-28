@@ -17,6 +17,80 @@ Current runtime memory note:
 
 ## System Architecture Overview
 
+### Source Directory Layout
+
+After the `core/` flattening refactor, the `src/` tree is organized into domain-specific
+top-level directories. Only the foundational infrastructure modules remain under `core/`.
+
+```
+src/
+├── core/                    # Core infrastructure (7 dirs)
+│   ├── llm/                 # LLM providers, routing, streaming
+│   ├── tools/               # ITool, ToolOrchestrator, permissions
+│   ├── conversation/        # ConversationManager
+│   ├── orchestration/       # IAgentOrchestrator, telemetry
+│   ├── streaming/           # StreamingManager
+│   ├── storage/             # IStorageAdapter, SqlStorageAdapter
+│   └── utils/               # Shared helpers, usage tracking
+│
+├── media/                   # Media generation & processing
+│   ├── audio/               # TTS, music, SFX generation
+│   ├── images/              # Image generation (DALL-E, Stability, etc.)
+│   ├── video/               # Video generation & analysis
+│   └── vision/              # OCR, document AI, CLIP
+│
+├── provenance/              # Content provenance & blockchain anchoring
+│
+├── nlp/                     # NLP: tokenizers, stemmers, sentiment, i18n
+│   ├── language/            # Language detection & translation
+│   └── ai_utilities/        # AI utility helpers
+│
+├── safety/                  # Guardrails & runtime safety
+│   ├── guardrails/          # IGuardrailService, ParallelGuardrailDispatcher
+│   └── runtime/             # Runtime safety checks
+│
+├── agents/                  # Agent definitions & multi-agent collectives
+│   ├── definitions/         # Agent type definitions
+│   └── agency/              # Multi-agent coordination
+│
+├── evaluation/              # Eval framework & observability
+│   └── observability/       # OpenTelemetry tracing & metrics
+│
+├── knowledge/               # Knowledge graph (interface + implementations)
+│
+├── planning/                # Planning engine, HITL, workflows
+│   ├── planner/             # PlanningEngine, ReAct loops
+│   ├── hitl/                # Human-in-the-loop approval
+│   └── workflows/           # Workflow definitions & execution
+│
+├── sandbox/                 # Sandboxed execution & subprocess
+│   ├── executor/            # Sandboxed code execution
+│   └── subprocess/          # CLISubprocessBridge, CLIRegistry
+│
+├── structured/              # Structured output & prompt routing
+│   ├── output/              # StructuredOutputManager, JSON schema
+│   └── prompting/           # Prompt routing & construction
+│
+├── marketplace/             # Agent marketplace & workspace
+│   ├── store/               # Marketplace listings & search
+│   └── workspace/           # Workspace management
+│
+├── rag/                     # Retrieval-augmented generation
+│   └── vector-search/       # HNSW, Pinecone, Qdrant, Postgres
+│
+├── api/                     # Public API surface
+├── memory/                  # Cognitive memory system
+├── channels/                # Messaging channel adapters (37 platforms)
+├── cognitive_substrate/     # GMI (Generalized Mind Instance)
+├── discovery/               # Capability discovery engine
+├── emergent/                # Emergent capabilities
+├── extensions/              # Extension system
+├── orchestration/           # Graph-based workflow DAG engine
+├── query-router/            # Query classification & routing
+├── social-posting/          # Social media post management
+└── ...
+```
+
 ### The Complete AgentOS Ecosystem
 
 ```mermaid
@@ -3988,7 +4062,7 @@ interface PlanStep {
 ### Usage Example
 
 ```typescript
-import { PlanningEngine } from '@framers/agentos/core/planning';
+import { PlanningEngine } from '@framers/agentos/planning/planner';
 
 const planningEngine = new PlanningEngine(
   promptEngine,
@@ -4137,7 +4211,7 @@ interface EscalationContext {
 ### Usage Example
 
 ```typescript
-import { HumanInteractionManager } from '@framers/agentos/core/hitl';
+import { HumanInteractionManager } from '@framers/agentos/planning/hitl';
 
 const hitlManager = new HumanInteractionManager({
   defaultTimeoutMs: 300000, // 5 minutes

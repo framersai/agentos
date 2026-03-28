@@ -18,7 +18,7 @@ The Structured Output Manager ensures LLM outputs conform to predefined JSON Sch
 ### Basic Structured Generation
 
 ```typescript
-import { StructuredOutputManager, JSONSchema } from '@framers/agentos/core/structured';
+import { StructuredOutputManager, JSONSchema } from '@framers/agentos/structured/output';
 
 const manager = new StructuredOutputManager({
   llmProviderManager,
@@ -322,7 +322,7 @@ manager.resetStatistics();
 ## Error Handling
 
 ```typescript
-import { StructuredOutputError } from '@framers/agentos/core/structured';
+import { StructuredOutputError } from '@framers/agentos/structured/output';
 
 try {
   const result = await manager.generate({

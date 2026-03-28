@@ -47,7 +47,7 @@ import {
   type GuardrailInputPayload,
   type GuardrailOutputPayload,
   type GuardrailEvaluationResult,
-} from '@framers/agentos/core/guardrails';
+} from '@framers/agentos/safety/guardrails';
 
 // Simple content filter
 class ContentFilter implements IGuardrailService {
@@ -245,7 +245,7 @@ import {
   GuardrailAction,
   type CrossAgentOutputPayload,
   type GuardrailEvaluationResult,
-} from '@framers/agentos/core/guardrails';
+} from '@framers/agentos/safety/guardrails';
 
 class SupervisorGuardrail implements ICrossAgentGuardrailService {
   // Observe specific worker agents (empty = all agents)

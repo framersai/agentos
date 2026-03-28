@@ -16,7 +16,7 @@ ClaudeCodeProvider / GeminiCLIProvider     ← message formatting, tool schema i
 ClaudeCodeCLIBridge / GeminiCLIBridge      ← extends CLISubprocessBridge (flag assembly, error classification)
     │
     ▼
-CLISubprocessBridge (abstract base)        ← core/subprocess/ — spawn, pipe, NDJSON parse, timeout/abort
+CLISubprocessBridge (abstract base)        ← sandbox/subprocess/ — spawn, pipe, NDJSON parse, timeout/abort
     │
     ▼
 execa → local CLI binary                   ← user's authenticated CLI (claude, gemini, codex)
@@ -24,7 +24,7 @@ execa → local CLI binary                   ← user's authenticated CLI (claud
 
 ### Core Subprocess Module
 
-The generalized subprocess bridge lives at `packages/agentos/src/core/subprocess/`:
+The generalized subprocess bridge lives at `packages/agentos/src/sandbox/subprocess/`:
 
 - **`CLISubprocessBridge`** — abstract base class (template method pattern). Owns process lifecycle: spawn, stdin pipe, NDJSON line splitting, timeout, abort signal. Subclasses implement `buildArgs()`, `classifyError()`, `parseStreamEvent()`.
 - **`CLISubprocessError`** — generic error with open string codes, `guidance` (user-facing fix instructions), and `recoverable` flag. Works for any binary, not just LLM CLIs.

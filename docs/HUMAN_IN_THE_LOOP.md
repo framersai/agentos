@@ -41,7 +41,7 @@ type ActionSeverity = 'low' | 'medium' | 'high' | 'critical';
 ### 1. Initialize the Manager
 
 ```typescript
-import { HumanInteractionManager } from '@framers/agentos/core/hitl';
+import { HumanInteractionManager } from '@framers/agentos/planning/hitl';
 
 const hitlManager = new HumanInteractionManager({
   // Default timeout: 5 minutes

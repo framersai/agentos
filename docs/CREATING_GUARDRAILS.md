@@ -1228,7 +1228,7 @@ const mockServiceRegistry: ISharedServiceRegistry = {
 To test how your guardrail behaves within the full two-phase pipeline:
 
 ```typescript
-import { ParallelGuardrailDispatcher } from '@framers/agentos/core/guardrails';
+import { ParallelGuardrailDispatcher } from '@framers/agentos/safety/guardrails';
 
 describe('Integration: ParallelGuardrailDispatcher + MyGuardrail', () => {
   it('should block input through the dispatcher', async () => {
@@ -1250,8 +1250,8 @@ describe('Integration: ParallelGuardrailDispatcher + MyGuardrail', () => {
 
 ### Reference test files
 
-- `packages/agentos/tests/core/guardrails/ParallelGuardrailDispatcher.spec.ts` -- comprehensive dispatcher tests.
-- `packages/agentos/tests/core/guardrails.integration.spec.ts` -- integration tests for the full guardrail pipeline.
+- `packages/agentos/tests/safety/guardrails/ParallelGuardrailDispatcher.spec.ts` -- comprehensive dispatcher tests.
+- `packages/agentos/tests/safety/guardrails.integration.spec.ts` -- integration tests for the full guardrail pipeline.
 
 ---
 

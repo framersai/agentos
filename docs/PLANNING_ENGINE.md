@@ -124,7 +124,7 @@ const defaultOptions = {
 ### Basic Plan Generation
 
 ```typescript
-import { PlanningEngine } from '@framers/agentos/core/planning';
+import { PlanningEngine } from '@framers/agentos/planning/planner';
 
 const engine = new PlanningEngine({
   llmProvider: aiModelProviderManager,
