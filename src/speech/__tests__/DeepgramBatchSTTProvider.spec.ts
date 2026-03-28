@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeepgramBatchSTTProvider } from '../providers/DeepgramBatchSTTProvider.js';
+import { DeepgramBatchSTTProvider } from '../../hearing/providers/DeepgramBatchSTTProvider.js';
 import type { SpeechAudioInput } from '../types.js';
 
 /** Minimal audio fixture used across all Deepgram tests. */

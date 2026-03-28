@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AzureSpeechSTTProvider } from '../providers/AzureSpeechSTTProvider.js';
+import { AzureSpeechSTTProvider } from '../../hearing/providers/AzureSpeechSTTProvider.js';
 import type { SpeechAudioInput } from '../types.js';
 
 /** Minimal audio fixture used across all Azure STT tests. */

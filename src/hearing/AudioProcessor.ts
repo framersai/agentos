@@ -1,9 +1,9 @@
-// backend/agentos/media/audio/AudioProcessor.ts
+// hearing/AudioProcessor.ts
 /// <reference lib="dom" />
 /**
  * @fileoverview Main audio processing pipeline with environmental adaptation using Web Audio APIs.
  * This component is intended for client-side execution in a web browser.
- * @module agentos/media/audio/AudioProcessor
+ * @module hearing/AudioProcessor
  */
 import { EventEmitter } from 'events';
 // EnvironmentalCalibrator will be your web-based version

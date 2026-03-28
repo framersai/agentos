@@ -1,4 +1,4 @@
-// backend/agentos/media/audio/EnvironmentalCalibrator.ts
+// hearing/EnvironmentalCalibrator.ts
 /// <reference lib="dom" />
 
 import { EventEmitter } from 'events';
@@ -8,7 +8,7 @@ import { EventEmitter } from 'events';
  * This module uses Web Audio APIs to understand the acoustic properties of the
  * environment by analyzing an input MediaStream for initial calibration, and then
  * processing raw audio frames (Float32Array) for continuous adaptation.
- * @module agentos/media/audio/EnvironmentalCalibrator
+ * @module hearing/EnvironmentalCalibrator
  */
 
 /**

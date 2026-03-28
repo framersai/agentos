@@ -1,4 +1,4 @@
-// backend/agentos/media/audio/SilenceDetector.ts
+// hearing/SilenceDetector.ts
 
 import { EventEmitter } from 'events';
 import { VADResult } from './AdaptiveVAD'; // VADResult from AdaptiveVAD.ts
@@ -7,7 +7,7 @@ import { VADResult } from './AdaptiveVAD'; // VADResult from AdaptiveVAD.ts
  * @fileoverview Intelligent silence detection for continuous listening scenarios.
  * Interprets events and states from AdaptiveVAD to determine meaningful silences
  * like pauses and utterance endings, suitable for a web-based client.
- * @module agentos/media/audio/SilenceDetector
+ * @module hearing/SilenceDetector
  */
 
 /**

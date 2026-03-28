@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AssemblyAISTTProvider } from '../providers/AssemblyAISTTProvider.js';
+import { AssemblyAISTTProvider } from '../../hearing/providers/AssemblyAISTTProvider.js';
 import type { SpeechAudioInput } from '../types.js';
 
 /** Minimal audio fixture used across all AssemblyAI tests. */

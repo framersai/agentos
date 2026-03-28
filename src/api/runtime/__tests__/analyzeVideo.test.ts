@@ -34,7 +34,7 @@ vi.mock('../../media/video/VideoAnalyzer.js', () => {
   };
 });
 
-vi.mock('../../speech/providers/OpenAIWhisperSpeechToTextProvider.js', () => {
+vi.mock('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js', () => {
   const holder = {
     constructorArgs: [] as unknown[],
   };
@@ -92,7 +92,7 @@ describe('analyzeVideo', () => {
     const visionMod = await import('../../vision/index.js') as any;
     visionMod.__holder.createVisionPipeline.mockClear();
 
-    const sttMod = await import('../../speech/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
+    const sttMod = await import('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
     sttMod.__holder.constructorArgs.length = 0;
   });
 
@@ -168,7 +168,7 @@ describe('analyzeVideo', () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
 
     const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
-    const sttMod = await import('../../speech/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
+    const sttMod = await import('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({
       durationSec: 5,

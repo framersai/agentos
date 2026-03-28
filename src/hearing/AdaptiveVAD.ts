@@ -1,4 +1,4 @@
-// backend/agentos/media/audio/AdaptiveVAD.ts
+// hearing/AdaptiveVAD.ts
 
 import { EventEmitter } from 'events';
 import { EnvironmentalCalibrator, NoiseProfile } from './EnvironmentalCalibrator';
@@ -8,7 +8,7 @@ import { EnvironmentalCalibrator, NoiseProfile } from './EnvironmentalCalibrator
  * This module processes raw audio frames and uses an environmental noise profile
  * to dynamically adjust its sensitivity for detecting speech.
  * It does NOT rely on browser Web Audio APIs.
- * @module agentos/media/audio/AdaptiveVAD
+ * @module hearing/AdaptiveVAD
  */
 
 /**

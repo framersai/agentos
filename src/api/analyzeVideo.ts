@@ -129,7 +129,7 @@ export interface AnalyzeVideoResult {
 async function createAutoSpeechToTextProvider(): Promise<SpeechToTextProvider | undefined> {
   if (process.env.OPENAI_API_KEY) {
     const { OpenAIWhisperSpeechToTextProvider } = await import(
-      '../speech/providers/OpenAIWhisperSpeechToTextProvider.js'
+      '../hearing/providers/OpenAIWhisperSpeechToTextProvider.js'
     );
     return new OpenAIWhisperSpeechToTextProvider({
       apiKey: process.env.OPENAI_API_KEY,
@@ -138,7 +138,7 @@ async function createAutoSpeechToTextProvider(): Promise<SpeechToTextProvider | 
 
   if (process.env.DEEPGRAM_API_KEY) {
     const { DeepgramBatchSTTProvider } = await import(
-      '../speech/providers/DeepgramBatchSTTProvider.js'
+      '../hearing/providers/DeepgramBatchSTTProvider.js'
     );
     return new DeepgramBatchSTTProvider({
       apiKey: process.env.DEEPGRAM_API_KEY,
@@ -147,7 +147,7 @@ async function createAutoSpeechToTextProvider(): Promise<SpeechToTextProvider | 
 
   if (process.env.ASSEMBLYAI_API_KEY) {
     const { AssemblyAISTTProvider } = await import(
-      '../speech/providers/AssemblyAISTTProvider.js'
+      '../hearing/providers/AssemblyAISTTProvider.js'
     );
     return new AssemblyAISTTProvider({
       apiKey: process.env.ASSEMBLYAI_API_KEY,
@@ -156,7 +156,7 @@ async function createAutoSpeechToTextProvider(): Promise<SpeechToTextProvider | 
 
   if (process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) {
     const { AzureSpeechSTTProvider } = await import(
-      '../speech/providers/AzureSpeechSTTProvider.js'
+      '../hearing/providers/AzureSpeechSTTProvider.js'
     );
     return new AzureSpeechSTTProvider({
       key: process.env.AZURE_SPEECH_KEY,

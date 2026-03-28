@@ -9,10 +9,10 @@ import { findSpeechProviderCatalogEntry, getSpeechProviderCatalog } from './prov
 import { SpeechProviderRegistry } from './SpeechProviderRegistry.js';
 import { SpeechProviderResolver } from './SpeechProviderResolver.js';
 import { SpeechSession } from './SpeechSession.js';
-import { BuiltInAdaptiveVadProvider } from './providers/BuiltInAdaptiveVadProvider.js';
+import { BuiltInAdaptiveVadProvider } from '../hearing/providers/BuiltInAdaptiveVadProvider.js';
 import { ElevenLabsTextToSpeechProvider } from './providers/ElevenLabsTextToSpeechProvider.js';
 import { OpenAITextToSpeechProvider } from './providers/OpenAITextToSpeechProvider.js';
-import { OpenAIWhisperSpeechToTextProvider } from './providers/OpenAIWhisperSpeechToTextProvider.js';
+import { OpenAIWhisperSpeechToTextProvider } from '../hearing/providers/OpenAIWhisperSpeechToTextProvider.js';
 import type {
   ProviderRequirements,
   SpeechProviderCatalogEntry,

@@ -81,7 +81,7 @@ describe.skipIf(!hasVoiceE2E || !hasOpenAI)('Voice Pipeline E2E -- OpenAI', () =
         '../../speech/providers/OpenAITextToSpeechProvider.js'
       );
       const { OpenAIWhisperSpeechToTextProvider } = await import(
-        '../../speech/providers/OpenAIWhisperSpeechToTextProvider.js'
+        '../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js'
       );
 
       const tts = new OpenAITextToSpeechProvider({ apiKey: process.env.OPENAI_API_KEY! });
@@ -156,7 +156,7 @@ describe.skipIf(!hasVoiceE2E || !hasOpenAI)('Voice Pipeline E2E -- OpenAI', () =
    */
   it('should process audio frames correctly via BuiltInAdaptiveVadProvider', async () => {
     const { BuiltInAdaptiveVadProvider } = await import(
-      '../../speech/providers/BuiltInAdaptiveVadProvider.js'
+      '../../hearing/providers/BuiltInAdaptiveVadProvider.js'
     );
 
     // 16 kHz, 20 ms per frame = 320 samples per frame
@@ -214,7 +214,7 @@ describe.skipIf(!hasVoiceE2E || !hasDeepgram || !hasOpenAI)(
           '../../speech/providers/OpenAITextToSpeechProvider.js'
         );
         const { DeepgramBatchSTTProvider } = await import(
-          '../../speech/providers/DeepgramBatchSTTProvider.js'
+          '../../hearing/providers/DeepgramBatchSTTProvider.js'
         );
 
         // Generate test audio via OpenAI TTS with a known phrase
