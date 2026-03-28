@@ -30,7 +30,7 @@ import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
 import { IPromptEngineUtilityAI } from '../core/llm/IPromptEngine';
 
 // Utility for error handling
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
 /**
  * Environment-based configuration interface.

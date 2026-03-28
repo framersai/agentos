@@ -10,7 +10,7 @@ import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type { ConversationManager } from '../../core/conversation/ConversationManager';
 import type { StreamingManager } from '../../core/streaming/StreamingManager';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
-import type { ITurnPlanner } from '../../core/orchestration/TurnPlanner';
+import type { ITurnPlanner } from '../../orchestration/turn-planner/TurnPlanner';
 import type { IRollingSummaryMemorySink } from '../../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../../core/conversation/ILongTermMemoryRetriever';
 

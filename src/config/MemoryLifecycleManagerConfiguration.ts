@@ -10,7 +10,7 @@
  * @module backend/agentos/config/MemoryLifecycleManagerConfiguration
  * @see ../memory/lifecycle/IMemoryLifecycleManager.ts
  * @see ../rag/IRetrievalAugmentor.ts for RagMemoryCategory
- * @see ../rag/IVectorStore.ts for MetadataFilter
+ * @see ../core/vector-store/IVectorStore.ts for MetadataFilter
  */
 
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';

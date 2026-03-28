@@ -35,8 +35,8 @@ import { QdrantVectorStore } from './vector_stores/QdrantVectorStore';
 // Import other IVectorStore implementations as they are created, e.g.:
 // import { PineconeVectorStore } from './vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './vector_stores/WeaviateVectorStore';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-import { uuidv4 } from '../utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { uuidv4 } from '../core/utils/uuid';
 
 /**
  * Internal structure to hold information about a configured RAG Data Source.

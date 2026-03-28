@@ -59,7 +59,7 @@ vi.mock('../../../api/generateText.js', () => {
   };
 });
 
-vi.mock('../../vision/index.js', () => {
+vi.mock('../../../vision/index.js', () => {
   const holder = { createVisionPipeline: vi.fn() };
   return {
     createVisionPipeline: (...args: unknown[]) => holder.createVisionPipeline(...args),
@@ -96,10 +96,10 @@ vi.mock('sharp', () => {
 // ---------------------------------------------------------------------------
 
 import { VideoAnalyzer } from '../VideoAnalyzer.js';
-import { SceneDetector } from '../../vision/SceneDetector.js';
-import type { VisionPipeline } from '../../vision/VisionPipeline.js';
+import { SceneDetector } from '../../../vision/SceneDetector.js';
+import type { VisionPipeline } from '../../../vision/VisionPipeline.js';
 import type { SpeechToTextProvider, SpeechTranscriptionResult } from '../../../speech/types.js';
-import type { VisionResult } from '../../vision/types.js';
+import type { VisionResult } from '../../../vision/types.js';
 
 // Access mock holders through dynamic imports
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

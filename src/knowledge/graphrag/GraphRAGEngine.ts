@@ -65,7 +65,7 @@ import type {
 } from './IGraphRAG.js';
 import type { IVectorStore, VectorDocument, MetadataValue } from '../../core/vector-store/IVectorStore.js';
 import type { IEmbeddingManager } from '../../core/embeddings/IEmbeddingManager.js';
-import { GMIError, GMIErrorCode } from '../../utils/errors.js';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 
 // =============================================================================
 // Internal Types

@@ -33,7 +33,7 @@ import type { MessagingChannelPayload } from '../extensions/MessagingChannelPayl
 import {
   AgentOSTurnPlanner,
   type ITurnPlanner,
-} from '../core/orchestration/TurnPlanner';
+} from '../orchestration/turn-planner/TurnPlanner';
 import {
   CapabilityDiscoveryEngine,
   createDiscoverCapabilitiesTool,

@@ -29,7 +29,7 @@
  * );
  * ```
  */
-import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import type { AgentOSInput } from '../../api/types/AgentOSInput';
 import {
   AgentOSResponse,

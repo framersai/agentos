@@ -31,7 +31,7 @@ import type {
   MetadataScalarValue,
   MetadataValue,
 } from '../IVectorStore.js';
-import { GMIError, GMIErrorCode } from '../../utils/errors.js';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 
 /**
  * Configuration for HnswlibVectorStore

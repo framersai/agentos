@@ -65,9 +65,12 @@ export class MissionPlanner {
   private readonly decompositionPrompt: string;
   private readonly evaluationPrompt: string;
   private readonly refinementPrompt: string;
+  /** LLM caller used for planning phases. Falls back to config.llmCaller. */
+  private readonly planLlm: (system: string, user: string) => Promise<string>;
 
   constructor(config: PlannerConfig) {
     this.config = config;
+    this.planLlm = config.plannerLlmCaller ?? config.llmCaller;
     this.decompositionPrompt = loadPrompt('decomposition');
     this.evaluationPrompt = loadPrompt('evaluation');
     this.refinementPrompt = loadPrompt('refinement');
@@ -142,7 +145,7 @@ export class MissionPlanner {
       });
 
       try {
-        const response = await this.config.llmCaller(
+        const response = await this.planLlm(
           'You are a mission planner for AgentOS. Respond with JSON only.',
           prompt,
         );
@@ -230,7 +233,7 @@ export class MissionPlanner {
       AVAILABLE_PROVIDERS: context.providers.join(', '),
     });
 
-    const response = await this.config.llmCaller(
+    const response = await this.planLlm(
       'You are evaluating mission execution candidates. Respond with JSON only.',
       prompt,
     );
@@ -281,7 +284,7 @@ export class MissionPlanner {
       TOOL_LIST: toolList,
     });
 
-    const response = await this.config.llmCaller(
+    const response = await this.planLlm(
       'You are reviewing a mission execution graph. Respond with JSON only.',
       prompt,
     );

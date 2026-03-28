@@ -38,7 +38,7 @@
 
 import type { IEmbeddingManager, EmbeddingRequest } from '../IEmbeddingManager.js';
 import type { IVectorStore, VectorDocument, MetadataValue } from '../IVectorStore.js';
-import { uuidv4 } from '../../utils/uuid.js';
+import { uuidv4 } from '../../core/utils/uuid.js';
 import type {
   ContentModality,
   ImageIndexOptions,
@@ -51,7 +51,7 @@ import type {
   ISpeechToTextProvider,
   MultimodalIndexerConfig,
 } from './types.js';
-import type { VisionPipeline } from '../../media/vision/VisionPipeline.js';
+import type { VisionPipeline } from '../../vision/VisionPipeline.js';
 import type { HydeRetriever } from '../HydeRetriever.js';
 
 // ---------------------------------------------------------------------------
@@ -230,7 +230,7 @@ export class MultimodalIndexer {
       const {
         PipelineVisionProvider,
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-      } = require('../../media/vision/providers/PipelineVisionProvider.js');
+      } = require('../../vision/providers/PipelineVisionProvider.js');
       this._visionProvider = new PipelineVisionProvider(deps.visionPipeline);
     } else {
       this._visionProvider = deps.visionProvider;

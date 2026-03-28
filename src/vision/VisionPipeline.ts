@@ -1,5 +1,5 @@
 /**
- * @module media/vision/VisionPipeline
+ * @module vision/VisionPipeline
  *
  * Unified vision pipeline with progressive enhancement.
  *

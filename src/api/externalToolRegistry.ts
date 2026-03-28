@@ -1,4 +1,4 @@
-import { GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
 import type { ToolDefinitionForLLM } from '../core/tools/IToolOrchestrator';
 import type { IToolOrchestrator } from '../core/tools/IToolOrchestrator';

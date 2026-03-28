@@ -12,10 +12,10 @@
 import * as fsPromises from 'fs/promises'; // Use fs/promises for async operations
 import * as fs from 'fs'; // For types like Dirent
 import * as path from 'path';
-import { uuidv4 } from '../../utils/uuid';
+import { uuidv4 } from '../../core/utils/uuid';
 import { IPersonaDefinition } from './IPersonaDefinition';
 import { IPersonaLoader, PersonaLoaderConfig } from './IPersonaLoader';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { mergeMetapromptPresets } from './metaprompt_presets.js';
 
 /**

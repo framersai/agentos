@@ -28,7 +28,7 @@ import {
 } from './IGMI';
 import type { IPersonaDefinition, MetaPromptDefinition } from './personas/IPersonaDefinition';
 import { GMIEventType, SentimentHistoryState, GMIEvent } from './GMIEvent.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 
 /**
  * Configuration for the MetapromptExecutor, providing all required dependencies

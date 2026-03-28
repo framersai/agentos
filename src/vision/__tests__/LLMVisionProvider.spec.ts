@@ -1,5 +1,5 @@
 /**
- * @module media/vision/__tests__/LLMVisionProvider.spec
+ * @module vision/__tests__/LLMVisionProvider.spec
  *
  * Unit tests for {@link LLMVisionProvider}.
  *

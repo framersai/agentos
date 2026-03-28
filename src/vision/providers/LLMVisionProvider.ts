@@ -1,5 +1,5 @@
 /**
- * @module media/vision/providers/LLMVisionProvider
+ * @module vision/providers/LLMVisionProvider
  *
  * Implements the {@link IVisionProvider} interface by wrapping the
  * `generateText()` high-level API with a multimodal image message.
@@ -18,7 +18,7 @@
  *
  * @example
  * ```typescript
- * import { LLMVisionProvider } from '@framers/agentos/media/vision';
+ * import { LLMVisionProvider } from '@framers/agentos/vision';
  *
  * const vision = new LLMVisionProvider({
  *   provider: 'openai',
@@ -29,7 +29,7 @@
  * ```
  */
 
-import type { IVisionProvider } from '../../../rag/multimodal/types.js';
+import type { IVisionProvider } from '../../rag/multimodal/types.js';
 
 // ---------------------------------------------------------------------------
 // Configuration

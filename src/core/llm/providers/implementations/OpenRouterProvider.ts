@@ -21,7 +21,7 @@ import {
   ModelCompletionChoice,
 } from '../IProvider';
 import { OpenRouterProviderError } from '../errors/OpenRouterProviderError';
-import { createGMIErrorFromError, GMIErrorCode } from '@framers/agentos/utils/errors'; // Corrected import path
+import { createGMIErrorFromError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected import path
 
 /**
  * Configuration specific to the OpenRouterProvider.

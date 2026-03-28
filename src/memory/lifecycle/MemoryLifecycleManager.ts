@@ -9,10 +9,10 @@
  * @see ./IMemoryLifecycleManager.ts for the interface definition.
  * @see ../config/MemoryLifecycleManagerConfiguration.ts for configuration.
  * @see ../nlp/ai_utilities/IUtilityAI.ts for summarization.
- * @see ../rag/IVectorStore.ts and ../rag/IVectorStoreManager.ts
+ * @see ../core/vector-store/IVectorStore.ts and ../rag/IVectorStoreManager.ts
  */
 
-import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import {
   IMemoryLifecycleManager,
   GMIResolverFunction,
@@ -28,7 +28,7 @@ import { IVectorStoreManager } from '../../core/vector-store/IVectorStoreManager
 import { IVectorStore, MetadataFilter } from '../../core/vector-store/IVectorStore';
 import { IUtilityAI, SummarizationOptions } from '../nlp/ai_utilities/IUtilityAI';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import {
   MemoryLifecycleEvent,
   LifecycleAction,

@@ -6,7 +6,7 @@ import {
   PermissionCheckResult,
 } from '../../../src/core/tools/permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from '../../../src/core/tools/ToolExecutor';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { UserContext } from '../../../src/cognitive_substrate/IGMI';
 
 const userContext: UserContext = { userId: 'user-123' };

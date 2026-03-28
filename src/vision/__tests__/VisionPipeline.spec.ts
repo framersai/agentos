@@ -1,5 +1,5 @@
 /**
- * @module media/vision/__tests__/VisionPipeline.spec
+ * @module vision/__tests__/VisionPipeline.spec
  *
  * Unit tests for the {@link VisionPipeline} class.
  *

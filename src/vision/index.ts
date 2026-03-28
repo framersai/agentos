@@ -1,5 +1,5 @@
 /**
- * @module media/vision
+ * @module vision
  *
  * Unified vision pipeline with progressive enhancement for AgentOS.
  *
@@ -19,7 +19,7 @@
  *   VisionPipeline,
  *   type VisionPipelineConfig,
  *   type VisionResult,
- * } from '@framers/agentos/media/vision';
+ * } from '@framers/agentos/vision';
  *
  * // Auto-detect available providers
  * const pipeline = await createVisionPipeline();

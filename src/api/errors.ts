@@ -2,7 +2,7 @@
  * @fileoverview Custom error class for AgentOS service facade errors.
  */
 
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
 /**
  * Custom error class for errors specifically originating from the AgentOS service facade.

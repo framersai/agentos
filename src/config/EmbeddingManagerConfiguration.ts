@@ -9,7 +9,7 @@
  * allowing it to adapt to different embedding models and operational requirements.
  *
  * @module backend/agentos/config/EmbeddingManagerConfiguration
- * @see ../rag/IEmbeddingManager.ts
+ * @see ../core/embeddings/IEmbeddingManager.ts
  * @see ../rag/EmbeddingManager.ts
  */
 

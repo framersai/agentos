@@ -19,7 +19,7 @@
  * @see ./IVectorStoreManager.ts
  */
 
-import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import {
   IRetrievalAugmentor,
   RagDocumentInput,
@@ -33,7 +33,7 @@ import { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorCon
 import { IEmbeddingManager } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { VectorDocument, QueryOptions as VectorStoreQueryOptions, MetadataValue } from './IVectorStore';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { RerankerService } from './reranking/RerankerService';
 import type { RerankerRequestConfig } from './reranking/IRerankerService';
 import { CohereReranker } from './reranking/providers/CohereReranker';

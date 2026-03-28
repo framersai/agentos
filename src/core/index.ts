@@ -1,86 +1,71 @@
 /**
- * Domain-organized barrel for all core subsystems.
+ * Core infrastructure barrel — foundational subsystems only.
  *
- * Modules that remain in core/:
- *   llm/, tools/, conversation/, orchestration/, streaming/, storage/, utils/
+ * Modules: llm, tools, conversation, streaming, storage,
+ * embeddings, vector-store, safety, guardrails, utils, rate-limiting.
  *
- * Modules that have been relocated to top-level domains are re-exported here
- * for backward compatibility:
- *
- * INTELLIGENCE — LLM providers, structured outputs, AI utilities, planning, prompt routing
- * SAFETY       — Guardrails, safety primitives (circuit breaker, cost guard), HITL, sandbox
- * AGENTS       — Agent runtime, multi-agent agency, orchestration, conversation
- * TOOLS        — Tool interface, orchestrator, executor, permissions
- * AUTOMATION   — Workflow engine, runtime, storage
- * PERSISTENCE  — Storage adapters, knowledge graph, provenance
- * PLATFORM     — Audio, language, observability, evaluation, marketplace
+ * For non-core modules, import from their own barrels:
+ *   @framers/agentos/orchestration
+ *   @framers/agentos/memory
+ *   @framers/agentos/rag
+ *   @framers/agentos/knowledge
+ *   @framers/agentos/provenance
+ *   etc.
  */
 
 // ============================================================================
-// INTELLIGENCE — LLM + reasoning capabilities
+// LLM — Provider management, prompt engine
 // ============================================================================
 export * from './llm/IPromptEngine.js';
 export { PromptEngine } from './llm/PromptEngine.js';
 export * from './llm/providers/AIModelProviderManager.js';
-export * from '../structured/output/index.js';
-export * from '../nlp/ai_utilities/index.js';
-export * from '../planning/planner/index.js';
-export * from '../structured/prompting/PromptProfileRouter.js';
 
 // ============================================================================
-// SAFETY — Safety + human oversight
-// ============================================================================
-export * from '../safety/guardrails/index.js';
-export * from '../safety/runtime/index.js';
-export * from '../planning/hitl/index.js';
-export * from '../sandbox/executor/index.js';
-
-// ============================================================================
-// AGENTS — Agent runtime + multi-agent orchestration
-// ============================================================================
-export * from '../agents/definitions/index.js';
-export * from '../agents/agency/index.js';
-export * from './orchestration/index.js';
-export * from './conversation/index.js';
-export * from './streaming/index.js';
-
-// ============================================================================
-// TOOLS — Tool system
+// TOOLS — ITool, executor, permissions, orchestrator
 // ============================================================================
 export * from './tools/index.js';
 
 // ============================================================================
-// AUTOMATION — Workflow engine
+// CONVERSATION — Manager, rolling summary, long-term memory retriever
 // ============================================================================
-export * from '../planning/workflows/IWorkflowEngine.js';
-export { WorkflowEngine } from '../planning/workflows/WorkflowEngine.js';
-export * from '../planning/workflows/WorkflowTypes.js';
-export * from '../planning/workflows/storage/IWorkflowStore.js';
-export { InMemoryWorkflowStore } from '../planning/workflows/storage/InMemoryWorkflowStore.js';
+export * from './conversation/index.js';
 
 // ============================================================================
-// EMBEDDINGS — Shared embedding interfaces
+// STREAMING — StreamingManager
+// ============================================================================
+export * from './streaming/index.js';
+
+// ============================================================================
+// STORAGE — Adapters
+// ============================================================================
+export * from './storage/index.js';
+
+// ============================================================================
+// EMBEDDINGS — IEmbeddingManager interface
 // ============================================================================
 export * from './embeddings/index.js';
 
 // ============================================================================
-// VECTOR STORE — Shared vector storage interfaces
+// VECTOR STORE — IVectorStore interface
 // ============================================================================
 export * from './vector-store/index.js';
 
 // ============================================================================
-// PERSISTENCE — Data + audit
+// SAFETY — CircuitBreaker, CostGuard, StuckDetector, ActionDeduplicator
 // ============================================================================
-export * from './storage/index.js';
-export * from '../knowledge/index.js';
-export * from '../provenance/index.js';
+export * from '../safety/runtime/index.js';
 
 // ============================================================================
-// PLATFORM — Cross-cutting infrastructure
+// GUARDRAILS — IGuardrailService
 // ============================================================================
-export * from '../media/audio/index.js';
-export * from '../nlp/language/index.js';
-export * from '../evaluation/observability/index.js';
-export * from '../evaluation/index.js';
-export * from '../marketplace/store/index.js';
-export * from '../marketplace/workspace/index.js';
+export * from '../safety/guardrails/index.js';
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+export * from './utils/index.js';
+
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
+export * from './rate-limiting/index.js';

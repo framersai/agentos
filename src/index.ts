@@ -27,8 +27,8 @@ export * from './core/conversation/ILongTermMemoryRetriever';
 export * from './core/conversation/LongTermMemoryPolicy';
 export * from './core/streaming/StreamingManager';
 export * from './core/llm/providers/AIModelProviderManager';
-export * from './core/orchestration/TurnPlanner';
-export * from './core/orchestration/SqlTaskOutcomeTelemetryStore';
+export * from './orchestration/turn-planner/TurnPlanner';
+export * from './orchestration/turn-planner/SqlTaskOutcomeTelemetryStore';
 export * from './planning/workflows/WorkflowTypes';
 export * from './planning/workflows/IWorkflowEngine';
 export * from './planning/workflows/storage/IWorkflowStore';
@@ -94,7 +94,7 @@ export * from './media/audio/index.js';
 // Media provider preference resolver (shared across image/video/audio)
 export * from './media/ProviderPreferences.js';
 // Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)
-export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './media/vision/index.js';
+export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './vision/index.js';
 export type {
   VisionPipelineConfig,
   VisionResult,
@@ -107,8 +107,8 @@ export type {
   DocumentPage,
   LayoutBlock,
   VisionPreprocessingConfig,
-} from './media/vision/types.js';
-export type { LLMVisionProviderConfig } from './media/vision/providers/LLMVisionProvider.js';
+} from './vision/types.js';
+export type { LLMVisionProviderConfig } from './vision/providers/LLMVisionProvider.js';
 // Skills (SKILL.md prompt modules)
 export * from './skills';
 // Multilingual exports

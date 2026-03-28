@@ -7,7 +7,7 @@
  * - optional per-turn capability discovery payload
  */
 
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import type { ProcessingOptions } from '../../api/types/AgentOSInput';
 import type { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
 import type {

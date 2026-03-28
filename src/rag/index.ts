@@ -104,18 +104,18 @@ export type {
   MetadataValue,
   MetadataFieldCondition,
   MetadataScalarValue,
-} from './IVectorStore.js';
+} from '../core/vector-store/IVectorStore.js';
 
 export type {
   IVectorStoreManager,
   VectorStoreManagerHealthReport,
-} from './IVectorStoreManager.js';
+} from '../core/vector-store/IVectorStoreManager.js';
 
 export type {
   IEmbeddingManager,
   EmbeddingRequest,
   EmbeddingResponse,
-} from './IEmbeddingManager.js';
+} from '../core/embeddings/IEmbeddingManager.js';
 
 export type {
   IRetrievalAugmentor,

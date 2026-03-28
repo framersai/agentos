@@ -1,5 +1,5 @@
 /**
- * @module media/vision/types
+ * @module vision/types
  *
  * Type definitions for the unified vision pipeline.
  *

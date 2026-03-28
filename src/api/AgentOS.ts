@@ -103,8 +103,8 @@ import {
   StreamId,
 } from '../core/streaming/StreamingManager';
 import { IStreamClient, StreamClientId } from '../core/streaming/IStreamClient';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import { ILogger } from '../logging/ILogger';
 import { createLogger } from '../logging/loggerFactory';
 import {
@@ -148,7 +148,7 @@ import { WorkflowFacade } from './WorkflowFacade';
 import { CapabilityDiscoveryInitializer } from './CapabilityDiscoveryInitializer';
 import { SelfImprovementSessionManager } from './SelfImprovementSessionManager';
 import { RagMemoryInitializer } from './RagMemoryInitializer';
-import type { TurnPlannerConfig } from '../core/orchestration/TurnPlanner';
+import type { TurnPlannerConfig } from '../orchestration/turn-planner/TurnPlanner';
 import type {
   CapabilityDescriptor,
   CapabilityDiscoveryConfig,

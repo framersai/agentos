@@ -19,8 +19,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { SceneDetector } from '../../vision/SceneDetector.js';
-import type { Frame } from '../../vision/types.js';
+import { SceneDetector } from '../../../vision/SceneDetector.js';
+import type { Frame } from '../../../vision/types.js';
 
 // ---------------------------------------------------------------------------
 // Test helper — create a 4x4 solid-colour RGB frame

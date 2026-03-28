@@ -15,7 +15,7 @@
  * the same STT configuration (Whisper, Deepgram, etc.) powers both
  * real-time voice and offline audio indexing.
  *
- * The {@link LLMVisionAdapter} (re-exported from `media/vision`) wraps
+ * The {@link LLMVisionAdapter} (re-exported from `vision/`) wraps
  * any vision-capable LLM as an `IVisionProvider`.
  *
  * The {@link createMultimodalIndexerFromResolver} factory wires

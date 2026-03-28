@@ -1,4 +1,4 @@
-import { uuidv4 } from '../../../utils/uuid';
+import { uuidv4 } from '../../../core/utils/uuid';
 
 import type { WorkflowEngine } from '../WorkflowEngine';
 import type {

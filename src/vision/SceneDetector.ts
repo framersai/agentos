@@ -1,5 +1,5 @@
 /**
- * @module media/vision/SceneDetector
+ * @module vision/SceneDetector
  *
  * General-purpose visual change detection for video frame sequences.
  *
@@ -19,8 +19,8 @@
  * ## Usage
  *
  * ```typescript
- * import { SceneDetector } from '@framers/agentos/media/vision';
- * import type { Frame, SceneBoundary } from '@framers/agentos/media/vision';
+ * import { SceneDetector } from '@framers/agentos/vision';
+ * import type { Frame, SceneBoundary } from '@framers/agentos/vision';
  *
  * const detector = new SceneDetector({ hardCutThreshold: 0.3 });
  *

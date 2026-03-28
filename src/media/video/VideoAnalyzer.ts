@@ -71,9 +71,9 @@ import type {
   SceneDescription,
 } from './types.js';
 
-import { SceneDetector } from '../vision/SceneDetector.js';
-import type { VisionPipeline } from '../vision/VisionPipeline.js';
-import type { Frame, SceneBoundary } from '../vision/types.js';
+import { SceneDetector } from '../../vision/SceneDetector.js';
+import type { VisionPipeline } from '../../vision/VisionPipeline.js';
+import type { Frame, SceneBoundary } from '../../vision/types.js';
 import type { SpeechToTextProvider } from '../../speech/types.js';
 
 const execFile = promisify(execFileCb);

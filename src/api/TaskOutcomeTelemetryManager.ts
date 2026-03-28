@@ -11,7 +11,7 @@ import type {
   TaskOutcomeKpiWindowEntry,
   ITaskOutcomeTelemetryStore,
 } from './types/OrchestratorConfig';
-import type { TurnPlan, ToolFailureMode } from '../core/orchestration/TurnPlanner';
+import type { TurnPlan, ToolFailureMode } from '../orchestration/turn-planner/TurnPlanner';
 
 // ---------------------------------------------------------------------------
 // Internal types

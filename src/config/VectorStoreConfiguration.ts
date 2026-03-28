@@ -5,8 +5,8 @@
  * and logical RAG collections that map to these physical stores.
  *
  * @module backend/agentos/config/VectorStoreConfiguration
- * @see ../rag/IVectorStore.ts for `VectorStoreProviderConfig` and related types.
- * @see ../rag/IVectorStoreManager.ts for the manager interface using this config.
+ * @see ../core/vector-store/IVectorStore.ts for `VectorStoreProviderConfig` and related types.
+ * @see ../core/vector-store/IVectorStoreManager.ts for the manager interface using this config.
  */
 
 // This import is crucial. VectorStoreProviderConfig is the base for all specific provider configs.

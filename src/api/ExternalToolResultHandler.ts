@@ -31,8 +31,8 @@ import type {
   ToolCallRequest,
   ToolResultPayload,
 } from '../cognitive_substrate/IGMI';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
-import { normalizeUsage, snapshotPersonaDetails } from '../core/orchestration/helpers';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { normalizeUsage, snapshotPersonaDetails } from '../orchestration/turn-planner/helpers';
 import {
   withAgentOSSpan,
   recordAgentOSToolResultMetrics,

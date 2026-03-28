@@ -55,8 +55,8 @@ import type {
   ISubscriptionService,
   ISubscriptionTier,
 } from '../../../services/auth';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/utils/errors';
-import { uuidv4 } from '@framers/agentos/utils/uuid';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 
 /**
  * @class ToolPermissionManager

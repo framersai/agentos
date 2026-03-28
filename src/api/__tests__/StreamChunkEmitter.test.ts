@@ -7,7 +7,7 @@ vi.mock('../../evaluation/observability/otel', () => ({
 }));
 
 // Mock normalizeUsage
-vi.mock('../../core/orchestration/helpers', () => ({
+vi.mock('../../orchestration/turn-planner/helpers', () => ({
   normalizeUsage: vi.fn((u: any) => u ?? {}),
 }));
 

@@ -89,6 +89,10 @@ export class MissionBuilder {
   private _maxAgents: number | undefined;
   /** @internal Number of Tree of Thought branches to explore. */
   private _branchCount: number | undefined;
+  /** @internal Planner model identifier (for ToT planning phases). */
+  private _plannerModel: string | undefined;
+  /** @internal Execution model identifier (for agent nodes). */
+  private _executionModel: string | undefined;
 
   /**
    * @param name - Display name for this mission; passed through to the compiled graph.
@@ -256,6 +260,32 @@ export class MissionBuilder {
     return this;
   }
 
+  /**
+   * Set the model used for Tree of Thought planning phases.
+   *
+   * Use a strong reasoning model here (e.g., claude-opus-4-6, gpt-4o) for
+   * better plan quality. Defaults to the same model as execution if not set.
+   *
+   * @param model - Model identifier string (e.g., 'claude-opus-4-6').
+   */
+  plannerModel(model: string): this {
+    this._plannerModel = model;
+    return this;
+  }
+
+  /**
+   * Set the default model used for agent node execution.
+   *
+   * Can differ from the planner model — e.g., use Opus for planning
+   * but GPT-5.4 for actual agent output generation.
+   *
+   * @param model - Model identifier string (e.g., 'gpt-5.4').
+   */
+  executionModel(model: string): this {
+    this._executionModel = model;
+    return this;
+  }
+
   // -------------------------------------------------------------------------
   // Compile
   // -------------------------------------------------------------------------
@@ -299,6 +329,8 @@ export class MissionBuilder {
       ...(this._costCap !== undefined && { costCap: this._costCap }),
       ...(this._maxAgents !== undefined && { maxAgents: this._maxAgents }),
       ...(this._branchCount !== undefined && { branchCount: this._branchCount }),
+      ...(this._plannerModel && { plannerModel: this._plannerModel }),
+      ...(this._executionModel && { executionModel: this._executionModel }),
     };
 
     const store = options?.checkpointStore ?? new InMemoryCheckpointStore();

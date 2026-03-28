@@ -11,7 +11,7 @@
 
 import * as fs from 'fs/promises'; // For loading resources
 import * as path from 'path';     // For path manipulation
-import { uuidv4 } from '../../utils/uuid';
+import { uuidv4 } from '../../core/utils/uuid';
 import {
   IUtilityAI, UtilityAIConfigBase, ParseJsonOptions,
   SummarizationOptions, ClassificationOptions, ClassificationResult, ClassificationScore,
@@ -21,7 +21,7 @@ import {
   TextNormalizationOptions, NGramOptions, ReadabilityOptions, ReadabilityResult,
 } from './IUtilityAI';
 import * as natural from 'natural';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 
 // Default English stop words list (can be expanded or loaded from file)
 const DEFAULT_ENGLISH_STOP_WORDS = new Set([

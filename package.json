@@ -103,10 +103,10 @@
       "default": "./dist/core/tools/*.js",
       "types": "./dist/core/tools/*.d.ts"
     },
-    "./core/vision": {
-      "import": "./dist/core/vision/index.js",
-      "default": "./dist/core/vision/index.js",
-      "types": "./dist/core/vision/index.d.ts"
+    "./vision": {
+      "import": "./dist/vision/index.js",
+      "default": "./dist/vision/index.js",
+      "types": "./dist/vision/index.d.ts"
     },
     "./discovery": {
       "import": "./dist/discovery/index.js",

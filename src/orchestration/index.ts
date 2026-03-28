@@ -28,3 +28,6 @@ export * from './compiler/index.js';
 export * from './planning/index.js';
 // Orchestration tools (request_expansion, manage_graph)
 export * from './tools/index.js';
+
+// Turn planner (moved from core/orchestration/)
+export * from './turn-planner/index.js';

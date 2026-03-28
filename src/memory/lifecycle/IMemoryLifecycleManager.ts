@@ -7,7 +7,7 @@
  * @module backend/agentos/memory/lifecycle/IMemoryLifecycleManager
  * @see ../config/MemoryLifecycleManagerConfiguration.ts for configuration.
  * @see ../cognitive_substrate/IGMI.ts for GMI interaction types.
- * @see ../rag/IVectorStoreManager.ts for interaction with storage.
+ * @see ../core/vector-store/IVectorStoreManager.ts for interaction with storage.
  */
 
 import { MemoryLifecycleManagerConfig } from '../config/MemoryLifecycleManagerConfiguration';

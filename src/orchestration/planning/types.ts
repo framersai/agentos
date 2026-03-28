@@ -122,8 +122,28 @@ export interface PlannerConfig {
   maxDepth: number;
   /** Re-evaluate graph every N completed nodes. */
   reevalInterval: number;
-  /** LLM caller: (systemPrompt, userPrompt) => response text. */
+
+  /**
+   * LLM caller used by agent nodes during execution.
+   * Falls back to `plannerLlmCaller` if not provided separately.
+   */
   llmCaller: (system: string, user: string) => Promise<string>;
+
+  /**
+   * LLM caller used specifically for the Tree of Thought planning phases
+   * (decomposition, evaluation, refinement, expansion).
+   *
+   * Use a stronger model here (e.g., Opus 4.6) for better plan quality,
+   * while execution agents can use a different model (e.g., GPT-5.4).
+   *
+   * Defaults to `llmCaller` if not provided.
+   */
+  plannerLlmCaller?: (system: string, user: string) => Promise<string>;
+
+  /** Human-readable label for the planner model (for logging/events). */
+  plannerModel?: string;
+  /** Human-readable label for the default execution model (for logging/events). */
+  executionModel?: string;
 }
 
 /** Result of the full planning pipeline. */

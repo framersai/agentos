@@ -1,5 +1,5 @@
 /**
- * @module media/vision/providers/PipelineVisionProvider
+ * @module vision/providers/PipelineVisionProvider
  *
  * Wraps the full {@link VisionPipeline} as an {@link IVisionProvider}
  * for seamless integration with the {@link MultimodalIndexer}.
@@ -18,7 +18,7 @@
  *
  * @example
  * ```typescript
- * import { VisionPipeline, PipelineVisionProvider } from '@framers/agentos/media/vision';
+ * import { VisionPipeline, PipelineVisionProvider } from '@framers/agentos/vision';
  * import { MultimodalIndexer } from '@framers/agentos/rag/multimodal';
  *
  * const pipeline = new VisionPipeline({
@@ -35,7 +35,7 @@
  * ```
  */
 
-import type { IVisionProvider } from '../../../rag/multimodal/types.js';
+import type { IVisionProvider } from '../../rag/multimodal/types.js';
 import type { VisionPipeline } from '../VisionPipeline.js';
 import type { VisionResult } from '../types.js';
 

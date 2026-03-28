@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { VisionResult } from '../../media/vision/types.js';
+import type { VisionResult } from '../../vision/types.js';
 
 // ---------------------------------------------------------------------------
 // Mock the createVisionPipeline factory so we never instantiate real ML models
@@ -9,7 +9,7 @@ import type { VisionResult } from '../../media/vision/types.js';
 const mockProcess = vi.fn<[Buffer], Promise<VisionResult>>();
 const mockDispose = vi.fn<[], Promise<void>>();
 
-vi.mock('../../media/vision/index.js', () => ({
+vi.mock('../../vision/index.js', () => ({
   createVisionPipeline: vi.fn().mockResolvedValue({
     process: (image: Buffer) => mockProcess(image),
     dispose: () => mockDispose(),
@@ -18,7 +18,7 @@ vi.mock('../../media/vision/index.js', () => ({
 
 // Import AFTER mocks are set up (vitest hoists vi.mock automatically)
 import { performOCR } from '../performOCR.js';
-import { createVisionPipeline } from '../../media/vision/index.js';
+import { createVisionPipeline } from '../../vision/index.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

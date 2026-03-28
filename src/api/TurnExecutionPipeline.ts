@@ -33,9 +33,9 @@ import type {
   GMITurnInput,
 } from '../cognitive_substrate/IGMI';
 import { GMIInteractionType } from '../cognitive_substrate/IGMI';
-import { GMIError, GMIErrorCode } from '@framers/agentos/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { withAgentOSSpan } from '../evaluation/observability/otel';
-import type { TurnPlan } from '../core/orchestration/TurnPlanner';
+import type { TurnPlan } from '../orchestration/turn-planner/TurnPlanner';
 import {
   executeRollingSummaryPhase,
   type RollingSummaryPhaseResult,
