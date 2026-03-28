@@ -703,16 +703,74 @@ export const DEFAULT_STRATEGY_CONFIG: Required<Omit<QueryRouterStrategyConfig, '
  * Default configuration values for the QueryRouter.
  * @see QueryRouterConfig
  */
+/**
+ * Resolve the default provider dynamically from environment.
+ *
+ * Priority: autoDetectProvider() → 'openai' fallback.
+ * Supports all 16 AgentOS providers including CLI (claude-code-cli, gemini-cli).
+ */
+function resolveDefaultProvider(): string {
+  try {
+    // Lazy check env vars in priority order (same as autoDetectProvider but synchronous)
+    const envMap: ReadonlyArray<readonly [string, string]> = [
+      ['OPENROUTER_API_KEY', 'openrouter'],
+      ['OPENAI_API_KEY', 'openai'],
+      ['ANTHROPIC_API_KEY', 'anthropic'],
+      ['GEMINI_API_KEY', 'gemini'],
+      ['GROQ_API_KEY', 'groq'],
+      ['TOGETHER_API_KEY', 'together'],
+      ['MISTRAL_API_KEY', 'mistral'],
+      ['XAI_API_KEY', 'xai'],
+    ];
+    for (const [envKey, id] of envMap) {
+      if (process.env[envKey]) return id;
+    }
+  } catch {
+    // Browser or restricted env — fall back
+  }
+  return 'openai';
+}
+
+/** Provider → cheap model mapping for classifier/T0-T1 generation. */
+const CHEAP_MODELS: Record<string, string> = {
+  openai: 'gpt-4o-mini',
+  anthropic: 'claude-haiku-4-5-20251001',
+  openrouter: 'openai/gpt-4o-mini',
+  gemini: 'gemini-2.0-flash',
+  groq: 'gemma2-9b-it',
+  together: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+  mistral: 'mistral-small-latest',
+  xai: 'grok-2-mini',
+  ollama: 'llama3.2',
+  'claude-code-cli': 'claude-haiku-4-5-20251001',
+  'gemini-cli': 'gemini-2.0-flash-lite',
+};
+
+/** Provider → strong model mapping for T2/T3 deep generation. */
+const STRONG_MODELS: Record<string, string> = {
+  openai: 'gpt-4o',
+  anthropic: 'claude-sonnet-4-20250514',
+  openrouter: 'openai/gpt-4o',
+  gemini: 'gemini-2.5-flash',
+  groq: 'llama-3.3-70b-versatile',
+  together: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+  mistral: 'mistral-large-latest',
+  xai: 'grok-2',
+  ollama: 'llama3.2',
+  'claude-code-cli': 'claude-sonnet-4-20250514',
+  'gemini-cli': 'gemini-2.5-flash',
+};
+
 export const DEFAULT_QUERY_ROUTER_CONFIG = {
   confidenceThreshold: 0.7,
-  classifierModel: 'gpt-4o-mini',
-  classifierProvider: 'openai',
+  classifierModel: CHEAP_MODELS[resolveDefaultProvider()] ?? 'gpt-4o-mini',
+  classifierProvider: resolveDefaultProvider(),
   maxTier: 3 as QueryTier,
-  embeddingProvider: 'openai',
+  embeddingProvider: resolveDefaultProvider(),
   embeddingModel: 'text-embedding-3-small',
-  generationModel: 'gpt-4o-mini',
-  generationModelDeep: 'gpt-4o',
-  generationProvider: 'openai',
+  generationModel: CHEAP_MODELS[resolveDefaultProvider()] ?? 'gpt-4o-mini',
+  generationModelDeep: STRONG_MODELS[resolveDefaultProvider()] ?? 'gpt-4o',
+  generationProvider: resolveDefaultProvider(),
   graphEnabled: true,
   deepResearchEnabled: Boolean(process.env.SERPER_API_KEY),
   conversationWindowSize: 5,

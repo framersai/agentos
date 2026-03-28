@@ -1276,14 +1276,14 @@ export class QueryRouter {
     this.embeddingStatus = status;
   }
 
+  /**
+   * Resolve API key for embedding calls.
+   * Falls back through embedding-specific → global → env var scan.
+   */
   private getEmbeddingApiKey(): string {
-    return (
-      this.config.embeddingApiKey ??
-      this.config.apiKey ??
-      process.env.OPENAI_API_KEY ??
-      process.env.OPENROUTER_API_KEY ??
-      ''
-    );
+    if (this.config.embeddingApiKey) return this.config.embeddingApiKey;
+    // Fall through to general LLM key resolver
+    return this.getLlmApiKey();
   }
 
   private getEmbeddingBaseUrl(): string | undefined {
@@ -1314,25 +1314,60 @@ export class QueryRouter {
     return undefined;
   }
 
+  /**
+   * Resolve API key for LLM calls.
+   *
+   * Checks config override first, then scans all provider env vars in priority
+   * order. Returns empty string for keyless providers (claude-code-cli, gemini-cli)
+   * which is fine — generateText() handles them via CLISubprocessBridge.
+   */
   private getLlmApiKey(): string {
-    return this.config.apiKey ?? process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY ?? '';
+    if (this.config.apiKey) return this.config.apiKey;
+
+    // Check all providers in priority order
+    const envKeys = [
+      'OPENROUTER_API_KEY',
+      'OPENAI_API_KEY',
+      'ANTHROPIC_API_KEY',
+      'GEMINI_API_KEY',
+      'GROQ_API_KEY',
+      'TOGETHER_API_KEY',
+      'MISTRAL_API_KEY',
+      'XAI_API_KEY',
+    ];
+
+    for (const key of envKeys) {
+      if (process.env[key]) return process.env[key]!;
+    }
+
+    // Keyless providers (CLI) don't need an API key — empty string is fine
+    return '';
   }
 
+  /**
+   * Resolve base URL for LLM calls.
+   *
+   * Only OpenRouter and Ollama need custom base URLs. All other providers
+   * (including CLI) use their default endpoints via generateText() resolution.
+   */
   private getLlmBaseUrl(): string | undefined {
     if (this.config.baseUrl !== undefined) {
       return this.config.baseUrl as string;
     }
 
+    // If user provided an explicit API key, don't override the URL
     if (this.config.apiKey !== undefined) {
       return undefined;
     }
 
-    if (process.env.OPENAI_API_KEY) {
-      return undefined;
-    }
-
+    // OpenRouter needs a custom base URL
     if (process.env.OPENROUTER_API_KEY) {
       return 'https://openrouter.ai/api/v1';
+    }
+
+    // Ollama needs its base URL
+    if (process.env.OLLAMA_BASE_URL) {
+      return process.env.OLLAMA_BASE_URL;
     }
 
     return undefined;
