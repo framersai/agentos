@@ -59,15 +59,22 @@ describe('AgentOS docs alignment', () => {
     expect(documentationIndex).toContain('Checkpointing');
   });
 
-  itIfSkills('references the 2-package skills architecture (runtime + registry) without ext-skills', () => {
-    const runtimePackage = JSON.parse(read('../../../../agentos-skills/package.json'));
-    const registryPackage = JSON.parse(read('../../../../agentos-skills-registry/package.json'));
+  itIfSkills('references the 3-tier skills architecture (engine + content + catalog SDK)', () => {
+    const contentPackage = JSON.parse(read('../../../../agentos-skills/package.json'));
+    const catalogSdkPackage = JSON.parse(read('../../../../agentos-skills-registry/package.json'));
     const packageSkillsGuide = read('../../../docs/SKILLS.md');
 
-    expect(runtimePackage.name).toBe('@framers/agentos-skills');
-    expect(registryPackage.name).toBe('@framers/agentos-skills-registry');
+    // @framers/agentos-skills is now the CONTENT package (SKILL.md files + registry.json)
+    expect(contentPackage.name).toBe('@framers/agentos-skills');
+    expect(contentPackage.description).toContain('SKILL.md');
+
+    // @framers/agentos-skills-registry is the CATALOG SDK (query helpers, factories)
+    expect(catalogSdkPackage.name).toBe('@framers/agentos-skills-registry');
+    expect(catalogSdkPackage.description).toContain('Catalog SDK');
+
+    // The skills guide references all three tiers
+    expect(packageSkillsGuide).toContain('@framers/agentos/skills');
     expect(packageSkillsGuide).toContain('@framers/agentos-skills');
     expect(packageSkillsGuide).toContain('@framers/agentos-skills-registry');
-    expect(packageSkillsGuide).not.toContain('@framers/agentos-ext-skills');
   });
 });
