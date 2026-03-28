@@ -1,0 +1,66 @@
+[
+  {
+    "binaryName": "gcloud",
+    "displayName": "Google Cloud SDK",
+    "description": "Google Cloud resource management",
+    "category": "cloud",
+    "installGuidance": "https://cloud.google.com/sdk/docs/install",
+    "versionFlag": "--version"
+  },
+  {
+    "binaryName": "aws",
+    "displayName": "AWS CLI",
+    "description": "Amazon Web Services resource management",
+    "category": "cloud",
+    "installGuidance": "https://aws.amazon.com/cli/"
+  },
+  {
+    "binaryName": "az",
+    "displayName": "Azure CLI",
+    "description": "Microsoft Azure resource management",
+    "category": "cloud",
+    "installGuidance": "https://learn.microsoft.com/en-us/cli/azure/install-azure-cli"
+  },
+  {
+    "binaryName": "flyctl",
+    "displayName": "Fly.io CLI",
+    "description": "Deploy and manage Fly.io applications",
+    "category": "cloud",
+    "installGuidance": "curl -L https://fly.io/install.sh | sh"
+  },
+  {
+    "binaryName": "vercel",
+    "displayName": "Vercel CLI",
+    "description": "Deploy and manage Vercel projects",
+    "category": "cloud",
+    "installGuidance": "npm install -g vercel"
+  },
+  {
+    "binaryName": "netlify",
+    "displayName": "Netlify CLI",
+    "description": "Deploy and manage Netlify sites",
+    "category": "cloud",
+    "installGuidance": "npm install -g netlify-cli"
+  },
+  {
+    "binaryName": "railway",
+    "displayName": "Railway CLI",
+    "description": "Deploy and manage Railway projects",
+    "category": "cloud",
+    "installGuidance": "npm install -g @railway/cli"
+  },
+  {
+    "binaryName": "heroku",
+    "displayName": "Heroku CLI",
+    "description": "Deploy and manage Heroku applications",
+    "category": "cloud",
+    "installGuidance": "https://devcenter.heroku.com/articles/heroku-cli"
+  },
+  {
+    "binaryName": "wrangler",
+    "displayName": "Cloudflare Wrangler",
+    "description": "Build and deploy Cloudflare Workers and Pages",
+    "category": "cloud",
+    "installGuidance": "npm install -g wrangler"
+  }
+]

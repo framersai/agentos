@@ -1,0 +1,72 @@
+[
+  {
+    "binaryName": "git",
+    "displayName": "Git",
+    "description": "Distributed version control system",
+    "category": "devtools",
+    "installGuidance": "https://git-scm.com/downloads"
+  },
+  {
+    "binaryName": "gh",
+    "displayName": "GitHub CLI",
+    "description": "GitHub API from the terminal — PRs, issues, actions",
+    "category": "devtools",
+    "installGuidance": "https://cli.github.com/"
+  },
+  {
+    "binaryName": "docker",
+    "displayName": "Docker",
+    "description": "Container runtime for building and running applications",
+    "category": "devtools",
+    "installGuidance": "https://docs.docker.com/get-docker/"
+  },
+  {
+    "binaryName": "docker-compose",
+    "displayName": "Docker Compose",
+    "description": "Multi-container application orchestration",
+    "category": "devtools",
+    "installGuidance": "Included with Docker Desktop — or: pip install docker-compose"
+  },
+  {
+    "binaryName": "kubectl",
+    "displayName": "kubectl",
+    "description": "Kubernetes cluster management CLI",
+    "category": "devtools",
+    "installGuidance": "https://kubernetes.io/docs/tasks/tools/"
+  },
+  {
+    "binaryName": "terraform",
+    "displayName": "Terraform",
+    "description": "Infrastructure as Code provisioning across cloud providers",
+    "category": "devtools",
+    "installGuidance": "https://developer.hashicorp.com/terraform/install"
+  },
+  {
+    "binaryName": "make",
+    "displayName": "Make",
+    "description": "Build automation tool using Makefiles",
+    "category": "devtools",
+    "installGuidance": "Pre-installed on macOS/Linux — Windows: choco install make"
+  },
+  {
+    "binaryName": "jq",
+    "displayName": "jq",
+    "description": "Command-line JSON processor and transformer",
+    "category": "devtools",
+    "installGuidance": "brew install jq — or: apt install jq"
+  },
+  {
+    "binaryName": "yq",
+    "displayName": "yq",
+    "description": "Command-line YAML/JSON/XML processor (like jq for YAML)",
+    "category": "devtools",
+    "installGuidance": "brew install yq — or: pip install yq"
+  },
+  {
+    "binaryName": "tmux",
+    "displayName": "tmux",
+    "description": "Terminal multiplexer for persistent sessions",
+    "category": "devtools",
+    "installGuidance": "brew install tmux — or: apt install tmux"
+  }
+]

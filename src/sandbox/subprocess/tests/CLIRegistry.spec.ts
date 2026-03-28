@@ -214,12 +214,36 @@ describe('CLIRegistry', () => {
   });
 
   describe('constructor defaults', () => {
-    it('loads WELL_KNOWN_CLIS when loadDefaults is true', () => {
+    it('loads WELL_KNOWN_CLIS from JSON registry files when loadDefaults is true', () => {
       const withDefaults = new CLIRegistry(true);
       expect(withDefaults.list().length).toBe(WELL_KNOWN_CLIS.length);
-      expect(withDefaults.has('claude')).toBe(true);
-      expect(withDefaults.has('gemini')).toBe(true);
-      expect(withDefaults.has('git')).toBe(true);
+      // Verify CLIs from multiple category files are loaded
+      expect(withDefaults.has('claude')).toBe(true);   // llm.json
+      expect(withDefaults.has('git')).toBe(true);      // devtools.json
+      expect(withDefaults.has('node')).toBe(true);     // runtimes.json
+      expect(withDefaults.has('pnpm')).toBe(true);     // package-managers.json
+      expect(withDefaults.has('aws')).toBe(true);      // cloud.json
+      expect(withDefaults.has('psql')).toBe(true);     // databases.json
+      expect(withDefaults.has('ffmpeg')).toBe(true);   // media.json
+      expect(withDefaults.has('curl')).toBe(true);     // networking.json
+    });
+
+    it('loads at least 40 CLIs from JSON registry files', () => {
+      const withDefaults = new CLIRegistry(true);
+      expect(withDefaults.list().length).toBeGreaterThanOrEqual(40);
+    });
+
+    it('loads CLIs across 8 categories', () => {
+      const withDefaults = new CLIRegistry(true);
+      const categories = withDefaults.categories();
+      expect(categories).toContain('llm');
+      expect(categories).toContain('devtools');
+      expect(categories).toContain('runtime');
+      expect(categories).toContain('package-manager');
+      expect(categories).toContain('cloud');
+      expect(categories).toContain('database');
+      expect(categories).toContain('media');
+      expect(categories).toContain('networking');
     });
 
     it('starts empty when loadDefaults is false', () => {

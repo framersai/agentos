@@ -2,101 +2,64 @@
  * @fileoverview CLI discovery registry — scans PATH for known binaries
  * so AgentOS can auto-detect available tools, LLM CLIs, and utilities.
  *
- * Providers and extensions register their CLI dependencies at startup.
- * A curated set of well-known CLIs ships as defaults.
+ * CLI descriptors are loaded from JSON files in `./registry/` at startup,
+ * organized by category (llm, devtools, runtimes, cloud, databases, media,
+ * networking, package-managers). Extensions and providers can register
+ * additional descriptors at runtime via {@link CLIRegistry.register}.
  *
  * @module agentos/sandbox/subprocess/CLIRegistry
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { execa } from 'execa';
-import type { CLIDescriptor, CLIScanResult } from './types';
+import type { CLIDescriptor, CLIScanResult } from './types.js';
 
 /* ------------------------------------------------------------------ */
-/*  Well-known CLIs                                                    */
+/*  JSON registry loader                                               */
 /* ------------------------------------------------------------------ */
+
+/** Directory containing per-category JSON descriptor files. */
+const REGISTRY_DIR = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname),
+  'registry',
+);
 
 /**
- * Curated set of well-known CLIs that AgentOS scans for by default.
- * Extensions and providers can register additional descriptors at runtime.
+ * Load all CLI descriptors from the bundled JSON registry files.
+ *
+ * Each `.json` file in `./registry/` is an array of {@link CLIDescriptor}
+ * objects grouped by category (e.g. `llm.json`, `cloud.json`). This
+ * loader reads them all at startup so the registry is pre-populated
+ * without hardcoding descriptors in TypeScript.
+ *
+ * Community contributions add new CLIs by editing JSON — no code changes.
  */
-export const WELL_KNOWN_CLIS: CLIDescriptor[] = [
-  // ── LLM CLIs ──
-  {
-    binaryName: 'claude',
-    displayName: 'Claude Code',
-    description: 'Anthropic Claude via Max subscription — no API key required',
-    category: 'llm',
-    installGuidance: 'npm install -g @anthropic-ai/claude-code — or download from https://claude.ai/download',
-  },
-  {
-    binaryName: 'gemini',
-    displayName: 'Gemini CLI',
-    description: 'Google Gemini via Google account login — no API key required',
-    category: 'llm',
-    installGuidance: 'npm install -g @google/gemini-cli',
-  },
-  // ── Dev tools ──
-  {
-    binaryName: 'git',
-    displayName: 'Git',
-    description: 'Distributed version control system',
-    category: 'devtools',
-    installGuidance: 'https://git-scm.com/downloads',
-  },
-  {
-    binaryName: 'gh',
-    displayName: 'GitHub CLI',
-    description: 'GitHub API from the terminal — PRs, issues, actions',
-    category: 'devtools',
-    installGuidance: 'https://cli.github.com/',
-  },
-  {
-    binaryName: 'docker',
-    displayName: 'Docker',
-    description: 'Container runtime for building and running applications',
-    category: 'devtools',
-    installGuidance: 'https://docs.docker.com/get-docker/',
-  },
-  // ── Runtimes ──
-  {
-    binaryName: 'node',
-    displayName: 'Node.js',
-    description: 'JavaScript runtime built on V8',
-    category: 'runtime',
-    installGuidance: 'https://nodejs.org/',
-  },
-  {
-    binaryName: 'python3',
-    displayName: 'Python 3',
-    description: 'Python interpreter',
-    category: 'runtime',
-    installGuidance: 'https://www.python.org/downloads/',
-  },
-  // ── Media ──
-  {
-    binaryName: 'ffmpeg',
-    displayName: 'FFmpeg',
-    description: 'Audio/video processing and conversion toolkit',
-    category: 'media',
-    installGuidance: 'https://ffmpeg.org/download.html',
-  },
-  // ── Cloud ──
-  {
-    binaryName: 'gcloud',
-    displayName: 'Google Cloud SDK',
-    description: 'Google Cloud resource management',
-    category: 'cloud',
-    installGuidance: 'https://cloud.google.com/sdk/docs/install',
-    versionFlag: '--version',
-  },
-  {
-    binaryName: 'aws',
-    displayName: 'AWS CLI',
-    description: 'Amazon Web Services resource management',
-    category: 'cloud',
-    installGuidance: 'https://aws.amazon.com/cli/',
-  },
-];
+function loadBundledDescriptors(): CLIDescriptor[] {
+  const descriptors: CLIDescriptor[] = [];
+  try {
+    if (!fs.existsSync(REGISTRY_DIR)) return descriptors;
+    for (const file of fs.readdirSync(REGISTRY_DIR)) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const raw = fs.readFileSync(path.join(REGISTRY_DIR, file), 'utf-8');
+        const entries = JSON.parse(raw) as CLIDescriptor[];
+        if (Array.isArray(entries)) descriptors.push(...entries);
+      } catch {
+        /* skip malformed registry files */
+      }
+    }
+  } catch {
+    /* registry dir missing — start empty */
+  }
+  return descriptors;
+}
+
+/**
+ * Pre-loaded bundled descriptors from `./registry/*.json`.
+ * Exported for tests and consumers that need the raw data.
+ */
+export const WELL_KNOWN_CLIS: CLIDescriptor[] = loadBundledDescriptors();
 
 /* ------------------------------------------------------------------ */
 /*  Registry                                                           */
@@ -106,26 +69,36 @@ export const WELL_KNOWN_CLIS: CLIDescriptor[] = [
  * Registry of known CLI binaries with PATH scanning capabilities.
  *
  * Usage:
- * 1. Create a registry and register well-known CLIs (done automatically if using defaults).
+ * 1. Create a registry (bundled JSON descriptors loaded automatically).
  * 2. Providers/extensions register additional CLIs via {@link register}.
  * 3. Call {@link scan} to discover what's installed on the user's machine.
  * 4. Results feed into `wunderland doctor`, capability discovery, and provider auto-detection.
  *
  * @example
+ * ```typescript
  * const registry = new CLIRegistry();
- * registry.registerAll(WELL_KNOWN_CLIS);
- * registry.register({ binaryName: 'my-tool', ... });
+ * console.log(`${registry.list().length} CLIs registered`);
+ *
+ * // Add a custom CLI at runtime
+ * registry.register({
+ *   binaryName: 'my-tool',
+ *   displayName: 'My Tool',
+ *   description: 'Custom internal CLI',
+ *   category: 'devtools',
+ *   installGuidance: 'brew install my-tool',
+ * });
  *
  * const results = await registry.scan();
  * for (const r of results) {
  *   console.log(`${r.displayName}: ${r.installed ? `v${r.version}` : 'not installed'}`);
  * }
+ * ```
  */
 export class CLIRegistry {
   private descriptors: Map<string, CLIDescriptor> = new Map();
 
   /**
-   * Create a registry, optionally pre-populated with well-known CLIs.
+   * Create a registry, optionally pre-populated with bundled JSON descriptors.
    * @param loadDefaults — whether to register {@link WELL_KNOWN_CLIS} (default true)
    */
   constructor(loadDefaults: boolean = true) {
@@ -214,6 +187,16 @@ export class CLIRegistry {
   async byCategory(category: string): Promise<CLIScanResult[]> {
     const results = await this.scan();
     return results.filter(r => r.category === category);
+  }
+
+  /** Get all unique categories registered. */
+  categories(): string[] {
+    return [...new Set(Array.from(this.descriptors.values()).map(d => d.category))].sort();
+  }
+
+  /** Total number of registered descriptors. */
+  get size(): number {
+    return this.descriptors.size;
   }
 
   /** Check if a binary is registered (not whether it's installed). */

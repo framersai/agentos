@@ -1,0 +1,37 @@
+[
+  {
+    "binaryName": "psql",
+    "displayName": "PostgreSQL",
+    "description": "PostgreSQL interactive terminal",
+    "category": "database",
+    "installGuidance": "brew install postgresql — or: apt install postgresql-client"
+  },
+  {
+    "binaryName": "mysql",
+    "displayName": "MySQL",
+    "description": "MySQL client CLI",
+    "category": "database",
+    "installGuidance": "brew install mysql-client — or: apt install mysql-client"
+  },
+  {
+    "binaryName": "sqlite3",
+    "displayName": "SQLite",
+    "description": "SQLite database shell",
+    "category": "database",
+    "installGuidance": "Pre-installed on macOS — apt install sqlite3"
+  },
+  {
+    "binaryName": "redis-cli",
+    "displayName": "Redis CLI",
+    "description": "Redis key-value store client",
+    "category": "database",
+    "installGuidance": "brew install redis — or: apt install redis-tools"
+  },
+  {
+    "binaryName": "mongosh",
+    "displayName": "MongoDB Shell",
+    "description": "MongoDB interactive shell",
+    "category": "database",
+    "installGuidance": "brew install mongosh — or: npm install -g mongosh"
+  }
+]
