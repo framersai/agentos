@@ -594,11 +594,13 @@ export class MetapromptExecutor {
 
     let stateChanged = false;
 
-    // Mood update
-    if (updates.updatedGmiMood && this.config.getMood() !== updates.updatedGmiMood) {
-      const validMoods = Object.values(GMIMood);
-      if (validMoods.includes(updates.updatedGmiMood.toUpperCase())) {
-        this.config.onMoodUpdate(updates.updatedGmiMood.toUpperCase() as GMIMood);
+    // Mood update — GMIMood enum values are lowercase (e.g., 'focused'),
+    // but LLM responses may return either case. Normalize to lowercase for comparison.
+    if (updates.updatedGmiMood) {
+      const validMoods = Object.values(GMIMood) as string[];
+      const normalizedMood = String(updates.updatedGmiMood).toLowerCase();
+      if (validMoods.includes(normalizedMood) && this.config.getMood() !== normalizedMood) {
+        this.config.onMoodUpdate(normalizedMood as GMIMood);
         stateChanged = true;
       }
     }

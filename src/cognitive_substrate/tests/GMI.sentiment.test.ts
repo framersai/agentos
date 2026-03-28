@@ -476,7 +476,7 @@ describe('GMI Event Detection', () => {
     for await (const _chunk of gmi.processTurnStream(input)) { /* consume */ }
 
     // Check internal event was emitted by checking eventHistory
-    const eventHistory = (gmi as any).eventHistory as Array<{ eventType: GMIEventType }>;
+    const eventHistory = (gmi as any).sentimentTracker.events as Array<{ eventType: GMIEventType }>;
     expect(eventHistory.some((e) => e.eventType === GMIEventType.USER_FRUSTRATED)).toBe(true);
   });
 
@@ -500,7 +500,7 @@ describe('GMI Event Detection', () => {
 
     for await (const _chunk of gmi.processTurnStream(input)) { /* consume */ }
 
-    const eventHistory = (gmi as any).eventHistory as Array<{ eventType: GMIEventType }>;
+    const eventHistory = (gmi as any).sentimentTracker.events as Array<{ eventType: GMIEventType }>;
     expect(eventHistory.some((e) => e.eventType === GMIEventType.USER_CONFUSED)).toBe(true);
   });
 
@@ -524,7 +524,7 @@ describe('GMI Event Detection', () => {
 
     for await (const _chunk of gmi.processTurnStream(input)) { /* consume */ }
 
-    const eventHistory = (gmi as any).eventHistory as Array<{ eventType: GMIEventType }>;
+    const eventHistory = (gmi as any).sentimentTracker.events as Array<{ eventType: GMIEventType }>;
     expect(eventHistory.some((e) => e.eventType === GMIEventType.USER_SATISFIED)).toBe(true);
   });
 
@@ -548,7 +548,7 @@ describe('GMI Event Detection', () => {
 
     for await (const _chunk of gmi.processTurnStream(input)) { /* consume */ }
 
-    const eventHistory = (gmi as any).eventHistory as Array<{ eventType: GMIEventType }>;
+    const eventHistory = (gmi as any).sentimentTracker.events as Array<{ eventType: GMIEventType }>;
     expect(eventHistory.some((e) => e.eventType === GMIEventType.USER_FRUSTRATED)).toBe(false);
   });
 
@@ -576,7 +576,7 @@ describe('GMI Event Detection', () => {
 
     for await (const _chunk of gmi.processTurnStream(input)) { /* consume */ }
 
-    const eventHistory = (gmi as any).eventHistory as Array<{ eventType: GMIEventType }>;
+    const eventHistory = (gmi as any).sentimentTracker.events as Array<{ eventType: GMIEventType }>;
     expect(eventHistory.some((e) => e.eventType === GMIEventType.USER_FRUSTRATED)).toBe(true);
   });
 });
@@ -686,7 +686,7 @@ describe('GMI Metaprompt Trigger System', () => {
     for await (const _chunk of gmi.processTurnStream(input)) { /* consume */ }
 
     // Verify event was emitted to history (diagnostic check)
-    const eventHistory = (gmi as any).eventHistory;
+    const eventHistory = (gmi as any).sentimentTracker.events;
     expect(eventHistory.some((e: any) => e.eventType === GMIEventType.USER_FRUSTRATED)).toBe(true);
 
     // Verify the reasoning trace shows the metaprompt was triggered
