@@ -46,19 +46,6 @@
   "theme": "default",
   "lightHighlightTheme": "github-light",
   "darkHighlightTheme": "github-dark",
-  "highlightLanguages": [
-    "bash",
-    "js",
-    "json",
-    "mermaid",
-    "python",
-    "sh",
-    "sql",
-    "ts",
-    "typescript",
-    "xml",
-    "yaml"
-  ],
   "sort": ["source-order", "alphabetical"],
   "kindSortOrder": [
     "Reference",
