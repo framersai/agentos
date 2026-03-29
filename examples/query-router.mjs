@@ -2,8 +2,11 @@
 // Example: QueryRouter classification, retrieval routing, and fallback metadata
 //
 // Usage:
-//   export OPENAI_API_KEY="sk-..."
+//   export OPENAI_API_KEY="sk-..."   # Required (used for embeddings + LLM)
 //   node examples/query-router.mjs
+//
+// Note: If OPENROUTER_API_KEY is also set, it may be auto-detected first.
+// OpenRouter doesn't support embeddings, so unset it or ensure OPENAI_API_KEY is set.
 
 import { QueryRouter } from '../dist/index.js';
 

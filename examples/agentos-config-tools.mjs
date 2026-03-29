@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { AgentOS } from '../dist/index.js';
-import { createTestAgentOSConfig } from '../dist/config/AgentOSConfig.js';
+import { createTestAgentOSConfig } from '../dist/core/config/AgentOSConfig.js';
 
 async function main() {
   const agent = new AgentOS();
@@ -39,9 +39,10 @@ async function main() {
   console.log(JSON.stringify(result, null, 2));
 
   await agent.shutdown();
+  process.exit(0);
 }
 
 main().catch((error) => {
   console.error(error);
-  process.exitCode = 1;
+  process.exit(1);
 });
