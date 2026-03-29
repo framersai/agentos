@@ -1,3 +1,10 @@
+## <small>0.1.138 (2026-03-29)</small>
+
+* feat(query-router): wire capability catalog into plan-aware classifier + surface recommendations ([3fdf26d](https://github.com/framersai/agentos/commit/3fdf26d))
+* docs: add personality on/off examples to getting-started guide ([1b2e682](https://github.com/framersai/agentos/commit/1b2e682))
+* docs: add runnable examples table with all 13 .mjs files + descriptions ([4ed2b24](https://github.com/framersai/agentos/commit/4ed2b24))
+* docs: platform knowledge documentation + integration and e2e tests ([2f6cdcf](https://github.com/framersai/agentos/commit/2f6cdcf))
+
 ## <small>0.1.137 (2026-03-29)</small>
 
 * fix: use darker green for tests badge (readable with white text) ([9a9d566](https://github.com/framersai/agentos/commit/9a9d566))
