@@ -29,11 +29,14 @@ import {
   MarkdownImporter,
   ObsidianExporter,
   ObsidianImporter,
-  SqliteExporter,
-  SqliteImporter,
   ChatGptImporter,
   CsvImporter,
 } from '../index.js';
+
+// SqliteExporter/Importer are not barrel-exported (they require better-sqlite3 native module).
+// Import directly for tests that have better-sqlite3 available.
+import { SqliteExporter } from '../SqliteExporter.js';
+import { SqliteImporter } from '../SqliteImporter.js';
 
 // ---------------------------------------------------------------------------
 // Test infrastructure helpers
