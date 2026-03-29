@@ -34,6 +34,10 @@
  * @module @framers/agentos/query-router/QueryClassifier
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { generateText } from '../api/generateText.js';
 import {
   STRATEGY_TO_TIER,
@@ -55,6 +59,8 @@ import type {
   ExtensionRecommendation,
 } from '../rag/unified/types.js';
 import type { CapabilityDiscoveryEngine } from '../discovery/CapabilityDiscoveryEngine.js';
+
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ============================================================================
 // Configuration
@@ -753,45 +759,67 @@ export class QueryClassifier {
   /**
    * Loads category-grouped summaries from the static capability catalog.
    *
-   * This is the fallback path when no {@link CapabilityDiscoveryEngine} is
-   * attached (or when it returns empty summaries). It dynamically imports
-   * `@framers/agentos-extensions-registry` and groups entries by category
-   * into a compact text block suitable for prompt injection.
-   *
-   * The dynamic import is wrapped in a try/catch so that the classifier
-   * degrades gracefully when the extensions registry package is not installed.
-   * Results are cached after the first successful load.
+   * This fallback uses the bundled platform knowledge corpus that ships inside
+   * `@framers/agentos`. That keeps capability summaries available even when the
+   * extensions registry package is not installed or its runtime build artifacts
+   * are unavailable.
    *
    * @returns An object with `tools` and `extensions` summary strings,
-   *          or "Not available" if the catalog cannot be loaded.
+   *          or "Not available" if the bundled corpus cannot be loaded.
    */
   private getCatalogSummaries(): { tools: string; extensions: string } {
     if (this.catalogSummariesCache) return this.catalogSummariesCache;
+
+    const candidates = [
+      // Published package layout: knowledge/ sits next to dist/
+      join(MODULE_DIR, '../../knowledge/platform-corpus.json'),
+      // Source layout: knowledge/ sits at package root, src/ is one level down
+      join(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
+    ];
+
     try {
-      // Synchronous dynamic require — non-fatal if the package is absent.
-      // The registry re-exports CAPABILITY_CATALOG from its main entry,
-      // so we use createRequire to handle ESM packages from CJS context.
-      const { createRequire } = require('node:module');
-      const esmRequire = createRequire(import.meta.url);
-      const mod = esmRequire('@framers/agentos-extensions-registry');
-      const catalog: Array<{ name: string; description: string; category?: string }> = mod.CAPABILITY_CATALOG;
-      if (!Array.isArray(catalog) || catalog.length === 0) {
-        return { tools: 'Not available', extensions: 'Not available' };
+      for (const corpusPath of candidates) {
+        if (!existsSync(corpusPath)) continue;
+
+        const raw = readFileSync(corpusPath, 'utf-8');
+        const entries: Array<{
+          id: string;
+          heading: string;
+          content: string;
+          category: string;
+        }> = JSON.parse(raw);
+        const toolEntries = entries.filter((entry) => entry.category === 'tools');
+
+        if (toolEntries.length === 0) {
+          continue;
+        }
+
+        const byCategory: Record<string, string[]> = {};
+        for (const entry of toolEntries) {
+          const entryId = entry.id.replace(/^tool-ref:/i, '').trim().toLowerCase();
+          const category = deriveCapabilityCategoryFromId(entryId);
+          if (!byCategory[category]) {
+            byCategory[category] = [];
+          }
+
+          byCategory[category].push(
+            `${entry.heading}: ${extractCapabilitySummary(entry.content)}`,
+          );
+        }
+
+        const lines = Object.entries(byCategory)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([category, items]) => `## ${category}\n${items.join('\n')}`)
+          .join('\n\n');
+
+        this.catalogSummariesCache = { tools: lines, extensions: lines };
+        return this.catalogSummariesCache;
       }
-      const byCategory: Record<string, string[]> = {};
-      for (const entry of catalog) {
-        const cat: string = entry.category || 'other';
-        if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push(`${entry.name}: ${entry.description}`);
-      }
-      const lines = Object.entries(byCategory)
-        .map(([cat, items]) => `## ${cat}\n${items.join('\n')}`)
-        .join('\n\n');
-      this.catalogSummariesCache = { tools: lines, extensions: lines };
-      return this.catalogSummariesCache;
     } catch {
-      return { tools: 'Not available', extensions: 'Not available' };
+      // Fall through to the default return below.
     }
+
+    return { tools: 'Not available', extensions: 'Not available' };
   }
 
   /**
@@ -1247,6 +1275,28 @@ function normalizeCapabilityRecommendationId(
   }
 
   return trimmed.replace(/^(extension|ext):/i, '').trim();
+}
+
+function deriveCapabilityCategoryFromId(id: string): string {
+  const normalizedId = id.replace(/^com\.framers\./i, '');
+  const category = normalizedId.split('.')[0]?.trim().toLowerCase();
+
+  if (!category) {
+    return 'other';
+  }
+
+  return category.endsWith('s') && category.length > 3
+    ? category.slice(0, -1)
+    : category;
+}
+
+function extractCapabilitySummary(content: string): string {
+  const markerIndex = content.search(/\b(Tools|Required secrets):\b/i);
+  if (markerIndex === -1) {
+    return content.trim();
+  }
+
+  return content.slice(0, markerIndex).trim();
 }
 
 function normalizeSkillRecommendations(
