@@ -13,6 +13,7 @@ import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools } from './runtime/toolAdapter.js';
 import {
   createPlan,
+  isRetryableError,
   resolveChainOfThought,
   type GenerateTextOptions,
   type Plan,
@@ -431,14 +432,78 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       resolveUsage!(usage);
       resolveToolCalls!(allToolCalls);
     } catch (err: any) {
-      metricStatus = 'error';
       const error = err instanceof Error ? err : new Error(String(err));
-      const part: StreamPart = { type: 'error', error };
-      parts.push(part);
-      yield part;
-      resolveText!(finalText);
-      resolveUsage!(usage);
-      resolveToolCalls!(allToolCalls);
+
+      // ── Fallback chain for streaming ──────────────────────────────
+      // When the primary provider fails with a retryable error and
+      // fallbackProviders are configured, delegate to a new streamText
+      // call targeting the next available fallback.  All parts from the
+      // fallback stream are yielded transparently to the consumer.
+      if (opts.fallbackProviders?.length && isRetryableError(error)) {
+        let lastFallbackError: Error = error;
+        let fallbackSucceeded = false;
+
+        for (const fb of opts.fallbackProviders) {
+          try {
+            opts.onFallback?.(lastFallbackError, fb.provider);
+            const fallbackResult = streamText({
+              ...opts,
+              provider: fb.provider,
+              model: fb.model,
+              apiKey: undefined,
+              baseUrl: undefined,
+              fallbackProviders: undefined,
+              onFallback: undefined,
+            });
+
+            // Pipe all parts from the fallback stream to the consumer
+            for await (const fbPart of fallbackResult.fullStream) {
+              parts.push(fbPart);
+              yield fbPart;
+            }
+
+            // Resolve aggregated promises from the fallback stream
+            finalText = await fallbackResult.text;
+            const fbUsage = await fallbackResult.usage;
+            usage.promptTokens += fbUsage.promptTokens;
+            usage.completionTokens += fbUsage.completionTokens;
+            usage.totalTokens += fbUsage.totalTokens;
+            if (typeof fbUsage.costUSD === 'number') {
+              usage.costUSD = (usage.costUSD ?? 0) + fbUsage.costUSD;
+            }
+
+            const fbToolCalls = await fallbackResult.toolCalls;
+            allToolCalls.push(...fbToolCalls);
+
+            fallbackSucceeded = true;
+            break;
+          } catch (fbErr: any) {
+            lastFallbackError = fbErr instanceof Error ? fbErr : new Error(String(fbErr));
+          }
+        }
+
+        if (fallbackSucceeded) {
+          resolveText!(finalText);
+          resolveUsage!(usage);
+          resolveToolCalls!(allToolCalls);
+        } else {
+          metricStatus = 'error';
+          const errorPart: StreamPart = { type: 'error', error: lastFallbackError };
+          parts.push(errorPart);
+          yield errorPart;
+          resolveText!(finalText);
+          resolveUsage!(usage);
+          resolveToolCalls!(allToolCalls);
+        }
+      } else {
+        metricStatus = 'error';
+        const part: StreamPart = { type: 'error', error };
+        parts.push(part);
+        yield part;
+        resolveText!(finalText);
+        resolveUsage!(usage);
+        resolveToolCalls!(allToolCalls);
+      }
     } finally {
       rootSpan?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
       if (metricStatus === 'error') {

@@ -16,7 +16,14 @@ export type { AgentOSToolResultInput } from './types/AgentOSToolResultInput.js';
 export type { AgentOSPendingExternalToolRequest } from './types/AgentOSPendingExternalToolRequest.js';
 
 // --- High-level generation functions ---
-export { generateText, type GenerateTextOptions, type GenerateTextResult } from './generateText.js';
+export {
+  generateText,
+  isRetryableError,
+  buildFallbackChain,
+  type GenerateTextOptions,
+  type GenerateTextResult,
+  type FallbackProviderEntry,
+} from './generateText.js';
 export { streamText } from './streamText.js';
 export { generateObject } from './generateObject.js';
 export { streamObject } from './streamObject.js';

@@ -10,6 +10,7 @@
  */
 import {
   generateText,
+  type FallbackProviderEntry,
   type GenerateTextOptions,
   type GenerateTextResult,
   type Message,
@@ -44,6 +45,23 @@ export interface AgentOptions extends BaseAgentConfig {
    * - `string` — inject a custom CoT instruction when tools are present.
    */
   chainOfThought?: boolean | string;
+  /**
+   * Ordered list of fallback providers to try when the primary provider
+   * fails with a retryable error (HTTP 402/429/5xx, network errors).
+   *
+   * Applied to every `generate()`, `stream()`, and `session.send()` /
+   * `session.stream()` call made through this agent.
+   *
+   * @see {@link GenerateTextOptions.fallbackProviders}
+   */
+  fallbackProviders?: FallbackProviderEntry[];
+  /**
+   * Callback invoked when a fallback provider is about to be tried.
+   *
+   * @param error - The error that triggered the fallback.
+   * @param fallbackProvider - The provider identifier being tried next.
+   */
+  onFallback?: (error: Error, fallbackProvider: string) => void;
 }
 
 /**
@@ -196,6 +214,8 @@ export function agent(opts: AgentOptions): Agent {
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
     usageLedger: effectiveLedger,
+    fallbackProviders: opts.fallbackProviders,
+    onFallback: opts.onFallback,
   };
 
   const agentInstance: Agent = {

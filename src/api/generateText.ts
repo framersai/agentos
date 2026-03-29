@@ -114,6 +114,19 @@ export interface Plan {
  * Options for a {@link generateText} call.
  * Either `prompt` or `messages` (or both) must be provided.
  */
+/**
+ * A fallback provider entry specifying an alternative provider (and optionally
+ * model) to try when the primary provider fails with a retryable error.
+ *
+ * @see {@link GenerateTextOptions.fallbackProviders}
+ */
+export interface FallbackProviderEntry {
+  /** Provider identifier (e.g. `"openai"`, `"anthropic"`, `"openrouter"`). */
+  provider: string;
+  /** Model identifier override. When omitted, the provider's default text model is used. */
+  model?: string;
+}
+
 export interface GenerateTextOptions {
   /**
    * Provider name.  When supplied without `model`, the default text model for
@@ -182,6 +195,38 @@ export interface GenerateTextOptions {
    * Set to `false` or omit to skip planning entirely (the default).
    */
   planning?: boolean | PlanningConfig;
+  /**
+   * Ordered list of fallback providers to try when the primary provider fails
+   * with a retryable error (HTTP 402/429/5xx, network errors, auth failures).
+   *
+   * Each entry specifies a provider and an optional model override.  When the
+   * model is omitted, the provider's default text model (from
+   * {@link PROVIDER_DEFAULTS}) is used.
+   *
+   * Providers are tried left-to-right; the first successful response wins.
+   * When all fallbacks are exhausted, the last error is re-thrown.
+   *
+   * @example
+   * ```ts
+   * const result = await generateText({
+   *   provider: 'anthropic',
+   *   prompt: 'Hello',
+   *   fallbackProviders: [
+   *     { provider: 'openai', model: 'gpt-4o-mini' },
+   *     { provider: 'openrouter' },
+   *   ],
+   * });
+   * ```
+   */
+  fallbackProviders?: FallbackProviderEntry[];
+  /**
+   * Callback invoked when a fallback provider is about to be tried after the
+   * primary (or a previous fallback) failed.  Useful for logging or metrics.
+   *
+   * @param error - The error that triggered the fallback.
+   * @param fallbackProvider - The provider identifier being tried next.
+   */
+  onFallback?: (error: Error, fallbackProvider: string) => void;
 }
 
 /**
@@ -368,6 +413,85 @@ function formatPlanForPrompt(plan: Plan): string {
       `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]` : ''}`,
   );
   return `Follow this plan:\n${lines.join('\n')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Fallback helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * HTTP status codes and network error patterns that indicate a transient or
+ * provider-level failure worth retrying with a different provider.
+ *
+ * Matched status codes:
+ * - `401` / `403` — authentication / authorization failure (key expired or wrong provider).
+ * - `402` — payment required (quota exhausted).
+ * - `429` — rate limit exceeded.
+ * - `500` / `502` / `503` / `504` — server-side errors.
+ *
+ * Matched network errors:
+ * - `fetch failed` — generic fetch rejection (DNS, TLS, etc.).
+ * - `ECONNREFUSED` / `ETIMEDOUT` / `ENOTFOUND` — socket-level failures.
+ *
+ * @param error - The error to inspect.
+ * @returns `true` when the error is likely transient and a different provider
+ *   might succeed; `false` for deterministic user-input errors.
+ *
+ * @internal
+ */
+export function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message;
+  // HTTP status codes that warrant a provider switch
+  if (/\b(402|429|500|502|503|504|401|403)\b/.test(msg)) return true;
+  // Network-level failures
+  if (/fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) return true;
+  return false;
+}
+
+/**
+ * Auto-discovers available LLM providers from well-known environment variables
+ * and builds an ordered fallback chain.
+ *
+ * Each entry in the returned array contains a provider identifier and an
+ * optional cheap model suitable for fallback use.  Providers are ordered by
+ * general availability and cost-effectiveness:
+ * 1. OpenAI (`gpt-4o-mini`)
+ * 2. Anthropic (`claude-haiku-4-5-20251001`)
+ * 3. OpenRouter (default model)
+ * 4. Gemini (`gemini-2.5-flash`)
+ *
+ * @param excludeProvider - Provider to omit from the chain (typically the
+ *   primary provider that already failed).
+ * @returns An array of `{ provider, model? }` entries ready for use as
+ *   {@link GenerateTextOptions.fallbackProviders}.
+ *
+ * @example
+ * ```ts
+ * // Primary is anthropic — build fallback chain from remaining providers
+ * const chain = buildFallbackChain('anthropic');
+ * // => [{ provider: 'openai', model: 'gpt-4o-mini' }, { provider: 'openrouter' }, ...]
+ * ```
+ */
+export function buildFallbackChain(
+  excludeProvider?: string,
+): FallbackProviderEntry[] {
+  const chain: FallbackProviderEntry[] = [];
+
+  if (process.env.OPENAI_API_KEY && excludeProvider !== 'openai') {
+    chain.push({ provider: 'openai', model: 'gpt-4o-mini' });
+  }
+  if (process.env.ANTHROPIC_API_KEY && excludeProvider !== 'anthropic') {
+    chain.push({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001' });
+  }
+  if (process.env.OPENROUTER_API_KEY && excludeProvider !== 'openrouter') {
+    chain.push({ provider: 'openrouter' });
+  }
+  if (process.env.GEMINI_API_KEY && excludeProvider !== 'gemini') {
+    chain.push({ provider: 'gemini' });
+  }
+
+  return chain;
 }
 
 function buildHelperToolExecutionContext(
@@ -702,6 +826,49 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       };
     });
   } catch (error) {
+    // ── Fallback chain ────────────────────────────────────────────────
+    // When the primary provider fails with a retryable error and
+    // fallbackProviders are configured, try each fallback in order.
+    // The first successful response wins; if all fail, the last error
+    // is re-thrown.
+    if (
+      opts.fallbackProviders?.length &&
+      isRetryableError(error)
+    ) {
+      let lastError = error;
+      for (const fb of opts.fallbackProviders) {
+        try {
+          opts.onFallback?.(
+            lastError instanceof Error ? lastError : new Error(String(lastError)),
+            fb.provider,
+          );
+          // Build a new options object targeting the fallback provider,
+          // stripping the fallbackProviders to prevent recursive fallback.
+          const fallbackResult = await generateText({
+            ...opts,
+            provider: fb.provider,
+            model: fb.model,
+            // Clear explicit keys/URLs so resolution uses env vars for the
+            // fallback provider rather than the primary's overrides.
+            apiKey: undefined,
+            baseUrl: undefined,
+            fallbackProviders: undefined,
+            onFallback: undefined,
+          });
+          metricStatus = 'ok';
+          metricUsage = fallbackResult.usage;
+          metricProviderId = fallbackResult.provider;
+          metricModelId = fallbackResult.model;
+          return fallbackResult;
+        } catch (fbError) {
+          lastError = fbError;
+        }
+      }
+      // All fallbacks exhausted — fall through to throw
+      metricStatus = 'error';
+      throw lastError;
+    }
+
     metricStatus = 'error';
     throw error;
   } finally {
