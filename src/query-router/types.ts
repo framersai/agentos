@@ -295,6 +295,22 @@ export interface QueryResult {
    * @example ['keyword-fallback', 'tier-escalation']
    */
   fallbacksUsed: string[];
+
+  /**
+   * Recommended skills, tools, and extensions based on query analysis.
+   *
+   * Populated when the plan-aware classifier (`classifyWithPlan`) produces
+   * capability recommendations. When no recommendations are made (or the
+   * plan-aware classifier is not used), this field is `undefined`.
+   *
+   * Each recommendation includes a confidence score (0-1) and a human-readable
+   * reasoning string explaining why the capability was recommended.
+   */
+  recommendations?: {
+    skills: Array<{ skillId: string; reasoning: string; confidence: number }>;
+    tools: Array<{ toolId: string; reasoning: string; confidence: number }>;
+    extensions: Array<{ extensionId: string; reasoning: string; confidence: number }>;
+  };
 }
 
 // ============================================================================

@@ -725,6 +725,16 @@ export class QueryClassifier {
       if (byKind.extensions) extensionSummaries = byKind.extensions;
     }
 
+    // When the discovery engine is absent or returned empty summaries,
+    // fall back to the static capability catalog from the extensions registry.
+    // This ensures the LLM always has at least a category-level view of the
+    // available tools/extensions (~150 extra tokens) for recommendation quality.
+    if (!toolSummaries || toolSummaries === 'No tool categories available.') {
+      const catalog = this.getCatalogSummaries();
+      toolSummaries = catalog.tools;
+      extensionSummaries = catalog.extensions;
+    }
+
     return PLAN_SYSTEM_PROMPT_TEMPLATE
       .replace('{{TOPIC_LIST}}', this.config.topicList)
       .replace('{{TOOL_LIST}}', this.config.toolList)
@@ -732,6 +742,56 @@ export class QueryClassifier {
       .replace('{{TOOL_SUMMARIES}}', toolSummaries)
       .replace('{{EXTENSION_SUMMARIES}}', extensionSummaries)
       .replace('{{CONVERSATION_CONTEXT}}', conversationContext);
+  }
+
+  /**
+   * Cached catalog summaries to avoid repeated dynamic imports.
+   * `null` means not yet loaded; a resolved value is cached for reuse.
+   */
+  private catalogSummariesCache: { tools: string; extensions: string } | null = null;
+
+  /**
+   * Loads category-grouped summaries from the static capability catalog.
+   *
+   * This is the fallback path when no {@link CapabilityDiscoveryEngine} is
+   * attached (or when it returns empty summaries). It dynamically imports
+   * `@framers/agentos-extensions-registry` and groups entries by category
+   * into a compact text block suitable for prompt injection.
+   *
+   * The dynamic import is wrapped in a try/catch so that the classifier
+   * degrades gracefully when the extensions registry package is not installed.
+   * Results are cached after the first successful load.
+   *
+   * @returns An object with `tools` and `extensions` summary strings,
+   *          or "Not available" if the catalog cannot be loaded.
+   */
+  private getCatalogSummaries(): { tools: string; extensions: string } {
+    if (this.catalogSummariesCache) return this.catalogSummariesCache;
+    try {
+      // Synchronous dynamic require — non-fatal if the package is absent.
+      // The registry re-exports CAPABILITY_CATALOG from its main entry,
+      // so we use createRequire to handle ESM packages from CJS context.
+      const { createRequire } = require('node:module');
+      const esmRequire = createRequire(import.meta.url);
+      const mod = esmRequire('@framers/agentos-extensions-registry');
+      const catalog: Array<{ name: string; description: string; category?: string }> = mod.CAPABILITY_CATALOG;
+      if (!Array.isArray(catalog) || catalog.length === 0) {
+        return { tools: 'Not available', extensions: 'Not available' };
+      }
+      const byCategory: Record<string, string[]> = {};
+      for (const entry of catalog) {
+        const cat: string = entry.category || 'other';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(`${entry.name}: ${entry.description}`);
+      }
+      const lines = Object.entries(byCategory)
+        .map(([cat, items]) => `## ${cat}\n${items.join('\n')}`)
+        .join('\n\n');
+      this.catalogSummariesCache = { tools: lines, extensions: lines };
+      return this.catalogSummariesCache;
+    } catch {
+      return { tools: 'Not available', extensions: 'Not available' };
+    }
   }
 
   /**

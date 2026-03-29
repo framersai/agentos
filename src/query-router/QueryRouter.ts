@@ -625,10 +625,14 @@ export class QueryRouter {
     const retrievalEventStart = this.events.length;
     let retrieval: RetrievalResult;
 
+    // Track the execution plan for capability recommendations surfacing.
+    // Populated only when the UnifiedRetriever + plan-aware classifier path
+    // is exercised; null otherwise (legacy dispatcher path).
+    let executionPlan: import('../rag/unified/types.js').ExecutionPlan | null = null;
+
     if (this.unifiedRetriever && this.classifier) {
       // Plan-based retrieval via UnifiedRetriever
       const { buildDefaultExecutionPlan } = await import('../rag/unified/types.js');
-      let plan: import('../rag/unified/types.js').ExecutionPlan;
 
       try {
         const [, classifiedPlan] = await this.classifier.classifyWithPlan(
@@ -636,25 +640,25 @@ export class QueryRouter {
           conversationHistory,
           options,
         );
-        plan = classifiedPlan;
+        executionPlan = classifiedPlan;
       } catch {
-        plan = buildDefaultExecutionPlan(classification.strategy);
+        executionPlan = buildDefaultExecutionPlan(classification.strategy);
       }
 
       // Emit capabilities:activate event when the plan recommends capabilities.
       // The agent runtime is responsible for deciding which to honor — the
       // router only recommends, it does not activate.
-      if (plan.skills.length > 0 || plan.tools.length > 0 || plan.extensions.length > 0) {
+      if (executionPlan.skills.length > 0 || executionPlan.tools.length > 0 || executionPlan.extensions.length > 0) {
         this.emit({
           type: 'capabilities:activate',
-          skills: plan.skills,
-          tools: plan.tools,
-          extensions: plan.extensions,
+          skills: executionPlan.skills,
+          tools: executionPlan.tools,
+          extensions: executionPlan.extensions,
           timestamp: Date.now(),
         });
       }
 
-      const unifiedResult = await this.unifiedRetriever.retrieve(query, plan);
+      const unifiedResult = await this.unifiedRetriever.retrieve(query, executionPlan);
       retrieval = {
         chunks: unifiedResult.chunks,
         researchSynthesis: unifiedResult.researchSynthesis,
@@ -717,6 +721,32 @@ export class QueryRouter {
     // --- Assemble final result ---
     const totalDuration = Date.now() - routeStart;
 
+    // Surface capability recommendations from the execution plan into the
+    // QueryResult so consumers (bots, CLI, API) can access them directly.
+    const recommendations =
+      executionPlan &&
+      (executionPlan.skills.length > 0 ||
+        executionPlan.tools.length > 0 ||
+        executionPlan.extensions.length > 0)
+        ? {
+            skills: executionPlan.skills.map((s) => ({
+              skillId: s.skillId,
+              reasoning: s.reasoning,
+              confidence: s.confidence,
+            })),
+            tools: executionPlan.tools.map((t) => ({
+              toolId: t.toolId,
+              reasoning: t.reasoning,
+              confidence: t.confidence,
+            })),
+            extensions: executionPlan.extensions.map((e) => ({
+              extensionId: e.extensionId,
+              reasoning: e.reasoning,
+              confidence: e.confidence,
+            })),
+          }
+        : undefined;
+
     const result: QueryResult = {
       answer: generateResult.answer,
       classification,
@@ -725,7 +755,18 @@ export class QueryRouter {
       durationMs: totalDuration,
       tiersUsed,
       fallbacksUsed,
+      recommendations,
     };
+
+    // Log recommendations in verbose mode for observability
+    if (result.recommendations) {
+      const r = result.recommendations;
+      const parts: string[] = [];
+      if (r.skills.length) parts.push(`skills: ${r.skills.map((s) => s.skillId).join(', ')}`);
+      if (r.tools.length) parts.push(`tools: ${r.tools.map((t) => t.toolId).join(', ')}`);
+      if (r.extensions.length) parts.push(`extensions: ${r.extensions.map((e) => e.extensionId).join(', ')}`);
+      if (parts.length) console.log(`[QueryRouter] recommendations | ${parts.join(' | ')}`);
+    }
 
     this.emit({
       type: 'route:complete',

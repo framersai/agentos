@@ -963,8 +963,13 @@ describe('QueryClassifier.setCapabilityDiscoveryEngine', () => {
     await classifier.classifyWithPlan('What is the API port?');
 
     const callArgs = mockGenerateText.mock.calls[0][0];
+    // Skill summaries still use the default fallback text (not replaced by catalog)
     expect(callArgs.system).toContain('No skill categories available.');
-    expect(callArgs.system).toContain('No tool categories available.');
-    expect(callArgs.system).toContain('No extension categories available.');
+    // Tool and extension summaries fall back to the capability catalog.
+    // When the catalog package is loadable, they contain category-grouped entries.
+    // When the catalog package is not installed (test environment), they fall back
+    // to "Not available". Either way, "No tool categories available." is replaced.
+    expect(callArgs.system).not.toContain('No tool categories available.');
+    expect(callArgs.system).not.toContain('No extension categories available.');
   });
 });

@@ -733,6 +733,87 @@ describe('QueryRouter', () => {
     expect(result.tiersUsed).toEqual([1, 2, 3]);
   });
 
+  it('route() surfaces capability recommendations in QueryResult when plan has them', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(1, 0.9))
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          thinking: 'Need web search and image generation.',
+          tier: 1,
+          strategy: 'simple',
+          confidence: 0.9,
+          internal_knowledge_sufficient: false,
+          suggested_sources: ['vector'],
+          tools_needed: ['webSearch'],
+          sources: { vector: true, bm25: false, graph: false, raptor: false, memory: false, multimodal: false },
+          hyde: { enabled: false, hypothesisCount: 1 },
+          memoryTypes: ['semantic'],
+          modalities: ['text'],
+          temporal: { preferRecent: false, recencyBoost: 1.0, maxAgeMs: null },
+          graphConfig: { maxDepth: 2, minEdgeWeight: 0.3 },
+          raptorLayers: [0],
+          deepResearch: false,
+          skills: [
+            { skillId: 'web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
+          ],
+          tools: [
+            { toolId: 'generateImage', reasoning: 'Image generation needed', confidence: 0.85, priority: 0 },
+          ],
+          extensions: [],
+          requires_external_calls: true,
+        }),
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
+        toolCalls: [],
+        finishReason: 'stop' as const,
+      })
+      .mockResolvedValueOnce(generatorResponse('Here are the search results and generated image.'));
+
+    const router = createRouter();
+    await router.init();
+    router.setUnifiedRetriever({
+      retrieve: vi.fn().mockResolvedValue({
+        chunks: [],
+        citations: [],
+        retrievalPlan: { sources: [], mode: 'keyword-only' },
+        graphContext: undefined,
+        memoryContext: undefined,
+      }),
+    } as any);
+
+    const result = await router.route('Search the web for AI news and generate an image');
+
+    expect(result.recommendations).toBeDefined();
+    expect(result.recommendations!.skills).toHaveLength(1);
+    expect(result.recommendations!.skills[0]).toMatchObject({
+      skillId: 'web-search',
+      reasoning: 'Need web access',
+      confidence: 0.9,
+    });
+    expect(result.recommendations!.tools).toHaveLength(1);
+    expect(result.recommendations!.tools[0]).toMatchObject({
+      toolId: 'generateImage',
+      reasoning: 'Image generation needed',
+      confidence: 0.85,
+    });
+    expect(result.recommendations!.extensions).toEqual([]);
+  });
+
+  it('route() returns undefined recommendations when no plan capabilities are recommended', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce(classifierResponse(0, 0.95))
+      .mockResolvedValueOnce(generatorResponse());
+
+    const router = createRouter();
+    await router.init();
+
+    const result = await router.route('How much does it cost?');
+
+    // No UnifiedRetriever attached, so plan-based path is not exercised
+    expect(result.recommendations).toBeUndefined();
+  });
+
   // -------------------------------------------------------------------------
   // Test 7: close() doesn't throw
   // -------------------------------------------------------------------------
