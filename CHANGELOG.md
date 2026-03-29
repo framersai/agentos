@@ -1,3 +1,7 @@
+## <small>0.1.146 (2026-03-29)</small>
+
+* fix: remove eager SqliteImporter/Exporter barrel exports to avoid better-sqlite3 crash ([3242f31](https://github.com/framersai/agentos/commit/3242f31))
+
 ## <small>0.1.145 (2026-03-29)</small>
 
 * fix(memory): prevent raw profanity/slurs from being stored as user facts ([c17b49f](https://github.com/framersai/agentos/commit/c17b49f))
