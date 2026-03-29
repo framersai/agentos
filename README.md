@@ -181,8 +181,9 @@ const result = await team.generate('Summarise recent advances in fusion energy.'
 console.log(result.text);
 ```
 
-Set `OPENAI_API_KEY` (or another provider's key) and the agency auto-detects the
-provider.  All five strategies are available out of the box:
+Set any provider's API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+`GROQ_API_KEY`, `OLLAMA_BASE_URL`, etc.) and the agency auto-detects the provider.
+All five strategies are available out of the box:
 
 | Strategy | What it does |
 |---|---|
@@ -219,23 +220,157 @@ Use the streamlined helpers when you want AI SDK-style text generation, structur
 output extraction, embedding generation, image generation, or a single stateful
 session without a multi-agent team.
 
+#### Provider-First Pattern (Recommended)
+
+The recommended way to call any helper is **provider-first**: specify the provider
+name and let AgentOS pick the best default model automatically. No model string
+needed -- just set the matching environment variable and go.
+
+```typescript
+import { generateText, streamText, agent } from '@framers/agentos';
+
+// Provider-first -- AgentOS picks the best default model
+const result = await generateText({
+  provider: 'openai',
+  prompt: 'Explain TCP handshakes in 3 bullets.',
+});
+
+// Works with any provider -- just change the name
+const result2 = await generateText({
+  provider: 'anthropic',
+  prompt: 'Explain TCP handshakes in 3 bullets.',
+});
+
+// Local models via Ollama -- zero API keys
+const result3 = await generateText({
+  provider: 'ollama',
+  prompt: 'Explain TCP handshakes in 3 bullets.',
+});
+```
+
+The same pattern works across **every helper function**: `generateText`, `streamText`,
+`generateObject`, `streamObject`, `embedText`, `generateImage`, and `agent`.
+
+#### Default Models Per Provider
+
+When you use the provider-first pattern, AgentOS resolves the default model
+from a built-in registry. Set the matching env var and you are ready to go:
+
+| Provider | Default Model | Env Var |
+|---|---|---|
+| `openai` | `gpt-4o` | `OPENAI_API_KEY` |
+| `anthropic` | `claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
+| `gemini` | `gemini-2.5-flash` | `GEMINI_API_KEY` |
+| `ollama` | `llama3.2` | `OLLAMA_BASE_URL` |
+| `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
+| `openrouter` | `openai/gpt-4o` | `OPENROUTER_API_KEY` |
+| `together` | `Meta-Llama-3.1-70B-Instruct-Turbo` | `TOGETHER_API_KEY` |
+| `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` |
+| `xai` | `grok-2` | `XAI_API_KEY` |
+
+See `src/api/runtime/provider-defaults.ts` for the full registry including image
+and embedding defaults.
+
+#### Multi-Provider Showcase
+
+The **same prompt** works across every supported provider -- swap one string:
+
+```typescript
+import { generateText } from '@framers/agentos';
+
+// OpenAI
+await generateText({ provider: 'openai', prompt: 'What is QUIC?' });
+
+// Anthropic
+await generateText({ provider: 'anthropic', prompt: 'What is QUIC?' });
+
+// Google Gemini
+await generateText({ provider: 'gemini', prompt: 'What is QUIC?' });
+
+// Groq (fast inference)
+await generateText({ provider: 'groq', prompt: 'What is QUIC?' });
+
+// Local via Ollama (no API key needed)
+await generateText({ provider: 'ollama', prompt: 'What is QUIC?' });
+
+// OpenRouter (200+ models, auto-routing)
+await generateText({ provider: 'openrouter', prompt: 'What is QUIC?' });
+
+// Mistral
+await generateText({ provider: 'mistral', prompt: 'What is QUIC?' });
+
+// xAI (Grok)
+await generateText({ provider: 'xai', prompt: 'What is QUIC?' });
+```
+
+#### Provider + Model Override
+
+When you need a specific model instead of the default, pass both:
+
+```typescript
+// Cheaper model for high-volume workloads
+await generateText({
+  provider: 'openai',
+  model: 'gpt-4o-mini',
+  prompt: 'Classify this support ticket.',
+});
+
+// Specific Anthropic model
+await generateText({
+  provider: 'anthropic',
+  model: 'claude-haiku-4-5-20251001',
+  prompt: 'Summarise this paragraph.',
+});
+
+// Specific Ollama model
+await generateText({
+  provider: 'ollama',
+  model: 'codellama',
+  prompt: 'Write a Python fizzbuzz.',
+});
+```
+
+#### Global Defaults via Environment Variables
+
+AgentOS auto-detects your active provider by scanning environment variables in
+priority order. Set one key and every call uses that provider automatically --
+no `provider` field needed:
+
+```bash
+# Set one of these -- AgentOS picks the first it finds:
+# Priority: OPENROUTER > OPENAI > ANTHROPIC > GEMINI > GROQ > TOGETHER > MISTRAL > XAI > OLLAMA
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+```typescript
+import { generateText } from '@framers/agentos';
+
+// No provider or model needed -- auto-detected from env vars
+const result = await generateText({ prompt: 'Hello world' });
+```
+
+#### Legacy Format
+
+The `provider:model` string format still works but provider-first is preferred:
+
+```typescript
+// Legacy format -- still fully supported but not recommended for new code
+await generateText({ model: 'openai:gpt-4o', prompt: '...' });
+await generateText({ model: 'anthropic:claude-sonnet-4-20250514', prompt: '...' });
+await generateText({ model: 'ollama:llama3.2', prompt: '...' });
+```
+
+#### Streaming, Structured Output, Images, and Embeddings
+
 ```typescript
 import {
-  agent, embedText, generateImage, generateObject, generateText, streamText, streamObject,
+  agent, embedText, generateImage, generateObject, streamText, streamObject,
 } from '@framers/agentos';
 import { z } from 'zod';
 
-// Provider-first: AgentOS picks the best default model automatically.
-// Requires OPENAI_API_KEY (or the matching env var) to be set.
-const quick = await generateText({
-  provider: 'openai',
-  prompt: 'Explain how TCP handshakes work in 3 bullets.',
-});
-
-console.log(quick.text);
-
+// Streaming with Anthropic
 const live = streamText({
-  provider: 'openai',
+  provider: 'anthropic',
   prompt: 'Stream a short explanation of SYN, SYN-ACK, ACK.',
 });
 
@@ -243,6 +378,7 @@ for await (const delta of live.textStream) {
   process.stdout.write(delta);
 }
 
+// Image generation with OpenAI
 const image = await generateImage({
   provider: 'openai',
   prompt: 'A cinematic neon city skyline reflected in rain at night.',
@@ -250,18 +386,18 @@ const image = await generateImage({
 
 console.log(image.images[0]?.mimeType);
 
-// Structured output — Zod-validated JSON extraction
+// Structured output with Gemini -- Zod-validated JSON extraction
 const { object } = await generateObject({
-  model: 'openai:gpt-4o',
+  provider: 'gemini',
   schema: z.object({ name: z.string(), age: z.number() }),
   prompt: 'Extract: "John is 30 years old"',
 });
 
 console.log(object.name, object.age); // "John" 30
 
-// Streaming structured output — partial objects as JSON builds up
+// Streaming structured output with Groq
 const structured = streamObject({
-  model: 'openai:gpt-4o',
+  provider: 'groq',
   schema: z.object({ title: z.string(), tags: z.array(z.string()) }),
   prompt: 'Generate metadata for an article about TCP.',
 });
@@ -271,17 +407,18 @@ for await (const partial of structured.partialObjectStream) {
 }
 console.log('final:', await structured.object);
 
-// Embeddings — single or batch
+// Embeddings -- single or batch (OpenAI)
 const { embeddings } = await embedText({
-  model: 'openai:text-embedding-3-small',
+  provider: 'openai',
   input: ['Hello world', 'Goodbye world'],
   dimensions: 256,
 });
 
 console.log(embeddings.length, embeddings[0].length); // 2, 256
 
+// Stateful agent session with Anthropic
 const assistant = agent({
-  provider: 'openai',
+  provider: 'anthropic',
   instructions: 'You are a concise networking tutor.',
   maxSteps: 3,
 });
@@ -290,9 +427,6 @@ const session = assistant.session('tcp-demo');
 const reply = await session.send('Now compare TCP and UDP.');
 console.log(reply.text);
 console.log(await session.usage());
-
-// Legacy format — still supported:
-// const result = await generateText({ model: 'openai:gpt-4o', prompt: '...' });
 ```
 
 If you want durable helper-level usage accounting outside the full runtime, enable
@@ -302,7 +436,7 @@ the opt-in usage ledger:
 import { generateText, getRecordedAgentOSUsage } from '@framers/agentos';
 
 await generateText({
-  provider: 'openai',
+  provider: 'anthropic',
   prompt: 'Explain HTTP keep-alive.',
   usageLedger: { enabled: true, sessionId: 'readme-demo' },
 });
@@ -391,7 +525,7 @@ graph TB
         Plan --> ReAct["ReAct<br/>Reasoner"]
 
         subgraph LLM["LLM Provider Manager"]
-            OAI["OpenAI"] ~~~ Anth["Anthropic"] ~~~ Az["Azure"] ~~~ Oll["Ollama"] ~~~ OR["OpenRouter"]
+            OAI["OpenAI"] ~~~ Anth["Anthropic"] ~~~ Gem["Gemini"] ~~~ Oll["Ollama"] ~~~ OR["OpenRouter"]
         end
 
         Tools --> LLM
@@ -572,21 +706,30 @@ The LLM layer abstracts multiple AI model providers behind a unified interface.
 graph TD
     PM["AIModelProviderManager<br/><i>Provider registry · Routing · Fallback · Model switching</i>"]
     PM --> OAI["OpenAI Provider<br/><code>gpt-4o · gpt-4o-mini · o1</code>"]
+    PM --> Anth["Anthropic Provider<br/><code>claude-sonnet-4 · claude-haiku</code>"]
+    PM --> Gem["Gemini Provider<br/><code>gemini-2.5-flash · gemini-2.0</code>"]
     PM --> Oll["Ollama Provider<br/><code>llama3.2 · mistral · codellama</code>"]
-    PM --> OR["OpenRouter Provider<br/><code>claude-3.5 · gemini-pro · command-r+</code>"]
+    PM --> GQ["Groq Provider<br/><code>llama-3.3-70b · gemma2-9b</code>"]
+    PM --> OR["OpenRouter Provider<br/><code>200+ models · auto-routing</code>"]
     PM --> Custom["Custom Provider<br/><i>IProvider interface</i>"]
     style PM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
 ```
 
 **Provider implementations:**
 
-| Provider | File | Models |
-|----------|------|--------|
-| OpenAI | `providers/implementations/OpenAIProvider.ts` | GPT-4o, GPT-4o-mini, o1, o3, etc. |
-| Ollama | `providers/implementations/OllamaProvider.ts` | Any locally-hosted model (Llama, Mistral, etc.) |
-| OpenRouter | `providers/implementations/OpenRouterProvider.ts` | 200+ models from any provider via unified API |
+| Provider | File | Models | Env Var |
+|----------|------|--------|---------|
+| OpenAI | `providers/implementations/OpenAIProvider.ts` | GPT-4o, GPT-4o-mini, o1, o3 | `OPENAI_API_KEY` |
+| Anthropic | `providers/implementations/AnthropicProvider.ts` | Claude Sonnet 4, Claude Haiku | `ANTHROPIC_API_KEY` |
+| Gemini | `providers/implementations/GeminiProvider.ts` | Gemini 2.5 Flash, Gemini 2.0 | `GEMINI_API_KEY` |
+| Groq | `providers/implementations/GroqProvider.ts` | Llama 3.3 70B, Gemma2 9B (fast inference) | `GROQ_API_KEY` |
+| Mistral | `providers/implementations/MistralProvider.ts` | Mistral Large, Mistral Small | `MISTRAL_API_KEY` |
+| Together | via OpenAI-compat | Meta-Llama 3.1 70B/8B | `TOGETHER_API_KEY` |
+| xAI | via OpenAI-compat | Grok-2, Grok-2 Mini | `XAI_API_KEY` |
+| Ollama | `providers/implementations/OllamaProvider.ts` | Any locally-hosted model | `OLLAMA_BASE_URL` |
+| OpenRouter | `providers/implementations/OpenRouterProvider.ts` | 200+ models from any provider | `OPENROUTER_API_KEY` |
 
-> **Note:** Anthropic (Claude) and Google Gemini are supported at the **Wunderland runtime** level via their respective APIs. In AgentOS, use OpenRouter to access these models, or use Wunderland's higher-level `createWunderlandSeed()` API which handles provider routing natively.
+> **Auto-detection:** When no `provider` is specified, AgentOS scans env vars in priority order (OpenRouter > OpenAI > Anthropic > Gemini > Groq > Together > Mistral > xAI > Ollama) and uses the first configured provider. Set one env var and every helper call works automatically.
 
 **Additional components:**
 
@@ -594,7 +737,17 @@ graph TD
 - **IProvider** (`providers/IProvider.ts`) -- Interface contract for adding custom LLM providers.
 - **Streaming adapters** -- All providers support token-level streaming via async generators with backpressure control.
 
-**Per-request model override:**
+**Per-request model override (high-level helpers):**
+
+```typescript
+// Provider-first: AgentOS picks the default model
+await generateText({ provider: 'gemini', prompt: 'Summarize this document' });
+
+// Override a specific model
+await generateText({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001', prompt: '...' });
+```
+
+**Per-request model override (full runtime):**
 
 ```typescript
 for await (const chunk of agent.processRequest({
@@ -602,8 +755,8 @@ for await (const chunk of agent.processRequest({
   sessionId: 'session-1',
   textInput: 'Summarize this document',
   options: {
-    preferredProviderId: 'anthropic',
-    preferredModelId: 'claude-sonnet-4-5-20250929',
+    preferredProviderId: 'gemini',
+    preferredModelId: 'gemini-2.5-flash',
   },
 })) { /* ... */ }
 ```
@@ -1272,7 +1425,30 @@ await agent.initialize(await createAgentOSConfig());
 
 ### Multiple Providers
 
-Configure multiple LLM providers with fallback:
+**High-level helpers** (recommended): Just set env vars. No config object needed.
+
+```bash
+# Set as many provider keys as you like -- AgentOS uses them on demand
+export ANTHROPIC_API_KEY=sk-ant-...
+export OPENAI_API_KEY=sk-...
+export GEMINI_API_KEY=AIza...
+export OLLAMA_BASE_URL=http://localhost:11434
+```
+
+```typescript
+import { generateText } from '@framers/agentos';
+
+// Each call picks the right credentials from env vars automatically
+await generateText({ provider: 'anthropic', prompt: 'Hello from Claude' });
+await generateText({ provider: 'openai',    prompt: 'Hello from GPT' });
+await generateText({ provider: 'gemini',    prompt: 'Hello from Gemini' });
+await generateText({ provider: 'ollama',    prompt: 'Hello from Llama' });
+
+// Or omit provider entirely -- auto-detects the first configured one
+await generateText({ prompt: 'Hello from whichever provider is available' });
+```
+
+**Full runtime** — configure multiple providers with explicit fallback:
 
 ```typescript
 const agent = new AgentOS();
@@ -1282,10 +1458,12 @@ await agent.initialize({
   ...config,
   modelProviderManagerConfig: {
     providers: [
-      { providerId: 'openai', enabled: true, isDefault: true,
-        config: { apiKey: process.env.OPENAI_API_KEY } },
-      { providerId: 'anthropic', enabled: true,
+      { providerId: 'anthropic', enabled: true, isDefault: true,
         config: { apiKey: process.env.ANTHROPIC_API_KEY } },
+      { providerId: 'openai', enabled: true,
+        config: { apiKey: process.env.OPENAI_API_KEY } },
+      { providerId: 'gemini', enabled: true,
+        config: { apiKey: process.env.GEMINI_API_KEY } },
       { providerId: 'ollama', enabled: true,
         config: { baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434' } },
     ],
@@ -1294,8 +1472,8 @@ await agent.initialize({
     ...config.gmiManagerConfig,
     defaultGMIBaseConfigDefaults: {
       ...(config.gmiManagerConfig.defaultGMIBaseConfigDefaults ?? {}),
-      defaultLlmProviderId: 'openai',
-      defaultLlmModelId: 'gpt-4o',
+      defaultLlmProviderId: 'anthropic',
+      defaultLlmModelId: 'claude-sonnet-4-20250514',
     },
   },
 });
@@ -1306,8 +1484,8 @@ for await (const chunk of agent.processRequest({
   sessionId: 'session-1',
   textInput: 'Hello',
   options: {
-    preferredProviderId: 'anthropic',
-    preferredModelId: 'claude-sonnet-4-5-20250929',
+    preferredProviderId: 'gemini',
+    preferredModelId: 'gemini-2.5-flash',
   },
 })) { /* ... */ }
 ```
@@ -1315,12 +1493,16 @@ for await (const chunk of agent.processRequest({
 ### Environment Variables
 
 ```bash
-# Required: at least one LLM provider
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=AIza...
-OPENROUTER_API_KEY=sk-or-...
-OLLAMA_BASE_URL=http://localhost:11434    # local or remote URL
+# LLM providers (set at least one)
+OPENAI_API_KEY=sk-...                      # OpenAI (GPT-4o, GPT-4o-mini, o1, o3)
+ANTHROPIC_API_KEY=sk-ant-...               # Anthropic (Claude Sonnet 4, Claude Haiku)
+GEMINI_API_KEY=AIza...                     # Google Gemini (2.5 Flash, 2.0)
+OPENROUTER_API_KEY=sk-or-...              # OpenRouter (200+ models, auto-routing)
+GROQ_API_KEY=gsk_...                       # Groq (fast inference: Llama 3.3 70B)
+TOGETHER_API_KEY=...                       # Together AI (Llama, Mixtral)
+MISTRAL_API_KEY=...                        # Mistral (Mistral Large, Small)
+XAI_API_KEY=xai-...                        # xAI (Grok-2)
+OLLAMA_BASE_URL=http://localhost:11434     # Ollama (local models, no API key needed)
 
 # Database
 DATABASE_URL=file:./data/agentos.db
