@@ -1,3 +1,7 @@
+## <small>0.1.149 (2026-03-29)</small>
+
+* fix: reorder auto-detect priority (OpenAI first) + warn on Anthropic fallback ([646dab3](https://github.com/framersai/agentos/commit/646dab3))
+
 ## <small>0.1.148 (2026-03-29)</small>
 
 * fix(examples): fix 3 broken examples — import path, provider notes, shutdown ([81c5062](https://github.com/framersai/agentos/commit/81c5062))
