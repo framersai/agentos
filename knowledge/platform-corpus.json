@@ -1,0 +1,1460 @@
+[
+  {
+    "id": "tool-ref:com.framers.auth",
+    "heading": "Authentication & Subscription",
+    "content": "JWT authentication and subscription tier management for AgentOS Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.blog-publisher",
+    "heading": "Blog Publisher Channel Extension",
+    "content": "Unified blog publishing adapter for Dev.to, Hashnode, Medium, and WordPress — publish, update, cross-post, and track analytics across all four platforms from a single interface. Tools: blogPublishArticle, blogUpdateArticle, blogListArticles, blogAnalytics, blogSchedule, blogCrossPost, blogPublisherChannel. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.bluesky",
+    "heading": "Bluesky Channel Extension",
+    "content": "Bidirectional Bluesky integration — post, reply, like, repost, search, follow, and track engagement via the AT Protocol. Tools: blueskyPost, blueskyReply, blueskyLike, blueskyRepost, blueskySearch, blueskyFeed, blueskyFollow, blueskyAnalytics, blueskyChannel. Required secrets: bluesky.handle, bluesky.appPassword.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.discord",
+    "heading": "Discord Channel Extension",
+    "content": "Bidirectional Discord messaging via discord.js — supports text, embeds, images, documents, threads, reactions, and guild management. Tools: discordChannelSendMessage, discordChannelSendMedia, discordChannel. Required secrets: discord.botToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.email",
+    "heading": "Email Channel Extension",
+    "content": "Bidirectional email integration — send, read, search, extract verification codes, and reply to email threads via SMTP and IMAP. Tools: emailSend, emailRead, emailSearch, emailExtractCodes, emailReply, emailChannel. Required secrets: email.smtpHost, email.smtpUser, email.smtpPassword.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.facebook",
+    "heading": "Facebook Channel Extension",
+    "content": "Bidirectional Facebook integration — page posts, photos, videos, comments, likes, shares, and engagement analytics via Meta Graph API v19. Tools: facebookPost, facebookComment, facebookLike, facebookShare, facebookSearch, facebookAnalytics, facebookSchedule, facebookPagePost, facebookChannel. Required secrets: facebook.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.farcaster",
+    "heading": "Farcaster Channel Extension",
+    "content": "Bidirectional Farcaster integration — publish casts, reply, like, recast, search, and browse feeds via Neynar API. Tools: farcasterCast, farcasterReply, farcasterLike, farcasterRecast, farcasterSearch, farcasterFeed, farcasterChannel. Required secrets: farcaster.neynarApiKey, farcaster.signerUuid.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.feishu",
+    "heading": "Feishu / Lark Channel Extension",
+    "content": "Feishu (Lark) bot via official SDK — supports outbound messages + inbound webhooks. Tools: feishuChannelSendMessage, feishuChannel, feishuWebhook. Required secrets: feishu.appId, feishu.appSecret, feishu.verificationToken, feishu.encryptKey.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.google-business",
+    "heading": "Google Business Profile Channel Extension",
+    "content": "Bidirectional Google Business Profile integration — create local posts, reply to reviews, view analytics, and update business information via Google My Business API. Tools: gbpCreatePost, gbpReply, gbpAnalytics, gbpUpdateInfo, gbpChannel. Required secrets: google.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.google-chat",
+    "heading": "Google Chat Channel Extension",
+    "content": "Google Workspace Chat via Cloud API — supports outbound messages + inbound webhooks. Tools: googleChatChannelSendMessage, googleChatChannel, googleChatWebhook. Required secrets: googlechat.serviceAccount.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.imessage",
+    "heading": "iMessage Channel Extension",
+    "content": "iMessage bridge via BlueBubbles — macOS server required. Supports outbound sends + inbound webhooks. Tools: imessageChannelSendMessage, imessageChannel, imessageWebhook. Required secrets: imessage.serverUrl, imessage.password.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.instagram",
+    "heading": "Instagram Channel Extension",
+    "content": "Full Instagram integration — post photos, reels, stories, carousels, manage DMs, research hashtags, and track engagement via Instagram Graph API with browser automation fallback. Tools: instagramPost, instagramReel, instagramStory, instagramDm, instagramLike, instagramComment, instagramFollow, instagramHashtags, instagramExplore, instagramAnalytics, instagramChannel. Required secrets: instagram.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.irc",
+    "heading": "IRC Channel Extension",
+    "content": "IRC channel adapter — supports inbound/outbound messages and channel joins. Tools: ircChannelSendMessage, ircChannel. Required secrets: irc.host, irc.port, irc.nick, irc.channels.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.lemmy",
+    "heading": "Lemmy Channel Extension",
+    "content": "Bidirectional Lemmy integration — create posts, comment, vote, search, subscribe to communities, and browse feeds via Lemmy HTTP API. Tools: lemmyPost, lemmyComment, lemmyVote, lemmySearch, lemmySubscribe, lemmyFeed, lemmyChannel. Required secrets: lemmy.instanceUrl, lemmy.username, lemmy.password.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.line",
+    "heading": "LINE Channel Extension",
+    "content": "LINE Messaging API — inbound webhook (signature-verified) + outbound messaging. Tools: lineChannelSendMessage, lineChannel, lineWebhook. Required secrets: line.channelAccessToken, line.channelSecret.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.linkedin",
+    "heading": "LinkedIn Channel Extension",
+    "content": "LinkedIn Marketing API v2 — posts, articles, comments, company pages, search, and engagement analytics. Tools: linkedinPost, linkedinComment, linkedinLike, linkedinShare, linkedinSearch, linkedinAnalytics, linkedinSchedule, linkedinOrgPost, linkedinChannel. Required secrets: linkedin.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.mastodon",
+    "heading": "Mastodon Channel Extension",
+    "content": "Bidirectional Mastodon integration — post statuses, reply, boost, favourite, search trends, follow accounts, and track engagement via the Mastodon API. Tools: mastodonPost, mastodonReply, mastodonBoost, mastodonFavourite, mastodonSearch, mastodonTrending, mastodonFollow, mastodonAnalytics, mastodonChannel. Required secrets: mastodon.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.matrix",
+    "heading": "Matrix Channel Extension",
+    "content": "Matrix/Element via matrix-bot-sdk — decentralized, federated messaging. Tools: matrixChannelSendMessage, matrixChannel. Required secrets: matrix.homeserverUrl, matrix.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.mattermost",
+    "heading": "Mattermost Channel Extension",
+    "content": "Mattermost self-hosted chat — supports outbound posts and inbound WebSocket events. Tools: mattermostChannelSendMessage, mattermostChannel. Required secrets: mattermost.url, mattermost.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.nextcloud",
+    "heading": "NextCloud Talk Channel Extension",
+    "content": "Nextcloud Talk bot API — self-hosted, privacy-focused team messaging via webhook bots. Tools: nextcloudChannelSendMessage, nextcloudChannel, nextcloudTalkWebhook. Required secrets: nextcloud.url, nextcloud.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.nostr",
+    "heading": "Nostr Channel Extension",
+    "content": "Nostr relay messaging via nostr-tools — decentralized, censorship-resistant encrypted DMs (NIP-04). Tools: nostrChannelSendMessage, nostrChannel. Required secrets: nostr.privateKey, nostr.relayUrls.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.pinterest",
+    "heading": "Pinterest Channel Extension",
+    "content": "Pinterest integration — create pins, manage boards, search content, discover trends, track analytics, and schedule posts via Pinterest API v5. Tools: pinterestPin, pinterestBoard, pinterestSearch, pinterestTrending, pinterestAnalytics, pinterestSchedule, pinterestChannel. Required secrets: pinterest.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.reddit",
+    "heading": "Reddit Channel Extension",
+    "content": "Bidirectional Reddit interaction via snoowrap — supports posting, commenting, voting, searching, trending, subscriptions, messaging, and analytics. Tools: redditSubmitPost, redditComment, redditVote, redditSearch, redditTrending, redditSubscribe, redditInbox, redditAnalytics, redditChannel. Required secrets: reddit.clientId, reddit.clientSecret, reddit.username, reddit.password.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.signal",
+    "heading": "Signal Channel Extension",
+    "content": "Signal messenger integration via signal-cli — end-to-end encrypted messaging. Tools: signalChannelSendMessage, signalChannel. Required secrets: signal.phoneNumber.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.slack",
+    "heading": "Slack Channel Extension",
+    "content": "Bidirectional Slack messaging via @slack/bolt — supports text, rich text, images, documents, threads, reactions, and group chat. Tools: slackChannelSendMessage, slackChannelSendMedia, slackChannel. Required secrets: slack.botToken, slack.signingSecret, slack.appToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.sms",
+    "heading": "SMS Channel Extension",
+    "content": "SMS messaging via Twilio — inbound webhook + outbound sends. Tools: smsChannelSendMessage, smsChannel, smsWebhook. Required secrets: twilio.accountSid, twilio.authToken, twilio.phoneNumber.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.teams",
+    "heading": "Microsoft Teams Channel Extension",
+    "content": "Microsoft Teams bot via Bot Framework — supports inbound webhooks + proactive outbound sends. Tools: teamsChannelSendMessage, teamsChannel, teamsWebhook. Required secrets: teams.appId, teams.appPassword.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.telegram",
+    "heading": "Telegram Channel Extension",
+    "content": "Bidirectional Telegram messaging via grammY — supports text, images, documents, inline keyboards, and groups. Tools: telegramChannelSendMessage, telegramChannelSendMedia, telegramChannel. Required secrets: telegram.botToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.threads",
+    "heading": "Threads Channel Extension",
+    "content": "Bidirectional Threads integration — post text, images, videos, carousels, reply, quote, like, search user threads, and track engagement analytics via Meta Threads Publishing API. Tools: threadsPost, threadsReply, threadsLike, threadsSearch, threadsAnalytics, threadsQuote, threadsChannel. Required secrets: threads.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.tiktok",
+    "heading": "TikTok Channel Extension",
+    "content": "TikTok integration — upload videos, discover trending sounds and hashtags, search content, track analytics, and engage with the community via TikTok API for Business. Tools: tiktokUpload, tiktokTrending, tiktokSearch, tiktokAnalytics, tiktokEngage, tiktokDiscover, tiktokChannel. Required secrets: tiktok.accessToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.tlon",
+    "heading": "Tlon (Urbit) Channel Extension",
+    "content": "Tlon / Urbit messaging — peer-to-peer, identity-sovereign communication. Tools: tlonChannelSendMessage, tlonChannel. Required secrets: tlon.shipUrl, tlon.code.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.twitch",
+    "heading": "Twitch Channel Extension",
+    "content": "Twitch IRC chat via tmi.js — supports inbound/outbound chat messaging. Tools: twitchChannelSendMessage, twitchChannel. Required secrets: twitch.oauthToken, twitch.username, twitch.channel.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.twitter",
+    "heading": "Twitter/X Channel Extension",
+    "content": "Bidirectional Twitter/X integration — post tweets, reply, quote, thread, search trends, DM, and track engagement via Twitter API v2. Tools: twitterPost, twitterReply, twitterQuote, twitterLike, twitterRetweet, twitterSearch, twitterTrending, twitterTimeline, twitterDm, twitterAnalytics, twitterSchedule, twitterThread, twitterChannel. Required secrets: twitter.bearerToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.webchat",
+    "heading": "WebChat Channel Extension",
+    "content": "Lightweight web chat channel adapter — delegates to WunderlandGateway (Socket.IO) for transport. No external SDK required. Tools: webchatChannelSendMessage, webchatChannel. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.whatsapp",
+    "heading": "WhatsApp Channel Extension",
+    "content": "Bidirectional WhatsApp messaging via Baileys — supports text, images, documents, typing indicators, and groups. Tools: whatsappChannelSendMessage, whatsappChannelSendMedia, whatsappChannel. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.youtube",
+    "heading": "YouTube Channel Extension",
+    "content": "YouTube integration — upload videos, publish Shorts, comment on videos, search content, discover trending, track analytics, manage playlists, and schedule publishing via YouTube Data API v3. Tools: youtubeUpload, youtubeShort, youtubeComment, youtubeSearch, youtubeTrending, youtubeAnalytics, youtubePlaylist, youtubeSchedule, youtubeChannel. Required secrets: youtube.apiKey.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.zalo",
+    "heading": "Zalo Channel Extension",
+    "content": "Zalo Bot API — text messaging with optional webhook or long-polling. Tools: zaloChannelSendMessage, zaloChannel, zaloWebhook. Required secrets: zalo.botToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.channels.zalouser",
+    "heading": "Zalo Personal Channel Extension",
+    "content": "Zalo personal account messaging via zca-cli (unofficial). Tools: zalouserChannelSendMessage, zalouserChannel. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.aws",
+    "heading": "AWS Cloud Services",
+    "content": "Deploy static sites to S3 with website hosting, manage Lightsail instances, configure Route53 DNS records, deploy apps via AWS Amplify, create CloudFront distributions, and deploy Lambda functions. Uses direct REST API calls with AWS Signature V4 signing — no SDK required. Tools: awsDeployS3Site, awsCreateLightsail, awsDeployAmplify, awsManageRoute53, awsConfigureCloudFront, awsConfigureLambda. Required secrets: aws.accessKeyId, aws.secretAccessKey.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.cloudflare-pages",
+    "heading": "Cloudflare Pages & Workers",
+    "content": "Deploy Cloudflare Pages projects, manage DNS records, and deploy Workers. Supports static sites, full-stack frameworks, and edge functions via the Cloudflare API v4. Tools: cfDeployPages, cfListProjects, cfConfigureDns, cfCreateWorker. Required secrets: cloudflare.apiToken, cloudflare.accountId.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.digitalocean",
+    "heading": "DigitalOcean Cloud Management",
+    "content": "Manage DigitalOcean App Platform apps, Droplets, DNS records, and deployments. Supports creating and deploying PaaS apps from Git, provisioning VPS droplets, and full DNS record management. Tools: doCreateApp, doCreateDroplet, doListResources, doDeployApp, doManageDns, doDeleteResource. Required secrets: digitalocean.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.flyio",
+    "heading": "Fly.io Cloud Deployment",
+    "content": "Deploy and manage applications on Fly.io using the Machines API. Create apps, launch machines with custom configs, scale instances by count and size, and provision persistent volumes for stateful workloads. Tools: flyDeployApp, flyListApps, flyScaleApp, flyCreateVolume. Required secrets: fly.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.heroku",
+    "heading": "Heroku Cloud Deployment",
+    "content": "Create and manage Heroku apps, deploy from source tarballs, provision addons (Postgres, Redis, etc.), scale dynos, and stream logs via the Heroku Platform API. Tools: herokuCreateApp, herokuDeployApp, herokuAddAddon, herokuGetLogs, herokuScaleDynos. Required secrets: heroku.apiKey.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.linode",
+    "heading": "Linode/Akamai Cloud",
+    "content": "Provision Linode instances, deploy via StackScripts, manage DNS zones and records, and create NodeBalancers for load balancing via the Linode API v4. Tools: linodeCreateInstance, linodeListInstances, linodeDeployStackScript, linodeManageDns, linodeDeleteInstance, linodeCreateNodeBalancer. Required secrets: linode.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.netlify",
+    "heading": "Netlify Cloud Deployment",
+    "content": "Deploy sites to Netlify, manage deployments, configure custom domains, and set environment variables. Supports static sites, Jamstack frameworks, serverless functions, and continuous deployment from Git. Tools: netlifyDeploySite, netlifyListSites, netlifyConfigureDomain, netlifySetEnvVars. Required secrets: netlify.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.railway",
+    "heading": "Railway Cloud Deployment",
+    "content": "Deploy services to Railway, manage projects and environments, provision database plugins (Postgres, Redis, MySQL, MongoDB), and stream deployment logs via the Railway GraphQL API. Tools: railwayDeployService, railwayListServices, railwayAddDatabase, railwayGetLogs. Required secrets: railway.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.cloud.vercel",
+    "heading": "Vercel Cloud Deployment",
+    "content": "Deploy projects to Vercel, manage deployments, configure custom domains, and set environment variables. Supports Next.js, React, static sites, and serverless functions. Tools: vercelDeploy, vercelListProjects, vercelGetDeployment, vercelConfigureDomain, vercelSetEnvVars. Required secrets: vercel.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.communications.notifications",
+    "heading": "Notifications Extension",
+    "content": "Unified multi-channel notification router — send, broadcast, and schedule notifications across all configured channels. Tools: notifySend, notifyBroadcast, notifySchedule. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.communications.telegram",
+    "heading": "Telegram Bot Extension",
+    "content": "Professional Telegram Bot API integration for AgentOS agents Tools: telegramSendMessage, telegramSendPhoto, telegramSendDocument, telegramManageChat, telegramPollMessages. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.domains.cloudflare-registrar",
+    "heading": "Cloudflare Registrar",
+    "content": "List, inspect, and manage domains registered through Cloudflare. Configure DNS records (A, AAAA, CNAME, TXT, MX, NS, SRV, CAA), update registrar settings (auto-renew, lock, privacy), and initiate domain transfers to Cloudflare via the Cloudflare API v4. Tools: cfRegListDomains, cfRegGetDomainInfo, cfRegConfigureDns, cfRegTransferDomain. Required secrets: cloudflare.apiToken, cloudflare.accountId.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.domains.godaddy",
+    "heading": "GoDaddy Domain Registrar",
+    "content": "Search for available domains, register new domains, manage DNS records, and retrieve domain details via the GoDaddy API. Supports production and OTE sandbox environments. Tools: godaddySearchDomain, godaddyRegisterDomain, godaddyListDomains, godaddyConfigureDns, godaddyGetDomainInfo. Required secrets: godaddy.apiKey, godaddy.apiSecret.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.domains.namecheap",
+    "heading": "Namecheap Domain Registrar",
+    "content": "Search for available domains, register new domains, list owned domains, and manage DNS records via the Namecheap XML API. Supports both production and sandbox environments. Tools: namecheapSearchDomain, namecheapRegisterDomain, namecheapListDomains, namecheapConfigureDns, namecheapGetDnsRecords. Required secrets: namecheap.apiUser, namecheap.apiKey, namecheap.clientIp.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.domains.porkbun",
+    "heading": "Porkbun Domain Registrar",
+    "content": "Search, register, and manage domains through Porkbun. Configure DNS records (A, AAAA, CNAME, TXT, MX, NS), list owned domains, and initiate domain transfers via the Porkbun API v3. Tools: porkbunSearchDomain, porkbunRegisterDomain, porkbunListDomains, porkbunConfigureDns, porkbunTransferDomain. Required secrets: porkbun.apiKey, porkbun.secretApiKey.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.integrations.clearbit",
+    "heading": "Clearbit Enrichment Extension",
+    "content": "Enrich company and person data via the Clearbit API for lead qualification and contact research Tools: clearbit_company, clearbit_person. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.integrations.github",
+    "heading": "GitHub Extension",
+    "content": "GitHub API tools — 26 tools for repos, issues, PRs, branches, commits, releases, Actions, files, gists, and codebase indexing. Tools: githubSearch, githubIssueList, githubIssueCreate, githubPrList, githubPrCreate, githubFileRead, githubGistCreate, repoList, repoInfo, repoCreate, repoIndex, fileWrite, branchList, branchCreate, commitList, issueUpdate, commentList, prDiff, prReview, prMerge, prCommentList, prCommentCreate, releaseList, releaseCreate, actionsList, actionsTrigger. Required secrets: github.token.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.integrations.telegram",
+    "heading": "Telegram Bot Extension",
+    "content": "Professional Telegram Bot API integration for AgentOS - send messages, manage groups, handle callbacks Tools: telegramSendMessage, telegramSendPhoto, telegramSendDocument, telegramGetChatInfo, telegramManageGroup, telegramHandleCallback. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.media.giphy",
+    "heading": "Giphy GIF Search Extension",
+    "content": "Search for GIFs and stickers via Giphy API for embedding in agent posts Tools: giphy_search. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.media.image-search",
+    "heading": "Image Search Extension",
+    "content": "Search for stock photos from Pexels, Unsplash, and Pixabay with automatic fallback Tools: image_search. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.media.letterboxd",
+    "heading": "Letterboxd Movie Lookup Extension",
+    "content": "Look up movie metadata, ratings, and reviews from Letterboxd via scraping — no API key required Tools: letterboxd_movie. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.media.omdb",
+    "heading": "OMDB Movie & TV Search Extension",
+    "content": "Search for movies, TV shows, and episodes via the OMDB API with detailed metadata including ratings from IMDB, Rotten Tomatoes, and Metacritic Tools: omdb_search, omdb_details. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.media.voice-synthesis",
+    "heading": "Voice Synthesis Extension",
+    "content": "Voice synthesis and transcription tools via OpenAI, ElevenLabs, Deepgram, and local Ollama/Whisper-compatible runtimes Tools: text_to_speech, speech_to_text. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.productivity.document-export",
+    "heading": "Document Export",
+    "content": "Generate PDF, DOCX, PPTX, CSV, and XLSX documents from structured content Tools: document_export, document_suggest. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.productivity.email-intelligence",
+    "heading": "Email Intelligence Extension",
+    "content": "Query email threads, projects, attachments and generate reports via backend REST API. Tools: searchAcrossThreads, getThreadHierarchy, listProjects, getProjectSummary, getProjectTimeline, listAccounts, getAttachment, createProject, addThreadToProject, generateReport, getDigestPreview, syncStatus. Required secrets: internal.apiSecret.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.productivity.gmail",
+    "heading": "Gmail Email Extension",
+    "content": "Gmail email integration with OAuth2 — list, read, send, reply, search messages and manage labels. Tools: gmailListMessages, gmailReadMessage, gmailSendMessage, gmailReplyMessage, gmailSearchMessages, gmailListLabels. Required secrets: google.clientId, google.clientSecret, google.refreshToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.productivity.google-calendar",
+    "heading": "Google Calendar Extension",
+    "content": "Google Calendar integration with OAuth2 auth and event management — supports event CRUD, free/busy queries, and multi-calendar listing. Tools: calendarListEvents, calendarCreateEvent, calendarUpdateEvent, calendarDeleteEvent, calendarFindFreeTime, calendarListCalendars, googleCalendarService. Required secrets: google.clientId, google.clientSecret, google.refreshToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.productivity.widget-generator",
+    "heading": "Interactive Widget Generator Extension",
+    "content": "Generate self-contained interactive HTML/CSS/JS widgets with safety wrapping and file management Tools: generate_widget. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.provenance.anchor-providers",
+    "heading": "Provenance Anchor Providers",
+    "content": "External anchor providers for the AgentOS provenance system — WORM storage, transparency logs, and blockchain timestamping Tools: wormSnapshotProvider, rekorProvider, openTimestampsProvider, ethereumProvider, solanaProvider. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.content-extraction",
+    "heading": "Content Extraction Extension",
+    "content": "Extract clean text, markdown, and structured data from URLs, YouTube videos, Wikipedia articles, and PDF documents. Tools: extractUrl, extractYoutube, extractWikipedia, extractPdf, extractStructured. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.deep-research",
+    "heading": "Deep Research Extension",
+    "content": "Multi-source investigation engine with academic search, content scraping, aggregate search across engines, and trend discovery across platforms. Tools: researchInvestigate, researchAcademic, researchScrape, researchAggregate, researchTrending. Required secrets: serper.apiKey.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.hacker-news",
+    "heading": "@framers/agentos-ext-hacker-news",
+    "content": "Fetch and search Hacker News stories with category inference, filtering, and sorting. No API key required. Tools: hacker_news. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.news-search",
+    "heading": "News Search Extension",
+    "content": "Search for recent news articles via NewsAPI for agent awareness of current events Tools: news_search. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.stealth-browser",
+    "heading": "Stealth Browser Extension",
+    "content": "Stealth browser automation with anti-detection — bypasses bot protection on sites like Amazon, eBay, LinkedIn using puppeteer-extra with stealth plugin Tools: stealth_navigate, stealth_scrape, stealth_click, stealth_type, stealth_screenshot, stealth_snapshot. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.weather",
+    "heading": "Weather Extension",
+    "content": "Weather lookup via WeatherAPI.com (preferred) with Open-Meteo fallback (no key required) Tools: weather_lookup. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.web-browser",
+    "heading": "Web Browser Extension",
+    "content": "Browser automation capabilities for AgentOS - navigate pages, scrape content, click links, and capture screenshots Tools: browser_navigate, browser_scrape, browser_click, browser_screenshot, browser_type, browser_snapshot. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.web-scraper",
+    "heading": "Intelligent Web Scraper",
+    "content": "Progressive web scraping with fetch, Playwright, stealth, and LLM fallbacks Tools: web_scrape, web_scrape_recipe. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.research.web-search",
+    "heading": "Web Search Extension",
+    "content": "Professional web search, research aggregation, and fact-checking capabilities for AgentOS Tools: web_search, research_aggregate, fact_check. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.system.browser-automation",
+    "heading": "Browser Automation Extension",
+    "content": "Full browser automation for autonomous agents — navigate URLs, interact with DOM elements, capture screenshots, solve captchas, and rotate proxies. Powered by Playwright with persistent session support. Tools: browserNavigate, browserClick, browserFill, browserScreenshot, browserExtract, browserWait, browserScroll, browserSnapshot, browserEvaluate, browserSession. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.system.cli-executor",
+    "heading": "CLI Executor Extension",
+    "content": "Execute shell commands and manage files for AgentOS agents Tools: shell_execute, file_read, file_write, list_directory, create_pdf, create_spreadsheet, create_document, read_document. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.system.credential-vault",
+    "heading": "Credential Vault Extension",
+    "content": "Encrypted in-memory credential storage with AES-256-GCM encryption, OAuth token rotation, and credential import/export. Tools: credentialsSet, credentialsGet, credentialsList, credentialsRotate, credentialsImport. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.agent-delegation",
+    "heading": "Agent Delegation",
+    "content": "Inter-agent communication tools for multi-agent collaboration. Ping, discover, and delegate tasks to remote Wunderland agents over HTTP. Tools: agent_ping, agent_delegate, agent_broadcast. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.bulk-scheduler",
+    "heading": "Bulk Schedule Posts Tool",
+    "content": "Schedule multiple social media posts at once. Accepts an array of posts with content, platforms, scheduled times, and optional media/hashtags. Supports template variables for dynamic content. Tools: bulkSchedule. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.image-editing",
+    "heading": "Image Editing",
+    "content": "Edit images with img2img transformation, inpainting, outpainting, upscaling, and variations using OpenAI, Stability AI, or Replicate. Tools: editImage, upscaleImage, variateImage. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.image-generation",
+    "heading": "@framers/agentos-ext-image-generation",
+    "content": "Generate images from text prompts using OpenAI, OpenRouter, Stability AI, or Replicate. Tools: generate_image. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.media-upload",
+    "heading": "Media Upload Tool",
+    "content": "Upload images, videos, and audio files to the media library for use in social posts. Returns an asset ID that can be referenced in post tools. Tools: mediaUpload. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.multi-channel-post",
+    "heading": "Multi-Channel Post Tool",
+    "content": "Publish adapted content to multiple social platforms simultaneously. Handles platform-specific content adaptation, media format validation, and per-platform result tracking. Tools: multiChannelPost. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.site-deploy",
+    "heading": "Site Deploy Orchestration",
+    "content": "High-level deployment orchestrator that deploys sites from source to any supported cloud provider (Vercel, Cloudflare Pages, DigitalOcean, Netlify, Heroku, AWS, Linode, Railway, Fly.io) with optional custom domain registration and DNS configuration via any supported registrar (Porkbun, Namecheap, GoDaddy, Cloudflare). Tools: siteDeploy. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.social-analytics",
+    "heading": "Cross-Platform Social Analytics Tool",
+    "content": "Aggregate engagement metrics (likes, comments, shares, impressions, engagement rate) across multiple social platforms in a single query. Tools: crossPlatformAnalytics. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.vision-pipeline",
+    "heading": "Vision & OCR Pipeline",
+    "content": "Progressive vision pipeline with PaddleOCR, TrOCR, Florence-2, CLIP, and cloud vision (GPT-4o, Claude). Tools: vision-pipeline. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.wallet",
+    "heading": "Agent Personal Wallet",
+    "content": "Give agents their own personal wallet with configurable spending guardrails. Supports Solana, Ethereum, Base, and Polygon with per-category budgets, daily/monthly limits, human-in-the-loop approval thresholds, and Lithic virtual card integration. Tools: check_wallet_balance, send_crypto, wallet_transaction_history, issue_virtual_card, card_status, freeze_card, unfreeze_card, card_spending_summary, pay_with_card. Required secrets: WALLET_MASTER_SECRET.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.amazon-polly",
+    "heading": "@framers/agentos-ext-amazon-polly",
+    "content": "Text-to-speech via Amazon Polly Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.diarization",
+    "heading": "@framers/agentos-ext-diarization",
+    "content": "Speaker diarization with provider delegation and local spectral-centroid clustering Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.endpoint-semantic",
+    "heading": "@framers/agentos-ext-endpoint-semantic",
+    "content": "Semantic endpoint detector with LLM turn-completeness classification Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.google-cloud-stt",
+    "heading": "@framers/agentos-ext-google-cloud-stt",
+    "content": "Batch speech-to-text via Google Cloud Speech-to-Text API Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.google-cloud-tts",
+    "heading": "@framers/agentos-ext-google-cloud-tts",
+    "content": "Text-to-speech via Google Cloud Text-to-Speech API Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.openwakeword",
+    "heading": "@framers/agentos-ext-openwakeword",
+    "content": "Wake-word detection via OpenWakeWord ONNX models Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.piper",
+    "heading": "@framers/agentos-ext-piper",
+    "content": "Offline text-to-speech via Piper binary Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.plivo",
+    "heading": "Plivo Voice Provider Extension",
+    "content": "Plivo telephony provider for voice calls — supports outbound/inbound calls, XML response generation, notify and conversation modes. Tools: plivoVoiceCall, plivoVoiceProvider. Required secrets: plivo.authId, plivo.authToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.porcupine",
+    "heading": "@framers/agentos-ext-porcupine",
+    "content": "Wake-word detection via Picovoice Porcupine Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.streaming-stt-deepgram",
+    "heading": "@framers/agentos-ext-streaming-stt-deepgram",
+    "content": "Real-time streaming STT via Deepgram WebSocket API Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.streaming-stt-whisper",
+    "heading": "@framers/agentos-ext-streaming-stt-whisper",
+    "content": "Chunked sliding-window streaming STT via OpenAI Whisper HTTP API Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.streaming-tts-elevenlabs",
+    "heading": "@framers/agentos-ext-streaming-tts-elevenlabs",
+    "content": "Streaming TTS via ElevenLabs WebSocket API Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.streaming-tts-openai",
+    "heading": "@framers/agentos-ext-streaming-tts-openai",
+    "content": "Streaming TTS via OpenAI Audio Speech API with adaptive sentence chunking Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.telnyx",
+    "heading": "Telnyx Voice Call Extension",
+    "content": "Telnyx telephony provider for voice calls via Call Control v2 — outbound/inbound calls, TTS speak commands, and bidirectional media streaming. Tools: telnyxVoiceCall, telnyxVoiceProvider. Required secrets: telnyx.apiKey, telnyx.connectionId.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.twilio",
+    "heading": "Twilio Voice Call Extension",
+    "content": "Twilio telephony provider for voice calls — supports outbound/inbound calls, TwiML, media streams, and bidirectional audio. Tools: twilioVoiceCall, twilioVoiceProvider. Required secrets: twilio.accountSid, twilio.authToken.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.voice.vosk",
+    "heading": "@framers/agentos-ext-vosk",
+    "content": "Offline speech-to-text via Vosk Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "skill:1password",
+    "heading": "1password Skill",
+    "content": "Query and retrieve items from 1Password vaults using the 1Password CLI for secure credential access.. You can query 1Password vaults to retrieve credentials, secure notes, API keys, and other secrets using the `op` CLI. This enables secure access to stored credentials without hardcoding secrets in code or configuration files.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:account-manager",
+    "heading": "account-manager Skill",
+    "content": "Social account management — registration flows, profile optimization, credential storage, multi-platform account orchestration.. You are a social account management agent. You help set up, configure, and manage accounts across social media platforms — handling registration flows, profile optimization, credential storage, and multi-platform orchestration.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:agent-config",
+    "heading": "agent-config Skill",
+    "content": "Export and import agent configurations for sharing and backup. Export agent configurations as portable YAML/JSON files for sharing, backup, and migration. Import configurations to recreate agents.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:amazon-polly",
+    "heading": "amazon-polly Skill",
+    "content": "Neural text-to-speech via Amazon Polly — high-quality voices, MP3 output, voice listing, default Joanna (en-US Neural).. Use this skill when the agent is deployed on AWS infrastructure or when the user prefers Amazon Polly's Neural engine voices. Polly provides high-quality neural TTS with MP3 output and a wide range of voices across languages and regions.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:apple-notes",
+    "heading": "apple-notes Skill",
+    "content": "Create, read, search, and manage notes in Apple Notes using AppleScript and macOS automation.. You can create, read, search, and manage notes in Apple Notes on macOS using AppleScript commands executed via `osascript`. This provides native access to the Notes app without requiring third-party tools or API keys.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:apple-reminders",
+    "heading": "apple-reminders Skill",
+    "content": "Create, manage, and query reminders and lists in Apple Reminders using AppleScript and macOS automation.. You can create, manage, complete, and query reminders in Apple Reminders on macOS using AppleScript commands executed via `osascript`. This provides native access to the Reminders app for task management without external services.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:audio-generation",
+    "heading": "audio-generation Skill",
+    "content": "Music and sound effects generation — 8 providers with fallback chains, user-configurable preferences, local and cloud options.. Use this skill when the user wants to generate music compositions or sound effects from text descriptions. The system supports 8 provider backends with automatic fallback chains and user-configurable provider preferences.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:blog-publisher",
+    "heading": "blog-publisher Skill",
+    "content": "Blog publishing automation — long-form content creation, SEO optimization, cross-posting with canonical URLs, and multi-platform distribution.. You are an autonomous blog publishing agent. You create, optimize, and distribute long-form content across multiple blogging platforms — ensuring SEO best practices, consistent branding, and proper canonical URL management for cross-posted content.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:bluesky-bot",
+    "heading": "bluesky-bot Skill",
+    "content": "Bluesky automation — decentralized social engagement, custom feed curation, authentic community building, and AT Protocol interaction.. You are an autonomous Bluesky engagement agent. You participate in the decentralized social web — posting authentic content, building community, curating custom feeds, and engaging with conversations without gaming any algorithms.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:channel-management",
+    "heading": "channel-management Skill",
+    "content": "Unified guide to all 37 messaging channel adapters — OAuth setup, channel selection by audience, and multi-channel posting strategy.. You are a channel routing specialist. You understand all 37 messaging channel adapters in the AgentOS ecosystem and know when to use each, how to configure OAuth, and how to orchestrate multi-channel operations.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:cli-tools",
+    "heading": "cli-tools Skill",
+    "content": "Shell execution patterns, CLI discovery, filesystem operations, and subprocess management for autonomous agent workflows.. You have access to shell execution and filesystem tools. Use them effectively and safely.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:cloud-deployment",
+    "heading": "cloud-deployment Skill",
+    "content": "Deploy to 9 cloud providers — AWS, Vercel, Netlify, Railway, Fly.io, Heroku, DigitalOcean, Linode, Cloudflare. Provider selection, deployment patterns, cost comparison.. You are a cloud deployment specialist. You know all 9 cloud provider extensions and can recommend the right one based on project type, scale, budget, and team requirements.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:cloud-ops",
+    "heading": "cloud-ops Skill",
+    "content": "Manage cloud infrastructure — monitor deployments, scale resources, manage databases, and handle domain operations across all supported providers.. Manage and monitor cloud infrastructure across all supported providers. Handle scaling, monitoring, database operations, DNS management, and troubleshooting.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:code-safety",
+    "heading": "code-safety Skill",
+    "content": "Scan LLM-generated code for security vulnerabilities using language-aware pattern rules. A guardrail automatically scans code in your responses for security vulnerabilities. You also have a tool for on-demand code scanning.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:coding-agent",
+    "heading": "coding-agent Skill",
+    "content": "Write, review, debug, refactor, and explain code across multiple programming languages and frameworks.. You are a skilled software developer capable of writing, reviewing, debugging, refactoring, and explaining code across a wide range of programming languages and frameworks. Approach every coding task with attention to correctness, readability, maintainability, and performance.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:company-research",
+    "heading": "company-research Skill",
+    "content": "Research companies and contacts using Clearbit enrichment API.. You can research companies and people using the Clearbit enrichment API.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:content-creator",
+    "heading": "content-creator Skill",
+    "content": "AI content creation — blog posts, social captions, video descriptions, newsletter copy, all SEO-optimized and platform-adapted.. You are a professional content creation agent. You research topics, write engaging content for multiple formats (blog posts, social captions, video descriptions, newsletters), and optimize everything for SEO and engagement.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:deep-research",
+    "heading": "deep-research Skill",
+    "content": "Multi-source investigation — academic papers, web research, social media, cross-referencing, and comprehensive report generation.. You are a thorough research and investigation agent. You conduct multi-source investigations, verify claims across independent sources, search academic literature, and produce comprehensive research reports.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:diarization",
+    "heading": "diarization Skill",
+    "content": "Speaker diarization — identifies and tracks who is speaking at each moment in an audio stream, using provider-delegated labels or local offline clustering.. Use this skill when the agent needs to track who is speaking across a multi-speaker audio stream. Supports two modes: provider-delegated (extracts speaker labels from Deepgram word-level results) and local clustering (spectral-centroid agglomerative clustering, fully offline).",
+    "category": "skills"
+  },
+  {
+    "id": "skill:discord-helper",
+    "heading": "discord-helper Skill",
+    "content": "Manage Discord servers, channels, roles, and messages through the Discord API.. You can interact with Discord servers (guilds) to send messages, manage channels, assign roles, moderate content, and handle events. Use the Discord API with the configured bot token to perform server management tasks.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:document-export",
+    "heading": "document-export Skill",
+    "content": "Export research, reports, and analysis to PDF, DOCX, PPTX, CSV, and XLSX with professional formatting, charts, and theming.. You can export your responses, research, and analysis to professional documents in five formats: PDF, DOCX, PPTX, CSV, and XLSX.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:emergent-tools",
+    "heading": "emergent-tools Skill",
+    "content": "Self-improving agent toolkit — forge runtime tools, adapt personality traits, manage skills dynamically, compose multi-step workflows, and self-evaluate performance with bounded autonomy.. You have access to the EmergentCapabilityEngine — a system that lets you create brand-new tools at runtime when no existing tool satisfies the user's request, and a suite of self-improvement tools that let you adapt your personality, manage your skills, compose workflows, and evaluate your own performance. These are powerful capabilities; use them wisely.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:endpoint-semantic",
+    "heading": "endpoint-semantic Skill",
+    "content": "Semantic endpoint detection — uses an LLM to classify whether the user's utterance is a complete thought, reducing false turn boundaries on mid-sentence pauses.. Use this skill when the agent's default silence-based turn detection is causing false positives — triggering agent responses mid-sentence when the user pauses to think. This extension adds an LLM classifier step that distinguishes a genuine turn boundary from a thinking pause.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:facebook-bot",
+    "heading": "facebook-bot Skill",
+    "content": "Facebook automation — community engagement, page management, visual content publishing, and audience growth.. You are an autonomous Facebook community engagement agent. You manage a professional Facebook presence — publishing engaging visual content, managing pages and groups, fostering community interaction, and growing your audience through authentic engagement.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:git",
+    "heading": "git Skill",
+    "content": "Work with Git repositories from the command line.. Use `git` to inspect history, create branches, commit changes, and resolve conflicts.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:github",
+    "heading": "github Skill",
+    "content": "Full GitHub API integration — 26 tools for repos, issues, PRs, branches, commits, releases, Actions, files, gists, and codebase indexing.. You have **26 GitHub tools** that cover the full developer workflow: searching code, managing repositories, reading and writing files, triaging issues, reviewing and merging pull requests, creating releases, and orchestrating CI/CD pipelines. These tools call the GitHub REST API directly — no CLI binary required.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:google-cloud-stt",
+    "heading": "google-cloud-stt Skill",
+    "content": "Batch speech-to-text via Google Cloud Speech-to-Text API — LINEAR16 PCM, configurable language, word-level confidence scores.. Use this skill when Google Cloud Speech-to-Text is the preferred provider, particularly when the user's Google Cloud project is already configured or when multi-language support is required without switching providers.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:google-cloud-tts",
+    "heading": "google-cloud-tts Skill",
+    "content": "Text-to-speech synthesis via Google Cloud Text-to-Speech API — MP3 output, configurable language and voice, voice listing.. Use this skill when Google Cloud Text-to-Speech is the preferred synthesis provider, particularly within a Google Cloud environment or when the user needs one of Google's Neural2 or WaveNet voices not available through other providers.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:grounding-guard",
+    "heading": "grounding-guard Skill",
+    "content": "Verify response faithfulness against RAG source documents using NLI entailment and LLM-as-judge. A guardrail automatically verifies that your responses are faithful to the source documents retrieved via RAG. Claims in your output are checked against the retrieved sources using NLI entailment detection.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:healthcheck",
+    "heading": "healthcheck Skill",
+    "content": "Monitor health and availability of systems, services, APIs, and infrastructure endpoints.. You can check the health and availability of systems, services, APIs, and infrastructure endpoints. Use HTTP requests, ping commands, and service-specific health check protocols to assess operational status.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:image-editing",
+    "heading": "image-editing Skill",
+    "content": "Edit, transform, and enhance images using AI models. Edit images with img2img transformation, inpainting (fill masked regions), outpainting (extend beyond borders), upscaling (2x/4x super resolution), and creating variations.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:image-gen",
+    "heading": "image-gen Skill",
+    "content": "Generate, edit, upscale, and variate images using the AgentOS multi-provider image pipeline with automatic fallback.. Use this skill when the user wants to create, edit, upscale, or create variations of images. AgentOS provides four high-level APIs that route to any configured provider with automatic fallback when multiple providers have credentials set.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:instagram-bot",
+    "heading": "instagram-bot Skill",
+    "content": "Instagram growth automation — post scheduling, story creation, hashtag strategy, Reel uploads, and engagement analytics.. You are an autonomous Instagram content and engagement agent. You manage a professional Instagram presence — posting photos, Reels, Stories, and carousels while optimizing hashtags and tracking engagement.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:interactive-widgets",
+    "heading": "interactive-widgets Skill",
+    "content": "Generate interactive HTML/CSS/JS widgets — data visualizations, 3D scenes, dashboards, maps, and more.. You can create interactive HTML/CSS/JS widgets that run in the browser. Use this for data visualizations, 3D scenes, interactive dashboards, maps, animations, and any browser-based experience.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:linkedin-bot",
+    "heading": "linkedin-bot Skill",
+    "content": "LinkedIn automation — professional networking, thought leadership posts, company page management, and engagement.. You are an autonomous LinkedIn professional engagement agent. You manage a polished LinkedIn presence — publishing thought leadership posts, engaging with industry conversations, managing company pages, and building a professional network through genuine value-driven interaction.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:mastodon-bot",
+    "heading": "mastodon-bot Skill",
+    "content": "Mastodon automation — fediverse engagement, content-warned posts, instance-aware community participation, and boost-driven amplification.. You are an autonomous Mastodon fediverse engagement agent. You participate in the decentralized social web with deep respect for instance culture — posting with content warnings, boosting generously, using alt text on all media, and engaging with the community through genuine, thoughtful interaction.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:media-discovery",
+    "heading": "media-discovery Skill",
+    "content": "Find and use media assets — GIF search via Giphy, stock photos, movie data from OMDB/Letterboxd, voice synthesis, and media uploads.. You are a media discovery and creation agent. You help users find GIFs, images, movie information, and generate voice audio. You know when each media tool is the right choice.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:memory-manager",
+    "heading": "memory-manager Skill",
+    "content": "Cognitive memory management — encode, recall, forget, set reminders, and maintain long-term knowledge using personality-modulated memory.. You have a cognitive memory system modeled on human memory science. Use it actively to remember what matters, forget what doesn't, and build lasting knowledge about users, topics, and workflows.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:ml-content-classifier",
+    "heading": "ml-content-classifier Skill",
+    "content": "Real-time content safety classification using ML models (toxicity, prompt injection, jailbreak detection). A guardrail automatically classifies your inputs and outputs for safety violations (toxicity, prompt injection, jailbreak attempts). You also have a tool for on-demand classification.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:movie-lookup",
+    "heading": "movie-lookup Skill",
+    "content": "Research movies and TV shows using OMDB (IMDB/RT/Metacritic scores) and Letterboxd (community ratings and reviews).. You can research movies and TV shows by combining data from OMDB and Letterboxd.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:multimodal-rag",
+    "heading": "multimodal-rag Skill",
+    "content": "Index and search across text, images, audio, video, and PDFs via the multimodal RAG pipeline and HTTP API.. Use this skill when the user wants to index, search, or retrieve content across multiple modalities -- text, images, audio, video, and documents (PDF, DOCX, Markdown, CSV, JSON, XML). All non-text content is converted to a text representation (vision description, STT transcript, document parse) before embedding, so every modality is searchable with the same text query.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:notion",
+    "heading": "notion Skill",
+    "content": "Read, create, and manage pages, databases, and content blocks in Notion workspaces.. You can interact with Notion workspaces to create, read, update, and search pages and databases. Use the Notion API to manage content blocks, database entries, and page properties programmatically.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:obsidian",
+    "heading": "obsidian Skill",
+    "content": "Read, create, and manage notes, links, and metadata in Obsidian vaults via the local filesystem.. You can interact with Obsidian vaults by reading and writing Markdown files directly on the local filesystem. Obsidian vaults are simply directories of `.md` files with optional YAML frontmatter and `[[wikilink]]` syntax for inter-note linking.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:openwakeword",
+    "heading": "openwakeword Skill",
+    "content": "Offline wake-word detection via OpenWakeWord ONNX models using onnxruntime-node — fully open-source, configurable threshold, any ONNX-compatible model supported.. Use this skill to enable hands-free wake-word activation using open-source ONNX models. Unlike Porcupine, OpenWakeWord requires no API key or cloud account — it runs fully offline using `onnxruntime-node` and any ONNX-compatible wake-word model.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:pii-redaction",
+    "heading": "pii-redaction Skill",
+    "content": "Detect and redact personally identifiable information (PII) from text using a four-tier pipeline (regex + NLP + NER + LLM-as-judge). You have access to PII detection and redaction capabilities. A guardrail automatically redacts PII from your inputs and outputs, but you can also proactively scan and redact text before storing it, sending it to external APIs, or sharing it across agents.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:pinterest-bot",
+    "heading": "pinterest-bot Skill",
+    "content": "Pinterest automation — pin creation, board management, trending content discovery, scheduling, and analytics.. You are an autonomous Pinterest content agent. You create pins, manage boards, discover trending content, and optimize visual content for engagement and discovery.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:piper",
+    "heading": "piper Skill",
+    "content": "Fully offline text-to-speech by spawning the Piper binary — ONNX model, WAV output, zero npm dependencies, no network required.. Use this skill when the agent must synthesize speech without internet connectivity, or when user privacy requirements prohibit sending text to external TTS APIs. Piper runs as a local binary using an ONNX voice model, producing WAV audio with zero network dependencies.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:porcupine",
+    "heading": "porcupine Skill",
+    "content": "On-device wake-word detection via Picovoice Porcupine — privacy-preserving, configurable built-in keywords, per-keyword sensitivity tuning.. Use this skill to enable hands-free wake-word activation for a voice agent. The agent listens passively for a configured keyword (e.g. \"hey porcupine\", \"bumblebee\") and only becomes active when it hears the word, rather than continuously processing all audio.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:productivity-suite",
+    "heading": "productivity-suite Skill",
+    "content": "Office automation with Gmail, Google Calendar, document export, and interactive widgets — email triage, scheduling, report generation, and widget creation.. You are a productivity automation agent. You orchestrate email, calendar, document generation, and widget creation tools to help users manage their daily workflows efficiently.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:reddit-bot",
+    "heading": "reddit-bot Skill",
+    "content": "Reddit community engagement — post to relevant subreddits, comment with expertise, vote, and build karma organically.. You are an autonomous Reddit community engagement agent. You participate in subreddit discussions, share knowledge, post content, and build reputation through genuine value-driven interaction.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:research-tools",
+    "heading": "research-tools Skill",
+    "content": "Orchestrate web-search, deep-research, content-extraction, hacker-news, stealth-browser, and news-search for comprehensive information gathering.. You are a research orchestration agent. You combine multiple information-gathering tools to produce thorough, well-sourced research results. You understand when to use shallow search vs deep investigation, and how to extract content from diverse sources.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:seo-campaign",
+    "heading": "seo-campaign Skill",
+    "content": "SEO link building and optimization — directory submissions, content optimization, keyword research, and backlink tracking via browser automation.. You are an autonomous SEO and link building agent. You submit sites to directories, optimize content for search engines, research keywords, and track backlink acquisition — all using browser automation.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:site-deploy",
+    "heading": "site-deploy Skill",
+    "content": "Deploy websites and applications to cloud providers with automatic domain registration and DNS configuration.. Deploy websites and applications end-to-end: build, deploy to cloud, register domain, configure DNS — all in one workflow.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:slack-helper",
+    "heading": "slack-helper Skill",
+    "content": "Manage Slack workspaces, channels, messages, and integrations through the Slack API.. You can interact with Slack workspaces to send messages, manage channels, search conversation history, and handle notifications. Use the Slack Web API with the configured bot token to perform operations on behalf of the workspace.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:social-automation",
+    "heading": "social-automation Skill",
+    "content": "Social media strategy with multi-channel posting, cross-platform analytics aggregation, and batch scheduling for automated content distribution.. You are a social media automation agent. You orchestrate cross-platform posting, aggregate analytics, and manage batch scheduling to maximize content reach and engagement.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:social-broadcast",
+    "heading": "social-broadcast Skill",
+    "content": "Adapt one piece of content for major social channels and blogs: X, Instagram, Reddit, Pinterest, TikTok, YouTube, LinkedIn, Facebook, Threads, Bluesky, Mastodon, Farcaster, Lemmy, Google Business.. You are a cross-platform content publishing agent. Given a single piece of content (text, image, video), you adapt and publish it across all configured social channels — optimizing format, length, hashtags, and style for each platform.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:spotify-player",
+    "heading": "spotify-player Skill",
+    "content": "Control Spotify playback, manage playlists, search music, and get recommendations via the Spotify API.. You can control Spotify playback, manage playlists, search the music catalog, and get personalized recommendations using the Spotify Web API. This skill requires OAuth credentials with appropriate scopes for the operations requested.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:streaming-stt-deepgram",
+    "heading": "streaming-stt-deepgram Skill",
+    "content": "Real-time streaming speech-to-text via Deepgram WebSocket API — sub-300 ms latency, Nova-2 model, speaker diarization, auto-reconnect.. Use this skill when the user needs real-time speech-to-text transcription with the lowest possible latency. Deepgram's WebSocket API provides sub-300 ms interim transcripts using the Nova-2 model.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:streaming-stt-whisper",
+    "heading": "streaming-stt-whisper Skill",
+    "content": "Chunked sliding-window streaming speech-to-text via OpenAI Whisper HTTP API — compatible with local Faster-Whisper, Groq, and OpenRouter endpoints.. Use this skill when OpenAI Whisper is the preferred STT provider, especially when a single API key should cover both LLM and speech. This provider uses a sliding-window ring buffer to simulate streaming over the file-based Whisper HTTP endpoint.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:streaming-tts-elevenlabs",
+    "heading": "streaming-tts-elevenlabs Skill",
+    "content": "Real-time streaming text-to-speech via ElevenLabs WebSocket API — persistent connection, sentence-boundary flushing, turbo and multilingual models.. Use this skill when voice quality or voice cloning is the highest priority. ElevenLabs uses a persistent WebSocket connection per session and streams MP3 audio chunks as soon as each sentence boundary is reached, enabling near-instant audio playback with premium voice quality.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:streaming-tts-openai",
+    "heading": "streaming-tts-openai Skill",
+    "content": "Low-latency streaming text-to-speech via OpenAI TTS API — adaptive sentence chunking, concurrent fetch pipelining, six voices.. Use this skill when the agent needs to synthesize speech from LLM output with low latency using OpenAI's TTS API. The provider buffers incoming tokens into sentence chunks before making API requests, enabling audio to begin playing within the first sentence rather than waiting for the full response.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:structured-output",
+    "heading": "structured-output Skill",
+    "content": "Extract structured JSON data from text using Zod schemas. Extract structured data from unstructured text using Zod schema validation. Supports generateObject (blocking) and streamObject (streaming with partial objects).",
+    "category": "skills"
+  },
+  {
+    "id": "skill:summarize",
+    "heading": "summarize Skill",
+    "content": "Summarize text content, web pages, documents, and long-form articles into concise, structured summaries.. You can summarize text content, web pages, articles, documents, and other long-form material into concise, structured summaries. Adapt the summary format and depth to the user's needs and the source material type.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:system-tools",
+    "heading": "system-tools Skill",
+    "content": "System operations with CLI executor, credential vault, and browser automation — running commands safely, managing secrets, and headless browser workflows.. You are a system operations agent. You safely execute CLI commands, manage credentials, and automate browser interactions. You prioritize security and operate within the configured security tier.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:threads-bot",
+    "heading": "threads-bot Skill",
+    "content": "Threads automation — conversational engagement, text-first content, real-time discussions, and community building.. You are an autonomous Threads engagement agent. You thrive in real-time, text-first conversations — posting hot takes, engaging in discussions, quoting interesting posts, and building community through authentic, casual interaction.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:tiktok-bot",
+    "heading": "tiktok-bot Skill",
+    "content": "TikTok automation — short-form video publishing, trending sound discovery, hashtag challenges, and community engagement.. You are an autonomous TikTok content and engagement agent. You create and publish short-form video content — riding trending sounds, participating in hashtag challenges, engaging with the community, and growing your audience through the For You Page algorithm.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:topicality",
+    "heading": "topicality Skill",
+    "content": "Enforce allowed and forbidden conversation topics using semantic embedding similarity with session-aware drift detection. A guardrail automatically enforces conversation topic boundaries. Messages matching forbidden topics are blocked. Messages outside allowed topics are flagged. Gradual off-topic drift across multiple turns is detected.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:trello",
+    "heading": "trello Skill",
+    "content": "Manage Trello boards, lists, cards, checklists, and team workflows via the Trello API.. You can manage Trello boards, lists, and cards to organize projects and track workflows. Use the Trello REST API with API key and token authentication to perform board operations programmatically.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:twitter-bot",
+    "heading": "twitter-bot Skill",
+    "content": "Automated Twitter/X engagement — personality-driven reply bot, thread creation, trending engagement, and analytics tracking.. You are an autonomous Twitter/X engagement agent. You can post tweets, reply to conversations, create threads, engage with trending topics, and track your performance analytics.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:video-generation",
+    "heading": "video-generation Skill",
+    "content": "Video generation, analysis, and scene detection — text-to-video, image-to-video, structured scene descriptions with RAG indexing, and general-purpose visual change detection.. Use this skill when the user wants to create AI-generated videos, analyse existing video content for structured scene descriptions, or detect visual changes in live/recorded frame streams.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:vision-ocr",
+    "heading": "vision-ocr Skill",
+    "content": "Extract text from images using OCR and vision AI with the performOCR() high-level API or the full VisionPipeline.. Extract text from images, documents, and handwritten notes using a progressive 3-tier pipeline: local OCR (PaddleOCR / Tesseract) -> local vision models (TrOCR, Florence-2) -> cloud vision LLM (GPT-4o, Claude, Gemini).",
+    "category": "skills"
+  },
+  {
+    "id": "skill:voice-conversation",
+    "heading": "voice-conversation Skill",
+    "content": "Run provider-agnostic live voice conversations with VAD, silence boundaries, wake-word gating, STT, and TTS through the AgentOS speech runtime.. Use this skill when the user wants an agent to listen, transcribe, respond with speech, or switch between speech providers without changing the rest of the workflow.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:voice-telephony",
+    "heading": "voice-telephony Skill",
+    "content": "Voice call routing with Twilio, Telnyx, and Plivo plus STT/TTS streaming providers — IVR setup, provider selection, and voice pipeline configuration.. You are a voice pipeline specialist. You configure telephony providers for call routing, set up IVR flows, and wire STT/TTS streaming providers for real-time voice conversations.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:vosk",
+    "heading": "vosk Skill",
+    "content": "Fully offline speech-to-text via the Vosk library — streaming recognition, 16 kHz PCM, no network required after model download.. Use this skill when the agent must operate without internet connectivity, or when user privacy requirements prohibit sending audio to external APIs. Vosk provides fully offline speech recognition after the model is downloaded once.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:weather",
+    "heading": "weather Skill",
+    "content": "Look up current weather conditions, forecasts, and severe weather alerts for any location worldwide.. You can retrieve current weather conditions, multi-day forecasts, and severe weather alerts for any location the user specifies. Use the web-search tool to query weather data from reputable sources such as weather.gov, OpenWeatherMap, or AccuWeather.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:web-scraper",
+    "heading": "web-scraper Skill",
+    "content": "Autonomous web scraping — navigate sites, extract structured data, handle pagination, anti-detection, and proxy rotation.. You are an autonomous web scraping agent. You navigate websites, extract structured data, handle pagination, manage sessions, and deal with anti-bot measures — all using the browser automation tools.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:web-search",
+    "heading": "web-search Skill",
+    "content": "Search the web for up-to-date information, news, documentation, and answers to questions.. You have access to a web search tool that lets you find current information from across the internet. Use it proactively whenever the user asks about recent events, statistics, documentation, or anything that may have changed since your training cutoff.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:whisper-transcribe",
+    "heading": "whisper-transcribe Skill",
+    "content": "Transcribe audio and video files to text using OpenAI Whisper or compatible speech-to-text APIs.. You can transcribe audio and video files into text using OpenAI's Whisper API or compatible speech-to-text services. Support a wide range of audio formats (mp3, mp4, wav, m4a, webm, flac, ogg) with automatic language detection and optional translation to English.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:youtube-bot",
+    "heading": "youtube-bot Skill",
+    "content": "YouTube automation — video publishing, Shorts creation, community engagement, playlist management, and channel growth analytics.. You are an autonomous YouTube content and engagement agent. You manage a professional YouTube presence — uploading videos and Shorts, engaging with comments, curating playlists, and growing your channel through SEO-optimized content and community interaction.",
+    "category": "skills"
+  },
+  {
+    "id": "faq:add-voice",
+    "heading": "How do I add voice to my agent?",
+    "content": "Use the voice pipeline: agent({ model: 'openai:gpt-4o', voice: { stt: 'openai', tts: 'elevenlabs' } }). Requires OPENAI_API_KEY and ELEVENLABS_API_KEY. See the voice-conversation skill for full setup.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:supported-models",
+    "heading": "What LLM models are supported?",
+    "content": "AgentOS supports 21 LLM providers: OpenAI (gpt-4o, gpt-4o-mini), Anthropic (claude-sonnet, claude-haiku, claude-opus), Google (gemini-2.5-pro, gemini-2.5-flash), Ollama (any local model), OpenRouter (800+ models), plus Groq, Together, Fireworks, Mistral, Cohere, Perplexity, DeepSeek, xAI, and more.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:add-tools",
+    "heading": "How do I add tools to my agent?",
+    "content": "Pass tools array to agent(): agent({ model: 'openai:gpt-4o', tools: [myTool] }). Tools implement { name, description, inputSchema, execute }. Use createCuratedManifest() from @framers/agentos-extensions-registry to load pre-built extension packs.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:deployment",
+    "heading": "How do I deploy an AgentOS agent?",
+    "content": "AgentOS agents are standard Node.js processes. Deploy via Docker, systemd, or any container orchestrator. For serverless, wrap the agent in an HTTP handler (Express, Fastify, or Next.js API route). Use the cloud-deployment skill for guided setup on AWS, GCP, or Azure.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:memory",
+    "heading": "How does agent memory work?",
+    "content": "AgentOS provides working memory (in-context), episodic memory (conversation history), semantic memory (vector-indexed knowledge), and procedural memory (skills). Use the MemoryManager API or the memory-manager skill. Memory is backed by sql-storage-adapter for persistence.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:guardrails",
+    "heading": "How do I add guardrails to my agent?",
+    "content": "Import from '@framers/agentos/safety/guardrails'. Use ContentGuardrail for input/output filtering, PII redaction via openredaction, and SecurityTiers (dangerous/permissive/balanced/strict/paranoid) for tool access control. Guardrails can be chained in a pipeline.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:channels",
+    "heading": "What messaging channels are supported?",
+    "content": "AgentOS supports 37 channel platforms: Discord, Telegram, Slack, WhatsApp, Twitter/X, Instagram, Facebook, LinkedIn, Threads, Bluesky, Mastodon, Reddit, YouTube, TikTok, Pinterest, Farcaster, Lemmy, Google Business, email, SMS, and more. Each channel has a dedicated adapter implementing IChannelAdapter.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:skills",
+    "heading": "What are skills and how do I use them?",
+    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 69+ curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:agency",
+    "heading": "Can I create multi-agent systems?",
+    "content": "Yes. Use the orchestration module for multi-agent workflows: import { AgentGraph, MissionAPI } from '@framers/agentos/orchestration'. AgentGraph defines agent-to-agent communication topology. MissionAPI manages goal decomposition and task delegation across agents.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:emergent",
+    "heading": "What are emergent tools?",
+    "content": "Emergent tools are dynamically generated tool implementations that the agent creates at runtime to solve novel problems. The emergent-tools skill enables this behavior. The agent writes, validates, and executes tool code in a sandboxed environment.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:video",
+    "heading": "Can AgentOS generate or analyze video?",
+    "content": "Yes. Use generateVideo() for AI video generation and analyzeVideo() for frame-by-frame analysis. Import from '@framers/agentos'. Video generation supports multiple providers. Scene detection and temporal analysis are available via the vision module.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:audio",
+    "heading": "Can AgentOS generate audio and music?",
+    "content": "Yes. Use generateMusic() for music and generateSFX() for sound effects. Import from '@framers/agentos'. Both support multiple providers and return audio buffers or URLs. The audio-generation skill provides guided workflows.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:image",
+    "heading": "How do I generate or edit images?",
+    "content": "Use generateImage() for creation and editImage() for modification. Import from '@framers/agentos'. Supports DALL-E, Stable Diffusion, and other providers. The image-gen and image-editing skills provide guided workflows.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:ocr",
+    "heading": "How do I extract text from images or PDFs?",
+    "content": "Use performOCR() from '@framers/agentos'. Supports Tesseract.js (local) and PaddleOCR (via ppu-paddle-ocr). For PDFs, the unpdf dependency handles text extraction. The vision-ocr skill combines OCR with scene understanding.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:github",
+    "heading": "How do I integrate with GitHub?",
+    "content": "Use the GitHub extension pack from @framers/agentos-ext-github. Provides tools for repository management, issue tracking, PR review, code search, and ecosystem indexing. Set GITHUB_TOKEN env var. The QueryRouter can auto-index GitHub repos for knowledge retrieval.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:security-tiers",
+    "heading": "What are security tiers?",
+    "content": "AgentOS has 5 security tiers: dangerous (no restrictions), permissive (basic checks), balanced (default — blocks known-dangerous tools), strict (allowlist only), paranoid (human-in-the-loop for everything). Set via SecurityTiers in '@framers/agentos/safety/runtime'.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:provider-preferences",
+    "heading": "How do I set provider preferences?",
+    "content": "Use LLMProviderConfig: { apiKey, model, baseUrl?, extraHeaders? }. Set per-call via generateText({ apiKey, model }) or globally via env vars (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.). OpenRouter fallback is automatic when OPENROUTER_API_KEY is set.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:self-improvement",
+    "heading": "Can agents improve themselves over time?",
+    "content": "Yes. AgentOS supports style adaptation (learns user communication preferences), cognitive memory mechanisms (reconsolidation, gist extraction, schema encoding), and skill acquisition. The StyleAdaptation module tracks formality, verbosity, and technicality preferences.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:query-router",
+    "heading": "What is the QueryRouter?",
+    "content": "The QueryRouter is an intelligent RAG pipeline that classifies queries by complexity (T0-T3), retrieves relevant context via vector search or keyword fallback, and generates grounded answers with citations. Import from '@framers/agentos/query-router'.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:streaming",
+    "heading": "Does AgentOS support streaming?",
+    "content": "Yes. Use streamText() for token-by-token streaming: import { streamText } from '@framers/agentos'. Returns an async iterable of text chunks. Works with all LLM providers that support streaming (OpenAI, Anthropic, Google, etc.).",
+    "category": "faq"
+  },
+  {
+    "id": "faq:structured-output",
+    "heading": "How do I get structured/JSON output from the LLM?",
+    "content": "Use the structured-output skill or pass a Zod schema to generateText(): generateText({ model: 'openai:gpt-4o', prompt: '...', schema: z.object({ name: z.string() }) }). The LLM output is validated and parsed automatically.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:evaluation",
+    "heading": "How do I evaluate agent performance?",
+    "content": "Use the fullstack-evals-harness-example package for systematic evaluation. Define datasets, graders, and candidates. Run experiments that measure quality across dataset x candidate x grader combinations. Compare baseline vs challenger with the comparison endpoint.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:provenance",
+    "heading": "How does source citation work?",
+    "content": "The QueryRouter generates answers with inline source citations. Each citation references a CorpusChunk with its sourcePath. Citations include confidence scores. The generator prompt instructs the LLM to ground every claim in retrieved context.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:extensions",
+    "heading": "What are extensions and how do they differ from tools?",
+    "content": "Extensions are packaged bundles of tools, skills, and channel adapters. Each extension implements ExtensionPack with a createExtensionPack() factory. Extensions are registered in @framers/agentos-extensions-registry. Tools are individual callable functions; extensions group related tools together.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:ollama",
+    "heading": "How do I use Ollama for local LLM inference?",
+    "content": "Set model to 'ollama:<model-name>' (e.g., 'ollama:llama3'). Ollama must be running locally on port 11434. No API key required. Supports all generateText/streamText/agent APIs. Use SmallModelResolver for automatic model selection across providers.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:rag",
+    "heading": "How do I build a RAG pipeline?",
+    "content": "Use the RAG module: import from '@framers/agentos/rag'. Components include EmbeddingManager, VectorStoreManager, HybridSearcher (vector + keyword), RaptorTree (hierarchical summarization), and GraphRAG. The QueryRouter wraps all of these into a batteries-included pipeline.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:telephony",
+    "heading": "Can AgentOS handle phone calls?",
+    "content": "Yes. Use the telephony module: import from '@framers/agentos/telephony'. Supports Twilio and VAPI for inbound/outbound voice calls with real-time STT/TTS. The voice-telephony skill provides a guided setup workflow.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:pii-redaction",
+    "heading": "How do I redact PII from agent conversations?",
+    "content": "Use the openredaction integration in the safety module, or the pii-redaction skill. Automatically detects and redacts names, emails, phone numbers, SSNs, credit cards, and addresses. Can be applied as a guardrail pre-filter or post-filter.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:custom-tools",
+    "heading": "How do I create a custom tool?",
+    "content": "Implement the ITool interface: { name: string, description: string, inputSchema: JSONSchema, execute: (input) => Promise<result> }. Register with agent({ tools: [myTool] }) or via an ExtensionPack. Input is validated against inputSchema automatically.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:cognitive-memory",
+    "heading": "What are cognitive memory mechanisms?",
+    "content": "AgentOS implements 8 research-backed memory mechanisms: reconsolidation, retrieval-induced forgetting (RIF), involuntary recall, feeling-of-knowing (FOK), temporal gist extraction, schema encoding, source confidence decay, and emotion regulation. All are HEXACO personality-modulated.",
+    "category": "faq"
+  },
+  {
+    "id": "api:generateText",
+    "heading": "generateText() API",
+    "content": "import { generateText } from '@framers/agentos'. generateText({ model: 'openai:gpt-4o', prompt: 'Hello', system?: '...', tools?: [...], maxSteps?: 5, temperature?: 0.7 }) -> Promise<{ text, provider, model, usage, toolCalls }>. The core text generation function supporting all 21 LLM providers.",
+    "category": "api"
+  },
+  {
+    "id": "api:streamText",
+    "heading": "streamText() API",
+    "content": "import { streamText } from '@framers/agentos'. streamText({ model: 'openai:gpt-4o', prompt: 'Hello', system?: '...' }) -> AsyncIterable<string>. Token-by-token streaming for real-time output. Supports all providers with streaming capability.",
+    "category": "api"
+  },
+  {
+    "id": "api:agent",
+    "heading": "agent() API",
+    "content": "import { agent } from '@framers/agentos'. agent({ model: 'openai:gpt-4o', instructions: '...', tools?: [...], maxSteps?: 5 }) -> { generate(prompt), stream(prompt), session(id?) }. Creates a reusable agent with built-in tool orchestration and session management.",
+    "category": "api"
+  },
+  {
+    "id": "api:generateImage",
+    "heading": "generateImage() API",
+    "content": "import { generateImage } from '@framers/agentos'. generateImage({ model: 'openai:dall-e-3', prompt: 'A sunset over mountains', size?: '1024x1024', n?: 1 }) -> Promise<{ images: Array<{ url, base64? }> }>. AI image generation supporting DALL-E, Stable Diffusion, and more.",
+    "category": "api"
+  },
+  {
+    "id": "api:editImage",
+    "heading": "editImage() API",
+    "content": "import { editImage } from '@framers/agentos'. editImage({ model: 'openai:dall-e-2', image: Buffer, prompt: 'Add a rainbow', mask?: Buffer }) -> Promise<{ images: Array<{ url }> }>. Modify existing images using AI inpainting and editing.",
+    "category": "api"
+  },
+  {
+    "id": "api:generateVideo",
+    "heading": "generateVideo() API",
+    "content": "import { generateVideo } from '@framers/agentos'. generateVideo({ prompt: 'A cat walking', duration?: 5, fps?: 24 }) -> Promise<{ url, frames? }>. AI video generation from text prompts.",
+    "category": "api"
+  },
+  {
+    "id": "api:analyzeVideo",
+    "heading": "analyzeVideo() API",
+    "content": "import { analyzeVideo } from '@framers/agentos'. analyzeVideo({ url: '...', tasks: ['describe', 'detect-scenes'] }) -> Promise<{ description, scenes, frames }>. Multi-modal video analysis with scene detection.",
+    "category": "api"
+  },
+  {
+    "id": "api:generateMusic",
+    "heading": "generateMusic() API",
+    "content": "import { generateMusic } from '@framers/agentos'. generateMusic({ prompt: 'Upbeat jazz', duration?: 30 }) -> Promise<{ audio: Buffer, url? }>. AI music generation from text descriptions.",
+    "category": "api"
+  },
+  {
+    "id": "api:generateSFX",
+    "heading": "generateSFX() API",
+    "content": "import { generateSFX } from '@framers/agentos'. generateSFX({ prompt: 'Thunder crack', duration?: 5 }) -> Promise<{ audio: Buffer, url? }>. AI sound effect generation.",
+    "category": "api"
+  },
+  {
+    "id": "api:performOCR",
+    "heading": "performOCR() API",
+    "content": "import { performOCR } from '@framers/agentos'. performOCR({ image: Buffer | string, engine?: 'tesseract' | 'paddle' }) -> Promise<{ text, blocks, confidence }>. Extract text from images using Tesseract.js or PaddleOCR.",
+    "category": "api"
+  },
+  {
+    "id": "api:detectScenes",
+    "heading": "detectScenes() API",
+    "content": "import { detectScenes } from '@framers/agentos'. detectScenes({ video: Buffer | string, threshold?: 0.3 }) -> Promise<{ scenes: Array<{ start, end, description }> }>. Temporal scene boundary detection in video content.",
+    "category": "api"
+  },
+  {
+    "id": "api:QueryRouter",
+    "heading": "QueryRouter class API",
+    "content": "import { QueryRouter } from '@framers/agentos/query-router'. new QueryRouter({ knowledgeCorpus: ['./docs'], generationModel: 'gpt-4o-mini' }). Methods: init(), route(query, history?), close(), getCorpusStats(), getEmbeddingStatus(). Intelligent RAG pipeline with classification, retrieval, and grounded generation.",
+    "category": "api"
+  },
+  {
+    "id": "api:MemoryManager",
+    "heading": "MemoryManager class API",
+    "content": "import { MemoryManager } from '@framers/agentos/memory'. Manages working memory, episodic memory, semantic memory, and procedural memory. Methods: encode(content), recall(query, topK?), forget(id), getWorkingMemory(), consolidate(). Backed by sql-storage-adapter.",
+    "category": "api"
+  },
+  {
+    "id": "api:SkillLoader",
+    "heading": "SkillLoader class API",
+    "content": "import { SkillLoader } from '@framers/agentos/skills'. Loads SKILL.md files and injects their instructions into the agent system prompt. Methods: load(name), loadAll(names), resolve(path). Skills are sourced from @framers/agentos-skills curated registry.",
+    "category": "api"
+  },
+  {
+    "id": "troubleshoot:no-api-key",
+    "heading": "Error: No API key for openai",
+    "content": "Set OPENAI_API_KEY environment variable or pass apiKey in options: generateText({ apiKey: 'sk-...', model: 'openai:gpt-4o', prompt: '...' }). For other providers, set the corresponding env var (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.).",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:top-level-await",
+    "heading": "Error: Top-level await not supported with cjs",
+    "content": "AgentOS requires ESM. Add \"type\": \"module\" to your package.json, or use .mts file extension. If using TypeScript, set \"module\": \"ESNext\" or \"NodeNext\" in tsconfig.json.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:model-not-found",
+    "heading": "Error: Model not found or unsupported",
+    "content": "Check the model string format: 'provider:model-name' (e.g., 'openai:gpt-4o', 'anthropic:claude-sonnet'). For Ollama, ensure the model is pulled locally: ollama pull <model-name>. For OpenRouter, prefix with 'openrouter:'.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:empty-corpus",
+    "heading": "Error: QueryRouter init failed: no readable markdown corpus",
+    "content": "The QueryRouter could not find any .md or .mdx files in the configured knowledgeCorpus directories. Verify the paths exist and contain markdown files with at least one heading and some content. Paths are resolved relative to process.cwd().",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:embedding-fallback",
+    "heading": "Warning: Embedding initialization failed, falling back to keyword search",
+    "content": "This is non-fatal. The QueryRouter uses keyword-based retrieval when vector embeddings are unavailable. To enable embeddings, set OPENAI_API_KEY and ensure the text-embedding-3-small model is accessible. Check network connectivity and API key permissions.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:rate-limit",
+    "heading": "Error: 429 Too Many Requests / Rate limit exceeded",
+    "content": "You are hitting the LLM provider rate limit. Solutions: reduce maxSteps, add delays between calls, switch to a provider with higher limits, or use OpenRouter which distributes across multiple providers. For embeddings, batch your corpus loading.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:hnswlib",
+    "heading": "Error: Cannot find module hnswlib-node",
+    "content": "hnswlib-node is an optional peer dependency for vector search. Install it: npm install hnswlib-node. On Apple Silicon, you may need: npm install hnswlib-node --build-from-source. The QueryRouter falls back to keyword search if it's not installed.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:sqlite",
+    "heading": "Error: Cannot find module better-sqlite3",
+    "content": "better-sqlite3 is an optional dependency for local storage. Install it: npm install better-sqlite3. On some platforms, you may need build tools (python3, make, g++). Alternatively, use @framers/sql-storage-adapter with a Postgres backend.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:discord-hang",
+    "heading": "NestJS app hangs on startup with Discord bot enabled",
+    "content": "Socket.IO @WebSocketGateway can cause NestFactory.create() to hang. Ensure WunderlandGateway is disabled (empty providers array). Also avoid explicitly importing WunderlandSolModule — it is loaded transitively and duplicate imports cause hangs.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:openrouter-fallback",
+    "heading": "How to configure OpenRouter as a fallback",
+    "content": "Set OPENROUTER_API_KEY environment variable. AgentOS automatically detects it and uses OpenRouter as a fallback when the primary provider key is missing. OpenRouter supports 800+ models from multiple providers through a single API key.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:tool-validation",
+    "heading": "Error: Tool input validation failed",
+    "content": "Tool inputs are validated against the inputSchema (JSON Schema). Check that your tool call arguments match the schema types and required fields. Use ajv-formats for string format validation (email, uri, date-time, etc.).",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:security-tier-blocked",
+    "heading": "Error: Tool blocked by security tier",
+    "content": "The current security tier does not allow this tool. Check the agent's security tier setting in SecurityTiers. Use 'permissive' for development, 'balanced' for production, 'strict' for sensitive environments. Dangerous tools are blocked at 'balanced' and above.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:memory-oom",
+    "heading": "Out of memory when loading large corpus",
+    "content": "Large markdown corpora can exceed Node.js heap limits. Solutions: increase heap with --max-old-space-size=4096, reduce corpus size, use the maxContextTokens config to limit retrieval context, or enable streaming retrieval with the UnifiedRetriever.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:typescript-decorators",
+    "heading": "NestJS decorator metadata not emitted with tsx/esbuild",
+    "content": "@Injectable() parameter decorator metadata is not emitted by esbuild, causing constructor DI params to be undefined. Use process.env directly or @Inject() explicitly. For the backend, run with: npx tsx --tsconfig tsconfig.json src/main.ts.",
+    "category": "troubleshooting"
+  },
+  {
+    "id": "troubleshoot:submodule-push",
+    "heading": "Git submodule changes not visible after commit",
+    "content": "Always push submodule commits immediately after making them. Run git push in the submodule directory before committing the parent repo. The parent only tracks the submodule commit hash, not the content.",
+    "category": "troubleshooting"
+  }
+]

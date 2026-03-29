@@ -354,6 +354,15 @@ export class QueryRouter {
   async init(): Promise<void> {
     // 1. Load corpus chunks from the configured knowledge directories
     this.corpus = this.loadCorpus(this.config.knowledgeCorpus);
+
+    // 1b. Load bundled platform knowledge (tools, skills, FAQ, API, troubleshooting)
+    if (this.config.includePlatformKnowledge !== false) {
+      const platformChunks = this.loadPlatformKnowledge();
+      if (platformChunks.length > 0) {
+        this.corpus.push(...platformChunks);
+      }
+    }
+
     if (this.corpus.length === 0) {
       throw new Error(this.buildEmptyCorpusError(this.config.knowledgeCorpus));
     }
@@ -881,6 +890,55 @@ export class QueryRouter {
       'Make sure at least one configured directory exists and contains readable ' +
       '.md or .mdx files with non-trivial section content.'
     );
+  }
+
+  /**
+   * Load the bundled platform knowledge corpus that ships with @framers/agentos.
+   *
+   * The corpus file (`knowledge/platform-corpus.json`) is generated at build
+   * time by `scripts/build-knowledge-corpus.mjs` and contains tool reference
+   * entries, skill summaries, FAQ, API reference, and troubleshooting guides.
+   *
+   * Falls back gracefully if the file is missing (e.g., in development before
+   * the knowledge build step has run).
+   *
+   * @returns Loaded platform corpus chunks, or empty array if unavailable.
+   */
+  private loadPlatformKnowledge(): CorpusChunk[] {
+    const candidates = [
+      // Published package layout: knowledge/ sits next to dist/
+      join(MODULE_DIR, '../../knowledge/platform-corpus.json'),
+      // Source layout: knowledge/ sits at package root, src/ is one level down
+      join(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
+    ];
+
+    for (const corpusPath of candidates) {
+      if (!existsSync(corpusPath)) continue;
+
+      try {
+        const raw = readFileSync(corpusPath, 'utf-8');
+        const entries: Array<{
+          id: string;
+          heading: string;
+          content: string;
+          category: string;
+        }> = JSON.parse(raw);
+
+        const chunks: CorpusChunk[] = entries.map((entry) => ({
+          id: entry.id,
+          heading: entry.heading,
+          content: entry.content,
+          sourcePath: `platform:${entry.category}/${entry.id}`,
+        }));
+
+        console.log(`[QueryRouter] Loaded ${chunks.length} platform knowledge entries`);
+        return chunks;
+      } catch {
+        // Platform corpus not parseable — skip silently
+      }
+    }
+
+    return [];
   }
 
   /**

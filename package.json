@@ -191,7 +191,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "knowledge",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -199,7 +201,8 @@
   "scripts": {
     "clean": "rimraf dist tsconfig.build.tsbuildinfo",
     "build": "npm run clean && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && node scripts/fix-esm-imports.mjs",
-    "prepublishOnly": "npm run build",
+    "build:knowledge": "node scripts/build-knowledge-corpus.mjs",
+    "prepublishOnly": "npm run build:knowledge && npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "node scripts/strip-nbsp.mjs && eslint \"src/**/*.ts\"",
     "test": "vitest run",

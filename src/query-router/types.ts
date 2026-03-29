@@ -570,6 +570,17 @@ export interface QueryRouterConfig {
    * @see QueryRouterStrategyConfig
    */
   strategyConfig?: QueryRouterStrategyConfig;
+
+  /**
+   * Load bundled platform knowledge (tools, skills, FAQ, API reference,
+   * troubleshooting) into the corpus during `init()`.
+   *
+   * When enabled, the router ships with instant knowledge about every
+   * AgentOS capability — no external docs required for platform questions.
+   *
+   * @default true
+   */
+  includePlatformKnowledge?: boolean;
 }
 
 /**
@@ -777,6 +788,7 @@ export const DEFAULT_QUERY_ROUTER_CONFIG = {
   maxContextTokens: 4000,
   cacheResults: true,
   availableTools: [] as string[],
+  includePlatformKnowledge: true,
 } satisfies Omit<
   Required<QueryRouterConfig>,
   | 'knowledgeCorpus'
