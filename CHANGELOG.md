@@ -1,3 +1,8 @@
+## <small>0.1.145 (2026-03-29)</small>
+
+* fix(memory): prevent raw profanity/slurs from being stored as user facts ([c17b49f](https://github.com/framersai/agentos/commit/c17b49f))
+* docs: add content-policy-rewriter to guardrails table + ecosystem ([563be3f](https://github.com/framersai/agentos/commit/563be3f))
+
 ## <small>0.1.144 (2026-03-29)</small>
 
 * feat(query-router): capability recommendations + discovery engine integration ([1df5a12](https://github.com/framersai/agentos/commit/1df5a12))
