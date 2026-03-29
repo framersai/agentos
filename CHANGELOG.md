@@ -1,3 +1,7 @@
+## <small>0.1.137 (2026-03-29)</small>
+
+* fix: use darker green for tests badge (readable with white text) ([9a9d566](https://github.com/framersai/agentos/commit/9a9d566))
+
 ## <small>0.1.136 (2026-03-29)</small>
 
 * fix(ci): exclude onnxruntime native tests, add test count badge ([858cb7b](https://github.com/framersai/agentos/commit/858cb7b))
