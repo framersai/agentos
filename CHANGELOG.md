@@ -1,3 +1,8 @@
+## <small>0.1.142 (2026-03-29)</small>
+
+* fix(docs): remove highlightLanguages (unsupported in TypeDoc 0.25) ([07af1b9](https://github.com/framersai/agentos/commit/07af1b9))
+* chore(deps): bump agentos-extensions-registry to ^0.15.0 ([a30ef70](https://github.com/framersai/agentos/commit/a30ef70))
+
 ## <small>0.1.141 (2026-03-29)</small>
 
 * fix(ci): resolve typecheck errors — add finishReason to mock, import afterEach ([88a3f18](https://github.com/framersai/agentos/commit/88a3f18))
