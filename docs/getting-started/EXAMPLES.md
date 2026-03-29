@@ -773,14 +773,41 @@ console.log(result.text);
 
 ---
 
+## Runnable Example Files
+
+The `examples/` directory contains standalone `.mjs` files you can run directly:
+
+```bash
+npx tsx examples/<file>.mjs
+```
+
+| File | Description | Key APIs |
+|------|-------------|----------|
+| [`high-level-api.mjs`](../../examples/high-level-api.mjs) | One-shot text, streaming, image generation, agent sessions | `generateText`, `streamText`, `generateImage`, `agent` |
+| [`agency-graph.mjs`](../../examples/agency-graph.mjs) | Multi-agent agency with graph strategy | `agency`, graph edges, parallel execution |
+| [`agency-streaming.mjs`](../../examples/agency-streaming.mjs) | Streaming agency output with real-time chunks | `agency`, `onChunk` callbacks |
+| [`agent-graph.mjs`](../../examples/agent-graph.mjs) | AgentGraph runtime with typed nodes and edges | `AgentGraph`, node definitions, edge routing |
+| [`agent-communication-bus.mjs`](../../examples/agent-communication-bus.mjs) | Inter-agent messaging via communication bus | `AgentCommunicationBus`, pub/sub topics |
+| [`workflow-dsl.mjs`](../../examples/workflow-dsl.mjs) | Declarative workflow definitions | `workflow`, sequential/parallel/conditional steps |
+| [`mission-api.mjs`](../../examples/mission-api.mjs) | Self-expanding mission orchestration with planner | `mission`, goal decomposition, fact-checking |
+| [`multi-agent-workflow.mjs`](../../examples/multi-agent-workflow.mjs) | Coordinated multi-agent pipeline with handoffs | Multi-agent, handoff protocol |
+| [`query-router.mjs`](../../examples/query-router.mjs) | Intent-based routing to specialized agents | `QueryRouter`, route definitions |
+| [`query-router-host-hooks.mjs`](../../examples/query-router-host-hooks.mjs) | Query router with host lifecycle hooks | `QueryRouter`, `onRoute`, `onFallback` hooks |
+| [`generate-image.mjs`](../../examples/generate-image.mjs) | Image generation across providers | `generateImage`, provider selection |
+| [`agentos-config-tools.mjs`](../../examples/agentos-config-tools.mjs) | Full AgentOS runtime with tool registration | `AgentOS`, `processRequest`, custom tools |
+| [`schema-on-demand-local-module.mjs`](../../examples/schema-on-demand-local-module.mjs) | Dynamic extension loading from local modules | `createCuratedManifest`, lazy imports |
+
+---
+
 ## Related Guides
 
 - [GETTING_STARTED.md](./GETTING_STARTED.md) — installation and first steps
-- [ORCHESTRATION.md](./ORCHESTRATION.md) — graphs, workflows, missions
-- [CHANNELS.md](./CHANNELS.md) — channel setup
-- [SOCIAL_POSTING.md](./SOCIAL_POSTING.md) — social media publishing
+- [ORCHESTRATION.md](../orchestration/ORCHESTRATION.md) — graphs, workflows, missions
+- [CHANNELS.md](../features/CHANNELS.md) — channel setup
+- [SOCIAL_POSTING.md](../features/SOCIAL_POSTING.md) — social media publishing
 - [HIGH_LEVEL_API.md](./HIGH_LEVEL_API.md) — `AgentOS`, helper wrappers, and runtime tool registration
-- [COGNITIVE_MEMORY_GUIDE.md](./COGNITIVE_MEMORY_GUIDE.md) — memory system
-- [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) — image provider setup
-- [EVALUATION.md](./EVALUATION.md) — testing and benchmarking
-- [AGENCY_API.md](./AGENCY_API.md) — full agency reference
+- [COGNITIVE_MEMORY_GUIDE.md](../memory/COGNITIVE_MEMORY_GUIDE.md) — memory system
+- [COGNITIVE_MECHANISMS.md](../memory/COGNITIVE_MECHANISMS.md) — 8 neuroscience-backed mechanisms
+- [IMAGE_GENERATION.md](../features/IMAGE_GENERATION.md) — image provider setup
+- [EVALUATION.md](../features/EVALUATION.md) — testing and benchmarking
+- [AGENCY_API.md](../features/AGENCY_API.md) — full agency reference
