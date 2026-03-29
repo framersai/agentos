@@ -104,10 +104,21 @@ type AutoDetectProbe =
   | { provider: string; envKey: string }
   | { provider: string; binaryName: string };
 
+/**
+ * Auto-detection priority order for providers.
+ *
+ * OpenAI is first because it supports ALL task types (text, image, embedding).
+ * OpenRouter is second — it supports text but NOT embeddings, so putting it
+ * first caused embedding failures when both keys were set.
+ * Anthropic third — it supports text but not image/embedding.
+ *
+ * The task filter in autoDetectProvider() skips providers that don't support
+ * the requested task type, so the order matters most for the default (text) case.
+ */
 const AUTO_DETECT_ORDER: AutoDetectProbe[] = [
-  { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'OPENAI_API_KEY', provider: 'openai' },
   { envKey: 'ANTHROPIC_API_KEY', provider: 'anthropic' },
+  { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'GEMINI_API_KEY', provider: 'gemini' },
   { envKey: 'GROQ_API_KEY', provider: 'groq' },
   { envKey: 'TOGETHER_API_KEY', provider: 'together' },

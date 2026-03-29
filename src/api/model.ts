@@ -125,10 +125,15 @@ export function resolveProvider(
     return { providerId, modelId };
   }
 
-  // Anthropic goes through OpenRouter by default in AgentOS
+  // Anthropic fallback: when ANTHROPIC_API_KEY is missing, fall back to OpenRouter
+  // if available. This is a convenience — OpenRouter proxies Anthropic models.
   if (providerId === 'anthropic' && !apiKey) {
     const orKey = process.env['OPENROUTER_API_KEY'];
     if (orKey) {
+      console.warn(
+        `[AgentOS] ANTHROPIC_API_KEY not set — falling back to OpenRouter for model "${modelId}". ` +
+        `Set ANTHROPIC_API_KEY for direct access.`
+      );
       return { providerId: 'openrouter', modelId: `anthropic/${modelId}`, apiKey: orKey };
     }
     throw new Error(`No API key for anthropic. Set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.`);
