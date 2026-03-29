@@ -67,6 +67,15 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
   /**
    * Initialize the engine: build index + graph from all capability sources.
    *
+   * After building from the provided sources, the engine also attempts to
+   * load the auto-generated capability catalog from
+   * `@framers/agentos-extensions-registry`. This rescues extensions that have
+   * no SKILL.md and are not registered in the tool/channel/provider catalogs
+   * by converting each catalog entry into a discoverable CapabilityDescriptor.
+   *
+   * The catalog import is non-fatal — if the registry package is not installed,
+   * initialization proceeds with the explicit sources only.
+   *
    * @param sources - Tools, skills, extensions, channels, and manifest entries
    * @param presetCoOccurrences - Co-occurrence data from agent presets
    */
@@ -77,7 +86,10 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
     // 1. Build the vector index (normalizes sources + embeds + stores)
     await this.index.buildIndex(sources);
 
-    // 2. Build the relationship graph (async — graphology loaded lazily)
+    // 2. Hydrate from the extensions-registry capability catalog (non-fatal)
+    await this.hydrateFromCapabilityCatalog();
+
+    // 3. Build the relationship graph (async — graphology loaded lazily)
     const allCapabilities = this.index.getAllCapabilities();
     await this.graph.buildGraph(allCapabilities, presetCoOccurrences);
 
@@ -390,6 +402,81 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
    */
   renderForPrompt(result: CapabilityDiscoveryResult): string {
     return this.assembler.renderForPrompt(result);
+  }
+
+  // ============================================================================
+  // CAPABILITY CATALOG HYDRATION
+  // ============================================================================
+
+  /**
+   * Load the auto-generated capability catalog from `@framers/agentos-extensions-registry`
+   * and register each entry as a discoverable CapabilityDescriptor.
+   *
+   * This closes the "discovery gap" where extensions that lack SKILL.md files
+   * and are not explicitly registered in tool/channel/provider catalogs remain
+   * invisible to semantic search. The catalog is generated at build time from
+   * all `manifest.json` files in the curated extensions directory.
+   *
+   * Only entries whose ID is NOT already in the index are added, so explicit
+   * registrations from `CapabilityIndexSources` always take precedence.
+   *
+   * The import is dynamic and non-fatal: if `@framers/agentos-extensions-registry`
+   * is not installed, the method silently returns zero.
+   *
+   * @returns The number of catalog entries injected into the index.
+   */
+  async hydrateFromCapabilityCatalog(): Promise<number> {
+    let catalog: Array<{
+      id: string;
+      name: string;
+      description: string;
+      category: string;
+      tools: string[];
+      requiredSecrets: string[];
+    }>;
+
+    try {
+      const mod = await import('@framers/agentos-extensions-registry');
+      catalog = (mod as Record<string, unknown>).CAPABILITY_CATALOG as typeof catalog;
+      if (!Array.isArray(catalog)) return 0;
+    } catch {
+      // Registry package not installed — proceed without catalog entries
+      return 0;
+    }
+
+    const existingIds = new Set(this.index.listIds());
+    let injected = 0;
+
+    for (const entry of catalog) {
+      // Skip entries already registered from explicit sources
+      const candidateId = `extension:${entry.id}`;
+      if (existingIds.has(candidateId) || existingIds.has(entry.id)) {
+        continue;
+      }
+
+      const descriptor: CapabilityDescriptor = {
+        id: candidateId,
+        kind: 'extension',
+        name: entry.id,
+        displayName: entry.name,
+        description: entry.description,
+        category: entry.category || 'uncategorized',
+        tags: entry.tools,
+        requiredSecrets: entry.requiredSecrets ?? [],
+        requiredTools: [],
+        available: false, // Not loaded yet — discoverable but not active
+        sourceRef: {
+          type: 'extension',
+          packageName: entry.id,
+          extensionId: entry.id,
+        },
+      };
+
+      await this.index.upsertCapability(descriptor);
+      injected++;
+    }
+
+    return injected;
   }
 
   // ============================================================================
