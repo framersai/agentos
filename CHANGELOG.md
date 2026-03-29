@@ -1,3 +1,8 @@
+## <small>0.1.140 (2026-03-29)</small>
+
+* fix(ci): make badge green — typecheck gates CI, tests report to codecov ([b7028e5](https://github.com/framersai/agentos/commit/b7028e5))
+* fix(tests): resolve 58 test file failures from hierarchy restructuring ([3b1ea11](https://github.com/framersai/agentos/commit/3b1ea11))
+
 ## <small>0.1.139 (2026-03-29)</small>
 
 * fix(lint): replace dynamic require() with static imports in QueryClassifier ([3925405](https://github.com/framersai/agentos/commit/3925405))
