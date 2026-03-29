@@ -40,6 +40,7 @@
   - [Planning Engine](#planning-engine)
   - [Conversation Management](#conversation-management)
   - [RAG (Retrieval Augmented Generation)](#rag-retrieval-augmented-generation)
+  - [Bundled Platform Knowledge](#bundled-platform-knowledge)
   - [Safety and Guardrails](#safety-and-guardrails)
   - [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
   - [Channels System](#channels-system)
@@ -683,14 +684,14 @@ graph TB
   **Cognitive mechanisms** (`memory/mechanisms/`) -- 8 optional, all HEXACO personality-modulated:
   | Mechanism | Citation | Effect |
   |-----------|----------|--------|
-  | Reconsolidation | Nader et al., 2000 | Retrieved memories drift toward current mood |
-  | Retrieval-Induced Forgetting | Anderson et al., 1994 | Retrieving one memory suppresses similar competitors |
-  | Involuntary Recall | Berntsen, 2009 | Random surfacing of old high-vividness memories |
-  | Metacognitive FOK | Nelson & Narens, 1990 | Feeling-of-knowing scoring for tip-of-tongue states |
-  | Temporal Gist | Reyna & Brainerd, 1995 | Old traces compressed to core assertions |
-  | Schema Encoding | Bartlett, 1932 | Novel input boosted, schema-matching encoded efficiently |
-  | Source Confidence Decay | Johnson et al., 1993 | Agent inferences decay faster than observations |
-  | Emotion Regulation | Gross, 1998 | Reappraisal + suppression during consolidation |
+  | Reconsolidation | [Nader et al., 2000](https://doi.org/10.1038/35021052) | Retrieved memories drift toward current mood |
+  | Retrieval-Induced Forgetting | [Anderson et al., 1994](https://doi.org/10.1037/0278-7393.20.5.1063) | Retrieving one memory suppresses similar competitors |
+  | Involuntary Recall | [Berntsen, 2009](https://doi.org/10.1017/CBO9780511575921) | Random surfacing of old high-vividness memories |
+  | Metacognitive FOK | [Nelson & Narens, 1990](https://doi.org/10.1016/S0079-7421(08)60053-5) | Feeling-of-knowing scoring for tip-of-tongue states |
+  | Temporal Gist | [Reyna & Brainerd, 1995](https://doi.org/10.1016/1041-6080(95)90003-9) | Old traces compressed to core assertions |
+  | Schema Encoding | [Bartlett, 1932](https://doi.org/10.1017/CBO9780511759185) | Novel input boosted, schema-matching encoded efficiently |
+  | Source Confidence Decay | [Johnson et al., 1993](https://doi.org/10.1037/0033-2909.114.1.3) | Agent inferences decay faster than observations |
+  | Emotion Regulation | [Gross, 1998](https://doi.org/10.1037/1089-2680.2.3.271) | Reappraisal + suppression during consolidation |
 
   See `docs/memory/COGNITIVE_MECHANISMS.md` for API reference and 30+ APA citations.
 
@@ -1037,6 +1038,41 @@ AgentOS provides a 4-tier vector storage scaling path that grows with your deplo
 - **`embed()` config option** — opt-in query-time embedding generation for dynamic content
 
 See [`docs/memory/MEMORY_SCALING.md`](./docs/memory/MEMORY_SCALING.md), [`docs/memory/POSTGRES_BACKEND.md`](./docs/memory/POSTGRES_BACKEND.md), [`docs/memory/QDRANT_BACKEND.md`](./docs/memory/QDRANT_BACKEND.md), and [`docs/memory/PINECONE_BACKEND.md`](./docs/memory/PINECONE_BACKEND.md) for backend-specific guides.
+
+---
+
+### Bundled Platform Knowledge
+
+**Location:** `knowledge/platform-corpus.json`
+
+AgentOS ships with **243 pre-built knowledge entries** covering the entire platform surface area. When the QueryRouter initializes, these entries are automatically loaded alongside your project-specific documentation corpus, giving every agent instant knowledge about AgentOS capabilities with zero configuration.
+
+**Coverage breakdown:**
+
+| Category | Count | What it covers |
+|----------|-------|---------------|
+| Tools | 105 | Every tool and channel adapter (Discord, Telegram, LinkedIn, Bluesky, etc.) |
+| Skills | 79 | All curated skills from the skills registry |
+| FAQ | 30 | Common questions (voice setup, supported models, streaming, OCR, etc.) |
+| API | 14 | Core API functions (generateText, streamText, agent, agency, etc.) |
+| Troubleshooting | 15 | Common errors and their fixes (missing API keys, model not found, etc.) |
+
+**How it works:**
+
+- During `router.init()`, the QueryRouter loads `knowledge/platform-corpus.json` from the package directory
+- Platform entries are merged into the same corpus as user docs, making them searchable via both vector and keyword retrieval
+- The keyword fallback index covers platform entries, so they work even without an embedding API key
+
+**Disabling platform knowledge:**
+
+```typescript
+const router = new QueryRouter({
+  knowledgeCorpus: ['./docs'],
+  includePlatformKnowledge: false, // Skip bundled platform entries
+});
+```
+
+When disabled, the router only loads your `knowledgeCorpus` directories. This is useful when you want a purely project-specific knowledge base or are building a non-AgentOS product.
 
 ---
 
