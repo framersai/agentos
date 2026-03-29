@@ -27,7 +27,10 @@ export { MarkdownExporter } from './MarkdownExporter.js';
 export { MarkdownImporter } from './MarkdownImporter.js';
 export { ObsidianExporter } from './ObsidianExporter.js';
 export { ObsidianImporter } from './ObsidianImporter.js';
-export { SqliteExporter } from './SqliteExporter.js';
-export { SqliteImporter } from './SqliteImporter.js';
+// SqliteExporter and SqliteImporter require 'better-sqlite3' (native module).
+// They are NOT re-exported from the barrel to avoid crashing when better-sqlite3
+// is not installed. Import them directly when needed:
+//   const { SqliteImporter } = await import('./memory/io/SqliteImporter.js');
+//   const { SqliteExporter } = await import('./memory/io/SqliteExporter.js');
 export { ChatGptImporter } from './ChatGptImporter.js';
 export { CsvImporter } from './CsvImporter.js';

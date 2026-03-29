@@ -302,8 +302,8 @@ export {
   MarkdownImporter,
   ObsidianExporter,
   ObsidianImporter,
-  SqliteExporter,
-  SqliteImporter,
+  // SqliteExporter and SqliteImporter omitted — require 'better-sqlite3' native module.
+  // Import directly: await import('./io/SqliteImporter.js')
   ChatGptImporter,
   CsvImporter,
 } from './io/index.js';
