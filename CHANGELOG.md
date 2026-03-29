@@ -1,3 +1,7 @@
+## <small>0.1.133 (2026-03-29)</small>
+
+* feat(discovery): hydrate capability index from extensions catalog ([cc9f25d](https://github.com/framersai/agentos/commit/cc9f25d))
+
 ## <small>0.1.132 (2026-03-29)</small>
 
 * fix(ci): add sql-storage-adapter to devDependencies for test resolution ([3568e48](https://github.com/framersai/agentos/commit/3568e48))
