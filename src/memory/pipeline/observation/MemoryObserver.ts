@@ -83,6 +83,11 @@ For each observation, output a JSON object on its own line with these fields:
 - importance: 0.0-1.0 (how important is this for future recall?)
 - entities: string[] (key entities mentioned)
 
+Important rules:
+- NEVER preserve raw profanity, slurs, or insults in observation content. Summarize the emotional context instead.
+- Distinguish between user attributes and frustration directed at the AI. "You're an idiot" is feedback about assistant quality, NOT a user characteristic — store as "user expressed frustration with response" not the raw insult.
+- Users talking to AI may use extreme language — this is normal venting, not a personality trait to record.
+
 Output ONLY valid JSON objects, one per line. No markdown, no explanation.${emphasisBlock}`;
 }
 
