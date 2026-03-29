@@ -1,3 +1,7 @@
+## <small>0.1.147 (2026-03-29)</small>
+
+* fix(typecheck): use direct imports for SqliteExporter/Importer in tests ([bd855ba](https://github.com/framersai/agentos/commit/bd855ba))
+
 ## <small>0.1.146 (2026-03-29)</small>
 
 * fix: remove eager SqliteImporter/Exporter barrel exports to avoid better-sqlite3 crash ([3242f31](https://github.com/framersai/agentos/commit/3242f31))
