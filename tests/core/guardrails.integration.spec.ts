@@ -165,6 +165,12 @@ function createAgentUnderTest(
     guardrailService?: IGuardrailService;
     agentOSOrchestrator: StubOrchestrator;
     streamingManager: FakeStreamingManager;
+    selfImprovementManager: {
+      applySessionOverrides: (input: AgentOSInput) => AgentOSInput;
+      buildSkillPromptContext: (sessionId: string) => string | undefined;
+      listDisabledSkillIds: (sessionKey: string) => string[];
+      buildSessionRuntimeKey: (sessionId: string) => string;
+    };
   };
 
   agent.initialized = true;
@@ -174,6 +180,12 @@ function createAgentUnderTest(
   agent.guardrailService = guardrailService;
   agent.agentOSOrchestrator = orchestrator;
   agent.streamingManager = streamingManager;
+  agent.selfImprovementManager = {
+    applySessionOverrides: (input: AgentOSInput) => input,
+    buildSkillPromptContext: () => undefined,
+    listDisabledSkillIds: () => [],
+    buildSessionRuntimeKey: (sessionId: string) => `session:${sessionId}`,
+  };
 
   return agent as unknown as AgentOS;
 }

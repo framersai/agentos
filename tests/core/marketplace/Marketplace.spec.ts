@@ -5,13 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Marketplace } from '../../../src/core/marketplace/Marketplace';
+import { Marketplace } from '../../../src/marketplace/store/Marketplace';
 import type {
   MarketplaceItem,
   MarketplaceSearchOptions,
   PublisherInfo,
   PricingInfo,
-} from '../../../src/core/marketplace/IMarketplace';
+} from '../../../src/marketplace/store/IMarketplace';
 
 describe('Marketplace', () => {
   let marketplace: Marketplace;

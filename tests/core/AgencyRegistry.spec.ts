@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { AgencyRegistry } from '../../src/core/agency/AgencyRegistry';
-import type { AgencyUpsertArgs } from '../../src/core/agency/AgencyTypes';
+import { AgencyRegistry } from '../../src/agents/agency/AgencyRegistry';
+import type { AgencyUpsertArgs } from '../../src/agents/agency/AgencyTypes';
 
 describe('AgencyRegistry', () => {
   const baseArgs: AgencyUpsertArgs = {

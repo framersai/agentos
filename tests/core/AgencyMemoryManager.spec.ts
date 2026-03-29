@@ -5,8 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { AgencyMemoryManager } from '../../src/core/agency/AgencyMemoryManager';
-import type { AgencySession, AgencyMemoryConfig } from '../../src/core/agency/AgencyTypes';
+import { AgencyMemoryManager } from '../../src/agents/agency/AgencyMemoryManager';
+import type { AgencySession, AgencyMemoryConfig } from '../../src/agents/agency/AgencyTypes';
 import type { IVectorStoreManager } from '../../src/rag/VectorStoreManager';
 
 // ============================================================================

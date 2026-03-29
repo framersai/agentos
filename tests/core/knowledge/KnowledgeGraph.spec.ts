@@ -5,13 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { KnowledgeGraph } from '../../../src/core/knowledge/KnowledgeGraph';
+import { KnowledgeGraph } from '../../../src/memory/retrieval/graph/knowledge/KnowledgeGraph';
 import type {
   KnowledgeEntity,
   KnowledgeRelation,
   EpisodicMemory,
   KnowledgeSource,
-} from '../../../src/core/knowledge/IKnowledgeGraph';
+} from '../../../src/memory/retrieval/graph/knowledge/IKnowledgeGraph';
 
 describe('KnowledgeGraph', () => {
   let graph: KnowledgeGraph;

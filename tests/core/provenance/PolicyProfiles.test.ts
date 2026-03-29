@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { profiles } from '../../../src/core/provenance/config/PolicyProfiles.js';
+import { profiles } from '../../../src/provenance/config/PolicyProfiles.js';
 
 describe('PolicyProfiles', () => {
   describe('mutableDev', () => {

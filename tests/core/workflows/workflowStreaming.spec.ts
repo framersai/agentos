@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { AgentOSOrchestrator } from '../../../src/api/AgentOSOrchestrator';
 import { AgentOSResponseChunkType } from '../../../src/api/types/AgentOSResponse';
-import { WorkflowStatus } from '../../../src/core/workflows/WorkflowTypes';
+import { WorkflowStatus } from '../../../src/orchestration/workflows/WorkflowTypes';
 
 describe('AgentOSOrchestrator workflow broadcasting', () => {
   it('pushes workflow updates to active streams with metadata', async () => {

@@ -7,9 +7,9 @@ import {
   SocialPostManager,
   SocialPost,
   SocialPostPlatformResult,
-} from '../../src/social-posting/SocialPostManager';
+} from '../../src/channels/social-posting/SocialPostManager';
 
-vi.mock('../../src/utils/uuid', () => ({
+vi.mock('../../src/core/utils/uuid', () => ({
   generateUUID: vi.fn().mockReturnValue('test-uuid-123'),
 }));
 

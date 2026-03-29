@@ -11,12 +11,14 @@ import {
   AgentOSResponseChunkType,
   type AgentOSResponse,
 } from '../../src/api/types/AgentOSResponse';
-import { resumeExternalToolRequestWithRegisteredTools } from '../../src/api/resumeExternalToolRequestWithRegisteredTools';
+import { resumeExternalToolRequestWithRegisteredTools } from '../../src/api/runtime/resumeExternalToolRequestWithRegisteredTools';
 import type { ToolExecutionContext } from '../../src/core/tools/ITool';
 import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import { GMIOutputChunkType, type GMIOutput } from '../../src/cognitive_substrate/IGMI';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
 import { Memory } from '../../src/memory/io/facade/Memory';
+import { WorkflowFacade } from '../../src/api/runtime/WorkflowFacade';
+import { RagMemoryInitializer } from '../../src/api/runtime/RagMemoryInitializer';
 
 const cleanupPaths: string[] = [];
 const openAgents: AgentOS[] = [];
@@ -115,10 +117,8 @@ async function collectStream(stream: AsyncIterable<AgentOSResponse>): Promise<Ag
 
 describe('External tool resume persistence e2e', () => {
   beforeEach(() => {
-    vi.spyOn(AgentOS.prototype as any, 'initializeWorkflowRuntime').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'startWorkflowRuntime').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'initializeTurnPlanner').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'initializeRagSubsystem').mockResolvedValue(undefined);
+    vi.spyOn(WorkflowFacade.prototype, 'initialize').mockResolvedValue(undefined);
+    vi.spyOn(RagMemoryInitializer.prototype, 'initializeRag').mockResolvedValue(undefined);
     vi.spyOn(PromptEngine.prototype, 'initialize').mockResolvedValue(undefined);
     vi.spyOn(PromptEngine.prototype, 'clearCache').mockResolvedValue(undefined);
     vi.spyOn(GMIManager.prototype, 'initialize').mockResolvedValue(undefined);

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createAgentOSConfig, createTestAgentOSConfig } from '../../src/config/AgentOSConfig';
+import { createAgentOSConfig, createTestAgentOSConfig } from '../../src/core/config/AgentOSConfig';
 
 describe('AgentOSConfig factory helpers', () => {
   const originalEnv = { ...process.env };

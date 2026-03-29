@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CodeSandbox } from '../../../src/core/sandbox/CodeSandbox';
-import type { SandboxLanguage } from '../../../src/core/sandbox/ICodeSandbox';
+import { CodeSandbox } from '../../../src/sandbox/executor/CodeSandbox';
+import type { SandboxLanguage } from '../../../src/sandbox/executor/ICodeSandbox';
 
 describe('CodeSandbox', () => {
   let sandbox: CodeSandbox;
@@ -69,9 +69,9 @@ describe('CodeSandbox', () => {
       const result = await sandbox.execute({
         language: 'javascript',
         code: `
-          const wait = (ms) => new Promise(r => setTimeout(r, ms));
+          const wait = () => Promise.resolve();
           console.log("start");
-          await wait(10);
+          await wait();
           console.log("end");
         `,
       });

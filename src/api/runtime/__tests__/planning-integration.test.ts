@@ -27,7 +27,7 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-vi.mock('../model.js', () => ({
+vi.mock('../../model.js', () => ({
   resolveModelOption: vi.fn(() => ({ providerId: 'openai', modelId: 'gpt-4.1-mini' })),
   resolveProvider: vi.fn(() => ({
     providerId: 'openai',

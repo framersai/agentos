@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   HumanInteractionManager,
-} from '../../../src/core/hitl/HumanInteractionManager';
+} from '../../../src/orchestration/hitl/HumanInteractionManager';
 import type {
   PendingAction,
   ApprovalDecision,
@@ -16,7 +16,7 @@ import type {
   EditedOutput,
   EscalationContext,
   EscalationDecision,
-} from '../../../src/core/hitl/IHumanInteractionManager';
+} from '../../../src/orchestration/hitl/IHumanInteractionManager';
 
 describe('HumanInteractionManager', () => {
   let manager: HumanInteractionManager;

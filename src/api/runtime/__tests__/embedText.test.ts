@@ -14,7 +14,7 @@ import { resolveModelOption } from '../model.js';
 // fetch directly rather than going through AIModelProviderManager.
 // Instead, we mock resolveModelOption and resolveProvider selectively.
 
-vi.mock('../model.js', () => ({
+vi.mock('../../model.js', () => ({
   resolveModelOption: vi.fn(() => ({
     providerId: 'openai',
     modelId: 'text-embedding-3-small',

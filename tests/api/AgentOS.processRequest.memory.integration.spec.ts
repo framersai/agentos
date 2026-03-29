@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentOS, type AgentOSConfig } from '../../src/api/AgentOS';
-import { processRequestWithExternalTools } from '../../src/api/processRequestWithExternalTools';
-import { processRequestWithRegisteredTools } from '../../src/api/processRequestWithRegisteredTools';
+import { processRequestWithExternalTools } from '../../src/api/runtime/processRequestWithExternalTools';
+import { processRequestWithRegisteredTools } from '../../src/api/runtime/processRequestWithRegisteredTools';
 import type { AgentOSInput } from '../../src/api/types/AgentOSInput';
 import { AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY } from '../../src/api/types/AgentOSExternalToolRequest';
 import {
@@ -30,6 +30,8 @@ import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import { ConversationContext } from '../../src/core/conversation/ConversationContext';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
 import { Memory } from '../../src/memory/io/facade/Memory';
+import { WorkflowFacade } from '../../src/api/runtime/WorkflowFacade';
+import { RagMemoryInitializer } from '../../src/api/runtime/RagMemoryInitializer';
 
 function createConfig(overrides: Partial<AgentOSConfig> = {}): AgentOSConfig {
   return {
@@ -104,10 +106,8 @@ describe('AgentOS.processRequest standalone memory integration', () => {
   const openGmis: GMI[] = [];
 
   beforeEach(() => {
-    vi.spyOn(AgentOS.prototype as any, 'initializeWorkflowRuntime').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'startWorkflowRuntime').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'initializeTurnPlanner').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'initializeRagSubsystem').mockResolvedValue(undefined);
+    vi.spyOn(WorkflowFacade.prototype, 'initialize').mockResolvedValue(undefined);
+    vi.spyOn(RagMemoryInitializer.prototype, 'initializeRag').mockResolvedValue(undefined);
     vi.spyOn(PromptEngine.prototype, 'initialize').mockResolvedValue(undefined);
     vi.spyOn(PromptEngine.prototype, 'clearCache').mockResolvedValue(undefined);
     vi.spyOn(GMIManager.prototype, 'initialize').mockResolvedValue(undefined);
@@ -173,6 +173,11 @@ describe('AgentOS.processRequest standalone memory integration', () => {
     const fakeGmi = {
       getCurrentPrimaryPersonaId: () => 'test-persona',
       getGMIId: () => 'gmi-live-memory',
+      getPersona: () => ({
+        id: 'test-persona',
+        displayName: 'Test Persona',
+        description: 'A test persona',
+      }),
       processTurnStream: async function* (
         input: GMITurnInput
       ): AsyncGenerator<never, GMIOutput, undefined> {

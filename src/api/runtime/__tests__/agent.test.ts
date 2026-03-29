@@ -6,11 +6,11 @@ const hoisted = vi.hoisted(() => ({
   getRecordedAgentOSUsage: vi.fn(),
 }));
 
-vi.mock('../generateText.js', () => ({
+vi.mock('../../generateText.js', () => ({
   generateText: hoisted.generateText,
 }));
 
-vi.mock('../streamText.js', () => ({
+vi.mock('../../streamText.js', () => ({
   streamText: hoisted.streamText,
 }));
 

@@ -8,13 +8,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Marketplace } from '../../src/core/marketplace/Marketplace';
-import { Evaluator } from '../../src/core/evaluation/Evaluator';
+import { Marketplace } from '../../src/marketplace/store/Marketplace';
+import { Evaluator } from '../../src/evaluation/Evaluator';
 import type {
   PublisherInfo,
   PricingInfo,
-} from '../../src/core/marketplace/IMarketplace';
-import type { EvalTestCase, EvalConfig } from '../../src/core/evaluation/IEvaluator';
+} from '../../src/marketplace/store/IMarketplace';
+import type { EvalTestCase, EvalConfig } from '../../src/evaluation/IEvaluator';
 
 describe('Marketplace + Evaluation Integration', () => {
   let marketplace: Marketplace;

@@ -40,11 +40,11 @@ const hoisted = vi.hoisted(() => ({
   strategyStream: vi.fn(),
 }));
 
-vi.mock('../generateText.js', () => ({
+vi.mock('../../generateText.js', () => ({
   generateText: vi.fn(async () => hoisted.generateTextResult),
 }));
 
-vi.mock('../streamText.js', () => ({
+vi.mock('../../streamText.js', () => ({
   streamText: vi.fn(() => ({
     textStream: (async function* () { yield 'mock'; })(),
     text: Promise.resolve('mock'),

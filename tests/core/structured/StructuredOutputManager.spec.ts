@@ -7,11 +7,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   StructuredOutputManager,
   type StructuredOutputManagerConfig,
-} from '../../../src/core/structured/StructuredOutputManager';
+} from '../../../src/structured/output/StructuredOutputManager';
 import type {
   JSONSchema,
   ValidationIssue,
-} from '../../../src/core/structured/IStructuredOutputManager';
+} from '../../../src/structured/output/IStructuredOutputManager';
 import type { AIModelProviderManager } from '../../../src/core/llm/providers/AIModelProviderManager';
 
 // Mock LLM Provider Manager

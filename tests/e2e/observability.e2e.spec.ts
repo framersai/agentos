@@ -14,7 +14,7 @@ import {
 } from '@opentelemetry/sdk-metrics';
 
 import { AgentOSOrchestrator } from '../../src/api/AgentOSOrchestrator';
-import { configureAgentOSObservability } from '../../src/core/observability/otel';
+import { configureAgentOSObservability } from '../../src/evaluation/observability/otel';
 import { ConversationContext } from '../../src/core/conversation/ConversationContext';
 import { GMIOutputChunkType } from '../../src/cognitive_substrate/IGMI';
 

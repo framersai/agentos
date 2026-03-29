@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PlanningEngine, type PlanningEngineConfig } from '../../../src/core/planning/PlanningEngine';
+import { PlanningEngine, type PlanningEngineConfig } from '../../../src/orchestration/planner/PlanningEngine';
 import type { AIModelProviderManager } from '../../../src/core/llm/providers/AIModelProviderManager';
-import type { ExecutionPlan, PlanStep } from '../../../src/core/planning/IPlanningEngine';
+import type { ExecutionPlan, PlanStep } from '../../../src/orchestration/planner/IPlanningEngine';
 
 // Mock generate completion function
 let mockGenerateCompletion: ReturnType<typeof vi.fn>;

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AgentOSTurnPlanner,
   type TurnPlannerConfig,
-} from '../../src/core/orchestration/TurnPlanner.js';
+} from '../../src/orchestration/turn-planner/TurnPlanner.js';
 import type {
   CapabilityDiscoveryResult,
   ICapabilityDiscoveryEngine,

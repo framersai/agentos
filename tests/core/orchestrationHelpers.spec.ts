@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { normalizeUsage, snapshotPersonaDetails } from '../../src/core/orchestration/helpers';
+import { normalizeUsage, snapshotPersonaDetails } from '../../src/orchestration/turn-planner/helpers';
 import type { CostAggregator } from '../../src/cognitive_substrate/IGMI';
 import type { IPersonaDefinition } from '../../src/cognitive_substrate/personas/IPersonaDefinition';
 

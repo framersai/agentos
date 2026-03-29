@@ -4,14 +4,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { RateLimitInfo, RateLimitInfoPublic, RateLimitInfoAuthenticated } from '../../src/types/rateLimitTypes.js';
+import type { RateLimitInfo, RateLimitInfoPublic, RateLimitInfoAuthenticated } from '../../src/core/rate-limiting/types.js';
 import {
   isPublicRateLimit,
   isAuthenticatedRateLimit,
   calculateRemainingPercentage,
   getRateLimitBannerSeverity,
   DEFAULT_RATE_LIMIT_BANNER_THRESHOLDS,
-} from '../../src/types/rateLimitTypes.js';
+} from '../../src/core/rate-limiting/types.js';
 
 describe('Rate Limit Type Guards', () => {
   it('identifies public rate limit info correctly', () => {

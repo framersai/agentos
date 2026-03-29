@@ -9,7 +9,7 @@ import {
   getSecretDefinition,
   resolveSecretForProvider,
   type ExtensionSecretDefinition,
-} from '../../src/config/extensionSecrets';
+} from '../../src/core/config/extensionSecrets';
 
 describe('ExtensionSecrets', () => {
   describe('EXTENSION_SECRET_DEFINITIONS', () => {

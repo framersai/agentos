@@ -9,7 +9,7 @@ import type { VisionResult } from '../../../vision/types.js';
 const mockProcess = vi.fn<[Buffer], Promise<VisionResult>>();
 const mockDispose = vi.fn<[], Promise<void>>();
 
-vi.mock('../../vision/index.js', () => ({
+vi.mock('../../../vision/index.js', () => ({
   createVisionPipeline: vi.fn().mockResolvedValue({
     process: (image: Buffer) => mockProcess(image),
     dispose: () => mockDispose(),

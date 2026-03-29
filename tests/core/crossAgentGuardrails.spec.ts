@@ -9,13 +9,13 @@ import {
   type CrossAgentOutputPayload,
   isCrossAgentGuardrail,
   shouldObserveAgent,
-} from '../../src/core/guardrails/ICrossAgentGuardrailService';
+} from '../../src/safety/guardrails/ICrossAgentGuardrailService';
 import {
   evaluateCrossAgentGuardrails,
   wrapWithCrossAgentGuardrails,
   filterCrossAgentGuardrails,
   type CrossAgentGuardrailContext,
-} from '../../src/core/guardrails/crossAgentGuardrailDispatcher';
+} from '../../src/safety/guardrails/crossAgentGuardrailDispatcher';
 import {
   AgentOSResponseChunkType,
   type AgentOSTextDeltaChunk,

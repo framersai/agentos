@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateSFX } from '../generateSFX.js';
 
-vi.mock('../../media/audio/index.js', () => {
+vi.mock('../../../media/audio/index.js', () => {
   const providers = new Map<string, any>();
 
   const defaultModelFor = (providerId: string): string => {
@@ -80,12 +80,12 @@ vi.mock('../../media/audio/index.js', () => {
   };
 });
 
-vi.mock('../observability.js', () => ({
+vi.mock('../../observability.js', () => ({
   attachUsageAttributes: vi.fn(),
   toTurnMetricUsage: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock('../../evaluation/observability/otel.js', () => ({
+vi.mock('../../../evaluation/observability/otel.js', () => ({
   withAgentOSSpan: vi.fn((_name: string, fn: (span: null) => unknown) => fn(null)),
   recordAgentOSTurnMetrics: vi.fn(),
 }));
@@ -99,7 +99,7 @@ describe('generateSFX', () => {
 
   beforeEach(async () => {
     process.env = { ...originalEnv };
-    const mod = await import('../../media/audio/index.js') as any;
+    const mod = await import('../../../media/audio/index.js') as any;
     mod.__resetMockProviders();
     mod.hasAudioProviderFactory.mockReturnValue(true);
   });
@@ -120,7 +120,7 @@ describe('generateSFX', () => {
       onProgress,
     });
 
-    const { __getMockProvider } = await import('../../media/audio/index.js') as any;
+    const { __getMockProvider } = await import('../../../media/audio/index.js') as any;
     expect(result.provider).toBe('elevenlabs-sfx');
     expect(result.model).toBe('eleven_sound_generation');
     expect(result.audio).toHaveLength(1);
@@ -171,7 +171,7 @@ describe('generateSFX', () => {
     delete process.env.REPLICATE_API_TOKEN;
     delete process.env.FAL_API_KEY;
 
-    const mod = await import('../../media/audio/index.js') as any;
+    const mod = await import('../../../media/audio/index.js') as any;
     mod.hasAudioProviderFactory.mockReturnValue(false);
 
     await expect(

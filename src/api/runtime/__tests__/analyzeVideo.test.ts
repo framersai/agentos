@@ -12,7 +12,7 @@ vi.mock('../../../vision/index.js', () => {
   };
 });
 
-vi.mock('../../media/video/VideoAnalyzer.js', () => {
+vi.mock('../../../media/video/VideoAnalyzer.js', () => {
   const holder = {
     constructorArgs: [] as unknown[],
     analyze: vi.fn(),
@@ -64,12 +64,12 @@ vi.mock('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js', () =>
 });
 
 // Mock observability to avoid OTel dependencies
-vi.mock('../observability.js', () => ({
+vi.mock('../../observability.js', () => ({
   attachUsageAttributes: vi.fn(),
   toTurnMetricUsage: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock('../../evaluation/observability/otel.js', () => ({
+vi.mock('../../../evaluation/observability/otel.js', () => ({
   withAgentOSSpan: vi.fn((_name: string, fn: (span: null) => unknown) => fn(null)),
   recordAgentOSTurnMetrics: vi.fn(),
 }));
@@ -85,7 +85,7 @@ describe('analyzeVideo', () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
 
-    const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
+    const analyzerMod = await import('../../../media/video/VideoAnalyzer.js') as any;
     analyzerMod.__holder.constructorArgs.length = 0;
     analyzerMod.__holder.analyze.mockReset();
 
@@ -103,7 +103,7 @@ describe('analyzeVideo', () => {
 
   it('wires the real analyzer with a vision pipeline and passes options through', async () => {
     const visionMod = await import('../../../vision/index.js') as any;
-    const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
+    const analyzerMod = await import('../../../media/video/VideoAnalyzer.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({
       durationSec: 12,
@@ -167,7 +167,7 @@ describe('analyzeVideo', () => {
   it('auto-wires OpenAI Whisper when transcription is enabled and OPENAI_API_KEY is set', async () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
 
-    const analyzerMod = await import('../../media/video/VideoAnalyzer.js') as any;
+    const analyzerMod = await import('../../../media/video/VideoAnalyzer.js') as any;
     const sttMod = await import('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({

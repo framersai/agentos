@@ -14,7 +14,7 @@
  * - Final chunk evaluation with two-phase flow
  */
 import { describe, it, expect, vi } from 'vitest';
-import { ParallelGuardrailDispatcher } from '../../../src/core/guardrails/ParallelGuardrailDispatcher';
+import { ParallelGuardrailDispatcher } from '../../../src/safety/guardrails/ParallelGuardrailDispatcher';
 import {
   GuardrailAction,
   type GuardrailEvaluationResult,
@@ -31,7 +31,7 @@ import {
   type AgentOSFinalResponseChunk,
   type AgentOSErrorChunk,
 } from '../../../src/api/types/AgentOSResponse';
-import type { GuardrailInputOutcome, GuardrailOutputOptions } from '../../../src/core/guardrails/guardrailDispatcher';
+import type { GuardrailInputOutcome, GuardrailOutputOptions } from '../../../src/safety/guardrails/guardrailDispatcher';
 
 // ---------------------------------------------------------------------------
 // Test helpers

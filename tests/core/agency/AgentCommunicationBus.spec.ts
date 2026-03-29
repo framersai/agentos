@@ -7,8 +7,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   AgentCommunicationBus,
   type AgentCommunicationBusConfig,
-} from '../../../src/core/agency/AgentCommunicationBus';
-import type { AgentMessage, DeliveryStatus } from '../../../src/core/agency/IAgentCommunicationBus';
+} from '../../../src/agents/agency/AgentCommunicationBus';
+import type { AgentMessage, DeliveryStatus } from '../../../src/agents/agency/IAgentCommunicationBus';
 
 describe('AgentCommunicationBus', () => {
   let bus: AgentCommunicationBus;

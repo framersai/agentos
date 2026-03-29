@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   ContentAdaptationEngine,
   PlatformConstraints,
-} from '../../src/social-posting/ContentAdaptationEngine';
+} from '../../src/channels/social-posting/ContentAdaptationEngine';
 
 describe('ContentAdaptationEngine', () => {
   let engine: ContentAdaptationEngine;

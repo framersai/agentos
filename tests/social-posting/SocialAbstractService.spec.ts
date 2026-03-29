@@ -4,7 +4,7 @@ import {
   SocialAbstractService,
   type SocialRequestOptions,
   type SocialServiceConfig,
-} from '../../src/social-posting/SocialAbstractService';
+} from '../../src/channels/social-posting/SocialAbstractService';
 
 class TestSocialService extends SocialAbstractService {
   constructor(config: SocialServiceConfig = {}) {

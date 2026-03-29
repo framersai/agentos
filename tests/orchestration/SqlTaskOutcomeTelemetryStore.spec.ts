@@ -8,7 +8,7 @@ vi.mock('@framers/sql-storage-adapter', () => ({
   resolveStorageAdapter: resolveStorageAdapterMock,
 }));
 
-import { SqlTaskOutcomeTelemetryStore } from '../../src/core/orchestration/SqlTaskOutcomeTelemetryStore';
+import { SqlTaskOutcomeTelemetryStore } from '../../src/orchestration/turn-planner/SqlTaskOutcomeTelemetryStore';
 
 type PersistedRow = {
   entriesJson: string;

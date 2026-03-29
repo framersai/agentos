@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { InMemoryVectorStore } from '../../src/rag/implementations/vector_stores/InMemoryVectorStore';
+import { InMemoryVectorStore } from '../../src/rag/vector_stores/InMemoryVectorStore';
 import type { VectorDocument, QueryOptions, CreateCollectionOptions } from '../../src/rag/IVectorStore';
 
 describe('InMemoryVectorStore', () => {

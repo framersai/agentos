@@ -20,7 +20,7 @@ const itIfSkills = hasSkillsPackages ? it : it.skip;
 
 describe('AgentOS docs alignment', () => {
   it('keeps the package README aligned with the high-level API surface', () => {
-    const readme = read('../../../README.md');
+    const readme = read('../../../../README.md');
     expect(readme).toContain('generateImage');
     expect(readme).toContain('providerOptions');
     expect(readme).toContain('Built-in image providers');
@@ -28,7 +28,7 @@ describe('AgentOS docs alignment', () => {
   });
 
   it('keeps the high-level API guide aligned with provider-agnostic image generation', () => {
-    const guide = read('../../../docs/HIGH_LEVEL_API.md');
+    const guide = read('../../../../docs/getting-started/HIGH_LEVEL_API.md');
     expect(guide).toContain('registerImageProviderFactory');
     expect(guide).toContain('openrouter');
     expect(guide).toContain('replicate');
@@ -36,7 +36,7 @@ describe('AgentOS docs alignment', () => {
   });
 
   itIfLiveDocs('keeps the runnable example and docs homepage aligned with the streamlined APIs', () => {
-    const example = read('../../../examples/high-level-api.mjs');
+    const example = read('../../../../examples/high-level-api.mjs');
     const docsIndex = read('../../../../../apps/agentos-live-docs/docs/index.md');
     const homepage = read('../../../../../apps/agentos-live-docs/src/pages/index.tsx');
 
@@ -47,7 +47,7 @@ describe('AgentOS docs alignment', () => {
   });
 
   itIfLiveDocs('surfaces the unified orchestration guides in the package docs and live docs indexes', () => {
-    const packageDocsIndex = read('../../../docs/README.md');
+    const packageDocsIndex = read('../../../../docs/README.md');
     const liveDocsIndex = read('../../../../../apps/agentos-live-docs/docs/index.md');
     const documentationIndex = read('../../../../../apps/agentos-live-docs/docs/getting-started/documentation-index.md');
 
@@ -62,7 +62,7 @@ describe('AgentOS docs alignment', () => {
   itIfSkills('references the 3-tier skills architecture (engine + content + catalog SDK)', () => {
     const contentPackage = JSON.parse(read('../../../../agentos-skills/package.json'));
     const catalogSdkPackage = JSON.parse(read('../../../../agentos-skills-registry/package.json'));
-    const packageSkillsGuide = read('../../../docs/SKILLS.md');
+    const packageSkillsGuide = read('../../../../docs/extensions/SKILLS.md');
 
     // @framers/agentos-skills is now the CONTENT package (SKILL.md files + registry.json)
     expect(contentPackage.name).toBe('@framers/agentos-skills');

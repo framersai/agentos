@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LogRecord, Logger as OtelLogger, LoggerProvider } from '@opentelemetry/api-logs';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 
-import { configureAgentOSObservability } from '../../src/core/observability/otel';
-import { PinoLogger } from '../../src/logging/PinoLogger';
+import { configureAgentOSObservability } from '../../src/evaluation/observability/otel';
+import { PinoLogger } from '../../src/core/logging/PinoLogger';
 
 class InMemoryLogger implements OtelLogger {
   public readonly records: LogRecord[] = [];

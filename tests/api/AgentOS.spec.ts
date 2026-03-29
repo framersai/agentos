@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentOS, type AgentOSConfig } from '../../src/api/AgentOS';
 import { AgentOSOrchestrator } from '../../src/api/AgentOSOrchestrator';
-import { createTestAgentOSConfig } from '../../src/config/AgentOSConfig';
+import { createTestAgentOSConfig } from '../../src/core/config/AgentOSConfig';
 import {
   AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY,
   type AgentOSPendingExternalToolRequest,
@@ -18,6 +18,8 @@ import {
 import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
 import { Memory } from '../../src/memory/io/facade/Memory';
+import { WorkflowFacade } from '../../src/api/runtime/WorkflowFacade';
+import { RagMemoryInitializer } from '../../src/api/runtime/RagMemoryInitializer';
 
 function createConfig(overrides: Partial<AgentOSConfig> = {}): AgentOSConfig {
   return {
@@ -66,10 +68,8 @@ describe('AgentOS memory tool auto-registration', () => {
   let agentOSOrchestratorInitializeSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    vi.spyOn(AgentOS.prototype as any, 'initializeWorkflowRuntime').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'startWorkflowRuntime').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'initializeTurnPlanner').mockResolvedValue(undefined);
-    vi.spyOn(AgentOS.prototype as any, 'initializeRagSubsystem').mockResolvedValue(undefined);
+    vi.spyOn(WorkflowFacade.prototype, 'initialize').mockResolvedValue(undefined);
+    vi.spyOn(RagMemoryInitializer.prototype, 'initializeRag').mockResolvedValue(undefined);
     vi.spyOn(PromptEngine.prototype, 'initialize').mockResolvedValue(undefined);
     vi.spyOn(PromptEngine.prototype, 'clearCache').mockResolvedValue(undefined);
     vi.spyOn(GMIManager.prototype, 'initialize').mockResolvedValue(undefined);
@@ -249,7 +249,8 @@ describe('AgentOS memory tool auto-registration', () => {
       ])
     );
 
-    const capabilitySources = (agentos as any).buildCapabilityIndexSources();
+    const discoveryInit = (agentos as any).discoveryInitializer;
+    const capabilitySources = discoveryInit?.buildCapabilityIndexSources?.() ?? { tools: [] };
     expect(capabilitySources.tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

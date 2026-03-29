@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Tracer, InMemorySpanExporter, ConsoleSpanExporter } from '../../../src/core/observability/Tracer';
-import { SemanticAttributes } from '../../../src/core/observability/ITracer';
+import { Tracer, InMemorySpanExporter, ConsoleSpanExporter } from '../../../src/evaluation/observability/Tracer';
+import { SemanticAttributes } from '../../../src/evaluation/observability/ITracer';
 
 describe('Tracer', () => {
   let tracer: Tracer;

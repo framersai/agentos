@@ -16,19 +16,19 @@ vi.mock('p-queue', () => {
   return { default: ImmediateQueue };
 });
 
-import { WorkflowRuntime } from '../../../src/core/workflows/runtime/WorkflowRuntime';
+import { WorkflowRuntime } from '../../../src/orchestration/workflows/runtime/WorkflowRuntime';
 import type {
   WorkflowDefinition,
   WorkflowInstance,
   WorkflowTaskDefinition,
-} from '../../../src/core/workflows/WorkflowTypes';
-import { WorkflowTaskStatus } from '../../../src/core/workflows/WorkflowTypes';
-import type { WorkflowEngine } from '../../../src/core/workflows/WorkflowEngine';
+} from '../../../src/orchestration/workflows/WorkflowTypes';
+import { WorkflowTaskStatus } from '../../../src/orchestration/workflows/WorkflowTypes';
+import type { WorkflowEngine } from '../../../src/orchestration/workflows/WorkflowEngine';
 import type { GMIManager } from '../../../src/cognitive_substrate/GMIManager';
 import type { StreamingManager } from '../../../src/core/streaming/StreamingManager';
 import type { IToolOrchestrator } from '../../../src/core/tools/IToolOrchestrator';
 import type { ToolExecutionRequestDetails } from '../../../src/core/tools/ToolExecutor';
-import { AgencyRegistry } from '../../../src/core/agency/AgencyRegistry';
+import { AgencyRegistry } from '../../../src/agents/agency/AgencyRegistry';
 import {
   GMIInteractionType,
   GMIOutputChunkType,

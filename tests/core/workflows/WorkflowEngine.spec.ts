@@ -4,15 +4,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { WorkflowEngine } from '../../../src/core/workflows/WorkflowEngine';
-import type { IWorkflowStore, WorkflowTaskUpdate } from '../../../src/core/workflows/storage/IWorkflowStore';
+import { WorkflowEngine } from '../../../src/orchestration/workflows/WorkflowEngine';
+import type { IWorkflowStore, WorkflowTaskUpdate } from '../../../src/orchestration/workflows/storage/IWorkflowStore';
 import {
   WorkflowDefinition,
   WorkflowInstance,
   WorkflowStatus,
   WorkflowTaskStatus,
   WorkflowEvent,
-} from '../../../src/core/workflows/WorkflowTypes';
+} from '../../../src/orchestration/workflows/WorkflowTypes';
 
 function createMockStore(): IWorkflowStore {
   const instances = new Map<string, WorkflowInstance>();

@@ -8,7 +8,7 @@ import {
   generateUUID,
   uuidv4,
   generateUniqueId,
-} from '../../src/utils/uuid';
+} from '../../src/core/utils/uuid';
 
 describe('UUID Utilities', () => {
   describe('generateUUID', () => {

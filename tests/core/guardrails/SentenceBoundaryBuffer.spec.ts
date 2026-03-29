@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SentenceBoundaryBuffer } from '../../../src/core/guardrails/SentenceBoundaryBuffer.js';
+import { SentenceBoundaryBuffer } from '../../../src/safety/guardrails/SentenceBoundaryBuffer.js';
 
 describe('SentenceBoundaryBuffer', () => {
   it('returns null while accumulating', () => {

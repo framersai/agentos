@@ -24,7 +24,7 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-vi.mock('../model.js', () => ({
+vi.mock('../../model.js', () => ({
   resolveModelOption: vi.fn(() => ({ providerId: 'openai', modelId: 'gpt-4o' })),
   resolveProvider: vi.fn(() => ({ providerId: 'openai', modelId: 'gpt-4o', apiKey: 'test-key' })),
   createProviderManager: hoisted.createProviderManager,
