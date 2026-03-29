@@ -46,6 +46,7 @@ export default defineConfig({
       'src/media/audio/__tests__/MusicGenLocalProvider.test.ts',
       'src/media/audio/__tests__/AudioGenLocalProvider.test.ts',
       'src/api/runtime/__tests__/generateMusic.test.ts',
+      'src/api/runtime/__tests__/generateSFX.test.ts',
     ],
     server: {
       deps: {

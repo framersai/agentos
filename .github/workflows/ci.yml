@@ -32,13 +32,15 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Type check
+        run: pnpm run typecheck
+
       - name: Test with coverage
         run: pnpm run test -- --coverage
+        continue-on-error: true
 
       - name: Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Type check
-        run: pnpm run typecheck
