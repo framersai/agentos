@@ -83,7 +83,7 @@
 
 ## Overview
 
-`@framers/agentos` is an open-source TypeScript AI agent runtime for building, deploying, and managing production AI agents. It provides multimodal RAG with cognitive memory (Ebbinghaus decay), multi-agent orchestration, 37 channel adapters, 5-tier guardrails with prompt injection defense, 21 LLM providers, and 40 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
+`@framers/agentos` is an open-source TypeScript AI agent runtime for building, deploying, and managing production AI agents. It provides multimodal RAG with cognitive memory (Ebbinghaus decay, 8 neuroscience-backed mechanisms including reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist extraction, schema encoding, source confidence decay, and emotion regulation — all HEXACO personality-modulated), multi-agent orchestration, 37 channel adapters, 5-tier guardrails with prompt injection defense, 21 LLM providers, and 72 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
 
 **Key facts:**
 
@@ -106,14 +106,19 @@
 | `uuid` | Unique identifier generation |
 | `yaml` | YAML config parsing (agent configs, skill definitions) |
 
+**Required peer dependency:**
+
+| Dependency | Purpose |
+|------------|---------|
+| `@framers/sql-storage-adapter` | Cross-platform SQL persistence (SQLite, sql.js, IndexedDB, Postgres) — required for memory, knowledge graph, and trace storage |
+
 **Optional peer dependencies:**
 
 | Peer Dependency | Purpose |
 |-----------------|---------|
-| `@framers/sql-storage-adapter` | SQL-backed vector store and persistence |
-| `graphology` + `graphology-communities-louvain` | GraphRAG community detection |
-| `hnswlib-node` | HNSW-based approximate nearest neighbor search |
-| `neo4j-driver` | Neo4j-backed vector + GraphRAG persistence |
+| `graphology` + `graphology-communities-louvain` | GraphRAG community detection and memory graph clustering |
+| `hnswlib-node` | HNSW-based approximate nearest neighbor search (falls back to brute-force without) |
+| `neo4j-driver` | Neo4j-backed knowledge graph and GraphRAG (falls back to SQLite without) |
 
 ---
 
@@ -125,7 +130,7 @@
 | **@framers/agentos-extensions** | Official extension registry (45+ extensions) | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions) · [GitHub](https://github.com/framersai/agentos-extensions) |
 | **@framers/agentos-extensions-registry** | Curated manifest builder | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions-registry) · [GitHub](https://github.com/framersai/agentos-extensions-registry) |
 | **@framers/agentos-skills-registry** | Skills catalog SDK (query helpers + snapshot factories) | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills-registry) · [GitHub](https://github.com/framersai/agentos-skills-registry) |
-| **@framers/agentos-skills** | Skills content (69 SKILL.md files + registry.json) | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills) · [GitHub](https://github.com/framersai/agentos-skills) |
+| **@framers/agentos-skills** | Skills content (72 SKILL.md files + registry.json) | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills) · [GitHub](https://github.com/framersai/agentos-skills) |
 | **docs.agentos.sh** | Documentation site (Docusaurus) | [GitHub](https://github.com/framersai/agentos-live-docs) · [docs.agentos.sh](https://docs.agentos.sh) |
 
 ### Guardrail Extensions
@@ -524,12 +529,36 @@ graph TB
   - `Generalist` -- Balanced, conversational
   - `Atlas` -- Navigation and spatial reasoning
   - `Default Assistant` -- General-purpose helpful assistant
-- **Memory subsystem** (`memory/`) -- Four-layer memory architecture:
-  - **Working memory** -- Current session state, active tool context, conversation buffer
-  - **Episodic memory** -- Timestamped events and interactions
-  - **Semantic memory** -- Extracted facts, entity relationships, domain knowledge
-  - **Procedural memory** -- Learned skills, patterns, and execution strategies
-  - **Cognitive mechanisms** (`memory/mechanisms/`) -- 8 optional neuroscience-grounded mechanisms: reconsolidation drift (Nader et al., 2000), retrieval-induced forgetting (Anderson et al., 1994), involuntary recall (Berntsen, 2009), metacognitive feeling-of-knowing (Nelson & Narens, 1990), temporal gist extraction (Reyna & Brainerd, 1995), schema encoding (Bartlett, 1932), source confidence decay (Johnson et al., 1993), emotion regulation (Gross, 1998). All HEXACO personality-modulated, individually configurable. See `docs/memory/COGNITIVE_MECHANISMS.md`.
+- **Memory subsystem** (`memory/`) -- 5 memory types, 4-tier hierarchy, 8 cognitive mechanisms:
+
+  **Memory types** (Tulving's long-term memory taxonomy):
+  | Type | Cognitive Model | Usage |
+  |------|----------------|-------|
+  | `episodic` | Autobiographical events | Conversation events, interactions |
+  | `semantic` | General knowledge/facts | Learned facts, preferences, schemas |
+  | `procedural` | Skills and how-to | Workflows, tool usage patterns |
+  | `prospective` | Future intentions | Goals, reminders, planned actions |
+  | `working` | Baddeley's model | Current session state, active context (7 +/- 2 slots) |
+
+  **4-tier directory hierarchy:**
+  - `core/` -- Types, config, encoding (Yerkes-Dodson, flashbulb, HEXACO-weighted), decay (Ebbinghaus curves + spaced repetition), working memory, prompt assembly
+  - `retrieval/` -- MemoryStore (6-signal composite scoring), memory graph (spreading activation), prospective memory, retrieval feedback
+  - `pipeline/` -- Consolidation (merge, prune, promote, schema extraction), observation (buffer, compress, reflect), lifecycle management, infinite context window
+  - `io/` -- Document ingestion (PDF, DOCX, HTML, Markdown, URL), import/export (JSON, Obsidian, SQLite, ChatGPT, CSV), facade API, memory tools, extensions
+
+  **Cognitive mechanisms** (`memory/mechanisms/`) -- 8 optional, all HEXACO personality-modulated:
+  | Mechanism | Citation | Effect |
+  |-----------|----------|--------|
+  | Reconsolidation | Nader et al., 2000 | Retrieved memories drift toward current mood |
+  | Retrieval-Induced Forgetting | Anderson et al., 1994 | Retrieving one memory suppresses similar competitors |
+  | Involuntary Recall | Berntsen, 2009 | Random surfacing of old high-vividness memories |
+  | Metacognitive FOK | Nelson & Narens, 1990 | Feeling-of-knowing scoring for tip-of-tongue states |
+  | Temporal Gist | Reyna & Brainerd, 1995 | Old traces compressed to core assertions |
+  | Schema Encoding | Bartlett, 1932 | Novel input boosted, schema-matching encoded efficiently |
+  | Source Confidence Decay | Johnson et al., 1993 | Agent inferences decay faster than observations |
+  | Emotion Regulation | Gross, 1998 | Reappraisal + suppression during consolidation |
+
+  See `docs/memory/COGNITIVE_MECHANISMS.md` for API reference and 30+ APA citations.
 
 ---
 
