@@ -1,3 +1,10 @@
+## <small>0.1.136 (2026-03-29)</small>
+
+* fix(ci): exclude onnxruntime native tests, add test count badge ([858cb7b](https://github.com/framersai/agentos/commit/858cb7b))
+* docs: add DOI hyperlinks to all cognitive mechanism citations in README ([3ae7ccb](https://github.com/framersai/agentos/commit/3ae7ccb))
+* docs: comprehensive memory types, 4-tier hierarchy, 8 cognitive mechanisms ([8eb9ab1](https://github.com/framersai/agentos/commit/8eb9ab1))
+* docs: multi-provider examples, provider-first pattern, default models table ([c346007](https://github.com/framersai/agentos/commit/c346007))
+
 ## <small>0.1.135 (2026-03-29)</small>
 
 * fix(ci): resolve sql-storage-adapter in standalone CI without monorepo sibling ([1087b02](https://github.com/framersai/agentos/commit/1087b02))
