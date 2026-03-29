@@ -138,6 +138,52 @@ console.log(result.text);
 
 ---
 
+## Personality (Optional)
+
+HEXACO personality traits modulate encoding strength, retrieval bias, memory decay, and cognitive mechanisms. They're **completely optional** — omit them for purely objective behavior.
+
+```typescript
+// ── Personality-driven agent (warm, curious, detail-oriented) ─────────────
+const empathicAgent = agent({
+  provider: 'openai',
+  instructions: 'You are a supportive mentor.',
+  personality: {
+    emotionality: 0.8,  // warm, empathetic responses
+    openness: 0.9,      // curious, exploratory
+    conscientiousness: 0.85,
+    agreeableness: 0.8,
+  },
+});
+
+// ── No personality (purely objective) ─────────────────────────────────────
+const objectiveAgent = agent({
+  provider: 'openai',
+  instructions: 'You are a factual analyst. Be precise and neutral.',
+  // personality: omitted — all encoding weights default to uniform (0.5)
+});
+
+// ── Selective traits (only set what matters) ──────────────────────────────
+const analyticalAgent = agent({
+  provider: 'anthropic',
+  instructions: 'You are a research assistant.',
+  personality: {
+    conscientiousness: 0.95,  // meticulous, thorough
+    openness: 0.7,            // open to new ideas
+    // other traits: default to 0.5 (neutral)
+  },
+});
+```
+
+When personality is omitted:
+- Memory encoding uses **uniform weights** (no trait-driven bias)
+- Cognitive mechanisms use **default parameters** (no HEXACO modulation)
+- System prompt includes **no behavior traits** section
+- The agent behaves as a purely objective, trait-neutral assistant
+
+You can also disable personality per-turn by passing `personality: undefined` to individual method calls while the base agent retains its configured traits.
+
+---
+
 ## First End-to-End Example
 
 This complete example uses tools, streaming, and a basic session:
@@ -210,6 +256,8 @@ Usage: { inputTokens: 312, outputTokens: 487, totalTokens: 799, estimatedCost: 0
 | Publish to social platforms                       | [SOCIAL_POSTING.md](./SOCIAL_POSTING.md)     |
 | Audit trails and tamper evidence                  | [PROVENANCE.md](./PROVENANCE.md)             |
 | Episodic, semantic, procedural memory             | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) |
+| 8 cognitive mechanisms (reconsolidation, RIF, FOK) | [COGNITIVE_MECHANISMS.md](./COGNITIVE_MECHANISMS.md) |
+| HEXACO personality traits and on/off configuration | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md#hexaco-personality-modulation) |
 | Testing and benchmarking agents                   | [EVALUATION.md](./EVALUATION.md)             |
 | Token-efficient capability discovery              | [DISCOVERY.md](./DISCOVERY.md)               |
 | Image generation across 5 providers               | [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) |
