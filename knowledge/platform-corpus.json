@@ -1290,6 +1290,36 @@
     "category": "faq"
   },
   {
+    "id": "faq:setup-gmail",
+    "heading": "How to set up Gmail integration",
+    "content": "To set up Gmail: 1) User needs a Google Cloud project with Gmail API enabled. 2) Create OAuth 2.0 credentials (Desktop app type). 3) Google downloads a client_secret_*.json file. 4) The file contains {\"installed\": {\"client_id\": \"...\", \"client_secret\": \"...\"}}. 5) Extract client_id and client_secret. 6) Set as GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET env vars, or pass to wunderland connect gmail --credentials <path>. 7) Run wunderland connect gmail to complete OAuth flow. If the user says they downloaded a credentials file, use shell_execute to find it: ls -t ~/Downloads/client_secret*.json | head -1. Then use file_read to parse it and extract the values.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:setup-credentials-general",
+    "heading": "How to help users set up API credentials",
+    "content": "When a user needs to set up credentials for any service: 1) Check what the extension needs using discover_capabilities or the platform knowledge. 2) Each extension lists requiredSecrets in the capability catalog. 3) Common patterns: API keys go in env vars or agent.config.json secrets. OAuth flows (Gmail, Slack, Discord) use wunderland connect <service>. 4) If the user has downloaded a credentials file, offer to read it: use shell_execute to find files (ls ~/Downloads/*.json) and file_read to parse them. 5) For Google services, the file is client_secret_*.json with format {\"installed\": {\"client_id\": \"...\", \"client_secret\": \"...\"}}. 6) For other services, API keys are usually plain text strings from their dashboard. 7) After extracting credentials, either set env vars with shell_execute (export KEY=value >> ~/.bashrc) or write to ~/.wunderland/config.json.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:find-credential-files",
+    "heading": "How to find credential files on the user system",
+    "content": "When a user says they downloaded credentials or a secret file: 1) Check common download locations: ~/Downloads/, ~/Desktop/, current directory. 2) Use shell_execute with ls -t to find recent files: ls -t ~/Downloads/*.json ~/Downloads/*.txt 2>/dev/null | head -10. 3) For Google: ls -t ~/Downloads/client_secret*.json | head -1. 4) For AWS: look for ~/.aws/credentials or downloaded CSV from IAM console. 5) For SSH keys: look for ~/.ssh/id_*.pub. 6) Always confirm with the user before reading any file. 7) Parse the file with file_read and extract the relevant values. 8) Never store raw credential files — extract the needed values and save them securely.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:extension-credentials",
+    "heading": "What credentials each extension needs",
+    "content": "Common extension credential requirements: Gmail: GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + GOOGLE_REFRESH_TOKEN (OAuth). GitHub: GITHUB_TOKEN (Personal Access Token from github.com/settings/tokens). Slack: SLACK_BOT_TOKEN + SLACK_SIGNING_SECRET. Discord: DISCORD_BOT_TOKEN. Telegram: TELEGRAM_BOT_TOKEN (from @BotFather). OpenAI: OPENAI_API_KEY (from platform.openai.com/api-keys). Anthropic: ANTHROPIC_API_KEY. Serper: SERPER_API_KEY (from serper.dev). ElevenLabs: ELEVENLABS_API_KEY. Stability: STABILITY_API_KEY. Replicate: REPLICATE_API_TOKEN. Runway: RUNWAY_API_KEY. Suno: SUNO_API_KEY. Brave: BRAVE_API_KEY. NewsAPI: NEWSAPI_API_KEY. Giphy: GIPHY_API_KEY.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:wunderland-connect",
+    "heading": "wunderland connect command reference",
+    "content": "wunderland connect <service> starts an OAuth flow for services that need it. Supported: gmail (Google OAuth to Gmail API access), whatsapp (Twilio or Meta Cloud API), slack (OAuth via Rabbithole), signal (signal-cli setup wizard). For Gmail: wunderland connect gmail [--credentials path/to/client_secret.json]. The --credentials flag reads a Google Cloud Console JSON file and extracts client_id + client_secret automatically. Without it, needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET env vars. After OAuth completes, tokens are saved to ~/.wunderland/config.json and automatically loaded on next wunderland chat/start.",
+    "category": "faq"
+  },
+  {
     "id": "api:generateText",
     "heading": "generateText() API",
     "content": "import { generateText } from '@framers/agentos'. generateText({ model: 'openai:gpt-4o', prompt: 'Hello', system?: '...', tools?: [...], maxSteps?: 5, temperature?: 0.7 }) -> Promise<{ text, provider, model, usage, toolCalls }>. The core text generation function supporting all 21 LLM providers.",
