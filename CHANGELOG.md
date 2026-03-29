@@ -1,3 +1,7 @@
+## <small>0.1.139 (2026-03-29)</small>
+
+* fix(lint): replace dynamic require() with static imports in QueryClassifier ([3925405](https://github.com/framersai/agentos/commit/3925405))
+
 ## <small>0.1.138 (2026-03-29)</small>
 
 * feat(query-router): wire capability catalog into plan-aware classifier + surface recommendations ([3fdf26d](https://github.com/framersai/agentos/commit/3fdf26d))
