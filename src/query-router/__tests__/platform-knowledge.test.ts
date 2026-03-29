@@ -166,6 +166,7 @@ describe('Platform Knowledge Integration', () => {
       model: 'gpt-4o-mini',
       usage: { promptTokens: 50, completionTokens: 30, totalTokens: 80 },
       toolCalls: [],
+      finishReason: 'stop',
     });
 
     // The generator will produce the final answer
@@ -175,6 +176,7 @@ describe('Platform Knowledge Integration', () => {
       model: 'gpt-4o-mini',
       usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
       toolCalls: [],
+      finishReason: 'stop',
     });
 
     const result = await router.route('How do I add voice to my agent?');

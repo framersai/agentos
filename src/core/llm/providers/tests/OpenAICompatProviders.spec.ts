@@ -8,7 +8,7 @@
  * - Are properly registered in PROVIDER_DEFAULTS and auto-detection
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Mock the OpenAI provider's initialize method so we can capture config
