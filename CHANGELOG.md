@@ -1,3 +1,7 @@
+## <small>0.1.150 (2026-03-29)</small>
+
+* feat(knowledge): add credential setup workflow entries to platform corpus ([71c922c](https://github.com/framersai/agentos/commit/71c922c))
+
 ## <small>0.1.149 (2026-03-29)</small>
 
 * fix: reorder auto-detect priority (OpenAI first) + warn on Anthropic fallback ([646dab3](https://github.com/framersai/agentos/commit/646dab3))
