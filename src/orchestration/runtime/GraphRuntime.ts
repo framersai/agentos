@@ -109,6 +109,29 @@ function shouldTriggerPlannerReevaluation(
     && completedNodeCount % reevalInterval === 0;
 }
 
+function getParallelBatchSizeBeforePlannerReevaluation(
+  reevalInterval: number | undefined,
+  completedNodeCountBeforeBatch: number,
+  readyNodeCount: number,
+): number {
+  if (
+    typeof reevalInterval !== 'number'
+    || !Number.isFinite(reevalInterval)
+    || reevalInterval <= 0
+    || readyNodeCount <= 0
+  ) {
+    return readyNodeCount;
+  }
+
+  const completedSinceLastBoundary = completedNodeCountBeforeBatch % reevalInterval;
+  const remainingUntilBoundary =
+    completedSinceLastBoundary === 0
+      ? reevalInterval
+      : reevalInterval - completedSinceLastBoundary;
+
+  return Math.min(readyNodeCount, remainingUntilBoundary);
+}
+
 // ---------------------------------------------------------------------------
 // GraphRuntime
 // ---------------------------------------------------------------------------
@@ -199,7 +222,20 @@ export class GraphRuntime {
       //
       // Single-node batches fall through to the same code path (Promise.all
       // with a single element) so the logic is unified.
-      if (!this.config.expansionHandler && readyNodes.length > 1) {
+      const parallelBatchSize =
+        readyNodes.length > 1
+          ? (
+            this.config.expansionHandler
+              ? getParallelBatchSizeBeforePlannerReevaluation(
+                  this.config.reevalInterval,
+                  completedNodes.length,
+                  readyNodes.length,
+                )
+              : readyNodes.length
+          )
+          : readyNodes.length;
+      if (parallelBatchSize > 1) {
+        const parallelReadyNodes = readyNodes.slice(0, parallelBatchSize);
         // Snapshot the state before fan-out so each branch starts from the
         // same baseline. After all branches complete, we merge their scratch
         // updates back into this baseline.
@@ -212,6 +248,7 @@ export class GraphRuntime {
           nodeId: string;
           events: GraphEvent[];
           branchState: GraphState;
+          expansionRequests?: GraphExpansionRequest[];
           earlyTermination?: {
             type: 'interrupt' | 'error';
             events: GraphEvent[];
@@ -219,7 +256,7 @@ export class GraphRuntime {
         }> = [];
 
         const parallelOutcomes = await Promise.all(
-          readyNodes.map(async (nodeId) => {
+          parallelReadyNodes.map(async (nodeId) => {
             const node = activeGraph.nodes.find(n => n.id === nodeId);
             if (!node) {
               skippedNodes.push(nodeId);
@@ -323,7 +360,12 @@ export class GraphRuntime {
               events.push({ type: 'checkpoint_saved', checkpointId, nodeId });
             }
 
-            return { nodeId, events, branchState };
+            return {
+              nodeId,
+              events,
+              branchState,
+              expansionRequests: [...(result.expansionRequests ?? [])],
+            };
           }),
         );
 
@@ -374,6 +416,78 @@ export class GraphRuntime {
         // reducer configuration determines how conflicts are resolved.
         if (successfulBranches.length > 0) {
           state = stateManager.mergeParallelBranches(baseState, successfulBranches);
+        }
+
+        if (this.config.expansionHandler) {
+          const expansionQueue: Array<{
+            nodeId: string;
+            request: GraphExpansionRequest;
+          }> = [];
+
+          for (const outcome of parallelOutcomes) {
+            if (!outcome || outcome.earlyTermination || !outcome.expansionRequests?.length) continue;
+
+            for (const request of outcome.expansionRequests) {
+              expansionQueue.push({
+                nodeId: outcome.nodeId,
+                request,
+              });
+            }
+          }
+
+          if (shouldTriggerPlannerReevaluation(this.config.reevalInterval, completedNodes.length)) {
+            const lastCompletedNodeId = parallelReadyNodes[parallelReadyNodes.length - 1]!;
+            expansionQueue.push({
+              nodeId: lastCompletedNodeId,
+              request: {
+                trigger: 'planner_reeval',
+                reason: `Periodic reevaluation after ${completedNodes.length} completed nodes`,
+                request: {
+                  completedNodeCount: completedNodes.length,
+                  lastCompletedNodeId,
+                },
+              },
+            });
+          }
+
+          if (expansionQueue.length > 0) {
+            const checkpointNodeId = expansionQueue[expansionQueue.length - 1]!.nodeId;
+            const checkpointIdBefore = await this.saveCheckpoint(
+              activeGraph,
+              runId,
+              checkpointNodeId,
+              state,
+              nodeResults,
+              completedNodes,
+              skippedNodes,
+              [],
+            );
+            state = this.attachCheckpointMetadata(state, checkpointIdBefore);
+            yield { type: 'checkpoint_saved', checkpointId: checkpointIdBefore, nodeId: checkpointNodeId };
+            yield { type: 'mission:checkpoint_saved', checkpointId: checkpointIdBefore, nodeId: checkpointNodeId };
+
+            for (const { nodeId, request } of expansionQueue) {
+              const expansionOutcome = await this.config.expansionHandler.handle({
+                graph: activeGraph,
+                runId,
+                nodeId,
+                state,
+                request,
+                checkpointIdBefore,
+                completedNodes: [...completedNodes],
+                skippedNodes: [...skippedNodes],
+                nodeResults: nodeResults as GraphExpansionContext['nodeResults'],
+              });
+
+              for (const event of expansionOutcome?.events ?? []) {
+                yield event;
+              }
+
+              if (expansionOutcome?.graph) {
+                activeGraph = expansionOutcome.graph;
+              }
+            }
+          }
         }
       } else {
         // ── Sequential execution (single ready node) ─────────────────────────

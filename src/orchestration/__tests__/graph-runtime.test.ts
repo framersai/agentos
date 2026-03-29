@@ -80,6 +80,65 @@ function makeLinearGraph(
   };
 }
 
+function makeParallelJoinGraph(
+  id: string,
+  left: GraphNode,
+  right: GraphNode,
+  join: GraphNode,
+  options: Partial<CompiledExecutionGraph> = {},
+): CompiledExecutionGraph {
+  return {
+    id,
+    name: id,
+    nodes: [left, right, join],
+    edges: [
+      { id: 'start-left', source: START, target: left.id, type: 'static' as const },
+      { id: 'start-right', source: START, target: right.id, type: 'static' as const },
+      { id: 'left-join', source: left.id, target: join.id, type: 'static' as const },
+      { id: 'right-join', source: right.id, target: join.id, type: 'static' as const },
+      { id: 'join-end', source: join.id, target: END, type: 'static' as const },
+    ],
+    stateSchema: { input: {}, scratch: {}, artifacts: {} },
+    reducers: {},
+    checkpointPolicy: 'explicit',
+    memoryConsistency: 'live',
+    ...options,
+  };
+}
+
+function makeWideParallelJoinGraph(
+  id: string,
+  branches: GraphNode[],
+  join: GraphNode,
+  options: Partial<CompiledExecutionGraph> = {},
+): CompiledExecutionGraph {
+  return {
+    id,
+    name: id,
+    nodes: [...branches, join],
+    edges: [
+      ...branches.map((branch) => ({
+        id: `start-${branch.id}`,
+        source: START,
+        target: branch.id,
+        type: 'static' as const,
+      })),
+      ...branches.map((branch) => ({
+        id: `${branch.id}-join`,
+        source: branch.id,
+        target: join.id,
+        type: 'static' as const,
+      })),
+      { id: 'join-end', source: join.id, target: END, type: 'static' as const },
+    ],
+    stateSchema: { input: {}, scratch: {}, artifacts: {} },
+    reducers: {},
+    checkpointPolicy: 'explicit',
+    memoryConsistency: 'live',
+    ...options,
+  };
+}
+
 /**
  * Create a `NodeExecutor` whose `execute()` is fully controlled by the supplied mock.
  *
@@ -1041,6 +1100,175 @@ describe('GraphRuntime', () => {
     expect(visitedIds).toEqual(['a']);
     expect(eventTypes).toContain('mission:approval_required');
     expect(eventTypes).not.toContain('mission:expansion_applied');
+  });
+
+  it('processes expansion requests after a parallel batch when reevaluation is not crossed', async () => {
+    const store = new InMemoryCheckpointStore();
+    let activeExecutions = 0;
+    let maxConcurrentExecutions = 0;
+
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      activeExecutions += 1;
+      maxConcurrentExecutions = Math.max(maxConcurrentExecutions, activeExecutions);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      activeExecutions -= 1;
+
+      if (node.id === 'a') {
+        return {
+          success: true,
+          output: 'a-done',
+          expansionRequests: [
+            {
+              trigger: 'agent_request',
+              reason: 'Need verifier after parallel work',
+              request: { need: 'verifier' },
+            },
+          ],
+        };
+      }
+
+      return {
+        success: true,
+        output: `${node.id}-done`,
+      };
+    });
+
+    const expansionHandler = {
+      handle: vi.fn(async () => null),
+    };
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      expansionHandler,
+      reevalInterval: 5,
+    });
+
+    const graph = makeParallelJoinGraph(
+      'g-expansion-parallel-batch',
+      makeNode('a'),
+      makeNode('b'),
+      makeNode('join'),
+    );
+
+    const visitedIds: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      if (event.type === 'node_start') {
+        visitedIds.push(event.nodeId);
+      }
+    }
+
+    expect(maxConcurrentExecutions).toBe(2);
+    expect(expansionHandler.handle).toHaveBeenCalledTimes(1);
+    expect(expansionHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodeId: 'a',
+        request: expect.objectContaining({
+          trigger: 'agent_request',
+        }),
+      }),
+    );
+    expect(visitedIds).toEqual(expect.arrayContaining(['a', 'b', 'join']));
+  });
+
+  it('keeps a full parallel batch when it lands exactly on a reevaluation boundary', async () => {
+    const store = new InMemoryCheckpointStore();
+    let activeExecutions = 0;
+    let maxConcurrentExecutions = 0;
+
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      activeExecutions += 1;
+      maxConcurrentExecutions = Math.max(maxConcurrentExecutions, activeExecutions);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      activeExecutions -= 1;
+      return {
+        success: true,
+        output: `${node.id}-done`,
+      };
+    });
+
+    const expansionHandler = {
+      handle: vi.fn(async () => null),
+    };
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      expansionHandler,
+      reevalInterval: 2,
+    });
+
+    const graph = makeParallelJoinGraph(
+      'g-expansion-sequential-reeval-boundary',
+      makeNode('a'),
+      makeNode('b'),
+      makeNode('join'),
+    );
+
+    for await (const _event of runtime.stream(graph, {})) {
+      // Consume the full stream.
+    }
+
+    expect(maxConcurrentExecutions).toBe(2);
+    expect(expansionHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodeId: 'b',
+        request: expect.objectContaining({
+          trigger: 'planner_reeval',
+        }),
+      }),
+    );
+  });
+
+  it('splits a wide parallel fan-out at the next reevaluation boundary instead of fully serializing it', async () => {
+    const store = new InMemoryCheckpointStore();
+    let activeExecutions = 0;
+    let maxConcurrentExecutions = 0;
+
+    const executeMock = vi.fn().mockImplementation(async (node: GraphNode): Promise<NodeExecutionResult> => {
+      activeExecutions += 1;
+      maxConcurrentExecutions = Math.max(maxConcurrentExecutions, activeExecutions);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      activeExecutions -= 1;
+      return {
+        success: true,
+        output: `${node.id}-done`,
+      };
+    });
+
+    const expansionHandler = {
+      handle: vi.fn(async () => null),
+    };
+
+    const runtime = new GraphRuntime({
+      checkpointStore: store,
+      nodeExecutor: makeExecutorWithMock(executeMock),
+      expansionHandler,
+      reevalInterval: 2,
+    });
+
+    const graph = makeWideParallelJoinGraph(
+      'g-expansion-partial-parallel-reeval-boundary',
+      [makeNode('a'), makeNode('b'), makeNode('c')],
+      makeNode('join'),
+    );
+
+    const visitedIds: string[] = [];
+    for await (const event of runtime.stream(graph, {})) {
+      if (event.type === 'node_start') {
+        visitedIds.push(event.nodeId);
+      }
+    }
+
+    expect(maxConcurrentExecutions).toBe(2);
+    expect(expansionHandler.handle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          trigger: 'planner_reeval',
+        }),
+      }),
+    );
+    expect(visitedIds).toEqual(expect.arrayContaining(['a', 'b', 'c', 'join']));
   });
 
   it('triggers periodic planner reevaluation after the configured number of completed nodes', async () => {

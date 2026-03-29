@@ -776,6 +776,8 @@ export interface CreateMissionExpansionHandlerOptions {
   providerStrategy?: ProviderStrategyConfig;
   defaultLlm?: NodeLlmConfig;
   initialEstimatedCost?: number;
+  initialExpansions?: number;
+  initialToolForges?: number;
 }
 
 export function createMissionExpansionHandler(
@@ -788,8 +790,8 @@ export function createMissionExpansionHandler(
   const providerStrategy = options.providerStrategy ?? { strategy: 'balanced' };
 
   let currentEstimatedCost = options.initialEstimatedCost ?? 0;
-  let currentExpansions = 0;
-  let currentToolForges = 0;
+  let currentExpansions = options.initialExpansions ?? 0;
+  let currentToolForges = options.initialToolForges ?? 0;
 
   const assignProviders = (patch: MissionGraphPatch): MissionGraphPatch => {
     const nodes = [...patch.addNodes];

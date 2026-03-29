@@ -524,4 +524,130 @@ describe('MissionExpansionHandler', () => {
       ]),
     );
   });
+
+  it('respects initial tool forge usage when evaluating resumed missions', async () => {
+    const handler = createMissionExpansionHandler({
+      autonomy: 'guardrailed',
+      thresholds: {
+        ...DEFAULT_THRESHOLDS,
+        maxToolForges: 1,
+      },
+      llmCaller: async () => '{"shouldExpand":false,"patch":null}',
+      costCap: 10,
+      maxAgents: 10,
+      initialToolForges: 1,
+    });
+
+    const result = await handler.handle({
+      graph: makeGraph([makeNode('worker')]),
+      runId: 'run-resume-tool-forges',
+      nodeId: 'worker',
+      state: {
+        input: {},
+        scratch: {},
+        artifacts: {},
+        diagnostics: {},
+        visitedNodes: ['worker'],
+        iteration: 1,
+      } as any,
+      request: {
+        trigger: 'agent_request',
+        reason: 'Need another tool',
+        request: {},
+        patch: {
+          addNodes: [
+            {
+              id: 'tool_three',
+              type: 'tool',
+              executorConfig: {
+                type: 'tool',
+                toolName: 'tool_three',
+              },
+              executionMode: 'single_turn',
+              effectClass: 'read',
+              checkpoint: 'after',
+            },
+          ],
+          addEdges: [],
+          removeNodes: [],
+          rewireEdges: [
+            { from: 'worker', to: END, newTarget: 'tool_three' },
+          ],
+          reason: 'Need another tool',
+          estimatedCostDelta: 0.2,
+          estimatedLatencyDelta: 200,
+        },
+      },
+      completedNodes: ['worker'],
+      skippedNodes: [],
+      nodeResults: {},
+    });
+
+    expect(result?.graph).toBeUndefined();
+    expect(result?.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'mission:threshold_reached',
+          threshold: 'maxToolForges',
+        }),
+      ]),
+    );
+  });
+
+  it('respects initial expansion count when evaluating resumed missions', async () => {
+    const handler = createMissionExpansionHandler({
+      autonomy: 'guardrailed',
+      thresholds: {
+        ...DEFAULT_THRESHOLDS,
+        maxExpansions: 1,
+      },
+      llmCaller: async () => '{"shouldExpand":false,"patch":null}',
+      costCap: 10,
+      maxAgents: 10,
+      initialExpansions: 1,
+    });
+
+    const result = await handler.handle({
+      graph: makeGraph([makeNode('worker')]),
+      runId: 'run-resume-expansions',
+      nodeId: 'worker',
+      state: {
+        input: {},
+        scratch: {},
+        artifacts: {},
+        diagnostics: {},
+        visitedNodes: ['worker'],
+        iteration: 1,
+      } as any,
+      request: {
+        trigger: 'agent_request',
+        reason: 'Need another reviewer',
+        request: {},
+        patch: {
+          addNodes: [makeNode('reviewer')],
+          addEdges: [],
+          removeNodes: [],
+          rewireEdges: [
+            { from: 'worker', to: END, newTarget: 'reviewer' },
+          ],
+          reason: 'Need another reviewer',
+          estimatedCostDelta: 0.2,
+          estimatedLatencyDelta: 200,
+        },
+      },
+      completedNodes: ['worker'],
+      skippedNodes: [],
+      nodeResults: {},
+    });
+
+    expect(result?.graph).toBeUndefined();
+    expect(result?.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'mission:threshold_reached',
+          threshold: 'maxExpansions',
+        }),
+      ]),
+    );
+  });
 });
