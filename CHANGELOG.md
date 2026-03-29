@@ -1,3 +1,7 @@
+## <small>0.1.141 (2026-03-29)</small>
+
+* fix(ci): resolve typecheck errors — add finishReason to mock, import afterEach ([88a3f18](https://github.com/framersai/agentos/commit/88a3f18))
+
 ## <small>0.1.140 (2026-03-29)</small>
 
 * fix(ci): make badge green — typecheck gates CI, tests report to codecov ([b7028e5](https://github.com/framersai/agentos/commit/b7028e5))
