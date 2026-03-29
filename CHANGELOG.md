@@ -1,3 +1,7 @@
+## <small>0.1.143 (2026-03-29)</small>
+
+* feat: add fallbackProviders + buildFallbackChain to generateText/streamText/agent ([800edae](https://github.com/framersai/agentos/commit/800edae))
+
 ## <small>0.1.142 (2026-03-29)</small>
 
 * fix(docs): remove highlightLanguages (unsupported in TypeDoc 0.25) ([07af1b9](https://github.com/framersai/agentos/commit/07af1b9))
