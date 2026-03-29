@@ -1,3 +1,7 @@
+## <small>0.1.134 (2026-03-29)</small>
+
+* feat(query-router): bundled platform knowledge system ([dab1e3f](https://github.com/framersai/agentos/commit/dab1e3f))
+
 ## <small>0.1.133 (2026-03-29)</small>
 
 * feat(discovery): hydrate capability index from extensions catalog ([cc9f25d](https://github.com/framersai/agentos/commit/cc9f25d))
