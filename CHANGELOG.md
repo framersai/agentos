@@ -1,3 +1,7 @@
+## <small>0.1.131 (2026-03-29)</small>
+
+* fix: guardrails core module + orchestration test + runtime updates ([f438e7b](https://github.com/framersai/agentos/commit/f438e7b))
+
 ## <small>0.1.130 (2026-03-28)</small>
 
 * fix(lint): suppress prefer-const for organizationIdForMemory (assigned in later phase) ([12b12de](https://github.com/framersai/agentos/commit/12b12de))
