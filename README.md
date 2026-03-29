@@ -91,7 +91,7 @@
 
 ## Overview
 
-`@framers/agentos` is an open-source TypeScript AI agent runtime for building, deploying, and managing production AI agents. It provides multimodal RAG with cognitive memory (Ebbinghaus decay, 8 neuroscience-backed mechanisms including reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist extraction, schema encoding, source confidence decay, and emotion regulation — all HEXACO personality-modulated), multi-agent orchestration, 37 channel adapters, 5-tier guardrails with prompt injection defense, 21 LLM providers, and 72 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
+`@framers/agentos` is an open-source TypeScript AI agent runtime for building, deploying, and managing production AI agents. It provides multimodal RAG with cognitive memory (Ebbinghaus decay, 8 neuroscience-backed mechanisms including reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist extraction, schema encoding, source confidence decay, and emotion regulation — all HEXACO personality-modulated), multi-agent orchestration, 37 channel adapters, 6 guardrail packs (PII redaction, ML classifiers, topicality, code safety, grounding guard, content policy rewriter) with prompt injection defense, 21 LLM providers, and 72 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
 
 **Key facts:**
 
@@ -150,6 +150,7 @@
 | **@framers/agentos-ext-topicality** | Embedding-based topic enforcement + drift detection | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-topicality?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-topicality) · [Docs](https://docs.agentos.sh/extensions/built-in/topicality) |
 | **@framers/agentos-ext-code-safety** | OWASP Top 10 code scanning (25 regex rules) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-code-safety?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-code-safety) · [Docs](https://docs.agentos.sh/extensions/built-in/code-safety) |
 | **@framers/agentos-ext-grounding-guard** | RAG-grounded hallucination detection via NLI | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-grounding-guard?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-grounding-guard) · [Docs](https://docs.agentos.sh/extensions/built-in/grounding-guard) |
+| **@framers/agentos-ext-content-policy-rewriter** | Opt-in content policy (8 categories, LLM rewrite/block, 4 presets) | [Docs](https://docs.agentos.sh/extensions/built-in/content-policy-rewriter) |
 
 ---
 
@@ -785,6 +786,7 @@ type ExtensionPackResolver =
 | Topicality | `@framers/agentos-ext-topicality` | `topicality-guardrail` | `check_topic` | On-topic enforcement and session drift detection |
 | Code Safety | `@framers/agentos-ext-code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code risk scanning across fenced code and tool args |
 | Grounding Guard | `@framers/agentos-ext-grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
+| Content Policy Rewriter | `@framers/agentos-ext-content-policy-rewriter` | `content-policy-rewriter-guardrail` | — | Opt-in content policy: 8 categories (illegal_harmful, adult, profanity, violence, self_harm, hate_speech, illegal_activity, custom), keyword pre-filter + LLM judge/rewriter, 4 presets |
 
 ---
 
