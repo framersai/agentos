@@ -1,3 +1,7 @@
+## <small>0.1.135 (2026-03-29)</small>
+
+* fix(ci): resolve sql-storage-adapter in standalone CI without monorepo sibling ([1087b02](https://github.com/framersai/agentos/commit/1087b02))
+
 ## <small>0.1.134 (2026-03-29)</small>
 
 * feat(query-router): bundled platform knowledge system ([dab1e3f](https://github.com/framersai/agentos/commit/dab1e3f))
