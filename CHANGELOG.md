@@ -1,3 +1,7 @@
+## <small>0.1.148 (2026-03-29)</small>
+
+* fix(examples): fix 3 broken examples — import path, provider notes, shutdown ([81c5062](https://github.com/framersai/agentos/commit/81c5062))
+
 ## <small>0.1.147 (2026-03-29)</small>
 
 * fix(typecheck): use direct imports for SqliteExporter/Importer in tests ([bd855ba](https://github.com/framersai/agentos/commit/bd855ba))
