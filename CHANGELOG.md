@@ -1,3 +1,8 @@
+## <small>0.1.132 (2026-03-29)</small>
+
+* fix(ci): add sql-storage-adapter to devDependencies for test resolution ([3568e48](https://github.com/framersai/agentos/commit/3568e48))
+* docs: multi-agent quickstart examples and emergent agency patterns ([255ad25](https://github.com/framersai/agentos/commit/255ad25))
+
 ## <small>0.1.131 (2026-03-29)</small>
 
 * fix: guardrails core module + orchestration test + runtime updates ([f438e7b](https://github.com/framersai/agentos/commit/f438e7b))
