@@ -1,9 +1,17 @@
 import { defineConfig } from 'vitest/config';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.resolve(__dirname, 'src');
+
+// Use sibling source when running inside the monorepo, fall back to the
+// installed npm package when running in standalone CI.
+const sqlAdapterSibling = path.resolve(__dirname, '../sql-storage-adapter/src/index.ts');
+const sqlAdapterAlias = fs.existsSync(sqlAdapterSibling)
+  ? [{ find: '@framers/sql-storage-adapter', replacement: sqlAdapterSibling }]
+  : [];
 
 export default defineConfig({
   server: {
@@ -23,7 +31,7 @@ export default defineConfig({
       { find: /^@agentos\/core\/(.*)$/, replacement: `${srcDir}/$1` },
       { find: '@framers/agentos', replacement: srcDir },
       { find: '@prisma/client', replacement: path.resolve(__dirname, 'src/stubs/prismaClient.ts') },
-      { find: '@framers/sql-storage-adapter', replacement: path.resolve(__dirname, '../sql-storage-adapter/src/index.ts') },
+      ...sqlAdapterAlias,
     ],
   },
   test: {
