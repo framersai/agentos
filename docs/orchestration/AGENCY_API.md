@@ -29,7 +29,8 @@ streaming events on the sequential strategy.
 12. [Observability and Callbacks](#observability-and-callbacks)
 13. [Structured Output with Zod](#structured-output-with-zod)
 14. [Nested Agencies](#nested-agencies)
-15. [Full-Featured Example](#full-featured-example)
+15. [Hierarchical Delegation — Manager Dispatches Dynamically](#hierarchical-delegation--manager-dispatches-dynamically)
+16. [Full-Featured Example](#full-featured-example)
 
 ---
 
@@ -709,6 +710,104 @@ const { text, agentCalls } = await publishingTeam.generate('Write about quantum 
 Nesting can go arbitrarily deep.  `usage` and `agentCalls` are aggregated
 through all layers.  `close()` propagates inward — the outer agency calls
 `close()` on every nested agency in its roster.
+
+---
+
+## Hierarchical Delegation — Manager Dispatches Dynamically
+
+In the hierarchical strategy, a coordinator agent receives delegation tools for
+every specialist in the roster. The coordinator decides which agents to invoke,
+in what order, and how to merge their outputs -- all at runtime. Combine with
+`emergent` so the coordinator can also synthesise new specialists on the fly
+when the static roster is insufficient.
+
+```typescript
+import { agency } from '@framers/agentos';
+
+// Hierarchical agency where manager delegates dynamically
+const dynamicTeam = agency({
+  agents: {
+    manager: {
+      model: 'openai:gpt-4o',
+      instructions:
+        'You coordinate the team. Delegate research, analysis, and writing tasks to specialists.',
+    },
+    researcher: {
+      model: 'openai:gpt-4o',
+      instructions: 'Find information from web and academic sources.',
+      tools: [webSearchTool, arxivTool],
+    },
+    analyst: {
+      model: 'openai:gpt-4o',
+      instructions: 'Analyze data and extract insights.',
+    },
+    writer: {
+      model: 'openai:gpt-4o',
+      instructions: 'Write polished content based on research and analysis.',
+    },
+  },
+  strategy: 'hierarchical',
+  // manager gets delegate_to_researcher, delegate_to_analyst, delegate_to_writer tools
+});
+
+const result = await dynamicTeam.generate(
+  'Write a comprehensive report on the state of AI agents in 2026'
+);
+console.log(result.text);
+```
+
+### Adding Emergent Agent Creation
+
+Enable `emergent` so the manager can spawn ad-hoc specialists when the
+predefined roster does not cover a sub-task. A judge agent evaluates the
+synthesised agent before it runs.
+
+```typescript
+const emergentTeam = agency({
+  agents: {
+    manager: {
+      model: 'openai:gpt-4o',
+      instructions:
+        'Coordinate the team. If a task requires a specialist not in the roster, request one.',
+    },
+    researcher: {
+      model: 'openai:gpt-4o',
+      instructions: 'Research topics using web and academic sources.',
+      tools: [webSearchTool, arxivTool],
+    },
+    writer: {
+      model: 'openai:gpt-4o',
+      instructions: 'Produce polished, well-structured content.',
+    },
+  },
+  strategy: 'hierarchical',
+  emergent: {
+    enabled: true,
+    tier: 'session', // synthesised agents discarded after generate() returns
+    judge: true,     // a judge agent evaluates emergent agents before use
+  },
+  hitl: {
+    approvals: { beforeEmergent: true },
+    handler: async (request) => {
+      console.log(`Emergent agent requested: ${request.description}`);
+      return { approved: true };
+    },
+  },
+  controls: {
+    maxEmergentAgents: 3, // cap the number of runtime-synthesised agents
+  },
+  on: {
+    emergentForge: (e) =>
+      console.log(`[FORGE] ${e.agentName} — approved: ${e.approved}`),
+  },
+});
+
+// The manager may spawn a "data-visualiser" or "statistician" agent on the fly
+const report = await emergentTeam.generate(
+  'Analyze the 2026 State of AI survey data and produce an executive brief with charts'
+);
+console.log(report.text);
+```
 
 ---
 

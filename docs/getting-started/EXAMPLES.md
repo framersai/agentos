@@ -18,6 +18,9 @@
 10. [Agency Streaming](#10-agency-streaming)
 11. [Query Router](#11-query-router)
 12. [Query Router Host Hooks](#12-query-router-host-hooks)
+13. [Single Agent — Minimal](#13-single-agent--minimal)
+14. [Multi-Agent Team with Dependency Graph](#14-multi-agent-team-with-dependency-graph)
+15. [Emergent Self-Improvement Agent](#15-emergent-self-improvement-agent)
 
 ---
 
@@ -676,6 +679,97 @@ console.log(router.getCorpusStats()); // runtime modes become active
 ```
 
 Runnable source: `packages/agentos/examples/query-router-host-hooks.mjs`
+
+---
+
+## 13. Single Agent — Minimal
+
+The simplest entry point: one agent, one tool, one call.
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const researcher = agent({
+  model: 'openai:gpt-4o',
+  instructions: 'You are a research assistant. Search the web and summarize findings.',
+  tools: [webSearchTool],
+  maxSteps: 5,
+});
+
+const result = await researcher.generate('What are the latest advances in RAG?');
+console.log(result.text);
+```
+
+---
+
+## 14. Multi-Agent Team with Dependency Graph
+
+Declare dependencies between agents and let the orchestrator schedule them
+automatically. Agents with no dependencies run first; downstream agents receive
+their predecessors' outputs as context.
+
+```typescript
+import { agency } from '@framers/agentos';
+
+const team = agency({
+  agents: {
+    researcher: {
+      model: 'openai:gpt-4o',
+      instructions: 'Find relevant research papers and data.',
+      tools: [webSearchTool, arxivTool],
+    },
+    analyst: {
+      model: 'openai:gpt-4o',
+      instructions: 'Analyze the research and extract key insights.',
+    },
+    writer: {
+      model: 'openai:gpt-4o',
+      instructions: 'Write a clear, well-structured summary.',
+      dependsOn: ['researcher', 'analyst'],
+    },
+  },
+  strategy: 'graph', // auto-detected from dependsOn
+});
+
+const result = await team.generate(
+  'Compare RAG vs fine-tuning for domain-specific LLM applications'
+);
+console.log(result.text);
+```
+
+---
+
+## 15. Emergent Self-Improvement Agent
+
+Enable the emergent subsystem so the agent can forge new tools, adapt its own
+personality, and manage its skill set at runtime. Guard the mutation surface
+with `maxDeltaPerSession` and skill allowlists.
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const adaptiveAgent = agent({
+  model: 'openai:gpt-4o',
+  instructions: 'You are a helpful assistant that learns and adapts.',
+  tools: [forgeTool, adaptPersonalityTool, manageSkillsTool, selfEvaluateTool],
+  emergent: {
+    enabled: true,
+    selfImprovement: {
+      enabled: true,
+      personality: { maxDeltaPerSession: 0.15 },
+      skills: { allowlist: ['*'] },
+    },
+  },
+});
+
+// The agent can now:
+// - Forge new tools at runtime
+// - Adapt its personality based on task requirements
+// - Enable/disable skills dynamically
+// - Evaluate its own performance and adjust
+const result = await adaptiveAgent.generate('Help me write a creative story');
+console.log(result.text);
+```
 
 ---
 
