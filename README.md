@@ -25,9 +25,15 @@
 
 - [Overview](#overview)
 - [Quick Start](#quick-start)
-  - [Multi-Agent Teams with agency()](#multi-agent-teams-with-agency)
-  - [Single-Agent and Low-Level Helpers](#single-agent-and-low-level-helpers)
-  - [Advanced: AgentGraph and Full Runtime](#advanced-agentgraph-and-full-runtime)
+  - [1. Generate Text (Provider-First)](#1-generate-text-provider-first)
+  - [2. Agent with Personality & Memory](#2-agent-with-personality--memory)
+  - [3. Multimodal RAG](#3-multimodal-rag)
+  - [4. Structured Output (Zod Validation)](#4-structured-output-zod-validation)
+  - [5. Workflows & Graphs](#5-workflows--graphs)
+  - [6. Multi-Agent Teams](#6-multi-agent-teams)
+  - [7. Voice Pipeline](#7-voice-pipeline)
+  - [8. Guardrails & Security](#8-guardrails--security)
+  - [Default Models Per Provider](#default-models-per-provider)
 - [System Architecture](#system-architecture)
   - [Architecture Diagram](#architecture-diagram)
   - [Request Lifecycle](#request-lifecycle)
@@ -153,349 +159,219 @@
 npm install @framers/agentos
 ```
 
-**Requirements:** Node.js 18+ and TypeScript 5.0+
+Set any provider's API key and you're ready:
 
-**Start here:**
+```bash
+export OPENAI_API_KEY=sk-...        # or ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, etc.
+```
 
-- Use [`agency()`](./docs/orchestration/AGENCY_API.md) to coordinate a team of agents with a single call.
-- Use [`generateText()` / `streamText()` / `generateObject()` / `streamObject()` / `embedText()` / `generateImage()` / `agent()`](./docs/getting-started/HIGH_LEVEL_API.md) for the fastest path from prompt to working code.
-- Use [`AgentOS`](#advanced-agentgraph-and-full-runtime) when you need extensions, workflows, personas, or full runtime lifecycle control.
-- Browse the live docs at [docs.agentos.sh/getting-started/high-level-api](https://docs.agentos.sh/getting-started/high-level-api) and [docs.agentos.sh/api](https://docs.agentos.sh/api).
+### 1. Generate Text (Provider-First)
 
-### Multi-Agent Teams with `agency()`
+No model strings needed — AgentOS picks the best default:
 
-`agency()` is the recommended starting point for any task that benefits from
-multiple specialised agents.  Three lines to go from prompt to a coordinated
-research-and-writing pipeline:
+```typescript
+import { generateText, streamText } from '@framers/agentos';
+
+const result = await generateText({
+  provider: 'anthropic',
+  prompt: 'Explain how TCP handshakes work in 3 bullets.',
+});
+console.log(result.text);
+
+// Streaming
+for await (const chunk of streamText({ provider: 'openai', prompt: 'Explain SYN-ACK.' }).textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+16 providers supported. Automatic fallback when one fails (402/429/5xx → tries next available key).
+
+### 2. Agent with Personality & Memory
+
+Agents have HEXACO personality traits that shape their communication style, and cognitive memory with Ebbinghaus decay:
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const tutor = agent({
+  provider: 'anthropic',
+  instructions: 'You are a patient computer science tutor.',
+  personality: {
+    openness: 0.9,           // creative, exploratory answers
+    conscientiousness: 0.95,  // thorough, well-structured
+    agreeableness: 0.85,      // warm, encouraging tone
+  },
+  memory: {
+    enabled: true,
+    cognitive: true,          // Ebbinghaus decay, reconsolidation, involuntary recall
+  },
+});
+
+const session = tutor.session('student-1');
+const reply = await session.send('Explain recursion with an analogy.');
+console.log(reply.text);
+
+// Memory persists across sessions — the agent remembers context
+const followUp = await session.send('Can you expand on that?');
+console.log(followUp.text);
+```
+
+### 3. Multimodal RAG
+
+Ingest documents, images, and structured data — retrieve with HyDE (Hypothetical Document Embedding):
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const analyst = agent({
+  provider: 'openai',
+  instructions: 'You are a financial analyst. Answer questions using provided documents.',
+  rag: {
+    enabled: true,
+    mode: 'aggressive',       // always retrieves before answering
+    topK: 10,
+    strategy: 'hyde',         // generates hypothetical answers for better retrieval
+  },
+});
+
+const session = analyst.session('q4-review');
+
+// Ingest documents
+await session.ingest('Q4 revenue grew 23% YoY to $4.2B...');
+await session.ingest({ type: 'file', path: './earnings-report.pdf' });
+
+const answer = await session.send('What drove revenue growth in Q4?');
+console.log(answer.text);     // Cites specific passages from ingested docs
+```
+
+### 4. Structured Output (Zod Validation)
+
+Extract typed data from unstructured text:
+
+```typescript
+import { generateObject } from '@framers/agentos';
+import { z } from 'zod';
+
+const { object } = await generateObject({
+  provider: 'gemini',
+  schema: z.object({
+    name: z.string(),
+    sentiment: z.enum(['positive', 'negative', 'neutral']),
+    topics: z.array(z.string()),
+  }),
+  prompt: 'Analyze: "The new iPhone camera is incredible but the battery life is disappointing."',
+});
+
+console.log(object);
+// { name: "iPhone Review", sentiment: "mixed", topics: ["camera", "battery"] }
+```
+
+### 5. Workflows & Graphs
+
+Deterministic multi-step pipelines with branching, parallel execution, and checkpointing:
+
+```typescript
+import { workflow } from '@framers/agentos';
+
+const pipeline = workflow('content-pipeline')
+  .step('research', { provider: 'anthropic', instructions: 'Research the topic thoroughly.' })
+  .step('draft', { provider: 'openai', instructions: 'Write a blog post from the research.' })
+  .step('review', { provider: 'anthropic', instructions: 'Review for accuracy and tone.' })
+  .step('publish', { tool: 'blog_publish' });
+
+const result = await pipeline.run('Write a post about WebAssembly in 2026.');
+console.log(result.text);
+```
+
+### 6. Multi-Agent Teams
+
+Coordinate specialized agents with built-in strategies:
 
 ```typescript
 import { agency } from '@framers/agentos';
 
 const team = agency({
   agents: {
-    researcher: { instructions: 'Find relevant facts.' },
-    writer:     { instructions: 'Write a clear, concise summary.' },
+    researcher: {
+      instructions: 'Find relevant facts and data.',
+      provider: 'anthropic',
+    },
+    writer: {
+      instructions: 'Write a clear, engaging summary.',
+      provider: 'openai',
+    },
+    reviewer: {
+      instructions: 'Check for accuracy and suggest improvements.',
+      provider: 'gemini',
+      dependsOn: ['writer'],  // runs after writer
+    },
   },
-  strategy: 'sequential',
+  strategy: 'graph',           // dependency-based DAG execution
+  memory: { shared: true },    // agents share context
 });
 
-const result = await team.generate('Summarise recent advances in fusion energy.');
+const result = await team.generate('Compare TCP vs UDP for game networking.');
 console.log(result.text);
 ```
 
-Set any provider's API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
-`GROQ_API_KEY`, `OLLAMA_BASE_URL`, etc.) and the agency auto-detects the provider.
-All five strategies are available out of the box:
+6 strategies: `sequential`, `parallel`, `debate`, `review-loop`, `hierarchical`, `graph`.
 
-| Strategy | What it does |
-|---|---|
-| `sequential` | Agents run in order; each receives the previous output as context |
-| `parallel` | All agents run concurrently; results are merged by a synthesis step |
-| `debate` | Agents argue and refine a shared answer over multiple rounds |
-| `review-loop` | One agent drafts, another reviews and requests revisions |
-| `hierarchical` | A coordinator dispatches sub-tasks to specialist agents at runtime |
-| `graph` | Explicit dependency DAG via `dependsOn`; tiers run concurrently |
+### 7. Voice Pipeline
 
-**Graph strategy** — declare dependencies between agents and let the orchestrator
-handle topological ordering and concurrent execution:
+Real-time speech-to-text and text-to-speech with streaming:
 
 ```typescript
-const team = agency({
-  agents: {
-    researcher:  { instructions: 'Research the topic.' },
-    writer:      { instructions: 'Write an article.',       dependsOn: ['researcher'] },
-    illustrator: { instructions: 'Describe illustrations.', dependsOn: ['researcher'] },
-    reviewer:    { instructions: 'Review everything.',      dependsOn: ['writer', 'illustrator'] },
-  },
-  strategy: 'graph', // auto-detected when any agent has dependsOn
-});
-```
+import { agent } from '@framers/agentos';
 
-Add guardrails, HITL, resource controls, observability, `listen()` for voice
-transport, `connect()` for channel adapters, RAG context injection, and real
-per-agent stream events in the same config object — see
-[`docs/orchestration/AGENCY_API.md`](./docs/orchestration/AGENCY_API.md) for the full reference.
-
-### Single-Agent and Low-Level Helpers
-
-Use the streamlined helpers when you want AI SDK-style text generation, structured
-output extraction, embedding generation, image generation, or a single stateful
-session without a multi-agent team.
-
-#### Provider-First Pattern (Recommended)
-
-The recommended way to call any helper is **provider-first**: specify the provider
-name and let AgentOS pick the best default model automatically. No model string
-needed -- just set the matching environment variable and go.
-
-```typescript
-import { generateText, streamText, agent } from '@framers/agentos';
-
-// Provider-first -- AgentOS picks the best default model
-const result = await generateText({
+const receptionist = agent({
   provider: 'openai',
-  prompt: 'Explain TCP handshakes in 3 bullets.',
+  instructions: 'You are a friendly receptionist for a dental clinic.',
+  voice: {
+    tts: { provider: 'elevenlabs', voice: 'Rachel' },
+    stt: { provider: 'deepgram' },
+  },
 });
 
-// Works with any provider -- just change the name
-const result2 = await generateText({
+// Voice sessions stream audio in real-time
+const call = receptionist.voiceSession('call-1');
+await call.start();  // begins listening
+```
+
+### 8. Guardrails & Security
+
+5-tier security with PII redaction, prompt injection defense, and code scanning:
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const secureBot = agent({
   provider: 'anthropic',
-  prompt: 'Explain TCP handshakes in 3 bullets.',
-});
-
-// Local models via Ollama -- zero API keys
-const result3 = await generateText({
-  provider: 'ollama',
-  prompt: 'Explain TCP handshakes in 3 bullets.',
+  instructions: 'You are a customer support agent.',
+  security: { tier: 'strict' },
+  guardrails: {
+    input: ['pii-redaction', 'ml-classifiers'],     // block PII + detect injection
+    output: ['grounding-guard', 'code-safety'],      // prevent hallucination + unsafe code
+  },
 });
 ```
 
-The same pattern works across **every helper function**: `generateText`, `streamText`,
-`generateObject`, `streamObject`, `embedText`, `generateImage`, and `agent`.
+5 tiers: `dangerous` → `permissive` → `balanced` → `strict` → `paranoid`.
 
-#### Default Models Per Provider
-
-When you use the provider-first pattern, AgentOS resolves the default model
-from a built-in registry. Set the matching env var and you are ready to go:
+### Default Models Per Provider
 
 | Provider | Default Model | Env Var |
 |---|---|---|
-| `openai` | `gpt-4o` | `OPENAI_API_KEY` |
-| `anthropic` | `claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
-| `gemini` | `gemini-2.5-flash` | `GEMINI_API_KEY` |
-| `ollama` | `llama3.2` | `OLLAMA_BASE_URL` |
-| `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
-| `openrouter` | `openai/gpt-4o` | `OPENROUTER_API_KEY` |
-| `together` | `Meta-Llama-3.1-70B-Instruct-Turbo` | `TOGETHER_API_KEY` |
-| `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` |
-| `xai` | `grok-2` | `XAI_API_KEY` |
+| openai | gpt-4o | `OPENAI_API_KEY` |
+| anthropic | claude-sonnet-4 | `ANTHROPIC_API_KEY` |
+| gemini | gemini-2.5-flash | `GEMINI_API_KEY` |
+| ollama | llama3.2 | `OLLAMA_BASE_URL` |
+| groq | llama-3.3-70b | `GROQ_API_KEY` |
+| openrouter | openai/gpt-4o | `OPENROUTER_API_KEY` |
+| together | meta-llama/Meta-Llama-3.1-70B | `TOGETHER_API_KEY` |
+| mistral | mistral-large-latest | `MISTRAL_API_KEY` |
+| xai | grok-3-mini | `XAI_API_KEY` |
 
-See `src/api/runtime/provider-defaults.ts` for the full registry including image
-and embedding defaults.
-
-#### Multi-Provider Showcase
-
-The **same prompt** works across every supported provider -- swap one string:
-
-```typescript
-import { generateText } from '@framers/agentos';
-
-// OpenAI
-await generateText({ provider: 'openai', prompt: 'What is QUIC?' });
-
-// Anthropic
-await generateText({ provider: 'anthropic', prompt: 'What is QUIC?' });
-
-// Google Gemini
-await generateText({ provider: 'gemini', prompt: 'What is QUIC?' });
-
-// Groq (fast inference)
-await generateText({ provider: 'groq', prompt: 'What is QUIC?' });
-
-// Local via Ollama (no API key needed)
-await generateText({ provider: 'ollama', prompt: 'What is QUIC?' });
-
-// OpenRouter (200+ models, auto-routing)
-await generateText({ provider: 'openrouter', prompt: 'What is QUIC?' });
-
-// Mistral
-await generateText({ provider: 'mistral', prompt: 'What is QUIC?' });
-
-// xAI (Grok)
-await generateText({ provider: 'xai', prompt: 'What is QUIC?' });
-```
-
-#### Provider + Model Override
-
-When you need a specific model instead of the default, pass both:
-
-```typescript
-// Cheaper model for high-volume workloads
-await generateText({
-  provider: 'openai',
-  model: 'gpt-4o-mini',
-  prompt: 'Classify this support ticket.',
-});
-
-// Specific Anthropic model
-await generateText({
-  provider: 'anthropic',
-  model: 'claude-haiku-4-5-20251001',
-  prompt: 'Summarise this paragraph.',
-});
-
-// Specific Ollama model
-await generateText({
-  provider: 'ollama',
-  model: 'codellama',
-  prompt: 'Write a Python fizzbuzz.',
-});
-```
-
-#### Global Defaults via Environment Variables
-
-AgentOS auto-detects your active provider by scanning environment variables in
-priority order. Set one key and every call uses that provider automatically --
-no `provider` field needed:
-
-```bash
-# Set one of these -- AgentOS picks the first it finds:
-# Priority: OPENROUTER > OPENAI > ANTHROPIC > GEMINI > GROQ > TOGETHER > MISTRAL > XAI > OLLAMA
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
-```typescript
-import { generateText } from '@framers/agentos';
-
-// No provider or model needed -- auto-detected from env vars
-const result = await generateText({ prompt: 'Hello world' });
-```
-
-#### Legacy Format
-
-The `provider:model` string format still works but provider-first is preferred:
-
-```typescript
-// Legacy format -- still fully supported but not recommended for new code
-await generateText({ model: 'openai:gpt-4o', prompt: '...' });
-await generateText({ model: 'anthropic:claude-sonnet-4-20250514', prompt: '...' });
-await generateText({ model: 'ollama:llama3.2', prompt: '...' });
-```
-
-#### Streaming, Structured Output, Images, and Embeddings
-
-```typescript
-import {
-  agent, embedText, generateImage, generateObject, streamText, streamObject,
-} from '@framers/agentos';
-import { z } from 'zod';
-
-// Streaming with Anthropic
-const live = streamText({
-  provider: 'anthropic',
-  prompt: 'Stream a short explanation of SYN, SYN-ACK, ACK.',
-});
-
-for await (const delta of live.textStream) {
-  process.stdout.write(delta);
-}
-
-// Image generation with OpenAI
-const image = await generateImage({
-  provider: 'openai',
-  prompt: 'A cinematic neon city skyline reflected in rain at night.',
-});
-
-console.log(image.images[0]?.mimeType);
-
-// Structured output with Gemini -- Zod-validated JSON extraction
-const { object } = await generateObject({
-  provider: 'gemini',
-  schema: z.object({ name: z.string(), age: z.number() }),
-  prompt: 'Extract: "John is 30 years old"',
-});
-
-console.log(object.name, object.age); // "John" 30
-
-// Streaming structured output with Groq
-const structured = streamObject({
-  provider: 'groq',
-  schema: z.object({ title: z.string(), tags: z.array(z.string()) }),
-  prompt: 'Generate metadata for an article about TCP.',
-});
-
-for await (const partial of structured.partialObjectStream) {
-  console.log('partial:', partial);
-}
-console.log('final:', await structured.object);
-
-// Embeddings -- single or batch (OpenAI)
-const { embeddings } = await embedText({
-  provider: 'openai',
-  input: ['Hello world', 'Goodbye world'],
-  dimensions: 256,
-});
-
-console.log(embeddings.length, embeddings[0].length); // 2, 256
-
-// Stateful agent session with Anthropic
-const assistant = agent({
-  provider: 'anthropic',
-  instructions: 'You are a concise networking tutor.',
-  maxSteps: 3,
-});
-
-const session = assistant.session('tcp-demo');
-const reply = await session.send('Now compare TCP and UDP.');
-console.log(reply.text);
-console.log(await session.usage());
-```
-
-If you want durable helper-level usage accounting outside the full runtime, enable
-the opt-in usage ledger:
-
-```typescript
-import { generateText, getRecordedAgentOSUsage } from '@framers/agentos';
-
-await generateText({
-  provider: 'anthropic',
-  prompt: 'Explain HTTP keep-alive.',
-  usageLedger: { enabled: true, sessionId: 'readme-demo' },
-});
-
-console.log(await getRecordedAgentOSUsage({ enabled: true, sessionId: 'readme-demo' }));
-```
-
-With `enabled: true`, AgentOS writes to the shared home ledger at `~/.framers/usage-ledger.jsonl` unless you provide `usageLedger.path` or one of the ledger env vars.
-
-Built-in image providers: `openai`, `openrouter`, `stability`, and `replicate`.
-
-Use `providerOptions` when you need provider-native controls without leaving the high-level API:
-
-```typescript
-const poster = await generateImage({
-  model: 'stability:stable-image-core',
-  prompt: 'An art deco travel poster for a moon colony',
-  negativePrompt: 'text, watermark',
-  providerOptions: {
-    stability: {
-      stylePreset: 'illustration',
-      seed: 42,
-      cfgScale: 8,
-    },
-  },
-});
-```
-
-Runnable examples: [`examples/high-level-api.mjs`](./examples/high-level-api.mjs), [`examples/generate-image.mjs`](./examples/generate-image.mjs)
-
-### Advanced: AgentGraph and Full Runtime
-
-Use `AgentGraph` or the full `AgentOS` runtime when you need programmatic graph
-construction with custom edge callbacks, extensions, workflow DSL, personas,
-chunk-level streaming events, or full runtime lifecycle control.
-
-```typescript
-import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const agent = new AgentOS();
-await agent.initialize(await createTestAgentOSConfig());
-
-for await (const chunk of agent.processRequest({
-  userId: 'user-1',
-  sessionId: 'session-1',
-  textInput: 'Explain how TCP handshakes work',
-})) {
-  if (chunk.type === AgentOSResponseChunkType.TEXT_DELTA) {
-    process.stdout.write(chunk.textDelta);
-  }
-}
-```
-
-See [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md) for the `AgentGraph` programmatic
-graph builder and [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md) for the workflow
-DSL.
+Automatic fallback: when a provider fails, AgentOS tries the next available API key.
 
 ---
 
@@ -1046,14 +922,14 @@ See [`docs/memory/MEMORY_SCALING.md`](./docs/memory/MEMORY_SCALING.md), [`docs/m
 
 **Location:** `knowledge/platform-corpus.json`
 
-AgentOS ships with **243 pre-built knowledge entries** covering the entire platform surface area. When the QueryRouter initializes, these entries are automatically loaded alongside your project-specific documentation corpus, giving every agent instant knowledge about AgentOS capabilities with zero configuration.
+AgentOS ships with **244 pre-built knowledge entries** covering the entire platform surface area. When the QueryRouter initializes, these entries are automatically loaded alongside your project-specific documentation corpus, giving every agent instant knowledge about AgentOS capabilities with zero configuration.
 
 **Coverage breakdown:**
 
 | Category | Count | What it covers |
 |----------|-------|---------------|
 | Tools | 105 | Every tool and channel adapter (Discord, Telegram, LinkedIn, Bluesky, etc.) |
-| Skills | 79 | All curated skills from the skills registry |
+| Skills | 80 | All curated skills from the skills registry |
 | FAQ | 30 | Common questions (voice setup, supported models, streaming, OCR, etc.) |
 | API | 14 | Core API functions (generateText, streamText, agent, agency, etc.) |
 | Troubleshooting | 15 | Common errors and their fixes (missing API keys, model not found, etc.) |
