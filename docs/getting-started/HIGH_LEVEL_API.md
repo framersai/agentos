@@ -231,6 +231,7 @@ await router.close();
 you what is actually live in the current host:
 
 - corpus size: `configuredPathCount`, `chunkCount`, `topicCount`, `sourceCount`
+- bundled platform knowledge: `platformKnowledge.total` plus per-category counts
 - retrieval path: `vector+keyword-fallback` or `keyword-only`
 - embedding health: `embeddingStatus`
 - runtime truth: `graphRuntimeMode`, `rerankRuntimeMode`, `deepResearchRuntimeMode`

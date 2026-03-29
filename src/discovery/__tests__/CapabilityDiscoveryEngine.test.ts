@@ -75,6 +75,10 @@ describe('CapabilityDiscoveryEngine disabled capability filtering', () => {
     expect(summaries.skills).not.toContain('research-skill');
     expect(summaries.tools).toContain('web-search');
   });
+
+  it('hydrates bundled capability catalog fallbacks during initialize()', () => {
+    expect(engine.listCapabilityIds()).toContain('extension:com.framers.auth');
+  });
 });
 
 function embedText(text: string): number[] {

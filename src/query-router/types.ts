@@ -362,6 +362,16 @@ export interface QueryRouterCorpusStats {
   /** Number of unique source files represented in the loaded corpus. */
   sourceCount: number;
 
+  /** Counts for the bundled platform knowledge corpus currently loaded in memory. */
+  platformKnowledge: {
+    total: number;
+    tools: number;
+    skills: number;
+    faq: number;
+    api: number;
+    troubleshooting: number;
+  };
+
   /** Whether retrieval is vector-backed or keyword-only. */
   retrievalMode: QueryRouterRetrievalMode;
 

@@ -15,6 +15,10 @@
  *   - Context tokens: ~1,850 (down from ~20,000 with static dumps)
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import type { IEmbeddingManager } from '../core/embeddings/IEmbeddingManager.js';
 import type { IVectorStore } from '../core/vector-store/IVectorStore.js';
 import type {
@@ -31,6 +35,8 @@ import { DEFAULT_DISCOVERY_CONFIG } from './types.js';
 import { CapabilityIndex } from './CapabilityIndex.js';
 import { CapabilityGraph } from './CapabilityGraph.js';
 import { CapabilityContextAssembler } from './CapabilityContextAssembler.js';
+
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ============================================================================
 // CAPABILITY DISCOVERY ENGINE
@@ -433,14 +439,24 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
       category: string;
       tools: string[];
       requiredSecrets: string[];
-    }>;
+    }> = [];
 
     try {
       const mod = await import('@framers/agentos-extensions-registry');
-      catalog = (mod as Record<string, unknown>).CAPABILITY_CATALOG as typeof catalog;
-      if (!Array.isArray(catalog)) return 0;
+      const importedCatalog =
+        (mod as Record<string, unknown>).CAPABILITY_CATALOG as typeof catalog;
+      if (Array.isArray(importedCatalog) && importedCatalog.length > 0) {
+        catalog = importedCatalog;
+      }
     } catch {
-      // Registry package not installed — proceed without catalog entries
+      // Fall through to the bundled platform knowledge fallback below.
+    }
+
+    if (catalog.length === 0) {
+      catalog = loadBundledCapabilityCatalogFallback();
+    }
+
+    if (catalog.length === 0) {
       return 0;
     }
 
@@ -505,6 +521,63 @@ export class CapabilityDiscoveryEngine implements ICapabilityDiscoveryEngine {
   }
 }
 
+function loadBundledCapabilityCatalogFallback(): Array<{
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  tools: string[];
+  requiredSecrets: string[];
+}> {
+  const candidates = [
+    // Published package layout: knowledge/ sits next to dist/
+    join(MODULE_DIR, '../../knowledge/platform-corpus.json'),
+    // Source layout: knowledge/ sits at package root, src/ is one level down
+    join(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
+  ];
+
+  for (const corpusPath of candidates) {
+    if (!existsSync(corpusPath)) {
+      continue;
+    }
+
+    try {
+      const raw = readFileSync(corpusPath, 'utf-8');
+      const entries: Array<{
+        id: string;
+        heading: string;
+        content: string;
+        category: string;
+      }> = JSON.parse(raw);
+
+      const toolEntries = entries.filter(
+        (entry) => entry.category === 'tools' && /^tool-ref:/i.test(entry.id),
+      );
+
+      if (toolEntries.length === 0) {
+        continue;
+      }
+
+      return toolEntries.map((entry) => {
+        const id = entry.id.replace(/^tool-ref:/i, '').trim();
+
+        return {
+          id,
+          name: entry.heading,
+          description: extractCapabilityDescription(entry.content),
+          category: deriveCapabilityCategoryFromId(id),
+          tools: extractDelimitedCapabilityList(entry.content, 'Tools'),
+          requiredSecrets: extractDelimitedCapabilityList(entry.content, 'Required secrets'),
+        };
+      });
+    } catch {
+      // Try the next candidate path.
+    }
+  }
+
+  return [];
+}
+
 function filterCapabilitiesForDiscovery(
   capabilities: CapabilityDescriptor[],
   excludedCapabilityIds?: string[],
@@ -541,4 +614,43 @@ function filterCapabilitiesForDiscovery(
 
     return !normalizedExcludedCapabilityIds.some((excludedId) => aliases.includes(excludedId));
   });
+}
+
+function deriveCapabilityCategoryFromId(id: string): string {
+  const normalizedId = id.replace(/^com\.framers\./i, '');
+  const category = normalizedId.split('.')[0]?.trim().toLowerCase();
+
+  if (!category) {
+    return 'other';
+  }
+
+  return category.endsWith('s') && category.length > 3
+    ? category.slice(0, -1)
+    : category;
+}
+
+function extractCapabilityDescription(content: string): string {
+  const markerIndex = content.search(/\b(Tools|Required secrets):\b/i);
+  if (markerIndex === -1) {
+    return content.trim();
+  }
+
+  return content.slice(0, markerIndex).trim();
+}
+
+function extractDelimitedCapabilityList(content: string, label: 'Tools' | 'Required secrets'): string[] {
+  const match = content.match(new RegExp(`${label}:\\s*([^.]*)\\.?`, 'i'));
+  if (!match) {
+    return [];
+  }
+
+  const rawValue = match[1].trim();
+  if (!rawValue || /^none$/i.test(rawValue)) {
+    return [];
+  }
+
+  return rawValue
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }

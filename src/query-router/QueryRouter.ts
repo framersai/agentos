@@ -196,6 +196,17 @@ export class QueryRouter {
   /** Chain-of-thought query classifier. */
   private classifier: QueryClassifier | null = null;
 
+  /**
+   * Optional capability discovery engine persisted across classifier rebuilds.
+   *
+   * The router recreates its classifier during `init()` and when background
+   * GitHub indexing refreshes the topic list. Persist the attached discovery
+   * engine so those classifier rebuilds do not silently drop capability-aware
+   * planning.
+   */
+  private capabilityDiscoveryEngine:
+    import('../discovery/CapabilityDiscoveryEngine.js').CapabilityDiscoveryEngine | null = null;
+
   /** Tier-routing dispatcher. */
   private dispatcher: QueryDispatcher | null = null;
 
@@ -330,6 +341,7 @@ export class QueryRouter {
   setCapabilityDiscoveryEngine(
     engine: import('../discovery/CapabilityDiscoveryEngine.js').CapabilityDiscoveryEngine | null,
   ): void {
+    this.capabilityDiscoveryEngine = engine;
     if (this.classifier) {
       this.classifier.setCapabilityDiscoveryEngine(engine);
     }
@@ -547,9 +559,7 @@ export class QueryRouter {
       timestamp: start,
     });
 
-    const trimmedHistory = conversationHistory?.slice(
-      -this.config.conversationWindowSize,
-    );
+    const trimmedHistory = this.trimConversationHistory(conversationHistory);
 
     const result = await this.classifier!.classify(query, trimmedHistory, options);
 
@@ -611,11 +621,55 @@ export class QueryRouter {
     const routeStart = Date.now();
 
     // --- Phase 1: Classification ---
-    const classification = await this.classify(query, conversationHistory, options);
+    const classifyStart = Date.now();
+    this.emit({
+      type: 'classify:start',
+      query,
+      timestamp: classifyStart,
+    });
+
+    const trimmedHistory = this.trimConversationHistory(conversationHistory);
+    const [classification, executionPlan] = await this.classifier!.classifyWithPlan(
+      query,
+      trimmedHistory,
+      options,
+    );
+
+    if (classification.reasoning.startsWith('Classification failed;')) {
+      this.emit({
+        type: 'classify:error',
+        error: new Error(classification.reasoning),
+        timestamp: Date.now(),
+      });
+    }
+
+    this.emit({
+      type: 'classify:complete',
+      result: classification,
+      durationMs: Date.now() - classifyStart,
+      timestamp: Date.now(),
+    });
 
     // Fire the onClassification hook if configured
     if (this.config.onClassification) {
       this.config.onClassification(classification);
+    }
+
+    // The router recommends capabilities but does not activate them. Emit the
+    // suggestion event for both legacy and unified retrieval paths so hosts can
+    // honor recommendations consistently.
+    if (
+      executionPlan.skills.length > 0 ||
+      executionPlan.tools.length > 0 ||
+      executionPlan.extensions.length > 0
+    ) {
+      this.emit({
+        type: 'capabilities:activate',
+        skills: executionPlan.skills,
+        tools: executionPlan.tools,
+        extensions: executionPlan.extensions,
+        timestamp: Date.now(),
+      });
     }
 
     // --- Phase 2: Retrieval (with capability recommendations) ---
@@ -625,39 +679,8 @@ export class QueryRouter {
     const retrievalEventStart = this.events.length;
     let retrieval: RetrievalResult;
 
-    // Track the execution plan for capability recommendations surfacing.
-    // Populated only when the UnifiedRetriever + plan-aware classifier path
-    // is exercised; null otherwise (legacy dispatcher path).
-    let executionPlan: import('../rag/unified/types.js').ExecutionPlan | null = null;
-
     if (this.unifiedRetriever && this.classifier) {
       // Plan-based retrieval via UnifiedRetriever
-      const { buildDefaultExecutionPlan } = await import('../rag/unified/types.js');
-
-      try {
-        const [, classifiedPlan] = await this.classifier.classifyWithPlan(
-          query,
-          conversationHistory,
-          options,
-        );
-        executionPlan = classifiedPlan;
-      } catch {
-        executionPlan = buildDefaultExecutionPlan(classification.strategy);
-      }
-
-      // Emit capabilities:activate event when the plan recommends capabilities.
-      // The agent runtime is responsible for deciding which to honor — the
-      // router only recommends, it does not activate.
-      if (executionPlan.skills.length > 0 || executionPlan.tools.length > 0 || executionPlan.extensions.length > 0) {
-        this.emit({
-          type: 'capabilities:activate',
-          skills: executionPlan.skills,
-          tools: executionPlan.tools,
-          extensions: executionPlan.extensions,
-          timestamp: Date.now(),
-        });
-      }
-
       const unifiedResult = await this.unifiedRetriever.retrieve(query, executionPlan);
       retrieval = {
         chunks: unifiedResult.chunks,
@@ -724,10 +747,9 @@ export class QueryRouter {
     // Surface capability recommendations from the execution plan into the
     // QueryResult so consumers (bots, CLI, API) can access them directly.
     const recommendations =
-      executionPlan &&
-      (executionPlan.skills.length > 0 ||
-        executionPlan.tools.length > 0 ||
-        executionPlan.extensions.length > 0)
+      executionPlan.skills.length > 0 ||
+      executionPlan.tools.length > 0 ||
+      executionPlan.extensions.length > 0
         ? {
             skills: executionPlan.skills.map((s) => ({
               skillId: s.skillId,
@@ -828,6 +850,7 @@ export class QueryRouter {
    */
   getCorpusStats(): QueryRouterCorpusStats {
     const vectorActive = Boolean(this.embeddingManager && this.vectorStoreManager);
+    const platformKnowledge = this.getPlatformKnowledgeCounts();
     const graphRuntimeMode = this.config.graphEnabled
       ? (this.hasLiveGraphRuntime() ? 'active' : this.hasHeuristicGraphRuntime() ? 'heuristic' : 'placeholder')
       : 'disabled';
@@ -844,6 +867,7 @@ export class QueryRouter {
       chunkCount: this.corpus.length,
       topicCount: this.topics.length,
       sourceCount: new Set(this.corpus.map((chunk) => chunk.sourcePath)).size,
+      platformKnowledge,
       retrievalMode: vectorActive ? 'vector+keyword-fallback' : 'keyword-only',
       embeddingStatus: vectorActive ? 'active' : this.embeddingStatus,
       embeddingDimension: vectorActive ? this.embeddingDimension : 0,
@@ -857,6 +881,29 @@ export class QueryRouter {
           : 'placeholder',
       deepResearchRuntimeMode,
     };
+  }
+
+  private getPlatformKnowledgeCounts(): QueryRouterCorpusStats['platformKnowledge'] {
+    const counts: QueryRouterCorpusStats['platformKnowledge'] = {
+      total: 0,
+      tools: 0,
+      skills: 0,
+      faq: 0,
+      api: 0,
+      troubleshooting: 0,
+    };
+
+    for (const chunk of this.corpus) {
+      if (!chunk.sourcePath.startsWith('platform:')) continue;
+      counts.total += 1;
+      if (chunk.sourcePath.startsWith('platform:tools/')) counts.tools += 1;
+      else if (chunk.sourcePath.startsWith('platform:skills/')) counts.skills += 1;
+      else if (chunk.sourcePath.startsWith('platform:faq/')) counts.faq += 1;
+      else if (chunk.sourcePath.startsWith('platform:api/')) counts.api += 1;
+      else if (chunk.sourcePath.startsWith('platform:troubleshooting/')) counts.troubleshooting += 1;
+    }
+
+    return counts;
   }
 
   // ==========================================================================
@@ -1302,7 +1349,7 @@ export class QueryRouter {
   }
 
   private createClassifier(topicList: string): QueryClassifier {
-    return new QueryClassifier({
+    const classifier = new QueryClassifier({
       model: this.config.classifierModel,
       provider: this.config.classifierProvider,
       confidenceThreshold: this.config.confidenceThreshold,
@@ -1312,6 +1359,18 @@ export class QueryRouter {
       apiKey: this.getLlmApiKey(),
       baseUrl: this.getLlmBaseUrl(),
     });
+
+    if (this.capabilityDiscoveryEngine) {
+      classifier.setCapabilityDiscoveryEngine(this.capabilityDiscoveryEngine);
+    }
+
+    return classifier;
+  }
+
+  private trimConversationHistory(
+    conversationHistory?: ConversationMessage[],
+  ): ConversationMessage[] | undefined {
+    return conversationHistory?.slice(-this.config.conversationWindowSize);
   }
 
   private async indexAdditionalCorpusChunks(chunks: CorpusChunk[]): Promise<void> {

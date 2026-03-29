@@ -416,9 +416,8 @@ describe('QueryClassifier.classifyWithPlan()', () => {
 
     expect(mockGenerateText).toHaveBeenCalledTimes(1);
     const callArgs = mockGenerateText.mock.calls[0][0];
-    // The prompt should NOT contain the default "No tool categories available" placeholder
-    // when the catalog is loaded (or should contain "Not available" if the catalog
-    // package is not resolvable — either way, the fallback path was exercised).
     expect(callArgs.system).toBeDefined();
+    expect(callArgs.system).toContain('## channel');
+    expect(callArgs.system).toContain('Authentication & Subscription');
   });
 });

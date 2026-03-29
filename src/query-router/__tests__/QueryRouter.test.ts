@@ -100,6 +100,57 @@ function classifierResponse(tier = 0, confidence = 0.95) {
   };
 }
 
+function planClassifierResponse(
+  tier = 0,
+  confidence = 0.95,
+  overrides: Record<string, unknown> = {},
+) {
+  const strategy = tier === 0 ? 'none' : tier === 1 ? 'simple' : tier === 2 ? 'moderate' : 'complex';
+  return {
+    text: JSON.stringify({
+      thinking: 'Test plan-aware classification reasoning.',
+      tier,
+      strategy,
+      confidence,
+      internal_knowledge_sufficient: tier === 0,
+      suggested_sources: tier === 0 ? [] : ['vector'],
+      tools_needed: [],
+      sources: {
+        vector: tier >= 1,
+        bm25: tier >= 1,
+        graph: tier >= 2,
+        raptor: tier >= 3,
+        memory: tier >= 1,
+        multimodal: false,
+      },
+      hyde: {
+        enabled: tier >= 2,
+        hypothesisCount: tier >= 3 ? 3 : tier >= 2 ? 1 : 0,
+      },
+      memoryTypes: tier >= 3
+        ? ['episodic', 'semantic', 'procedural', 'prospective']
+        : tier >= 1
+          ? ['episodic', 'semantic']
+          : [],
+      modalities: ['text'],
+      temporal: { preferRecent: false, recencyBoost: 1.0, maxAgeMs: null },
+      graphConfig: { maxDepth: 2, minEdgeWeight: 0.3 },
+      raptorLayers: tier >= 3 ? [0, 1] : [0],
+      deepResearch: tier >= 3,
+      skills: [],
+      tools: [],
+      extensions: [],
+      requires_external_calls: tier !== 0,
+      ...overrides,
+    }),
+    provider: 'openai',
+    model: 'gpt-4o-mini',
+    usage: { promptTokens: 140, completionTokens: 50, totalTokens: 190 },
+    toolCalls: [],
+    finishReason: 'stop' as const,
+  };
+}
+
 /** Builds a mock generateText response for the generation phase. */
 function generatorResponse(answer = 'The Starter plan costs $19/month.') {
   return {
@@ -119,6 +170,7 @@ function generatorResponse(answer = 'The Starter plan costs $19/month.') {
 describe('QueryRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGenerateText.mockReset();
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
     mockExistsSync.mockReturnValue(true);
@@ -224,7 +276,7 @@ describe('QueryRouter', () => {
   it('route() returns a QueryResult with answer and classification', async () => {
     // First call = classifier, second call = generator
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(0, 0.95))
+      .mockResolvedValueOnce(planClassifierResponse(0, 0.95))
       .mockResolvedValueOnce(generatorResponse());
 
     const router = createRouter();
@@ -245,7 +297,7 @@ describe('QueryRouter', () => {
 
   it('route() forwards request exclusions to plan-aware classification', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(0, 0.95))
+      .mockResolvedValueOnce(planClassifierResponse(0, 0.95))
       .mockResolvedValueOnce(generatorResponse('Filtered answer.'));
 
     const router = createRouter();
@@ -283,15 +335,6 @@ describe('QueryRouter', () => {
           extensions: [],
         },
       ] as any);
-    router.setUnifiedRetriever({
-      retrieve: vi.fn().mockResolvedValue({
-        chunks: [],
-        citations: [],
-        retrievalPlan: { sources: [], mode: 'keyword-only' },
-        graphContext: undefined,
-        memoryContext: undefined,
-      }),
-    } as any);
 
     await router.route('How much does it cost?', undefined, {
       excludedCapabilityIds: ['research-skill'],
@@ -306,42 +349,17 @@ describe('QueryRouter', () => {
 
   it('route() does not emit excluded skills in capabilities:activate events', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(0, 0.95))
-      .mockResolvedValueOnce({
-        text: JSON.stringify({
+      .mockResolvedValueOnce(planClassifierResponse(0, 0.92, {
           thinking: 'Browsing is excluded, so do not activate it.',
-          tier: 0,
-          strategy: 'none',
-          confidence: 0.92,
-          internal_knowledge_sufficient: true,
-          suggested_sources: [],
-          tools_needed: [],
           skills: [
             { skillId: 'skill:web-search', reasoning: 'Would browse externally', confidence: 0.9, priority: 0 },
           ],
-          tools: [],
-          extensions: [],
           requires_external_calls: true,
-        }),
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
-        toolCalls: [],
-        finishReason: 'stop' as const,
-      })
+        }))
       .mockResolvedValueOnce(generatorResponse('Handled without external skills.'));
 
     const router = createRouter();
     await router.init();
-    router.setUnifiedRetriever({
-      retrieve: vi.fn().mockResolvedValue({
-        chunks: [],
-        citations: [],
-        retrievalPlan: { sources: [], mode: 'keyword-only' },
-        graphContext: undefined,
-        memoryContext: undefined,
-      }),
-    } as any);
 
     await router.route('Help without browsing', undefined, {
       excludedCapabilityIds: ['web-search'],
@@ -356,15 +374,8 @@ describe('QueryRouter', () => {
 
   it('route() emits normalized capability ids in capabilities:activate events', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(1, 0.9))
-      .mockResolvedValueOnce({
-        text: JSON.stringify({
+      .mockResolvedValueOnce(planClassifierResponse(1, 0.9, {
           thinking: 'Use discovery-style ids but normalize them before emission.',
-          tier: 1,
-          strategy: 'simple',
-          confidence: 0.9,
-          internal_knowledge_sufficient: false,
-          suggested_sources: ['vector'],
           tools_needed: ['webSearch'],
           skills: [
             { skillId: 'skill:web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
@@ -376,26 +387,11 @@ describe('QueryRouter', () => {
             { extensionId: 'extension:browser-automation', reasoning: 'Need browser automation', confidence: 0.8, priority: 0 },
           ],
           requires_external_calls: true,
-        }),
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
-        toolCalls: [],
-        finishReason: 'stop' as const,
-      })
+        }))
       .mockResolvedValueOnce(generatorResponse('Handled with normalized capability ids.'));
 
     const router = createRouter();
     await router.init();
-    router.setUnifiedRetriever({
-      retrieve: vi.fn().mockResolvedValue({
-        chunks: [],
-        citations: [],
-        retrievalPlan: { sources: [], mode: 'keyword-only' },
-        graphContext: undefined,
-        memoryContext: undefined,
-      }),
-    } as any);
 
     await router.route('Search the web', undefined);
 
@@ -432,6 +428,14 @@ describe('QueryRouter', () => {
       chunkCount: 1,
       topicCount: 1,
       sourceCount: 1,
+      platformKnowledge: {
+        total: 0,
+        tools: 0,
+        skills: 0,
+        faq: 0,
+        api: 0,
+        troubleshooting: 0,
+      },
       retrievalMode: 'keyword-only',
       embeddingStatus: 'disabled-no-key',
       embeddingDimension: 0,
@@ -604,7 +608,9 @@ describe('QueryRouter', () => {
 
   it('route() uses host-provided rerank hook when supplied', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(2, 0.95))
+      .mockResolvedValueOnce(planClassifierResponse(2, 0.95, {
+        suggested_sources: ['vector', 'graph'],
+      }))
       .mockResolvedValueOnce(generatorResponse('Custom rerank answer.'));
 
     const customRerank = vi.fn(async (_query: string, chunks: any[], topN: number) =>
@@ -624,7 +630,9 @@ describe('QueryRouter', () => {
 
   it('route() uses host-provided graph and deep research hooks when supplied', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(3, 0.95))
+      .mockResolvedValueOnce(planClassifierResponse(3, 0.95, {
+        suggested_sources: ['vector', 'graph', 'research'],
+      }))
       .mockResolvedValueOnce(generatorResponse('Custom research answer.'));
 
     const customGraphExpand = vi.fn(async (seedChunks: any[]) => [
@@ -673,7 +681,7 @@ describe('QueryRouter', () => {
   // -------------------------------------------------------------------------
   it('onClassification hook fires during route()', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(0, 0.9))
+      .mockResolvedValueOnce(planClassifierResponse(0, 0.9))
       .mockResolvedValueOnce(generatorResponse());
 
     const onClassification = vi.fn();
@@ -704,7 +712,9 @@ describe('QueryRouter', () => {
 
   it('records retrieval fallbacks and exercised tiers in route()', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(2, 0.92))
+      .mockResolvedValueOnce(planClassifierResponse(2, 0.92, {
+        suggested_sources: ['vector', 'graph'],
+      }))
       .mockResolvedValueOnce(generatorResponse('Pricing starts at $19/month.'));
 
     const router = createRouter({ graphEnabled: false });
@@ -718,7 +728,9 @@ describe('QueryRouter', () => {
 
   it('records research fallback when tier 3 downgrades to tier 2', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(3, 0.95))
+      .mockResolvedValueOnce(planClassifierResponse(3, 0.95, {
+        suggested_sources: ['vector', 'graph', 'research'],
+      }))
       .mockResolvedValueOnce(generatorResponse('Fallback research answer.'));
 
     const router = createRouter({ graphEnabled: true, deepResearchEnabled: true });
@@ -735,24 +747,10 @@ describe('QueryRouter', () => {
 
   it('route() surfaces capability recommendations in QueryResult when plan has them', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(1, 0.9))
-      .mockResolvedValueOnce({
-        text: JSON.stringify({
+      .mockResolvedValueOnce(planClassifierResponse(1, 0.9, {
           thinking: 'Need web search and image generation.',
-          tier: 1,
-          strategy: 'simple',
-          confidence: 0.9,
-          internal_knowledge_sufficient: false,
-          suggested_sources: ['vector'],
           tools_needed: ['webSearch'],
-          sources: { vector: true, bm25: false, graph: false, raptor: false, memory: false, multimodal: false },
-          hyde: { enabled: false, hypothesisCount: 1 },
           memoryTypes: ['semantic'],
-          modalities: ['text'],
-          temporal: { preferRecent: false, recencyBoost: 1.0, maxAgeMs: null },
-          graphConfig: { maxDepth: 2, minEdgeWeight: 0.3 },
-          raptorLayers: [0],
-          deepResearch: false,
           skills: [
             { skillId: 'web-search', reasoning: 'Need web access', confidence: 0.9, priority: 0 },
           ],
@@ -761,26 +759,11 @@ describe('QueryRouter', () => {
           ],
           extensions: [],
           requires_external_calls: true,
-        }),
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
-        toolCalls: [],
-        finishReason: 'stop' as const,
-      })
+        }))
       .mockResolvedValueOnce(generatorResponse('Here are the search results and generated image.'));
 
     const router = createRouter();
     await router.init();
-    router.setUnifiedRetriever({
-      retrieve: vi.fn().mockResolvedValue({
-        chunks: [],
-        citations: [],
-        retrievalPlan: { sources: [], mode: 'keyword-only' },
-        graphContext: undefined,
-        memoryContext: undefined,
-      }),
-    } as any);
 
     const result = await router.route('Search the web for AI news and generate an image');
 
@@ -800,9 +783,26 @@ describe('QueryRouter', () => {
     expect(result.recommendations!.extensions).toEqual([]);
   });
 
+  it('setCapabilityDiscoveryEngine() persists engines attached before init()', async () => {
+    const router = createRouter();
+    const mockEngine = {
+      isInitialized: vi.fn().mockReturnValue(true),
+      getTier0SummariesByKind: vi.fn().mockReturnValue({
+        skills: '## research\nweb-search',
+        tools: '## tool\nwebSearch',
+        extensions: '## extension\nbrowser-automation',
+      }),
+    } as any;
+
+    router.setCapabilityDiscoveryEngine(mockEngine);
+    await router.init();
+
+    expect((router as any).classifier.getCapabilityDiscoveryEngine()).toBe(mockEngine);
+  });
+
   it('route() returns undefined recommendations when no plan capabilities are recommended', async () => {
     mockGenerateText
-      .mockResolvedValueOnce(classifierResponse(0, 0.95))
+      .mockResolvedValueOnce(planClassifierResponse(0, 0.95))
       .mockResolvedValueOnce(generatorResponse());
 
     const router = createRouter();

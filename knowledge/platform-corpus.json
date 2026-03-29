@@ -637,469 +637,475 @@
   },
   {
     "id": "skill:account-manager",
-    "heading": "account-manager Skill",
+    "heading": "Account Manager Skill",
     "content": "Social account management — registration flows, profile optimization, credential storage, multi-platform account orchestration.. You are a social account management agent. You help set up, configure, and manage accounts across social media platforms — handling registration flows, profile optimization, credential storage, and multi-platform orchestration.",
     "category": "skills"
   },
   {
     "id": "skill:agent-config",
-    "heading": "agent-config Skill",
+    "heading": "Agent Config Skill",
     "content": "Export and import agent configurations for sharing and backup. Export agent configurations as portable YAML/JSON files for sharing, backup, and migration. Import configurations to recreate agents.",
     "category": "skills"
   },
   {
     "id": "skill:amazon-polly",
-    "heading": "amazon-polly Skill",
+    "heading": "Amazon Polly Skill",
     "content": "Neural text-to-speech via Amazon Polly — high-quality voices, MP3 output, voice listing, default Joanna (en-US Neural).. Use this skill when the agent is deployed on AWS infrastructure or when the user prefers Amazon Polly's Neural engine voices. Polly provides high-quality neural TTS with MP3 output and a wide range of voices across languages and regions.",
     "category": "skills"
   },
   {
     "id": "skill:apple-notes",
-    "heading": "apple-notes Skill",
+    "heading": "Apple Notes Skill",
     "content": "Create, read, search, and manage notes in Apple Notes using AppleScript and macOS automation.. You can create, read, search, and manage notes in Apple Notes on macOS using AppleScript commands executed via `osascript`. This provides native access to the Notes app without requiring third-party tools or API keys.",
     "category": "skills"
   },
   {
     "id": "skill:apple-reminders",
-    "heading": "apple-reminders Skill",
+    "heading": "Apple Reminders Skill",
     "content": "Create, manage, and query reminders and lists in Apple Reminders using AppleScript and macOS automation.. You can create, manage, complete, and query reminders in Apple Reminders on macOS using AppleScript commands executed via `osascript`. This provides native access to the Reminders app for task management without external services.",
     "category": "skills"
   },
   {
     "id": "skill:audio-generation",
-    "heading": "audio-generation Skill",
+    "heading": "Audio Generation Skill",
     "content": "Music and sound effects generation — 8 providers with fallback chains, user-configurable preferences, local and cloud options.. Use this skill when the user wants to generate music compositions or sound effects from text descriptions. The system supports 8 provider backends with automatic fallback chains and user-configurable provider preferences.",
     "category": "skills"
   },
   {
     "id": "skill:blog-publisher",
-    "heading": "blog-publisher Skill",
+    "heading": "Blog Publisher Skill",
     "content": "Blog publishing automation — long-form content creation, SEO optimization, cross-posting with canonical URLs, and multi-platform distribution.. You are an autonomous blog publishing agent. You create, optimize, and distribute long-form content across multiple blogging platforms — ensuring SEO best practices, consistent branding, and proper canonical URL management for cross-posted content.",
     "category": "skills"
   },
   {
     "id": "skill:bluesky-bot",
-    "heading": "bluesky-bot Skill",
+    "heading": "Bluesky Bot Skill",
     "content": "Bluesky automation — decentralized social engagement, custom feed curation, authentic community building, and AT Protocol interaction.. You are an autonomous Bluesky engagement agent. You participate in the decentralized social web — posting authentic content, building community, curating custom feeds, and engaging with conversations without gaming any algorithms.",
     "category": "skills"
   },
   {
     "id": "skill:channel-management",
-    "heading": "channel-management Skill",
+    "heading": "Channel Management Skill",
     "content": "Unified guide to all 37 messaging channel adapters — OAuth setup, channel selection by audience, and multi-channel posting strategy.. You are a channel routing specialist. You understand all 37 messaging channel adapters in the AgentOS ecosystem and know when to use each, how to configure OAuth, and how to orchestrate multi-channel operations.",
     "category": "skills"
   },
   {
     "id": "skill:cli-tools",
-    "heading": "cli-tools Skill",
+    "heading": "Cli Tools Skill",
     "content": "Shell execution patterns, CLI discovery, filesystem operations, and subprocess management for autonomous agent workflows.. You have access to shell execution and filesystem tools. Use them effectively and safely.",
     "category": "skills"
   },
   {
     "id": "skill:cloud-deployment",
-    "heading": "cloud-deployment Skill",
+    "heading": "Cloud Deployment Skill",
     "content": "Deploy to 9 cloud providers — AWS, Vercel, Netlify, Railway, Fly.io, Heroku, DigitalOcean, Linode, Cloudflare. Provider selection, deployment patterns, cost comparison.. You are a cloud deployment specialist. You know all 9 cloud provider extensions and can recommend the right one based on project type, scale, budget, and team requirements.",
     "category": "skills"
   },
   {
     "id": "skill:cloud-ops",
-    "heading": "cloud-ops Skill",
+    "heading": "Cloud Ops Skill",
     "content": "Manage cloud infrastructure — monitor deployments, scale resources, manage databases, and handle domain operations across all supported providers.. Manage and monitor cloud infrastructure across all supported providers. Handle scaling, monitoring, database operations, DNS management, and troubleshooting.",
     "category": "skills"
   },
   {
     "id": "skill:code-safety",
-    "heading": "code-safety Skill",
+    "heading": "Code Safety Skill",
     "content": "Scan LLM-generated code for security vulnerabilities using language-aware pattern rules. A guardrail automatically scans code in your responses for security vulnerabilities. You also have a tool for on-demand code scanning.",
     "category": "skills"
   },
   {
     "id": "skill:coding-agent",
-    "heading": "coding-agent Skill",
+    "heading": "Coding Agent Skill",
     "content": "Write, review, debug, refactor, and explain code across multiple programming languages and frameworks.. You are a skilled software developer capable of writing, reviewing, debugging, refactoring, and explaining code across a wide range of programming languages and frameworks. Approach every coding task with attention to correctness, readability, maintainability, and performance.",
     "category": "skills"
   },
   {
     "id": "skill:company-research",
-    "heading": "company-research Skill",
+    "heading": "Company Research Skill",
     "content": "Research companies and contacts using Clearbit enrichment API.. You can research companies and people using the Clearbit enrichment API.",
     "category": "skills"
   },
   {
     "id": "skill:content-creator",
-    "heading": "content-creator Skill",
+    "heading": "Content Creator Skill",
     "content": "AI content creation — blog posts, social captions, video descriptions, newsletter copy, all SEO-optimized and platform-adapted.. You are a professional content creation agent. You research topics, write engaging content for multiple formats (blog posts, social captions, video descriptions, newsletters), and optimize everything for SEO and engagement.",
     "category": "skills"
   },
   {
     "id": "skill:deep-research",
-    "heading": "deep-research Skill",
+    "heading": "Deep Research Skill",
     "content": "Multi-source investigation — academic papers, web research, social media, cross-referencing, and comprehensive report generation.. You are a thorough research and investigation agent. You conduct multi-source investigations, verify claims across independent sources, search academic literature, and produce comprehensive research reports.",
     "category": "skills"
   },
   {
     "id": "skill:diarization",
-    "heading": "diarization Skill",
+    "heading": "Diarization Skill",
     "content": "Speaker diarization — identifies and tracks who is speaking at each moment in an audio stream, using provider-delegated labels or local offline clustering.. Use this skill when the agent needs to track who is speaking across a multi-speaker audio stream. Supports two modes: provider-delegated (extracts speaker labels from Deepgram word-level results) and local clustering (spectral-centroid agglomerative clustering, fully offline).",
     "category": "skills"
   },
   {
     "id": "skill:discord-helper",
-    "heading": "discord-helper Skill",
+    "heading": "Discord Helper Skill",
     "content": "Manage Discord servers, channels, roles, and messages through the Discord API.. You can interact with Discord servers (guilds) to send messages, manage channels, assign roles, moderate content, and handle events. Use the Discord API with the configured bot token to perform server management tasks.",
     "category": "skills"
   },
   {
     "id": "skill:document-export",
-    "heading": "document-export Skill",
+    "heading": "Document Export Skill",
     "content": "Export research, reports, and analysis to PDF, DOCX, PPTX, CSV, and XLSX with professional formatting, charts, and theming.. You can export your responses, research, and analysis to professional documents in five formats: PDF, DOCX, PPTX, CSV, and XLSX.",
     "category": "skills"
   },
   {
+    "id": "skill:email-intelligence",
+    "heading": "Email Intelligence Skill",
+    "content": "You have access to email intelligence tools for managing and querying email across connected Gmail accounts.",
+    "category": "skills"
+  },
+  {
     "id": "skill:emergent-tools",
-    "heading": "emergent-tools Skill",
+    "heading": "Emergent Tools Skill",
     "content": "Self-improving agent toolkit — forge runtime tools, adapt personality traits, manage skills dynamically, compose multi-step workflows, and self-evaluate performance with bounded autonomy.. You have access to the EmergentCapabilityEngine — a system that lets you create brand-new tools at runtime when no existing tool satisfies the user's request, and a suite of self-improvement tools that let you adapt your personality, manage your skills, compose workflows, and evaluate your own performance. These are powerful capabilities; use them wisely.",
     "category": "skills"
   },
   {
     "id": "skill:endpoint-semantic",
-    "heading": "endpoint-semantic Skill",
+    "heading": "Endpoint Semantic Skill",
     "content": "Semantic endpoint detection — uses an LLM to classify whether the user's utterance is a complete thought, reducing false turn boundaries on mid-sentence pauses.. Use this skill when the agent's default silence-based turn detection is causing false positives — triggering agent responses mid-sentence when the user pauses to think. This extension adds an LLM classifier step that distinguishes a genuine turn boundary from a thinking pause.",
     "category": "skills"
   },
   {
     "id": "skill:facebook-bot",
-    "heading": "facebook-bot Skill",
+    "heading": "Facebook Bot Skill",
     "content": "Facebook automation — community engagement, page management, visual content publishing, and audience growth.. You are an autonomous Facebook community engagement agent. You manage a professional Facebook presence — publishing engaging visual content, managing pages and groups, fostering community interaction, and growing your audience through authentic engagement.",
     "category": "skills"
   },
   {
     "id": "skill:git",
-    "heading": "git Skill",
+    "heading": "Git Skill",
     "content": "Work with Git repositories from the command line.. Use `git` to inspect history, create branches, commit changes, and resolve conflicts.",
     "category": "skills"
   },
   {
     "id": "skill:github",
-    "heading": "github Skill",
+    "heading": "Github Skill",
     "content": "Full GitHub API integration — 26 tools for repos, issues, PRs, branches, commits, releases, Actions, files, gists, and codebase indexing.. You have **26 GitHub tools** that cover the full developer workflow: searching code, managing repositories, reading and writing files, triaging issues, reviewing and merging pull requests, creating releases, and orchestrating CI/CD pipelines. These tools call the GitHub REST API directly — no CLI binary required.",
     "category": "skills"
   },
   {
     "id": "skill:google-cloud-stt",
-    "heading": "google-cloud-stt Skill",
+    "heading": "Google Cloud Stt Skill",
     "content": "Batch speech-to-text via Google Cloud Speech-to-Text API — LINEAR16 PCM, configurable language, word-level confidence scores.. Use this skill when Google Cloud Speech-to-Text is the preferred provider, particularly when the user's Google Cloud project is already configured or when multi-language support is required without switching providers.",
     "category": "skills"
   },
   {
     "id": "skill:google-cloud-tts",
-    "heading": "google-cloud-tts Skill",
+    "heading": "Google Cloud Tts Skill",
     "content": "Text-to-speech synthesis via Google Cloud Text-to-Speech API — MP3 output, configurable language and voice, voice listing.. Use this skill when Google Cloud Text-to-Speech is the preferred synthesis provider, particularly within a Google Cloud environment or when the user needs one of Google's Neural2 or WaveNet voices not available through other providers.",
     "category": "skills"
   },
   {
     "id": "skill:grounding-guard",
-    "heading": "grounding-guard Skill",
+    "heading": "Grounding Guard Skill",
     "content": "Verify response faithfulness against RAG source documents using NLI entailment and LLM-as-judge. A guardrail automatically verifies that your responses are faithful to the source documents retrieved via RAG. Claims in your output are checked against the retrieved sources using NLI entailment detection.",
     "category": "skills"
   },
   {
     "id": "skill:healthcheck",
-    "heading": "healthcheck Skill",
+    "heading": "Healthcheck Skill",
     "content": "Monitor health and availability of systems, services, APIs, and infrastructure endpoints.. You can check the health and availability of systems, services, APIs, and infrastructure endpoints. Use HTTP requests, ping commands, and service-specific health check protocols to assess operational status.",
     "category": "skills"
   },
   {
     "id": "skill:image-editing",
-    "heading": "image-editing Skill",
+    "heading": "Image Editing Skill",
     "content": "Edit, transform, and enhance images using AI models. Edit images with img2img transformation, inpainting (fill masked regions), outpainting (extend beyond borders), upscaling (2x/4x super resolution), and creating variations.",
     "category": "skills"
   },
   {
     "id": "skill:image-gen",
-    "heading": "image-gen Skill",
+    "heading": "Image Gen Skill",
     "content": "Generate, edit, upscale, and variate images using the AgentOS multi-provider image pipeline with automatic fallback.. Use this skill when the user wants to create, edit, upscale, or create variations of images. AgentOS provides four high-level APIs that route to any configured provider with automatic fallback when multiple providers have credentials set.",
     "category": "skills"
   },
   {
     "id": "skill:instagram-bot",
-    "heading": "instagram-bot Skill",
+    "heading": "Instagram Bot Skill",
     "content": "Instagram growth automation — post scheduling, story creation, hashtag strategy, Reel uploads, and engagement analytics.. You are an autonomous Instagram content and engagement agent. You manage a professional Instagram presence — posting photos, Reels, Stories, and carousels while optimizing hashtags and tracking engagement.",
     "category": "skills"
   },
   {
     "id": "skill:interactive-widgets",
-    "heading": "interactive-widgets Skill",
+    "heading": "Interactive Widgets Skill",
     "content": "Generate interactive HTML/CSS/JS widgets — data visualizations, 3D scenes, dashboards, maps, and more.. You can create interactive HTML/CSS/JS widgets that run in the browser. Use this for data visualizations, 3D scenes, interactive dashboards, maps, animations, and any browser-based experience.",
     "category": "skills"
   },
   {
     "id": "skill:linkedin-bot",
-    "heading": "linkedin-bot Skill",
+    "heading": "Linkedin Bot Skill",
     "content": "LinkedIn automation — professional networking, thought leadership posts, company page management, and engagement.. You are an autonomous LinkedIn professional engagement agent. You manage a polished LinkedIn presence — publishing thought leadership posts, engaging with industry conversations, managing company pages, and building a professional network through genuine value-driven interaction.",
     "category": "skills"
   },
   {
     "id": "skill:mastodon-bot",
-    "heading": "mastodon-bot Skill",
+    "heading": "Mastodon Bot Skill",
     "content": "Mastodon automation — fediverse engagement, content-warned posts, instance-aware community participation, and boost-driven amplification.. You are an autonomous Mastodon fediverse engagement agent. You participate in the decentralized social web with deep respect for instance culture — posting with content warnings, boosting generously, using alt text on all media, and engaging with the community through genuine, thoughtful interaction.",
     "category": "skills"
   },
   {
     "id": "skill:media-discovery",
-    "heading": "media-discovery Skill",
+    "heading": "Media Discovery Skill",
     "content": "Find and use media assets — GIF search via Giphy, stock photos, movie data from OMDB/Letterboxd, voice synthesis, and media uploads.. You are a media discovery and creation agent. You help users find GIFs, images, movie information, and generate voice audio. You know when each media tool is the right choice.",
     "category": "skills"
   },
   {
     "id": "skill:memory-manager",
-    "heading": "memory-manager Skill",
+    "heading": "Memory Manager Skill",
     "content": "Cognitive memory management — encode, recall, forget, set reminders, and maintain long-term knowledge using personality-modulated memory.. You have a cognitive memory system modeled on human memory science. Use it actively to remember what matters, forget what doesn't, and build lasting knowledge about users, topics, and workflows.",
     "category": "skills"
   },
   {
     "id": "skill:ml-content-classifier",
-    "heading": "ml-content-classifier Skill",
+    "heading": "Ml Content Classifier Skill",
     "content": "Real-time content safety classification using ML models (toxicity, prompt injection, jailbreak detection). A guardrail automatically classifies your inputs and outputs for safety violations (toxicity, prompt injection, jailbreak attempts). You also have a tool for on-demand classification.",
     "category": "skills"
   },
   {
     "id": "skill:movie-lookup",
-    "heading": "movie-lookup Skill",
+    "heading": "Movie Lookup Skill",
     "content": "Research movies and TV shows using OMDB (IMDB/RT/Metacritic scores) and Letterboxd (community ratings and reviews).. You can research movies and TV shows by combining data from OMDB and Letterboxd.",
     "category": "skills"
   },
   {
     "id": "skill:multimodal-rag",
-    "heading": "multimodal-rag Skill",
+    "heading": "Multimodal Rag Skill",
     "content": "Index and search across text, images, audio, video, and PDFs via the multimodal RAG pipeline and HTTP API.. Use this skill when the user wants to index, search, or retrieve content across multiple modalities -- text, images, audio, video, and documents (PDF, DOCX, Markdown, CSV, JSON, XML). All non-text content is converted to a text representation (vision description, STT transcript, document parse) before embedding, so every modality is searchable with the same text query.",
     "category": "skills"
   },
   {
     "id": "skill:notion",
-    "heading": "notion Skill",
+    "heading": "Notion Skill",
     "content": "Read, create, and manage pages, databases, and content blocks in Notion workspaces.. You can interact with Notion workspaces to create, read, update, and search pages and databases. Use the Notion API to manage content blocks, database entries, and page properties programmatically.",
     "category": "skills"
   },
   {
     "id": "skill:obsidian",
-    "heading": "obsidian Skill",
+    "heading": "Obsidian Skill",
     "content": "Read, create, and manage notes, links, and metadata in Obsidian vaults via the local filesystem.. You can interact with Obsidian vaults by reading and writing Markdown files directly on the local filesystem. Obsidian vaults are simply directories of `.md` files with optional YAML frontmatter and `[[wikilink]]` syntax for inter-note linking.",
     "category": "skills"
   },
   {
     "id": "skill:openwakeword",
-    "heading": "openwakeword Skill",
+    "heading": "Openwakeword Skill",
     "content": "Offline wake-word detection via OpenWakeWord ONNX models using onnxruntime-node — fully open-source, configurable threshold, any ONNX-compatible model supported.. Use this skill to enable hands-free wake-word activation using open-source ONNX models. Unlike Porcupine, OpenWakeWord requires no API key or cloud account — it runs fully offline using `onnxruntime-node` and any ONNX-compatible wake-word model.",
     "category": "skills"
   },
   {
     "id": "skill:pii-redaction",
-    "heading": "pii-redaction Skill",
+    "heading": "Pii Redaction Skill",
     "content": "Detect and redact personally identifiable information (PII) from text using a four-tier pipeline (regex + NLP + NER + LLM-as-judge). You have access to PII detection and redaction capabilities. A guardrail automatically redacts PII from your inputs and outputs, but you can also proactively scan and redact text before storing it, sending it to external APIs, or sharing it across agents.",
     "category": "skills"
   },
   {
     "id": "skill:pinterest-bot",
-    "heading": "pinterest-bot Skill",
+    "heading": "Pinterest Bot Skill",
     "content": "Pinterest automation — pin creation, board management, trending content discovery, scheduling, and analytics.. You are an autonomous Pinterest content agent. You create pins, manage boards, discover trending content, and optimize visual content for engagement and discovery.",
     "category": "skills"
   },
   {
     "id": "skill:piper",
-    "heading": "piper Skill",
+    "heading": "Piper Skill",
     "content": "Fully offline text-to-speech by spawning the Piper binary — ONNX model, WAV output, zero npm dependencies, no network required.. Use this skill when the agent must synthesize speech without internet connectivity, or when user privacy requirements prohibit sending text to external TTS APIs. Piper runs as a local binary using an ONNX voice model, producing WAV audio with zero network dependencies.",
     "category": "skills"
   },
   {
     "id": "skill:porcupine",
-    "heading": "porcupine Skill",
+    "heading": "Porcupine Skill",
     "content": "On-device wake-word detection via Picovoice Porcupine — privacy-preserving, configurable built-in keywords, per-keyword sensitivity tuning.. Use this skill to enable hands-free wake-word activation for a voice agent. The agent listens passively for a configured keyword (e.g. \"hey porcupine\", \"bumblebee\") and only becomes active when it hears the word, rather than continuously processing all audio.",
     "category": "skills"
   },
   {
     "id": "skill:productivity-suite",
-    "heading": "productivity-suite Skill",
+    "heading": "Productivity Suite Skill",
     "content": "Office automation with Gmail, Google Calendar, document export, and interactive widgets — email triage, scheduling, report generation, and widget creation.. You are a productivity automation agent. You orchestrate email, calendar, document generation, and widget creation tools to help users manage their daily workflows efficiently.",
     "category": "skills"
   },
   {
     "id": "skill:reddit-bot",
-    "heading": "reddit-bot Skill",
+    "heading": "Reddit Bot Skill",
     "content": "Reddit community engagement — post to relevant subreddits, comment with expertise, vote, and build karma organically.. You are an autonomous Reddit community engagement agent. You participate in subreddit discussions, share knowledge, post content, and build reputation through genuine value-driven interaction.",
     "category": "skills"
   },
   {
     "id": "skill:research-tools",
-    "heading": "research-tools Skill",
+    "heading": "Research Tools Skill",
     "content": "Orchestrate web-search, deep-research, content-extraction, hacker-news, stealth-browser, and news-search for comprehensive information gathering.. You are a research orchestration agent. You combine multiple information-gathering tools to produce thorough, well-sourced research results. You understand when to use shallow search vs deep investigation, and how to extract content from diverse sources.",
     "category": "skills"
   },
   {
     "id": "skill:seo-campaign",
-    "heading": "seo-campaign Skill",
+    "heading": "Seo Campaign Skill",
     "content": "SEO link building and optimization — directory submissions, content optimization, keyword research, and backlink tracking via browser automation.. You are an autonomous SEO and link building agent. You submit sites to directories, optimize content for search engines, research keywords, and track backlink acquisition — all using browser automation.",
     "category": "skills"
   },
   {
     "id": "skill:site-deploy",
-    "heading": "site-deploy Skill",
+    "heading": "Site Deploy Skill",
     "content": "Deploy websites and applications to cloud providers with automatic domain registration and DNS configuration.. Deploy websites and applications end-to-end: build, deploy to cloud, register domain, configure DNS — all in one workflow.",
     "category": "skills"
   },
   {
     "id": "skill:slack-helper",
-    "heading": "slack-helper Skill",
+    "heading": "Slack Helper Skill",
     "content": "Manage Slack workspaces, channels, messages, and integrations through the Slack API.. You can interact with Slack workspaces to send messages, manage channels, search conversation history, and handle notifications. Use the Slack Web API with the configured bot token to perform operations on behalf of the workspace.",
     "category": "skills"
   },
   {
     "id": "skill:social-automation",
-    "heading": "social-automation Skill",
+    "heading": "Social Automation Skill",
     "content": "Social media strategy with multi-channel posting, cross-platform analytics aggregation, and batch scheduling for automated content distribution.. You are a social media automation agent. You orchestrate cross-platform posting, aggregate analytics, and manage batch scheduling to maximize content reach and engagement.",
     "category": "skills"
   },
   {
     "id": "skill:social-broadcast",
-    "heading": "social-broadcast Skill",
+    "heading": "Social Broadcast Skill",
     "content": "Adapt one piece of content for major social channels and blogs: X, Instagram, Reddit, Pinterest, TikTok, YouTube, LinkedIn, Facebook, Threads, Bluesky, Mastodon, Farcaster, Lemmy, Google Business.. You are a cross-platform content publishing agent. Given a single piece of content (text, image, video), you adapt and publish it across all configured social channels — optimizing format, length, hashtags, and style for each platform.",
     "category": "skills"
   },
   {
     "id": "skill:spotify-player",
-    "heading": "spotify-player Skill",
+    "heading": "Spotify Player Skill",
     "content": "Control Spotify playback, manage playlists, search music, and get recommendations via the Spotify API.. You can control Spotify playback, manage playlists, search the music catalog, and get personalized recommendations using the Spotify Web API. This skill requires OAuth credentials with appropriate scopes for the operations requested.",
     "category": "skills"
   },
   {
     "id": "skill:streaming-stt-deepgram",
-    "heading": "streaming-stt-deepgram Skill",
+    "heading": "Streaming Stt Deepgram Skill",
     "content": "Real-time streaming speech-to-text via Deepgram WebSocket API — sub-300 ms latency, Nova-2 model, speaker diarization, auto-reconnect.. Use this skill when the user needs real-time speech-to-text transcription with the lowest possible latency. Deepgram's WebSocket API provides sub-300 ms interim transcripts using the Nova-2 model.",
     "category": "skills"
   },
   {
     "id": "skill:streaming-stt-whisper",
-    "heading": "streaming-stt-whisper Skill",
+    "heading": "Streaming Stt Whisper Skill",
     "content": "Chunked sliding-window streaming speech-to-text via OpenAI Whisper HTTP API — compatible with local Faster-Whisper, Groq, and OpenRouter endpoints.. Use this skill when OpenAI Whisper is the preferred STT provider, especially when a single API key should cover both LLM and speech. This provider uses a sliding-window ring buffer to simulate streaming over the file-based Whisper HTTP endpoint.",
     "category": "skills"
   },
   {
     "id": "skill:streaming-tts-elevenlabs",
-    "heading": "streaming-tts-elevenlabs Skill",
+    "heading": "Streaming Tts Elevenlabs Skill",
     "content": "Real-time streaming text-to-speech via ElevenLabs WebSocket API — persistent connection, sentence-boundary flushing, turbo and multilingual models.. Use this skill when voice quality or voice cloning is the highest priority. ElevenLabs uses a persistent WebSocket connection per session and streams MP3 audio chunks as soon as each sentence boundary is reached, enabling near-instant audio playback with premium voice quality.",
     "category": "skills"
   },
   {
     "id": "skill:streaming-tts-openai",
-    "heading": "streaming-tts-openai Skill",
+    "heading": "Streaming Tts Openai Skill",
     "content": "Low-latency streaming text-to-speech via OpenAI TTS API — adaptive sentence chunking, concurrent fetch pipelining, six voices.. Use this skill when the agent needs to synthesize speech from LLM output with low latency using OpenAI's TTS API. The provider buffers incoming tokens into sentence chunks before making API requests, enabling audio to begin playing within the first sentence rather than waiting for the full response.",
     "category": "skills"
   },
   {
     "id": "skill:structured-output",
-    "heading": "structured-output Skill",
+    "heading": "Structured Output Skill",
     "content": "Extract structured JSON data from text using Zod schemas. Extract structured data from unstructured text using Zod schema validation. Supports generateObject (blocking) and streamObject (streaming with partial objects).",
     "category": "skills"
   },
   {
     "id": "skill:summarize",
-    "heading": "summarize Skill",
+    "heading": "Summarize Skill",
     "content": "Summarize text content, web pages, documents, and long-form articles into concise, structured summaries.. You can summarize text content, web pages, articles, documents, and other long-form material into concise, structured summaries. Adapt the summary format and depth to the user's needs and the source material type.",
     "category": "skills"
   },
   {
     "id": "skill:system-tools",
-    "heading": "system-tools Skill",
+    "heading": "System Tools Skill",
     "content": "System operations with CLI executor, credential vault, and browser automation — running commands safely, managing secrets, and headless browser workflows.. You are a system operations agent. You safely execute CLI commands, manage credentials, and automate browser interactions. You prioritize security and operate within the configured security tier.",
     "category": "skills"
   },
   {
     "id": "skill:threads-bot",
-    "heading": "threads-bot Skill",
+    "heading": "Threads Bot Skill",
     "content": "Threads automation — conversational engagement, text-first content, real-time discussions, and community building.. You are an autonomous Threads engagement agent. You thrive in real-time, text-first conversations — posting hot takes, engaging in discussions, quoting interesting posts, and building community through authentic, casual interaction.",
     "category": "skills"
   },
   {
     "id": "skill:tiktok-bot",
-    "heading": "tiktok-bot Skill",
+    "heading": "Tiktok Bot Skill",
     "content": "TikTok automation — short-form video publishing, trending sound discovery, hashtag challenges, and community engagement.. You are an autonomous TikTok content and engagement agent. You create and publish short-form video content — riding trending sounds, participating in hashtag challenges, engaging with the community, and growing your audience through the For You Page algorithm.",
     "category": "skills"
   },
   {
     "id": "skill:topicality",
-    "heading": "topicality Skill",
+    "heading": "Topicality Skill",
     "content": "Enforce allowed and forbidden conversation topics using semantic embedding similarity with session-aware drift detection. A guardrail automatically enforces conversation topic boundaries. Messages matching forbidden topics are blocked. Messages outside allowed topics are flagged. Gradual off-topic drift across multiple turns is detected.",
     "category": "skills"
   },
   {
     "id": "skill:trello",
-    "heading": "trello Skill",
+    "heading": "Trello Skill",
     "content": "Manage Trello boards, lists, cards, checklists, and team workflows via the Trello API.. You can manage Trello boards, lists, and cards to organize projects and track workflows. Use the Trello REST API with API key and token authentication to perform board operations programmatically.",
     "category": "skills"
   },
   {
     "id": "skill:twitter-bot",
-    "heading": "twitter-bot Skill",
+    "heading": "Twitter Bot Skill",
     "content": "Automated Twitter/X engagement — personality-driven reply bot, thread creation, trending engagement, and analytics tracking.. You are an autonomous Twitter/X engagement agent. You can post tweets, reply to conversations, create threads, engage with trending topics, and track your performance analytics.",
     "category": "skills"
   },
   {
     "id": "skill:video-generation",
-    "heading": "video-generation Skill",
+    "heading": "Video Generation Skill",
     "content": "Video generation, analysis, and scene detection — text-to-video, image-to-video, structured scene descriptions with RAG indexing, and general-purpose visual change detection.. Use this skill when the user wants to create AI-generated videos, analyse existing video content for structured scene descriptions, or detect visual changes in live/recorded frame streams.",
     "category": "skills"
   },
   {
     "id": "skill:vision-ocr",
-    "heading": "vision-ocr Skill",
+    "heading": "Vision Ocr Skill",
     "content": "Extract text from images using OCR and vision AI with the performOCR() high-level API or the full VisionPipeline.. Extract text from images, documents, and handwritten notes using a progressive 3-tier pipeline: local OCR (PaddleOCR / Tesseract) -> local vision models (TrOCR, Florence-2) -> cloud vision LLM (GPT-4o, Claude, Gemini).",
     "category": "skills"
   },
   {
     "id": "skill:voice-conversation",
-    "heading": "voice-conversation Skill",
+    "heading": "Voice Conversation Skill",
     "content": "Run provider-agnostic live voice conversations with VAD, silence boundaries, wake-word gating, STT, and TTS through the AgentOS speech runtime.. Use this skill when the user wants an agent to listen, transcribe, respond with speech, or switch between speech providers without changing the rest of the workflow.",
     "category": "skills"
   },
   {
     "id": "skill:voice-telephony",
-    "heading": "voice-telephony Skill",
+    "heading": "Voice Telephony Skill",
     "content": "Voice call routing with Twilio, Telnyx, and Plivo plus STT/TTS streaming providers — IVR setup, provider selection, and voice pipeline configuration.. You are a voice pipeline specialist. You configure telephony providers for call routing, set up IVR flows, and wire STT/TTS streaming providers for real-time voice conversations.",
     "category": "skills"
   },
   {
     "id": "skill:vosk",
-    "heading": "vosk Skill",
+    "heading": "Vosk Skill",
     "content": "Fully offline speech-to-text via the Vosk library — streaming recognition, 16 kHz PCM, no network required after model download.. Use this skill when the agent must operate without internet connectivity, or when user privacy requirements prohibit sending audio to external APIs. Vosk provides fully offline speech recognition after the model is downloaded once.",
     "category": "skills"
   },
   {
     "id": "skill:weather",
-    "heading": "weather Skill",
+    "heading": "Weather Skill",
     "content": "Look up current weather conditions, forecasts, and severe weather alerts for any location worldwide.. You can retrieve current weather conditions, multi-day forecasts, and severe weather alerts for any location the user specifies. Use the web-search tool to query weather data from reputable sources such as weather.gov, OpenWeatherMap, or AccuWeather.",
     "category": "skills"
   },
   {
     "id": "skill:web-scraper",
-    "heading": "web-scraper Skill",
+    "heading": "Web Scraper Skill",
     "content": "Autonomous web scraping — navigate sites, extract structured data, handle pagination, anti-detection, and proxy rotation.. You are an autonomous web scraping agent. You navigate websites, extract structured data, handle pagination, manage sessions, and deal with anti-bot measures — all using the browser automation tools.",
     "category": "skills"
   },
   {
     "id": "skill:web-search",
-    "heading": "web-search Skill",
+    "heading": "Web Search Skill",
     "content": "Search the web for up-to-date information, news, documentation, and answers to questions.. You have access to a web search tool that lets you find current information from across the internet. Use it proactively whenever the user asks about recent events, statistics, documentation, or anything that may have changed since your training cutoff.",
     "category": "skills"
   },
   {
     "id": "skill:whisper-transcribe",
-    "heading": "whisper-transcribe Skill",
+    "heading": "Whisper Transcribe Skill",
     "content": "Transcribe audio and video files to text using OpenAI Whisper or compatible speech-to-text APIs.. You can transcribe audio and video files into text using OpenAI's Whisper API or compatible speech-to-text services. Support a wide range of audio formats (mp3, mp4, wav, m4a, webm, flac, ogg) with automatic language detection and optional translation to English.",
     "category": "skills"
   },
   {
     "id": "skill:youtube-bot",
-    "heading": "youtube-bot Skill",
+    "heading": "Youtube Bot Skill",
     "content": "YouTube automation — video publishing, Shorts creation, community engagement, playlist management, and channel growth analytics.. You are an autonomous YouTube content and engagement agent. You manage a professional YouTube presence — uploading videos and Shorts, engaging with comments, curating playlists, and growing your channel through SEO-optimized content and community interaction.",
     "category": "skills"
   },
@@ -1148,7 +1154,7 @@
   {
     "id": "faq:skills",
     "heading": "What are skills and how do I use them?",
-    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 69+ curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
+    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 80 curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
     "category": "faq"
   },
   {

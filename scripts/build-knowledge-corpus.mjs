@@ -94,17 +94,16 @@ function loadSkillsSummaries() {
 
     const raw = readFileSync(skillPath, 'utf-8');
     const { frontmatter, body } = parseFrontmatter(raw);
-
-    if (!frontmatter.name && !frontmatter.description) continue;
-
-    const name = frontmatter.name || dir;
-    const description = frontmatter.description || '';
     const firstParagraph = extractFirstParagraph(body);
+    const name = frontmatter.name || dir;
+    const description = frontmatter.description || firstParagraph;
+
+    if (!name && !description && !firstParagraph) continue;
 
     chunks.push({
-      id: `skill:${name}`,
-      heading: `${name} Skill`,
-      content: [description, firstParagraph].filter(Boolean).join('. '),
+      id: `skill:${dir}`,
+      heading: `${humanizeIdentifier(name)} Skill`,
+      content: description === firstParagraph ? description : [description, firstParagraph].filter(Boolean).join('. '),
       category: 'skills',
     });
   }
@@ -173,6 +172,20 @@ function extractFirstParagraph(body) {
   return paragraph.join(' ');
 }
 
+/**
+ * Convert a kebab-case or snake_case identifier into a human-readable label.
+ *
+ * @param {string} value - Raw identifier.
+ * @returns {string} Human-readable label.
+ */
+function humanizeIdentifier(value) {
+  return value
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
 // ============================================================================
 // Source 3: FAQ (hardcoded common questions)
 // ============================================================================
@@ -184,7 +197,7 @@ function extractFirstParagraph(body) {
  *
  * @returns {Array<{id: string, heading: string, content: string, category: string}>}
  */
-function getFaqEntries() {
+function getFaqEntries(skillCount = 0) {
   return [
     {
       id: 'faq:add-voice',
@@ -239,7 +252,7 @@ function getFaqEntries() {
       id: 'faq:skills',
       heading: 'What are skills and how do I use them?',
       content:
-        "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 69+ curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
+        `Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are ${skillCount} curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.`,
       category: 'faq',
     },
     {
@@ -650,7 +663,7 @@ function main() {
   corpus.push(...skills);
 
   // Source 3: FAQ
-  const faq = getFaqEntries();
+  const faq = getFaqEntries(skills.length);
   console.log(`  [3/5] FAQ entries: ${faq.length} entries`);
   corpus.push(...faq);
 
