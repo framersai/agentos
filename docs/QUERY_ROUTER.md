@@ -111,6 +111,18 @@ User project docs     (your ./docs, ./guides, etc.)
 
 This means an agent can answer questions like "What vector stores does AgentOS support?" or "How do I set up a Bluesky channel?" without any project-specific documentation — the answer comes from the bundled platform knowledge.
 
+### Agentic Credential Discovery
+
+A key application of platform knowledge is **agentic credential setup**. The corpus includes dedicated FAQ entries for:
+
+- **Gmail setup** (`faq:setup-gmail`): Step-by-step instructions for creating a Google Cloud project, enabling the Gmail API, downloading the `client_secret_*.json` file, and running the OAuth flow via `wunderland connect gmail --credentials`.
+- **General credential setup** (`faq:setup-credentials-general`): The universal pattern for helping users configure any extension — discover what's needed via `discover_capabilities`, find files via `shell_execute`, parse them via `file_read`, and persist credentials.
+- **Extension credentials reference** (`faq:extension-credentials`): Complete listing of what environment variables each extension requires (GITHUB_TOKEN, DISCORD_BOT_TOKEN, ELEVENLABS_API_KEY, etc.).
+- **File discovery** (`faq:find-credential-files`): How to locate downloaded credential files on the user's system (checking ~/Downloads, ~/Desktop, ~/.aws, ~/.ssh).
+- **wunderland connect reference** (`faq:wunderland-connect`): Command reference for the OAuth-based connect flow with all supported services and the `--credentials` flag.
+
+When a user asks "help me set up Gmail" or "I downloaded a credentials file", the NL intent classifier routes to the connect flow, and the agent uses these knowledge entries combined with agentic tools (`shell_execute`, `file_read`) to guide the user through credential setup without any hard-coded logic in the CLI itself.
+
 ### Configuration
 
 Platform knowledge is enabled by default. To disable it:
