@@ -1,3 +1,8 @@
+## <small>0.1.144 (2026-03-29)</small>
+
+* feat(query-router): capability recommendations + discovery engine integration ([1df5a12](https://github.com/framersai/agentos/commit/1df5a12))
+* docs: rewrite quickstart — personality, memory, RAG, workflows, agency, voice, guardrails ([3270358](https://github.com/framersai/agentos/commit/3270358))
+
 ## <small>0.1.143 (2026-03-29)</small>
 
 * feat: add fallbackProviders + buildFallbackChain to generateText/streamText/agent ([800edae](https://github.com/framersai/agentos/commit/800edae))
