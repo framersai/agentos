@@ -1,3 +1,7 @@
+## <small>0.1.154 (2026-03-30)</small>
+
+* fix: remove all downstream references from AgentOS docs ([961c4af](https://github.com/framersai/agentos/commit/961c4af))
+
 ## <small>0.1.153 (2026-03-30)</small>
 
 * docs: add llmJudge API reference and humanNode options table ([5427fc8](https://github.com/framersai/agentos/commit/5427fc8))
