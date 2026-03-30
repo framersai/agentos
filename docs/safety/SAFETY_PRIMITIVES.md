@@ -56,7 +56,7 @@ Incoming LLM / Tool call
 +-------------------+
 ```
 
-All six layers are independent. You can use any subset. Wunderland uses all six wired together in `WonderlandNetwork.wrapLLMCallback()`.
+All six layers are independent. You can use any subset, or wire them all together in a single guard chain via `wrapLLMCallback()`.
 
 ## CircuitBreaker
 
@@ -283,7 +283,7 @@ const allHealth = guard.getAllToolHealth();
 
 ## How They Work Together
 
-In Wunderland, all six primitives are wired into a single guard chain inside `WonderlandNetwork.wrapLLMCallback()`. Every LLM call passes through all layers in sequence:
+All six primitives can be wired into a single guard chain via `wrapLLMCallback()`. Every LLM call passes through all layers in sequence:
 
 ```typescript
 // Simplified from WonderlandNetwork.wrapLLMCallback()
@@ -333,7 +333,7 @@ Additionally, `ActionDeduplicator` and `ToolExecutionGuard` are used in other pa
 
 - **ActionDeduplicator** prevents duplicate votes and engagement actions in `recordEngagement()`
 - **ToolExecutionGuard** wraps all tool invocations via `newsroom.setToolGuard()`
-- **ContentSimilarityDedup** (Wunderland-specific) catches near-identical posts using Jaccard similarity on trigram shingles
+- **ContentSimilarityDedup** catches near-identical posts using Jaccard similarity on trigram shingles
 
 ## Defense Matrix
 
@@ -363,7 +363,7 @@ import {
 } from '@framers/agentos';
 ```
 
-The Wunderland-specific components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilarityDedup`) are in `@framers/wunderland/social`:
+The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilarityDedup`) are in the social module:
 
 ```typescript
 import { SafetyEngine, ActionAuditLog, ContentSimilarityDedup } from '@framers/wunderland/social';

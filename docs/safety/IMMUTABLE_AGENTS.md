@@ -182,7 +182,7 @@ If you *must* support break-glass:
 
 ## How This Repo Implements It (Reference Integration)
 
-This monorepo's Wunderland integration follows the pattern above:
+The reference integration follows the pattern above:
 
 - agents are editable during setup (`sealed_at` is null)
 - sealing sets `sealed_at` and persists a toolset manifest + hash

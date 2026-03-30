@@ -1,7 +1,7 @@
 # Guardrails Usage Guide
 
 :::tip See also
-For CLI usage and guardrail configuration, see [Guardrails on docs.wunderland.sh](https://docs.wunderland.sh/guides/guardrails).
+For creating custom guardrails, see [Creating Custom Guardrails](./creating-guardrails). For the underlying safety primitives, see [Safety Primitives](./safety-primitives).
 :::
 
 Guardrails are safety mechanisms that intercept and evaluate content before it enters or exits the AgentOS pipeline. They enable content filtering, PII redaction, policy enforcement, and mid-stream decision overrides.
@@ -451,7 +451,7 @@ Extension packs that need expensive resources (NER models, ONNX classifiers, emb
 
 ## Folder-Level Permissions & Safe Guardrails
 
-In addition to content guardrails, Wunderland provides **folder-level permission guardrails** that validate filesystem access before tool execution. This prevents agents from accessing sensitive system files or directories outside their permitted scope.
+In addition to content guardrails, AgentOS provides **folder-level permission guardrails** that validate filesystem access before tool execution. This prevents agents from accessing sensitive system files or directories outside their permitted scope.
 
 ### Overview
 
@@ -531,7 +531,7 @@ Each security tier includes default folder permissions:
 When an agent attempts unauthorized access, Safe Guardrails:
 
 1. **Blocks the tool call** and returns an error
-2. **Logs the violation** to `~/.wunderland/security/violations.log`
+2. **Logs the violation** to `~/.agentos/security/violations.log`
 3. **Sends notifications** (webhooks/email) for high/critical severity
 4. **Assesses severity** based on attempted path:
    - **Critical**: `/etc`, `/root`, `/boot`, `passwd`, `shadow`
@@ -616,7 +616,7 @@ Configure webhooks or email alerts for violations:
 
 ```typescript
 const guardrails = new SafeGuardrails({
-  auditLogPath: '~/.wunderland/security/violations.log',
+  auditLogPath: '~/.agentos/security/violations.log',
   notificationWebhooks: ['https://hooks.slack.com/...'],
   emailConfig: {
     to: 'security@example.com',
