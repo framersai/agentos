@@ -228,6 +228,33 @@ export interface HitlConfig {
    * - `"error"` — throw an error and halt the run.
    */
   onTimeout?: 'reject' | 'approve' | 'error';
+
+  /**
+   * Run guardrails AFTER HITL approval to catch destructive actions.
+   *
+   * When enabled (default), even after a tool call is approved by the HITL
+   * handler (auto-approve, LLM judge, or human), the configured guardrails
+   * run a final safety check against the tool call arguments. If any
+   * guardrail returns `action: 'block'`, the approval is overridden and the
+   * tool call is denied.
+   *
+   * Set to `false` to disable this safety net and give full autonomy to the
+   * HITL handler's decision.
+   *
+   * @default true
+   */
+  guardrailOverride?: boolean;
+
+  /**
+   * Guardrail IDs to run as a post-approval safety check.
+   *
+   * Only evaluated when {@link guardrailOverride} is not `false`. These
+   * guardrails are invoked after the HITL handler approves a tool call and
+   * can veto the approval if they detect destructive patterns.
+   *
+   * @default ['pii-redaction', 'code-safety']
+   */
+  postApprovalGuardrails?: string[];
 }
 
 /**
@@ -535,6 +562,26 @@ export interface GuardrailEvent {
   enforced?: boolean;
   /** Action taken by the guardrail (e.g. `"allow"`, `"block"`, `"redact"`). */
   action: string;
+  /** Human-readable reason for the guardrail action. */
+  reason?: string;
+  /** Unix timestamp in milliseconds. */
+  timestamp: number;
+}
+
+/**
+ * Emitted when a post-approval guardrail overrides an HITL approval.
+ *
+ * This event fires after a tool call has been approved by the HITL handler
+ * (auto-approve, LLM judge, or human) but a guardrail detected a
+ * destructive pattern and vetoed the execution.
+ */
+export interface GuardrailHitlOverrideEvent {
+  /** The guardrail ID that triggered the override. */
+  guardrailId: string;
+  /** Human-readable reason for the override. */
+  reason: string;
+  /** The tool name that was blocked. */
+  toolName: string;
   /** Unix timestamp in milliseconds. */
   timestamp: number;
 }
@@ -594,6 +641,12 @@ export interface AgencyCallbacks {
   approvalRequested?: (e: ApprovalRequest) => void;
   /** Called after an approval decision is resolved. */
   approvalDecided?: (e: ApprovalDecision) => void;
+  /**
+   * Called when a post-approval guardrail overrides an HITL approval.
+   * Fires after a tool call was approved but a guardrail detected a
+   * destructive pattern and vetoed the execution.
+   */
+  guardrailHitlOverride?: (e: GuardrailHitlOverrideEvent) => void;
 }
 
 // ---------------------------------------------------------------------------

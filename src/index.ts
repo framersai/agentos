@@ -200,7 +200,8 @@ export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
-export { agency } from './api/agency.js';
+export { agency, runPostApprovalGuardrails } from './api/agency.js';
+export type { GuardrailHitlOverrideResult } from './api/agency.js';
 export {
   exportAgentConfig,
   exportAgentConfigJSON,

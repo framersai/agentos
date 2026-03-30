@@ -106,6 +106,19 @@ export function humanNode(config: {
   };
   /** What to do when timeout expires. @default 'error' */
   onTimeout?: 'accept' | 'reject' | 'error';
+  /**
+   * Run guardrails AFTER approval to catch destructive actions.
+   *
+   * Even when the node auto-accepts or is approved by an LLM judge,
+   * guardrails can still veto the decision as a safety net. When a
+   * guardrail blocks, the node returns `approved: false` with the
+   * guardrail's reason.
+   *
+   * Set to `false` to disable the guardrail safety net for this node.
+   *
+   * @default true
+   */
+  guardrailOverride?: boolean;
 }, policies?: NodePolicies): GraphNode {
   return {
     id: nextId('human'),
@@ -117,6 +130,7 @@ export function humanNode(config: {
       autoReject: config.autoReject,
       judge: config.judge,
       onTimeout: config.onTimeout,
+      guardrailOverride: config.guardrailOverride,
     },
     executionMode: 'single_turn',
     effectClass: 'human',

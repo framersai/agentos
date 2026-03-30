@@ -432,11 +432,16 @@ export class NodeExecutor {
         confidenceThreshold?: number;
       };
       onTimeout?: 'accept' | 'reject' | 'error';
+      guardrailOverride?: boolean;
     },
   ): Promise<NodeExecutionResult> {
     // --- Auto-accept: resolve immediately without human input ---
     if (config.autoAccept) {
-      return { success: true, output: { approved: true, decidedBy: 'auto-accept' } };
+      const autoAcceptResult = { approved: true, decidedBy: 'auto-accept' };
+      // Run post-approval guardrails if enabled.
+      const guardrailCheck = await this.runHumanNodeGuardrails(config, autoAcceptResult);
+      if (guardrailCheck) return guardrailCheck;
+      return { success: true, output: autoAcceptResult };
     }
 
     // --- Auto-reject: resolve immediately without human input ---
@@ -480,6 +485,12 @@ export class NodeExecutor {
           typeof decision.confidence === 'number' &&
           decision.confidence >= threshold
         ) {
+          if (decision.approved) {
+            const judgeResult = { ...decision, decidedBy: 'llm-judge' };
+            // Run post-approval guardrails if enabled.
+            const guardrailCheck = await this.runHumanNodeGuardrails(config, judgeResult);
+            if (guardrailCheck) return guardrailCheck;
+          }
           return {
             success: true,
             output: { ...decision, decidedBy: 'llm-judge' },
@@ -498,6 +509,68 @@ export class NodeExecutor {
       error: 'Awaiting human input',
       output: { prompt: config.prompt },
     };
+  }
+
+  /**
+   * Runs post-approval guardrails for a human node when an approval
+   * decision has been reached (auto-accept, LLM judge, or timeout-accept).
+   *
+   * When `guardrailOverride` is not `false` and the node has an associated
+   * `guardrailPolicy`, the guardrails are evaluated. If any guardrail blocks,
+   * this returns a denial result; otherwise returns `null` (proceed normally).
+   *
+   * @param config - The human node's executor config.
+   * @param approvalOutput - The approval output that was about to be returned.
+   * @returns A `NodeExecutionResult` denying the action, or `null` if guardrails pass.
+   */
+  private async runHumanNodeGuardrails(
+    config: {
+      guardrailOverride?: boolean;
+      prompt: string;
+    },
+    approvalOutput: Record<string, unknown>,
+  ): Promise<NodeExecutionResult | null> {
+    // Skip when the override safety net is explicitly disabled.
+    if (config.guardrailOverride === false) {
+      return null;
+    }
+
+    // Only evaluate when a guardrail engine is wired.
+    if (!this.deps.guardrailEngine) {
+      return null;
+    }
+
+    // Run the guardrail engine against the approval context.
+    const guardrailIds = ['pii-redaction', 'code-safety'];
+    const evalResult = await this.deps.guardrailEngine.evaluate(
+      { prompt: config.prompt, approval: approvalOutput },
+      guardrailIds,
+    );
+
+    if (!evalResult.passed) {
+      const reason = (evalResult.results as Array<{ reason?: string }>)
+        .map((r) => r.reason)
+        .filter(Boolean)
+        .join('; ') || 'Blocked by post-approval guardrail';
+
+      return {
+        success: true,
+        output: {
+          approved: false,
+          reason: `Guardrail override: ${reason}`,
+          decidedBy: 'guardrail-override',
+        },
+        events: [{
+          type: 'guardrail:hitl-override' as any,
+          guardrailId: guardrailIds.join(','),
+          reason,
+          prompt: config.prompt,
+          timestamp: Date.now(),
+        }],
+      };
+    }
+
+    return null;
   }
 
   /**

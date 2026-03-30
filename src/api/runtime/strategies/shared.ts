@@ -193,5 +193,30 @@ export async function checkBeforeAgent(
   // Fire the approvalDecided callback so event consumers know the outcome.
   agencyConfig.on?.approvalDecided?.(decision);
 
+  // --- Post-approval guardrail override ---
+  // Even after HITL approves, run guardrails as a final safety net.
+  if (decision.approved && agencyConfig.hitl?.guardrailOverride !== false) {
+    const { runPostApprovalGuardrails } = await import('../../agency.js');
+    const postGuardrails = agencyConfig.hitl?.postApprovalGuardrails ?? ['pii-redaction', 'code-safety'];
+    const overrideResult = await runPostApprovalGuardrails(
+      `agent:${name}`,
+      { input: context },
+      postGuardrails,
+      agencyConfig.on,
+    );
+    if (!overrideResult.passed) {
+      agencyConfig.on?.guardrailHitlOverride?.({
+        guardrailId: overrideResult.guardrailId!,
+        reason: overrideResult.reason!,
+        toolName: `agent:${name}`,
+        timestamp: Date.now(),
+      });
+      return {
+        approved: false,
+        reason: `Guardrail overrode HITL approval — ${overrideResult.guardrailId}: ${overrideResult.reason}`,
+      };
+    }
+  }
+
   return decision;
 }

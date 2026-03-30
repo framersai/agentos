@@ -1276,6 +1276,29 @@ async function maybeApproveFinalResult(
     );
   }
 
+  // --- Post-approval guardrail override ---
+  // Even after HITL approves, run guardrails as a final safety net.
+  if (decision.approved && opts.hitl.guardrailOverride !== false) {
+    const postGuardrails = opts.hitl.postApprovalGuardrails ?? ['pii-redaction', 'code-safety'];
+    const overrideResult = await runPostApprovalGuardrails(
+      'return',
+      { output: (result.text as string) ?? '' },
+      postGuardrails,
+      opts.on,
+    );
+    if (!overrideResult.passed) {
+      opts.on?.guardrailHitlOverride?.({
+        guardrailId: overrideResult.guardrailId!,
+        reason: overrideResult.reason!,
+        toolName: 'return',
+        timestamp: Date.now(),
+      });
+      throw new AgencyConfigError(
+        `Guardrail overrode HITL approval for final output — ${overrideResult.guardrailId}: ${overrideResult.reason}`,
+      );
+    }
+  }
+
   if (typeof decision.modifications?.output === 'string') {
     return { ...result, text: decision.modifications.output };
   }
@@ -1313,4 +1336,195 @@ async function resolveApprovalDecision(
         reject(error);
       });
   });
+}
+
+// ---------------------------------------------------------------------------
+// Post-approval guardrail override
+// ---------------------------------------------------------------------------
+
+/**
+ * Result of a post-approval guardrail check.
+ *
+ * Contains the blocking guardrail's ID and reason when the override fires.
+ */
+export interface GuardrailHitlOverrideResult {
+  /** Whether the guardrails passed (tool call may proceed). */
+  passed: boolean;
+  /** The guardrail ID that triggered the block (when `passed` is `false`). */
+  guardrailId?: string;
+  /** Human-readable reason for the block. */
+  reason?: string;
+}
+
+/**
+ * Runs post-approval guardrails against tool call arguments to catch
+ * destructive actions that slipped past the HITL handler.
+ *
+ * This is the core safety net: even when auto-approve, LLM judge, or a
+ * human approves a tool call, the configured guardrails get a final say.
+ * If any guardrail returns `action: 'block'`, the approval is overridden.
+ *
+ * @param toolName - The tool that was approved.
+ * @param args - The arguments the tool would be called with.
+ * @param guardrailIds - Ordered list of guardrail IDs to evaluate.
+ * @param callbacks - Optional event callback map for emitting override events.
+ * @returns A result indicating whether the guardrails passed.
+ */
+export async function runPostApprovalGuardrails(
+  toolName: string,
+  args: Record<string, unknown>,
+  guardrailIds: string[],
+  callbacks?: AgencyOptions['on'],
+): Promise<GuardrailHitlOverrideResult> {
+  if (!guardrailIds.length) {
+    return { passed: true };
+  }
+
+  /*
+   * Serialize the tool call context into a single text payload that the
+   * guardrail can evaluate. This includes the tool name and a JSON dump
+   * of the arguments so pattern-matching guardrails (e.g., code-safety
+   * checking for `rm -rf`) can inspect the full picture.
+   */
+  const payload = `Tool: ${toolName}\nArguments: ${JSON.stringify(args, null, 2)}`;
+
+  for (const guardId of guardrailIds) {
+    try {
+      /*
+       * Guardrail evaluation is intentionally lightweight here. Each
+       * guardrail ID is passed to a stub evaluator that pattern-matches
+       * the payload text. In a full runtime the IDs would be resolved
+       * against a guardrail registry.
+       */
+      const result = evaluatePostApprovalGuardrail(guardId, payload);
+
+      if (result.action === 'block') {
+        const reason = result.reason ?? `Blocked by guardrail ${guardId}`;
+        console.warn(
+          `[Guardrail] Overrode HITL approval for tool "${toolName}" — ${guardId}: ${reason}`,
+        );
+
+        callbacks?.guardrailResult?.({
+          agent: '__agency__',
+          guardrailId: guardId,
+          passed: false,
+          enforced: true,
+          action: 'block',
+          reason,
+          timestamp: Date.now(),
+        });
+
+        return { passed: false, guardrailId: guardId, reason };
+      }
+
+      // Non-blocking result: log and continue to the next guardrail.
+      callbacks?.guardrailResult?.({
+        agent: '__agency__',
+        guardrailId: guardId,
+        passed: true,
+        enforced: true,
+        action: result.action,
+        timestamp: Date.now(),
+      });
+    } catch {
+      /*
+       * Individual guardrail failure is non-fatal — fail open for that
+       * specific guardrail but continue checking the remaining ones.
+       */
+      console.warn(
+        `[Guardrail] Post-approval guardrail "${guardId}" threw for tool "${toolName}" — skipping`,
+      );
+    }
+  }
+
+  return { passed: true };
+}
+
+/**
+ * Built-in post-approval guardrail evaluator.
+ *
+ * Ships with two default guardrails:
+ * - `code-safety` — blocks shell commands containing destructive patterns
+ *   (e.g., `rm -rf`, `DROP TABLE`, `format C:`).
+ * - `pii-redaction` — blocks payloads that appear to contain unredacted PII
+ *   (SSNs, credit card numbers).
+ *
+ * Additional guardrail IDs are treated as pass-through (allow) until a
+ * registry-based resolver is wired.
+ *
+ * @param guardId - The guardrail identifier.
+ * @param payload - Serialized tool call context to evaluate.
+ * @returns An action/reason pair.
+ */
+function evaluatePostApprovalGuardrail(
+  guardId: string,
+  payload: string,
+): { action: 'allow' | 'block'; reason?: string } {
+  switch (guardId) {
+    case 'code-safety': {
+      /*
+       * Destructive shell pattern detector.
+       * Catches common high-damage commands that should almost never be
+       * auto-approved without human review.
+       */
+      const destructivePatterns = [
+        /rm\s+-rf\s+\//i,
+        /rm\s+-rf\s+~\//i,
+        /rm\s+-rf\s+\*/i,
+        /rm\s+-rf\s+\.\s/i,
+        /rm\s+-rf\s+\.\//i,
+        /mkfs\./i,
+        /dd\s+if=.*of=\/dev/i,
+        /:(){ :\|:& };:/,
+        /DROP\s+TABLE/i,
+        /DROP\s+DATABASE/i,
+        /TRUNCATE\s+TABLE/i,
+        /DELETE\s+FROM\s+\S+\s*;?\s*$/im,
+        /format\s+[A-Z]:/i,
+        />\s*\/dev\/sd[a-z]/i,
+        /chmod\s+-R\s+777\s+\//i,
+        /shutdown\s/i,
+        /reboot\b/i,
+      ];
+
+      for (const pattern of destructivePatterns) {
+        if (pattern.test(payload)) {
+          return {
+            action: 'block',
+            reason: `detected destructive pattern: ${pattern.source}`,
+          };
+        }
+      }
+      return { action: 'allow' };
+    }
+
+    case 'pii-redaction': {
+      /*
+       * Simple PII pattern detector.
+       * Blocks payloads containing unredacted SSNs or credit card numbers.
+       */
+      const piiPatterns = [
+        { pattern: /\b\d{3}-\d{2}-\d{4}\b/, label: 'SSN' },
+        { pattern: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/, label: 'credit card number' },
+      ];
+
+      for (const { pattern, label } of piiPatterns) {
+        if (pattern.test(payload)) {
+          return {
+            action: 'block',
+            reason: `detected unredacted ${label}`,
+          };
+        }
+      }
+      return { action: 'allow' };
+    }
+
+    default:
+      /*
+       * Unknown guardrail ID — pass-through until a registry resolver is
+       * wired. This ensures forward compatibility when new guardrail IDs
+       * are added to configuration before their implementations exist.
+       */
+      return { action: 'allow' };
+  }
 }

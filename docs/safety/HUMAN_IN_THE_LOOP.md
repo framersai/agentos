@@ -532,6 +532,151 @@ graph.addEdge(review.id, publish.id);
 2. Use appropriate severity levels to prioritize
 3. Consider pre-approved action patterns for common cases
 
+## Guardrail Override
+
+The guardrail override system adds a post-approval safety net to the HITL
+pipeline. Even after a tool call is approved -- whether by auto-approve, an
+LLM judge, or a human operator -- the configured guardrails run a final check
+against the tool call arguments. If any guardrail returns `action: 'block'`,
+the approval is overridden and the tool call is denied.
+
+### Flow
+
+```
+Tool call -> HITL handler -> approved?
+  YES -> Guardrail check (if enabled)
+    -> Guardrail PASS -> execute tool
+    -> Guardrail BLOCK -> DENY (override HITL approval)
+  NO -> deny tool
+```
+
+### Why?
+
+Auto-approve mode is convenient for development and CI, but it creates a
+blind spot: destructive commands like `rm -rf /` or `DROP TABLE` pass
+through without review. The guardrail override catches these patterns even
+in fully autonomous mode.
+
+### Configuration
+
+#### Agency-level (API)
+
+```typescript
+import { agency, hitl } from '@framers/agentos';
+
+const myAgency = agency({
+  model: 'openai:gpt-4o',
+  agents: { worker: { instructions: 'Execute tasks.' } },
+  hitl: {
+    approvals: { beforeTool: ['shell_execute'] },
+    handler: hitl.autoApprove(),
+
+    // Guardrail override is ON by default.
+    guardrailOverride: true,
+
+    // Default guardrails: ['pii-redaction', 'code-safety']
+    postApprovalGuardrails: ['pii-redaction', 'code-safety'],
+  },
+});
+```
+
+#### Graph-level (humanNode)
+
+```typescript
+import { humanNode } from '@framers/agentos/orchestration/builders/nodes';
+
+humanNode({
+  prompt: 'Deploy to production?',
+  autoAccept: true,
+  guardrailOverride: true, // even though auto-accepted, guardrails can block
+});
+```
+
+#### CLI
+
+```bash
+# Disable the post-approval safety net (full autonomy)
+wunderland chat --no-guardrail-override
+```
+
+#### agent.config.json
+
+```json
+{
+  "hitl": {
+    "mode": "auto-approve",
+    "guardrailOverride": false
+  }
+}
+```
+
+### Example: Auto-approve with guardrail catching `rm -rf`
+
+```typescript
+const myAgency = agency({
+  agents: { worker: { instructions: 'Execute shell commands.' } },
+  hitl: {
+    approvals: { beforeTool: ['shell_execute'] },
+    handler: hitl.autoApprove(), // approves everything
+    // But guardrails catch destructive patterns:
+    guardrailOverride: true,
+    postApprovalGuardrails: ['code-safety'],
+  },
+  on: {
+    guardrailHitlOverride: (event) => {
+      console.warn(
+        `[Safety] Guardrail "${event.guardrailId}" blocked tool "${event.toolName}": ${event.reason}`
+      );
+    },
+  },
+});
+
+// This tool call will be auto-approved by HITL, then blocked by code-safety:
+// [Guardrail] Overrode HITL approval for tool "shell_execute" -- code-safety: detected rm -rf pattern
+```
+
+### Built-in Guardrails
+
+| ID | Description |
+|---|---|
+| `code-safety` | Blocks destructive shell commands (`rm -rf`, `DROP TABLE`, `mkfs`, `dd`, `format`, `shutdown`, etc.) |
+| `pii-redaction` | Blocks payloads containing unredacted SSNs or credit card numbers |
+
+### Disabling the Override
+
+Set `guardrailOverride: false` in the HITL config or pass `--no-guardrail-override`
+on the CLI. This gives full autonomy to the HITL handler's decision with no
+post-approval checks.
+
+### Events
+
+When a guardrail overrides an HITL approval, the `guardrailHitlOverride`
+callback fires:
+
+```typescript
+interface GuardrailHitlOverrideEvent {
+  guardrailId: string; // e.g., 'code-safety'
+  reason: string;      // e.g., 'detected destructive pattern: rm\\s+-rf\\s+\\/'
+  toolName: string;    // e.g., 'shell_execute'
+  timestamp: number;
+}
+```
+
+## FAQ
+
+### Can guardrails override HITL approvals?
+
+Yes. When `guardrailOverride` is enabled (the default), guardrails run a
+post-approval check on every approved tool call. If any guardrail detects a
+destructive pattern, the approval is vetoed and the tool call is denied.
+This applies regardless of how the approval was made -- auto-approve, LLM
+judge, or human operator.
+
+The flow is: HITL approves -> guardrails check -> execute (or block).
+
+To disable this behavior, set `guardrailOverride: false` in the HITL
+config or pass `--no-guardrail-override` on the CLI.
+
 ## Related Documentation
 
 - [Planning Engine](./PLANNING_ENGINE.md) - Autonomous goal pursuit
