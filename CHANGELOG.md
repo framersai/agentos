@@ -1,3 +1,10 @@
+## <small>0.1.153 (2026-03-30)</small>
+
+* docs: add llmJudge API reference and humanNode options table ([5427fc8](https://github.com/framersai/agentos/commit/5427fc8))
+* test(hitl): add unit + integration tests for llmJudge and humanNode options ([2bd74b8](https://github.com/framersai/agentos/commit/2bd74b8))
+* feat(hitl): add llmJudge() handler factory ([0f9a865](https://github.com/framersai/agentos/commit/0f9a865))
+* feat(orchestration): add humanNode autoAccept/autoReject/judge/onTimeout options ([6941058](https://github.com/framersai/agentos/commit/6941058))
+
 ## <small>0.1.152 (2026-03-30)</small>
 
 * fix: remove docs.wunderland.sh links and Wunderland-specific language from agentos docs ([24fe36f](https://github.com/framersai/agentos/commit/24fe36f))
