@@ -6,7 +6,7 @@
 
 # AgentOS
 
-**Build autonomous AI agents with adaptive intelligence and emergent behaviors. Multimodal RAG, cognitive memory, streaming guardrails, voice pipeline, and 21 LLM providers. Open-source TypeScript runtime.**
+**Build autonomous AI agents with adaptive intelligence, cognitive memory, and emergent behaviors. Open-source TypeScript runtime.**
 
 [![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -21,265 +21,96 @@
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Adaptive Intelligence](#adaptive-intelligence)
-- [Emergent Behaviors](#emergent-behaviors)
-- [Quick Start](#quick-start)
-  - [1. Generate Text (Provider-First)](#1-generate-text-provider-first)
-  - [2. Agent with Personality & Memory](#2-agent-with-personality--memory)
-  - [3. Multimodal RAG](#3-multimodal-rag)
-  - [4. Structured Output (Zod Validation)](#4-structured-output-zod-validation)
-  - [5. Workflows & Graphs](#5-workflows--graphs)
-  - [6. Multi-Agent Teams](#6-multi-agent-teams)
-  - [7. Voice Pipeline](#7-voice-pipeline)
-  - [8. Guardrails & Security](#8-guardrails--security)
-  - [Default Models Per Provider](#default-models-per-provider)
-- [System Architecture](#system-architecture)
-  - [Architecture Diagram](#architecture-diagram)
-  - [Request Lifecycle](#request-lifecycle)
-  - [Layer Breakdown](#layer-breakdown)
-- [Core Modules](#core-modules)
-  - [API Layer](#api-layer)
-  - [Cognitive Substrate (GMI)](#cognitive-substrate-gmi)
-  - [LLM Provider Management](#llm-provider-management)
-  - [Tool System](#tool-system)
-  - [Extension System](#extension-system)
-  - [Planning Engine](#planning-engine)
-  - [Conversation Management](#conversation-management)
-  - [RAG (Retrieval Augmented Generation)](#rag-retrieval-augmented-generation)
-  - [Bundled Platform Knowledge](#bundled-platform-knowledge)
-  - [Safety and Guardrails](#safety-and-guardrails)
-  - [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
-  - [Channels System](#channels-system)
-  - [Voice and Telephony](#voice-and-telephony)
-  - [Unified Orchestration Layer](#unified-orchestration-layer)
-  - [Multi-Agent Coordination](#multi-agent-coordination)
-  - [Observability](#observability)
-  - [Skills](#skills)
-  - [Structured Output](#structured-output)
-- [Configuration](#configuration)
-  - [Development (Quick Start)](#development-quick-start)
-  - [Production](#production)
-  - [Multiple Providers](#multiple-providers)
-  - [Environment Variables](#environment-variables)
-- [API Reference](#api-reference)
-  - [AgentOS Class](#agentos-class)
-  - [IAgentOS Interface](#iagentos-interface)
-  - [AgentOSInput](#agentosinput)
-  - [AgentOSResponse Streaming](#agentosresponse-streaming)
-  - [ITool Interface](#itool-interface)
-  - [ExtensionDescriptor](#extensiondescriptor)
-  - [IGuardrailService](#iguardrailservice)
-  - [IHumanInteractionManager](#ihumaninteractionmanager)
-- [Usage Examples](#usage-examples)
-  - [Orchestration Patterns](#orchestration-patterns)
-  - [Streaming Chat](#streaming-chat)
-  - [Adding Tools](#adding-tools)
-  - [Multi-Agent Collaboration](#multi-agent-collaboration)
-  - [Human-in-the-Loop Approvals](#human-in-the-loop-approvals)
-  - [Structured Data Extraction](#structured-data-extraction)
-  - [RAG Memory](#rag-memory)
-  - [Custom Guardrails](#custom-guardrails)
-  - [Channel Adapters](#channel-adapters)
-  - [Voice Calls](#voice-calls)
-- [Package Exports](#package-exports)
-- [Internal Documentation](#internal-documentation)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
 ## Overview
 
-`@framers/agentos` is an open-source TypeScript AI agent runtime for building autonomous AI agents with **adaptive intelligence** and **emergent behaviors**. Agents continuously improve through meta-reflective prompt adaptation, self-evaluating response quality, personality-modulated cognition, and autonomous memory consolidation. At runtime, agents forge new tools, adapt their personality, compose workflows, and promote reliable capabilities for cross-agent reuse.
+AgentOS is an open-source TypeScript runtime for building autonomous AI agents. Agents have HEXACO personality traits that shape how they think, cognitive memory with Ebbinghaus decay that determines what they remember, and emergent capabilities that let them forge new tools at runtime. The result is agents that adapt and improve without retraining.
 
-The runtime provides multimodal RAG with cognitive memory (Ebbinghaus decay, 8 neuroscience-backed mechanisms including reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist extraction, schema encoding, source confidence decay, and emotion regulation ��� all HEXACO personality-modulated), multi-agent orchestration, 37 channel adapters, 6 guardrail packs (PII redaction, ML classifiers, topicality, code safety, grounding guard, content policy rewriter) with prompt injection defense, 21 LLM providers, and 72 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
+Unlike frameworks that focus purely on LLM orchestration, AgentOS treats each agent as a cognitive entity with its own personality, memory lifecycle, and behavioral adaptation loop. This makes it particularly suited for long-running agents, multi-agent teams, and applications where agent identity and consistency matter.
 
-**Key facts:**
+**What makes it different:**
 
-| Property | Value |
-|----------|-------|
-| Package | `@framers/agentos` |
-| Language | TypeScript 5.4+ / Node.js 18+ |
-| License | Apache 2.0 |
+| vs. | AgentOS differentiator |
+|-----|------------------------|
+| LangChain / LlamaIndex | Cognitive memory with 8 neuroscience-backed mechanisms, HEXACO personality modulation, runtime tool forging |
+| Vercel AI SDK | Multi-agent teams with 6 strategies, full RAG pipeline with 7 vector backends, guardrail packs, voice/telephony |
+| AutoGen / CrewAI | Unified orchestration layer (workflow DAGs, agent graphs, goal-driven missions), personality-driven edge routing |
 
-**Runtime dependencies:**
+**Ecosystem packages:**
 
-| Dependency | Purpose |
-|------------|---------|
-| `@opentelemetry/api` | Distributed tracing and metrics |
-| `ajv` + `ajv-formats` | JSON Schema validation for tool I/O |
-| `axios` | HTTP client for LLM provider APIs |
-| `lru-cache` | High-performance caching (dedup, embeddings, cost tracking) |
-| `natural` | NLP utilities (tokenization, stemming, sentiment) |
-| `pino` | Structured JSON logging |
-| `uuid` | Unique identifier generation |
-| `yaml` | YAML config parsing (agent configs, skill definitions) |
-
-**Required peer dependency:**
-
-| Dependency | Purpose |
-|------------|---------|
-| `@framers/sql-storage-adapter` | Cross-platform SQL persistence (SQLite, sql.js, IndexedDB, Postgres) — required for memory, knowledge graph, and trace storage |
-
-**Optional peer dependencies:**
-
-| Peer Dependency | Purpose |
-|-----------------|---------|
-| `graphology` + `graphology-communities-louvain` | GraphRAG community detection and memory graph clustering |
-| `hnswlib-node` | HNSW-based approximate nearest neighbor search (falls back to brute-force without) |
-| `neo4j-driver` | Neo4j-backed knowledge graph and GraphRAG (falls back to SQLite without) |
+| Package | Description |
+|---------|-------------|
+| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime -- agents, providers, memory, RAG, orchestration, guardrails |
+| [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | Official extension registry (40+ extensions) |
+| [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | Curated manifest builder for extension catalogs |
+| [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 80+ curated SKILL.md skill definitions |
+| [`@framers/agentos-skills-registry`](https://www.npmjs.com/package/@framers/agentos-skills-registry) | Skills catalog SDK (query helpers + snapshot factories) |
+| [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence (SQLite, sql.js, Postgres, IndexedDB) |
 
 ---
 
-## Ecosystem
-
-| Package | Description | Links |
-|---------|-------------|-------|
-| **@framers/agentos** | Core orchestration runtime | [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos) |
-| **@framers/agentos-extensions** | Official extension registry (45+ extensions) | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions) · [GitHub](https://github.com/framersai/agentos-extensions) |
-| **@framers/agentos-extensions-registry** | Curated manifest builder | [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-extensions-registry) · [GitHub](https://github.com/framersai/agentos-extensions-registry) |
-| **@framers/agentos-skills-registry** | Skills catalog SDK (query helpers + snapshot factories) | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills-registry?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills-registry) · [GitHub](https://github.com/framersai/agentos-skills-registry) |
-| **@framers/agentos-skills** | Skills content (72 SKILL.md files + registry.json) | [![npm](https://img.shields.io/npm/v/@framers/agentos-skills?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-skills) · [GitHub](https://github.com/framersai/agentos-skills) |
-| **docs.agentos.sh** | Documentation site (Docusaurus) | [GitHub](https://github.com/framersai/agentos-live-docs) · [docs.agentos.sh](https://docs.agentos.sh) |
-
-### Guardrail Extensions
-
-| Package | What It Does | Links |
-|---------|-------------|-------|
-| **@framers/agentos-ext-pii-redaction** | Four-tier PII detection (regex + NLP + NER + LLM) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-pii-redaction?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-pii-redaction) · [Docs](https://docs.agentos.sh/extensions/built-in/pii-redaction) |
-| **@framers/agentos-ext-ml-classifiers** | Toxicity, injection, jailbreak via ONNX BERT | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-ml-classifiers?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-ml-classifiers) · [Docs](https://docs.agentos.sh/extensions/built-in/ml-classifiers) |
-| **@framers/agentos-ext-topicality** | Embedding-based topic enforcement + drift detection | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-topicality?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-topicality) · [Docs](https://docs.agentos.sh/extensions/built-in/topicality) |
-| **@framers/agentos-ext-code-safety** | OWASP Top 10 code scanning (25 regex rules) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-code-safety?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-code-safety) · [Docs](https://docs.agentos.sh/extensions/built-in/code-safety) |
-| **@framers/agentos-ext-grounding-guard** | RAG-grounded hallucination detection via NLI | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-grounding-guard?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-grounding-guard) · [Docs](https://docs.agentos.sh/extensions/built-in/grounding-guard) |
-| **@framers/agentos-ext-content-policy-rewriter** | Opt-in content policy (8 categories, LLM rewrite/block, 4 presets) | [Docs](https://docs.agentos.sh/extensions/built-in/content-policy-rewriter) |
-
----
-
-## Adaptive Intelligence
-
-AgentOS agents continuously improve their behavior without retraining through five interconnected mechanisms:
-
-| Mechanism | How It Works |
-|-----------|-------------|
-| **Meta-reflective prompt adaptation** | The PromptBuilder assembles a different system prompt every turn, dynamically incorporating personality traits, mood state, conversation history, retrieved memories, and available tools. No two turns use the same prompt. |
-| **Self-evaluating response quality** | The `self_evaluate` tool scores the agent's own output and adjusts parameters (temperature, verbosity, personality expression) in real time, creating a continuous feedback loop. |
-| **Personality-modulated cognition** | HEXACO traits modulate how the agent processes information. High openness increases creative associations during memory retrieval; high conscientiousness strengthens retrieval-induced forgetting of irrelevant data. |
-| **Autonomous memory consolidation** | The `ConsolidationLoop` prunes weak memories, strengthens frequently-accessed ones, and derives new insights from memory clusters. The agent's knowledge base improves over time without explicit training. |
-| **QueryRouter tiered classification** | The system adapts retrieval depth based on query complexity. Simple questions get fast keyword lookup; complex questions trigger full hybrid RAG with deep research. |
-
----
-
-## Emergent Behaviors
-
-AgentOS agents develop new capabilities at runtime rather than having them explicitly programmed:
-
-| Capability | How It Works |
-|-----------|-------------|
-| **Runtime tool forging** | Agents create new tools on the fly via `forge_tool`. The `EmergentCapabilityEngine` uses sandboxed JavaScript execution and LLM-as-judge evaluation to safely create, test, and promote tools. |
-| **Self-improving personality** | Agents adapt their HEXACO personality traits within bounded limits via `adapt_personality`. Mutations persist with Ebbinghaus decay — strong repeated adaptations stick, while weak ones fade naturally. |
-| **Dynamic skill management** | Agents enable or disable skills at runtime via `manage_skills`, adapting their behavioral repertoire to the task at hand. |
-| **Composable workflow creation** | Agents compose registered tools into multi-step pipelines via `create_workflow`, building new capabilities from existing building blocks. |
-| **Tiered tool promotion** | Forged tools progress through session, agent, and shared tiers. Tools that prove reliable (5+ successful uses, >0.8 confidence score) auto-promote for cross-agent reuse. |
-
----
-
-## Quick Start
+## Install
 
 ```bash
 npm install @framers/agentos
 ```
 
-Set any provider's API key and you're ready:
+Set any provider's API key:
 
 ```bash
 export OPENAI_API_KEY=sk-...        # or ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, etc.
 ```
 
-### 1. Generate Text (Provider-First)
+---
 
-No model strings needed — AgentOS picks the best default:
+## Quick Start
+
+### 1. Generate Text
+
+No model strings needed -- AgentOS picks the best default for each provider:
 
 ```typescript
-import { generateText, streamText } from '@framers/agentos';
+import { generateText } from '@framers/agentos';
 
+// Provider-first: just pick a provider, AgentOS resolves the default model
 const result = await generateText({
   provider: 'anthropic',
   prompt: 'Explain how TCP handshakes work in 3 bullets.',
 });
 console.log(result.text);
 
-// Streaming
-for await (const chunk of streamText({ provider: 'openai', prompt: 'Explain SYN-ACK.' }).textStream) {
+// Or omit provider entirely -- auto-detects from env vars
+const auto = await generateText({
+  prompt: 'What is the capital of France?',
+});
+console.log(auto.text);
+```
+
+16 providers supported with automatic fallback (402/429/5xx errors retry on the next available key).
+
+### 2. Streaming
+
+```typescript
+import { streamText } from '@framers/agentos';
+
+const stream = streamText({
+  provider: 'openai',
+  prompt: 'Write a haiku about distributed systems.',
+});
+
+// Iterate token-by-token
+for await (const chunk of stream.textStream) {
   process.stdout.write(chunk);
 }
+
+// Or await the full result
+const fullText = await stream.text;
+const usage = await stream.usage;
+console.log(`\n\nTokens used: ${usage.totalTokens}`);
 ```
 
-16 providers supported. Automatic fallback when one fails (402/429/5xx → tries next available key).
+### 3. Structured Output
 
-### 2. Agent with Personality & Memory
-
-Agents have HEXACO personality traits that shape their communication style, and cognitive memory with Ebbinghaus decay:
-
-```typescript
-import { agent } from '@framers/agentos';
-
-const tutor = agent({
-  provider: 'anthropic',
-  instructions: 'You are a patient computer science tutor.',
-  personality: {
-    openness: 0.9,           // creative, exploratory answers
-    conscientiousness: 0.95,  // thorough, well-structured
-    agreeableness: 0.85,      // warm, encouraging tone
-  },
-  memory: {
-    enabled: true,
-    cognitive: true,          // Ebbinghaus decay, reconsolidation, involuntary recall
-  },
-});
-
-const session = tutor.session('student-1');
-const reply = await session.send('Explain recursion with an analogy.');
-console.log(reply.text);
-
-// Memory persists across sessions — the agent remembers context
-const followUp = await session.send('Can you expand on that?');
-console.log(followUp.text);
-```
-
-### 3. Multimodal RAG
-
-Ingest documents, images, and structured data — retrieve with HyDE (Hypothetical Document Embedding):
-
-```typescript
-import { agent } from '@framers/agentos';
-
-const analyst = agent({
-  provider: 'openai',
-  instructions: 'You are a financial analyst. Answer questions using provided documents.',
-  rag: {
-    enabled: true,
-    mode: 'aggressive',       // always retrieves before answering
-    topK: 10,
-    strategy: 'hyde',         // generates hypothetical answers for better retrieval
-  },
-});
-
-const session = analyst.session('q4-review');
-
-// Ingest documents
-await session.ingest('Q4 revenue grew 23% YoY to $4.2B...');
-await session.ingest({ type: 'file', path: './earnings-report.pdf' });
-
-const answer = await session.send('What drove revenue growth in Q4?');
-console.log(answer.text);     // Cites specific passages from ingested docs
-```
-
-### 4. Structured Output (Zod Validation)
-
-Extract typed data from unstructured text:
+Extract typed data from unstructured text with Zod validation:
 
 ```typescript
 import { generateObject } from '@framers/agentos';
@@ -296,24 +127,94 @@ const { object } = await generateObject({
 });
 
 console.log(object);
-// { name: "iPhone Review", sentiment: "mixed", topics: ["camera", "battery"] }
+// { name: "iPhone Review", sentiment: "neutral", topics: ["camera", "battery"] }
 ```
 
-### 5. Workflows & Graphs
+Failed parses are automatically retried with error feedback so the model can self-correct.
 
-Deterministic multi-step pipelines with branching, parallel execution, and checkpointing:
+### 4. Agent with Personality & Memory
+
+This is the key differentiator. Agents have HEXACO personality traits that shape their communication style, and cognitive memory that determines what they retain:
 
 ```typescript
-import { workflow } from '@framers/agentos';
+import { agent } from '@framers/agentos';
 
-const pipeline = workflow('content-pipeline')
-  .step('research', { provider: 'anthropic', instructions: 'Research the topic thoroughly.' })
-  .step('draft', { provider: 'openai', instructions: 'Write a blog post from the research.' })
-  .step('review', { provider: 'anthropic', instructions: 'Review for accuracy and tone.' })
-  .step('publish', { tool: 'blog_publish' });
+const tutor = agent({
+  provider: 'anthropic',
+  instructions: 'You are a patient computer science tutor.',
+  personality: {
+    openness: 0.9,           // creative, exploratory answers
+    conscientiousness: 0.95, // thorough, well-structured
+    agreeableness: 0.85,     // warm, encouraging tone
+  },
+  memory: {
+    enabled: true,
+    cognitive: true,         // Ebbinghaus decay, reconsolidation, involuntary recall
+  },
+  tools: [{
+    name: 'run_code',
+    description: 'Execute a code snippet and return output.',
+    parameters: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] },
+    execute: async ({ code }) => ({ success: true, output: `Ran: ${code}` }),
+  }],
+});
 
-const result = await pipeline.run('Write a post about WebAssembly in 2026.');
-console.log(result.text);
+// Sessions maintain conversation history
+const session = tutor.session('student-1');
+const reply = await session.send('Explain recursion with an analogy.');
+console.log(reply.text);
+
+// Memory persists -- the agent remembers prior context
+const followUp = await session.send('Can you expand on that?');
+console.log(followUp.text);
+
+// Export agent config for portability
+const config = tutor.exportJSON();
+```
+
+### 5. Multimodal (Image, Video, Audio, OCR, Embeddings)
+
+```typescript
+import {
+  generateImage,
+  performOCR,
+  embedText,
+  generateVideo,
+  generateMusic,
+} from '@framers/agentos';
+
+// Generate an image (supports OpenAI, Stability, Replicate, BFL, Fal)
+const image = await generateImage({
+  provider: 'openai',
+  prompt: 'A cyberpunk cityscape at sunset, neon signs reflecting in rain puddles',
+  size: '1024x1024',
+});
+console.log(image.images[0].url);
+
+// OCR: extract text from images (progressive tiers: local -> cloud LLM)
+const ocr = await performOCR({
+  image: '/tmp/receipt.png',
+  strategy: 'progressive', // tries fast local OCR first, falls back to cloud
+});
+console.log(ocr.text);
+
+// Embeddings (OpenAI, Ollama, or any compatible provider)
+const embedding = await embedText({
+  provider: 'openai',
+  input: ['Hello world', 'Goodbye world'],
+  dimensions: 256,
+});
+console.log(embedding.embeddings[0].length); // 256
+
+// Video generation
+const video = await generateVideo({
+  prompt: 'A timelapse of a flower blooming',
+});
+
+// Music generation
+const music = await generateMusic({
+  prompt: 'Lo-fi hip hop beat for studying',
+});
 ```
 
 ### 6. Multi-Agent Teams
@@ -336,22 +237,87 @@ const team = agency({
     reviewer: {
       instructions: 'Check for accuracy and suggest improvements.',
       provider: 'gemini',
-      dependsOn: ['writer'],  // runs after writer
+      dependsOn: ['writer'], // runs after writer completes
     },
   },
-  strategy: 'graph',           // dependency-based DAG execution
-  memory: { shared: true },    // agents share context
+  strategy: 'graph',          // dependency-based DAG execution
+  memory: { shared: true },   // agents share context
 });
 
 const result = await team.generate('Compare TCP vs UDP for game networking.');
 console.log(result.text);
+
+// Streaming works too
+const stream = team.stream('Explain QUIC protocol benefits.');
+for await (const chunk of stream.textStream) {
+  process.stdout.write(chunk);
+}
 ```
 
 6 strategies: `sequential`, `parallel`, `debate`, `review-loop`, `hierarchical`, `graph`.
 
-### 7. Voice Pipeline
+Auto-detection: when any agent declares `dependsOn`, strategy defaults to `graph`.
 
-Real-time speech-to-text and text-to-speech with streaming:
+### 7. Orchestration (Workflows, Graphs, Missions)
+
+Three authoring APIs that compile to one graph runtime. Choose based on how much control you need:
+
+```typescript
+import {
+  workflow,
+  AgentGraph,
+  mission,
+  gmiNode,
+  toolNode,
+  START,
+  END,
+} from '@framers/agentos/orchestration';
+import { z } from 'zod';
+
+// 1. workflow() -- deterministic DAG with typed I/O
+const pipeline = workflow('content-pipeline')
+  .input(z.object({ topic: z.string() }))
+  .returns(z.object({ summary: z.string() }))
+  .step('research', { tool: 'web_search' })
+  .then('draft', { gmi: { instructions: 'Write a blog post from the research.' } })
+  .then('review', { gmi: { instructions: 'Review for accuracy and tone.' } })
+  .compile();
+
+const result = await pipeline.invoke({ topic: 'WebAssembly in 2026' });
+
+// 2. AgentGraph -- explicit nodes, edges, cycles, subgraphs
+const graph = new AgentGraph({
+  input: z.object({ topic: z.string() }),
+  scratch: z.object({ draft: z.string().optional() }),
+  artifacts: z.object({ summary: z.string().optional() }),
+})
+  .addNode('draft', gmiNode({ instructions: 'Draft a summary', executionMode: 'single_turn' }))
+  .addNode('publish', toolNode('publish_report'))
+  .addEdge(START, 'draft')
+  .addEdge('draft', 'publish')
+  .addEdge('publish', END)
+  .compile();
+
+await graph.invoke({ topic: 'quantum computing' });
+
+// 3. mission() -- goal-driven, planner decides the steps
+const researcher = mission('deep-research')
+  .input(z.object({ topic: z.string() }))
+  .goal('Research {topic} and produce a cited summary')
+  .returns(z.object({ summary: z.string() }))
+  .planner({ strategy: 'plan_and_execute', maxSteps: 8 })
+  .compile();
+
+// Preview the plan without executing
+const preview = await researcher.explain({ topic: 'AI safety' });
+console.log(preview.steps.map(s => s.id));
+```
+
+All three support persistent checkpointing for fault recovery and time-travel debugging.
+
+See [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md), [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md), [`docs/orchestration/MISSION_API.md`](./docs/orchestration/MISSION_API.md).
+
+### 8. Voice Pipeline
 
 ```typescript
 import { agent } from '@framers/agentos';
@@ -364,15 +330,13 @@ const receptionist = agent({
     stt: { provider: 'deepgram' },
   },
 });
-
-// Voice sessions stream audio in real-time
-const call = receptionist.voiceSession('call-1');
-await call.start();  // begins listening
 ```
 
-### 8. Guardrails & Security
+Telephony providers: Twilio, Telnyx, Plivo. Speech: ElevenLabs, Deepgram, OpenAI Whisper, and more.
 
-5-tier security with PII redaction, prompt injection defense, and code scanning:
+### 9. Guardrails
+
+5-tier security with 6 guardrail packs:
 
 ```typescript
 import { agent } from '@framers/agentos';
@@ -382,1060 +346,162 @@ const secureBot = agent({
   instructions: 'You are a customer support agent.',
   security: { tier: 'strict' },
   guardrails: {
-    input: ['pii-redaction', 'ml-classifiers'],     // block PII + detect injection
-    output: ['grounding-guard', 'code-safety'],      // prevent hallucination + unsafe code
+    input: ['pii-redaction', 'ml-classifiers'],    // block PII + detect injection
+    output: ['grounding-guard', 'code-safety'],     // prevent hallucination + unsafe code
   },
 });
 ```
 
-5 tiers: `dangerous` → `permissive` → `balanced` → `strict` → `paranoid`.
+5 security tiers: `dangerous` > `permissive` > `balanced` > `strict` > `paranoid`.
+
+6 guardrail packs:
+- **PII Redaction** -- four-tier detection (regex + NLP + NER + LLM)
+- **ML Classifiers** -- toxicity, injection, jailbreak via ONNX BERT
+- **Topicality** -- embedding-based topic enforcement + drift detection
+- **Code Safety** -- OWASP Top 10 code scanning (25 regex rules)
+- **Grounding Guard** -- RAG-source claim verification and hallucination detection
+- **Content Policy Rewriter** -- 8 categories, LLM rewrite/block, 4 presets
 
 ### Default Models Per Provider
 
-| Provider | Default Model | Env Var |
-|---|---|---|
-| openai | gpt-4o | `OPENAI_API_KEY` |
-| anthropic | claude-sonnet-4 | `ANTHROPIC_API_KEY` |
-| gemini | gemini-2.5-flash | `GEMINI_API_KEY` |
-| ollama | llama3.2 | `OLLAMA_BASE_URL` |
-| groq | llama-3.3-70b | `GROQ_API_KEY` |
-| openrouter | openai/gpt-4o | `OPENROUTER_API_KEY` |
-| together | meta-llama/Meta-Llama-3.1-70B | `TOGETHER_API_KEY` |
-| mistral | mistral-large-latest | `MISTRAL_API_KEY` |
-| xai | grok-3-mini | `XAI_API_KEY` |
+When you specify `provider` without `model`, these defaults are used:
 
-Automatic fallback: when a provider fails, AgentOS tries the next available API key.
+| Provider | Default Text Model | Default Image Model | Env Var |
+|---|---|---|---|
+| `openai` | gpt-4o | gpt-image-1 | `OPENAI_API_KEY` |
+| `anthropic` | claude-sonnet-4 | -- | `ANTHROPIC_API_KEY` |
+| `gemini` | gemini-2.5-flash | -- | `GEMINI_API_KEY` |
+| `ollama` | llama3.2 | stable-diffusion | `OLLAMA_BASE_URL` |
+| `groq` | llama-3.3-70b-versatile | -- | `GROQ_API_KEY` |
+| `openrouter` | openai/gpt-4o | -- | `OPENROUTER_API_KEY` |
+| `together` | Meta-Llama-3.1-70B | -- | `TOGETHER_API_KEY` |
+| `mistral` | mistral-large-latest | -- | `MISTRAL_API_KEY` |
+| `xai` | grok-2 | -- | `XAI_API_KEY` |
+| `stability` | -- | stable-diffusion-xl | `STABILITY_API_KEY` |
+| `replicate` | -- | flux-1.1-pro | `REPLICATE_API_TOKEN` |
+| `bfl` | -- | flux-pro-1.1 | `BFL_API_KEY` |
+| `fal` | -- | fal-ai/flux/dev | `FAL_API_KEY` |
+| `claude-code-cli` | claude-sonnet-4 | -- | `claude` binary on PATH |
+| `gemini-cli` | gemini-2.5-flash | -- | `gemini` binary on PATH |
+| `stable-diffusion-local` | -- | v1-5-pruned-emaonly | `STABLE_DIFFUSION_LOCAL_BASE_URL` |
 
----
-
-## System Architecture
-
-### Architecture Diagram
-
-```mermaid
-graph TB
-    subgraph Runtime["AgentOS Runtime"]
-        API["AgentOS API<br/><i>Service Facade</i>"] --> Orch["AgentOSOrchestrator<br/><i>Delegation Hub</i>"]
-        API --> Stream["StreamingManager<br/><i>Async Gen Mgmt</i>"]
-        Orch --> Prompt["PromptEngine<br/><i>Dynamic Prompts</i>"]
-
-        subgraph GMI["GMI Manager — Generalized Modular Intelligence"]
-            WM["Working<br/>Memory"] ~~~ CM["Context<br/>Manager"] ~~~ PO["Persona<br/>Overlay"] ~~~ LM["Learning<br/>Module"]
-            EM["Episodic<br/>Memory"] ~~~ SM["Semantic<br/>Memory"] ~~~ PM["Procedural<br/>Memory"]
-        end
-
-        Stream --> GMI
-        Prompt --> GMI
-
-        GMI --> Tools["Tool<br/>Orchestrator"]
-        GMI --> RAG["RAG<br/>Memory"]
-        GMI --> Plan["Planning<br/>Engine"]
-        GMI --> WF["Workflow<br/>Engine"]
-
-        RAG --> Embed["Embedding<br/>Manager"]
-        Plan --> ReAct["ReAct<br/>Reasoner"]
-
-        subgraph LLM["LLM Provider Manager"]
-            OAI["OpenAI"] ~~~ Anth["Anthropic"] ~~~ Gem["Gemini"] ~~~ Oll["Ollama"] ~~~ OR["OpenRouter"]
-        end
-
-        Tools --> LLM
-        Embed --> LLM
-        ReAct --> LLM
-
-        Guard["Guardrail<br/>Service"] ~~~ CB["Circuit<br/>Breaker"] ~~~ CG["Cost<br/>Guard"] ~~~ SD["Stuck<br/>Detector"]
-        Ext["Extension Manager<br/><i>12+ kinds</i>"] ~~~ Chan["Channel Router<br/><i>37 platforms</i>"] ~~~ Call["Call Manager<br/><i>Voice/Tel.</i>"]
-        Obs["Observability<br/><i>OpenTelemetry</i>"] ~~~ HITL["HITL Manager<br/><i>Approval/Escal.</i>"] ~~~ Skill["Skill Registry<br/><i>SKILL.md</i>"]
-    end
-
-    style Runtime fill:#0e0e18,stroke:#c9a227,stroke-width:2px,color:#f2f2fa
-    style GMI fill:#151520,stroke:#00f5ff,stroke-width:1px,color:#f2f2fa
-    style LLM fill:#151520,stroke:#8b5cf6,stroke-width:1px,color:#f2f2fa
-```
-
-### Request Lifecycle
-
-A single `processRequest()` call flows through these stages:
-
-```mermaid
-flowchart TD
-    Input["User Input<br/><code>AgentOSInput</code>"] --> G1
-
-    G1["1 · Input Guardrails<br/><i>evaluateInput()</i>"]
-    G1 -->|ALLOW| Ctx
-    G1 -.->|BLOCK / SANITIZE| Reject1["⛔ Rejected"]
-
-    Ctx["2 · Context Assembly<br/><i>ConversationManager + RAG</i>"] --> Prompt
-    Prompt["3 · Prompt Construction<br/><i>PromptEngine</i>"] --> GMI
-    GMI["4 · GMI Processing<br/><i>Working memory · Persona · Adaptation</i>"] --> LLM
-
-    LLM["5 · LLM Call<br/><i>Provider Manager + Circuit Breaker</i>"] --> ToolCheck
-
-    ToolCheck{"Tool call?"}
-    ToolCheck -->|Yes| ToolExec["6 · Tool Execution<br/><i>ToolOrchestrator + Permission Guard</i>"]
-    ToolExec -->|Loop| LLM
-    ToolCheck -->|No| G2
-
-    G2["7 · Output Guardrails<br/><i>evaluateOutput()</i>"]
-    G2 -->|ALLOW| Stream
-    G2 -.->|BLOCK / SANITIZE| Reject2["⛔ Rejected"]
-
-    Stream["8 · Streaming Response<br/><i>AsyncGenerator yields chunks</i>"] --> Post
-    Post["9 · Post-Processing<br/><i>Memory · Cost · Telemetry</i>"]
-
-    style Input fill:#1c1c28,stroke:#c9a227,color:#f2f2fa
-    style G1 fill:#1c1c28,stroke:#ef4444,color:#f2f2fa
-    style G2 fill:#1c1c28,stroke:#ef4444,color:#f2f2fa
-    style LLM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
-    style ToolCheck fill:#1c1c28,stroke:#00f5ff,color:#f2f2fa
-    style ToolExec fill:#1c1c28,stroke:#00f5ff,color:#f2f2fa
-    style Post fill:#1c1c28,stroke:#10b981,color:#f2f2fa
-```
-
-### Layer Breakdown
-
-AgentOS is organized into six architectural layers:
-
-| Layer | Directory | Purpose |
-|-------|-----------|---------|
-| **API** | `src/api/` | Public-facing facade, input/output types, orchestrator |
-| **Cognitive** | `src/cognitive_substrate/` | GMI instances, persona overlays, multi-layer memory |
-| **Core** | `src/core/` | 28 subdirectories: LLM, tools, safety, guardrails, planning, workflows, HITL, observability, etc. |
-| **Integration** | `src/channels/`, `src/voice/`, `src/extensions/` | External platform adapters, telephony, plugin system |
-| **Intelligence** | `src/rag/`, `src/skills/` | RAG pipeline, GraphRAG, skill loading |
-| **Infrastructure** | `src/config/`, `src/logging/`, `src/utils/`, `src/types/` | Configuration, structured logging, shared utilities |
+Auto-detection priority: OpenAI > Anthropic > OpenRouter > Gemini > Groq > Together > Mistral > xAI > claude-code-cli > gemini-cli > Ollama > image-only providers.
 
 ---
 
-## Core Modules
+## Core Concepts
 
-### API Layer
+### GMI (Generalized Modular Intelligence)
 
-**Location:** `src/api/`
+Each agent is backed by a GMI instance -- the "brain" that manages working memory, persona overlays, context assembly, and the cognitive loop. A single runtime can manage multiple GMI instances via `GMIManager`.
 
-The API layer is the primary entry point for all interactions with AgentOS.
+GMI components: working memory (7 +/- 2 slots, Baddeley's model), context manager, persona overlay switching, adaptation manager (learning rate, style drift), and multi-layer memory (episodic, semantic, procedural, prospective).
 
-| File | Role |
-|------|------|
-| `AgentOS.ts` | Main service facade (1000+ lines). Implements `IAgentOS`. Initializes all subsystems and delegates to the orchestrator. |
-| `AgentOSOrchestrator.ts` | Delegation hub. Coordinates GMI processing, tool execution, guardrail evaluation, and streaming assembly. Streaming-first design using async generators. |
-| `interfaces/IAgentOS.ts` | Core contract defining `initialize()`, `processRequest()`, `handleToolResult()`, workflow management, persona listing, and conversation history retrieval. |
-| `types/AgentOSInput.ts` | Unified input structure: text, vision, audio, persona selection, user API keys, feedback, workflow/agency invocations, and processing options. |
-| `types/AgentOSResponse.ts` | Streaming output: 11 chunk types covering text deltas, tool calls, progress, errors, workflows, agency updates, and provenance events. |
+See [`docs/architecture/ARCHITECTURE.md`](./docs/architecture/ARCHITECTURE.md) for detailed diagrams and data flow.
 
-**Response chunk types:**
+### HEXACO Personality
 
-```typescript
-enum AgentOSResponseChunkType {
-  TEXT_DELTA           // Incremental text tokens
-  SYSTEM_PROGRESS      // Internal processing updates
-  TOOL_CALL_REQUEST    // Agent requests tool execution
-  TOOL_RESULT_EMISSION // Tool execution result
-  UI_COMMAND           // Client-side UI directives
-  FINAL_RESPONSE       // Aggregated final response
-  ERROR                // Error information
-  METADATA_UPDATE      // Session/context metadata changes
-  WORKFLOW_UPDATE      // Workflow progress notifications
-  AGENCY_UPDATE        // Multi-agent coordination events
-  PROVENANCE_EVENT     // Immutability/audit trail events
-}
-```
+Six personality dimensions modulate agent behavior at every level -- from memory retrieval to response style:
 
----
+| Trait | High Value Effect | Low Value Effect |
+|-------|-------------------|------------------|
+| **Honesty-Humility** | Source skepticism, transparent reasoning | Confident assertions |
+| **Emotionality** | Memory reconsolidation drift toward mood | Stable recall |
+| **Extraversion** | Stronger feeling-of-knowing, verbose output | Reserved, concise output |
+| **Agreeableness** | Emotion regulation during consolidation | Unfiltered expression |
+| **Conscientiousness** | Retrieval-induced forgetting of irrelevant data | Broader recall |
+| **Openness** | Involuntary recall, novelty-boosted encoding | Schema-conforming recall |
 
-### Cognitive Substrate (GMI)
+Personality traits are set at agent creation and can be adapted within bounded limits at runtime via `adapt_personality`.
 
-**Location:** `src/cognitive_substrate/`
+### Cognitive Memory
 
-The Generalized Modular Intelligence (GMI) is the core agent instance -- the "brain" of each agent. A single AgentOS runtime can manage multiple GMI instances via `GMIManager`.
+8 neuroscience-backed mechanisms, all HEXACO personality-modulated:
 
-```mermaid
-graph TB
-    subgraph GMI["GMI Instance"]
-        PO["PersonaOverlay Manager<br/><i>Personality switching</i>"] ~~~ CTX["Context Manager<br/><i>Dynamic prompts · User context · Session</i>"]
-        WM["Working Memory<br/><i>Current session state · Tool context</i>"] ~~~ AM["Adaptation Manager<br/><i>Learning rate · Style drift · Tone</i>"]
-        subgraph Mem["Multi-Layer Memory"]
-            Ep["Episodic<br/><i>Events</i>"] ~~~ Sem["Semantic<br/><i>Facts</i>"] ~~~ Proc["Procedural<br/><i>Skills</i>"] ~~~ LT["Long-Term<br/><i>Archive</i>"]
-        end
-        PO --> Mem
-        WM --> Mem
-    end
-    style GMI fill:#0e0e18,stroke:#c9a227,stroke-width:2px,color:#f2f2fa
-    style Mem fill:#151520,stroke:#00f5ff,stroke-width:1px,color:#f2f2fa
-```
+| Mechanism | Effect |
+|-----------|--------|
+| Reconsolidation | Retrieved memories drift toward current mood |
+| Retrieval-Induced Forgetting | Retrieving one memory suppresses similar competitors |
+| Involuntary Recall | Random surfacing of old high-vividness memories |
+| Metacognitive FOK | Feeling-of-knowing scoring for tip-of-tongue states |
+| Temporal Gist Extraction | Old traces compressed to core assertions |
+| Schema Encoding | Novel input boosted, schema-matching encoded efficiently |
+| Source Confidence Decay | Agent inferences decay faster than observations |
+| Emotion Regulation | Reappraisal + suppression during consolidation |
 
-**Key components:**
+Memory is organized in a 4-tier hierarchy: `core/` (encoding, decay, working memory), `retrieval/` (composite scoring, graph, prospective), `pipeline/` (consolidation, observation, lifecycle), `io/` (ingestion, import/export).
 
-- **GMI.ts** -- Core agent instance (2000+ lines). Manages the complete cognitive loop: context assembly, prompt construction, LLM invocation, tool handling, and response generation.
-- **GMIManager.ts** -- Lifecycle manager for multiple GMI instances. Handles creation, pooling, configuration, and teardown.
-- **IGMI.ts** -- Interface contract for GMI implementations.
-- **PersonaOverlayManager** -- Enables dynamic personality switching at runtime. Ships with 5+ built-in personas:
-  - `Researcher` -- Analytical, citation-heavy responses
-  - `Generalist` -- Balanced, conversational
-  - `Atlas` -- Navigation and spatial reasoning
-  - `Default Assistant` -- General-purpose helpful assistant
-- **Memory subsystem** (`memory/`) -- 5 memory types, 4-tier hierarchy, 8 cognitive mechanisms:
+See [`docs/memory/COGNITIVE_MECHANISMS.md`](./docs/memory/COGNITIVE_MECHANISMS.md) for API reference and 30+ APA citations.
 
-  **Memory types** (Tulving's long-term memory taxonomy):
-  | Type | Cognitive Model | Usage |
-  |------|----------------|-------|
-  | `episodic` | Autobiographical events | Conversation events, interactions |
-  | `semantic` | General knowledge/facts | Learned facts, preferences, schemas |
-  | `procedural` | Skills and how-to | Workflows, tool usage patterns |
-  | `prospective` | Future intentions | Goals, reminders, planned actions |
-  | `working` | Baddeley's model | Current session state, active context (7 +/- 2 slots) |
+### Multimodal RAG
 
-  **4-tier directory hierarchy:**
-  - `core/` -- Types, config, encoding (Yerkes-Dodson, flashbulb, HEXACO-weighted), decay (Ebbinghaus curves + spaced repetition), working memory, prompt assembly
-  - `retrieval/` -- MemoryStore (6-signal composite scoring), memory graph (spreading activation), prospective memory, retrieval feedback
-  - `pipeline/` -- Consolidation (merge, prune, promote, schema extraction), observation (buffer, compress, reflect), lifecycle management, infinite context window
-  - `io/` -- Document ingestion (PDF, DOCX, HTML, Markdown, URL), import/export (JSON, Obsidian, SQLite, ChatGPT, CSV), facade API, memory tools, extensions
+Complete retrieval-augmented generation pipeline:
 
-  **Cognitive mechanisms** (`memory/mechanisms/`) -- 8 optional, all HEXACO personality-modulated:
-  | Mechanism | Citation | Effect |
-  |-----------|----------|--------|
-  | Reconsolidation | [Nader et al., 2000](https://doi.org/10.1038/35021052) | Retrieved memories drift toward current mood |
-  | Retrieval-Induced Forgetting | [Anderson et al., 1994](https://doi.org/10.1037/0278-7393.20.5.1063) | Retrieving one memory suppresses similar competitors |
-  | Involuntary Recall | [Berntsen, 2009](https://doi.org/10.1017/CBO9780511575921) | Random surfacing of old high-vividness memories |
-  | Metacognitive FOK | [Nelson & Narens, 1990](https://doi.org/10.1016/S0079-7421(08)60053-5) | Feeling-of-knowing scoring for tip-of-tongue states |
-  | Temporal Gist | [Reyna & Brainerd, 1995](https://doi.org/10.1016/1041-6080(95)90003-9) | Old traces compressed to core assertions |
-  | Schema Encoding | [Bartlett, 1932](https://doi.org/10.1017/CBO9780511759185) | Novel input boosted, schema-matching encoded efficiently |
-  | Source Confidence Decay | [Johnson et al., 1993](https://doi.org/10.1037/0033-2909.114.1.3) | Agent inferences decay faster than observations |
-  | Emotion Regulation | [Gross, 1998](https://doi.org/10.1037/1089-2680.2.3.271) | Reappraisal + suppression during consolidation |
+- **7 vector backends:** InMemory, SQL (SQLite/Postgres), HNSW, Qdrant, Neo4j, Postgres+pgvector, Pinecone
+- **4 retrieval strategies:** keyword, vector, hybrid (RRF), HyDE (Hypothetical Document Embedding)
+- **GraphRAG:** entity/relationship extraction, Louvain community detection, local + global search
+- **4-tier scaling path:** SQLite (dev) > HNSW sidecar (auto at 1K vectors) > Postgres+pgvector > Qdrant/Pinecone
+- **Document ingestion:** PDF, DOCX, HTML, Markdown, URL
+- **One-command migration** between any two backends via `MigrationEngine`
 
-  See `docs/memory/COGNITIVE_MECHANISMS.md` for API reference and 30+ APA citations.
-
----
-
-### LLM Provider Management
-
-**Location:** `src/core/llm/`
-
-The LLM layer abstracts multiple AI model providers behind a unified interface.
-
-```mermaid
-graph TD
-    PM["AIModelProviderManager<br/><i>Provider registry · Routing · Fallback · Model switching</i>"]
-    PM --> OAI["OpenAI Provider<br/><code>gpt-4o · gpt-4o-mini · o1</code>"]
-    PM --> Anth["Anthropic Provider<br/><code>claude-sonnet-4 · claude-haiku</code>"]
-    PM --> Gem["Gemini Provider<br/><code>gemini-2.5-flash · gemini-2.0</code>"]
-    PM --> Oll["Ollama Provider<br/><code>llama3.2 · mistral · codellama</code>"]
-    PM --> GQ["Groq Provider<br/><code>llama-3.3-70b · gemma2-9b</code>"]
-    PM --> OR["OpenRouter Provider<br/><code>200+ models · auto-routing</code>"]
-    PM --> Custom["Custom Provider<br/><i>IProvider interface</i>"]
-    style PM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
-```
-
-**Provider implementations:**
-
-| Provider | File | Models | Env Var |
-|----------|------|--------|---------|
-| OpenAI | `providers/implementations/OpenAIProvider.ts` | GPT-4o, GPT-4o-mini, o1, o3 | `OPENAI_API_KEY` |
-| Anthropic | `providers/implementations/AnthropicProvider.ts` | Claude Sonnet 4, Claude Haiku | `ANTHROPIC_API_KEY` |
-| Gemini | `providers/implementations/GeminiProvider.ts` | Gemini 2.5 Flash, Gemini 2.0 | `GEMINI_API_KEY` |
-| Groq | `providers/implementations/GroqProvider.ts` | Llama 3.3 70B, Gemma2 9B (fast inference) | `GROQ_API_KEY` |
-| Mistral | `providers/implementations/MistralProvider.ts` | Mistral Large, Mistral Small | `MISTRAL_API_KEY` |
-| Together | via OpenAI-compat | Meta-Llama 3.1 70B/8B | `TOGETHER_API_KEY` |
-| xAI | via OpenAI-compat | Grok-2, Grok-2 Mini | `XAI_API_KEY` |
-| Ollama | `providers/implementations/OllamaProvider.ts` | Any locally-hosted model | `OLLAMA_BASE_URL` |
-| OpenRouter | `providers/implementations/OpenRouterProvider.ts` | 200+ models from any provider | `OPENROUTER_API_KEY` |
-
-> **Auto-detection:** When no `provider` is specified, AgentOS scans env vars in priority order (OpenRouter > OpenAI > Anthropic > Gemini > Groq > Together > Mistral > xAI > Ollama) and uses the first configured provider. Set one env var and every helper call works automatically.
-
-**Additional components:**
-
-- **PromptEngine** (`PromptEngine.ts`) -- Constructs prompts from system instructions, contextual elements, persona definitions, and dynamic user context. Supports template interpolation and conditional element inclusion.
-- **IProvider** (`providers/IProvider.ts`) -- Interface contract for adding custom LLM providers.
-- **Streaming adapters** -- All providers support token-level streaming via async generators with backpressure control.
-
-**Per-request model override (high-level helpers):**
-
-```typescript
-// Provider-first: AgentOS picks the default model
-await generateText({ provider: 'gemini', prompt: 'Summarize this document' });
-
-// Override a specific model
-await generateText({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001', prompt: '...' });
-```
-
-**Per-request model override (full runtime):**
-
-```typescript
-for await (const chunk of agent.processRequest({
-  userId: 'user-1',
-  sessionId: 'session-1',
-  textInput: 'Summarize this document',
-  options: {
-    preferredProviderId: 'gemini',
-    preferredModelId: 'gemini-2.5-flash',
-  },
-})) { /* ... */ }
-```
-
----
-
-### Tool System
-
-**Location:** `src/core/tools/`
-
-Tools are the primary mechanism for agents to interact with the outside world. Every tool implements the `ITool` interface.
-
-```mermaid
-graph TD
-    TO["ToolOrchestrator<br/><i>Discovery · Selection · Validation · Execution</i>"]
-    TO --> TE["ToolExecutor<br/><i>Validation · Invocation · Result wrap</i>"]
-    TO --> TP["ToolPermission Manager<br/><i>RBAC · Per-user access</i>"]
-    TO --> TG["ToolExecution Guard<br/><i>Timeout 30s · Circuit breaker</i>"]
-    style TO fill:#1c1c28,stroke:#00f5ff,color:#f2f2fa
-```
-
-**ITool interface (abbreviated):**
-
-```typescript
-interface ITool<TInput = any, TOutput = any> {
-  readonly id: string;              // Globally unique identifier
-  readonly name: string;            // LLM-facing function name
-  readonly displayName: string;     // Human-readable title
-  readonly description: string;     // Natural language description for LLM
-  readonly inputSchema: JSONSchemaObject;   // JSON Schema for input validation
-  readonly outputSchema?: JSONSchemaObject; // JSON Schema for output validation
-  readonly category?: string;       // Grouping (e.g., "data_analysis")
-  readonly hasSideEffects: boolean; // Whether the tool modifies external state
-  readonly requiredCapabilities?: string[]; // Persona capabilities needed
-
-  execute(
-    args: TInput,
-    context?: ToolExecutionContext
-  ): Promise<ToolExecutionResult<TOutput>>;
-}
-```
-
-**ToolExecutionResult:**
-
-```typescript
-interface ToolExecutionResult<TOutput = any> {
-  success: boolean;
-  output?: TOutput;
-  error?: string;
-  contentType?: string;  // MIME type (default: "application/json")
-  details?: Record<string, any>;
-}
-```
-
-**ToolExecutionContext** provides the tool with calling agent identity (`gmiId`, `personaId`), user context, correlation ID for tracing, and optional session data.
-
----
-
-### Extension System
-
-**Location:** `src/extensions/`
-
-The extension system is AgentOS's plugin architecture. Extensions are packaged as **packs** containing one or more **descriptors**, loaded via a **manifest**.
-
-```
-ExtensionManifest
-    |
-    +-- ExtensionPackManifestEntry[]
-            |
-            +-- ExtensionPack (resolved via factory/module/package)
-                    |
-                    +-- ExtensionDescriptor[] (id + kind + payload)
-                            |
-                            +-- Registered in ExtensionRegistry
-                                    |
-                                    +-- Consumed by runtime (ToolOrchestrator,
-                                        GuardrailService, WorkflowEngine, etc.)
-```
-
-**12 extension kinds:**
-
-| Kind Constant | Value | Payload Type |
-|---------------|-------|--------------|
-| `EXTENSION_KIND_TOOL` | `"tool"` | `ITool` |
-| `EXTENSION_KIND_GUARDRAIL` | `"guardrail"` | `IGuardrailService` |
-| `EXTENSION_KIND_RESPONSE_PROCESSOR` | `"response-processor"` | Response transform function |
-| `EXTENSION_KIND_WORKFLOW` | `"workflow"` | `WorkflowDescriptorPayload` |
-| `EXTENSION_KIND_WORKFLOW_EXECUTOR` | `"workflow-executor"` | Workflow step executor |
-| `EXTENSION_KIND_PERSONA` | `"persona"` | `IPersonaDefinition` |
-| `EXTENSION_KIND_PLANNING_STRATEGY` | `"planning-strategy"` | Planning algorithm |
-| `EXTENSION_KIND_HITL_HANDLER` | `"hitl-handler"` | Human interaction handler |
-| `EXTENSION_KIND_COMM_CHANNEL` | `"communication-channel"` | Agent-to-agent channel |
-| `EXTENSION_KIND_MEMORY_PROVIDER` | `"memory-provider"` | Memory backend |
-| `EXTENSION_KIND_MESSAGING_CHANNEL` | `"messaging-channel"` | External platform adapter |
-| `EXTENSION_KIND_PROVENANCE` | `"provenance"` | Audit/immutability handler |
-
-**ExtensionDescriptor:**
-
-```typescript
-interface ExtensionDescriptor<TPayload = unknown> {
-  id: string;                           // Unique within its kind
-  kind: ExtensionKind;                  // One of the 12 kinds above
-  priority?: number;                    // Higher loads later (overrides earlier)
-  enableByDefault?: boolean;            // Auto-enable on discovery
-  metadata?: Record<string, unknown>;   // Arbitrary metadata
-  payload: TPayload;                    // The actual implementation
-  source?: ExtensionSourceMetadata;     // Provenance (package name, version)
-  requiredSecrets?: ExtensionSecretRequirement[]; // API keys needed
-  onActivate?: (ctx: ExtensionLifecycleContext) => Promise<void> | void;
-  onDeactivate?: (ctx: ExtensionLifecycleContext) => Promise<void> | void;
-}
-```
-
-**ExtensionManifest:**
-
-```typescript
-interface ExtensionManifest {
-  packs: ExtensionPackManifestEntry[];  // Pack references
-  overrides?: ExtensionOverrides;       // Per-descriptor enable/disable/priority
-}
-
-// Packs can be resolved three ways:
-type ExtensionPackResolver =
-  | { package: string; version?: string }  // npm package
-  | { module: string }                     // Local module path
-  | { factory: () => Promise<ExtensionPack> | ExtensionPack }; // Inline factory
-```
-
-**Loading pipeline:**
-
-1. `ExtensionLoader` resolves pack entries from the manifest
-2. `ExtensionRegistry` registers descriptors by kind, applying priority stacking
-3. `ExtensionManager` provides runtime access: `getTools()`, `getGuardrails()`, `getWorkflows()`, etc.
-4. `MultiRegistryLoader` supports loading from multiple remote registries
-
-**Lifecycle context and shared services:**
-
-- `ExtensionLifecycleContext.getSecret(secretId)` gives packs host-resolved secrets at activation time
-- `ExtensionLifecycleContext.services` provides a shared `ISharedServiceRegistry` for lazy singleton reuse across packs
-- heavyweight dependencies such as NLP pipelines, ONNX models, embedding functions, and NLI models should be loaded through the shared registry rather than per-descriptor globals
-
-**Built-in guardrail packs exported by `@framers/agentos`:**
-
-| Pack | Import Path | Guardrail ID | Tool IDs | Purpose |
-|------|-------------|--------------|----------|---------|
-| PII Redaction | `@framers/agentos-ext-pii-redaction` | `pii-redaction-guardrail` | `pii_scan`, `pii_redact` | Four-tier PII detection and redaction |
-| ML Classifiers | `@framers/agentos-ext-ml-classifiers` | `ml-classifier-guardrail` | `classify_content` | Toxicity, prompt-injection, and jailbreak detection |
-| Topicality | `@framers/agentos-ext-topicality` | `topicality-guardrail` | `check_topic` | On-topic enforcement and session drift detection |
-| Code Safety | `@framers/agentos-ext-code-safety` | `code-safety-guardrail` | `scan_code` | Regex-based code risk scanning across fenced code and tool args |
-| Grounding Guard | `@framers/agentos-ext-grounding-guard` | `grounding-guardrail` | `check_grounding` | RAG-source claim verification and hallucination detection |
-| Content Policy Rewriter | `@framers/agentos-ext-content-policy-rewriter` | `content-policy-rewriter-guardrail` | — | Opt-in content policy: 8 categories (illegal_harmful, adult, profanity, violence, self_harm, hate_speech, illegal_activity, custom), keyword pre-filter + LLM judge/rewriter, 4 presets |
-
----
-
-### Planning Engine
-
-**Location:** `src/orchestration/planner/`
-
-The planning engine enables multi-step task decomposition and execution using ReAct (Reasoning + Acting) patterns.
-
-```mermaid
-graph TD
-    PE["PlanningEngine<br/><i>Task decomposition · Step sequencing · Execution loop</i>"]
-    PE --> IF["IPlanningEngine Interface"]
-    IF --- M1["createPlan(goal, context) → Plan"]
-    IF --- M2["executePlan(plan) → AsyncGenerator‹PlanStepResult›"]
-    IF --- M3["revisePlan(plan, feedback) → Plan"]
-    style PE fill:#1c1c28,stroke:#10b981,color:#f2f2fa
-    style IF fill:#151520,stroke:#c9a227,color:#f2f2fa
-```
-
-Plans are composed of typed steps that the agent executes sequentially, with the ability to revise the plan based on intermediate results. The planning engine integrates with:
-
-- **Tool system** for action execution
-- **Guardrails** for step-level safety checks
-- **HITL** for human approval of high-risk steps
-- **Memory** for persisting plan state across sessions
-
-See [`docs/orchestration/PLANNING_ENGINE.md`](./docs/orchestration/PLANNING_ENGINE.md) for the full planning system specification.
-
----
-
-### Conversation Management
-
-**Location:** `src/core/conversation/`
-
-Manages session state, message history, and long-term memory persistence.
-
-- **ConversationManager** -- Creates and retrieves conversation contexts, manages rolling message windows, and coordinates memory persistence.
-- **ConversationContext** -- Immutable snapshot of a conversation: messages, metadata, active persona, user context.
-- **IRollingSummaryMemorySink** -- Interface for persisting conversation summaries that compress long conversations into retrievable memory.
-- **ILongTermMemoryRetriever** -- Interface for retrieving relevant past conversations during context assembly.
-
----
-
-### RAG (Retrieval Augmented Generation)
-
-**Location:** `src/rag/`
-
-A complete RAG pipeline with pluggable vector stores, embedding management, and document ingestion.
-
-```mermaid
-graph TD
-    RA["RetrievalAugmentor<br/><i>Ingestion · Retrieval · Document management</i>"]
-    RA --> EM["EmbeddingManager<br/><i>Model selection · Caching · Batch</i>"]
-    RA --> VSM["VectorStoreManager<br/><i>Multi-provider vector storage</i>"]
-    EM --> LLM["LLM Provider<br/><i>Embedding models</i>"]
-    VSM --> Mem["InMemory<br/><i>dev</i>"]
-    VSM --> SQL["SQL<br/><i>prod</i>"]
-    VSM --> HNSW["HNSW<br/><i>local ANN</i>"]
-    VSM --> Qd["Qdrant<br/><i>cloud</i>"]
-    style RA fill:#1c1c28,stroke:#c9a227,color:#f2f2fa
-    style VSM fill:#1c1c28,stroke:#8b5cf6,color:#f2f2fa
-```
-
-**Vector store implementations:**
-
-| Store | Import | Use Case |
-|-------|--------|----------|
-| `InMemoryVectorStore` | `@framers/agentos/rag` | Development and testing |
-| `SqlVectorStore` | `@framers/agentos/rag` | Production (SQLite/Postgres via `@framers/sql-storage-adapter`) |
-| `HnswlibVectorStore` | `@framers/agentos/rag` | High-performance local ANN search |
-| `QdrantVectorStore` | `@framers/agentos/rag` | Cloud-hosted vector database |
-| `Neo4jVectorStore` | `@framers/agentos/rag` | Neo4j 5.x native vector indexes with shared connection pooling |
-| `PostgresVectorStore` | `@framers/agentos/rag` | Postgres + pgvector with HNSW indexes and RRF hybrid search |
-| `PineconeVectorStore` | `@framers/agentos/rag` | Pinecone cloud via fetch API with metadata filtering |
-
-> **Database Persistence: [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter)**
->
-> All SQL-backed storage in AgentOS — including `SqlVectorStore`, conversation persistence, and memory archival — is powered by the `@framers/sql-storage-adapter` package. It provides a unified interface across 7 database backends with automatic runtime detection:
->
-> | Adapter | Runtime | Use Case |
-> |---------|---------|----------|
-> | `better-sqlite3` | Node.js | Production (default) |
-> | `pg` | Node.js | PostgreSQL for cloud deployments |
-> | `sql.js` | Browser/WASM | Client-side storage |
-> | `capacitor` | Mobile | iOS/Android via Capacitor |
-> | `electron` | Desktop | Electron apps with IPC bridge |
-> | `indexeddb` | Browser | Fallback browser storage |
-> | `memory` | Any | Testing and development |
->
-> ```typescript
-> import { createDatabase } from '@framers/sql-storage-adapter';
-> const db = await createDatabase(); // auto-detects best adapter
-> ```
-
-**GraphRAG:**
-
-AgentOS supports both in-memory `GraphRAGEngine` and persistent `Neo4jGraphRAGEngine` (at `src/rag/graphrag/`) for knowledge-graph-enhanced retrieval:
-
-- Entity and relationship extraction from documents
-- Community detection via Louvain algorithm (requires `graphology` peer dependency)
-- Local search (entity-centric) and global search (community-summarized)
-- Hybrid retrieval combining vector similarity with graph traversal
-
-```typescript
-import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
-import { Neo4jGraphRAGEngine } from '@framers/agentos/rag/graphrag';
-import type { GraphRAGConfig, GraphEntity, GraphRelationship } from '@framers/agentos/rag/graphrag';
-```
-
-See [`docs/memory/RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) and [`docs/memory/MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md) for detailed configuration guides.
-
-**Memory Scaling:**
-
-AgentOS provides a 4-tier vector storage scaling path that grows with your deployment:
-
-| Tier | Backend | When to Use |
-|------|---------|-------------|
-| 0 | SQLite (default) | Development, small datasets (< 1K vectors) |
-| 1 | HNSW sidecar | Auto-activates at 1K vectors for local ANN search |
-| 2 | Postgres + pgvector | Production cloud deployments with RRF hybrid search |
-| 3 | Qdrant / Pinecone | High-scale managed vector databases |
-
-- **One-command migration** via `MigrationEngine` — move data between any two backends with `migrate({ from, to })`
-- **Docker auto-setup** — `MigrationEngine.ensureBackend('qdrant')` or `ensureBackend('postgres')` pulls and starts containers automatically
-- **Binary blob embedding storage** — 3-4x faster than JSON serialization for high-throughput ingest
-- **HNSW sidecar auto-activation** — transparently upgrades from brute-force to approximate nearest neighbors at 1K vectors
-- **`embed()` config option** — opt-in query-time embedding generation for dynamic content
-
-See [`docs/memory/MEMORY_SCALING.md`](./docs/memory/MEMORY_SCALING.md), [`docs/memory/POSTGRES_BACKEND.md`](./docs/memory/POSTGRES_BACKEND.md), [`docs/memory/QDRANT_BACKEND.md`](./docs/memory/QDRANT_BACKEND.md), and [`docs/memory/PINECONE_BACKEND.md`](./docs/memory/PINECONE_BACKEND.md) for backend-specific guides.
-
----
-
-### Bundled Platform Knowledge
-
-**Location:** `knowledge/platform-corpus.json`
-
-AgentOS ships with **244 pre-built knowledge entries** covering the entire platform surface area. When the QueryRouter initializes, these entries are automatically loaded alongside your project-specific documentation corpus, giving every agent instant knowledge about AgentOS capabilities with zero configuration.
-
-**Coverage breakdown:**
-
-| Category | Count | What it covers |
-|----------|-------|---------------|
-| Tools | 105 | Every tool and channel adapter (Discord, Telegram, LinkedIn, Bluesky, etc.) |
-| Skills | 80 | All curated skills from the skills registry |
-| FAQ | 30 | Common questions (voice setup, supported models, streaming, OCR, etc.) |
-| API | 14 | Core API functions (generateText, streamText, agent, agency, etc.) |
-| Troubleshooting | 15 | Common errors and their fixes (missing API keys, model not found, etc.) |
-
-**How it works:**
-
-- During `router.init()`, the QueryRouter loads `knowledge/platform-corpus.json` from the package directory
-- Platform entries are merged into the same corpus as user docs, making them searchable via both vector and keyword retrieval
-- The keyword fallback index covers platform entries, so they work even without an embedding API key
-
-**Disabling platform knowledge:**
-
-```typescript
-const router = new QueryRouter({
-  knowledgeCorpus: ['./docs'],
-  includePlatformKnowledge: false, // Skip bundled platform entries
-});
-```
-
-When disabled, the router only loads your `knowledgeCorpus` directories. This is useful when you want a purely project-specific knowledge base or are building a non-AgentOS product.
-
----
-
-### Safety and Guardrails
-
-**Location:** `src/safety/runtime/` and `src/safety/guardrails/`
-
-AgentOS provides defense-in-depth safety through two complementary systems.
-
-#### Safety Primitives (`safety/runtime/`)
-
-Five runtime safety components:
-
-| Component | Export | Purpose |
-|-----------|--------|---------|
-| **CircuitBreaker** | `CircuitBreaker` | Three-state (closed/open/half-open) wrapper for LLM calls. Configurable failure threshold, reset timeout, and half-open probe count. Throws `CircuitOpenError` when tripped. |
-| **ActionDeduplicator** | `ActionDeduplicator` | Hash-based recent action tracking with LRU eviction. Prevents redundant tool calls and repeated operations within a configurable time window. |
-| **StuckDetector** | `StuckDetector` | Detects three patterns: repeated outputs, repeated errors, and oscillation (A-B-A-B cycles). Returns `StuckDetection` with reason and confidence. |
-| **CostGuard** | `CostGuard` | Per-agent session and daily spending caps. Defaults: $1/session, $5/day. Throws `CostCapExceededError` when limits are hit. Tracks token usage across all LLM calls. |
-| **ToolExecutionGuard** | `ToolExecutionGuard` | Per-tool timeout (30s default) with independent circuit breakers per tool ID. Reports `ToolHealthReport` for monitoring. Throws `ToolTimeoutError`. |
-
-```typescript
-import {
-  CircuitBreaker,
-  CostGuard,
-  StuckDetector,
-  ActionDeduplicator,
-  ToolExecutionGuard,
-} from '@framers/agentos/safety/runtime';
-```
-
-See [`docs/safety/SAFETY_PRIMITIVES.md`](./docs/safety/SAFETY_PRIMITIVES.md) for the full safety API reference.
-
-#### Guardrails (`safety/guardrails/`)
-
-Content-level input/output filtering:
-
-```typescript
-interface IGuardrailService {
-  config?: {
-    evaluateStreamingChunks?: boolean;
-    maxStreamingEvaluations?: number;
-    canSanitize?: boolean;
-    timeoutMs?: number;
-  };
-
-  evaluateInput?(payload: GuardrailInputPayload): Promise<GuardrailEvaluationResult | null>;
-  evaluateOutput?(payload: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null>;
-}
-```
-
-`GuardrailOutputPayload` also carries `ragSources?: RagRetrievedChunk[]`, which enables grounding-aware output checks against retrieved context.
-
-Guardrails run at two points in the request lifecycle:
-1. **Pre-processing** -- `evaluateInput()` inspects user input before orchestration
-2. **Post-processing** -- `evaluateOutput()` inspects streaming chunks and/or the final response before emission
-
-When multiple guardrails are registered, AgentOS uses a **two-phase dispatcher**:
-1. **Phase 1 (sequential sanitizers)** -- guardrails with `config.canSanitize === true` run in registration order so each sanitizer sees the cumulative sanitized text
-2. **Phase 2 (parallel classifiers)** -- all remaining guardrails run concurrently with worst-action aggregation (`BLOCK > FLAG > ALLOW`)
-
-`ParallelGuardrailDispatcher` powers both input evaluation and output stream wrapping, with per-guardrail `timeoutMs` fail-open behavior for slow or degraded classifiers.
-
-Multiple guardrails can be composed via the extension system, and each receives full context (user ID, session ID, persona ID, conversation ID, metadata) for context-aware policy decisions.
-
-See [`docs/safety/GUARDRAILS_USAGE.md`](./docs/safety/GUARDRAILS_USAGE.md) for implementation patterns.
-
----
-
-### Human-in-the-Loop (HITL)
-
-**Location:** `src/orchestration/hitl/`
-
-The HITL system enables agents to request human approval, clarification, and collaboration at key decision points.
-
-**Core interface: `IHumanInteractionManager`**
-
-Three interaction modes:
-
-| Mode | Method | Use Case |
-|------|--------|----------|
-| **Approval** | `requestApproval()` | Gate high-risk actions (database mutations, financial operations, external communications) |
-| **Clarification** | `requestClarification()` | Ask the user for missing information before proceeding |
-| **Escalation** | `escalateToHuman()` | Hand off to a human operator when the agent cannot proceed |
-
-**PendingAction structure:**
-
-```typescript
-interface PendingAction {
-  actionId: string;
-  description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  category?: 'data_modification' | 'external_api' | 'financial' |
-             'communication' | 'system' | 'other';
-  agentId: string;
-  context: Record<string, unknown>;
-  potentialConsequences?: string[];
-  reversible: boolean;
-  estimatedCost?: { amount: number; currency: string };
-  timeoutMs?: number;
-  alternatives?: AlternativeAction[];
-}
-```
-
-HITL integrates with the planning engine so individual plan steps can require approval, and with the extension system via `EXTENSION_KIND_HITL_HANDLER` for custom approval UIs.
-
-See [`docs/safety/HUMAN_IN_THE_LOOP.md`](./docs/safety/HUMAN_IN_THE_LOOP.md) for the full HITL specification.
-
----
-
-### Channels System
-
-**Location:** `src/channels/`
-
-Unified adapters for 40 external messaging and social platforms.
-
-**40 supported platforms:**
-
-| Priority | Platforms |
-|----------|-----------|
-| **P0** (Core + Social) | Telegram, WhatsApp, Discord, Slack, Webchat, Twitter/X, Instagram, Reddit, YouTube, LinkedIn, Facebook, Threads, Bluesky |
-| **P1** | Signal, iMessage, Google Chat, Microsoft Teams, Pinterest, TikTok, Mastodon, Dev.to, Hashnode, Medium, WordPress |
-| **P2** | Matrix, Zalo, Email, SMS, Farcaster, Lemmy, Google Business |
-| **P3** | Nostr, Twitch, Line, Feishu, Mattermost, Nextcloud Talk, Tlon, IRC, Zalo Personal |
-
-**29 capability flags:**
-
-Each adapter declares its capabilities, allowing consumers to check before attempting unsupported actions:
-
-```
-text, rich_text, images, video, audio, voice_notes, documents,
-stickers, reactions, threads, typing_indicator, read_receipts,
-group_chat, channels, buttons, inline_keyboard, embeds,
-mentions, editing, deletion
-stories, reels, hashtags, polls, carousel,
-engagement_metrics, scheduling, dm_automation, content_discovery
-```
-
-**IChannelAdapter** -- Unified interface for bidirectional messaging:
-
-- `connect()` / `disconnect()` -- Lifecycle management
-- `sendMessage()` -- Outbound messages with platform-specific formatting
-- `onMessage()` -- Inbound message handler registration
-- `getConnectionInfo()` -- Connection health monitoring
-- `capabilities` -- Declared capability set
-
-**ChannelRouter** -- Routes inbound messages to the appropriate agent and outbound responses to the correct platform adapter. Supports multi-platform agents (one agent, many channels).
-
-**Connection status:** `disconnected` -> `connecting` -> `connected` -> `reconnecting` -> `error`
-
-Channel adapters are registered as extensions via `EXTENSION_KIND_MESSAGING_CHANNEL`.
-
-See [`docs/architecture/PLATFORM_SUPPORT.md`](./docs/architecture/PLATFORM_SUPPORT.md) for platform-specific configuration.
-
----
-
-### Voice and Telephony
-
-**Location:** `src/voice/`
-
-Enable agents to make and receive phone calls via telephony providers.
-
-**Call state machine:**
-
-```
-initiated --> ringing --> answered --> active --> speaking <--> listening
-    |            |           |          |            |            |
-    +------------+-----------+----------+------------+------------+
-    |                    (any non-terminal state)                 |
-    v
-[Terminal States]
-completed | hangup-user | hangup-bot | timeout | error |
-failed | no-answer | busy | voicemail
-```
-
-**Providers:**
-
-| Provider | Support |
-|----------|---------|
-| Twilio | Full voice + SMS |
-| Telnyx | Full voice |
-| Plivo | Full voice |
-| Mock | Testing/development |
-
-**Key components:**
-
-- **CallManager** -- Manages call lifecycle, state transitions, and event dispatch
-- **IVoiceCallProvider** -- Interface for telephony provider adapters
-- **telephony-audio.ts** -- Audio stream handling and format conversion
-
-Voice providers are registered via `EXTENSION_KIND_TOOL` with the `voice-call-provider` category.
-
----
-
-### Unified Orchestration Layer
-
-**Location:** `src/orchestration/`
-
-Three authoring APIs compile to one `CompiledExecutionGraph` IR executed by a single `GraphRuntime`. Persistent checkpointing enables time-travel debugging and fault recovery.
-
-Current status: the builders, IR, checkpoints, and base runtime are real. Some advanced routes are still partial in the shared runtime: discovery edges need discovery wiring, personality edges need a trait source, and `extension` / `subgraph` execution still requires a higher-level bridge runtime.
-
-| API | Level | Use case |
-|-----|-------|----------|
-| **`AgentGraph`** | Low-level | Explicit nodes, edges, cycles, subgraphs — full graph control |
-| **`workflow()`** | Mid-level | Deterministic DAG chains with step/branch/parallel — Zod-typed I/O |
-| **`mission()`** | High-level | Intent-driven — declare goal + constraints, PlanningEngine decides steps |
-
-**Differentiators vs LangGraph / Mastra:** memory-aware state, capability discovery routing, personality-driven edges, inter-step guardrails, streaming at every node transition.
-
-```typescript
-import { AgentGraph, toolNode, gmiNode, START, END } from '@framers/agentos/orchestration';
-import { z } from 'zod';
-
-// Low-level: explicit graph with checkpoints
-const graph = new AgentGraph({
-  input: z.object({ topic: z.string() }),
-  scratch: z.object({ draft: z.string().optional() }),
-  artifacts: z.object({ status: z.string().optional(), summary: z.string().optional() }),
-})
-  .addNode('draft', gmiNode({ instructions: 'Draft a concise summary', executionMode: 'single_turn' }))
-  .addNode('publish', toolNode('publish_report'))
-  .addEdge(START, 'draft')
-  .addEdge('draft', 'publish')
-  .addEdge('publish', END)
-  .compile();
-
-const result = await graph.invoke({ topic: 'quantum computing' });
-
-// Mid-level: deterministic workflow
-import { workflow } from '@framers/agentos/orchestration';
-
-const flow = workflow('onboarding')
-  .input(z.object({ email: z.string() }))
-  .returns(z.object({ userId: z.string() }))
-  .step('validate', { tool: 'email_validator' })
-  .then('create', { tool: 'user_service' })
-  .compile();
-
-// High-level: intent-driven
-import { mission } from '@framers/agentos/orchestration';
-
-const researcher = mission('research')
-  .input(z.object({ topic: z.string() }))
-  .goal('Research {topic} and produce a cited summary')
-  .returns(z.object({ summary: z.string() }))
-  .planner({ strategy: 'plan_and_execute', maxSteps: 8 })
-  .compile();
-
-const plan = await researcher.explain({ topic: 'AI safety' }); // preview plan without executing
-```
-
-See [`docs/orchestration/UNIFIED_ORCHESTRATION.md`](./docs/orchestration/UNIFIED_ORCHESTRATION.md), [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md), [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md), [`docs/orchestration/MISSION_API.md`](./docs/orchestration/MISSION_API.md), [`docs/orchestration/CHECKPOINTING.md`](./docs/orchestration/CHECKPOINTING.md).
-
-Runnable examples: [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs)
-
-#### Legacy WorkflowEngine
-
-The original `WorkflowEngine` (`src/orchestration/workflows/`) continues to work for existing consumers. The new orchestration layer is opt-in and runs alongside it.
-
-```typescript
-const definitions = agent.listWorkflowDefinitions();
-const instance = await agent.startWorkflow('data-pipeline-v1', input);
-const status = await agent.getWorkflow(instance.workflowId);
-```
-
----
-
-### Multi-Agent Coordination
-
-**Location:** `src/agents/agency/`
-
-Enables teams of agents to collaborate on shared goals.
-
-- **AgencyRegistry** -- Register and manage agent teams with role assignments
-- **AgentCommunicationBus** -- Inter-agent message passing with typed events and handoffs
-- **AgencyMemoryManager** -- Shared memory space with vector search for agency-wide knowledge
-
-```mermaid
-graph TD
-    AR["AgencyRegistry"]
-    AR --> A1["Agent (GMI)<br/><b>Researcher</b>"]
-    AR --> A2["Agent (GMI)<br/><b>Writer</b>"]
-    AR --> A3["Agent (GMI)<br/><b>Reviewer</b>"]
-    AR --> A4["Agent (GMI)<br/><b>Deployer</b>"]
-    A1 & A2 & A3 & A4 --> Bus["Communication Bus<br/><i>Events · Handoffs · Sync</i>"]
-    A1 & A2 & A3 & A4 --> Mem["Agency Memory Manager<br/><i>Shared vector memory</i>"]
-    style AR fill:#1c1c28,stroke:#c9a227,color:#f2f2fa
-    style Bus fill:#151520,stroke:#00f5ff,color:#f2f2fa
-    style Mem fill:#151520,stroke:#8b5cf6,color:#f2f2fa
-```
-
-See [`docs/architecture/AGENT_COMMUNICATION.md`](./docs/architecture/AGENT_COMMUNICATION.md) for the full multi-agent specification.
-
----
-
-### Observability
-
-**Location:** `src/evaluation/observability/`
-
-OpenTelemetry-native observability for tracing, metrics, and cost tracking.
-
-- **ITracer** / **Tracer** -- Span creation and propagation for distributed tracing
-- **otel.ts** -- `configureAgentOSObservability()` sets up the OpenTelemetry SDK with custom exporters
-- **Metrics** -- Token usage, latency percentiles, tool execution counts, error rates
-- **Cost tracking** -- Per-request and aggregate cost computation across providers
-
-```typescript
-import { configureAgentOSObservability } from '@framers/agentos';
-
-configureAgentOSObservability({
-  serviceName: 'my-agent',
-  traceExporter: myOTLPExporter,
-  metricExporter: myMetricsExporter,
-});
-```
-
-See [`docs/observability/OBSERVABILITY.md`](./docs/observability/OBSERVABILITY.md) and [`docs/safety/COST_OPTIMIZATION.md`](./docs/safety/COST_OPTIMIZATION.md) for setup guides.
-
----
-
-### Skills
-
-**Location:** `src/skills/`
-
-Skills are portable, self-describing agent capabilities defined in `SKILL.md` files.
-
-- **SkillRegistry** -- Discovers and registers available skills
-- **SkillLoader** -- Parses SKILL.md format (YAML frontmatter + markdown body)
-- **SKILL.md format** -- Declarative skill definition with name, description, required tools, and behavioral instructions
-
-See [`docs/extensions/SKILLS.md`](./docs/extensions/SKILLS.md) for the skill authoring guide.
-
----
-
-### Structured Output
-
-**Location:** `src/structured/output/`
-
-Extract typed, validated data from unstructured text using JSON Schema.
-
-- **StructuredOutputManager** -- Coordinates schema-constrained generation with validation
-- **JSON Schema validation** -- Input/output validation via ajv with format support
-- **Parallel function calls** -- Multiple tool invocations in a single LLM turn
-- **Entity extraction** -- Named entity recognition with schema constraints
-
-See [`docs/orchestration/STRUCTURED_OUTPUT.md`](./docs/orchestration/STRUCTURED_OUTPUT.md) for usage patterns.
-
----
+See [`docs/memory/RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) and [`docs/memory/MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md).
 
 ### Emergent Capabilities
 
-**Location:** `src/emergent/`
+Agents with `emergent: true` create new tools at runtime:
 
-Agents with `emergent: true` create new tools at runtime — compose existing tools via a step DSL or write sandboxed JavaScript. An LLM-as-judge evaluates safety and correctness. Tools earn trust through tiered promotion: session (in-memory) → agent (persisted, auto-promoted after 5+ uses with >0.8 confidence) → shared (human-approved HITL gate).
+- **Runtime tool forging** via `forge_tool` -- sandboxed JavaScript execution + LLM-as-judge safety evaluation
+- **Dynamic skill management** via `manage_skills` -- enable/disable skills based on task
+- **Tiered promotion:** session (in-memory) > agent (persisted after 5+ uses with >0.8 confidence) > shared (HITL-approved)
+- **Self-improving personality** -- bounded HEXACO trait adaptation with Ebbinghaus decay
 
-See [`docs/architecture/EMERGENT_CAPABILITIES.md`](./docs/architecture/EMERGENT_CAPABILITIES.md) for details.
+See [`docs/architecture/EMERGENT_CAPABILITIES.md`](./docs/architecture/EMERGENT_CAPABILITIES.md).
+
+### Capability Discovery
+
+3-tier semantic search that replaces static tool/skill dumps (~90% token reduction):
+
+- **Tier 0:** Category summaries (~150 tokens, always included)
+- **Tier 1:** Top-5 semantic matches (~200 tokens)
+- **Tier 2:** Full schemas on demand (~1500 tokens)
+
+The `discover_capabilities` meta-tool lets agents self-discover available tools, skills, and extensions at runtime.
+
+---
+
+## Architecture
+
+```
++------------------------------------------------------------------+
+|                        AgentOS Runtime                            |
+|                                                                   |
+|  +-----------+   +--------------+   +-----------+                |
+|  | API Layer |-->| Orchestrator |-->|  Streaming |                |
+|  +-----------+   +--------------+   +-----------+                |
+|        |                |                                         |
+|  +-----v----------------v-----+                                  |
+|  |     GMI (Generalized        |     +------------------+        |
+|  |     Modular Intelligence)   |---->| Tool Orchestrator |        |
+|  |                             |     +------------------+        |
+|  |  Working Memory  Persona    |     +------------------+        |
+|  |  Context Mgr     Adaptation |---->| RAG Pipeline     |        |
+|  |  Episodic  Semantic  Proc.  |     +------------------+        |
+|  +-----------------------------+     +------------------+        |
+|        |                        ---->| Planning Engine  |        |
+|  +-----v-----+                       +------------------+        |
+|  | LLM Providers (16)         |                                  |
+|  | OpenAI  Anthropic  Gemini  |   +----------+  +----------+    |
+|  | Ollama  Groq  OpenRouter   |   | Guardrails|  | Channels |    |
+|  | Together Mistral xAI  ...  |   | (6 packs) |  | (37)     |    |
+|  +----------------------------+   +----------+  +----------+    |
++------------------------------------------------------------------+
+```
+
+For the full architecture with data flow diagrams, request lifecycle, and layer breakdown, see [`docs/architecture/ARCHITECTURE.md`](./docs/architecture/ARCHITECTURE.md).
 
 ---
 
 ## Configuration
-
-### Development (Quick Start)
-
-`createTestAgentOSConfig()` provides sensible defaults for local development:
-
-```typescript
-import { AgentOS } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const agent = new AgentOS();
-await agent.initialize(await createTestAgentOSConfig());
-```
-
-### Production
-
-`createAgentOSConfig()` reads from environment variables:
-
-```typescript
-import { AgentOS } from '@framers/agentos';
-import { createAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const agent = new AgentOS();
-await agent.initialize(await createAgentOSConfig());
-```
-
-### Multiple Providers
-
-**High-level helpers** (recommended): Just set env vars. No config object needed.
-
-```bash
-# Set as many provider keys as you like -- AgentOS uses them on demand
-export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-...
-export GEMINI_API_KEY=AIza...
-export OLLAMA_BASE_URL=http://localhost:11434
-```
-
-```typescript
-import { generateText } from '@framers/agentos';
-
-// Each call picks the right credentials from env vars automatically
-await generateText({ provider: 'anthropic', prompt: 'Hello from Claude' });
-await generateText({ provider: 'openai',    prompt: 'Hello from GPT' });
-await generateText({ provider: 'gemini',    prompt: 'Hello from Gemini' });
-await generateText({ provider: 'ollama',    prompt: 'Hello from Llama' });
-
-// Or omit provider entirely -- auto-detects the first configured one
-await generateText({ prompt: 'Hello from whichever provider is available' });
-```
-
-**Full runtime** — configure multiple providers with explicit fallback:
-
-```typescript
-const agent = new AgentOS();
-const config = await createTestAgentOSConfig();
-
-await agent.initialize({
-  ...config,
-  modelProviderManagerConfig: {
-    providers: [
-      { providerId: 'anthropic', enabled: true, isDefault: true,
-        config: { apiKey: process.env.ANTHROPIC_API_KEY } },
-      { providerId: 'openai', enabled: true,
-        config: { apiKey: process.env.OPENAI_API_KEY } },
-      { providerId: 'gemini', enabled: true,
-        config: { apiKey: process.env.GEMINI_API_KEY } },
-      { providerId: 'ollama', enabled: true,
-        config: { baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434' } },
-    ],
-  },
-  gmiManagerConfig: {
-    ...config.gmiManagerConfig,
-    defaultGMIBaseConfigDefaults: {
-      ...(config.gmiManagerConfig.defaultGMIBaseConfigDefaults ?? {}),
-      defaultLlmProviderId: 'anthropic',
-      defaultLlmModelId: 'claude-sonnet-4-20250514',
-    },
-  },
-});
-
-// Override per request:
-for await (const chunk of agent.processRequest({
-  userId: 'user-1',
-  sessionId: 'session-1',
-  textInput: 'Hello',
-  options: {
-    preferredProviderId: 'gemini',
-    preferredModelId: 'gemini-2.5-flash',
-  },
-})) { /* ... */ }
-```
 
 ### Environment Variables
 
@@ -1451,7 +517,7 @@ MISTRAL_API_KEY=...                        # Mistral (Mistral Large, Small)
 XAI_API_KEY=xai-...                        # xAI (Grok-2)
 OLLAMA_BASE_URL=http://localhost:11434     # Ollama (local models, no API key needed)
 
-# Database
+# Database (optional, defaults to in-memory)
 DATABASE_URL=file:./data/agentos.db
 
 # Observability (optional)
@@ -1461,233 +527,103 @@ OTEL_SERVICE_NAME=my-agent
 # Voice/Telephony (optional)
 TWILIO_ACCOUNT_SID=AC...
 TWILIO_AUTH_TOKEN=...
-TELNYX_API_KEY=KEY...
+```
+
+### Multiple Providers
+
+High-level helpers auto-detect from env vars -- no configuration object needed:
+
+```typescript
+import { generateText } from '@framers/agentos';
+
+// Each call picks the right credentials automatically
+await generateText({ provider: 'anthropic', prompt: 'Hello from Claude' });
+await generateText({ provider: 'openai',    prompt: 'Hello from GPT' });
+await generateText({ provider: 'gemini',    prompt: 'Hello from Gemini' });
+await generateText({ provider: 'ollama',    prompt: 'Hello from Llama' });
+
+// Omit provider -- auto-detects the first configured one
+await generateText({ prompt: 'Hello from whichever provider is available' });
+```
+
+For the full runtime with explicit provider configuration, see [`docs/getting-started/HIGH_LEVEL_API.md`](./docs/getting-started/HIGH_LEVEL_API.md).
+
+### Fallback Providers
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const resilient = agent({
+  provider: 'anthropic',
+  instructions: 'You are a helpful assistant.',
+  fallbackProviders: [
+    { provider: 'openai' },
+    { provider: 'groq' },
+  ],
+  onFallback: (error, provider) => {
+    console.warn(`Falling back to ${provider}: ${error.message}`);
+  },
+});
 ```
 
 ---
 
-## API Reference
+## API Quick Reference
 
-### AgentOS Class
+### High-Level Functions
 
-The main service facade. Implements `IAgentOS`.
+| Function | Description |
+|----------|-------------|
+| `generateText(opts)` | Single-call text generation with multi-step tool calling |
+| `streamText(opts)` | Streaming text generation with async iterables |
+| `generateObject(opts)` | Zod-validated structured output extraction |
+| `streamObject(opts)` | Streaming structured output |
+| `embedText(opts)` | Text embedding generation (single or batch) |
+| `generateImage(opts)` | Image generation (OpenAI, Stability, Replicate, BFL, Fal) |
+| `editImage(opts)` | Image editing/inpainting |
+| `upscaleImage(opts)` | Image upscaling |
+| `variateImage(opts)` | Image variations |
+| `generateVideo(opts)` | Video generation |
+| `analyzeVideo(opts)` | Video analysis and understanding |
+| `detectScenes(opts)` | Scene detection in video |
+| `generateMusic(opts)` | Music generation |
+| `generateSFX(opts)` | Sound effect generation |
+| `performOCR(opts)` | Text extraction from images (progressive tiers) |
+| `agent(opts)` | Stateful agent with personality, memory, and sessions |
+| `agency(opts)` | Multi-agent team with strategy-based coordination |
+| `hitl(opts)` | Human-in-the-loop approval handler |
 
-```typescript
-class AgentOS implements IAgentOS {
-  // Lifecycle
-  initialize(config: AgentOSConfig): Promise<void>;
-  shutdown(): Promise<void>;
+### Orchestration Builders
 
-  // Core interaction (streaming-first)
-  processRequest(input: AgentOSInput): AsyncGenerator<AgentOSResponse>;
-  handleToolResult(streamId, toolCallId, toolName, toolOutput, isSuccess, errorMessage?):
-    AsyncGenerator<AgentOSResponse>;
+| Builder | Import Path | Description |
+|---------|-------------|-------------|
+| `workflow(name)` | `@framers/agentos/orchestration` | Deterministic DAG with typed steps |
+| `AgentGraph` | `@framers/agentos/orchestration` | Explicit graph with cycles, subgraphs |
+| `mission(name)` | `@framers/agentos/orchestration` | Goal-driven, planner decides steps |
 
-  // Personas
-  listPersonas(): IPersonaDefinition[];
-  setActivePersona(personaId: string): Promise<void>;
-
-  // Conversation
-  getConversationHistory(sessionId: string): Promise<ConversationContext>;
-
-  // Workflows
-  listWorkflowDefinitions(): WorkflowDefinition[];
-  startWorkflow(definitionId, input, options?): Promise<WorkflowInstance>;
-  getWorkflow(workflowId): Promise<WorkflowInstance | null>;
-  updateWorkflowTask(workflowId, taskId, update): Promise<void>;
-  queryWorkflows(options?): Promise<WorkflowInstance[]>;
-
-  // Feedback
-  submitFeedback(feedback: UserFeedbackPayload): Promise<void>;
-
-  // Exposed managers (for advanced usage)
-  readonly llmProviderManager: AIModelProviderManager;
-  readonly extensionManager: ExtensionManager;
-  readonly conversationManager: ConversationManager;
-}
-```
-
-### IAgentOS Interface
-
-The core contract. See `src/api/interfaces/IAgentOS.ts` for the full interface definition.
-
-### AgentOSInput
+### Core Types
 
 ```typescript
-interface AgentOSInput {
-  userId: string;
-  organizationId?: string;        // Multi-tenant routing
-  sessionId: string;
-  textInput: string | null;
-  visionInput?: VisionInputData;  // Image/video input
-  audioInput?: AudioInputData;    // Audio input
-  preferredPersonaId?: string;    // Request specific persona
-  userApiKeys?: Record<string, string>; // User-provided API keys
-  feedback?: UserFeedbackPayload; // Inline feedback
-  workflowInvocation?: WorkflowInvocationRequest;
-  agencyInvocation?: AgencyInvocationRequest;
-  memoryControl?: AgentOSMemoryControl;
-  options?: ProcessingOptions;    // Model override, temperature, etc.
-}
+import type {
+  AgentOSInput,           // Full runtime input structure
+  AgentOSResponse,        // Streaming response chunk
+  ITool,                  // Tool interface (id, name, inputSchema, execute)
+  ToolExecutionResult,    // Tool result (success, output, error)
+  AgentOptions,           // agent() configuration
+  AgencyOptions,          // agency() configuration
+  GenerateTextOptions,    // generateText() / streamText() options
+  GenerateImageOptions,   // generateImage() options
+  GenerateObjectOptions,  // generateObject() options
+  EmbedTextOptions,       // embedText() options
+  ExtensionDescriptor,    // Extension pack descriptor
+  IGuardrailService,      // Guardrail interface
+  IChannelAdapter,        // Channel adapter interface
+} from '@framers/agentos';
 ```
 
-### AgentOSResponse Streaming
+### Full Runtime
 
-All core methods return `AsyncGenerator<AgentOSResponse>`. Each yielded chunk has a `type` discriminant:
-
-```typescript
-// Handle all chunk types:
-for await (const chunk of agent.processRequest(input)) {
-  switch (chunk.type) {
-    case AgentOSResponseChunkType.TEXT_DELTA:
-      process.stdout.write(chunk.textDelta);
-      break;
-    case AgentOSResponseChunkType.TOOL_CALL_REQUEST:
-      console.log('Tools requested:', chunk.toolCalls);
-      break;
-    case AgentOSResponseChunkType.TOOL_RESULT_EMISSION:
-      console.log('Tool result:', chunk.toolName, chunk.toolResult);
-      break;
-    case AgentOSResponseChunkType.SYSTEM_PROGRESS:
-      console.log('Progress:', chunk.message, chunk.progressPercentage);
-      break;
-    case AgentOSResponseChunkType.WORKFLOW_UPDATE:
-      console.log('Workflow:', chunk.workflowProgress);
-      break;
-    case AgentOSResponseChunkType.AGENCY_UPDATE:
-      console.log('Agency event:', chunk.agencyEvent);
-      break;
-    case AgentOSResponseChunkType.ERROR:
-      console.error('Error:', chunk.error);
-      break;
-    case AgentOSResponseChunkType.FINAL_RESPONSE:
-      console.log('Complete:', chunk.finalText);
-      break;
-  }
-}
-```
-
-### ITool Interface
-
-See the [Tool System](#tool-system) section above for the full interface. Tools are registered via extension packs:
-
-```typescript
-const descriptor: ExtensionDescriptor<ITool> = {
-  id: 'my-tool',
-  kind: EXTENSION_KIND_TOOL,
-  payload: myToolImplementation,
-};
-```
-
-### ExtensionDescriptor
-
-See the [Extension System](#extension-system) section above for the full type definition and all 12 extension kinds.
-
-### IGuardrailService
-
-```typescript
-interface IGuardrailService {
-  evaluateInput?(
-    input: AgentOSInput,
-    context: GuardrailContext,
-  ): Promise<GuardrailEvaluationResult>;
-
-  evaluateOutput?(
-    output: string,
-    context: GuardrailContext,
-  ): Promise<GuardrailEvaluationResult>;
-}
-
-interface GuardrailEvaluationResult {
-  action: GuardrailAction;        // ALLOW | FLAG | SANITIZE | BLOCK
-  reason?: string;                // Human-readable explanation
-  reasonCode?: string;            // Machine-readable code
-  modifiedText?: string;          // Required when action is SANITIZE
-  metadata?: Record<string, any>; // Additional context for logging
-}
-```
-
-### IHumanInteractionManager
-
-```typescript
-interface IHumanInteractionManager {
-  requestApproval(action: PendingAction): Promise<ApprovalDecision>;
-  requestClarification(request: ClarificationRequest): Promise<ClarificationResponse>;
-  escalateToHuman(context: EscalationContext): Promise<EscalationResult>;
-  getPendingActions(): Promise<PendingAction[]>;
-}
-```
-
----
-
-## Usage Examples
-
-### Orchestration Patterns
-
-Use the new orchestration layer based on how much control you need:
-
-- `workflow()` for deterministic sequential/parallel DAGs
-- `AgentGraph` for explicit cycles, retries, and custom routing
-- `mission()` when you know the goal but want the planner to decide the steps
-
-```typescript
-import {
-  AgentGraph,
-  END,
-  START,
-  gmiNode,
-  mission,
-  toolNode,
-  workflow,
-} from '@framers/agentos/orchestration';
-import { z } from 'zod';
-
-// 1. Deterministic DAG: sequential steps with a parallel fan-out/join
-const onboarding = workflow('user-onboarding')
-  .input(z.object({ email: z.string().email() }))
-  .returns(z.object({ userId: z.string() }))
-  .step('validate', { tool: 'email_validator' })
-  .then('create-account', { tool: 'user_service' })
-  .parallel(
-    [
-      { tool: 'send_welcome_email' },
-      { tool: 'provision_default_workspace' },
-    ],
-    {
-      strategy: 'all',
-      merge: { 'scratch.completedTasks': 'concat' },
-    },
-  )
-  .compile();
-
-// 2. Explicit graph: fixed publish pipeline with explicit nodes and edges
-const reviewGraph = new AgentGraph({
-  input: z.object({ topic: z.string() }),
-  scratch: z.object({ draft: z.string().optional() }),
-  artifacts: z.object({ status: z.string().optional(), summary: z.string().optional() }),
-})
-  .addNode('draft', gmiNode({ instructions: 'Draft the release note.', executionMode: 'single_turn' }))
-  .addNode('publish', toolNode('publish_report'))
-  .addEdge(START, 'draft')
-  .addEdge('draft', 'publish')
-  .addEdge('publish', END)
-  .compile();
-
-// 3. Goal-first mission: preview the generated plan before running it
-const researcher = mission('deep-research')
-  .input(z.object({ topic: z.string() }))
-  .goal('Research {{topic}} thoroughly and produce a cited summary')
-  .returns(z.object({ summary: z.string() }))
-  .planner({ strategy: 'plan_and_execute', maxSteps: 8 })
-  .compile();
-
-const preview = await researcher.explain({ topic: 'AI safety' });
-console.log(preview.steps.map((step) => step.id));
-```
-
-For deeper examples, see [`docs/architecture/AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md), [`docs/orchestration/WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md), [`docs/orchestration/MISSION_API.md`](./docs/orchestration/MISSION_API.md), the runnable examples [`examples/agent-graph.mjs`](./examples/agent-graph.mjs), [`examples/workflow-dsl.mjs`](./examples/workflow-dsl.mjs), [`examples/mission-api.mjs`](./examples/mission-api.mjs), and the legacy dependency-ordered example [`examples/multi-agent-workflow.mjs`](./examples/multi-agent-workflow.mjs).
-
-### Streaming Chat
+The `AgentOS` class provides the full-featured runtime with GMI management, extension loading, and streaming:
 
 ```typescript
 import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
@@ -1707,394 +643,34 @@ for await (const chunk of agent.processRequest({
 }
 ```
 
-### Adding Tools
-
-Tools are registered via extension packs and called automatically by the model:
-
-```typescript
-import {
-  AgentOS,
-  AgentOSResponseChunkType,
-  EXTENSION_KIND_TOOL,
-  type ExtensionManifest,
-  type ExtensionPack,
-  type ITool,
-} from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const weatherTool: ITool = {
-  id: 'get-weather',
-  name: 'get_weather',
-  displayName: 'Get Weather',
-  description: 'Returns current weather for a city.',
-  category: 'utility',
-  hasSideEffects: false,
-  inputSchema: {
-    type: 'object',
-    properties: { city: { type: 'string', description: 'City name' } },
-    required: ['city'],
-  },
-  execute: async (args) => ({
-    success: true,
-    output: { text: `Weather in ${args.city}: 22 C, partly cloudy` },
-  }),
-};
-
-const manifest: ExtensionManifest = {
-  packs: [{
-    factory: async () => ({
-      name: 'my-tools',
-      descriptors: [{ id: weatherTool.id, kind: EXTENSION_KIND_TOOL, payload: weatherTool }],
-    } satisfies ExtensionPack),
-  }],
-};
-
-const agent = new AgentOS();
-const config = await createTestAgentOSConfig();
-await agent.initialize({ ...config, extensionManifest: manifest });
-
-for await (const chunk of agent.processRequest({
-  userId: 'user-1',
-  sessionId: 'session-1',
-  textInput: 'What is the weather in Tokyo?',
-})) {
-  switch (chunk.type) {
-    case AgentOSResponseChunkType.TEXT_DELTA:
-      process.stdout.write(chunk.textDelta);
-      break;
-    case AgentOSResponseChunkType.TOOL_CALL_REQUEST:
-      console.log('Tool calls:', chunk.toolCalls);
-      break;
-    case AgentOSResponseChunkType.TOOL_RESULT_EMISSION:
-      console.log('Tool result:', chunk.toolResult);
-      break;
-  }
-}
-```
-
-### Multi-Agent Collaboration
-
-```typescript
-import { AgentCommunicationBus } from '@framers/agentos';
-
-const bus = new AgentCommunicationBus({
-  routingConfig: { enableRoleRouting: true, enableLoadBalancing: true },
-});
-
-bus.registerAgent('coordinator-gmi', 'agency-docs', 'coordinator');
-bus.registerAgent('researcher-gmi', 'agency-docs', 'researcher');
-bus.registerAgent('writer-gmi', 'agency-docs', 'writer');
-
-bus.subscribe(
-  'researcher-gmi',
-  async (message) => {
-    if (message.type !== 'question') return;
-    await bus.sendToAgent(message.fromAgentId, {
-      type: 'answer',
-      fromAgentId: 'researcher-gmi',
-      content: { findings: ['auth edge cases', 'missing audit trail', 'weak retry policy'] },
-      inReplyTo: message.messageId,
-      priority: 'normal',
-    });
-  },
-  { messageTypes: ['question'] },
-);
-
-bus.subscribe(
-  'writer-gmi',
-  async (message) => {
-    if (message.type !== 'task_delegation') return;
-    await bus.sendToAgent(message.fromAgentId, {
-      type: 'answer',
-      fromAgentId: 'writer-gmi',
-      content: { accepted: true },
-      inReplyTo: message.messageId,
-      priority: 'normal',
-    });
-  },
-  { messageTypes: ['task_delegation'] },
-);
-
-await bus.sendToRole('agency-docs', 'researcher', {
-  type: 'task_delegation',
-  fromAgentId: 'coordinator-gmi',
-  content: { topic: 'auth module', instructions: 'Find the risky edge cases.' },
-  priority: 'high',
-});
-
-const review = await bus.requestResponse('researcher-gmi', {
-  type: 'question',
-  fromAgentId: 'coordinator-gmi',
-  content: 'What are the top three findings?',
-  priority: 'high',
-  timeoutMs: 30_000,
-});
-
-const handoff = await bus.handoff('researcher-gmi', 'writer-gmi', {
-  taskId: 'auth-audit',
-  taskDescription: 'Turn the findings into a release note draft',
-  progress: 0.8,
-  completedWork: [review.content],
-  remainingWork: ['Write polished summary'],
-  context: { audience: 'engineering' },
-  reason: 'completion',
-  instructions: 'Summarize the findings in concise release-note style.',
-});
-
-console.log(handoff.accepted);
-```
-
-Runnable example: [`examples/agent-communication-bus.mjs`](./examples/agent-communication-bus.mjs)
-
-### Human-in-the-Loop Approvals
-
-```typescript
-import { HumanInteractionManager } from '@framers/agentos';
-
-const hitl = new HumanInteractionManager({ defaultTimeoutMs: 300_000 });
-
-const decision = await hitl.requestApproval({
-  actionId: 'archive-inactive',
-  description: 'Archive 50K inactive accounts older than 2 years',
-  severity: 'high',
-  category: 'data_modification',
-  agentId: 'data-cleanup-agent',
-  context: { affectedRows: 50_000, table: 'users' },
-  reversible: true,
-  potentialConsequences: ['Users will lose access to archived data'],
-  alternatives: [
-    { alternativeId: 'soft_delete', description: 'Mark as inactive instead' },
-    { alternativeId: 'export_first', description: 'Export to CSV before archiving' },
-  ],
-});
-
-if (decision.approved) {
-  await executeArchive();
-} else if (decision.selectedAlternative) {
-  await executeAlternative(decision.selectedAlternative);
-}
-```
-
-### Structured Data Extraction
-
-```typescript
-import { AgentOS, StructuredOutputManager } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const agent = new AgentOS();
-await agent.initialize(await createTestAgentOSConfig());
-
-const structured = new StructuredOutputManager({
-  llmProviderManager: agent.llmProviderManager,
-});
-
-const contact = await structured.generate({
-  prompt: 'Extract: "Meeting with Sarah Chen (sarah@startup.io) on Jan 15 re: Series A"',
-  schema: {
-    type: 'object',
-    properties: {
-      name: { type: 'string' },
-      email: { type: 'string', format: 'email' },
-      date: { type: 'string' },
-      topic: { type: 'string' },
-    },
-    required: ['name', 'email'],
-  },
-  schemaName: 'ContactInfo',
-});
-// Result: { name: 'Sarah Chen', email: 'sarah@startup.io', date: 'Jan 15', topic: 'Series A' }
-```
-
-### RAG Memory
-
-```typescript
-import { AgentOS } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const agent = new AgentOS();
-const config = await createTestAgentOSConfig();
-
-await agent.initialize({
-  ...config,
-  ragConfig: {
-    embeddingManagerConfig: {
-      embeddingModels: [
-        { modelId: 'text-embedding-3-small', providerId: 'openai',
-          dimension: 1536, isDefault: true },
-      ],
-    },
-    vectorStoreManagerConfig: {
-      managerId: 'rag-vsm',
-      providers: [
-        { id: 'sql-store', type: 'sql', storage: { filePath: './data/vectors.db' } },
-      ],
-      defaultProviderId: 'sql-store',
-      defaultEmbeddingDimension: 1536,
-    },
-    dataSourceConfigs: [{
-      dataSourceId: 'conversations',
-      displayName: 'Conversation Memory',
-      vectorStoreProviderId: 'sql-store',
-      actualNameInProvider: 'conversations',
-      embeddingDimension: 1536,
-    }],
-    retrievalAugmentorConfig: {
-      defaultDataSourceId: 'conversations',
-      categoryBehaviors: [],
-    },
-  },
-});
-
-// Agent now retrieves relevant context from vector memory before responding
-```
-
-### Custom Guardrails
-
-```typescript
-import {
-  AgentOS,
-  type IGuardrailService,
-  GuardrailAction,
-  type GuardrailInputPayload,
-  type GuardrailOutputPayload,
-} from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
-
-const piiGuardrail: IGuardrailService = {
-  config: {
-    evaluateStreamingChunks: true,
-    canSanitize: true,
-  },
-
-  async evaluateInput({ input }: GuardrailInputPayload) {
-    // Check for SSN patterns in user input
-    const ssnPattern = /\b\d{3}-\d{2}-\d{4}\b/g;
-    if (input.textInput && ssnPattern.test(input.textInput)) {
-      return {
-        action: GuardrailAction.SANITIZE,
-        modifiedText: input.textInput.replace(ssnPattern, '[SSN REDACTED]'),
-        reason: 'PII detected in user input',
-        reasonCode: 'PII_SSN',
-      };
-    }
-    return { action: GuardrailAction.ALLOW };
-  },
-
-  async evaluateOutput({ chunk }: GuardrailOutputPayload) {
-    const text =
-      chunk.type === 'TEXT_DELTA'
-        ? chunk.textDelta ?? ''
-        : chunk.type === 'FINAL_RESPONSE'
-          ? chunk.finalResponseText ?? ''
-          : '';
-
-    if (text.toLowerCase().includes('password')) {
-      return {
-        action: GuardrailAction.BLOCK,
-        reason: 'Output contains potentially sensitive credential information',
-        reasonCode: 'CREDENTIAL_LEAK',
-      };
-    }
-    return { action: GuardrailAction.ALLOW };
-  },
-};
-
-const agent = new AgentOS();
-const config = await createTestAgentOSConfig();
-await agent.initialize({ ...config, guardrailService: piiGuardrail });
-```
-
-> **For production PII redaction**, use the built-in `createPiiRedactionGuardrail()` extension
-> instead of hand-rolled regex. It provides four-tier detection (regex + NLP + BERT NER +
-> LLM-as-judge), streaming support, and configurable redaction styles. See
-> [GUARDRAILS_USAGE.md](./docs/safety/GUARDRAILS_USAGE.md) for full examples.
-
-### Channel Adapters
-
-```typescript
-import {
-  EXTENSION_KIND_MESSAGING_CHANNEL,
-  type ExtensionManifest,
-  type IChannelAdapter,
-  type ChannelPlatform,
-} from '@framers/agentos';
-
-// Implement a custom channel adapter
-const myAdapter: IChannelAdapter = {
-  platform: 'webchat' as ChannelPlatform,
-  capabilities: new Set(['text', 'rich_text', 'images', 'typing_indicator']),
-
-  async connect() { /* establish connection */ },
-  async disconnect() { /* clean up */ },
-  async sendMessage(channelId, message) { /* send outbound */ },
-  onMessage(handler) { /* register inbound handler */ },
-  getConnectionInfo() {
-    return { status: 'connected', connectedSince: new Date().toISOString() };
-  },
-};
-
-// Register via extension manifest
-const manifest: ExtensionManifest = {
-  packs: [{
-    factory: async () => ({
-      name: 'my-channels',
-      descriptors: [{
-        id: 'webchat-adapter',
-        kind: EXTENSION_KIND_MESSAGING_CHANNEL,
-        payload: myAdapter,
-      }],
-    }),
-  }],
-};
-```
-
-### Voice Calls
-
-```typescript
-import { CallManager, type IVoiceCallProvider } from '@framers/agentos';
-
-const callManager = new CallManager();
-
-// Initiate an outbound call
-const call = await callManager.initiateCall({
-  provider: 'twilio',
-  to: '+1234567890',
-  from: '+0987654321',
-  agentId: 'support-agent',
-});
-
-// Monitor call state transitions
-call.on('stateChange', (newState) => {
-  console.log(`Call ${call.id}: ${newState}`);
-  // initiated -> ringing -> answered -> active -> speaking <-> listening -> completed
-});
-
-// Handle call completion
-call.on('completed', (summary) => {
-  console.log('Duration:', summary.durationMs);
-  console.log('Transcript:', summary.transcript);
-});
-```
-
 ---
 
 ## Package Exports
 
-AgentOS provides 112 export paths for fine-grained imports. Key entry points:
+AgentOS provides 112 export paths for fine-grained imports:
 
 ```typescript
 // Main entry -- all public types and classes
-import { AgentOS, AgentOSResponseChunkType, /* ... */ } from '@framers/agentos';
+import { AgentOS, generateText, streamText, agent, agency } from '@framers/agentos';
 
 // Configuration
 import { createAgentOSConfig, createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+
+// Orchestration (workflow, graph, mission builders)
+import { workflow, AgentGraph, mission, START, END } from '@framers/agentos/orchestration';
 
 // Safety primitives
 import { CircuitBreaker, CostGuard, StuckDetector } from '@framers/agentos/safety/runtime';
 
 // Guardrails
-import { GuardrailAction } from '@framers/agentos/safety/guardrails';
-import { ParallelGuardrailDispatcher } from '@framers/agentos/safety/guardrails';
+import { GuardrailAction, ParallelGuardrailDispatcher } from '@framers/agentos/safety/guardrails';
+
+// RAG and GraphRAG
+import { VectorStoreManager, EmbeddingManager, RetrievalAugmentor } from '@framers/agentos/rag';
+import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
+
+// Skills
+import { SkillRegistry, SkillLoader } from '@framers/agentos/skills';
 
 // Tools
 import type { ITool, ToolExecutionResult } from '@framers/agentos/core/tools';
@@ -2102,82 +678,41 @@ import type { ITool, ToolExecutionResult } from '@framers/agentos/core/tools';
 // HITL
 import type { IHumanInteractionManager } from '@framers/agentos/orchestration/hitl';
 
-// RAG
-import { VectorStoreManager, EmbeddingManager, RetrievalAugmentor } from '@framers/agentos/rag';
-import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
-
-// Skills
-import { SkillRegistry, SkillLoader } from '@framers/agentos/skills';
-
-// Extension runtime helpers and built-in guardrail packs
-import { SharedServiceRegistry } from '@framers/agentos';
-import { createPiiRedactionGuardrail } from '@framers/agentos-ext-pii-redaction';
-import { createMLClassifierGuardrail } from '@framers/agentos-ext-ml-classifiers';
-import { createTopicalityGuardrail } from '@framers/agentos-ext-topicality';
-import { createCodeSafetyGuardrail } from '@framers/agentos-ext-code-safety';
-import { createGroundingGuardrail } from '@framers/agentos-ext-grounding-guard';
-
-// Deep imports (wildcard exports)
+// Deep imports via wildcard (up to 4 levels)
 import { SomeType } from '@framers/agentos/safety/runtime/CircuitBreaker';
-import { SomeConfig } from '@framers/agentos/config/ToolOrchestratorConfig';
 ```
 
-Wildcard exports support paths up to 4 levels deep:
-- `./*` -- `dist/*.js`
-- `./*/*` -- `dist/*/*.js`
-- `./*/*/*` -- `dist/*/*/*.js`
-- `./*/*/*/*` -- `dist/*/*/*/*.js`
-
 ---
 
-## Internal Documentation
+## Documentation
 
-The `docs/` directory contains specification and reference documents:
-
-| Document | Description |
-|----------|-------------|
-| [`AGENCY_API.md`](./docs/orchestration/AGENCY_API.md) | `agency()` reference: all 5 strategies, HITL, guardrails, RAG, voice, nested agencies, full-featured example |
-| [`HIGH_LEVEL_API.md`](./docs/getting-started/HIGH_LEVEL_API.md) | `generateText()`, `streamText()`, `generateObject()`, `streamObject()`, `embedText()`, `generateImage()`, single `agent()` |
-| [`ARCHITECTURE.md`](./docs/architecture/ARCHITECTURE.md) | Complete system architecture with data flow diagrams |
-| [`SAFETY_PRIMITIVES.md`](./docs/safety/SAFETY_PRIMITIVES.md) | Circuit breaker, cost guard, stuck detection, dedup API reference |
-| [`PLANNING_ENGINE.md`](./docs/orchestration/PLANNING_ENGINE.md) | ReAct reasoning, multi-step task planning specification |
-| [`HUMAN_IN_THE_LOOP.md`](./docs/safety/HUMAN_IN_THE_LOOP.md) | Approval workflows, clarification, escalation patterns |
-| [`GUARDRAILS_USAGE.md`](./docs/safety/GUARDRAILS_USAGE.md) | Input/output guardrail implementation patterns |
-| [`RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) | Vector store setup, embedding models, data source config |
+| Guide | What it covers |
+|-------|---------------|
+| [`ARCHITECTURE.md`](./docs/architecture/ARCHITECTURE.md) | Full system architecture, data flow diagrams, layer breakdown |
+| [`HIGH_LEVEL_API.md`](./docs/getting-started/HIGH_LEVEL_API.md) | `generateText`, `streamText`, `generateObject`, `agent` reference |
+| [`AGENCY_API.md`](./docs/orchestration/AGENCY_API.md) | `agency()` -- all strategies, HITL, guardrails, RAG, nested agencies |
+| [`UNIFIED_ORCHESTRATION.md`](./docs/orchestration/UNIFIED_ORCHESTRATION.md) | Orchestration layer overview (workflow, graph, mission) |
+| [`WORKFLOW_DSL.md`](./docs/orchestration/WORKFLOW_DSL.md) | `workflow()` DSL reference |
+| [`AGENT_GRAPH.md`](./docs/architecture/AGENT_GRAPH.md) | `AgentGraph` builder reference |
+| [`MISSION_API.md`](./docs/orchestration/MISSION_API.md) | `mission()` goal-driven orchestration |
+| [`CHECKPOINTING.md`](./docs/orchestration/CHECKPOINTING.md) | Persistent checkpointing and fault recovery |
+| [`COGNITIVE_MECHANISMS.md`](./docs/memory/COGNITIVE_MECHANISMS.md) | 8 cognitive memory mechanisms, 30+ APA citations |
+| [`RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) | Vector store setup, embedding models, data sources |
 | [`MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md) | Image, audio, and document RAG pipelines |
-| [`STRUCTURED_OUTPUT.md`](./docs/orchestration/STRUCTURED_OUTPUT.md) | JSON schema validation, entity extraction, function calling |
-| [`AGENT_COMMUNICATION.md`](./docs/architecture/AGENT_COMMUNICATION.md) | Inter-agent messaging, handoffs, shared memory |
-| [`TOOL_CALLING_AND_LOADING.md`](./docs/extensions/TOOL_CALLING_AND_LOADING.md) | Tool registration, discovery, execution pipeline |
-| [`OBSERVABILITY.md`](./docs/observability/OBSERVABILITY.md) | OpenTelemetry setup, custom spans, metrics export |
-| [`COST_OPTIMIZATION.md`](./docs/safety/COST_OPTIMIZATION.md) | Token usage monitoring, caching strategies, model routing |
-| [`SKILLS.md`](./docs/extensions/SKILLS.md) | SKILL.md format specification, skill authoring guide |
-| [`PLATFORM_SUPPORT.md`](./docs/architecture/PLATFORM_SUPPORT.md) | Channel platform capabilities and adapter configuration |
-| [`ECOSYSTEM.md`](./docs/architecture/ECOSYSTEM.md) | Extension ecosystem, official packs, community extensions |
-| [`PROVENANCE_IMMUTABILITY.md`](./docs/safety/PROVENANCE_IMMUTABILITY.md) | Sealed agents, signed event ledger, external anchoring |
-| [`IMMUTABLE_AGENTS.md`](./docs/safety/IMMUTABLE_AGENTS.md) | Agent sealing, toolset manifests, revision tracking |
-| [`RFC_EXTENSION_STANDARDS.md`](./docs/extensions/RFC_EXTENSION_STANDARDS.md) | Extension pack authoring standards and conventions |
-| [`EVALUATION_FRAMEWORK.md`](./docs/observability/EVALUATION_FRAMEWORK.md) | Agent evaluation, benchmarking, quality metrics |
-| [`RECURSIVE_SELF_BUILDING_AGENTS.md`](./docs/architecture/RECURSIVE_SELF_BUILDING_AGENTS.md) | Self-modifying agent patterns |
-| [`LOGGING.md`](./docs/observability/LOGGING.md) | Structured logging configuration with pino |
-| [`CLIENT_SIDE_STORAGE.md`](./docs/memory/CLIENT_SIDE_STORAGE.md) | Browser-compatible storage adapters |
-| [`SQL_STORAGE_QUICKSTART.md`](./docs/getting-started/SQL_STORAGE_QUICKSTART.md) | SQLite/Postgres setup with `@framers/sql-storage-adapter` |
-| [`RELEASING.md`](./docs/getting-started/RELEASING.md) | Release process and semantic versioning |
-
----
-
-## Key Design Patterns
-
-1. **Interface-driven design** -- All major components define interface contracts (`IAgentOS`, `ITool`, `IGuardrailService`, `IChannelAdapter`, `IVoiceCallProvider`, `IVectorStore`, etc.). Implementations are swappable.
-
-2. **Streaming-first** -- Core interaction methods return `AsyncGenerator<AgentOSResponse>` for token-level streaming with natural backpressure. Consumers process chunks as they arrive.
-
-3. **Extension system** -- Pluggable components via `ExtensionDescriptor` with 12 kinds, priority stacking, lifecycle hooks, and secret management. Extensions can be loaded from npm packages, local modules, or inline factories.
-
-4. **Multi-provider** -- LLM providers, vector stores, voice providers, and channel adapters all support multiple backend implementations with runtime switching.
-
-5. **Safety layering** -- Defense-in-depth: input guardrails, output guardrails, circuit breakers, cost guards, tool execution guards, stuck detection, action deduplication, and HITL approval gates.
-
-6. **Observability** -- OpenTelemetry integration throughout the stack with distributed tracing, custom metrics, cost tracking, and structured logging via pino.
+| [`MEMORY_SCALING.md`](./docs/memory/MEMORY_SCALING.md) | 4-tier vector storage scaling path |
+| [`GUARDRAILS_USAGE.md`](./docs/safety/GUARDRAILS_USAGE.md) | Guardrail implementation patterns |
+| [`SAFETY_PRIMITIVES.md`](./docs/safety/SAFETY_PRIMITIVES.md) | Circuit breaker, cost guard, stuck detection |
+| [`HUMAN_IN_THE_LOOP.md`](./docs/safety/HUMAN_IN_THE_LOOP.md) | Approval workflows, clarification, escalation |
+| [`PLANNING_ENGINE.md`](./docs/orchestration/PLANNING_ENGINE.md) | ReAct reasoning, task planning |
+| [`STRUCTURED_OUTPUT.md`](./docs/orchestration/STRUCTURED_OUTPUT.md) | JSON schema validation, entity extraction |
+| [`AGENT_COMMUNICATION.md`](./docs/architecture/AGENT_COMMUNICATION.md) | Inter-agent messaging and handoffs |
+| [`PLATFORM_SUPPORT.md`](./docs/architecture/PLATFORM_SUPPORT.md) | 37 channel platform capabilities |
+| [`OBSERVABILITY.md`](./docs/observability/OBSERVABILITY.md) | OpenTelemetry setup, tracing, metrics |
+| [`COST_OPTIMIZATION.md`](./docs/safety/COST_OPTIMIZATION.md) | Token usage, caching, model routing |
+| [`SKILLS.md`](./docs/extensions/SKILLS.md) | SKILL.md format, skill authoring guide |
+| [`EMERGENT_CAPABILITIES.md`](./docs/architecture/EMERGENT_CAPABILITIES.md) | Runtime tool forging, tiered promotion |
+| [`SQL_STORAGE_QUICKSTART.md`](./docs/getting-started/SQL_STORAGE_QUICKSTART.md) | SQLite/Postgres setup |
+| [`ECOSYSTEM.md`](./docs/architecture/ECOSYSTEM.md) | Extension ecosystem and official packs |
 
 ---
 
@@ -2190,8 +725,6 @@ pnpm install
 pnpm run build
 pnpm run test
 ```
-
-**Available scripts:**
 
 | Script | Purpose |
 |--------|---------|
@@ -2222,6 +755,6 @@ See the [Contributing Guide](https://github.com/framersai/agentos/blob/master/CO
   <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
 </a>
 
-**Built by [Frame.dev](https://frame.dev)** · [@framersai](https://github.com/framersai)
+**Built by [Frame.dev](https://frame.dev)**
 
 </div>
