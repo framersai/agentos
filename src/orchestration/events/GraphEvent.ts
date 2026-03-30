@@ -82,6 +82,14 @@ export type GraphEvent =
       action: string;
     }
 
+  /** Emitted when a post-approval guardrail vetoes a human-node approval. */
+  | {
+      type: 'guardrail:hitl-override';
+      nodeId: string;
+      guardrailId: string;
+      reason: string;
+    }
+
   /** Emitted after the runtime successfully persists a checkpoint snapshot. */
   | { type: 'checkpoint_saved'; checkpointId: string; nodeId: string }
 

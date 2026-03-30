@@ -173,6 +173,28 @@ describe('post-approval guardrail override', () => {
     expect(result.guardrailId).toBe('code-safety');
   });
 
+  it('blocks rm -rf . pattern', async () => {
+    const result = await runPostApprovalGuardrails(
+      'shell_execute',
+      { command: 'rm -rf .' },
+      ['code-safety'],
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.guardrailId).toBe('code-safety');
+  });
+
+  it('blocks kill -9 pattern', async () => {
+    const result = await runPostApprovalGuardrails(
+      'shell_execute',
+      { command: 'kill -9 1234' },
+      ['code-safety'],
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.guardrailId).toBe('code-safety');
+  });
+
   it('blocks credit card numbers via pii-redaction', async () => {
     const result = await runPostApprovalGuardrails(
       'log_data',

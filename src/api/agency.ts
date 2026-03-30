@@ -1471,7 +1471,7 @@ function evaluatePostApprovalGuardrail(
         /rm\s+-rf\s+\//i,
         /rm\s+-rf\s+~\//i,
         /rm\s+-rf\s+\*/i,
-        /rm\s+-rf\s+\.\s/i,
+        /rm\s+-rf\s+\.(?:["'\s/]|$)/i,
         /rm\s+-rf\s+\.\//i,
         /mkfs\./i,
         /dd\s+if=.*of=\/dev/i,
@@ -1483,6 +1483,7 @@ function evaluatePostApprovalGuardrail(
         /format\s+[A-Z]:/i,
         />\s*\/dev\/sd[a-z]/i,
         /chmod\s+-R\s+777\s+\//i,
+        /kill\s+-9\b/i,
         /shutdown\s/i,
         /reboot\b/i,
       ];

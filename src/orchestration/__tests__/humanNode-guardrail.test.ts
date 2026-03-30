@@ -14,6 +14,16 @@ import { NodeExecutor } from '../runtime/NodeExecutor.js';
 import type { GraphNode, GraphState } from '../ir/types.js';
 
 // ---------------------------------------------------------------------------
+// Mock generateText for timeout-accept tests that need a slow judge path
+// ---------------------------------------------------------------------------
+
+const mockGenerateText = vi.fn();
+
+vi.mock('../../api/generateText.js', () => ({
+  generateText: (...args: unknown[]) => mockGenerateText(...args),
+}));
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -27,7 +37,12 @@ function makeHumanNode(config: {
   prompt: string;
   autoAccept?: boolean;
   autoReject?: boolean | string;
+  judge?: {
+    model?: string;
+  };
   guardrailOverride?: boolean;
+  timeout?: number;
+  onTimeout?: 'accept' | 'reject' | 'error';
 }): GraphNode {
   return {
     id: 'node-human-guardrail-test',
@@ -37,10 +52,13 @@ function makeHumanNode(config: {
       prompt: config.prompt,
       autoAccept: config.autoAccept,
       autoReject: config.autoReject,
+      judge: config.judge,
       guardrailOverride: config.guardrailOverride,
+      onTimeout: config.onTimeout,
     },
     executionMode: 'single_turn',
     effectClass: 'human',
+    timeout: config.timeout,
     checkpoint: 'after',
   };
 }
@@ -204,4 +222,41 @@ describe('humanNode guardrail override', () => {
     expect(event.type).toBe('guardrail:hitl-override');
     expect(event.reason).toContain('dangerous command');
   });
+
+  it('blocks timeout auto-accept when the post-approval guardrail fails', async () => {
+    mockGenerateText.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({
+        text: '{}',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        toolCalls: [],
+        finishReason: 'stop',
+      }), 5_000)),
+    );
+
+    const mockGuardrailEngine = {
+      evaluate: vi.fn().mockResolvedValue({
+        passed: false,
+        results: [{ reason: 'timeout approval still unsafe' }],
+      }),
+    };
+
+    const executor = new NodeExecutor({ guardrailEngine: mockGuardrailEngine });
+    const node = makeHumanNode({
+      prompt: 'Approve dangerous timeout action?',
+      judge: { model: 'gpt-4o-mini' },
+      onTimeout: 'accept',
+      timeout: 50,
+    });
+
+    const result = await executor.execute(node, emptyState);
+
+    expect(result.success).toBe(true);
+    const output = result.output as Record<string, unknown>;
+    expect(output.approved).toBe(false);
+    expect(output.decidedBy).toBe('guardrail-override');
+    expect(output.reason).toContain('timeout approval still unsafe');
+    expect(mockGuardrailEngine.evaluate).toHaveBeenCalledOnce();
+  }, 5_000);
 });

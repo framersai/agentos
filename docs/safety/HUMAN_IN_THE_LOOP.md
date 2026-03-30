@@ -553,9 +553,9 @@ Tool call -> HITL handler -> approved?
 ### Why?
 
 Auto-approve mode is convenient for development and CI, but it creates a
-blind spot: destructive commands like `rm -rf /` or `DROP TABLE` pass
-through without review. The guardrail override catches these patterns even
-in fully autonomous mode.
+blind spot: destructive commands like `rm -rf /`, `kill -9`, or `DROP TABLE`
+pass through without review. The guardrail override catches these patterns
+even in fully autonomous mode.
 
 ### Configuration
 
@@ -639,7 +639,7 @@ const myAgency = agency({
 
 | ID | Description |
 |---|---|
-| `code-safety` | Blocks destructive shell commands (`rm -rf`, `DROP TABLE`, `mkfs`, `dd`, `format`, `shutdown`, etc.) |
+| `code-safety` | Blocks destructive shell commands (`rm -rf`, `kill -9`, `DROP TABLE`, `mkfs`, `dd`, `format`, `shutdown`, etc.) |
 | `pii-redaction` | Blocks payloads containing unredacted SSNs or credit card numbers |
 
 ### Disabling the Override
@@ -682,6 +682,5 @@ config or pass `--no-guardrail-override` on the CLI.
 - [Planning Engine](./PLANNING_ENGINE.md) - Autonomous goal pursuit
 - [Agent Communication](./AGENT_COMMUNICATION.md) - Inter-agent messaging
 - [Architecture](./ARCHITECTURE.md) - Full system overview
-
 
 

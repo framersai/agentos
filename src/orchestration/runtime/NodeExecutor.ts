@@ -227,10 +227,16 @@ export class NodeExecutor {
       ) {
         const onTimeout = (node.executorConfig as { onTimeout?: string }).onTimeout;
         if (onTimeout === 'accept') {
-          return {
+          const timeoutAcceptResult: NodeExecutionResult = {
             success: true,
             output: { approved: true, decidedBy: 'timeout-accept' },
           };
+          const guardrailCheck = await this.runHumanNodeGuardrails(
+            node.id,
+            node.executorConfig as { guardrailOverride?: boolean; prompt: string },
+            timeoutAcceptResult.output as Record<string, unknown>,
+          );
+          return guardrailCheck ?? timeoutAcceptResult;
         }
         if (onTimeout === 'reject') {
           return {
@@ -273,7 +279,7 @@ export class NodeExecutor {
         return this.executeGuardrail(config, state);
 
       case 'human':
-        return this.executeHuman(config);
+        return this.executeHuman(node.id, config);
 
       case 'gmi':
         return this.executeGmi(config, state);
@@ -420,6 +426,7 @@ export class NodeExecutor {
    *   automation directives.
    */
   private async executeHuman(
+    nodeId: string,
     config: {
       type: 'human';
       prompt: string;
@@ -439,7 +446,7 @@ export class NodeExecutor {
     if (config.autoAccept) {
       const autoAcceptResult = { approved: true, decidedBy: 'auto-accept' };
       // Run post-approval guardrails if enabled.
-      const guardrailCheck = await this.runHumanNodeGuardrails(config, autoAcceptResult);
+      const guardrailCheck = await this.runHumanNodeGuardrails(nodeId, config, autoAcceptResult);
       if (guardrailCheck) return guardrailCheck;
       return { success: true, output: autoAcceptResult };
     }
@@ -488,7 +495,7 @@ export class NodeExecutor {
           if (decision.approved) {
             const judgeResult = { ...decision, decidedBy: 'llm-judge' };
             // Run post-approval guardrails if enabled.
-            const guardrailCheck = await this.runHumanNodeGuardrails(config, judgeResult);
+            const guardrailCheck = await this.runHumanNodeGuardrails(nodeId, config, judgeResult);
             if (guardrailCheck) return guardrailCheck;
           }
           return {
@@ -524,6 +531,7 @@ export class NodeExecutor {
    * @returns A `NodeExecutionResult` denying the action, or `null` if guardrails pass.
    */
   private async runHumanNodeGuardrails(
+    nodeId: string,
     config: {
       guardrailOverride?: boolean;
       prompt: string;
@@ -561,11 +569,10 @@ export class NodeExecutor {
           decidedBy: 'guardrail-override',
         },
         events: [{
-          type: 'guardrail:hitl-override' as any,
+          type: 'guardrail:hitl-override',
+          nodeId,
           guardrailId: guardrailIds.join(','),
           reason,
-          prompt: config.prompt,
-          timestamp: Date.now(),
         }],
       };
     }

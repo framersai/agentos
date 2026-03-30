@@ -376,6 +376,8 @@ const guarded = agency({
     handler: hitl.autoApprove(), // replace with hitl.cli() in production
     timeoutMs:  30_000,
     onTimeout:  'reject',        // 'reject' | 'approve' | 'error'
+    guardrailOverride: true,     // run post-approval safety checks after HITL
+    postApprovalGuardrails: ['pii-redaction', 'code-safety'],
   },
 });
 ```

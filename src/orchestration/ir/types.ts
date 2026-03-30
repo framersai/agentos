@@ -212,6 +212,11 @@ export type NodeExecutorConfig =
        * @default 'error'
        */
       onTimeout?: 'accept' | 'reject' | 'error';
+      /**
+       * Run post-approval guardrails after an automated approval path
+       * (`autoAccept`, `judge`, or timeout-accept). Defaults to `true`.
+       */
+      guardrailOverride?: boolean;
     }
   | {
       type: 'guardrail';
