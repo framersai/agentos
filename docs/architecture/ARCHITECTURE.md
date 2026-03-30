@@ -175,6 +175,120 @@ src/
 └─────────────────────────────────────────────────────────────┘
 ```
 
+The following diagram shows how a typical request flows through these layers:
+
+```mermaid
+graph TB
+    Client[Client / Channel Adapter] --> API[AgentOS.processRequest]
+    API --> Auth[Auth & Rate Limiting]
+    Auth --> Orch[AgentOSOrchestrator]
+    Orch --> TurnPipe[TurnExecutionPipeline]
+    TurnPipe --> CtxAssembly[Context Assembly]
+    TurnPipe --> MemRetrieve[Memory Retrieval]
+    TurnPipe --> PromptBuild[Prompt Construction]
+    TurnPipe --> InputGuard[Input Guardrails]
+    Orch --> GMI[GMI.processTurnStream]
+    GMI --> LLM[LLM Provider]
+    LLM --> ToolCall{Tool Call?}
+    ToolCall -->|Yes| ToolOrch[ToolOrchestrator]
+    ToolOrch --> LLM
+    ToolCall -->|No| OutputGuard[Output Guardrails]
+    OutputGuard --> Stream[StreamingManager]
+    Stream --> Client
+```
+
+---
+
+## GMI (Generalized Mind Instance)
+
+The GMI is the core cognitive engine of AgentOS. Each GMI instance represents a single "mind" bound to a specific persona, with its own working memory, mood state, reasoning trace, and conversation history.
+
+### GMI Lifecycle
+
+```
+┌──────────┐     initialize()     ┌──────────┐
+│  (new)   │ ──────────────────> │   IDLE   │
+└──────────┘                      └────┬─────┘
+                                       │ initialize(persona, config)
+                                       v
+                                 ┌──────────┐
+                                 │  READY   │ <─────────────────────┐
+                                 └────┬─────┘                       │
+                                      │ processTurnStream()         │
+                                      v                             │
+                                ┌────────────┐   turn complete  ┌───┴──────┐
+                                │ PROCESSING │ ──────────────> │  READY   │
+                                └─────┬──────┘                  └──────────┘
+                                      │ tool call
+                                      v
+                             ┌─────────────────────┐
+                             │ AWAITING_TOOL_RESULT │
+                             └─────────┬───────────┘
+                                       │ tool result received
+                                       v
+                                ┌────────────┐
+                                │ PROCESSING │ (continues LLM turn)
+                                └────────────┘
+```
+
+### Initialization
+
+`GMI.initialize(persona, config)` validates required dependencies, wires collaborators, and loads state:
+
+```typescript
+const gmi = new GMI('my-gmi-id');
+await gmi.initialize(researchAssistantPersona, {
+  workingMemory,
+  promptEngine,
+  toolOrchestrator,
+  llmProviderManager,
+  utilityAI,
+  cognitiveMemory,       // Optional: enables CognitiveMemoryBridge
+  retrievalAugmentor,    // Optional: enables RAG
+});
+```
+
+Required dependencies: `workingMemory`, `promptEngine`, `toolOrchestrator`, `llmProviderManager`, `utilityAI`. Optional: `cognitiveMemory`, `retrievalAugmentor`.
+
+### Collaborators
+
+The GMI delegates to four extracted collaborators to keep the core class focused:
+
+| Collaborator | Responsibility |
+|---|---|
+| `ConversationHistoryManager` | Maintains chat history, supports hydration from external stores |
+| `CognitiveMemoryBridge` | Bridges GMI turns to the `CognitiveMemoryManager` (encode/retrieve/observe) |
+| `SentimentTracker` | Tracks user sentiment via `IUtilityAI`, emits `GMIEvent` types (frustration, confusion, etc.) |
+| `MetapromptExecutor` | Handles metaprompt triggers, self-reflection, and state updates |
+
+### Turn Processing
+
+`processTurnStream()` is an async generator that yields `GMIOutputChunk` objects:
+
+```typescript
+for await (const chunk of gmi.processTurnStream(turnInput)) {
+  switch (chunk.type) {
+    case GMIOutputChunkType.TEXT_DELTA:     // Streaming text
+    case GMIOutputChunkType.TOOL_CALL:      // Tool call request
+    case GMIOutputChunkType.TOOL_RESULT:    // Tool execution result
+    case GMIOutputChunkType.FINAL_RESPONSE: // Aggregated final output
+    case GMIOutputChunkType.ERROR:          // Error during processing
+  }
+}
+```
+
+### AgentOS Facade
+
+`AgentOS` (`api/AgentOS.ts`) is the public-facing facade that manages GMI instances, streaming, and cross-cutting concerns. It exposes `processRequest()` as the primary entry point and coordinates:
+
+- `GMIManager` -- Pool of GMI instances keyed by persona/session
+- `AgentOSOrchestrator` -- Turn preparation and stream transformation
+- `StreamingManager` -- WebSocket/SSE stream multiplexing
+- `ExtensionManager` -- Tool, guardrail, and workflow extension loading
+- `ConversationManager` -- Cross-session conversation persistence
+
+`AgentOSConfig` is the comprehensive configuration object (~50 fields) that wires all subsystems together. Key optional features activated via config: `ragConfig`, `turnPlanning`, `emergent`, `observability`, `standaloneMemory`, `workflowEngineConfig`.
+
 ---
 
 ## Request Lifecycle
@@ -194,6 +308,58 @@ A user request flows through the following stages:
 11. **Analytics** -- `Tracer` records OpenTelemetry spans; cost/token metrics are tracked.
 
 The `TurnExecutionPipeline` (in `api/runtime/`) handles steps 2-6 before handing off to the LLM. `GMIChunkTransformer` maps raw LLM chunks into `AgentOSResponse` format. `ExternalToolResultHandler` manages tool-result continuation loops.
+
+### Sequence Diagram
+
+The following sequence diagram traces a single request through the system:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant AOS as AgentOS
+    participant Orch as Orchestrator
+    participant TP as TurnPipeline
+    participant GMI as GMI
+    participant GR as Guardrails
+    participant LLM as LLM Provider
+    participant TO as ToolOrchestrator
+    participant Mem as CognitiveMemoryBridge
+
+    C->>AOS: processRequest(input)
+    AOS->>Orch: orchestrate(input, sessionId)
+    Orch->>TP: prepare(input, context)
+    TP->>Mem: assembleForPrompt(query, tokenBudget)
+    Mem-->>TP: AssembledMemoryContext
+    TP->>GR: evaluateInput(services, input, ctx)
+    GR-->>TP: GuardrailInputOutcome
+    alt BLOCK
+        TP-->>C: Error stream (policy violation)
+    end
+    TP-->>Orch: PreparedTurn (prompt, tools, memories)
+    Orch->>GMI: processTurnStream(turnInput)
+    GMI->>LLM: stream(messages, tools)
+    loop Tool call loop
+        LLM-->>GMI: tool_call chunk
+        GMI->>TO: processToolCall(request, context)
+        TO-->>GMI: ToolCallResult
+        GMI->>LLM: tool_result continuation
+    end
+    LLM-->>GMI: text chunks
+    GMI-->>Orch: GMIOutputChunk stream
+    Orch->>GR: wrapOutput(services, stream)
+    GR-->>C: Filtered AgentOSResponse stream
+    Orch->>Mem: encode(turnContent) [async]
+```
+
+### Key Types
+
+| Type | Module | Purpose |
+|------|--------|---------|
+| `AgentOSInput` | `api/types/` | Normalized request envelope (text, audio, images, metadata) |
+| `AgentOSResponse` | `api/types/` | Streamed response chunks (TEXT_DELTA, TOOL_CALL, FINAL_RESPONSE, ERROR) |
+| `GMITurnInput` | `cognitive_substrate/IGMI` | Internal turn representation consumed by the GMI |
+| `GMIOutputChunk` | `cognitive_substrate/IGMI` | Per-chunk output from the cognitive engine |
+| `ConversationContext` | `core/conversation/` | Session state: history, active persona, user context |
 
 ---
 
@@ -215,14 +381,86 @@ interface ExtensionPack {
 }
 ```
 
+### Creating an Extension Pack
+
+Extension packs are the unit of distribution. Each pack bundles one or more descriptors of the same or different kinds (`tool`, `guardrail`, `workflow`, `provenance`, etc.) and can hook into the activation lifecycle to perform setup and teardown.
+
+```typescript
+import type { ExtensionPack, ExtensionLifecycleContext } from '@framers/agentos/extensions';
+import { EXTENSION_KIND_TOOL } from '@framers/agentos/extensions';
+
+export function createMyExtensionPack(): ExtensionPack {
+  return {
+    name: 'my-custom-tools',
+    version: '1.0.0',
+    descriptors: [
+      {
+        kind: EXTENSION_KIND_TOOL,
+        tool: {
+          id: 'my-search-tool',
+          name: 'search_documents',
+          displayName: 'Document Search',
+          description: 'Search internal documents by query.',
+          inputSchema: {
+            type: 'object',
+            properties: { query: { type: 'string' } },
+            required: ['query'],
+          },
+          execute: async (args) => {
+            const results = await searchIndex(args.query);
+            return { success: true, output: results };
+          },
+        },
+      },
+    ],
+    onActivate: async (ctx: ExtensionLifecycleContext) => {
+      const apiKey = ctx.getSecret?.('MY_API_KEY');
+      // Initialize resources, warm caches, etc.
+    },
+    onDeactivate: async () => {
+      // Release resources
+    },
+  };
+}
+```
+
+Packs are loaded by including them in the `extensionManifest` passed to `AgentOS.initialize()`, or by using the schema-on-demand meta-tools (`extensions_list`, `extensions_enable`) at runtime.
+
+### Descriptor Kinds
+
+| Kind | Constant | Payload Field | Description |
+|------|----------|---------------|-------------|
+| `tool` | `EXTENSION_KIND_TOOL` | `tool: ITool` | Callable tool registered in ToolOrchestrator |
+| `guardrail` | `EXTENSION_KIND_GUARDRAIL` | `guardrail: IGuardrailService` | Input/output guardrail |
+| `workflow` | `EXTENSION_KIND_WORKFLOW` | `workflow: WorkflowDescriptorPayload` | Reusable workflow definition |
+| `provenance` | `EXTENSION_KIND_PROVENANCE` | `provenance: IProvenanceProvider` | Content anchoring provider |
+
 ### Guardrail Dispatch Model
 
 `ParallelGuardrailDispatcher` uses a two-phase execution model:
 
-1. **Phase 1 (sequential sanitizers)** -- Guardrails with `config.canSanitize === true` run in registration order and can chain `SANITIZE` results deterministically.
-2. **Phase 2 (parallel classifiers)** -- All remaining guardrails run concurrently with worst-action aggregation (`BLOCK > FLAG > ALLOW`).
+1. **Phase 1 (sequential sanitizers)** -- Guardrails with `config.canSanitize === true` run in registration order and can chain `SANITIZE` results deterministically. A `BLOCK` in Phase 1 short-circuits the entire pipeline.
+2. **Phase 2 (parallel classifiers)** -- All remaining guardrails run concurrently via `Promise.allSettled`. A Phase 2 `SANITIZE` is downgraded to `FLAG` because concurrent sanitization would produce non-deterministic results.
+
+The final outcome uses worst-wins aggregation: `BLOCK (3) > FLAG (2) > ALLOW (0)`.
+
+```mermaid
+graph LR
+    Input[User Input] --> S1[Sanitizer 1<br/>PII Redactor]
+    S1 -->|sanitized text| S2[Sanitizer 2<br/>Profanity Filter]
+    S2 -->|sanitized text| P[Parallel Phase]
+    P --> C1[Classifier 1<br/>Toxicity]
+    P --> C2[Classifier 2<br/>Policy Guard]
+    P --> C3[Classifier 3<br/>Grounding]
+    C1 --> Agg[Worst-Wins<br/>Aggregation]
+    C2 --> Agg
+    C3 --> Agg
+    Agg --> Result[GuardrailInputOutcome]
+```
 
 `GuardrailOutputPayload` carries `ragSources?: RagRetrievedChunk[]` so grounding-aware guardrails can verify claims against retrieved evidence.
+
+Each guardrail service can also configure timeouts via `config.timeoutMs`. If a guardrail exceeds its timeout or throws, it fails open (returns `null`) rather than blocking the pipeline.
 
 ### Built-in Guardrail Packs
 
@@ -255,7 +493,50 @@ A persona definition includes:
 - **Behavioral config** -- Communication style, problem-solving methodology, collaboration style
 - **HEXACO personality traits** -- Six-factor personality model that modulates memory encoding, retrieval, and cognitive mechanisms
 
-The `PersonaOverlayManager` supports runtime persona blending -- applying temporary overlays (e.g., "be more formal") on top of the base persona definition.
+### HEXACO Trait Modulation
+
+The HEXACO model provides six orthogonal personality dimensions. Each trait modulates specific cognitive subsystems:
+
+| HEXACO Trait | Range | Cognitive Effect |
+|---|---|---|
+| **Honesty-Humility** | 0-1 | Source confidence skepticism. High H penalizes unverified claims. |
+| **Emotionality** | 0-1 | Emotional drift in memory encoding. High E amplifies flashbulb memories. |
+| **Extraversion** | 0-1 | Feeling-of-knowing threshold. High X lowers the threshold to share uncertain knowledge. |
+| **Agreeableness** | 0-1 | Emotion regulation strategy. High A favors cooperative/supportive responses. |
+| **Conscientiousness** | 0-1 | Retrieval-induced forgetting strength. High C enables stronger competitive suppression. |
+| **Openness** | 0-1 | Involuntary recall sensitivity and novelty attention. High O increases creative associations. |
+
+### Persona Definition Example
+
+```typescript
+const researchAssistant: IPersonaDefinition = {
+  id: 'research-assistant',
+  name: 'Research Assistant',
+  role: 'Academic research aide',
+  systemPrompt: 'You are a meticulous research assistant...',
+  strengths: ['literature review', 'data analysis', 'citation management'],
+  hexaco: {
+    honestyHumility: 0.9,   // High source skepticism
+    emotionality: 0.3,       // Low emotional bias
+    extraversion: 0.5,       // Moderate sharing threshold
+    agreeableness: 0.7,      // Cooperative communication
+    conscientiousness: 0.9,  // Strong retrieval filtering
+    openness: 0.8,           // High novelty attention
+  },
+  memoryConfig: {
+    workingMemoryCapacity: 9,
+    consolidationFrequencyMinutes: 15,
+    ragConfig: {
+      retrievalTriggers: { onUserQuery: true },
+    },
+  },
+  moodAdaptation: { enabled: true, defaultMood: 'NEUTRAL', sensitivityFactor: 0.3 },
+  defaultModelId: 'gpt-4o',
+  defaultProviderId: 'openai',
+};
+```
+
+The `PersonaOverlayManager` supports runtime persona blending -- applying temporary overlays (e.g., "be more formal") on top of the base persona definition without mutating the original.
 
 For preset persona definitions, see `packages/wunderland/presets/`.
 
@@ -263,17 +544,60 @@ For preset persona definitions, see `packages/wunderland/presets/`.
 
 ## Prompt Construction
 
-`MetapromptExecutor` (`cognitive_substrate/MetapromptExecutor.ts`) is the prompt assembly engine. It builds the final LLM prompt from:
+`MetapromptExecutor` (`cognitive_substrate/MetapromptExecutor.ts`) is the prompt assembly engine. It builds the final LLM prompt from several components and supports three trigger types for metaprompt execution: `turn_interval` (periodic self-reflection), `event_based` (driven by `SentimentTracker` events like frustration or confusion), and `manual` (flags in working memory).
 
-1. **System instruction** -- Base persona system prompt
-2. **Persona overlays** -- Active overlay modifications
-3. **Memory context** -- Retrieved memory traces formatted by `MemoryPromptAssembler`
-4. **RAG context** -- Retrieved document chunks (when RAG is enabled)
-5. **Conversation history** -- Managed by `ConversationHistoryManager` with token-budget compression
-6. **Tool schemas** -- Available tools serialized for the LLM
-7. **Capability discovery results** -- Tiered semantic search results (when discovery is active)
+### Prompt Assembly Order
 
-`PromptProfileRouter` (`structured/prompting/PromptProfileRouter.ts`) selects prompt strategies based on task classification.
+The prompt is assembled in a specific order, with each section receiving a token budget allocation:
+
+```
+┌──────────────────────────────────────────┐
+│  1. System Instruction                   │  Fixed: persona systemPrompt
+│     Base persona system prompt           │
+├──────────────────────────────────────────┤
+│  2. Persona Overlays                     │  Variable: active overlays
+│     Runtime modifications                │
+├──────────────────────────────────────────┤
+│  3. Memory Context                       │  Budget: ~20% of available tokens
+│     MemoryPromptAssembler output         │
+│     (6 sections: episodic, semantic,     │
+│      procedural, prospective, graph,     │
+│      working memory)                     │
+├──────────────────────────────────────────┤
+│  4. RAG Context                          │  Budget: ~15% of available tokens
+│     Retrieved document chunks            │
+│     (when RAG is enabled)                │
+├──────────────────────────────────────────┤
+│  5. Tool Schemas                         │  Budget: ~10% or discovery tier
+│     Available tools for LLM             │
+│     (or capability discovery results)    │
+├──────────────────────────────────────────┤
+│  6. Conversation History                 │  Budget: remaining tokens
+│     Managed by ConversationHistory-      │
+│     Manager with overflow strategy:      │
+│     truncate | summarize | hybrid        │
+└──────────────────────────────────────────┘
+```
+
+### Token Budget Strategy
+
+`ConversationHistoryManager` supports three overflow strategies when conversation history exceeds the allocated token budget:
+
+- **`truncate`** -- Drop oldest messages first (lowest latency, no LLM call)
+- **`summarize`** -- Use `IUtilityAI.summarize()` to compress older history into a summary block (triggered at `summarizationTriggerTokens`)
+- **`hybrid`** -- Keep recent messages verbatim, summarize older ones (best quality/cost tradeoff)
+
+The total token budget is derived from the model's context window minus reserves for system prompt and output tokens. `PromptProfileRouter` (`structured/prompting/PromptProfileRouter.ts`) can adjust the budget split based on task classification (e.g., RAG-heavy tasks get more retrieval budget).
+
+### Built-in Metaprompt Handlers
+
+MetapromptExecutor includes pre-built handlers for common situations:
+- **Frustration recovery** -- Triggered by negative sentiment events
+- **Confusion clarification** -- When the user signals misunderstanding
+- **Satisfaction reinforcement** -- When the user is pleased
+- **Error recovery** -- After tool failures
+- **Engagement boost** -- When the conversation stalls
+- **Trait adjustment** -- Periodic self-reflection that adjusts persona parameters within bounds
 
 ---
 
@@ -283,7 +607,43 @@ The cognitive memory system replaces flat key-value memory with a personality-mo
 
 ### Core Model
 
-Memory traces follow the Ebbinghaus forgetting curve: `S(t) = S0 * e^(-dt / stability)`, where `S0` is set by personality, arousal, and content features. Stability grows with each successful retrieval (spaced repetition). Traces below a pruning threshold are soft-deleted during consolidation.
+Memory traces follow the Ebbinghaus forgetting curve:
+
+```
+S(t) = S0 * e^(-dt / stability)
+```
+
+where `S0` (initial encoding strength) is set by personality traits, emotional arousal, and content features. The `stability` time constant grows with each successful retrieval via the **desirable difficulty effect** -- memories that were harder to retrieve (lower current strength at retrieval time) receive a larger stability boost.
+
+From `memory/core/decay/DecayModel.ts`:
+
+```typescript
+// Ebbinghaus forgetting curve
+function computeCurrentStrength(trace: MemoryTrace, now: number): number {
+  const elapsed = Math.max(0, now - trace.lastAccessedAt);
+  return trace.encodingStrength * Math.exp(-elapsed / trace.stability);
+}
+```
+
+Traces below a configurable pruning threshold are soft-deleted (`isActive = false`) during consolidation.
+
+### Memory Type Taxonomy
+
+Four memory types (Tulving's taxonomy) across four ownership scopes:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `episodic` | Personal experiences and events | "User mentioned they're moving to Berlin on Tuesday" |
+| `semantic` | Facts, concepts, general knowledge | "The user's preferred language is Python" |
+| `procedural` | How-to knowledge, learned procedures | "When deploying, run tests first, then build, then push" |
+| `prospective` | Future intentions and reminders | "Remind user about the deadline next Monday" |
+
+| Scope | Visibility | Shared Across |
+|-------|------------|---------------|
+| `thread` | Single conversation thread | Nothing |
+| `user` | All conversations with one user | Threads |
+| `persona` | All users of one persona | Users |
+| `organization` | All personas in an org | Personas |
 
 ### Architecture
 
@@ -302,21 +662,63 @@ CognitiveMemoryManager (orchestrator)
   └── ConsolidationPipeline -- 5-step periodic maintenance
 ```
 
-### Memory Types and Retrieval
+### The MemoryTrace Envelope
 
-Four memory types (Tulving's taxonomy): `episodic`, `semantic`, `procedural`, `prospective`. Four scopes: `thread`, `user`, `persona`, `organization`.
+Every memory is stored as a `MemoryTrace` (defined in `memory/core/types.ts`):
 
-Retrieval combines six weighted signals: strength/decay (0.25), vector similarity (0.35), recency (0.10), emotional congruence (0.15), graph activation (0.10), importance (0.05).
+```typescript
+interface MemoryTrace {
+  id: string;
+  type: MemoryType;                    // episodic | semantic | procedural | prospective
+  scope: MemoryScope;                  // thread | user | persona | organization
+  content: string;                     // The memory content
+  entities: string[];                  // Extracted entity references
+  tags: string[];                      // Classification tags
+  provenance: MemoryProvenance;        // Source type, confidence, verification count
+  emotionalContext: EmotionalContext;   // PAD model: valence, arousal, dominance
+  encodingStrength: number;            // S0: initial strength at creation
+  stability: number;                   // Time constant (ms), grows with retrieval
+  retrievalCount: number;              // Successful retrieval count
+  lastAccessedAt: number;              // Unix ms of last access
+  reinforcementInterval: number;       // Spaced repetition interval (ms)
+  associatedTraceIds: string[];        // Graph linkage to related traces
+  isActive: boolean;                   // Soft-delete flag
+}
+```
+
+### Retrieval Scoring
+
+Retrieval combines six weighted signals to rank candidate traces:
+
+| Signal | Weight | Source |
+|--------|--------|--------|
+| Strength/decay | 0.25 | `computeCurrentStrength()` from DecayModel |
+| Vector similarity | 0.35 | Cosine similarity from IVectorStore |
+| Recency | 0.10 | Inverse time since last access |
+| Emotional congruence | 0.15 | PAD distance between current mood and encoding mood |
+| Graph activation | 0.10 | Spreading activation score from IMemoryGraph |
+| Importance | 0.05 | Normalized salience score |
 
 ### Eight Cognitive Mechanisms
 
-Located in `memory/mechanisms/`: reconsolidation, retrieval-induced forgetting, involuntary recall, feeling-of-knowing, temporal gist extraction, schema encoding, source confidence decay, emotion regulation. All are HEXACO-modulated.
+Located in `memory/mechanisms/`, each mechanism is HEXACO-modulated:
+
+| Mechanism | HEXACO Modulator | Effect |
+|-----------|-----------------|--------|
+| Reconsolidation | Emotionality | Memories become labile during retrieval; high E increases drift |
+| Retrieval-induced forgetting | Conscientiousness | Retrieving one trace suppresses competitors; high C strengthens suppression |
+| Involuntary recall | Openness | Spontaneous memory surfacing; high O increases trigger sensitivity |
+| Feeling-of-knowing | Extraversion | Metacognitive confidence judgment; high X lowers sharing threshold |
+| Temporal gist extraction | Conscientiousness | Compresses episodic details into semantic gist over time |
+| Schema encoding | Openness | Assimilates new information into existing knowledge schemas |
+| Source confidence decay | Honesty-Humility | Provenance confidence degrades over time; high H accelerates skepticism |
+| Emotion regulation | Agreeableness | Modulates emotional coloring of retrieved memories |
 
 ### GMI Integration
 
-1. **After user message**: `encode()` creates a MemoryTrace with personality-modulated strength
+1. **After user message**: `CognitiveMemoryBridge.encode()` creates a MemoryTrace with personality-modulated strength
 2. **Before prompt construction**: `assembleForPrompt()` retrieves and formats memory within a token budget
-3. **After response**: `observe()` feeds the response to the observer buffer for background consolidation
+3. **After response**: `MemoryObserver` feeds the response to the observer buffer for background consolidation
 
 For full details, see [Cognitive Memory](../memory/COGNITIVE_MEMORY.md), [Cognitive Mechanisms](../memory/COGNITIVE_MECHANISMS.md), and [Memory Architecture](../memory/MEMORY_ARCHITECTURE.md).
 
@@ -326,16 +728,49 @@ For full details, see [Cognitive Memory](../memory/COGNITIVE_MEMORY.md), [Cognit
 
 The RAG subsystem provides retrieval-augmented generation with multiple vector backends and retrieval strategies.
 
+### Retrieval Pipeline
+
+```mermaid
+graph LR
+    Q[User Query] --> HyDE[HyDE Generator<br/>Optional]
+    HyDE --> Embed[Embedding<br/>Manager]
+    Q --> BM25[BM25 Sparse<br/>Index]
+    Embed --> VS[Vector Store<br/>ANN Search]
+    VS --> Fusion[Reciprocal Rank<br/>Fusion]
+    BM25 --> Fusion
+    Fusion --> Rerank[Reranker<br/>Optional]
+    Rerank --> Chunks[Top-K Chunks]
+    Chunks --> Prompt[Prompt<br/>Assembly]
+```
+
+The GMI integrates with RAG through persona-configurable hooks:
+- `shouldTriggerRAGRetrieval()` checks `ragConfig.retrievalTriggers` (on user query, on tool failure, on intent detection)
+- `retrievalAugmentor.retrieveContext()` runs the retrieval pipeline
+- `performPostTurnIngestion()` summarizes and embeds conversation turns
+
 ### Vector Store Backends
 
-Seven `IVectorStore` implementations:
+Seven `IVectorStore` implementations provide different tradeoffs:
 
-- **HnswlibVectorStore** -- In-process HNSW index via `hnswlib-node` (O(log n) ANN search, 2-10ms at 100K docs)
-- **InMemoryVectorStore** -- Linear-scan cosine similarity (development/testing)
-- **PostgresVectorStore** -- pgvector-backed
-- **PineconeVectorStore**, **QdrantVectorStore** -- Managed cloud backends
-- **SqliteVectorStore** -- Via `sql-storage-adapter`
-- **IndexedDBVectorStore** -- Browser-side persistence
+| Backend | Latency (100K docs) | Persistence | Best For |
+|---------|---------------------|-------------|----------|
+| `HnswlibVectorStore` | 2-10ms (ANN) | File-based | Production (self-hosted) |
+| `InMemoryVectorStore` | 10-50ms (linear scan) | None | Development / testing |
+| `PostgresVectorStore` | 5-20ms (pgvector) | PostgreSQL | Production (cloud) |
+| `PineconeVectorStore` | 20-50ms (API) | Managed cloud | Serverless scale |
+| `QdrantVectorStore` | 5-15ms (API) | Managed/self-hosted | High-volume production |
+| `SqliteVectorStore` | 10-30ms | SQLite file | Edge / embedded |
+| `IndexedDBVectorStore` | 20-80ms | Browser | Client-side apps |
+
+### Retrieval Strategies
+
+| Strategy | Method | Tradeoff |
+|----------|--------|----------|
+| **Dense only** | Embedding cosine similarity | Fast, good for semantic match |
+| **Sparse only** | BM25 keyword matching | Precise term matching, no semantic understanding |
+| **Hybrid** | Dense + Sparse with reciprocal rank fusion | Best recall, slightly higher latency |
+| **HyDE** | Generate hypothetical answer, embed that | Better recall for vague queries, extra LLM call |
+| **GraphRAG** | Entity graph + community summaries | Best for multi-hop reasoning, highest setup cost |
 
 ### GraphRAG Engine
 
@@ -345,19 +780,19 @@ Seven `IVectorStore` implementations:
 2. **Global search**: Query community summary embeddings, synthesize across matched communities
 3. **Local search**: Query entity embeddings, 1-hop graph expansion, include community context
 
-### Retrieval Pipeline
+### Chunking Strategies
 
-- **HyDE** (Hypothetical Document Embeddings) for improved recall
-- **Hybrid retrieval**: Dense (embedding) + sparse (BM25) with reciprocal rank fusion
-- **Reranking**: Pluggable providers (Cohere API or local cross-encoder via Transformers.js)
-- **Chunking**: Multiple strategies in `rag/chunking/`
+Multiple strategies in `rag/chunking/`:
+- **Fixed-size** -- Split by token count with configurable overlap
+- **Semantic** -- Split at paragraph/section boundaries
+- **Recursive** -- Hierarchical splitting (headers -> paragraphs -> sentences)
+- **Code-aware** -- Split at function/class boundaries for source code
 
-### GMI RAG Integration
+### Reranking
 
-The GMI integrates with RAG through persona-configurable hooks:
-- `shouldTriggerRAGRetrieval()` checks `ragConfig.retrievalTriggers`
-- `retrievalAugmentor.retrieveContext()` runs the retrieval pipeline
-- `performPostTurnIngestion()` summarizes and embeds conversation turns
+Pluggable providers in `rag/reranking/`:
+- **Cohere API** -- Cloud-hosted cross-encoder
+- **Transformers.js** -- Local cross-encoder ONNX model (no API calls)
 
 For configuration details, see [RAG Memory Configuration](../memory/RAG_MEMORY_CONFIGURATION.md) and [HyDE Retrieval](../memory/HYDE_RETRIEVAL.md).
 
@@ -369,11 +804,35 @@ For configuration details, see [RAG Memory Configuration](../memory/RAG_MEMORY_C
 
 The agency system enables multi-agent coordination through two strategies:
 
-**Emergent mode**: An LLM-backed planner decomposes goals into tasks, assigns them to roles, and spawns new roles as needed. Implemented in `backend/src/integrations/agentos/EmergentAgencyCoordinator.ts`.
-
-**Static mode**: Predefined roles and tasks execute in topologically-sorted order. Implemented in `backend/src/integrations/agentos/StaticAgencyCoordinator.ts`.
+| Strategy | Description | Coordinator | Use Case |
+|----------|-------------|-------------|----------|
+| **Emergent** | LLM-backed planner decomposes goals, assigns roles, spawns as needed | `EmergentAgencyCoordinator` | Open-ended tasks, creative collaboration |
+| **Static** | Predefined roles and tasks execute in topological order | `StaticAgencyCoordinator` | Deterministic pipelines, compliance workflows |
 
 `MultiGMIAgencyExecutor` orchestrates parallel GMI instance spawning (one per role), handles retry logic with exponential backoff, and aggregates costs across seats.
+
+### Workflow DAG
+
+The orchestration engine compiles workflow definitions into directed acyclic graphs for parallel execution:
+
+```mermaid
+graph TD
+    Start[Start] --> A[Task A: Research]
+    Start --> B[Task B: Data Collection]
+    A --> C[Task C: Analysis]
+    B --> C
+    C --> D[Task D: Report]
+    D --> Review{HITL Review}
+    Review -->|Approved| End[End]
+    Review -->|Rejected| C
+```
+
+Workflow definitions live in `orchestration/workflows/` with these key types:
+- `WorkflowDefinition` -- The declarative task graph
+- `WorkflowInstance` -- A running execution with state
+- `IWorkflowStore` -- Persistence interface (in-memory default, SQL optional)
+
+The compiler in `orchestration/compiler/` resolves task dependencies, detects cycles, and produces a topologically-sorted execution plan. The runtime in `orchestration/runtime/` executes tasks with configurable parallelism.
 
 ### Agent Communication Bus
 
@@ -396,21 +855,108 @@ Message types: `task_delegation`, `status_update`, `question`, `answer`, `findin
 - **Clarification requests** for ambiguous situations
 - **Escalations** for transferring control to humans
 
+The `ToolOrchestrator` integrates HITL directly: tools declaring side effects can be gated through `hitlManager` before execution, with configurable `approvalTimeoutMs` and auto-approve fallback.
+
+### Using the API
+
+```typescript
+import { agency } from '@framers/agentos';
+
+// Emergent multi-agent coordination
+const result = await agency({
+  goal: 'Research and summarize recent advances in retrieval-augmented generation',
+  strategy: 'emergent',
+  roles: [
+    { name: 'Researcher', persona: 'research-assistant' },
+    { name: 'Writer', persona: 'technical-writer' },
+  ],
+  maxConcurrency: 3,
+});
+```
+
+### Checkpoint/Restore
+
+The orchestration engine supports checkpointing for long-running workflows via `ICheckpointStore` (`orchestration/checkpoint/`). Checkpoints capture the full execution state (completed tasks, pending tasks, intermediate results) and support fork/resume semantics -- you can snapshot a workflow at any point and resume it later, or fork from a checkpoint to explore alternative execution paths.
+
+`InMemoryCheckpointStore` ships as the default implementation; persistent stores can be plugged in via the `ICheckpointStore` interface.
+
 For details, see [Planning Engine](../orchestration/PLANNING_ENGINE.md), [HITL](../safety/HUMAN_IN_THE_LOOP.md), [Agency API](../orchestration/AGENCY_API.md), and [Agent Communication](./AGENT_COMMUNICATION.md).
 
 ---
 
 ## Tool System
 
-`ToolOrchestrator` (`core/tools/ToolOrchestrator.ts`) manages tool registration, discovery, and execution.
+`ToolOrchestrator` (`core/tools/ToolOrchestrator.ts`) manages tool registration, discovery, permission enforcement, and execution. It acts as a facade over `ToolPermissionManager` and `ToolExecutor`.
 
-### Key Components
+### ITool Interface
 
-- **ITool interface** -- Standard tool contract with `name`, `description`, `parameters` (JSON Schema), and `execute()`.
-- **ToolOrchestrator** -- Resolves tool calls from LLM output, validates inputs against schemas, executes tools, and returns results.
-- **CodeSandbox** (`sandbox/executor/CodeSandbox.ts`) -- Sandboxed code execution environment.
-- **CLIRegistry** (`sandbox/subprocess/CLIRegistry.ts`) -- Registry for CLI subprocess bridges (claude-code-cli, gemini-cli, etc.).
-- **CapabilityDiscoveryEngine** (`discovery/`) -- Tiered semantic search replacing static tool dumps (~90% token reduction).
+Every tool implements the `ITool` interface (`core/tools/ITool.ts`):
+
+```typescript
+interface ITool<TInput = any, TOutput = any> {
+  readonly id: string;              // Globally unique ID (e.g. "web-search-v1")
+  readonly name: string;            // LLM-facing name (e.g. "search_web")
+  readonly displayName: string;     // Human-readable title
+  readonly description: string;     // Detailed description for LLM tool selection
+  readonly inputSchema: JSONSchemaObject;   // JSON Schema for arguments
+  readonly outputSchema?: JSONSchemaObject; // Optional output schema
+  readonly requiredCapabilities?: string[]; // Permission requirements
+  readonly category?: string;              // Grouping (e.g. "data_analysis")
+  readonly hasSideEffects?: boolean;       // Triggers HITL gating when true
+
+  execute(
+    args: TInput,
+    context: ToolExecutionContext,
+  ): Promise<ToolExecutionResult<TOutput>>;
+}
+```
+
+### Custom Tool Example
+
+```typescript
+import type { ITool, ToolExecutionResult, ToolExecutionContext } from '@framers/agentos/core/tools/ITool';
+
+const weatherTool: ITool = {
+  id: 'weather-lookup-v1',
+  name: 'get_weather',
+  displayName: 'Weather Lookup',
+  description: 'Get current weather for a city. Use when the user asks about weather conditions.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      city: { type: 'string', description: 'City name' },
+      units: { type: 'string', enum: ['celsius', 'fahrenheit'], default: 'celsius' },
+    },
+    required: ['city'],
+  },
+  hasSideEffects: false,
+  async execute(args: { city: string; units?: string }, ctx: ToolExecutionContext) {
+    const data = await fetchWeatherAPI(args.city, args.units);
+    return { success: true, output: data };
+  },
+};
+```
+
+### Tool Execution Flow
+
+1. LLM emits a `tool_call` chunk with name and arguments
+2. `ToolOrchestrator` resolves the tool by name from its registry
+3. `ToolPermissionManager` checks persona capabilities and user subscription
+4. If `hasSideEffects` and HITL is enabled, `HumanInteractionManager` gates the execution
+5. `ToolExecutor` validates arguments against `inputSchema` and calls `execute()`
+6. Result is formatted as `ToolCallResult` and fed back to the LLM
+
+### Capability Discovery
+
+The `CapabilityDiscoveryEngine` (`discovery/`) replaces static tool schema dumps in the prompt with a three-tier semantic search system, reducing tool-related tokens by ~90%:
+
+| Tier | Content | Token Cost | When Used |
+|------|---------|------------|-----------|
+| Tier 0 | Category summaries | ~150 tokens | Always included in system prompt |
+| Tier 1 | Top-5 semantic matches | ~200 tokens | Per-turn, based on user query |
+| Tier 2 | Full JSON schemas | ~1,500 tokens | On-demand via `discover_capabilities` meta-tool |
+
+The engine pipeline: `User Message -> CapabilityIndex.search() -> CapabilityGraph.rerank() -> CapabilityContextAssembler.assemble() -> CapabilityDiscoveryResult`.
 
 ### Extension-Provided Tools
 
@@ -422,24 +968,68 @@ For details, see [Tool Calling & Loading](../extensions/TOOL_CALLING_AND_LOADING
 
 ## Guardrails
 
-`IGuardrailService` is the core interface:
+### GuardrailAction Enum
+
+Four possible outcomes from any guardrail evaluation:
+
+```typescript
+enum GuardrailAction {
+  ALLOW    = 'allow',     // Pass through unchanged
+  FLAG     = 'flag',      // Pass through, record metadata for audit
+  SANITIZE = 'sanitize',  // Replace content with modified version
+  BLOCK    = 'block',     // Reject / terminate the interaction
+}
+```
+
+### IGuardrailService Interface
 
 ```typescript
 interface IGuardrailService {
   config?: {
-    evaluateStreamingChunks?: boolean;
-    maxStreamingEvaluations?: number;
-    canSanitize?: boolean;
-    timeoutMs?: number;
+    evaluateStreamingChunks?: boolean;  // Evaluate during streaming
+    maxStreamingEvaluations?: number;   // Rate limit per stream
+    canSanitize?: boolean;              // Runs in Phase 1 (sequential)
+    timeoutMs?: number;                 // Per-evaluation timeout
   };
   evaluateInput?(payload: GuardrailInputPayload): Promise<GuardrailEvaluationResult | null>;
   evaluateOutput?(payload: GuardrailOutputPayload): Promise<GuardrailEvaluationResult | null>;
 }
 ```
 
-`ParallelGuardrailDispatcher` runs guardrails in two phases (sanitizers sequentially, classifiers in parallel). Five built-in packs cover PII redaction, ML classification, topicality, code safety, and grounding verification.
+### Five Security Tiers
 
-The safety runtime also includes `CircuitBreaker`, `CostGuard`, and `StuckDetector` in `safety/runtime/`.
+Security tiers define preset guardrail configurations for different deployment contexts:
+
+| Tier | Name | Input Guardrails | Output Guardrails | Use Case |
+|------|------|------------------|-------------------|----------|
+| 1 | `dangerous` | None | None | Internal development only |
+| 2 | `permissive` | PII redaction | Basic toxicity | Internal tools, trusted users |
+| 3 | `balanced` | PII + toxicity | Toxicity + grounding | General-purpose deployment |
+| 4 | `strict` | PII + toxicity + policy | Full suite | Customer-facing products |
+| 5 | `paranoid` | All + custom validators | All + streaming evaluation | Regulated industries (healthcare, finance) |
+
+### Custom Guardrail Example
+
+```typescript
+import { GuardrailAction, type IGuardrailService } from '@framers/agentos/safety/guardrails';
+
+const domainRestrictionGuard: IGuardrailService = {
+  config: { canSanitize: false, timeoutMs: 1000 },
+  async evaluateInput({ input, context }) {
+    const text = input.textInput ?? '';
+    if (text.match(/\b(stock|invest|trade)\b/i)) {
+      return {
+        action: GuardrailAction.BLOCK,
+        reason: 'Financial advice is outside this agent\'s scope.',
+        reasonCode: 'DOMAIN_RESTRICTION',
+      };
+    }
+    return { action: GuardrailAction.ALLOW };
+  },
+};
+```
+
+`ParallelGuardrailDispatcher` runs guardrails in two phases (sanitizers sequentially, classifiers in parallel). The safety runtime also includes `CircuitBreaker`, `CostGuard`, and `StuckDetector` in `safety/runtime/`.
 
 For details, see [Safety Primitives](../safety/SAFETY_PRIMITIVES.md), [Creating Guardrails](../safety/CREATING_GUARDRAILS.md), and [Guardrails Usage](../safety/GUARDRAILS_USAGE.md).
 
@@ -447,13 +1037,52 @@ For details, see [Safety Primitives](../safety/SAFETY_PRIMITIVES.md), [Creating 
 
 ## Voice Pipeline
 
-The real-time voice conversation pipeline lives in `voice-pipeline/`:
+The real-time voice conversation pipeline lives in `voice-pipeline/` and is orchestrated by `VoicePipelineOrchestrator`, a state machine that coordinates audio capture, speech recognition, endpoint detection, agent inference, text-to-speech synthesis, and barge-in handling.
 
-- **WebSocketStreamTransport** / **WebRTCStreamTransport** -- Audio transport layers
-- **HeuristicEndpointDetector** -- VAD-based speech endpoint detection
-- **HardCutBargeinHandler** -- Barge-in (interruption) handling
+### State Machine
 
-The pipeline coordinates hearing (STT), the GMI turn loop, and speech (TTS) into a streaming conversation flow.
+```
+IDLE -------> startSession() ---------> LISTENING
+LISTENING --> turn_complete ----------> PROCESSING
+PROCESSING -> LLM tokens start -------> SPEAKING
+SPEAKING ---> TTS flush_complete -----> LISTENING
+SPEAKING ---> barge-in (cancel) ------> INTERRUPTING -> LISTENING
+ANY --------> transport disconnect ---> CLOSED
+ANY --------> stopSession() ----------> CLOSED
+```
+
+### Component Wiring
+
+```mermaid
+graph LR
+    Mic[Microphone<br/>AudioFrame] --> Transport[IStreamTransport<br/>WebSocket / WebRTC]
+    Transport --> STT[IStreamingSTT<br/>Deepgram / Whisper]
+    STT --> EP[IEndpointDetector<br/>Heuristic / Acoustic]
+    EP -->|turn_complete| Agent[Agent Session<br/>GMI Turn]
+    Agent -->|text chunks| TTS[IStreamingTTS<br/>OpenAI / ElevenLabs]
+    TTS -->|EncodedAudioChunk| Transport
+    Transport --> Speaker[Speaker]
+    STT -.->|speech_detected<br/>during SPEAKING| Bargein[IBargeinHandler<br/>HardCut / SoftFade]
+    Bargein -.->|cancel TTS| TTS
+```
+
+### Provider Interfaces
+
+| Interface | Purpose | Implementations |
+|-----------|---------|-----------------|
+| `IStreamTransport` | Bidirectional audio/text transport | `WebSocketStreamTransport`, `WebRTCStreamTransport` |
+| `IStreamingSTT` | Speech-to-text recognition | Deepgram, Whisper, Google, Azure, browser WebSpeechAPI |
+| `IStreamingTTS` | Text-to-speech synthesis | OpenAI TTS, ElevenLabs, Google, Azure, PlayHT |
+| `IEndpointDetector` | Detect when the user finishes speaking | `HeuristicEndpointDetector`, `AcousticEndpointDetector` |
+| `IBargeinHandler` | Handle user interruptions during playback | `HardCutBargeinHandler`, `SoftFadeBargeinHandler` |
+| `IDiarizationEngine` | Multi-speaker identification | (optional, provider-specific) |
+
+### Audio Types
+
+- `AudioFrame` -- Raw PCM audio (Float32Array samples, sampleRate, timestamp). Typically 20ms frames at 16 kHz for STT.
+- `EncodedAudioChunk` -- Compressed output (Buffer, format: `pcm`/`mp3`/`opus`, durationMs, text). Carries the synthesized text for barge-in tracking.
+
+A watchdog timer prevents the pipeline from staying in LISTENING indefinitely if the user walks away (default 30s, resets after each completed turn).
 
 For details, see [Voice Pipeline](../features/VOICE_PIPELINE.md) and [Speech Providers](../features/SPEECH_PROVIDERS.md).
 
@@ -461,13 +1090,46 @@ For details, see [Voice Pipeline](../features/VOICE_PIPELINE.md) and [Speech Pro
 
 ## Channels
 
-37 channel adapters provide platform connectivity:
+37 channel adapters provide platform connectivity. Each adapter implements the `IChannelAdapter` interface and is typically packaged as an `ExtensionPack`.
 
-- **ChannelRouter** (`channels/ChannelRouter.ts`) -- Routes messages to the appropriate adapter
-- **IChannelAdapter** -- Standard adapter interface
-- **adapters/** -- Discord, Slack, Telegram, Twitter/X, LinkedIn, Facebook, Threads, Bluesky, Mastodon, and more
-- **telephony/** -- Twilio, Telnyx, Plivo, Vonage voice call providers
-- **social-posting/** -- `SocialPostManager` and `ContentAdaptationEngine` for cross-platform publishing
+### Platform Table
+
+| Platform | Adapter | Tools | Category |
+|----------|---------|-------|----------|
+| Discord | `DiscordChannelAdapter` | 8 slash commands | Messaging |
+| Slack | `SlackChannelAdapter` | 8 | Messaging |
+| Telegram | `TelegramChannelAdapter` | 8 | Messaging |
+| WhatsApp | `WhatsAppChannelAdapter` | 4 | Messaging |
+| Twitter/X | `TwitterChannelAdapter` | 6 | Social |
+| LinkedIn | LinkedIn adapter | 8 | Social |
+| Facebook | Facebook adapter | 8 | Social |
+| Threads | Threads adapter | 6 | Social |
+| Bluesky | Bluesky adapter | 8 | Social |
+| Mastodon | Mastodon adapter | 8 | Social |
+| WebChat | `WebChatChannelAdapter` | - | Web |
+| Teams | `TeamsChannelAdapter` | - | Enterprise |
+| Google Chat | `GoogleChatChannelAdapter` | - | Enterprise |
+
+Additional adapters: Signal, IRC, Reddit, Instagram, Pinterest, TikTok, YouTube, Farcaster, Lemmy, Google Business, Dev.to, Hashnode, Medium, WordPress, and telephony providers (Twilio, Telnyx, Plivo, Vonage).
+
+### Channel Routing
+
+```typescript
+import { ChannelRouter } from '@framers/agentos/channels';
+
+const router = new ChannelRouter();
+router.register('telegram', telegramAdapter);
+router.register('discord', discordAdapter);
+
+// Route an inbound message to the appropriate adapter
+const response = await router.route(inboundMessage);
+```
+
+### Social Posting
+
+`SocialPostManager` and `ContentAdaptationEngine` (in `channels/social-posting/`) handle cross-platform publishing. The adaptation engine reformats content for each platform's constraints (character limits, media formats, hashtag conventions).
+
+Orchestration tools in `tools/`: `multi-channel-post`, `social-analytics`, `media-upload`, `bulk-scheduler`.
 
 For details, see [Channels](../features/CHANNELS.md), [Social Posting](../features/SOCIAL_POSTING.md), and [Telephony Providers](../features/TELEPHONY_PROVIDERS.md).
 
@@ -475,10 +1137,34 @@ For details, see [Channels](../features/CHANNELS.md), [Social Posting](../featur
 
 ## Observability
 
-- **Tracer** (`evaluation/observability/Tracer.ts`) -- OpenTelemetry-compatible distributed tracing
-- **otel.ts** -- OTLP exporter configuration
-- **Evaluator** / **LLMJudge** (`evaluation/`) -- Eval framework for grading agent outputs
-- **TurnPlanner telemetry** (`orchestration/turn-planner/SqlTaskOutcomeTelemetryStore.ts`) -- Per-turn outcome tracking
+AgentOS provides opt-in observability through OpenTelemetry integration, configured via `AgentOSObservabilityConfig`.
+
+### Tracing
+
+When `observability.tracing.enabled` is true, AgentOS creates spans for:
+- Agent turns (`agentos.turn`)
+- Tool executions (`agentos.tool.{name}`)
+- Guardrail evaluations (`agentos.guardrail.{phase}`)
+- LLM calls (`agentos.llm.completion`)
+- Memory retrieval (`agentos.memory.retrieve`)
+
+The `Tracer` class (`evaluation/observability/Tracer.ts`) wraps `@opentelemetry/api` and uses the configured tracer name (default `"@framers/agentos"`). Trace context is propagated through `AgentOSResponse` metadata when `includeTraceInResponses` is enabled, allowing client-side correlation.
+
+### Metrics
+
+When `observability.metrics.enabled` is true, AgentOS exports:
+- `agentos.turn.duration_ms` -- Histogram of turn latencies
+- `agentos.turn.tokens` -- Counter of prompt/completion tokens
+- `agentos.tool.invocations` -- Counter by tool name and outcome
+- `agentos.guardrail.evaluations` -- Counter by guardrail name and action
+
+### Logging
+
+`PinoLogger` injects `trace_id` and `span_id` fields when `observability.logging.includeTraceIds` is true. Optional `exportToOtel` emits `LogRecord` objects via `@opentelemetry/api-logs`.
+
+### Evaluation Framework
+
+`Evaluator` and `LLMJudge` (`evaluation/`) provide a grading framework for agent outputs. `SqlTaskOutcomeTelemetryStore` persists per-turn outcome KPI windows so rolling quality metrics survive restarts.
 
 For details, see [Observability](../observability/OBSERVABILITY.md), [Logging](../observability/LOGGING.md), and [Evaluation Framework](../observability/EVALUATION_FRAMEWORK.md).
 
@@ -486,11 +1172,25 @@ For details, see [Observability](../observability/OBSERVABILITY.md), [Logging](.
 
 ## Emergent Capabilities
 
-The `emergent/` module enables runtime self-improvement:
+The `emergent/` module enables agents to create new tools at runtime within safety bounds.
 
-- **SandboxedToolForge** -- Agents can compose new tools at runtime
-- **ComposableToolBuilder** -- Declarative tool composition
-- **AdaptPersonalityTool** / **PersonalityMutationStore** -- Controlled personality adaptation within safety bounds
-- **SelfEvaluateTool** -- Agent self-assessment
+### SandboxedToolForge
+
+When `emergent: true` is set in `AgentOSConfig`, the agent gains access to the `forge_tool` meta-tool. The forge pipeline works as follows:
+
+1. The agent generates JavaScript code for a new tool (name, description, input schema, implementation)
+2. `SandboxedToolForge` performs static validation, rejecting dangerous patterns (`eval`, `Function`, `process`, `require`, `import`, `child_process`, `fs.write*`)
+3. Validated code executes in an isolated sandbox (preferring `isolated-vm` for V8 isolate sandboxing, falling back to Node.js `vm` module) with configurable limits:
+   - Memory: 128 MB default
+   - Timeout: 5,000 ms default
+   - API allowlist: only `fetch` (domain-restricted), `fs.readFile` (path-restricted, 1 MB max), `crypto` (hash/HMAC only)
+4. `EmergentJudge` evaluates the tool against safety criteria before permanent registration
+5. `EmergentToolRegistry` persists approved tools via `IStorageAdapter`
+
+### Additional Emergent Tools
+
+- `ComposableToolBuilder` -- Declarative tool composition by chaining existing tools
+- `AdaptPersonalityTool` / `PersonalityMutationStore` -- Controlled personality adaptation within safety bounds (bounded parameter ranges, mutation logging)
+- `SelfEvaluateTool` -- Agent self-assessment using LLM-as-judge
 
 For details, see [Emergent Capabilities](./EMERGENT_CAPABILITIES.md) and [Recursive Self-Building Agents](./RECURSIVE_SELF_BUILDING_AGENTS.md).
