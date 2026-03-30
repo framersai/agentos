@@ -351,6 +351,12 @@ hitl.autoReject('dry-run mode')         // always reject with an optional reason
 hitl.cli()                              // interactive stdin/stdout prompt
 hitl.webhook('https://my-service/ok')   // POST to an HTTP endpoint
 hitl.slack({ channel: '#approvals', token: process.env.SLACK_BOT_TOKEN })
+hitl.llmJudge({                         // delegate to an LLM judge
+  model: 'gpt-4o-mini',
+  criteria: 'Is this action safe and non-destructive?',
+  confidenceThreshold: 0.8,
+  fallback: hitl.cli(),                 // escalate uncertain decisions to human
+})
 ```
 
 ### Approval triggers
@@ -393,6 +399,43 @@ const custom = agency({
   },
 });
 ```
+
+### LLM-as-judge handler
+
+`hitl.llmJudge()` delegates approval decisions to an LLM that evaluates the
+request against configurable criteria and returns a structured decision with a
+confidence score. When the LLM's confidence falls below the threshold, the
+decision is escalated to a fallback handler.
+
+```typescript
+import { agency, hitl } from '@framers/agentos';
+
+// Automated quality gate — LLM decides, uncertain cases go to a human.
+const qualityGated = agency({
+  model: 'openai:gpt-4o',
+  agents: { writer: { instructions: 'Write marketing copy.' } },
+  hitl: {
+    approvals: { beforeReturn: true },
+    handler: hitl.llmJudge({
+      model: 'gpt-4o-mini',
+      criteria: 'Is this response factually accurate, on-brand, and free of hallucinations?',
+      confidenceThreshold: 0.8,
+      fallback: hitl.cli(), // low-confidence decisions escalate to interactive CLI
+    }),
+  },
+});
+```
+
+**`hitl.llmJudge()` options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `model` | `string` | `'gpt-4o-mini'` | LLM model to use for evaluation. |
+| `provider` | `string` | `'openai'` | LLM provider. |
+| `criteria` | `string` | `'Evaluate whether this action is safe, relevant, and appropriate.'` | Custom rubric the judge evaluates against. |
+| `confidenceThreshold` | `number` | `0.7` | Confidence threshold (0-1). Below this the fallback handler is used. |
+| `fallback` | `HitlHandler` | `hitl.autoReject(...)` | Handler invoked when confidence is below threshold or LLM call fails. |
+| `apiKey` | `string` | - | Optional API key override. |
 
 ---
 

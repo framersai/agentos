@@ -398,6 +398,119 @@ Please avoid these issues.
 `;
 ```
 
+## LLM-as-Judge Handlers
+
+### `hitl.llmJudge()` — Agency-Level
+
+The `hitl.llmJudge()` factory creates an HITL handler that delegates approval
+decisions to an LLM. The LLM evaluates the `ApprovalRequest` against a rubric
+and returns a structured `{ approved, confidence, reasoning }` response. When
+the confidence score falls below the threshold, the decision is escalated to a
+fallback handler.
+
+```typescript
+import { agency, hitl } from '@framers/agentos';
+
+const guarded = agency({
+  model: 'openai:gpt-4o',
+  agents: { worker: { instructions: 'Execute tasks.' } },
+  hitl: {
+    approvals: { beforeTool: ['delete-file', 'send-email'] },
+    handler: hitl.llmJudge({
+      model: 'gpt-4o-mini',
+      provider: 'openai',
+      criteria: 'Is this action safe, reversible, and aligned with the user intent?',
+      confidenceThreshold: 0.8,
+      fallback: hitl.cli(), // uncertain decisions go to human
+    }),
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `model` | `string` | `'gpt-4o-mini'` | LLM model for evaluation |
+| `provider` | `string` | `'openai'` | LLM provider |
+| `criteria` | `string` | `'Evaluate whether this action is safe, relevant, and appropriate.'` | Custom rubric |
+| `confidenceThreshold` | `number` | `0.7` | Below this, delegate to fallback |
+| `fallback` | `HitlHandler` | `hitl.autoReject(...)` | Handler for low-confidence decisions |
+| `apiKey` | `string` | - | API key override |
+
+### `humanNode` Options — Graph-Level
+
+In the AgentGraph builder, `humanNode()` now supports automated resolution
+strategies that bypass the default human interrupt:
+
+```typescript
+import { humanNode } from '@framers/agentos/orchestration/builders/nodes';
+
+// Auto-accept (useful for tests/CI)
+humanNode({ prompt: 'Approve?', autoAccept: true });
+
+// Auto-reject with reason
+humanNode({ prompt: 'Approve?', autoReject: 'Blocked by policy' });
+
+// LLM judge with fallthrough to human interrupt
+humanNode({
+  prompt: 'Should we publish this content?',
+  judge: {
+    model: 'gpt-4o-mini',
+    criteria: 'Is the content appropriate and factually accurate?',
+    confidenceThreshold: 0.8,
+  },
+});
+
+// Auto-accept on timeout instead of erroring
+humanNode({
+  prompt: 'Approve deployment?',
+  timeout: 30_000,
+  onTimeout: 'accept', // 'accept' | 'reject' | 'error'
+});
+```
+
+**`humanNode` options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `prompt` | `string` | (required) | Message shown to the human operator |
+| `timeout` | `number` | - | Max milliseconds before timeout handling |
+| `autoAccept` | `boolean` | `false` | Auto-accept without human input |
+| `autoReject` | `boolean \| string` | `false` | Auto-reject; string value is the reason |
+| `judge.model` | `string` | `'gpt-4o-mini'` | LLM model for the judge |
+| `judge.provider` | `string` | `'openai'` | LLM provider |
+| `judge.criteria` | `string` | `'Is this action safe, relevant, and appropriate?'` | Evaluation criteria |
+| `judge.confidenceThreshold` | `number` | `0.7` | Below this, fall through to human interrupt |
+| `onTimeout` | `'accept' \| 'reject' \| 'error'` | `'error'` | Behaviour when timeout expires |
+
+### Example: Automated Testing Pipeline
+
+Use LLM judge to gate quality without blocking CI:
+
+```typescript
+import { AgentGraph, humanNode, gmiNode } from '@framers/agentos';
+
+const graph = new AgentGraph('test-pipeline');
+
+const generate = gmiNode({ instructions: 'Generate a product description.' });
+const review = humanNode({
+  prompt: 'Review the generated content for accuracy.',
+  judge: {
+    model: 'gpt-4o-mini',
+    criteria: 'Is this factually accurate, well-written, and free of hallucinations?',
+    confidenceThreshold: 0.85,
+  },
+  timeout: 10_000,
+  onTimeout: 'reject', // safety default: reject if judge hangs
+});
+const publish = gmiNode({ instructions: 'Format and publish the content.' });
+
+graph.addNode(generate);
+graph.addNode(review);
+graph.addNode(publish);
+graph.addEdge(generate.id, review.id);
+graph.addEdge(review.id, publish.id);
+```
+
 ## Troubleshooting
 
 ### Requests Timing Out
