@@ -32,6 +32,7 @@
  */
 
 import type { ApprovalRequest, ApprovalDecision } from './types.js';
+import type { GenerateTextResult } from './generateText.js';
 
 // ---------------------------------------------------------------------------
 // Public type
@@ -232,6 +233,132 @@ export const hitl = {
         approved: true,
         reason: 'Slack notification sent — auto-approved for v1',
       };
+    };
+  },
+
+  // ---------------------------------------------------------------------------
+  // llmJudge
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Creates an HITL handler that delegates approval decisions to an LLM judge.
+   *
+   * The LLM evaluates the approval request against configurable criteria and
+   * returns a structured approve/reject decision with reasoning. When the LLM's
+   * self-reported confidence falls below `confidenceThreshold`, the decision is
+   * delegated to a fallback handler (default: {@link hitl.autoReject}).
+   *
+   * @param config - LLM judge configuration.
+   * @param config.model - LLM model to use. Defaults to `'gpt-4o-mini'`.
+   * @param config.provider - LLM provider. Defaults to `'openai'`.
+   * @param config.criteria - Custom evaluation criteria/rubric. Defaults to
+   *   `'Evaluate whether this action is safe, relevant, and appropriate.'`.
+   * @param config.confidenceThreshold - Confidence threshold in the range 0–1.
+   *   Below this value the decision is escalated to the fallback handler. Defaults
+   *   to `0.7`.
+   * @param config.fallback - Handler invoked when confidence is below threshold or
+   *   the LLM call fails. Defaults to `hitl.autoReject('LLM judge confidence too low')`.
+   * @param config.apiKey - API key override forwarded to the LLM provider.
+   * @returns A {@link HitlHandler} that auto-decides via LLM.
+   *
+   * @example
+   * ```ts
+   * import { agency, hitl } from '@framers/agentos';
+   *
+   * const guarded = agency({
+   *   agents: { worker: { instructions: 'Execute tasks.' } },
+   *   hitl: {
+   *     approvals: { beforeTool: ['delete-file'] },
+   *     handler: hitl.llmJudge({
+   *       model: 'gpt-4o-mini',
+   *       criteria: 'Is this action safe and non-destructive?',
+   *       confidenceThreshold: 0.8,
+   *       fallback: hitl.cli(), // escalate uncertain decisions to human
+   *     }),
+   *   },
+   * });
+   * ```
+   */
+  llmJudge(config: {
+    /** LLM model to use. @default 'gpt-4o-mini' */
+    model?: string;
+    /** LLM provider. @default 'openai' */
+    provider?: string;
+    /** Custom evaluation criteria/rubric. @default 'Evaluate whether this action is safe, relevant, and appropriate.' */
+    criteria?: string;
+    /** Confidence threshold — below this, escalate to fallback handler. @default 0.7 */
+    confidenceThreshold?: number;
+    /** Fallback handler when confidence is below threshold. @default hitl.autoReject('LLM judge confidence too low') */
+    fallback?: HitlHandler;
+    /** API key override. */
+    apiKey?: string;
+  } = {}): HitlHandler {
+    const model = config.model ?? 'gpt-4o-mini';
+    const provider = config.provider ?? 'openai';
+    const criteria = config.criteria ?? 'Evaluate whether this action is safe, relevant, and appropriate.';
+    const threshold = config.confidenceThreshold ?? 0.7;
+    const fallback = config.fallback ?? hitl.autoReject('LLM judge confidence too low');
+
+    return async (request: ApprovalRequest): Promise<ApprovalDecision> => {
+      try {
+        // Lazy import to avoid circular dependency and keep the module tree light
+        // when llmJudge is never used.
+        const { generateText } = await import('./generateText.js');
+
+        const systemPrompt = [
+          'You are an approval judge. Evaluate this action request against the criteria below.',
+          '',
+          `## Criteria`,
+          criteria,
+          '',
+          '## Instructions',
+          '1. Examine the action details carefully.',
+          '2. Decide whether the action should be approved or rejected.',
+          '3. Assign a confidence score between 0 and 1 reflecting how certain you are.',
+          '4. Provide a brief reasoning string explaining your decision.',
+          '5. Respond with ONLY a JSON object matching this schema:',
+          '   { "approved": boolean, "confidence": number, "reasoning": string }',
+          '6. Do not include any other text, markdown fences, or commentary.',
+        ].join('\n');
+
+        const userPrompt = [
+          `Action type: ${request.type}`,
+          `Agent: ${request.agent}`,
+          `Action: ${request.action}`,
+          `Description: ${request.description}`,
+          `Details: ${JSON.stringify(request.details, null, 2)}`,
+        ].join('\n');
+
+        const result: GenerateTextResult = await generateText({
+          model,
+          provider,
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.1,
+          apiKey: config.apiKey,
+        });
+
+        // Parse the JSON from the LLM response, tolerating surrounding text.
+        const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+        const decision = JSON.parse(jsonMatch?.[0] ?? '{}');
+
+        if (
+          typeof decision.approved === 'boolean' &&
+          typeof decision.confidence === 'number' &&
+          decision.confidence >= threshold
+        ) {
+          return {
+            approved: decision.approved,
+            reason: decision.reasoning ?? (decision.approved ? 'Approved by LLM judge' : 'Rejected by LLM judge'),
+          };
+        }
+
+        // Confidence below threshold — delegate to fallback handler.
+        return fallback(request);
+      } catch {
+        // LLM call failed — delegate to fallback handler for graceful degradation.
+        return fallback(request);
+      }
     };
   },
 };
