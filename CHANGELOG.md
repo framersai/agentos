@@ -1,3 +1,15 @@
+## <small>0.1.155 (2026-03-30)</small>
+
+* feat: HITL guardrail override support + agency docs update + tests ([fe117e6](https://github.com/framersai/agentos/commit/fe117e6))
+* feat(hitl): add post-approval guardrail override for destructive actions ([ce2ee69](https://github.com/framersai/agentos/commit/ce2ee69))
+* feat(knowledge): add HITL FAQ, API, and guardrail-override corpus entries ([5cc3d2e](https://github.com/framersai/agentos/commit/5cc3d2e))
+* fix: strip changelog notes, vaporware diagram, and fake pseudo-code from architecture docs ([e06ec6b](https://github.com/framersai/agentos/commit/e06ec6b))
+* fix(ci): retrigger build ([3919254](https://github.com/framersai/agentos/commit/3919254))
+* docs: expand architecture doc to ~1200 lines with diagrams, code examples, tables ([889c811](https://github.com/framersai/agentos/commit/889c811))
+* docs: rewrite High-Level API intro — clean table, no changelog language ([9d45059](https://github.com/framersai/agentos/commit/9d45059)), closes [Hi#Level](https://github.com/Hi/issues/Level)
+* docs: strip 3000+ lines of vaporware from architecture doc ([03c12fb](https://github.com/framersai/agentos/commit/03c12fb))
+* docs: unified API reference — one import, quick reference table, no artificial levels ([db1f5fc](https://github.com/framersai/agentos/commit/db1f5fc))
+
 ## <small>0.1.154 (2026-03-30)</small>
 
 * fix: remove all downstream references from AgentOS docs ([961c4af](https://github.com/framersai/agentos/commit/961c4af))
