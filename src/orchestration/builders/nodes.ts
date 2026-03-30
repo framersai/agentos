@@ -77,14 +77,47 @@ export function toolNode(toolName: string, config?: {
   };
 }
 
+/**
+ * Creates a human-in-the-loop node that suspends execution until a human
+ * (or automated surrogate) provides a decision.
+ *
+ * @param config.prompt - Message displayed to the human operator.
+ * @param config.timeout - Maximum wall-clock milliseconds before the node is aborted or handled by `onTimeout`.
+ * @param config.autoAccept - Auto-accept without human input. Useful for testing/dev.
+ * @param config.autoReject - Auto-reject without human input. Pass a string to include a rejection reason.
+ * @param config.judge - Delegate to an LLM judge instead of a human. When the judge's confidence
+ *   falls below `confidenceThreshold`, the node falls through to a normal human interrupt.
+ * @param config.onTimeout - Behaviour when timeout expires: `'accept'`, `'reject'`, or `'error'` (default).
+ * @param policies - Optional per-node policy overrides.
+ */
 export function humanNode(config: {
   prompt: string;
   timeout?: number;
+  /** Auto-accept without human input. Useful for testing/dev. */
+  autoAccept?: boolean;
+  /** Auto-reject without human input. */
+  autoReject?: boolean | string;
+  /** Delegate to LLM judge instead of human. */
+  judge?: {
+    model?: string;
+    provider?: string;
+    criteria?: string;
+    confidenceThreshold?: number;
+  };
+  /** What to do when timeout expires. @default 'error' */
+  onTimeout?: 'accept' | 'reject' | 'error';
 }, policies?: NodePolicies): GraphNode {
   return {
     id: nextId('human'),
     type: 'human',
-    executorConfig: { type: 'human', prompt: config.prompt },
+    executorConfig: {
+      type: 'human',
+      prompt: config.prompt,
+      autoAccept: config.autoAccept,
+      autoReject: config.autoReject,
+      judge: config.judge,
+      onTimeout: config.onTimeout,
+    },
     executionMode: 'single_turn',
     effectClass: 'human',
     timeout: config.timeout,

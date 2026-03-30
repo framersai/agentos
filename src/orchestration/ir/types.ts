@@ -185,6 +185,33 @@ export type NodeExecutorConfig =
       type: 'human';
       /** Message displayed to the human operator while the graph is suspended. */
       prompt: string;
+      /** When `true`, the node auto-accepts without waiting for human input. Useful for testing. */
+      autoAccept?: boolean;
+      /** When `true` or a string, the node auto-rejects. A string value is used as the rejection reason. */
+      autoReject?: boolean | string;
+      /**
+       * Delegates the approval decision to an LLM judge instead of a human.
+       * When the judge's confidence falls below `confidenceThreshold`, execution
+       * falls through to the normal human interrupt.
+       */
+      judge?: {
+        /** LLM model to use for the judge call. Defaults to `'gpt-4o-mini'`. */
+        model?: string;
+        /** LLM provider. Defaults to `'openai'`. */
+        provider?: string;
+        /** Custom evaluation criteria/rubric. */
+        criteria?: string;
+        /** Confidence threshold (0–1). Below this, fall through to human interrupt. Defaults to `0.7`. */
+        confidenceThreshold?: number;
+      };
+      /**
+       * Behaviour when the node's `timeout` expires.
+       * - `'accept'` — auto-accept.
+       * - `'reject'` — auto-reject.
+       * - `'error'`  — throw a timeout error (default behaviour).
+       * @default 'error'
+       */
+      onTimeout?: 'accept' | 'reject' | 'error';
     }
   | {
       type: 'guardrail';

@@ -202,16 +202,46 @@ export class NodeExecutor {
    * If `node.timeout` is set, execution races against a timer that resolves with a
    * `success: false` result after the specified number of milliseconds.
    *
+   * For `human` nodes with an `onTimeout` directive, the timeout result is modified:
+   * - `'accept'` — auto-accept on timeout.
+   * - `'reject'` — auto-reject on timeout.
+   * - `'error'`  — standard timeout error (default behaviour for all node types).
+   *
    * @param node  - Immutable node descriptor from the compiled graph IR.
    * @param state - Current (partial) graph state threaded from the runtime.
    * @returns A `NodeExecutionResult` describing the outcome.
    */
   async execute(node: GraphNode, state: Partial<GraphState>): Promise<NodeExecutionResult> {
     if (node.timeout) {
-      return Promise.race([
+      const result = await Promise.race([
         this.executeNode(node, state),
         this.buildTimeoutPromise(node.timeout, node.id),
       ]);
+
+      // When a human node times out and has an onTimeout directive, translate
+      // the generic timeout failure into the requested resolution.
+      if (
+        !result.success &&
+        result.error?.includes('timeout') &&
+        node.executorConfig.type === 'human'
+      ) {
+        const onTimeout = (node.executorConfig as { onTimeout?: string }).onTimeout;
+        if (onTimeout === 'accept') {
+          return {
+            success: true,
+            output: { approved: true, decidedBy: 'timeout-accept' },
+          };
+        }
+        if (onTimeout === 'reject') {
+          return {
+            success: true,
+            output: { approved: false, reason: 'Timed out', decidedBy: 'timeout-reject' },
+          };
+        }
+        // 'error' (or undefined) — fall through to the default timeout failure.
+      }
+
+      return result;
     }
     return this.executeNode(node, state);
   }
@@ -371,22 +401,103 @@ export class NodeExecutor {
   }
 
   /**
-   * Suspends execution and surfaces a prompt to a human operator.
+   * Executes a human-in-the-loop node.
    *
-   * The runtime must treat `interrupt: true` as a signal to persist state, emit an
-   * `interrupt` event, and halt the current run until the operator provides a response.
+   * The node supports several automated resolution strategies that bypass the
+   * default human-interrupt behaviour:
    *
-   * @param config - `{ type: 'human'; prompt: string }`
+   * - `autoAccept` — resolve immediately with `approved: true`.
+   * - `autoReject` — resolve immediately with `approved: false` and an optional reason.
+   * - `judge` — delegate to an LLM judge via `generateText()`. If the judge's
+   *   confidence is below `confidenceThreshold`, execution falls through to the
+   *   normal human interrupt.
+   *
+   * When none of these options are set (or the judge cannot decide), the runtime
+   * must treat `interrupt: true` as a signal to persist state, emit an `interrupt`
+   * event, and halt the current run until the operator provides a response.
+   *
+   * @param config - Human node executor config including prompt and optional
+   *   automation directives.
    */
-  private executeHuman(
-    config: { type: 'human'; prompt: string },
+  private async executeHuman(
+    config: {
+      type: 'human';
+      prompt: string;
+      autoAccept?: boolean;
+      autoReject?: boolean | string;
+      judge?: {
+        model?: string;
+        provider?: string;
+        criteria?: string;
+        confidenceThreshold?: number;
+      };
+      onTimeout?: 'accept' | 'reject' | 'error';
+    },
   ): Promise<NodeExecutionResult> {
-    return Promise.resolve({
+    // --- Auto-accept: resolve immediately without human input ---
+    if (config.autoAccept) {
+      return { success: true, output: { approved: true, decidedBy: 'auto-accept' } };
+    }
+
+    // --- Auto-reject: resolve immediately without human input ---
+    if (config.autoReject) {
+      const reason = typeof config.autoReject === 'string'
+        ? config.autoReject
+        : 'Auto-rejected';
+      return {
+        success: true,
+        output: { approved: false, reason, decidedBy: 'auto-reject' },
+      };
+    }
+
+    // --- LLM judge: delegate to an LLM for the approval decision ---
+    if (config.judge) {
+      try {
+        const { generateText } = await import('../../api/generateText.js');
+
+        const systemPrompt = [
+          `You are an approval judge. Evaluate this request: "${config.prompt}".`,
+          `Criteria: ${config.judge.criteria ?? 'Is this action safe, relevant, and appropriate?'}`,
+          '',
+          'Return ONLY a JSON object: { "approved": boolean, "confidence": number, "reasoning": string }',
+          'Do not include any other text.',
+        ].join('\n');
+
+        const result = await generateText({
+          model: config.judge.model ?? 'gpt-4o-mini',
+          provider: config.judge.provider ?? 'openai',
+          system: systemPrompt,
+          prompt: config.prompt,
+          temperature: 0.1,
+        });
+
+        const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+        const decision = JSON.parse(jsonMatch?.[0] ?? '{}');
+        const threshold = config.judge.confidenceThreshold ?? 0.7;
+
+        if (
+          typeof decision.approved === 'boolean' &&
+          typeof decision.confidence === 'number' &&
+          decision.confidence >= threshold
+        ) {
+          return {
+            success: true,
+            output: { ...decision, decidedBy: 'llm-judge' },
+          };
+        }
+        // Confidence below threshold — fall through to human interrupt.
+      } catch {
+        // LLM call failed — fall through to human interrupt.
+      }
+    }
+
+    // --- Default: suspend execution and await human resolution ---
+    return {
       success: false,
       interrupt: true,
       error: 'Awaiting human input',
       output: { prompt: config.prompt },
-    });
+    };
   }
 
   /**
