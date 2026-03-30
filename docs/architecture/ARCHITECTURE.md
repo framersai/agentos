@@ -1,58 +1,30 @@
-# AgentOS: The Complete Adaptive Intelligence Framework - Full Technical Documentation
+# System Architecture
 
-For deployments that need immutability guarantees and auditability, see [Provenance & Immutability](./PROVENANCE_IMMUTABILITY.md) for `sealed`/`revisioned` storage policy enforcement, signed event ledgers, and optional external anchoring.
+AgentOS is organized into 26 domain-specific modules. This page covers the high-level layout, request lifecycle, and how the major subsystems connect.
 
-Current runtime memory note:
-
-- The standalone SQLite-first `Memory` facade is now a first-class runtime path alongside the older cognitive memory stack.
-- `AgentOSConfig.tools` is the runtime-level registered tool input. It accepts named tool maps, `ExternalToolRegistry` values (`Record` / `Map` / iterable), or prompt-only `ToolDefinitionForLLM[]`, normalizes them during `initialize(...)`, and registers them into the shared `ToolOrchestrator`.
-- `AgentOSConfig.memoryTools` only registers memory editor tools.
-- `AgentOSConfig.standaloneMemory` is the higher-level bridge when one `Memory` instance should also act as `longTermMemoryRetriever` and `rollingSummaryMemorySink`.
-- Actionable external tool pauses are persisted on the conversation, so hosts can recover them with `getPendingExternalToolRequest(...)` and continue them with `resumeExternalToolRequest(...)` after restart.
-- If those pending tool calls are AgentOS-registered tools, `resumeExternalToolRequestWithRegisteredTools(...)` can execute them with the correct resume-time context and continue the stream in one step.
-- `AgentOSConfig.externalTools` remains the helper-level host registry for `processRequestWithRegisteredTools(...)` / `resumeExternalToolRequestWithRegisteredTools(...)`. If a live or resumed pause mixes AgentOS-registered tools with host-managed custom tools, those helpers accept `externalTools` for a stable host tool map and `fallbackExternalToolHandler` for fully dynamic routing, so only missing tool names fall back to host execution. Prompt-aware `externalTools` entries that include `description` + `inputSchema` are temporarily registered as proxy tools for the helper call so the model can plan against them too. Lower-level/custom GMI callers can also read the same prompt-aware host tools through `agent.listExternalToolsForLLM()` and format them for raw provider calls with `formatToolDefinitionsForOpenAI(...)` or `formatExternalToolsForOpenAI(...)`.
-- Organization context is intentionally not persisted there; restarted hosts must re-supply trusted `organizationId` in the resume options when the continued turn needs org-scoped memory.
+For specific subsystem deep-dives, see:
+- [Sandbox & Security](./sandbox-security.md)
+- [CLI Subprocess](./cli-subprocess.md)
+- [Tool Permissions](./tool-permissions.md)
+- [Extension Loading](./extension-loading.md)
+- [Skills Engine](./skills-engine.md)
+- [Provenance & Immutability](../features/provenance-immutability.md)
 
 ---
 
-## System Architecture Overview
+## Source Directory Layout
 
-### Source Directory Layout
+The `src/` tree is organized into 26 domain-specific top-level modules. Only foundational infrastructure remains under `core/`.
 
-After the hierarchy restructuring, the `src/` tree is organized into 26 domain-specific
-top-level modules. Only foundational infrastructure remains under `core/`.
+**Perception model:** Vision, hearing, and speech are separated into three independent modules following the biological perception analogy — **vision/** (OCR, scene detection, image analysis), **hearing/** (STT providers, VAD, silence detection), and **speech/** (TTS providers, resolver, session). Shared media generation (images, video, music, SFX) remains under **media/**.
 
-#### Perception model
+**Key architectural patterns:**
 
-Vision, hearing, and speech are separated into three independent modules following
-the biological perception analogy: **vision/** (seeing -- OCR, scene detection, image
-analysis), **hearing/** (listening -- STT providers, VAD, silence detection), and
-**speech/** (speaking -- TTS providers, resolver, session). This clean separation
-allows each perception channel to evolve independently, with shared media generation
-(images, video, music, SFX) remaining under **media/**.
+- **GMI** (Generalized Mind Instance) delegates to focused collaborators: `ConversationHistoryManager`, `CognitiveMemoryBridge`, `SentimentTracker`, and `MetapromptExecutor`. Persona layering lives in `cognitive_substrate/persona_overlays/`.
 
-#### God-object decompositions
+- **AgentOS** is the public lifecycle facade. Setup and runtime concerns are in `api/runtime/` (`WorkflowFacade`, `CapabilityDiscoveryInitializer`, `RagMemoryInitializer`). High-level helpers (`generateText`, `streamText`, `agent`, `agency`) live under `api/`.
 
-Three former monolithic classes were decomposed during the restructuring:
-
-- **GMI** now delegates focused responsibilities to `ConversationHistoryManager`
-  (history trimming + formatting), `CognitiveMemoryBridge` (PAD/memory context),
-  `SentimentTracker` (mood/affect), and `MetapromptExecutor` (dynamic prompt
-  rewriting). Persona layering remains in `PersonaOverlayManager` under
-  `cognitive_substrate/persona_overlays/`.
-
-- **AgentOS** remains the public lifecycle facade, but substantial setup and
-  runtime concerns were extracted into `WorkflowFacade`,
-  `CapabilityDiscoveryInitializer`, `SelfImprovementSessionManager`, and
-  `RagMemoryInitializer` under `api/runtime/`. High-level helpers like
-  `generateText`, `streamText`, `agent`, `agency`, and media APIs still live
-  under `api/`.
-
-- **AgentOSOrchestrator** remains the request coordinator while delegating major
-  hot-path responsibilities to `TurnExecutionPipeline` (pre-LLM turn
-  preparation), `GMIChunkTransformer` (stream chunk mapping), and
-  `ExternalToolResultHandler` (tool-result continuation and resume flow). All
-  live under `api/runtime/`.
+- **AgentOSOrchestrator** coordinates requests, delegating to `TurnExecutionPipeline` (pre-LLM preparation), `GMIChunkTransformer` (stream mapping), and `ExternalToolResultHandler` (tool-result continuation).
 
 ```
 src/
@@ -171,84 +143,39 @@ src/
 └── voice-pipeline/          # Real-time voice conversation orchestrator
 ```
 
-### The Complete AgentOS Ecosystem
+### Architecture Layers
 
-```mermaid
-graph TB
-    subgraph "User Interface Layer"
-        WEB[Web Client]
-        MOB[Mobile App]
-        CLI[CLI Interface]
-        API[API Gateway]
-        WS[WebSocket Server]
-        GRPC[gRPC Server]
-    end
-
-    subgraph "Request Processing Layer"
-        AUTH[Authentication Service]
-        RATE[Rate Limiter]
-        VAL[Request Validator]
-        ROUTE[Request Router]
-        QUEUE[Request Queue]
-        BATCH[Batch Processor]
-    end
-
-    subgraph "GMI Core Layer"
-        GMI[GMI Instance Manager]
-        WM[Working Memory]
-        CM[Context Manager]
-        AM[Adaptation Manager]
-        LM[Learning Module]
-        EM[Evolution Engine]
-    end
-
-    subgraph "Cognitive Processing Layer"
-        PE[Prompt Engine]
-        PD[Persona Definitions]
-        CE[Contextual Elements]
-        NLP[NL Parser]
-        RE[Reasoning Engine]
-        IE[Inference Engine]
-    end
-
-    subgraph "Intelligence Services"
-        LLM[LLM Providers]
-        TOOLS[Tool Registry]
-        RAG[RAG System]
-        KG[Knowledge Graph]
-        EMB[Embedding Service]
-        SEM[Semantic Search]
-    end
-
-    subgraph "Memory & Storage Layer"
-        PGDB[(PostgreSQL)]
-        REDIS[(Redis Cache)]
-        VECTOR[(Vector Store)]
-        FILES[(File Storage)]
-        TIMESERIES[(Time Series DB)]
-        GRAPH[(Graph Database)]
-    end
-
-    subgraph "Safety & Governance"
-        GUARD[Guardrail Service]
-        CONST[Constitutional AI]
-        AUDIT[Audit Logger]
-        POLICY[Policy Engine]
-        ETHICS[Ethics Engine]
-        COMPLY[Compliance Monitor]
-    end
-
-    subgraph "Infrastructure Layer"
-        DOCKER[Docker Containers]
-        K8S[Kubernetes]
-        MONITOR[Monitoring Stack]
-        LOG[Logging Pipeline]
-        METRICS[Metrics Collection]
-        TRACE[Distributed Tracing]
-    end
+```
+┌─────────────────────────────────────────────────────────────┐
+│  API Layer                                                  │
+│  generateText · streamText · agent · agency · generateImage │
+├─────────────────────────────────────────────────────────────┤
+│  Orchestration                                              │
+│  workflow() · mission() · AgentGraph · HITL · checkpointing │
+├─────────────────────────────────────────────────────────────┤
+│  GMI (Generalized Mind Instance)                            │
+│  ConversationHistory · CognitiveMemory · Sentiment · Persona│
+├──────────────────────┬──────────────────────────────────────┤
+│  Safety & Guardrails │  Tools & Extensions                  │
+│  5-tier security     │  107 extensions, 72 skills           │
+│  PII · toxicity      │  CLI executor, web search            │
+│  grounding guard     │  capability discovery                │
+├──────────────────────┴──────────────────────────────────────┤
+│  Memory & RAG                                               │
+│  4-tier memory · 8 cognitive mechanisms · HEXACO-modulated  │
+│  7 vector backends · HyDE · GraphRAG · hybrid retrieval     │
+├─────────────────────────────────────────────────────────────┤
+│  LLM Providers (21)                                         │
+│  OpenAI · Anthropic · Gemini · Ollama · Groq · OpenRouter   │
+│  + automatic fallback chains                                │
+├─────────────────────────────────────────────────────────────┤
+│  Perception                                                 │
+│  Vision (OCR) · Hearing (STT/VAD) · Speech (TTS)           │
+│  37 channel adapters · telephony (Twilio/Telnyx/Plivo)     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Complete Data Flow Architecture
+### Request Lifecycle
 
 ```typescript
 interface DataFlowArchitecture {
