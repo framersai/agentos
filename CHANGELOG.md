@@ -1,3 +1,7 @@
+## <small>0.1.152 (2026-03-30)</small>
+
+* fix: remove docs.wunderland.sh links and Wunderland-specific language from agentos docs ([24fe36f](https://github.com/framersai/agentos/commit/24fe36f))
+
 ## <small>0.1.151 (2026-03-30)</small>
 
 * feat(readme): add adaptive intelligence + emergent behaviors sections ([304fb79](https://github.com/framersai/agentos/commit/304fb79))
