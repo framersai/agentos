@@ -395,6 +395,29 @@ function getFaqEntries(skillCount = 0) {
         "Use the openredaction integration in the safety module, or the pii-redaction skill. Automatically detects and redacts names, emails, phone numbers, SSNs, credit cards, and addresses. Can be applied as a guardrail pre-filter or post-filter.",
       category: 'faq',
     },
+    // ── HITL (human-in-the-loop) knowledge ───────────────────────────────
+    {
+      id: 'faq:hitl-llm-judge',
+      heading: 'How to use LLM as a judge for HITL approvals',
+      content:
+        'Use hitl.llmJudge() to route approval decisions through an LLM instead of a human. import { hitl } from "@framers/agentos". agency({ hitl: { handler: hitl.llmJudge({ model: "gpt-4o-mini", criteria: "Is this action safe and relevant?", confidenceThreshold: 0.7 }) } }). In the CLI: wunderland chat --llm-judge. In agent.config.json: { "hitl": { "mode": "llm-judge" } }. Below the confidence threshold, the LLM judge falls back to auto-reject.',
+      category: 'faq',
+    },
+    {
+      id: 'faq:guardrail-override',
+      heading: 'Can guardrails override HITL approvals?',
+      content:
+        'Yes. When guardrailOverride is true (the default), guardrails run AFTER HITL approval and can veto destructive actions. Built-in checks: code-safety (detects rm -rf, DROP TABLE, etc.) and pii-redaction (detects SSNs, credit cards). Even auto-approved actions get checked. Disable with --no-guardrail-override or hitl.guardrailOverride: false in agent.config.json. In the API: agency({ hitl: { guardrailOverride: false } }).',
+      category: 'faq',
+    },
+    {
+      id: 'faq:humannode-options',
+      heading: 'humanNode autoAccept, autoReject, judge, and onTimeout options',
+      content:
+        'humanNode() in AgentOS graph orchestration supports: autoAccept (skip human, always approve), autoReject (always deny with optional reason), judge ({ model, criteria, confidenceThreshold } delegates to LLM), onTimeout ("accept" | "reject" | "error" — what happens when timeout expires). Example: humanNode({ prompt: "Deploy?", judge: { model: "gpt-4o-mini" }, onTimeout: "reject", timeout: 300000 }).',
+      category: 'faq',
+    },
+
     {
       id: 'faq:custom-tools',
       heading: 'How do I create a custom tool?',
@@ -558,6 +581,13 @@ function getApiReferenceEntries() {
       heading: 'SkillLoader class API',
       content:
         "import { SkillLoader } from '@framers/agentos/skills'. Loads SKILL.md files and injects their instructions into the agent system prompt. Methods: load(name), loadAll(names), resolve(path). Skills are sourced from @framers/agentos-skills curated registry.",
+      category: 'api',
+    },
+    {
+      id: 'api:hitl',
+      heading: 'hitl namespace API reference',
+      content:
+        "import { hitl } from '@framers/agentos'. Six handlers: hitl.autoApprove() — always yes. hitl.autoReject(reason?) — always no. hitl.cli() — interactive terminal prompt. hitl.webhook(url) — POST to URL for decision. hitl.slack({ channel, token }) — notify Slack (auto-approve in v1). hitl.llmJudge({ model?, provider?, criteria?, confidenceThreshold?, fallback?, apiKey? }) — LLM evaluates each request. Used in agency({ hitl: { handler: hitl.llmJudge(...) } }) or wunderland --llm-judge.",
       category: 'api',
     },
   ];

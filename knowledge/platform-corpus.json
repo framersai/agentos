@@ -530,7 +530,7 @@
   {
     "id": "tool-ref:com.framers.tools.wallet",
     "heading": "Agent Personal Wallet",
-    "content": "Give agents their own personal wallet with configurable spending guardrails. Supports Solana, Ethereum, Base, and Polygon with per-category budgets, daily/monthly limits, human-in-the-loop approval thresholds, and Lithic virtual card integration. Tools: check_wallet_balance, send_crypto, wallet_transaction_history, issue_virtual_card, card_status, freeze_card, unfreeze_card, card_spending_summary, pay_with_card. Required secrets: WALLET_MASTER_SECRET.",
+    "content": "Give agents their own personal wallet with configurable spending guardrails. Supports Solana, Ethereum, Base, and Polygon with per-category budgets, daily/monthly limits, human-in-the-loop approval thresholds (compatible with hitl.llmJudge, hitl.cli, and hitl.webhook handlers), guardrail overrides for post-approval safety checks, and Lithic virtual card integration. Tools: check_wallet_balance, send_crypto, wallet_transaction_history, issue_virtual_card, card_status, freeze_card, unfreeze_card, card_spending_summary, pay_with_card. Required secrets: WALLET_MASTER_SECRET.",
     "category": "tools"
   },
   {
@@ -813,6 +813,12 @@
     "id": "skill:healthcheck",
     "heading": "Healthcheck Skill",
     "content": "Monitor health and availability of systems, services, APIs, and infrastructure endpoints.. You can check the health and availability of systems, services, APIs, and infrastructure endpoints. Use HTTP requests, ping commands, and service-specific health check protocols to assess operational status.",
+    "category": "skills"
+  },
+  {
+    "id": "skill:hitl-safety",
+    "heading": "Hitl Safety Skill",
+    "content": "Human-in-the-loop safety controls — approval routing via human, LLM judge, or auto-approve with guardrail overrides.. You have access to AgentOS human-in-the-loop (HITL) safety controls. These gate dangerous or irreversible actions behind an approval step — either a human operator, an LLM judge, or a policy-based auto-decision — before execution proceeds.",
     "category": "skills"
   },
   {
@@ -1154,7 +1160,7 @@
   {
     "id": "faq:skills",
     "heading": "What are skills and how do I use them?",
-    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 80 curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
+    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 81 curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
     "category": "faq"
   },
   {
@@ -1275,6 +1281,24 @@
     "id": "faq:pii-redaction",
     "heading": "How do I redact PII from agent conversations?",
     "content": "Use the openredaction integration in the safety module, or the pii-redaction skill. Automatically detects and redacts names, emails, phone numbers, SSNs, credit cards, and addresses. Can be applied as a guardrail pre-filter or post-filter.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:hitl-llm-judge",
+    "heading": "How to use LLM as a judge for HITL approvals",
+    "content": "Use hitl.llmJudge() to route approval decisions through an LLM instead of a human. import { hitl } from \"@framers/agentos\". agency({ hitl: { handler: hitl.llmJudge({ model: \"gpt-4o-mini\", criteria: \"Is this action safe and relevant?\", confidenceThreshold: 0.7 }) } }). In the CLI: wunderland chat --llm-judge. In agent.config.json: { \"hitl\": { \"mode\": \"llm-judge\" } }. Below the confidence threshold, the LLM judge falls back to auto-reject.",
+    "category": "faq"
+  },
+  {
+    "id": "faq:guardrail-override",
+    "heading": "Can guardrails override HITL approvals?",
+    "content": "Yes. When guardrailOverride is true (the default), guardrails run AFTER HITL approval and can veto destructive actions. Built-in checks: code-safety (detects rm -rf, DROP TABLE, etc.) and pii-redaction (detects SSNs, credit cards). Even auto-approved actions get checked. Disable with --no-guardrail-override or hitl.guardrailOverride: false in agent.config.json. In the API: agency({ hitl: { guardrailOverride: false } }).",
+    "category": "faq"
+  },
+  {
+    "id": "faq:humannode-options",
+    "heading": "humanNode autoAccept, autoReject, judge, and onTimeout options",
+    "content": "humanNode() in AgentOS graph orchestration supports: autoAccept (skip human, always approve), autoReject (always deny with optional reason), judge ({ model, criteria, confidenceThreshold } delegates to LLM), onTimeout (\"accept\" | \"reject\" | \"error\" — what happens when timeout expires). Example: humanNode({ prompt: \"Deploy?\", judge: { model: \"gpt-4o-mini\" }, onTimeout: \"reject\", timeout: 300000 }).",
     "category": "faq"
   },
   {
@@ -1401,6 +1425,12 @@
     "id": "api:SkillLoader",
     "heading": "SkillLoader class API",
     "content": "import { SkillLoader } from '@framers/agentos/skills'. Loads SKILL.md files and injects their instructions into the agent system prompt. Methods: load(name), loadAll(names), resolve(path). Skills are sourced from @framers/agentos-skills curated registry.",
+    "category": "api"
+  },
+  {
+    "id": "api:hitl",
+    "heading": "hitl namespace API reference",
+    "content": "import { hitl } from '@framers/agentos'. Six handlers: hitl.autoApprove() — always yes. hitl.autoReject(reason?) — always no. hitl.cli() — interactive terminal prompt. hitl.webhook(url) — POST to URL for decision. hitl.slack({ channel, token }) — notify Slack (auto-approve in v1). hitl.llmJudge({ model?, provider?, criteria?, confidenceThreshold?, fallback?, apiKey? }) — LLM evaluates each request. Used in agency({ hitl: { handler: hitl.llmJudge(...) } }) or wunderland --llm-judge.",
     "category": "api"
   },
   {
