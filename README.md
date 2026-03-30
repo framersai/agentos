@@ -446,14 +446,77 @@ Complete retrieval-augmented generation pipeline:
 
 See [`docs/memory/RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) and [`docs/memory/MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md).
 
+### Adaptive Intelligence & Metacognition
+
+Agents don't just respond — they monitor their own performance and adapt their behavior in real-time.
+
+**MetapromptExecutor** rewrites the agent's own system prompt mid-conversation based on detected patterns:
+
+| Trigger | What happens | Example |
+|---------|-------------|---------|
+| **Frustration recovery** | Detects user frustration via SentimentTracker → simplifies language, offers alternatives | User asks same question 3x → agent acknowledges confusion and tries a different approach |
+| **Confusion clarification** | Detects ambiguous query → asks targeted follow-up | Vague request → agent probes for specifics before acting |
+| **Satisfaction reinforcement** | Detects positive feedback → reinforces successful patterns | User says "perfect" → agent remembers what worked |
+| **Engagement boost** | Detects disengagement → adjusts tone, offers proactive suggestions | Short replies → agent becomes more concise and action-oriented |
+| **Error recovery** | Detects tool failures → adjusts strategy | API call fails → agent switches to alternative approach |
+| **Trait adjustment** | Bounded HEXACO mutation → personality evolves within limits | Agent becomes slightly more conscientious after repeated accuracy requests |
+
+Three trigger modes: `turn_interval` (periodic self-reflection), `event_based` (driven by sentiment events), and `manual` (flags in working memory).
+
+**PromptProfileRouter** selects prompt strategies based on task classification — a code question gets a different prompt structure than a creative writing request.
+
+**Self-improvement** (opt-in, bounded):
+
+```typescript
+const adaptive = agent({
+  provider: 'anthropic',
+  instructions: 'You are a research analyst.',
+  selfImprovement: {
+    enabled: true,
+    personality: {
+      maxDeltaPerSession: 0.15,  // HEXACO traits can shift ±0.15 per session
+      decayToBaseline: true,     // Drift back toward baseline during consolidation
+    },
+    skills: { enabled: true },   // Can enable/disable skills based on task
+    selfEvaluation: {
+      enabled: true,             // LLM-based self-scoring after each turn
+      adjustParameters: true,    // Auto-tune temperature/top-p based on scores
+    },
+  },
+});
+```
+
+See [`docs/architecture/ARCHITECTURE.md`](./docs/architecture/ARCHITECTURE.md) for the full metacognition pipeline.
+
 ### Emergent Capabilities
 
 Agents with `emergent: true` create new tools at runtime:
 
-- **Runtime tool forging** via `forge_tool` -- sandboxed JavaScript execution + LLM-as-judge safety evaluation
-- **Dynamic skill management** via `manage_skills` -- enable/disable skills based on task
-- **Tiered promotion:** session (in-memory) > agent (persisted after 5+ uses with >0.8 confidence) > shared (HITL-approved)
-- **Self-improving personality** -- bounded HEXACO trait adaptation with Ebbinghaus decay
+- **Runtime tool forging** via `forge_tool` — sandboxed JavaScript execution + LLM-as-judge safety evaluation
+- **Dynamic skill management** via `manage_skills` — enable/disable skills based on task
+- **Tiered promotion:** session (in-memory) → agent (persisted after 5+ uses with >0.8 confidence) → shared (HITL-approved)
+- **Self-improving personality** — bounded HEXACO trait adaptation with Ebbinghaus decay
+
+```typescript
+const creative = agent({
+  provider: 'openai',
+  instructions: 'You solve problems creatively.',
+  emergent: {
+    enabled: true,
+    toolForging: true,       // Can create new tools at runtime
+    maxForgedTools: 10,      // Limit per session
+    promotionThreshold: 0.8, // Confidence required for permanent promotion
+  },
+});
+
+const session = creative.session('project');
+await session.send('Parse this CSV and create a chart');
+// Agent may forge a "csv_parser" tool if none exists,
+// run it in a sandbox, and promote it if it works well.
+
+console.log(session.forgedTools());
+// [{ name: "csv_parser", forgedAt: "...", uses: 3, confidence: 0.92 }]
+```
 
 See [`docs/architecture/EMERGENT_CAPABILITIES.md`](./docs/architecture/EMERGENT_CAPABILITIES.md).
 
