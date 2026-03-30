@@ -6,7 +6,7 @@
 
 # AgentOS
 
-**TypeScript runtime for autonomous AI agents — multimodal RAG, cognitive memory, streaming guardrails, voice pipeline, and emergent multi-agent orchestration.**
+**Build autonomous AI agents with adaptive intelligence and emergent behaviors. Multimodal RAG, cognitive memory, streaming guardrails, voice pipeline, and 21 LLM providers. Open-source TypeScript runtime.**
 
 [![npm version](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -24,6 +24,8 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Adaptive Intelligence](#adaptive-intelligence)
+- [Emergent Behaviors](#emergent-behaviors)
 - [Quick Start](#quick-start)
   - [1. Generate Text (Provider-First)](#1-generate-text-provider-first)
   - [2. Agent with Personality & Memory](#2-agent-with-personality--memory)
@@ -91,7 +93,9 @@
 
 ## Overview
 
-`@framers/agentos` is an open-source TypeScript AI agent runtime for building, deploying, and managing production AI agents. It provides multimodal RAG with cognitive memory (Ebbinghaus decay, 8 neuroscience-backed mechanisms including reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist extraction, schema encoding, source confidence decay, and emotion regulation — all HEXACO personality-modulated), multi-agent orchestration, 37 channel adapters, 6 guardrail packs (PII redaction, ML classifiers, topicality, code safety, grounding guard, content policy rewriter) with prompt injection defense, 21 LLM providers, and 72 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
+`@framers/agentos` is an open-source TypeScript AI agent runtime for building autonomous AI agents with **adaptive intelligence** and **emergent behaviors**. Agents continuously improve through meta-reflective prompt adaptation, self-evaluating response quality, personality-modulated cognition, and autonomous memory consolidation. At runtime, agents forge new tools, adapt their personality, compose workflows, and promote reliable capabilities for cross-agent reuse.
+
+The runtime provides multimodal RAG with cognitive memory (Ebbinghaus decay, 8 neuroscience-backed mechanisms including reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist extraction, schema encoding, source confidence decay, and emotion regulation ��� all HEXACO personality-modulated), multi-agent orchestration, 37 channel adapters, 6 guardrail packs (PII redaction, ML classifiers, topicality, code safety, grounding guard, content policy rewriter) with prompt injection defense, 21 LLM providers, and 72 curated skills. Self-hostable and production-ready, it handles the full lifecycle from prompt construction through tool execution, safety evaluation, and streaming response delivery.
 
 **Key facts:**
 
@@ -151,6 +155,34 @@
 | **@framers/agentos-ext-code-safety** | OWASP Top 10 code scanning (25 regex rules) | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-code-safety?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-code-safety) · [Docs](https://docs.agentos.sh/extensions/built-in/code-safety) |
 | **@framers/agentos-ext-grounding-guard** | RAG-grounded hallucination detection via NLI | [![npm](https://img.shields.io/npm/v/@framers/agentos-ext-grounding-guard?style=flat-square&logo=npm&label=)](https://www.npmjs.com/package/@framers/agentos-ext-grounding-guard) · [Docs](https://docs.agentos.sh/extensions/built-in/grounding-guard) |
 | **@framers/agentos-ext-content-policy-rewriter** | Opt-in content policy (8 categories, LLM rewrite/block, 4 presets) | [Docs](https://docs.agentos.sh/extensions/built-in/content-policy-rewriter) |
+
+---
+
+## Adaptive Intelligence
+
+AgentOS agents continuously improve their behavior without retraining through five interconnected mechanisms:
+
+| Mechanism | How It Works |
+|-----------|-------------|
+| **Meta-reflective prompt adaptation** | The PromptBuilder assembles a different system prompt every turn, dynamically incorporating personality traits, mood state, conversation history, retrieved memories, and available tools. No two turns use the same prompt. |
+| **Self-evaluating response quality** | The `self_evaluate` tool scores the agent's own output and adjusts parameters (temperature, verbosity, personality expression) in real time, creating a continuous feedback loop. |
+| **Personality-modulated cognition** | HEXACO traits modulate how the agent processes information. High openness increases creative associations during memory retrieval; high conscientiousness strengthens retrieval-induced forgetting of irrelevant data. |
+| **Autonomous memory consolidation** | The `ConsolidationLoop` prunes weak memories, strengthens frequently-accessed ones, and derives new insights from memory clusters. The agent's knowledge base improves over time without explicit training. |
+| **QueryRouter tiered classification** | The system adapts retrieval depth based on query complexity. Simple questions get fast keyword lookup; complex questions trigger full hybrid RAG with deep research. |
+
+---
+
+## Emergent Behaviors
+
+AgentOS agents develop new capabilities at runtime rather than having them explicitly programmed:
+
+| Capability | How It Works |
+|-----------|-------------|
+| **Runtime tool forging** | Agents create new tools on the fly via `forge_tool`. The `EmergentCapabilityEngine` uses sandboxed JavaScript execution and LLM-as-judge evaluation to safely create, test, and promote tools. |
+| **Self-improving personality** | Agents adapt their HEXACO personality traits within bounded limits via `adapt_personality`. Mutations persist with Ebbinghaus decay — strong repeated adaptations stick, while weak ones fade naturally. |
+| **Dynamic skill management** | Agents enable or disable skills at runtime via `manage_skills`, adapting their behavioral repertoire to the task at hand. |
+| **Composable workflow creation** | Agents compose registered tools into multi-step pipelines via `create_workflow`, building new capabilities from existing building blocks. |
+| **Tiered tool promotion** | Forged tools progress through session, agent, and shared tiers. Tools that prove reliable (5+ successful uses, >0.8 confidence score) auto-promote for cross-agent reuse. |
 
 ---
 
