@@ -1,3 +1,7 @@
+## <small>0.1.156 (2026-03-30)</small>
+
+* fix(ci): add type assertions for TS 5.4 compatibility in humanNode builder and executor ([3877175](https://github.com/framersai/agentos/commit/3877175))
+
 ## <small>0.1.155 (2026-03-30)</small>
 
 * feat: HITL guardrail override support + agency docs update + tests ([fe117e6](https://github.com/framersai/agentos/commit/fe117e6))
