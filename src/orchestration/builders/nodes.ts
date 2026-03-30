@@ -1,4 +1,4 @@
-import type { GraphNode, GraphCondition, NodeExecutionMode, EffectClass, MemoryPolicy, DiscoveryPolicy, PersonaPolicy, GuardrailPolicy, RetryPolicy, CompiledExecutionGraph } from '../ir/types.js';
+import type { GraphNode, GraphCondition, NodeExecutionMode, EffectClass, MemoryPolicy, DiscoveryPolicy, PersonaPolicy, GuardrailPolicy, RetryPolicy, CompiledExecutionGraph, NodeExecutorConfig } from '../ir/types.js';
 import { lowerZodToJsonSchema } from '../compiler/SchemaLowering.js';
 
 export interface NodePolicies {
@@ -124,14 +124,14 @@ export function humanNode(config: {
     id: nextId('human'),
     type: 'human',
     executorConfig: {
-      type: 'human',
+      type: 'human' as const,
       prompt: config.prompt,
       autoAccept: config.autoAccept,
       autoReject: config.autoReject,
       judge: config.judge,
       onTimeout: config.onTimeout,
       guardrailOverride: config.guardrailOverride,
-    },
+    } as NodeExecutorConfig,
     executionMode: 'single_turn',
     effectClass: 'human',
     timeout: config.timeout,

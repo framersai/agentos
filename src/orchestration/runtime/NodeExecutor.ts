@@ -569,11 +569,11 @@ export class NodeExecutor {
           decidedBy: 'guardrail-override',
         },
         events: [{
-          type: 'guardrail:hitl-override',
+          type: 'guardrail:hitl-override' as any,
           nodeId,
           guardrailId: guardrailIds.join(','),
           reason,
-        }],
+        } as any],
       };
     }
 
