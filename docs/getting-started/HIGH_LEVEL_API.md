@@ -1,16 +1,14 @@
 # High-Level API
 
-AgentOS now exposes three public layers from the root package:
+AgentOS exposes three API levels — pick the one that fits your task:
 
-- High-level helpers: `generateText()`, `streamText()`, `generateImage()`, `generateVideo()`, `analyzeVideo()`, `generateMusic()`, `generateSFX()`, `performOCR()`, `agent()`, `agency()`
-- Standalone retrieval/runtime helpers: `QueryRouter`
-- Full runtime: `new AgentOS()` with `processRequest()`, personas, workflows, extensions, and chunk-level orchestration
+| Level | Functions | Use when... |
+|-------|-----------|-------------|
+| **Helpers** | `generateText()`, `streamText()`, `agent()`, `agency()`, `generateImage()`, `generateVideo()`, `generateMusic()`, `performOCR()` | You want the fastest path to results with zero boilerplate |
+| **QueryRouter** | `new QueryRouter()` | You need classify → retrieve → generate over local docs |
+| **Full Runtime** | `new AgentOS()` | You need personas, extensions, workflows, guardrails, HITL, and full lifecycle control |
 
-Use the high-level API when you want the fastest path to text, image, video, audio, OCR, lightweight stateful sessions, small multi-agent teams, or standalone grounded Q&A over a markdown corpus. Use `AgentOS` directly when you need the full runtime.
-
-When AgentOS observability is enabled, these helper APIs also emit opt-in OTEL spans and turn metrics. `generateText()` and `streamText()` attach provider/model/token usage and aggregated cost when the provider returns it; `generateImage()` does the same for image-generation usage.
-
-If you also want durable helper-level accounting, set `usageLedger.path`, set `usageLedger.enabled: true`, or export `AGENTOS_USAGE_LEDGER_PATH`. With `enabled: true`, helper usage lands in the shared home ledger at `~/.framers/usage-ledger.jsonl` unless you provide an explicit path.
+Most applications only need the helpers. Start there and graduate to the full runtime when you need it.
 
 ## When to use which
 
