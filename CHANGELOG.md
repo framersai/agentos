@@ -1,3 +1,9 @@
+## <small>0.1.151 (2026-03-30)</small>
+
+* feat(readme): add adaptive intelligence + emergent behaviors sections ([304fb79](https://github.com/framersai/agentos/commit/304fb79))
+* test(knowledge): add credential discovery tests + update QueryRouter docs ([720ae2f](https://github.com/framersai/agentos/commit/720ae2f))
+* docs: rewrite orchestration pages — authoritative tone, Mermaid diagrams, no hedging ([b5fd83c](https://github.com/framersai/agentos/commit/b5fd83c))
+
 ## <small>0.1.150 (2026-03-29)</small>
 
 * feat(knowledge): add credential setup workflow entries to platform corpus ([71c922c](https://github.com/framersai/agentos/commit/71c922c))
