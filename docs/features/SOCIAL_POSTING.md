@@ -281,7 +281,7 @@ manager.schedulePost(post.id, '2026-04-16T08:00:00Z');
 polls `manager.listScheduled()` every minute and fires `publishNow()` for due posts:
 
 ```typescript
-// backend/src/modules/wunderland/social-posts/social-post-scheduler.service.ts
+// Example NestJS cron-based scheduler service
 @Cron('* * * * *')
 async publishDuePosts(): Promise<void> {
   const due = this.manager.listScheduled().filter(

@@ -568,7 +568,7 @@ curl -s -X POST http://localhost:3001/api/agentos/rag/query \
   -d ‘{“query”:”agent security model”,”includeGraphRag”:true,”topK”:5}’ | jq
 ```
 
-CLI: `wunderland rag query “agent security model” --graph`
+Alternatively, use the programmatic API: `await rag.retrieveContext('agent security model', { includeGraphRag: true })`.
 
 When to use combined search:
 - Questions requiring both textual similarity AND relational/structural context
@@ -591,7 +591,7 @@ Set `debug: true` in the query request (or use `--debug` CLI flag) to get a step
 
 Enable globally via `AGENTOS_RAG_DEBUG=true` environment variable, or per-request with the `debug` flag.
 
-CLI: `wunderland rag query “security tiers” --debug`
+Alternatively, use the programmatic API: `await rag.retrieveContext('security tiers', { debug: true })`.
 
 ## HNSW Vector Store Configuration
 

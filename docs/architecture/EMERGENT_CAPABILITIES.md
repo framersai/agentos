@@ -426,12 +426,14 @@ console.log(stats.totalCalls, stats.successRate, stats.avgLatencyMs);
 
 Emergent tools can be exported as portable `agentos.emergent-tool.v1` YAML packages and imported into another agent.
 
-```bash
-# Export a tool
-wunderland emergent export <id> --output ./slugify.emergent-tool.yaml
+```typescript
+import { exportEmergentTool, importEmergentTool } from '@framers/agentos';
 
-# Import into another agent
-wunderland emergent import ./slugify.emergent-tool.yaml --seed <agentSeedId>
+// Export a tool
+await exportEmergentTool(toolId, { output: './slugify.emergent-tool.yaml' });
+
+// Import into another agent
+await importEmergentTool('./slugify.emergent-tool.yaml', { seedId: agentSeedId });
 ```
 
 - `compose` tools are portable by default

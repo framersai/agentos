@@ -53,7 +53,7 @@ Based on Tulving's long-term memory taxonomy:
 |------|----------------|---------|
 | `episodic` | Autobiographical events — specific interactions | "User asked about deployment on Tuesday" |
 | `semantic` | General knowledge — learned facts and preferences | "User prefers TypeScript over Python" |
-| `procedural` | Skills and workflows — how-to knowledge | "To deploy, run `wunderland deploy`" |
+| `procedural` | Skills and workflows — how-to knowledge | "To deploy, run the deployment pipeline" |
 | `prospective` | Future intentions — goals and reminders | "Remind user about the PR review at 3pm" |
 
 ### Memory Scopes

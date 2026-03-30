@@ -133,7 +133,7 @@ Both query endpoints accept:
 
 Additional compatibility notes:
 
-- Multipart query fields such as `modalities` and `collectionIds` may be sent as comma-separated strings (`image,audio`, `docs,media_images`) by higher-level clients such as Wunderland.
+- Multipart query fields such as `modalities` and `collectionIds` may be sent as comma-separated strings (`image,audio`, `docs,media_images`) by higher-level clients.
 - Document assets can be searched through `/multimodal/query` with `modalities:["document"]` or mixed alongside image/audio assets.
 - Document parsing in the reference backend currently supports PDF, DOCX, TXT, Markdown, CSV, JSON, and XML.
 - PDFs that contain no embedded text still need a page-image OCR/vision pipeline; the current backend surfaces that as an explicit extraction error instead of silently indexing nothing.

@@ -328,7 +328,7 @@ export STABLE_DIFFUSION_LOCAL_BACKEND=comfyui  # Tell AgentOS to use ComfyUI API
 
 ComfyUI uses workflow-based execution. AgentOS ships with default img2img and
 upscale workflows. You can override them by placing custom workflow JSON files
-in `~/.wunderland/comfyui-workflows/`.
+in `~/.agentos/comfyui-workflows/`.
 
 ---
 

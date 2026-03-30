@@ -78,7 +78,7 @@ Add a `storage.autoIngest` section to `agent.config.json`:
 
 The pipeline is wired into two entry points:
 
-- **CLI chat** (`wunderland chat`) — runs after each assistant response via the `afterTurn()` hook in `AgentStorageManager`.
+- **Chat runtime** — runs after each assistant response via the `afterTurn()` hook in `AgentStorageManager`.
 - **Chat runtime API** (`/api/chat`) — triggered by the same hook when conversations run through the HTTP API.
 
 ## Relationship to Observer / Reflector
@@ -99,6 +99,6 @@ Both systems feed the same retrieval pipeline — auto-ingested facts are surfac
 
 | File | Purpose |
 |------|---------|
-| `packages/wunderland/src/storage/MemoryAutoIngestPipeline.ts` | Pipeline orchestrator |
-| `packages/wunderland/src/storage/PersonalityMemoryConfig.ts` | HEXACO-to-config mapping |
-| `packages/wunderland/src/storage/AgentStorageManager.ts` | Wires pipeline into afterTurn() |
+| `src/memory/auto-ingest/MemoryAutoIngestPipeline.ts` | Pipeline orchestrator |
+| `src/memory/auto-ingest/PersonalityMemoryConfig.ts` | HEXACO-to-config mapping |
+| `src/memory/auto-ingest/AgentStorageManager.ts` | Wires pipeline into afterTurn() |

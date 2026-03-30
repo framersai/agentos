@@ -1,13 +1,13 @@
 # Cognitive Memory System
 
 :::tip See also
-For CLI usage and agent configuration, see [Memory System on docs.wunderland.sh](https://docs.wunderland.sh/guides/memory-system).
+For the practical guide with usage examples and configuration, see [Cognitive Memory Guide](./COGNITIVE_MEMORY_GUIDE.md).
 :::
 
 > Personality-modulated, decay-aware memory grounded in cognitive science — replacing flat key-value memory with Ebbinghaus forgetting curves, Baddeley's working memory, spreading activation, and HEXACO-driven encoding biases.
 
 :::tip Cognitive Mechanisms
-The memory system now includes 8 optional neuroscience-grounded cognitive mechanisms (reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist, schema encoding, source confidence decay, emotion regulation). All are HEXACO personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing. See [Cognitive Mechanisms Reference](../../../../docs/memory/cognitive-mechanisms.md) for full science citations and Wunderland integration.
+The memory system now includes 8 optional neuroscience-grounded cognitive mechanisms (reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist, schema encoding, source confidence decay, emotion regulation). All are HEXACO personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing.
 :::
 
 ---
@@ -90,7 +90,7 @@ Based on Tulving's long-term memory taxonomy with extensions:
 |------|----------------|---------------|---------|
 | `episodic` | Autobiographical events | Conversation events, interactions | "User asked about deployment on Tuesday" |
 | `semantic` | General knowledge/facts | Learned facts, preferences, schemas | "User prefers TypeScript over Python" |
-| `procedural` | Skills and how-to | Workflows, tool usage patterns | "To deploy, run `wunderland deploy`" |
+| `procedural` | Skills and how-to | Workflows, tool usage patterns | "To deploy, run the deployment pipeline" |
 | `prospective` | Future intentions | Goals, reminders, planned actions | "Remind user about the PR review" |
 
 ---
@@ -848,7 +848,7 @@ AgentOS provides two complementary working memory systems:
 | | Baddeley Cognitive Working Memory | Persistent Markdown Working Memory |
 |---|---|---|
 | Purpose | In-session attention modeling | Cross-session user context |
-| Lifespan | Single session (in-memory) | Persists on disk (~/.wunderland/agents/{id}/working-memory.md) |
+| Lifespan | Single session (in-memory) | Persists on disk (~/.agentos/agents/{id}/working-memory.md) |
 | Updates | Automatic activation decay | Agent calls `update_working_memory` tool |
 | Format | Capacity-limited slots (7±2) | Free-form markdown template |
 | Budget | 15% of prompt tokens | 5% of prompt tokens |

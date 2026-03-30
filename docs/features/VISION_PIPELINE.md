@@ -64,17 +64,17 @@ console.log(result.regions);         // Array of detected text regions with boun
 console.log(result.tierBreakdown);   // Which tiers ran and their timing
 ```
 
-### CLI
+### Programmatic
 
-```bash
-# Extract text from an image
-wunderland vision ocr ./document.png
+```typescript
+// Extract text from an image
+const ocrResult = await vision.ocr(imageBuffer);
 
-# Describe an image
-wunderland vision describe ./photo.jpg
+// Describe an image
+const description = await vision.describe(imageBuffer);
 
-# Generate a CLIP embedding
-wunderland vision embed ./image.png
+// Generate a CLIP embedding
+const embedResult = await vision.embed(imageBuffer);
 ```
 
 ---

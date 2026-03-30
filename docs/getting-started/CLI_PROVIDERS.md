@@ -28,7 +28,7 @@ The generalized subprocess bridge lives at `packages/agentos/src/sandbox/subproc
 
 - **`CLISubprocessBridge`** — abstract base class (template method pattern). Owns process lifecycle: spawn, stdin pipe, NDJSON line splitting, timeout, abort signal. Subclasses implement `buildArgs()`, `classifyError()`, `parseStreamEvent()`.
 - **`CLISubprocessError`** — generic error with open string codes, `guidance` (user-facing fix instructions), and `recoverable` flag. Works for any binary, not just LLM CLIs.
-- **`CLIRegistry`** — PATH scanner that discovers installed CLIs. Ships with 10 well-known defaults (claude, gemini, git, gh, docker, node, python3, ffmpeg, gcloud, aws). Feeds into `wunderland doctor` and capability discovery.
+- **`CLIRegistry`** — PATH scanner that discovers installed CLIs. Ships with 10 well-known defaults (claude, gemini, git, gh, docker, node, python3, ffmpeg, gcloud, aws). Feeds into health checks and capability discovery.
 
 ## Available CLI Providers
 
@@ -105,7 +105,7 @@ To add support for a new CLI binary:
 2. Create `{Name}CLIProviderError extends CLISubprocessError` — define CLI-specific error codes
 3. Create `{Name}CLIProvider implements IProvider` — message formatting, tool calling strategy, response mapping
 4. Register in `CLIRegistry.WELL_KNOWN_CLIS` if it should be auto-discovered
-5. Register in `AIModelProviderManager`, `WunderlandProviderId`, `SmallModelResolver`, `LLM_PROVIDERS`, `PROVIDER_CATALOG`, and the `login` command
+5. Register in `AIModelProviderManager`, `SmallModelResolver`, `LLM_PROVIDERS`, `PROVIDER_CATALOG`, and the provider registry
 
 The `CLISubprocessBridge` base class handles ~60% of the work (spawn, pipe, NDJSON parse, timeout, health checks). Subclasses only implement what's CLI-specific.
 

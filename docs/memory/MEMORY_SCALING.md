@@ -16,12 +16,12 @@ SQLite brute-force (0 → 1K vectors)
 SQLite + HNSW sidecar (1K → 500K vectors)
   │  Still zero infra — brain.sqlite + brain.hnsw
   │  O(log n) ANN search via hnswlib
-  │  $ wunderland memory migrate --to postgres
+  │  $ agentos-cli memory migrate --to postgres
   ▼
 Postgres + pgvector (500K → 10M vectors)
   │  Multi-tenant, managed DB, native HNSW indexes
   │  RRF hybrid search in single SQL query
-  │  $ wunderland memory migrate --to qdrant
+  │  $ agentos-cli memory migrate --to qdrant
   ▼
 Qdrant (10M → 1B+ vectors)
      Dedicated vector infra, sharding, quantization
@@ -69,7 +69,7 @@ import { PostgresVectorStore } from '@framers/agentos';
 const store = new PostgresVectorStore({
   id: 'agent-memory',
   type: 'postgres',
-  connectionString: 'postgresql://postgres:wunderland@localhost:5432/agent_memory',
+  connectionString: 'postgresql://postgres:password@localhost:5432/agent_memory',
 });
 
 await store.initialize();
@@ -82,7 +82,7 @@ The standalone `Memory` facade does not yet open a Postgres brain directly.
 
 ```bash
 # Auto-provisions Docker Postgres + pgvector
-wunderland memory migrate --to postgres --auto-setup
+agentos-cli memory migrate --to postgres --auto-setup
 ```
 
 This will:
@@ -91,13 +91,13 @@ This will:
 3. Run container with pgvector extension
 4. Create database and install pgvector
 5. Migrate all data from SQLite
-6. Save config to `~/.wunderland/vector-store.json`
+6. Save config to `~/.agentos/vector-store.json`
 
 ### Manual Setup
 
 ```bash
 # If you already have Postgres running:
-wunderland memory migrate --to postgres --connection "postgresql://user:pass@host:5432/db"
+agentos-cli memory migrate --to postgres --connection "postgresql://user:pass@host:5432/db"
 ```
 
 ### What you get:
@@ -116,15 +116,15 @@ Purpose-built for extreme vector scale.
 
 ```bash
 # Auto-provisions Docker Qdrant
-wunderland memory migrate --to qdrant --auto-setup
+agentos-cli memory migrate --to qdrant --auto-setup
 
 # Or connect to existing Qdrant
-wunderland memory migrate --to qdrant --url http://localhost:6333
+agentos-cli memory migrate --to qdrant --url http://localhost:6333
 
 # Or Qdrant Cloud
 export QDRANT_URL=https://abc123.us-east4-0.gcp.cloud.qdrant.io:6333
 export QDRANT_API_KEY=your-api-key
-wunderland memory migrate --to qdrant
+agentos-cli memory migrate --to qdrant
 ```
 
 ### What you get:
@@ -157,7 +157,7 @@ const store = new PineconeVectorStore({
 
 Migration from Pinecone to self-hosted:
 ```bash
-wunderland memory migrate --from pinecone --to qdrant
+agentos-cli memory migrate --from pinecone --to qdrant
 ```
 
 ---
@@ -168,19 +168,19 @@ wunderland memory migrate --from pinecone --to qdrant
 
 ```bash
 # SQLite → Postgres (most common)
-wunderland memory migrate --to postgres
+agentos-cli memory migrate --to postgres
 
 # SQLite → Qdrant
-wunderland memory migrate --to qdrant --auto-setup
+agentos-cli memory migrate --to qdrant --auto-setup
 
 # Postgres → Qdrant (scale-up)
-wunderland memory migrate --from postgres --to qdrant
+agentos-cli memory migrate --from postgres --to qdrant
 
 # Pinecone → SQLite (bring data home)
-wunderland memory migrate --from pinecone --to sqlite --path ./brain.sqlite
+agentos-cli memory migrate --from pinecone --to sqlite --path ./brain.sqlite
 
 # Dry run (count rows, don't write)
-wunderland memory migrate --to postgres --dry-run
+agentos-cli memory migrate --to postgres --dry-run
 ```
 
 ### Programmatic
@@ -236,10 +236,10 @@ The `--auto-setup` flag handles everything:
 1. **Checks if backend is already running** (health check endpoint)
 2. **Checks environment variables** (`QDRANT_URL`, `DATABASE_URL`)
 3. **Checks Docker** (`docker info`)
-4. **Checks for existing container** (`docker inspect wunderland-qdrant`)
+4. **Checks for existing container** (`docker inspect agentos-qdrant`)
 5. **Starts stopped container** or **pulls and runs new one**
 6. **Waits for health check** (polls every 500ms, 15s timeout)
-7. **Saves config** to `~/.wunderland/vector-store.json`
+7. **Saves config** to `~/.agentos/vector-store.json`
 
 If Docker isn't installed, you get a clear error with install instructions.
 

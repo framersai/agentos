@@ -1,7 +1,7 @@
 # Capability Discovery Engine
 
 :::tip See also
-For CLI usage and discovery configuration, see [Capability Discovery on docs.wunderland.sh](https://docs.wunderland.sh/guides/capability-discovery).
+For discovery architecture and integration points, see [Capability Discovery — Token-Efficient Tool Context](./DISCOVERY.md).
 :::
 
 > Semantic, tiered capability discovery that replaces static tool dumps with per-turn, token-budgeted context — cutting capability context by ~90% (from ~20,000 to ~1,850 tokens) while improving retrieval accuracy.
@@ -202,13 +202,13 @@ toolOrchestrator.registerTool(metaTool);
 Custom capabilities defined via `CAPABILITY.yaml`, scanned by `CapabilityManifestScanner`.
 
 **Scan directories** (priority order):
-1. `~/.wunderland/capabilities/` (user-global)
-2. `./.wunderland/capabilities/` (workspace-local)
-3. `$WUNDERLAND_CAPABILITY_DIRS` (env var, colon-separated)
+1. `~/.agentos/capabilities/` (user-global)
+2. `./.agentos/capabilities/` (workspace-local)
+3. `$AGENTOS_CAPABILITY_DIRS` (env var, colon-separated)
 
 **Directory structure:**
 ```
-~/.wunderland/capabilities/my-custom-tool/
+~/.agentos/capabilities/my-custom-tool/
   CAPABILITY.yaml   # required
   SKILL.md          # optional (loaded as fullContent)
   schema.json       # optional (loaded as fullSchema)

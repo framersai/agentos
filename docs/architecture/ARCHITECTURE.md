@@ -436,7 +436,7 @@ AgentOS currently exports five built-in guardrail packs directly from `@framers/
 - `code-safety`
 - `grounding-guard`
 
-These packs are implemented inside the main AgentOS package and do not depend on Wunderland.
+These packs are implemented inside the main AgentOS package and have no external dependencies.
 
 ---
 

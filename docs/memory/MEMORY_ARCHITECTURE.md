@@ -1,7 +1,7 @@
 ---
 title: 'Memory Architecture Overview'
 sidebar_position: 20
-description: 'How the three memory layers compose — standalone Memory, AgentCognitiveMemory, and the Wunderland CLI — plus cognitive science foundations and competitor comparison.'
+description: 'How the three memory layers compose — standalone Memory, AgentCognitiveMemory, and the CLI — plus cognitive science foundations and competitor comparison.'
 ---
 
 > The AgentOS memory system is a composable, SQLite-first architecture that layers cognitive-science-inspired memory management atop a single-file brain database. Three progressive API tiers let you choose the right abstraction for your use case.
@@ -14,9 +14,9 @@ AgentOS memory ships as three concentric API tiers. Each tier wraps the one belo
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     Wunderland CLI Layer                            │
-│  wunderland memory export/import/consolidate/health                 │
-│  (CLI flags, agent.config.json auto-wiring, preset skills)         │
+│                       CLI / Host Layer                              │
+│  Programmatic: Memory.export(), Memory.consolidate(), Memory.health│
+│  (agent.config.json auto-wiring, preset skills)                    │
 └──┬──────────────────────────────────────────────────────────────────┘
    │
 ┌──▼──────────────────────────────────────────────────────────────────┐
@@ -45,7 +45,7 @@ AgentOS memory ships as three concentric API tiers. Each tier wraps the one belo
 |-------|--------|----------|--------------|
 | **Memory** | `await Memory.create(config)` | Any TypeScript app, CLI tools, scripts, ingestion pipelines | No |
 | **AgentCognitiveMemory** | `CognitiveMemoryManager` or `AgentMemory.wrap()` | Agents with HEXACO personality, PAD mood, observer/reflector | Optional (Batch 2) |
-| **Wunderland CLI** | `wunderland memory <cmd>` | End-user interaction, shell scripts, CI pipelines | No |
+| **CLI / Host** | `Memory.export()`, `Memory.health()` | End-user interaction, shell scripts, CI pipelines | No |
 
 ---
 

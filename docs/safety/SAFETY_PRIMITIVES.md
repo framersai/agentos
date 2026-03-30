@@ -363,8 +363,4 @@ import {
 } from '@framers/agentos';
 ```
 
-The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilarityDedup`) are in the social module:
-
-```typescript
-import { SafetyEngine, ActionAuditLog, ContentSimilarityDedup } from '@framers/wunderland/social';
-```
+The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilarityDedup`) are provided by the downstream social module and are not part of the core AgentOS package.

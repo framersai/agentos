@@ -15,12 +15,12 @@ The Postgres backend stores embeddings, metadata, and full-text content in a sin
 ```bash
 docker run -d \
   --name agentos-pgvector \
-  -e POSTGRES_PASSWORD=wunderland \
+  -e POSTGRES_PASSWORD=password \
   -p 5432:5432 \
   pgvector/pgvector:pg16
 
 # Verify
-psql postgresql://postgres:wunderland@localhost:5432/postgres \
+psql postgresql://postgres:password@localhost:5432/postgres \
   -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"
 ```
 
@@ -62,7 +62,7 @@ import { PostgresVectorStore } from '@framers/agentos/rag/implementations/vector
 const store = new PostgresVectorStore({
   id: 'my-pg-store',
   type: 'postgres',
-  connectionString: 'postgresql://postgres:wunderland@localhost:5432/agent_memory',
+  connectionString: 'postgresql://postgres:password@localhost:5432/agent_memory',
   poolSize: 10,              // Connection pool size (default: 10)
   defaultDimension: 1536,    // Default embedding dimensions (default: 1536)
   similarityMetric: 'cosine', // 'cosine' | 'euclidean' | 'dotproduct'

@@ -15,7 +15,7 @@ description: 'Export agent memories to SQLite, JSON, Markdown, or Obsidian vault
 | **Export** | SQLite, JSON, Markdown, Obsidian | Backup, sharing, human review, Obsidian knowledge management |
 | **Import** | SQLite, JSON, Markdown, Obsidian, ChatGPT, CSV | Restore, migrate, ingest existing knowledge, import chat history |
 
-All operations are available via the `Memory` facade API and the `wunderland memory` CLI.
+All operations are available via the `Memory` facade API.
 
 ---
 
@@ -243,32 +243,6 @@ interface ImportResult {
   errors: string[];  // Human-readable error messages for failures
 }
 ```
-
----
-
-## CLI Commands
-
-The Wunderland CLI exposes import/export as shell commands:
-
-```bash
-# Export
-wunderland memory export ./backup.sqlite --format sqlite
-wunderland memory export ./memories.json --format json
-wunderland memory export ./vault --format obsidian
-wunderland memory export ./readable --format markdown
-
-# Import
-wunderland memory import ./backup.sqlite --format sqlite
-wunderland memory import ./conversations.json --format chatgpt
-wunderland memory import ./my-vault --format obsidian
-wunderland memory import ./data.csv --format csv
-
-# Auto-detect format from extension
-wunderland memory import ./backup.sqlite
-wunderland memory export ./memories.json
-```
-
-The `--format` flag is optional when the format can be inferred from the file extension or directory structure.
 
 ---
 

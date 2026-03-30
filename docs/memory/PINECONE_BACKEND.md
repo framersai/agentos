@@ -123,7 +123,7 @@ await MigrationEngine.migrate({
   },
   to: {
     type: 'postgres',
-    connectionString: 'postgresql://postgres:wunderland@localhost:5432/agent_memory',
+    connectionString: 'postgresql://postgres:password@localhost:5432/agent_memory',
   },
   batchSize: 100,
   onProgress: (done, total, table) => {

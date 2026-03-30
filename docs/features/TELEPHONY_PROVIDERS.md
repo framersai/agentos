@@ -170,11 +170,11 @@ POST https://<your-domain>/api/voice/webhook/telnyx
 POST https://<your-domain>/api/voice/webhook/plivo
 ```
 
-Use `startTelephonyWebhookServer` from `wunderland/voice` to start a standalone
+Use `startTelephonyWebhookServer` from `@framers/agentos/voice` to start a standalone
 HTTP listener (useful for local development via ngrok or a tunnel):
 
 ```typescript
-import { startTelephonyWebhookServer } from 'wunderland/voice';
+import { startTelephonyWebhookServer } from '@framers/agentos/voice';
 
 const { url, close } = await startTelephonyWebhookServer(
   callManager,
@@ -345,7 +345,7 @@ Add a `telephony` block to your agent's `agent.config.json`:
 ### Voice pipeline flags (existing)
 
 These flags enable the local WebSocket voice pipeline server during a
-`wunderland chat` session:
+chat session:
 
 | Flag | Type | Description |
 |---|---|---|
@@ -372,7 +372,7 @@ These flags configure the telephony HTTP webhook listener:
 
 ```sh
 # Start a chat session with the Twilio webhook server on port 3001
-wunderland chat \
+agentos-cli chat \
   --telephony-provider=twilio \
   --telephony-webhook-port=3001 \
   --telephony-webhook-host=0.0.0.0 \

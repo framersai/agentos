@@ -6,7 +6,7 @@
 
 ## Overview
 
-Each agent maintains a markdown file at `~/.wunderland/agents/{seedId}/working-memory.md`. This file is:
+Each agent maintains a markdown file at `~/.agentos/agents/{seedId}/working-memory.md`. This file is:
 
 - **Injected** into every prompt as a `## Persistent Memory` section
 - **Updated** by the agent via tools during conversation
@@ -99,7 +99,7 @@ The file is plain markdown — edit it anytime:
 
 ```bash
 # Open in your editor
-vim ~/.wunderland/agents/my-agent/working-memory.md
+vim ~/.agentos/agents/my-agent/working-memory.md
 ```
 
 Changes are picked up on the next conversation turn with no restart required.

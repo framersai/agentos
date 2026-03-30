@@ -194,12 +194,12 @@ console.log(related);
 
 ## CAPABILITY.yaml Format
 
-Place a `CAPABILITY.yaml` in any directory under `~/.wunderland/capabilities/`
+Place a `CAPABILITY.yaml` in any directory under `~/.agentos/capabilities/`
 to register a custom capability. The `CapabilityManifestScanner` hot-reloads
 on file changes.
 
 ```yaml
-# ~/.wunderland/capabilities/my-tool/CAPABILITY.yaml
+# ~/.agentos/capabilities/my-tool/CAPABILITY.yaml
 id: tool:my-custom-search
 kind: tool
 name: my-custom-search
@@ -244,7 +244,7 @@ examples:
 Optionally, place a `SKILL.md` alongside the YAML for full prompt content:
 
 ```markdown
-<!-- ~/.wunderland/capabilities/my-tool/SKILL.md -->
+<!-- ~/.agentos/capabilities/my-tool/SKILL.md -->
 # My Custom Search Skill
 
 You have access to the internal knowledge base search tool.
@@ -353,7 +353,7 @@ const engine = new CapabilityDiscoveryEngine({
   // Hot-reload manifests on file changes
   watchManifests: true,
   manifestDirs: [
-    `${process.env.HOME}/.wunderland/capabilities`,
+    `${process.env.HOME}/.agentos/capabilities`,
     './capabilities',
   ],
 });

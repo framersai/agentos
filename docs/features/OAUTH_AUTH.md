@@ -7,7 +7,7 @@ The `@framers/agentos/auth` subpath export provides OAuth authentication primiti
 ```
 @framers/agentos/auth
 ├── types.ts              # Core interfaces: IOAuthFlow, IOAuthTokenStore, OAuthTokenSet
-├── FileTokenStore.ts     # File-based token persistence (~/.wunderland/auth/)
+├── FileTokenStore.ts     # File-based token persistence (~/.agentos/auth/)
 ├── OpenAIOAuthFlow.ts    # OpenAI device code flow implementation
 └── index.ts              # Barrel export
 ```
@@ -87,12 +87,12 @@ interface OpenAIOAuthFlowOptions {
 
 ## FileTokenStore
 
-Stores tokens as JSON files at `~/.wunderland/auth/{providerId}.json` with `0o600` permissions.
+Stores tokens as JSON files at `~/.agentos/auth/{providerId}.json` with `0o600` permissions.
 
 ```typescript
 import { FileTokenStore } from '@framers/agentos/auth';
 
-const store = new FileTokenStore();            // Default: ~/.wunderland/auth/
+const store = new FileTokenStore();            // Default: ~/.agentos/auth/
 const store2 = new FileTokenStore('/custom');   // Custom directory
 
 await store.save('openai', tokens);

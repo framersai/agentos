@@ -8,7 +8,7 @@ AgentOS ships with a JSON-based registry of 54 CLI descriptors across 8 categori
 
 This powers:
 - **LLM provider auto-detection** -- `ClaudeCodeCLIBridge` and `GeminiCLIBridge` check if their binary is installed before attempting subprocess calls.
-- **`wunderland doctor`** -- health-check output includes detected CLIs.
+- **Health checks** -- detected CLIs can be included in diagnostic output.
 - **Capability discovery** -- the discovery engine indexes installed tools as capabilities agents can reference.
 - **cli-executor extension** -- `shell_execute` relies on the host having the right binaries.
 
@@ -225,7 +225,7 @@ The `cli-executor` extension pack (`@framers/agentos-ext-cli-executor`) provides
 - **CLIRegistry** answers "what binaries exist?" -- discovery and detection.
 - **cli-executor** answers "can the agent run this command?" -- execution with security guardrails.
 
-When the wunderland runtime loads the cli-executor extension, it configures filesystem roots, security checks, and the `dangerouslySkipSecurityChecks` flag based on the active security tier. See the [Wunderland CLI Tools doc](../../../wunderland/docs/features/CLI_TOOLS.md) for details.
+When the host runtime loads the cli-executor extension, it configures filesystem roots, security checks, and the `dangerouslySkipSecurityChecks` flag based on the active security tier.
 
 ## Security Considerations
 

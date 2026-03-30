@@ -43,38 +43,38 @@ re-supplied on import.
 
 ```bash
 # Export to YAML (default)
-wunderland export --output my-agent.yaml
+agentos-cli export --output my-agent.yaml
 
 # Export to JSON
-wunderland export --format json --output my-agent.json
+agentos-cli export --format json --output my-agent.json
 
 # Export from a specific config directory
-wunderland export --config ~/.wunderland/agents/research-bot --output research-bot.yaml
+agentos-cli export --config ~/.agentos/agents/research-bot --output research-bot.yaml
 ```
 
 ### Import an Agent
 
 ```bash
 # Import from file
-wunderland import my-agent.yaml
+agentos-cli import my-agent.yaml
 
 # Import to a specific directory
-wunderland import my-agent.yaml --target ~/.wunderland/agents/new-agent
+agentos-cli import my-agent.yaml --target ~/.agentos/agents/new-agent
 
 # Import with automatic secret prompting
-wunderland import my-agent.yaml --prompt-secrets
+agentos-cli import my-agent.yaml --prompt-secrets
 ```
 
 ---
 
 ## CLI Commands
 
-### `wunderland export`
+### `agentos-cli export`
 
 Export the current agent configuration to a portable file.
 
 ```
-Usage: wunderland export [options]
+Usage: agentos-cli export [options]
 
 Options:
   --output, -o <path>      Output file path (default: stdout)
@@ -86,12 +86,12 @@ Options:
   --pretty                 Pretty-print JSON output (default: true)
 ```
 
-### `wunderland import`
+### `agentos-cli import`
 
 Import an agent configuration from a file.
 
 ```
-Usage: wunderland import <file> [options]
+Usage: agentos-cli import <file> [options]
 
 Options:
   --target <path>          Target config directory (default: current)
@@ -112,7 +112,7 @@ Options:
 import { exportAgentConfig } from '@framers/agentos';
 
 const exported = await exportAgentConfig({
-  configDir: '~/.wunderland',        // Config directory to read
+  configDir: '~/.agentos',        // Config directory to read
   format: 'yaml',                     // 'yaml' | 'json'
   includeSkills: false,               // Include resolved SKILL.md content
   includeWorkflows: false,            // Include workflow definitions
@@ -132,7 +132,7 @@ import { importAgent } from '@framers/agentos';
 
 const result = await importAgent({
   source: './my-agent.yaml',           // File path or string content
-  targetDir: '~/.wunderland',          // Where to write the config
+  targetDir: '~/.agentos',          // Where to write the config
   merge: false,                         // Replace (false) or merge (true)
   secrets: {                            // Supply redacted secrets
     OPENAI_API_KEY: 'sk-...',
@@ -297,8 +297,8 @@ export. The list of redacted keys includes:
 |---------|---------|
 | `*_API_KEY` | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `STABILITY_API_KEY` |
 | `*_API_TOKEN` | `REPLICATE_API_TOKEN`, `TELEGRAM_BOT_TOKEN` |
-| `*_SECRET` | `SLACK_OAUTH_CLIENT_SECRET`, `WUNDERLAND_INTERNAL_API_SECRET` |
-| `*_AUTH_TOKEN` | `TWILIO_AUTH_TOKEN`, `WUNDERLAND_AUTH_TOKEN` |
+| `*_SECRET` | `SLACK_OAUTH_CLIENT_SECRET`, `APP_INTERNAL_API_SECRET` |
+| `*_AUTH_TOKEN` | `TWILIO_AUTH_TOKEN`, `APP_AUTH_TOKEN` |
 | `*_PASSWORD` | Database passwords, SMTP passwords |
 | `*_PRIVATE_KEY` | Solana private keys, SSH keys |
 
@@ -308,17 +308,17 @@ Use `--no-redact` for trusted environments (e.g., encrypted backup):
 
 ```bash
 # WARNING: Output will contain raw API keys
-wunderland export --no-redact --output backup.yaml
+agentos-cli export --no-redact --output backup.yaml
 ```
 
 ### Supplying Secrets on Import
 
 ```bash
 # Interactive prompting for each redacted secret
-wunderland import my-agent.yaml --prompt-secrets
+agentos-cli import my-agent.yaml --prompt-secrets
 
 # Supply secrets via environment variables (they're matched by name)
-OPENAI_API_KEY=sk-... wunderland import my-agent.yaml
+OPENAI_API_KEY=sk-... agentos-cli import my-agent.yaml
 
 # Supply secrets programmatically
 await importAgent({
@@ -339,7 +339,7 @@ and import:
 
 ```bash
 # Validate without importing
-wunderland import my-agent.yaml --validate-only
+agentos-cli import my-agent.yaml --validate-only
 
 # Output:
 # ✓ Schema version: 1.0.0
@@ -375,7 +375,7 @@ A typical workflow for migrating an agent between environments:
 ```bash
 # 1. Export from development
 cd ~/dev-agent
-wunderland export --output agent-config.yaml
+agentos-cli export --output agent-config.yaml
 
 # 2. Commit to version control
 git add agent-config.yaml
@@ -384,21 +384,21 @@ git commit -m "Export research-assistant config"
 # 3. Import on production server
 ssh prod-server
 git pull
-wunderland import agent-config.yaml --prompt-secrets --target /opt/agents/research-bot
+agentos-cli import agent-config.yaml --prompt-secrets --target /opt/agents/research-bot
 
 # 4. Verify
-wunderland doctor --config /opt/agents/research-bot
+agentos-cli doctor --config /opt/agents/research-bot
 ```
 
 ### Team Sharing
 
 ```bash
 # Developer A: Export and share
-wunderland export --output team-agent.yaml --include-skills
+agentos-cli export --output team-agent.yaml --include-skills
 # Commit to shared repo
 
 # Developer B: Import and customize
-wunderland import team-agent.yaml --merge --prompt-secrets
+agentos-cli import team-agent.yaml --merge --prompt-secrets
 # The --merge flag preserves local settings while applying shared ones
 ```
 
@@ -411,7 +411,7 @@ use the bundle format:
 
 ```bash
 # Create a self-contained bundle (.tar.gz)
-wunderland export --bundle --output my-agent-bundle.tar.gz --include-skills --include-workflows
+agentos-cli export --bundle --output my-agent-bundle.tar.gz --include-skills --include-workflows
 
 # The bundle contains:
 #   agent-config.yaml        — Main configuration
@@ -424,7 +424,7 @@ wunderland export --bundle --output my-agent-bundle.tar.gz --include-skills --in
 ### Import a Bundle
 
 ```bash
-wunderland import my-agent-bundle.tar.gz --target ~/.wunderland/agents/imported
+agentos-cli import my-agent-bundle.tar.gz --target ~/.agentos/agents/imported
 ```
 
 ---
@@ -457,7 +457,7 @@ import { exportAgentConfig, importAgent } from '@framers/agentos';
 
 // Export current agent
 const exported = await exportAgentConfig({
-  configDir: '~/.wunderland/agents/original',
+  configDir: '~/.agentos/agents/original',
   format: 'json',
   redactSecrets: false, // Same machine, no need to redact
 });
@@ -469,7 +469,7 @@ config.llm.model = 'claude-opus-4-20250514';
 
 await importAgent({
   source: JSON.stringify(config),
-  targetDir: '~/.wunderland/agents/research-v2',
+  targetDir: '~/.agentos/agents/research-v2',
 });
 ```
 
@@ -477,8 +477,8 @@ await importAgent({
 
 ```bash
 # Export both configs and diff
-wunderland export --config ./agent-a --format json --output /tmp/a.json
-wunderland export --config ./agent-b --format json --output /tmp/b.json
+agentos-cli export --config ./agent-a --format json --output /tmp/a.json
+agentos-cli export --config ./agent-b --format json --output /tmp/b.json
 diff /tmp/a.json /tmp/b.json
 ```
 

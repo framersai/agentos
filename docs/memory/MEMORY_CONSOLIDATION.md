@@ -111,11 +111,13 @@ console.log(`Compacted: ${result.compacted}`);
 console.log(`Duration: ${result.durationMs}ms`);
 ```
 
-### CLI
+### Programmatic Health Check
 
-```bash
-wunderland memory consolidate
-wunderland memory health   # Shows last consolidation timestamp + stats
+```ts
+const health = await mem.health();
+console.log(`Last consolidation: ${health.lastConsolidation}`);
+console.log(`Active traces: ${health.activeTraces}`);
+console.log(`Avg strength: ${health.avgStrength.toFixed(2)}`);
 ```
 
 ---

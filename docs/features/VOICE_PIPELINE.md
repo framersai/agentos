@@ -45,19 +45,25 @@ stateDiagram-v2
 
 ### CLI
 
-```bash
-# Basic voice mode (Whisper STT + OpenAI TTS)
-wunderland chat --voice
+```typescript
+import { createAgent } from '@framers/agentos';
 
-# Deepgram + ElevenLabs
-wunderland chat --voice \
-  --voice-stt deepgram \
-  --voice-tts elevenlabs \
-  --voice-diarization
+// Basic voice mode (Whisper STT + OpenAI TTS)
+const agent = await createAgent({ voice: true });
+
+// Deepgram + ElevenLabs
+const agent = await createAgent({
+  voice: {
+    enabled: true,
+    stt: 'deepgram',
+    tts: 'elevenlabs',
+    diarization: { enabled: true },
+  },
+});
 ```
 
 Install the matching streaming voice packs and set the required API keys before
-using `--voice`:
+enabling voice:
 
 - `@framers/agentos-ext-streaming-stt-whisper` + `OPENAI_API_KEY`
 - `@framers/agentos-ext-streaming-stt-deepgram` + `DEEPGRAM_API_KEY`
@@ -65,7 +71,7 @@ using `--voice`:
 - `@framers/agentos-ext-streaming-tts-elevenlabs` + `ELEVENLABS_API_KEY`
 
 `semantic` endpointing also requires an LLM callback to be wired into the
-pipeline; when that callback is absent, Wunderland falls back to heuristic
+pipeline; when that callback is absent, the runtime falls back to heuristic
 endpointing.
 
 ### Configuration

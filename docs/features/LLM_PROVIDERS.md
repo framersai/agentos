@@ -90,18 +90,7 @@ const agent = await createAgent();  // Auto-detects OpenAI
 const response = await agent.chat('Hello, world!');
 ```
 
-### Option 2: CLI Configuration
-
-```bash
-# Interactive setup wizard
-wunderland setup
-
-# Or set directly
-wunderland config set llmProvider anthropic
-wunderland config set llmModel claude-sonnet-4-20250514
-```
-
-### Option 3: Programmatic
+### Option 2: Programmatic
 
 ```typescript
 import { createAgent } from '@framers/agentos';
@@ -139,10 +128,10 @@ configuration or passing `--provider <name>` to CLI commands.
 ## Provider Configuration
 
 Each provider is configured via environment variables. You can set them in
-your shell, `.env` file, or `~/.wunderland/.env`:
+your shell or `.env` file:
 
 ```bash
-# ~/.wunderland/.env (auto-loaded by Wunderland CLI)
+# .env
 
 # Primary provider
 OPENAI_API_KEY=sk-...
@@ -255,10 +244,7 @@ export OPENAI_API_KEY=sk-...
 | `o3-mini` | 200K | No | Yes | Fast reasoning |
 | `gpt-image-1` | — | — | — | Image generation only |
 
-**OAuth support:** Use your ChatGPT subscription instead of an API key:
-```bash
-wunderland login   # Device code flow, same as Codex CLI
-```
+**OAuth support:** Use your ChatGPT subscription instead of an API key via the device code flow. See [OAuth Auth](./OAUTH_AUTH.md) for details.
 
 ### Anthropic
 
@@ -364,10 +350,7 @@ export OLLAMA_BASE_URL=http://localhost:11434
 Run any open model locally. No API key, no cost, full privacy.
 
 ```bash
-# Auto-detect hardware, pull recommended models
-wunderland ollama-setup
-
-# Or pull models manually
+# Pull models manually
 ollama pull llama3.2
 ollama pull codellama
 ollama pull dolphin-mixtral

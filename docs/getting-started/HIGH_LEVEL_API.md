@@ -10,7 +10,7 @@ Use the high-level API when you want the fastest path to text, image, video, aud
 
 When AgentOS observability is enabled, these helper APIs also emit opt-in OTEL spans and turn metrics. `generateText()` and `streamText()` attach provider/model/token usage and aggregated cost when the provider returns it; `generateImage()` does the same for image-generation usage.
 
-If you also want durable helper-level accounting, set `usageLedger.path`, set `usageLedger.enabled: true`, or export `AGENTOS_USAGE_LEDGER_PATH` / `WUNDERLAND_USAGE_LEDGER_PATH`. With `enabled: true`, helper usage lands in the shared home ledger at `~/.framers/usage-ledger.jsonl` unless you provide an explicit path.
+If you also want durable helper-level accounting, set `usageLedger.path`, set `usageLedger.enabled: true`, or export `AGENTOS_USAGE_LEDGER_PATH`. With `enabled: true`, helper usage lands in the shared home ledger at `~/.framers/usage-ledger.jsonl` unless you provide an explicit path.
 
 ## When to use which
 
@@ -647,4 +647,4 @@ original process exits.
 - Keep low-level `AgentOS` examples in architecture, advanced usage, extensions, workflows, and runtime-control docs.
 - Document both layers explicitly. They are complementary, not competing.
 - Keep `generateImage()` provider-agnostic at the API boundary, but expose provider-specific knobs through `providerOptions` when needed.
-- Do not force libraries like Wunderland to adopt `agent()` unless the helper reaches feature parity with their runtime needs.
+- Do not force downstream libraries to adopt `agent()` unless the helper reaches feature parity with their runtime needs.
