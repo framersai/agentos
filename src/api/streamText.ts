@@ -16,10 +16,14 @@ import {
   isRetryableError,
   resolveChainOfThought,
   type GenerateTextOptions,
+  type GenerationHookContext,
+  type GenerationHookResult,
   type Plan,
   type TokenUsage,
+  type ToolCallHookInfo,
   type ToolCallRecord,
 } from './generateText.js';
+import type { ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
 import { recordAgentOSUsage } from './runtime/usageLedger.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
@@ -137,7 +141,46 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
     let recordedModelId: string | undefined;
 
     try {
-      const { providerId, modelId } = resolveModelOption(opts, 'text');
+      let { providerId, modelId } = resolveModelOption(opts, 'text');
+
+      // --- Model routing (optional) ---
+      if (opts.router) {
+        try {
+          const toolNames = opts.tools
+            ? (Array.isArray(opts.tools)
+                ? opts.tools
+                : [...((opts.tools as any).values?.() ?? [])]
+              )
+                .map((t: any) => t.name ?? t.function?.name)
+                .filter(Boolean) as string[]
+            : [];
+          const routeParams: ModelRouteParams = {
+            taskHint:
+              opts.routerParams?.taskHint ?? opts.system ?? opts.prompt ?? '',
+            requiredCapabilities:
+              opts.routerParams?.requiredCapabilities ??
+              (toolNames.length > 0 ? ['function_calling'] : undefined),
+            optimizationPreference:
+              opts.routerParams?.optimizationPreference ?? 'balanced',
+            ...opts.routerParams,
+          };
+          const routeResult = await opts.router.selectModel(
+            routeParams,
+            undefined,
+          );
+          if (routeResult) {
+            providerId =
+              routeResult.modelInfo?.providerId ?? providerId;
+            modelId = routeResult.modelId;
+          }
+        } catch (routerErr) {
+          console.warn(
+            '[agentos] Model router error, falling back to standard resolution:',
+            routerErr,
+          );
+        }
+      }
+
       const resolved = resolveProvider(providerId, modelId, {
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
@@ -215,6 +258,28 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       }
 
       for (let step = 0; step < maxSteps; step++) {
+        // --- onBeforeGeneration hook ---
+        let effectiveMessages = messages;
+        if (opts.onBeforeGeneration) {
+          try {
+            const hookCtx: GenerationHookContext = {
+              messages: [...messages] as any,
+              system: opts.system,
+              tools: Array.from(toolMap.values()),
+              model: resolved.modelId,
+              provider: resolved.providerId,
+              step,
+              prompt: opts.prompt,
+            };
+            const modified = await opts.onBeforeGeneration(hookCtx);
+            if (modified) {
+              effectiveMessages = modified.messages as Array<Record<string, unknown>>;
+            }
+          } catch (hookErr) {
+            console.warn('[agentos] onBeforeGeneration hook error:', hookErr);
+          }
+        }
+
         const stepSpan = startAgentOSSpan('agentos.api.stream_text.step', {
           attributes: {
             'llm.provider': resolved.providerId,
@@ -225,7 +290,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         });
         const stream = provider.generateCompletionStream(
           resolved.modelId,
-          messages as any,
+          effectiveMessages as any,
           {
             tools: toolSchemas,
             temperature: opts.temperature,
@@ -307,10 +372,42 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           }
         }
 
+        // --- onAfterGeneration hook ---
+        let effectiveStepText = stepText;
+        if (opts.onAfterGeneration) {
+          try {
+            const stepUsage: TokenUsage = {
+              promptTokens: usage.promptTokens,
+              completionTokens: usage.completionTokens,
+              totalTokens: usage.totalTokens,
+              costUSD: usage.costUSD,
+            };
+            const toolCallRecords: ToolCallRecord[] = (streamedToolCalls ?? []).map((tc: any) => ({
+              name: tc.function?.name ?? '',
+              args: tc.function?.arguments ?? '{}',
+            }));
+            const hookResult: GenerationHookResult = {
+              text: stepText,
+              toolCalls: toolCallRecords,
+              usage: stepUsage,
+              step,
+            };
+            const modified = await opts.onAfterGeneration(hookResult);
+            if (modified) {
+              effectiveStepText = modified.text;
+              if (modified.toolCalls.length === 0 && streamedToolCalls && streamedToolCalls.length > 0) {
+                streamedToolCalls = [];
+              }
+            }
+          } catch (hookErr) {
+            console.warn('[agentos] onAfterGeneration hook error:', hookErr);
+          }
+        }
+
         // Always track the latest step's text so finalText is available even
         // when maxSteps is exhausted with outstanding tool calls.
-        if (stepText) {
-          finalText = stepText;
+        if (effectiveStepText) {
+          finalText = effectiveStepText;
         }
 
         if (!streamedToolCalls || streamedToolCalls.length === 0) {
@@ -380,6 +477,39 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             } as any);
             allToolCalls.push(toolCallRecord);
             continue;
+          }
+
+          // --- onBeforeToolExecution hook ---
+          if (opts.onBeforeToolExecution) {
+            try {
+              const hookInfo: ToolCallHookInfo = {
+                name: fnName,
+                args: parsedArgs as Record<string, unknown>,
+                id: toolCallId || '',
+                step,
+              };
+              const hookResult = await opts.onBeforeToolExecution(hookInfo);
+              if (hookResult === null) {
+                toolCallRecord.error = 'Skipped by onBeforeToolExecution hook';
+                const resultPart: StreamPart = {
+                  type: 'tool-result',
+                  toolName: fnName,
+                  result: { skipped: true },
+                };
+                parts.push(resultPart);
+                yield resultPart;
+                messages.push({
+                  role: 'tool',
+                  tool_call_id: toolCallId,
+                  content: JSON.stringify({ skipped: true }),
+                } as any);
+                allToolCalls.push(toolCallRecord);
+                continue;
+              }
+              parsedArgs = hookResult.args;
+            } catch (hookErr) {
+              console.warn('[agentos] onBeforeToolExecution hook error:', hookErr);
+            }
           }
 
           try {

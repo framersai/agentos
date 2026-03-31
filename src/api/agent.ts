@@ -13,9 +13,14 @@ import {
   type FallbackProviderEntry,
   type GenerateTextOptions,
   type GenerateTextResult,
+  type GenerationHookContext,
+  type GenerationHookResult,
   type Message,
+  type ToolCallHookInfo,
 } from './generateText.js';
 import { streamText, type StreamTextResult } from './streamText.js';
+import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
+import type { SkillEntry } from '../skills/types.js';
 import {
   getRecordedAgentOSUsage,
   type AgentOSUsageAggregate,
@@ -62,6 +67,27 @@ export interface AgentOptions extends BaseAgentConfig {
    * @param fallbackProvider - The provider identifier being tried next.
    */
   onFallback?: (error: Error, fallbackProvider: string) => void;
+  /** Model router for intelligent provider selection per-call. */
+  router?: IModelRouter;
+  /** Pre-generation hook, called before each LLM step. */
+  onBeforeGeneration?: (context: GenerationHookContext) => Promise<GenerationHookContext | void>;
+  /** Post-generation hook, called after each LLM step. */
+  onAfterGeneration?: (result: GenerationHookResult) => Promise<GenerationHookResult | void>;
+  /** Pre-tool-execution hook. */
+  onBeforeToolExecution?: (info: ToolCallHookInfo) => Promise<ToolCallHookInfo | null>;
+  /**
+   * Optional memory provider.  When provided:
+   * - `session.send()`/`stream()` calls `memory.getContext()` before each turn
+   *   and prepends results to the system prompt.
+   * - `session.send()`/`stream()` calls `memory.observe()` after each turn
+   *   to encode the exchange into long-term memory.
+   */
+  memoryProvider?: any;
+  /**
+   * Optional skill entries to inject into the system prompt.
+   * Skill content is appended to the system prompt as markdown sections.
+   */
+  skills?: SkillEntry[];
 }
 
 /**
@@ -147,6 +173,9 @@ function mergeUsageLedgerOptions(
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
+/** Timeout for memory operations to prevent blocking generation. */
+const MEMORY_TIMEOUT_MS = 5000;
+
 function buildSystemPrompt(opts: AgentOptions): string | undefined {
   const sections: string[] = [];
 
@@ -164,6 +193,15 @@ function buildSystemPrompt(opts: AgentOptions): string | undefined {
       .map(([key, value]) => `${key}=${Number(value).toFixed(2)}`);
     if (traits.length > 0) {
       sections.push(`Behavior traits: ${traits.join(', ')}.`);
+    }
+  }
+
+  // Append skill content as markdown sections
+  if (opts.skills?.length) {
+    for (const entry of opts.skills) {
+      if (entry.skill.content?.trim()) {
+        sections.push(entry.skill.content.trim());
+      }
     }
   }
 
@@ -230,6 +268,10 @@ export function agent(opts: AgentOptions): Agent {
     usageLedger: effectiveLedger,
     fallbackProviders: opts.fallbackProviders,
     onFallback: opts.onFallback,
+    router: opts.router,
+    onBeforeGeneration: opts.onBeforeGeneration,
+    onAfterGeneration: opts.onAfterGeneration,
+    onBeforeToolExecution: opts.onBeforeToolExecution,
   };
 
   const agentInstance: Agent = {
@@ -267,11 +309,34 @@ export function agent(opts: AgentOptions): Agent {
         id: sessionId,
 
         async send(text: string): Promise<GenerateTextResult> {
+          // Memory recall before generation
+          let memorySystemMsg: string | undefined;
+          if (opts.memoryProvider?.getContext) {
+            try {
+              const ctx = await Promise.race([
+                opts.memoryProvider.getContext(text, { tokenBudget: 2000 }),
+                new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
+              ]);
+              if (ctx?.contextText) {
+                memorySystemMsg = ctx.contextText;
+              }
+            } catch {
+              // Memory recall failure is non-fatal
+            }
+          }
+
+          // Prepend memory context to system prompt
+          let system = baseOpts.system;
+          if (memorySystemMsg) {
+            system = [memorySystemMsg, system].filter(Boolean).join('\n\n') || undefined;
+          }
+
           const requestMessages = useMemory
             ? [...history, { role: 'user' as const, content: text }]
             : [{ role: 'user' as const, content: text }];
           const result = await generateText({
             ...baseOpts,
+            system,
             messages: requestMessages,
             usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
               sessionId,
@@ -282,15 +347,53 @@ export function agent(opts: AgentOptions): Agent {
             history.push({ role: 'user', content: text });
             history.push({ role: 'assistant', content: result.text });
           }
+
+          // Memory observe after generation (fire-and-forget)
+          if (opts.memoryProvider?.observe) {
+            opts.memoryProvider.observe('user', text).catch(() => {});
+            if (result.text) {
+              opts.memoryProvider.observe('assistant', result.text).catch(() => {});
+            }
+          }
+
           return result;
         },
 
         stream(text: string): StreamTextResult {
+          // For streaming, use onBeforeGeneration hook to inject memory context
+          const originalBeforeHook = baseOpts.onBeforeGeneration;
+
           const result = streamText({
             ...baseOpts,
             messages: useMemory
               ? [...history, { role: 'user' as const, content: text }]
               : [{ role: 'user' as const, content: text }],
+            onBeforeGeneration: opts.memoryProvider?.getContext
+              ? async (ctx) => {
+                  // Inject memory context
+                  try {
+                    const memCtx = await Promise.race([
+                      opts.memoryProvider!.getContext(text, { tokenBudget: 2000 }),
+                      new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
+                    ]);
+                    if (memCtx?.contextText) {
+                      ctx = {
+                        ...ctx,
+                        messages: [
+                          { role: 'system' as const, content: memCtx.contextText },
+                          ...ctx.messages,
+                        ],
+                      };
+                    }
+                  } catch { /* non-fatal */ }
+                  // Chain with user's hook if present
+                  if (originalBeforeHook) {
+                    const userResult = await originalBeforeHook(ctx);
+                    return userResult ?? ctx;
+                  }
+                  return ctx;
+                }
+              : originalBeforeHook,
             usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
               sessionId,
               source: 'agent.session.stream',
@@ -300,7 +403,14 @@ export function agent(opts: AgentOptions): Agent {
           if (useMemory) {
             history.push({ role: 'user', content: text });
             void result.text
-              .then((replyText) => history.push({ role: 'assistant', content: replyText }))
+              .then((replyText) => {
+                history.push({ role: 'assistant', content: replyText });
+                // Memory observe after stream completes
+                if (opts.memoryProvider?.observe) {
+                  opts.memoryProvider.observe('user', text).catch(() => {});
+                  opts.memoryProvider.observe('assistant', replyText).catch(() => {});
+                }
+              })
               .catch(() => {
                 /* history update failed, non-critical */
               });

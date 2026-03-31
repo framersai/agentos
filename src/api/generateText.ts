@@ -20,6 +20,7 @@ import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
+import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 
 /**
  * A single chat message in a conversation history.
@@ -227,6 +228,35 @@ export interface GenerateTextOptions {
    * @param fallbackProvider - The provider identifier being tried next.
    */
   onFallback?: (error: Error, fallbackProvider: string) => void;
+  /**
+   * Optional model router for intelligent provider/model selection.
+   * When provided, the router's `selectModel()` is called before provider
+   * resolution.  The router result overrides `model`/`provider`.
+   * If the router returns `null`, falls back to standard resolution.
+   */
+  router?: IModelRouter;
+  /**
+   * Routing hints passed to the model router.  Extracted automatically
+   * from system prompt and tool names when not provided.
+   */
+  routerParams?: Partial<ModelRouteParams>;
+  /**
+   * Called before each LLM generation step.  Can inject memory context
+   * into messages, sanitize input via guardrails, or modify the prompt.
+   * Return a modified context to transform input, or void to pass through.
+   */
+  onBeforeGeneration?: (context: GenerationHookContext) => Promise<GenerationHookContext | void>;
+  /**
+   * Called after each LLM generation step.  Can check output against
+   * guardrails, redact PII, or transform the response.
+   * Return a modified result to transform output, or void to pass through.
+   */
+  onAfterGeneration?: (result: GenerationHookResult) => Promise<GenerationHookResult | void>;
+  /**
+   * Called before each tool execution.  Can modify arguments, apply
+   * permission checks, or return `null` to skip the tool call entirely.
+   */
+  onBeforeToolExecution?: (info: ToolCallHookInfo) => Promise<ToolCallHookInfo | null>;
 }
 
 /**
@@ -271,6 +301,61 @@ export interface GenerateTextResult {
    * `undefined` when planning is disabled or was not requested.
    */
   plan?: Plan;
+}
+
+// ---------------------------------------------------------------------------
+// Generation lifecycle hook types
+// ---------------------------------------------------------------------------
+
+/**
+ * Context available to pre-generation hooks.
+ * Hooks may return a modified copy to transform the generation input.
+ */
+export interface GenerationHookContext {
+  /** Current messages array (system + conversation + user). */
+  messages: Message[];
+  /** System prompt text. */
+  system: string | undefined;
+  /** Tool definitions available for this step. */
+  tools: ITool[];
+  /** Resolved model ID. */
+  model: string;
+  /** Resolved provider ID. */
+  provider: string;
+  /** Current agentic step index (0-based). */
+  step: number;
+  /** The original user prompt (from opts.prompt). */
+  prompt: string | undefined;
+}
+
+/**
+ * Context available to post-generation hooks.
+ * Hooks may return a modified copy to transform the generation output.
+ */
+export interface GenerationHookResult {
+  /** Generated text from the LLM. */
+  text: string;
+  /** Tool calls requested by the LLM. */
+  toolCalls: ToolCallRecord[];
+  /** Token usage for this step. */
+  usage: TokenUsage;
+  /** Current agentic step index (0-based). */
+  step: number;
+}
+
+/**
+ * Info about a tool call before execution.
+ * Hooks may return a modified copy or `null` to skip execution.
+ */
+export interface ToolCallHookInfo {
+  /** Tool name. */
+  name: string;
+  /** Parsed arguments. */
+  args: Record<string, unknown>;
+  /** Tool call ID from the LLM. */
+  id: string;
+  /** Current agentic step index. */
+  step: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -548,7 +633,46 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
 
   try {
     return await withAgentOSSpan('agentos.api.generate_text', async (span) => {
-      const { providerId, modelId } = resolveModelOption(opts, 'text');
+      let { providerId, modelId } = resolveModelOption(opts, 'text');
+
+      // --- Model routing (optional) ---
+      if (opts.router) {
+        try {
+          const toolNames = opts.tools
+            ? (Array.isArray(opts.tools)
+                ? opts.tools
+                : [...((opts.tools as any).values?.() ?? [])]
+              )
+                .map((t: any) => t.name ?? t.function?.name)
+                .filter(Boolean) as string[]
+            : [];
+          const routeParams: ModelRouteParams = {
+            taskHint:
+              opts.routerParams?.taskHint ?? opts.system ?? opts.prompt ?? '',
+            requiredCapabilities:
+              opts.routerParams?.requiredCapabilities ??
+              (toolNames.length > 0 ? ['function_calling'] : undefined),
+            optimizationPreference:
+              opts.routerParams?.optimizationPreference ?? 'balanced',
+            ...opts.routerParams,
+          };
+          const routeResult = await opts.router.selectModel(
+            routeParams,
+            undefined,
+          );
+          if (routeResult) {
+            providerId =
+              routeResult.modelInfo?.providerId ?? providerId;
+            modelId = routeResult.modelId;
+          }
+        } catch (routerErr) {
+          console.warn(
+            '[agentos] Model router error, falling back to standard resolution:',
+            routerErr,
+          );
+        }
+      }
+
       const resolved = resolveProvider(providerId, modelId, {
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
@@ -644,6 +768,28 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       }
 
       for (let step = 0; step < maxSteps; step++) {
+        // --- onBeforeGeneration hook ---
+        let effectiveMessages = messages;
+        if (opts.onBeforeGeneration) {
+          try {
+            const hookCtx: GenerationHookContext = {
+              messages: [...messages] as Message[],
+              system: opts.system,
+              tools: Array.from(toolMap.values()),
+              model: resolved.modelId,
+              provider: resolved.providerId,
+              step,
+              prompt: opts.prompt,
+            };
+            const modified = await opts.onBeforeGeneration(hookCtx);
+            if (modified) {
+              effectiveMessages = modified.messages as Array<Record<string, unknown>>;
+            }
+          } catch (hookErr) {
+            console.warn('[agentos] onBeforeGeneration hook error:', hookErr);
+          }
+        }
+
         const response = await withAgentOSSpan(
           'agentos.api.generate_text.step',
           async (stepSpan) => {
@@ -654,7 +800,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
 
             const stepResponse = await provider.generateCompletion(
               resolved.modelId,
-              messages as any,
+              effectiveMessages as any,
               {
                 tools: toolSchemas,
                 temperature: opts.temperature,
@@ -684,7 +830,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         if (!choice) break;
 
         const content = choice.message?.content;
-        const textContent = typeof content === 'string' ? content : ((content as any)?.text ?? '');
+        let textContent = typeof content === 'string' ? content : ((content as any)?.text ?? '');
         let toolCallsInChoice = choice.message?.tool_calls ?? [];
 
         // --- Text-based tool-call fallback ---
@@ -704,6 +850,37 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 arguments: JSON.stringify(p.arguments),
               },
             }));
+          }
+        }
+
+        // --- onAfterGeneration hook ---
+        if (opts.onAfterGeneration) {
+          try {
+            const stepUsage: TokenUsage = {
+              promptTokens: response.usage?.promptTokens ?? 0,
+              completionTokens: response.usage?.completionTokens ?? 0,
+              totalTokens: response.usage?.totalTokens ?? 0,
+              costUSD: response.usage?.costUSD,
+            };
+            const toolCallRecords: ToolCallRecord[] = toolCallsInChoice.map((tc: any) => ({
+              name: (tc as any).function?.name ?? (tc as any).name ?? '',
+              args: (tc as any).function?.arguments ?? '{}',
+            }));
+            const hookResult: GenerationHookResult = {
+              text: textContent,
+              toolCalls: toolCallRecords,
+              usage: stepUsage,
+              step,
+            };
+            const modified = await opts.onAfterGeneration(hookResult);
+            if (modified) {
+              textContent = modified.text;
+              if (modified.toolCalls.length === 0 && toolCallsInChoice.length > 0) {
+                toolCallsInChoice = [];
+              }
+            }
+          } catch (hookErr) {
+            console.warn('[agentos] onAfterGeneration hook error:', hookErr);
           }
         }
 
@@ -754,6 +931,32 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
               } as any);
               allToolCalls.push(record);
               continue;
+            }
+
+            // --- onBeforeToolExecution hook ---
+            if (opts.onBeforeToolExecution) {
+              try {
+                const hookInfo: ToolCallHookInfo = {
+                  name: fnName,
+                  args: parsedArgs as Record<string, unknown>,
+                  id: tcId || '',
+                  step,
+                };
+                const hookResult = await opts.onBeforeToolExecution(hookInfo);
+                if (hookResult === null) {
+                  record.error = 'Skipped by onBeforeToolExecution hook';
+                  messages.push({
+                    role: 'tool',
+                    tool_call_id: tcId,
+                    content: JSON.stringify({ skipped: true }),
+                  } as any);
+                  allToolCalls.push(record);
+                  continue;
+                }
+                parsedArgs = hookResult.args;
+              } catch (hookErr) {
+                console.warn('[agentos] onBeforeToolExecution hook error:', hookErr);
+              }
             }
 
             if (tool) {

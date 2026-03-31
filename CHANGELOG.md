@@ -1,3 +1,13 @@
+## <small>0.1.159 (2026-03-31)</small>
+
+### Features
+
+* **ModelRouter integration:** `generateText()`, `streamText()`, and `agent()` accept an optional `router` field (`IModelRouter`) for intelligent model/provider selection. Router errors fall back gracefully.
+* **Generation lifecycle hooks:** `onBeforeGeneration`, `onAfterGeneration`, and `onBeforeToolExecution` hooks on `GenerateTextOptions` and `AgentOptions`. Enables guardrail injection, memory context assembly, and tool permission gating without the full AgentOS runtime.
+* **Memory integration for agent():** `agent()` accepts `memoryProvider` for automatic memory recall before each turn and observation after each turn. Includes 5s timeout for non-blocking operation.
+* **Skills integration for agent():** `agent()` accepts `skills` (`SkillEntry[]`) to inject skill content into system prompts.
+* **New public exports:** `ModelRouter`, `IModelRouter`, `ModelRouteParams`, `ModelRouteResult`, `AgentMemory`, `IPromptEngine`, `SkillEntry`, `SkillRegistry`, `GenerationHookContext`, `GenerationHookResult`, `ToolCallHookInfo`.
+
 ## <small>0.1.158 (2026-03-31)</small>
 
 * fix: add originalDocumentId to rerankChain test chunks ([d6b84a9](https://github.com/framersai/agentos/commit/d6b84a9))

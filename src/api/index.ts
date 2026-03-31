@@ -35,5 +35,18 @@ export { agent } from './agent.js';
 export { agency } from './agency.js';
 export { exportAgent } from './exportAgent.js';
 
+// --- Model routing ---
+export type { IModelRouter, ModelRouteParams, ModelRouteResult } from '../core/llm/routing/IModelRouter.js';
+export { ModelRouter } from '../core/llm/routing/ModelRouter.js';
+
+// --- Generation hooks ---
+export type { GenerationHookContext, GenerationHookResult, ToolCallHookInfo } from './generateText.js';
+
+// --- Memory, PromptEngine, Skills (for agent() integration) ---
+export { AgentMemory } from '../memory/AgentMemory.js';
+export type { IPromptEngine } from '../core/llm/IPromptEngine.js';
+export type { SkillEntry } from '../skills/types.js';
+export { SkillRegistry } from '../skills/SkillRegistry.js';
+
 // --- Errors ---
 export * from './errors.js';
