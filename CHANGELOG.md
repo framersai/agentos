@@ -1,3 +1,14 @@
+## <small>0.1.157 (2026-03-31)</small>
+
+* fix: logger.warn signature — string not Record ([408b37d](https://github.com/framersai/agentos/commit/408b37d))
+* feat: expose cognitive mechanisms in agent() API + APA citations in README ([b3edd61](https://github.com/framersai/agentos/commit/b3edd61))
+* feat(reranking): export LlmJudgeReranker + RerankChainStage ([b4716e5](https://github.com/framersai/agentos/commit/b4716e5))
+* feat(reranking): LLM-as-judge reranker + rerankChain multi-stage pipeline ([e9e615c](https://github.com/framersai/agentos/commit/e9e615c))
+* docs: add Adaptive Intelligence & Metacognition section to README ([9a3dc33](https://github.com/framersai/agentos/commit/9a3dc33))
+* docs: complete README rewrite -- fix broken examples, real feature counts, streamlined structure ([d5a7208](https://github.com/framersai/agentos/commit/d5a7208))
+* docs: fix generateText example — honest about auto-detection (env var priority, not LLM-chosen) ([1cbcf69](https://github.com/framersai/agentos/commit/1cbcf69))
+* docs: generateText example — auto-detect best provider+model by default, show override as comment ([ff28f48](https://github.com/framersai/agentos/commit/ff28f48))
+
 ## <small>0.1.156 (2026-03-30)</small>
 
 * fix(ci): add type assertions for TS 5.4 compatibility in humanNode builder and executor ([3877175](https://github.com/framersai/agentos/commit/3877175))
