@@ -1,3 +1,12 @@
+## <small>0.1.158 (2026-03-31)</small>
+
+* fix: add originalDocumentId to rerankChain test chunks ([d6b84a9](https://github.com/framersai/agentos/commit/d6b84a9))
+* fix: verifyCitations default + resolved config type + dedupe cosineSimilarity export ([209a2ac](https://github.com/framersai/agentos/commit/209a2ac))
+* feat(citation): add grounding field to QueryResult + verifyCitations config + exports ([246ea44](https://github.com/framersai/agentos/commit/246ea44))
+* feat(citation): CitationVerifier with cosine similarity verification + tests ([3f745a0](https://github.com/framersai/agentos/commit/3f745a0))
+* test: add rerankChain() multi-stage pipeline tests ([4fe5c4d](https://github.com/framersai/agentos/commit/4fe5c4d))
+* docs: move Ebbinghaus from intro to memory section, add DOI hyperlinks to all 8 APA citations ([7740a15](https://github.com/framersai/agentos/commit/7740a15))
+
 ## <small>0.1.157 (2026-03-31)</small>
 
 * fix: logger.warn signature — string not Record ([408b37d](https://github.com/framersai/agentos/commit/408b37d))
