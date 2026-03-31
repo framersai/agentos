@@ -369,6 +369,47 @@ const secureBot = agent({
 - **Grounding Guard** -- RAG-source claim verification and hallucination detection
 - **Content Policy Rewriter** -- 8 categories, LLM rewrite/block, 4 presets
 
+### 10. Citation Verification
+
+Verify claims in agent responses against sources using cosine similarity:
+
+```typescript
+import { CitationVerifier } from '@framers/agentos';
+
+const verifier = new CitationVerifier({
+  embedFn: async (texts) => embeddingManager.embedBatch(texts),
+});
+
+const result = await verifier.verify(
+  "Tokyo has a population of 14 million. It is the capital of Japan.",
+  [
+    { content: "Tokyo proper has a population of approximately 14 million.", url: "https://example.com" },
+    { content: "Tokyo is the capital and largest city of Japan.", url: "https://example.com/japan" },
+  ]
+);
+
+console.log(result.summary);
+// "2/2 claims verified (100%)"
+console.log(result.claims[0]);
+// { text: "Tokyo has a population of 14 million.", verdict: "supported", confidence: 0.87 }
+```
+
+On-demand tool for agents:
+
+```typescript
+// Agent can call verify_citations to check its own output
+verify_citations({
+  text: "The speed of light is 300,000 km/s.",
+  webFallback: true,  // search web if sources don't match
+})
+```
+
+Automatic during deep research — set `verifyCitations: true` in config:
+
+```json
+{ "queryRouter": { "verifyCitations": true } }
+```
+
 ### Default Models Per Provider
 
 When you specify `provider` without `model`, these defaults are used:
