@@ -828,6 +828,7 @@ export const DEFAULT_QUERY_ROUTER_CONFIG = {
   cacheResults: true,
   availableTools: [] as string[],
   includePlatformKnowledge: true,
+  verifyCitations: false,
 } satisfies Omit<
   Required<QueryRouterConfig>,
   | 'knowledgeCorpus'

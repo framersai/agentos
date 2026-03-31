@@ -307,6 +307,6 @@ export type {
 } from './setup/types.js';
 
 // Citation verification
-export { CitationVerifier, cosineSimilarity } from './citation/index.js';
+export { CitationVerifier } from './citation/index.js';
 export type { CitationVerifierConfig, ClaimVerdict, VerifiedResponse, VerificationSource } from './citation/index.js';
 

@@ -88,6 +88,7 @@ type QueryRouterResolvedConfig = Omit<
   | 'embeddingBaseUrl'
   | 'githubRepos'
   | 'strategyConfig'
+  | 'verifyCitations'
 > &
   Pick<
     QueryRouterConfig,
@@ -101,6 +102,7 @@ type QueryRouterResolvedConfig = Omit<
     | 'embeddingApiKey'
     | 'embeddingBaseUrl'
     | 'githubRepos'
+    | 'verifyCitations'
   > & {
     /** Resolved strategy configuration with defaults applied. */
     strategyConfig: Required<Omit<QueryRouterStrategyConfig, 'forceStrategy' | 'classifierModel'>> & {
