@@ -79,3 +79,10 @@ export {
   LOCAL_RERANKER_MODELS,
   type LocalRerankerModel,
 } from './providers/LocalCrossEncoderReranker';
+
+export {
+  LlmJudgeReranker,
+  type LlmJudgeRerankerConfig,
+} from './providers/LlmJudgeReranker';
+
+export type { RerankChainStage } from './IRerankerService';
