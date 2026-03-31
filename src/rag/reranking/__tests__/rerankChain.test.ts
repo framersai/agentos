@@ -38,6 +38,7 @@ describe('RerankerService.rerankChain()', () => {
       relevanceScore: (10 - i) / 10,
       heading: '',
       sourcePath: '',
+      originalDocumentId: 'doc-0',
       metadata: {},
     }));
 
