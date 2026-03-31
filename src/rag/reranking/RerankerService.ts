@@ -13,6 +13,7 @@ import type {
   RerankerOutput,
   RerankerRequestConfig,
   RerankerServiceConfig,
+  RerankChainStage,
   RerankerProviderConfig,
 } from './IRerankerService';
 
@@ -248,5 +249,62 @@ export class RerankerService {
         metadata,
       };
     });
+  }
+
+  /**
+   * Run chunks through a multi-stage reranker pipeline.
+   * Each stage's output feeds into the next, narrowing the result set.
+   * Unavailable providers are silently skipped.
+   *
+   * @param query - The search query.
+   * @param chunks - Input chunks to rerank.
+   * @param chain - Ordered array of reranking stages.
+   * @returns Reranked chunks after all stages.
+   */
+  public async rerankChain(
+    query: string,
+    chunks: RagRetrievedChunk[],
+    chain: RerankChainStage[],
+  ): Promise<RagRetrievedChunk[]> {
+    if (chunks.length === 0 || chain.length === 0) return chunks;
+
+    let current = chunks;
+    const stagesRun: string[] = [];
+
+    for (const stage of chain) {
+      const provider = this.providers.get(stage.provider);
+      if (!provider) {
+        this.logger?.debug?.(`rerankChain: Provider '${stage.provider}' not registered — skipping stage`);
+        continue;
+      }
+
+      try {
+        const available = await provider.isAvailable();
+        if (!available) {
+          this.logger?.debug?.(`rerankChain: Provider '${stage.provider}' not available — skipping stage`);
+          continue;
+        }
+
+        current = await this.rerankChunks(query, current, {
+          providerId: stage.provider,
+          modelId: stage.model ?? '',
+          topN: stage.topK,
+        });
+        stagesRun.push(stage.provider);
+      } catch (err) {
+        this.logger?.warn?.(
+          `rerankChain: Stage '${stage.provider}' failed — continuing with previous results`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
+    return current.map((chunk) => ({
+      ...chunk,
+      metadata: {
+        ...chunk.metadata,
+        _rerankerChainStages: stagesRun.join(','),
+      },
+    }));
   }
 }

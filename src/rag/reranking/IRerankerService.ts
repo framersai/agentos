@@ -173,3 +173,13 @@ export interface RerankerServiceConfig {
   /** Enable debug logging */
   debug?: boolean;
 }
+
+/** A single stage in a reranker chain pipeline. */
+export interface RerankChainStage {
+  /** Provider ID (e.g., 'local', 'cohere', 'llm-judge'). */
+  provider: string;
+  /** Max results to keep after this stage. */
+  topK: number;
+  /** Optional model override for this stage. */
+  model?: string;
+}
