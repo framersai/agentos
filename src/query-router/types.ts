@@ -297,6 +297,12 @@ export interface QueryResult {
   fallbacksUsed: string[];
 
   /**
+   * Citation verification results. Populated when deep research runs
+   * or when `verifyCitations` is explicitly requested in config or query options.
+   */
+  grounding?: import('../rag/citation/types.js').VerifiedResponse;
+
+  /**
    * Recommended skills, tools, and extensions based on query analysis.
    *
    * Populated when the plan-aware classifier (`classifyWithPlan`) produces
@@ -516,6 +522,13 @@ export interface QueryRouterConfig {
     chunks: RetrievedChunk[],
     topN: number,
   ) => Promise<RetrievedChunk[]>;
+
+  /**
+   * Enable automatic citation verification on deep research responses.
+   * When true, moderate-depth queries also verify citations.
+   * Default: false (only deep research verifies automatically).
+   */
+  verifyCitations?: boolean;
 
   /**
    * Optional host-provided deep research callback.
