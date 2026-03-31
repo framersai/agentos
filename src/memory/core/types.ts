@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 
 /** Long-term memory subtypes (Tulving's taxonomy + extensions). */
-export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'prospective';
+export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'prospective' | 'relational';
 
 /** Visibility / ownership scope for a memory trace. */
 export type MemoryScope = 'thread' | 'user' | 'persona' | 'organization';
