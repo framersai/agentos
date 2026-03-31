@@ -293,8 +293,7 @@ export class RerankerService {
         stagesRun.push(stage.provider);
       } catch (err) {
         this.logger?.warn?.(
-          `rerankChain: Stage '${stage.provider}' failed — continuing with previous results`,
-          err instanceof Error ? err.message : String(err),
+          `rerankChain: Stage '${stage.provider}' failed — continuing with previous results: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
