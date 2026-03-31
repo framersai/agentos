@@ -485,6 +485,7 @@ export class AgentMemory {
         semantic: health.tracesPerType.semantic ?? 0,
         procedural: health.tracesPerType.procedural ?? 0,
         prospective: health.tracesPerType.prospective ?? 0,
+        relational: health.tracesPerType.relational ?? 0,
       },
       tracesPerScope: {
         thread: health.tracesPerScope.thread ?? 0,
