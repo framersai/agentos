@@ -23,9 +23,9 @@
 
 ## Overview
 
-AgentOS is an open-source TypeScript runtime for building autonomous AI agents. Agents have HEXACO personality traits that shape how they think, cognitive memory with Ebbinghaus decay that determines what they remember, and emergent capabilities that let them forge new tools at runtime. The result is agents that adapt and improve without retraining.
+AgentOS is an open-source TypeScript runtime for building autonomous AI agents. Agents have personality traits that shape how they think, cognitive memory that determines what they remember, and emergent capabilities that let them forge new tools at runtime. The result is agents that adapt and improve without retraining.
 
-Unlike frameworks that focus purely on LLM orchestration, AgentOS treats each agent as a cognitive entity with its own personality, memory lifecycle, and behavioral adaptation loop. This makes it particularly suited for long-running agents, multi-agent teams, and applications where agent identity and consistency matter.
+Unlike frameworks that focus purely on LLM orchestration, AgentOS treats each agent as a **Generalized Mind Instance** (GMI) — a cognitive entity with its own identity, personality, memory lifecycle, and behavioral adaptation loop. This makes it particularly suited for long-running agents, multi-agent teams, and applications where agent consistency matters.
 
 **What makes it different:**
 
@@ -427,14 +427,14 @@ Personality traits are set at agent creation and can be adapted within bounded l
 
 | Mechanism | Effect | Citation |
 |-----------|--------|----------|
-| Reconsolidation | Retrieved memories drift toward current mood | Nader, Schiller & LeDoux (2000). *Nature*, 406, 722-726 |
-| Retrieval-Induced Forgetting | Retrieving one memory suppresses similar competitors | Anderson, Bjork & Bjork (1994). *JEP: Learning*, 20, 1063-1087 |
-| Involuntary Recall | Random surfacing of old high-vividness memories | Berntsen (1996). *Applied Cognitive Psychology*, 10, 435-454 |
-| Metacognitive FOK | Feeling-of-knowing scoring for tip-of-tongue states | Hart (1965). *JEPG*, 56, 208-216 |
-| Temporal Gist Extraction | Old traces compressed to core assertions | Reyna & Brainerd (1995). *Developmental Review*, 15, 3-47 |
-| Schema Encoding | Novel input boosted, schema-matching encoded efficiently | Bartlett (1932). *Remembering*. Cambridge University Press |
-| Source Confidence Decay | Agent inferences decay faster than observations | Johnson, Hashtroudi & Lindsay (1993). *Psych. Bulletin*, 114, 3-28 |
-| Emotion Regulation | Reappraisal + suppression during consolidation | Gross (1998). *Review of General Psychology*, 2, 271-299 |
+| Reconsolidation | Retrieved memories drift toward current mood | [Nader, Schiller & LeDoux (2000)](https://doi.org/10.1038/35021052). *Nature*, 406, 722-726 |
+| Retrieval-Induced Forgetting | Retrieving one memory suppresses similar competitors | [Anderson, Bjork & Bjork (1994)](https://doi.org/10.1037/0278-7393.20.5.1063). *JEP: Learning*, 20, 1063-1087 |
+| Involuntary Recall | Random surfacing of old high-vividness memories | [Berntsen (1996)](https://doi.org/10.1002/(SICI)1099-0720(199610)10:5%3C435::AID-ACP395%3E3.0.CO;2-8). *Applied Cognitive Psychology*, 10, 435-454 |
+| Metacognitive FOK | Feeling-of-knowing scoring for tip-of-tongue states | [Hart (1965)](https://doi.org/10.1037/h0022263). *JEPG*, 56, 208-216 |
+| Temporal Gist Extraction | Old traces compressed to core assertions | [Reyna & Brainerd (1995)](https://doi.org/10.1006/drev.1995.1002). *Developmental Review*, 15, 3-47 |
+| Schema Encoding | Novel input boosted, schema-matching encoded efficiently | [Bartlett (1932)](https://doi.org/10.1017/CBO9780511759185). *Remembering*. Cambridge University Press |
+| Source Confidence Decay | Agent inferences decay faster than observations | [Johnson, Hashtroudi & Lindsay (1993)](https://doi.org/10.1037/0033-2909.114.1.3). *Psych. Bulletin*, 114, 3-28 |
+| Emotion Regulation | Reappraisal + suppression during consolidation | [Gross (1998)](https://doi.org/10.1037/1089-2680.2.3.271). *Review of General Psychology*, 2, 271-299 |
 
 **HEXACO Personality Modulation** -- each mechanism's intensity is governed by one or more HEXACO traits:
 
