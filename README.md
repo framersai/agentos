@@ -66,32 +66,33 @@ export OPENAI_API_KEY=sk-...        # or ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ
 
 ### 1. Generate Text
 
-By default, AgentOS auto-detects the best available provider from your environment and selects the optimal model for the task:
+AgentOS auto-detects which provider to use from your environment variables and maps each provider to a sensible default model (see [Default Models Per Provider](#default-models-per-provider) below):
 
 ```typescript
 import { generateText } from '@framers/agentos';
 
-// Zero config -- auto-detects provider from env vars, picks the best model
+// Zero config -- auto-detects provider from env vars, uses its default model
+// Priority: OPENAI_API_KEY → ANTHROPIC_API_KEY → OPENROUTER_API_KEY → GEMINI → ...
 const result = await generateText({
   prompt: 'Explain how TCP handshakes work in 3 bullets.',
 });
 console.log(result.text);
 
-// Pin a specific provider -- AgentOS still picks the best model for it
+// Pin a provider -- uses that provider's default model (e.g. anthropic → claude-sonnet-4)
 const pinned = await generateText({
-  provider: 'anthropic',        // uses claude-sonnet-4 by default
+  provider: 'anthropic',
   prompt: 'Compare TCP and UDP.',
 });
 
-// Full control -- explicit provider + model when you need it
-// const custom = await generateText({
-//   provider: 'openai',
-//   model: 'gpt-4o-mini',       // override default model
-//   prompt: 'What is the capital of France?',
-// });
+// Full control -- explicit provider + model override
+const custom = await generateText({
+  provider: 'openai',
+  model: 'gpt-4o-mini',        // override the default (gpt-4o)
+  prompt: 'What is the capital of France?',
+});
 ```
 
-16 providers supported. Auto-fallback on 402/429/5xx errors — if your primary provider fails, AgentOS retries on the next available key automatically.
+16 providers supported. Auto-fallback on 402/429/5xx — if the primary provider fails, the next available provider is tried automatically.
 
 ### 2. Streaming
 
