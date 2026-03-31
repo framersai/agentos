@@ -1,5 +1,13 @@
 ## <small>0.1.159 (2026-03-31)</small>
 
+* fix: add relational to tracesPerType (MemoryType completeness) ([a0e42f3](https://github.com/framersai/agentos/commit/a0e42f3))
+* fix: use 'as any' cast for Message/Record interop in generation hooks (TS2352) ([ac1e60f](https://github.com/framersai/agentos/commit/ac1e60f))
+* feat: add ModelRouter, generation hooks, memory/skills to agent() ([ed1b436](https://github.com/framersai/agentos/commit/ed1b436))
+* feat: add relational memory type for companion relationship tracking ([e0989c3](https://github.com/framersai/agentos/commit/e0989c3))
+* docs: citation verification README section + example ([dd23816](https://github.com/framersai/agentos/commit/dd23816))
+
+## <small>0.1.159 (2026-03-31)</small>
+
 ### Features
 
 * **ModelRouter integration:** `generateText()`, `streamText()`, and `agent()` accept an optional `router` field (`IModelRouter`) for intelligent model/provider selection. Router errors fall back gracefully.
