@@ -773,7 +773,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         if (opts.onBeforeGeneration) {
           try {
             const hookCtx: GenerationHookContext = {
-              messages: [...messages] as Message[],
+              messages: [...messages] as any,
               system: opts.system,
               tools: Array.from(toolMap.values()),
               model: resolved.modelId,
@@ -783,7 +783,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             };
             const modified = await opts.onBeforeGeneration(hookCtx);
             if (modified) {
-              effectiveMessages = modified.messages as Array<Record<string, unknown>>;
+              effectiveMessages = modified.messages as any;
             }
           } catch (hookErr) {
             console.warn('[agentos] onBeforeGeneration hook error:', hookErr);

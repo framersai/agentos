@@ -273,7 +273,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             };
             const modified = await opts.onBeforeGeneration(hookCtx);
             if (modified) {
-              effectiveMessages = modified.messages as Array<Record<string, unknown>>;
+              effectiveMessages = modified.messages as any;
             }
           } catch (hookErr) {
             console.warn('[agentos] onBeforeGeneration hook error:', hookErr);
