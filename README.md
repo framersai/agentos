@@ -425,16 +425,53 @@ Personality traits are set at agent creation and can be adapted within bounded l
 
 8 neuroscience-backed mechanisms, all HEXACO personality-modulated:
 
-| Mechanism | Effect |
-|-----------|--------|
-| Reconsolidation | Retrieved memories drift toward current mood |
-| Retrieval-Induced Forgetting | Retrieving one memory suppresses similar competitors |
-| Involuntary Recall | Random surfacing of old high-vividness memories |
-| Metacognitive FOK | Feeling-of-knowing scoring for tip-of-tongue states |
-| Temporal Gist Extraction | Old traces compressed to core assertions |
-| Schema Encoding | Novel input boosted, schema-matching encoded efficiently |
-| Source Confidence Decay | Agent inferences decay faster than observations |
-| Emotion Regulation | Reappraisal + suppression during consolidation |
+| Mechanism | Effect | Citation |
+|-----------|--------|----------|
+| Reconsolidation | Retrieved memories drift toward current mood | Nader, Schiller & LeDoux (2000). *Nature*, 406, 722-726 |
+| Retrieval-Induced Forgetting | Retrieving one memory suppresses similar competitors | Anderson, Bjork & Bjork (1994). *JEP: Learning*, 20, 1063-1087 |
+| Involuntary Recall | Random surfacing of old high-vividness memories | Berntsen (1996). *Applied Cognitive Psychology*, 10, 435-454 |
+| Metacognitive FOK | Feeling-of-knowing scoring for tip-of-tongue states | Hart (1965). *JEPG*, 56, 208-216 |
+| Temporal Gist Extraction | Old traces compressed to core assertions | Reyna & Brainerd (1995). *Developmental Review*, 15, 3-47 |
+| Schema Encoding | Novel input boosted, schema-matching encoded efficiently | Bartlett (1932). *Remembering*. Cambridge University Press |
+| Source Confidence Decay | Agent inferences decay faster than observations | Johnson, Hashtroudi & Lindsay (1993). *Psych. Bulletin*, 114, 3-28 |
+| Emotion Regulation | Reappraisal + suppression during consolidation | Gross (1998). *Review of General Psychology*, 2, 271-299 |
+
+**HEXACO Personality Modulation** -- each mechanism's intensity is governed by one or more HEXACO traits:
+
+| HEXACO Trait | Mechanisms Modulated | Effect |
+|--------------|---------------------|--------|
+| Emotionality | Reconsolidation | Higher emotionality increases mood-congruent drift rate |
+| Conscientiousness | Retrieval-Induced Forgetting | Higher conscientiousness strengthens suppression of irrelevant competitors |
+| Openness | Involuntary Recall, Schema Encoding | Higher openness increases involuntary recall probability and novelty boost |
+| Extraversion | Metacognitive FOK | Higher extraversion strengthens feeling-of-knowing confidence signals |
+| Honesty-Humility | Source Confidence Decay | Higher honesty increases skepticism of agent-inferred sources |
+| Agreeableness | Emotion Regulation | Higher agreeableness strengthens reappraisal during consolidation |
+
+**Using cognitive mechanisms with `agent()`:**
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const researcher = agent({
+  provider: 'anthropic',
+  instructions: 'You are a thorough research analyst.',
+  personality: {
+    openness: 0.9,           // High openness -> more involuntary recall, stronger novelty bias
+    conscientiousness: 0.85,  // High conscientiousness -> stronger RIF suppression
+    emotionality: 0.6,       // Moderate -> moderate reconsolidation drift
+  },
+  memory: { enabled: true },
+  cognitiveMechanisms: {
+    // All 8 mechanisms enabled with defaults -- just pass {}
+    // Or tune individual mechanisms:
+    reconsolidation: { driftRate: 0.08 },
+    involuntaryRecall: { probability: 0.12 },
+    temporalGist: { ageThresholdDays: 30 },
+  },
+});
+```
+
+Pass `{}` for all defaults, or omit entirely to disable (zero overhead).
 
 Memory is organized in a 4-tier hierarchy: `core/` (encoding, decay, working memory), `retrieval/` (composite scoring, graph, prospective), `pipeline/` (consolidation, observation, lifecycle), `io/` (ingestion, import/export).
 

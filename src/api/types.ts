@@ -1041,6 +1041,22 @@ export interface BaseAgentConfig {
    * @example `dependsOn: ['researcher']` — this agent waits for `researcher` to finish.
    */
   dependsOn?: string[];
+
+  /**
+   * Cognitive mechanisms config — 8 neuroscience-backed memory mechanisms.
+   * All HEXACO-modulated (emotionality, conscientiousness, openness, etc.).
+   *
+   * - Pass `{}` for sensible defaults (all 8 mechanisms enabled).
+   * - Omit entirely to disable (zero overhead — no code paths execute).
+   * - Provide per-mechanism overrides to tune individual parameters.
+   *
+   * Requires `memory` to be enabled (`true` or a `MemoryConfig` object).
+   * If `cognitiveMechanisms` is set but `memory` is disabled, a warning is logged
+   * and the mechanisms config is ignored.
+   *
+   * @see {@link https://docs.agentos.sh/memory/cognitive-mechanisms | Cognitive Mechanisms Docs}
+   */
+  cognitiveMechanisms?: import('../memory/mechanisms/types.js').CognitiveMechanismsConfig;
 }
 
 // ---------------------------------------------------------------------------

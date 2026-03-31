@@ -196,6 +196,20 @@ export function agent(opts: AgentOptions): Agent {
   const useMemory = opts.memory !== false;
 
   /*
+   * Cognitive mechanisms validation.  When the caller provides a
+   * `cognitiveMechanisms` config but has memory disabled, the mechanisms
+   * cannot be wired (they depend on CognitiveMemoryManager which needs an
+   * active memory subsystem).  Log a warning and drop the config.
+   */
+  if (opts.cognitiveMechanisms && !useMemory) {
+    console.warn(
+      '[AgentOS] cognitiveMechanisms config was provided but memory is disabled. ' +
+      'Mechanisms require memory to be enabled (set `memory: true` or pass a MemoryConfig). ' +
+      'The cognitiveMechanisms config will be ignored.',
+    );
+  }
+
+  /*
    * Resolve the effective usage ledger config.  The top-level `usageLedger`
    * field is a backward-compat alias — if it is present we forward it to
    * `observability.usageLedger`.  An explicit `observability.usageLedger`
