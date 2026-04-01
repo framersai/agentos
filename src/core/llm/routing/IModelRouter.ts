@@ -70,6 +70,19 @@ export interface ModelRouteParams {
   userApiKeys?: Record<string, string>; // ProviderId -> ApiKey
   /** Additional custom parameters or context to aid routing decisions. */
   customContext?: Record<string, any>;
+
+  /**
+   * Content policy tier governing this request. Drives model selection:
+   * safe/standard use default censored models, mature/private-adult route
+   * to uncensored models via PolicyAwareRouter.
+   */
+  policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
+
+  /**
+   * Finer-grained content intent hint. A mature session doing combat narration
+   * vs. romance has different model preferences.
+   */
+  contentIntent?: 'general' | 'romantic' | 'erotic' | 'violent' | 'horror';
 }
 
 /**
