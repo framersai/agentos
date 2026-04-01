@@ -1,3 +1,7 @@
+## <small>0.1.162 (2026-04-01)</small>
+
+* feat: add getAvatarBindings and setAvatarBindingOverrides to agent() ([2989397](https://github.com/framersai/agentos/commit/2989397))
+
 ## <small>0.1.161 (2026-04-01)</small>
 
 * feat: add AvatarConfig to BaseAgentConfig with identity, style projections, and runtime bindings ([d1a0e63](https://github.com/framersai/agentos/commit/d1a0e63))
