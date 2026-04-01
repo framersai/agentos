@@ -20,7 +20,12 @@ export * from './providers/StableDiffusionLocalProvider.js';
 export * from './providers/FluxImageProvider.js';
 export * from './providers/FalImageProvider.js';
 
-export * from './face/index.js';
+export {
+  type FaceEmbedding,
+  type IFaceEmbeddingService,
+  ReplicateFaceEmbeddingService,
+  type ReplicateFaceEmbeddingConfig,
+} from './face/index.js';
 
 export type ImageProviderFactory = () => IImageProvider;
 
