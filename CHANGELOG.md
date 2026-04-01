@@ -1,3 +1,7 @@
+## <small>0.1.163 (2026-04-01)</small>
+
+* feat: add PolicyAwareRouter, UncensoredModelCatalog, PolicyAwareImageRouter ([74fff3e](https://github.com/framersai/agentos/commit/74fff3e))
+
 ## <small>0.1.162 (2026-04-01)</small>
 
 * feat: add getAvatarBindings and setAvatarBindingOverrides to agent() ([2989397](https://github.com/framersai/agentos/commit/2989397))
