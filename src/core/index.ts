@@ -14,11 +14,12 @@
  */
 
 // ============================================================================
-// LLM — Provider management, prompt engine
+// LLM — Provider management, prompt engine, routing
 // ============================================================================
 export * from './llm/IPromptEngine.js';
 export { PromptEngine } from './llm/PromptEngine.js';
 export * from './llm/providers/AIModelProviderManager.js';
+export * from './llm/routing/index.js';
 
 // ============================================================================
 // TOOLS — ITool, executor, permissions, orchestrator

@@ -41,6 +41,17 @@ export { exportAgent } from './exportAgent.js';
 // --- Model routing ---
 export type { IModelRouter, ModelRouteParams, ModelRouteResult } from '../core/llm/routing/IModelRouter.js';
 export { ModelRouter } from '../core/llm/routing/ModelRouter.js';
+export { PolicyAwareRouter, type PolicyOverrides } from '../core/llm/routing/PolicyAwareRouter.js';
+export {
+  createUncensoredModelCatalog,
+  type UncensoredModelCatalog,
+  type CatalogEntry,
+  type PolicyTier,
+  type ContentIntent,
+} from '../core/llm/routing/UncensoredModelCatalog.js';
+
+// --- Image routing ---
+export { PolicyAwareImageRouter, type ImageProviderPreference } from '../media/images/PolicyAwareImageRouter.js';
 
 // --- Generation hooks ---
 export type { GenerationHookContext, GenerationHookResult, ToolCallHookInfo } from './generateText.js';

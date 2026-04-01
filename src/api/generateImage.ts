@@ -199,6 +199,12 @@ export interface GenerateImageOptions {
    * `preferred` and filtered by `blocked` before building the chain.
    */
   providerPreferences?: MediaProviderPreference;
+  /**
+   * Content policy tier. When mature or private-adult, the image provider
+   * chain is reordered to prefer uncensored providers (Replicate, Fal)
+   * over censored ones (DALL-E, Stability safe mode).
+   */
+  policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
   /** Optional durable usage ledger configuration for helper-level accounting. */
   usageLedger?: AgentOSUsageLedgerOptions;
 }
@@ -272,6 +278,25 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
           fallbackIds = ordered.filter((id) => id !== providerId);
         }
         providerChain = [providerId, ...fallbackIds];
+      }
+
+      // Policy-tier-aware provider override
+      if (opts.policyTier && (opts.policyTier === 'mature' || opts.policyTier === 'private-adult')) {
+        const { PolicyAwareImageRouter } = await import('../media/images/PolicyAwareImageRouter.js');
+        const { createUncensoredModelCatalog } = await import('../core/llm/routing/UncensoredModelCatalog.js');
+        const imageRouter = new PolicyAwareImageRouter(createUncensoredModelCatalog());
+        const pref = imageRouter.getPreferredProvider(opts.policyTier as any);
+        if (pref) {
+          providerId = pref.providerId;
+          modelId = pref.modelId;
+          opts.providerOptions = {
+            ...opts.providerOptions,
+            replicate: {
+              ...((opts.providerOptions?.replicate as Record<string, unknown>) ?? {}),
+              disableSafetyChecker: true,
+            },
+          };
+        }
       }
 
       const resolved = resolveMediaProvider(providerId, modelId, {
