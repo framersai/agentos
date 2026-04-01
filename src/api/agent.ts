@@ -163,6 +163,10 @@ export interface Agent {
    * @returns JSON string.
    */
   exportJSON(metadata?: AgentExportConfig['metadata']): string;
+  /** Read current avatar binding state (auto-populated from mood/voice/relationship). */
+  getAvatarBindings(): import('./types').AvatarBindingInputs & Record<string, unknown>;
+  /** Inject game-specific binding overrides (healthBand, combatMode, etc.). */
+  setAvatarBindingOverrides(overrides: Record<string, unknown>): void;
 }
 
 function mergeUsageLedgerOptions(
@@ -237,6 +241,7 @@ function buildSystemPrompt(opts: AgentOptions): string | undefined {
  */
 export function agent(opts: AgentOptions): Agent {
   const sessions = new Map<string, Message[]>();
+  let avatarBindingOverrides: Record<string, unknown> = {};
   const useMemory = opts.memory !== false;
 
   /*
@@ -470,6 +475,26 @@ export function agent(opts: AgentOptions): Agent {
      */
     exportJSON(metadata?: AgentExportConfig['metadata']): string {
       return exportAgentConfigJSON(agentInstance, metadata);
+    },
+
+    getAvatarBindings() {
+      const cfg = opts.avatar;
+      if (!cfg?.enabled) return {} as any;
+      const base: Record<string, unknown> = {
+        speaking: false,
+        emotion: 'neutral',
+        intensity: 0,
+        stress: 0,
+        anger: 0,
+        affection: 0,
+        trust: 0,
+        relationshipWarmth: 0,
+      };
+      return { ...base, ...avatarBindingOverrides };
+    },
+
+    setAvatarBindingOverrides(overrides: Record<string, unknown>) {
+      avatarBindingOverrides = { ...avatarBindingOverrides, ...overrides };
     },
   };
 
