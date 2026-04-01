@@ -1,0 +1,32 @@
+/**
+ * @fileoverview Custom error class for Gemini CLI provider errors.
+ * Extends {@link CLISubprocessError} with Gemini-specific error codes.
+ *
+ * @module agentos/core/llm/providers/errors/GeminiCLIProviderError
+ * @see {@link CLISubprocessError}
+ */
+import { CLISubprocessError } from '../../../../sandbox/subprocess/errors';
+/**
+ * All recognized error codes for the Gemini CLI provider.
+ * Combines generic CLI error codes with Gemini-specific ones.
+ *
+ * Gemini-specific:
+ * - `TOOL_PARSE_FAILED` — XML tool_call regex didn't match expected format
+ * - `EMBEDDINGS_NOT_SUPPORTED` — Gemini CLI does not support embeddings
+ */
+export type GeminiCLIErrorCode = 'BINARY_NOT_FOUND' | 'NOT_AUTHENTICATED' | 'VERSION_OUTDATED' | 'SPAWN_FAILED' | 'TIMEOUT' | 'CRASHED' | 'RATE_LIMITED' | 'CONTEXT_TOO_LONG' | 'TOOL_PARSE_FAILED' | 'EMBEDDINGS_NOT_SUPPORTED' | 'UNKNOWN';
+/**
+ * Error specific to the Gemini CLI provider.
+ *
+ * @example
+ * throw new GeminiCLIProviderError(
+ *   'Gemini CLI is not installed.',
+ *   'BINARY_NOT_FOUND',
+ *   'Install it: npm install -g @google/gemini-cli',
+ *   false,
+ * );
+ */
+export declare class GeminiCLIProviderError extends CLISubprocessError {
+    constructor(message: string, code: GeminiCLIErrorCode, guidance: string, recoverable?: boolean, details?: unknown);
+}
+//# sourceMappingURL=GeminiCLIProviderError.d.ts.map

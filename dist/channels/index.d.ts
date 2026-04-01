@@ -1,0 +1,34 @@
+/**
+ * Barrel exports for the AgentOS Channel System.
+ *
+ * @module @framers/agentos/channels
+ */
+export * from './types.js';
+export type { IChannelAdapter } from './IChannelAdapter.js';
+export { ChannelRouter } from './ChannelRouter.js';
+export type { InboundMessageHandler, RegisterAdapterOptions } from './ChannelRouter.js';
+export { BaseChannelAdapter } from './adapters/BaseChannelAdapter.js';
+export type { RetryConfig } from './adapters/BaseChannelAdapter.js';
+export { TelegramChannelAdapter } from './adapters/TelegramChannelAdapter.js';
+export type { TelegramAuthParams } from './adapters/TelegramChannelAdapter.js';
+export { DiscordChannelAdapter } from './adapters/DiscordChannelAdapter.js';
+export type { DiscordAuthParams } from './adapters/DiscordChannelAdapter.js';
+export { SlackChannelAdapter } from './adapters/SlackChannelAdapter.js';
+export type { SlackAuthParams } from './adapters/SlackChannelAdapter.js';
+export { WhatsAppChannelAdapter } from './adapters/WhatsAppChannelAdapter.js';
+export type { WhatsAppAuthParams } from './adapters/WhatsAppChannelAdapter.js';
+export { WebChatChannelAdapter } from './adapters/WebChatChannelAdapter.js';
+export type { WebChatAuthParams } from './adapters/WebChatChannelAdapter.js';
+export { TwitterChannelAdapter } from './adapters/TwitterChannelAdapter.js';
+export type { TwitterAuthParams } from './adapters/TwitterChannelAdapter.js';
+export { RedditChannelAdapter } from './adapters/RedditChannelAdapter.js';
+export type { RedditAuthParams } from './adapters/RedditChannelAdapter.js';
+export { IRCChannelAdapter } from './adapters/IRCChannelAdapter.js';
+export type { IRCAuthParams } from './adapters/IRCChannelAdapter.js';
+export { SignalChannelAdapter } from './adapters/SignalChannelAdapter.js';
+export type { SignalAuthParams } from './adapters/SignalChannelAdapter.js';
+export { TeamsChannelAdapter } from './adapters/TeamsChannelAdapter.js';
+export type { TeamsAuthParams } from './adapters/TeamsChannelAdapter.js';
+export { GoogleChatChannelAdapter } from './adapters/GoogleChatChannelAdapter.js';
+export type { GoogleChatAuthParams } from './adapters/GoogleChatChannelAdapter.js';
+//# sourceMappingURL=index.d.ts.map

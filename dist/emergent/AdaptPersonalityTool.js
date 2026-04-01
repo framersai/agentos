@@ -1,0 +1,210 @@
+/**
+ * @fileoverview AdaptPersonalityTool — ITool implementation that enables agents
+ * to mutate their own HEXACO personality traits at runtime with per-session
+ * budget enforcement.
+ *
+ * @module @framers/agentos/emergent/AdaptPersonalityTool
+ *
+ * Agents call `adapt_personality` to shift a specific trait dimension (e.g.
+ * openness, conscientiousness) by a bounded delta. The tool enforces:
+ * - Only valid HEXACO trait names are accepted.
+ * - Reasoning must be provided for every mutation (audit trail).
+ * - Per-session budgets cap the total absolute delta per trait.
+ * - Values are always clamped to the [0, 1] range.
+ *
+ * All mutations are recorded in the injected {@link PersonalityMutationStore}
+ * for durability and downstream analysis.
+ */
+import { resolveSelfImprovementSessionKey } from './sessionScope.js';
+// ============================================================================
+// VALID TRAITS
+// ============================================================================
+/**
+ * The six HEXACO personality dimensions that agents may self-modify.
+ *
+ * Each trait is a continuous value in the range [0, 1]:
+ * - `openness`          — curiosity, creativity, willingness to explore
+ * - `conscientiousness` — discipline, thoroughness, reliability
+ * - `emotionality`      — emotional reactivity, empathy, anxiety
+ * - `extraversion`      — sociability, energy, assertiveness
+ * - `agreeableness`     — patience, tolerance, cooperation
+ * - `honesty`           — sincerity, fairness, modesty
+ */
+export const VALID_TRAITS = [
+    'openness',
+    'conscientiousness',
+    'emotionality',
+    'extraversion',
+    'agreeableness',
+    'honesty',
+];
+// ============================================================================
+// TOOL IMPLEMENTATION
+// ============================================================================
+/**
+ * ITool implementation enabling agents to self-modify their HEXACO personality
+ * traits within per-session budgets.
+ *
+ * @example
+ * ```ts
+ * const tool = new AdaptPersonalityTool({
+ *   config: { maxDeltaPerSession: 0.3 },
+ *   mutationStore: myStore,
+ *   getPersonality: () => agent.personality,
+ *   setPersonality: (t, v) => { agent.personality[t] = v; },
+ * });
+ *
+ * const result = await tool.execute(
+ *   { trait: 'openness', delta: 0.1, reasoning: 'User prefers creative responses.' },
+ *   context,
+ * );
+ * ```
+ */
+export class AdaptPersonalityTool {
+    /**
+     * Create a new AdaptPersonalityTool.
+     *
+     * @param deps - Injected dependencies including config, mutation store,
+     *   and personality getter/setter.
+     */
+    constructor(deps) {
+        /** @inheritdoc */
+        this.id = 'com.framers.emergent.adapt-personality';
+        /** @inheritdoc */
+        this.name = 'adapt_personality';
+        /** @inheritdoc */
+        this.displayName = 'Adapt Personality';
+        /** @inheritdoc */
+        this.description = 'Adjust a HEXACO personality trait by a bounded delta. Requires reasoning ' +
+            'for every mutation. Per-session budgets prevent runaway drift.';
+        /** @inheritdoc */
+        this.category = 'emergent';
+        /** @inheritdoc */
+        this.hasSideEffects = true;
+        /** @inheritdoc */
+        this.inputSchema = {
+            type: 'object',
+            properties: {
+                trait: {
+                    type: 'string',
+                    enum: [...VALID_TRAITS],
+                    description: 'The HEXACO personality trait to modify.',
+                },
+                delta: {
+                    type: 'number',
+                    description: 'Signed delta to apply (positive = increase, negative = decrease).',
+                },
+                reasoning: {
+                    type: 'string',
+                    description: 'Why this personality adaptation is warranted.',
+                },
+            },
+            required: ['trait', 'delta', 'reasoning'],
+        };
+        /** Per-session accumulated |delta| per trait. */
+        this.sessionDeltas = new Map();
+        this.deps = deps;
+    }
+    // --------------------------------------------------------------------------
+    // EXECUTE
+    // --------------------------------------------------------------------------
+    /**
+     * Apply a personality trait mutation within session budget constraints.
+     *
+     * @param args - The trait, delta, and reasoning for the mutation.
+     * @param _context - Tool execution context (unused but required by ITool).
+     * @returns A {@link ToolExecutionResult} wrapping the mutation outcome.
+     */
+    async execute(args, context) {
+        const { trait, delta, reasoning } = args;
+        // 1. Validate trait name
+        if (!VALID_TRAITS.includes(trait)) {
+            return {
+                success: false,
+                error: `Invalid trait "${trait}". Must be one of: ${VALID_TRAITS.join(', ')}`,
+            };
+        }
+        // 2. Validate reasoning is non-empty
+        if (!reasoning || typeof reasoning !== 'string' || reasoning.trim().length === 0) {
+            return {
+                success: false,
+                error: 'reasoning is required and must be a non-empty string',
+            };
+        }
+        if (typeof delta !== 'number' || !Number.isFinite(delta)) {
+            return {
+                success: false,
+                error: 'delta is required and must be a finite number',
+            };
+        }
+        // 3. Check session budget — track total |delta| per trait
+        const { maxDeltaPerSession } = this.deps.config;
+        const sessionDeltas = this.getSessionDeltas(context);
+        const currentSessionTotal = sessionDeltas.get(trait) ?? 0;
+        const remainingBudget = maxDeltaPerSession - currentSessionTotal;
+        // 4. Clamp delta to remaining budget
+        let effectiveDelta = delta;
+        let clamped = false;
+        if (Math.abs(effectiveDelta) > remainingBudget) {
+            effectiveDelta = remainingBudget * Math.sign(effectiveDelta);
+            clamped = true;
+        }
+        // If no budget remains, the effective delta is 0
+        if (remainingBudget <= 0) {
+            effectiveDelta = 0;
+            clamped = true;
+        }
+        // 5. Get current value, compute new value (clamped 0–1), apply
+        const personality = this.deps.getPersonality();
+        const previousValue = personality[trait] ?? 0.5;
+        let newValue = previousValue + effectiveDelta;
+        // Clamp to [0, 1] range — may further reduce the effective delta
+        if (newValue < 0) {
+            newValue = 0;
+            effectiveDelta = newValue - previousValue;
+            clamped = true;
+        }
+        else if (newValue > 1) {
+            newValue = 1;
+            effectiveDelta = newValue - previousValue;
+            clamped = true;
+        }
+        this.deps.setPersonality(trait, newValue);
+        // Update session tracking
+        const newSessionTotal = currentSessionTotal + Math.abs(effectiveDelta);
+        sessionDeltas.set(trait, newSessionTotal);
+        // 6. Record in mutation store when persistence is enabled.
+        if (this.deps.mutationStore) {
+            await Promise.resolve(this.deps.mutationStore.record({
+                agentId: context.gmiId,
+                trait,
+                delta: effectiveDelta,
+                reasoning,
+                baselineValue: previousValue,
+                mutatedValue: newValue,
+            }));
+        }
+        // 7. Return result
+        const output = {
+            trait,
+            previousValue,
+            newValue,
+            delta: effectiveDelta,
+            clamped,
+            sessionTotal: newSessionTotal,
+            remainingBudget: maxDeltaPerSession - newSessionTotal,
+        };
+        return { success: true, output };
+    }
+    getSessionDeltas(context) {
+        const sessionKey = resolveSelfImprovementSessionKey(context);
+        const existing = this.sessionDeltas.get(sessionKey);
+        if (existing) {
+            return existing;
+        }
+        const created = new Map();
+        this.sessionDeltas.set(sessionKey, created);
+        return created;
+    }
+}
+//# sourceMappingURL=AdaptPersonalityTool.js.map

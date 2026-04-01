@@ -1,0 +1,46 @@
+// File: backend/agentos/core/llm/providers/errors/GeminiProviderError.ts
+/**
+ * @fileoverview Custom error class for Google Gemini provider errors.
+ * Extends the base {@link ProviderError} with Gemini-specific fields
+ * such as HTTP status codes and Gemini API error details.
+ *
+ * @module backend/agentos/core/llm/providers/errors/GeminiProviderError
+ * @see {@link ProviderError}
+ */
+import { ProviderError } from './ProviderError.js';
+/**
+ * Represents an error originating from the Google Gemini provider.
+ *
+ * Includes additional context specific to the Gemini REST API, such as
+ * HTTP status codes and the `error.status` field from the Gemini error
+ * envelope (e.g., `"INVALID_ARGUMENT"`, `"PERMISSION_DENIED"`).
+ *
+ * @example
+ * try {
+ *   // Gemini API call
+ * } catch (error) {
+ *   if (error instanceof GeminiProviderError) {
+ *     console.error(`Gemini Error (HTTP ${error.httpStatus}): ${error.message}`);
+ *   }
+ * }
+ */
+export class GeminiProviderError extends ProviderError {
+    /**
+     * Creates an instance of GeminiProviderError.
+     *
+     * @param {string} message - Human-readable description of the error.
+     * @param {string} code - Internal AgentOS error code (e.g., 'API_REQUEST_FAILED').
+     * @param {number} [httpStatus] - HTTP status code from the API response.
+     * @param {string} [geminiErrorStatus] - Gemini-specific error status string.
+     * @param {unknown} [details] - Additional context or the original error object.
+     */
+    constructor(message, code, httpStatus, geminiErrorStatus, details) {
+        super(message, code, 'gemini', details);
+        this.name = 'GeminiProviderError';
+        this.httpStatus = httpStatus;
+        this.geminiErrorStatus = geminiErrorStatus;
+        // Preserve correct prototype chain for instanceof checks
+        Object.setPrototypeOf(this, GeminiProviderError.prototype);
+    }
+}
+//# sourceMappingURL=GeminiProviderError.js.map

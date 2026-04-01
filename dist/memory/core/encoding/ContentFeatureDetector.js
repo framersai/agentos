@@ -1,0 +1,176 @@
+/**
+ * @fileoverview Content feature detection for memory encoding.
+ *
+ * Three strategies (configurable per-agent):
+ * - `keyword`  — fast regex/lexicon-based heuristics (zero latency, no LLM cost)
+ * - `llm`      — cheap LLM call for accurate classification
+ * - `hybrid`   — keywords in real-time, LLM retroactively during consolidation
+ *
+ * @module agentos/memory/encoding/ContentFeatureDetector
+ */
+// ---------------------------------------------------------------------------
+// Keyword patterns
+// ---------------------------------------------------------------------------
+const PROCEDURE_PATTERNS = [
+    /\bstep[\s-]?\d/i,
+    /\bfirst[\s,]/i,
+    /\bthen[\s,]/i,
+    /\bfinally[\s,]/i,
+    /\binstructions?\b/i,
+    /\bhow[\s-]to\b/i,
+    /\bprocedure\b/i,
+    /\brecipe\b/i,
+    /\bworkflow\b/i,
+    /\b\d+\.\s+\w/, // numbered lists
+];
+const EMOTION_PATTERNS = [
+    /\bhappy\b|\bsad\b|\bangry\b|\bfrustrat/i,
+    /\bexcit/i, /\bworri/i, /\banxious\b/i,
+    /\blove\b|\bhate\b|\bfear\b/i,
+    /\bthank/i, /\bsorry\b/i, /\bgrateful\b/i,
+    /\bdisappoint/i, /\bdeligh/i, /\bupset\b/i,
+    /[!]{2,}/, /(?:\u{1F600}|\u{1F64F}|\u{1F923}|\u{1F602}|\u{2764}\u{FE0F}|\u{1F60D}|\u{1F60A}|\u{1F97A}|\u{1F62D}|\u{1F618}|\u{1F914}|\u{1F605}|\u{1F629}|\u{1F970}|\u{1F621}|\u{1F480})/u,
+];
+const SOCIAL_PATTERNS = [
+    /\bteam\b|\bcolleague\b|\bmanager\b/i,
+    /\bmeeting\b|\bcall\b|\bdiscuss/i,
+    /\bfriend\b|\bfamily\b|\bpartner\b/i,
+    /\bhe\s+(said|told|asked)\b/i,
+    /\bshe\s+(said|told|asked)\b/i,
+    /\bthey\s+(said|told|asked)\b/i,
+];
+const COOPERATION_PATTERNS = [
+    /\btogether\b|\bcollaborat/i,
+    /\bagree\b|\bconsensus\b/i,
+    /\bhelp\b|\bassist\b|\bsupport\b/i,
+    /\bshare\b|\bcontribut/i,
+    /\bcompromis/i,
+];
+const ETHICAL_PATTERNS = [
+    /\bfair\b|\bunfair\b|\bjust\b|\bunjust\b/i,
+    /\bright\b.*\bwrong\b|\bwrong\b.*\bright\b/i,
+    /\bethic/i, /\bmoral/i, /\bhonest/i,
+    /\bprivacy\b|\bconsent\b|\btranspar/i,
+    /\bresponsib/i, /\baccountab/i,
+];
+const CONTRADICTION_PATTERNS = [
+    /\bactually\b.*\bnot\b/i,
+    /\bthat'?s\s+(wrong|incorrect|false)\b/i,
+    /\bcorrect(ion|ed)\b/i,
+    /\bcontrad/i,
+    /\bhowever\b.*\b(not|isn'?t|wasn'?t|doesn'?t)\b/i,
+    /\bin\s+fact\b/i,
+    /\bmistak/i,
+    /\bno,\s/i,
+];
+const NOVELTY_PATTERNS = [
+    /\bnew\b|\bnovel\b|\bunexpect/i,
+    /\bsurpris/i, /\bfirst\s+time\b/i,
+    /\bnever\s+(seen|heard|done)\b/i,
+    /\bdiscover/i, /\bbreakthrough\b/i,
+    /\binnovati/i, /\bunique\b/i,
+];
+function matchesAny(text, patterns) {
+    return patterns.some((p) => p.test(text));
+}
+// ---------------------------------------------------------------------------
+// Keyword-based detector
+// ---------------------------------------------------------------------------
+export class KeywordFeatureDetector {
+    async detect(text) {
+        return {
+            hasNovelty: matchesAny(text, NOVELTY_PATTERNS),
+            hasProcedure: matchesAny(text, PROCEDURE_PATTERNS),
+            hasEmotion: matchesAny(text, EMOTION_PATTERNS),
+            hasSocialContent: matchesAny(text, SOCIAL_PATTERNS),
+            hasCooperation: matchesAny(text, COOPERATION_PATTERNS),
+            hasEthicalContent: matchesAny(text, ETHICAL_PATTERNS),
+            hasContradiction: matchesAny(text, CONTRADICTION_PATTERNS),
+            topicRelevance: 0.5, // keywords can't assess task relevance
+        };
+    }
+}
+// ---------------------------------------------------------------------------
+// LLM-based detector
+// ---------------------------------------------------------------------------
+const LLM_SYSTEM_PROMPT = `You are a content feature classifier. Given text, output a JSON object with exactly these boolean fields and one number field:
+{
+  "hasNovelty": bool,
+  "hasProcedure": bool,
+  "hasEmotion": bool,
+  "hasSocialContent": bool,
+  "hasCooperation": bool,
+  "hasEthicalContent": bool,
+  "hasContradiction": bool,
+  "topicRelevance": number (0-1)
+}
+Respond ONLY with the JSON object, no explanation.`;
+export class LlmFeatureDetector {
+    constructor(llmInvoker) {
+        this.llmInvoker = llmInvoker;
+    }
+    async detect(text) {
+        try {
+            const response = await this.llmInvoker(LLM_SYSTEM_PROMPT, text);
+            const parsed = JSON.parse(response.trim());
+            return {
+                hasNovelty: !!parsed.hasNovelty,
+                hasProcedure: !!parsed.hasProcedure,
+                hasEmotion: !!parsed.hasEmotion,
+                hasSocialContent: !!parsed.hasSocialContent,
+                hasCooperation: !!parsed.hasCooperation,
+                hasEthicalContent: !!parsed.hasEthicalContent,
+                hasContradiction: !!parsed.hasContradiction,
+                topicRelevance: typeof parsed.topicRelevance === 'number'
+                    ? Math.max(0, Math.min(1, parsed.topicRelevance))
+                    : 0.5,
+            };
+        }
+        catch {
+            // Fallback to keyword detection on LLM failure
+            return new KeywordFeatureDetector().detect(text);
+        }
+    }
+}
+// ---------------------------------------------------------------------------
+// Hybrid detector (keyword real-time, LLM deferred)
+// ---------------------------------------------------------------------------
+/**
+ * Uses keyword detection for real-time encoding. Exposes `detectWithLlm()`
+ * for retroactive re-classification during consolidation.
+ */
+export class HybridFeatureDetector {
+    constructor(llmInvoker) {
+        this.keyword = new KeywordFeatureDetector();
+        this.llm = llmInvoker ? new LlmFeatureDetector(llmInvoker) : null;
+    }
+    /** Real-time detection: keyword only (zero latency). */
+    async detect(text) {
+        return this.keyword.detect(text);
+    }
+    /** Deferred detection: LLM-based (called during consolidation). */
+    async detectWithLlm(text) {
+        if (this.llm) {
+            return this.llm.detect(text);
+        }
+        return this.keyword.detect(text);
+    }
+}
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
+export function createFeatureDetector(strategy, llmInvoker) {
+    switch (strategy) {
+        case 'llm':
+            if (!llmInvoker) {
+                throw new Error('LLM feature detection requires an llmInvoker function');
+            }
+            return new LlmFeatureDetector(llmInvoker);
+        case 'hybrid':
+            return new HybridFeatureDetector(llmInvoker);
+        case 'keyword':
+        default:
+            return new KeywordFeatureDetector();
+    }
+}
+//# sourceMappingURL=ContentFeatureDetector.js.map

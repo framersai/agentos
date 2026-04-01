@@ -1,0 +1,18 @@
+/**
+ * Vector Store Implementations
+ *
+ * This module exports all available vector store implementations for AgentOS RAG.
+ *
+ * @module @framers/agentos/rag/vector_stores
+ */
+// In-memory vector store (development/testing)
+export { InMemoryVectorStore } from './InMemoryVectorStore.js';
+// SQL-backed vector store (cross-platform persistence)
+export { SqlVectorStore } from './SqlVectorStore.js';
+// HNSW-based vector store (fast ANN search via hnswlib-node)
+export { HnswlibVectorStore } from './HnswlibVectorStore.js';
+// Qdrant vector store (remote/self-hosted via HTTP API)
+export { QdrantVectorStore } from './QdrantVectorStore.js';
+// Neo4j vector store (native vector indexes via neo4j-driver)
+export { Neo4jVectorStore } from './Neo4jVectorStore.js';
+//# sourceMappingURL=index.js.map

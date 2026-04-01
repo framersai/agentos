@@ -1,0 +1,343 @@
+/**
+ * @file InMemoryStorageAdapter.ts
+ * @description In-memory storage adapter for AgentOS (testing and non-persistent scenarios).
+ *
+ * This implementation stores all data in memory using JavaScript Maps and Arrays.
+ * Perfect for:
+ * - Unit testing without database setup
+ * - Ephemeral sessions that don't need persistence
+ * - Development and prototyping
+ * - CI/CD pipelines
+ *
+ * **Warning:** All data is lost when the process terminates or adapter is closed.
+ *
+ * @version 1.0.0
+ * @author AgentOS Team
+ * @license MIT
+ */
+/**
+ * In-memory storage adapter for AgentOS.
+ *
+ * Provides a complete implementation of IStorageAdapter without any persistence.
+ * All data is stored in JavaScript Map and Array structures.
+ *
+ * **Use Cases:**
+ * - Unit and integration testing
+ * - Development environments
+ * - Stateless sessions
+ * - CI/CD pipelines
+ * - Prototyping and demos
+ *
+ * **Characteristics:**
+ * - Zero setup (no database required)
+ * - Extremely fast (no I/O)
+ * - Non-persistent (data lost on process exit)
+ * - Thread-safe in single-threaded environments
+ *
+ * @class InMemoryStorageAdapter
+ * @implements {IStorageAdapter}
+ *
+ * @example
+ * ```typescript
+ * // Perfect for testing
+ * const storage = new InMemoryStorageAdapter();
+ * await storage.initialize();
+ *
+ * const conversation = await storage.createConversation({
+ *   id: 'test-conv',
+ *   userId: 'test-user',
+ *   createdAt: Date.now(),
+ *   lastActivity: Date.now()
+ * });
+ *
+ * // No cleanup needed for tests
+ * await storage.close();
+ * ```
+ */
+export class InMemoryStorageAdapter {
+    /**
+     * Creates a new in-memory storage adapter.
+     *
+     * No configuration needed since everything is in memory.
+     *
+     * @example
+     * ```typescript
+     * const storage = new InMemoryStorageAdapter();
+     * ```
+     */
+    constructor() {
+        this.conversations = new Map();
+        this.messages = new Map();
+        this.messagesByConversation = new Map();
+        this.initialized = false;
+        // No config needed for in-memory
+    }
+    /**
+     * Initializes the storage adapter.
+     *
+     * For in-memory adapter, this just sets the initialized flag.
+     *
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        this.initialized = true;
+    }
+    /**
+     * Closes the storage adapter and clears all data.
+     *
+     * **Warning:** This deletes all conversations and messages from memory.
+     *
+     * @returns {Promise<void>}
+     */
+    async close() {
+        this.conversations.clear();
+        this.messages.clear();
+        this.messagesByConversation.clear();
+        this.initialized = false;
+    }
+    // ==================== Conversation Operations ====================
+    /**
+     * Creates a new conversation.
+     *
+     * @param {IConversation} conversation - Conversation to create
+     * @returns {Promise<IConversation>} The created conversation
+     * @throws {Error} If conversation with same ID already exists
+     */
+    async createConversation(conversation) {
+        this.ensureInitialized();
+        if (this.conversations.has(conversation.id)) {
+            throw new Error(`Conversation already exists: ${conversation.id}`);
+        }
+        // Deep clone to prevent external mutations
+        const stored = { ...conversation };
+        this.conversations.set(conversation.id, stored);
+        this.messagesByConversation.set(conversation.id, []);
+        return { ...stored };
+    }
+    /**
+     * Retrieves a conversation by ID.
+     *
+     * @param {string} conversationId - Conversation ID
+     * @returns {Promise<IConversation | null>} The conversation or null
+     */
+    async getConversation(conversationId) {
+        this.ensureInitialized();
+        const conversation = this.conversations.get(conversationId);
+        return conversation ? { ...conversation } : null;
+    }
+    /**
+     * Updates a conversation.
+     *
+     * @param {string} conversationId - Conversation to update
+     * @param {Partial<IConversation>} updates - Fields to update
+     * @returns {Promise<IConversation>} Updated conversation
+     * @throws {Error} If conversation doesn't exist
+     */
+    async updateConversation(conversationId, updates) {
+        this.ensureInitialized();
+        const existing = this.conversations.get(conversationId);
+        if (!existing) {
+            throw new Error(`Conversation not found: ${conversationId}`);
+        }
+        const updated = { ...existing, ...updates };
+        this.conversations.set(conversationId, updated);
+        return { ...updated };
+    }
+    /**
+     * Deletes a conversation and all its messages.
+     *
+     * @param {string} conversationId - Conversation to delete
+     * @returns {Promise<boolean>} True if deleted, false if not found
+     */
+    async deleteConversation(conversationId) {
+        this.ensureInitialized();
+        const existed = this.conversations.has(conversationId);
+        if (existed) {
+            // Delete conversation
+            this.conversations.delete(conversationId);
+            // Delete all messages
+            const messageIds = this.messagesByConversation.get(conversationId) || [];
+            for (const messageId of messageIds) {
+                this.messages.delete(messageId);
+            }
+            this.messagesByConversation.delete(conversationId);
+        }
+        return existed;
+    }
+    /**
+     * Lists conversations for a user.
+     *
+     * @param {string} userId - User whose conversations to list
+     * @param {Object} [options] - Query options
+     * @returns {Promise<IConversation[]>} Array of conversations
+     */
+    async listConversations(userId, options) {
+        this.ensureInitialized();
+        let conversations = Array.from(this.conversations.values()).filter((conv) => conv.userId === userId);
+        if (options?.agentId) {
+            conversations = conversations.filter((conv) => conv.agentId === options.agentId);
+        }
+        // Sort by lastActivity descending
+        conversations.sort((a, b) => b.lastActivity - a.lastActivity);
+        const offset = options?.offset || 0;
+        const limit = options?.limit || conversations.length;
+        return conversations.slice(offset, offset + limit).map((conv) => ({ ...conv }));
+    }
+    // ==================== Message Operations ====================
+    /**
+     * Stores a message.
+     *
+     * @param {IConversationMessage} message - Message to store
+     * @returns {Promise<IConversationMessage>} The stored message
+     * @throws {Error} If conversation doesn't exist
+     */
+    async storeMessage(message) {
+        this.ensureInitialized();
+        const conversation = this.conversations.get(message.conversationId);
+        if (!conversation) {
+            throw new Error(`Conversation not found: ${message.conversationId}`);
+        }
+        // Store message
+        const stored = { ...message };
+        this.messages.set(message.id, stored);
+        // Add to conversation's message list
+        const messageIds = this.messagesByConversation.get(message.conversationId) || [];
+        messageIds.push(message.id);
+        this.messagesByConversation.set(message.conversationId, messageIds);
+        // Update conversation lastActivity
+        conversation.lastActivity = message.timestamp;
+        return { ...stored };
+    }
+    /**
+     * Retrieves a message by ID.
+     *
+     * @param {string} messageId - Message ID
+     * @returns {Promise<IConversationMessage | null>} The message or null
+     */
+    async getMessage(messageId) {
+        this.ensureInitialized();
+        const message = this.messages.get(messageId);
+        return message ? { ...message } : null;
+    }
+    /**
+     * Retrieves messages for a conversation with filtering.
+     *
+     * @param {string} conversationId - Conversation ID
+     * @param {IMessageQueryOptions} [options] - Query options
+     * @returns {Promise<IConversationMessage[]>} Array of messages
+     */
+    async getMessages(conversationId, options) {
+        this.ensureInitialized();
+        const messageIds = this.messagesByConversation.get(conversationId) || [];
+        let messages = messageIds
+            .map((id) => this.messages.get(id))
+            .filter((msg) => msg !== undefined);
+        // Apply filters
+        if (options?.since) {
+            messages = messages.filter((msg) => msg.timestamp >= options.since);
+        }
+        if (options?.until) {
+            messages = messages.filter((msg) => msg.timestamp <= options.until);
+        }
+        if (options?.roles && options.roles.length > 0) {
+            messages = messages.filter((msg) => options.roles.includes(msg.role));
+        }
+        // Sort
+        const order = options?.order === 'desc' ? -1 : 1;
+        messages.sort((a, b) => order * (a.timestamp - b.timestamp));
+        // Pagination
+        const offset = options?.offset || 0;
+        const limit = options?.limit || messages.length;
+        return messages.slice(offset, offset + limit).map((msg) => ({ ...msg }));
+    }
+    /**
+     * Deletes a message.
+     *
+     * @param {string} messageId - Message to delete
+     * @returns {Promise<boolean>} True if deleted
+     */
+    async deleteMessage(messageId) {
+        this.ensureInitialized();
+        const message = this.messages.get(messageId);
+        if (!message) {
+            return false;
+        }
+        // Remove from messages map
+        this.messages.delete(messageId);
+        // Remove from conversation's message list
+        const messageIds = this.messagesByConversation.get(message.conversationId) || [];
+        const index = messageIds.indexOf(messageId);
+        if (index > -1) {
+            messageIds.splice(index, 1);
+            this.messagesByConversation.set(message.conversationId, messageIds);
+        }
+        return true;
+    }
+    /**
+     * Deletes all messages in a conversation.
+     *
+     * @param {string} conversationId - Conversation whose messages to delete
+     * @returns {Promise<number>} Number of messages deleted
+     */
+    async deleteMessagesForConversation(conversationId) {
+        this.ensureInitialized();
+        const messageIds = this.messagesByConversation.get(conversationId) || [];
+        const count = messageIds.length;
+        for (const messageId of messageIds) {
+            this.messages.delete(messageId);
+        }
+        this.messagesByConversation.set(conversationId, []);
+        return count;
+    }
+    // ==================== Analytics & Utilities ====================
+    /**
+     * Counts messages in a conversation.
+     *
+     * @param {string} conversationId - Conversation to count
+     * @returns {Promise<number>} Message count
+     */
+    async getMessageCount(conversationId) {
+        this.ensureInitialized();
+        const messageIds = this.messagesByConversation.get(conversationId) || [];
+        return messageIds.length;
+    }
+    /**
+     * Calculates total token usage for a conversation.
+     *
+     * @param {string} conversationId - Conversation to analyze
+     * @returns {Promise<ITokenUsage>} Aggregated token usage
+     */
+    async getConversationTokenUsage(conversationId) {
+        this.ensureInitialized();
+        const messageIds = this.messagesByConversation.get(conversationId) || [];
+        const messages = messageIds
+            .map((id) => this.messages.get(id))
+            .filter((msg) => msg !== undefined);
+        const usage = {
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+        };
+        for (const message of messages) {
+            if (message.usage) {
+                usage.promptTokens += message.usage.promptTokens || 0;
+                usage.completionTokens += message.usage.completionTokens || 0;
+                usage.totalTokens += message.usage.totalTokens || 0;
+            }
+        }
+        return usage;
+    }
+    // ==================== Private Helper Methods ====================
+    /**
+     * Ensures the adapter has been initialized.
+     *
+     * @private
+     * @throws {Error} If not initialized
+     */
+    ensureInitialized() {
+        if (!this.initialized) {
+            throw new Error('InMemoryStorageAdapter not initialized. Call initialize() first.');
+        }
+    }
+}
+//# sourceMappingURL=InMemoryStorageAdapter.js.map

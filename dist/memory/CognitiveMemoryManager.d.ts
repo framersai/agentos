@@ -1,0 +1,190 @@
+/**
+ * @fileoverview Top-level orchestrator for the Cognitive Memory System.
+ *
+ * Ties together encoding, decay, working memory, store, prompt assembly,
+ * and Batch 2 modules (observer, reflector, graph, prospective, consolidation).
+ *
+ * Batch 2 hooks activate automatically when the relevant config is provided.
+ * They degrade gracefully (no-op) when modules are absent.
+ *
+ * @module agentos/memory/CognitiveMemoryManager
+ */
+import type { MemoryTrace, MemoryType, MemoryScope, CognitiveRetrievalOptions, CognitiveRetrievalResult, AssembledMemoryContext, MemoryHealthReport } from './core/types.js';
+import type { CognitiveMemoryConfig, PADState } from './core/config.js';
+import { MemoryStore } from './retrieval/store/MemoryStore.js';
+import { CognitiveWorkingMemory } from './core/working/CognitiveWorkingMemory.js';
+import type { IMemoryGraph } from './retrieval/graph/IMemoryGraph.js';
+import { MemoryObserver, type ObservationNote } from './pipeline/observation/MemoryObserver.js';
+import { ProspectiveMemoryManager, type ProspectiveMemoryItem } from './retrieval/prospective/ProspectiveMemoryManager.js';
+import { type ConsolidationResult } from './pipeline/consolidation/ConsolidationPipeline.js';
+import { ContextWindowManager } from './pipeline/context/ContextWindowManager.js';
+import type { ContextMessage, CompactionEntry } from './pipeline/context/types.js';
+import type { ContextWindowStats } from './pipeline/context/ContextWindowManager.js';
+import type { HydeRetriever } from '../rag/HydeRetriever.js';
+export interface ICognitiveMemoryManager {
+    initialize(config: CognitiveMemoryConfig): Promise<void>;
+    /** Encode a new input into a memory trace. Called after each user message. */
+    encode(input: string, mood: PADState, gmiMood: string, options?: {
+        type?: MemoryType;
+        scope?: MemoryScope;
+        scopeId?: string;
+        sourceType?: MemoryTrace['provenance']['sourceType'];
+        contentSentiment?: number;
+        tags?: string[];
+        entities?: string[];
+    }): Promise<MemoryTrace>;
+    /** Retrieve relevant memories for a query. Called before prompt construction. */
+    retrieve(query: string, mood: PADState, options?: CognitiveRetrievalOptions): Promise<CognitiveRetrievalResult>;
+    /** Assemble memory context for prompt injection within a token budget. */
+    assembleForPrompt(query: string, tokenBudget: number, mood: PADState, options?: CognitiveRetrievalOptions): Promise<AssembledMemoryContext>;
+    /** Feed a message to the observer (Batch 2). Returns notes if threshold reached. */
+    observe?(role: 'user' | 'assistant' | 'system' | 'tool', content: string, mood?: PADState): Promise<ObservationNote[] | null>;
+    /** Check prospective memory triggers (Batch 2). */
+    checkProspective?(context: {
+        now?: number;
+        events?: string[];
+        queryText?: string;
+        queryEmbedding?: number[];
+    }): Promise<ProspectiveMemoryItem[]>;
+    /** Register a new prospective reminder/intention. */
+    registerProspective?(input: Omit<ProspectiveMemoryItem, 'id' | 'triggered' | 'createdAt' | 'cueEmbedding'> & {
+        cueText?: string;
+    }): Promise<ProspectiveMemoryItem>;
+    /** List active prospective reminders. */
+    listProspective?(): Promise<ProspectiveMemoryItem[]>;
+    /** Remove a prospective reminder. */
+    removeProspective?(id: string): Promise<boolean>;
+    /** Run consolidation cycle (Batch 2). */
+    runConsolidation?(): Promise<ConsolidationResult>;
+    /** Get memory health diagnostics. */
+    getMemoryHealth(): Promise<MemoryHealthReport>;
+    /** Access the underlying long-term memory store for diagnostics/devtools. */
+    getStore(): MemoryStore;
+    /** Access the working-memory model for diagnostics/devtools. */
+    getWorkingMemory(): CognitiveWorkingMemory;
+    /** Get the resolved cognitive-memory runtime config. */
+    getConfig(): CognitiveMemoryConfig;
+    /** Get graph module when enabled. */
+    getGraph(): IMemoryGraph | null;
+    /** Get observer module when enabled. */
+    getObserver(): MemoryObserver | null;
+    /** Get prospective-memory manager when enabled. */
+    getProspective(): ProspectiveMemoryManager | null;
+    /**
+     * Attach a HyDE retriever for hypothesis-driven memory recall.
+     * Pass `null` to disable.
+     */
+    setHydeRetriever?(retriever: HydeRetriever | null): void;
+    /** Get the HyDE retriever if configured, or `null`. */
+    getHydeRetriever?(): HydeRetriever | null;
+    /** Get infinite-context runtime stats when enabled. */
+    getContextWindowStats(): ContextWindowStats | null;
+    /** Get a human-readable compaction/transparency report when enabled. */
+    getContextTransparencyReport(): string | null;
+    /** Shutdown and release resources. */
+    shutdown(): Promise<void>;
+}
+export declare class CognitiveMemoryManager implements ICognitiveMemoryManager {
+    private config;
+    private store;
+    private workingMemory;
+    private featureDetector;
+    private initialized;
+    private graph;
+    private observer;
+    private reflector;
+    private prospective;
+    private consolidation;
+    private contextWindow;
+    private mechanismsEngine;
+    /**
+     * Optional HyDE retriever for hypothesis-driven memory recall.
+     *
+     * When set and `options.hyde` is `true` on a `retrieve()` call, the manager
+     * generates a hypothetical memory trace via LLM and uses that text for the
+     * embedding-based memory search. This improves recall for vague or abstract
+     * queries (e.g. "that deployment discussion last week").
+     */
+    private hydeRetriever;
+    initialize(config: CognitiveMemoryConfig): Promise<void>;
+    encode(input: string, mood: PADState, gmiMood: string, options?: {
+        type?: MemoryType;
+        scope?: MemoryScope;
+        scopeId?: string;
+        sourceType?: MemoryTrace['provenance']['sourceType'];
+        contentSentiment?: number;
+        tags?: string[];
+        entities?: string[];
+    }): Promise<MemoryTrace>;
+    retrieve(query: string, mood: PADState, options?: CognitiveRetrievalOptions): Promise<CognitiveRetrievalResult>;
+    assembleForPrompt(query: string, tokenBudget: number, mood: PADState, options?: CognitiveRetrievalOptions): Promise<AssembledMemoryContext>;
+    observe(role: 'user' | 'assistant' | 'system' | 'tool', content: string, mood?: PADState): Promise<ObservationNote[] | null>;
+    checkProspective(context: {
+        now?: number;
+        events?: string[];
+        queryText?: string;
+        queryEmbedding?: number[];
+    }): Promise<ProspectiveMemoryItem[]>;
+    registerProspective(input: Omit<ProspectiveMemoryItem, 'id' | 'triggered' | 'createdAt' | 'cueEmbedding'> & {
+        cueText?: string;
+    }): Promise<ProspectiveMemoryItem>;
+    listProspective(): Promise<ProspectiveMemoryItem[]>;
+    removeProspective(id: string): Promise<boolean>;
+    runConsolidation(): Promise<ConsolidationResult>;
+    getMemoryHealth(): Promise<MemoryHealthReport>;
+    /**
+     * Track a conversation message for context window management.
+     * Call for every user/assistant/system/tool message in the conversation.
+     */
+    trackMessage(role: 'user' | 'assistant' | 'system' | 'tool', content: string): void;
+    /**
+     * Run context window compaction if needed. Call BEFORE assembling the LLM prompt.
+     * Returns the (potentially compacted) message list for the conversation.
+     * If infinite context is disabled, returns null (caller should use original messages).
+     */
+    compactIfNeeded(systemPromptTokens: number, memoryBudgetTokens: number): Promise<ContextMessage[] | null>;
+    /** Get the rolling summary chain text for prompt injection. */
+    getSummaryContext(): string;
+    /** Get context window transparency stats. */
+    getContextWindowStats(): ContextWindowStats | null;
+    /** Get full transparency report (for agent self-inspection or UI). */
+    getContextTransparencyReport(): string | null;
+    /** Get compaction history for audit/UI. */
+    getCompactionHistory(): readonly CompactionEntry[];
+    /** Search compaction history for a keyword. */
+    searchCompactionHistory(keyword: string): CompactionEntry[];
+    /** Get the context window manager (for advanced usage). */
+    getContextWindowManager(): ContextWindowManager | null;
+    shutdown(): Promise<void>;
+    getStore(): MemoryStore;
+    getWorkingMemory(): CognitiveWorkingMemory;
+    getConfig(): CognitiveMemoryConfig;
+    getGraph(): IMemoryGraph | null;
+    getObserver(): MemoryObserver | null;
+    getProspective(): ProspectiveMemoryManager | null;
+    /**
+     * Attach a HyDE retriever to enable hypothesis-driven memory recall.
+     *
+     * When set, the `retrieve()` and `assembleForPrompt()` methods can accept
+     * `options.hyde = true` to generate a hypothetical memory trace before
+     * searching. This improves recall for vague or abstract queries by
+     * producing embeddings that are semantically closer to stored traces.
+     *
+     * @param retriever - A pre-configured HydeRetriever instance, or `null`
+     *   to disable HyDE.
+     *
+     * @example
+     * ```typescript
+     * memoryManager.setHydeRetriever(new HydeRetriever({
+     *   llmCaller: myLlmCaller,
+     *   embeddingManager: myEmbeddingManager,
+     *   config: { enabled: true },
+     * }));
+     * ```
+     */
+    setHydeRetriever(retriever: HydeRetriever | null): void;
+    /** Get the HyDE retriever if configured, or `null`. */
+    getHydeRetriever(): HydeRetriever | null;
+    private ensureInitialized;
+}
+//# sourceMappingURL=CognitiveMemoryManager.d.ts.map

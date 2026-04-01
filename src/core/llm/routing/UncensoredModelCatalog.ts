@@ -246,7 +246,23 @@ export function createUncensoredModelCatalog(): UncensoredModelCatalog {
         );
       }
 
-      // Sort: high > medium > low
+      // For private-adult tier, prioritize models known to be truly uncensored.
+      // Hermes/Dolphin claim to be uncensored but still refuse some content.
+      // MythoMax and Toppy are consistently permissive.
+      if (tier === 'private-adult') {
+        const trulyUncensored = ['gryphe/mythomax-l2-13b', 'undi95/toppy-m-7b', 'cognitivecomputations/dolphin-mixtral-8x22b'];
+        candidates.sort((a, b) => {
+          const aIdx = trulyUncensored.indexOf(a.modelId);
+          const bIdx = trulyUncensored.indexOf(b.modelId);
+          if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+          if (aIdx !== -1) return -1;
+          if (bIdx !== -1) return 1;
+          return 0;
+        });
+        return candidates[0] ?? null;
+      }
+
+      // For mature tier, prefer higher quality (Hermes works for non-explicit content)
       const qualityOrder: Record<string, number> = {
         high: 0,
         medium: 1,

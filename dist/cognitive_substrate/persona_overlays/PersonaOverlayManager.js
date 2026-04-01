@@ -1,0 +1,138 @@
+/**
+ * Applies evolution rules to personas and produces runtime overlays that can be persisted
+ * alongside workflow instances.
+ */
+export class PersonaOverlayManager {
+    /**
+     * Evaluates the supplied rules against the context and returns an updated overlay.
+     * @param args - Persona, rules, context, and existing overlay information.
+     * @returns Overlay capturing the persona patches that should be applied.
+     */
+    applyRules(args) {
+        const appliedRules = [];
+        const patches = { ...(args.previousOverlay?.patchedDefinition ?? {}) };
+        for (const rule of args.rules) {
+            if (this.shouldApplyRule(rule, args.context)) {
+                appliedRules.push(rule.id);
+                if (rule.patch?.personaTraits) {
+                    patches.personalityTraits = {
+                        ...(args.persona.personalityTraits ?? {}),
+                        ...rule.patch.personaTraits,
+                    };
+                }
+                if (rule.patch?.mood) {
+                    const currentMood = patches.moodAdaptation ?? args.persona.moodAdaptation ?? {
+                        enabled: true,
+                        defaultMood: rule.patch.mood,
+                    };
+                    patches.moodAdaptation = {
+                        ...currentMood,
+                        enabled: currentMood.enabled ?? true,
+                        defaultMood: rule.patch.mood,
+                    };
+                }
+                if (rule.patch?.metadata) {
+                    patches.customFields = {
+                        ...(args.persona.customFields ?? {}),
+                        ...rule.patch.metadata,
+                    };
+                }
+            }
+        }
+        return {
+            personaId: args.persona.id,
+            appliedRules: [...new Set([...(args.previousOverlay?.appliedRules ?? []), ...appliedRules])],
+            patchedDefinition: patches,
+            metadata: {
+                ...args.previousOverlay?.metadata,
+                previouslyActivated: true,
+                lastEvaluatedAt: new Date().toISOString(),
+                lastContextMetadata: args.context.metadata,
+            },
+        };
+    }
+    /**
+     * Merges the base persona definition with an overlay to produce the effective persona.
+     * @param persona - Base persona definition.
+     * @param overlay - Overlay generated from applied rules.
+     * @returns Persona definition with applied patches.
+     */
+    resolvePersona(persona, overlay) {
+        if (!overlay) {
+            return persona;
+        }
+        return {
+            ...persona,
+            ...overlay.patchedDefinition,
+            personalityTraits: {
+                ...(persona.personalityTraits ?? {}),
+                ...(overlay.patchedDefinition.personalityTraits ?? {}),
+            },
+            customFields: {
+                ...(persona.customFields ?? {}),
+                ...(overlay.patchedDefinition.customFields ?? {}),
+            },
+        };
+    }
+    /**
+     * Determines whether a given rule should be applied. Placeholder implementation that
+     * always returns false until a trigger DSL is defined.
+     * @param rule - Evolution rule under consideration.
+     * @param context - Signals captured during workflow execution.
+     * @returns `true` when the rule should be applied.
+     */
+    shouldApplyRule(rule, context) {
+        if (!rule?.trigger) {
+            return false;
+        }
+        if (typeof rule.trigger === 'string') {
+            return this.matchesStringTrigger(rule.trigger, context);
+        }
+        return Object.entries(rule.trigger).every(([key, expected]) => {
+            const actual = this.readContextValue(context, key);
+            return actual === expected;
+        });
+    }
+    matchesStringTrigger(trigger, context) {
+        const normalized = trigger.toLowerCase();
+        switch (normalized) {
+            case 'always':
+                return true;
+            case 'first_activation':
+                return !context.metadata?.previouslyActivated;
+            case 'task_completed':
+                return context.metadata?.lastEvent === 'task_completed';
+            case 'on_error':
+            case 'error':
+                return (context.metadata?.lastEvent === 'error' ||
+                    context.reasoningSignals?.lastEvent === 'error' ||
+                    context.metadata?.state === 'failed');
+            default:
+                return (context.metadata?.lastEvent === normalized ||
+                    context.metadata?.state === normalized ||
+                    context.roleId === normalized);
+        }
+    }
+    readContextValue(context, key) {
+        if (key.includes('.')) {
+            const [root, ...rest] = key.split('.');
+            const initial = root === 'metadata'
+                ? context.metadata
+                : root === 'signals'
+                    ? context.reasoningSignals
+                    : context[root];
+            return rest.reduce((value, segment) => (value ? value[segment] : undefined), initial);
+        }
+        if (context.metadata && key in context.metadata) {
+            return context.metadata[key];
+        }
+        if (context.reasoningSignals && key in context.reasoningSignals) {
+            return context.reasoningSignals[key];
+        }
+        if (key in context) {
+            return context[key];
+        }
+        return undefined;
+    }
+}
+//# sourceMappingURL=PersonaOverlayManager.js.map

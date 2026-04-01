@@ -1,0 +1,182 @@
+import type { AgentOSInput } from '../../api/types/AgentOSInput';
+import { AgentOSResponse } from '../../api/types/AgentOSResponse';
+import { GuardrailAction, type GuardrailContext, type GuardrailEvaluationResult, type IGuardrailService } from './IGuardrailService';
+/**
+ * Normalize a service input (single, array, or undefined) into a flat array.
+ *
+ * Filters out falsy entries so callers never need null-checks.
+ *
+ * @param service - Single guardrail, array of guardrails, or undefined
+ * @returns Non-empty array of valid guardrail services
+ */
+export declare function normalizeServices(service: IGuardrailService | IGuardrailService[] | undefined): IGuardrailService[];
+/**
+ * Type guard to check if a guardrail service implements evaluateOutput.
+ *
+ * @param svc - The guardrail service to inspect
+ * @returns `true` when `svc.evaluateOutput` is a callable function
+ */
+export declare function hasEvaluateOutput(svc: IGuardrailService): svc is IGuardrailService & {
+    evaluateOutput: NonNullable<IGuardrailService['evaluateOutput']>;
+};
+/**
+ * Result of running input guardrails.
+ *
+ * Contains the potentially modified input and all evaluation results.
+ * Check `evaluation.action` to determine if processing should continue.
+ */
+export interface GuardrailInputOutcome {
+    /** Input after all sanitization (may be modified from original) */
+    sanitizedInput: AgentOSInput;
+    /** The last evaluation result (for backwards compatibility) */
+    evaluation?: GuardrailEvaluationResult | null;
+    /** All evaluation results from all guardrails */
+    evaluations?: GuardrailEvaluationResult[];
+}
+/**
+ * Options for output guardrail wrapping.
+ */
+export interface GuardrailOutputOptions {
+    /** Stream identifier for error chunks */
+    streamId: string;
+    /** Persona ID for error chunks */
+    personaId?: string;
+    /** Input evaluations to attach to first output chunk */
+    inputEvaluations?: GuardrailEvaluationResult[] | null;
+    /** RAG sources to thread through to output guardrails for grounding verification */
+    ragSources?: import('../../rag').RagRetrievedChunk[];
+}
+/**
+ * Metadata entry attached to response chunks.
+ *
+ * Compact representation of a {@link GuardrailEvaluationResult} that gets
+ * embedded into chunk `metadata.guardrail.input[]` / `metadata.guardrail.output[]`.
+ */
+export interface GuardrailMetadataEntry {
+    action: GuardrailAction;
+    reason?: string;
+    reasonCode?: string;
+    metadata?: Record<string, unknown>;
+}
+/**
+ * Evaluate user input through all registered guardrails.
+ *
+ * Runs guardrails in sequence, allowing each to modify or block the input.
+ * If any guardrail returns {@link GuardrailAction.BLOCK}, evaluation stops
+ * immediately and the blocked result is returned.
+ *
+ * @param service - Single guardrail or array of guardrails to evaluate
+ * @param input - User input to evaluate
+ * @param context - Conversation context for policy decisions
+ * @returns Outcome containing sanitized input and all evaluations
+ *
+ * @example
+ * ```typescript
+ * const outcome = await evaluateInputGuardrails(
+ *   [contentFilter, piiRedactor],
+ *   userInput,
+ *   { userId: 'user-123', sessionId: 'session-abc' }
+ * );
+ *
+ * if (outcome.evaluation?.action === GuardrailAction.BLOCK) {
+ *   // Input was blocked - return error stream
+ *   yield* createGuardrailBlockedStream(context, outcome.evaluation);
+ *   return;
+ * }
+ *
+ * // Use sanitized input for orchestration
+ * const cleanInput = outcome.sanitizedInput;
+ * ```
+ */
+export declare function evaluateInputGuardrails(service: IGuardrailService | IGuardrailService[] | undefined, input: AgentOSInput, context: GuardrailContext): Promise<GuardrailInputOutcome>;
+/**
+ * Create a stream that emits a single error chunk for blocked content.
+ *
+ * Use this when input evaluation returns {@link GuardrailAction.BLOCK}
+ * to generate an appropriate error response without invoking orchestration.
+ *
+ * @param context - Guardrail context for the error details
+ * @param evaluation - The blocking evaluation result
+ * @param options - Stream options (streamId, personaId)
+ * @returns Async generator yielding a single ERROR chunk
+ *
+ * @example
+ * ```typescript
+ * if (outcome.evaluation?.action === GuardrailAction.BLOCK) {
+ *   yield* createGuardrailBlockedStream(
+ *     guardrailContext,
+ *     outcome.evaluation,
+ *     { streamId: 'stream-123', personaId: 'support-agent' }
+ *   );
+ *   return;
+ * }
+ * ```
+ */
+export declare function createGuardrailBlockedStream(context: GuardrailContext, evaluation: GuardrailEvaluationResult, options?: GuardrailOutputOptions): AsyncGenerator<AgentOSResponse, void, undefined>;
+/**
+ * Wrap a response stream with guardrail filtering.
+ *
+ * Creates an async generator that evaluates each chunk through registered
+ * guardrails before yielding to the client. Supports both real-time streaming
+ * evaluation and final-only evaluation based on guardrail configuration.
+ *
+ * **Evaluation Strategy:**
+ * - Guardrails with `config.evaluateStreamingChunks === true` evaluate TEXT_DELTA chunks
+ * - All guardrails evaluate FINAL_RESPONSE chunks (final safety check)
+ * - Rate limiting via `config.maxStreamingEvaluations` per guardrail
+ *
+ * **Actions:**
+ * - {@link GuardrailAction.BLOCK} - Terminates stream immediately with error chunk
+ * - {@link GuardrailAction.SANITIZE} - Replaces chunk content with `modifiedText`
+ * - {@link GuardrailAction.FLAG} / {@link GuardrailAction.ALLOW} - Passes through
+ *
+ * @param service - Single guardrail or array of guardrails
+ * @param context - Conversation context for policy decisions
+ * @param stream - Source response stream to wrap
+ * @param options - Stream options and input evaluations to attach
+ * @returns Wrapped stream with guardrail filtering applied
+ *
+ * @example
+ * ```typescript
+ * // Wrap output stream with PII redaction
+ * const safeStream = wrapOutputGuardrails(
+ *   [piiRedactor, contentFilter],
+ *   guardrailContext,
+ *   orchestratorStream,
+ *   { streamId: 'stream-123', inputEvaluations }
+ * );
+ *
+ * for await (const chunk of safeStream) {
+ *   // Chunks are filtered/sanitized before reaching here
+ *   yield chunk;
+ * }
+ * ```
+ */
+export declare function wrapOutputGuardrails(service: IGuardrailService | IGuardrailService[] | undefined, context: GuardrailContext, stream: AsyncGenerator<AgentOSResponse, void, undefined>, options: GuardrailOutputOptions): AsyncGenerator<AgentOSResponse, void, undefined>;
+/**
+ * Convert a full {@link GuardrailEvaluationResult} into the compact
+ * {@link GuardrailMetadataEntry} shape that gets embedded in chunk metadata.
+ *
+ * Strips heavy fields (`details`, `modifiedText`) that are not needed
+ * for downstream telemetry / observability.
+ *
+ * @param evaluation - The evaluation to serialize
+ * @returns A lightweight metadata entry suitable for chunk embedding
+ */
+export declare function serializeEvaluation(evaluation: GuardrailEvaluationResult): GuardrailMetadataEntry;
+/**
+ * Attach guardrail evaluation metadata to a response chunk.
+ *
+ * Merges new input/output evaluation entries into any existing
+ * `metadata.guardrail` structure on the chunk. The result is a
+ * shallow-cloned chunk — the original is never mutated.
+ *
+ * @param chunk   - The response chunk to annotate
+ * @param entry   - Input and/or output metadata entries to merge
+ * @returns A new chunk with guardrail metadata merged in
+ */
+export declare function withGuardrailMetadata(chunk: AgentOSResponse, entry: {
+    input?: GuardrailMetadataEntry | GuardrailMetadataEntry[];
+    output?: GuardrailMetadataEntry | GuardrailMetadataEntry[];
+}): AgentOSResponse;
+//# sourceMappingURL=guardrailDispatcher.d.ts.map

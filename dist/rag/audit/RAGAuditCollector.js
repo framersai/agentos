@@ -1,0 +1,240 @@
+/**
+ * @fileoverview Request-scoped collector that accumulates RAG operations during
+ * a single retrieval pipeline execution and produces a finalized RAGAuditTrail.
+ *
+ * Usage:
+ * ```typescript
+ * const collector = new RAGAuditCollector({ requestId: 'req-1', query: 'What is ML?' });
+ *
+ * const embedOp = collector.startOperation('embedding');
+ * // ... do embedding work ...
+ * embedOp.setTokenUsage({ embeddingTokens: 512, llmPromptTokens: 0, llmCompletionTokens: 0, totalTokens: 512 });
+ * embedOp.complete(1);
+ *
+ * const trail = collector.finalize();
+ * ```
+ *
+ * @module @framers/agentos/rag/audit
+ */
+let _idCounter = 0;
+function nextId(prefix) {
+    return `${prefix}-${Date.now().toString(36)}-${(++_idCounter).toString(36)}`;
+}
+/**
+ * Fluent handle for a single in-flight RAG operation.
+ * Call `.complete(resultsCount)` to finalize timing and add it to the collector.
+ */
+export class RAGOperationHandle {
+    constructor(type, onComplete) {
+        this.completed = false;
+        this.startTime = Date.now();
+        this.onComplete = onComplete;
+        this.entry = {
+            operationId: nextId(`op-${type}`),
+            operationType: type,
+            startedAt: new Date().toISOString(),
+            durationMs: 0,
+            sources: [],
+            tokenUsage: {
+                embeddingTokens: 0,
+                llmPromptTokens: 0,
+                llmCompletionTokens: 0,
+                totalTokens: 0,
+            },
+            costUSD: 0,
+            resultsCount: 0,
+        };
+    }
+    setRetrievalMethod(method) {
+        this.entry.retrievalMethod = method;
+        return this;
+    }
+    addSources(chunks) {
+        for (const c of chunks) {
+            const chunkId = c.chunkId ?? c.id ?? 'unknown';
+            const documentId = c.documentId ?? c.originalDocumentId ?? chunkId;
+            this.entry.sources.push({
+                chunkId,
+                documentId,
+                source: c.source,
+                contentSnippet: c.contentSnippet ?? (c.content ?? '').slice(0, 200),
+                relevanceScore: c.relevanceScore ?? 0,
+                dataSourceId: c.dataSourceId,
+                metadata: c.metadata,
+            });
+        }
+        return this;
+    }
+    setTokenUsage(usage) {
+        this.entry.tokenUsage = usage;
+        return this;
+    }
+    setCost(costUSD) {
+        this.entry.costUSD = costUSD;
+        return this;
+    }
+    setDataSourceIds(ids) {
+        this.entry.dataSourceIds = ids;
+        return this;
+    }
+    setCollectionIds(ids) {
+        this.entry.collectionIds = ids;
+        return this;
+    }
+    setGraphDetails(details) {
+        this.entry.graphDetails = details;
+        return this;
+    }
+    setRerankDetails(details) {
+        this.entry.rerankDetails = details;
+        return this;
+    }
+    /**
+     * Attach HyDE-specific metadata to this audit operation.
+     *
+     * @param details - Hypothesis text, effective threshold, and step count.
+     * @returns `this` for fluent chaining.
+     */
+    setHydeDetails(details) {
+        this.entry.hydeDetails = details;
+        return this;
+    }
+    /**
+     * Finalizes the operation, records duration, computes relevance score stats,
+     * and adds the entry to the parent collector.
+     *
+     * @param resultsCount Number of results this operation produced.
+     * @param overrideDurationMs Optional override for duration (when timing is measured externally).
+     */
+    complete(resultsCount, overrideDurationMs) {
+        if (this.completed)
+            return this.entry;
+        this.completed = true;
+        this.entry.durationMs = overrideDurationMs ?? (Date.now() - this.startTime);
+        this.entry.resultsCount = resultsCount;
+        // Compute relevance score stats from sources
+        if (this.entry.sources.length > 0) {
+            const scores = this.entry.sources.map((s) => s.relevanceScore);
+            this.entry.relevanceScores = {
+                min: Math.min(...scores),
+                max: Math.max(...scores),
+                avg: scores.reduce((a, b) => a + b, 0) / scores.length,
+            };
+        }
+        this.onComplete(this.entry);
+        return this.entry;
+    }
+}
+/**
+ * Request-scoped audit collector. Create one per `retrieveContext()` call.
+ * NOT a singleton — scoped to a single pipeline execution.
+ */
+export class RAGAuditCollector {
+    constructor(options) {
+        this.operations = [];
+        this.options = options;
+        this.trailId = nextId('trail');
+        this.startTime = Date.now();
+    }
+    /** Start tracking a new operation. Returns a fluent handle. */
+    startOperation(type) {
+        return new RAGOperationHandle(type, (entry) => {
+            this.operations.push(entry);
+        });
+    }
+    /** Finalize and return the complete audit trail with computed summary. */
+    finalize() {
+        const totalDurationMs = Date.now() - this.startTime;
+        // Aggregate totals
+        let totalTokens = 0;
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
+        let totalEmbeddingTokens = 0;
+        let totalCostUSD = 0;
+        let totalLLMCalls = 0;
+        let totalEmbeddingCalls = 0;
+        const operationTypes = new Set();
+        const uniqueDocuments = new Set();
+        const uniqueCollections = new Set();
+        const uniqueDataSources = new Set();
+        for (const op of this.operations) {
+            operationTypes.add(op.operationType);
+            totalTokens += op.tokenUsage.totalTokens;
+            totalPromptTokens += op.tokenUsage.llmPromptTokens;
+            totalCompletionTokens += op.tokenUsage.llmCompletionTokens;
+            totalEmbeddingTokens += op.tokenUsage.embeddingTokens;
+            totalCostUSD += op.costUSD;
+            if (op.operationType === 'embedding') {
+                totalEmbeddingCalls++;
+            }
+            else if (op.operationType === 'rerank' ||
+                op.operationType === 'graph_local' ||
+                op.operationType === 'graph_global') {
+                // Graph search and reranking use LLM calls
+                if (op.tokenUsage.llmPromptTokens > 0 || op.tokenUsage.llmCompletionTokens > 0) {
+                    totalLLMCalls++;
+                }
+            }
+            for (const src of op.sources) {
+                uniqueDocuments.add(src.documentId);
+                if (src.dataSourceId)
+                    uniqueDataSources.add(src.dataSourceId);
+            }
+            if (op.collectionIds) {
+                for (const cId of op.collectionIds)
+                    uniqueCollections.add(cId);
+            }
+            if (op.dataSourceIds) {
+                for (const dsId of op.dataSourceIds)
+                    uniqueDataSources.add(dsId);
+            }
+        }
+        const trail = {
+            trailId: this.trailId,
+            requestId: this.options.requestId,
+            seedId: this.options.seedId,
+            sessionId: this.options.sessionId,
+            query: this.options.query,
+            timestamp: new Date(this.startTime).toISOString(),
+            operations: this.operations,
+            summary: {
+                totalOperations: this.operations.length,
+                totalLLMCalls,
+                totalEmbeddingCalls,
+                totalTokens,
+                totalPromptTokens,
+                totalCompletionTokens,
+                totalEmbeddingTokens,
+                totalCostUSD,
+                totalDurationMs,
+                operationTypes: Array.from(operationTypes),
+                sourceSummary: {
+                    uniqueDocuments: uniqueDocuments.size,
+                    uniqueCollections: uniqueCollections.size,
+                    uniqueDataSources: uniqueDataSources.size,
+                },
+            },
+        };
+        // Push to UsageLedger when one was provided.
+        if (this.options.usageLedger && this.options.sessionId) {
+            const ledger = this.options.usageLedger;
+            const sessionId = this.options.sessionId;
+            const personaId = this.options.seedId;
+            for (const op of this.operations) {
+                const providerId = op.operationType === 'embedding' ? 'rag-embedding'
+                    : op.operationType === 'rerank' ? 'rag-rerank'
+                        : op.operationType.startsWith('graph_') ? 'rag-graphrag'
+                            : 'rag-vector';
+                ledger.ingestUsage({ sessionId, personaId, providerId, modelId: op.rerankDetails?.modelId }, {
+                    promptTokens: op.tokenUsage.llmPromptTokens,
+                    completionTokens: op.tokenUsage.llmCompletionTokens,
+                    totalTokens: op.tokenUsage.totalTokens,
+                    costUSD: op.costUSD || undefined,
+                    isFinal: true,
+                });
+            }
+        }
+        return trail;
+    }
+}
+//# sourceMappingURL=RAGAuditCollector.js.map

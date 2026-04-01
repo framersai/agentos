@@ -1,0 +1,113 @@
+import { compileSequential } from './sequential.js';
+import { compileParallel } from './parallel.js';
+import { compileDebate } from './debate.js';
+import { compileReviewLoop } from './review-loop.js';
+import { compileHierarchical } from './hierarchical.js';
+import { compileGraph } from './graph.js';
+/**
+ * Compile an orchestration strategy into an executable {@link CompiledStrategy}.
+ *
+ * When `agencyConfig.adaptive` is `true` and the requested strategy is not
+ * already `"hierarchical"`, the compiled strategy is wrapped in an adaptive
+ * hierarchical manager that may override the default strategy at runtime
+ * based on task complexity signals.
+ *
+ * @param strategy - Strategy discriminant (e.g. `"sequential"`, `"parallel"`).
+ * @param agents - Named roster of agent configs or pre-built `Agent` instances.
+ * @param agencyConfig - Full agency-level configuration providing fallback values.
+ * @returns A compiled strategy with `execute` and `stream` methods.
+ * @throws {Error} When the requested strategy is not yet implemented (e.g. a
+ *         future strategy discriminant that has been added to `AgencyStrategy`
+ *         but not yet wired here).
+ *
+ * @example
+ * ```ts
+ * const strategy = compileStrategy('sequential', agents, agencyConfig);
+ * const result = await strategy.execute('Summarise AI research.');
+ * ```
+ */
+export function compileStrategy(strategy, agents, agencyConfig) {
+    // When adaptive mode is enabled on non-hierarchical strategies, wrap with
+    // a manager that can override the strategy at runtime. Hierarchical is
+    // excluded because it IS the manager pattern -- wrapping it again would
+    // create a pointless double-manager layer.
+    if (agencyConfig.adaptive && strategy !== 'hierarchical') {
+        return compileAdaptiveWrapper(strategy, agents, agencyConfig);
+    }
+    return compileStrategyCore(strategy, agents, agencyConfig);
+}
+/**
+ * Core strategy compiler without adaptive wrapping.
+ *
+ * Dispatches on the strategy discriminant to the appropriate concrete compiler.
+ * Each compiler returns a {@link CompiledStrategy} with consistent `execute`
+ * and `stream` method signatures.
+ *
+ * @param strategy - Strategy discriminant.
+ * @param agents - Named agent roster.
+ * @param agencyConfig - Agency-level configuration.
+ * @returns A compiled strategy.
+ * @throws {Error} When the strategy is not recognised.
+ * @internal
+ */
+function compileStrategyCore(strategy, agents, agencyConfig) {
+    switch (strategy) {
+        case 'sequential':
+            return compileSequential(agents, agencyConfig);
+        case 'parallel':
+            return compileParallel(agents, agencyConfig);
+        case 'debate':
+            return compileDebate(agents, agencyConfig);
+        case 'review-loop':
+            return compileReviewLoop(agents, agencyConfig);
+        case 'hierarchical':
+            return compileHierarchical(agents, agencyConfig);
+        case 'graph':
+            return compileGraph(agents, agencyConfig);
+        default:
+            throw new Error(`Strategy '${strategy}' not yet implemented`);
+    }
+}
+/**
+ * Wraps a non-hierarchical strategy in an adaptive hierarchical manager.
+ *
+ * The manager prompt declares the default strategy and instructs the manager
+ * that it may override strategy selection if the task clearly does not require
+ * all agents. In practice, the manager delegates to the sub-agents via tools
+ * just like the hierarchical strategy, but with the additional context of the
+ * original intended strategy.
+ *
+ * ## Recursion prevention
+ *
+ * `adaptive: false` is set on the inner config to prevent the hierarchical
+ * compiler from re-entering the adaptive wrapper, which would cause infinite
+ * recursion.
+ *
+ * @param defaultStrategy - The user-declared default strategy (e.g. `"sequential"`).
+ * @param agents - Named agent roster.
+ * @param agencyConfig - Agency-level configuration.
+ * @returns A compiled hierarchical strategy with adaptive instructions.
+ * @internal
+ */
+function compileAdaptiveWrapper(defaultStrategy, agents, agencyConfig) {
+    const adaptiveInstructions = (agencyConfig.instructions ? agencyConfig.instructions + '\n\n' : '') +
+        `Your default strategy is "${defaultStrategy}". You may override it if the task clearly doesn't need all agents. ` +
+        `Use your judgment to decide whether to engage all team members or delegate to a subset.`;
+    const adaptiveConfig = {
+        ...agencyConfig,
+        instructions: adaptiveInstructions,
+        // Disable adaptive on the inner call to prevent infinite recursion.
+        adaptive: false,
+    };
+    return compileHierarchical(agents, adaptiveConfig);
+}
+export { compileSequential } from './sequential.js';
+export { compileParallel } from './parallel.js';
+export { compileDebate } from './debate.js';
+export { compileReviewLoop } from './review-loop.js';
+export { compileHierarchical } from './hierarchical.js';
+export { compileGraph } from './graph.js';
+export { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+export { compileAgencyToGraph, mapGraphResultToAgencyResult, mapGraphEventToAgencyEvent } from './graphCompiler.js';
+export { agentGraph, AgentGraphBuilder } from './agentGraphBuilder.js';
+//# sourceMappingURL=index.js.map

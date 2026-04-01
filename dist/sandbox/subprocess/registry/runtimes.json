@@ -1,0 +1,58 @@
+[
+    {
+        "binaryName": "node",
+        "displayName": "Node.js",
+        "description": "JavaScript runtime built on V8",
+        "category": "runtime",
+        "installGuidance": "https://nodejs.org/"
+    },
+    {
+        "binaryName": "python3",
+        "displayName": "Python 3",
+        "description": "Python interpreter",
+        "category": "runtime",
+        "installGuidance": "https://www.python.org/downloads/"
+    },
+    {
+        "binaryName": "deno",
+        "displayName": "Deno",
+        "description": "Secure JavaScript/TypeScript runtime with built-in tooling",
+        "category": "runtime",
+        "installGuidance": "curl -fsSL https://deno.land/install.sh | sh"
+    },
+    {
+        "binaryName": "bun",
+        "displayName": "Bun",
+        "description": "Fast all-in-one JavaScript runtime, bundler, and package manager",
+        "category": "runtime",
+        "installGuidance": "curl -fsSL https://bun.sh/install | bash"
+    },
+    {
+        "binaryName": "ruby",
+        "displayName": "Ruby",
+        "description": "Ruby interpreter",
+        "category": "runtime",
+        "installGuidance": "https://www.ruby-lang.org/en/documentation/installation/"
+    },
+    {
+        "binaryName": "go",
+        "displayName": "Go",
+        "description": "Go programming language compiler and toolchain",
+        "category": "runtime",
+        "installGuidance": "https://go.dev/doc/install"
+    },
+    {
+        "binaryName": "rustc",
+        "displayName": "Rust",
+        "description": "Rust compiler",
+        "category": "runtime",
+        "installGuidance": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    },
+    {
+        "binaryName": "java",
+        "displayName": "Java",
+        "description": "Java runtime (JRE/JDK)",
+        "category": "runtime",
+        "installGuidance": "https://adoptium.net/ — or: brew install openjdk"
+    }
+]

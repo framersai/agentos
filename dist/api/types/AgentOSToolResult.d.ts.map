@@ -1,0 +1,1 @@
+{"version":3,"file":"AgentOSToolResult.d.ts","sourceRoot":"","sources":["../../../src/api/types/AgentOSToolResult.ts"],"names":[],"mappings":"AAAA;;GAEG;AACH,MAAM,WAAW,sBAAsB;IACrC,UAAU,EAAE,MAAM,CAAC;IACnB,QAAQ,EAAE,MAAM,CAAC;IACjB,UAAU,EAAE,GAAG,CAAC;IAChB,SAAS,EAAE,OAAO,CAAC;IACnB,YAAY,CAAC,EAAE,MAAM,CAAC;CACvB"}

@@ -1,0 +1,356 @@
+/**
+ * @module media/video/providers/ReplicateVideoProvider
+ *
+ * Video generation provider for the Replicate API.
+ *
+ * Replicate hosts a wide range of open-source video models (Kling, CogVideo,
+ * AnimateDiff, etc.) behind a uniform predictions API. This provider mirrors
+ * the pattern established by {@link ReplicateImageProvider}: create a
+ * prediction with `Prefer: wait`, then poll if it hasn't completed inline.
+ *
+ * ## Supported models
+ *
+ * | Model ID                         | Description                           |
+ * |----------------------------------|---------------------------------------|
+ * | `klingai/kling-v1`               | Kling v1 — high quality open model    |
+ * | `tencent/hunyuan-video`          | HunyuanVideo — Tencent's video model  |
+ * | `minimax/video-01`               | MiniMax Video-01                      |
+ *
+ * ## API flow (submit + sync wait + optional poll)
+ *
+ * 1. **Create prediction** — `POST ${baseURL}/predictions` with
+ *    `Prefer: wait=60`. If the model finishes within 60 seconds the
+ *    response already contains the output.
+ * 2. **Poll** (if needed) — `GET prediction.urls.get` until `status` is
+ *    `succeeded`, `failed`, or `canceled`.
+ * 3. **Result** — `output` is the video URL (string or first array element).
+ *
+ * ## Authentication
+ *
+ * Requires a `REPLICATE_API_TOKEN`. Sent as `Authorization: Token ${apiKey}`.
+ *
+ * @see {@link IVideoGenerator} for the provider interface contract.
+ * @see {@link ReplicateImageProvider} for the image counterpart.
+ */
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+/**
+ * Sleep for the specified number of milliseconds.
+ * Used between poll requests to avoid rate-limiting.
+ * @param ms - Duration in milliseconds.
+ * @internal
+ */
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+/**
+ * Extract a video URL from the Replicate prediction output.
+ *
+ * Replicate returns output in different shapes depending on the model:
+ * - A plain URL string
+ * - An array of URL strings (first element is the video)
+ * - An object with a `url` or `video` property
+ *
+ * @param output - Raw output from the prediction.
+ * @returns The video URL string, or `undefined` if not found.
+ * @internal
+ */
+function extractVideoUrl(output) {
+    if (typeof output === 'string')
+        return output;
+    if (Array.isArray(output)) {
+        for (const item of output) {
+            if (typeof item === 'string')
+                return item;
+            if (item && typeof item === 'object') {
+                const obj = item;
+                if (typeof obj.url === 'string')
+                    return obj.url;
+                if (typeof obj.video === 'string')
+                    return obj.video;
+            }
+        }
+        return undefined;
+    }
+    if (output && typeof output === 'object') {
+        const obj = output;
+        if (typeof obj.url === 'string')
+            return obj.url;
+        if (typeof obj.video === 'string')
+            return obj.video;
+    }
+    return undefined;
+}
+// ---------------------------------------------------------------------------
+// Implementation
+// ---------------------------------------------------------------------------
+/**
+ * Video generation provider connecting to the Replicate predictions API.
+ *
+ * Follows the same submit-then-poll pattern as {@link ReplicateImageProvider}:
+ * create a prediction with `Prefer: wait=60`, then poll if the model takes
+ * longer than the wait window.
+ *
+ * @implements {IVideoGenerator}
+ *
+ * @example
+ * ```typescript
+ * const provider = new ReplicateVideoProvider();
+ * await provider.initialize({ apiKey: process.env.REPLICATE_API_TOKEN! });
+ *
+ * const result = await provider.generateVideo({
+ *   modelId: 'klingai/kling-v1',
+ *   prompt: 'A butterfly emerging from a cocoon in slow motion',
+ * });
+ * console.log(result.videos[0].url);
+ * ```
+ */
+export class ReplicateVideoProvider {
+    constructor() {
+        /** @inheritdoc */
+        this.providerId = 'replicate';
+        /** @inheritdoc */
+        this.isInitialized = false;
+    }
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
+    /**
+     * Initialize the provider with API credentials and optional configuration.
+     *
+     * @param config - Configuration object. Must include `apiKey`.
+     * @throws {Error} If `apiKey` is missing or empty.
+     */
+    async initialize(config) {
+        const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
+        if (!apiKey) {
+            throw new Error('Replicate video provider requires apiKey (REPLICATE_API_TOKEN).');
+        }
+        this._config = {
+            apiKey,
+            baseURL: typeof config.baseURL === 'string' && config.baseURL.trim()
+                ? config.baseURL.trim()
+                : 'https://api.replicate.com/v1',
+            defaultModelId: typeof config.defaultModelId === 'string' && config.defaultModelId.trim()
+                ? config.defaultModelId.trim()
+                : 'klingai/kling-v1',
+            pollIntervalMs: typeof config.pollIntervalMs === 'number' && config.pollIntervalMs > 0
+                ? config.pollIntervalMs
+                : 5000,
+            timeoutMs: typeof config.timeoutMs === 'number' && config.timeoutMs > 0
+                ? config.timeoutMs
+                : 300000,
+        };
+        this.defaultModelId = this._config.defaultModelId;
+        this.isInitialized = true;
+    }
+    // -------------------------------------------------------------------------
+    // Generation
+    // -------------------------------------------------------------------------
+    /**
+     * Generate a video from a text prompt using the Replicate predictions API.
+     *
+     * Creates a prediction, waits for synchronous completion (up to 60s), then
+     * polls if still in progress. Returns the video URL in a result envelope.
+     *
+     * @param request - Video generation request with prompt and optional params.
+     * @returns The generated video result envelope.
+     *
+     * @throws {Error} If the provider is not initialized.
+     * @throws {Error} If the API returns an error or times out.
+     */
+    async generateVideo(request) {
+        if (!this.isInitialized) {
+            throw new Error('Replicate video provider is not initialized. Call initialize() first.');
+        }
+        const model = request.modelId || this.defaultModelId || 'klingai/kling-v1';
+        const input = {
+            prompt: request.prompt,
+        };
+        if (request.durationSec !== undefined)
+            input.duration = request.durationSec;
+        if (request.aspectRatio)
+            input.aspect_ratio = request.aspectRatio;
+        if (request.seed !== undefined)
+            input.seed = request.seed;
+        const prediction = await this._runPrediction(model, input);
+        return this._buildResult(prediction, model);
+    }
+    /**
+     * Generate a video from a source image using the Replicate predictions API.
+     *
+     * The source image Buffer is converted to a base64 data URL and passed as
+     * the `image` input parameter.
+     *
+     * @param request - Generation parameters including the source image buffer.
+     * @returns The generated video result envelope.
+     *
+     * @throws {Error} If the provider is not initialized or the API fails.
+     */
+    async imageToVideo(request) {
+        if (!this.isInitialized) {
+            throw new Error('Replicate video provider is not initialized. Call initialize() first.');
+        }
+        const model = request.modelId || this.defaultModelId || 'klingai/kling-v1';
+        // Convert the image buffer to a base64 data URL.
+        const imageBase64 = `data:image/png;base64,${request.image.toString('base64')}`;
+        const input = {
+            prompt: request.prompt,
+            image: imageBase64,
+        };
+        if (request.durationSec !== undefined)
+            input.duration = request.durationSec;
+        if (request.aspectRatio)
+            input.aspect_ratio = request.aspectRatio;
+        if (request.seed !== undefined)
+            input.seed = request.seed;
+        const prediction = await this._runPrediction(model, input);
+        return this._buildResult(prediction, model);
+    }
+    // -------------------------------------------------------------------------
+    // Capability query
+    // -------------------------------------------------------------------------
+    /**
+     * Replicate supports both text-to-video and image-to-video generation.
+     *
+     * @param capability - The capability to check.
+     * @returns `true` for both `'text-to-video'` and `'image-to-video'`.
+     */
+    supports(capability) {
+        return capability === 'text-to-video' || capability === 'image-to-video';
+    }
+    /**
+     * Release any resources held by the provider. No-op for HTTP-only providers.
+     */
+    async shutdown() {
+        this.isInitialized = false;
+    }
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+    /**
+     * Create a prediction and wait for it to complete.
+     *
+     * Uses `Prefer: wait=60` to get synchronous completion for fast models.
+     * Falls back to polling if the prediction hasn't completed within the
+     * wait window.
+     *
+     * @param model - Model identifier (e.g. 'klingai/kling-v1').
+     * @param input - Model input parameters.
+     * @returns The completed prediction object.
+     *
+     * @throws {Error} If prediction creation fails, the prediction fails,
+     *   is canceled, or times out.
+     * @internal
+     */
+    async _runPrediction(model, input) {
+        let prediction = await this._createPrediction(model, input);
+        // If the prediction hasn't reached a terminal state, poll for it.
+        if (prediction.status
+            && !['succeeded', 'failed', 'canceled'].includes(prediction.status)
+            && prediction.urls?.get) {
+            prediction = await this._pollPrediction(prediction.urls.get);
+        }
+        if (prediction.status === 'failed') {
+            throw new Error(`Replicate video generation failed: ${prediction.error ?? 'unknown error'}`);
+        }
+        if (prediction.status === 'canceled') {
+            throw new Error('Replicate video generation was canceled.');
+        }
+        return prediction;
+    }
+    /**
+     * Create a new prediction via `POST /predictions`.
+     *
+     * @param model - Model identifier.
+     * @param input - Model input parameters.
+     * @returns The prediction response (may or may not be completed).
+     *
+     * @throws {Error} If the HTTP request fails.
+     * @internal
+     */
+    async _createPrediction(model, input) {
+        const body = {
+            model,
+            input,
+        };
+        const response = await fetch(`${this._config.baseURL}/predictions`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Token ${this._config.apiKey}`,
+                'Content-Type': 'application/json',
+                Prefer: 'wait=60',
+            },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Replicate video generation submission failed (${response.status}): ${errorText}`);
+        }
+        return (await response.json());
+    }
+    /**
+     * Poll a prediction URL until it reaches a terminal state.
+     *
+     * @param url - The `prediction.urls.get` URL to poll.
+     * @returns The completed prediction object.
+     *
+     * @throws {Error} If polling fails or times out.
+     * @internal
+     */
+    async _pollPrediction(url) {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < this._config.timeoutMs) {
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Token ${this._config.apiKey}`,
+                },
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Replicate prediction polling failed (${response.status}): ${errorText}`);
+            }
+            const prediction = (await response.json());
+            if (!prediction.status
+                || ['succeeded', 'failed', 'canceled'].includes(prediction.status)) {
+                return prediction;
+            }
+            await sleep(this._config.pollIntervalMs);
+        }
+        throw new Error(`Replicate video generation timed out after ${this._config.timeoutMs}ms.`);
+    }
+    /**
+     * Build a {@link VideoResult} from a completed Replicate prediction.
+     *
+     * @param prediction - The succeeded prediction object.
+     * @param model - Model ID used for the generation.
+     * @returns Normalized video result envelope.
+     *
+     * @throws {Error} If no video URL could be extracted from the output.
+     * @internal
+     */
+    _buildResult(prediction, model) {
+        const videoUrl = extractVideoUrl(prediction.output);
+        if (!videoUrl) {
+            throw new Error('Replicate prediction succeeded but returned no video output.');
+        }
+        return {
+            created: Math.floor(Date.now() / 1000),
+            modelId: model,
+            providerId: this.providerId,
+            videos: [{
+                    url: videoUrl,
+                    mimeType: 'video/mp4',
+                    providerMetadata: {
+                        predictionId: prediction.id,
+                        metrics: prediction.metrics,
+                    },
+                }],
+            usage: {
+                totalVideos: 1,
+            },
+        };
+    }
+}
+//# sourceMappingURL=ReplicateVideoProvider.js.map

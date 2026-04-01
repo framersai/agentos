@@ -1,0 +1,37 @@
+[
+    {
+        "binaryName": "claude",
+        "displayName": "Claude Code",
+        "description": "Anthropic Claude via Max subscription — no API key required",
+        "category": "llm",
+        "installGuidance": "npm install -g @anthropic-ai/claude-code — or download from https://claude.ai/download"
+    },
+    {
+        "binaryName": "gemini",
+        "displayName": "Gemini CLI",
+        "description": "Google Gemini via Google account login — no API key required",
+        "category": "llm",
+        "installGuidance": "npm install -g @google/gemini-cli"
+    },
+    {
+        "binaryName": "ollama",
+        "displayName": "Ollama",
+        "description": "Run open-source LLMs locally (Llama, Mistral, Phi, etc.)",
+        "category": "llm",
+        "installGuidance": "https://ollama.com/download"
+    },
+    {
+        "binaryName": "lmstudio",
+        "displayName": "LM Studio CLI",
+        "description": "Local LLM serving with OpenAI-compatible API",
+        "category": "llm",
+        "installGuidance": "https://lmstudio.ai/"
+    },
+    {
+        "binaryName": "aichat",
+        "displayName": "AIChat",
+        "description": "Multi-provider CLI chat client (OpenAI, Claude, Gemini, Ollama, etc.)",
+        "category": "llm",
+        "installGuidance": "cargo install aichat — or brew install aichat"
+    }
+]

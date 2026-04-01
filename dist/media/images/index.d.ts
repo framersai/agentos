@@ -1,0 +1,21 @@
+import type { IImageProvider } from './IImageProvider.js';
+export * from './IImageProvider.js';
+export * from './imageToBuffer.js';
+export * from './ImageOperationError.js';
+export * from './FallbackImageProxy.js';
+export { PolicyAwareImageRouter, type ImageProviderPreference } from './PolicyAwareImageRouter.js';
+export * from './providers/OpenAIImageProvider.js';
+export * from './providers/OpenRouterImageProvider.js';
+export * from './providers/ReplicateImageProvider.js';
+export * from './providers/StabilityImageProvider.js';
+export * from './providers/StableDiffusionLocalProvider.js';
+export * from './providers/FluxImageProvider.js';
+export * from './providers/FalImageProvider.js';
+export { type FaceEmbedding, type IFaceEmbeddingService, ReplicateFaceEmbeddingService, type ReplicateFaceEmbeddingConfig, } from './face/index.js';
+export type ImageProviderFactory = () => IImageProvider;
+export declare function registerImageProviderFactory(providerId: string, factory: ImageProviderFactory): void;
+export declare function unregisterImageProviderFactory(providerId: string): void;
+export declare function hasImageProviderFactory(providerId: string): boolean;
+export declare function listImageProviderFactories(): string[];
+export declare function createImageProvider(providerId: string): IImageProvider;
+//# sourceMappingURL=index.d.ts.map

@@ -1,0 +1,240 @@
+/**
+ * @fileoverview ChatGPT export importer for AgentOS memory brain.
+ *
+ * Parses the `conversations.json` file produced by ChatGPT's "Export data"
+ * feature and imports each conversation into the target `SqliteBrain`.
+ *
+ * ## Import strategy
+ *
+ * For each conversation object in `conversations.json`:
+ * 1. A row is inserted into the `conversations` table (deduped by title + created_at).
+ * 2. Every user/assistant message pair is encoded as an **episodic memory trace**
+ *    whose content is `"[user]: {user_text}\n[assistant]: {assistant_text}"`.
+ *    This preserves conversational context in a single retrievable unit.
+ * 3. System messages and tool messages are skipped (they are not episodic memories).
+ *
+ * ## ChatGPT export format
+ * ```json
+ * [
+ *   {
+ *     "title": "Conversation title",
+ *     "create_time": 1711234567.89,
+ *     "mapping": {
+ *       "node-id": {
+ *         "message": {
+ *           "author": { "role": "user" },
+ *           "content": { "parts": ["Hello!"] }
+ *         },
+ *         "children": ["next-node-id"]
+ *       }
+ *     }
+ *   }
+ * ]
+ * ```
+ *
+ * @module memory/io/ChatGptImporter
+ */
+import { sha256 } from '../core/util/crossPlatformCrypto.js';
+import { v4 as uuidv4 } from 'uuid';
+// ---------------------------------------------------------------------------
+// ChatGptImporter
+// ---------------------------------------------------------------------------
+/**
+ * Imports a ChatGPT `conversations.json` export into a `SqliteBrain`.
+ *
+ * **Usage:**
+ * ```ts
+ * const importer = new ChatGptImporter(brain);
+ * const result = await importer.import('/path/to/conversations.json');
+ * ```
+ */
+export class ChatGptImporter {
+    /**
+     * @param brain - The target `SqliteBrain` to import into.
+     */
+    constructor(brain) {
+        this.brain = brain;
+    }
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+    /**
+     * Parse `conversations.json` and import all conversations and message pairs.
+     *
+     * @param sourcePath - Absolute path to the ChatGPT `conversations.json` file.
+     * @returns `ImportResult` with counts of imported traces, skipped duplicates,
+     *   and any per-item error messages.
+     */
+    async import(sourcePath, options) {
+        const result = { imported: 0, skipped: 0, errors: [] };
+        // ---- Load + parse ----
+        let raw;
+        try {
+            const fs = await import('node:fs/promises');
+            raw = await fs.readFile(sourcePath, 'utf8');
+        }
+        catch (err) {
+            result.errors.push(`Failed to read file: ${String(err)}`);
+            return result;
+        }
+        let conversations;
+        try {
+            conversations = JSON.parse(raw);
+        }
+        catch (err) {
+            result.errors.push(`Invalid JSON: ${String(err)}`);
+            return result;
+        }
+        if (!Array.isArray(conversations)) {
+            result.errors.push('Expected a JSON array at the top level of conversations.json');
+            return result;
+        }
+        // ---- Process each conversation ----
+        for (const convo of conversations) {
+            try {
+                await this._importConversation(convo, result, options);
+            }
+            catch (err) {
+                result.errors.push(`Conversation import error: ${String(err)}`);
+            }
+        }
+        return result;
+    }
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+    /**
+     * Import a single ChatGPT conversation object.
+     *
+     * Creates a `conversations` row and then iterates through the message
+     * mapping in tree order (BFS), pairing adjacent user/assistant messages
+     * into episodic memory traces.
+     *
+     * @param convo  - Raw ChatGPT conversation object.
+     * @param result - Mutable result accumulator.
+     */
+    async _importConversation(convo, result, options) {
+        const title = convo.title ?? 'Untitled';
+        const createdAt = convo.create_time ? Math.round(convo.create_time * 1000) : Date.now();
+        const updatedAt = convo.update_time ? Math.round(convo.update_time * 1000) : createdAt;
+        // Insert the conversation row (ignore duplicates by title + created_at).
+        const conversationId = `cv_${uuidv4()}`;
+        try {
+            const { dialect } = this.brain.features;
+            await this.brain.run(dialect.insertOrIgnore('conversations', ['id', 'title', 'created_at', 'updated_at', 'metadata'], ['?', '?', '?', '?', '?']), [
+                conversationId,
+                title,
+                createdAt,
+                updatedAt,
+                JSON.stringify({ source: 'chatgpt_export' }),
+            ]);
+        }
+        catch (err) {
+            result.errors.push(`Conversation insert error for "${title}": ${String(err)}`);
+            return;
+        }
+        if (!convo.mapping)
+            return;
+        // ---- Extract messages in tree order ----
+        // The mapping is a flat record of nodes keyed by ID.  We use BFS starting
+        // from the root (node with no parent) to traverse in conversation order.
+        const nodes = convo.mapping;
+        // Find root node(s) — nodes with no parent or null parent.
+        const rootIds = Object.keys(nodes).filter((id) => !nodes[id]?.parent);
+        // Collect messages in BFS order.
+        const orderedMessages = [];
+        const queue = [...rootIds];
+        const visited = new Set();
+        while (queue.length > 0) {
+            const nodeId = queue.shift();
+            if (visited.has(nodeId))
+                continue;
+            visited.add(nodeId);
+            const node = nodes[nodeId];
+            if (!node)
+                continue;
+            const msg = node.message;
+            if (msg?.author?.role && msg.content?.parts) {
+                const textParts = msg.content.parts
+                    .filter((p) => typeof p === 'string')
+                    .join('');
+                if (textParts.trim()) {
+                    orderedMessages.push({
+                        role: msg.author.role,
+                        text: textParts,
+                        time: msg.create_time ? Math.round(msg.create_time * 1000) : createdAt,
+                    });
+                }
+            }
+            // Enqueue children in order.
+            for (const childId of node.children ?? []) {
+                if (!visited.has(childId)) {
+                    queue.push(childId);
+                }
+            }
+        }
+        // ---- Pair user + assistant messages into episodic traces ----
+        // We slide through the ordered messages and pair each user message with
+        // the immediately following assistant message.
+        for (let i = 0; i < orderedMessages.length; i++) {
+            const msg = orderedMessages[i];
+            // Skip system / tool messages.
+            if (msg.role === 'system' || msg.role === 'tool')
+                continue;
+            if (msg.role === 'user') {
+                // Look ahead for an assistant response.
+                const next = orderedMessages[i + 1];
+                const assistantText = next?.role === 'assistant' ? next.text : '';
+                const content = assistantText
+                    ? `[user]: ${msg.text}\n[assistant]: ${assistantText}`
+                    : `[user]: ${msg.text}`;
+                await this._insertEpisodicTrace(content, msg.time, conversationId, result, options);
+                // Skip the assistant message on the next iteration if we consumed it.
+                if (assistantText)
+                    i++;
+            }
+        }
+    }
+    /**
+     * Insert a single episodic memory trace derived from a message pair.
+     *
+     * Deduplication is based on SHA-256 of the combined `content` string.
+     *
+     * @param content        - The `[user]:...\n[assistant]:...` content string.
+     * @param createdAt      - Unix timestamp (ms) of the user message.
+     * @param conversationId - ID of the parent conversation row.
+     * @param result         - Mutable result accumulator.
+     */
+    async _insertEpisodicTrace(content, createdAt, conversationId, result, options) {
+        const hash = await sha256(content);
+        // Dedup check.
+        if (options?.dedup ?? true) {
+            const { dialect } = this.brain.features;
+            const existing = await this.brain.get(`SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`, [hash]);
+            if (existing) {
+                result.skipped++;
+                return;
+            }
+        }
+        try {
+            await this.brain.run(`INSERT INTO memory_traces
+             (id, type, scope, content, embedding, strength, created_at, last_accessed,
+              retrieval_count, tags, emotions, metadata, deleted)
+           VALUES (?, 'episodic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`, [
+                `mt_${uuidv4()}`,
+                content,
+                createdAt,
+                JSON.stringify({
+                    import_hash: hash,
+                    source: 'chatgpt_export',
+                    conversation_id: conversationId,
+                }),
+            ]);
+            result.imported++;
+        }
+        catch (err) {
+            result.errors.push(`Trace insert error: ${String(err)}`);
+        }
+    }
+}
+//# sourceMappingURL=ChatGptImporter.js.map
