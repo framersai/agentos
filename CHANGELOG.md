@@ -1,3 +1,7 @@
+## <small>0.1.161 (2026-04-01)</small>
+
+* feat: add AvatarConfig to BaseAgentConfig with identity, style projections, and runtime bindings ([d1a0e63](https://github.com/framersai/agentos/commit/d1a0e63))
+
 ## <small>0.1.160 (2026-04-01)</small>
 
 * fix(agentos): remove eager usage-ledger imports from lightweight API paths ([580b169](https://github.com/framersai/agentos/commit/580b169))
