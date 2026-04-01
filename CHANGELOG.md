@@ -1,3 +1,7 @@
+## <small>0.1.164 (2026-04-01)</small>
+
+* feat: wire PolicyAwareImageRouter into generateImage, update barrel exports ([886dedf](https://github.com/framersai/agentos/commit/886dedf))
+
 ## <small>0.1.163 (2026-04-01)</small>
 
 * feat: add PolicyAwareRouter, UncensoredModelCatalog, PolicyAwareImageRouter ([74fff3e](https://github.com/framersai/agentos/commit/74fff3e))
