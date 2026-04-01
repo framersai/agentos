@@ -1,3 +1,8 @@
+## <small>0.1.165 (2026-04-01)</small>
+
+* fix: resolve cosineSimilarity export collision in images barrel ([05e321f](https://github.com/framersai/agentos/commit/05e321f))
+* feat: add AvatarIdentityPackage, face embedding service, avatar generation pipeline ([5cbf5b0](https://github.com/framersai/agentos/commit/5cbf5b0))
+
 ## <small>0.1.164 (2026-04-01)</small>
 
 * feat: wire PolicyAwareImageRouter into generateImage, update barrel exports ([886dedf](https://github.com/framersai/agentos/commit/886dedf))
