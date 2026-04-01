@@ -32,8 +32,14 @@ export type SecurityTier = 'dangerous' | 'permissive' | 'balanced' | 'strict' | 
  * - `"semantic"` — factual knowledge and entity attributes.
  * - `"procedural"` — learned skills and step-by-step procedures.
  * - `"prospective"` — future intentions and pending reminders.
+ * - `"relational"` — social/relationship state, trust markers, and shared anchors.
  */
-export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'prospective';
+export type MemoryType =
+  | 'episodic'
+  | 'semantic'
+  | 'procedural'
+  | 'prospective'
+  | 'relational';
 
 /**
  * High-level orchestration strategy for multi-agent runs.

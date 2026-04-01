@@ -58,8 +58,14 @@ export type EffectClass = 'pure' | 'read' | 'write' | 'external' | 'human';
  * - `semantic`    — factual / world-knowledge, not time-stamped.
  * - `procedural`  — how-to knowledge; encoded skills and routines.
  * - `prospective` — future-oriented intentions ("remember to …").
+ * - `relational`  — trust, boundary, and relationship-state memory.
  */
-export type MemoryTraceType = 'episodic' | 'semantic' | 'procedural' | 'prospective';
+export type MemoryTraceType =
+  | 'episodic'
+  | 'semantic'
+  | 'procedural'
+  | 'prospective'
+  | 'relational';
 
 /**
  * Visibility scope of a memory trace.

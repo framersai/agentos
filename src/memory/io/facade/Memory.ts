@@ -140,6 +140,11 @@ function nextTraceId(): string {
   return `mt_${uuid()}`;
 }
 
+function isFtsUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('no such module: fts5') || message.includes('no such table: memory_traces_fts');
+}
+
 /**
  * Compute SHA-256 hex digest of a string.
  */
@@ -386,10 +391,16 @@ export class Memory {
 
     // Sync FTS index. The external-content FTS table needs explicit insert.
     const { fts } = this._brain.features;
-    await this._brain.run(
-      fts.syncInsert('memory_traces_fts', '(SELECT rowid FROM memory_traces WHERE id = ?)', ['content', 'tags']),
-      [id, content, JSON.stringify(tags)],
-    );
+    try {
+      await this._brain.run(
+        fts.syncInsert('memory_traces_fts', '(SELECT rowid FROM memory_traces WHERE id = ?)', ['content', 'tags']),
+        [id, content, JSON.stringify(tags)],
+      );
+    } catch (error) {
+      if (!isFtsUnavailableError(error)) {
+        throw error;
+      }
+    }
 
     // Add to memory graph if available.
     if (this._config.graph) {
@@ -553,10 +564,17 @@ export class Memory {
           ORDER BY abs(${ftsHelper.rankExpression('fts')}) DESC
           LIMIT ?
         `;
-        const ftsRows = await this._brain.all<FtsJoinRow>(
-          ftsSql,
-          [...params, ftsQuery, limit * 3],
-        );
+        let ftsRows: FtsJoinRow[] = [];
+        try {
+          ftsRows = await this._brain.all<FtsJoinRow>(
+            ftsSql,
+            [...params, ftsQuery, limit * 3],
+          );
+        } catch (error) {
+          if (!isFtsUnavailableError(error)) {
+            throw error;
+          }
+        }
 
         const ftsRank = new Map(ftsRows.map((r, i) => [r.id, i + 1]));
 
@@ -611,7 +629,15 @@ export class Memory {
 
     params.push(ftsQuery, limit);
 
-    const rows = await this._brain.all<FtsJoinRow>(sql, params);
+    let rows: FtsJoinRow[];
+    try {
+      rows = await this._brain.all<FtsJoinRow>(sql, params);
+    } catch (error) {
+      if (!isFtsUnavailableError(error)) {
+        throw error;
+      }
+      rows = await this._recallWithoutFts(query, whereClause, params.slice(0, -2), limit);
+    }
 
     const updatedRows = await this._applyRecallAccessUpdates(rows);
 
@@ -1454,7 +1480,11 @@ export class Memory {
       await this._brain.run(
         this._brain.features.fts.syncInsert('memory_traces_fts', '(SELECT rowid FROM memory_traces WHERE id = ?)', ['content', 'tags']),
         [traceId, chunk.content, '[]'],
-      );
+      ).catch((error) => {
+        if (!isFtsUnavailableError(error)) {
+          throw error;
+        }
+      });
 
       if (this._config.graph && !this._memoryGraph.hasNode(traceId)) {
         await this._memoryGraph.addNode(traceId, {
@@ -1493,6 +1523,45 @@ export class Memory {
     } catch {
       // Best-effort; imports still succeed even if the FTS rebuild is unavailable.
     }
+  }
+
+  private async _recallWithoutFts(
+    rawQuery: string,
+    whereClause: string,
+    baseParams: unknown[],
+    limit: number,
+  ): Promise<FtsJoinRow[]> {
+    const terms = rawQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .map((term) => term.replace(/[^\p{L}\p{N}_-]+/gu, ''))
+      .filter((term) => term.length > 0);
+
+    if (terms.length === 0) {
+      return [];
+    }
+
+    const scoreExpression = terms
+      .map(() => `CASE WHEN lower(t.content) LIKE ? THEN 1 ELSE 0 END`)
+      .join(' + ');
+    const matchExpression = terms
+      .map(() => 'lower(t.content) LIKE ?')
+      .join(' OR ');
+    const likeTerms = terms.map((term) => `%${term}%`);
+
+    const sql = `
+      SELECT t.*, (${scoreExpression}) as rank
+      FROM memory_traces t
+      ${whereClause}
+      AND (${matchExpression})
+      ORDER BY (t.strength * (${scoreExpression})) DESC, t.created_at DESC
+      LIMIT ?
+    `;
+
+    return this._brain.all<FtsJoinRow>(
+      sql,
+      [...baseParams, ...likeTerms, ...likeTerms, ...likeTerms, limit],
+    );
   }
 
   /**

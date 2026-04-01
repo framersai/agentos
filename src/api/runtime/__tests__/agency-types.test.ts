@@ -277,9 +277,15 @@ describe('SecurityTier literals', () => {
 });
 
 describe('MemoryType literals', () => {
-  const types: MemoryType[] = ['episodic', 'semantic', 'procedural', 'prospective'];
-  it('has exactly 4 members', () => {
-    expect(types).toHaveLength(4);
+  const types: MemoryType[] = [
+    'episodic',
+    'semantic',
+    'procedural',
+    'prospective',
+    'relational',
+  ];
+  it('has exactly 5 members', () => {
+    expect(types).toHaveLength(5);
   });
 });
 

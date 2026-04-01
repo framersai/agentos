@@ -36,7 +36,7 @@ let _idCounter = 0;
  * Input arguments for {@link MemoryAddTool}.
  *
  * @property content - The text content of the memory to store.
- * @property type    - Tulving memory type (episodic, semantic, procedural, prospective). Defaults to 'episodic'.
+ * @property type    - Tulving memory type (episodic, semantic, procedural, prospective, relational). Defaults to 'episodic'.
  * @property scope   - Visibility scope (thread, user, persona, organization). Defaults to 'user'.
  * @property tags    - Optional array of free-form tag strings for filtering.
  */
@@ -113,7 +113,7 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
       },
       type: {
         type: 'string',
-        enum: ['episodic', 'semantic', 'procedural', 'prospective'],
+        enum: ['episodic', 'semantic', 'procedural', 'prospective', 'relational'],
         description: 'Tulving memory type. Defaults to "episodic".',
       },
       scope: {

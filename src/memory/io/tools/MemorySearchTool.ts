@@ -135,7 +135,7 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
       },
       type: {
         type: 'string',
-        enum: ['episodic', 'semantic', 'procedural', 'prospective'],
+        enum: ['episodic', 'semantic', 'procedural', 'prospective', 'relational'],
         description: 'Optional filter: only return traces of this memory type.',
       },
       scope: {

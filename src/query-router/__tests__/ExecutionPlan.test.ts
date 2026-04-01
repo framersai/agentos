@@ -408,7 +408,13 @@ describe('QueryClassifier.classifyWithPlan — ExecutionPlan', () => {
       multimodal: false,
     });
     expect(plan.hyde).toEqual({ enabled: true, hypothesisCount: 3 });
-    expect(plan.memoryTypes).toEqual(['episodic', 'semantic', 'procedural', 'prospective']);
+    expect(plan.memoryTypes).toEqual([
+      'episodic',
+      'semantic',
+      'procedural',
+      'prospective',
+      'relational',
+    ]);
     expect(plan.deepResearch).toBe(true);
   });
 

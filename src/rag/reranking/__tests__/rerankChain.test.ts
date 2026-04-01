@@ -65,7 +65,7 @@ describe('RerankerService.rerankChain()', () => {
     service.registerProvider(mockProvider('online', 1.0));
 
     const chunks = Array.from({ length: 5 }, (_, i) => ({
-      id: `c-${i}`, content: `C ${i}`, relevanceScore: 0.5, heading: '', sourcePath: '', metadata: {},
+      id: `c-${i}`, content: `C ${i}`, relevanceScore: 0.5, heading: '', sourcePath: '', originalDocumentId: 'doc-0', metadata: {},
     }));
 
     const result = await service.rerankChain('test', chunks, [
@@ -84,7 +84,7 @@ describe('RerankerService.rerankChain()', () => {
     });
     service.registerProvider(mockProvider('real', 1.0));
 
-    const chunks = [{ id: 'c1', content: 'test', relevanceScore: 0.5, heading: '', sourcePath: '', metadata: {} }];
+    const chunks = [{ id: 'c1', content: 'test', relevanceScore: 0.5, heading: '', sourcePath: '', originalDocumentId: 'doc-0', metadata: {} }];
 
     const result = await service.rerankChain('test', chunks, [
       { provider: 'nonexistent', topK: 5 },
@@ -97,7 +97,7 @@ describe('RerankerService.rerankChain()', () => {
 
   it('returns input unchanged when chain is empty', async () => {
     const service = new RerankerService({ config: { providers: [] } });
-    const chunks = [{ id: 'c1', content: 'test', relevanceScore: 0.5, heading: '', sourcePath: '', metadata: {} }];
+    const chunks = [{ id: 'c1', content: 'test', relevanceScore: 0.5, heading: '', sourcePath: '', originalDocumentId: 'doc-0', metadata: {} }];
 
     const result = await service.rerankChain('test', chunks, []);
     expect(result).toEqual(chunks);
@@ -117,7 +117,7 @@ describe('RerankerService.rerankChain()', () => {
     service.registerProvider(mockProvider('ok', 1.0));
 
     const chunks = Array.from({ length: 5 }, (_, i) => ({
-      id: `c-${i}`, content: `C ${i}`, relevanceScore: 0.5, heading: '', sourcePath: '', metadata: {},
+      id: `c-${i}`, content: `C ${i}`, relevanceScore: 0.5, heading: '', sourcePath: '', originalDocumentId: 'doc-0', metadata: {},
     }));
 
     const result = await service.rerankChain('test', chunks, [

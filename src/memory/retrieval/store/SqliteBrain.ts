@@ -448,32 +448,45 @@ export class SqliteBrain {
   // ---------------------------------------------------------------------------
 
   /**
-   * Execute all DDL statements inside a single transaction.
-   * `CREATE TABLE IF NOT EXISTS` is idempotent, so re-running on an existing
-   * database is safe — no data is lost.
+   * Execute idempotent DDL statements to initialize the schema.
+   * `CREATE TABLE IF NOT EXISTS` is safe to re-run, so a sequential setup path
+   * is sufficient and avoids adapter-specific transaction quirks during DDL.
    */
   private async _initSchema(): Promise<void> {
-    await this._adapter.transaction(async (trx) => {
-      await trx.exec(DDL_BRAIN_META);
-      await trx.exec(DDL_MEMORY_TRACES);
-      await trx.exec(DDL_KNOWLEDGE_NODES);
-      await trx.exec(DDL_KNOWLEDGE_EDGES);
-      await trx.exec(DDL_DOCUMENTS);
-      await trx.exec(DDL_DOCUMENT_CHUNKS);
-      await trx.exec(DDL_DOCUMENT_IMAGES);
-      await trx.exec(DDL_CONSOLIDATION_LOG);
-      await trx.exec(DDL_RETRIEVAL_FEEDBACK);
-      await trx.exec(DDL_CONVERSATIONS);
-      await trx.exec(DDL_MESSAGES);
-      // FTS index via feature abstraction (FTS5 on SQLite, tsvector/GIN on Postgres)
-      const ftsDdl = this._features.fts.createIndex({
-        table: 'memory_traces_fts',
-        columns: ['content', 'tags'],
-        contentTable: 'memory_traces',
-        tokenizer: 'porter ascii',
-      });
-      await trx.exec(ftsDdl);
+    const ddlStatements = [
+      DDL_BRAIN_META,
+      DDL_MEMORY_TRACES,
+      DDL_KNOWLEDGE_NODES,
+      DDL_KNOWLEDGE_EDGES,
+      DDL_DOCUMENTS,
+      DDL_DOCUMENT_CHUNKS,
+      DDL_DOCUMENT_IMAGES,
+      DDL_CONSOLIDATION_LOG,
+      DDL_RETRIEVAL_FEEDBACK,
+      DDL_CONVERSATIONS,
+      DDL_MESSAGES,
+    ];
+
+    for (const statement of ddlStatements) {
+      await this._adapter.exec(statement);
+    }
+
+    // FTS index via feature abstraction (FTS5 on SQLite, tsvector/GIN on Postgres).
+    // SQL.js builds may not include FTS5, so keep the core schema independent.
+    const ftsDdl = this._features.fts.createIndex({
+      table: 'memory_traces_fts',
+      columns: ['content', 'tags'],
+      contentTable: 'memory_traces',
+      tokenizer: 'porter ascii',
     });
+    try {
+      await this._adapter.exec(ftsDdl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('no such module: fts5')) {
+        throw error;
+      }
+    }
   }
 
   /**

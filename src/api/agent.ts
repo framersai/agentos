@@ -21,13 +21,12 @@ import {
 import { streamText, type StreamTextResult } from './streamText.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
 import type { SkillEntry } from '../skills/types.js';
-import {
-  getRecordedAgentOSUsage,
-  type AgentOSUsageAggregate,
-  type AgentOSUsageLedgerOptions,
+import type {
+  AgentOSUsageAggregate,
+  AgentOSUsageLedgerOptions,
 } from './runtime/usageLedger.js';
 import type { BaseAgentConfig } from './types.js';
-import { exportAgentConfig, exportAgentConfigJSON, type AgentExportConfig } from './agentExport.js';
+import { exportAgentConfig, exportAgentConfigJSON, type AgentExportConfig } from './agentExportCore.js';
 
 /**
  * Configuration options for the {@link agent} factory function.
@@ -171,6 +170,13 @@ function mergeUsageLedgerOptions(
 ): AgentOSUsageLedgerOptions | undefined {
   const merged = Object.assign({}, ...parts.filter(Boolean));
   return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+async function loadRecordedAgentOSUsage(
+  options?: Pick<AgentOSUsageLedgerOptions, 'enabled' | 'path' | 'sessionId' | 'personaId'>
+): Promise<AgentOSUsageAggregate> {
+  const { getRecordedAgentOSUsage } = await import('./runtime/usageLedger.js');
+  return getRecordedAgentOSUsage(options);
 }
 
 /** Timeout for memory operations to prevent blocking generation. */
@@ -423,7 +429,7 @@ export function agent(opts: AgentOptions): Agent {
         },
 
         async usage(): Promise<AgentOSUsageAggregate> {
-          return getRecordedAgentOSUsage({
+          return loadRecordedAgentOSUsage({
             enabled: baseOpts.usageLedger?.enabled,
             path: baseOpts.usageLedger?.path,
             sessionId,
@@ -437,7 +443,7 @@ export function agent(opts: AgentOptions): Agent {
     },
 
     async usage(sessionId?: string): Promise<AgentOSUsageAggregate> {
-      return getRecordedAgentOSUsage({
+      return loadRecordedAgentOSUsage({
         enabled: baseOpts.usageLedger?.enabled,
         path: baseOpts.usageLedger?.path,
         sessionId,

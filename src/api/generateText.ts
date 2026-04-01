@@ -15,12 +15,19 @@ import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools, type AdaptableToolInput } from './runtime/toolAdapter.js';
-import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
+import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
+
+async function recordAgentOSUsageLazy(
+  input: Parameters<typeof import('./runtime/usageLedger.js')['recordAgentOSUsage']>[0]
+): Promise<boolean> {
+  const { recordAgentOSUsage } = await import('./runtime/usageLedger.js');
+  return recordAgentOSUsage(input);
+}
 
 /**
  * A single chat message in a conversation history.
@@ -1076,7 +1083,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
     throw error;
   } finally {
     try {
-      await recordAgentOSUsage({
+      await recordAgentOSUsageLazy({
         providerId: metricProviderId,
         modelId: metricModelId,
         usage: metricUsage,

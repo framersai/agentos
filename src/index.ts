@@ -192,14 +192,23 @@ export type {
   GenerateTextOptions,
   GenerateTextResult,
   FallbackProviderEntry,
+  GenerationHookContext,
+  GenerationHookResult,
   Message,
   ToolCallRecord,
+  ToolCallHookInfo,
   TokenUsage,
 } from './api/generateText.js';
 export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
+export type {
+  IModelRouter,
+  ModelRouteParams,
+  ModelRouteResult,
+} from './core/llm/routing/IModelRouter.js';
+export { ModelRouter } from './core/llm/routing/ModelRouter.js';
 export { agency, runPostApprovalGuardrails } from './api/agency.js';
 export type { GuardrailHitlOverrideResult } from './api/agency.js';
 export {

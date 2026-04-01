@@ -151,6 +151,29 @@ describe('AgentMemory', () => {
     );
   });
 
+  it('remember() accepts relational traces for companion state and trust events', async () => {
+    const manager = createManager();
+    const memory = AgentMemory.wrap(manager);
+
+    const result = await memory.remember('Companion trust increased after defending the player', {
+      type: 'relational',
+      tags: ['companions', 'trust'],
+      sourceType: 'observation',
+    });
+
+    expect(result.success).toBe(true);
+    expect(manager.encode).toHaveBeenCalledWith(
+      'Companion trust increased after defending the player',
+      { valence: 0, arousal: 0, dominance: 0 },
+      'neutral',
+      expect.objectContaining({
+        type: 'relational',
+        sourceType: 'observation',
+        tags: ['companions', 'trust'],
+      }),
+    );
+  });
+
   it('remember() returns success false when encoding fails', async () => {
     const manager = createManager({
       encode: vi.fn(async () => {

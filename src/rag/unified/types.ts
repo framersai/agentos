@@ -186,7 +186,12 @@ export interface RetrievalPlanSources {
  *
  * @see RetrievalPlan.memoryTypes
  */
-export type MemoryTypeFilter = 'episodic' | 'semantic' | 'procedural' | 'prospective';
+export type MemoryTypeFilter =
+  | 'episodic'
+  | 'semantic'
+  | 'procedural'
+  | 'prospective'
+  | 'relational';
 
 /**
  * Content modality filter for multimodal search.
@@ -437,7 +442,7 @@ const DEFAULT_PLANS: Record<RetrievalStrategy, RetrievalPlan> = {
     strategy: 'complex',
     sources: { vector: true, bm25: true, graph: true, raptor: true, memory: true, multimodal: false },
     hyde: { enabled: true, hypothesisCount: 3 },
-    memoryTypes: ['episodic', 'semantic', 'procedural', 'prospective'],
+    memoryTypes: ['episodic', 'semantic', 'procedural', 'prospective', 'relational'],
     modalities: ['text'],
     temporal: { preferRecent: false, recencyBoost: 1.0, maxAgeMs: null },
     graphConfig: { maxDepth: 3, minEdgeWeight: 0.2 },

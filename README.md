@@ -179,6 +179,44 @@ console.log(followUp.text);
 const config = tutor.exportJSON();
 ```
 
+The lightweight API also supports per-call model routing and lifecycle middleware without booting the full `AgentOS` runtime:
+
+```typescript
+import type { IModelRouter } from '@framers/agentos';
+
+const router: IModelRouter = {
+  routerId: 'fast-vs-quality',
+  async initialize() {},
+  async selectModel(params) {
+    if (params.optimizationPreference === 'speed') {
+      return null; // fall back to the caller's provider/model
+    }
+    return null;
+  },
+};
+
+const reviewer = agent({
+  instructions: 'Review drafts for policy and tone.',
+  router,
+  skills: [{
+    skill: {
+      name: 'policy-review',
+      description: 'Review output before it is shown to users.',
+      content: 'Flag unsafe content and keep the tone concise.',
+    },
+    frontmatter: {} as any,
+  }],
+  onBeforeGeneration: async (ctx) => ({
+    ...ctx,
+    messages: [{ role: 'system', content: 'User is on the free plan.' }, ...ctx.messages],
+  }),
+  onAfterGeneration: async (result) => ({
+    ...result,
+    text: result.text.trim(),
+  }),
+});
+```
+
 ### 5. Multimodal (Image, Video, Audio, OCR, Embeddings)
 
 ```typescript

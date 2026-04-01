@@ -110,7 +110,7 @@ export function createCognitiveMemoryDescriptor(
       'Cognitive science-grounded memory system with personality-affected ' +
       'encoding/retrieval, Ebbinghaus decay, mood-congruent recall, and ' +
       'Baddeley working memory slots.',
-    supportedTypes: ['episodic', 'semantic', 'procedural', 'prospective'],
+    supportedTypes: ['episodic', 'semantic', 'procedural', 'prospective', 'relational'],
     initialize: async (config: Record<string, unknown>) => {
       const candidate = config.manager;
       if (!isRuntimeManager(candidate)) {

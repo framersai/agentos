@@ -185,7 +185,7 @@ export class MemoryReflector {
         const parsed = JSON.parse(line.trim());
         if (!parsed.content) continue;
 
-        const type = (['episodic', 'semantic', 'procedural', 'prospective'].includes(parsed.type)
+        const type = (['episodic', 'semantic', 'procedural', 'prospective', 'relational'].includes(parsed.type)
           ? parsed.type
           : 'semantic') as MemoryType;
 

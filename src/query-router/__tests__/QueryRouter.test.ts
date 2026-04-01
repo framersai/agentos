@@ -128,7 +128,7 @@ function planClassifierResponse(
         hypothesisCount: tier >= 3 ? 3 : tier >= 2 ? 1 : 0,
       },
       memoryTypes: tier >= 3
-        ? ['episodic', 'semantic', 'procedural', 'prospective']
+        ? ['episodic', 'semantic', 'procedural', 'prospective', 'relational']
         : tier >= 1
           ? ['episodic', 'semantic']
           : [],

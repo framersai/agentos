@@ -113,7 +113,7 @@ export function createStandaloneMemoryDescriptor(
     name: 'standalone-memory',
     description:
       'SQLite-first standalone memory facade with remember/recall, document ingestion, and self-improving consolidation support.',
-    supportedTypes: ['episodic', 'semantic', 'procedural', 'prospective'],
+    supportedTypes: ['episodic', 'semantic', 'procedural', 'prospective', 'relational'],
     initialize: async (config: Record<string, unknown>) => {
       const candidate = config.memory;
       if (!isRuntimeMemory(candidate)) {

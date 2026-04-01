@@ -23,6 +23,9 @@ export {
   type GenerateTextOptions,
   type GenerateTextResult,
   type FallbackProviderEntry,
+  type Message,
+  type ToolCallRecord,
+  type TokenUsage,
 } from './generateText.js';
 export { streamText } from './streamText.js';
 export { generateObject } from './generateObject.js';

@@ -364,6 +364,7 @@ export interface MemoryProviderPayload {
     | 'semantic'
     | 'procedural'
     | 'prospective'
+    | 'relational'
   )[];
   /** Initialize the provider */
   initialize: (config: Record<string, unknown>) => Promise<void>;

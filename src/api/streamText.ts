@@ -25,10 +25,16 @@ import {
 } from './generateText.js';
 import type { ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
-import { recordAgentOSUsage } from './runtime/usageLedger.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
 import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../evaluation/observability/otel.js';
+
+async function recordAgentOSUsageLazy(
+  input: Parameters<typeof import('./runtime/usageLedger.js')['recordAgentOSUsage']>[0]
+): Promise<boolean> {
+  const { recordAgentOSUsage } = await import('./runtime/usageLedger.js');
+  return recordAgentOSUsage(input);
+}
 
 /**
  * A discriminated union representing a single event emitted by the
@@ -644,7 +650,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       attachUsageAttributes(rootSpan, usage);
       rootSpan?.end();
       try {
-        await recordAgentOSUsage({
+        await recordAgentOSUsageLazy({
           providerId: recordedProviderId,
           modelId: recordedModelId,
           usage,
