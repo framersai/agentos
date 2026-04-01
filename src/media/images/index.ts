@@ -20,6 +20,8 @@ export * from './providers/StableDiffusionLocalProvider.js';
 export * from './providers/FluxImageProvider.js';
 export * from './providers/FalImageProvider.js';
 
+export * from './face/index.js';
+
 export type ImageProviderFactory = () => IImageProvider;
 
 const imageProviderFactories = new Map<string, ImageProviderFactory>([

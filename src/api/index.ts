@@ -72,6 +72,8 @@ export type {
   AvatarBindingInputs,
   AvatarRiveProfile,
   AvatarSpriteProfile,
+  AvatarIdentityPackage,
+  AvatarIdentityDescriptor,
 } from './types.js';
 
 // --- Errors ---

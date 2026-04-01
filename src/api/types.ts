@@ -402,6 +402,77 @@ export interface AvatarSpriteProfile {
   fps?: number;
 }
 
+/** Identity descriptors used to generate avatar images. */
+export interface AvatarIdentityDescriptor {
+  /** Character display name rendered on portraits. */
+  displayName: string;
+  /** Rough age bracket for body/face proportions. */
+  ageBand: 'child' | 'teen' | 'young_adult' | 'adult' | 'elder';
+  /** Free-text body shape hint (e.g. "athletic", "stocky"). */
+  bodyType?: string;
+  /** Detailed face description for the image generator prompt. */
+  faceDescriptor: string;
+  /** Hair colour, style, and length. */
+  hairDescriptor?: string;
+  /** Skin tone / texture descriptor. */
+  skinDescriptor?: string;
+  /** Scars, tattoos, birthmarks, prosthetics, etc. */
+  distinguishingFeatures?: string;
+  /** Art style notes (e.g. "anime cel-shaded", "photorealistic"). */
+  styleNotes?: string;
+}
+
+/** Complete avatar identity with generated assets and face embedding. */
+export interface AvatarIdentityPackage {
+  /** Unique identifier for this package instance. */
+  id: string;
+  /** Character this identity belongs to. */
+  characterId: string;
+  /** Source identity descriptors used to generate images. */
+  identity: AvatarIdentityDescriptor;
+  /** Canonical anchor images for identity consistency. */
+  anchors: {
+    /** Neutral-expression portrait used as the drift-guard reference. */
+    neutralPortrait: string;
+    /** Emotion → image URL map (e.g. "happy" → url). */
+    expressionSheet?: Record<string, string>;
+    /** Emotion → animated emote URL map. */
+    animatedEmotes?: Record<string, string>;
+    /** Full-body reference image. */
+    fullBody?: string;
+    /** Extra angle reference images. */
+    additionalAngles?: string[];
+  };
+  /** 512-dim face embedding extracted from the neutral portrait. */
+  faceEmbedding?: number[];
+  /** Drift detection thresholds for regeneration gating. */
+  driftGuard: {
+    /** Minimum cosine similarity to anchor embedding. */
+    faceSimilarity: number;
+    /** Whether to reject images below the similarity threshold. */
+    rejectBelowThreshold: boolean;
+    /** Maximum retries when generated face drifts too far. */
+    maxRegenerationAttempts: number;
+  };
+  /** Image generation parameters for reproducibility. */
+  generationConfig: {
+    /** Model identifier (e.g. "flux-schnell"). */
+    baseModel: string;
+    /** Provider (e.g. "replicate", "stability"). */
+    provider: string;
+    /** Random seed for reproducible output. */
+    seed?: number;
+    /** Negative prompt to avoid unwanted artefacts. */
+    negativePrompt?: string;
+    /** Named style preset (provider-specific). */
+    stylePreset?: string;
+  };
+  /** ISO-8601 creation timestamp. */
+  createdAt: string;
+  /** ISO-8601 last-updated timestamp. */
+  updatedAt: string;
+}
+
 /** Avatar configuration — optional on BaseAgentConfig. */
 export interface AvatarConfig {
   /** Enable avatar presentation. */
@@ -418,6 +489,8 @@ export interface AvatarConfig {
   riveProfile?: AvatarRiveProfile;
   /** Sprite sheet config (when runtimeMode is 'sprite_sheet'). */
   spriteProfile?: AvatarSpriteProfile;
+  /** Generated identity package with anchor images and face embedding. */
+  identityPackage?: AvatarIdentityPackage;
 }
 
 /**
