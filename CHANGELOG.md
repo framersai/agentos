@@ -1,3 +1,7 @@
+## <small>0.1.166 (2026-04-01)</small>
+
+* fix(agentos): prioritize truly uncensored models for private-adult tier ([f03491e](https://github.com/framersai/agentos/commit/f03491e))
+
 ## <small>0.1.165 (2026-04-01)</small>
 
 * fix: resolve cosineSimilarity export collision in images barrel ([05e321f](https://github.com/framersai/agentos/commit/05e321f))
