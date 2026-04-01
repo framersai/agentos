@@ -313,6 +313,113 @@ export interface VoiceConfig {
   telephony?: Record<string, unknown>;
 }
 
+// ---------------------------------------------------------------------------
+// Avatar presentation
+// ---------------------------------------------------------------------------
+
+/** Runtime rendering mode for avatar presentation. */
+export type AvatarRuntimeMode =
+  | 'static_portrait'
+  | 'sprite_sheet'
+  | 'rive_rig'
+  | 'live2d_rig'
+  | 'spine_rig'
+  | 'video_loop'
+  | 'phaser_sprite_actor';
+
+/** Required and optional visual anchor assets (URLs). */
+export interface AvatarAnchorAssets {
+  /** Primary neutral portrait — required. */
+  neutralPortrait: string;
+  /** Expression variant sheet. */
+  expressionSheet?: string;
+  /** Full-body reference. */
+  fullBody?: string;
+  /** Additional portrait angles/expressions. */
+  additionalPortraits?: string[];
+}
+
+/** Same character projected into a different visual style. */
+export interface AvatarStyleProjection {
+  /** Style name: 'photoreal', 'anime', 'pixel', 'geometric', etc. */
+  style: string;
+  /** Anchor assets in this style. */
+  anchors: AvatarAnchorAssets;
+}
+
+/** Thresholds for detecting identity drift across regenerations. */
+export interface AvatarDriftGuard {
+  faceSimilarity?: number;
+  silhouetteSimilarity?: number;
+  paletteSimilarity?: number;
+}
+
+/** State inputs that drive avatar animation — populated by AgentOS systems. */
+export interface AvatarBindingInputs {
+  /** Whether the agent is currently speaking (from VoicePipeline). */
+  speaking?: boolean;
+  /** Discrete emotion label (from MoodEngine PAD mapping). */
+  emotion?: string;
+  /** Emotion intensity 0-1 (from MoodEngine). */
+  intensity?: number;
+  /** Stress level 0-1 (from MoodEngine). */
+  stress?: number;
+  /** Anger level 0-1 (from MoodEngine). */
+  anger?: number;
+  /** Affection level 0-1 (from RelationshipEngine). */
+  affection?: number;
+  /** Trust level 0-1 (from RelationshipEngine). */
+  trust?: number;
+  /** Relationship warmth 0-1 (from RelationshipEngine). */
+  relationshipWarmth?: number;
+}
+
+/** Rive-specific artboard and state machine configuration. */
+export interface AvatarRiveProfile {
+  /** Rive file URL. */
+  src: string;
+  /** Artboard name within the Rive file. */
+  artboard: string;
+  /** State machine name. */
+  stateMachine: string;
+  /** Maps AvatarBindingInputs keys to Rive input names. */
+  emotionInputMap?: Record<string, string>;
+  /** Lip sync mode. */
+  lipSyncMode?: 'none' | 'simple_open_close' | 'volume_reactive' | 'phoneme_groups';
+}
+
+/** Sprite sheet animation configuration. */
+export interface AvatarSpriteProfile {
+  /** Sprite sheet image URL. */
+  sheetUrl: string;
+  /** Width of each frame in pixels. */
+  frameWidth: number;
+  /** Height of each frame in pixels. */
+  frameHeight: number;
+  /** Named animations mapped to frame index arrays. */
+  animations: Record<string, number[]>;
+  /** Frames per second. */
+  fps?: number;
+}
+
+/** Avatar configuration — optional on BaseAgentConfig. */
+export interface AvatarConfig {
+  /** Enable avatar presentation. */
+  enabled: boolean;
+  /** Which rendering mode the consuming app should use. */
+  runtimeMode: AvatarRuntimeMode;
+  /** Canonical identity assets (URLs). */
+  anchors: AvatarAnchorAssets;
+  /** Same character in alternate visual styles. */
+  styleProjections?: AvatarStyleProjection[];
+  /** Identity consistency thresholds. */
+  driftGuard?: AvatarDriftGuard;
+  /** Rive-specific config (when runtimeMode is 'rive_rig'). */
+  riveProfile?: AvatarRiveProfile;
+  /** Sprite sheet config (when runtimeMode is 'sprite_sheet'). */
+  spriteProfile?: AvatarSpriteProfile;
+}
+
 /**
  * Provenance and audit-trail configuration.
  * Records a cryptographic chain of custody for every agent action.
@@ -1021,6 +1128,8 @@ export interface BaseAgentConfig {
   emergent?: EmergentConfig;
   /** Voice interface configuration. */
   voice?: VoiceConfig;
+  /** Avatar visual presentation configuration. */
+  avatar?: AvatarConfig;
   /**
    * Channel adapter configurations keyed by channel name.
    * Values are channel-specific option objects passed through opaquely.

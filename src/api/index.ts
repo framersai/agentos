@@ -51,5 +51,17 @@ export type { IPromptEngine } from '../core/llm/IPromptEngine.js';
 export type { SkillEntry } from '../skills/types.js';
 export { SkillRegistry } from '../skills/SkillRegistry.js';
 
+// --- Avatar types ---
+export type {
+  AvatarConfig,
+  AvatarRuntimeMode,
+  AvatarAnchorAssets,
+  AvatarStyleProjection,
+  AvatarDriftGuard,
+  AvatarBindingInputs,
+  AvatarRiveProfile,
+  AvatarSpriteProfile,
+} from './types.js';
+
 // --- Errors ---
 export * from './errors.js';
