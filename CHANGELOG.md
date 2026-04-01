@@ -1,3 +1,7 @@
+## <small>0.1.160 (2026-04-01)</small>
+
+* fix(agentos): remove eager usage-ledger imports from lightweight API paths ([580b169](https://github.com/framersai/agentos/commit/580b169))
+
 ## <small>0.1.159 (2026-03-31)</small>
 
 * fix: add relational to tracesPerType (MemoryType completeness) ([a0e42f3](https://github.com/framersai/agentos/commit/a0e42f3))
