@@ -32,6 +32,21 @@
       "default": "./dist/api/streamText.js",
       "types": "./dist/api/streamText.d.ts"
     },
+    "./core/llm/routing/IModelRouter": {
+      "import": "./dist/core/llm/routing/IModelRouter.js",
+      "default": "./dist/core/llm/routing/IModelRouter.js",
+      "types": "./dist/core/llm/routing/IModelRouter.d.ts"
+    },
+    "./core/llm/routing/PolicyAwareRouter": {
+      "import": "./dist/core/llm/routing/PolicyAwareRouter.js",
+      "default": "./dist/core/llm/routing/PolicyAwareRouter.js",
+      "types": "./dist/core/llm/routing/PolicyAwareRouter.d.ts"
+    },
+    "./core/llm/routing/UncensoredModelCatalog": {
+      "import": "./dist/core/llm/routing/UncensoredModelCatalog.js",
+      "default": "./dist/core/llm/routing/UncensoredModelCatalog.js",
+      "types": "./dist/core/llm/routing/UncensoredModelCatalog.d.ts"
+    },
     "./config/extension-secrets.json": "./dist/config/extension-secrets.json",
     "./skills": {
       "import": "./dist/skills.js",
@@ -168,6 +183,31 @@
       "default": "./dist/voice-pipeline/index.js",
       "types": "./dist/voice-pipeline/index.d.ts"
     },
+    "./voice-pipeline/providers": {
+      "import": "./dist/voice-pipeline/providers/index.js",
+      "default": "./dist/voice-pipeline/providers/index.js",
+      "types": "./dist/voice-pipeline/providers/index.d.ts"
+    },
+    "./voice-pipeline/providers/index": {
+      "import": "./dist/voice-pipeline/providers/index.js",
+      "default": "./dist/voice-pipeline/providers/index.js",
+      "types": "./dist/voice-pipeline/providers/index.d.ts"
+    },
+    "./voice-pipeline/providers/*": {
+      "import": "./dist/voice-pipeline/providers/*.js",
+      "default": "./dist/voice-pipeline/providers/*.js",
+      "types": "./dist/voice-pipeline/providers/*.d.ts"
+    },
+    "./media/avatar": {
+      "import": "./dist/media/avatar/index.js",
+      "default": "./dist/media/avatar/index.js",
+      "types": "./dist/media/avatar/index.d.ts"
+    },
+    "./media/avatar/index": {
+      "import": "./dist/media/avatar/index.js",
+      "default": "./dist/media/avatar/index.js",
+      "types": "./dist/media/avatar/index.d.ts"
+    },
     "./query-router": {
       "import": "./dist/query-router/index.js",
       "default": "./dist/query-router/index.js",
@@ -250,7 +290,7 @@
   "devDependencies": {
     "@eslint/js": "^9.11.0",
     "@framers/agentos-extensions-registry": "^0.15.0",
-    "@framers/sql-storage-adapter": "^0.6.0",
+    "@framers/sql-storage-adapter": "^0.6.1",
     "@opentelemetry/context-async-hooks": "^2.0.1",
     "@opentelemetry/sdk-metrics": "^2.0.1",
     "@opentelemetry/sdk-trace-base": "^2.0.1",
@@ -302,7 +342,7 @@
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@framers/sql-storage-adapter": ">=0.6.0",
+    "@framers/sql-storage-adapter": "^0.6.1",
     "graphology": ">=0.25.0",
     "graphology-communities-louvain": ">=2.0.0",
     "graphology-types": ">=0.24.0",
