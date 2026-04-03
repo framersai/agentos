@@ -1,3 +1,7 @@
+## <small>0.1.168 (2026-04-03)</small>
+
+* feat(routing): update uncensored model catalog for private-adult tier ([f4c6bea](https://github.com/framersai/agentos/commit/f4c6bea))
+
 ## <small>0.1.167 (2026-04-03)</small>
 
 * fix: disable require-yield on stub generator that only throws ([2899cfd](https://github.com/framersai/agentos/commit/2899cfd))
