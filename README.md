@@ -40,9 +40,9 @@ Unlike frameworks that focus purely on LLM orchestration, AgentOS treats each ag
 | Package | Description |
 |---------|-------------|
 | [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime -- agents, providers, memory, RAG, orchestration, guardrails |
-| [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | Official extension registry (40+ extensions) |
+| [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | Official extension source/catalog (100+ extensions and templates) |
 | [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | Curated manifest builder for extension catalogs |
-| [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 80+ curated SKILL.md skill definitions |
+| [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated SKILL.md skill definitions |
 | [`@framers/agentos-skills-registry`](https://www.npmjs.com/package/@framers/agentos-skills-registry) | Skills catalog SDK (query helpers + snapshot factories) |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence (SQLite, sql.js, Postgres, IndexedDB) |
 
@@ -139,9 +139,21 @@ console.log(object);
 
 Failed parses are automatically retried with error feedback so the model can self-correct.
 
-### 4. Agent with Personality & Memory
+### 4. Create an Agent
 
-This is the key differentiator. Agents have HEXACO personality traits that shape their communication style, and cognitive memory that determines what they retain:
+The simplest possible agent — 3 lines:
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const bot = agent({ provider: 'anthropic', instructions: 'You are a helpful assistant.' });
+const reply = await bot.session('demo').send('What is 2+2?');
+console.log(reply.text); // "4"
+```
+
+#### Agent with Personality & Memory
+
+The key differentiator. Agents have HEXACO personality traits that shape their communication style, and cognitive memory that determines what they retain:
 
 ```typescript
 import { agent } from '@framers/agentos';
@@ -299,9 +311,27 @@ for await (const chunk of stream.textStream) {
 }
 ```
 
-6 strategies: `sequential`, `parallel`, `debate`, `review-loop`, `hierarchical`, `graph`.
+6 strategies — each controls how agents coordinate:
 
-Auto-detection: when any agent declares `dependsOn`, strategy defaults to `graph`.
+```typescript
+// Sequential: A → B → C, each gets the previous output
+agency({ agents, strategy: 'sequential' });
+
+// Parallel: all agents run at once, synthesis agent merges results
+agency({ agents, strategy: 'parallel' });
+
+// Debate: agents argue across rounds, a judge picks the best
+agency({ agents, strategy: 'debate', maxRounds: 3 });
+
+// Review loop: drafter writes, reviewer critiques, iterate until approved
+agency({ agents, strategy: 'review-loop' });
+
+// Hierarchical: orchestrator dispatches sub-tasks to specialists
+agency({ agents, strategy: 'hierarchical' });
+
+// Graph (DAG): explicit dependency order via dependsOn
+agency({ agents, strategy: 'graph' }); // auto-detected when dependsOn is used
+```
 
 ### 7. Orchestration (Workflows, Graphs, Missions)
 
