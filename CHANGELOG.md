@@ -1,3 +1,9 @@
+## <small>0.1.167 (2026-04-03)</small>
+
+* fix: disable require-yield on stub generator that only throws ([2899cfd](https://github.com/framersai/agentos/commit/2899cfd))
+* docs: add 3-line minimal agent example + all 6 agency strategies shown ([88e4eec](https://github.com/framersai/agentos/commit/88e4eec))
+* chore: bump version to 0.1.166, align sql-storage-adapter to ^0.6.1 ([6fcf301](https://github.com/framersai/agentos/commit/6fcf301))
+
 ## <small>0.1.166 (2026-04-01)</small>
 
 * fix(agentos): prioritize truly uncensored models for private-adult tier ([f03491e](https://github.com/framersai/agentos/commit/f03491e))
