@@ -1,3 +1,7 @@
+## <small>0.1.177 (2026-04-04)</small>
+
+* fix(api): include systemBlocks on exported AgentOptions interface ([d79ddab](https://github.com/framersai/agentos/commit/d79ddab))
+
 ## <small>0.1.176 (2026-04-04)</small>
 
 * feat: add PersonaDriftMechanism (9th cognitive mechanism) with heuristic personality drift ([739fafd](https://github.com/framersai/agentos/commit/739fafd))
