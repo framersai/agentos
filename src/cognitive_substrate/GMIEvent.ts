@@ -52,6 +52,12 @@ export enum GMIEventType {
    * Triggers metaprompts that update user context
    */
   SKILL_LEVEL_CHANGE_DETECTED = 'skill_level_change_detected',
+
+  /**
+   * Personality drift detected during memory consolidation.
+   * HEXACO traits shifted based on accumulated experience patterns.
+   */
+  PERSONA_DRIFT = 'persona_drift',
 }
 
 /**

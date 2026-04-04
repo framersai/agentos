@@ -328,3 +328,13 @@ export type {
   MechanismMetadata,
   DriftEvent,
 } from './mechanisms/index.js';
+export {
+  analyzePersonaDrift,
+  DEFAULT_PERSONA_DRIFT_CONFIG,
+} from './mechanisms/PersonaDriftMechanism.js';
+export type {
+  PersonaDriftConfig,
+  PersonalityDriftProposal,
+  RelationshipDriftInput,
+  HEXACOTrait,
+} from './mechanisms/PersonaDriftMechanism.js';

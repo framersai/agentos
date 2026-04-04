@@ -26,6 +26,12 @@ import type { MemoryTrace, ScoredMemoryTrace, AssembledMemoryContext } from '../
 import type { PADState, HexacoTraits } from '../core/config.js';
 import type { CandidateTrace } from '../core/decay/RetrievalPriorityScorer.js';
 import { resolveConfig } from './defaults.js';
+import {
+  analyzePersonaDrift,
+  DEFAULT_PERSONA_DRIFT_CONFIG,
+  type PersonalityDriftProposal,
+  type PersonaDriftConfig,
+} from './PersonaDriftMechanism.js';
 import { applyReconsolidation } from './retrieval/Reconsolidation.js';
 import { applyRetrievalInducedForgetting } from './retrieval/RetrievalInducedForgetting.js';
 import { selectInvoluntaryMemory } from './retrieval/InvoluntaryRecall.js';
@@ -140,12 +146,16 @@ function applyPersonalityModulation(
  */
 export class CognitiveMechanismsEngine {
   private readonly cfg: ResolvedMechanismsConfig;
+  private readonly hexaco?: HexacoTraits;
+  private readonly personaDriftCfg: PersonaDriftConfig;
 
   /** Lazily populated cluster centroids for schema encoding. */
   private clusterCentroids: Map<string, number[]> = new Map();
 
   constructor(config: CognitiveMechanismsConfig, traits?: HexacoTraits) {
     this.cfg = applyPersonalityModulation(resolveConfig(config), traits);
+    this.hexaco = traits;
+    this.personaDriftCfg = { ...DEFAULT_PERSONA_DRIFT_CONFIG, ...config.personaDrift };
   }
 
   // =========================================================================
@@ -234,11 +244,23 @@ export class CognitiveMechanismsEngine {
   async onConsolidation(
     traces: MemoryTrace[],
     llmFn?: (prompt: string) => Promise<string>,
-  ): Promise<{ gistedCount: number; sourceDecayedCount: number; regulatedCount: number }> {
+  ): Promise<{
+    gistedCount: number;
+    sourceDecayedCount: number;
+    regulatedCount: number;
+    driftProposals: PersonalityDriftProposal[];
+  }> {
     const gistedCount = await applyTemporalGist(traces, this.cfg.temporalGist, llmFn);
     const sourceDecayedCount = applySourceConfidenceDecay(traces, this.cfg.sourceConfidenceDecay);
     const regulatedCount = applyEmotionRegulation(traces, this.cfg.emotionRegulation);
-    return { gistedCount, sourceDecayedCount, regulatedCount };
+
+    // 9th mechanism: Persona Drift (heuristic, no LLM call)
+    let driftProposals: PersonalityDriftProposal[] = [];
+    if (this.personaDriftCfg.enabled && this.hexaco) {
+      driftProposals = analyzePersonaDrift(traces, this.hexaco, this.personaDriftCfg);
+    }
+
+    return { gistedCount, sourceDecayedCount, regulatedCount, driftProposals };
   }
 
   /**

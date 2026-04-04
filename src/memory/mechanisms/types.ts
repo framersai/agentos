@@ -127,6 +127,8 @@ export interface CognitiveMechanismsConfig {
   schemaEncoding?: Partial<SchemaEncodingConfig>;
   sourceConfidenceDecay?: Partial<SourceConfidenceDecayConfig>;
   emotionRegulation?: Partial<EmotionRegulationConfig>;
+  /** 9th mechanism: Persona Drift (heuristic personality evolution from memory). */
+  personaDrift?: Partial<import('./PersonaDriftMechanism.js').PersonaDriftConfig>;
 }
 
 // ---------------------------------------------------------------------------
