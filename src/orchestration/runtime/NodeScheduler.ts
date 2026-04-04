@@ -46,9 +46,25 @@ export class NodeScheduler {
       this.predecessors.set(id, []);
     }
 
+    // Runtime-resolved placeholder sentinels.  Edges targeting these have their
+    // real destination determined by a function/discovery engine at execution time,
+    // so at build time we conservatively treat the source as able to reach *every*
+    // real node (plus __END__) to avoid false "unreachable" warnings and incorrect
+    // topological sort results.
+    const RUNTIME_SENTINELS = new Set(['__CONDITIONAL__', '__DISCOVERY__']);
+
     for (const edge of edges) {
-      this.adjacency.get(edge.source)?.push(edge.target);
-      this.predecessors.get(edge.target)?.push(edge.source);
+      if (RUNTIME_SENTINELS.has(edge.target)) {
+        // The real target is unknown at compile time — fan out to all real nodes + END.
+        const allTargets = [...this.nodeIds, END];
+        for (const t of allTargets) {
+          this.adjacency.get(edge.source)?.push(t);
+          this.predecessors.get(t)?.push(edge.source);
+        }
+      } else {
+        this.adjacency.get(edge.source)?.push(edge.target);
+        this.predecessors.get(edge.target)?.push(edge.source);
+      }
     }
   }
 

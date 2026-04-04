@@ -50,7 +50,7 @@ describe('AgentGraph', () => {
         (state.scratch as any).confidence > 0.8 ? 'done' : 'retry')
       .addEdge('retry', 'eval')
       .addEdge('done', END)
-      .compile({ validate: false }); // cycles allowed
+      .compile();
 
     const ir = graph.toIR();
     expect(ir.edges.some(e => e.type === 'conditional')).toBe(true);

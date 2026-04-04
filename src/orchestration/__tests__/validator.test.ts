@@ -166,7 +166,35 @@ describe('GraphValidator', () => {
     expect(result.errors.some(e => e.includes('missing'))).toBe(true);
   });
 
-  // 8. Multi-node DAG passes cleanly ---------------------------------------------
+  // 8. Runtime-resolved sentinels ------------------------------------------------
+  it('accepts __CONDITIONAL__ placeholder target', () => {
+    const nodes = [makeNode('a'), makeNode('b'), makeNode('c')];
+    const edges: GraphEdge[] = [
+      makeEdge('e1', '__START__', 'a'),
+      { id: 'e2', source: 'a', target: '__CONDITIONAL__', type: 'conditional',
+        condition: { type: 'function', fn: () => 'b' } },
+      makeEdge('e3', 'b', '__END__'),
+      makeEdge('e4', 'c', '__END__'),
+    ];
+    const result = GraphValidator.validate(makeGraph({ nodes, edges }), { requireAcyclic: false });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('accepts __DISCOVERY__ placeholder target', () => {
+    const nodes = [makeNode('a'), makeNode('fallback')];
+    const edges: GraphEdge[] = [
+      makeEdge('e1', '__START__', 'a'),
+      { id: 'e2', source: 'a', target: '__DISCOVERY__', type: 'discovery',
+        discoveryQuery: 'find best tool' },
+      makeEdge('e3', 'fallback', '__END__'),
+    ];
+    const result = GraphValidator.validate(makeGraph({ nodes, edges }), { requireAcyclic: false });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  // 9. Multi-node DAG passes cleanly ---------------------------------------------
   it('passes a valid two-node sequential DAG', () => {
     const nodes = [makeNode('a'), makeNode('b')];
     const edges = [
