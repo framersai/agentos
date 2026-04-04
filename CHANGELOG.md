@@ -1,3 +1,7 @@
+## <small>0.1.170 (2026-04-04)</small>
+
+* feat(voice-pipeline): forward ttsOptions to ElevenLabs as expressiveness params ([9c31206](https://github.com/framersai/agentos/commit/9c31206))
+
 ## <small>0.1.169 (2026-04-04)</small>
 
 * feat(agentos): wire VoiceTransportAdapter to pipeline TTS and turn detection ([69d337f](https://github.com/framersai/agentos/commit/69d337f))
