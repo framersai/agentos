@@ -255,6 +255,7 @@ export class VoicePipelineOrchestrator extends EventEmitter {
     const ttsSession = await tts.startSession({
       voice: this.config.voice,
       format: this.config.format,
+      providerOptions: this.config.ttsOptions,
     });
 
     // Store references for use by wiring helpers and teardown
