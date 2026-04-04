@@ -1,3 +1,8 @@
+## <small>0.1.176 (2026-04-04)</small>
+
+* feat: add PersonaDriftMechanism (9th cognitive mechanism) with heuristic personality drift ([739fafd](https://github.com/framersai/agentos/commit/739fafd))
+* feat(api): replace flat HEXACO trait dump with behavioral descriptions ([a42d72f](https://github.com/framersai/agentos/commit/a42d72f))
+
 ## <small>0.1.175 (2026-04-04)</small>
 
 * fix(api): remove duplicate dead branches in system prompt construction ([32d5e5f](https://github.com/framersai/agentos/commit/32d5e5f))
