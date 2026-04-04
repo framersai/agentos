@@ -575,24 +575,38 @@ export class StatisticalUtilityAI implements IUtilityAI {
 
   public async calculateReadability(text: string, options: ReadabilityOptions): Promise<ReadabilityResult> {
     this.ensureInitialized();
-    // 'natural' does not have built-in readability scores.
-    // This requires implementing the formulas manually. Syllable counting is the hardest part.
-    // The implementation from LLMUtilityAI provided earlier was an LLM-based *estimation*.
-    // A true statistical one needs the formulas.
-    console.warn("StatisticalUtilityAI.calculateReadability: Formula-based readability is complex to implement accurately without dedicated syllable counters. This is a very basic placeholder.");
+    // Uses Flesch-Kincaid formulas with a pattern-aware syllable counter.
+    // Syllable counting handles silent-e, -es/-ed suffixes, consonant+le, and -tion/-sion.
 
     const sentences = (this.tokenizers.sentence.tokenize(text) || [text]).filter(s => s.trim().length > 0);
     const words = (this.tokenizers.word.tokenize(text.toLowerCase()) || []).filter(w => /^[a-z']+$/.test(w) && w.length > 0); // Basic word filter
     const numSentences = Math.max(1, sentences.length);
     const numWords = Math.max(1, words.length);
 
-    // Extremely naive syllable counter (vowel groups, often inaccurate)
     const countSyllablesApprox = (word: string): number => {
-      if (word.length <= 3) return 1;
-      word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
-      word = word.replace(/^y/, '');
-      const matches = word.match(/[aeiouy]{1,2}/g);
-      return matches ? Math.max(1, matches.length) : 1;
+      const w = word.toLowerCase().replace(/[^a-z]/g, '');
+      if (!w) return 0;
+      if (w.length <= 3) return 1;
+
+      let count = 0;
+      const vowels = 'aeiouy';
+      let prevVowel = false;
+
+      for (let i = 0; i < w.length; i++) {
+        const isVowel = vowels.includes(w[i]);
+        if (isVowel && !prevVowel) count++;
+        prevVowel = isVowel;
+      }
+
+      // Adjust for common patterns
+      if (w.endsWith('e') && !w.endsWith('le')) count--;
+      if (w.endsWith('es') || w.endsWith('ed')) {
+        if (w.length > 4 && !('dt'.includes(w[w.length - 3]))) count--;
+      }
+      if (w.endsWith('le') && w.length > 2 && !vowels.includes(w[w.length - 3])) count++;
+      if (w.endsWith('tion') || w.endsWith('sion')) count--;
+
+      return Math.max(1, count);
     };
     const numSyllables = Math.max(1, words.reduce((sum, word) => sum + countSyllablesApprox(word), 0));
 

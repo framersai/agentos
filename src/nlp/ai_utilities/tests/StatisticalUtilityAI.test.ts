@@ -70,4 +70,26 @@ describe('StatisticalUtilityAI', () => {
     await expect(statUtility.shutdown?.()).resolves.toBeUndefined();
     // Add any assertions about state after shutdown if applicable
   });
+
+  describe('calculateReadability', () => {
+    it('computes flesch_kincaid_reading_ease for simple text', async () => {
+      const result = await statUtility.calculateReadability(
+        'The cat sat on the mat. The dog ran fast.',
+        { formula: 'flesch_kincaid_reading_ease' }
+      );
+      expect(result.score).toBeGreaterThan(70);
+    });
+
+    it('computes lower readability for complex text', async () => {
+      const simple = await statUtility.calculateReadability(
+        'The cat sat on the mat. The dog ran fast.',
+        { formula: 'flesch_kincaid_reading_ease' }
+      );
+      const complex = await statUtility.calculateReadability(
+        'Antidisestablishmentarianism characterizes the philosophical underpinnings of contemporary ecclesiastical governance methodologies.',
+        { formula: 'flesch_kincaid_reading_ease' }
+      );
+      expect(complex.score).toBeLessThan(simple.score);
+    });
+  });
 });
