@@ -135,6 +135,18 @@ export interface FallbackProviderEntry {
   model?: string;
 }
 
+/**
+ * A structured block of system prompt content with optional cache breakpoint.
+ * When `cacheBreakpoint` is true, providers that support prompt caching
+ * (e.g., Anthropic) will mark this block's boundary for caching.
+ */
+export interface SystemContentBlock {
+  /** The text content of this block. */
+  text: string;
+  /** When true, marks the end of this block as a cache boundary. */
+  cacheBreakpoint?: boolean;
+}
+
 export interface GenerateTextOptions {
   /**
    * Provider name.  When supplied without `model`, the default text model for
@@ -153,8 +165,8 @@ export interface GenerateTextOptions {
   model?: string;
   /** Single user turn to append after any `messages`. Convenience alternative to building a `messages` array. */
   prompt?: string;
-  /** System prompt injected as the first message. */
-  system?: string;
+  /** System prompt injected as the first message. Accepts a plain string or structured blocks with cache breakpoints. */
+  system?: string | SystemContentBlock[];
   /** Full conversation history. Appended before `prompt` when both are supplied. */
   messages?: Message[];
   /**
@@ -321,8 +333,8 @@ export interface GenerateTextResult {
 export interface GenerationHookContext {
   /** Current messages array (system + conversation + user). */
   messages: Message[];
-  /** System prompt text. */
-  system: string | undefined;
+  /** System prompt — plain string or structured blocks with cache breakpoints. */
+  system: string | SystemContentBlock[] | undefined;
   /** Tool definitions available for this step. */
   tools: ITool[];
   /** Resolved model ID. */
@@ -655,7 +667,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             : [];
           const routeParams: ModelRouteParams = {
             taskHint:
-              opts.routerParams?.taskHint ?? opts.system ?? opts.prompt ?? '',
+              opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
             requiredCapabilities:
               opts.routerParams?.requiredCapabilities ??
               (toolNames.length > 0 ? ['function_calling'] : undefined),
@@ -708,13 +720,34 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       // before selecting a tool or composing a response.
       const cotInstruction = resolveChainOfThought(opts.chainOfThought);
       const hasTools = tools.length > 0;
-      if (cotInstruction && hasTools) {
-        const systemContent = opts.system
-          ? `${cotInstruction}\n\n${opts.system}`
-          : cotInstruction;
-        messages.push({ role: 'system', content: systemContent });
-      } else if (opts.system) {
-        messages.push({ role: 'system', content: opts.system });
+
+      if (typeof opts.system === 'string' || !opts.system) {
+        // Plain string system prompt (existing behavior)
+        if (cotInstruction && hasTools) {
+          const systemContent = opts.system
+            ? `${cotInstruction}\n\n${opts.system}`
+            : cotInstruction;
+          messages.push({ role: 'system', content: systemContent });
+        } else if (opts.system) {
+          messages.push({ role: 'system', content: opts.system });
+        } else if (cotInstruction && hasTools) {
+          messages.push({ role: 'system', content: cotInstruction });
+        }
+      } else {
+        // Structured SystemContentBlock[] — convert to content parts with cache_control
+        const blocks = opts.system as SystemContentBlock[];
+        const parts = blocks.map(block => ({
+          type: 'text' as const,
+          text: block.text,
+          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        }));
+
+        // Prepend CoT instruction as the first non-cached block if needed
+        if (cotInstruction && hasTools) {
+          parts.unshift({ type: 'text' as const, text: cotInstruction });
+        }
+
+        messages.push({ role: 'system', content: parts });
       }
 
       if (opts.messages) {

@@ -162,7 +162,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             : [];
           const routeParams: ModelRouteParams = {
             taskHint:
-              opts.routerParams?.taskHint ?? opts.system ?? opts.prompt ?? '',
+              opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
             requiredCapabilities:
               opts.routerParams?.requiredCapabilities ??
               (toolNames.length > 0 ? ['function_calling'] : undefined),
@@ -209,13 +209,32 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
       const cotInstruction = resolveChainOfThought(opts.chainOfThought);
       const hasTools = tools.length > 0;
-      if (cotInstruction && hasTools) {
-        const systemContent = opts.system
-          ? `${cotInstruction}\n\n${opts.system}`
-          : cotInstruction;
-        messages.push({ role: 'system', content: systemContent });
-      } else if (opts.system) {
-        messages.push({ role: 'system', content: opts.system });
+      if (typeof opts.system === 'string' || !opts.system) {
+        // Plain string system prompt (existing behavior)
+        if (cotInstruction && hasTools) {
+          const systemContent = opts.system
+            ? `${cotInstruction}\n\n${opts.system}`
+            : cotInstruction;
+          messages.push({ role: 'system', content: systemContent });
+        } else if (opts.system) {
+          messages.push({ role: 'system', content: opts.system });
+        } else if (cotInstruction && hasTools) {
+          messages.push({ role: 'system', content: cotInstruction });
+        }
+      } else {
+        // Structured SystemContentBlock[] — convert to content parts with cache_control
+        const blocks = opts.system as import('./generateText.js').SystemContentBlock[];
+        const parts = blocks.map(block => ({
+          type: 'text' as const,
+          text: block.text,
+          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        }));
+
+        if (cotInstruction && hasTools) {
+          parts.unshift({ type: 'text' as const, text: cotInstruction });
+        }
+
+        messages.push({ role: 'system', content: parts });
       }
 
       if (opts.messages)

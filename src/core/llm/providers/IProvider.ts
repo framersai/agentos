@@ -40,7 +40,7 @@
  * Represents a part of a multimodal message content.
  */
 export type MessageContentPart =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }
   | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto'; } }
   // For Anthropic tool results specifically, fitting their API:
   | { type: 'tool_result'; tool_use_id: string; content?: string | Array<Record<string, any>>; is_error?: boolean; }
@@ -145,6 +145,10 @@ export interface ModelUsage {
   completionTokens?: number;
   totalTokens: number;
   costUSD?: number;
+  /** Tokens written to the prompt cache on this call (Anthropic: 25% surcharge). */
+  cacheCreationInputTokens?: number;
+  /** Tokens read from the prompt cache on this call (Anthropic: 90% discount). */
+  cacheReadInputTokens?: number;
 }
 
 /**

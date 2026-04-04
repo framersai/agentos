@@ -114,6 +114,8 @@ interface AnthropicMessagesResponse {
   usage: {
     input_tokens: number;
     output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
   };
 }
 
@@ -680,19 +682,29 @@ export class AnthropicProvider implements IProvider {
     options: ModelCompletionOptions,
     stream: boolean,
   ): Record<string, unknown> {
-    // --- Extract system messages and join them into a single string ---
+    // --- Extract system messages into content blocks ---
     // Anthropic treats system as a top-level field, not a conversation role.
-    const systemParts: string[] = [];
+    // When cache_control markers are present on content parts, emit system
+    // as an array of content blocks (required for Anthropic prompt caching).
+    type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } };
+    const systemBlocks: SystemBlock[] = [];
     const conversationMessages: ChatMessage[] = [];
 
     for (const msg of messages) {
       if (msg.role === 'system') {
-        const text = typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? msg.content.filter(p => p.type === 'text').map(p => (p as { text: string }).text).join('\n')
-            : '';
-        if (text) systemParts.push(text);
+        if (typeof msg.content === 'string') {
+          if (msg.content) systemBlocks.push({ type: 'text', text: msg.content });
+        } else if (Array.isArray(msg.content)) {
+          for (const part of msg.content as MessageContentPart[]) {
+            if (part.type === 'text') {
+              const block: SystemBlock = { type: 'text', text: (part as { text: string }).text };
+              if ((part as any).cache_control) {
+                block.cache_control = (part as any).cache_control;
+              }
+              systemBlocks.push(block);
+            }
+          }
+        }
       } else {
         conversationMessages.push(msg);
       }
@@ -709,9 +721,13 @@ export class AnthropicProvider implements IProvider {
       stream,
     };
 
-    // Only include system if we actually have system content
-    if (systemParts.length > 0) {
-      payload.system = systemParts.join('\n\n');
+    // Emit system as content block array when cache markers are present,
+    // otherwise fall back to joined string for backward compatibility.
+    if (systemBlocks.length > 0) {
+      const hasCacheMarkers = systemBlocks.some(b => b.cache_control);
+      payload.system = hasCacheMarkers
+        ? systemBlocks
+        : systemBlocks.map(b => b.text).join('\n\n');
     }
 
     // --- Optional parameters ---
@@ -929,6 +945,8 @@ export class AnthropicProvider implements IProvider {
         apiResponse.usage.output_tokens,
         apiResponse.model,
       ),
+      cacheCreationInputTokens: apiResponse.usage.cache_creation_input_tokens,
+      cacheReadInputTokens: apiResponse.usage.cache_read_input_tokens,
     };
 
     const choice: ModelCompletionChoice = {

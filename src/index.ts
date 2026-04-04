@@ -203,6 +203,7 @@ export type {
   ToolCallRecord,
   ToolCallHookInfo,
   TokenUsage,
+  SystemContentBlock,
 } from './api/generateText.js';
 export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
