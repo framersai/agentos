@@ -1,3 +1,7 @@
+## <small>0.1.169 (2026-04-04)</small>
+
+* feat(agentos): wire VoiceTransportAdapter to pipeline TTS and turn detection ([69d337f](https://github.com/framersai/agentos/commit/69d337f))
+
 ## <small>0.1.168 (2026-04-03)</small>
 
 * feat(routing): update uncensored model catalog for private-adult tier ([f4c6bea](https://github.com/framersai/agentos/commit/f4c6bea))
