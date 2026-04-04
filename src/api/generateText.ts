@@ -730,8 +730,6 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           messages.push({ role: 'system', content: systemContent });
         } else if (opts.system) {
           messages.push({ role: 'system', content: opts.system });
-        } else if (cotInstruction && hasTools) {
-          messages.push({ role: 'system', content: cotInstruction });
         }
       } else {
         // Structured SystemContentBlock[] — convert to content parts with cache_control
