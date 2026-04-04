@@ -1,3 +1,8 @@
+## <small>0.1.171 (2026-04-04)</small>
+
+* feat: export NLP ai_utilities from barrel file and package.json ([08da179](https://github.com/framersai/agentos/commit/08da179))
+* feat(nlp): improve syllable counting in calculateReadability ([35e60b1](https://github.com/framersai/agentos/commit/35e60b1))
+
 ## <small>0.1.170 (2026-04-04)</small>
 
 * feat(voice-pipeline): forward ttsOptions to ElevenLabs as expressiveness params ([9c31206](https://github.com/framersai/agentos/commit/9c31206))
