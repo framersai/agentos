@@ -22,6 +22,7 @@ import {
 } from './IUtilityAI';
 import * as natural from 'natural';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { detectLanguageTrigram } from './trigram-language-profiles';
 
 const NATURAL_STEMMER_LANGUAGE_KEYS: Record<string, string> = {
   De: 'de',
@@ -500,12 +501,42 @@ export class StatisticalUtilityAI implements IUtilityAI {
     };
   }
 
-  public async detectLanguage(_text: string, _options?: LanguageDetectionOptions): Promise<LanguageDetectionResult[]> {
+  /**
+   * Detect the language of a text string using trigram frequency analysis.
+   *
+   * Uses a Cavnar & Trenkle style algorithm that compares the input text's
+   * trigram frequency profile against pre-computed reference profiles for 20+
+   * languages.  Accuracy improves with longer text; passages under 10
+   * characters return `'und'` (undetermined).
+   *
+   * @param text    - The input text to analyse.
+   * @param options - `maxCandidates` controls how many ranked results to
+   *                  return (default 3).  The `method` field is accepted but
+   *                  only `'n_gram'` (the default) is supported by this
+   *                  statistical implementation.
+   * @returns Ranked array of `{ language, confidence }` where `language` is
+   *          an ISO 639-1 code (e.g. `'en'`, `'fr'`) and `confidence` is
+   *          in the range 0-1.
+   */
+  public async detectLanguage(text: string, options?: LanguageDetectionOptions): Promise<LanguageDetectionResult[]> {
     this.ensureInitialized();
-    // 'natural' library does not have a built-in robust language detector.
-    // A real implementation would use a dedicated library (e.g., franc, langdetect) or n-gram profiles.
-    console.warn("StatisticalUtilityAI.detectLanguage: Placeholder implementation. Not reliable.");
-    return [{ language: this.config.defaultLanguage || 'en', confidence: 0.1 }]; // Fallback
+
+    const maxCandidates = options?.maxCandidates ?? 3;
+
+    // Short-circuit: if the text is too short for reliable detection, fall
+    // back to the configured default language with low confidence.
+    if (!text || text.trim().length < 10) {
+      return [{ language: this.config.defaultLanguage || 'en', confidence: 0.1 }];
+    }
+
+    const results = detectLanguageTrigram(text, { maxCandidates });
+
+    // If detection returned 'und', fall back to the default language.
+    if (results.length === 1 && results[0].language === 'und') {
+      return [{ language: this.config.defaultLanguage || 'en', confidence: 0.1 }];
+    }
+
+    return results;
   }
 
   public async normalizeText(text: string, options?: TextNormalizationOptions): Promise<string> {
