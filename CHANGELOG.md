@@ -1,3 +1,7 @@
+## <small>0.1.174 (2026-04-04)</small>
+
+* feat: add prompt caching support (SystemContentBlock, cache_control, cache metrics) ([23586f3](https://github.com/framersai/agentos/commit/23586f3))
+
 ## <small>0.1.173 (2026-04-04)</small>
 
 * feat(voice-pipeline): Deepgram sentiment, keywords, smart formatting support ([a7d7266](https://github.com/framersai/agentos/commit/a7d7266))
