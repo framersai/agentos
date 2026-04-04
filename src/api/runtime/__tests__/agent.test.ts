@@ -67,7 +67,7 @@ describe('agent', () => {
     );
   });
 
-  it('injects personality traits into the system prompt', async () => {
+  it('injects personality traits as behavioral descriptions into the system prompt', async () => {
     const assistant = agent({
       model: 'openai:gpt-4.1-mini',
       instructions: 'Be concise.',
@@ -76,11 +76,13 @@ describe('agent', () => {
 
     await assistant.generate('Hello');
 
+    // High openness (0.8 > 0.65) produces a behavioral directive
     expect(hoisted.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
-        system: expect.stringContaining('openness=0.80'),
+        system: expect.stringContaining('creative angles'),
       })
     );
+    // The original instructions are preserved
     expect(hoisted.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         system: expect.stringContaining('Be concise.'),

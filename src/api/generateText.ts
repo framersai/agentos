@@ -390,6 +390,7 @@ export const DEFAULT_COT_INSTRUCTION = `Before choosing an action, briefly reaso
 1. What information do you already have?
 2. What information do you need?
 3. Which tool is most appropriate and why?
+4. How does your communication style (from the Personality section, if present) influence how you should frame your response?
 Then proceed with your tool call or response.`;
 
 /**
