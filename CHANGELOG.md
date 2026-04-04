@@ -1,3 +1,8 @@
+## <small>0.1.175 (2026-04-04)</small>
+
+* fix(api): remove duplicate dead branches in system prompt construction ([32d5e5f](https://github.com/framersai/agentos/commit/32d5e5f))
+* docs(voice-pipeline): add provider options, sentiment, keyword boosting docs ([b376cbf](https://github.com/framersai/agentos/commit/b376cbf))
+
 ## <small>0.1.174 (2026-04-04)</small>
 
 * feat: add prompt caching support (SystemContentBlock, cache_control, cache metrics) ([23586f3](https://github.com/framersai/agentos/commit/23586f3))
