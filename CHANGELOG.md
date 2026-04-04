@@ -1,3 +1,7 @@
+## <small>0.1.173 (2026-04-04)</small>
+
+* feat(voice-pipeline): Deepgram sentiment, keywords, smart formatting support ([a7d7266](https://github.com/framersai/agentos/commit/a7d7266))
+
 ## <small>0.1.172 (2026-04-04)</small>
 
 * fix(orchestration): validate and route conditional/discovery edges correctly ([47b213f](https://github.com/framersai/agentos/commit/47b213f))
