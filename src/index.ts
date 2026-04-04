@@ -116,6 +116,11 @@ export * from './skills';
 // Multilingual exports
 export * from './nlp/language/interfaces';
 export * from './nlp/language/LanguageService';
+// NLP AI Utilities (classification, sentiment, similarity, keyword extraction, etc.)
+export * from './nlp/ai_utilities/IUtilityAI';
+export * from './nlp/ai_utilities/LLMUtilityAI';
+export * from './nlp/ai_utilities/StatisticalUtilityAI';
+export * from './nlp/ai_utilities/HybridUtilityAI';
 export type { ILogger } from './core/logging/ILogger';
 export { createLogger, setLoggerFactory, resetLoggerFactory } from './core/logging/loggerFactory';
 // Rate limit types

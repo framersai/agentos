@@ -53,6 +53,16 @@
       "default": "./dist/skills.js",
       "types": "./dist/skills.d.ts"
     },
+    "./nlp": {
+      "import": "./dist/nlp/index.js",
+      "default": "./dist/nlp/index.js",
+      "types": "./dist/nlp/index.d.ts"
+    },
+    "./nlp/ai_utilities": {
+      "import": "./dist/nlp/ai_utilities/index.js",
+      "default": "./dist/nlp/ai_utilities/index.js",
+      "types": "./dist/nlp/ai_utilities/index.d.ts"
+    },
     "./memory": {
       "import": "./dist/memory/index.js",
       "default": "./dist/memory/index.js",
@@ -172,6 +182,11 @@
       "import": "./dist/orchestration/index.js",
       "default": "./dist/orchestration/index.js",
       "types": "./dist/orchestration/index.d.ts"
+    },
+    "./orchestration/builders/*": {
+      "import": "./dist/orchestration/builders/*.js",
+      "default": "./dist/orchestration/builders/*.js",
+      "types": "./dist/orchestration/builders/*.d.ts"
     },
     "./telephony": {
       "import": "./dist/channels/telephony/index.js",
@@ -339,7 +354,8 @@
     "unpdf": "^1.4.0",
     "uuid": "^11.1.0",
     "yaml": "^2.8.1",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.2"
   },
   "peerDependencies": {
     "@framers/sql-storage-adapter": "^0.6.1",

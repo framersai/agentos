@@ -30,3 +30,6 @@ export { NoOpLemmatizer } from './lemmatizers/NoOpLemmatizer';
 
 // Presets
 export { createProsePipeline, createCodePipeline, createRagPipeline } from './presets';
+
+// AI Utility services (classification, sentiment, similarity, etc.)
+export * from './ai_utilities/index.js';
