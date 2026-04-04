@@ -15,9 +15,37 @@
  * All tests use a plain `EventEmitter` as the transport mock.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { VoiceTransportAdapter } from '../runtime/VoiceTransportAdapter.js';
+
+// ---------------------------------------------------------------------------
+// Pipeline mock — module-scoped, applies to all tests.
+// The pipeline is lazily imported by init(), so all adapters that call init()
+// will get a pipeline instance with mocked waitForUserTurn / pushToTTS.
+// ---------------------------------------------------------------------------
+
+let lastPipelineMock: any = null;
+
+vi.mock('../../voice-pipeline/VoicePipelineOrchestrator.js', () => {
+  return {
+    VoicePipelineOrchestrator: vi.fn().mockImplementation(() => {
+      lastPipelineMock = {
+        startSession: vi.fn().mockResolvedValue(undefined),
+        stopSession: vi.fn().mockResolvedValue(undefined),
+        pushToTTS: vi.fn().mockResolvedValue(undefined),
+        waitForUserTurn: vi.fn().mockResolvedValue({
+          transcript: 'mocked turn',
+          confidence: 0.95,
+          durationMs: 2000,
+          reason: 'punctuation',
+        }),
+        get state() { return 'listening'; },
+      };
+      return lastPipelineMock;
+    }),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,22 +90,19 @@ describe('VoiceTransportAdapter', () => {
     );
   });
 
-  it('getNodeInput resolves on turn_complete event', async () => {
-    const { adapter, transport } = setup();
+  it('getNodeInput resolves with transcript from pipeline', async () => {
+    const { adapter } = setup();
     await adapter.init({ scratch: {} } as any);
-    // Start waiting for input BEFORE emitting the event (simulates async I/O).
-    const inputPromise = adapter.getNodeInput('greet');
-    transport.emit('turn_complete', { transcript: 'Hello there', reason: 'punctuation' });
-    const result = await inputPromise;
-    expect(result).toBe('Hello there');
+    // With the pipeline mock, getNodeInput delegates to waitForUserTurn()
+    // which returns { transcript: 'mocked turn' }.
+    const result = await adapter.getNodeInput('greet');
+    expect(result).toBe('mocked turn');
   });
 
   it('getNodeInput emits voice_turn_complete event', async () => {
-    const { adapter, transport, events } = setup();
+    const { adapter, events } = setup();
     await adapter.init({ scratch: {} } as any);
-    const inputPromise = adapter.getNodeInput('greet');
-    transport.emit('turn_complete', { transcript: 'Hi', reason: 'silence' });
-    await inputPromise;
+    await adapter.getNodeInput('greet');
     // Filter to turn_complete events and verify the nodeId tag.
     const turnEvents = events.filter((e) => e.type === 'voice_turn_complete');
     expect(turnEvents).toHaveLength(1);
@@ -107,5 +132,37 @@ describe('VoiceTransportAdapter', () => {
       (e) => e.type === 'voice_session' && e.action === 'ended',
     );
     expect(endEvents).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pipeline wiring tests (uses module-scoped mock from above)
+// ---------------------------------------------------------------------------
+
+describe('VoiceTransportAdapter pipeline wiring', () => {
+  it('deliverNodeOutput calls pipeline.pushToTTS with string', async () => {
+    lastPipelineMock = null;
+    const { adapter } = setup();
+    await adapter.init({ scratch: {} } as any);
+    await adapter.deliverNodeOutput('greet', 'Hello caller!');
+    expect(lastPipelineMock).not.toBeNull();
+    expect(lastPipelineMock.pushToTTS).toHaveBeenCalledWith('Hello caller!');
+  });
+
+  it('getNodeInput delegates to pipeline.waitForUserTurn', async () => {
+    lastPipelineMock = null;
+    const { adapter } = setup();
+    await adapter.init({ scratch: {} } as any);
+    const input = await adapter.getNodeInput('listen');
+    expect(input).toBe('mocked turn');
+  });
+
+  it('dispose calls pipeline.stopSession', async () => {
+    lastPipelineMock = null;
+    const { adapter } = setup();
+    await adapter.init({ scratch: {} } as any);
+    await adapter.dispose();
+    expect(lastPipelineMock).not.toBeNull();
+    expect(lastPipelineMock.stopSession).toHaveBeenCalled();
   });
 });
