@@ -61,7 +61,24 @@ export declare class StatisticalUtilityAI implements IUtilityAI {
     stemTokens(tokens: string[], options?: StemmingOptions): Promise<string[]>;
     calculateSimilarity(text1: string, text2: string, options?: SimilarityOptions): Promise<number>;
     analyzeSentiment(text: string, options?: SentimentAnalysisOptions): Promise<SentimentResult>;
-    detectLanguage(_text: string, _options?: LanguageDetectionOptions): Promise<LanguageDetectionResult[]>;
+    /**
+     * Detect the language of a text string using trigram frequency analysis.
+     *
+     * Uses a Cavnar & Trenkle style algorithm that compares the input text's
+     * trigram frequency profile against pre-computed reference profiles for 20+
+     * languages.  Accuracy improves with longer text; passages under 10
+     * characters return `'und'` (undetermined).
+     *
+     * @param text    - The input text to analyse.
+     * @param options - `maxCandidates` controls how many ranked results to
+     *                  return (default 3).  The `method` field is accepted but
+     *                  only `'n_gram'` (the default) is supported by this
+     *                  statistical implementation.
+     * @returns Ranked array of `{ language, confidence }` where `language` is
+     *          an ISO 639-1 code (e.g. `'en'`, `'fr'`) and `confidence` is
+     *          in the range 0-1.
+     */
+    detectLanguage(text: string, options?: LanguageDetectionOptions): Promise<LanguageDetectionResult[]>;
     normalizeText(text: string, options?: TextNormalizationOptions): Promise<string>;
     generateNGrams(tokens: string[], options: NGramOptions): Promise<Record<number, string[][]>>;
     calculateReadability(text: string, options: ReadabilityOptions): Promise<ReadabilityResult>;

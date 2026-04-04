@@ -64,14 +64,18 @@ class ElevenLabsStreamingTTSSession extends EventEmitter {
             });
             this.ws.on('open', () => {
                 // Send BOS (beginning of stream) message with generation settings
+                const opts = this.sessionConfig?.providerOptions ?? {};
                 this.ws.send(JSON.stringify({
                     text: ' ', // Initial space triggers the stream
                     voice_settings: {
-                        stability: 0.5,
-                        similarity_boost: 0.75,
+                        stability: opts.stability ?? 0.5,
+                        similarity_boost: opts.similarityBoost ?? 0.75,
+                        style: opts.style ?? 0.0,
+                        use_speaker_boost: opts.useSpeakerBoost ?? true,
                     },
                     generation_config: {
                         chunk_length_schedule: [120, 160, 250, 290],
+                        ...(opts.speed != null ? { speed: opts.speed } : {}),
                     },
                 }));
                 resolve();

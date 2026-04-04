@@ -17,4 +17,5 @@ export { NoOpStemmer } from './stemmers/NoOpStemmer';
 export { WordNetLemmatizer } from './lemmatizers/WordNetLemmatizer';
 export { NoOpLemmatizer } from './lemmatizers/NoOpLemmatizer';
 export { createProsePipeline, createCodePipeline, createRagPipeline } from './presets';
+export * from './ai_utilities/index.js';
 //# sourceMappingURL=index.d.ts.map

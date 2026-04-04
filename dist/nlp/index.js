@@ -21,4 +21,6 @@ export { WordNetLemmatizer } from './lemmatizers/WordNetLemmatizer.js';
 export { NoOpLemmatizer } from './lemmatizers/NoOpLemmatizer.js';
 // Presets
 export { createProsePipeline, createCodePipeline, createRagPipeline } from './presets.js';
+// AI Utility services (classification, sentiment, similarity, etc.)
+export * from './ai_utilities/index.js';
 //# sourceMappingURL=index.js.map

@@ -418,19 +418,25 @@ export class AnthropicProvider {
      * @private
      */
     buildRequestPayload(modelId, messages, options, stream) {
-        // --- Extract system messages and join them into a single string ---
-        // Anthropic treats system as a top-level field, not a conversation role.
-        const systemParts = [];
+        const systemBlocks = [];
         const conversationMessages = [];
         for (const msg of messages) {
             if (msg.role === 'system') {
-                const text = typeof msg.content === 'string'
-                    ? msg.content
-                    : Array.isArray(msg.content)
-                        ? msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n')
-                        : '';
-                if (text)
-                    systemParts.push(text);
+                if (typeof msg.content === 'string') {
+                    if (msg.content)
+                        systemBlocks.push({ type: 'text', text: msg.content });
+                }
+                else if (Array.isArray(msg.content)) {
+                    for (const part of msg.content) {
+                        if (part.type === 'text') {
+                            const block = { type: 'text', text: part.text };
+                            if (part.cache_control) {
+                                block.cache_control = part.cache_control;
+                            }
+                            systemBlocks.push(block);
+                        }
+                    }
+                }
             }
             else {
                 conversationMessages.push(msg);
@@ -445,9 +451,13 @@ export class AnthropicProvider {
             messages: anthropicMessages,
             stream,
         };
-        // Only include system if we actually have system content
-        if (systemParts.length > 0) {
-            payload.system = systemParts.join('\n\n');
+        // Emit system as content block array when cache markers are present,
+        // otherwise fall back to joined string for backward compatibility.
+        if (systemBlocks.length > 0) {
+            const hasCacheMarkers = systemBlocks.some(b => b.cache_control);
+            payload.system = hasCacheMarkers
+                ? systemBlocks
+                : systemBlocks.map(b => b.text).join('\n\n');
         }
         // --- Optional parameters ---
         if (options.temperature !== undefined)
@@ -654,6 +664,8 @@ export class AnthropicProvider {
             completionTokens: apiResponse.usage.output_tokens,
             totalTokens: apiResponse.usage.input_tokens + apiResponse.usage.output_tokens,
             costUSD: this.estimateCost(apiResponse.usage.input_tokens, apiResponse.usage.output_tokens, apiResponse.model),
+            cacheCreationInputTokens: apiResponse.usage.cache_creation_input_tokens,
+            cacheReadInputTokens: apiResponse.usage.cache_read_input_tokens,
         };
         const choice = {
             index: 0,

@@ -12,7 +12,16 @@
 // ---------------------------------------------------------------------------
 // Built-in catalog data
 // ---------------------------------------------------------------------------
-/** Curated text models available via OpenRouter. */
+/**
+ * Curated text models available via OpenRouter.
+ *
+ * Selection criteria for private-adult tier:
+ * - Must be genuinely uncensored (no safety-trained refusals)
+ * - Must follow system prompt instructions reliably
+ * - Must be actively hosted on OpenRouter (not deprecated)
+ *
+ * Last updated: 2026-04-02
+ */
 const TEXT_MODELS = [
     {
         modelId: 'nousresearch/hermes-3-llama-3.1-405b',
@@ -24,6 +33,24 @@ const TEXT_MODELS = [
         capabilities: ['chat', 'tool_use', 'json_mode'],
     },
     {
+        modelId: 'nousresearch/hermes-3-llama-3.1-70b',
+        displayName: 'Hermes 3 70B',
+        providerId: 'openrouter',
+        modality: 'text',
+        quality: 'high',
+        contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
+        capabilities: ['chat', 'tool_use', 'json_mode'],
+    },
+    {
+        modelId: 'cognitivecomputations/dolphin3.0-llama3.1-8b',
+        displayName: 'Dolphin 3.0 Llama 3.1 8B',
+        providerId: 'openrouter',
+        modality: 'text',
+        quality: 'medium',
+        contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
+        capabilities: ['chat', 'tool_use'],
+    },
+    {
         modelId: 'cognitivecomputations/dolphin-mixtral-8x22b',
         displayName: 'Dolphin Mixtral 8x22B',
         providerId: 'openrouter',
@@ -33,30 +60,12 @@ const TEXT_MODELS = [
         capabilities: ['chat', 'tool_use'],
     },
     {
-        modelId: 'nousresearch/hermes-3-llama-3.1-70b',
-        displayName: 'Hermes 3 70B',
-        providerId: 'openrouter',
-        modality: 'text',
-        quality: 'medium',
-        contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
-        capabilities: ['chat', 'tool_use', 'json_mode'],
-    },
-    {
-        modelId: 'undi95/toppy-m-7b',
-        displayName: 'Toppy M 7B',
-        providerId: 'openrouter',
-        modality: 'text',
-        quality: 'low',
-        contentPermissions: ['general', 'romantic', 'erotic'],
-        capabilities: ['chat'],
-    },
-    {
         modelId: 'gryphe/mythomax-l2-13b',
         displayName: 'MythoMax L2 13B',
         providerId: 'openrouter',
         modality: 'text',
         quality: 'low',
-        contentPermissions: ['general', 'romantic', 'violent', 'horror'],
+        contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
         capabilities: ['chat'],
     },
 ];
@@ -152,14 +161,21 @@ export function createUncensoredModelCatalog() {
             if (contentIntent) {
                 candidates = candidates.filter((e) => e.contentPermissions.includes(contentIntent));
             }
-            // For private-adult tier, prioritize models known to be truly uncensored.
-            // Hermes/Dolphin claim to be uncensored but still refuse some content.
-            // MythoMax and Toppy are consistently permissive.
+            // For private-adult tier, prioritize models that are both genuinely
+            // uncensored AND high quality. Hermes 3 models follow system prompts
+            // reliably and do not have safety-trained refusals. Dolphin models are
+            // also uncensored. Prefer larger models for better instruction following.
             if (tier === 'private-adult') {
-                const trulyUncensored = ['gryphe/mythomax-l2-13b', 'undi95/toppy-m-7b', 'cognitivecomputations/dolphin-mixtral-8x22b'];
+                const preferred = [
+                    'nousresearch/hermes-3-llama-3.1-405b',
+                    'nousresearch/hermes-3-llama-3.1-70b',
+                    'cognitivecomputations/dolphin-mixtral-8x22b',
+                    'cognitivecomputations/dolphin3.0-llama3.1-8b',
+                    'gryphe/mythomax-l2-13b',
+                ];
                 candidates.sort((a, b) => {
-                    const aIdx = trulyUncensored.indexOf(a.modelId);
-                    const bIdx = trulyUncensored.indexOf(b.modelId);
+                    const aIdx = preferred.indexOf(a.modelId);
+                    const bIdx = preferred.indexOf(b.modelId);
                     if (aIdx !== -1 && bIdx !== -1)
                         return aIdx - bIdx;
                     if (aIdx !== -1)

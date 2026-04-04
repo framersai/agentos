@@ -77,6 +77,7 @@ export class PolicyAwareRouter {
                 async generateCompletion() {
                     throw new Error('Stub provider — resolve via AIModelProviderManager');
                 },
+                // eslint-disable-next-line require-yield
                 async *generateCompletionStream() {
                     throw new Error('Stub provider — resolve via AIModelProviderManager');
                 },

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { defineConfig } from 'vitest/config';
 import fs from 'fs';
 import path from 'path';

@@ -57,6 +57,8 @@ import type {
   KnowledgeEntity,
   KnowledgeRelation,
 } from '../../retrieval/graph/knowledge/IKnowledgeGraph.js';
+import type { LoaderRegistry } from '../ingestion/LoaderRegistry.js';
+import type { FolderScanner } from '../ingestion/FolderScanner.js';
 
 import { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
 import {
@@ -68,8 +70,6 @@ import {
 } from '../../retrieval/store/tracePersistence.js';
 import { SqliteKnowledgeGraph } from '../../retrieval/store/SqliteKnowledgeGraph.js';
 import { SqliteMemoryGraph } from '../../retrieval/store/SqliteMemoryGraph.js';
-import { LoaderRegistry } from '../ingestion/LoaderRegistry.js';
-import { FolderScanner } from '../ingestion/FolderScanner.js';
 import { ChunkingEngine } from '../ingestion/ChunkingEngine.js';
 import { UrlLoader } from '../ingestion/UrlLoader.js';
 import { RetrievalFeedbackSignal } from '../../retrieval/feedback/RetrievalFeedbackSignal.js';
@@ -179,8 +179,11 @@ export class Memory {
   private readonly _brain: SqliteBrain;
   private readonly _knowledgeGraph: SqliteKnowledgeGraph;
   private readonly _memoryGraph: SqliteMemoryGraph;
-  private readonly _loaderRegistry: LoaderRegistry;
-  private readonly _folderScanner: FolderScanner;
+  private _loaderRegistry: LoaderRegistry | null = null;
+  private _folderScanner: FolderScanner | null = null;
+  private _ingestionToolsPromise:
+    | Promise<{ loaderRegistry: LoaderRegistry; folderScanner: FolderScanner }>
+    | null = null;
   private readonly _chunkingEngine: ChunkingEngine;
   private readonly _feedbackSignal: RetrievalFeedbackSignal | null;
   private readonly _consolidationLoop: ConsolidationLoop | null;
@@ -217,12 +220,6 @@ export class Memory {
     // Create SqliteMemoryGraph and initialize.
     this._memoryGraph = new SqliteMemoryGraph(this._brain);
     this._initPromise = this._memoryGraph.initialize();
-
-    // Create LoaderRegistry.
-    this._loaderRegistry = new LoaderRegistry();
-
-    // Create FolderScanner.
-    this._folderScanner = new FolderScanner(this._loaderRegistry);
 
     // Create ChunkingEngine.
     this._chunkingEngine = new ChunkingEngine();
@@ -271,10 +268,9 @@ export class Memory {
    * 3. Check embedding dimension compatibility (warn on mismatch).
    * 4. Create `SqliteKnowledgeGraph(brain)`.
    * 5. Create `SqliteMemoryGraph(brain)` and call `.initialize()`.
-   * 6. Create `LoaderRegistry()` (pre-registers all built-in loaders).
-   * 7. Create `FolderScanner(registry)`.
-   * 8. Create `ChunkingEngine()`.
-   * 9. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
+   * 6. Create `ChunkingEngine()`.
+   * 7. Lazily create ingestion loaders on first `ingest()` call.
+   * 8. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
    *    `ConsolidationLoop(brain, memoryGraph)`.
    *
    * @param config - Optional configuration; see {@link MemoryConfig}.
@@ -697,7 +693,8 @@ export class Memory {
       chunkSize: this._config.ingestion?.chunkSize ?? 512,
       chunkOverlap: this._config.ingestion?.chunkOverlap ?? 64,
     };
-    const urlLoader = new UrlLoader(this._loaderRegistry);
+    const { loaderRegistry, folderScanner } = await this._ensureIngestionTools();
+    const urlLoader = new UrlLoader(loaderRegistry);
 
     try {
       // Detect source type.
@@ -706,7 +703,7 @@ export class Memory {
 
       if (stat?.isDirectory()) {
         // Directory scan.
-        const scanResult = await this._folderScanner.scan(source, {
+        const scanResult = await folderScanner.scan(source, {
           recursive: options?.recursive ?? true,
           include: options?.include,
           exclude: options?.exclude,
@@ -732,7 +729,7 @@ export class Memory {
       } else if (stat?.isFile()) {
         // Single file.
         try {
-          const doc = await this._loaderRegistry.loadFile(source);
+          const doc = await loaderRegistry.loadFile(source);
           result.succeeded.push(source);
           await this._ingestLoadedDocument(source, doc, chunking, result);
         } catch (err: unknown) {
@@ -761,6 +758,41 @@ export class Memory {
     }
 
     return result;
+  }
+
+  private async _ensureIngestionTools(): Promise<{
+    loaderRegistry: LoaderRegistry;
+    folderScanner: FolderScanner;
+  }> {
+    if (this._loaderRegistry && this._folderScanner) {
+      return {
+        loaderRegistry: this._loaderRegistry,
+        folderScanner: this._folderScanner,
+      };
+    }
+
+    if (!this._ingestionToolsPromise) {
+      this._ingestionToolsPromise = (async () => {
+        const [{ LoaderRegistry }, { FolderScanner }] = await Promise.all([
+          import('../ingestion/LoaderRegistry.js'),
+          import('../ingestion/FolderScanner.js'),
+        ]);
+
+        const loaderRegistry = this._loaderRegistry ?? new LoaderRegistry();
+        const folderScanner = this._folderScanner ?? new FolderScanner(loaderRegistry);
+
+        this._loaderRegistry = loaderRegistry;
+        this._folderScanner = folderScanner;
+
+        return { loaderRegistry, folderScanner };
+      })();
+    }
+
+    try {
+      return await this._ingestionToolsPromise;
+    } finally {
+      this._ingestionToolsPromise = null;
+    }
   }
 
   // =========================================================================

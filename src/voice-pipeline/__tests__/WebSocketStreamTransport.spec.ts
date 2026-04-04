@@ -9,8 +9,8 @@
  * ## What is tested
  *
  * - Transport ID generation and initial state detection
- * - Inbound binary messages are decoded as AudioFrame and emitted as 'audio_frame'
- * - Inbound text messages are parsed as JSON and emitted as 'control'
+ * - Inbound binary messages are decoded as AudioFrame and emitted as 'audio'
+ * - Inbound text messages are parsed as JSON and emitted as 'message'
  * - sendAudio correctly sends EncodedAudioChunk.audio as binary
  * - sendAudio correctly converts AudioFrame.samples Float32Array to Buffer
  * - sendControl JSON-stringifies the message and sends as text
@@ -87,17 +87,17 @@ describe('WebSocketStreamTransport', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Inbound binary -> 'audio_frame'
+  // Inbound binary -> 'audio'
   // -------------------------------------------------------------------------
 
   /**
    * Binary WebSocket messages should be decoded as Float32Array PCM samples,
    * wrapped in an AudioFrame with the configured sampleRate, and emitted
-   * as 'audio_frame'.
+   * as 'audio'.
    */
-  it('should emit "audio_frame" with correct AudioFrame when a binary message arrives', () => {
+  it('should emit "audio" with correct AudioFrame when a binary message arrives', () => {
     const listener = vi.fn();
-    transport.on('audio_frame', listener);
+    transport.on('audio', listener);
 
     // Build a Float32Array and wrap it in a Buffer the way the ws library delivers it
     const samples = new Float32Array([0.1, -0.2, 0.3, -0.4]);
@@ -118,14 +118,14 @@ describe('WebSocketStreamTransport', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Inbound text -> 'control'
+  // Inbound text -> 'message'
   // -------------------------------------------------------------------------
 
   it('should emit "control" with parsed JSON when a text message arrives', () => {
     const listener = vi.fn();
-    transport.on('control', listener);
+    transport.on('message', listener);
 
-    const payload = { type: 'control', action: { type: 'mute' } };
+    const payload = { type: 'message', action: { type: 'mute' } };
     ws.emit('message', JSON.stringify(payload));
 
     expect(listener).toHaveBeenCalledOnce();
@@ -195,14 +195,14 @@ describe('WebSocketStreamTransport', () => {
   // Lifecycle -- WS 'close' event
   // -------------------------------------------------------------------------
 
-  it('should transition to "closed" and emit "disconnected" when the WS closes', () => {
-    const disconnectedListener = vi.fn();
-    transport.on('disconnected', disconnectedListener);
+  it('should transition to "closed" and emit "close" when the WS closes', () => {
+    const closeListener = vi.fn();
+    transport.on('close', closeListener);
 
     ws.emit('close');
 
     expect(transport.state).toBe('closed');
-    expect(disconnectedListener).toHaveBeenCalledOnce();
+    expect(closeListener).toHaveBeenCalledOnce();
   });
 
   // -------------------------------------------------------------------------
@@ -238,20 +238,20 @@ describe('WebSocketStreamTransport', () => {
 
   /**
    * When a transport is created before the WebSocket handshake completes,
-   * the 'open' event should transition state to 'open' and emit 'connected'.
+   * the 'open' event should transition state to 'open' and emit 'open'.
    */
-  it('should transition to "open" and emit "connected" when WS fires its open event', () => {
+  it('should transition to "open" and emit "open" when WS fires its open event', () => {
     const pendingWs = createMockWS();
     pendingWs.readyState = 0; // CONNECTING
     const t = new WebSocketStreamTransport(pendingWs, { sampleRate: 16_000 });
     expect(t.state).toBe('connecting');
 
-    const connectedListener = vi.fn();
-    t.on('connected', connectedListener);
+    const openListener = vi.fn();
+    t.on('open', openListener);
 
     pendingWs.emit('open');
 
     expect(t.state).toBe('open');
-    expect(connectedListener).toHaveBeenCalledOnce();
+    expect(openListener).toHaveBeenCalledOnce();
   });
 });

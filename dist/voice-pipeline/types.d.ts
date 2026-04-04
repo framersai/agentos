@@ -342,6 +342,16 @@ export interface TranscriptEvent {
      * Populated only on final events where the provider supplies timing.
      */
     durationMs?: number;
+    /**
+     * Sentiment analysis result from the STT provider, when enabled.
+     * Deepgram returns this when `sentiment=true` is set in providerOptions.
+     */
+    sentiment?: {
+        /** Overall sentiment polarity. */
+        label: 'positive' | 'negative' | 'neutral';
+        /** Confidence score in [0, 1]. */
+        confidence: number;
+    };
 }
 /**
  * An active streaming speech-to-text session. Audio frames are pushed in

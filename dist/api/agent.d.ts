@@ -74,6 +74,13 @@ export interface AgentOptions extends BaseAgentConfig {
      * Skill content is appended to the system prompt as markdown sections.
      */
     skills?: SkillEntry[];
+    /**
+     * Structured system prompt blocks with cache breakpoints.
+     * When provided, takes precedence over the assembled string from
+     * `instructions`, `name`, `personality`, and `skills`.
+     * Use this for prompt caching support with Anthropic.
+     */
+    systemBlocks?: import('./generateText.js').SystemContentBlock[];
 }
 /**
  * A named conversation session returned by `Agent.session()`.

@@ -20,6 +20,7 @@ import type { CognitiveMechanismsConfig, ResolvedMechanismsConfig, Metacognitive
 import type { MemoryTrace, ScoredMemoryTrace } from '../core/types.js';
 import type { PADState, HexacoTraits } from '../core/config.js';
 import type { CandidateTrace } from '../core/decay/RetrievalPriorityScorer.js';
+import { type PersonalityDriftProposal } from './PersonaDriftMechanism.js';
 /**
  * Orchestrates 8 cognitive mechanisms across the memory pipeline lifecycle.
  *
@@ -34,6 +35,8 @@ import type { CandidateTrace } from '../core/decay/RetrievalPriorityScorer.js';
  */
 export declare class CognitiveMechanismsEngine {
     private readonly cfg;
+    private readonly hexaco?;
+    private readonly personaDriftCfg;
     /** Lazily populated cluster centroids for schema encoding. */
     private clusterCentroids;
     constructor(config: CognitiveMechanismsConfig, traits?: HexacoTraits);
@@ -66,6 +69,7 @@ export declare class CognitiveMechanismsEngine {
         gistedCount: number;
         sourceDecayedCount: number;
         regulatedCount: number;
+        driftProposals: PersonalityDriftProposal[];
     }>;
     /**
      * Called by MemoryPromptAssembler.

@@ -13,6 +13,7 @@ import * as path from 'path'; // For path manipulation
 import { uuidv4 } from '../../core/utils/uuid.js';
 import * as natural from 'natural';
 import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
+import { detectLanguageTrigram } from './trigram-language-profiles.js';
 const NATURAL_STEMMER_LANGUAGE_KEYS = {
     De: 'de',
     Es: 'es',
@@ -412,12 +413,37 @@ export class StatisticalUtilityAI {
             intensity: Math.abs(score),
         };
     }
-    async detectLanguage(_text, _options) {
+    /**
+     * Detect the language of a text string using trigram frequency analysis.
+     *
+     * Uses a Cavnar & Trenkle style algorithm that compares the input text's
+     * trigram frequency profile against pre-computed reference profiles for 20+
+     * languages.  Accuracy improves with longer text; passages under 10
+     * characters return `'und'` (undetermined).
+     *
+     * @param text    - The input text to analyse.
+     * @param options - `maxCandidates` controls how many ranked results to
+     *                  return (default 3).  The `method` field is accepted but
+     *                  only `'n_gram'` (the default) is supported by this
+     *                  statistical implementation.
+     * @returns Ranked array of `{ language, confidence }` where `language` is
+     *          an ISO 639-1 code (e.g. `'en'`, `'fr'`) and `confidence` is
+     *          in the range 0-1.
+     */
+    async detectLanguage(text, options) {
         this.ensureInitialized();
-        // 'natural' library does not have a built-in robust language detector.
-        // A real implementation would use a dedicated library (e.g., franc, langdetect) or n-gram profiles.
-        console.warn("StatisticalUtilityAI.detectLanguage: Placeholder implementation. Not reliable.");
-        return [{ language: this.config.defaultLanguage || 'en', confidence: 0.1 }]; // Fallback
+        const maxCandidates = options?.maxCandidates ?? 3;
+        // Short-circuit: if the text is too short for reliable detection, fall
+        // back to the configured default language with low confidence.
+        if (!text || text.trim().length < 10) {
+            return [{ language: this.config.defaultLanguage || 'en', confidence: 0.1 }];
+        }
+        const results = detectLanguageTrigram(text, { maxCandidates });
+        // If detection returned 'und', fall back to the default language.
+        if (results.length === 1 && results[0].language === 'und') {
+            return [{ language: this.config.defaultLanguage || 'en', confidence: 0.1 }];
+        }
+        return results;
     }
     async normalizeText(text, options) {
         this.ensureInitialized();
@@ -479,23 +505,39 @@ export class StatisticalUtilityAI {
     }
     async calculateReadability(text, options) {
         this.ensureInitialized();
-        // 'natural' does not have built-in readability scores.
-        // This requires implementing the formulas manually. Syllable counting is the hardest part.
-        // The implementation from LLMUtilityAI provided earlier was an LLM-based *estimation*.
-        // A true statistical one needs the formulas.
-        console.warn("StatisticalUtilityAI.calculateReadability: Formula-based readability is complex to implement accurately without dedicated syllable counters. This is a very basic placeholder.");
+        // Uses Flesch-Kincaid formulas with a pattern-aware syllable counter.
+        // Syllable counting handles silent-e, -es/-ed suffixes, consonant+le, and -tion/-sion.
         const sentences = (this.tokenizers.sentence.tokenize(text) || [text]).filter(s => s.trim().length > 0);
         const words = (this.tokenizers.word.tokenize(text.toLowerCase()) || []).filter(w => /^[a-z']+$/.test(w) && w.length > 0); // Basic word filter
         const numSentences = Math.max(1, sentences.length);
         const numWords = Math.max(1, words.length);
-        // Extremely naive syllable counter (vowel groups, often inaccurate)
         const countSyllablesApprox = (word) => {
-            if (word.length <= 3)
+            const w = word.toLowerCase().replace(/[^a-z]/g, '');
+            if (!w)
+                return 0;
+            if (w.length <= 3)
                 return 1;
-            word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
-            word = word.replace(/^y/, '');
-            const matches = word.match(/[aeiouy]{1,2}/g);
-            return matches ? Math.max(1, matches.length) : 1;
+            let count = 0;
+            const vowels = 'aeiouy';
+            let prevVowel = false;
+            for (let i = 0; i < w.length; i++) {
+                const isVowel = vowels.includes(w[i]);
+                if (isVowel && !prevVowel)
+                    count++;
+                prevVowel = isVowel;
+            }
+            // Adjust for common patterns
+            if (w.endsWith('e') && !w.endsWith('le'))
+                count--;
+            if (w.endsWith('es') || w.endsWith('ed')) {
+                if (w.length > 4 && !('dt'.includes(w[w.length - 3])))
+                    count--;
+            }
+            if (w.endsWith('le') && w.length > 2 && !vowels.includes(w[w.length - 3]))
+                count++;
+            if (w.endsWith('tion') || w.endsWith('sion'))
+                count--;
+            return Math.max(1, count);
         };
         const numSyllables = Math.max(1, words.reduce((sum, word) => sum + countSyllablesApprox(word), 0));
         let score = 0;

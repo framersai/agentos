@@ -55,8 +55,9 @@ export declare class Memory {
     private readonly _brain;
     private readonly _knowledgeGraph;
     private readonly _memoryGraph;
-    private readonly _loaderRegistry;
-    private readonly _folderScanner;
+    private _loaderRegistry;
+    private _folderScanner;
+    private _ingestionToolsPromise;
     private readonly _chunkingEngine;
     private readonly _feedbackSignal;
     private readonly _consolidationLoop;
@@ -81,10 +82,9 @@ export declare class Memory {
      * 3. Check embedding dimension compatibility (warn on mismatch).
      * 4. Create `SqliteKnowledgeGraph(brain)`.
      * 5. Create `SqliteMemoryGraph(brain)` and call `.initialize()`.
-     * 6. Create `LoaderRegistry()` (pre-registers all built-in loaders).
-     * 7. Create `FolderScanner(registry)`.
-     * 8. Create `ChunkingEngine()`.
-     * 9. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
+     * 6. Create `ChunkingEngine()`.
+     * 7. Lazily create ingestion loaders on first `ingest()` call.
+     * 8. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
      *    `ConsolidationLoop(brain, memoryGraph)`.
      *
      * @param config - Optional configuration; see {@link MemoryConfig}.
@@ -139,6 +139,7 @@ export declare class Memory {
      * @returns Summary of the ingestion run.
      */
     ingest(source: string, options?: IngestOptions): Promise<IngestResult>;
+    private _ensureIngestionTools;
     /**
      * Add or update an entity in the knowledge graph.
      *

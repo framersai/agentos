@@ -80,6 +80,11 @@ export * from './skills.js';
 // Multilingual exports
 export * from './nlp/language/interfaces.js';
 export * from './nlp/language/LanguageService.js';
+// NLP AI Utilities (classification, sentiment, similarity, keyword extraction, etc.)
+export * from './nlp/ai_utilities/IUtilityAI.js';
+export * from './nlp/ai_utilities/LLMUtilityAI.js';
+export * from './nlp/ai_utilities/StatisticalUtilityAI.js';
+export * from './nlp/ai_utilities/HybridUtilityAI.js';
 export { createLogger, setLoggerFactory, resetLoggerFactory } from './core/logging/loggerFactory.js';
 // Rate limit types
 export * from './core/rate-limiting/types.js';

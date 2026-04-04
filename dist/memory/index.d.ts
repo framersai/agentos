@@ -103,4 +103,6 @@ export type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 export { CognitiveMechanismsEngine, DEFAULT_MECHANISMS_CONFIG } from './mechanisms/index.js';
 export { resolveConfig as resolveMechanismsConfig } from './mechanisms/index.js';
 export type { CognitiveMechanismsConfig, ResolvedMechanismsConfig, MetacognitiveSignal, MechanismMetadata, DriftEvent, } from './mechanisms/index.js';
+export { analyzePersonaDrift, DEFAULT_PERSONA_DRIFT_CONFIG, } from './mechanisms/PersonaDriftMechanism.js';
+export type { PersonaDriftConfig, PersonalityDriftProposal, RelationshipDriftInput, HEXACOTrait, } from './mechanisms/PersonaDriftMechanism.js';
 //# sourceMappingURL=index.d.ts.map

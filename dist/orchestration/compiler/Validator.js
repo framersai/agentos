@@ -69,12 +69,16 @@ export class GraphValidator {
         // -----------------------------------------------------------------------
         // Build a fast-lookup set of declared node ids.
         const nodeIds = new Set(graph.nodes.map((n) => n.id));
+        // Virtual sentinels that are never present in graph.nodes:
+        //   __START__ / __END__         — graph entry and exit points
+        //   __CONDITIONAL__ / __DISCOVERY__ — placeholders for edges whose target is resolved at runtime
+        const SENTINEL_SOURCES = new Set(['__START__']);
+        const SENTINEL_TARGETS = new Set(['__END__', '__CONDITIONAL__', '__DISCOVERY__']);
         for (const edge of graph.edges) {
-            // __START__ and __END__ are virtual sentinels — they are never in graph.nodes.
-            if (edge.source !== '__START__' && !nodeIds.has(edge.source)) {
+            if (!SENTINEL_SOURCES.has(edge.source) && !nodeIds.has(edge.source)) {
                 errors.push(`Edge ${edge.id} references unknown source node: ${edge.source}`);
             }
-            if (edge.target !== '__END__' && !nodeIds.has(edge.target)) {
+            if (!SENTINEL_TARGETS.has(edge.target) && !nodeIds.has(edge.target)) {
                 errors.push(`Edge ${edge.id} references unknown target node: ${edge.target}`);
             }
         }

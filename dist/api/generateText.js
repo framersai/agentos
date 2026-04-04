@@ -33,6 +33,7 @@ export const DEFAULT_COT_INSTRUCTION = `Before choosing an action, briefly reaso
 1. What information do you already have?
 2. What information do you need?
 3. Which tool is most appropriate and why?
+4. How does your communication style (from the Personality section, if present) influence how you should frame your response?
 Then proceed with your tool call or response.`;
 /**
  * Resolves the chain-of-thought instruction from the `chainOfThought` option.
@@ -276,7 +277,7 @@ export async function generateText(opts) {
                             .filter(Boolean)
                         : [];
                     const routeParams = {
-                        taskHint: opts.routerParams?.taskHint ?? opts.system ?? opts.prompt ?? '',
+                        taskHint: opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
                         requiredCapabilities: opts.routerParams?.requiredCapabilities ??
                             (toolNames.length > 0 ? ['function_calling'] : undefined),
                         optimizationPreference: opts.routerParams?.optimizationPreference ?? 'balanced',
@@ -318,14 +319,31 @@ export async function generateText(opts) {
             // before selecting a tool or composing a response.
             const cotInstruction = resolveChainOfThought(opts.chainOfThought);
             const hasTools = tools.length > 0;
-            if (cotInstruction && hasTools) {
-                const systemContent = opts.system
-                    ? `${cotInstruction}\n\n${opts.system}`
-                    : cotInstruction;
-                messages.push({ role: 'system', content: systemContent });
+            if (typeof opts.system === 'string' || !opts.system) {
+                // Plain string system prompt (existing behavior)
+                if (cotInstruction && hasTools) {
+                    const systemContent = opts.system
+                        ? `${cotInstruction}\n\n${opts.system}`
+                        : cotInstruction;
+                    messages.push({ role: 'system', content: systemContent });
+                }
+                else if (opts.system) {
+                    messages.push({ role: 'system', content: opts.system });
+                }
             }
-            else if (opts.system) {
-                messages.push({ role: 'system', content: opts.system });
+            else {
+                // Structured SystemContentBlock[] — convert to content parts with cache_control
+                const blocks = opts.system;
+                const parts = blocks.map(block => ({
+                    type: 'text',
+                    text: block.text,
+                    ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' } } : {}),
+                }));
+                // Prepend CoT instruction as the first non-cached block if needed
+                if (cotInstruction && hasTools) {
+                    parts.unshift({ type: 'text', text: cotInstruction });
+                }
+                messages.push({ role: 'system', content: parts });
             }
             if (opts.messages) {
                 for (const m of opts.messages)

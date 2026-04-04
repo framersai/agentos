@@ -46,6 +46,11 @@ export var GMIEventType;
      * Triggers metaprompts that update user context
      */
     GMIEventType["SKILL_LEVEL_CHANGE_DETECTED"] = "skill_level_change_detected";
+    /**
+     * Personality drift detected during memory consolidation.
+     * HEXACO traits shifted based on accumulated experience patterns.
+     */
+    GMIEventType["PERSONA_DRIFT"] = "persona_drift";
 })(GMIEventType || (GMIEventType = {}));
 /**
  * Creates a new GMI event.

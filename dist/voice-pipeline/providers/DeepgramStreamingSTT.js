@@ -52,6 +52,8 @@ class DeepgramStreamingSTTSession extends EventEmitter {
         const language = this.sessionConfig.language ?? 'en-US';
         const interim = this.sessionConfig.interimResults !== false;
         const punctuate = this.sessionConfig.punctuate !== false;
+        // Provider options from pipeline config (sentiment, keywords, smart_format, etc.)
+        const opts = this.sessionConfig.providerOptions ?? {};
         const params = new URLSearchParams({
             model,
             language,
@@ -63,6 +65,20 @@ class DeepgramStreamingSTTSession extends EventEmitter {
             sample_rate: '16000',
             channels: '1',
         });
+        // Deepgram feature flags from providerOptions
+        if (opts.sentiment)
+            params.set('sentiment', 'true');
+        if (opts.smart_format)
+            params.set('smart_format', 'true');
+        if (opts.diarize)
+            params.set('diarize', 'true');
+        if (opts.utterance_end_ms)
+            params.set('utterance_end_ms', String(opts.utterance_end_ms));
+        if (Array.isArray(opts.keywords)) {
+            for (const kw of opts.keywords) {
+                params.append('keywords', String(kw));
+            }
+        }
         const url = `${baseUrl}?${params.toString()}`;
         return new Promise((resolve, reject) => {
             this.ws = new WebSocket(url, {
@@ -173,6 +189,13 @@ class DeepgramStreamingSTTSession extends EventEmitter {
                 isFinal: result.is_final,
                 durationMs: Math.round(result.duration * 1000),
             };
+            // Attach sentiment when Deepgram returns it
+            if (result.sentiments?.average) {
+                event.sentiment = {
+                    label: result.sentiments.average.sentiment,
+                    confidence: Math.abs(result.sentiments.average.sentiment_score),
+                };
+            }
             this.emit('transcript', event);
             // speech_final indicates the speaker paused — emit speech_end
             if (result.speech_final && this.speechActive) {

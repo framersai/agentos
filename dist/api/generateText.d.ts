@@ -100,6 +100,17 @@ export interface FallbackProviderEntry {
     /** Model identifier override. When omitted, the provider's default text model is used. */
     model?: string;
 }
+/**
+ * A structured block of system prompt content with optional cache breakpoint.
+ * When `cacheBreakpoint` is true, providers that support prompt caching
+ * (e.g., Anthropic) will mark this block's boundary for caching.
+ */
+export interface SystemContentBlock {
+    /** The text content of this block. */
+    text: string;
+    /** When true, marks the end of this block as a cache boundary. */
+    cacheBreakpoint?: boolean;
+}
 export interface GenerateTextOptions {
     /**
      * Provider name.  When supplied without `model`, the default text model for
@@ -118,8 +129,8 @@ export interface GenerateTextOptions {
     model?: string;
     /** Single user turn to append after any `messages`. Convenience alternative to building a `messages` array. */
     prompt?: string;
-    /** System prompt injected as the first message. */
-    system?: string;
+    /** System prompt injected as the first message. Accepts a plain string or structured blocks with cache breakpoints. */
+    system?: string | SystemContentBlock[];
     /** Full conversation history. Appended before `prompt` when both are supplied. */
     messages?: Message[];
     /**
@@ -280,8 +291,8 @@ export interface GenerateTextResult {
 export interface GenerationHookContext {
     /** Current messages array (system + conversation + user). */
     messages: Message[];
-    /** System prompt text. */
-    system: string | undefined;
+    /** System prompt — plain string or structured blocks with cache breakpoints. */
+    system: string | SystemContentBlock[] | undefined;
     /** Tool definitions available for this step. */
     tools: ITool[];
     /** Resolved model ID. */
@@ -326,7 +337,7 @@ export interface ToolCallHookInfo {
  * tools are available and `chainOfThought` is enabled.  Encourages the model
  * to reason explicitly before selecting a tool or crafting a response.
  */
-export declare const DEFAULT_COT_INSTRUCTION = "Before choosing an action, briefly reason about what you need to do and why. Consider:\n1. What information do you already have?\n2. What information do you need?\n3. Which tool is most appropriate and why?\nThen proceed with your tool call or response.";
+export declare const DEFAULT_COT_INSTRUCTION = "Before choosing an action, briefly reason about what you need to do and why. Consider:\n1. What information do you already have?\n2. What information do you need?\n3. Which tool is most appropriate and why?\n4. How does your communication style (from the Personality section, if present) influence how you should frame your response?\nThen proceed with your tool call or response.";
 /**
  * Resolves the chain-of-thought instruction from the `chainOfThought` option.
  *

@@ -144,8 +144,8 @@ export interface WebSocketStreamTransportConfig {
  *
  * | Frame type | Processing                                                |
  * |------------|-----------------------------------------------------------|
- * | Binary     | Decoded as `Float32Array` PCM samples, wrapped in an {@link AudioFrame}, emitted as `'audio_frame'`. |
- * | Text       | `JSON.parse()`d as {@link ClientTextMessage}, emitted as `'control'`. |
+ * | Binary     | Decoded as `Float32Array` PCM samples, wrapped in an {@link AudioFrame}, emitted as `'audio'`. |
+ * | Text       | `JSON.parse()`d as {@link ClientTextMessage}, emitted as `'message'`. |
  *
  * ## Outbound API
  *
@@ -158,14 +158,14 @@ export interface WebSocketStreamTransportConfig {
  *
  * | WS event | Transport emission |
  * |----------|--------------------|
- * | `open`   | `'connected'`      |
- * | `close`  | `'disconnected'`   |
+ * | `open`   | `'open'`           |
+ * | `close`  | `'close'`          |
  * | `error`  | `'error'`          |
  *
- * @fires audio_frame - `(frame: AudioFrame)` for every inbound binary message.
- * @fires control - `(msg: ClientTextMessage)` for every inbound text message.
- * @fires connected - Socket transitioned to OPEN state.
- * @fires disconnected - Socket has been fully closed.
+ * @fires audio - `(frame: AudioFrame)` for every inbound binary message.
+ * @fires message - `(msg: ClientTextMessage)` for every inbound text message.
+ * @fires open - Socket transitioned to OPEN state.
+ * @fires close - Socket has been fully closed.
  * @fires error - Socket-level error occurred.
  *
  * @see {@link IStreamTransport} for the interface contract.
@@ -350,7 +350,7 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
         // allowing the session to recover from a single bad message.
         try {
           const msg = JSON.parse(data) as ClientTextMessage;
-          this.emit('control', msg);
+          this.emit('message', msg);
         } catch (err) {
           this.emit(
             'error',
@@ -387,20 +387,20 @@ export class WebSocketStreamTransport extends EventEmitter implements IStreamTra
           timestamp: Date.now(),
         };
 
-        this.emit('audio_frame', frame);
+        this.emit('audio', frame);
       }
     });
 
     // `open` -- socket handshake complete (fires for late-open connections)
     this._ws.on('open', () => {
       this._state = 'open';
-      this.emit('connected');
+      this.emit('open');
     });
 
     // `close` -- socket has been fully closed (either side initiated)
     this._ws.on('close', () => {
       this._state = 'closed';
-      this.emit('disconnected');
+      this.emit('close');
     });
 
     // `error` -- transport-level socket error. Re-emitted verbatim so the

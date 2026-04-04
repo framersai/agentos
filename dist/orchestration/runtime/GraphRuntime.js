@@ -750,6 +750,7 @@ export class GraphRuntime {
                     let resolvedTarget;
                     if (edge.condition.type === 'function') {
                         // Call the author-provided TypeScript routing function.
+                        // Function conditions return the actual node id to route to — add it directly.
                         resolvedTarget = edge.condition.fn(state);
                     }
                     else {
@@ -768,9 +769,14 @@ export class GraphRuntime {
                             resolvedTarget = resultStr;
                         }
                     }
-                    // Only add the target if the condition resolved to this edge's target.
-                    if (resolvedTarget === edge.target && !targets.includes(resolvedTarget)) {
-                        targets.push(resolvedTarget);
+                    // For function-based conditions the target field is the placeholder '__CONDITIONAL__',
+                    // so we accept whatever the function returned.  For expression-based conditions the
+                    // target field holds the real node id, so we only follow the edge when it matches.
+                    if (resolvedTarget != null) {
+                        const isPlaceholder = edge.target === '__CONDITIONAL__' || edge.target === '__DISCOVERY__';
+                        if ((isPlaceholder || resolvedTarget === edge.target) && !targets.includes(resolvedTarget)) {
+                            targets.push(resolvedTarget);
+                        }
                     }
                     break;
                 }

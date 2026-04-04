@@ -109,4 +109,5 @@ export { CognitiveMemoryManager } from './CognitiveMemoryManager.js';
 // ---------------------------------------------------------------------------
 export { CognitiveMechanismsEngine, DEFAULT_MECHANISMS_CONFIG } from './mechanisms/index.js';
 export { resolveConfig as resolveMechanismsConfig } from './mechanisms/index.js';
+export { analyzePersonaDrift, DEFAULT_PERSONA_DRIFT_CONFIG, } from './mechanisms/PersonaDriftMechanism.js';
 //# sourceMappingURL=index.js.map

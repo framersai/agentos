@@ -161,10 +161,14 @@ export class VoicePipelineOrchestrator extends EventEmitter {
             throw new Error('bargeinHandler is required. Pass a HardCutBargeinHandler or SoftFadeBargeinHandler via overrides.');
         }
         // Create provider sub-sessions with pipeline-level config
-        const sttSession = await stt.startSession({ language: this.config.language });
+        const sttSession = await stt.startSession({
+            language: this.config.language,
+            providerOptions: this.config.sttOptions,
+        });
         const ttsSession = await tts.startSession({
             voice: this.config.voice,
             format: this.config.format,
+            providerOptions: this.config.ttsOptions,
         });
         // Store references for use by wiring helpers and teardown
         this._sttSession = sttSession;

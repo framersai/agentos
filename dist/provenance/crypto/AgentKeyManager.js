@@ -42,6 +42,7 @@ export class AgentKeyManager {
         // Browser fallback via @noble/ed25519
         // @ts-ignore -- optional peer dependency, only used in browser environments
         const noble = await import('@noble/ed25519');
+        // @ts-ignore -- randomPrivateKey may not exist in some @noble/ed25519 versions
         const privKey = noble.utils.randomPrivateKey();
         const pubKey = await noble.getPublicKeyAsync(privKey);
         return new AgentKeyManager(agentId, privKey, pubKey);

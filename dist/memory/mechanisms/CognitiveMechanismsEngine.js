@@ -17,6 +17,7 @@
  * @module agentos/memory/mechanisms/CognitiveMechanismsEngine
  */
 import { resolveConfig } from './defaults.js';
+import { analyzePersonaDrift, DEFAULT_PERSONA_DRIFT_CONFIG, } from './PersonaDriftMechanism.js';
 import { applyReconsolidation } from './retrieval/Reconsolidation.js';
 import { applyRetrievalInducedForgetting } from './retrieval/RetrievalInducedForgetting.js';
 import { selectInvoluntaryMemory } from './retrieval/InvoluntaryRecall.js';
@@ -123,6 +124,8 @@ export class CognitiveMechanismsEngine {
         /** Lazily populated cluster centroids for schema encoding. */
         this.clusterCentroids = new Map();
         this.cfg = applyPersonalityModulation(resolveConfig(config), traits);
+        this.hexaco = traits;
+        this.personaDriftCfg = { ...DEFAULT_PERSONA_DRIFT_CONFIG, ...config.personaDrift };
     }
     // =========================================================================
     // Lifecycle hooks
@@ -187,7 +190,12 @@ export class CognitiveMechanismsEngine {
         const gistedCount = await applyTemporalGist(traces, this.cfg.temporalGist, llmFn);
         const sourceDecayedCount = applySourceConfidenceDecay(traces, this.cfg.sourceConfidenceDecay);
         const regulatedCount = applyEmotionRegulation(traces, this.cfg.emotionRegulation);
-        return { gistedCount, sourceDecayedCount, regulatedCount };
+        // 9th mechanism: Persona Drift (heuristic, no LLM call)
+        let driftProposals = [];
+        if (this.personaDriftCfg.enabled && this.hexaco) {
+            driftProposals = analyzePersonaDrift(traces, this.hexaco, this.personaDriftCfg);
+        }
+        return { gistedCount, sourceDecayedCount, regulatedCount, driftProposals };
     }
     /**
      * Called by MemoryPromptAssembler.

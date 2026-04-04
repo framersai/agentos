@@ -40,6 +40,9 @@
 export type MessageContentPart = {
     type: 'text';
     text: string;
+    cache_control?: {
+        type: 'ephemeral';
+    };
 } | {
     type: 'image_url';
     image_url: {
@@ -147,6 +150,10 @@ export interface ModelUsage {
     completionTokens?: number;
     totalTokens: number;
     costUSD?: number;
+    /** Tokens written to the prompt cache on this call (Anthropic: 25% surcharge). */
+    cacheCreationInputTokens?: number;
+    /** Tokens read from the prompt cache on this call (Anthropic: 90% discount). */
+    cacheReadInputTokens?: number;
 }
 /**
  * Represents a single choice in a model's completion response.
