@@ -197,9 +197,9 @@ The current `chat --voice` implementation gets the full LLM text reply first, th
 
 The semantic endpoint detector (`@framers/agentos-ext-endpoint-semantic`) only invokes the LLM turn-completeness classifier when an explicit `llmCall` callback is provided. Without it, the detector falls back to heuristic endpointing (punctuation + silence timeout).
 
-### Telephony Media Stream Bridge Incomplete
+### Telephony Media Stream Bridge
 
-The `telephony-webhook-server.ts` handles webhook routing and call control but does not yet automatically bridge provider media streams (Twilio `<Stream>`, Telnyx streaming, Plivo Audio Stream) into `TelephonyStreamTransport` and the voice pipeline. The media stream WebSocket connection must be established separately.
+The `TelephonyStreamTransport` bridges provider media streams (Twilio, Telnyx, Plivo) into the voice pipeline. Webhook routes handle call lifecycle via `CallManager`, and media stream WebSocket connections feed audio through the same `VoicePipelineOrchestrator` used by browser voice. The `VoiceTransportAdapter` now fully wires `deliverNodeOutput()` to `pushToTTS()` and `getNodeInput()` to `waitForUserTurn()` for IVR graph flows.
 
 ### Env-Based Provider Resolution
 
@@ -408,3 +408,100 @@ interface VoiceNodeCheckpoint {
 ```
 
 Pass `state.scratch[nodeId].turnIndex` back as the `initialTurnCount` when constructing a `VoiceTurnCollector` to resume the turn counter from where the previous run left off — enabling a call that spans multiple graph runs (e.g. after a human-approval pause) to count turns continuously rather than resetting to zero.
+
+---
+
+## Provider Options (sttOptions / ttsOptions)
+
+The orchestrator forwards pipeline-level `sttOptions` and `ttsOptions` to providers via `providerOptions`. This enables provider-specific features without changing the core interfaces.
+
+### Deepgram STT Options
+
+Pass through `VoicePipelineConfig.sttOptions`:
+
+```typescript
+const orchestrator = new VoicePipelineOrchestrator({
+  stt: 'deepgram-streaming',
+  tts: 'elevenlabs-streaming',
+  sttOptions: {
+    sentiment: true,           // Per-utterance sentiment analysis
+    smart_format: true,        // Auto-punctuation, capitalization, numbers
+    diarize: true,             // Speaker diarization labels
+    utterance_end_ms: 1000,    // Server-side silence endpoint (ms)
+    keywords: [                // Keyword boosting (name:weight format)
+      'Gideon:2',
+      'The Crevasse:1.5',
+      'fireball:1.5',
+    ],
+  },
+});
+```
+
+| Option | Type | Deepgram Param | Effect |
+|--------|------|---------------|--------|
+| `sentiment` | `boolean` | `sentiment=true` | Returns sentiment per utterance (`positive`/`negative`/`neutral` + confidence) |
+| `smart_format` | `boolean` | `smart_format=true` | Auto-punctuates, capitalizes, formats numbers and dates |
+| `diarize` | `boolean` | `diarize=true` | Labels speaker identity per word (`speaker: 0`, `speaker: 1`) |
+| `utterance_end_ms` | `number` | `utterance_end_ms=N` | Server-side silence endpoint detection (supplements client-side heuristic) |
+| `keywords` | `string[]` | `keywords=word:weight` | Boosts recognition of specific terms (names, game terms, spells) |
+
+#### Sentiment in TranscriptEvent
+
+When `sentiment: true` is enabled, `TranscriptEvent` includes a `sentiment` field:
+
+```typescript
+interface TranscriptEvent {
+  text: string;
+  confidence: number;
+  words: TranscriptWord[];
+  isFinal: boolean;
+  durationMs?: number;
+  sentiment?: {
+    label: 'positive' | 'negative' | 'neutral';
+    confidence: number;
+  };
+}
+```
+
+Consumers can use this for mood modulation, game mechanics, or UI feedback without additional NLP processing.
+
+### ElevenLabs TTS Options
+
+Pass through `VoicePipelineConfig.ttsOptions`:
+
+```typescript
+const orchestrator = new VoicePipelineOrchestrator({
+  stt: 'deepgram-streaming',
+  tts: 'elevenlabs-streaming',
+  ttsOptions: {
+    stability: 0.3,            // 0.0-1.0: lower = more expressive
+    similarityBoost: 0.75,     // 0.0-1.0: voice clone fidelity
+    style: 0.6,                // 0.0-1.0: style exaggeration
+    useSpeakerBoost: true,     // Clarity enhancement
+    speed: 0.85,               // 0.1-5.0: speaking rate
+  },
+});
+```
+
+| Option | Type | Range | Default | Effect |
+|--------|------|-------|---------|--------|
+| `stability` | `number` | 0.0-1.0 | 0.5 | Intonation variability. Low = more expressive. |
+| `similarityBoost` | `number` | 0.0-1.0 | 0.75 | Voice clone fidelity. |
+| `style` | `number` | 0.0-1.0 | 0.0 | Exaggeration of the voice's natural style. |
+| `useSpeakerBoost` | `boolean` | — | true | Clarity enhancement filter. |
+| `speed` | `number` | 0.1-5.0 | 1.0 | Speaking rate multiplier. |
+
+These are sent in the ElevenLabs WebSocket BOS (beginning-of-stream) message as `voice_settings` and `generation_config.speed`.
+
+### Dynamic Expressiveness
+
+For applications that modulate voice based on character state (personality, mood, game context), compute `ttsOptions` per turn rather than setting them once at session start. The orchestrator creates a new TTS session per utterance, so changing `ttsOptions` between turns takes effect immediately.
+
+```typescript
+// Example: mood-reactive voice
+const expressiveness = computeExpressiveness(personality, currentMood);
+const orchestrator = new VoicePipelineOrchestrator({
+  // ...
+  ttsOptions: expressiveness,
+});
+```
