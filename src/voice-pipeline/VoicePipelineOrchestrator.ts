@@ -251,7 +251,10 @@ export class VoicePipelineOrchestrator extends EventEmitter {
     }
 
     // Create provider sub-sessions with pipeline-level config
-    const sttSession = await stt.startSession({ language: this.config.language });
+    const sttSession = await stt.startSession({
+      language: this.config.language,
+      providerOptions: this.config.sttOptions,
+    });
     const ttsSession = await tts.startSession({
       voice: this.config.voice,
       format: this.config.format,
