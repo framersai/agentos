@@ -1,3 +1,10 @@
+## <small>0.1.172 (2026-04-04)</small>
+
+* fix(orchestration): validate and route conditional/discovery edges correctly ([47b213f](https://github.com/framersai/agentos/commit/47b213f))
+* feat(nlp): implement trigram-based language detection in StatisticalUtilityAI ([54ea468](https://github.com/framersai/agentos/commit/54ea468))
+* test: add classify, sentiment, similarity, trainModel, and hybrid delegation tests ([9c5a3be](https://github.com/framersai/agentos/commit/9c5a3be))
+* test(nlp): add classifyText, sentiment, and similarity tests for StatisticalUtilityAI ([24a6378](https://github.com/framersai/agentos/commit/24a6378))
+
 ## <small>0.1.171 (2026-04-04)</small>
 
 * feat: export NLP ai_utilities from barrel file and package.json ([08da179](https://github.com/framersai/agentos/commit/08da179))
