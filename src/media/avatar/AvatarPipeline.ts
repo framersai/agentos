@@ -43,8 +43,12 @@ export type ImageGeneratorFn = (
     negativePrompt?: string;
     stylePreset?: string;
     policyTier?: PolicyTier;
-    /** Optional reference image URL for InstantID / IP-Adapter consistency. */
+    /** Reference image URL for character/face consistency. */
     referenceImageUrl?: string;
+    /** Pre-computed face embedding vector for drift detection. */
+    faceEmbedding?: number[];
+    /** Consistency mode: 'strict' for expressions, 'balanced' for body. */
+    consistencyMode?: 'strict' | 'balanced' | 'loose';
   },
 ) => Promise<string>;
 
@@ -194,6 +198,8 @@ export class AvatarPipeline {
               stylePreset: request.generationConfig.stylePreset,
               policyTier: request.policyTier,
               referenceImageUrl: neutralPortraitUrl || undefined,
+              faceEmbedding: faceEmbedding ?? undefined,
+              consistencyMode: 'strict',
             });
 
             // Drift check against anchor embedding
@@ -303,6 +309,8 @@ export class AvatarPipeline {
           stylePreset: request.generationConfig.stylePreset,
           policyTier: request.policyTier,
           referenceImageUrl: neutralPortraitUrl || undefined,
+          faceEmbedding: faceEmbedding ?? undefined,
+          consistencyMode: 'balanced',
         });
         job.imageUrl = fullBodyUrl;
         job.status = 'completed';

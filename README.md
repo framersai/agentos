@@ -795,10 +795,11 @@ const resilient = agent({
 | `generateObject(opts)` | Zod-validated structured output extraction |
 | `streamObject(opts)` | Streaming structured output |
 | `embedText(opts)` | Text embedding generation (single or batch) |
-| `generateImage(opts)` | Image generation (OpenAI, Stability, Replicate, BFL, Fal) |
+| `generateImage(opts)` | Image generation with character consistency (7 providers) |
 | `editImage(opts)` | Image editing/inpainting |
 | `upscaleImage(opts)` | Image upscaling |
 | `variateImage(opts)` | Image variations |
+| `transferStyle(opts)` | Style transfer via Flux Redux / img2img |
 | `generateVideo(opts)` | Video generation |
 | `analyzeVideo(opts)` | Video analysis and understanding |
 | `detectScenes(opts)` | Scene detection in video |
@@ -829,6 +830,7 @@ import type {
   AgencyOptions,          // agency() configuration
   GenerateTextOptions,    // generateText() / streamText() options
   GenerateImageOptions,   // generateImage() options
+  TransferStyleOptions,   // transferStyle() options
   GenerateObjectOptions,  // generateObject() options
   EmbedTextOptions,       // embedText() options
   ExtensionDescriptor,    // Extension pack descriptor

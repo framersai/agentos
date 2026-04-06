@@ -1,3 +1,26 @@
+## [Unreleased]
+
+### Added
+- `transferStyle()` high-level API for image-guided style transfer via Flux Redux
+- Character consistency fields on `ImageGenerationRequest`: `referenceImageUrl`, `faceEmbedding`, `consistencyMode`
+- Replicate: dual-endpoint support (modern `/models/.../predictions` + legacy `/predictions`)
+- Replicate: 10 new models in catalog (Flux 1.1 Pro, Ultra, Redux, Canny, Depth, Fill Pro, Pulid, SDXL Lightning, SDXL, Real-ESRGAN)
+- Replicate: character consistency via Pulid auto-selection when `consistencyMode: 'strict'`
+- Replicate: ControlNet image input (`controlImage`, `controlType`) for Flux Canny/Depth
+- Fal: `editImage()` support (img2img + inpainting)
+- Fal: 4 new models in catalog (Pro 1.1, Ultra, LoRA, Realism)
+- Fal: IP-Adapter character consistency mapping
+- SD-Local: IP-Adapter character consistency via ControlNet injection
+- `PolicyAwareImageRouter`: `'character-consistency'` capability filtering
+- `AvatarPipeline`: per-stage consistency mode (`strict` for expressions, `balanced` for body)
+- `docs/features/CHARACTER_CONSISTENCY.md`
+- `docs/features/STYLE_TRANSFER.md`
+- 59 new tests across providers, APIs, and integration scenarios
+- OpenAI, Stability, OpenRouter, BFL: graceful debug warning when `referenceImageUrl` is set but unsupported
+
+### Changed
+- Replicate: default inpaint model upgraded from `flux-fill` to `flux-fill-pro`
+
 ## <small>0.1.177 (2026-04-04)</small>
 
 * fix(api): include systemBlocks on exported AgentOptions interface ([d79ddab](https://github.com/framersai/agentos/commit/d79ddab))
