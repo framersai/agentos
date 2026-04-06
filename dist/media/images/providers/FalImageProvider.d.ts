@@ -28,7 +28,7 @@
  * @see {@link FluxImageProvider} for direct BFL API access.
  * @see {@link ReplicateImageProvider} for Flux via Replicate.
  */
-import { type IImageProvider, type ImageGenerationRequest, type ImageGenerationResult, type ImageModelInfo } from '../IImageProvider.js';
+import { type IImageProvider, type ImageGenerationRequest, type ImageGenerationResult, type ImageEditRequest, type ImageModelInfo } from '../IImageProvider.js';
 /**
  * Configuration for the Fal.ai image provider.
  *
@@ -167,6 +167,28 @@ export declare class FalImageProvider implements IImageProvider {
      *
      * @returns Static list of known Fal.ai model identifiers.
      */
+    /**
+     * Edit an image using a Fal.ai-hosted Flux model.
+     *
+     * Supports img2img (prompt-guided transformation) and inpainting
+     * (mask-guided regional editing). The source image is passed as a
+     * base64 data URL in the `image` field of the model input.
+     *
+     * @param request - Edit request with source image, prompt, and optional mask.
+     * @returns Generation result with the edited image(s).
+     * @throws {Error} When the provider is not initialised or the API fails.
+     *
+     * @example
+     * ```typescript
+     * const result = await provider.editImage({
+     *   modelId: 'fal-ai/flux/dev',
+     *   image: imageBuffer,
+     *   prompt: 'Convert to watercolor style',
+     *   strength: 0.7,
+     * });
+     * ```
+     */
+    editImage(request: ImageEditRequest): Promise<ImageGenerationResult>;
     listAvailableModels(): Promise<ImageModelInfo[]>;
     /**
      * Submit a generation task to the Fal.ai queue.

@@ -141,6 +141,10 @@ export class FluxImageProvider {
         if (!this.isInitialized) {
             throw new Error('BFL image provider is not initialized. Call initialize() first.');
         }
+        if (request.referenceImageUrl) {
+            console.debug('[bfl] referenceImageUrl is not natively supported — ' +
+                'field ignored. Use Replicate (Pulid), Fal, or SD-Local for character consistency.');
+        }
         const model = request.modelId || this.defaultModelId || 'flux-pro-1.1';
         const { width, height } = parseImageSize(request.size);
         // Extract BFL-specific options from the provider options bag.

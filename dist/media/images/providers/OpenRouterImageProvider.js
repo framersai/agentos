@@ -31,6 +31,10 @@ export class OpenRouterImageProvider {
         if (!this.isInitialized) {
             throw new Error('OpenRouter image provider is not initialized.');
         }
+        if (request.referenceImageUrl) {
+            console.debug('[openrouter] referenceImageUrl is not natively supported — ' +
+                'field ignored. Use Replicate (Pulid), Fal, or SD-Local for character consistency.');
+        }
         const providerOptions = getImageProviderOptions(this.providerId, request.providerOptions);
         const body = {
             model: request.modelId || this.defaultModelId,

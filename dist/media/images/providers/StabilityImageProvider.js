@@ -92,6 +92,10 @@ export class StabilityImageProvider {
         if (!this.isInitialized) {
             throw new Error('Stability image provider is not initialized.');
         }
+        if (request.referenceImageUrl) {
+            console.debug('[stability] referenceImageUrl is not natively supported — ' +
+                'field ignored. Use Replicate (Pulid), Fal, or SD-Local for character consistency.');
+        }
         const providerOptions = getImageProviderOptions(this.providerId, request.providerOptions);
         const route = resolveStabilityRoute(request.modelId || this.defaultModelId || 'stable-image-core', providerOptions);
         const formData = new FormData();

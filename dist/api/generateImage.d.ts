@@ -65,6 +65,12 @@ export interface GenerateImageOptions {
     policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
     /** Optional durable usage ledger configuration for helper-level accounting. */
     usageLedger?: AgentOSUsageLedgerOptions;
+    /** Reference image URL for character/face consistency. See IImageProvider docs. */
+    referenceImageUrl?: string;
+    /** Pre-computed 512-dim face embedding for drift detection. */
+    faceEmbedding?: number[];
+    /** Character consistency mode: 'strict' | 'balanced' | 'loose'. Default 'balanced'. */
+    consistencyMode?: 'strict' | 'balanced' | 'loose';
 }
 /**
  * The result returned by {@link generateImage}.

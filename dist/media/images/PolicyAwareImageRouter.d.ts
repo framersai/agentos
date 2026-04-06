@@ -38,14 +38,22 @@ export declare class PolicyAwareImageRouter {
      */
     getPreferredProvider(policyTier: PolicyTier, capabilities?: string[]): ImageProviderPreference | null;
     /**
-     * Get the ordered provider chain for a given policy tier.
+     * Get the ordered provider chain for a given policy tier,
+     * optionally filtered by required capabilities.
      *
      * Safe/standard returns the default chain (OpenAI-first).
      * Mature/private-adult returns the uncensored chain (Replicate-first).
      *
+     * When `capabilities` is provided, only providers supporting ALL listed
+     * capabilities are included. Known capabilities:
+     * - `'character-consistency'` — Replicate (Pulid, IP-Adapter), Fal (IP-Adapter), SD-Local (ControlNet)
+     * - `'controlnet'` — Replicate (Canny, Depth), SD-Local (ControlNet extensions)
+     * - `'style-transfer'` — Replicate (Flux Redux)
+     *
      * @param policyTier - Content policy tier.
+     * @param capabilities - Optional required capabilities to filter the chain.
      * @returns Ordered array of provider IDs to try in sequence.
      */
-    getProviderChain(policyTier: PolicyTier): string[];
+    getProviderChain(policyTier: PolicyTier, capabilities?: string[]): string[];
 }
 //# sourceMappingURL=PolicyAwareImageRouter.d.ts.map

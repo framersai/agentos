@@ -211,6 +211,9 @@ export async function generateImage(opts) {
                 seed: opts.seed,
                 negativePrompt: opts.negativePrompt,
                 providerOptions: opts.providerOptions,
+                referenceImageUrl: opts.referenceImageUrl,
+                faceEmbedding: opts.faceEmbedding,
+                consistencyMode: opts.consistencyMode,
             });
             metricUsage = result.usage;
             span?.setAttribute('agentos.api.images_count', result.images.length);
