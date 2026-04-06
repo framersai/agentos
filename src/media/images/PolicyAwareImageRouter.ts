@@ -94,18 +94,50 @@ export class PolicyAwareImageRouter {
   }
 
   /**
-   * Get the ordered provider chain for a given policy tier.
+   * Get the ordered provider chain for a given policy tier,
+   * optionally filtered by required capabilities.
    *
    * Safe/standard returns the default chain (OpenAI-first).
    * Mature/private-adult returns the uncensored chain (Replicate-first).
    *
+   * When `capabilities` is provided, only providers supporting ALL listed
+   * capabilities are included. Known capabilities:
+   * - `'character-consistency'` — Replicate (Pulid, IP-Adapter), Fal (IP-Adapter), SD-Local (ControlNet)
+   * - `'controlnet'` — Replicate (Canny, Depth), SD-Local (ControlNet extensions)
+   * - `'style-transfer'` — Replicate (Flux Redux)
+   *
    * @param policyTier - Content policy tier.
+   * @param capabilities - Optional required capabilities to filter the chain.
    * @returns Ordered array of provider IDs to try in sequence.
    */
-  getProviderChain(policyTier: PolicyTier): string[] {
-    if (policyTier === 'safe' || policyTier === 'standard') {
-      return [...DEFAULT_PROVIDER_CHAIN];
+  getProviderChain(policyTier: PolicyTier, capabilities?: string[]): string[] {
+    const base = policyTier === 'safe' || policyTier === 'standard'
+      ? [...DEFAULT_PROVIDER_CHAIN]
+      : [...UNCENSORED_PROVIDER_CHAIN];
+
+    if (!capabilities || capabilities.length === 0) {
+      return base;
     }
-    return [...UNCENSORED_PROVIDER_CHAIN];
+
+    return base.filter((id) => {
+      const caps = PROVIDER_CAPABILITIES[id];
+      if (!caps) return false;
+      return capabilities.every((cap) => caps.has(cap));
+    });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Provider capability registry
+// ---------------------------------------------------------------------------
+
+/** Known capabilities per image provider. */
+const PROVIDER_CAPABILITIES: Record<string, Set<string>> = {
+  replicate: new Set(['character-consistency', 'controlnet', 'style-transfer']),
+  fal: new Set(['character-consistency']),
+  'stable-diffusion-local': new Set(['character-consistency', 'controlnet']),
+  openai: new Set([]),
+  stability: new Set([]),
+  openrouter: new Set([]),
+  bfl: new Set([]),
+};

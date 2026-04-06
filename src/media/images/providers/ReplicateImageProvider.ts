@@ -134,16 +134,71 @@ export class ReplicateImageProvider implements IImageProvider {
     if (providerOptions?.goFast !== undefined) input.go_fast = providerOptions.goFast;
     if (providerOptions?.megapixels !== undefined) input.megapixels = providerOptions.megapixels;
 
-    const body: Record<string, unknown> = {
-      version: request.modelId || this.defaultModelId || 'black-forest-labs/flux-schnell',
-      input,
+    // --- Character consistency + ControlNet mapping ---
+    const CONSISTENCY_STRENGTHS: Record<string, number> = {
+      strict: 0.85,
+      balanced: 0.6,
+      loose: 0.3,
     };
-    if (providerOptions?.webhook) body.webhook = providerOptions.webhook;
-    if (providerOptions?.webhookEventsFilter) body.webhook_events_filter = providerOptions.webhookEventsFilter;
-    if (providerOptions?.extraBody) Object.assign(body, providerOptions.extraBody);
 
+    const refUrl = request.referenceImageUrl ?? providerOptions?.referenceImageUrl;
+    const consistencyMode = request.consistencyMode ?? 'balanced';
+
+    // Resolve model ID with auto-routing for consistency and ControlNet
+    let modelId = request.modelId || this.defaultModelId || 'black-forest-labs/flux-schnell';
+
+    // Auto-select Pulid for strict consistency when no model explicitly set
+    if (refUrl && consistencyMode === 'strict' && !request.modelId) {
+      modelId = 'zsxkib/pulid';
+    }
+
+    // Auto-route by controlType when controlImage is set and no model specified
+    if (providerOptions?.controlImage && providerOptions.controlType && !request.modelId) {
+      const controlRoutes: Record<string, string> = {
+        canny: 'black-forest-labs/flux-canny-dev',
+        depth: 'black-forest-labs/flux-depth-dev',
+      };
+      const routed = controlRoutes[providerOptions.controlType];
+      if (routed) modelId = routed;
+    }
+
+    // Map reference image to model-specific input field
+    if (refUrl) {
+      if (modelId.includes('pulid')) {
+        input.main_face_image = refUrl;
+      } else if (modelId.includes('flux-redux')) {
+        input.image = refUrl;
+      } else {
+        input.image = refUrl;
+        input.image_strength = CONSISTENCY_STRENGTHS[consistencyMode];
+      }
+    }
+
+    // Map control image for ControlNet models
+    if (providerOptions?.controlImage) {
+      input.control_image = providerOptions.controlImage;
+    }
+
+    // Dual-endpoint routing: version-hash models use legacy /predictions,
+    // plain owner/name models use modern /models/.../predictions
+    const hasVersionHash = modelId.includes(':');
     const waitSeconds = providerOptions?.wait ?? 60;
-    let prediction = await this.createPrediction(body, waitSeconds);
+    let prediction: ReplicatePrediction;
+
+    if (hasVersionHash) {
+      // Legacy endpoint: POST /predictions with { version, input }
+      const body: Record<string, unknown> = { version: modelId, input };
+      if (providerOptions?.webhook) body.webhook = providerOptions.webhook;
+      if (providerOptions?.webhookEventsFilter) body.webhook_events_filter = providerOptions.webhookEventsFilter;
+      if (providerOptions?.extraBody) Object.assign(body, providerOptions.extraBody);
+      prediction = await this.createPrediction(body, waitSeconds);
+    } else {
+      // Modern endpoint: POST /models/{owner}/{name}/predictions with { input }
+      const slashIndex = modelId.indexOf('/');
+      const owner = modelId.substring(0, slashIndex);
+      const name = modelId.substring(slashIndex + 1);
+      prediction = await this.createModelPrediction(owner, name, input, waitSeconds);
+    }
 
     if (
       prediction.status
@@ -167,7 +222,7 @@ export class ReplicateImageProvider implements IImageProvider {
 
     return {
       created: Math.floor(Date.now() / 1000),
-      modelId: String(body.version),
+      modelId: modelId,
       providerId: this.providerId,
       images,
       usage: {
@@ -209,7 +264,7 @@ export class ReplicateImageProvider implements IImageProvider {
     // Choose the model based on whether inpainting is requested.
     const hasInpaintingMask = !!request.mask;
     const defaultModel = hasInpaintingMask
-      ? 'black-forest-labs/flux-fill'     // Flux Fill is purpose-built for inpainting.
+      ? 'black-forest-labs/flux-fill-pro'  // Flux Fill Pro for production inpainting.
       : 'stability-ai/sdxl';              // SDXL supports generic img2img via image input.
 
     if (hasInpaintingMask) {
@@ -322,10 +377,68 @@ export class ReplicateImageProvider implements IImageProvider {
 
   async listAvailableModels(): Promise<ImageModelInfo[]> {
     return [
-      { providerId: this.providerId, modelId: 'black-forest-labs/flux-schnell', displayName: 'Flux Schnell' },
-      { providerId: this.providerId, modelId: 'black-forest-labs/flux-dev', displayName: 'Flux Dev' },
-      { providerId: this.providerId, modelId: 'black-forest-labs/flux-pro', displayName: 'Flux Pro' },
+      // Generation
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-schnell', displayName: 'Flux Schnell', description: 'Fast generation, 4 steps' },
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-dev', displayName: 'Flux Dev', description: 'Open-weight development model' },
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-pro', displayName: 'Flux Pro', description: 'Highest quality commercial' },
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-1.1-pro', displayName: 'Flux 1.1 Pro', description: 'Latest pro generation' },
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-1.1-pro-ultra', displayName: 'Flux 1.1 Pro Ultra', description: 'Ultra-high resolution' },
+      { providerId: this.providerId, modelId: 'bytedance/sdxl-lightning-4step', displayName: 'SDXL Lightning', description: '4-step fast SDXL' },
+      { providerId: this.providerId, modelId: 'stability-ai/sdxl', displayName: 'SDXL', description: 'Classic Stable Diffusion XL' },
+      // Style transfer
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-redux-dev', displayName: 'Flux Redux Dev', description: 'Image-guided style transfer' },
+      // ControlNet
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-canny-dev', displayName: 'Flux Canny', description: 'Edge-guided generation' },
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-depth-dev', displayName: 'Flux Depth', description: 'Depth-guided generation' },
+      // Character consistency
+      { providerId: this.providerId, modelId: 'zsxkib/pulid', displayName: 'Pulid', description: 'Face-consistent generation from reference' },
+      // Inpainting
+      { providerId: this.providerId, modelId: 'black-forest-labs/flux-fill-pro', displayName: 'Flux Fill Pro', description: 'Production inpainting' },
+      // Upscaling
+      { providerId: this.providerId, modelId: 'nightmareai/real-esrgan', displayName: 'Real-ESRGAN', description: '2x/4x image upscaling' },
     ];
+  }
+
+  /**
+   * Creates a prediction using the modern model-based endpoint.
+   *
+   * Official models on Replicate (e.g. `black-forest-labs/flux-1.1-pro`)
+   * use `/models/{owner}/{name}/predictions` which accepts `{ input }`
+   * directly without a `version` field.
+   *
+   * @param owner - Model owner (e.g. `'black-forest-labs'`).
+   * @param name - Model name (e.g. `'flux-1.1-pro'`).
+   * @param input - Model input parameters.
+   * @param waitSeconds - Maximum seconds to wait for synchronous completion.
+   * @returns The prediction response, possibly still in progress.
+   */
+  private async createModelPrediction(
+    owner: string,
+    name: string,
+    input: Record<string, unknown>,
+    waitSeconds: number,
+  ): Promise<ReplicatePrediction> {
+    const response = await fetch(
+      `${this.config.baseURL}/models/${owner}/${name}/predictions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+          Prefer: `wait=${waitSeconds}`,
+        },
+        body: JSON.stringify({ input }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Replicate model prediction failed (${response.status}): ${errorText}`,
+      );
+    }
+
+    return (await response.json()) as ReplicatePrediction;
   }
 
   private async createPrediction(body: Record<string, unknown>, waitSeconds: number): Promise<ReplicatePrediction> {

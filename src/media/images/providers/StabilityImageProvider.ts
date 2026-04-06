@@ -150,6 +150,13 @@ export class StabilityImageProvider implements IImageProvider {
       throw new Error('Stability image provider is not initialized.');
     }
 
+    if (request.referenceImageUrl) {
+      console.debug(
+        '[stability] referenceImageUrl is not natively supported — ' +
+        'field ignored. Use Replicate (Pulid), Fal, or SD-Local for character consistency.'
+      );
+    }
+
     const providerOptions = getImageProviderOptions<StabilityImageProviderOptions>(
       this.providerId,
       request.providerOptions

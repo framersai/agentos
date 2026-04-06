@@ -66,6 +66,13 @@ export class OpenAIImageProvider implements IImageProvider {
       throw new Error('OpenAI image provider is not initialized.');
     }
 
+    if (request.referenceImageUrl) {
+      console.debug(
+        '[openai] referenceImageUrl is not natively supported — ' +
+        'field ignored. Use Replicate (Pulid), Fal, or SD-Local for character consistency.'
+      );
+    }
+
     const providerOptions = getImageProviderOptions<OpenAIImageProviderOptions>(
       this.providerId,
       request.providerOptions
