@@ -163,6 +163,16 @@ export class FalImageProvider {
             body.guidance_scale = providerOpts.guidance_scale;
         if (providerOpts?.enable_safety_checker !== undefined)
             body.enable_safety_checker = providerOpts.enable_safety_checker;
+        // --- Character consistency via IP-Adapter ---
+        const FAL_CONSISTENCY_SCALES = {
+            strict: 0.9,
+            balanced: 0.6,
+            loose: 0.3,
+        };
+        if (request.referenceImageUrl) {
+            body.ip_adapter_image = request.referenceImageUrl;
+            body.ip_adapter_scale = FAL_CONSISTENCY_SCALES[request.consistencyMode ?? 'balanced'];
+        }
         // Step 1: Submit to the queue
         const requestId = await this._submitTask(model, body);
         // Step 2: Poll until complete
@@ -196,11 +206,76 @@ export class FalImageProvider {
      *
      * @returns Static list of known Fal.ai model identifiers.
      */
+    /**
+     * Edit an image using a Fal.ai-hosted Flux model.
+     *
+     * Supports img2img (prompt-guided transformation) and inpainting
+     * (mask-guided regional editing). The source image is passed as a
+     * base64 data URL in the `image` field of the model input.
+     *
+     * @param request - Edit request with source image, prompt, and optional mask.
+     * @returns Generation result with the edited image(s).
+     * @throws {Error} When the provider is not initialised or the API fails.
+     *
+     * @example
+     * ```typescript
+     * const result = await provider.editImage({
+     *   modelId: 'fal-ai/flux/dev',
+     *   image: imageBuffer,
+     *   prompt: 'Convert to watercolor style',
+     *   strength: 0.7,
+     * });
+     * ```
+     */
+    async editImage(request) {
+        if (!this.isInitialized) {
+            throw new Error('Fal.ai image provider is not initialized. Call initialize() first.');
+        }
+        const hasMask = !!request.mask;
+        const model = request.modelId || 'fal-ai/flux/dev';
+        const imageDataUrl = `data:image/png;base64,${request.image.toString('base64')}`;
+        const body = {
+            prompt: request.prompt,
+            image: imageDataUrl,
+        };
+        if (hasMask) {
+            body.mask = `data:image/png;base64,${request.mask.toString('base64')}`;
+        }
+        body.strength = request.strength ?? 0.75;
+        if (request.negativePrompt)
+            body.negative_prompt = request.negativePrompt;
+        if (request.seed !== undefined)
+            body.seed = request.seed;
+        if (request.n)
+            body.num_images = request.n;
+        const requestId = await this._submitTask(model, body);
+        await this._pollStatus(model, requestId);
+        const result = await this._fetchResult(model, requestId);
+        if (!result.images || result.images.length === 0) {
+            throw new Error('Fal.ai edit completed but returned no images.');
+        }
+        const images = result.images.map((img) => ({
+            url: img.url,
+            mimeType: img.content_type,
+            providerMetadata: { width: img.width, height: img.height, seed: result.seed },
+        }));
+        return {
+            created: Math.floor(Date.now() / 1000),
+            modelId: model,
+            providerId: this.providerId,
+            images,
+            usage: { totalImages: images.length },
+        };
+    }
     async listAvailableModels() {
         return [
-            { providerId: this.providerId, modelId: 'fal-ai/flux/dev', displayName: 'Flux Dev (Fal.ai)' },
-            { providerId: this.providerId, modelId: 'fal-ai/flux-pro', displayName: 'Flux Pro (Fal.ai)' },
-            { providerId: this.providerId, modelId: 'fal-ai/flux/schnell', displayName: 'Flux Schnell (Fal.ai)' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux/dev', displayName: 'Flux Dev (Fal)', description: 'Fast iteration, open weights, img2img capable' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux-pro', displayName: 'Flux Pro (Fal)', description: 'Highest quality generation' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux/schnell', displayName: 'Flux Schnell (Fal)', description: 'Speed-optimized generation' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux-pro/v1.1', displayName: 'Flux Pro 1.1 (Fal)', description: 'Latest pro generation' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux-pro/v1.1-ultra', displayName: 'Flux Pro 1.1 Ultra (Fal)', description: 'Ultra-high resolution' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux-lora', displayName: 'Flux LoRA (Fal)', description: 'LoRA fine-tuned generation' },
+            { providerId: this.providerId, modelId: 'fal-ai/flux-realism', displayName: 'Flux Realism (Fal)', description: 'Photorealistic output' },
         ];
     }
     // -------------------------------------------------------------------------

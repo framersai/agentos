@@ -18,6 +18,7 @@ export { generateObject } from './generateObject.js';
 export { streamObject } from './streamObject.js';
 export { embedText } from './embedText.js';
 export { generateImage } from './generateImage.js';
+export { transferStyle } from './transferStyle.js';
 export { agent } from './agent.js';
 export { agency } from './agency.js';
 export { exportAgent } from './exportAgent.js';

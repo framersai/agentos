@@ -146,6 +146,27 @@ export class StableDiffusionLocalProvider {
             const loraPrompt = opts.loras.map((l) => `<lora:${l.name}:${l.weight ?? 1}>`).join(' ');
             body.prompt = `${body.prompt} ${loraPrompt}`;
         }
+        // Character consistency via IP-Adapter ControlNet extension.
+        // Maps referenceImageUrl + consistencyMode to A1111 ControlNet args.
+        const SD_CONSISTENCY_WEIGHTS = {
+            strict: 0.9,
+            balanced: 0.6,
+            loose: 0.3,
+        };
+        if (request.referenceImageUrl) {
+            const weight = SD_CONSISTENCY_WEIGHTS[request.consistencyMode ?? 'balanced'];
+            body.alwayson_scripts = {
+                ...(body.alwayson_scripts ?? {}),
+                controlnet: {
+                    args: [{
+                            input_image: request.referenceImageUrl,
+                            module: 'ip-adapter_clip_sd15',
+                            model: 'ip-adapter_sd15',
+                            weight,
+                        }],
+                },
+            };
+        }
         const resp = await this.fetchImpl(`${this.baseUrl}/sdapi/v1/txt2img`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

@@ -141,6 +141,8 @@ export class AvatarPipeline {
                             stylePreset: request.generationConfig.stylePreset,
                             policyTier: request.policyTier,
                             referenceImageUrl: neutralPortraitUrl || undefined,
+                            faceEmbedding: faceEmbedding ?? undefined,
+                            consistencyMode: 'strict',
                         });
                         // Drift check against anchor embedding
                         if (faceEmbedding) {
@@ -241,6 +243,8 @@ export class AvatarPipeline {
                     stylePreset: request.generationConfig.stylePreset,
                     policyTier: request.policyTier,
                     referenceImageUrl: neutralPortraitUrl || undefined,
+                    faceEmbedding: faceEmbedding ?? undefined,
+                    consistencyMode: 'balanced',
                 });
                 job.imageUrl = fullBodyUrl;
                 job.status = 'completed';

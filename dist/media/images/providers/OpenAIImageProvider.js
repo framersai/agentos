@@ -29,6 +29,10 @@ export class OpenAIImageProvider {
         if (!this.isInitialized) {
             throw new Error('OpenAI image provider is not initialized.');
         }
+        if (request.referenceImageUrl) {
+            console.debug('[openai] referenceImageUrl is not natively supported — ' +
+                'field ignored. Use Replicate (Pulid), Fal, or SD-Local for character consistency.');
+        }
         const providerOptions = getImageProviderOptions(this.providerId, request.providerOptions);
         const body = {
             model: request.modelId || this.defaultModelId || 'gpt-image-1.5',

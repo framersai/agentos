@@ -63,6 +63,32 @@ export interface ReplicateImageProviderOptions {
     megapixels?: string;
     input?: Record<string, unknown>;
     extraBody?: Record<string, unknown>;
+    /**
+     * Reference image URL for character/face consistency.
+     *
+     * Mapped to provider-specific inputs based on the target model:
+     * - Pulid (`zsxkib/pulid`): `main_face_image`
+     * - Flux Redux (`flux-redux-dev`): `image`
+     * - Standard Flux models: `image` with `image_strength` derived from consistency mode
+     */
+    referenceImageUrl?: string;
+    /**
+     * Control image URL for ControlNet-style guided generation.
+     *
+     * Mapped to model-specific inputs:
+     * - Flux Canny (`flux-canny-dev`): `control_image`
+     * - Flux Depth (`flux-depth-dev`): `control_image`
+     */
+    controlImage?: string;
+    /**
+     * Control type hint for automatic model routing when `controlImage` is set
+     * but no explicit model is specified.
+     *
+     * - `'canny'` → routes to `black-forest-labs/flux-canny-dev`
+     * - `'depth'` → routes to `black-forest-labs/flux-depth-dev`
+     * - `'pose'` → routes to community pose model (future)
+     */
+    controlType?: 'canny' | 'depth' | 'pose';
 }
 export interface StableDiffusionLocalImageProviderOptions {
     /** Number of inference steps (default 25). */
@@ -117,6 +143,38 @@ export interface ImageGenerationRequest {
     seed?: number;
     negativePrompt?: string;
     providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
+    /**
+     * Reference image URL or data URI for character/face consistency.
+     *
+     * Providers that support identity preservation map this to model-specific inputs:
+     * - Replicate (Pulid): `main_face_image`
+     * - Replicate (Flux Redux): `image`
+     * - Fal (IP-Adapter): `ip_adapter_image`
+     * - SD-Local: ControlNet with IP-Adapter preprocessor
+     * - OpenAI/Stability/OpenRouter/BFL: ignored (debug warning logged)
+     */
+    referenceImageUrl?: string;
+    /**
+     * Pre-computed 512-dim face embedding vector for drift detection.
+     *
+     * When provided alongside `referenceImageUrl`, the AvatarPipeline
+     * verifies generated face identity via cosine similarity against
+     * this anchor vector.
+     */
+    faceEmbedding?: number[];
+    /**
+     * Character consistency mode controlling identity preservation strength.
+     *
+     * - `'strict'` — Maximum preservation. Uses Pulid/InstantID. Face guaranteed
+     *   consistent but output creativity is constrained.
+     * - `'balanced'` — Moderate preservation. IP-Adapter strength ~0.6. Good for
+     *   expression variants where some variation is acceptable.
+     * - `'loose'` — Light guidance. Reference influences mood/style but face may
+     *   drift. Good for "inspired by" generations.
+     *
+     * @default 'balanced'
+     */
+    consistencyMode?: 'strict' | 'balanced' | 'loose';
 }
 export interface ImageGenerationResult {
     created: number;

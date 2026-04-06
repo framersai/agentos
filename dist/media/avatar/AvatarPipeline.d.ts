@@ -26,8 +26,12 @@ export type ImageGeneratorFn = (prompt: string, options: {
     negativePrompt?: string;
     stylePreset?: string;
     policyTier?: PolicyTier;
-    /** Optional reference image URL for InstantID / IP-Adapter consistency. */
+    /** Reference image URL for character/face consistency. */
     referenceImageUrl?: string;
+    /** Pre-computed face embedding vector for drift detection. */
+    faceEmbedding?: number[];
+    /** Consistency mode: 'strict' for expressions, 'balanced' for body. */
+    consistencyMode?: 'strict' | 'balanced' | 'loose';
 }) => Promise<string>;
 /**
  * Orchestrates multi-stage avatar image generation with drift detection.

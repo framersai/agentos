@@ -37,6 +37,20 @@ export declare class ReplicateImageProvider implements IImageProvider {
      */
     upscaleImage(request: ImageUpscaleRequest): Promise<ImageGenerationResult>;
     listAvailableModels(): Promise<ImageModelInfo[]>;
+    /**
+     * Creates a prediction using the modern model-based endpoint.
+     *
+     * Official models on Replicate (e.g. `black-forest-labs/flux-1.1-pro`)
+     * use `/models/{owner}/{name}/predictions` which accepts `{ input }`
+     * directly without a `version` field.
+     *
+     * @param owner - Model owner (e.g. `'black-forest-labs'`).
+     * @param name - Model name (e.g. `'flux-1.1-pro'`).
+     * @param input - Model input parameters.
+     * @param waitSeconds - Maximum seconds to wait for synchronous completion.
+     * @returns The prediction response, possibly still in progress.
+     */
+    private createModelPrediction;
     private createPrediction;
     private pollPrediction;
 }

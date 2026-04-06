@@ -440,10 +440,11 @@ export class SqliteBrain {
      */
     async _seedMeta() {
         const { dialect } = this._features;
-        await this._adapter.transaction(async (trx) => {
-            await trx.run(dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']), ['schema_version', SCHEMA_VERSION]);
-            await trx.run(dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']), ['created_at', Date.now().toString()]);
-        });
+        // INSERT OR IGNORE is idempotent — no transaction needed.
+        // Avoids sql.js "cannot rollback" errors when DDL from _initSchema()
+        // leaves the connection in an implicit-commit state.
+        await this._adapter.run(dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']), ['schema_version', SCHEMA_VERSION]);
+        await this._adapter.run(dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']), ['created_at', Date.now().toString()]);
     }
     // ---------------------------------------------------------------------------
     // Public API
