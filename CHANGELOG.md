@@ -1,3 +1,7 @@
+## <small>0.1.179 (2026-04-06)</small>
+
+* feat(image): build dist for v0.1.178 — character consistency, style transfer, provider modernization ([7c519be](https://github.com/framersai/agentos/commit/7c519be))
+
 ## <small>0.1.178 (2026-04-06)</small>
 
 * feat(image): character consistency, style transfer, provider modernization ([22a90da](https://github.com/framersai/agentos/commit/22a90da)), closes [hi#level](https://github.com/hi/issues/level)
