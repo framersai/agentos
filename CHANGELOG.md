@@ -1,3 +1,7 @@
+## <small>0.1.178 (2026-04-06)</small>
+
+* feat(image): character consistency, style transfer, provider modernization ([22a90da](https://github.com/framersai/agentos/commit/22a90da)), closes [hi#level](https://github.com/hi/issues/level)
+
 ## [Unreleased]
 
 ### Added
