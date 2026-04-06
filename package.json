@@ -138,6 +138,11 @@
       "default": "./dist/rag/reranking/index.js",
       "types": "./dist/rag/reranking/index.d.ts"
     },
+    "./web-search": {
+      "import": "./dist/web-search/index.js",
+      "default": "./dist/web-search/index.js",
+      "types": "./dist/web-search/index.d.ts"
+    },
     "./rag/graphrag": {
       "import": "./dist/rag/graphrag/index.js",
       "default": "./dist/rag/graphrag/index.js",
