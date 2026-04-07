@@ -1,3 +1,7 @@
+## <small>0.1.180 (2026-04-07)</small>
+
+* feat(web-search): add multi-provider web search module with RRF fusion, semantic dedup, reranking ([37d2abf](https://github.com/framersai/agentos/commit/37d2abf))
+
 ## <small>0.1.179 (2026-04-06)</small>
 
 * feat(image): build dist for v0.1.178 — character consistency, style transfer, provider modernization ([7c519be](https://github.com/framersai/agentos/commit/7c519be))
