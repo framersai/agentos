@@ -1,3 +1,7 @@
+## <small>0.1.181 (2026-04-07)</small>
+
+* fix: add missing API exports (generateImage, generateObject, generateMusic, generateSFX, generateVid ([16dd3c4](https://github.com/framersai/agentos/commit/16dd3c4))
+
 ## <small>0.1.180 (2026-04-07)</small>
 
 * feat(web-search): add multi-provider web search module with RRF fusion, semantic dedup, reranking ([37d2abf](https://github.com/framersai/agentos/commit/37d2abf))
