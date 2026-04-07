@@ -32,6 +32,31 @@
       "default": "./dist/api/streamText.js",
       "types": "./dist/api/streamText.d.ts"
     },
+    "./api/generateImage": {
+      "import": "./dist/api/generateImage.js",
+      "default": "./dist/api/generateImage.js",
+      "types": "./dist/api/generateImage.d.ts"
+    },
+    "./api/generateObject": {
+      "import": "./dist/api/generateObject.js",
+      "default": "./dist/api/generateObject.js",
+      "types": "./dist/api/generateObject.d.ts"
+    },
+    "./api/generateMusic": {
+      "import": "./dist/api/generateMusic.js",
+      "default": "./dist/api/generateMusic.js",
+      "types": "./dist/api/generateMusic.d.ts"
+    },
+    "./api/generateSFX": {
+      "import": "./dist/api/generateSFX.js",
+      "default": "./dist/api/generateSFX.js",
+      "types": "./dist/api/generateSFX.d.ts"
+    },
+    "./api/generateVideo": {
+      "import": "./dist/api/generateVideo.js",
+      "default": "./dist/api/generateVideo.js",
+      "types": "./dist/api/generateVideo.d.ts"
+    },
     "./core/llm/routing/IModelRouter": {
       "import": "./dist/core/llm/routing/IModelRouter.js",
       "default": "./dist/core/llm/routing/IModelRouter.js",
