@@ -78,18 +78,49 @@ export interface ReflectorConfig {
   llmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
 }
 
+/**
+ * Configuration for the memory graph subsystem.
+ *
+ * The memory graph powers spreading activation (Collins & Quillian model),
+ * Hebbian co-activation learning ("neurons that fire together wire together"),
+ * conflict detection, clustering, and graph-boosted retrieval scoring.
+ *
+ * Enabled by default when CognitiveMemoryManager is initialized.
+ * Set `disabled: true` to opt out entirely.
+ */
 export interface MemoryGraphConfig {
-  /** Which backend to use. @default 'knowledge-graph' */
-  backend: 'graphology' | 'knowledge-graph';
+  /**
+   * Set to true to disable the memory graph entirely.
+   * When disabled, spreading activation, Hebbian co-activation,
+   * and graph-based retrieval boosting are all skipped.
+   * @default false
+   */
+  disabled?: boolean;
+  /** Which graph backend to use. @default 'knowledge-graph' */
+  backend?: 'graphology' | 'knowledge-graph';
   /** Max hops for spreading activation. @default 3 */
-  maxDepth: number;
-  /** Activation decay per hop. @default 0.5 */
-  decayPerHop: number;
-  /** Minimum activation to continue spreading. @default 0.1 */
-  activationThreshold: number;
-  /** Hebbian learning rate for co-activation edge strengthening. @default 0.1 */
-  hebbianLearningRate: number;
+  maxDepth?: number;
+  /** Activation decay per hop (0-1). @default 0.5 */
+  decayPerHop?: number;
+  /** Minimum activation to continue spreading (0-1). @default 0.1 */
+  activationThreshold?: number;
+  /** Hebbian learning rate for co-activation edge strengthening (0-1). @default 0.1 */
+  hebbianLearningRate?: number;
 }
+
+/**
+ * Default memory graph configuration.
+ * Graph is enabled by default with the KnowledgeGraph backend,
+ * providing spreading activation and Hebbian learning out of the box.
+ */
+export const DEFAULT_GRAPH_CONFIG: Required<Omit<MemoryGraphConfig, 'disabled'>> & { disabled: false } = {
+  disabled: false,
+  backend: 'knowledge-graph',
+  maxDepth: 3,
+  decayPerHop: 0.5,
+  activationThreshold: 0.1,
+  hebbianLearningRate: 0.1,
+};
 
 export interface ConsolidationConfig {
   /** How often to run consolidation (ms). @default 3_600_000 (1 hour) */
