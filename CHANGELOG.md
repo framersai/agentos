@@ -1,3 +1,7 @@
+## <small>0.1.188 (2026-04-08)</small>
+
+* feat: add optional reranker stage to CognitiveMemoryManager.retrieve() ([ee11490](https://github.com/framersai/agentos/commit/ee11490))
+
 ## <small>0.1.187 (2026-04-08)</small>
 
 * feat: add OpenAIRealtimeTTS streaming provider ([87b2808](https://github.com/framersai/agentos/commit/87b2808))
