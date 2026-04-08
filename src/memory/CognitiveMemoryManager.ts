@@ -207,6 +207,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   // Cognitive Mechanisms (optional)
   private mechanismsEngine: import('./mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine | null = null;
 
+  // Optional neural reranker for post-retrieval quality improvement
+  private rerankerService: import('../rag/reranking/RerankerService.js').RerankerService | null = null;
+
   /**
    * Optional HyDE retriever for hypothesis-driven memory recall.
    *
@@ -242,6 +245,11 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     // All store/softDelete/recordAccess operations mirror to SQL.
     if (config.brain) {
       this.store.setBrain(config.brain);
+    }
+
+    // Optional neural reranker for post-retrieval quality improvement
+    if (config.rerankerService) {
+      this.rerankerService = config.rerankerService;
     }
 
     // Cognitive working memory (wraps the existing IWorkingMemory)
@@ -545,6 +553,39 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         );
       } catch {
         // Graph operations are non-critical
+      }
+    }
+
+    // --- Optional neural reranking ---
+    // Blends Cohere/LLM-Judge cross-encoder scores with the existing
+    // cognitive composite. Weight: 0.7 cognitive + 0.3 neural reranker.
+    // This preserves decay, mood congruence, and graph activation signals
+    // while boosting semantically relevant results the bi-encoder missed.
+    if (this.rerankerService && scored.length > 0) {
+      try {
+        const rerankerOutput = await this.rerankerService.rerank({
+          query,
+          documents: scored.map((t) => ({
+            id: t.id,
+            content: t.content,
+            originalScore: t.retrievalScore,
+          })),
+        }, { topN: options.topK ?? 10 });
+
+        const rerankedScores = new Map(
+          rerankerOutput.results.map((r) => [r.id, r.relevanceScore])
+        );
+
+        for (const trace of scored) {
+          const neuralScore = rerankedScores.get(trace.id);
+          if (neuralScore !== undefined) {
+            trace.retrievalScore = 0.7 * trace.retrievalScore + 0.3 * neuralScore;
+          }
+        }
+
+        scored.sort((a, b) => b.retrievalScore - a.retrievalScore);
+      } catch {
+        // Reranking is non-critical — use cognitive scores as-is
       }
     }
 

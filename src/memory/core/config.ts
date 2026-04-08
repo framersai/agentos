@@ -271,6 +271,22 @@ export interface CognitiveMemoryConfig {
    * @see {@link SqliteBrain} — the cross-platform persistence layer
    */
   brain?: import('../retrieval/store/SqliteBrain.js').SqliteBrain;
+
+  /**
+   * Optional reranker service for post-retrieval quality improvement.
+   *
+   * When provided, retrieved memory traces are reranked after the
+   * cognitive scoring pipeline (vector similarity + strength + recency +
+   * emotional congruence + graph activation + importance). The reranker
+   * score is blended with the existing composite score at a 0.7/0.3
+   * weighting to preserve cognitive signals while boosting semantically
+   * relevant results.
+   *
+   * Recommended: Cohere rerank-v3.5 primary, LLM-Judge fallback.
+   *
+   * @default undefined (no reranking)
+   */
+  rerankerService?: import('../../rag/reranking/RerankerService.js').RerankerService;
 }
 
 // ---------------------------------------------------------------------------
