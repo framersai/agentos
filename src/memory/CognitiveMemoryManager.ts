@@ -342,6 +342,19 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       }
     }
 
+    // --- HyDE Retriever (auto-attached when any LLM invoker is available) ---
+    // Generates hypothetical memory traces for improved recall on vague queries.
+    // Opt-in per query via retrieve({ hyde: true }). Based on the "generation
+    // effect" — generating what a memory WOULD look like activates retrieval
+    // pathways more effectively than raw query embedding.
+    const anyLlmInvoker = config.reflector?.llmInvoker
+      ?? config.observer?.llmInvoker
+      ?? config.featureDetectionLlmInvoker;
+    if (anyLlmInvoker && !this.hydeRetriever) {
+      const { MemoryHydeRetriever } = await import('./retrieval/hyde/MemoryHydeRetriever.js');
+      this.hydeRetriever = new MemoryHydeRetriever(anyLlmInvoker) as unknown as HydeRetriever;
+    }
+
     this.initialized = true;
   }
 
