@@ -19,7 +19,6 @@ import type {
 import { VideoAnalyzer } from '../media/video/VideoAnalyzer.js';
 import { createVisionPipeline } from '../vision/index.js';
 import type { SpeechToTextProvider } from '../speech/types.js';
-import { toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 

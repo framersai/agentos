@@ -102,7 +102,7 @@ import {
   StreamingManagerConfig,
   StreamId,
 } from '../core/streaming/StreamingManager';
-import { IStreamClient, StreamClientId } from '../core/streaming/IStreamClient';
+// IStreamClient and StreamClientId reserved for streaming integration
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import { ILogger } from '../logging/ILogger';
@@ -113,7 +113,7 @@ import {
 } from '../evaluation/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../safety/guardrails/IGuardrailService';
 import type { EmergentConfig } from '../emergent/types.js';
-import type { SelfImprovementToolDeps } from '../emergent/EmergentCapabilityEngine.js';
+// SelfImprovementToolDeps reserved for emergent capability integration
 import { GuardrailAction } from '../safety/guardrails/IGuardrailService';
 import {
   evaluateInputGuardrails,

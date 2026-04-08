@@ -33,7 +33,7 @@ import YAML from 'yaml';
 
 import { agent as createAgent } from './agent.js';
 import { agency as createAgency } from './agency.js';
-import type { BaseAgentConfig, AgencyOptions, AgencyStrategy, Agent } from './types.js';
+import type { AgencyOptions, Agent } from './types.js';
 import { exportAgentConfig, exportAgentConfigJSON } from './agentExportCore.js';
 export { exportAgentConfig, exportAgentConfigJSON };
 export type { AgentExportConfig } from './agentExportCore.js';
