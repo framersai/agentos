@@ -38,6 +38,14 @@ function estimateTokens(text: string): number {
 const clamp01 = (v: number | undefined): number =>
   v == null ? 0.5 : Math.max(0, Math.min(1, v));
 
+/**
+ * Select the memory formatting style based on HEXACO personality traits.
+ * Highest trait wins: conscientiousness → structured, openness → narrative,
+ * emotionality → emotional. Ties favor structured > narrative > emotional.
+ *
+ * @param traits - HEXACO personality traits
+ * @returns Formatting style for memory trace presentation
+ */
 function selectFormattingStyle(traits: HexacoTraits): FormattingStyle {
   const c = clamp01(traits.conscientiousness);
   const o = clamp01(traits.openness);
@@ -47,6 +55,45 @@ function selectFormattingStyle(traits: HexacoTraits): FormattingStyle {
   if (c >= o && c >= e) return 'structured';
   if (o >= c && o >= e) return 'narrative';
   return 'emotional';
+}
+
+/**
+ * Build the memory usage preamble that teaches the LLM how to use
+ * each memory type differently in its response.
+ *
+ * This preamble is critical for memory-aware behavior. Without it,
+ * LLMs treat all memory sections as flat context and may announce
+ * facts, list memories, or state relationships explicitly — all of
+ * which feel unnatural.
+ *
+ * Personality variants add style-specific guidance:
+ * - Structured (high conscientiousness): logical, organized references
+ * - Narrative (high openness): flowing, associative references
+ * - Emotional (high emotionality): empathetic, mood-aware references
+ *
+ * @param traits - HEXACO traits for personality-aware variant selection
+ * @returns Formatted preamble string (~200 tokens)
+ */
+function buildMemoryPreamble(traits: HexacoTraits): string {
+  const style = selectFormattingStyle(traits);
+
+  // Personality-specific guidance on how to reference memories in conversation
+  const styleGuidance = style === 'structured'
+    ? '\nOrganize your references to past knowledge logically. Connect facts to the current discussion with clear reasoning.'
+    : style === 'narrative'
+      ? '\nLet memories flow into your responses as stories and associations. Draw creative connections between past and present.'
+      : '\nLet emotional memories influence your mood and empathy. If you recall a time the user was struggling, let that inform your warmth now.';
+
+  return `## How To Use Your Memories
+
+- **Working Memory**: Reference directly — this is your active context.
+- **Semantic Recall** (facts): Background truth. Don't announce — let it shape responses naturally.
+- **Episodic Memories** (experiences): Weave in naturally. Never list.
+- **Prospective Alerts** (reminders): Act on these. Bring up naturally.
+- **Relational Signals** (trust/bonds): Modulate TONE, not words. Never state explicitly.
+- **Graph Associations** (connected memories): Use for richer context and connection depth.
+- **Partial Memories** (feeling-of-knowing): Express uncertainty naturally — "I feel like we talked about..."
+${styleGuidance}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +155,17 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
   const includedIds: string[] = [];
   let totalTokens = 0;
 
+  // --- Memory Usage Preamble ---
+  // Teaches the LLM how to use each memory type differently (~200 tokens).
+  // Deducted from total budget before section allocation. Skipped when
+  // budget is too small to fit the preamble meaningfully.
+  const preamble = buildMemoryPreamble(input.traits);
+  const preambleTokens = estimateTokens(preamble);
+  if (budget >= preambleTokens + 100) {
+    sections.push(preamble);
+    totalTokens += preambleTokens;
+  }
+
   // --- Persistent Memory (MEMORY.md) ---
   if (input.persistentMemoryText && pmBudget > 0) {
     let pmText = input.persistentMemoryText;
@@ -124,7 +182,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
   const wmTokens = estimateTokens(wmText);
   let wmUsed = 0;
   if (wmText && wmTokens <= wmBudget) {
-    sections.push(`## Active Context\n${wmText}`);
+    sections.push(`## Active Context (in focus — reference directly)\n${wmText}`);
     wmUsed = wmTokens;
     totalTokens += wmUsed;
   }
@@ -160,7 +218,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
       includedIds.push(trace.id);
     }
     if (semanticLines.length > 0) {
-      sections.push(`## Relevant Memories\n${semanticLines.join('\n')}`);
+      sections.push(`## Relevant Memories (facts — use as background truth, don't announce)\n${semanticLines.join('\n')}`);
       totalTokens += semanticUsed;
     }
   }
@@ -178,7 +236,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
       includedIds.push(trace.id);
     }
     if (episodicLines.length > 0) {
-      sections.push(`## Recent Experiences\n${episodicLines.join('\n')}`);
+      sections.push(`## Recent Experiences (events — weave in naturally, never list)\n${episodicLines.join('\n')}`);
       totalTokens += episodicUsed;
     }
   }
@@ -194,7 +252,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
       prospectiveUsed += tokens;
     }
     if (prospectiveLines.length > 0) {
-      sections.push(`## Reminders\n${prospectiveLines.join('\n')}`);
+      sections.push(`## Reminders (act on these — bring up naturally)\n${prospectiveLines.join('\n')}`);
       totalTokens += prospectiveUsed;
     }
   }
@@ -210,7 +268,7 @@ export function assembleMemoryContext(input: MemoryAssemblerInput): AssembledMem
       graphUsed += tokens;
     }
     if (graphLines.length > 0) {
-      sections.push(`## Related Context\n${graphLines.join('\n')}`);
+      sections.push(`## Related Context (connected memories — use for depth)\n${graphLines.join('\n')}`);
       totalTokens += graphUsed;
     }
   }
