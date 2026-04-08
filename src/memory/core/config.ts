@@ -254,6 +254,23 @@ export interface CognitiveMemoryConfig {
   // --- Vector store collection prefix ---
   /** @default 'cogmem' */
   collectionPrefix?: string;
+
+  // --- Persistence (optional) ---
+  /**
+   * Optional SqliteBrain instance for durable persistence.
+   *
+   * When provided, memory traces, knowledge graph nodes/edges,
+   * prospective items, and observation pipeline state are persisted
+   * to the brain's SQL tables via sql-storage-adapter. The in-memory
+   * vector index remains the hot read path; SqliteBrain is the durable
+   * backing store that survives process restarts.
+   *
+   * Falls back to in-memory-only storage when omitted.
+   *
+   * @default undefined (in-memory only)
+   * @see {@link SqliteBrain} — the cross-platform persistence layer
+   */
+  brain?: import('../retrieval/store/SqliteBrain.js').SqliteBrain;
 }
 
 // ---------------------------------------------------------------------------
