@@ -915,6 +915,57 @@ export interface IStreamingTTS {
 }
 
 // ============================================================================
+// Section 6b -- Batch text-to-speech
+// ============================================================================
+
+/**
+ * Configuration for a batch (one-shot) TTS synthesis request.
+ * Used by {@link IBatchTTS.synthesize} for non-streaming narration.
+ */
+export interface BatchTTSConfig {
+  /** Provider-specific voice identifier. */
+  voice?: string;
+  /** Model identifier (e.g. 'tts-1', 'tts-1-hd', 'eleven_multilingual_v2'). */
+  model?: string;
+  /** Output audio format. @defaultValue 'mp3' */
+  format?: 'mp3' | 'opus' | 'pcm';
+  /** Playback speed multiplier (provider-dependent range, typically 0.25-4.0). */
+  speed?: number;
+  /** Pass-through options forwarded to the underlying provider SDK. */
+  providerOptions?: Record<string, unknown>;
+}
+
+/**
+ * Result of a batch TTS synthesis operation.
+ */
+export interface BatchTTSResult {
+  /** Raw audio bytes in the requested format. */
+  audio: Buffer;
+  /** Audio format of the returned buffer. */
+  format: 'mp3' | 'opus' | 'pcm';
+  /** Estimated duration in milliseconds. */
+  durationMs: number;
+  /** Provider ID that served this request. */
+  provider: string;
+}
+
+/**
+ * Factory interface for batch (one-shot) text-to-speech providers.
+ *
+ * Unlike {@link IStreamingTTS} which pushes tokens incrementally for real-time
+ * voice conversations, batch TTS accepts complete text and returns finished audio.
+ * Suitable for narration, pre-rendered dialogue, and audio export.
+ *
+ * Providers may implement both {@link IStreamingTTS} and {@link IBatchTTS}.
+ */
+export interface IBatchTTS {
+  /** Unique, stable identifier for this provider (e.g. 'openai-tts-1', 'elevenlabs-batch'). */
+  readonly providerId: string;
+  /** Synthesize complete text into audio. */
+  synthesize(text: string, config?: BatchTTSConfig): Promise<BatchTTSResult>;
+}
+
+// ============================================================================
 // Section 7 -- Barge-in handling
 // ============================================================================
 
