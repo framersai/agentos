@@ -23,3 +23,4 @@ export { AgentSessionVoiceAdapter } from './AgentSessionVoiceAdapter.js';
 export { OpenAIBatchTTS, type OpenAIBatchTTSConfig } from './OpenAIBatchTTS.js';
 export { ElevenLabsBatchTTS, type ElevenLabsBatchTTSConfig } from './ElevenLabsBatchTTS.js';
 export { BatchTTSFallback } from './BatchTTSFallback.js';
+export { OpenAIRealtimeTTS, type OpenAIRealtimeTTSConfig } from './OpenAIRealtimeTTS.js';
