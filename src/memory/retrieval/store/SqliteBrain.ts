@@ -260,6 +260,36 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 `;
 
+/**
+ * Prospective memory items table.
+ *
+ * Stores time-based, event-based, and context-based reminders/intentions
+ * that the ProspectiveMemoryManager checks each turn. Items are registered
+ * automatically from commitment and intention observation notes.
+ *
+ * `trigger_type` determines how the item fires:
+ * - 'time_based': fires at or after `trigger_at` timestamp
+ * - 'event_based': fires when `trigger_event` name occurs
+ * - 'context_based': fires when embedding similarity to `cue_embedding` exceeds threshold
+ */
+const DDL_PROSPECTIVE_ITEMS = `
+CREATE TABLE IF NOT EXISTS prospective_items (
+  id                   TEXT    PRIMARY KEY,
+  content              TEXT    NOT NULL,
+  trigger_type         TEXT    NOT NULL,
+  trigger_at           INTEGER,
+  trigger_event        TEXT,
+  cue_text             TEXT,
+  cue_embedding        BLOB,
+  similarity_threshold REAL    DEFAULT 0.7,
+  importance           REAL    NOT NULL DEFAULT 0.5,
+  triggered            INTEGER NOT NULL DEFAULT 0,
+  recurring            INTEGER NOT NULL DEFAULT 0,
+  source_trace_id      TEXT,
+  created_at           INTEGER NOT NULL
+);
+`;
+
 // ---------------------------------------------------------------------------
 // SqliteBrain
 // ---------------------------------------------------------------------------
@@ -365,6 +395,16 @@ export class SqliteBrain {
     return brain;
   }
 
+  /**
+   * Alias for `open()` — matches the naming convention used by WildsMemoryFacade.
+   *
+   * @param dbPath - Absolute path to the `.sqlite` file.
+   * @returns A fully initialised `SqliteBrain` instance.
+   */
+  static async create(dbPath: string): Promise<SqliteBrain> {
+    return SqliteBrain.open(dbPath);
+  }
+
   // ---------------------------------------------------------------------------
   // Async proxy methods (for consumer subsystems)
   // ---------------------------------------------------------------------------
@@ -465,6 +505,7 @@ export class SqliteBrain {
       DDL_RETRIEVAL_FEEDBACK,
       DDL_CONVERSATIONS,
       DDL_MESSAGES,
+      DDL_PROSPECTIVE_ITEMS,
     ];
 
     for (const statement of ddlStatements) {

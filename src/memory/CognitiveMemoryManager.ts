@@ -226,7 +226,8 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       this.mechanismsEngine = new CognitiveMechanismsEngine(config.cognitiveMechanisms, config.traits);
     }
 
-    // Memory store
+    // Memory store — in-memory vector index for fast reads, with optional
+    // SqliteBrain write-through for durable persistence across restarts.
     this.store = new MemoryStore({
       vectorStore: config.vectorStore,
       embeddingManager: config.embeddingManager,
@@ -236,6 +237,12 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       mechanismsEngine: this.mechanismsEngine ?? undefined,
       moodProvider: config.moodProvider,
     });
+
+    // Attach SqliteBrain for durable write-through when configured.
+    // All store/softDelete/recordAccess operations mirror to SQL.
+    if (config.brain) {
+      this.store.setBrain(config.brain);
+    }
 
     // Cognitive working memory (wraps the existing IWorkingMemory)
     this.workingMemory = new CognitiveWorkingMemory(config.workingMemory, {

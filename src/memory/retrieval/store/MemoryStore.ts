@@ -140,11 +140,29 @@ export class MemoryStore {
   private knownScopes: Map<string, { scope: MemoryScope; scopeId: string }> = new Map();
   /** Optional cognitive mechanisms engine for retrieval-time hooks. */
   private mechanismsEngine?: import('../../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
+  /**
+   * Optional SqliteBrain for durable write-through persistence.
+   * When set, store/softDelete/recordAccess also write to the brain's SQL tables.
+   * The in-memory vector index remains the hot read path (fast); the brain is
+   * the durable backing store that survives process restarts.
+   */
+  private brain: import('./SqliteBrain.js').SqliteBrain | null = null;
 
   constructor(config: MemoryStoreConfig) {
     this.config = config;
     this.decay = config.decayConfig ?? DEFAULT_DECAY_CONFIG;
     this.mechanismsEngine = config.mechanismsEngine;
+  }
+
+  /**
+   * Attach a SqliteBrain for durable write-through persistence.
+   * Once attached, all store/softDelete/recordAccess operations also
+   * write to the brain's `memory_traces` table.
+   *
+   * @param brain - SqliteBrain instance (already initialized with schema)
+   */
+  setBrain(brain: import('./SqliteBrain.js').SqliteBrain): void {
+    this.brain = brain;
   }
 
   // =========================================================================
@@ -217,6 +235,41 @@ export class MemoryStore {
     this.traceCache.set(trace.id, trace);
     this.embeddingCache.set(trace.id, embedding);
     this.registerScope(trace.scope, trace.scopeId);
+
+    // Write-through to SqliteBrain for durability.
+    // The SQL row mirrors the in-memory cache so traces survive restart.
+    if (this.brain) {
+      try {
+        await this.brain.run(
+          `INSERT OR REPLACE INTO memory_traces (id, type, scope, content, embedding, strength, created_at, last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          [
+            trace.id,
+            trace.type,
+            trace.scope,
+            trace.content,
+            null, // embedding managed by vector store, not SQL
+            trace.encodingStrength,
+            trace.createdAt,
+            trace.lastAccessedAt,
+            trace.retrievalCount,
+            JSON.stringify(trace.tags),
+            JSON.stringify(trace.emotionalContext),
+            JSON.stringify({
+              scopeId: trace.scopeId,
+              provenance: trace.provenance,
+              entities: trace.entities,
+              stability: trace.stability,
+              importance: trace.importance,
+              associatedTraceIds: trace.associatedTraceIds,
+              structuredData: trace.structuredData,
+            }),
+          ]
+        );
+      } catch {
+        // Write-through is best-effort — in-memory store is primary
+      }
+    }
   }
 
   // =========================================================================
@@ -381,6 +434,18 @@ export class MemoryStore {
       // Non-critical update
     }
 
+    // Write-through: update access metadata in the durable SQL store
+    if (this.brain) {
+      try {
+        await this.brain.run(
+          'UPDATE memory_traces SET last_accessed = ?, retrieval_count = ?, strength = ? WHERE id = ?',
+          [trace.lastAccessedAt, trace.retrievalCount, trace.encodingStrength, traceId]
+        );
+      } catch {
+        // Best-effort persistence
+      }
+    }
+
     return update;
   }
 
@@ -461,6 +526,15 @@ export class MemoryStore {
     if (trace) {
       trace.isActive = false;
       trace.updatedAt = Date.now();
+    }
+
+    // Write-through: mark trace as deleted in the durable SQL store
+    if (this.brain) {
+      try {
+        await this.brain.run('UPDATE memory_traces SET deleted = 1 WHERE id = ?', [traceId]);
+      } catch {
+        // Best-effort persistence
+      }
     }
   }
 
