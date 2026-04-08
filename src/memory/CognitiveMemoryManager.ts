@@ -27,6 +27,7 @@ import {
   DEFAULT_ENCODING_CONFIG,
   DEFAULT_DECAY_CONFIG,
   DEFAULT_BUDGET_ALLOCATION,
+  DEFAULT_GRAPH_CONFIG,
 } from './core/config.js';
 import { computeEncodingStrength, buildEmotionalContext } from './core/encoding/EncodingModel.js';
 import {
@@ -256,9 +257,13 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       config.featureDetectionLlmInvoker
     );
 
-    // --- Batch 2: Memory Graph ---
-    if (config.graph) {
-      const backend = config.graph.backend ?? 'knowledge-graph';
+    // --- Memory Graph (enabled by default, opt-out via disabled: true) ---
+    // The knowledge graph powers spreading activation (Collins & Quillian model),
+    // Hebbian co-activation learning ("neurons that fire together wire together"),
+    // and graph-boosted retrieval scoring. It is fundamental to associative memory.
+    if (config.graph?.disabled !== true) {
+      const graphConfig = { ...DEFAULT_GRAPH_CONFIG, ...config.graph };
+      const backend = graphConfig.backend;
       if (backend === 'graphology') {
         this.graph = new GraphologyMemoryGraph();
       } else {
