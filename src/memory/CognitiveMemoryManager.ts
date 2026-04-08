@@ -623,9 +623,86 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   }
 
   // =========================================================================
+  // Prospective auto-registration helpers
+  // =========================================================================
+
+  /**
+   * Temporal patterns for extracting time-based triggers from observation notes.
+   * Matches relative expressions ("tomorrow", "next Friday", "in 2 hours")
+   * and absolute expressions ("on March 5th", "at 3pm").
+   */
+  private static readonly TEMPORAL_PATTERNS = [
+    /\b(tomorrow|tonight|next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i,
+    /\b(in\s+\d+\s+(hours?|days?|weeks?|minutes?))\b/i,
+    /\b(on\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d+)/i,
+    /\b(at\s+\d{1,2}(:\d{2})?\s*(am|pm)?)\b/i,
+    /\b(\d{4}-\d{2}-\d{2})\b/,
+  ];
+
+  /**
+   * Event-based patterns for extracting event triggers from observation notes.
+   * Matches conditional language ("when X happens", "after the meeting").
+   */
+  private static readonly EVENT_PATTERNS = [
+    /\bwhen\s+(.{3,40}?)\s*(happens?|occurs?|starts?|ends?|finishes?|completes?)\b/i,
+    /\bafter\s+(the\s+)?(.{3,30})\b/i,
+    /\bonce\s+(.{3,30})\s+(is|are|has|have)\b/i,
+  ];
+
+  /**
+   * Infer the prospective trigger type from an observation note's content.
+   * Uses regex heuristics — no LLM call needed.
+   *
+   * Priority: temporal patterns (most specific) → event patterns → context-based fallback.
+   *
+   * @param note - The observation note to classify
+   * @returns The most likely trigger type for ProspectiveMemoryManager
+   */
+  private inferTriggerType(note: ObservationNote): 'time_based' | 'event_based' | 'context_based' {
+    for (const pattern of CognitiveMemoryManager.TEMPORAL_PATTERNS) {
+      if (pattern.test(note.content)) return 'time_based';
+    }
+    for (const pattern of CognitiveMemoryManager.EVENT_PATTERNS) {
+      if (pattern.test(note.content)) return 'event_based';
+    }
+    // Default: context-based — fires when topic becomes relevant via embedding similarity
+    return 'context_based';
+  }
+
+  /**
+   * Extract an event cue string from "when X" / "after X" patterns.
+   * Returns undefined if no event language is detected.
+   *
+   * @param note - The observation note to extract from
+   * @returns Event cue string, or undefined
+   */
+  private extractEventCue(note: ObservationNote): string | undefined {
+    for (const pattern of CognitiveMemoryManager.EVENT_PATTERNS) {
+      const match = note.content.match(pattern);
+      if (match) return match[1] ?? match[2];
+    }
+    return undefined;
+  }
+
+  // =========================================================================
   // Batch 2: Observer
   // =========================================================================
 
+  /**
+   * Feed a conversation message to the observation pipeline.
+   *
+   * Pipeline flow:
+   * 1. Observer extracts typed observation notes from buffered messages
+   * 2. Notes are fed to the Reflector for consolidation into long-term traces
+   * 3. Reflected traces are encoded via `encode()` (typed as semantic/episodic/etc.)
+   * 4. Superseded traces are soft-deleted
+   * 5. Commitment and intention notes are auto-registered with ProspectiveMemoryManager
+   *
+   * @param role - Message role (user, assistant, system, tool)
+   * @param content - Message text content
+   * @param mood - Optional PAD emotional state at observation time
+   * @returns Observation notes if threshold was reached, null otherwise
+   */
   async observe(
     role: 'user' | 'assistant' | 'system' | 'tool',
     content: string,
@@ -660,6 +737,36 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         // Soft-delete superseded traces
         for (const id of reflectionResult.supersededTraceIds) {
           await this.store.softDelete(id);
+        }
+      }
+    }
+
+    // Auto-register commitment and intention notes as prospective memory items.
+    // Commitment notes above 0.5 importance represent real intentions, not hedging
+    // ("maybe I'll..." vs "I will..."). Preference notes expressing future desire
+    // also register as low-priority context-based items so they surface naturally
+    // when the topic comes up again.
+    if (notes && notes.length > 0 && this.prospective) {
+      for (const note of notes) {
+        const isCommitment = note.type === 'commitment' && note.importance >= 0.5;
+        const isFuturePreference = note.type === 'preference' && note.importance >= 0.6
+          && /\b(love to|want to|been meaning to|plan to|going to|hope to)\b/i.test(note.content);
+
+        if (isCommitment || isFuturePreference) {
+          const triggerType = this.inferTriggerType(note);
+          try {
+            await this.prospective.register({
+              content: note.content,
+              triggerType,
+              triggerEvent: triggerType === 'event_based' ? this.extractEventCue(note) : undefined,
+              cueText: note.content,
+              // Future preferences get a lower importance than explicit commitments
+              importance: isFuturePreference ? note.importance * 0.7 : note.importance,
+              recurring: false,
+            });
+          } catch {
+            // Prospective registration is non-critical — don't fail the observe() call
+          }
         }
       }
     }
