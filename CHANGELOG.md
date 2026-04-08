@@ -1,3 +1,23 @@
+## <small>0.1.182 (2026-04-08)</small>
+
+* fix: add ignoreDeprecations 6.0 for TS 7.0 baseUrl warning ([b011e7f](https://github.com/framersai/agentos/commit/b011e7f))
+* fix: remove ignoreDeprecations for TS 7.0 compat, fix Zod v4 type errors ([696806c](https://github.com/framersai/agentos/commit/696806c))
+* chore(release): 0.1.182 ([073b439](https://github.com/framersai/agentos/commit/073b439))
+* docs: update README with cognitive memory completion and LLM validation layer ([9c3270a](https://github.com/framersai/agentos/commit/9c3270a))
+* test(memory): add full pipeline integration test for cognitive memory ([94b8720](https://github.com/framersai/agentos/commit/94b8720))
+* test(validation): add integration test for full validation pipeline ([57fe60a](https://github.com/framersai/agentos/commit/57fe60a))
+* feat(agent): add responseSchema option to agent() factory for Zod validation ([486e01d](https://github.com/framersai/agentos/commit/486e01d))
+* feat(memory): add default MemoryHydeRetriever, auto-attach when LLM available ([381902f](https://github.com/framersai/agentos/commit/381902f))
+* feat(memory): add full API surface to AgentMemory (graph, stats, export, prospective) ([8e9ec45](https://github.com/framersai/agentos/commit/8e9ec45))
+* feat(memory): add relational type, CoT reasoning, personality bias to MemoryReflector ([f4fc891](https://github.com/framersai/agentos/commit/f4fc891))
+* feat(memory): add response guidance preamble to MemoryPromptAssembler ([8562c8a](https://github.com/framersai/agentos/commit/8562c8a))
+* feat(memory): add SqliteBrain write-through persistence for cognitive path ([b80e2a9](https://github.com/framersai/agentos/commit/b80e2a9))
+* feat(memory): auto-register commitment and intention notes as prospective items ([684645a](https://github.com/framersai/agentos/commit/684645a))
+* feat(memory): enable KnowledgeGraph by default, add disabled opt-out flag ([9500059](https://github.com/framersai/agentos/commit/9500059))
+* feat(validation): add centralized extractJson for LLM output parsing ([6156cdc](https://github.com/framersai/agentos/commit/6156cdc))
+* feat(validation): add LlmOutputValidationError and Zod schema primitives ([c1f5694](https://github.com/framersai/agentos/commit/c1f5694))
+* feat(validation): add ValidatedLlmInvoker with Zod validation, retry, and barrel export ([f5422bd](https://github.com/framersai/agentos/commit/f5422bd))
+
 ## <small>0.1.181 (2026-04-07)</small>
 
 * fix: add missing API exports (generateImage, generateObject, generateMusic, generateSFX, generateVid ([16dd3c4](https://github.com/framersai/agentos/commit/16dd3c4))
