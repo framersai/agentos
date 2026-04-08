@@ -1,3 +1,7 @@
+## <small>0.1.187 (2026-04-08)</small>
+
+* feat: add OpenAIRealtimeTTS streaming provider ([87b2808](https://github.com/framersai/agentos/commit/87b2808))
+
 ## <small>0.1.186 (2026-04-08)</small>
 
 * feat: add BatchTTSFallback wrapper for multi-provider TTS failover ([5296a86](https://github.com/framersai/agentos/commit/5296a86))
