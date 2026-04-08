@@ -1,3 +1,7 @@
+## <small>0.1.185 (2026-04-08)</small>
+
+* feat: add ElevenLabsBatchTTS provider ([be750f6](https://github.com/framersai/agentos/commit/be750f6))
+
 ## <small>0.1.184 (2026-04-08)</small>
 
 * wip: save in-progress image changes ([3674be5](https://github.com/framersai/agentos/commit/3674be5))
