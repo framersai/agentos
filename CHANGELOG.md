@@ -1,3 +1,7 @@
+## <small>0.1.183 (2026-04-08)</small>
+
+* feat: add IBatchTTS, BatchTTSConfig, and BatchTTSResult interfaces ([babe6aa](https://github.com/framersai/agentos/commit/babe6aa))
+
 ## <small>0.1.182 (2026-04-08)</small>
 
 * fix: add ignoreDeprecations 6.0 for TS 7.0 baseUrl warning ([b011e7f](https://github.com/framersai/agentos/commit/b011e7f))
