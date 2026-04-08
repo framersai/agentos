@@ -1,3 +1,7 @@
+## <small>0.1.189 (2026-04-08)</small>
+
+* fix: resolve CI lint failures (unused imports, require() style) ([a52a73f](https://github.com/framersai/agentos/commit/a52a73f))
+
 ## <small>0.1.188 (2026-04-08)</small>
 
 * feat: add optional reranker stage to CognitiveMemoryManager.retrieve() ([ee11490](https://github.com/framersai/agentos/commit/ee11490))
