@@ -35,10 +35,10 @@ export interface ImageProviderPreference {
 
 /** Default provider ordering for safe/standard content. */
 const DEFAULT_PROVIDER_CHAIN: string[] = [
+  'replicate',
+  'fal',
   'openai',
   'stability',
-  'fal',
-  'replicate',
 ];
 
 /** Provider ordering for mature/private-adult content (uncensored first). */
