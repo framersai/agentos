@@ -152,7 +152,7 @@ export function createValidatedInvoker<T extends z.ZodType>(
       retryHistory.push({
         attempt,
         rawOutput,
-        error: `Zod validation: ${(result.error.issues ?? result.error.errors ?? []).map((e: { path: (string | number)[]; message: string }) => `${e.path.join('.')}: ${e.message}`).join('; ')}`,
+        error: `Zod validation: ${(result.error.issues ?? []).map((e: any) => `${(e.path ?? []).join('.')}: ${e.message}`).join('; ')}`,
       });
     }
 
@@ -161,7 +161,8 @@ export function createValidatedInvoker<T extends z.ZodType>(
     // attempt, plus the complete retry history.
     const lastRaw = retryHistory[retryHistory.length - 1]?.rawOutput ?? '';
 
-    // Build a ZodError from the final attempt's validation
+    // Build a ZodError from the final attempt's validation.
+    // Try to re-parse so we get the actual Zod errors from the last attempt.
     let finalZodError: ZodError;
     const finalJsonStr = extractJson(lastRaw);
     if (finalJsonStr) {
@@ -169,13 +170,13 @@ export function createValidatedInvoker<T extends z.ZodType>(
         const finalParsed = JSON.parse(finalJsonStr);
         const finalResult = schema.safeParse(finalParsed);
         finalZodError = finalResult.success
-          ? new ZodError([])
+          ? new ZodError([]) as ZodError
           : finalResult.error;
       } catch {
-        finalZodError = new ZodError([{ code: 'custom', path: [], message: 'JSON parse failed' }]);
+        finalZodError = new ZodError([]) as ZodError;
       }
     } else {
-      finalZodError = new ZodError([{ code: 'custom', path: [], message: 'No JSON found in output' }]);
+      finalZodError = new ZodError([]) as ZodError;
     }
 
     throw new LlmOutputValidationError(
