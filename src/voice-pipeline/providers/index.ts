@@ -5,6 +5,7 @@
  * - {@link DeepgramStreamingSTT} — Deepgram WebSocket streaming STT
  * - {@link ElevenLabsStreamingTTS} — ElevenLabs WebSocket streaming TTS
  * - {@link AgentSessionVoiceAdapter} — AgentOS session → voice pipeline adapter
+ * - {@link OpenAIBatchTTS} — OpenAI batch (one-shot) TTS
  */
 
 export { DeepgramStreamingSTT, type DeepgramStreamingSTTConfig } from './DeepgramStreamingSTT.js';
@@ -17,3 +18,4 @@ export {
   type ElevenLabsStreamingTTSConfig,
 } from './ElevenLabsStreamingTTS.js';
 export { AgentSessionVoiceAdapter } from './AgentSessionVoiceAdapter.js';
+export { OpenAIBatchTTS, type OpenAIBatchTTSConfig } from './OpenAIBatchTTS.js';
