@@ -1,3 +1,7 @@
+## <small>0.1.186 (2026-04-08)</small>
+
+* feat: add BatchTTSFallback wrapper for multi-provider TTS failover ([5296a86](https://github.com/framersai/agentos/commit/5296a86))
+
 ## <small>0.1.185 (2026-04-08)</small>
 
 * feat: add ElevenLabsBatchTTS provider ([be750f6](https://github.com/framersai/agentos/commit/be750f6))
