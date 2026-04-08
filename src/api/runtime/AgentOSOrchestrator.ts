@@ -15,8 +15,6 @@ import {
   resolveTaskOutcomeTelemetryConfig,
   resolveAdaptiveExecutionConfig,
   type TaskOutcomeAssessment,
-  type TaskOutcomeKpiSummary,
-  type TaskOutcomeKpiAlert,
   type AdaptiveExecutionDecision,
   type ResolvedTaskOutcomeTelemetryConfig,
   type ResolvedAdaptiveExecutionConfig,

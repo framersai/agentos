@@ -217,7 +217,8 @@ function describeSchema(schema: z.ZodType): string {
 
   // Try zod-to-json-schema for complex schemas (optional dependency)
   try {
-    const zodToJsonSchema = require('zod-to-json-schema').zodToJsonSchema;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const zodToJsonSchema = require('zod-to-json-schema').zodToJsonSchema; // Dynamic optional dep
     const jsonSchema = zodToJsonSchema(schema);
     const str = JSON.stringify(jsonSchema, null, 2);
     // zod-to-json-schema may return {} for Zod v4 — check for useful content
