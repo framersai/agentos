@@ -1,3 +1,8 @@
+## <small>0.1.184 (2026-04-08)</small>
+
+* wip: save in-progress image changes ([3674be5](https://github.com/framersai/agentos/commit/3674be5))
+* feat: add OpenAIBatchTTS provider for one-shot narration synthesis ([952fcbe](https://github.com/framersai/agentos/commit/952fcbe))
+
 ## <small>0.1.183 (2026-04-08)</small>
 
 * feat: add IBatchTTS, BatchTTSConfig, and BatchTTSResult interfaces ([babe6aa](https://github.com/framersai/agentos/commit/babe6aa))
