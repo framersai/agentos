@@ -275,6 +275,94 @@ export interface MemoryHealthReport {
   tracesPerScope: Record<MemoryScope, number>;
 }
 
+// ---------------------------------------------------------------------------
+// API surface types (for downstream visualization, stats, and export)
+// ---------------------------------------------------------------------------
+
+/**
+ * Serializable snapshot of the full memory graph for visualization.
+ * Contains nodes (traces), edges (associations), clusters, and aggregate stats.
+ * Used by wilds-ai companion sidebar, memory graph view, and devtools.
+ */
+export interface MemoryGraphSnapshot {
+  nodes: Array<{
+    id: string;
+    type: MemoryType;
+    content: string;
+    strength: number;
+    isFlashbulb: boolean;
+    createdAt: number;
+    lastAccessedAt: number;
+    retrievalCount: number;
+  }>;
+  edges: Array<{
+    sourceId: string;
+    targetId: string;
+    type: string;
+    weight: number;
+  }>;
+  clusters: Array<{ clusterId: string; memberIds: string[]; density: number }>;
+  stats: {
+    nodeCount: number;
+    edgeCount: number;
+    clusterCount: number;
+  };
+}
+
+/**
+ * Observation pipeline health stats for devtools/monitoring.
+ * Exposes the state of the 3-tier pipeline: notes → compressed → reflected.
+ */
+export interface ObservationPipelineStats {
+  /** Number of raw observation notes pending compression. */
+  pendingNotes: number;
+  /** Number of compressed observations pending reflection. */
+  pendingCompressed: number;
+  /** Total observation notes produced since initialization. */
+  totalNotesProduced: number;
+  /** Total reflection cycles completed. */
+  totalReflectionsProduced: number;
+  /** Timestamp of last reflection cycle, or null if none. */
+  lastReflectionAt: number | null;
+  /** Average compression ratio (input tokens / output tokens). */
+  avgCompressionRatio: number;
+}
+
+/**
+ * Full exportable memory state for character portability across worlds.
+ * Used for companion export/import in wilds-ai.
+ */
+export interface CognitiveMemorySnapshot {
+  /** Snapshot format version. */
+  version: string;
+  /** Agent/entity ID that owns this memory. */
+  agentId: string;
+  /** All active memory traces. */
+  traces: MemoryTrace[];
+  /** Graph edges between traces. */
+  graphEdges: Array<{ sourceId: string; targetId: string; type: string; weight: number; createdAt: number }>;
+  /** Active prospective memory items. */
+  prospectiveItems: Array<{ id: string; content: string; triggerType: string; importance: number; triggered: boolean; createdAt: number }>;
+  /** Snapshot metadata for import validation. */
+  metadata: {
+    exportedAt: number;
+    traceCount: number;
+    typeDistribution: Record<MemoryType, number>;
+  };
+}
+
+/** Strength distribution stats per memory type. */
+export interface MemoryTypeStats {
+  /** Total traces of this type. */
+  count: number;
+  /** Average encoding strength across traces. */
+  avgStrength: number;
+  /** Number of traces below 0.3 strength (fading). */
+  decaying: number;
+  /** Number of flashbulb-strength traces (above 0.8). */
+  flashbulb: number;
+}
+
 export type {
   EmbeddingConfig,
   ExtendedConsolidationConfig,

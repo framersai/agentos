@@ -40,6 +40,11 @@ import type {
   AssembledMemoryContext,
   MemoryHealthReport,
   CognitiveRetrievalResult,
+  WorkingMemorySlot,
+  MemoryGraphSnapshot,
+  ObservationPipelineStats,
+  CognitiveMemorySnapshot,
+  MemoryTypeStats,
 } from './core/types.js';
 import type { PADState, CognitiveMemoryConfig } from './core/config.js';
 import type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
@@ -380,6 +385,441 @@ export class AgentMemory {
       this.throwUnsupportedForCognitive('feedback');
     }
     void this.standalone.feedback(traceId, signal, query);
+  }
+
+  // =========================================================================
+  // Extended API — visualization, stats, graph, export
+  // =========================================================================
+
+  /**
+   * Get a serializable snapshot of the memory graph for visualization.
+   * Returns nodes (traces), edges (associations), clusters, and aggregate stats.
+   *
+   * @throws When backed by standalone SQLite (requires CognitiveMemoryManager)
+   * @returns Graph snapshot suitable for JSON serialization
+   */
+  async getGraph(): Promise<MemoryGraphSnapshot> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getGraph');
+    }
+
+    const graph = this.manager.getGraph();
+    const store = this.manager.getStore();
+
+    // Build nodes from trace cache
+    const nodes: MemoryGraphSnapshot['nodes'] = [];
+    const allTraces = store.listTraces?.({ activeOnly: true }) ?? [];
+    for (const trace of allTraces) {
+      nodes.push({
+        id: trace.id,
+        type: trace.type,
+        content: trace.content,
+        strength: trace.encodingStrength,
+        isFlashbulb: trace.encodingStrength >= 0.8,
+        createdAt: trace.createdAt,
+        lastAccessedAt: trace.lastAccessedAt,
+        retrievalCount: trace.retrievalCount,
+      });
+    }
+
+    // Build edges and clusters from graph (if available)
+    const edges: MemoryGraphSnapshot['edges'] = [];
+    let clusters: MemoryGraphSnapshot['clusters'] = [];
+
+    if (graph) {
+      // Collect edges from all nodes
+      for (const node of nodes) {
+        const nodeEdges = graph.getEdges(node.id);
+        for (const edge of nodeEdges) {
+          // Avoid duplicates (edges are bidirectional)
+          if (edge.sourceId <= edge.targetId) {
+            edges.push({
+              sourceId: edge.sourceId,
+              targetId: edge.targetId,
+              type: edge.type,
+              weight: edge.weight,
+            });
+          }
+        }
+      }
+
+      // Detect clusters
+      try {
+        clusters = (await graph.detectClusters(3)).map((c) => ({
+          clusterId: c.clusterId,
+          memberIds: c.memberIds,
+          density: c.density,
+        }));
+      } catch {
+        // Clustering is non-critical
+      }
+    }
+
+    return {
+      nodes,
+      edges,
+      clusters,
+      stats: {
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        clusterCount: clusters.length,
+      },
+    };
+  }
+
+  /**
+   * Get spreading activation results from seed memories.
+   * Returns memories that are associatively connected to the seeds.
+   *
+   * @param seedTraceIds - IDs of seed traces to activate from
+   * @param opts - Optional depth and limit controls
+   * @throws When backed by standalone SQLite
+   */
+  async getAssociations(
+    seedTraceIds: string[],
+    opts?: { maxDepth?: number; limit?: number }
+  ): Promise<Array<{ memoryId: string; activation: number }>> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getAssociations');
+    }
+
+    const graph = this.manager.getGraph();
+    if (!graph) return [];
+
+    const results = await graph.spreadingActivation(seedTraceIds, {
+      maxDepth: opts?.maxDepth,
+      maxResults: opts?.limit,
+    });
+    return results.map((r) => ({ memoryId: r.memoryId, activation: r.activation }));
+  }
+
+  /**
+   * Get all traces filtered by memory type.
+   *
+   * @param type - Memory type to filter by (episodic, semantic, procedural, prospective, relational)
+   * @param opts - Optional limit and minimum strength filter
+   * @throws When backed by standalone SQLite
+   */
+  async getTracesByType(
+    type: MemoryType,
+    opts?: { limit?: number; minStrength?: number }
+  ): Promise<ScoredMemoryTrace[]> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getTracesByType');
+    }
+
+    const result = await this.manager.retrieve('', { valence: 0, arousal: 0, dominance: 0 }, {
+      types: [type],
+      topK: opts?.limit ?? 50,
+      minConfidence: opts?.minStrength,
+    });
+    return result.retrieved;
+  }
+
+  /**
+   * Get relational memory traces (trust signals, boundaries, emotional bonds).
+   * Convenience wrapper around getTracesByType('relational').
+   */
+  async getRelationalMemories(opts?: { limit?: number }): Promise<ScoredMemoryTrace[]> {
+    return this.getTracesByType('relational', opts);
+  }
+
+  /**
+   * Get memory strength distribution by type.
+   * Returns count, average strength, decaying count, and flashbulb count per type.
+   *
+   * @throws When backed by standalone SQLite
+   */
+  async getStrengthDistribution(): Promise<Record<MemoryType, MemoryTypeStats>> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getStrengthDistribution');
+    }
+
+    const store = this.manager.getStore();
+    const allTraces = store.listTraces?.({ activeOnly: true }) ?? [];
+
+    const dist: Record<string, MemoryTypeStats> = {
+      episodic: { count: 0, avgStrength: 0, decaying: 0, flashbulb: 0 },
+      semantic: { count: 0, avgStrength: 0, decaying: 0, flashbulb: 0 },
+      procedural: { count: 0, avgStrength: 0, decaying: 0, flashbulb: 0 },
+      prospective: { count: 0, avgStrength: 0, decaying: 0, flashbulb: 0 },
+      relational: { count: 0, avgStrength: 0, decaying: 0, flashbulb: 0 },
+    };
+
+    // Accumulate totals per type
+    const strengthSums: Record<string, number> = {};
+    for (const trace of allTraces) {
+      const entry = dist[trace.type];
+      if (!entry) continue;
+      entry.count++;
+      strengthSums[trace.type] = (strengthSums[trace.type] ?? 0) + trace.encodingStrength;
+      if (trace.encodingStrength < 0.3) entry.decaying++;
+      if (trace.encodingStrength >= 0.8) entry.flashbulb++;
+    }
+
+    // Compute averages
+    for (const type of Object.keys(dist)) {
+      if (dist[type].count > 0) {
+        dist[type].avgStrength = (strengthSums[type] ?? 0) / dist[type].count;
+      }
+    }
+
+    return dist as Record<MemoryType, MemoryTypeStats>;
+  }
+
+  /**
+   * Get pairs of contradicting memory traces.
+   *
+   * @throws When backed by standalone SQLite
+   */
+  async getConflicts(): Promise<Array<{ traceA: string; traceB: string; type: string }>> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getConflicts');
+    }
+
+    const graph = this.manager.getGraph();
+    if (!graph) return [];
+
+    const store = this.manager.getStore();
+    const allTraces = store.listTraces?.({ activeOnly: true }) ?? [];
+    const conflicts: Array<{ traceA: string; traceB: string; type: string }> = [];
+
+    for (const trace of allTraces) {
+      const contradictions = graph.getConflicts(trace.id);
+      for (const edge of contradictions) {
+        // Avoid duplicates
+        if (edge.sourceId < edge.targetId) {
+          conflicts.push({ traceA: edge.sourceId, traceB: edge.targetId, type: edge.type });
+        }
+      }
+    }
+
+    return conflicts;
+  }
+
+  /**
+   * Get clusters of strongly associated memories.
+   *
+   * @param minSize - Minimum cluster size (default 3)
+   * @throws When backed by standalone SQLite
+   */
+  async getClusters(minSize?: number): Promise<Array<{ clusterId: string; memberIds: string[]; density: number }>> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getClusters');
+    }
+
+    const graph = this.manager.getGraph();
+    if (!graph) return [];
+
+    return graph.detectClusters(minSize ?? 3);
+  }
+
+  /**
+   * Get working memory slots — what's currently "in focus".
+   *
+   * @throws When backed by standalone SQLite
+   */
+  async getWorkingMemory(): Promise<WorkingMemorySlot[]> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getWorkingMemory');
+    }
+
+    return this.manager.getWorkingMemory().getSlots();
+  }
+
+  /**
+   * Get observation pipeline stats (pending notes, compression ratio, reflection count).
+   *
+   * @throws When backed by standalone SQLite
+   */
+  async getObservationStats(): Promise<ObservationPipelineStats> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('getObservationStats');
+    }
+
+    const observer = this.manager.getObserver();
+    return {
+      pendingNotes: observer?.getAccumulatedNoteCount() ?? 0,
+      pendingCompressed: observer?.getAccumulatedCompressedCount() ?? 0,
+      totalNotesProduced: 0, // TODO: expose counter from observer
+      totalReflectionsProduced: 0, // TODO: expose counter from reflector
+      lastReflectionAt: null,
+      avgCompressionRatio: 0,
+    };
+  }
+
+  /**
+   * Get active prospective memory items (reminders/intentions).
+   * Alias for `reminders()` with a more descriptive name.
+   */
+  async getProspectiveItems(): Promise<ProspectiveMemoryItem[]> {
+    return this.reminders();
+  }
+
+  /**
+   * Force a reflection cycle (useful for testing / devtools).
+   * Triggers the Observer's note extraction and the Reflector's consolidation
+   * regardless of token thresholds.
+   *
+   * @throws When backed by standalone SQLite
+   * @returns Reflection result with typed traces, or empty result if no observer
+   */
+  async forceReflection(): Promise<{ traces: number; superseded: number }> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('forceReflection');
+    }
+
+    const observer = this.manager.getObserver();
+    if (!observer) return { traces: 0, superseded: 0 };
+
+    // Force extract notes
+    const notes = await observer.extractNotes();
+    if (notes.length === 0) return { traces: 0, superseded: 0 };
+
+    // Force reflect
+    const reflector = (this.manager as any).reflector;
+    if (!reflector) return { traces: 0, superseded: 0 };
+
+    // Add notes and force reflection
+    for (const note of notes) {
+      reflector.pendingNotes = reflector.pendingNotes ?? [];
+      reflector.pendingNotes.push(note);
+    }
+    const result = await reflector.reflect();
+    return {
+      traces: result.traces.length,
+      superseded: result.supersededTraceIds.length,
+    };
+  }
+
+  /**
+   * Export full memory state as a serializable snapshot.
+   * Used for companion portability across worlds in wilds-ai.
+   *
+   * @throws When backed by standalone SQLite
+   */
+  async exportSnapshot(): Promise<CognitiveMemorySnapshot> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('exportSnapshot');
+    }
+
+    const store = this.manager.getStore();
+    const allTraces = store.listTraces?.({ activeOnly: true }) ?? [];
+    const graph = this.manager.getGraph();
+    const prospective = await (this.manager.listProspective?.() ?? []);
+
+    // Collect graph edges
+    const graphEdges: CognitiveMemorySnapshot['graphEdges'] = [];
+    if (graph) {
+      for (const trace of allTraces) {
+        for (const edge of graph.getEdges(trace.id)) {
+          if (edge.sourceId <= edge.targetId) {
+            graphEdges.push({
+              sourceId: edge.sourceId,
+              targetId: edge.targetId,
+              type: edge.type,
+              weight: edge.weight,
+              createdAt: edge.createdAt,
+            });
+          }
+        }
+      }
+    }
+
+    // Type distribution
+    const typeDistribution: Record<string, number> = {
+      episodic: 0, semantic: 0, procedural: 0, prospective: 0, relational: 0,
+    };
+    for (const trace of allTraces) {
+      typeDistribution[trace.type] = (typeDistribution[trace.type] ?? 0) + 1;
+    }
+
+    return {
+      version: '1.0.0',
+      agentId: this.manager.getConfig().agentId,
+      traces: allTraces,
+      graphEdges,
+      prospectiveItems: prospective.map((p) => ({
+        id: p.id,
+        content: p.content,
+        triggerType: p.triggerType,
+        importance: p.importance,
+        triggered: p.triggered,
+        createdAt: p.createdAt,
+      })),
+      metadata: {
+        exportedAt: Date.now(),
+        traceCount: allTraces.length,
+        typeDistribution: typeDistribution as Record<MemoryType, number>,
+      },
+    };
+  }
+
+  /**
+   * Import a memory snapshot (for character portability across worlds).
+   * Encodes each trace and registers prospective items.
+   *
+   * @param snapshot - Previously exported snapshot
+   * @throws When backed by standalone SQLite
+   * @returns Count of imported traces and conflicts detected
+   */
+  async importSnapshot(snapshot: CognitiveMemorySnapshot): Promise<{ imported: number; conflicts: number }> {
+    this.ensureReady();
+    if (!this.manager) {
+      this.throwUnsupportedForStandalone('importSnapshot');
+    }
+
+    let imported = 0;
+    let conflicts = 0;
+
+    for (const trace of snapshot.traces) {
+      try {
+        await this.manager.encode(
+          trace.content,
+          trace.emotionalContext ?? { valence: 0, arousal: 0, dominance: 0 },
+          trace.emotionalContext?.gmiMood ?? 'neutral',
+          {
+            type: trace.type,
+            scope: trace.scope,
+            scopeId: trace.scopeId,
+            sourceType: trace.provenance?.sourceType ?? 'external',
+            tags: trace.tags,
+            entities: trace.entities,
+          }
+        );
+        imported++;
+      } catch {
+        conflicts++;
+      }
+    }
+
+    // Re-register prospective items
+    for (const item of snapshot.prospectiveItems) {
+      if (!item.triggered) {
+        try {
+          await this.manager.registerProspective?.({
+            content: item.content,
+            triggerType: item.triggerType as any,
+            importance: item.importance,
+            recurring: false,
+          });
+        } catch {
+          // Non-critical
+        }
+      }
+    }
+
+    return { imported, conflicts };
   }
 
   get isInitialized(): boolean {
