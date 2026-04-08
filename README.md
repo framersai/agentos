@@ -584,6 +584,46 @@ Pass `{}` for all defaults, or omit entirely to disable (zero overhead).
 
 Memory is organized in a 4-tier hierarchy: `core/` (encoding, decay, working memory), `retrieval/` (composite scoring, graph, prospective), `pipeline/` (consolidation, observation, lifecycle), `io/` (ingestion, import/export).
 
+**Automatic Memory Type Decomposition** -- the Observer→Reflector pipeline automatically classifies raw conversation into 5 memory types:
+
+| Type | What it stores | Example |
+|------|---------------|---------|
+| **Episodic** | Autobiographical events | "User and I discussed deployment on March 5th" |
+| **Semantic** | Durable facts | "User is a software engineer" |
+| **Procedural** | Patterns and preferences | "User prefers concise answers" |
+| **Prospective** | Future intentions | "User said they'd check back Friday" |
+| **Relational** | Trust signals and bonds | "User shared vulnerability about work stress" |
+
+The Reflector uses chain-of-thought reasoning and HEXACO personality bias to classify each trace. Commitment notes are auto-registered as prospective reminders.
+
+**KnowledgeGraph** is enabled by default -- spreading activation (Collins & Quillian model), Hebbian co-activation learning, conflict detection, and graph-boosted retrieval scoring. Set `graph: { disabled: true }` to opt out.
+
+**HyDE Memory Retrieval** -- a memory-specific Hypothetical Document Embedding retriever auto-attaches when an LLM invoker is available. Generates hypothetical stored traces for vague queries like "that thing about cats", improving recall. Opt-in per query via `retrieve({ hyde: true })`.
+
+**Prompt Assembly Guidance** -- the `MemoryPromptAssembler` injects a personality-aware preamble that teaches the LLM how to use each memory type differently (semantic as background truth, episodic woven naturally, prospective as action items, relational as tone modulators).
+
+**SqliteBrain Persistence** -- the cognitive memory path writes through to SqliteBrain's SQL tables via `@framers/sql-storage-adapter`. Traces survive process restarts. In-memory vector index is the hot read path; SQL is the durable backing store.
+
+**Full API Surface** via `AgentMemory`:
+
+```typescript
+const memory = AgentMemory.wrap(cognitiveManager);
+
+// Visualization
+const graph = await memory.getGraph();           // nodes, edges, clusters
+const dist = await memory.getStrengthDistribution(); // per-type stats
+const conflicts = await memory.getConflicts();   // contradicting traces
+
+// Inspection
+const relational = await memory.getRelationalMemories();
+const working = await memory.getWorkingMemory(); // in-focus slots
+const stats = await memory.getObservationStats(); // pipeline health
+
+// Portability
+const snapshot = await memory.exportSnapshot();  // full state export
+await memory.importSnapshot(snapshot);           // restore from export
+```
+
 See [`docs/memory/COGNITIVE_MECHANISMS.md`](./docs/memory/COGNITIVE_MECHANISMS.md) for API reference and 30+ APA citations.
 
 ### Multimodal RAG
@@ -598,6 +638,67 @@ Complete retrieval-augmented generation pipeline:
 - **One-command migration** between any two backends via `MigrationEngine`
 
 See [`docs/memory/RAG_MEMORY_CONFIGURATION.md`](./docs/memory/RAG_MEMORY_CONFIGURATION.md) and [`docs/memory/MULTIMODAL_RAG.md`](./docs/memory/MULTIMODAL_RAG.md).
+
+### LLM Output Validation
+
+Structured LLM outputs are validated with Zod schemas, retried with error feedback on failure, and use provider-native structured output when available.
+
+```typescript
+import { createValidatedInvoker } from '@framers/agentos/core/validation';
+import { z } from 'zod';
+
+const PersonalitySchema = z.object({
+  honesty: z.number().min(0).max(100),
+  emotionality: z.number().min(0).max(100),
+  extraversion: z.number().min(0).max(100),
+});
+
+// Wrap any LLM invoker with Zod validation + retry
+const validated = createValidatedInvoker(llmInvoker, PersonalitySchema, {
+  maxRetries: 2,              // retry with error feedback on failure
+  injectSchemaOnRetry: true,  // include schema description in retry prompt
+});
+
+const personality = await validated(systemPrompt, userPrompt);
+// personality is typed as { honesty: number; emotionality: number; extraversion: number }
+```
+
+**Centralized JSON extraction** handles all messy LLM output formats:
+
+```typescript
+import { extractJson } from '@framers/agentos/core/validation';
+
+extractJson('```json\n{"key": "value"}\n```');     // '{"key": "value"}'
+extractJson('<thinking>hmm</thinking>\n{"a": 1}');  // '{"a": 1}'
+extractJson('Result: {"a": 1} done');               // '{"a": 1}'
+extractJson('{"a":1}\n{"b":2}');                    // '[{"a":1},{"b":2}]' (JSONL)
+```
+
+**Agent-level validation** via `responseSchema`:
+
+```typescript
+const extractor = agent({
+  instructions: 'Extract entities as JSON',
+  responseSchema: z.object({ entities: z.array(z.string()) }),
+});
+
+const result = await extractor.generate('Find entities in: ...');
+// result.parsed?.entities is string[] — typed and validated
+```
+
+**Schema primitives** for composing domain-specific schemas:
+
+```typescript
+import { MemoryTypeEnum, ConfidenceScore, EntityArray } from '@framers/agentos/core/validation';
+
+const MySchema = z.object({
+  type: MemoryTypeEnum,       // 'episodic' | 'semantic' | 'procedural' | 'prospective' | 'relational'
+  confidence: ConfidenceScore, // number 0-1
+  entities: EntityArray,       // string[], defaults to []
+});
+```
+
+When validation fails after all retries, `LlmOutputValidationError` is thrown with the raw output, Zod errors, retry count, and full retry history for debugging.
 
 ### Adaptive Intelligence & Metacognition
 
