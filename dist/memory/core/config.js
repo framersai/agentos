@@ -2,6 +2,19 @@
  * @fileoverview Configuration types for the Cognitive Memory System.
  * @module agentos/memory/config
  */
+/**
+ * Default memory graph configuration.
+ * Graph is enabled by default with the KnowledgeGraph backend,
+ * providing spreading activation and Hebbian learning out of the box.
+ */
+export const DEFAULT_GRAPH_CONFIG = {
+    disabled: false,
+    backend: 'knowledge-graph',
+    maxDepth: 3,
+    decayPerHop: 0.5,
+    activationThreshold: 0.1,
+    hebbianLearningRate: 0.1,
+};
 // ---------------------------------------------------------------------------
 // Defaults
 // ---------------------------------------------------------------------------

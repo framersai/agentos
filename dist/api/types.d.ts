@@ -488,6 +488,18 @@ export interface ResourceControls {
     /** Maximum number of emergent agents the orchestrator may synthesise. */
     maxEmergentAgents?: number;
     /**
+     * Maximum number of retries when structured output validation fails.
+     *
+     * When `agent({ output: someZodSchema })` is set and the LLM returns text
+     * that does not parse or validate against the schema, the agency will
+     * retry the generation up to this many times, each time appending an
+     * error feedback hint to the prompt so the model can self-correct.
+     *
+     * Defaults to `1` (one extra attempt = two total calls). Set to `0` to
+     * disable retries entirely.
+     */
+    maxValidationRetries?: number;
+    /**
      * Action taken when any resource limit is breached.
      * - `"stop"` — gracefully stop and return partial results.
      * - `"warn"` — emit a `limitReached` event and continue.

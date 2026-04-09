@@ -97,6 +97,7 @@ export declare class CognitiveMemoryManager implements ICognitiveMemoryManager {
     private consolidation;
     private contextWindow;
     private mechanismsEngine;
+    private rerankerService;
     /**
      * Optional HyDE retriever for hypothesis-driven memory recall.
      *
@@ -118,6 +119,50 @@ export declare class CognitiveMemoryManager implements ICognitiveMemoryManager {
     }): Promise<MemoryTrace>;
     retrieve(query: string, mood: PADState, options?: CognitiveRetrievalOptions): Promise<CognitiveRetrievalResult>;
     assembleForPrompt(query: string, tokenBudget: number, mood: PADState, options?: CognitiveRetrievalOptions): Promise<AssembledMemoryContext>;
+    /**
+     * Temporal patterns for extracting time-based triggers from observation notes.
+     * Matches relative expressions ("tomorrow", "next Friday", "in 2 hours")
+     * and absolute expressions ("on March 5th", "at 3pm").
+     */
+    private static readonly TEMPORAL_PATTERNS;
+    /**
+     * Event-based patterns for extracting event triggers from observation notes.
+     * Matches conditional language ("when X happens", "after the meeting").
+     */
+    private static readonly EVENT_PATTERNS;
+    /**
+     * Infer the prospective trigger type from an observation note's content.
+     * Uses regex heuristics — no LLM call needed.
+     *
+     * Priority: temporal patterns (most specific) → event patterns → context-based fallback.
+     *
+     * @param note - The observation note to classify
+     * @returns The most likely trigger type for ProspectiveMemoryManager
+     */
+    private inferTriggerType;
+    /**
+     * Extract an event cue string from "when X" / "after X" patterns.
+     * Returns undefined if no event language is detected.
+     *
+     * @param note - The observation note to extract from
+     * @returns Event cue string, or undefined
+     */
+    private extractEventCue;
+    /**
+     * Feed a conversation message to the observation pipeline.
+     *
+     * Pipeline flow:
+     * 1. Observer extracts typed observation notes from buffered messages
+     * 2. Notes are fed to the Reflector for consolidation into long-term traces
+     * 3. Reflected traces are encoded via `encode()` (typed as semantic/episodic/etc.)
+     * 4. Superseded traces are soft-deleted
+     * 5. Commitment and intention notes are auto-registered with ProspectiveMemoryManager
+     *
+     * @param role - Message role (user, assistant, system, tool)
+     * @param content - Message text content
+     * @param mood - Optional PAD emotional state at observation time
+     * @returns Observation notes if threshold was reached, null otherwise
+     */
     observe(role: 'user' | 'assistant' | 'system' | 'tool', content: string, mood?: PADState): Promise<ObservationNote[] | null>;
     checkProspective(context: {
         now?: number;

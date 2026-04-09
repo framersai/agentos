@@ -58,18 +58,43 @@ export interface ReflectorConfig {
     /** LLM invoker function. */
     llmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
 }
+/**
+ * Configuration for the memory graph subsystem.
+ *
+ * The memory graph powers spreading activation (Collins & Quillian model),
+ * Hebbian co-activation learning ("neurons that fire together wire together"),
+ * conflict detection, clustering, and graph-boosted retrieval scoring.
+ *
+ * Enabled by default when CognitiveMemoryManager is initialized.
+ * Set `disabled: true` to opt out entirely.
+ */
 export interface MemoryGraphConfig {
-    /** Which backend to use. @default 'knowledge-graph' */
-    backend: 'graphology' | 'knowledge-graph';
+    /**
+     * Set to true to disable the memory graph entirely.
+     * When disabled, spreading activation, Hebbian co-activation,
+     * and graph-based retrieval boosting are all skipped.
+     * @default false
+     */
+    disabled?: boolean;
+    /** Which graph backend to use. @default 'knowledge-graph' */
+    backend?: 'graphology' | 'knowledge-graph';
     /** Max hops for spreading activation. @default 3 */
-    maxDepth: number;
-    /** Activation decay per hop. @default 0.5 */
-    decayPerHop: number;
-    /** Minimum activation to continue spreading. @default 0.1 */
-    activationThreshold: number;
-    /** Hebbian learning rate for co-activation edge strengthening. @default 0.1 */
-    hebbianLearningRate: number;
+    maxDepth?: number;
+    /** Activation decay per hop (0-1). @default 0.5 */
+    decayPerHop?: number;
+    /** Minimum activation to continue spreading (0-1). @default 0.1 */
+    activationThreshold?: number;
+    /** Hebbian learning rate for co-activation edge strengthening (0-1). @default 0.1 */
+    hebbianLearningRate?: number;
 }
+/**
+ * Default memory graph configuration.
+ * Graph is enabled by default with the KnowledgeGraph backend,
+ * providing spreading activation and Hebbian learning out of the box.
+ */
+export declare const DEFAULT_GRAPH_CONFIG: Required<Omit<MemoryGraphConfig, 'disabled'>> & {
+    disabled: false;
+};
 export interface ConsolidationConfig {
     /** How often to run consolidation (ms). @default 3_600_000 (1 hour) */
     intervalMs: number;
@@ -169,6 +194,36 @@ export interface CognitiveMemoryConfig {
     maxContextTokens?: number;
     /** @default 'cogmem' */
     collectionPrefix?: string;
+    /**
+     * Optional SqliteBrain instance for durable persistence.
+     *
+     * When provided, memory traces, knowledge graph nodes/edges,
+     * prospective items, and observation pipeline state are persisted
+     * to the brain's SQL tables via sql-storage-adapter. The in-memory
+     * vector index remains the hot read path; SqliteBrain is the durable
+     * backing store that survives process restarts.
+     *
+     * Falls back to in-memory-only storage when omitted.
+     *
+     * @default undefined (in-memory only)
+     * @see {@link SqliteBrain} — the cross-platform persistence layer
+     */
+    brain?: import('../retrieval/store/SqliteBrain.js').SqliteBrain;
+    /**
+     * Optional reranker service for post-retrieval quality improvement.
+     *
+     * When provided, retrieved memory traces are reranked after the
+     * cognitive scoring pipeline (vector similarity + strength + recency +
+     * emotional congruence + graph activation + importance). The reranker
+     * score is blended with the existing composite score at a 0.7/0.3
+     * weighting to preserve cognitive signals while boosting semantically
+     * relevant results.
+     *
+     * Recommended: Cohere rerank-v3.5 primary, LLM-Judge fallback.
+     *
+     * @default undefined (no reranking)
+     */
+    rerankerService?: import('../../rag/reranking/RerankerService.js').RerankerService;
 }
 export declare const DEFAULT_ENCODING_CONFIG: EncodingConfig;
 export declare const DEFAULT_DECAY_CONFIG: DecayConfig;

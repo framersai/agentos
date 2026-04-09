@@ -226,8 +226,42 @@ export function agency(opts: AgencyOptions): Agent {
 
     try {
       const preparedPrompt = await prepareExecutionPrompt(prompt);
-      const result = (await strategy.execute(preparedPrompt, execOpts)) as Record<string, unknown>;
-      return await finalizeExecutionResult(result, start, sessionId);
+
+      // Validation retry loop — when `opts.output` is a Zod schema and the
+      // LLM returns unparseable/invalid text, retry with the previous error
+      // appended to the prompt so the model can self-correct.
+      const maxValidationRetries = controls?.maxValidationRetries ?? 1;
+      const hasValidation = !!opts.output;
+
+      let currentPrompt = preparedPrompt;
+      let lastResult: Record<string, unknown> | null = null;
+      let lastFinalized: FinalizedExecutionResult | null = null;
+
+      const maxAttempts = hasValidation ? maxValidationRetries + 1 : 1;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const result = (await strategy.execute(currentPrompt, execOpts)) as Record<string, unknown>;
+        lastResult = result;
+        const finalized = await finalizeExecutionResult(result, start, sessionId);
+        lastFinalized = finalized;
+
+        // Success path: no validation required, OR validation produced a `parsed` value
+        if (!hasValidation || finalized.parsed !== undefined) {
+          return finalized;
+        }
+
+        // Validation failed. If more attempts remain, retry with error feedback.
+        if (attempt < maxAttempts) {
+          const textPreview = typeof finalized.text === 'string'
+            ? finalized.text.slice(0, 200)
+            : '(no text)';
+          currentPrompt = `${preparedPrompt}\n\nPrevious attempt failed to return valid JSON matching the schema. Response was: ${textPreview}\n\nReturn ONLY a single valid JSON object matching the schema. No markdown code fences. No commentary before or after. Start with { and end with }.`;
+          continue;
+        }
+      }
+
+      // All attempts exhausted — return the last result (parsed will be undefined).
+      return lastFinalized!;
     } catch (error) {
       opts.on?.error?.({
         agent: agencyName,
@@ -1185,11 +1219,62 @@ function appendSchemaHint(prompt: string, schema: unknown): string {
  * @param schema - The Zod schema (typed as `unknown` to avoid a hard zod dep).
  * @returns The parsed and validated object, or `undefined` on failure.
  */
+/**
+ * Extract the first complete JSON object from raw text using brace-matching.
+ *
+ * Walks the string respecting string quotes and escape sequences, so nested
+ * braces inside string values do not confuse the parser. Far more reliable
+ * than the `/\{[\s\S]*\}/` greedy regex, which fails when the LLM appends
+ * commentary after a complete object (e.g. `{"a":1}\nHere's your world...`).
+ *
+ * @returns The parsed JSON value, or `undefined` if no valid object was found.
+ */
+function extractFirstJsonObject(text: string): unknown {
+  if (!text) return undefined;
+
+  const start = text.indexOf('{');
+  if (start < 0) return undefined;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function parseStructuredOutput(text: string, schema: unknown): unknown {
   const zodSchema = schema as { parse: (v: unknown) => unknown };
   if (typeof zodSchema?.parse !== 'function') return undefined;
 
-  /* Attempt 1: direct JSON parse of the entire text. */
+  /* Attempt 1: direct JSON parse of the entire text (happy path). */
   try {
     const raw = JSON.parse(text);
     return zodSchema.parse(raw);
@@ -1197,17 +1282,25 @@ function parseStructuredOutput(text: string, schema: unknown): unknown {
     /* Fall through to extraction heuristics. */
   }
 
-  /* Attempt 2: extract JSON from a code fence or the first { ... } block. */
-  const jsonMatch =
-    text.match(/```json\n?([\s\S]*?)\n?```/) ??
-    text.match(/(\{[\s\S]*\})/);
-
-  if (jsonMatch) {
+  /* Attempt 2: strip markdown code fences (```json ... ``` or ``` ... ```). */
+  const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (fenceMatch?.[1]) {
     try {
-      const raw = JSON.parse(jsonMatch[1] ?? jsonMatch[0]);
+      const raw = JSON.parse(fenceMatch[1].trim());
       return zodSchema.parse(raw);
     } catch {
-      /* Extraction or validation failed — return undefined. */
+      /* Fall through to brace matching. */
+    }
+  }
+
+  /* Attempt 3: brace-matched extraction of the first complete JSON object.
+   * Handles trailing commentary and nested braces inside string values. */
+  const extracted = extractFirstJsonObject(text);
+  if (extracted !== undefined) {
+    try {
+      return zodSchema.parse(extracted);
+    } catch {
+      /* Validation failed — return undefined so caller can retry. */
     }
   }
 

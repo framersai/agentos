@@ -91,6 +91,13 @@ export declare class SqliteBrain {
      */
     static open(dbPath: string): Promise<SqliteBrain>;
     /**
+     * Alias for `open()` — matches the naming convention used by WildsMemoryFacade.
+     *
+     * @param dbPath - Absolute path to the `.sqlite` file.
+     * @returns A fully initialised `SqliteBrain` instance.
+     */
+    static create(dbPath: string): Promise<SqliteBrain>;
+    /**
      * Execute a mutation statement (INSERT, UPDATE, DELETE).
      *
      * @param sql    - SQL statement with `?` positional placeholders.

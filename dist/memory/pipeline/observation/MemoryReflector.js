@@ -15,31 +15,77 @@
 // ---------------------------------------------------------------------------
 // Personality-aware system prompt
 // ---------------------------------------------------------------------------
+/**
+ * Build a personality-biased system prompt for the memory reflector.
+ *
+ * Personality influences (grounded in HEXACO model of personality):
+ * - High honesty → prefer newer info over old on contradiction (source monitoring)
+ * - High agreeableness → keep both versions on contradiction (cognitive flexibility)
+ * - High conscientiousness → structured, categorized output (organizational encoding)
+ * - High openness → rich, associative output (spreading activation style)
+ * - High emotionality → heightened sensitivity to relational/emotional signals
+ * - High extraversion → captures social dynamics and group interactions
+ *
+ * The chain-of-thought `<thinking>` block asks the LLM to reason about
+ * each memory type before extraction, improving classification accuracy
+ * and ensuring relational signals are not overlooked.
+ *
+ * @param traits - HEXACO personality traits of the agent
+ * @returns System prompt string for the LLM reflector call
+ */
 function buildReflectorSystemPrompt(traits) {
     const clamp = (v) => v == null ? 0.5 : Math.max(0, Math.min(1, v));
+    // Conflict resolution strategy — mirrors source monitoring in cognitive psychology.
+    // High honesty agents trust newer information; high agreeableness agents preserve both.
     const conflictStrategy = clamp(traits.honesty) > 0.6
         ? 'When you detect a contradiction with existing knowledge, prefer the newer information and flag the old memory for supersession.'
         : clamp(traits.agreeableness) > 0.6
             ? 'When you detect a contradiction, keep both versions and note the discrepancy.'
             : 'When you detect a contradiction, keep the version with higher confidence.';
+    // Memory organization style — mirrors encoding specificity principle.
     const memoryStyle = clamp(traits.conscientiousness) > 0.6
         ? 'Produce structured, well-organized memory traces with clear categories.'
         : clamp(traits.openness) > 0.6
             ? 'Produce rich, associative memory traces that capture connections and context.'
             : 'Produce concise, factual memory traces focused on key information.';
+    // Relational sensitivity — emotionality and agreeableness heighten
+    // detection of trust signals, boundary events, and social cues.
+    const relationalEmphases = [];
+    if (clamp(traits.emotionality) > 0.6) {
+        relationalEmphases.push('Pay special attention to emotional subtleties, vulnerability signals, and shifts in emotional tone — these are important relational memories.');
+    }
+    if (clamp(traits.agreeableness) > 0.6) {
+        relationalEmphases.push('Notice rapport cues, harmony signals, and moments of mutual understanding.');
+    }
+    if (clamp(traits.extraversion) > 0.6) {
+        relationalEmphases.push('Capture social dynamics, group interactions, and interpersonal energy shifts.');
+    }
+    const relationalBlock = relationalEmphases.length > 0
+        ? `\n\nRelational sensitivity:\n${relationalEmphases.map((e) => `- ${e}`).join('\n')}`
+        : '';
     return `You are a memory reflector. Your job is to consolidate observation notes into long-term memory traces.
+
+Before producing traces, reason step by step inside <thinking> tags:
+1. What new FACTS did the user reveal? (semantic)
+2. What EVENTS happened worth remembering? (episodic)
+3. What PATTERNS or PREFERENCES emerged? (procedural)
+4. What FUTURE INTENTIONS were expressed? (prospective)
+5. What RELATIONSHIP SIGNALS appeared — vulnerability, trust, conflict, warmth? (relational)
+6. Do any of these CONTRADICT existing memories? If so, which is more reliable?
+7. What can be MERGED from multiple notes into a single trace?
 
 Rules:
 1. Merge redundant or overlapping observations into single traces
-2. Assign each trace a type: "episodic" (events), "semantic" (facts/knowledge), "procedural" (how-to), or "prospective" (future goals/intentions)
+2. Assign each trace a type: "episodic" (events/experiences), "semantic" (facts/knowledge), "procedural" (how-to/patterns), "prospective" (future intentions/reminders), or "relational" (trust signals, boundary events, emotional bonds, relationship shifts)
 3. Assign a scope: "user" (about the user), "thread" (conversation-specific), "persona" (about the agent), or "organization" (shared)
 4. ${conflictStrategy}
 5. ${memoryStyle}
-6. Target 5-40x compression: many notes → few high-quality traces
+6. Target 5-40x compression: many notes → few high-quality traces${relationalBlock}
 
-For each trace, output a JSON object on its own line:
+After your <thinking> block, output JSON objects, one per line:
 {
-  "type": "episodic|semantic|procedural|prospective",
+  "reasoning": "brief explanation of why this trace matters",
+  "type": "episodic|semantic|procedural|prospective|relational",
   "scope": "user|thread|persona|organization",
   "scopeId": "relevant_id",
   "content": "consolidated memory content",
@@ -51,7 +97,7 @@ For each trace, output a JSON object on its own line:
   "consumedNotes": ["note_id1", "note_id2"]
 }
 
-Output ONLY valid JSON objects, one per line.`;
+Output your <thinking> block first, then ONLY valid JSON objects, one per line.`;
 }
 // ---------------------------------------------------------------------------
 // MemoryReflector
@@ -123,20 +169,41 @@ export class MemoryReflector {
         this.pendingNotes = [];
     }
     // --- Internal ---
+    /**
+     * Parse the LLM's reflection response into structured trace data.
+     *
+     * Handles:
+     * - Stripping `<thinking>...</thinking>` blocks (chain-of-thought reasoning)
+     * - Parsing one JSON object per line
+     * - Validating and normalizing type/scope enums
+     * - Preserving the optional `reasoning` field for devtools
+     * - Collecting superseded and consumed note IDs
+     *
+     * @param llmResponse - Raw LLM output containing optional thinking block + JSON lines
+     * @returns Parsed reflection result with typed traces
+     */
     parseReflection(llmResponse) {
         const traces = [];
         const supersededTraceIds = [];
         const consumedNoteIds = [];
-        const lines = llmResponse.split('\n').filter((l) => l.trim());
+        // Strip <thinking>...</thinking> blocks before parsing JSON lines.
+        // The thinking block contains the reflector's chain-of-thought reasoning
+        // which is useful for debugging but not part of the trace data.
+        const cleaned = llmResponse.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+        const lines = cleaned.split('\n').filter((l) => l.trim());
         const now = Date.now();
         for (const line of lines) {
             try {
                 const parsed = JSON.parse(line.trim());
                 if (!parsed.content)
                     continue;
+                // Validate memory type — defaults to 'semantic' for unrecognized types.
+                // All 5 Tulving-extended types are accepted: episodic, semantic,
+                // procedural, prospective, and relational.
                 const type = (['episodic', 'semantic', 'procedural', 'prospective', 'relational'].includes(parsed.type)
                     ? parsed.type
                     : 'semantic');
+                // Validate memory scope — defaults to 'user' for unrecognized scopes.
                 const scope = (['user', 'thread', 'persona', 'organization'].includes(parsed.scope)
                     ? parsed.scope
                     : 'user');
@@ -162,6 +229,9 @@ export class MemoryReflector {
                     },
                     associatedTraceIds: [],
                     isActive: true,
+                    // Preserve reasoning for devtools — CognitiveMemoryManager strips
+                    // this before passing to encode() since it's not part of MemoryTrace.
+                    reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : undefined,
                 });
                 if (Array.isArray(parsed.supersedes)) {
                     supersededTraceIds.push(...parsed.supersedes);
@@ -171,10 +241,12 @@ export class MemoryReflector {
                 }
             }
             catch {
-                // Skip malformed lines
+                // Skip malformed lines — common when LLM outputs markdown fences or commentary
             }
         }
-        // If no specific notes were claimed, consider all pending consumed
+        // If no specific notes were claimed, consider all pending consumed.
+        // This handles the case where the LLM omits consumedNotes fields
+        // but still produces valid traces from the input notes.
         if (consumedNoteIds.length === 0 && traces.length > 0) {
             consumedNoteIds.push(...this.pendingNotes.map((n) => n.id));
         }

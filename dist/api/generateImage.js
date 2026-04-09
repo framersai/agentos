@@ -27,11 +27,11 @@ import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observa
  * fallback priority (first = highest priority).
  */
 const IMAGE_PROVIDER_ENV_MAP = [
+    { envKey: 'REPLICATE_API_TOKEN', providerId: 'replicate' },
+    { envKey: 'FAL_API_KEY', providerId: 'fal' },
+    { envKey: 'BFL_API_KEY', providerId: 'bfl' },
     { envKey: 'OPENAI_API_KEY', providerId: 'openai' },
     { envKey: 'STABILITY_API_KEY', providerId: 'stability' },
-    { envKey: 'REPLICATE_API_TOKEN', providerId: 'replicate' },
-    { envKey: 'BFL_API_KEY', providerId: 'bfl' },
-    { envKey: 'FAL_API_KEY', providerId: 'fal' },
     { envKey: 'OPENROUTER_API_KEY', providerId: 'openrouter' },
     { envKey: 'STABLE_DIFFUSION_LOCAL_BASE_URL', providerId: 'stable-diffusion-local' },
 ];

@@ -40,7 +40,22 @@ export declare class MemoryStore {
     private knownScopes;
     /** Optional cognitive mechanisms engine for retrieval-time hooks. */
     private mechanismsEngine?;
+    /**
+     * Optional SqliteBrain for durable write-through persistence.
+     * When set, store/softDelete/recordAccess also write to the brain's SQL tables.
+     * The in-memory vector index remains the hot read path (fast); the brain is
+     * the durable backing store that survives process restarts.
+     */
+    private brain;
     constructor(config: MemoryStoreConfig);
+    /**
+     * Attach a SqliteBrain for durable write-through persistence.
+     * Once attached, all store/softDelete/recordAccess operations also
+     * write to the brain's `memory_traces` table.
+     *
+     * @param brain - SqliteBrain instance (already initialized with schema)
+     */
+    setBrain(brain: import('./SqliteBrain.js').SqliteBrain): void;
     /**
      * Store a new memory trace: embed content, upsert into vector store,
      * and record as episodic memory in the knowledge graph.
