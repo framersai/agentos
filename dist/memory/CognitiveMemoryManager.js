@@ -10,7 +10,7 @@
  * @module agentos/memory/CognitiveMemoryManager
  */
 import { uuid } from './core/util/crossPlatformCrypto.js';
-import { DEFAULT_ENCODING_CONFIG, DEFAULT_DECAY_CONFIG, } from './core/config.js';
+import { DEFAULT_ENCODING_CONFIG, DEFAULT_DECAY_CONFIG, DEFAULT_GRAPH_CONFIG, } from './core/config.js';
 import { computeEncodingStrength, buildEmotionalContext } from './core/encoding/EncodingModel.js';
 import { createFeatureDetector, } from './core/encoding/ContentFeatureDetector.js';
 import { computeCurrentStrength } from './core/decay/DecayModel.js';
@@ -49,6 +49,8 @@ export class CognitiveMemoryManager {
         this.contextWindow = null;
         // Cognitive Mechanisms (optional)
         this.mechanismsEngine = null;
+        // Optional neural reranker for post-retrieval quality improvement
+        this.rerankerService = null;
         /**
          * Optional HyDE retriever for hypothesis-driven memory recall.
          *
@@ -66,7 +68,8 @@ export class CognitiveMemoryManager {
             const { CognitiveMechanismsEngine } = await import('./mechanisms/CognitiveMechanismsEngine.js');
             this.mechanismsEngine = new CognitiveMechanismsEngine(config.cognitiveMechanisms, config.traits);
         }
-        // Memory store
+        // Memory store — in-memory vector index for fast reads, with optional
+        // SqliteBrain write-through for durable persistence across restarts.
         this.store = new MemoryStore({
             vectorStore: config.vectorStore,
             embeddingManager: config.embeddingManager,
@@ -76,6 +79,15 @@ export class CognitiveMemoryManager {
             mechanismsEngine: this.mechanismsEngine ?? undefined,
             moodProvider: config.moodProvider,
         });
+        // Attach SqliteBrain for durable write-through when configured.
+        // All store/softDelete/recordAccess operations mirror to SQL.
+        if (config.brain) {
+            this.store.setBrain(config.brain);
+        }
+        // Optional neural reranker for post-retrieval quality improvement
+        if (config.rerankerService) {
+            this.rerankerService = config.rerankerService;
+        }
         // Cognitive working memory (wraps the existing IWorkingMemory)
         this.workingMemory = new CognitiveWorkingMemory(config.workingMemory, {
             baseCapacity: config.workingMemoryCapacity ?? 7,
@@ -91,9 +103,13 @@ export class CognitiveMemoryManager {
         });
         // Feature detector
         this.featureDetector = createFeatureDetector(config.featureDetectionStrategy, config.featureDetectionLlmInvoker);
-        // --- Batch 2: Memory Graph ---
-        if (config.graph) {
-            const backend = config.graph.backend ?? 'knowledge-graph';
+        // --- Memory Graph (enabled by default, opt-out via disabled: true) ---
+        // The knowledge graph powers spreading activation (Collins & Quillian model),
+        // Hebbian co-activation learning ("neurons that fire together wire together"),
+        // and graph-boosted retrieval scoring. It is fundamental to associative memory.
+        if (config.graph?.disabled !== true) {
+            const graphConfig = { ...DEFAULT_GRAPH_CONFIG, ...config.graph };
+            const backend = graphConfig.backend;
             if (backend === 'graphology') {
                 this.graph = new GraphologyMemoryGraph();
             }
@@ -158,6 +174,18 @@ export class CognitiveMemoryManager {
                     },
                 });
             }
+        }
+        // --- HyDE Retriever (auto-attached when any LLM invoker is available) ---
+        // Generates hypothetical memory traces for improved recall on vague queries.
+        // Opt-in per query via retrieve({ hyde: true }). Based on the "generation
+        // effect" — generating what a memory WOULD look like activates retrieval
+        // pathways more effectively than raw query embedding.
+        const anyLlmInvoker = config.reflector?.llmInvoker
+            ?? config.observer?.llmInvoker
+            ?? config.featureDetectionLlmInvoker;
+        if (anyLlmInvoker && !this.hydeRetriever) {
+            const { MemoryHydeRetriever } = await import('./retrieval/hyde/MemoryHydeRetriever.js');
+            this.hydeRetriever = new MemoryHydeRetriever(anyLlmInvoker);
         }
         this.initialized = true;
     }
@@ -292,6 +320,34 @@ export class CognitiveMemoryManager {
                 // Graph operations are non-critical
             }
         }
+        // --- Optional neural reranking ---
+        // Blends Cohere/LLM-Judge cross-encoder scores with the existing
+        // cognitive composite. Weight: 0.7 cognitive + 0.3 neural reranker.
+        // This preserves decay, mood congruence, and graph activation signals
+        // while boosting semantically relevant results the bi-encoder missed.
+        if (this.rerankerService && scored.length > 0) {
+            try {
+                const rerankerOutput = await this.rerankerService.rerank({
+                    query,
+                    documents: scored.map((t) => ({
+                        id: t.id,
+                        content: t.content,
+                        originalScore: t.retrievalScore,
+                    })),
+                }, { topN: options.topK ?? 10 });
+                const rerankedScores = new Map(rerankerOutput.results.map((r) => [r.id, r.relevanceScore]));
+                for (const trace of scored) {
+                    const neuralScore = rerankedScores.get(trace.id);
+                    if (neuralScore !== undefined) {
+                        trace.retrievalScore = 0.7 * trace.retrievalScore + 0.3 * neuralScore;
+                    }
+                }
+                scored.sort((a, b) => b.retrievalScore - a.retrievalScore);
+            }
+            catch {
+                // Reranking is non-critical — use cognitive scores as-is
+            }
+        }
         // Record access for retrieved memories (spaced repetition)
         for (const trace of scored.slice(0, 5)) {
             await this.store.recordAccess(trace.id);
@@ -368,9 +424,60 @@ export class CognitiveMemoryManager {
         };
         return assembleMemoryContext(input);
     }
+    /**
+     * Infer the prospective trigger type from an observation note's content.
+     * Uses regex heuristics — no LLM call needed.
+     *
+     * Priority: temporal patterns (most specific) → event patterns → context-based fallback.
+     *
+     * @param note - The observation note to classify
+     * @returns The most likely trigger type for ProspectiveMemoryManager
+     */
+    inferTriggerType(note) {
+        for (const pattern of CognitiveMemoryManager.TEMPORAL_PATTERNS) {
+            if (pattern.test(note.content))
+                return 'time_based';
+        }
+        for (const pattern of CognitiveMemoryManager.EVENT_PATTERNS) {
+            if (pattern.test(note.content))
+                return 'event_based';
+        }
+        // Default: context-based — fires when topic becomes relevant via embedding similarity
+        return 'context_based';
+    }
+    /**
+     * Extract an event cue string from "when X" / "after X" patterns.
+     * Returns undefined if no event language is detected.
+     *
+     * @param note - The observation note to extract from
+     * @returns Event cue string, or undefined
+     */
+    extractEventCue(note) {
+        for (const pattern of CognitiveMemoryManager.EVENT_PATTERNS) {
+            const match = note.content.match(pattern);
+            if (match)
+                return match[1] ?? match[2];
+        }
+        return undefined;
+    }
     // =========================================================================
     // Batch 2: Observer
     // =========================================================================
+    /**
+     * Feed a conversation message to the observation pipeline.
+     *
+     * Pipeline flow:
+     * 1. Observer extracts typed observation notes from buffered messages
+     * 2. Notes are fed to the Reflector for consolidation into long-term traces
+     * 3. Reflected traces are encoded via `encode()` (typed as semantic/episodic/etc.)
+     * 4. Superseded traces are soft-deleted
+     * 5. Commitment and intention notes are auto-registered with ProspectiveMemoryManager
+     *
+     * @param role - Message role (user, assistant, system, tool)
+     * @param content - Message text content
+     * @param mood - Optional PAD emotional state at observation time
+     * @returns Observation notes if threshold was reached, null otherwise
+     */
     async observe(role, content, mood) {
         if (!this.observer)
             return null;
@@ -393,6 +500,35 @@ export class CognitiveMemoryManager {
                 // Soft-delete superseded traces
                 for (const id of reflectionResult.supersededTraceIds) {
                     await this.store.softDelete(id);
+                }
+            }
+        }
+        // Auto-register commitment and intention notes as prospective memory items.
+        // Commitment notes above 0.5 importance represent real intentions, not hedging
+        // ("maybe I'll..." vs "I will..."). Preference notes expressing future desire
+        // also register as low-priority context-based items so they surface naturally
+        // when the topic comes up again.
+        if (notes && notes.length > 0 && this.prospective) {
+            for (const note of notes) {
+                const isCommitment = note.type === 'commitment' && note.importance >= 0.5;
+                const isFuturePreference = note.type === 'preference' && note.importance >= 0.6
+                    && /\b(love to|want to|been meaning to|plan to|going to|hope to)\b/i.test(note.content);
+                if (isCommitment || isFuturePreference) {
+                    const triggerType = this.inferTriggerType(note);
+                    try {
+                        await this.prospective.register({
+                            content: note.content,
+                            triggerType,
+                            triggerEvent: triggerType === 'event_based' ? this.extractEventCue(note) : undefined,
+                            cueText: note.content,
+                            // Future preferences get a lower importance than explicit commitments
+                            importance: isFuturePreference ? note.importance * 0.7 : note.importance,
+                            recurring: false,
+                        });
+                    }
+                    catch {
+                        // Prospective registration is non-critical — don't fail the observe() call
+                    }
                 }
             }
         }
@@ -594,4 +730,28 @@ export class CognitiveMemoryManager {
         }
     }
 }
+// =========================================================================
+// Prospective auto-registration helpers
+// =========================================================================
+/**
+ * Temporal patterns for extracting time-based triggers from observation notes.
+ * Matches relative expressions ("tomorrow", "next Friday", "in 2 hours")
+ * and absolute expressions ("on March 5th", "at 3pm").
+ */
+CognitiveMemoryManager.TEMPORAL_PATTERNS = [
+    /\b(tomorrow|tonight|next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i,
+    /\b(in\s+\d+\s+(hours?|days?|weeks?|minutes?))\b/i,
+    /\b(on\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d+)/i,
+    /\b(at\s+\d{1,2}(:\d{2})?\s*(am|pm)?)\b/i,
+    /\b(\d{4}-\d{2}-\d{2})\b/,
+];
+/**
+ * Event-based patterns for extracting event triggers from observation notes.
+ * Matches conditional language ("when X happens", "after the meeting").
+ */
+CognitiveMemoryManager.EVENT_PATTERNS = [
+    /\bwhen\s+(.{3,40}?)\s*(happens?|occurs?|starts?|ends?|finishes?|completes?)\b/i,
+    /\bafter\s+(the\s+)?(.{3,30})\b/i,
+    /\bonce\s+(.{3,30})\s+(is|are|has|have)\b/i,
+];
 //# sourceMappingURL=CognitiveMemoryManager.js.map

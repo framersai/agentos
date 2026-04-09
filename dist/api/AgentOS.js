@@ -50,10 +50,12 @@ import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionM
 import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI.js';
 import { ConversationManager, } from '../core/conversation/ConversationManager.js';
 import { StreamingManager, } from '../core/streaming/StreamingManager.js';
+// IStreamClient and StreamClientId reserved for streaming integration
 import { GMIError, GMIErrorCode } from '../core/utils/errors.js';
 import { uuidv4 } from '../core/utils/uuid.js';
 import { createLogger } from '../logging/loggerFactory.js';
 import { configureAgentOSObservability, } from '../evaluation/observability/otel.js';
+// SelfImprovementToolDeps reserved for emergent capability integration
 import { GuardrailAction } from '../safety/guardrails/IGuardrailService.js';
 import { evaluateInputGuardrails, createGuardrailBlockedStream, wrapOutputGuardrails, } from '../safety/guardrails/guardrailDispatcher.js';
 import { ExtensionManager, EXTENSION_KIND_GUARDRAIL, EXTENSION_KIND_PROVENANCE, EXTENSION_KIND_TOOL, EXTENSION_KIND_WORKFLOW, } from '../extensions/index.js';

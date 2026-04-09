@@ -50,8 +50,11 @@ export class OpenAIImageProvider {
             body.output_format = normalizeOutputFormat(request.outputFormat);
         if (typeof request.outputCompression === 'number')
             body.output_compression = request.outputCompression;
-        if (request.responseFormat)
+        // response_format is only supported by dall-e models, not gpt-image-*
+        const modelId = String(body.model);
+        if (request.responseFormat && modelId.startsWith('dall-e')) {
             body.response_format = request.responseFormat;
+        }
         if (request.userId)
             body.user = request.userId;
         if (providerOptions) {

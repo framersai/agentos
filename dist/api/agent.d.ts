@@ -55,6 +55,30 @@ export interface AgentOptions extends BaseAgentConfig {
     onFallback?: (error: Error, fallbackProvider: string) => void;
     /** Model router for intelligent provider selection per-call. */
     router?: IModelRouter;
+    /**
+     * Optional Zod schema for validating the LLM's structured output.
+     *
+     * When provided, the agent's `generate()` result includes a `parsed` field
+     * with the Zod-validated and typed output. JSON extraction and validation
+     * happen automatically in the `onAfterGeneration` hook. On validation failure,
+     * the agent retries internally (up to `controls.maxValidationRetries ?? 1`).
+     *
+     * When omitted, behavior is unchanged — `result.parsed` is undefined.
+     * This is a non-breaking additive change.
+     *
+     * @example
+     * ```ts
+     * import { z } from 'zod';
+     * const myAgent = agent({
+     *   name: 'Extractor',
+     *   instructions: 'Extract entities as JSON',
+     *   responseSchema: z.object({ entities: z.array(z.string()) }),
+     * });
+     * const result = await myAgent.generate('Find entities in: ...');
+     * console.log(result.parsed?.entities); // string[]
+     * ```
+     */
+    responseSchema?: import('zod').ZodType;
     /** Pre-generation hook, called before each LLM step. */
     onBeforeGeneration?: (context: GenerationHookContext) => Promise<GenerationHookContext | void>;
     /** Post-generation hook, called after each LLM step. */

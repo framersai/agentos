@@ -30,7 +30,7 @@
  *
  * @module agentos/memory/AgentMemory
  */
-import type { MemoryTrace, MemoryType, MemoryScope, MemorySourceType, ScoredMemoryTrace, AssembledMemoryContext, MemoryHealthReport, CognitiveRetrievalResult } from './core/types.js';
+import type { MemoryTrace, MemoryType, MemoryScope, MemorySourceType, ScoredMemoryTrace, AssembledMemoryContext, MemoryHealthReport, CognitiveRetrievalResult, WorkingMemorySlot, MemoryGraphSnapshot, ObservationPipelineStats, CognitiveMemorySnapshot, MemoryTypeStats } from './core/types.js';
 import type { CognitiveMemoryConfig } from './core/config.js';
 import type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 import type { ObservationNote } from './pipeline/observation/MemoryObserver.js';
@@ -171,6 +171,123 @@ export declare class AgentMemory {
      * standalone SQLite-first Memory facade.
      */
     feedback(traceId: string, signal: 'used' | 'ignored', query?: string): void;
+    /**
+     * Get a serializable snapshot of the memory graph for visualization.
+     * Returns nodes (traces), edges (associations), clusters, and aggregate stats.
+     *
+     * @throws When backed by standalone SQLite (requires CognitiveMemoryManager)
+     * @returns Graph snapshot suitable for JSON serialization
+     */
+    getGraph(): Promise<MemoryGraphSnapshot>;
+    /**
+     * Get spreading activation results from seed memories.
+     * Returns memories that are associatively connected to the seeds.
+     *
+     * @param seedTraceIds - IDs of seed traces to activate from
+     * @param opts - Optional depth and limit controls
+     * @throws When backed by standalone SQLite
+     */
+    getAssociations(seedTraceIds: string[], opts?: {
+        maxDepth?: number;
+        limit?: number;
+    }): Promise<Array<{
+        memoryId: string;
+        activation: number;
+    }>>;
+    /**
+     * Get all traces filtered by memory type.
+     *
+     * @param type - Memory type to filter by (episodic, semantic, procedural, prospective, relational)
+     * @param opts - Optional limit and minimum strength filter
+     * @throws When backed by standalone SQLite
+     */
+    getTracesByType(type: MemoryType, opts?: {
+        limit?: number;
+        minStrength?: number;
+    }): Promise<ScoredMemoryTrace[]>;
+    /**
+     * Get relational memory traces (trust signals, boundaries, emotional bonds).
+     * Convenience wrapper around getTracesByType('relational').
+     */
+    getRelationalMemories(opts?: {
+        limit?: number;
+    }): Promise<ScoredMemoryTrace[]>;
+    /**
+     * Get memory strength distribution by type.
+     * Returns count, average strength, decaying count, and flashbulb count per type.
+     *
+     * @throws When backed by standalone SQLite
+     */
+    getStrengthDistribution(): Promise<Record<MemoryType, MemoryTypeStats>>;
+    /**
+     * Get pairs of contradicting memory traces.
+     *
+     * @throws When backed by standalone SQLite
+     */
+    getConflicts(): Promise<Array<{
+        traceA: string;
+        traceB: string;
+        type: string;
+    }>>;
+    /**
+     * Get clusters of strongly associated memories.
+     *
+     * @param minSize - Minimum cluster size (default 3)
+     * @throws When backed by standalone SQLite
+     */
+    getClusters(minSize?: number): Promise<Array<{
+        clusterId: string;
+        memberIds: string[];
+        density: number;
+    }>>;
+    /**
+     * Get working memory slots — what's currently "in focus".
+     *
+     * @throws When backed by standalone SQLite
+     */
+    getWorkingMemory(): Promise<WorkingMemorySlot[]>;
+    /**
+     * Get observation pipeline stats (pending notes, compression ratio, reflection count).
+     *
+     * @throws When backed by standalone SQLite
+     */
+    getObservationStats(): Promise<ObservationPipelineStats>;
+    /**
+     * Get active prospective memory items (reminders/intentions).
+     * Alias for `reminders()` with a more descriptive name.
+     */
+    getProspectiveItems(): Promise<ProspectiveMemoryItem[]>;
+    /**
+     * Force a reflection cycle (useful for testing / devtools).
+     * Triggers the Observer's note extraction and the Reflector's consolidation
+     * regardless of token thresholds.
+     *
+     * @throws When backed by standalone SQLite
+     * @returns Reflection result with typed traces, or empty result if no observer
+     */
+    forceReflection(): Promise<{
+        traces: number;
+        superseded: number;
+    }>;
+    /**
+     * Export full memory state as a serializable snapshot.
+     * Used for companion portability across worlds in wilds-ai.
+     *
+     * @throws When backed by standalone SQLite
+     */
+    exportSnapshot(): Promise<CognitiveMemorySnapshot>;
+    /**
+     * Import a memory snapshot (for character portability across worlds).
+     * Encodes each trace and registers prospective items.
+     *
+     * @param snapshot - Previously exported snapshot
+     * @throws When backed by standalone SQLite
+     * @returns Count of imported traces and conflicts detected
+     */
+    importSnapshot(snapshot: CognitiveMemorySnapshot): Promise<{
+        imported: number;
+        conflicts: number;
+    }>;
     get isInitialized(): boolean;
     /** Access the underlying manager for advanced usage. */
     get raw(): ICognitiveMemoryManager;

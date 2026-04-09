@@ -14,10 +14,10 @@
 // ---------------------------------------------------------------------------
 /** Default provider ordering for safe/standard content. */
 const DEFAULT_PROVIDER_CHAIN = [
+    'replicate',
+    'fal',
     'openai',
     'stability',
-    'fal',
-    'replicate',
 ];
 /** Provider ordering for mature/private-adult content (uncensored first). */
 const UNCENSORED_PROVIDER_CHAIN = [

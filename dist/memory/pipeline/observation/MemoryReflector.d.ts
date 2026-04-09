@@ -15,9 +15,23 @@
 import type { MemoryTrace } from '../../core/types.js';
 import type { HexacoTraits, ReflectorConfig } from '../../core/config.js';
 import type { ObservationNote } from './MemoryObserver.js';
+/**
+ * Result of a reflection cycle.
+ *
+ * Contains the consolidated long-term traces (typed as episodic, semantic,
+ * procedural, prospective, or relational), any superseded trace IDs, the
+ * consumed note IDs, and the compression ratio achieved.
+ */
 export interface MemoryReflectionResult {
     /** New long-term memory traces to store. */
-    traces: Omit<MemoryTrace, 'id' | 'encodingStrength' | 'stability' | 'retrievalCount' | 'lastAccessedAt' | 'accessCount' | 'reinforcementInterval' | 'createdAt' | 'updatedAt'>[];
+    traces: (Omit<MemoryTrace, 'id' | 'encodingStrength' | 'stability' | 'retrievalCount' | 'lastAccessedAt' | 'accessCount' | 'reinforcementInterval' | 'createdAt' | 'updatedAt'> & {
+        /**
+         * Reflector's chain-of-thought reasoning for why this trace matters.
+         * Available for devtools/debugging; stripped before the trace is
+         * passed to `CognitiveMemoryManager.encode()` for storage.
+         */
+        reasoning?: string;
+    })[];
     /** IDs of existing traces that should be superseded. */
     supersededTraceIds: string[];
     /** IDs of observation notes that were consumed. */
@@ -46,6 +60,19 @@ export declare class MemoryReflector {
     getPendingNoteCount(): number;
     /** Clear all pending notes. */
     clear(): void;
+    /**
+     * Parse the LLM's reflection response into structured trace data.
+     *
+     * Handles:
+     * - Stripping `<thinking>...</thinking>` blocks (chain-of-thought reasoning)
+     * - Parsing one JSON object per line
+     * - Validating and normalizing type/scope enums
+     * - Preserving the optional `reasoning` field for devtools
+     * - Collecting superseded and consumed note IDs
+     *
+     * @param llmResponse - Raw LLM output containing optional thinking block + JSON lines
+     * @returns Parsed reflection result with typed traces
+     */
     private parseReflection;
 }
 //# sourceMappingURL=MemoryReflector.d.ts.map
