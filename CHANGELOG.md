@@ -1,3 +1,7 @@
+## <small>0.1.190 (2026-04-09)</small>
+
+* feat(agency): robust structured output with brace-matched JSON extraction and validation retries ([3824708](https://github.com/framersai/agentos/commit/3824708))
+
 ## <small>0.1.189 (2026-04-08)</small>
 
 * fix: resolve CI lint failures (unused imports, require() style) ([a52a73f](https://github.com/framersai/agentos/commit/a52a73f))
