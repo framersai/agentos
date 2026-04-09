@@ -1,3 +1,7 @@
+## <small>0.1.191 (2026-04-09)</small>
+
+* feat(routing): PolicyAwareRouter respects requiredCapabilities + agent() forwards routerParams ([5a68820](https://github.com/framersai/agentos/commit/5a68820))
+
 ## <small>0.1.190 (2026-04-09)</small>
 
 * feat(agency): robust structured output with brace-matched JSON extraction and validation retries ([3824708](https://github.com/framersai/agentos/commit/3824708))
