@@ -1,3 +1,7 @@
+## <small>0.1.194 (2026-04-10)</small>
+
+* feat: add ApiKeyPool with weighted round-robin and quota cooldown ([fa81f1d](https://github.com/framersai/agentos/commit/fa81f1d))
+
 ## <small>0.1.193 (2026-04-10)</small>
 
 * fix(memory): add missing knowledgeGraph + collectionPrefix to getBrain test config ([000c48c](https://github.com/framersai/agentos/commit/000c48c))
