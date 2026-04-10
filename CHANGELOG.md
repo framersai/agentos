@@ -1,3 +1,8 @@
+## <small>0.1.193 (2026-04-10)</small>
+
+* fix(memory): add missing knowledgeGraph + collectionPrefix to getBrain test config ([000c48c](https://github.com/framersai/agentos/commit/000c48c))
+* chore: bump version to 0.1.192 ([d016aec](https://github.com/framersai/agentos/commit/d016aec))
+
 ## <small>0.1.192 (2026-04-10)</small>
 
 * feat(memory): brain export/import pipeline + transplant + cross-platform SqliteImporter ([8f4b77e](https://github.com/framersai/agentos/commit/8f4b77e))
