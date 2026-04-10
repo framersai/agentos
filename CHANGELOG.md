@@ -1,3 +1,7 @@
+## <small>0.1.192 (2026-04-10)</small>
+
+* feat(memory): brain export/import pipeline + transplant + cross-platform SqliteImporter ([8f4b77e](https://github.com/framersai/agentos/commit/8f4b77e))
+
 ## <small>0.1.191 (2026-04-09)</small>
 
 * feat(routing): PolicyAwareRouter respects requiredCapabilities + agent() forwards routerParams ([5a68820](https://github.com/framersai/agentos/commit/5a68820))
