@@ -34,7 +34,7 @@ AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and
 | **Vercel AI SDK** | Multi-agent teams (6 strategies), full RAG pipeline (7 vector backends), guardrails, voice/telephony |
 | **CrewAI / Mastra** | Unified orchestration (workflow DAGs + agent graphs + goal-driven missions), personality-driven routing |
 
-> **Full comparison:** [AgentOS vs LangGraph vs CrewAI vs Mastra](https://docs.agentos.sh/blog/agentos-vs-langgraph-vs-crewai)
+> **Full comparison:** [AgentOS vs LangGraph vs CrewAI vs Mastra](https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai)
 
 ---
 
