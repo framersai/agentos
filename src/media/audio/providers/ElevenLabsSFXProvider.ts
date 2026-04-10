@@ -21,6 +21,8 @@
 
 import type { IAudioGenerator } from '../IAudioGenerator.js';
 import type { MusicGenerateRequest, SFXGenerateRequest, AudioResult } from '../types.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
+import { isQuotaError } from '../../../core/providers/quotaErrors.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -85,6 +87,9 @@ export class ElevenLabsSFXProvider implements IAudioGenerator {
   /** Internal resolved configuration. */
   private _config!: Required<Pick<ElevenLabsSFXProviderConfig, 'apiKey' | 'baseURL'>>;
 
+  /** API key pool for round-robin rotation and quota failover. */
+  private keyPool!: ApiKeyPool;
+
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------
@@ -108,6 +113,7 @@ export class ElevenLabsSFXProvider implements IAudioGenerator {
           ? config.baseURL.trim()
           : 'https://api.elevenlabs.io/v1',
     };
+    this.keyPool = new ApiKeyPool(apiKey);
 
     this.isInitialized = true;
   }
@@ -150,14 +156,28 @@ export class ElevenLabsSFXProvider implements IAudioGenerator {
 
     if (request.durationSec !== undefined) body.duration_seconds = request.durationSec;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': this._config.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const doFetch = (key: string) =>
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+    const key = this.keyPool.next();
+    let response = await doFetch(key);
+
+    if (!response.ok && this.keyPool.size > 1) {
+      const errBody = await response.text().catch(() => '');
+      if (isQuotaError(response.status, errBody)) {
+        this.keyPool.markExhausted(key);
+        response = await doFetch(this.keyPool.next());
+      } else {
+        throw new Error(`ElevenLabs SFX generation failed (${response.status}): ${errBody}`);
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
