@@ -165,6 +165,14 @@ export class MemoryStore {
     this.brain = brain;
   }
 
+  /**
+   * Access the attached SqliteBrain for export/import operations.
+   * Returns null when no brain is attached (in-memory only mode).
+   */
+  getBrain(): import('./SqliteBrain.js').SqliteBrain | null {
+    return this.brain;
+  }
+
   // =========================================================================
   // Store
   // =========================================================================
