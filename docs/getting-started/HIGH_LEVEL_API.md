@@ -72,6 +72,26 @@ for the requested task automatically:
 When neither `provider` nor `model` is given, AgentOS checks configured runtimes in order
 (`OPENROUTER_API_KEY` → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GEMINI_API_KEY` → `which claude` → `which gemini` → `OLLAMA_BASE_URL`).
 
+### Inline API Keys
+
+Every function accepts `apiKey` and `baseUrl` as top-level parameters, overriding the corresponding environment variable for that call:
+
+```ts
+// Pass apiKey directly — useful for multi-tenant apps, tests, or dynamic config
+await generateText({
+  provider: 'openai',
+  apiKey: 'sk-my-specific-key',     // overrides OPENAI_API_KEY
+  prompt: 'Hello world',
+});
+
+// Works on agent() and agency() too
+const bot = agent({
+  provider: 'anthropic',
+  apiKey: process.env.CUSTOMER_KEY,  // per-customer key
+  instructions: 'You are a helpful assistant.',
+});
+```
+
 ### Local Providers
 
 Local providers don't require API keys — just a `baseUrl` (or the corresponding env var):

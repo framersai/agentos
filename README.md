@@ -54,11 +54,30 @@ Unlike frameworks that focus purely on LLM orchestration, AgentOS treats each ag
 npm install @framers/agentos
 ```
 
-Set any provider's API key:
+Set provider API keys via environment variables or pass them directly in code:
 
 ```bash
-export OPENAI_API_KEY=sk-...        # or ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, etc.
+# Option 1: Environment variables (recommended for production)
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=AIza...
+
+# Key rotation — comma-separated keys rotate automatically with quota detection
+export OPENAI_API_KEY=sk-key1,sk-key2,sk-key3
 ```
+
+```typescript
+// Option 2: Pass apiKey directly (useful for multi-tenant apps, tests, dynamic config)
+import { generateText } from '@framers/agentos';
+
+const { text } = await generateText({
+  provider: 'openai',
+  apiKey: 'sk-...',             // overrides OPENAI_API_KEY from env
+  prompt: 'Hello world',
+});
+```
+
+Every function accepts `apiKey` and `baseUrl` as top-level parameters — `generateText`, `streamText`, `generateObject`, `streamObject`, `generateImage`, `generateVideo`, `generateMusic`, `generateSFX`, `embedText`, `performOCR`, `agent`, and `agency`. Environment variables are used when `apiKey` is omitted.
 
 ---
 
@@ -84,10 +103,11 @@ const pinned = await generateText({
   prompt: 'Compare TCP and UDP.',
 });
 
-// Full control -- explicit provider + model override
+// Full control -- explicit provider + model + apiKey override
 const custom = await generateText({
   provider: 'openai',
   model: 'gpt-4o-mini',        // override the default (gpt-4o)
+  apiKey: process.env.MY_OPENAI_KEY, // use a specific key instead of OPENAI_API_KEY
   prompt: 'What is the capital of France?',
 });
 ```
