@@ -77,6 +77,7 @@ export class ReplicateImageProvider implements IImageProvider {
   public defaultModelId?: string;
 
   private config!: Required<Pick<ReplicateImageProviderConfig, 'apiKey'>> & ReplicateImageProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
@@ -96,6 +97,7 @@ export class ReplicateImageProvider implements IImageProvider {
           : 'black-forest-labs/flux-schnell',
     };
     this.defaultModelId = this.config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -423,7 +425,7 @@ export class ReplicateImageProvider implements IImageProvider {
       {
         method: 'POST',
         headers: {
-          Authorization: `Token ${this.config.apiKey}`,
+          Authorization: `Token ${this.keyPool.next()}`,
           'Content-Type': 'application/json',
           Prefer: `wait=${waitSeconds}`,
         },
@@ -445,7 +447,7 @@ export class ReplicateImageProvider implements IImageProvider {
     const response = await fetch(`${this.config.baseURL}/predictions`, {
       method: 'POST',
       headers: {
-        Authorization: `Token ${this.config.apiKey}`,
+        Authorization: `Token ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
         Prefer: `wait=${waitSeconds}`,
       },
@@ -466,7 +468,7 @@ export class ReplicateImageProvider implements IImageProvider {
     while (Date.now() - startedAt < timeoutMs) {
       const response = await fetch(url, {
         headers: {
-          Authorization: `Token ${this.config.apiKey}`,
+          Authorization: `Token ${this.keyPool.next()}`,
         },
       });
 

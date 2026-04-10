@@ -208,6 +208,7 @@ export class FluxImageProvider implements IImageProvider {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<FluxImageProviderConfig, 'apiKey' | 'baseURL' | 'pollIntervalMs' | 'timeoutMs'>> & FluxImageProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   /**
    * Initialize the provider with API credentials and optional configuration.
@@ -247,6 +248,7 @@ export class FluxImageProvider implements IImageProvider {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -364,7 +366,7 @@ export class FluxImageProvider implements IImageProvider {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'X-Key': this._config.apiKey,
+        'X-Key': this.keyPool.next(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -400,7 +402,7 @@ export class FluxImageProvider implements IImageProvider {
 
       const response = await fetch(url, {
         headers: {
-          'X-Key': this._config.apiKey,
+          'X-Key': this.keyPool.next(),
         },
       });
 

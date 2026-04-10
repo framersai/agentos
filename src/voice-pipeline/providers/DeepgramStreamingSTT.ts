@@ -26,6 +26,7 @@
 
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 import type {
   IStreamingSTT,
   StreamingSTTSession,
@@ -333,15 +334,19 @@ class DeepgramStreamingSTTSession extends EventEmitter implements StreamingSTTSe
 export class DeepgramStreamingSTT implements IStreamingSTT {
   readonly providerId = 'deepgram-streaming';
   readonly isStreaming = true;
+  private readonly keyPool: ApiKeyPool;
 
-  constructor(private readonly config: DeepgramStreamingSTTConfig) {}
+  constructor(private readonly config: DeepgramStreamingSTTConfig) {
+    this.keyPool = new ApiKeyPool(config.apiKey);
+  }
 
   /**
    * Create a new streaming STT session connected to Deepgram.
-   * The session opens a WebSocket and is ready to receive audio frames.
+   * Each session gets a fresh key from the round-robin pool.
    */
   async startSession(config?: StreamingSTTConfig): Promise<StreamingSTTSession> {
-    const session = new DeepgramStreamingSTTSession(this.config, config ?? {});
+    const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };
+    const session = new DeepgramStreamingSTTSession(resolvedConfig, config ?? {});
     await session.connect();
     return session;
   }

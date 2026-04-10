@@ -34,6 +34,7 @@ import {
   ProviderEmbeddingResponse,
 } from '../IProvider';
 import { GeminiProviderError } from '../errors/GeminiProviderError';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -259,6 +260,7 @@ export class GeminiProvider implements IProvider {
   public defaultModelId?: string;
 
   private config!: GeminiProviderConfig;
+  private keyPool: ApiKeyPool | null = null;
 
   constructor() {}
 
@@ -292,6 +294,7 @@ export class GeminiProvider implements IProvider {
       defaultModelId: 'gemini-2.5-flash',
       ...config,
     };
+    this.keyPool = new ApiKeyPool(config.apiKey);
     this.defaultModelId = this.config.defaultModelId;
     this.isInitialized = true;
 
@@ -1082,7 +1085,7 @@ export class GeminiProvider implements IProvider {
     body: Record<string, unknown>,
   ): Promise<T> {
     // API key is passed as query parameter — Gemini's auth convention
-    const url = `${this.config.baseURL}${endpoint}?key=${this.config.apiKey}`;
+    const url = `${this.config.baseURL}${endpoint}?key=${this.keyPool?.hasKeys ? this.keyPool.next() : this.config.apiKey}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'User-Agent': 'AgentOS/1.0 (GeminiProvider)',
@@ -1203,7 +1206,7 @@ export class GeminiProvider implements IProvider {
     body: Record<string, unknown>,
   ): Promise<ReadableStream<Uint8Array>> {
     // Both alt=sse and key= are query params
-    const url = `${this.config.baseURL}${endpoint}?alt=sse&key=${this.config.apiKey}`;
+    const url = `${this.config.baseURL}${endpoint}?alt=sse&key=${this.keyPool?.hasKeys ? this.keyPool.next() : this.config.apiKey}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'User-Agent': 'AgentOS/1.0 (GeminiProvider)',

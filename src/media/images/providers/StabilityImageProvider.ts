@@ -122,6 +122,7 @@ export class StabilityImageProvider implements IImageProvider {
   public defaultModelId?: string;
 
   private config!: Required<Pick<StabilityImageProviderConfig, 'apiKey'>> &
+  private keyPool!: ApiKeyPool;
     StabilityImageProviderConfig;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
@@ -142,6 +143,7 @@ export class StabilityImageProvider implements IImageProvider {
           : 'stable-image-core',
     };
     this.defaultModelId = this.config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -203,7 +205,7 @@ export class StabilityImageProvider implements IImageProvider {
     const response = await fetch(`${this.config.baseURL}${route.path}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.keyPool.next()}`,
         Accept: 'application/json',
       },
       body: formData,
@@ -345,7 +347,7 @@ export class StabilityImageProvider implements IImageProvider {
     const response = await fetch(`${this.config.baseURL}/v2beta/stable-image/generate/sd3`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.keyPool.next()}`,
         Accept: 'application/json',
       },
       body: formData,
@@ -414,7 +416,7 @@ export class StabilityImageProvider implements IImageProvider {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${this.keyPool.next()}`,
           Accept: 'application/json',
         },
         body: formData,

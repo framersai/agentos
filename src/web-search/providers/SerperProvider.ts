@@ -4,22 +4,27 @@
  * Serper (Google Search) provider.
  */
 import type { IWebSearchProvider, WebSearchResult } from '../types';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 export class SerperProvider implements IWebSearchProvider {
   readonly providerId = 'serper' as const;
   readonly weight = 1.0;
 
-  constructor(private readonly apiKey: string) {}
+  private readonly keyPool: ApiKeyPool;
+
+  constructor(apiKey: string) {
+    this.keyPool = new ApiKeyPool(apiKey);
+  }
 
   isAvailable(): boolean {
-    return this.apiKey.length > 0;
+    return this.keyPool.hasKeys;
   }
 
   async search(query: string, limit: number = 5): Promise<WebSearchResult[]> {
     const res = await fetch('https://google.serper.dev/search', {
       method: 'POST',
       headers: {
-        'X-API-KEY': this.apiKey,
+        'X-API-KEY': this.keyPool.next(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ q: query, num: limit }),

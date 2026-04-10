@@ -5,6 +5,7 @@ import type {
   SpeechTranscriptionResult,
   SpeechTranscriptionSegment,
 } from '../../speech/types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 /**
  * Configuration for the {@link AssemblyAISTTProvider}.
@@ -228,8 +229,11 @@ export class AssemblyAISTTProvider implements SpeechToTextProvider {
    * });
    * ```
    */
+  private readonly keyPool: ApiKeyPool;
+
   constructor(private readonly config: AssemblyAISTTProviderConfig) {
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.keyPool = new ApiKeyPool(config.apiKey);
   }
 
   /**
@@ -290,7 +294,7 @@ export class AssemblyAISTTProvider implements SpeechToTextProvider {
     const uploadResponse = await this.fetchImpl(`${ASSEMBLYAI_BASE}/upload`, {
       method: 'POST',
       headers: {
-        Authorization: this.config.apiKey,
+        Authorization: this.keyPool.next(),
         'Content-Type': audio.mimeType ?? 'audio/wav',
       },
       body: audio.data as any,
@@ -316,7 +320,7 @@ export class AssemblyAISTTProvider implements SpeechToTextProvider {
     const submitResponse = await this.fetchImpl(`${ASSEMBLYAI_BASE}/transcript`, {
       method: 'POST',
       headers: {
-        Authorization: this.config.apiKey,
+        Authorization: this.keyPool.next(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(submitPayload),
@@ -349,7 +353,7 @@ export class AssemblyAISTTProvider implements SpeechToTextProvider {
       }
 
       const pollResponse = await this.fetchImpl(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
-        headers: { Authorization: this.config.apiKey },
+        headers: { Authorization: this.keyPool.next() },
         signal,
       });
 

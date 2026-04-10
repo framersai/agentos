@@ -25,6 +25,7 @@
  */
 
 import type { IAudioGenerator } from '../IAudioGenerator.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 import type { MusicGenerateRequest, SFXGenerateRequest, AudioResult } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -173,6 +174,7 @@ export class UdioProvider implements IAudioGenerator {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<UdioProviderConfig, 'apiKey' | 'baseURL' | 'pollIntervalMs' | 'timeoutMs'>> & UdioProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -211,6 +213,7 @@ export class UdioProvider implements IAudioGenerator {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -345,7 +348,7 @@ export class UdioProvider implements IAudioGenerator {
     const response = await fetch(`${this._config.baseURL}/predictions`, {
       method: 'POST',
       headers: {
-        Authorization: `Token ${this._config.apiKey}`,
+        Authorization: `Token ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
         Prefer: 'wait=60',
       },
@@ -375,7 +378,7 @@ export class UdioProvider implements IAudioGenerator {
     while (Date.now() - startedAt < this._config.timeoutMs) {
       const response = await fetch(url, {
         headers: {
-          Authorization: `Token ${this._config.apiKey}`,
+          Authorization: `Token ${this.keyPool.next()}`,
         },
       });
 

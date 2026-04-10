@@ -4,15 +4,20 @@
  * Tavily AI-optimized search provider.
  */
 import type { IWebSearchProvider, WebSearchResult } from '../types';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 export class TavilyProvider implements IWebSearchProvider {
   readonly providerId = 'tavily' as const;
   readonly weight = 1.0;
 
-  constructor(private readonly apiKey: string) {}
+  private readonly keyPool: ApiKeyPool;
+
+  constructor(apiKey: string) {
+    this.keyPool = new ApiKeyPool(apiKey);
+  }
 
   isAvailable(): boolean {
-    return this.apiKey.length > 0;
+    return this.keyPool.hasKeys;
   }
 
   async search(query: string, limit: number = 5): Promise<WebSearchResult[]> {
@@ -20,7 +25,7 @@ export class TavilyProvider implements IWebSearchProvider {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: this.apiKey,
+        api_key: this.keyPool.next(),
         query,
         search_depth: 'advanced',
         include_answer: false,

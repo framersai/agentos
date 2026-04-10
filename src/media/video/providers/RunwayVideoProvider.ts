@@ -31,6 +31,7 @@
  */
 
 import type { IVideoGenerator } from '../IVideoGenerator.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 import type {
   VideoGenerateRequest,
   ImageToVideoRequest,
@@ -168,6 +169,7 @@ export class RunwayVideoProvider implements IVideoGenerator {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<RunwayVideoProviderConfig, 'apiKey' | 'baseURL' | 'pollIntervalMs' | 'timeoutMs'>> & RunwayVideoProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -206,6 +208,7 @@ export class RunwayVideoProvider implements IVideoGenerator {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -329,7 +332,7 @@ export class RunwayVideoProvider implements IVideoGenerator {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this._config.apiKey}`,
+        Authorization: `Bearer ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -365,7 +368,7 @@ export class RunwayVideoProvider implements IVideoGenerator {
 
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${this._config.apiKey}`,
+          Authorization: `Bearer ${this.keyPool.next()}`,
         },
       });
 
