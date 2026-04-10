@@ -33,6 +33,7 @@ import type {
   TranscriptEvent,
   TranscriptWord,
 } from '../types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -335,14 +336,19 @@ class ElevenLabsChunkedSTTSession extends EventEmitter implements StreamingSTTSe
 export class ElevenLabsStreamingSTT implements IStreamingSTT {
   readonly providerId = 'elevenlabs-streaming-stt';
   readonly isStreaming = true;
+  private readonly keyPool: ApiKeyPool;
 
-  constructor(private readonly config: ElevenLabsStreamingSTTConfig) {}
+  constructor(private readonly config: ElevenLabsStreamingSTTConfig) {
+    this.keyPool = new ApiKeyPool(config.apiKey);
+  }
 
   /**
    * Create a new STT session. Uses chunked REST calls to ElevenLabs'
    * batch STT endpoint for near-realtime transcription.
+   * Each session gets a fresh key from the round-robin pool.
    */
   async startSession(config?: StreamingSTTConfig): Promise<StreamingSTTSession> {
-    return new ElevenLabsChunkedSTTSession(this.config, config ?? {});
+    const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };
+    return new ElevenLabsChunkedSTTSession(resolvedConfig, config ?? {});
   }
 }

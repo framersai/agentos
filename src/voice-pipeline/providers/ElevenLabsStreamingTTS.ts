@@ -30,6 +30,7 @@ import type {
   StreamingTTSConfig,
   EncodedAudioChunk,
 } from '../types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -315,15 +316,20 @@ class ElevenLabsStreamingTTSSession extends EventEmitter implements StreamingTTS
  */
 export class ElevenLabsStreamingTTS implements IStreamingTTS {
   readonly providerId = 'elevenlabs-streaming';
+  private readonly keyPool: ApiKeyPool;
 
-  constructor(private readonly config: ElevenLabsStreamingTTSConfig) {}
+  constructor(private readonly config: ElevenLabsStreamingTTSConfig) {
+    this.keyPool = new ApiKeyPool(config.apiKey);
+  }
 
   /**
    * Create a new streaming TTS session connected to ElevenLabs.
    * The session opens a WebSocket and is ready to receive text tokens.
+   * Each session gets a fresh key from the round-robin pool.
    */
   async startSession(config?: StreamingTTSConfig): Promise<StreamingTTSSession> {
-    const session = new ElevenLabsStreamingTTSSession(this.config, config ?? {});
+    const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };
+    const session = new ElevenLabsStreamingTTSSession(resolvedConfig, config ?? {});
     await session.connect();
     return session;
   }

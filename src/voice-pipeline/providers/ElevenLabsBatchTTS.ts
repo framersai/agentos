@@ -6,6 +6,8 @@
  */
 
 import type { IBatchTTS, BatchTTSConfig, BatchTTSResult } from '../types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { isQuotaError } from '../../core/providers/quotaErrors.js';
 
 /** Configuration for the ElevenLabs batch TTS provider. */
 export interface ElevenLabsBatchTTSConfig {
@@ -31,8 +33,8 @@ const BYTES_PER_SEC_MP3 = 16_000;
 export class ElevenLabsBatchTTS implements IBatchTTS {
   readonly providerId = 'elevenlabs-batch';
 
-  /** ElevenLabs API key used for authentication. */
-  private readonly apiKey: string;
+  /** API key pool for round-robin rotation and quota failover. */
+  private readonly keyPool: ApiKeyPool;
 
   /** Default voice ID when none is provided in the synthesis config. */
   private readonly defaultVoiceId: string;
@@ -44,7 +46,7 @@ export class ElevenLabsBatchTTS implements IBatchTTS {
   private readonly baseUrl: string;
 
   constructor(config: ElevenLabsBatchTTSConfig) {
-    this.apiKey = config.apiKey;
+    this.keyPool = new ApiKeyPool(config.apiKey);
     this.defaultVoiceId = config.voiceId ?? 'EXAVITQu4vr4xnSDxMaL';
     this.model = config.model ?? 'eleven_multilingual_v2';
     this.baseUrl = config.baseUrl ?? 'https://api.elevenlabs.io/v1';
@@ -62,24 +64,38 @@ export class ElevenLabsBatchTTS implements IBatchTTS {
     const voiceId = config?.voice ?? this.defaultVoiceId;
     const opts = config?.providerOptions ?? {};
 
-    const res = await fetch(`${this.baseUrl}/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': this.apiKey,
-        'Content-Type': 'application/json',
-        Accept: 'audio/mpeg',
-      },
-      body: JSON.stringify({
-        text,
-        model_id: config?.model ?? this.model,
-        voice_settings: {
-          stability: (opts.stability as number) ?? 0.5,
-          similarity_boost: (opts.similarityBoost as number) ?? 0.75,
-          style: (opts.style as number) ?? 0.0,
-          use_speaker_boost: (opts.useSpeakerBoost as boolean) ?? true,
+    const doFetch = (key: string) =>
+      fetch(`${this.baseUrl}/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': key,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
         },
-      }),
-    });
+        body: JSON.stringify({
+          text,
+          model_id: config?.model ?? this.model,
+          voice_settings: {
+            stability: (opts.stability as number) ?? 0.5,
+            similarity_boost: (opts.similarityBoost as number) ?? 0.75,
+            style: (opts.style as number) ?? 0.0,
+            use_speaker_boost: (opts.useSpeakerBoost as boolean) ?? true,
+          },
+        }),
+      });
+
+    const key = this.keyPool.next();
+    let res = await doFetch(key);
+
+    if (!res.ok && this.keyPool.size > 1) {
+      const body = await res.text().catch(() => '');
+      if (isQuotaError(res.status, body)) {
+        this.keyPool.markExhausted(key);
+        res = await doFetch(this.keyPool.next());
+      } else {
+        throw new Error(`ElevenLabs TTS failed: ${res.status} ${body.slice(0, 200)}`);
+      }
+    }
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
