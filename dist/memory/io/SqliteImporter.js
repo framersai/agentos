@@ -1,9 +1,9 @@
 /**
- * @fileoverview SQLite importer for AgentOS memory brain.
+ * @fileoverview Cross-platform SQLite importer for AgentOS memory brain.
  *
- * Opens a source SQLite file (exported by `SqliteExporter` or any compatible
- * AgentOS brain) as a separate `better-sqlite3` connection, reads all data
- * tables, and merges them into the target `SqliteBrain`.
+ * Opens a source SQLite file via `@framers/sql-storage-adapter` (supporting
+ * better-sqlite3, sql.js, IndexedDB, etc.) and merges traces, knowledge
+ * nodes, and edges into the target `SqliteBrain`.
  *
  * ## Merge strategy
  * - **memory_traces**: deduplicated by SHA-256 of `content`.
@@ -18,14 +18,17 @@
  *
  * @module memory/io/SqliteImporter
  */
-import Database from 'better-sqlite3';
 import { sha256 as crossSha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
+import { resolveStorageAdapter } from '@framers/sql-storage-adapter';
 // ---------------------------------------------------------------------------
 // SqliteImporter
 // ---------------------------------------------------------------------------
 /**
  * Merges a source SQLite brain file into a target `SqliteBrain`.
+ *
+ * Uses `@framers/sql-storage-adapter` to open the source file, enabling
+ * cross-platform operation (better-sqlite3, sql.js, IndexedDB).
  *
  * **Usage:**
  * ```ts
@@ -34,74 +37,57 @@ import { v4 as uuidv4 } from 'uuid';
  * ```
  */
 export class SqliteImporter {
-    /**
-     * @param brain - The target `SqliteBrain` to merge data into.
-     */
     constructor(brain) {
         this.brain = brain;
     }
-    // -------------------------------------------------------------------------
-    // Public API
-    // -------------------------------------------------------------------------
     /**
-     * Open `sourcePath` as a read-only SQLite connection, read all tables, and
-     * merge their contents into the target brain.
-     *
-     * The source connection is closed when this method returns (even on error).
+     * Open `sourcePath` via StorageAdapter, read all tables, and merge
+     * their contents into the target brain.
      *
      * @param sourcePath - Absolute path to the source `.sqlite` file to import.
      * @returns `ImportResult` with counts of imported, skipped, and errored items.
      */
     async import(sourcePath, options) {
         const result = { imported: 0, skipped: 0, errors: [] };
-        // Open the source file read-only so we cannot accidentally corrupt it.
-        let sourceDb;
+        // Check file exists before opening — resolveStorageAdapter creates new
+        // files on open (SQLite behavior), which would hide missing-file errors.
+        let sourceAdapter;
         try {
-            sourceDb = new Database(sourcePath, { readonly: true });
+            const fs = await import('node:fs');
+            if (!fs.existsSync(sourcePath)) {
+                result.errors.push(`Cannot open source SQLite: file does not exist: ${sourcePath}`);
+                return result;
+            }
+            sourceAdapter = await resolveStorageAdapter({
+                filePath: sourcePath,
+                quiet: true,
+            });
         }
         catch (err) {
             result.errors.push(`Cannot open source SQLite: ${String(err)}`);
             return result;
         }
         try {
-            // Run the whole merge in a single transaction on the target brain.
             await this.brain.transaction(async (trx) => {
-                await this._mergeTraces(sourceDb, result, trx, options);
-                await this._mergeNodes(sourceDb, result, trx);
-                await this._mergeEdges(sourceDb, result, trx);
+                await this._mergeTraces(sourceAdapter, result, trx, options);
+                await this._mergeNodes(sourceAdapter, result, trx);
+                await this._mergeEdges(sourceAdapter, result, trx);
             });
         }
         finally {
-            sourceDb.close();
+            await sourceAdapter.close();
         }
         return result;
     }
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-    /**
-     * SHA-256 of an arbitrary string (hex output).
-     */
     async _sha256(s) {
         return crossSha256(s);
     }
-    /**
-     * Merge `memory_traces` from source into target.
-     *
-     * Dedup key: SHA-256 of `content`.
-     * Conflict resolution: keep newer timestamp, union tags.
-     *
-     * @param src    - Open source `better-sqlite3` database.
-     * @param result - Mutable result accumulator.
-     * @param trx    - Transactional storage adapter for target writes.
-     */
     async _mergeTraces(src, result, trx, options) {
         let sourceRows;
         try {
-            sourceRows = src.prepare('SELECT * FROM memory_traces').all();
+            sourceRows = await src.all('SELECT * FROM memory_traces');
         }
         catch {
-            // Table might not exist in an incompatible source.
             return;
         }
         const { dialect } = this.brain.features;
@@ -121,7 +107,6 @@ export class SqliteImporter {
                 if (options?.dedup ?? true) {
                     const existing = await trx.get(checkSql, [hash, row.content]);
                     if (existing) {
-                        // Keep the newer timestamp and union the tags.
                         const newerAt = Math.max(existing.created_at, row.created_at);
                         let existingTags = [];
                         try {
@@ -139,7 +124,6 @@ export class SqliteImporter {
                         continue;
                     }
                 }
-                // New trace — enrich metadata with import_hash.
                 let meta = {};
                 try {
                     meta = JSON.parse(row.metadata);
@@ -169,19 +153,10 @@ export class SqliteImporter {
             }
         }
     }
-    /**
-     * Merge `knowledge_nodes` from source into target.
-     *
-     * Dedup key: SHA-256 of `label` + `type`.
-     *
-     * @param src    - Open source database.
-     * @param result - Mutable result accumulator.
-     * @param trx    - Transactional storage adapter for target writes.
-     */
     async _mergeNodes(src, result, trx) {
         let sourceRows;
         try {
-            sourceRows = src.prepare('SELECT * FROM knowledge_nodes').all();
+            sourceRows = await src.all('SELECT * FROM knowledge_nodes');
         }
         catch {
             return;
@@ -213,24 +188,10 @@ export class SqliteImporter {
             }
         }
     }
-    async _resolveTraceId(trx, preferredId) {
-        const existing = await trx.get('SELECT id FROM memory_traces WHERE id = ? LIMIT 1', [preferredId]);
-        return existing ? `mt_${uuidv4()}` : preferredId;
-    }
-    /**
-     * Merge `knowledge_edges` from source into target.
-     *
-     * Dedup key: SHA-256 of `source_id` + `target_id` + `type`.
-     * Edges whose referenced nodes don't exist in the target are skipped.
-     *
-     * @param src    - Open source database.
-     * @param result - Mutable result accumulator.
-     * @param trx    - Transactional storage adapter for target writes.
-     */
     async _mergeEdges(src, result, trx) {
         let sourceRows;
         try {
-            sourceRows = src.prepare('SELECT * FROM knowledge_edges').all();
+            sourceRows = await src.all('SELECT * FROM knowledge_edges');
         }
         catch {
             return;
@@ -264,10 +225,13 @@ export class SqliteImporter {
                 result.imported++;
             }
             catch (err) {
-                // FK constraint: target node not in this brain — expected for partial imports.
                 result.errors.push(`Edge merge error: ${String(err)}`);
             }
         }
+    }
+    async _resolveTraceId(trx, preferredId) {
+        const existing = await trx.get('SELECT id FROM memory_traces WHERE id = ? LIMIT 1', [preferredId]);
+        return existing ? `mt_${uuidv4()}` : preferredId;
     }
 }
 //# sourceMappingURL=SqliteImporter.js.map

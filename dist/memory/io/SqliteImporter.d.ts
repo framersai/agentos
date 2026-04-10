@@ -1,9 +1,9 @@
 /**
- * @fileoverview SQLite importer for AgentOS memory brain.
+ * @fileoverview Cross-platform SQLite importer for AgentOS memory brain.
  *
- * Opens a source SQLite file (exported by `SqliteExporter` or any compatible
- * AgentOS brain) as a separate `better-sqlite3` connection, reads all data
- * tables, and merges them into the target `SqliteBrain`.
+ * Opens a source SQLite file via `@framers/sql-storage-adapter` (supporting
+ * better-sqlite3, sql.js, IndexedDB, etc.) and merges traces, knowledge
+ * nodes, and edges into the target `SqliteBrain`.
  *
  * ## Merge strategy
  * - **memory_traces**: deduplicated by SHA-256 of `content`.
@@ -23,6 +23,9 @@ import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
 /**
  * Merges a source SQLite brain file into a target `SqliteBrain`.
  *
+ * Uses `@framers/sql-storage-adapter` to open the source file, enabling
+ * cross-platform operation (better-sqlite3, sql.js, IndexedDB).
+ *
  * **Usage:**
  * ```ts
  * const importer = new SqliteImporter(targetBrain);
@@ -31,56 +34,19 @@ import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
  */
 export declare class SqliteImporter {
     private readonly brain;
-    /**
-     * @param brain - The target `SqliteBrain` to merge data into.
-     */
     constructor(brain: SqliteBrain);
     /**
-     * Open `sourcePath` as a read-only SQLite connection, read all tables, and
-     * merge their contents into the target brain.
-     *
-     * The source connection is closed when this method returns (even on error).
+     * Open `sourcePath` via StorageAdapter, read all tables, and merge
+     * their contents into the target brain.
      *
      * @param sourcePath - Absolute path to the source `.sqlite` file to import.
      * @returns `ImportResult` with counts of imported, skipped, and errored items.
      */
     import(sourcePath: string, options?: Pick<ImportOptions, 'dedup'>): Promise<ImportResult>;
-    /**
-     * SHA-256 of an arbitrary string (hex output).
-     */
     private _sha256;
-    /**
-     * Merge `memory_traces` from source into target.
-     *
-     * Dedup key: SHA-256 of `content`.
-     * Conflict resolution: keep newer timestamp, union tags.
-     *
-     * @param src    - Open source `better-sqlite3` database.
-     * @param result - Mutable result accumulator.
-     * @param trx    - Transactional storage adapter for target writes.
-     */
     private _mergeTraces;
-    /**
-     * Merge `knowledge_nodes` from source into target.
-     *
-     * Dedup key: SHA-256 of `label` + `type`.
-     *
-     * @param src    - Open source database.
-     * @param result - Mutable result accumulator.
-     * @param trx    - Transactional storage adapter for target writes.
-     */
     private _mergeNodes;
-    private _resolveTraceId;
-    /**
-     * Merge `knowledge_edges` from source into target.
-     *
-     * Dedup key: SHA-256 of `source_id` + `target_id` + `type`.
-     * Edges whose referenced nodes don't exist in the target are skipped.
-     *
-     * @param src    - Open source database.
-     * @param result - Mutable result accumulator.
-     * @param trx    - Transactional storage adapter for target writes.
-     */
     private _mergeEdges;
+    private _resolveTraceId;
 }
 //# sourceMappingURL=SqliteImporter.d.ts.map

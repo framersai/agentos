@@ -151,6 +151,7 @@ export function agent(opts) {
         fallbackProviders: opts.fallbackProviders,
         onFallback: opts.onFallback,
         router: opts.router,
+        routerParams: opts.routerParams,
         onBeforeGeneration: opts.onBeforeGeneration,
         onAfterGeneration: opts.onAfterGeneration,
         onBeforeToolExecution: opts.onBeforeToolExecution,
