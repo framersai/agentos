@@ -1,3 +1,7 @@
+## <small>0.1.198 (2026-04-10)</small>
+
+* feat: add key pool rotation to Anthropic, OpenRouter, and fix import paths ([7e95c01](https://github.com/framersai/agentos/commit/7e95c01))
+
 ## <small>0.1.197 (2026-04-10)</small>
 
 * feat: add key pool rotation to all 6 OpenAI providers ([b6f23d3](https://github.com/framersai/agentos/commit/b6f23d3))
