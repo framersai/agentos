@@ -1,3 +1,7 @@
+## <small>0.1.197 (2026-04-10)</small>
+
+* feat: add key pool rotation to all 6 OpenAI providers ([b6f23d3](https://github.com/framersai/agentos/commit/b6f23d3))
+
 ## <small>0.1.196 (2026-04-10)</small>
 
 * feat: add key pool rotation to all 5 ElevenLabs providers ([fa38ec5](https://github.com/framersai/agentos/commit/fa38ec5))
