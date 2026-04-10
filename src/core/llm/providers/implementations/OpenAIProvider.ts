@@ -34,7 +34,7 @@ import {
   ProviderEmbeddingResponse,
 } from '../IProvider';
 import { OpenAIProviderError } from '../errors/OpenAIProviderError';
-import { ApiKeyPool } from '../../providers/ApiKeyPool.js';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 // Assuming a fetch-like interface is available globally or polyfilled (e.g., node-fetch)
 // For Node.js, ensure 'node-fetch' is a dependency or use Node's built-in fetch from v18+.
 // import fetch, { RequestInit, Response as FetchResponse, AbortController } from 'node-fetch'; // Example for Node

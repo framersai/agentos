@@ -9,6 +9,7 @@ import {
   type ImageModelInfo,
   type OpenRouterImageProviderOptions,
 } from '../IImageProvider.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 
 export interface OpenRouterImageProviderConfig {
   apiKey: string;
@@ -47,6 +48,7 @@ export class OpenRouterImageProvider implements IImageProvider {
   public defaultModelId?: string;
 
   private config!: Required<Pick<OpenRouterImageProviderConfig, 'apiKey'>> & OpenRouterImageProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
@@ -54,6 +56,7 @@ export class OpenRouterImageProvider implements IImageProvider {
       throw new Error('OpenRouter image provider requires apiKey.');
     }
 
+    this.keyPool = new ApiKeyPool(apiKey);
     this.config = {
       apiKey,
       baseURL:
@@ -115,7 +118,7 @@ export class OpenRouterImageProvider implements IImageProvider {
     }
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.config.apiKey}`,
+      Authorization: `Bearer ${this.keyPool.next()}`,
       'Content-Type': 'application/json',
     };
     if (this.config.siteUrl) headers['HTTP-Referer'] = this.config.siteUrl;

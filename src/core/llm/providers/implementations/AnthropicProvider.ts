@@ -32,6 +32,7 @@ import {
   ProviderEmbeddingResponse,
 } from '../IProvider';
 import { AnthropicProviderError } from '../errors/AnthropicProviderError';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -268,6 +269,7 @@ export class AnthropicProvider implements IProvider {
   public defaultModelId?: string;
 
   private config!: AnthropicProviderConfig;
+  private keyPool: ApiKeyPool | null = null;
 
   constructor() {}
 
@@ -302,6 +304,7 @@ export class AnthropicProvider implements IProvider {
       defaultMaxTokens: 4096,
       ...config,
     };
+    this.keyPool = new ApiKeyPool(config.apiKey);
     this.defaultModelId = config.defaultModelId;
     this.isInitialized = true;
 
@@ -1225,7 +1228,7 @@ export class AnthropicProvider implements IProvider {
    */
   private buildHeaders(): Record<string, string> {
     return {
-      'x-api-key': this.config.apiKey,
+      'x-api-key': this.keyPool?.hasKeys ? this.keyPool.next() : this.config.apiKey,
       'anthropic-version': '2023-06-01',
       'User-Agent': 'AgentOS/1.0 (AnthropicProvider)',
     };
