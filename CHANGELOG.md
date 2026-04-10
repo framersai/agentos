@@ -1,3 +1,7 @@
+## <small>0.1.200 (2026-04-10)</small>
+
+* fix: validate OpenAI TTS voice names, fall back to nova for unknown IDs ([87687cf](https://github.com/framersai/agentos/commit/87687cf))
+
 ## <small>0.1.199 (2026-04-10)</small>
 
 * fix: add missing ApiKeyPool imports and fix broken field declaration in StabilityImageProvider ([4a295de](https://github.com/framersai/agentos/commit/4a295de))
