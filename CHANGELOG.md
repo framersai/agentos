@@ -1,3 +1,7 @@
+## <small>0.1.195 (2026-04-10)</small>
+
+* feat: add quota error detection, singleton key pool registry, barrel export ([e18fa18](https://github.com/framersai/agentos/commit/e18fa18))
+
 ## <small>0.1.194 (2026-04-10)</small>
 
 * feat: add ApiKeyPool with weighted round-robin and quota cooldown ([fa81f1d](https://github.com/framersai/agentos/commit/fa81f1d))
