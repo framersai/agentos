@@ -220,6 +220,7 @@ export class FalImageProvider implements IImageProvider {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<FalImageProviderConfig, 'apiKey' | 'baseURL' | 'pollIntervalMs' | 'timeoutMs'>> & FalImageProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   /**
    * Initialize the provider with API credentials and optional configuration.
@@ -259,6 +260,7 @@ export class FalImageProvider implements IImageProvider {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -467,7 +469,7 @@ export class FalImageProvider implements IImageProvider {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Key ${this._config.apiKey}`,
+        Authorization: `Key ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -503,7 +505,7 @@ export class FalImageProvider implements IImageProvider {
 
       const response = await fetch(url, {
         headers: {
-          Authorization: `Key ${this._config.apiKey}`,
+          Authorization: `Key ${this.keyPool.next()}`,
         },
       });
 
@@ -548,7 +550,7 @@ export class FalImageProvider implements IImageProvider {
 
     const response = await fetch(url, {
       headers: {
-        Authorization: `Key ${this._config.apiKey}`,
+        Authorization: `Key ${this.keyPool.next()}`,
       },
     });
 

@@ -178,6 +178,7 @@ export class FalVideoProvider implements IVideoGenerator {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<FalVideoProviderConfig, 'apiKey' | 'baseURL' | 'pollIntervalMs' | 'timeoutMs'>> & FalVideoProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -216,6 +217,7 @@ export class FalVideoProvider implements IVideoGenerator {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -336,7 +338,7 @@ export class FalVideoProvider implements IVideoGenerator {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Key ${this._config.apiKey}`,
+        Authorization: `Key ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -372,7 +374,7 @@ export class FalVideoProvider implements IVideoGenerator {
 
       const response = await fetch(url, {
         headers: {
-          Authorization: `Key ${this._config.apiKey}`,
+          Authorization: `Key ${this.keyPool.next()}`,
         },
       });
 
@@ -419,7 +421,7 @@ export class FalVideoProvider implements IVideoGenerator {
 
     const response = await fetch(url, {
       headers: {
-        Authorization: `Key ${this._config.apiKey}`,
+        Authorization: `Key ${this.keyPool.next()}`,
       },
     });
 

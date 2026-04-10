@@ -26,6 +26,7 @@
  */
 
 import type { IAudioGenerator } from '../IAudioGenerator.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 import type { MusicGenerateRequest, SFXGenerateRequest, AudioResult } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,7 @@ export class StableAudioProvider implements IAudioGenerator {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<StableAudioProviderConfig, 'apiKey' | 'baseURL'>> & StableAudioProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -126,6 +128,7 @@ export class StableAudioProvider implements IAudioGenerator {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -225,7 +228,7 @@ export class StableAudioProvider implements IAudioGenerator {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this._config.apiKey}`,
+        Authorization: `Bearer ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),

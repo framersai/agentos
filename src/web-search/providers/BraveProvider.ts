@@ -4,21 +4,26 @@
  * Brave Search API provider.
  */
 import type { IWebSearchProvider, WebSearchResult } from '../types';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 export class BraveProvider implements IWebSearchProvider {
   readonly providerId = 'brave' as const;
   readonly weight = 1.0;
 
-  constructor(private readonly apiKey: string) {}
+  private readonly keyPool: ApiKeyPool;
+
+  constructor(apiKey: string) {
+    this.keyPool = new ApiKeyPool(apiKey);
+  }
 
   isAvailable(): boolean {
-    return this.apiKey.length > 0;
+    return this.keyPool.hasKeys;
   }
 
   async search(query: string, limit: number = 5): Promise<WebSearchResult[]> {
     const params = new URLSearchParams({ q: query, count: String(limit) });
     const res = await fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
-      headers: { 'X-Subscription-Token': this.apiKey },
+      headers: { 'X-Subscription-Token': this.keyPool.next() },
     });
 
     const data = await res.json();

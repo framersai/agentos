@@ -5,6 +5,7 @@ import type {
   SpeechTranscriptionResult,
   SpeechTranscriptionSegment,
 } from '../../speech/types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 /**
  * Configuration for the {@link DeepgramBatchSTTProvider}.
@@ -204,8 +205,11 @@ export class DeepgramBatchSTTProvider implements SpeechToTextProvider {
    * });
    * ```
    */
+  private readonly keyPool: ApiKeyPool;
+
   constructor(private readonly config: DeepgramBatchSTTProviderConfig) {
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.keyPool = new ApiKeyPool(config.apiKey);
   }
 
   /**
@@ -271,7 +275,7 @@ export class DeepgramBatchSTTProvider implements SpeechToTextProvider {
     const response = await this.fetchImpl(url, {
       method: 'POST',
       headers: {
-        Authorization: `Token ${this.config.apiKey}`,
+        Authorization: `Token ${this.keyPool.next()}`,
         'Content-Type': contentType,
       },
       // Cast needed because SpeechAudioInput.data is typed as Buffer but

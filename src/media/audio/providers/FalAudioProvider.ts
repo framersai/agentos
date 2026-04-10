@@ -33,6 +33,7 @@
  */
 
 import type { IAudioGenerator } from '../IAudioGenerator.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 import type { MusicGenerateRequest, SFXGenerateRequest, AudioResult } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -176,6 +177,7 @@ export class FalAudioProvider implements IAudioGenerator {
 
   /** Internal resolved configuration. */
   private _config!: Required<Pick<FalAudioProviderConfig, 'apiKey' | 'baseURL' | 'pollIntervalMs' | 'timeoutMs'>> & FalAudioProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -214,6 +216,7 @@ export class FalAudioProvider implements IAudioGenerator {
     };
 
     this.defaultModelId = this._config.defaultModelId;
+    this.keyPool = new ApiKeyPool(apiKey);
     this.isInitialized = true;
   }
 
@@ -332,7 +335,7 @@ export class FalAudioProvider implements IAudioGenerator {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Key ${this._config.apiKey}`,
+        Authorization: `Key ${this.keyPool.next()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -368,7 +371,7 @@ export class FalAudioProvider implements IAudioGenerator {
 
       const response = await fetch(url, {
         headers: {
-          Authorization: `Key ${this._config.apiKey}`,
+          Authorization: `Key ${this.keyPool.next()}`,
         },
       });
 
@@ -413,7 +416,7 @@ export class FalAudioProvider implements IAudioGenerator {
 
     const response = await fetch(url, {
       headers: {
-        Authorization: `Key ${this._config.apiKey}`,
+        Authorization: `Key ${this.keyPool.next()}`,
       },
     });
 
