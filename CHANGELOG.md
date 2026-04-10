@@ -1,3 +1,10 @@
+## <small>0.1.199 (2026-04-10)</small>
+
+* fix: add missing ApiKeyPool imports and fix broken field declaration in StabilityImageProvider ([4a295de](https://github.com/framersai/agentos/commit/4a295de))
+* test: add integration tests for provider key rotation ([98438ff](https://github.com/framersai/agentos/commit/98438ff))
+* docs: document API key rotation as core AgentOS feature ([9436051](https://github.com/framersai/agentos/commit/9436051))
+* feat: add key pool rotation to all remaining providers (20 files) ([8d952cb](https://github.com/framersai/agentos/commit/8d952cb))
+
 ## <small>0.1.198 (2026-04-10)</small>
 
 * feat: add key pool rotation to Anthropic, OpenRouter, and fix import paths ([7e95c01](https://github.com/framersai/agentos/commit/7e95c01))
