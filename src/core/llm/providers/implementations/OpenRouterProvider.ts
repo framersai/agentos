@@ -21,6 +21,7 @@ import {
   ModelCompletionChoice,
 } from '../IProvider';
 import { OpenRouterProviderError } from '../errors/OpenRouterProviderError';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 import { createGMIErrorFromError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected import path
 
 /**
@@ -118,6 +119,7 @@ export class OpenRouterProvider implements IProvider {
 
   // Corrected: Changed type of this.config to satisfy the Readonly<Required<...>> assignment by providing defaults
   private config!: Readonly<Required<Omit<OpenRouterProviderConfig, 'defaultModelId' | 'siteUrl' | 'appName' | 'baseURL' | 'requestTimeout' | 'streamRequestTimeout'>> & OpenRouterProviderConfig>;
+  private keyPool: ApiKeyPool | null = null;
   private client!: AxiosInstance;
   private readonly availableModelsCache: Map<string, ModelInfo> = new Map();
 
@@ -141,10 +143,11 @@ export class OpenRouterProvider implements IProvider {
       requestTimeout: config.requestTimeout || 60000,
       streamRequestTimeout: config.streamRequestTimeout || 180000,
     });
+    this.keyPool = new ApiKeyPool(config.apiKey);
     this.defaultModelId = this.config.defaultModelId; // Store the potentially undefined value
 
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${this.config.apiKey}`,
+      'Authorization': `Bearer ${this.keyPool.next()}`,
       'Content-Type': 'application/json',
       'User-Agent': `AgentOS/1.0 (OpenRouterProvider; ${this.config.appName || 'UnknownApp'})`,
     };
