@@ -39,6 +39,7 @@ import type {
   ImageToVideoRequest,
   VideoResult,
 } from '../types.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 
 // ---------------------------------------------------------------------------
 // Configuration

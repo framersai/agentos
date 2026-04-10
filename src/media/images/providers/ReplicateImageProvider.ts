@@ -12,6 +12,7 @@ import {
   normalizeOutputFormat,
   type ReplicateImageProviderOptions,
 } from '../IImageProvider.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 
 export interface ReplicateImageProviderConfig {
   apiKey: string;

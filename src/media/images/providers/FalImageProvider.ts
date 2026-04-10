@@ -38,6 +38,7 @@ import {
   type GeneratedImage,
   parseImageSize,
 } from '../IImageProvider.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
