@@ -6,6 +6,7 @@ import type {
   SpeechTranscriptionResult,
   SpeechTranscriptionSegment,
 } from '../../speech/types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 /**
  * Configuration for the {@link OpenAIWhisperSpeechToTextProvider}.
@@ -169,8 +170,11 @@ export class OpenAIWhisperSpeechToTextProvider implements SpeechToTextProvider {
    * });
    * ```
    */
+  private readonly keyPool: ApiKeyPool;
+
   constructor(private readonly config: OpenAIWhisperSpeechToTextProviderConfig) {
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.keyPool = new ApiKeyPool(config.apiKey);
   }
 
   /**
@@ -239,7 +243,7 @@ export class OpenAIWhisperSpeechToTextProvider implements SpeechToTextProvider {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${this.keyPool.next()}`,
           // Content-Type is NOT set — FormData sets it automatically with boundary
         },
         body: form,

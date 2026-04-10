@@ -4,6 +4,8 @@ import type {
   SpeechVoice,
   TextToSpeechProvider,
 } from '../types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { isQuotaError } from '../../core/providers/quotaErrors.js';
 
 /**
  * Configuration for the {@link OpenAITextToSpeechProvider}.
@@ -145,6 +147,9 @@ export class OpenAITextToSpeechProvider implements TextToSpeechProvider {
   /** Fetch implementation — injected for testability, defaults to global fetch. */
   private readonly fetchImpl: typeof fetch;
 
+  /** API key pool for round-robin rotation and quota failover. */
+  private readonly keyPool: ApiKeyPool;
+
   /**
    * Creates a new OpenAITextToSpeechProvider.
    *
@@ -160,6 +165,7 @@ export class OpenAITextToSpeechProvider implements TextToSpeechProvider {
    */
   constructor(private readonly config: OpenAITextToSpeechProviderConfig) {
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.keyPool = new ApiKeyPool(config.apiKey);
   }
 
   /**
@@ -209,7 +215,7 @@ export class OpenAITextToSpeechProvider implements TextToSpeechProvider {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${this.keyPool.next()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

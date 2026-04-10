@@ -12,6 +12,7 @@ import {
   type OpenAIImageProviderOptions,
 } from '../IImageProvider.js';
 import { bufferToBlobPart } from '../imageToBuffer.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 
 export interface OpenAIImageProviderConfig {
   apiKey: string;
@@ -35,6 +36,7 @@ export class OpenAIImageProvider implements IImageProvider {
   public defaultModelId?: string;
 
   private config!: Required<Pick<OpenAIImageProviderConfig, 'apiKey'>> & OpenAIImageProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
@@ -42,6 +44,7 @@ export class OpenAIImageProvider implements IImageProvider {
       throw new Error('OpenAI image provider requires apiKey.');
     }
 
+    this.keyPool = new ApiKeyPool(apiKey);
     this.config = {
       apiKey,
       baseURL:
@@ -104,7 +107,7 @@ export class OpenAIImageProvider implements IImageProvider {
     }
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.config.apiKey}`,
+      Authorization: `Bearer ${this.keyPool.next()}`,
       'Content-Type': 'application/json',
     };
     if (this.config.organizationId) headers['OpenAI-Organization'] = this.config.organizationId;
@@ -190,7 +193,7 @@ export class OpenAIImageProvider implements IImageProvider {
     if (request.size) formData.append('size', request.size);
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.config.apiKey}`,
+      Authorization: `Bearer ${this.keyPool.next()}`,
       // Content-Type is NOT set manually — the browser/Node runtime sets the
       // correct multipart boundary when FormData is used as the body.
     };
@@ -260,7 +263,7 @@ export class OpenAIImageProvider implements IImageProvider {
     if (request.size) formData.append('size', request.size);
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.config.apiKey}`,
+      Authorization: `Bearer ${this.keyPool.next()}`,
     };
     if (this.config.organizationId) headers['OpenAI-Organization'] = this.config.organizationId;
 

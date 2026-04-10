@@ -6,6 +6,8 @@
  */
 
 import type { IBatchTTS, BatchTTSConfig, BatchTTSResult } from '../types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { isQuotaError } from '../../core/providers/quotaErrors.js';
 
 /** Configuration for the OpenAI batch TTS provider. */
 export interface OpenAIBatchTTSConfig {
@@ -26,12 +28,12 @@ const BYTES_PER_SEC_MP3 = 16_000;
  */
 export class OpenAIBatchTTS implements IBatchTTS {
   readonly providerId: string;
-  private readonly apiKey: string;
+  private readonly keyPool: ApiKeyPool;
   private readonly model: string;
   private readonly baseUrl: string;
 
   constructor(config: OpenAIBatchTTSConfig) {
-    this.apiKey = config.apiKey;
+    this.keyPool = new ApiKeyPool(config.apiKey);
     this.model = config.model ?? 'tts-1';
     this.baseUrl = config.baseUrl ?? 'https://api.openai.com/v1';
     this.providerId = `openai-${this.model}`;
@@ -56,14 +58,28 @@ export class OpenAIBatchTTS implements IBatchTTS {
     };
     if (config?.speed != null) body.speed = config.speed;
 
-    const res = await fetch(`${this.baseUrl}/audio/speech`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const doFetch = (key: string) =>
+      fetch(`${this.baseUrl}/audio/speech`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+    const key = this.keyPool.next();
+    let res = await doFetch(key);
+
+    if (!res.ok && this.keyPool.size > 1) {
+      const errBody = await res.text().catch(() => '');
+      if (isQuotaError(res.status, errBody)) {
+        this.keyPool.markExhausted(key);
+        res = await doFetch(this.keyPool.next());
+      } else {
+        throw new Error(`OpenAI TTS failed: ${res.status} ${errBody.slice(0, 200)}`);
+      }
+    }
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
