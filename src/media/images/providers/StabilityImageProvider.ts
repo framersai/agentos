@@ -13,6 +13,7 @@ import {
   type StabilityImageProviderOptions,
 } from '../IImageProvider.js';
 import { bufferToBlobPart } from '../imageToBuffer.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 
 export interface StabilityImageProviderConfig {
   apiKey: string;
@@ -122,8 +123,8 @@ export class StabilityImageProvider implements IImageProvider {
   public defaultModelId?: string;
 
   private config!: Required<Pick<StabilityImageProviderConfig, 'apiKey'>> &
-  private keyPool!: ApiKeyPool;
     StabilityImageProviderConfig;
+  private keyPool!: ApiKeyPool;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
