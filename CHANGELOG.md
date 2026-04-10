@@ -1,3 +1,9 @@
+## <small>0.1.201 (2026-04-10)</small>
+
+* fix: update comparison blog URL to dated Docusaurus path ([022155a](https://github.com/framersai/agentos/commit/022155a))
+* docs: add inline apiKey/baseUrl examples to quick start and API guides ([3b9da2f](https://github.com/framersai/agentos/commit/3b9da2f)), closes [hi#level](https://github.com/hi/issues/level)
+* docs: streamline README for SEO and LLM crawling, unify Discord link ([583ab5a](https://github.com/framersai/agentos/commit/583ab5a))
+
 ## <small>0.1.200 (2026-04-10)</small>
 
 * fix: validate OpenAI TTS voice names, fall back to nova for unknown IDs ([87687cf](https://github.com/framersai/agentos/commit/87687cf))
