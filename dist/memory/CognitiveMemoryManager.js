@@ -695,6 +695,32 @@ export class CognitiveMemoryManager {
         return this.prospective;
     }
     /**
+     * Export the full brain state as a JSON string.
+     * Delegates to JsonExporter through the MemoryStore's brain.
+     * Throws if no brain is attached.
+     */
+    async exportToString(options) {
+        const brain = this.store.getBrain();
+        if (!brain) {
+            throw new Error('Cannot export: no SqliteBrain attached to MemoryStore');
+        }
+        const { JsonExporter } = await import('./io/JsonExporter.js');
+        return new JsonExporter(brain).exportToString(options);
+    }
+    /**
+     * Import a JSON brain payload into the attached brain.
+     * Delegates to JsonImporter through the MemoryStore's brain.
+     * Throws if no brain is attached.
+     */
+    async importFromString(json, options) {
+        const brain = this.store.getBrain();
+        if (!brain) {
+            throw new Error('Cannot import: no SqliteBrain attached to MemoryStore');
+        }
+        const { JsonImporter } = await import('./io/JsonImporter.js');
+        return new JsonImporter(brain).importFromString(json, options);
+    }
+    /**
      * Attach a HyDE retriever to enable hypothesis-driven memory recall.
      *
      * When set, the `retrieve()` and `assembleForPrompt()` methods can accept

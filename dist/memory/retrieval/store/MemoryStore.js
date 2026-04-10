@@ -104,6 +104,13 @@ export class MemoryStore {
     setBrain(brain) {
         this.brain = brain;
     }
+    /**
+     * Access the attached SqliteBrain for export/import operations.
+     * Returns null when no brain is attached (in-memory only mode).
+     */
+    getBrain() {
+        return this.brain;
+    }
     // =========================================================================
     // Store
     // =========================================================================

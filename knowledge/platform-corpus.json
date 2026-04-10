@@ -452,7 +452,7 @@
   {
     "id": "tool-ref:com.framers.research.web-search",
     "heading": "Web Search Extension",
-    "content": "Professional web search, research aggregation, and fact-checking capabilities for AgentOS Tools: web_search, research_aggregate, fact_check. Required secrets: none.",
+    "content": "Multi-provider web search with Firecrawl, Tavily, Serper, Brave — RRF fusion, semantic dedup, Cohere/LLM neural reranking, research aggregation, and fact-checking for AgentOS Tools: web_search, research_aggregate, fact_check. Required secrets: none.",
     "category": "tools"
   },
   {
@@ -486,6 +486,12 @@
     "category": "tools"
   },
   {
+    "id": "tool-ref:com.framers.tools.citation-verifier",
+    "heading": "Citation Verifier",
+    "content": "Verify claims in text against sources using semantic similarity. Supports web search fallback for unverifiable claims. Tools: verify_citations. Required secrets: none.",
+    "category": "tools"
+  },
+  {
     "id": "tool-ref:com.framers.tools.image-editing",
     "heading": "Image Editing",
     "content": "Edit images with img2img transformation, inpainting, outpainting, upscaling, and variations using OpenAI, Stability AI, or Replicate. Tools: editImage, upscaleImage, variateImage. Required secrets: none.",
@@ -495,6 +501,12 @@
     "id": "tool-ref:com.framers.tools.image-generation",
     "heading": "@framers/agentos-ext-image-generation",
     "content": "Generate images from text prompts using OpenAI, OpenRouter, Stability AI, or Replicate. Tools: generate_image. Required secrets: none.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.local-file-search",
+    "heading": "Local File Search",
+    "content": "Search for files on the local filesystem by fuzzy name matching. Supports denylist filtering and relevance-ranked results. Tools: local_file_search. Required secrets: none.",
     "category": "tools"
   },
   {
@@ -510,6 +522,12 @@
     "category": "tools"
   },
   {
+    "id": "tool-ref:com.framers.tools.send-file-to-channel",
+    "heading": "Send File to Channel",
+    "content": "Send a local file to the user via the current chat channel with platform-aware size limit enforcement. Tools: send_file_to_channel. Required secrets: none.",
+    "category": "tools"
+  },
+  {
     "id": "tool-ref:com.framers.tools.site-deploy",
     "heading": "Site Deploy Orchestration",
     "content": "High-level deployment orchestrator that deploys sites from source to any supported cloud provider (Vercel, Cloudflare Pages, DigitalOcean, Netlify, Heroku, AWS, Linode, Railway, Fly.io) with optional custom domain registration and DNS configuration via any supported registrar (Porkbun, Namecheap, GoDaddy, Cloudflare). Tools: siteDeploy. Required secrets: none.",
@@ -522,6 +540,12 @@
     "category": "tools"
   },
   {
+    "id": "tool-ref:com.framers.tools.trulia-search",
+    "heading": "Trulia Property Search",
+    "content": "Search real estate properties on Trulia with RapidAPI or Firecrawl scrape fallback. Tools: trulia_search. Required secrets: none.",
+    "category": "tools"
+  },
+  {
     "id": "tool-ref:com.framers.tools.vision-pipeline",
     "heading": "Vision & OCR Pipeline",
     "content": "Progressive vision pipeline with PaddleOCR, TrOCR, Florence-2, CLIP, and cloud vision (GPT-4o, Claude). Tools: vision-pipeline. Required secrets: none.",
@@ -530,7 +554,13 @@
   {
     "id": "tool-ref:com.framers.tools.wallet",
     "heading": "Agent Personal Wallet",
-    "content": "Give agents their own personal wallet with configurable spending guardrails. Supports Solana, Ethereum, Base, and Polygon with per-category budgets, daily/monthly limits, human-in-the-loop approval thresholds (compatible with hitl.llmJudge, hitl.cli, and hitl.webhook handlers), guardrail overrides for post-approval safety checks, and Lithic virtual card integration. Tools: check_wallet_balance, send_crypto, wallet_transaction_history, issue_virtual_card, card_status, freeze_card, unfreeze_card, card_spending_summary, pay_with_card. Required secrets: WALLET_MASTER_SECRET.",
+    "content": "Give agents their own personal wallet with configurable spending guardrails. Supports Solana, Ethereum, Base, and Polygon with per-category budgets, daily/monthly limits, human-in-the-loop approval thresholds, and Lithic virtual card integration. Tools: check_wallet_balance, send_crypto, wallet_transaction_history, issue_virtual_card, card_status, freeze_card, unfreeze_card, card_spending_summary, pay_with_card. Required secrets: WALLET_MASTER_SECRET.",
+    "category": "tools"
+  },
+  {
+    "id": "tool-ref:com.framers.tools.zip-files",
+    "heading": "Zip Files",
+    "content": "Create zip archives from local files for easy sharing via chat channels. Tools: zip_files. Required secrets: none.",
     "category": "tools"
   },
   {
@@ -780,6 +810,12 @@
     "category": "skills"
   },
   {
+    "id": "skill:fact-grounding",
+    "heading": "Fact Grounding Skill",
+    "content": "Verify claims in agent responses against sources using semantic similarity and web fact-checking.. You are a rigorous fact-verification agent. Before presenting factual claims to the user, you verify them against available sources using semantic similarity and, when needed, web search.",
+    "category": "skills"
+  },
+  {
     "id": "skill:git",
     "heading": "Git Skill",
     "content": "Work with Git repositories from the command line.. Use `git` to inspect history, create branches, commit changes, and resolve conflicts.",
@@ -830,7 +866,7 @@
   {
     "id": "skill:image-gen",
     "heading": "Image Gen Skill",
-    "content": "Generate, edit, upscale, and variate images using the AgentOS multi-provider image pipeline with automatic fallback.. Use this skill when the user wants to create, edit, upscale, or create variations of images. AgentOS provides four high-level APIs that route to any configured provider with automatic fallback when multiple providers have credentials set.",
+    "content": "Generate, edit, upscale, variate, and style-transfer images using the AgentOS multi-provider image pipeline with automatic fallback and character consistency.. Use this skill when the user wants to create, edit, upscale, style-transfer, or create variations of images. AgentOS provides five high-level APIs that route to any configured provider with automatic fallback when multiple providers have credentials set.",
     "category": "skills"
   },
   {
@@ -1160,7 +1196,7 @@
   {
     "id": "faq:skills",
     "heading": "What are skills and how do I use them?",
-    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 81 curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
+    "content": "Skills are markdown instruction files (SKILL.md) that teach an agent domain-specific behavior. Load skills via agent.config.json or programmatically with SkillLoader. There are 82 curated skills in @framers/agentos-skills covering web search, coding, social media, voice, and more.",
     "category": "faq"
   },
   {

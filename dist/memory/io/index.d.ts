@@ -26,6 +26,9 @@ export { MarkdownExporter } from './MarkdownExporter.js';
 export { MarkdownImporter } from './MarkdownImporter.js';
 export { ObsidianExporter } from './ObsidianExporter.js';
 export { ObsidianImporter } from './ObsidianImporter.js';
+export { SqliteImporter } from './SqliteImporter.js';
 export { ChatGptImporter } from './ChatGptImporter.js';
 export { CsvImporter } from './CsvImporter.js';
+export { MemoryTransplantPipeline } from './MemoryTransplantPipeline.js';
+export type { TransplantOptions, TransplantResult } from './MemoryTransplantPipeline.js';
 //# sourceMappingURL=index.d.ts.map

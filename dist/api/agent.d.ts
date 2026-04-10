@@ -56,6 +56,26 @@ export interface AgentOptions extends BaseAgentConfig {
     /** Model router for intelligent provider selection per-call. */
     router?: IModelRouter;
     /**
+     * Routing hints passed to the model router's `selectModel()` call.
+     *
+     * Useful for declaring capability requirements up-front so the router
+     * can pick a model that actually supports what the agent needs:
+     *
+     * ```ts
+     * agent({
+     *   name: 'World Architect',
+     *   router: policyAwareRouter,
+     *   routerParams: { requiredCapabilities: ['json_mode'] },
+     *   output: WorldIdentitySchema,
+     * });
+     * ```
+     *
+     * When omitted, the router receives a minimal default params object
+     * (taskHint only, plus `function_calling` in requiredCapabilities when
+     * tools are declared).
+     */
+    routerParams?: Partial<import('../core/llm/routing/IModelRouter.js').ModelRouteParams>;
+    /**
      * Optional Zod schema for validating the LLM's structured output.
      *
      * When provided, the agent's `generate()` result includes a `parsed` field

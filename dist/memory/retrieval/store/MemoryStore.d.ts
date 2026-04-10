@@ -57,6 +57,11 @@ export declare class MemoryStore {
      */
     setBrain(brain: import('./SqliteBrain.js').SqliteBrain): void;
     /**
+     * Access the attached SqliteBrain for export/import operations.
+     * Returns null when no brain is attached (in-memory only mode).
+     */
+    getBrain(): import('./SqliteBrain.js').SqliteBrain | null;
+    /**
      * Store a new memory trace: embed content, upsert into vector store,
      * and record as episodic memory in the knowledge graph.
      */

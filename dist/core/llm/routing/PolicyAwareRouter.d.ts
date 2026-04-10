@@ -48,6 +48,13 @@ export declare class PolicyAwareRouter implements IModelRouter {
      */
     selectModel(params: ModelRouteParams, availableModels?: ModelInfo[]): Promise<ModelRouteResult | null>;
     /**
+     * Map a policy tier + optional content intent to the content permission
+     * tags the catalog filter requires. Used when filtering for capabilities.
+     */
+    private permissionsForTier;
+    /** Numeric quality ranking for `sort()`. Higher is better. */
+    private qualityRank;
+    /**
      * Build a minimal {@link ModelRouteResult} with a stub provider.
      * The provider stub satisfies the interface contract while signalling to
      * upstream consumers that the actual provider instance must be resolved

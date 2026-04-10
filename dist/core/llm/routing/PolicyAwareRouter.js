@@ -55,12 +55,51 @@ export class PolicyAwareRouter {
         if (overrideModelId) {
             return this.buildResult(overrideModelId, 'openrouter', `Override for ${tier} tier`);
         }
-        // Consult catalog
+        // Required capabilities filtering: when the caller needs specific
+        // capabilities (e.g. `json_mode` for structured output), only return
+        // uncensored models that explicitly support them. This prevents the
+        // router from picking a prose-only model like Dolphin Mixtral when the
+        // agent has set `output: someZodSchema`, which would fail Zod validation
+        // because the model returns natural language instead of JSON.
+        const required = params.requiredCapabilities ?? [];
+        if (required.length > 0) {
+            const candidates = this.catalog
+                .getTextModels({ contentPermissions: this.permissionsForTier(tier, params.contentIntent) })
+                .filter((entry) => required.every((cap) => entry.capabilities.includes(cap)))
+                .sort((a, b) => this.qualityRank(b.quality) - this.qualityRank(a.quality));
+            if (candidates.length > 0) {
+                const pick = candidates[0];
+                return this.buildResult(pick.modelId, pick.providerId, `Catalog selection for ${tier} tier with required capabilities [${required.join(', ')}] (${pick.displayName})`);
+            }
+            // No uncensored model supports the required capabilities. Fall through
+            // to the base router so a JSON-capable censored model can handle this
+            // call. Structured output is more important than uncensored routing
+            // for world-building / schema-shaped responses; explicit prose routing
+            // still kicks in downstream for narrator / companion turns.
+            if (this.baseRouter) {
+                return this.baseRouter.selectModel(params, availableModels);
+            }
+            return null;
+        }
+        // No required capabilities — use the default tier-preferred model
         const entry = this.catalog.getPreferredTextModel(tier, params.contentIntent);
         if (entry) {
             return this.buildResult(entry.modelId, entry.providerId, `Catalog selection for ${tier} tier (${entry.displayName})`);
         }
         return null;
+    }
+    /**
+     * Map a policy tier + optional content intent to the content permission
+     * tags the catalog filter requires. Used when filtering for capabilities.
+     */
+    permissionsForTier(tier, contentIntent) {
+        if (contentIntent)
+            return [contentIntent];
+        return tier === 'private-adult' ? ['erotic'] : ['romantic'];
+    }
+    /** Numeric quality ranking for `sort()`. Higher is better. */
+    qualityRank(q) {
+        return q === 'high' ? 3 : q === 'medium' ? 2 : 1;
     }
     /**
      * Build a minimal {@link ModelRouteResult} with a stub provider.

@@ -208,6 +208,18 @@ export declare class CognitiveMemoryManager implements ICognitiveMemoryManager {
     getObserver(): MemoryObserver | null;
     getProspective(): ProspectiveMemoryManager | null;
     /**
+     * Export the full brain state as a JSON string.
+     * Delegates to JsonExporter through the MemoryStore's brain.
+     * Throws if no brain is attached.
+     */
+    exportToString(options?: import('./io/facade/types.js').ExportOptions): Promise<string>;
+    /**
+     * Import a JSON brain payload into the attached brain.
+     * Delegates to JsonImporter through the MemoryStore's brain.
+     * Throws if no brain is attached.
+     */
+    importFromString(json: string, options?: Pick<import('./io/facade/types.js').ImportOptions, 'dedup'>): Promise<import('./io/facade/types.js').ImportResult>;
+    /**
      * Attach a HyDE retriever to enable hypothesis-driven memory recall.
      *
      * When set, the `retrieve()` and `assembleForPrompt()` methods can accept
