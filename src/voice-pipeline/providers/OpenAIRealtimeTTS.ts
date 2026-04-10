@@ -17,6 +17,7 @@ import type {
   StreamingTTSConfig,
   EncodedAudioChunk,
 } from '../types.js';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 
 export interface OpenAIRealtimeTTSConfig {
   apiKey: string;
@@ -154,13 +155,16 @@ class OpenAIRealtimeTTSSession extends EventEmitter implements StreamingTTSSessi
 export class OpenAIRealtimeTTS implements IStreamingTTS {
   readonly providerId = 'openai-realtime';
   private readonly config: OpenAIRealtimeTTSConfig;
+  private readonly keyPool: ApiKeyPool;
 
   constructor(config: OpenAIRealtimeTTSConfig) {
     this.config = config;
+    this.keyPool = new ApiKeyPool(config.apiKey);
   }
 
   async startSession(config?: StreamingTTSConfig): Promise<StreamingTTSSession> {
-    const session = new OpenAIRealtimeTTSSession(this.config, config ?? {});
+    const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };
+    const session = new OpenAIRealtimeTTSSession(resolvedConfig, config ?? {});
     await session.connect();
     return session;
   }

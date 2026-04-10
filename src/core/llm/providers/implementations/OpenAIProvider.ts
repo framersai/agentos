@@ -34,6 +34,7 @@ import {
   ProviderEmbeddingResponse,
 } from '../IProvider';
 import { OpenAIProviderError } from '../errors/OpenAIProviderError';
+import { ApiKeyPool } from '../../providers/ApiKeyPool.js';
 // Assuming a fetch-like interface is available globally or polyfilled (e.g., node-fetch)
 // For Node.js, ensure 'node-fetch' is a dependency or use Node's built-in fetch from v18+.
 // import fetch, { RequestInit, Response as FetchResponse, AbortController } from 'node-fetch'; // Example for Node
@@ -174,6 +175,7 @@ export class OpenAIProvider implements IProvider {
   public defaultModelId?: string;
 
   private config!: OpenAIProviderConfig; // Asserted as initialized by `initialize`
+  private keyPool: ApiKeyPool | null = null;
   private availableModelsCache: Map<string, ModelInfo> = new Map();
 
   // Known pricing for common OpenAI models (USD per 1K tokens).
@@ -222,6 +224,7 @@ export class OpenAIProvider implements IProvider {
       requestTimeout: 60000, // 60 seconds
       ...config, // User-provided config overrides defaults
     };
+    this.keyPool = new ApiKeyPool(config.apiKey);
     this.defaultModelId = config.defaultModelId;
 
     try {
@@ -360,6 +363,7 @@ export class OpenAIProvider implements IProvider {
     if (this.config.oauthFlow) {
       return await this.config.oauthFlow.getAccessToken();
     }
+    if (this.keyPool?.hasKeys) return this.keyPool.next();
     if (this.config.apiKey) return this.config.apiKey;
     throw new OpenAIProviderError(
       'No OpenAI API key available for the request.',
