@@ -49,6 +49,9 @@ export ANTHROPIC_API_KEY=sk-ant-...
 export GEMINI_API_KEY=AIza...
 export OPENROUTER_API_KEY=sk-or-...
 
+# Key rotation — comma-separated keys rotate automatically with quota detection
+export OPENAI_API_KEY=sk-key1,sk-key2,sk-key3
+
 # Local providers (no key required, just a running server)
 export OLLAMA_BASE_URL=http://localhost:11434
 export STABLE_DIFFUSION_LOCAL_BASE_URL=http://localhost:7860
@@ -56,6 +59,37 @@ export STABLE_DIFFUSION_LOCAL_BASE_URL=http://localhost:7860
 
 Provider resolution order when no `provider` or `model` is specified:
 `OPENROUTER_API_KEY` → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GEMINI_API_KEY` → `which claude` → `which gemini` → `OLLAMA_BASE_URL`
+
+### Inline API Keys
+
+Every function also accepts `apiKey` and `baseUrl` directly, which override the corresponding environment variable. This is useful for multi-tenant apps, test suites, or dynamic key management:
+
+```typescript
+import { generateText, agent } from '@framers/agentos';
+
+// Pass apiKey inline — skips env var lookup for this call
+const { text } = await generateText({
+  provider: 'openai',
+  apiKey: 'sk-my-specific-key',
+  prompt: 'Hello world',
+});
+
+// Works on agent() too
+const bot = agent({
+  provider: 'anthropic',
+  apiKey: process.env.CUSTOMER_ANTHROPIC_KEY,
+  instructions: 'You are a helpful assistant.',
+});
+
+// Local provider with explicit baseUrl
+const { text: local } = await generateText({
+  provider: 'ollama',
+  baseUrl: 'http://gpu-server:11434',
+  prompt: 'Summarize this document.',
+});
+```
+
+All high-level functions support `apiKey`: `generateText`, `streamText`, `generateObject`, `streamObject`, `generateImage`, `generateVideo`, `generateMusic`, `generateSFX`, `embedText`, `performOCR`, `agent`, and `agency`.
 
 ---
 
