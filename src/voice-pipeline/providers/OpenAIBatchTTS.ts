@@ -46,8 +46,16 @@ export class OpenAIBatchTTS implements IBatchTTS {
    * @param config - Optional voice, format, and speed overrides.
    * @returns The synthesized audio buffer with metadata.
    */
+  /** Valid OpenAI TTS voice names. */
+  private static readonly VALID_VOICES = new Set([
+    'nova', 'shimmer', 'echo', 'onyx', 'fable', 'alloy', 'ash', 'sage', 'coral',
+  ]);
+
   async synthesize(text: string, config?: BatchTTSConfig): Promise<BatchTTSResult> {
-    const voice = config?.voice ?? 'nova';
+    // Validate voice name — if an external voice ID (e.g. ElevenLabs) is passed
+    // via the fallback chain, fall back to 'nova' instead of sending it to OpenAI.
+    const rawVoice = config?.voice ?? 'nova';
+    const voice = OpenAIBatchTTS.VALID_VOICES.has(rawVoice) ? rawVoice : 'nova';
     const format = config?.format ?? 'mp3';
 
     const body: Record<string, unknown> = {
