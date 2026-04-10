@@ -1,10 +1,10 @@
 <div align="center">
 
 <a href="https://agentos.sh">
-  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="80" />
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-no-tagline-transparent-2x.png" alt="AgentOS" height="100" />
 </a>
 
-# AgentOS
+<br />
 
 **Build autonomous AI agents with adaptive intelligence, cognitive memory, and emergent behaviors. Open-source TypeScript runtime.**
 

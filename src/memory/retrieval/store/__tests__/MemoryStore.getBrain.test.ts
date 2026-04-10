@@ -12,6 +12,8 @@ describe('MemoryStore.getBrain', () => {
     const store = new MemoryStore({
       vectorStore,
       embeddingManager: { generateEmbeddings: async () => ({ embeddings: [[0.1]] }) } as any,
+      knowledgeGraph: {} as any,
+      collectionPrefix: 'test',
     });
     expect(store.getBrain()).toBeNull();
   });
@@ -25,6 +27,8 @@ describe('MemoryStore.getBrain', () => {
     const store = new MemoryStore({
       vectorStore,
       embeddingManager: { generateEmbeddings: async () => ({ embeddings: [[0.1]] }) } as any,
+      knowledgeGraph: {} as any,
+      collectionPrefix: 'test',
     });
 
     store.setBrain(brain);
