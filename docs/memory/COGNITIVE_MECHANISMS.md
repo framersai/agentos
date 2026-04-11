@@ -90,6 +90,12 @@ All mechanisms share common guard patterns:
 - **Inactive skip:** All consolidation mechanisms skip `isActive === false` traces
 - **Disabled bypass:** Every mechanism returns immediately when `config.enabled === false`
 
+## Rehydration
+
+Gisted/archived content can be inflated on demand via `CognitiveMemoryManager.rehydrate(traceId)`. Content does not decay while archived; age-based retention applies instead. The archive is backed by `IMemoryArchive` (default: `SqlStorageMemoryArchive`), which uses the same `StorageAdapter` contract as `SqliteBrain`. When sharing the brain's adapter, archive tables (`archived_traces`, `archive_access_log`) live in the same database.
+
+The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
+
 ## Metadata Storage
 
 Mechanism metadata is stored in `trace.structuredData.mechanismMetadata` (type `MechanismMetadata`), avoiding changes to the core `MemoryTrace` interface. The metadata is persisted in the vector store's metadata JSON column.

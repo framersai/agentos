@@ -82,6 +82,17 @@ Compacted traces keep their content but change `type` from `episodic` to `semant
 
 Rebuild the FTS5 full-text search index over `memory_traces` and log the consolidation run to the `consolidation_log` table with counts and duration.
 
+### Step 7: Prune Archive
+
+Sweep archived traces past their retention age (default: 365 days). For each candidate:
+1. Check the `archive_access_log` for the most recent rehydration.
+2. If the trace was rehydrated within the retention window, skip it.
+3. Otherwise, drop it via `archive.drop(traceId)`.
+
+This step runs only when an `IMemoryArchive` is configured on the pipeline. Default retention: 365 days. Configurable via `MemoryArchiveRetentionConfig`.
+
+When `TemporalGist` runs during step 6's cognitive mechanisms phase, it now preserves the original verbatim content in the archive before overwriting `trace.content` with the gist. If the archive write fails, the trace keeps its verbatim content and retries on the next consolidation cycle.
+
 ---
 
 ## Running Consolidation
@@ -290,7 +301,7 @@ The `relativeTimeLabel()` function converts Unix-ms timestamps into natural-lang
 
 | File | Purpose |
 |------|---------|
-| `memory/consolidation/ConsolidationLoop.ts` | 6-step consolidation pipeline |
+| `memory/consolidation/ConsolidationLoop.ts` | 7-step consolidation pipeline (step 7: prune_archive) |
 | `memory/feedback/RetrievalFeedbackSignal.ts` | Used/ignored detection + decay modulation |
 | `memory/observation/ObservationCompressor.ts` | LLM-backed 3-10x compression |
 | `memory/observation/ObservationReflector.ts` | LLM-backed reflection + conflict resolution |

@@ -97,6 +97,28 @@ export async function applyTemporalGist(
     // Store original content hash for audit
     const originalHash = await sha256(trace.content);
 
+    // Write-ahead archive: preserve verbatim content before gist overwrites it.
+    // Archive failure is fatal for this trace's gist cycle — the trace keeps
+    // its verbatim content and the next cycle will retry.
+    if (config.archive) {
+      const writeResult = await config.archive.store({
+        traceId: trace.id,
+        agentId: config.archiveAgentId ?? 'unknown',
+        verbatimContent: trace.content,
+        contentHash: originalHash,
+        traceType: trace.type,
+        emotionalContext: trace.emotionalContext,
+        entities: trace.entities,
+        tags: trace.tags,
+        createdAt: trace.createdAt,
+        archivedAt: Date.now(),
+        archiveReason: 'temporal_gist',
+      });
+      if (!writeResult.success) {
+        continue;
+      }
+    }
+
     // Extract gist
     let gist: string;
     if (llmFn) {

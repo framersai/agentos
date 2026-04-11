@@ -348,6 +348,17 @@ If a consolidation cycle is already in progress (mutex), returns immediately wit
 | Agent needs to look up what it knows about a topic | `memory_search` with relevant keywords |
 | Agent has been running for a while and wants to clean up | `memory_reflect` to trigger consolidation |
 | Agent needs to remember a future task | `memory_add` with `type: 'prospective'` |
+| Agent sees a gisted memory and needs the full original text | `rehydrate_memory` with the trace ID |
+
+### rehydrate_memory (opt-in)
+
+Retrieves the original verbatim content of a memory trace whose content has been compressed by temporal gist. Register by passing `{ includeRehydrate: true }` to `MemoryToolsExtension`. Requires an `IMemoryArchive` to be configured.
+
+**Input:** `{ traceId: string }` — the ID of the gisted/archived trace.
+
+**Output:** `{ verbatimContent: string | null, archivedAt: number | null }` — the original content before gisting, or null if the trace is not archived or integrity verification fails.
+
+**Side effects:** writes a row to `archive_access_log` so the retention sweep knows which traces are still in use.
 
 ---
 
@@ -361,5 +372,6 @@ If a consolidation cycle is already in progress (mutex), returns immediately wit
 | `memory/tools/MemoryMergeTool.ts` | `memory_merge` implementation |
 | `memory/tools/MemorySearchTool.ts` | `memory_search` implementation |
 | `memory/tools/MemoryReflectTool.ts` | `memory_reflect` implementation |
+| `memory/tools/RehydrateMemoryTool.ts` | `rehydrate_memory` implementation (opt-in) |
 | `memory/tools/index.ts` | Barrel exports for all tools |
 | `memory/tools/scopeContext.ts` | Scope ID resolution from execution context |

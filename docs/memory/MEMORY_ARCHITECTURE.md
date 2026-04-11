@@ -65,6 +65,21 @@ const mem = await Memory.create({
 
 `Memory.create()` currently opens the SQLite-backed memory facade at runtime. The lower-level storage-adapter abstractions and RAG/vector-store backends cover Postgres and browser-specific paths separately.
 
+### Memory Archive
+
+The archive provides lossless cold storage for verbatim memory content that consolidation mechanisms (temporal gist, lifecycle archival) would otherwise destroy. Two-tier model:
+
+| Tier | Content | Decay? | Searchable? |
+|------|---------|--------|-------------|
+| Working (MemoryStore) | Gisted summaries after consolidation | Yes | Yes (vector + FTS) |
+| Archive (IMemoryArchive) | Original verbatim content | No (age-based retention only) | By ID only |
+
+The archive is strictly **write-ahead**: any mechanism that would lose verbatim content calls `archive.store()` and awaits success before mutating the trace. If the archive write fails, the destructive operation is aborted.
+
+Rehydration (`archive.rehydrate(traceId)`) returns the original content on demand. It is a transient read (no encoding strength boost, no retrieval count increment, no reconsolidation). A lightweight access log tracks which traces are actively rehydrated so the retention sweep doesn't drop them.
+
+`SqlStorageMemoryArchive` wraps `@framers/sql-storage-adapter`'s `StorageAdapter` interface. When sharing the brain's adapter, archive tables live in the same database file. Supported backends: better-sqlite3, sql.js, IndexedDB, Capacitor SQLite, PostgreSQL.
+
 ### Subsystem Wiring
 
 | Step | Subsystem Created | Purpose |
@@ -214,7 +229,8 @@ Key differentiators:
 | `memory/feedback/RetrievalFeedbackSignal.ts` | Used/ignored detection |
 | `memory/consolidation/ConsolidationLoop.ts` | 6-step consolidation pipeline |
 | `memory/io/` | JSON, Markdown, Obsidian, SQLite, ChatGPT, CSV importers/exporters |
-| `memory/tools/` | 6 agent-facing ITool implementations |
+| `memory/archive/` | IMemoryArchive contract, SqlStorageMemoryArchive (cold storage for verbatim content) |
+| `memory/tools/` | 7 agent-facing ITool implementations (including opt-in rehydrate_memory) |
 | `memory/observation/` | ObservationCompressor, ObservationReflector, temporal |
 | `memory/encoding/` | EncodingModel, ContentFeatureDetector |
 | `memory/decay/` | DecayModel, RetrievalPriorityScorer |

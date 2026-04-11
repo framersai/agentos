@@ -170,6 +170,17 @@ export interface ICognitiveMemoryManager {
   /** Get a human-readable compaction/transparency report when enabled. */
   getContextTransparencyReport(): string | null;
 
+  /**
+   * Return the verbatim content that was archived when this trace was
+   * consolidated, or `null` if the trace is not gisted/archived or the
+   * archive is unreachable.
+   *
+   * @param traceId - The trace id to rehydrate.
+   * @param requestContext - Optional caller hint for audit.
+   * @returns The original verbatim content, or `null`.
+   */
+  rehydrate?(traceId: string, requestContext?: string): Promise<string | null>;
+
   /** Shutdown and release resources. */
   shutdown(): Promise<void>;
 }
@@ -209,6 +220,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
 
   // Optional neural reranker for post-retrieval quality improvement
   private rerankerService: import('../rag/reranking/RerankerService.js').RerankerService | null = null;
+
+  // Memory archive for write-ahead verbatim preservation
+  private archive: import('./archive/IMemoryArchive.js').IMemoryArchive | null = null;
 
   /**
    * Optional HyDE retriever for hypothesis-driven memory recall.
@@ -368,6 +382,11 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     if (anyLlmInvoker && !this.hydeRetriever) {
       const { MemoryHydeRetriever } = await import('./retrieval/hyde/MemoryHydeRetriever.js');
       this.hydeRetriever = new MemoryHydeRetriever(anyLlmInvoker) as unknown as HydeRetriever;
+    }
+
+    // --- Memory Archive ---
+    if (config.archive) {
+      this.archive = config.archive;
     }
 
     this.initialized = true;
@@ -869,6 +888,26 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   }
 
   // =========================================================================
+  // Archive: Rehydration
+  // =========================================================================
+
+  /**
+   * Rehydrate a gisted/archived trace to its original verbatim content.
+   *
+   * Delegates to the configured `IMemoryArchive`. Returns `null` when no
+   * archive is configured or when the trace is not found/integrity fails.
+   *
+   * @param traceId - The trace id to rehydrate.
+   * @param requestContext - Optional caller hint for audit.
+   * @returns The original verbatim content, or `null`.
+   */
+  async rehydrate(traceId: string, requestContext?: string): Promise<string | null> {
+    if (!this.archive) return null;
+    const result = await this.archive.rehydrate(traceId, requestContext);
+    return result?.verbatimContent ?? null;
+  }
+
+  // =========================================================================
   // Batch 2: Consolidation
   // =========================================================================
 
@@ -882,6 +921,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         reinforcedCount: 0,
         totalProcessed: 0,
         durationMs: 0,
+        archivedPruned: 0,
       };
     }
     return this.consolidation.run();

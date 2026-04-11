@@ -98,6 +98,8 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
   private utilityAI?: IUtilityAI;
   private isInitialized: boolean = false;
   private periodicCheckTimer?: NodeJS.Timeout;
+  /** Optional memory archive. When set, the 'archive' action stores content before deleting. */
+  private archive: import('../../archive/IMemoryArchive.js').IMemoryArchive | null = null;
 
   /**
    * Constructs a MemoryLifecycleManager instance.
@@ -149,6 +151,18 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
     this.isInitialized = true;
     this.setupPeriodicChecks();
     console.log(`MemoryLifecycleManager (ID: ${this.managerId}) initialized. Policies: ${this.config.policies.length}. DryRun: ${this.config.dryRunMode}.`);
+  }
+
+  /**
+   * Attach an IMemoryArchive for real archive operations.
+   *
+   * When set, the `archive` and `summarize_and_archive` action types perform
+   * a real store-then-delete instead of the previous conceptual log-then-delete.
+   *
+   * @param archiveImpl - The archive implementation to use.
+   */
+  public setArchive(archiveImpl: import('../../archive/IMemoryArchive.js').IMemoryArchive): void {
+    this.archive = archiveImpl;
   }
 
   /**
@@ -506,11 +520,38 @@ export class MemoryLifecycleManager implements IMemoryLifecycleManager {
         await candidate.vectorStoreRef.delete(candidate.collectionName, [candidate.id]);
   this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Item deleted successfully.`);
       } else if (effectiveConfigActionType === 'archive' || (effectiveConfigActionType === 'summarize_and_archive' && (configuredActionDetails.deleteOriginalAfterSummary !== false || summaryText !== undefined))) {
-        const archiveTarget = configuredActionDetails.archiveTargetId || this.config.defaultArchiveStoreId;
-  this.addTraceToReport(report, candidate.id, policyId, determinedAction, `Archival to '${archiveTarget}' is conceptual. Original item (if configured) deleted.`);
-        // Archival stores the item metadata + content summary to the archive target
-        // before deletion. Full cross-store migration requires the target store to be
-        // registered in VectorStoreManager — when unavailable, fall back to deletion.
+        if (this.archive) {
+          // Real archive: preserve content in cold storage, then delete original.
+          const content = candidate.textContent ?? candidate.contentSummary ?? '';
+          const { sha256 } = await import('../../core/util/crossPlatformCrypto.js');
+          const contentHash = await sha256(content);
+          const writeResult = await this.archive.store({
+            traceId: candidate.id,
+            agentId: candidate.gmiOwnerId ?? this.managerId,
+            verbatimContent: content,
+            contentHash,
+            traceType: (candidate.category as any) ?? 'episodic',
+            emotionalContext: { valence: 0, arousal: 0, dominance: 0, intensity: 0, gmiMood: 'neutral' },
+            entities: [],
+            tags: [],
+            createdAt: candidate.timestamp?.getTime() ?? Date.now(),
+            archivedAt: Date.now(),
+            archiveReason: 'lifecycle_archive',
+          });
+          if (!writeResult.success) {
+            this.addTraceToReport(report, candidate.id, policyId, determinedAction,
+              `ARCHIVAL_FAILED: ${writeResult.error}. Original retained.`);
+            return;
+          }
+          this.addTraceToReport(report, candidate.id, policyId, determinedAction,
+            `Archived (${writeResult.bytesWritten} bytes). Deleting original.`);
+        } else {
+          // No archive configured — fall back to delete with a warning.
+          const archiveTarget = configuredActionDetails.archiveTargetId || this.config.defaultArchiveStoreId;
+          this.addTraceToReport(report, candidate.id, policyId, determinedAction,
+            `No archive configured (target '${archiveTarget}' is conceptual). Falling back to delete.`);
+        }
+        // Delete original after successful archive or when no archive is configured
         if (configuredActionDetails.deleteOriginalAfterSummary !== false || effectiveConfigActionType === 'archive') {
              await candidate.vectorStoreRef.delete(candidate.collectionName, [candidate.id]);
         }
