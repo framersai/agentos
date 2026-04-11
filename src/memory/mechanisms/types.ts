@@ -215,6 +215,10 @@ export interface ResolvedTemporalGistConfig {
   minRetrievalCount: number;
   preserveEntities: boolean;
   preserveEmotionalContext: boolean;
+  /** Optional archive for write-ahead verbatim preservation before gisting. */
+  archive?: import('../archive/IMemoryArchive.js').IMemoryArchive;
+  /** Agent ID for archive records. Required when archive is set. */
+  archiveAgentId?: string;
 }
 
 export interface ResolvedSchemaEncodingConfig {

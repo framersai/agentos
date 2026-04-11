@@ -419,6 +419,35 @@ const memory = new CognitiveMemoryManager(config);
 
 ---
 
+## Long-Running Agents: Archive & Rehydration
+
+For agents that run across hundreds of sessions, `TemporalGist` compresses old memories to summaries after 60 days. Without the archive, this compression is destructive. With it, the original content is preserved in cold storage and available on demand.
+
+```ts
+import { SqlStorageMemoryArchive } from '@framers/agentos/memory/archive';
+
+// Share the brain's adapter — archive tables live in the same SQLite file
+const archive = new SqlStorageMemoryArchive(brain.adapter, brain.features);
+await archive.initialize();
+
+// Pass archive to CognitiveMemoryManager
+const manager = new CognitiveMemoryManager();
+await manager.initialize({
+  ...config,
+  archive,
+});
+
+// Later — the LLM sees a gisted memory and wants the original:
+const verbatim = await manager.rehydrate('mt_trace_abc123');
+// verbatim → "The ancient dragon Vex attacked the village of Millhaven at dawn..."
+```
+
+The archive uses the same `@framers/sql-storage-adapter` `StorageAdapter` contract as `SqliteBrain`. When shared, soul exports bundle one file. The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
+
+Retention is usage-aware: if a trace has been rehydrated recently, the consolidation sweep keeps it regardless of age. Default retention: 365 days.
+
+---
+
 ## Related Guides
 
 - [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) — full architecture and internals reference

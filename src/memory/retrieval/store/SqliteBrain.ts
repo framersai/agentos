@@ -36,6 +36,13 @@ import type {
   StorageFeatures,
 } from '@framers/sql-storage-adapter';
 import { resolveStorageAdapter, createStorageFeatures } from '@framers/sql-storage-adapter';
+import {
+  DDL_ARCHIVED_TRACES,
+  DDL_ARCHIVED_TRACES_IDX_AGENT_TIME,
+  DDL_ARCHIVED_TRACES_IDX_REASON,
+  DDL_ARCHIVE_ACCESS_LOG,
+  DDL_ARCHIVE_ACCESS_LOG_IDX,
+} from '../../archive/SqlStorageMemoryArchive.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -506,6 +513,12 @@ export class SqliteBrain {
       DDL_CONVERSATIONS,
       DDL_MESSAGES,
       DDL_PROSPECTIVE_ITEMS,
+      // Memory archive tables (write-ahead cold storage for verbatim content)
+      DDL_ARCHIVED_TRACES,
+      DDL_ARCHIVED_TRACES_IDX_AGENT_TIME,
+      DDL_ARCHIVED_TRACES_IDX_REASON,
+      DDL_ARCHIVE_ACCESS_LOG,
+      DDL_ARCHIVE_ACCESS_LOG_IDX,
     ];
 
     for (const statement of ddlStatements) {

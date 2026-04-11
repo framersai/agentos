@@ -35,3 +35,7 @@ export type { MemorySearchInput, MemorySearchOutput, MemorySearchResult } from '
 
 export { MemoryReflectTool } from './MemoryReflectTool.js';
 export type { MemoryReflectInput } from './MemoryReflectTool.js';
+
+/** Opt-in tool for rehydrating gisted/archived memory traces. */
+export { RehydrateMemoryTool } from './RehydrateMemoryTool.js';
+export type { RehydrateMemoryInput, RehydrateMemoryOutput } from './RehydrateMemoryTool.js';
