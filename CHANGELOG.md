@@ -1,3 +1,8 @@
+## <small>0.1.203 (2026-04-11)</small>
+
+* feat(memory): add PerspectiveObserver for multi-agent subjective encoding ([17c5c1c](https://github.com/framersai/agentos/commit/17c5c1c))
+* spec: PerspectiveObserver — multi-agent subjective memory encoding ([cf2362d](https://github.com/framersai/agentos/commit/cf2362d))
+
 ## <small>0.1.202 (2026-04-11)</small>
 
 * feat(memory): add IMemoryArchive for lossless verbatim preservation and on-demand rehydration ([12516c4](https://github.com/framersai/agentos/commit/12516c4))
