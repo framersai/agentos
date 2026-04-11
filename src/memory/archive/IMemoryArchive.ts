@@ -24,7 +24,7 @@ import type { MemoryType, EmotionalContext } from '../core/types.js';
 /**
  * Why a trace was archived. Enables per-mechanism analytics and filtering.
  */
-export type ArchiveReason = 'temporal_gist' | 'lifecycle_archive' | 'manual_compaction';
+export type ArchiveReason = 'temporal_gist' | 'lifecycle_archive' | 'manual_compaction' | 'perspective_source';
 
 // ---------------------------------------------------------------------------
 // Archive data shapes

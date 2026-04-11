@@ -231,7 +231,7 @@ Key differentiators:
 | `memory/io/` | JSON, Markdown, Obsidian, SQLite, ChatGPT, CSV importers/exporters |
 | `memory/archive/` | IMemoryArchive contract, SqlStorageMemoryArchive (cold storage for verbatim content) |
 | `memory/tools/` | 7 agent-facing ITool implementations (including opt-in rehydrate_memory) |
-| `memory/observation/` | ObservationCompressor, ObservationReflector, temporal |
+| `memory/observation/` | ObservationCompressor, ObservationReflector, PerspectiveObserver, temporal |
 | `memory/encoding/` | EncodingModel, ContentFeatureDetector |
 | `memory/decay/` | DecayModel, RetrievalPriorityScorer |
 | `memory/working/` | CognitiveWorkingMemory (Baddeley) |

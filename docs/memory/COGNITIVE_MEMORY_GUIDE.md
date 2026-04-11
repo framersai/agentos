@@ -450,6 +450,35 @@ Retention is usage-aware: if a trace has been rehydrated recently, the consolida
 
 ## Related Guides
 
+## Multi-Agent Memory: PerspectiveObserver
+
+When multiple agents witness the same event, each gets a first-person rewrite through their personality and relationships.
+
+```ts
+import { PerspectiveObserver } from '@framers/agentos/memory/pipeline/observation/PerspectiveObserver';
+
+const observer = new PerspectiveObserver({
+  llmInvoker: (sys, usr) => callHaiku(sys, usr),
+  importanceThreshold: 0.3,
+});
+
+const result = await observer.rewrite(
+  [{ eventId: 'evt_1', content: 'The dragon attacked the village.', ... }],
+  [
+    { agentId: 'lyra', agentName: 'Lyra', hexaco: { emotionality: 0.9, ... }, tier: 'important', ... },
+    { agentId: 'holt', agentName: 'Holt', hexaco: { emotionality: 0.2, ... }, tier: 'important', ... },
+  ],
+);
+// Lyra: "I watched in horror as flames consumed our home..."
+// Holt: "The beast attacked. Predictable. I assessed our defensive options."
+```
+
+Each `SubjectiveTrace` carries a `perspectiveMetadata` snapshot and an `originalEventHash` linking back to the archived objective event. Reconsolidation halves its drift rate for perspective-encoded traces.
+
+---
+
+## Related Guides
+
 - [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) — full architecture and internals reference
 - [WORKING_MEMORY.md](./WORKING_MEMORY.md) — detailed Baddeley working memory reference
 - [MEMORY_AUTO_INGEST.md](./MEMORY_AUTO_INGEST.md) — automatic memory ingestion from conversations

@@ -123,6 +123,57 @@ describe('applyReconsolidation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Reconsolidation — perspectiveEncoded clamping
+// ---------------------------------------------------------------------------
+
+describe('applyReconsolidation perspectiveEncoded clamping', () => {
+  const cfg = DEFAULT_MECHANISMS_CONFIG.reconsolidation;
+
+  it('halves driftRate when perspectiveEncoded is true', () => {
+    const trace = makeTrace({
+      emotionalContext: { valence: 0.5, arousal: 0.5, dominance: 0.5, intensity: 0.25, gmiMood: 'NEUTRAL' },
+      structuredData: { mechanismMetadata: { perspectiveEncoded: true } },
+    });
+    const originalValence = trace.emotionalContext.valence;
+    const mood: PADState = { valence: 1.0, arousal: 0.5, dominance: 0.5 };
+
+    applyReconsolidation(trace, mood, cfg);
+
+    const drift = trace.emotionalContext.valence - originalValence;
+    // With halved rate (0.025 instead of 0.05), drift should be half as much
+    expect(drift).toBeCloseTo(cfg.driftRate * 0.5 * (1.0 - 0.5), 5);
+  });
+
+  it('uses full driftRate when perspectiveEncoded is absent', () => {
+    const trace = makeTrace({
+      emotionalContext: { valence: 0.5, arousal: 0.5, dominance: 0.5, intensity: 0.25, gmiMood: 'NEUTRAL' },
+    });
+    const originalValence = trace.emotionalContext.valence;
+    const mood: PADState = { valence: 1.0, arousal: 0.5, dominance: 0.5 };
+
+    applyReconsolidation(trace, mood, cfg);
+
+    const drift = trace.emotionalContext.valence - originalValence;
+    expect(drift).toBeCloseTo(cfg.driftRate * (1.0 - 0.5), 5);
+  });
+
+  it('maxDriftPerTrace cap still applies with halved rate', () => {
+    const trace = makeTrace({
+      emotionalContext: { valence: 0.0, arousal: 0.0, dominance: 0.0, intensity: 0.0, gmiMood: 'NEUTRAL' },
+      structuredData: {
+        mechanismMetadata: { perspectiveEncoded: true, cumulativeDrift: cfg.maxDriftPerTrace - 0.01 },
+      },
+    });
+    const mood: PADState = { valence: 1.0, arousal: 1.0, dominance: 1.0 };
+
+    applyReconsolidation(trace, mood, cfg);
+
+    const meta = trace.structuredData!.mechanismMetadata as any;
+    expect(meta.cumulativeDrift).toBeLessThanOrEqual(cfg.maxDriftPerTrace);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Retrieval-Induced Forgetting
 // ---------------------------------------------------------------------------
 

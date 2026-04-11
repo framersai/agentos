@@ -96,6 +96,14 @@ Gisted/archived content can be inflated on demand via `CognitiveMemoryManager.re
 
 The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
 
+## Perspective Encoding
+
+Events witnessed by multiple agents are rewritten through each witness's HEXACO personality, current mood, and relationships before encoding. A suspicious character notices threats; an emotional character remembers feelings; a conscientious character tracks commitments. The objective event is archived (via `IMemoryArchive`); each witness gets their own first-person trace.
+
+Perspective-encoded traces have their reconsolidation `driftRate` halved. They already shifted from objective truth at encoding time, so full retrieval-time drift would compound distortion. The `maxDriftPerTrace` cap (0.4) still bounds total drift.
+
+Gating: only `important`-tier witnesses with `event.importance >= 0.3` and entity overlap get LLM rewrites. Others fall back to objective encoding. Cost: ~$0.025/session on Haiku 4.5 for 5 NPCs.
+
 ## Metadata Storage
 
 Mechanism metadata is stored in `trace.structuredData.mechanismMetadata` (type `MechanismMetadata`), avoiding changes to the core `MemoryTrace` interface. The metadata is persisted in the vector store's metadata JSON column.
