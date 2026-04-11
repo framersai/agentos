@@ -176,6 +176,12 @@ export interface MechanismMetadata {
     previousValence: number;
     previousArousal: number;
   }>;
+  /** PerspectiveObserver: trace was encoded through a persona lens. */
+  perspectiveEncoded?: boolean;
+  /** PerspectiveObserver: ID of the source objective event. */
+  perspectiveSourceEventId?: string;
+  /** PerspectiveObserver: SHA-256 of the source objective event content. */
+  perspectiveSourceHash?: string;
 }
 
 // ---------------------------------------------------------------------------
