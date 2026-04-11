@@ -1,3 +1,7 @@
+## <small>0.1.202 (2026-04-11)</small>
+
+* feat(memory): add IMemoryArchive for lossless verbatim preservation and on-demand rehydration ([12516c4](https://github.com/framersai/agentos/commit/12516c4))
+
 ## <small>0.1.201 (2026-04-10)</small>
 
 * fix: update comparison blog URL to dated Docusaurus path ([022155a](https://github.com/framersai/agentos/commit/022155a))
