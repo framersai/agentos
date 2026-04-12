@@ -21,6 +21,13 @@ import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
+import type {
+  MessageContent,
+  MessageContentPart,
+} from '../core/llm/providers/IProvider.js';
+
+// Re-export multimodal types for downstream consumers
+export type { MessageContent, MessageContentPart };
 
 async function recordAgentOSUsageLazy(
   input: Parameters<typeof import('./runtime/usageLedger.js')['recordAgentOSUsage']>[0]
@@ -36,8 +43,21 @@ async function recordAgentOSUsageLazy(
 export interface Message {
   /** Role of the message author. */
   role: 'system' | 'user' | 'assistant' | 'tool';
-  /** Plain-text or serialised-JSON content of the message. */
-  content: string;
+  /** Content of the message. String for text-only, array for multimodal (images + text). */
+  content: MessageContent;
+}
+
+/**
+ * Extract plain text from a MessageContent value.
+ * For strings, returns as-is. For arrays, concatenates text parts.
+ */
+export function extractTextFromContent(content: MessageContent): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return String(content ?? '');
+  return content
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && typeof (p as any).text === 'string')
+    .map((p) => p.text)
+    .join('\n');
 }
 
 /**
