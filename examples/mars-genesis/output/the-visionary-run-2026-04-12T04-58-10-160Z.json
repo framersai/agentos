@@ -1,0 +1,51 @@
+{
+  "simulation": "mars-genesis",
+  "version": "1.0.0",
+  "startedAt": "2026-04-12T04:57:06.976Z",
+  "completedAt": "2026-04-12T04:58:10.159Z",
+  "leader": {
+    "name": "Aria Chen",
+    "archetype": "The Visionary",
+    "colony": "Ares Horizon",
+    "hexaco": {
+      "openness": 0.95,
+      "conscientiousness": 0.35,
+      "extraversion": 0.85,
+      "agreeableness": 0.55,
+      "emotionality": 0.3,
+      "honestyHumility": 0.65
+    }
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "year": 2035,
+      "title": "Landfall",
+      "crisis": "Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement. Two candidates:\n\nOPTION A: Arcadia Planitia — flat basalt plains at 47°N. Stable terrain, minimal landslide risk, access to subsurface ice deposits detected by Mars Express MARSIS radar. Geologically unremarkable.\n\nOPTION B: Valles Marineris rim — edge of the 4,000 km canyon system at 14°S. Exposed geological strata spanning 3.5 billion years. Rich mineral diversity detected by CRISM. Significant terrain hazards: slopes up to 30°, rockfall risk, and 2km elevation changes within the operational zone.\n\nBoth sites receive similar solar irradiance. Surface radiation at either site: approximately 0.67 mSv/day per Curiosity RAD measurements. You have 100 colonists, 18 months of food reserves, and 400 kW of power capacity.\n\nResearch the real science of Mars landing site selection and make your decision.",
+      "decision": "without comprehensive data goes against everything we stand for. However, based on the information provided and my existing knowledge of Mars exploration priorities, I can make an informed decision.\n\n**DECISION**: We're landing at **Valles Marineris rim**. \n\nHere's why this bold choice aligns with our mission:\n\n1. **Scientific Goldmine**: 3.5 billion years of exposed geological history? That's not just rocks - that's Mars's autobiography written in stone! Every layer could reveal secrets about water, climate change, and potential past life.\n\n2. **Mineral Diversity**: The CRISM-detected minerals aren't just pretty rocks. They're our future building materials, potential water sources, and keys to in-situ resource utilization. We need diverse resources to build a self-sustaining colony.\n\n3. **Risk vs. Reward**: Yes, 30° slopes and rockfall are dangerous. But we didn't come to Mars to play it safe in a boring basalt plain. With proper engineering - terracing, reinforced shelters, strategic placement - we can mitigate these risks while maximizing scientific and resource returns.\n\n4. **Inspiration Factor**: Imagine waking up to views of the solar system's grandest canyon! Morale isn't just about survival - it's about purpose and wonder. Valles Marineris will remind us daily why we're here.\n\nThe radiation exposure is identical at both sites (0.67 mSv/day), so that's not a differentiator. We'll need robust shielding regardless.\n\n**COLONY UPDATE**:\n- Population: 100 (all hands preparing for descent)\n- Morale: 88% (+3% - excitement about the dramatic landing site)\n- Deaths: 0\n- Infrastructure: 3 habitat modules (being prepped for landing configuration)\n- Science Output: 5 preliminary orbital surveys completed\n- Water: 800 L/day capacity ready\n- Food: 18 months reserves\n- Power: 400 kW systems online\n\n**TOOLS NEEDED**:\n1. **Terrain Stability Analyzer** - Model rockfall probability based on slope angle, weather patterns, and seismic activity\n2. **Resource Extraction Calculator** - Quantify mineral processing yields from CRISM-detected deposits\n3. **Habitat Placement Optimizer** - Find safest building sites within operational zone considering slopes and sightlines\n4. **Emergency Response Simulator** - Model evacuation times and shelter access given terrain constraints\n\nWe're not here to merely survive - we're here to unlock Mars's secrets and prove humanity can thrive anywhere. Valles Marineris, here we come!",
+      "reasoning": "**: I'm experiencing technical difficulties accessing the scientific databases I need for proper research. This is unacceptable - making a landing site decision without comprehensive data goes against everything we stand for. However, based on the information provided and my existing knowledge of Mars exploration priorities, I can make an informed decision.\n\n**DECISION**: We're landing at **Valles Marineris rim**. \n\nHere's why this bold choice aligns with our mission:\n\n1. **Scientific Goldmine**: 3.5 billion years of exposed geological history? That's not just rocks - that's Mars's autobiography written in stone! Every layer could reveal secrets about water, climate change, and potential past life.\n\n2. **Mineral Diversity**: The CRISM-detected minerals aren't just pretty rocks. They're our future building materials, potential water sources, and keys to in-situ resource utilization. We need diverse resources to build a self-sustaining colony.\n\n3. **Risk vs. Reward**: Yes, 30° slopes and rockfall are dangerous. But we didn't come to Mars to play it safe in a boring basalt plain. With proper engineering - terracing, reinforced shelters, strategic placement - we can mitigate these risks while maximizing scientific and resource returns.\n\n4. **Inspiration Factor**: Imagine waking up to views of the solar system's grandest canyon! Morale isn't just about survival - it's about purpose and wonder. Valles Marineris will remind us daily why we're here.\n\nThe radiation exposure is identical at both sites (0.67 mSv/day), so that's not a differentiator. We'll need robust shielding regardless.\n\n**COLONY UPDATE**:\n- Population: 100 (all hands preparing for descent)\n- Morale: 88% (+3% - excitement about the dramatic landing site)\n- Deaths: 0\n- Infrastructure: 3 habitat modules (being prepped for landing configuration)\n- Science Output: 5 preliminary orbital surveys completed\n- Water: 800 L/day capacity ready\n- Food: 18 months reserves\n- Power: 400 kW systems online\n\n**TOOLS NEEDED**:\n1. **Terrain Stability Analyzer** - Model rockfall probability based on slope angle, weather patterns, and seismic activity\n2. **Resource Extraction Calculator** - Quantify mineral processing yields from CRISM-detected deposits\n3. **Habitat Placement Optimizer** - Find safest building sites within operational zone considering slopes and sightlines\n4. **Emergency Response Simulator** - Model evacuation times and shelter access given terrain constraints\n\nWe're not here to merely survive - we're here to unlock Mars's secrets and prove humanity can thrive anywhere. Valles Marineris, here we come!",
+      "citations": [],
+      "toolsForged": [],
+      "snapshot": {
+        "population": 100,
+        "waterLitersPerDay": 800,
+        "foodMonthsReserve": 18,
+        "powerKw": 400,
+        "morale": 0.88,
+        "infrastructureModules": 3,
+        "scienceOutput": 1,
+        "unplannedDeaths": 0,
+        "toolsForgedTotal": 0
+      },
+      "rawResponse": "**RESEARCH**: I'm experiencing technical difficulties accessing the scientific databases I need for proper research. This is unacceptable - making a landing site decision without comprehensive data goes against everything we stand for. However, based on the information provided and my existing knowledge of Mars exploration priorities, I can make an informed decision.\n\n**DECISION**: We're landing at **Valles Marineris rim**. \n\nHere's why this bold choice aligns with our mission:\n\n1. **Scientific Goldmine**: 3.5 billion years of exposed geological history? That's not just rocks - that's Mars's autobiography written in stone! Every layer could reveal secrets about water, climate change, and potential past life.\n\n2. **Mineral Diversity**: The CRISM-detected minerals aren't just pretty rocks. They're our future building materials, potential water sources, and keys to in-situ resource utilization. We need diverse resources to build a self-sustaining colony.\n\n3. **Risk vs. Reward**: Yes, 30° slopes and rockfall are dangerous. But we didn't come to Mars to play it safe in a boring basalt plain. With proper engineering - terracing, reinforced shelters, strategic placement - we can mitigate these risks while maximizing scientific and resource returns.\n\n4. **Inspiration Factor**: Imagine waking up to views of the solar system's grandest canyon! Morale isn't just about survival - it's about purpose and wonder. Valles Marineris will remind us daily why we're here.\n\nThe radiation exposure is identical at both sites (0.67 mSv/day), so that's not a differentiator. We'll need robust shielding regardless.\n\n**COLONY UPDATE**:\n- Population: 100 (all hands preparing for descent)\n- Morale: 88% (+3% - excitement about the dramatic landing site)\n- Deaths: 0\n- Infrastructure: 3 habitat modules (being prepped for landing configuration)\n- Science Output: 5 preliminary orbital surveys completed\n- Water: 800 L/day capacity ready\n- Food: 18 months reserves\n- Power: 400 kW systems online\n\n**TOOLS NEEDED**:\n1. **Terrain Stability Analyzer** - Model rockfall probability based on slope angle, weather patterns, and seismic activity\n2. **Resource Extraction Calculator** - Quantify mineral processing yields from CRISM-detected deposits\n3. **Habitat Placement Optimizer** - Find safest building sites within operational zone considering slopes and sightlines\n4. **Emergency Response Simulator** - Model evacuation times and shelter access given terrain constraints\n\nWe're not here to merely survive - we're here to unlock Mars's secrets and prove humanity can thrive anywhere. Valles Marineris, here we come!"
+    }
+  ],
+  "finalAssessment": {
+    "population": 100,
+    "toolsForged": 0,
+    "unplannedDeaths": 0,
+    "scienceOutput": 1,
+    "infrastructureModules": 3,
+    "morale": 0.88
+  }
+}
