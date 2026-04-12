@@ -1,3 +1,7 @@
+## <small>0.1.209 (2026-04-12)</small>
+
+* feat(examples): add verified Mars Genesis output logs with live web search citations ([115684f](https://github.com/framersai/agentos/commit/115684f))
+
 ## <small>0.1.208 (2026-04-12)</small>
 
 * fix(examples): add Brave Search fallback, add tool execution logging, debug Serper credit issue ([d3c7b82](https://github.com/framersai/agentos/commit/d3c7b82))
