@@ -1,0 +1,5188 @@
+{
+  "simulation": "mars-genesis-v2",
+  "leader": {
+    "name": "Aria Chen",
+    "archetype": "The Visionary",
+    "colony": "Ares Horizon",
+    "hexaco": {
+      "openness": 0.95,
+      "conscientiousness": 0.35,
+      "extraversion": 0.85,
+      "agreeableness": 0.55,
+      "emotionality": 0.3,
+      "honestyHumility": 0.65
+    }
+  },
+  "turnArtifacts": [
+    {
+      "turn": 1,
+      "year": 2035,
+      "crisis": "Landfall",
+      "departmentReports": [
+        {
+          "department": "medical",
+          "summary": "Decision: choose Arcadia Planitia. Radiation is effectively identical at both sites, so the medical and colony-health difference is dominated by terrain-driven injury risk, construction difficulty, and operational reliability. Arcadia offers flat, stable ground and subsurface ice access, which lowers acute injury risk, eases habitat construction, and improves water security. Valles Marineris rim offers valuable geology and minerals, but its 30° slopes, rockfall exposure, and 2 km elevation changes materially increase the probability of trauma, habitat damage, mission delays, and psychological strain. The forged comparative risk model rated Arcadia much safer than Valles Marineris for this colony configuration.",
+          "citations": [
+            {
+              "text": "Hassler et al. 2014, Science",
+              "url": "https://doi.org/10.1126/science.1244797",
+              "context": "Mars surface radiation averages about 0.67 mSv/day, making cumulative exposure a long-term concern at either landing site."
+            },
+            {
+              "text": "Mars Express MARSIS",
+              "url": "https://www.esa.int/Science_Exploration/Space_Science/Mars_Express",
+              "context": "Arcadia Planitia contains extensive subsurface ice deposits, supporting water access and reducing logistical burden."
+            },
+            {
+              "text": "NASA Mars Fact Sheet",
+              "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html",
+              "context": "Valles Marineris spans 4,000 km with up to 7 km depth, indicating major terrain complexity and exposure of ancient strata."
+            },
+            {
+              "text": "Murchie et al. 2009, JGR",
+              "url": "https://doi.org/10.1029/2009JE003342",
+              "context": "CRISM detected diverse hydrated minerals in Valles Marineris walls, making it scientifically rich but not medically safer."
+            },
+            {
+              "text": "HiRISE terrain analysis",
+              "url": "https://www.uahirise.org/",
+              "context": "Slopes up to 30 degrees increase landing risk and construction difficulty at the Valles Marineris rim."
+            }
+          ],
+          "risks": [
+            {
+              "severity": "high",
+              "description": "Valles Marineris rim significantly increases fall, rockfall, and construction-injury risk due to steep slopes and large elevation changes."
+            },
+            {
+              "severity": "medium",
+              "description": "Radiation exposure is substantial at both sites and requires long-term shielding and monitoring, though it does not differentiate the sites."
+            },
+            {
+              "severity": "medium",
+              "description": "If the colony chooses the more hazardous site, operational delays and repeated extravehicular activity may increase fatigue-related injuries and psychological stress."
+            },
+            {
+              "severity": "low",
+              "description": "Arcadia’s relative geological monotony may reduce scientific excitement, but this is a morale issue rather than a direct health hazard."
+            }
+          ],
+          "opportunities": [
+            {
+              "impact": "high",
+              "description": "Arcadia Planitia’s subsurface ice offers a strong health and resilience advantage through local water access, reduced transport burden, and easier habitat support."
+            },
+            {
+              "impact": "medium",
+              "description": "A flatter, more stable site enables faster module deployment, safer EVA, and lower accident rates during the highest-risk first months."
+            },
+            {
+              "impact": "medium",
+              "description": "Starting in a safer location preserves medical capacity and contingency margin for later expansion toward more scientifically valuable terrain."
+            }
+          ],
+          "recommendedActions": [
+            "Land and establish the first permanent settlement at Arcadia Planitia.",
+            "Prioritize excavation/shielding around habitats to reduce cumulative radiation dose over time.",
+            "Use local ice resources for water, oxygen, and potentially propellant support to reduce logistics load.",
+            "Delay any Valles Marineris scientific operations until the colony has robust mobility, medical, and rescue capability.",
+            "Implement strict EVA rules, rockfall monitoring, and slope exclusion zones even at the safer site."
+          ],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            {
+              "name": "mars_site_risk_scorer",
+              "mode": "sandbox",
+              "description": "Computes a comparative Mars landing-site risk score using terrain hazard, construction difficulty, colony stress factors, and radiation pressure.",
+              "output": {
+                "Arcadia Planitia": {
+                  "totalRiskScore": 24.2,
+                  "components": {
+                    "terrainRisk": 15,
+                    "buildRisk": 10,
+                    "psychRisk": 10,
+                    "radiationPressure": 6.7,
+                    "resilience": 17.5
+                  }
+                },
+                "Valles Marineris rim": {
+                  "totalRiskScore": 99.2,
+                  "components": {
+                    "terrainRisk": 75,
+                    "buildRisk": 80,
+                    "psychRisk": 35,
+                    "radiationPressure": 6.7,
+                    "resilience": 17.5
+                  }
+                }
+              },
+              "confidence": 0.97
+            }
+          ],
+          "featuredColonistUpdates": [
+            {
+              "name": "Dr. Yuki Tanaka",
+              "update": "Would benefit from the safer flat terrain at Arcadia; lower trauma risk and better emergency response readiness."
+            },
+            {
+              "name": "Erik Lindqvist",
+              "update": "Arcadia reduces EVA hazard exposure and supports steadier construction workflows, helping preserve morale."
+            },
+            {
+              "name": "Amara Osei",
+              "update": "Arcadia’s ice access improves water security, which is favorable for long-term health and resilience."
+            },
+            {
+              "name": "Dr. Priya Singh",
+              "update": "Medical operations will be simpler and safer at a stable site with fewer rockfall and slope hazards."
+            },
+            {
+              "name": "Carlos Fernandez",
+              "update": "Lower terrain complexity at Arcadia should reduce injury burden and protect age-related physical reserve."
+            }
+          ],
+          "confidence": 0.92,
+          "openQuestions": [
+            "Do we want to optimize solely for first-settlement safety, or balance safety against scientific value for a later outpost?",
+            "What are the exact habitat shielding and landing system specifications, which could slightly change the radiation and descent-risk tradeoffs?"
+          ]
+        },
+        {
+          "department": "engineering",
+          "summary": "",
+          "citations": [],
+          "risks": [],
+          "opportunities": [],
+          "recommendedActions": [],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            {
+              "tool": "life_support_capacity_model",
+              "output": {
+                "population": 100,
+                "foodDaysReserve": 540,
+                "waterLPerDay": 800,
+                "estimatedWaterDaysPer1000L": 1.25,
+                "lifeSupportUnits": 120,
+                "requiredLifeSupportUnits": 100,
+                "lifeSupportMargin": 20,
+                "feasible": true
+              }
+            }
+          ],
+          "featuredColonistUpdates": [],
+          "confidence": 0.7,
+          "openQuestions": [],
+          "decision": "OPTION A: Arcadia Planitia",
+          "reasoning": "Arcadia Planitia is the better first permanent settlement site for a 2035 Mars colony. Real Mars site-selection science favors low-risk, flat terrain for EDL, early construction, logistics, and safety. Arcadia’s basalt plains are far more suitable for landing pads, pressurized module deployment, rover traffic, buried utilities, and future expansion. Its subsurface ice deposits are a major operational advantage for water, oxygen, and propellant production. Valles Marineris offers valuable science and mineral diversity, but its 30° slopes, rockfall risk, and 2 km elevation changes create unacceptable construction and landing complexity for an initial settlement. In short: Arcadia maximizes survivability and buildability; Valles maximizes scientific value but is the wrong first foothold.",
+          "operationalAssessment": {
+            "colonyStatus": {
+              "population": 100,
+              "moralePercent": 83,
+              "foodReserveMonths": 18,
+              "waterLPerDay": 800,
+              "powerKw": 400,
+              "modules": 3,
+              "lifeSupport": "120/100",
+              "volumeM3": 3000
+            },
+            "riskNotes": [
+              "Radiation is similar at both sites, so it does not differentiate the choice.",
+              "Current life support has a positive margin for the population.",
+              "Power capacity appears adequate for a 100-person starter outpost, but expansion will benefit from the easier construction environment at Arcadia.",
+              "Arcadia’s flat terrain reduces immediate engineering risk and speeds deployment.",
+              "Valles Marineris would require significant terracing and hazard mitigation before serious settlement work."
+            ]
+          },
+          "recommendation": "Land at Arcadia Planitia and reserve Valles Marineris for later robotic science, resource prospecting, or a future advanced outpost."
+        }
+      ],
+      "commanderDecision": {
+        "decision": "Establish the first permanent settlement at Arcadia Planitia and commit immediately to a safety-first buildout centered on subsurface ice access, rapid habitat shielding, and reliable surface operations. Defer any crewed Valles Marineris rim operations until the colony has mature mobility, rescue, and remote prospecting capacity.",
+        "rationale": "Arcadia is the stronger opening move. Radiation does not meaningfully distinguish the sites, so the real contest is operational friction versus expansion potential. Arcadia gives us flat ground, lower injury risk, easier construction, and direct leverage from accessible ice. That means faster habitat deployment, steadier water security, fewer EVA losses, and a cleaner runway for growth. Valles offers dramatic geology and mineral promise, but launching a young colony onto steep slopes and rockfall exposure is a gambler's mistake, not a calculated risk. Bold expansion starts with a stable foothold. We will build our strength on forgiving terrain, turn local ice into life support and industrial momentum, and later reach outward to higher-risk science zones with better tools and odds.",
+        "departmentsConsulted": [
+          "medical",
+          "engineering"
+        ],
+        "selectedPolicies": [
+          {
+            "policy": "SiteSelection_ArcadiaPlanitia",
+            "reason": "Maximizes early colony survivability, construction speed, and operational reliability."
+          },
+          {
+            "policy": "RapidHabitatShieldingAndExcavation",
+            "reason": "Radiation remains a major shared hazard; early regolith shielding reduces cumulative exposure."
+          },
+          {
+            "policy": "ISRU_IceFirstDevelopment",
+            "reason": "Use subsurface ice for water, oxygen, and future propellant to reduce supply dependence and unlock scale."
+          },
+          {
+            "policy": "StrictEVAControls",
+            "reason": "Even at the safer site, disciplined EVA procedures cut avoidable injuries and fatigue accumulation."
+          },
+          {
+            "policy": "DeferCrewedVallesOperations",
+            "reason": "Preserve personnel and equipment until mobility, rescue, and medical response capability are robust."
+          },
+          {
+            "policy": "RemoteReconForHighRiskScienceTargets",
+            "reason": "Begin extracting scientific value from Valles and other hazardous regions using drones, orbital mapping, and robotic scouts before sending people."
+          }
+        ],
+        "rejectedPolicies": [
+          {
+            "policy": "InitialSettlement_VallesMarinerisRim",
+            "reason": "Higher trauma, rockfall, construction difficulty, and mission-delay risk without a compensating health advantage."
+          },
+          {
+            "policy": "EarlyAggressiveCrewedSlopeOperations",
+            "reason": "Upside is real but premature; the colony is too small to absorb early catastrophic losses."
+          },
+          {
+            "policy": "DelayRadiationMitigationUntilLater",
+            "reason": "Shared hazard does not mean optional hazard; exposure compounds from day one."
+          }
+        ],
+        "expectedTradeoffs": [
+          {
+            "tradeoff": "Safer landing site versus lower immediate geological excitement",
+            "impact": "Science teams may feel constrained early, but the colony gains stability and a longer operational horizon."
+          },
+          {
+            "tradeoff": "Resource security and build efficiency versus delayed access to riskier mineral-rich terrain",
+            "impact": "Industrial growth starts slower in exotic materials, faster in core survival infrastructure."
+          },
+          {
+            "tradeoff": "Strict EVA discipline versus short-term task flexibility",
+            "impact": "Some work may progress more slowly, but injury rates and downtime should drop."
+          },
+          {
+            "tradeoff": "Investment in shielding and ice extraction versus other discretionary projects",
+            "impact": "Near-term capital and labor are tied up, but these systems create compounding resilience."
+          }
+        ],
+        "watchMetricsNextTurn": [
+          "Habitat shielding progress",
+          "Water extraction rate from local ice",
+          "EVA hours per injury or near-miss",
+          "Construction progress and delay frequency",
+          "Crew radiation dose accumulation",
+          "Morale trend after site selection",
+          "Food reserve burn rate",
+          "Robotic reconnaissance coverage of hazardous science targets"
+        ]
+      },
+      "policyEffectsApplied": [
+        {
+          "policy": "SiteSelection_ArcadiaPlanitia",
+          "reason": "Maximizes early colony survivability, construction speed, and operational reliability."
+        },
+        {
+          "policy": "RapidHabitatShieldingAndExcavation",
+          "reason": "Radiation remains a major shared hazard; early regolith shielding reduces cumulative exposure."
+        },
+        {
+          "policy": "ISRU_IceFirstDevelopment",
+          "reason": "Use subsurface ice for water, oxygen, and future propellant to reduce supply dependence and unlock scale."
+        },
+        {
+          "policy": "StrictEVAControls",
+          "reason": "Even at the safer site, disciplined EVA procedures cut avoidable injuries and fatigue accumulation."
+        },
+        {
+          "policy": "DeferCrewedVallesOperations",
+          "reason": "Preserve personnel and equipment until mobility, rescue, and medical response capability are robust."
+        },
+        {
+          "policy": "RemoteReconForHighRiskScienceTargets",
+          "reason": "Begin extracting scientific value from Valles and other hazardous regions using drones, orbital mapping, and robotic scouts before sending people."
+        }
+      ],
+      "stateSnapshotAfter": {
+        "population": 100,
+        "morale": 0.825,
+        "foodMonthsReserve": 18,
+        "infrastructureModules": 3,
+        "scienceOutput": 0,
+        "births": 0,
+        "deaths": 0
+      }
+    },
+    {
+      "turn": 2,
+      "year": 2037,
+      "crisis": "Water Extraction",
+      "departmentReports": [
+        {
+          "department": "medical",
+          "summary": "Recommendation: choose Option B, the atmospheric water extraction system. The colony is currently short by 200 L/day, i.e. 20% of daily demand, and that deficit is already a direct health risk for hydration, hygiene, food production, and psychological stability. Option A could restore supply faster, but its contamination risk to pristine subsurface reserves creates a long-term medical and ecological hazard if the aquifer becomes compromised. Option B is slower but reliable, lower-risk, and consistent with planetary-protection principles. The forged model computed a 200 L/day deficit, a 0.2 deficit fraction, and favored Option B on overall colony health risk.",
+          "citations": [
+            {
+              "text": "Plaut et al. 2007",
+              "url": "https://doi.org/10.1126/science.1139672",
+              "context": "Mars subsurface ice has been confirmed at multiple latitudes by radar, supporting the idea that the colony’s water source is real but difficult to access."
+            },
+            {
+              "text": "NASA Mars 2020 MOXIE",
+              "url": "https://mars.nasa.gov/mars2020/spacecraft/instruments/moxie/",
+              "context": "Mars atmosphere technologies have proven in-situ extraction heritage, supporting atmospheric resource use as a viable engineering path."
+            },
+            {
+              "text": "Smith 2004, Icarus",
+              "url": "https://doi.org/10.1016/j.icarus.2003.09.027",
+              "context": "Mars atmospheric water vapor is only about 0.03% and seasonally variable, so atmospheric extraction is slow but dependable enough to close a 20% shortfall."
+            },
+            {
+              "text": "Planetary protection protocols",
+              "url": "https://planetaryprotection.nasa.gov/",
+              "context": "Deep drilling risks contaminating pristine subsurface aquifers with biological material, which is a serious long-term stewardship and biosecurity concern."
+            }
+          ],
+          "risks": [
+            {
+              "severity": "high",
+              "description": "Current water deficit is already medically significant and can worsen dehydration, sanitation failures, reduced crop yield, and morale decline."
+            },
+            {
+              "severity": "high",
+              "description": "Experimental deep drilling could contaminate pristine subsurface water, risking irreversible loss of a future potable resource and possible biohazard spread."
+            },
+            {
+              "severity": "medium",
+              "description": "Atmospheric extraction will take about 6 months, so interim rationing or conservation is needed to prevent cumulative health strain."
+            },
+            {
+              "severity": "medium",
+              "description": "If water stress persists, psychological wellbeing and sleep quality may degrade, especially in a population already living under elevated radiation exposure."
+            }
+          ],
+          "opportunities": [
+            {
+              "impact": "high",
+              "description": "Atmospheric extraction provides a low-contamination, scalable backup water pathway that improves long-term resilience."
+            },
+            {
+              "impact": "medium",
+              "description": "Solving the 20% shortfall with a reliable system reduces medical workload, hygiene risk, and conflict over rationing."
+            },
+            {
+              "impact": "medium",
+              "description": "Preserving pristine subsurface reserves keeps a high-value emergency resource available for future growth or emergencies."
+            }
+          ],
+          "recommendedActions": [
+            "Choose Option B: deploy the atmospheric water extraction system.",
+            "Ration water immediately to protect drinking and sanitation until the system is online.",
+            "Prioritize high-efficiency recycling in life support to reduce the 200 L/day gap.",
+            "Avoid deep drilling into the aquifer until contamination controls and planetary-protection protocols are stronger.",
+            "Monitor hydration status, renal strain, and morale during the 6-month transition period."
+          ],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            {
+              "name": "water_strategy_risk_model",
+              "mode": "sandbox",
+              "description": "Computes colony water deficit and compares the health and reliability tradeoff between experimental deep drilling and atmospheric water extraction.",
+              "output": {
+                "colonyDeficitLitersPerDay": 200,
+                "deficitPercent": 0.2,
+                "hydrationStressIndex": 0.2,
+                "optionA": {
+                  "waterLiftSpeed": 0.9,
+                  "contaminationRisk": 0.8,
+                  "reliability": 0.55,
+                  "medicalRisk": 0.72,
+                  "decisionScore": 0.48
+                },
+                "optionB": {
+                  "waterLiftSpeed": 0.45,
+                  "contaminationRisk": 0.08,
+                  "reliability": 0.92,
+                  "medicalRisk": 0.18,
+                  "decisionScore": 0.81
+                },
+                "recommendation": "B"
+              },
+              "confidence": 0.97
+            }
+          ],
+          "featuredColonistUpdates": [
+            {
+              "name": "Dietrich Ito",
+              "update": "Water rationing should be tightened, but the safer extraction path reduces long-term health risk."
+            },
+            {
+              "name": "Hana Reyes",
+              "update": "Lower contamination risk from atmospheric extraction protects future drinking water and sanitation."
+            },
+            {
+              "name": "Ravi Müller",
+              "update": "Reliable water supply is the more important medical priority than speed alone."
+            },
+            {
+              "name": "Tariq Ahmad",
+              "update": "A stable, low-risk water system supports sustained physical performance and wound healing."
+            },
+            {
+              "name": "Dietrich Owusu",
+              "update": "Avoiding aquifer contamination protects resilience for future generations."
+            },
+            {
+              "name": "Signe Lindqvist",
+              "update": "The slower option is still preferable because it reduces chronic stress and uncertainty."
+            }
+          ],
+          "confidence": 0.91,
+          "openQuestions": [
+            "Do you want an interim emergency rationing protocol while the atmospheric system comes online?",
+            "Are there any existing contamination barriers or sterilization capacities that could make deep drilling safer later?"
+          ]
+        },
+        {
+          "department": "engineering",
+          "summary": "",
+          "citations": [],
+          "risks": [],
+          "opportunities": [],
+          "recommendedActions": [],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            {
+              "tool": "water_deficit_model",
+              "output": {
+                "neededLPerDay": 1000,
+                "producedLPerDay": 800,
+                "deficitLPerDay": 200,
+                "marginLPerDay": -200,
+                "coverageFraction": 0.8,
+                "deficitPercent": 20,
+                "scalingFactor": 0.8,
+                "feasible": false
+              }
+            }
+          ],
+          "featuredColonistUpdates": [],
+          "confidence": 0.7,
+          "openQuestions": [],
+          "decision": "OPTION B: Build an atmospheric water extraction system (WAVAR-type)",
+          "reasoning": "The colony is currently producing 800 L/day against a 1000 L/day need, so it is operating at 80% of requirement with a 200 L/day deficit. A deep drill could triple output in 2 months, but it carries meaningful planetary protection risk by potentially contaminating pristine subsurface aquifers, and it also requires significant power and operational complexity. Since this is a reliability-critical life-support gap rather than a growth bottleneck, the safest engineering choice is the proven, lower-risk path: atmospheric water extraction. Mars atmospheric water vapor is sparse (~0.03%), but this option is explicitly designed to cover the 20% deficit reliably, and the 6-month timeline is acceptable for a controlled expansion of life support. For a settlement still stabilizing its baseline utilities, contamination avoidance and reliability outweigh speed.",
+          "operationalAssessment": {
+            "colonyStatus": {
+              "population": 101,
+              "moralePercent": 80,
+              "foodReserveMonths": 18.8,
+              "waterLPerDay": 800,
+              "powerKw": 400,
+              "modules": 3,
+              "lifeSupport": "120/101",
+              "volumeM3": 3000
+            },
+            "engineeringNotes": [
+              "Water deficit is 20%, which is serious but manageable with a reliable supplement.",
+              "Deep aquifer drilling is faster but higher risk and lower planetary-protection compliance.",
+              "WAVAR-type extraction fits the colony’s need for dependable, low-risk infrastructure.",
+              "MOXIE-style atmospheric ISRU heritage supports confidence in Mars-atmosphere processing approaches, even though this is water rather than oxygen."
+            ]
+          },
+          "recommendation": "Proceed with atmospheric water extraction now; defer deep drilling until the colony has stronger contamination controls, more power headroom, and a dedicated planetary-protection protocol."
+        },
+        {
+          "department": "agriculture",
+          "summary": "Recommendation: choose Option B, the atmospheric water extraction system (WAVAR-type). The colony is currently at 800 L/day against 1000 L/day needed, so water coverage is 80% and the deficit directly limits food production and life support stability. Option A offers faster upside but carries planetary-protection and contamination risk to pristine subsurface aquifers. Option B is slower but scientifically credible and operationally safer, aligning with Mars atmospheric water vapor variability and proven ISRU heritage from MOXIE/ISS-style recovery systems.",
+          "citations": [],
+          "risks": [],
+          "opportunities": [],
+          "recommendedActions": [],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            "water_shortfall_food_risk_projector_v3"
+          ],
+          "featuredColonistUpdates": [],
+          "confidence": 0.7,
+          "openQuestions": [],
+          "assessment": {
+            "currentWaterLPerDay": 800,
+            "requiredWaterLPerDay": 1000,
+            "deficitLPerDay": 200,
+            "coverageRatio": 0.8,
+            "foodSecurityImpact": "elevated risk due to water-constrained agriculture and industrial water reuse",
+            "scienceBasis": [
+              "Subsurface ice is real, but deeper aquifer access increases contamination risk.",
+              "Mars atmospheric water vapor is low (~0.03%) but recoverable with appropriate extraction systems.",
+              "A reliable 20% deficit closure is more valuable to food security than a high-risk 3x water expansion that could compromise reserves."
+            ],
+            "decision": "Option B"
+          },
+          "recommendation": "Proceed with atmospheric extraction as the primary water-growth path; preserve subsurface drilling for later only if planetary-protection protocols and contamination controls can be demonstrated."
+        }
+      ],
+      "commanderDecision": {
+        "decision": "Choose Option B: deploy the atmospheric water extraction system immediately, pair it with aggressive conservation and recycling upgrades, and impose a temporary water-priority regime until the system closes the 200 L/day gap. Do not authorize experimental deep drilling into the pristine aquifer this turn.",
+        "rationale": "We need more water, but we do not need a reckless first bite out of a strategic reserve. The deep aquifer is not just a resource; it is a vault. If we punch into it with immature contamination controls and poison it, we trade a short-term fix for a long-term wound. Option B is slower, but it is controllable, repeatable, and expandable. That matters. A six-month squeeze is survivable if we act decisively now: ration noncritical use, harden recycling, protect drinking and sanitation, and tune agriculture toward water efficiency. This is still an expansionist move, just a disciplined one. We preserve the high-upside aquifer for the moment when our drilling can be precise, sterile, and industrially meaningful rather than improvised under pressure.",
+        "departmentsConsulted": [
+          "medical",
+          "engineering",
+          "agriculture"
+        ],
+        "selectedPolicies": [
+          {
+            "policy": "Deploy_AtmosphericWaterExtraction_OptionB",
+            "reason": "Safest path to restore supply without risking irreversible contamination of a pristine subsurface resource."
+          },
+          {
+            "policy": "ImmediateWaterPriorityRationing",
+            "reason": "Protect drinking water, sanitation, and critical crop support during the 6-month ramp period."
+          },
+          {
+            "policy": "LifeSupportRecyclingIntensification",
+            "reason": "Recycling is the fastest controllable lever to reduce the 200 L/day shortfall."
+          },
+          {
+            "policy": "AgriculturalWaterEfficiencyMode",
+            "reason": "Shift crop operations toward lower water intensity to preserve food stability during the transition."
+          },
+          {
+            "policy": "AquiferProtectionAndDrillingMoratorium",
+            "reason": "Preserve future high-value reserves until contamination controls and planetary-protection protocols are mature."
+          },
+          {
+            "policy": "CrewHydrationAndStressMonitoring",
+            "reason": "Water stress can silently degrade health, sleep, morale, and decision quality before obvious failure appears."
+          }
+        ],
+        "rejectedPolicies": [
+          {
+            "policy": "ExperimentalDeepDrilling_OptionA",
+            "reason": "Too much downside from aquifer contamination and biosecurity compromise for a young colony with limited remediation capacity."
+          },
+          {
+            "policy": "MaintainCurrentConsumptionWithoutRationing",
+            "reason": "A 20% deficit will cascade into sanitation, crop, and medical problems if unmanaged."
+          },
+          {
+            "policy": "DelayActionPendingMoreData",
+            "reason": "The shortage is already active; inaction converts a manageable deficit into a system-wide stress event."
+          }
+        ],
+        "expectedTradeoffs": [
+          {
+            "tradeoff": "Lower contamination risk versus slower restoration of full water supply",
+            "impact": "The colony absorbs several months of operational discomfort to protect a potentially irreplaceable long-term reserve."
+          },
+          {
+            "tradeoff": "Short-term rationing versus long-term resource security",
+            "impact": "Morale and convenience may dip, but the colony avoids strategic self-sabotage."
+          },
+          {
+            "tradeoff": "Agricultural water cuts versus maximum crop throughput",
+            "impact": "Some production flexibility is lost, but food stability is preserved through managed efficiency rather than collapse."
+          },
+          {
+            "tradeoff": "Engineering focus on extraction and recycling versus other expansion projects",
+            "impact": "Some noncritical buildout slows, but water resilience strengthens the entire colony foundation."
+          }
+        ],
+        "watchMetricsNextTurn": [
+          "Net daily water balance",
+          "Atmospheric extractor deployment progress",
+          "Water recycling recovery rate",
+          "Per-capita drinking water availability",
+          "Sanitation compliance and hygiene incident rate",
+          "Crop water use efficiency",
+          "Hydration and renal stress indicators",
+          "Morale trend under rationing"
+        ]
+      },
+      "policyEffectsApplied": [
+        {
+          "policy": "Deploy_AtmosphericWaterExtraction_OptionB",
+          "reason": "Safest path to restore supply without risking irreversible contamination of a pristine subsurface resource."
+        },
+        {
+          "policy": "ImmediateWaterPriorityRationing",
+          "reason": "Protect drinking water, sanitation, and critical crop support during the 6-month ramp period."
+        },
+        {
+          "policy": "LifeSupportRecyclingIntensification",
+          "reason": "Recycling is the fastest controllable lever to reduce the 200 L/day shortfall."
+        },
+        {
+          "policy": "AgriculturalWaterEfficiencyMode",
+          "reason": "Shift crop operations toward lower water intensity to preserve food stability during the transition."
+        },
+        {
+          "policy": "AquiferProtectionAndDrillingMoratorium",
+          "reason": "Preserve future high-value reserves until contamination controls and planetary-protection protocols are mature."
+        },
+        {
+          "policy": "CrewHydrationAndStressMonitoring",
+          "reason": "Water stress can silently degrade health, sleep, morale, and decision quality before obvious failure appears."
+        }
+      ],
+      "stateSnapshotAfter": {
+        "population": 101,
+        "morale": 0.8025,
+        "foodMonthsReserve": 18.8,
+        "infrastructureModules": 3,
+        "scienceOutput": 2,
+        "births": 0,
+        "deaths": 0
+      }
+    },
+    {
+      "turn": 3,
+      "year": 2040,
+      "crisis": "Perchlorate Crisis",
+      "departmentReports": [
+        {
+          "department": "medical",
+          "summary": "Decision: choose Option A, full hydroponic conversion. Mars regolith is globally contaminated with calcium perchlorate at levels that make direct soil agriculture medically unsafe because perchlorate is a thyroid toxin and the exposure pathway is ingestion of contaminated crops. Bioremediation is scientifically interesting, but it is untested in Mars conditions and carries multi-year uncertainty plus contamination risk to the food system. Hydroponics is proven, sealed, controllable, and immediately eliminates the ingestion pathway. The forged model strongly favored hydroponics over bioremediation for colony health and operational reliability.",
+          "citations": [
+            {
+              "text": "Hecht et al. 2009, Science",
+              "url": "https://doi.org/10.1126/science.1172339",
+              "context": "Phoenix detected 0.5–1% calcium perchlorate in Mars soil, confirming a global agricultural hazard."
+            },
+            {
+              "text": "EPA perchlorate drinking water reference",
+              "url": "https://www.epa.gov/sdwa/perchlorate-drinking-water",
+              "context": "Perchlorate is a thyroid toxin at chronic exposure above 0.7 ug/kg/day, making crop contamination a direct medical risk."
+            },
+            {
+              "text": "Davila et al. 2013",
+              "url": "https://doi.org/10.1089/ast.2013.0995",
+              "context": "Perchlorate-reducing bacteria can bioremediate contaminated soil under some conditions, but this does not establish Mars-operational safety."
+            },
+            {
+              "text": "Cockell 2014",
+              "url": "https://doi.org/10.1089/ast.2013.1129",
+              "context": "Bioremediation has not been tested in Mars atmospheric conditions, so the approach remains high-uncertainty and unsuitable as the primary food-security strategy."
+            }
+          ],
+          "risks": [
+            {
+              "severity": "critical",
+              "description": "Any crop grown in untreated regolith risks chronic perchlorate ingestion, with thyroid disruption threatening both adults and Mars-born children."
+            },
+            {
+              "severity": "high",
+              "description": "Bioremediation failure would delay food security by two years and could create a false sense of safety around contaminated soil beds."
+            },
+            {
+              "severity": "high",
+              "description": "Open-soil farming on Mars could lead to uneven detoxification, persistent contamination hotspots, and complex monitoring burden."
+            },
+            {
+              "severity": "medium",
+              "description": "Hydroponic conversion requires significant power and materials, but this is an engineering burden rather than a direct medical hazard."
+            }
+          ],
+          "opportunities": [
+            {
+              "impact": "high",
+              "description": "Hydroponics gives immediate control over nutrient delivery, water recycling, and contaminant exclusion, improving nutrition and child health."
+            },
+            {
+              "impact": "medium",
+              "description": "Sealed food production reduces dependence on uncertain geochemistry and supports long-term colony planning."
+            },
+            {
+              "impact": "medium",
+              "description": "A hydroponic base can later be paired with research bioremediation in isolated test plots without risking the food supply."
+            }
+          ],
+          "recommendedActions": [
+            "Adopt full hydroponic conversion for all colony food production.",
+            "Treat all regolith as contaminated unless and until decontamination is independently verified.",
+            "Use bioremediation only in isolated research cells, not in operational food beds.",
+            "Expand power allocation to support the extra 30% load required by hydroponic bays.",
+            "Implement thyroid monitoring, especially for children and pregnant or potentially pregnant crew members.",
+            "Keep a small controlled perchlorate research program for future soil recovery, but do not couple it to food production."
+          ],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            {
+              "name": "perchlorate_agriculture_risk_model",
+              "mode": "sandbox",
+              "description": "Computes colony health and operational risk for hydroponic conversion versus experimental perchlorate bioremediation.",
+              "output": {
+                "population": 106,
+                "foodMonths": 20,
+                "perchloratePct": 0.75,
+                "hydroponics": {
+                  "addedPowerKw": 120,
+                  "contaminationRisk": 0.05,
+                  "operationalRisk": 0.12,
+                  "decisionScore": 0.88
+                },
+                "bioremediation": {
+                  "RnDYears": 2,
+                  "contaminationRisk": 0.28,
+                  "operationalRisk": 0.705,
+                  "decisionScore": 0.46
+                },
+                "recommendation": "A"
+              },
+              "confidence": 0.95
+            }
+          ],
+          "featuredColonistUpdates": [
+            {
+              "name": "Dietrich Ito",
+              "update": "Hydroponic conversion protects long-term thyroid health and avoids unsafe food exposure."
+            },
+            {
+              "name": "Hana Reyes",
+              "update": "Sealed crop systems are the safest way to preserve nutrition for adults and Mars-born children."
+            },
+            {
+              "name": "Ravi Müller",
+              "update": "The power cost is justified because it removes a chronic toxin pathway from the diet."
+            },
+            {
+              "name": "Carlos Costa",
+              "update": "A controlled food system lowers uncertainty and reduces morale damage from repeated crop failure."
+            },
+            {
+              "name": "Tariq Ahmad",
+              "update": "Bioremediation can remain a research project, but not a feeding strategy."
+            },
+            {
+              "name": "Dietrich Owusu",
+              "update": "Keeping the food chain sealed is the best protection against invisible chemical poisoning."
+            }
+          ],
+          "confidence": 0.93,
+          "openQuestions": [
+            "Can the power system reliably absorb the additional 120 kW without compromising life support or thermal safety?",
+            "Do you want a phased hydroponic transition plan to preserve current food stores during conversion?"
+          ]
+        },
+        {
+          "department": "engineering",
+          "summary": "",
+          "citations": [],
+          "risks": [],
+          "opportunities": [],
+          "recommendedActions": [],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            {
+              "tool": "power_budget_analyzer",
+              "output": {
+                "totalKw": 400,
+                "addedKw": 120,
+                "remainingKw": 280,
+                "utilizationPercent": 30,
+                "feasible": true
+              }
+            }
+          ],
+          "featuredColonistUpdates": [],
+          "confidence": 0.7,
+          "openQuestions": [],
+          "decision": "OPTION A: Full hydroponic conversion",
+          "reasoning": "Mars regolith agriculture is globally compromised by perchlorates, and the problem is not site-specific. Phoenix detected 0.5–1% calcium perchlorate in surface soils, which is incompatible with direct open-soil farming without extensive remediation. Bioremediation with perchlorate-reducing bacteria is scientifically plausible, but it is untested under Mars conditions and carries a 2-year R&D delay with uncertain performance. For a functioning settlement, agriculture must be reliable, contained, and immediately controllable. Sealed hydroponics satisfies those requirements now. Although it requires an additional 120 kW, the colony’s 400 kW power budget can absorb it: the model shows 280 kW remaining, so the system is feasible. Given the life-support criticality of food production, reliability outweighs the speculative upside of open-soil remediation.",
+          "operationalAssessment": {
+            "colonyStatus": {
+              "population": 106,
+              "moralePercent": 78,
+              "foodReserveMonths": 20,
+              "waterLPerDay": 800,
+              "powerKw": 400,
+              "modules": 3,
+              "lifeSupport": "120/106",
+              "volumeM3": 3000
+            },
+            "engineeringNotes": [
+              "Perchlorate contamination is a colony-wide soil problem, so the solution should not depend on local geology.",
+              "Hydroponics converts the food system from environment-dependent to infrastructure-dependent, which is preferable on Mars.",
+              "The 120 kW penalty is significant but manageable with current power reserves.",
+              "Bioremediation should continue as a parallel research program, but not as the colony’s primary food-security strategy."
+            ]
+          },
+          "recommendation": "Build sealed hydroponic bays immediately, and keep perchlorate bioremediation in the research pipeline for future soil rehabilitation or scientific use."
+        },
+        {
+          "department": "agriculture",
+          "summary": "Recommend Option A: full hydroponic conversion. Mars surface regolith is globally contaminated with 0.5–1% calcium perchlorate, which makes direct soil agriculture unsafe for the colony. Hydroponics is the scientifically credible, immediate, and controllable solution for restoring food production while avoiding chronic toxin exposure.",
+          "citations": [],
+          "risks": [],
+          "opportunities": [],
+          "recommendedActions": [],
+          "proposedPatches": {},
+          "forgedToolsUsed": [
+            "perchlorate_agriculture_decision_v1"
+          ],
+          "featuredColonistUpdates": [],
+          "confidence": 0.7,
+          "openQuestions": [],
+          "assessment": {
+            "currentFoodMonths": 20,
+            "population": 106,
+            "soilSuitability": "unsuitable for direct agriculture",
+            "contamination": "global perchlorate contamination confirmed",
+            "healthRisk": "perchlorate is a thyroid toxin; chronic exposure is unacceptable in food systems",
+            "optionA": {
+              "decision": "preferred",
+              "pros": "eliminates soil contact, immediate reliability, known technology path",
+              "cons": "requires ~30% more power and material investment"
+            },
+            "optionB": {
+              "decision": "not recommended as primary path",
+              "pros": "could enable future soil farming if proven",
+              "cons": "2-year R&D timeline, untested in Mars conditions, uncertain operational reliability"
+            },
+            "scienceBasis": [
+              "Phoenix detected perchlorate contamination in Martian soil globally.",
+              "Hydroponics bypasses contaminated regolith entirely.",
+              "Bioremediation is plausible but too slow and too uncertain for a colony-wide food security response."
+            ]
+          },
+          "recommendation": "Proceed with full hydroponic conversion as the primary agriculture strategy. Pursue perchlorate bioremediation only as a long-term research track, not as the colony’s food-security dependency."
+        }
+      ],
+      "commanderDecision": {
+        "decision": "Adopt Option A: full hydroponic conversion for all operational food production, effective immediately. Classify all regolith as contaminated for agricultural purposes unless independently verified clean through controlled testing. Restrict bioremediation to sealed research modules only, with no connection to the active food supply.",
+        "rationale": "This is a hard line, and it should be. Perchlorate in the food chain is a silent enemy—no drama, just steady physiological damage that can undermine the colony from the inside out. We are not going to gamble the metabolism of 106 people, and especially future Mars-born children, on an elegant but unproven soil fix. Hydroponics costs more power and materials, but it buys control, speed, and certainty. That is the right trade. A growing civilization cannot build its future on contaminated dirt and hopeful assumptions. We seal the food system, eliminate the ingestion pathway now, and turn regolith detox into a research frontier rather than a production dependency.",
+        "departmentsConsulted": [
+          "medical",
+          "engineering",
+          "agriculture"
+        ],
+        "selectedPolicies": [
+          {
+            "policy": "FullHydroponicConversion_OptionA",
+            "reason": "Immediately removes the crop ingestion pathway for perchlorate exposure and stabilizes food safety."
+          },
+          {
+            "policy": "RegolithAgricultureSuspension",
+            "reason": "Treat all Martian soil as unsafe until verified otherwise through strict independent testing."
+          },
+          {
+            "policy": "PowerReallocationToHydroponics",
+            "reason": "Hydroponic bays require increased energy input; food safety takes priority."
+          },
+          {
+            "policy": "IsolatedBioremediationResearchOnly",
+            "reason": "Preserve long-term upside of soil recovery without exposing the operational food chain to experimental failure."
+          },
+          {
+            "policy": "ColonyWideThyroidMonitoring",
+            "reason": "Detect prior or incidental perchlorate exposure early, with emphasis on vulnerable populations."
+          },
+          {
+            "policy": "FoodSystemContainmentAndVerification",
+            "reason": "Use sealed workflows, testing, and contamination audits to keep the food loop clean."
+          }
+        ],
+        "rejectedPolicies": [
+          {
+            "policy": "OperationalBioremediation_OptionB",
+            "reason": "Two-year uncertainty and uneven detoxification risk are unacceptable for a live food system."
+          },
+          {
+            "policy": "ContinuedDirectRegolithFarming",
+            "reason": "Chronic perchlorate exposure risk is medically unacceptable."
+          },
+          {
+            "policy": "PartialHydroponicsWhileMaintainingSoilBeds",
+            "reason": "Mixed systems preserve contamination pathways and complicate verification."
+          }
+        ],
+        "expectedTradeoffs": [
+          {
+            "tradeoff": "Higher power demand versus immediate food safety",
+            "impact": "Energy flexibility tightens, but the colony avoids chronic toxin exposure and unstable crop trust."
+          },
+          {
+            "tradeoff": "Material and maintenance burden versus controllable agriculture",
+            "impact": "More hardware, filters, and monitoring are required, but yields become more predictable and safer."
+          },
+          {
+            "tradeoff": "Reduced near-term experimentation in soil farming versus lower colony health risk",
+            "impact": "Innovation in regolith agriculture slows in production spaces, but research can proceed safely in isolation."
+          },
+          {
+            "tradeoff": "Operational focus on sealed food infrastructure versus other expansion projects",
+            "impact": "Some external growth initiatives may slow, but a clean food base strengthens long-term expansion capacity."
+          }
+        ],
+        "watchMetricsNextTurn": [
+          "Hydroponic conversion completion rate",
+          "Additional power load and reserve margin",
+          "Crop yield stability after conversion",
+          "Food contamination test results",
+          "Thyroid hormone screening outcomes",
+          "Maintenance downtime in hydroponic bays",
+          "Morale response to another major system transition",
+          "Bioremediation research progress in sealed trials"
+        ]
+      },
+      "policyEffectsApplied": [
+        {
+          "policy": "FullHydroponicConversion_OptionA",
+          "reason": "Immediately removes the crop ingestion pathway for perchlorate exposure and stabilizes food safety."
+        },
+        {
+          "policy": "RegolithAgricultureSuspension",
+          "reason": "Treat all Martian soil as unsafe until verified otherwise through strict independent testing."
+        },
+        {
+          "policy": "PowerReallocationToHydroponics",
+          "reason": "Hydroponic bays require increased energy input; food safety takes priority."
+        },
+        {
+          "policy": "IsolatedBioremediationResearchOnly",
+          "reason": "Preserve long-term upside of soil recovery without exposing the operational food chain to experimental failure."
+        },
+        {
+          "policy": "ColonyWideThyroidMonitoring",
+          "reason": "Detect prior or incidental perchlorate exposure early, with emphasis on vulnerable populations."
+        },
+        {
+          "policy": "FoodSystemContainmentAndVerification",
+          "reason": "Use sealed workflows, testing, and contamination audits to keep the food loop clean."
+        }
+      ],
+      "stateSnapshotAfter": {
+        "population": 106,
+        "morale": 0.78225,
+        "foodMonthsReserve": 20,
+        "infrastructureModules": 3,
+        "scienceOutput": 5,
+        "births": 0,
+        "deaths": 0
+      }
+    }
+  ],
+  "finalState": {
+    "metadata": {
+      "simulationId": "mars-genesis-950-1775995603850",
+      "leaderId": "Aria Chen",
+      "seed": 950,
+      "startYear": 2035,
+      "currentYear": 2040,
+      "currentTurn": 3
+    },
+    "colony": {
+      "population": 106,
+      "powerKw": 400,
+      "foodMonthsReserve": 20,
+      "waterLitersPerDay": 800,
+      "pressurizedVolumeM3": 3000,
+      "lifeSupportCapacity": 120,
+      "infrastructureModules": 3,
+      "scienceOutput": 5,
+      "morale": 0.78225
+    },
+    "colonists": [
+      {
+        "core": {
+          "id": "col-dr.-yuki-tanaka",
+          "name": "Dr. Yuki Tanaka",
+          "birthYear": 1997,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Chief Medical Officer"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Radiation Medicine",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-9383"
+          ],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Pax Tanaka",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-erik-lindqvist",
+          "name": "Erik Lindqvist",
+          "birthYear": 1990,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Chief Engineer"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural Engineering",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-osei",
+          "name": "Amara Osei",
+          "birthYear": 2001,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Head of Agriculture"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-9383"
+          ],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Pax Tanaka",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dr.-priya-singh",
+          "name": "Dr. Priya Singh",
+          "birthYear": 1994,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Colony Psychologist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Clinical Psychology",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-carlos-fernandez",
+          "name": "Carlos Fernandez",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "science",
+          "role": "Chief Scientist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-patel",
+          "name": "Bruno Patel",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Soil Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Soil Science",
+          "yearsExperience": 20,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-ito",
+          "name": "Dietrich Ito",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 9,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Water Systems",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-eriksson",
+          "name": "Amara Eriksson",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Radiation Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Radiation Medicine",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aria-kato",
+          "name": "Aria Kato",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Senior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 16,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-hana-reyes",
+          "name": "Hana Reyes",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Planning Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Planning",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Planning",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-owusu",
+          "name": "Jin Owusu",
+          "birthYear": 1986,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Lead Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 27,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mei-eriksson",
+          "name": "Mei Eriksson",
+          "birthYear": 1994,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ravi-müller",
+          "name": "Ravi Müller",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Structural",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-carlos-costa",
+          "name": "Carlos Costa",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Nutrition",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-chen-voss",
+          "name": "Chen Voss",
+          "birthYear": 1992,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tariq-ahmad",
+          "name": "Tariq Ahmad",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Botany Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Botany",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Botany",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-owusu",
+          "name": "Dietrich Owusu",
+          "birthYear": 2001,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 13,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Power Systems",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-andersen",
+          "name": "Jin Andersen",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 9,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-torres",
+          "name": "Signe Torres",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "science",
+          "role": "Lead Chemistry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Chemistry",
+          "yearsExperience": 22,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-lindqvist",
+          "name": "Signe Lindqvist",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Soil Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Soil Science",
+          "yearsExperience": 21,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Soil Science",
+              "source": "kernel"
+            },
+            {
+              "year": 2035,
+              "event": "Promoted to Lead Soil Science",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-andersen",
+          "name": "Elena Andersen",
+          "birthYear": 1997,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Nutrition",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-omar-andersen",
+          "name": "Omar Andersen",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 13,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Power Systems",
+              "source": "kernel"
+            },
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Power Systems",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-patel",
+          "name": "Kwame Patel",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 14,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-pavel-morales",
+          "name": "Pavel Morales",
+          "birthYear": 1993,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-chen-ibrahim",
+          "name": "Chen Ibrahim",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior General Medicine",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-anders-eriksson",
+          "name": "Anders Eriksson",
+          "birthYear": 2007,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-viktor-herrera",
+          "name": "Viktor Herrera",
+          "birthYear": 1980,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Atmospheric Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Atmospheric Science",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kira-nkomo",
+          "name": "Kira Nkomo",
+          "birthYear": 1990,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead Psychiatry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Psychiatry",
+          "yearsExperience": 24,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-petrov",
+          "name": "Jin Petrov",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 24,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-nadia-ivanova",
+          "name": "Nadia Ivanova",
+          "birthYear": 1997,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 15,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Water Systems",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-daria-torres",
+          "name": "Daria Torres",
+          "birthYear": 1993,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 25,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-daria-sato",
+          "name": "Daria Sato",
+          "birthYear": 2003,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Biology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Biology",
+          "yearsExperience": 14,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-1365"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Vega Sato",
+              "source": "kernel"
+            },
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Biology",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-tomas-kato",
+          "name": "Tomas Kato",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 11,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-1365"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Vega Sato",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-sato",
+          "name": "Zara Sato",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Junior Clinical Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Clinical Psychology",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Clinical Psychology",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-kowalski",
+          "name": "Zara Kowalski",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 8,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-keiko-johansson",
+          "name": "Keiko Johansson",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 9,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-kowalski",
+          "name": "Signe Kowalski",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Botany Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Botany",
+          "yearsExperience": 14,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Botany",
+              "source": "kernel"
+            },
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Botany",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-holm",
+          "name": "Kwame Holm",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 12,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Operations",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-mensah",
+          "name": "Amara Mensah",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Hydroponics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Hydroponics",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tomas-ahmad",
+          "name": "Tomas Ahmad",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 20,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-priya-zhang",
+          "name": "Priya Zhang",
+          "birthYear": 2008,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-costa",
+          "name": "Elena Costa",
+          "birthYear": 1994,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-sven-yusuf",
+          "name": "Sven Yusuf",
+          "birthYear": 2007,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-5502"
+          ],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Pax Yusuf",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jamal-sato",
+          "name": "Jamal Sato",
+          "birthYear": 1986,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Hydroponics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 24,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aria-tanaka",
+          "name": "Aria Tanaka",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Clinical Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Clinical Psychology",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-5502"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Pax Yusuf",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-yuki-müller",
+          "name": "Yuki Müller",
+          "birthYear": 2010,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-osei",
+          "name": "Kwame Osei",
+          "birthYear": 1983,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 35,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-viktor-okafor",
+          "name": "Viktor Okafor",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Hydroponics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-priya-singh",
+          "name": "Priya Singh",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 10,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mei-kim",
+          "name": "Mei Kim",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 14,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-pavel-bakker",
+          "name": "Pavel Bakker",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "science",
+          "role": "Lead Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 28,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-anya-torres",
+          "name": "Anya Torres",
+          "birthYear": 1988,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 22,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Lead Astrophysics",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-morales",
+          "name": "Bruno Morales",
+          "birthYear": 2000,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 11,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-8199"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Thea Morales",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-olga-owusu",
+          "name": "Olga Owusu",
+          "birthYear": 1984,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Chemistry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Chemistry",
+          "yearsExperience": 12,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ravi-osei",
+          "name": "Ravi Osei",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ingrid-ivanova",
+          "name": "Ingrid Ivanova",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 23,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-diego-torres",
+          "name": "Diego Torres",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-8199"
+          ],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Thea Morales",
+              "source": "kernel"
+            },
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Power Systems",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-rosa-andersen",
+          "name": "Rosa Andersen",
+          "birthYear": 1986,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-müller",
+          "name": "Bruno Müller",
+          "birthYear": 1980,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Lead Geology",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-fatima-kowalski",
+          "name": "Fatima Kowalski",
+          "birthYear": 1989,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 21,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aria-nkomo",
+          "name": "Aria Nkomo",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Junior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 10,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jamal-okafor",
+          "name": "Jamal Okafor",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Logistics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Logistics",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-hassan-fernandez",
+          "name": "Hassan Fernandez",
+          "birthYear": 1983,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Botany Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Botany",
+          "yearsExperience": 24,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Botany",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aisha-ibrahim",
+          "name": "Aisha Ibrahim",
+          "birthYear": 1980,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 37,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-fatima-holm",
+          "name": "Fatima Holm",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 18,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-mendez",
+          "name": "Signe Mendez",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Psychiatry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Psychiatry",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Psychiatry",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-takahashi",
+          "name": "Dietrich Takahashi",
+          "birthYear": 2010,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior General Medicine",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-park",
+          "name": "Elena Park",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 21,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Surgery",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-henrik-chen",
+          "name": "Henrik Chen",
+          "birthYear": 1993,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Senior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 13,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-voss",
+          "name": "Elena Voss",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 20,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Lead Robotics",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-carlos-webb",
+          "name": "Carlos Webb",
+          "birthYear": 1989,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 13,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-emeka-singh",
+          "name": "Emeka Singh",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-johansson",
+          "name": "Zara Johansson",
+          "birthYear": 1983,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 18,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Lead Life Support",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-al-rashid",
+          "name": "Dietrich Al-Rashid",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 23,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-yara-singh",
+          "name": "Yara Singh",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Robotics",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-david-morales",
+          "name": "David Morales",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Atmospheric Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Atmospheric Science",
+          "yearsExperience": 9,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-yamamoto",
+          "name": "Elena Yamamoto",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-leila-yamamoto",
+          "name": "Leila Yamamoto",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Radiation Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Radiation Medicine",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Radiation Medicine",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-felix-li",
+          "name": "Felix Li",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 24,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-hassan-müller",
+          "name": "Hassan Müller",
+          "birthYear": 2000,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Communications",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-kato",
+          "name": "Zara Kato",
+          "birthYear": 1988,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 10,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-voss",
+          "name": "Jin Voss",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 12,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Life Support",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-emeka-owusu",
+          "name": "Emeka Owusu",
+          "birthYear": 1992,
+          "marsborn": false,
+          "department": "science",
+          "role": "Lead Atmospheric Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Atmospheric Science",
+          "yearsExperience": 10,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-david-santos",
+          "name": "David Santos",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 19,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Surgery",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mei-reyes",
+          "name": "Mei Reyes",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 20,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-liam-eriksson",
+          "name": "Liam Eriksson",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Promoted to Senior Operations",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tariq-andersen",
+          "name": "Tariq Andersen",
+          "birthYear": 2000,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Biology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Biology",
+          "yearsExperience": 17,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-torres",
+          "name": "Amara Torres",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Occupational Therapy",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-berg",
+          "name": "Jin Berg",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2035-9170"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Child born: Tera Berg",
+              "source": "kernel"
+            },
+            {
+              "year": 2035,
+              "event": "Promoted to Senior General Medicine",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-volkov",
+          "name": "Jin Volkov",
+          "birthYear": 1989,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Chemistry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Chemistry",
+          "yearsExperience": 29,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tomas-nkomo",
+          "name": "Tomas Nkomo",
+          "birthYear": 2005,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 13,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2035-9170"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Child born: Tera Berg",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-yamamoto",
+          "name": "Kwame Yamamoto",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 15,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Senior Communications",
+              "source": "kernel"
+            },
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Communications",
+              "source": "kernel"
+            }
+          ],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-diego-nakamura",
+          "name": "Diego Nakamura",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 12,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ingrid-patel",
+          "name": "Ingrid Patel",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 19,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-andersen",
+          "name": "Kwame Andersen",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Lead Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 9,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 3
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-fatima-costa",
+          "name": "Fatima Costa",
+          "birthYear": 1984,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 29,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Promoted to Lead Geology",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-patel",
+          "name": "Dietrich Patel",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 13,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-1959"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Iris Patel",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-lindqvist",
+          "name": "Bruno Lindqvist",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 23,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kofi-reyes",
+          "name": "Kofi Reyes",
+          "birthYear": 2003,
+          "marsborn": false,
+          "department": "science",
+          "role": "Junior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 11,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [
+            "col-mars-2037-1959"
+          ],
+          "friendIds": [],
+          "earthContacts": 4
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Child born: Iris Patel",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-yuki-owusu",
+          "name": "Yuki Owusu",
+          "birthYear": 2008,
+          "marsborn": false,
+          "department": "science",
+          "role": "Junior Biology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 99,
+          "cumulativeRadiationMsv": 1222.75,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Biology",
+          "yearsExperience": 9,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mars-2035-9170",
+          "name": "Tera Berg",
+          "birthYear": 2035,
+          "marsborn": true,
+          "department": "science",
+          "role": "Child"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 87.472,
+          "cumulativeRadiationMsv": 733.6500000000001,
+          "psychScore": 0.9,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Undetermined",
+          "yearsExperience": 3,
+          "rank": "junior",
+          "achievements": [
+            "Born on Mars"
+          ]
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 0
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2035,
+              "event": "Born on Mars to Jin Berg and Tomas Nkomo",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mars-2037-9383",
+          "name": "Pax Tanaka",
+          "birthYear": 2037,
+          "marsborn": true,
+          "department": "science",
+          "role": "Child"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 88,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.9,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Undetermined",
+          "yearsExperience": 0,
+          "rank": "junior",
+          "achievements": [
+            "Born on Mars"
+          ]
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 0
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Born on Mars to Dr. Yuki Tanaka and Amara Osei",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mars-2037-1365",
+          "name": "Vega Sato",
+          "birthYear": 2037,
+          "marsborn": true,
+          "department": "science",
+          "role": "Child"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 88,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.9,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Undetermined",
+          "yearsExperience": 0,
+          "rank": "junior",
+          "achievements": [
+            "Born on Mars"
+          ]
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 0
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Born on Mars to Daria Sato and Tomas Kato",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mars-2037-5502",
+          "name": "Pax Yusuf",
+          "birthYear": 2037,
+          "marsborn": true,
+          "department": "science",
+          "role": "Child"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 88,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.9,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Undetermined",
+          "yearsExperience": 0,
+          "rank": "junior",
+          "achievements": [
+            "Born on Mars"
+          ]
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 0
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Born on Mars to Sven Yusuf and Aria Tanaka",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mars-2037-8199",
+          "name": "Thea Morales",
+          "birthYear": 2037,
+          "marsborn": true,
+          "department": "science",
+          "role": "Child"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 88,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.9,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Undetermined",
+          "yearsExperience": 0,
+          "rank": "junior",
+          "achievements": [
+            "Born on Mars"
+          ]
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 0
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Born on Mars to Bruno Morales and Diego Torres",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mars-2037-1959",
+          "name": "Iris Patel",
+          "birthYear": 2037,
+          "marsborn": true,
+          "department": "science",
+          "role": "Child"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 88,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.9,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Undetermined",
+          "yearsExperience": 0,
+          "rank": "junior",
+          "achievements": [
+            "Born on Mars"
+          ]
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 0
+        },
+        "narrative": {
+          "lifeEvents": [
+            {
+              "year": 2037,
+              "event": "Born on Mars to Dietrich Patel and Kofi Reyes",
+              "source": "kernel"
+            }
+          ],
+          "featured": false
+        }
+      }
+    ],
+    "politics": {
+      "earthDependencyPct": 95,
+      "governanceStatus": "earth-governed",
+      "independencePressure": 0.05
+    },
+    "eventLog": [
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "decision",
+        "description": "Establish the first permanent settlement at Arcadia Planitia and commit immediately to a safety-first buildout centered on subsurface ice access, rapid habitat shielding, and reliable surface operatio",
+        "data": {
+          "policies": [
+            {
+              "policy": "SiteSelection_ArcadiaPlanitia",
+              "reason": "Maximizes early colony survivability, construction speed, and operational reliability."
+            },
+            {
+              "policy": "RapidHabitatShieldingAndExcavation",
+              "reason": "Radiation remains a major shared hazard; early regolith shielding reduces cumulative exposure."
+            },
+            {
+              "policy": "ISRU_IceFirstDevelopment",
+              "reason": "Use subsurface ice for water, oxygen, and future propellant to reduce supply dependence and unlock scale."
+            },
+            {
+              "policy": "StrictEVAControls",
+              "reason": "Even at the safer site, disciplined EVA procedures cut avoidable injuries and fatigue accumulation."
+            },
+            {
+              "policy": "DeferCrewedVallesOperations",
+              "reason": "Preserve personnel and equipment until mobility, rescue, and medical response capability are robust."
+            },
+            {
+              "policy": "RemoteReconForHighRiskScienceTargets",
+              "reason": "Begin extracting scientific value from Valles and other hazardous regions using drones, orbital mapping, and robotic scouts before sending people."
+            }
+          ]
+        }
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "birth",
+        "description": "Tera Berg born to Jin Berg and Tomas Nkomo",
+        "colonistId": "col-mars-2035-9170"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Dietrich Ito promoted to senior",
+        "colonistId": "col-dietrich-ito"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Hana Reyes promoted to senior",
+        "colonistId": "col-hana-reyes"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Ravi Müller promoted to senior",
+        "colonistId": "col-ravi-müller"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Tariq Ahmad promoted to senior",
+        "colonistId": "col-tariq-ahmad"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Dietrich Owusu promoted to senior",
+        "colonistId": "col-dietrich-owusu"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Signe Lindqvist promoted to senior",
+        "colonistId": "col-signe-lindqvist"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Signe Lindqvist promoted to lead",
+        "colonistId": "col-signe-lindqvist"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Elena Andersen promoted to senior",
+        "colonistId": "col-elena-andersen"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Nadia Ivanova promoted to senior",
+        "colonistId": "col-nadia-ivanova"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Anya Torres promoted to lead",
+        "colonistId": "col-anya-torres"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Bruno Müller promoted to lead",
+        "colonistId": "col-bruno-müller"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Signe Mendez promoted to senior",
+        "colonistId": "col-signe-mendez"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Elena Voss promoted to lead",
+        "colonistId": "col-elena-voss"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Zara Johansson promoted to lead",
+        "colonistId": "col-zara-johansson"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Jin Voss promoted to senior",
+        "colonistId": "col-jin-voss"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "David Santos promoted to senior",
+        "colonistId": "col-david-santos"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Liam Eriksson promoted to senior",
+        "colonistId": "col-liam-eriksson"
+      },
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "promotion",
+        "description": "Jin Berg promoted to senior",
+        "colonistId": "col-jin-berg"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "decision",
+        "description": "Choose Option B: deploy the atmospheric water extraction system immediately, pair it with aggressive conservation and recycling upgrades, and impose a temporary water-priority regime until the system ",
+        "data": {
+          "policies": [
+            {
+              "policy": "Deploy_AtmosphericWaterExtraction_OptionB",
+              "reason": "Safest path to restore supply without risking irreversible contamination of a pristine subsurface resource."
+            },
+            {
+              "policy": "ImmediateWaterPriorityRationing",
+              "reason": "Protect drinking water, sanitation, and critical crop support during the 6-month ramp period."
+            },
+            {
+              "policy": "LifeSupportRecyclingIntensification",
+              "reason": "Recycling is the fastest controllable lever to reduce the 200 L/day shortfall."
+            },
+            {
+              "policy": "AgriculturalWaterEfficiencyMode",
+              "reason": "Shift crop operations toward lower water intensity to preserve food stability during the transition."
+            },
+            {
+              "policy": "AquiferProtectionAndDrillingMoratorium",
+              "reason": "Preserve future high-value reserves until contamination controls and planetary-protection protocols are mature."
+            },
+            {
+              "policy": "CrewHydrationAndStressMonitoring",
+              "reason": "Water stress can silently degrade health, sleep, morale, and decision quality before obvious failure appears."
+            }
+          ]
+        }
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "birth",
+        "description": "Pax Tanaka born to Dr. Yuki Tanaka and Amara Osei",
+        "colonistId": "col-mars-2037-9383"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "birth",
+        "description": "Vega Sato born to Daria Sato and Tomas Kato",
+        "colonistId": "col-mars-2037-1365"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "birth",
+        "description": "Pax Yusuf born to Sven Yusuf and Aria Tanaka",
+        "colonistId": "col-mars-2037-5502"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "birth",
+        "description": "Thea Morales born to Bruno Morales and Diego Torres",
+        "colonistId": "col-mars-2037-8199"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "birth",
+        "description": "Iris Patel born to Dietrich Patel and Kofi Reyes",
+        "colonistId": "col-mars-2037-1959"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Carlos Costa promoted to senior",
+        "colonistId": "col-carlos-costa"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Omar Andersen promoted to senior",
+        "colonistId": "col-omar-andersen"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Omar Andersen promoted to lead",
+        "colonistId": "col-omar-andersen"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Chen Ibrahim promoted to senior",
+        "colonistId": "col-chen-ibrahim"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Daria Sato promoted to lead",
+        "colonistId": "col-daria-sato"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Zara Sato promoted to senior",
+        "colonistId": "col-zara-sato"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Signe Kowalski promoted to senior",
+        "colonistId": "col-signe-kowalski"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Signe Kowalski promoted to lead",
+        "colonistId": "col-signe-kowalski"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Kwame Holm promoted to senior",
+        "colonistId": "col-kwame-holm"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Amara Mensah promoted to senior",
+        "colonistId": "col-amara-mensah"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Diego Torres promoted to senior",
+        "colonistId": "col-diego-torres"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Hassan Fernandez promoted to lead",
+        "colonistId": "col-hassan-fernandez"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Dietrich Takahashi promoted to senior",
+        "colonistId": "col-dietrich-takahashi"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Elena Park promoted to lead",
+        "colonistId": "col-elena-park"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Yara Singh promoted to senior",
+        "colonistId": "col-yara-singh"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Leila Yamamoto promoted to senior",
+        "colonistId": "col-leila-yamamoto"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Hassan Müller promoted to senior",
+        "colonistId": "col-hassan-müller"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Amara Torres promoted to lead",
+        "colonistId": "col-amara-torres"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Kwame Yamamoto promoted to senior",
+        "colonistId": "col-kwame-yamamoto"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Kwame Yamamoto promoted to lead",
+        "colonistId": "col-kwame-yamamoto"
+      },
+      {
+        "turn": 2,
+        "year": 2037,
+        "type": "promotion",
+        "description": "Fatima Costa promoted to lead",
+        "colonistId": "col-fatima-costa"
+      },
+      {
+        "turn": 3,
+        "year": 2040,
+        "type": "decision",
+        "description": "Adopt Option A: full hydroponic conversion for all operational food production, effective immediately. Classify all regolith as contaminated for agricultural purposes unless independently verified cle",
+        "data": {
+          "policies": [
+            {
+              "policy": "FullHydroponicConversion_OptionA",
+              "reason": "Immediately removes the crop ingestion pathway for perchlorate exposure and stabilizes food safety."
+            },
+            {
+              "policy": "RegolithAgricultureSuspension",
+              "reason": "Treat all Martian soil as unsafe until verified otherwise through strict independent testing."
+            },
+            {
+              "policy": "PowerReallocationToHydroponics",
+              "reason": "Hydroponic bays require increased energy input; food safety takes priority."
+            },
+            {
+              "policy": "IsolatedBioremediationResearchOnly",
+              "reason": "Preserve long-term upside of soil recovery without exposing the operational food chain to experimental failure."
+            },
+            {
+              "policy": "ColonyWideThyroidMonitoring",
+              "reason": "Detect prior or incidental perchlorate exposure early, with emphasis on vulnerable populations."
+            },
+            {
+              "policy": "FoodSystemContainmentAndVerification",
+              "reason": "Use sealed workflows, testing, and contamination audits to keep the food loop clean."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "toolRegistries": {
+    "medical": [
+      "mars_site_risk_scorer",
+      "water_strategy_risk_model",
+      "perchlorate_agriculture_risk_model"
+    ],
+    "engineering": [
+      null,
+      null,
+      null
+    ],
+    "agriculture": [
+      null,
+      null
+    ]
+  },
+  "totalCitations": 13,
+  "totalToolsForged": 8
+}

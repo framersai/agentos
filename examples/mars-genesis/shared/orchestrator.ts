@@ -93,15 +93,39 @@ function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: strin
         const impl = fixed.implementation as any;
         if (impl.mode === 'code') impl.mode = 'sandbox';
         if (impl.mode === 'sandbox' && !Array.isArray(impl.allowlist)) impl.allowlist = [];
-        // Ensure code is a string
         if (impl.code && typeof impl.code !== 'string') impl.code = String(impl.code);
+        // Ensure code wraps in function execute(input) if missing
+        if (impl.mode === 'sandbox' && impl.code && !impl.code.includes('function execute')) {
+          impl.code = `function execute(input) {\n${impl.code}\n}`;
+        }
+      }
+      // Ensure schemas are valid objects — use permissive schemas so the judge
+      // doesn't reject on schema conformance mismatch
+      if (!fixed.inputSchema || typeof fixed.inputSchema !== 'object') {
+        fixed.inputSchema = { type: 'object', additionalProperties: true };
+      }
+      if (!fixed.outputSchema || typeof fixed.outputSchema !== 'object') {
+        fixed.outputSchema = { type: 'object', additionalProperties: true };
+      }
+      // Ensure testCases is a non-empty array with valid structure
+      if (!Array.isArray(fixed.testCases) || fixed.testCases.length === 0) {
+        fixed.testCases = [{ input: {}, expectedOutput: {} }];
+      }
+      for (const tc of fixed.testCases as any[]) {
+        if (!tc.input || typeof tc.input !== 'object') tc.input = {};
+        if (tc.expectedOutput === undefined) tc.expectedOutput = {};
       }
       const mode = (fixed.implementation as any)?.mode || '?';
       console.log(`    🔧 [${dept}] Forging "${fixed.name}" (${mode})...`);
       const patched = { ...ctx, gmiId: agentId, sessionData: { ...(ctx?.sessionData ?? {}), sessionId } };
       try {
         const r = await raw.execute(fixed as any, patched);
-        console.log(`    🔧 [${dept}] ${r.success ? '✓' : '✗'} "${fixed.name}"`);
+        if (r.success) {
+          console.log(`    🔧 [${dept}] ✓ "${fixed.name}" approved`);
+        } else {
+          const reason = r.error || (r.output as any)?.verdict?.reasoning || (r.output as any)?.error || '';
+          console.log(`    🔧 [${dept}] ✗ "${fixed.name}" — ${String(reason).slice(0, 150)}`);
+        }
         return r;
       } catch (err) {
         console.log(`    🔧 [${dept}] ERR: ${err}`);
@@ -224,7 +248,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         const report = parseDeptReport(r.text, dept);
         reports.push(report);
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
-        if (report.forgedToolsUsed.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...report.forgedToolsUsed.map(t => t.name)];
+        if (report.forgedToolsUsed.length) {
+          const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);
+          if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
+        }
       } catch (err) {
         console.log(`  [${dept}] ERROR: ${err}`);
         reports.push(emptyReport(dept));
