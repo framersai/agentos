@@ -1,3 +1,7 @@
+## <small>0.1.211 (2026-04-12)</small>
+
+* feat(examples): emergent tool forging fully working in Mars Genesis ([8b73dbb](https://github.com/framersai/agentos/commit/8b73dbb))
+
 ## <small>0.1.210 (2026-04-12)</small>
 
 * feat(examples): wire EmergentCapabilityEngine + ForgeToolMetaTool into Mars Genesis ([78deae8](https://github.com/framersai/agentos/commit/78deae8))
