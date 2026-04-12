@@ -1,6 +1,6 @@
-# Emergent Capabilities
+# Emergent Capabilities: Runtime Tool Forging
 
-Agents with `emergent: true` can forge new tools at runtime when no existing capability fits the task. The agent calls the `forge_tool` meta-tool, which builds, tests, and judge-reviews the tool before making it available.
+Agents with `emergent: true` can forge new tools at runtime when no existing capability fits the task. The agent calls the [`forge_tool`](/api/classes/ForgeToolMetaTool) meta-tool, which builds, tests, and judge-reviews the tool before making it available. The system is implemented across three core classes: [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine), [`EmergentJudge`](/api/classes/EmergentJudge), and [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry).
 
 ## Quick Start
 
@@ -50,9 +50,9 @@ await agent.initialize({
 
 ## Two Creation Modes
 
-### Compose Mode — Chain Existing Tools
+### Compose Mode -- Chain Existing Tools
 
-The safest default. Compose mode builds a pipeline of existing registered tools. No sandbox is needed because it only invokes tools the agent already has access to.
+The safest default. Compose mode uses the [`ComposableToolBuilder`](/api/classes/ComposableToolBuilder) to chain existing registered tools into a pipeline. No sandbox is needed because it only invokes tools the agent already has access to.
 
 **Example: Research-and-summarize pipeline**
 
@@ -153,9 +153,9 @@ const forgeRequest = {
 }
 ```
 
-### Sandbox Mode — Write Novel Code
+### Sandbox Mode -- Write Novel Code
 
-Sandbox mode runs agent-written JavaScript in an isolated V8 context with hard memory and timeout limits. More powerful but requires explicit opt-in.
+Sandbox mode runs agent-written JavaScript in an isolated V8 context via [`CodeSandbox`](/api/classes/CodeSandbox) with hard memory and timeout limits. More powerful but requires explicit opt-in.
 
 **Example: CSV parser**
 
@@ -289,7 +289,7 @@ These are rejected at code validation time (before execution):
 
 ## LLM-as-Judge Verification
 
-Every forged tool undergoes LLM-as-judge review. No tool activates without judge approval.
+Every forged tool undergoes review by the [`EmergentJudge`](/api/classes/EmergentJudge). No tool activates without judge approval.
 
 | Review stage | When | What it checks |
 |---|---|---|
@@ -301,7 +301,7 @@ If no LLM callback is configured for the judge, **creation review fails closed**
 
 ## Tiered Promotion
 
-Tools start at session tier and can be promoted as they prove reliability:
+Tools start at session tier in the [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry) and can be promoted as they prove reliability:
 
 ```
 session ──(5+ uses, >0.8 confidence, panel approved)──→ agent ──(human approval)──→ shared
@@ -483,3 +483,12 @@ await importEmergentTool('./slugify.emergent-tool.yaml', { seedId: agentSeedId }
 - Human approval is required for shared-tier promotion
 - Raw sandbox source is redacted at rest by default
 - If no LLM is configured, all forge requests are rejected (fail-closed)
+
+## Related
+
+- [Adaptive vs. Emergent Intelligence](https://agentos.sh/blog/adaptive-vs-emergent) -- how adaptive and emergent behavior differ in the AgentOS architecture
+- [Self-Improving Agents](/features/self-improving-agents) -- broader patterns for agents that improve over time
+- [Recursive Self-Building](/features/recursive-self-building) -- recursive tool creation and agent spawning
+- [Guardrails](/features/guardrails) -- safety mechanisms that constrain emergent behavior
+- [Agency API](/features/agency-api) -- multi-agent coordination strategies
+- **API Reference:** [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine) | [`EmergentJudge`](/api/classes/EmergentJudge) | [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry) | [`ForgeToolMetaTool`](/api/classes/ForgeToolMetaTool) | [`ComposableToolBuilder`](/api/classes/ComposableToolBuilder) | [`CodeSandbox`](/api/classes/CodeSandbox)
