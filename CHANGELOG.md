@@ -1,3 +1,8 @@
+## <small>0.1.208 (2026-04-12)</small>
+
+* fix(examples): add Brave Search fallback, add tool execution logging, debug Serper credit issue ([d3c7b82](https://github.com/framersai/agentos/commit/d3c7b82))
+* fix(examples): add real web_search ITool via Serper API, fix citation instructions to require inline ([58a5b83](https://github.com/framersai/agentos/commit/58a5b83))
+
 ## <small>0.1.207 (2026-04-12)</small>
 
 * fix(examples): fix personality type (honesty not honestyHumility), switch to Opus, add maxTurns CLI  ([89e39a9](https://github.com/framersai/agentos/commit/89e39a9))
