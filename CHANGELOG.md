@@ -1,3 +1,7 @@
+## <small>0.1.204 (2026-04-12)</small>
+
+* feat: add API class citations and related links to emergent capabilities doc ([5c794cc](https://github.com/framersai/agentos/commit/5c794cc))
+
 ## <small>0.1.203 (2026-04-11)</small>
 
 * feat(memory): add PerspectiveObserver for multi-agent subjective encoding ([17c5c1c](https://github.com/framersai/agentos/commit/17c5c1c))
