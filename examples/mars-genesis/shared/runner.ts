@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { ITool } from '@framers/agentos';
 import type {
   LeaderConfig,
   TurnResult,
@@ -14,11 +15,52 @@ import { INITIAL_SNAPSHOT } from './constants.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/**
- * Extracts structured data from the agent's free-text response.
- * Parses markdown links as citations, detects tool forge mentions,
- * and pulls colony update numbers.
- */
+// ---------------------------------------------------------------------------
+// Web search tool (calls Serper API directly)
+// ---------------------------------------------------------------------------
+
+const webSearchTool: ITool = {
+  id: 'tool.web_search',
+  name: 'web_search',
+  displayName: 'Web Search',
+  description: 'Search the web for real-time information. Returns titles, URLs, and snippets from top results. Use this to find scientific papers, NASA data, and peer-reviewed research.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'The search query' },
+    },
+    required: ['query'],
+  },
+  hasSideEffects: false,
+  async execute(args: Record<string, unknown>) {
+    const query = String(args.query || '');
+    const apiKey = process.env.SERPER_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: 'SERPER_API_KEY not set' };
+    }
+    try {
+      const res = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: query, num: 5 }),
+      });
+      const data = await res.json() as { organic?: Array<{ title: string; link: string; snippet: string }> };
+      const results = (data.organic || []).slice(0, 5).map((r) => ({
+        title: r.title,
+        url: r.link,
+        snippet: r.snippet,
+      }));
+      return { success: true, output: { results, query } };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Response parser
+// ---------------------------------------------------------------------------
+
 function parseResponse(raw: string): {
   decision: string;
   reasoning: string;
@@ -26,10 +68,9 @@ function parseResponse(raw: string): {
   toolsForged: ForgedToolRecord[];
   snapshotUpdates: Partial<ColonySnapshot>;
 } {
-  const decision = raw.match(/DECISION:\s*([\s\S]*?)(?=\n(?:COLONY UPDATE|RESEARCH|TOOLS)|$)/i)?.[1]?.trim() || raw.slice(0, 500);
-  const reasoning = raw.match(/RESEARCH:\s*([\s\S]*?)(?=\nDECISION|$)/i)?.[1]?.trim() || '';
+  const decision = raw.match(/DECISION:?\s*([\s\S]*?)(?=\n(?:COLONY UPDATE|TOOLS|##)|$)/i)?.[1]?.trim() || raw.slice(0, 500);
+  const reasoning = raw.match(/RESEARCH:?\s*([\s\S]*?)(?=\nDECISION|$)/i)?.[1]?.trim() || '';
 
-  // Extract markdown links as citations
   const citations: Citation[] = [];
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
   let match: RegExpExecArray | null;
@@ -41,20 +82,18 @@ function parseResponse(raw: string): {
     }
   }
 
-  // Detect forged tool mentions
   const toolsForged: ForgedToolRecord[] = [];
   const toolMatches = raw.matchAll(/(?:forg(?:ed?|ing)|creat(?:ed?|ing)|built)\s+(?:a\s+)?(?:new\s+)?(?:tool\s+)?(?:called\s+|named\s+)?[`"'](\w+)[`"']\s*(?:\((\w+)\s+mode)?/gi);
   for (const tm of toolMatches) {
     toolsForged.push({
       name: tm[1],
       mode: (tm[2]?.toLowerCase() === 'sandbox' ? 'sandbox' : 'compose') as 'compose' | 'sandbox',
-      description: `Forged during Turn ${raw.match(/Turn (\d+)/i)?.[1] || '?'}`,
+      description: `Forged during simulation`,
       confidence: 0.82 + Math.random() * 0.15,
       judgeVerdict: 'approved',
     });
   }
 
-  // Parse colony update numbers
   const snapshotUpdates: Partial<ColonySnapshot> = {};
   const popMatch = raw.match(/population[:\s]+(\d+)/i);
   if (popMatch) snapshotUpdates.population = parseInt(popMatch[1], 10);
@@ -97,8 +136,11 @@ function injectState(template: string, snap: ColonySnapshot): string {
     .replace(/\{infrastructureModules\}/g, String(snap.infrastructureModules));
 }
 
+// ---------------------------------------------------------------------------
+// Main simulation
+// ---------------------------------------------------------------------------
+
 export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Promise<SimulationLog> {
-  // Dynamic import to avoid top-level resolution issues
   const { agent } = await import('@framers/agentos');
 
   const startedAt = new Date().toISOString();
@@ -122,20 +164,19 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
       emotionality: leader.hexaco.emotionality,
       honesty: leader.hexaco.honestyHumility,
     },
-    maxSteps: 8,
+    tools: [webSearchTool],
+    maxSteps: 10,
   });
 
   const session = sim.session(`mars-genesis-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`);
 
-  // Seed with identity and HEXACO profile
   const personalityDesc = Object.entries(leader.hexaco).map(([k, v]) => `${k}: ${v}`).join(', ');
   await session.send(
-    `You are beginning a 12-turn simulation of 50 years of Mars colonization (2035-2085). Each turn presents a crisis grounded in real Mars science. Research the science, make your decision, and report colony status.\n\nYour HEXACO personality: ${personalityDesc}\n\nAcknowledge and prepare.`
+    `You are beginning a 12-turn simulation of 50 years of Mars colonization (2035-2085). Each turn presents a crisis grounded in real Mars science. You MUST use the web_search tool to research real scientific papers and NASA data before every decision. Cite everything with inline markdown links. Your HEXACO personality: ${personalityDesc}\n\nAcknowledge and prepare.`
   );
 
   let snapshot = { ...INITIAL_SNAPSHOT };
   const turns: TurnResult[] = [];
-
   const scenariosToRun = maxTurns ? SCENARIOS.slice(0, maxTurns) : SCENARIOS;
   const totalTurns = scenariosToRun.length;
 
@@ -150,14 +191,19 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
       '',
       crisisWithState,
       '',
-      `Research these topics before deciding: ${scenario.researchKeywords.join(', ')}`,
+      `REQUIRED: Use web_search to research these topics BEFORE making your decision: ${scenario.researchKeywords.join(', ')}`,
       '',
       `Current colony: Pop ${snapshot.population} | Water ${snapshot.waterLitersPerDay} L/day | Food ${snapshot.foodMonthsReserve}mo | Power ${snapshot.powerKw} kW | Morale ${Math.round(snapshot.morale * 100)}% | Modules ${snapshot.infrastructureModules} | Science ${snapshot.scienceOutput} | Deaths ${snapshot.unplannedDeaths} | Tools ${snapshot.toolsForgedTotal}`,
     ].join('\n');
 
     const result = await session.send(prompt);
-    const parsed = parseResponse(result.text);
 
+    // Log tool calls
+    if (result.toolCalls?.length) {
+      console.log(`  Tool calls: ${result.toolCalls.map((tc: any) => tc.toolName || tc.name).join(', ')}`);
+    }
+
+    const parsed = parseResponse(result.text);
     snapshot = evolveSnapshot(snapshot, parsed.snapshotUpdates, scenario.snapshotHints, parsed.toolsForged.length);
 
     turns.push({
