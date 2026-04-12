@@ -1,0 +1,3540 @@
+{
+  "simulation": "mars-genesis-v2",
+  "leader": {
+    "name": "Aria Chen",
+    "archetype": "The Visionary",
+    "colony": "Ares Horizon",
+    "hexaco": {
+      "openness": 0.95,
+      "conscientiousness": 0.35,
+      "extraversion": 0.85,
+      "agreeableness": 0.55,
+      "emotionality": 0.3,
+      "honestyHumility": 0.65
+    }
+  },
+  "turnArtifacts": [
+    {
+      "turn": 1,
+      "year": 2035,
+      "crisis": "Landfall",
+      "departmentReports": [
+        {
+          "department": "medical",
+          "summary": "Choose Arcadia Planitia (Option A) for the first permanent settlement. Radiation exposure is effectively the same at both sites, so the health decision turns on operational safety and long-term survivability. Arcadia’s flat terrain and low landslide risk materially reduce landing accidents, construction injuries, evacuation delays, and medical load. Its subsurface ice also improves water security, which directly supports hydration, hygiene, life support redundancy, and psychological stability. Valles Marineris offers high scientific value, but the steep slopes, rockfall risk, and large elevation changes create avoidable trauma and logistics risk for a first settlement with 100 colonists and only 18 months of food reserve.",
+          "citations": [
+            {
+              "text": "Mars surface radiation averages 0.67 mSv/day, approximately 20x Earth background",
+              "url": "https://doi.org/10.1126/science.1244797",
+              "context": "Radiation is similar at both candidate sites, so it is not a differentiator in the landing-site decision."
+            },
+            {
+              "text": "Arcadia Planitia contains extensive subsurface ice deposits detected by MARSIS radar",
+              "url": "https://www.esa.int/Science_Exploration/Space_Science/Mars_Express",
+              "context": "Supports water resilience, reduced dehydration risk, better hygiene capacity, and more stable life support."
+            },
+            {
+              "text": "Valles Marineris spans 4,000 km with up to 7 km depth, exposing 3.5 billion years of strata",
+              "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html",
+              "context": "Shows strong scientific value, but not enough to outweigh early settlement safety priorities."
+            },
+            {
+              "text": "CRISM spectrometer detected diverse hydrated minerals in Valles Marineris walls",
+              "url": "https://doi.org/10.1029/2009JE003342",
+              "context": "Increases scientific interest and potential resource prospecting value, but does not reduce terrain hazard."
+            },
+            {
+              "text": "Valles Marineris terrain slopes up to 30 degrees increase landing risk and construction difficulty",
+              "url": "https://www.uahirise.org/",
+              "context": "Primary reason to avoid this site for the initial permanent settlement due to accident and injury risk."
+            }
+          ],
+          "risks": [
+            {
+              "severity": "high",
+              "description": "Selecting Valles Marineris would increase risk of landing accidents, falls, rockfall injuries, and delayed medical response due to steep terrain and elevation changes."
+            },
+            {
+              "severity": "medium",
+              "description": "Arcadia Planitia still carries chronic radiation burden of about 0.67 mSv/day, so long-term cancer and degenerative risk remains significant at either site."
+            },
+            {
+              "severity": "medium",
+              "description": "With only 18 months of food reserve, a difficult landing site could amplify supply disruptions and undermine health outcomes if construction or transport is delayed."
+            },
+            {
+              "severity": "medium",
+              "description": "Psychological stress may rise if the first settlement is established in a hazardous environment with frequent movement constraints and emergency risk."
+            }
+          ],
+          "opportunities": [
+            {
+              "impact": "high",
+              "description": "Arcadia Planitia’s subsurface ice can improve water independence, sanitation, and emergency reserve capacity."
+            },
+            {
+              "impact": "medium",
+              "description": "A safer first site allows the colony’s limited medical staff and life-support resources to focus on prevention rather than trauma management."
+            },
+            {
+              "impact": "high",
+              "description": "Starting on stable terrain reduces the probability of mission-threatening injuries during the most vulnerable early settlement phase."
+            }
+          ],
+          "recommendedActions": [
+            "Land first at Arcadia Planitia.",
+            "Prioritize ice-access siting near but not within hazard-prone excavation zones.",
+            "Use Valles Marineris as a later scientific expedition site only after the colony has robust excavation, teleoperation, and emergency-medical capacity.",
+            "Maintain strict radiation monitoring and cumulative-dose tracking at either site.",
+            "Strengthen fall prevention, EVA protocols, and trauma evacuation readiness before the first surface operations."
+          ],
+          "proposedPatches": {},
+          "forgedToolsUsed": [],
+          "featuredColonistUpdates": [
+            {
+              "name": "Dr. Yuki Tanaka",
+              "update": "Remains medically stable; lower-risk landing choice helps preserve musculoskeletal integrity and team confidence."
+            },
+            {
+              "name": "Erik Lindqvist",
+              "update": "No current health issue; flat terrain reduces injury exposure during initial deployment."
+            },
+            {
+              "name": "Amara Osei",
+              "update": "Stable; improved water access at Arcadia supports hydration and recovery."
+            },
+            {
+              "name": "Dr. Priya Singh",
+              "update": "Stable; safer site reduces anticipated trauma caseload and preserves clinical capacity."
+            },
+            {
+              "name": "Carlos Fernandez",
+              "update": "Stable; lower construction hazard supports long-term operational wellbeing."
+            }
+          ],
+          "confidence": 0.94,
+          "openQuestions": [
+            "Exact subsurface ice depth, purity, and accessibility at the chosen Arcadia landing ellipse.",
+            "Seasonal dust-storm exposure differences between the final Arcadia landing ellipse and any backup sites.",
+            "How quickly the colony can add shielding and medical redundancy after landing."
+          ]
+        },
+        {
+          "department": "engineering",
+          "summary": "Choose Arcadia Planitia for first permanent settlement. It offers the safest landing profile, simplest construction environment, and direct access to subsurface ice, which is the most critical infrastructure advantage for a small early colony with limited reserve margins.",
+          "citations": [],
+          "risks": [],
+          "opportunities": [],
+          "recommendedActions": [],
+          "proposedPatches": {},
+          "forgedToolsUsed": [],
+          "featuredColonistUpdates": [],
+          "confidence": 0.7,
+          "openQuestions": [],
+          "decision": {
+            "selectedSite": "Arcadia Planitia",
+            "confidence": 0.93,
+            "reason": [
+              "Flat basalt plains greatly reduce landing, surface mobility, and construction risk.",
+              "Subsurface ice deposits provide a strong strategic advantage for water, oxygen, and propellant production.",
+              "Lower terrain hazard is the decisive factor for a first settlement with only 3 modules and 18 months of food reserves.",
+              "Radiation is similar at both sites, so it does not favor Valles Marineris enough to offset its hazards."
+            ]
+          },
+          "engineeringAssessment": {
+            "habitatIntegrity": {
+              "status": "stable",
+              "riskLevel": "low",
+              "notes": [
+                "Arcadia's flat terrain minimizes foundation stress and landform instability.",
+                "Valles Marineris rim would require terracing, slope stabilization, and rockfall protection."
+              ]
+            },
+            "power": {
+              "status": "adequate",
+              "capacityKw": 400,
+              "notes": [
+                "Power is sufficient for a small starter settlement, but not generous for high-intensity excavation and slope engineering.",
+                "Arcadia's easier construction lowers power draw during site prep and habitat expansion."
+              ]
+            },
+            "lifeSupport": {
+              "status": "acceptable",
+              "capacity": 120,
+              "population": 100,
+              "margin": 20,
+              "notes": [
+                "Life support margin is positive but not large, so operational simplicity matters.",
+                "A lower-risk site reduces emergency load on life support systems."
+              ]
+            },
+            "waterSystems": {
+              "status": "strategically critical",
+              "dailyDemandL": 800,
+              "notes": [
+                "Subsurface ice at Arcadia is the strongest long-term systems advantage.",
+                "Water access reduces resupply dependence and supports expansion."
+              ]
+            },
+            "construction": {
+              "status": "favorable",
+              "riskLevel": "low",
+              "notes": [
+                "Flat terrain allows faster module emplacement, road building, and excavation.",
+                "Valles Marineris would impose major civil engineering overhead before settlement growth."
+              ]
+            }
+          },
+          "siteComparison": {
+            "Arcadia Planitia": {
+              "pros": [
+                "Flat, stable terrain",
+                "Minimal landslide and rockfall risk",
+                "Access to subsurface ice",
+                "Best choice for rapid base deployment"
+              ],
+              "cons": [
+                "Less geologically dramatic",
+                "Lower immediate mineral diversity than Valles Marineris"
+              ]
+            },
+            "Valles Marineris rim": {
+              "pros": [
+                "Exceptional geological exposure",
+                "High mineral diversity",
+                "Scientific value is outstanding"
+              ],
+              "cons": [
+                "Slopes up to 30 degrees",
+                "Rockfall and construction hazards",
+                "2 km operational elevation changes",
+                "Terracing and stabilization required"
+              ]
+            }
+          },
+          "recommendation": {
+            "primary": "Establish the first permanent settlement at Arcadia Planitia.",
+            "secondary": "Use Valles Marineris as a later science outpost or robotic survey target, not the initial human settlement site."
+          },
+          "riskSummary": [
+            "Arcadia: low operational risk, high infrastructure payoff.",
+            "Valles Marineris: high scientific value, but excessive early engineering risk."
+          ],
+          "resourceImplications": {
+            "population": 100,
+            "foodMonthsReserve": 18,
+            "powerKw": 400,
+            "modules": 3,
+            "waterLPerDay": 800,
+            "engineeringConclusion": "With current margins, the colony should favor reliability and resource security over scientific spectacle."
+          }
+        }
+      ],
+      "commanderDecision": {
+        "decision": "Establish the first permanent settlement at Arcadia Planitia and designate Valles Marineris as a deferred high-value exploration objective for a later phase.",
+        "rationale": "We land where survival compounds into strength. Arcadia gives us the broad, stable runway we need: flatter terrain, lower accident risk, simpler construction, faster logistics, and direct access to subsurface ice. For a 100-person founding colony with only 18 months of food reserve, operational simplicity is not caution for its own sake—it is fuel for expansion. Every avoided landing mishap, construction delay, and evacuation bottleneck preserves manpower and momentum. Valles Marineris is scientifically seductive, but it is a dramatic canyon better conquered from a position of strength. We will not spend our first year wrestling gravity, rockfall, and transit delays when we can instead secure water, build redundancy, and accelerate self-sufficiency from Arcadia. This is the bolder move in strategic terms: build the durable base first, then launch outward aggressively.",
+        "departmentsConsulted": [
+          "medical",
+          "engineering"
+        ],
+        "selectedPolicies": [
+          "Site first permanent settlement at Arcadia Planitia.",
+          "Prioritize base layout near accessible subsurface ice while maintaining buffer zones from excavation hazards.",
+          "Adopt a phased strategy: Arcadia as primary colony hub, Valles Marineris reserved for later scientific expedition and remote survey operations.",
+          "Implement strict radiation exposure tracking and cumulative-dose monitoring for all personnel.",
+          "Harden EVA safety protocols with emphasis on fall prevention, trauma response, and rapid evacuation readiness.",
+          "Front-load water extraction, storage, and life-support redundancy as core infrastructure objectives."
+        ],
+        "rejectedPolicies": [
+          "Establish the first permanent settlement at Valles Marineris.",
+          "Accept higher terrain and logistics risk in exchange for immediate scientific access to canyon geology.",
+          "Delay ice-centered infrastructure planning in favor of a science-first landing profile."
+        ],
+        "expectedTradeoffs": [
+          "We give up early access to the highest-value canyon science in exchange for a safer and faster settlement buildout.",
+          "Arcadia's flatter terrain reduces operational drama but increases dependence on deliberate planning to keep morale and exploration ambition high.",
+          "Radiation exposure remains a serious chronic threat at either site, so choosing Arcadia does not remove long-term health risk.",
+          "A conservative initial site may be perceived by some as less visionary, but it increases the colony's odds of reaching the scale needed for more ambitious missions."
+        ],
+        "watchMetricsNextTurn": [
+          "landing incident rate",
+          "construction pace versus plan",
+          "water extraction startup timeline",
+          "food reserve months remaining",
+          "life-support redundancy status",
+          "radiation dose accumulation by crew",
+          "morale trend after site commitment",
+          "EVA injury and near-miss rate",
+          "time-to-deploy habitat and power systems",
+          "readiness level for remote reconnaissance of Valles Marineris"
+        ]
+      },
+      "policyEffectsApplied": [
+        "Site first permanent settlement at Arcadia Planitia.",
+        "Prioritize base layout near accessible subsurface ice while maintaining buffer zones from excavation hazards.",
+        "Adopt a phased strategy: Arcadia as primary colony hub, Valles Marineris reserved for later scientific expedition and remote survey operations.",
+        "Implement strict radiation exposure tracking and cumulative-dose monitoring for all personnel.",
+        "Harden EVA safety protocols with emphasis on fall prevention, trauma response, and rapid evacuation readiness.",
+        "Front-load water extraction, storage, and life-support redundancy as core infrastructure objectives."
+      ],
+      "stateSnapshotAfter": {
+        "population": 100,
+        "morale": 0.825,
+        "foodMonthsReserve": 18,
+        "infrastructureModules": 3,
+        "scienceOutput": 0,
+        "births": 0,
+        "deaths": 0
+      }
+    }
+  ],
+  "finalState": {
+    "metadata": {
+      "simulationId": "mars-genesis-950-1775994372614",
+      "leaderId": "Aria Chen",
+      "seed": 950,
+      "startYear": 2035,
+      "currentYear": 2035,
+      "currentTurn": 1
+    },
+    "colony": {
+      "population": 100,
+      "powerKw": 400,
+      "foodMonthsReserve": 18,
+      "waterLitersPerDay": 800,
+      "pressurizedVolumeM3": 3000,
+      "lifeSupportCapacity": 120,
+      "infrastructureModules": 3,
+      "scienceOutput": 0,
+      "morale": 0.825
+    },
+    "colonists": [
+      {
+        "core": {
+          "id": "col-dr.-yuki-tanaka",
+          "name": "Dr. Yuki Tanaka",
+          "birthYear": 1997,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Chief Medical Officer"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Radiation Medicine",
+          "yearsExperience": 0,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-erik-lindqvist",
+          "name": "Erik Lindqvist",
+          "birthYear": 1990,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Chief Engineer"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural Engineering",
+          "yearsExperience": 0,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-osei",
+          "name": "Amara Osei",
+          "birthYear": 2001,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Head of Agriculture"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 0,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-dr.-priya-singh",
+          "name": "Dr. Priya Singh",
+          "birthYear": 1994,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Colony Psychologist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Clinical Psychology",
+          "yearsExperience": 0,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-carlos-fernandez",
+          "name": "Carlos Fernandez",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "science",
+          "role": "Chief Scientist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 0,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": true
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-patel",
+          "name": "Bruno Patel",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Soil Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Soil Science",
+          "yearsExperience": 15,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-ito",
+          "name": "Dietrich Ito",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 4,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-eriksson",
+          "name": "Amara Eriksson",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Radiation Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Radiation Medicine",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aria-kato",
+          "name": "Aria Kato",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Senior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 11,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-hana-reyes",
+          "name": "Hana Reyes",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Planning Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Planning",
+          "yearsExperience": 3,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-owusu",
+          "name": "Jin Owusu",
+          "birthYear": 1986,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Lead Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 22,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mei-eriksson",
+          "name": "Mei Eriksson",
+          "birthYear": 1994,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 2,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ravi-müller",
+          "name": "Ravi Müller",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-carlos-costa",
+          "name": "Carlos Costa",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-chen-voss",
+          "name": "Chen Voss",
+          "birthYear": 1992,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 14,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tariq-ahmad",
+          "name": "Tariq Ahmad",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Botany Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Botany",
+          "yearsExperience": 3,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-owusu",
+          "name": "Dietrich Owusu",
+          "birthYear": 2001,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 8,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-andersen",
+          "name": "Jin Andersen",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 4,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-torres",
+          "name": "Signe Torres",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "science",
+          "role": "Lead Chemistry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Chemistry",
+          "yearsExperience": 17,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-lindqvist",
+          "name": "Signe Lindqvist",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Soil Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Soil Science",
+          "yearsExperience": 16,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-andersen",
+          "name": "Elena Andersen",
+          "birthYear": 1997,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 5,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-omar-andersen",
+          "name": "Omar Andersen",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 8,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-patel",
+          "name": "Kwame Patel",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 9,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-pavel-morales",
+          "name": "Pavel Morales",
+          "birthYear": 1993,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 14,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-chen-ibrahim",
+          "name": "Chen Ibrahim",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-anders-eriksson",
+          "name": "Anders Eriksson",
+          "birthYear": 2007,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-viktor-herrera",
+          "name": "Viktor Herrera",
+          "birthYear": 1980,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Atmospheric Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Atmospheric Science",
+          "yearsExperience": 2,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kira-nkomo",
+          "name": "Kira Nkomo",
+          "birthYear": 1990,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead Psychiatry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Psychiatry",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-petrov",
+          "name": "Jin Petrov",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 19,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-nadia-ivanova",
+          "name": "Nadia Ivanova",
+          "birthYear": 1997,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 10,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-daria-torres",
+          "name": "Daria Torres",
+          "birthYear": 1993,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 20,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-daria-sato",
+          "name": "Daria Sato",
+          "birthYear": 2003,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Biology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Biology",
+          "yearsExperience": 9,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tomas-kato",
+          "name": "Tomas Kato",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-sato",
+          "name": "Zara Sato",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Junior Clinical Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Clinical Psychology",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-kowalski",
+          "name": "Zara Kowalski",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 3,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-keiko-johansson",
+          "name": "Keiko Johansson",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 4,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-kowalski",
+          "name": "Signe Kowalski",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Botany Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Botany",
+          "yearsExperience": 9,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-holm",
+          "name": "Kwame Holm",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-mensah",
+          "name": "Amara Mensah",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Junior Hydroponics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 5,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tomas-ahmad",
+          "name": "Tomas Ahmad",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 15,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-priya-zhang",
+          "name": "Priya Zhang",
+          "birthYear": 2008,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-costa",
+          "name": "Elena Costa",
+          "birthYear": 1994,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 6,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-sven-yusuf",
+          "name": "Sven Yusuf",
+          "birthYear": 2007,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jamal-sato",
+          "name": "Jamal Sato",
+          "birthYear": 1986,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Hydroponics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aria-tanaka",
+          "name": "Aria Tanaka",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Clinical Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Clinical Psychology",
+          "yearsExperience": 2,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-yuki-müller",
+          "name": "Yuki Müller",
+          "birthYear": 2010,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 2,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-osei",
+          "name": "Kwame Osei",
+          "birthYear": 1983,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 30,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-viktor-okafor",
+          "name": "Viktor Okafor",
+          "birthYear": 2009,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Hydroponics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Hydroponics",
+          "yearsExperience": 3,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-priya-singh",
+          "name": "Priya Singh",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 5,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mei-kim",
+          "name": "Mei Kim",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 9,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-pavel-bakker",
+          "name": "Pavel Bakker",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "science",
+          "role": "Lead Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 23,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-anya-torres",
+          "name": "Anya Torres",
+          "birthYear": 1988,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 17,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-morales",
+          "name": "Bruno Morales",
+          "birthYear": 2000,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-olga-owusu",
+          "name": "Olga Owusu",
+          "birthYear": 1984,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Chemistry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Chemistry",
+          "yearsExperience": 7,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ravi-osei",
+          "name": "Ravi Osei",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 6,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ingrid-ivanova",
+          "name": "Ingrid Ivanova",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 18,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-diego-torres",
+          "name": "Diego Torres",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Power Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Power Systems",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-rosa-andersen",
+          "name": "Rosa Andersen",
+          "birthYear": 1986,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 3,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-müller",
+          "name": "Bruno Müller",
+          "birthYear": 1980,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 14,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-fatima-kowalski",
+          "name": "Fatima Kowalski",
+          "birthYear": 1989,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 16,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aria-nkomo",
+          "name": "Aria Nkomo",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Junior Social Psychology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Social Psychology",
+          "yearsExperience": 5,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jamal-okafor",
+          "name": "Jamal Okafor",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Logistics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Logistics",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-hassan-fernandez",
+          "name": "Hassan Fernandez",
+          "birthYear": 1983,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Botany Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Botany",
+          "yearsExperience": 19,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-aisha-ibrahim",
+          "name": "Aisha Ibrahim",
+          "birthYear": 1980,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 32,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-fatima-holm",
+          "name": "Fatima Holm",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Lead Water Systems Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Water Systems",
+          "yearsExperience": 13,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-signe-mendez",
+          "name": "Signe Mendez",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Psychiatry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Psychiatry",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-takahashi",
+          "name": "Dietrich Takahashi",
+          "birthYear": 2010,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 3,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-park",
+          "name": "Elena Park",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 16,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-henrik-chen",
+          "name": "Henrik Chen",
+          "birthYear": 1993,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Senior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-voss",
+          "name": "Elena Voss",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 15,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-carlos-webb",
+          "name": "Carlos Webb",
+          "birthYear": 1989,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Lead General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 8,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-emeka-singh",
+          "name": "Emeka Singh",
+          "birthYear": 1991,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 6,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-johansson",
+          "name": "Zara Johansson",
+          "birthYear": 1983,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 13,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-al-rashid",
+          "name": "Dietrich Al-Rashid",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 18,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-yara-singh",
+          "name": "Yara Singh",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 5,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-david-morales",
+          "name": "David Morales",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Atmospheric Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Atmospheric Science",
+          "yearsExperience": 4,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-elena-yamamoto",
+          "name": "Elena Yamamoto",
+          "birthYear": 2002,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Robotics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Robotics",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-leila-yamamoto",
+          "name": "Leila Yamamoto",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Radiation Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Radiation Medicine",
+          "yearsExperience": 5,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-felix-li",
+          "name": "Felix Li",
+          "birthYear": 1982,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Lead Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 19,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-hassan-müller",
+          "name": "Hassan Müller",
+          "birthYear": 2000,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 2,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-zara-kato",
+          "name": "Zara Kato",
+          "birthYear": 1988,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 5,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-voss",
+          "name": "Jin Voss",
+          "birthYear": 2004,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-emeka-owusu",
+          "name": "Emeka Owusu",
+          "birthYear": 1992,
+          "marsborn": false,
+          "department": "science",
+          "role": "Lead Atmospheric Science Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Atmospheric Science",
+          "yearsExperience": 5,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-david-santos",
+          "name": "David Santos",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 14,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-mei-reyes",
+          "name": "Mei Reyes",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 15,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-liam-eriksson",
+          "name": "Liam Eriksson",
+          "birthYear": 1998,
+          "marsborn": false,
+          "department": "administration",
+          "role": "Junior Operations Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Operations",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tariq-andersen",
+          "name": "Tariq Andersen",
+          "birthYear": 2000,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Biology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Biology",
+          "yearsExperience": 12,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-amara-torres",
+          "name": "Amara Torres",
+          "birthYear": 1987,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Senior Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 14,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-berg",
+          "name": "Jin Berg",
+          "birthYear": 1996,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior General Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "General Medicine",
+          "yearsExperience": 3,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-jin-volkov",
+          "name": "Jin Volkov",
+          "birthYear": 1989,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Chemistry Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Chemistry",
+          "yearsExperience": 24,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-tomas-nkomo",
+          "name": "Tomas Nkomo",
+          "birthYear": 2005,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Senior Surgery Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Surgery",
+          "yearsExperience": 8,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-yamamoto",
+          "name": "Kwame Yamamoto",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Communications Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Communications",
+          "yearsExperience": 10,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-diego-nakamura",
+          "name": "Diego Nakamura",
+          "birthYear": 2006,
+          "marsborn": false,
+          "department": "medical",
+          "role": "Junior Emergency Medicine Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Emergency Medicine",
+          "yearsExperience": 7,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-ingrid-patel",
+          "name": "Ingrid Patel",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Senior Structural Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Structural",
+          "yearsExperience": 14,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kwame-andersen",
+          "name": "Kwame Andersen",
+          "birthYear": 1981,
+          "marsborn": false,
+          "department": "psychology",
+          "role": "Lead Occupational Therapy Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Occupational Therapy",
+          "yearsExperience": 4,
+          "rank": "lead",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-fatima-costa",
+          "name": "Fatima Costa",
+          "birthYear": 1984,
+          "marsborn": false,
+          "department": "science",
+          "role": "Senior Geology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Geology",
+          "yearsExperience": 24,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-dietrich-patel",
+          "name": "Dietrich Patel",
+          "birthYear": 1995,
+          "marsborn": false,
+          "department": "engineering",
+          "role": "Junior Life Support Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Life Support",
+          "yearsExperience": 8,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-bruno-lindqvist",
+          "name": "Bruno Lindqvist",
+          "birthYear": 1985,
+          "marsborn": false,
+          "department": "agriculture",
+          "role": "Senior Nutrition Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Nutrition",
+          "yearsExperience": 18,
+          "rank": "senior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-kofi-reyes",
+          "name": "Kofi Reyes",
+          "birthYear": 2003,
+          "marsborn": false,
+          "department": "science",
+          "role": "Junior Astrophysics Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Astrophysics",
+          "yearsExperience": 6,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      },
+      {
+        "core": {
+          "id": "col-yuki-owusu",
+          "name": "Yuki Owusu",
+          "birthYear": 2008,
+          "marsborn": false,
+          "department": "science",
+          "role": "Junior Biology Specialist"
+        },
+        "health": {
+          "alive": true,
+          "boneDensityPct": 100,
+          "cumulativeRadiationMsv": 0,
+          "psychScore": 0.8,
+          "conditions": []
+        },
+        "career": {
+          "specialization": "Biology",
+          "yearsExperience": 4,
+          "rank": "junior",
+          "achievements": []
+        },
+        "social": {
+          "childrenIds": [],
+          "friendIds": [],
+          "earthContacts": 5
+        },
+        "narrative": {
+          "lifeEvents": [],
+          "featured": false
+        }
+      }
+    ],
+    "politics": {
+      "earthDependencyPct": 95,
+      "governanceStatus": "earth-governed",
+      "independencePressure": 0.05
+    },
+    "eventLog": [
+      {
+        "turn": 1,
+        "year": 2035,
+        "type": "decision",
+        "description": "Establish the first permanent settlement at Arcadia Planitia and designate Valles Marineris as a deferred high-value exploration objective for a later phase.",
+        "data": {
+          "policies": [
+            "Site first permanent settlement at Arcadia Planitia.",
+            "Prioritize base layout near accessible subsurface ice while maintaining buffer zones from excavation hazards.",
+            "Adopt a phased strategy: Arcadia as primary colony hub, Valles Marineris reserved for later scientific expedition and remote survey operations.",
+            "Implement strict radiation exposure tracking and cumulative-dose monitoring for all personnel.",
+            "Harden EVA safety protocols with emphasis on fall prevention, trauma response, and rapid evacuation readiness.",
+            "Front-load water extraction, storage, and life-support redundancy as core infrastructure objectives."
+          ]
+        }
+      }
+    ]
+  },
+  "toolRegistries": {},
+  "totalCitations": 5,
+  "totalToolsForged": 0
+}
