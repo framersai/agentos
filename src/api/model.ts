@@ -258,8 +258,18 @@ export interface ModelOption {
 export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): ParsedModel {
   // 1. Explicit model string (backwards compat and direct override)
   if (opts.model) {
-    // Legacy "provider:model" format
+    // Canonical "provider:model" format
     if (opts.model.includes(':')) return parseModelString(opts.model);
+    // Alternative "provider/model" format — check if the prefix before the
+    // first "/" is a known provider ID. This avoids misinterpreting OpenRouter
+    // model paths like "meta-llama/llama-3.1-8b" as provider "meta-llama".
+    const slashIdx = opts.model.indexOf('/');
+    if (slashIdx > 0) {
+      const maybeProvider = opts.model.slice(0, slashIdx);
+      if (PROVIDER_DEFAULTS[maybeProvider]) {
+        return { providerId: maybeProvider, modelId: opts.model.slice(slashIdx + 1) };
+      }
+    }
     // Plain model name with explicit provider
     if (opts.provider) return { providerId: opts.provider, modelId: opts.model };
     // Plain model name — try auto-detect for provider
