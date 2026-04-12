@@ -1,3 +1,7 @@
+## <small>0.1.218 (2026-04-12)</small>
+
+* fix(mars-genesis): fix forge success rate (permissive schemas, code wrapping, mode normalization) ([0d51b77](https://github.com/framersai/agentos/commit/0d51b77))
+
 ## <small>0.1.217 (2026-04-12)</small>
 
 * feat: support provider/model slash format in model strings ([266daf0](https://github.com/framersai/agentos/commit/266daf0))
