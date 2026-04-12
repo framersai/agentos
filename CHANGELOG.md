@@ -1,3 +1,14 @@
+## <small>0.1.219 (2026-04-12)</small>
+
+* feat(mars-genesis): v3 orchestrator with Turn 0 promotion, personality drift, outcome classification ([3678aa0](https://github.com/framersai/agentos/commit/3678aa0))
+* feat(mars-genesis): v3 smoke test passed - promotions, drift, outcome classification all working ([9271c95](https://github.com/framersai/agentos/commit/9271c95))
+* feat(mars-genesis): v3 state types, HEXACO generation, drift, outcome classification, scenarios, con ([55efd96](https://github.com/framersai/agentos/commit/55efd96))
+* docs: add Mars Genesis v3 design spec (dynamic promotion, personality drift, trait trajectories) ([7396604](https://github.com/framersai/agentos/commit/7396604))
+* docs: add Mars Genesis v3 implementation plan (9 tasks, personality drift) ([676f0bb](https://github.com/framersai/agentos/commit/676f0bb))
+* docs: document slash-format model strings and update model table ([fdeea31](https://github.com/framersai/agentos/commit/fdeea31))
+* docs: rewrite v3 spec after full cross-check against v2 principles and Codex review ([3ab3509](https://github.com/framersai/agentos/commit/3ab3509))
+* docs: update model names and document slash-format support ([1df3c32](https://github.com/framersai/agentos/commit/1df3c32))
+
 ## <small>0.1.218 (2026-04-12)</small>
 
 * fix(mars-genesis): fix forge success rate (permissive schemas, code wrapping, mode normalization) ([0d51b77](https://github.com/framersai/agentos/commit/0d51b77))
