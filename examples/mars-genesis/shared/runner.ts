@@ -97,7 +97,7 @@ function injectState(template: string, snap: ColonySnapshot): string {
     .replace(/\{infrastructureModules\}/g, String(snap.infrastructureModules));
 }
 
-export async function runSimulation(leader: LeaderConfig): Promise<SimulationLog> {
+export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Promise<SimulationLog> {
   // Dynamic import to avoid top-level resolution issues
   const { agent } = await import('@framers/agentos');
 
@@ -112,7 +112,7 @@ export async function runSimulation(leader: LeaderConfig): Promise<SimulationLog
 
   const sim = agent({
     provider: 'anthropic',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-opus-4-20250514',
     instructions: leader.instructions,
     personality: {
       openness: leader.hexaco.openness,
@@ -120,11 +120,9 @@ export async function runSimulation(leader: LeaderConfig): Promise<SimulationLog
       extraversion: leader.hexaco.extraversion,
       agreeableness: leader.hexaco.agreeableness,
       emotionality: leader.hexaco.emotionality,
-      honestyHumility: leader.hexaco.honestyHumility,
+      honesty: leader.hexaco.honestyHumility,
     },
-    tools: ['web_search'],
     maxSteps: 8,
-    emergent: { enabled: true, judge: true },
   });
 
   const session = sim.session(`mars-genesis-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`);
@@ -138,9 +136,12 @@ export async function runSimulation(leader: LeaderConfig): Promise<SimulationLog
   let snapshot = { ...INITIAL_SNAPSHOT };
   const turns: TurnResult[] = [];
 
-  for (const scenario of SCENARIOS) {
+  const scenariosToRun = maxTurns ? SCENARIOS.slice(0, maxTurns) : SCENARIOS;
+  const totalTurns = scenariosToRun.length;
+
+  for (const scenario of scenariosToRun) {
     console.log(`\n${'─'.repeat(50)}`);
-    console.log(`  Turn ${scenario.turn}/12 — Year ${scenario.year}: ${scenario.title}`);
+    console.log(`  Turn ${scenario.turn}/${totalTurns} — Year ${scenario.year}: ${scenario.title}`);
     console.log(`${'─'.repeat(50)}`);
 
     const crisisWithState = injectState(scenario.crisis, snapshot);
