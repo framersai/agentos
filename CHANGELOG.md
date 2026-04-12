@@ -1,3 +1,7 @@
+## <small>0.1.215 (2026-04-12)</small>
+
+* feat(mars-genesis): v2 smoke test passed - multi-agent orchestrator working end-to-end ([1279218](https://github.com/framersai/agentos/commit/1279218))
+
 ## <small>0.1.214 (2026-04-12)</small>
 
 * feat(mars-genesis): add v2 multi-agent orchestrator with department routing, kernel integration, and ([5efa348](https://github.com/framersai/agentos/commit/5efa348))
