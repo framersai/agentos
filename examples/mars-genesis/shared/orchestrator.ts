@@ -1,0 +1,276 @@
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { ITool } from '@framers/agentos';
+import {
+  EmergentCapabilityEngine, EmergentJudge, EmergentToolRegistry,
+  ComposableToolBuilder, SandboxedToolForge, ForgeToolMetaTool, generateText,
+} from '@framers/agentos';
+import type { Department } from './state.js';
+import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
+import { SimulationKernel, type PolicyEffect } from './kernel.js';
+import type { KeyPersonnel } from './colonist-generator.js';
+import { SCENARIOS } from './scenarios.js';
+import { getResearchPacket } from './research.js';
+import { DEPARTMENT_CONFIGS, buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+export interface LeaderConfig {
+  name: string;
+  archetype: string;
+  colony: string;
+  hexaco: { openness: number; conscientiousness: number; extraversion: number; agreeableness: number; emotionality: number; honestyHumility: number };
+  instructions: string;
+}
+
+// ---------------------------------------------------------------------------
+// Web search tool
+// ---------------------------------------------------------------------------
+
+const webSearchTool: ITool = {
+  id: 'tool.web_search', name: 'web_search', displayName: 'Web Search',
+  description: 'Search for scientific papers and NASA data.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  hasSideEffects: false,
+  async execute(args: Record<string, unknown>) {
+    const query = String(args.query || '');
+    const key = process.env.SERPER_API_KEY;
+    if (!key) return { success: false, error: 'SERPER_API_KEY not set' };
+    try {
+      const res = await fetch('https://google.serper.dev/search', {
+        method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: query, num: 5 }),
+      });
+      if (!res.ok) return { success: false, error: `Search ${res.status}` };
+      const data = await res.json() as any;
+      return { success: true, output: { results: (data.organic || []).slice(0, 5).map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet })), query } };
+    } catch (err) { return { success: false, error: String(err) }; }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Emergent engine
+// ---------------------------------------------------------------------------
+
+function createEmergentEngine(toolMap: Map<string, ITool>) {
+  const llmCb = async (model: string, prompt: string) => {
+    const r = await generateText({ provider: 'openai', model: model || 'gpt-5.4', prompt });
+    return r.text;
+  };
+  const registry = new EmergentToolRegistry();
+  const judge = new EmergentJudge({ judgeModel: 'gpt-5.4', promotionModel: 'gpt-5.4', generateText: llmCb });
+  const executor = async (name: string, args: unknown, ctx: any) => {
+    const t = toolMap.get(name);
+    return t ? t.execute(args as any, ctx) : { success: false, error: `Tool "${name}" not found` };
+  };
+  const engine = new EmergentCapabilityEngine({
+    config: {
+      enabled: true, maxSessionTools: 20, maxAgentTools: 50,
+      sandboxTimeoutMs: 10000, sandboxMemoryMB: 128,
+      promotionThreshold: { uses: 5, confidence: 0.8 },
+      allowSandboxTools: true, persistSandboxSource: true,
+      judgeModel: 'gpt-5.4', promotionJudgeModel: 'gpt-5.4',
+    },
+    composableBuilder: new ComposableToolBuilder(executor as any),
+    sandboxForge: new SandboxedToolForge(),
+    judge, registry,
+  });
+  return { engine, forgeTool: new ForgeToolMetaTool(engine) };
+}
+
+function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: string, dept: string): ITool {
+  return {
+    ...(raw as any),
+    async execute(args: Record<string, unknown>, ctx: any) {
+      const fixed = { ...args };
+      for (const k of ['implementation', 'inputSchema', 'outputSchema', 'testCases']) {
+        if (typeof (fixed as any)[k] === 'string') try { (fixed as any)[k] = JSON.parse((fixed as any)[k]); } catch {}
+      }
+      const mode = (fixed.implementation as any)?.mode || '?';
+      console.log(`    🔧 [${dept}] Forging "${fixed.name}" (${mode})...`);
+      const patched = { ...ctx, gmiId: agentId, sessionData: { ...(ctx?.sessionData ?? {}), sessionId } };
+      try {
+        const r = await raw.execute(fixed as any, patched);
+        console.log(`    🔧 [${dept}] ${r.success ? '✓' : '✗'} "${fixed.name}"`);
+        return r;
+      } catch (err) {
+        console.log(`    🔧 [${dept}] ERR: ${err}`);
+        return { success: false, error: String(err) };
+      }
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Parsing
+// ---------------------------------------------------------------------------
+
+function parseDeptReport(text: string, dept: Department): DepartmentReport {
+  const jsonMatch = text.match(/\{[\s\S]*"department"[\s\S]*\}/);
+  if (jsonMatch) try { return { ...emptyReport(dept), ...JSON.parse(jsonMatch[0]), department: dept }; } catch {}
+  const cites: DepartmentReport['citations'] = [];
+  let m; const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  while ((m = re.exec(text))) if (m[2].startsWith('http')) cites.push({ text: m[1], url: m[2], context: m[1] });
+  return { ...emptyReport(dept), summary: text.slice(0, 500), citations: cites };
+}
+
+function parseCmdDecision(text: string, depts: Department[]): CommanderDecision {
+  const jsonMatch = text.match(/\{[\s\S]*"decision"[\s\S]*\}/);
+  if (jsonMatch) try { return { ...emptyDecision(depts), ...JSON.parse(jsonMatch[0]) }; } catch {}
+  return { ...emptyDecision(depts), decision: text.slice(0, 500), rationale: text };
+}
+
+function emptyReport(d: Department): DepartmentReport {
+  return { department: d, summary: '', citations: [], risks: [], opportunities: [], recommendedActions: [], proposedPatches: {}, forgedToolsUsed: [], featuredColonistUpdates: [], confidence: 0.7, openQuestions: [] };
+}
+function emptyDecision(d: Department[]): CommanderDecision {
+  return { decision: '', rationale: '', departmentsConsulted: d, selectedPolicies: [], rejectedPolicies: [], expectedTradeoffs: [], watchMetricsNextTurn: [] };
+}
+
+function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport[], turn: number, year: number): PolicyEffect {
+  const patches: PolicyEffect['patches'] = {};
+  for (const r of reports) {
+    if (r.proposedPatches.colony) patches.colony = { ...patches.colony, ...r.proposedPatches.colony };
+    if (r.proposedPatches.politics) patches.politics = { ...patches.politics, ...r.proposedPatches.politics };
+    if (r.proposedPatches.colonistUpdates) patches.colonistUpdates = [...(patches.colonistUpdates || []), ...r.proposedPatches.colonistUpdates];
+  }
+  return {
+    description: decision.decision,
+    patches,
+    events: [{ turn, year, type: 'decision', description: decision.decision.slice(0, 200), data: { policies: decision.selectedPolicies } }],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+export interface RunOptions { maxTurns?: number; liveSearch?: boolean; }
+
+export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}) {
+  const { agent } = await import('@framers/agentos');
+  const maxTurns = opts.maxTurns ?? 12;
+  const sid = `mars-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
+
+  console.log(`\n${'═'.repeat(60)}`);
+  console.log(`  MARS GENESIS v2`);
+  console.log(`  Commander: ${leader.name} — "${leader.archetype}"`);
+  console.log(`  Turns: ${maxTurns} | Live search: ${opts.liveSearch ? 'yes' : 'no'}`);
+  console.log(`${'═'.repeat(60)}\n`);
+
+  const seed = Math.abs(leader.hexaco.openness * 1000 | 0);
+  const kernel = new SimulationKernel(seed, leader.name, keyPersonnel);
+
+  const toolMap = new Map<string, ITool>();
+  toolMap.set('web_search', webSearchTool);
+  const { engine, forgeTool } = createEmergentEngine(toolMap);
+  const toolRegs: Record<string, string[]> = {};
+
+  const commander = agent({
+    provider: 'openai', model: 'gpt-5.4',
+    instructions: leader.instructions,
+    personality: { openness: leader.hexaco.openness, conscientiousness: leader.hexaco.conscientiousness, extraversion: leader.hexaco.extraversion, agreeableness: leader.hexaco.agreeableness, emotionality: leader.hexaco.emotionality, honesty: leader.hexaco.honestyHumility },
+    maxSteps: 5,
+  });
+  const cmdSess = commander.session(`${sid}-cmd`);
+  await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. Return JSON with decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.');
+
+  const deptAgents = new Map<Department, any>();
+  const deptSess = new Map<Department, any>();
+  for (const cfg of DEPARTMENT_CONFIGS) {
+    const wrapped = wrapForgeTool(forgeTool, `${sid}-${cfg.department}`, sid, cfg.department);
+    const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
+    const a = agent({ provider: 'openai', model: cfg.model, instructions: cfg.instructions, tools, maxSteps: 8 });
+    deptAgents.set(cfg.department, a);
+    deptSess.set(cfg.department, a.session(`${sid}-${cfg.department}`));
+  }
+
+  const artifacts: TurnArtifact[] = [];
+  const scenarios = SCENARIOS.slice(0, maxTurns);
+
+  for (const scenario of scenarios) {
+    const turn = scenario.turn;
+    console.log(`\n${'─'.repeat(50)}`);
+    console.log(`  Turn ${turn}/${maxTurns} — Year ${scenario.year}: ${scenario.title}`);
+    console.log(`${'─'.repeat(50)}`);
+
+    const state = kernel.advanceTurn(turn);
+    const births = state.eventLog.filter(e => e.turn === turn && e.type === 'birth').length;
+    const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
+    console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.colony.population}`);
+
+    const packet = getResearchPacket(turn);
+    const depts = getDepartmentsForTurn(turn);
+    console.log(`  Departments: ${depts.join(', ')}`);
+
+    const reports: DepartmentReport[] = [];
+    for (const dept of depts) {
+      const sess = deptSess.get(dept);
+      if (!sess) continue;
+      const ctx = buildDepartmentContext(dept, state, scenario, packet);
+      console.log(`  [${dept}] Analyzing...`);
+      try {
+        const r = await sess.send(ctx);
+        const report = parseDeptReport(r.text, dept);
+        reports.push(report);
+        console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
+        if (report.forgedToolsUsed.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...report.forgedToolsUsed.map(t => t.name)];
+      } catch (err) {
+        console.log(`  [${dept}] ERROR: ${err}`);
+        reports.push(emptyReport(dept));
+      }
+    }
+
+    const summaries = reports.map(r => `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${r.risks.map(x => `[${x.severity}] ${x.description}`).join('; ') || 'none'}\nRecs: ${r.recommendedActions.join('; ') || 'none'}`).join('\n\n');
+    const cmdPrompt = `TURN ${turn} — ${scenario.year}: ${scenario.title}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${state.colony.population} | Morale ${Math.round(state.colony.morale * 100)}% | Food ${state.colony.foodMonthsReserve.toFixed(1)}mo\n\nDecide. Return JSON.`;
+
+    console.log(`  [commander] Deciding...`);
+    const cmdR = await cmdSess.send(cmdPrompt);
+    const decision = parseCmdDecision(cmdR.text, depts);
+    console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
+
+    kernel.applyPolicy(decisionToPolicy(decision, reports, turn, scenario.year));
+    const after = kernel.getState();
+
+    artifacts.push({
+      turn, year: scenario.year, crisis: scenario.title,
+      departmentReports: reports, commanderDecision: decision,
+      policyEffectsApplied: decision.selectedPolicies,
+      stateSnapshotAfter: {
+        population: after.colony.population, morale: after.colony.morale,
+        foodMonthsReserve: after.colony.foodMonthsReserve, infrastructureModules: after.colony.infrastructureModules,
+        scienceOutput: after.colony.scienceOutput, births, deaths,
+      },
+    });
+    console.log(`  State: Pop ${after.colony.population} | Morale ${Math.round(after.colony.morale * 100)}% | Food ${after.colony.foodMonthsReserve.toFixed(1)}mo`);
+  }
+
+  const final = kernel.export();
+  const output = {
+    simulation: 'mars-genesis-v2', leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
+    turnArtifacts: artifacts, finalState: final, toolRegistries: toolRegs,
+    totalCitations: artifacts.reduce((s, t) => s + t.departmentReports.reduce((s2, r) => s2 + r.citations.length, 0), 0),
+    totalToolsForged: Object.values(toolRegs).flat().length,
+  };
+
+  const outDir = resolve(__dirname, '..', 'output');
+  mkdirSync(outDir, { recursive: true });
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const tag = leader.archetype.toLowerCase().replace(/\s+/g, '-');
+  const path = resolve(outDir, `v2-${tag}-${ts}.json`);
+  writeFileSync(path, JSON.stringify(output, null, 2));
+
+  console.log(`\n${'═'.repeat(60)}`);
+  console.log(`  COMPLETE — ${leader.name}`);
+  console.log(`  Output: ${path}`);
+  console.log(`  Turns: ${artifacts.length} | Citations: ${output.totalCitations} | Tools: ${output.totalToolsForged}`);
+  console.log(`  Final: Pop ${final.colony.population} | Morale ${Math.round(final.colony.morale * 100)}%`);
+  console.log(`  Registries: ${JSON.stringify(toolRegs)}`);
+  console.log(`${'═'.repeat(60)}\n`);
+
+  engine.cleanupSession(sid);
+  await commander.close();
+  for (const a of deptAgents.values()) await a.close();
+  return output;
+}
