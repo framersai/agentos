@@ -10,12 +10,14 @@
  */
 import {
   generateText,
+  extractTextFromContent,
   type FallbackProviderEntry,
   type GenerateTextOptions,
   type GenerateTextResult,
   type GenerationHookContext,
   type GenerationHookResult,
   type Message,
+  type MessageContent,
   type ToolCallHookInfo,
 } from './generateText.js';
 import { streamText, type StreamTextResult } from './streamText.js';
@@ -150,19 +152,21 @@ export interface AgentSession {
   /**
    * Sends a user message and returns the complete assistant reply.
    * Appends both turns to the session history when `memory` is enabled.
+   * Accepts plain text or multimodal content (text + image parts).
    *
-   * @param text - User message text.
+   * @param input - User message as text string or MessageContent array.
    * @returns The full generation result including text, usage, and tool calls.
    */
-  send(text: string): Promise<GenerateTextResult>;
+  send(input: MessageContent): Promise<GenerateTextResult>;
   /**
    * Streams a user message and returns streaming iterables.
    * The assistant reply is appended to session history once the `text` promise resolves.
+   * Accepts plain text or multimodal content (text + image parts).
    *
-   * @param text - User message text.
+   * @param input - User message as text string or MessageContent array.
    * @returns A {@link StreamTextResult} with async iterables and awaitable aggregates.
    */
-  stream(text: string): StreamTextResult;
+  stream(input: MessageContent): StreamTextResult;
   /** Returns a snapshot of the current conversation history for this session. */
   messages(): Message[];
   /** Returns persisted usage totals for this session when the usage ledger is enabled. */
@@ -177,20 +181,22 @@ export interface AgentSession {
 export interface Agent {
   /**
    * Generates a single reply without maintaining session history.
+   * Accepts plain text or multimodal content (text + image parts).
    *
-   * @param prompt - User prompt text.
+   * @param prompt - User prompt as text string or MessageContent array.
    * @param opts - Optional overrides merged on top of the agent's base options.
    * @returns The complete generation result.
    */
-  generate(prompt: string, opts?: Partial<GenerateTextOptions>): Promise<GenerateTextResult>;
+  generate(prompt: MessageContent, opts?: Partial<GenerateTextOptions>): Promise<GenerateTextResult>;
   /**
    * Streams a single reply without maintaining session history.
+   * Accepts plain text or multimodal content (text + image parts).
    *
-   * @param prompt - User prompt text.
+   * @param prompt - User prompt as text string or MessageContent array.
    * @param opts - Optional overrides merged on top of the agent's base options.
    * @returns A {@link StreamTextResult}.
    */
-  stream(prompt: string, opts?: Partial<GenerateTextOptions>): StreamTextResult;
+  stream(prompt: MessageContent, opts?: Partial<GenerateTextOptions>): StreamTextResult;
   /**
    * Returns (or creates) a named {@link AgentSession} with its own conversation history.
    *
@@ -386,28 +392,38 @@ export function agent(opts: AgentOptions): Agent {
 
   const agentInstance: Agent = {
     async generate(
-      prompt: string,
+      prompt: MessageContent,
       extra?: Partial<GenerateTextOptions>
     ): Promise<GenerateTextResult> {
-      return generateText({
+      const genOpts: Partial<GenerateTextOptions> = {
         ...baseOpts,
         ...extra,
-        prompt,
         usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
           source: extra?.usageLedger?.source ?? 'agent.generate',
         }),
-      } as GenerateTextOptions);
+      };
+      if (typeof prompt === 'string') {
+        genOpts.prompt = prompt;
+      } else {
+        genOpts.messages = [...(genOpts.messages ?? []), { role: 'user', content: prompt }];
+      }
+      return generateText(genOpts as GenerateTextOptions);
     },
 
-    stream(prompt: string, extra?: Partial<GenerateTextOptions>): StreamTextResult {
-      return streamText({
+    stream(prompt: MessageContent, extra?: Partial<GenerateTextOptions>): StreamTextResult {
+      const streamOpts: Partial<GenerateTextOptions> = {
         ...baseOpts,
         ...extra,
-        prompt,
         usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
           source: extra?.usageLedger?.source ?? 'agent.stream',
         }),
-      } as GenerateTextOptions);
+      };
+      if (typeof prompt === 'string') {
+        streamOpts.prompt = prompt;
+      } else {
+        streamOpts.messages = [...(streamOpts.messages ?? []), { role: 'user', content: prompt }];
+      }
+      return streamText(streamOpts as GenerateTextOptions);
     },
 
     session(id?: string): AgentSession {
@@ -418,13 +434,15 @@ export function agent(opts: AgentOptions): Agent {
       return {
         id: sessionId,
 
-        async send(text: string): Promise<GenerateTextResult> {
+        async send(input: MessageContent): Promise<GenerateTextResult> {
+          const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
+
           // Memory recall before generation
           let memorySystemMsg: string | undefined;
           if (opts.memoryProvider?.getContext) {
             try {
               const ctx = await Promise.race([
-                opts.memoryProvider.getContext(text, { tokenBudget: 2000 }),
+                opts.memoryProvider.getContext(textForMemory, { tokenBudget: 2000 }),
                 new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
               ]);
               if (ctx?.contextText) {
@@ -441,9 +459,10 @@ export function agent(opts: AgentOptions): Agent {
             system = [memorySystemMsg, system].filter(Boolean).join('\n\n') || undefined;
           }
 
+          const userMessage: Message = { role: 'user', content: input };
           const requestMessages = useMemory
-            ? [...history, { role: 'user' as const, content: text }]
-            : [{ role: 'user' as const, content: text }];
+            ? [...history, userMessage]
+            : [userMessage];
           const result = await generateText({
             ...baseOpts,
             system,
@@ -454,13 +473,13 @@ export function agent(opts: AgentOptions): Agent {
             }),
           } as GenerateTextOptions);
           if (useMemory) {
-            history.push({ role: 'user', content: text });
+            history.push(userMessage);
             history.push({ role: 'assistant', content: result.text });
           }
 
-          // Memory observe after generation (fire-and-forget)
+          // Memory observe after generation (fire-and-forget, text only)
           if (opts.memoryProvider?.observe) {
-            opts.memoryProvider.observe('user', text).catch(() => {});
+            opts.memoryProvider.observe('user', textForMemory).catch(() => {});
             if (result.text) {
               opts.memoryProvider.observe('assistant', result.text).catch(() => {});
             }
@@ -469,21 +488,23 @@ export function agent(opts: AgentOptions): Agent {
           return result;
         },
 
-        stream(text: string): StreamTextResult {
+        stream(input: MessageContent): StreamTextResult {
+          const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
+          const userMessage: Message = { role: 'user', content: input };
           // For streaming, use onBeforeGeneration hook to inject memory context
           const originalBeforeHook = baseOpts.onBeforeGeneration;
 
           const result = streamText({
             ...baseOpts,
             messages: useMemory
-              ? [...history, { role: 'user' as const, content: text }]
-              : [{ role: 'user' as const, content: text }],
+              ? [...history, userMessage]
+              : [userMessage],
             onBeforeGeneration: opts.memoryProvider?.getContext
               ? async (ctx) => {
                   // Inject memory context
                   try {
                     const memCtx = await Promise.race([
-                      opts.memoryProvider!.getContext(text, { tokenBudget: 2000 }),
+                      opts.memoryProvider!.getContext(textForMemory, { tokenBudget: 2000 }),
                       new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
                     ]);
                     if (memCtx?.contextText) {
@@ -511,13 +532,13 @@ export function agent(opts: AgentOptions): Agent {
           } as GenerateTextOptions);
           // Capture text for history when done
           if (useMemory) {
-            history.push({ role: 'user', content: text });
+            history.push(userMessage);
             void result.text
               .then((replyText) => {
                 history.push({ role: 'assistant', content: replyText });
-                // Memory observe after stream completes
+                // Memory observe after stream completes (text only)
                 if (opts.memoryProvider?.observe) {
-                  opts.memoryProvider.observe('user', text).catch(() => {});
+                  opts.memoryProvider.observe('user', textForMemory).catch(() => {});
                   opts.memoryProvider.observe('assistant', replyText).catch(() => {});
                 }
               })
