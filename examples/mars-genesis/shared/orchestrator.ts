@@ -84,8 +84,17 @@ function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: strin
     ...(raw as any),
     async execute(args: Record<string, unknown>, ctx: any) {
       const fixed = { ...args };
+      // Parse stringified nested JSON from tool call serialization
       for (const k of ['implementation', 'inputSchema', 'outputSchema', 'testCases']) {
         if (typeof (fixed as any)[k] === 'string') try { (fixed as any)[k] = JSON.parse((fixed as any)[k]); } catch {}
+      }
+      // Normalize implementation: OpenAI models send "code" instead of "sandbox", may omit allowlist
+      if (fixed.implementation && typeof fixed.implementation === 'object') {
+        const impl = fixed.implementation as any;
+        if (impl.mode === 'code') impl.mode = 'sandbox';
+        if (impl.mode === 'sandbox' && !Array.isArray(impl.allowlist)) impl.allowlist = [];
+        // Ensure code is a string
+        if (impl.code && typeof impl.code !== 'string') impl.code = String(impl.code);
       }
       const mode = (fixed.implementation as any)?.mode || '?';
       console.log(`    🔧 [${dept}] Forging "${fixed.name}" (${mode})...`);
