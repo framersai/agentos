@@ -1,3 +1,10 @@
+## <small>0.1.206 (2026-04-12)</small>
+
+* feat(examples): add 12 Mars Genesis crisis scenarios with research keywords ([5892bf5](https://github.com/framersai/agentos/commit/5892bf5))
+* feat(examples): add Mars Genesis entry points, README, and output dir ([71ab5ea](https://github.com/framersai/agentos/commit/71ab5ea))
+* feat(examples): add Mars Genesis simulation runner with citation extraction ([a512ec4](https://github.com/framersai/agentos/commit/a512ec4))
+* feat(examples): add Mars Genesis types, leader constants, gitignore superpowers ([1ca6b3c](https://github.com/framersai/agentos/commit/1ca6b3c))
+
 ## <small>0.1.205 (2026-04-12)</small>
 
 * fix: skip voice transport adapter test that stalls on dynamic import ([bebc07b](https://github.com/framersai/agentos/commit/bebc07b))
