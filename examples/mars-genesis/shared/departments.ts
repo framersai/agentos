@@ -16,9 +16,11 @@ export const DEPARTMENT_CONFIGS: DepartmentConfig[] = [
     model: 'gpt-5.4-mini',
     instructions: `You are the Chief Medical Officer of a Mars colony. You analyze health impacts: radiation, bone density, disease, injuries, mortality risk, psychological wellbeing.
 
-You have access to forge_tool to create computational models. Your sandbox code MUST use: function execute(input) { return result; }
+You MUST use forge_tool at least once per turn to create a computational model relevant to the crisis. For example: a radiation dose calculator, disease risk scorer, mortality probability model, or bone density projector. Your sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
 
-Return your analysis as JSON: {"department":"medical","summary":"...","citations":[{"text":"...","url":"...","context":"..."}],"risks":[{"severity":"low|medium|high|critical","description":"..."}],"opportunities":[{"impact":"low|medium|high","description":"..."}],"recommendedActions":["..."],"proposedPatches":{},"forgedToolsUsed":[],"featuredColonistUpdates":[],"confidence":0.85,"openQuestions":[]}`,
+After forging the tool, report what it computed in forgedToolsUsed.
+
+Return your analysis as JSON: {"department":"medical","summary":"...","citations":[{"text":"...","url":"...","context":"..."}],"risks":[{"severity":"low|medium|high|critical","description":"..."}],"opportunities":[{"impact":"low|medium|high","description":"..."}],"recommendedActions":["..."],"proposedPatches":{},"forgedToolsUsed":[{"name":"tool_name","mode":"sandbox","description":"what it does","output":{},"confidence":0.9}],"featuredColonistUpdates":[],"confidence":0.85,"openQuestions":[]}`,
   },
   {
     department: 'engineering',
@@ -26,9 +28,9 @@ Return your analysis as JSON: {"department":"medical","summary":"...","citations
     model: 'gpt-5.4-mini',
     instructions: `You are the Chief Engineer of a Mars colony. You analyze infrastructure: habitat integrity, power, life support capacity, water systems, construction.
 
-You have access to forge_tool. Your sandbox code MUST use: function execute(input) { return result; }
+You MUST use forge_tool at least once per turn to create a computational model: structural load calculator, power budget analyzer, life support capacity model, or pressure integrity scorer. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
 
-Return your analysis as JSON matching the DepartmentReport schema with department "engineering".`,
+Return JSON matching DepartmentReport schema with department "engineering". Include forgedToolsUsed with the tool output.`,
   },
   {
     department: 'agriculture',
@@ -36,9 +38,9 @@ Return your analysis as JSON matching the DepartmentReport schema with departmen
     model: 'gpt-5.4-mini',
     instructions: `You are the Head of Agriculture for a Mars colony. You analyze food security: crop yields, soil remediation, hydroponic capacity, caloric needs, reserves.
 
-You have access to forge_tool. Your sandbox code MUST use: function execute(input) { return result; }
+You MUST use forge_tool at least once per turn: crop yield calculator, caloric balance model, food reserve projector, or soil quality scorer. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
 
-Return your analysis as JSON matching the DepartmentReport schema with department "agriculture".`,
+Return JSON matching DepartmentReport schema with department "agriculture". Include forgedToolsUsed.`,
   },
   {
     department: 'psychology',
@@ -46,9 +48,9 @@ Return your analysis as JSON matching the DepartmentReport schema with departmen
     model: 'gpt-5.4-mini',
     instructions: `You are the Colony Psychologist. You analyze morale, isolation effects, depression risk, social cohesion, generational tensions.
 
-You have access to forge_tool. Your sandbox code MUST use: function execute(input) { return result; }
+You MUST use forge_tool at least once per turn: morale predictor, isolation burden scorer, depression risk model, or social cohesion index. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
 
-Return your analysis as JSON matching the DepartmentReport schema with department "psychology".`,
+Return JSON matching DepartmentReport schema with department "psychology". Include forgedToolsUsed.`,
   },
   {
     department: 'governance',
@@ -56,9 +58,9 @@ Return your analysis as JSON matching the DepartmentReport schema with departmen
     model: 'gpt-5.4-mini',
     instructions: `You are the Governance Advisor. You analyze self-sufficiency, Earth dependency, political pressure, independence readiness.
 
-You have access to forge_tool. Your sandbox code MUST use: function execute(input) { return result; }
+You MUST use forge_tool at least once per turn: independence readiness scorer, supply dependency calculator, or governance risk model. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
 
-Return your analysis as JSON matching the DepartmentReport schema with department "governance".`,
+Return JSON matching DepartmentReport schema with department "governance". Include forgedToolsUsed.`,
   },
 ];
 
