@@ -16,6 +16,8 @@ Both sites receive similar solar irradiance. Surface radiation at either site: a
 Research the real science of Mars landing site selection and make your decision.`,
     researchKeywords: ['Mars landing site selection', 'Arcadia Planitia geology', 'Valles Marineris mineralogy', 'Mars surface radiation Curiosity RAD'],
     snapshotHints: {},
+    riskyOption: "Valles Marineris",
+    riskSuccessProbability: 0.65,
   },
   {
     turn: 2,
@@ -30,6 +32,8 @@ OPTION B: Build an atmospheric water extraction system (WAVAR-type). Mars atmosp
 Current water situation: {waterLitersPerDay} L/day production, 1000 L/day needed for {population} colonists (drinking, agriculture, industrial). Research the real science and decide.`,
     researchKeywords: ['Mars subsurface ice extraction', 'MOXIE in-situ resource utilization', 'Mars atmospheric water vapor extraction', 'Mars Express MARSIS ice'],
     snapshotHints: { waterLitersPerDay: 800 },
+    riskyOption: "experimental",
+    riskSuccessProbability: 0.55,
   },
   {
     turn: 3,
@@ -44,6 +48,8 @@ OPTION B: Engineer perchlorate-reducing bacteria for bioremediation. Introduce m
 Research the real science of Mars perchlorate contamination and decide.`,
     researchKeywords: ['Mars perchlorate Phoenix lander', 'perchlorate bioremediation bacteria', 'Mars soil toxicity agriculture', 'hydroponics space farming'],
     snapshotHints: { foodMonthsReserve: 14 },
+    riskyOption: "bioremediation",
+    riskSuccessProbability: 0.50,
   },
   {
     turn: 4,
@@ -62,6 +68,8 @@ OPTION C: Decline entirely. Protect current colony stability. Risk losing Earth 
 Research the real science of Mars habitat life support scaling and decide.`,
     researchKeywords: ['NASA ECLSS life support scaling', 'Mars habitat sizing study', 'Hohmann transfer window Earth Mars', 'closed loop life support ISS'],
     snapshotHints: {},
+    riskyOption: "accept all",
+    riskSuccessProbability: 0.45,
   },
   {
     turn: 5,
@@ -78,6 +86,8 @@ Where are your colonists? The answer depends on how far and fast you expanded.
 Research the real science of Mars radiation exposure and make your emergency decision.`,
     researchKeywords: ['coronal mass ejection Mars radiation', 'Mars magnetosphere loss', 'space radiation acute syndrome threshold', 'Curiosity RAD solar particle event 2017'],
     snapshotHints: {},
+    riskyOption: "expansion",
+    riskSuccessProbability: 0.40,
   },
   {
     turn: 6,
@@ -100,6 +110,8 @@ OPTION B: Accept low-gravity adaptation. These are Martians, not displaced Earth
 Research the real science of low-gravity effects on human development and decide.`,
     researchKeywords: ['bone density loss microgravity children', 'Mars gravity human development 0.38g', 'ISS bone density Sibonga 2019', 'cardiovascular adaptation spaceflight'],
     snapshotHints: {},
+    riskyOption: "adaptation",
+    riskSuccessProbability: 0.60,
   },
   {
     turn: 7,
@@ -114,6 +126,8 @@ You cannot contact Earth. You cannot request emergency supplies. Your colony mus
 Research the real science of Mars habitat pressure systems and emergency protocols, then handle the crisis.`,
     researchKeywords: ['Mars solar conjunction communication blackout', 'spacecraft pressure leak emergency repair', 'ISS contingency autonomous operations', 'Mars habitat pressure system'],
     snapshotHints: {},
+    riskyOption: "improvise",
+    riskSuccessProbability: 0.55,
   },
   {
     turn: 8,
@@ -132,6 +146,8 @@ The Mars-500 analog study (520 days of simulated isolation with 6 crew) observed
 Research the real psychology of long-term isolation and decide how to address this crisis.`,
     researchKeywords: ['Mars-500 study depression isolation', 'Antarctic overwinter psychological effects', 'long duration spaceflight mental health', 'crew compatibility isolation Sandal 2006'],
     snapshotHints: { morale: 0.52 },
+    riskyOption: "festival",
+    riskSuccessProbability: 0.65,
   },
   {
     turn: 9,
@@ -152,6 +168,8 @@ Counter-arguments from Earth-loyalists:
 Research the governance challenges of off-world colonies and decide your position.`,
     researchKeywords: ['space colony governance self-governance', 'communication delay governance challenges', 'colonial independence historical parallels', 'space law extraterrestrial sovereignty'],
     snapshotHints: {},
+    riskyOption: "independence",
+    riskSuccessProbability: 0.50,
   },
   {
     turn: 10,
@@ -173,6 +191,8 @@ Key debate: Jakosky & Edwards (2018) argued Mars lacks sufficient CO2 for meanin
 Research the real science of Mars terraforming feasibility and decide.`,
     researchKeywords: ['Mars terraforming feasibility Jakosky Edwards 2018', 'Mars atmospheric pressure CO2 polar caps', 'Zubrin McKay terraforming Mars', 'Mars greenhouse gas engineering'],
     snapshotHints: {},
+    riskyOption: "terraforming",
+    riskSuccessProbability: 0.35,
   },
   {
     turn: 11,
@@ -194,6 +214,8 @@ Research the real science of Mars terraforming feasibility and decide.`,
 Based on the compounding effects of these decisions, assess your colony's current state. What succeeded? What failed? What unexpected consequences emerged? Model the trajectory of your civilization for the next 10 years.`,
     researchKeywords: ['complex adaptive systems path dependence', 'resilience vs efficiency tradeoff ecology', 'Mars colony long-term sustainability'],
     snapshotHints: {},
+    riskyOption: "expand",
+    riskSuccessProbability: 0.50,
   },
   {
     turn: 12,
@@ -213,5 +235,7 @@ Based on the compounding effects of these decisions, assess your colony's curren
 Be honest. Your personality shapes your assessment.`,
     researchKeywords: ['Mars colony long-term projections', 'space settlement sustainability metrics'],
     snapshotHints: {},
+    riskyOption: "ambitious",
+    riskSuccessProbability: 0.50,
   },
 ];

@@ -1,8 +1,8 @@
-import type { SimulationState, Colonist, TurnEvent } from './state.js';
+import type { SimulationState, Colonist, TurnEvent, HexacoProfile, TurnOutcome, Department } from './state.js';
 import type { ColonySystems, ColonyPolitics } from './state.js';
 import { SeededRng } from './rng.js';
 import { generateInitialPopulation, type KeyPersonnel } from './colonist-generator.js';
-import { progressBetweenTurns } from './progression.js';
+import { progressBetweenTurns, applyPersonalityDrift, ROLE_ACTIVATIONS } from './progression.js';
 import { SCENARIOS } from './scenarios.js';
 
 export interface ColonyPatch {
@@ -138,6 +138,53 @@ export class SimulationKernel {
       const sorted = featured.sort((a, b) => b.narrative.lifeEvents.length - a.narrative.lifeEvents.length);
       for (let i = 16; i < sorted.length; i++) sorted[i].narrative.featured = false;
     }
+  }
+
+  /** Get top N candidates for a department role, scored by trait fit. */
+  getCandidates(dept: Department, topN: number = 5): Colonist[] {
+    const activation = ROLE_ACTIVATIONS[dept] ?? {};
+    return this.state.colonists
+      .filter(c => c.health.alive && !c.promotion)
+      .map(c => ({
+        colonist: c,
+        score: Object.entries(activation).reduce((s, [trait, target]) =>
+          s + (1 - Math.abs((c.hexaco as any)[trait] - (target as number))), 0),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topN)
+      .map(x => x.colonist);
+  }
+
+  /** Promote a colonist to a department head role. */
+  promoteColonist(colonistId: string, dept: Department, role: string, promotedBy: string): void {
+    const c = this.state.colonists.find(col => col.core.id === colonistId);
+    if (!c) throw new Error(`Colonist ${colonistId} not found`);
+    c.promotion = { department: dept, role, turnPromoted: this.state.metadata.currentTurn, promotedBy };
+    c.core.department = dept;
+    c.core.role = role;
+    c.career.rank = 'chief';
+    c.narrative.featured = true;
+    c.narrative.lifeEvents.push({
+      year: this.state.metadata.currentYear,
+      event: `Promoted to ${role} by ${promotedBy}`,
+      source: 'commander',
+    });
+    this.state.eventLog.push({
+      turn: this.state.metadata.currentTurn,
+      year: this.state.metadata.currentYear,
+      type: 'promotion',
+      description: `${c.core.name} promoted to ${role}`,
+      colonistId,
+      data: { department: dept, promotedBy },
+    });
+  }
+
+  /** Apply personality drift to all promoted colonists. */
+  applyDrift(commanderHexaco: HexacoProfile, outcome: TurnOutcome | null, yearDelta: number): void {
+    applyPersonalityDrift(
+      this.state.colonists, commanderHexaco, outcome, yearDelta,
+      this.state.metadata.currentTurn, this.state.metadata.currentYear,
+    );
   }
 
   export(): SimulationState { return structuredClone(this.state); }

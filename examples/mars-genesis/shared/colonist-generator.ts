@@ -1,5 +1,16 @@
-import type { Colonist, Department } from './state.js';
+import type { Colonist, Department, HexacoProfile } from './state.js';
 import { SeededRng } from './rng.js';
+
+function randomHexaco(rng: SeededRng): HexacoProfile {
+  return {
+    openness: 0.2 + rng.next() * 0.6,
+    conscientiousness: 0.2 + rng.next() * 0.6,
+    extraversion: 0.2 + rng.next() * 0.6,
+    agreeableness: 0.2 + rng.next() * 0.6,
+    emotionality: 0.2 + rng.next() * 0.6,
+    honestyHumility: 0.2 + rng.next() * 0.6,
+  };
+}
 
 const FIRST_NAMES = [
   'Aria', 'Dietrich', 'Yuki', 'Marcus', 'Elena', 'Kwame', 'Sofia', 'Jin',
@@ -56,7 +67,7 @@ export function generateInitialPopulation(seed: number, startYear: number, keyPe
 
   for (const kp of keyPersonnel) {
     usedNames.add(kp.name);
-    colonists.push(createColonist(kp.name, startYear - kp.age, kp.department, kp.role, kp.specialization, false, kp.featured));
+    colonists.push(createColonist(kp.name, startYear - kp.age, kp.department, kp.role, kp.specialization, false, kp.featured, randomHexaco(rng)));
   }
 
   const remaining = 100 - keyPersonnel.length;
@@ -75,7 +86,7 @@ export function generateInitialPopulation(seed: number, startYear: number, keyPe
     const c = createColonist(
       name, startYear - age, dept,
       `${rank.charAt(0).toUpperCase() + rank.slice(1)} ${spec} Specialist`,
-      spec, false, false,
+      spec, false, false, randomHexaco(rng),
     );
     c.career.rank = rank as 'junior' | 'senior' | 'lead';
     c.career.yearsExperience = rng.int(2, age - 22);
@@ -88,6 +99,7 @@ export function generateInitialPopulation(seed: number, startYear: number, keyPe
 function createColonist(
   name: string, birthYear: number, department: Department,
   role: string, specialization: string, marsborn: boolean, featured: boolean,
+  hexaco: HexacoProfile,
 ): Colonist {
   return {
     core: { id: `col-${name.toLowerCase().replace(/\s+/g, '-')}`, name, birthYear, marsborn, department, role },
@@ -95,5 +107,7 @@ function createColonist(
     career: { specialization, yearsExperience: 0, rank: 'senior', achievements: [] },
     social: { childrenIds: [], friendIds: [], earthContacts: marsborn ? 0 : 5 },
     narrative: { lifeEvents: [], featured },
+    hexaco,
+    hexacoHistory: [{ turn: 0, year: 2035, hexaco: { ...hexaco } }],
   };
 }

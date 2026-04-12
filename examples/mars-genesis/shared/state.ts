@@ -1,5 +1,34 @@
 export type Department = 'medical' | 'engineering' | 'agriculture' | 'science' | 'administration' | 'psychology' | 'governance';
 
+export interface HexacoProfile {
+  openness: number;
+  conscientiousness: number;
+  extraversion: number;
+  agreeableness: number;
+  emotionality: number;
+  honestyHumility: number;
+}
+
+export const HEXACO_TRAITS: (keyof HexacoProfile)[] = [
+  'openness', 'conscientiousness', 'extraversion',
+  'agreeableness', 'emotionality', 'honestyHumility',
+];
+
+export interface PromotionRecord {
+  department: Department;
+  role: string;
+  turnPromoted: number;
+  promotedBy: string;
+}
+
+export interface HexacoSnapshot {
+  turn: number;
+  year: number;
+  hexaco: HexacoProfile;
+}
+
+export type TurnOutcome = 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure';
+
 export interface LifeEvent {
   year: number;
   event: string;
@@ -51,6 +80,9 @@ export interface Colonist {
   career: ColonistCareer;
   social: ColonistSocial;
   narrative: ColonistNarrative;
+  hexaco: HexacoProfile;
+  promotion?: PromotionRecord;
+  hexacoHistory: HexacoSnapshot[];
 }
 
 export interface ColonySystems {
