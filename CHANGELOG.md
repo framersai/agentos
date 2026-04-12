@@ -1,3 +1,15 @@
+## <small>0.1.212 (2026-04-12)</small>
+
+* fix: LLMVisionProvider passes ContentPart[] directly instead of JSON.stringify ([8bdc0e0](https://github.com/framersai/agentos/commit/8bdc0e0))
+* feat: widen agent session send/stream to accept MessageContent ([eee6e8c](https://github.com/framersai/agentos/commit/eee6e8c))
+* feat: widen Message.content to MessageContent for multimodal support ([e6823e5](https://github.com/framersai/agentos/commit/e6823e5))
+* feat(mars-genesis): add canonical simulation state types ([de520ee](https://github.com/framersai/agentos/commit/de520ee))
+* feat(mars-genesis): add deterministic between-turn progression (aging, births, deaths, careers) ([42e98c2](https://github.com/framersai/agentos/commit/42e98c2))
+* feat(mars-genesis): add deterministic seeded RNG (mulberry32) ([75fd3e3](https://github.com/framersai/agentos/commit/75fd3e3))
+* feat(mars-genesis): add seeded colonist population generator ([62f639e](https://github.com/framersai/agentos/commit/62f639e))
+* docs: add Mars Genesis v2 Phase 1 implementation plan (kernel + state) ([ee543c9](https://github.com/framersai/agentos/commit/ee543c9))
+* docs: rewrite Mars Genesis v2 spec incorporating Codex review ([8cbb755](https://github.com/framersai/agentos/commit/8cbb755))
+
 ## <small>0.1.211 (2026-04-12)</small>
 
 * feat(examples): emergent tool forging fully working in Mars Genesis ([8b73dbb](https://github.com/framersai/agentos/commit/8b73dbb))
