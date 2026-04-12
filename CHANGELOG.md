@@ -1,3 +1,7 @@
+## <small>0.1.205 (2026-04-12)</small>
+
+* fix: skip voice transport adapter test that stalls on dynamic import ([bebc07b](https://github.com/framersai/agentos/commit/bebc07b))
+
 ## <small>0.1.204 (2026-04-12)</small>
 
 * feat: add API class citations and related links to emergent capabilities doc ([5c794cc](https://github.com/framersai/agentos/commit/5c794cc))
