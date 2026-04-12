@@ -1,0 +1,51 @@
+{
+  "simulation": "mars-genesis",
+  "version": "1.0.0",
+  "startedAt": "2026-04-12T04:52:31.870Z",
+  "completedAt": "2026-04-12T04:53:33.629Z",
+  "leader": {
+    "name": "Aria Chen",
+    "archetype": "The Visionary",
+    "colony": "Ares Horizon",
+    "hexaco": {
+      "openness": 0.95,
+      "conscientiousness": 0.35,
+      "extraversion": 0.85,
+      "agreeableness": 0.55,
+      "emotionality": 0.3,
+      "honestyHumility": 0.65
+    }
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "year": 2035,
+      "title": "Landfall",
+      "crisis": "Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement. Two candidates:\n\nOPTION A: Arcadia Planitia — flat basalt plains at 47°N. Stable terrain, minimal landslide risk, access to subsurface ice deposits detected by Mars Express MARSIS radar. Geologically unremarkable.\n\nOPTION B: Valles Marineris rim — edge of the 4,000 km canyon system at 14°S. Exposed geological strata spanning 3.5 billion years. Rich mineral diversity detected by CRISM. Significant terrain hazards: slopes up to 30°, rockfall risk, and 2km elevation changes within the operational zone.\n\nBoth sites receive similar solar irradiance. Surface radiation at either site: approximately 0.67 mSv/day per Curiosity RAD measurements. You have 100 colonists, 18 months of food reserves, and 400 kW of power capacity.\n\nResearch the real science of Mars landing site selection and make your decision.",
+      "decision": "**Known Mars Science:**\n- Subsurface ice at Arcadia Planitia is well-documented from orbital radar data\n- Valles Marineris exposes billions of years of geological history with diverse mineralogy\n- Surface radiation averages 0.67 mSv/day (approximately 230 times Earth's surface)\n- Landing site selection typically prioritizes: water access, flat terrain, solar exposure, and scientific value",
+      "reasoning": "While I couldn't access specific scientific papers through the search tool, I'll apply known Mars science principles to this critical decision:\n\n**Known Mars Science:**\n- Subsurface ice at Arcadia Planitia is well-documented from orbital radar data\n- Valles Marineris exposes billions of years of geological history with diverse mineralogy\n- Surface radiation averages 0.67 mSv/day (approximately 230 times Earth's surface)\n- Landing site selection typically prioritizes: water access, flat terrain, solar exposure, and scientific value\n\n## DECISION: OPTION B - VALLES MARINERIS RIM\n\nListen up, colonists! We're not here to play it safe - we're here to build humanity's future! I'm choosing the Valles Marineris rim. Yes, it's dangerous. Yes, it's challenging. But that's exactly why we'll thrive there!\n\n**Why Valles Marineris:**\n1. **Mineral Wealth:** The exposed strata gives us access to 3.5 billion years of Mars' geological resources. We'll have metals, salts, and minerals that Arcadia's boring basalt plains could never offer.\n2. **Scientific Goldmine:** Every day we'll be making discoveries that rewrite textbooks. Our colony won't just survive - we'll be the premier research station on Mars.\n3. **Vertical Real Estate:** Those 2km elevation changes? That's not a bug, it's a feature! We can use the canyon walls for radiation shielding and expand into naturally protected cave systems.\n4. **Psychological Impact:** Would you rather wake up to flat, endless plains or the most spectacular canyon in the solar system? Morale matters!\n\nThe terrain hazards? We'll engineer around them. Rockfall risk? We'll build smart. Those 30° slopes? Perfect for terraced expansion as we grow.\n\n## COLONY UPDATE\n\n**Population:** 100 (all hands preparing for descent)\n**Resources:** Maintaining 18-month reserves during landing operations\n**Morale:** 95% ↑ (Crew energized by the bold choice - we came here to explore!)\n**Infrastructure:** Scouting optimal positions along the rim for initial habitat placement\n**Science Output:** +10 (Immediate geological surveys beginning upon landing)\n\n**Landing Strategy:**\n- Primary site on stable rim plateau with <10° slope\n- Secondary sites identified in protected alcoves\n- Establishing climbing/rappelling protocols for canyon access\n- Prioritizing mineral survey teams in first sol operations\n\n## TOOLS\n\nNo tools forged this turn - focusing all computational resources on landing trajectory optimization.\n\n*\"We choose to go to Valles Marineris not because it is easy, but because it is spectacular! Every sunrise will remind us why we're here - to push boundaries and claim our place among the stars!\"*\n\n**LANDING SEQUENCE INITIATED**",
+      "citations": [],
+      "toolsForged": [],
+      "snapshot": {
+        "population": 100,
+        "waterLitersPerDay": 800,
+        "foodMonthsReserve": 18,
+        "powerKw": 400,
+        "morale": 0.85,
+        "infrastructureModules": 3,
+        "scienceOutput": 1,
+        "unplannedDeaths": 0,
+        "toolsForgedTotal": 0
+      },
+      "rawResponse": "## RESEARCH\n\nWhile I couldn't access specific scientific papers through the search tool, I'll apply known Mars science principles to this critical decision:\n\n**Known Mars Science:**\n- Subsurface ice at Arcadia Planitia is well-documented from orbital radar data\n- Valles Marineris exposes billions of years of geological history with diverse mineralogy\n- Surface radiation averages 0.67 mSv/day (approximately 230 times Earth's surface)\n- Landing site selection typically prioritizes: water access, flat terrain, solar exposure, and scientific value\n\n## DECISION: OPTION B - VALLES MARINERIS RIM\n\nListen up, colonists! We're not here to play it safe - we're here to build humanity's future! I'm choosing the Valles Marineris rim. Yes, it's dangerous. Yes, it's challenging. But that's exactly why we'll thrive there!\n\n**Why Valles Marineris:**\n1. **Mineral Wealth:** The exposed strata gives us access to 3.5 billion years of Mars' geological resources. We'll have metals, salts, and minerals that Arcadia's boring basalt plains could never offer.\n2. **Scientific Goldmine:** Every day we'll be making discoveries that rewrite textbooks. Our colony won't just survive - we'll be the premier research station on Mars.\n3. **Vertical Real Estate:** Those 2km elevation changes? That's not a bug, it's a feature! We can use the canyon walls for radiation shielding and expand into naturally protected cave systems.\n4. **Psychological Impact:** Would you rather wake up to flat, endless plains or the most spectacular canyon in the solar system? Morale matters!\n\nThe terrain hazards? We'll engineer around them. Rockfall risk? We'll build smart. Those 30° slopes? Perfect for terraced expansion as we grow.\n\n## COLONY UPDATE\n\n**Population:** 100 (all hands preparing for descent)\n**Resources:** Maintaining 18-month reserves during landing operations\n**Morale:** 95% ↑ (Crew energized by the bold choice - we came here to explore!)\n**Infrastructure:** Scouting optimal positions along the rim for initial habitat placement\n**Science Output:** +10 (Immediate geological surveys beginning upon landing)\n\n**Landing Strategy:**\n- Primary site on stable rim plateau with <10° slope\n- Secondary sites identified in protected alcoves\n- Establishing climbing/rappelling protocols for canyon access\n- Prioritizing mineral survey teams in first sol operations\n\n## TOOLS\n\nNo tools forged this turn - focusing all computational resources on landing trajectory optimization.\n\n*\"We choose to go to Valles Marineris not because it is easy, but because it is spectacular! Every sunrise will remind us why we're here - to push boundaries and claim our place among the stars!\"*\n\n**LANDING SEQUENCE INITIATED**"
+    }
+  ],
+  "finalAssessment": {
+    "population": 100,
+    "toolsForged": 0,
+    "unplannedDeaths": 0,
+    "scienceOutput": 1,
+    "infrastructureModules": 3,
+    "morale": 0.85
+  }
+}
