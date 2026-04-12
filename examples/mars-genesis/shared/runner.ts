@@ -191,10 +191,17 @@ function createEmergentEngine(toolMap: Map<string, ITool>): {
   const registry = new EmergentToolRegistry();
   const judge = new EmergentJudge({
     judgeModel: 'claude-sonnet-4-20250514',
-    promotionJudgeModel: 'claude-opus-4-20250514',
+    promotionModel: 'claude-opus-4-20250514',
     generateText: llmCallback,
   });
-  const composableBuilder = new ComposableToolBuilder(toolMap);
+
+  // ComposableToolBuilder expects a tool executor function, not a Map
+  const toolExecutor = async (toolName: string, args: unknown, context: any) => {
+    const tool = toolMap.get(toolName);
+    if (!tool) return { success: false, error: `Tool "${toolName}" not found` };
+    return tool.execute(args as any, context);
+  };
+  const composableBuilder = new ComposableToolBuilder(toolExecutor as any);
   const sandboxForge = new SandboxedToolForge();
 
   const engine = new EmergentCapabilityEngine({
@@ -205,8 +212,10 @@ function createEmergentEngine(toolMap: Map<string, ITool>): {
       sandboxTimeoutMs: 10000,
       sandboxMemoryMB: 128,
       promotionThreshold: { uses: 5, confidence: 0.8 },
-      allowSandbox: true,
+      allowSandboxTools: true,
       persistSandboxSource: true,
+      judgeModel: 'claude-sonnet-4-20250514',
+      promotionJudgeModel: 'claude-opus-4-20250514',
     },
     composableBuilder,
     sandboxForge,
@@ -240,9 +249,53 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
   toolMap.set('web_search', webSearchTool);
 
   // Create emergent engine with forge_tool
-  const { engine, forgeTool } = createEmergentEngine(toolMap);
+  const { engine, forgeTool: rawForgeTool } = createEmergentEngine(toolMap);
   const sessionId = `mars-genesis-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
   const agentId = `commander-${leader.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+  // Wrap forge_tool to inject our known session/agent IDs into the execution
+  // context. generateText() creates synthetic context IDs that don't match
+  // what we query later, so we override them here.
+  const wrappedForgeTool: ITool = {
+    ...rawForgeTool,
+    async execute(args: Record<string, unknown>, ctx: any) {
+      const patchedCtx = {
+        ...ctx,
+        gmiId: agentId,
+        sessionData: { ...(ctx?.sessionData ?? {}), sessionId },
+      };
+      // Fix stringified nested JSON from tool call serialization
+      const fixedArgs = { ...args };
+      if (typeof fixedArgs.implementation === 'string') {
+        try { fixedArgs.implementation = JSON.parse(fixedArgs.implementation); } catch {}
+      }
+      if (typeof fixedArgs.inputSchema === 'string') {
+        try { fixedArgs.inputSchema = JSON.parse(fixedArgs.inputSchema); } catch {}
+      }
+      if (typeof fixedArgs.outputSchema === 'string') {
+        try { fixedArgs.outputSchema = JSON.parse(fixedArgs.outputSchema); } catch {}
+      }
+      if (typeof fixedArgs.testCases === 'string') {
+        try { fixedArgs.testCases = JSON.parse(fixedArgs.testCases); } catch {}
+      }
+      const mode = (fixedArgs.implementation as any)?.mode || '?';
+      console.log(`  🔧 [forge_tool] Forging "${fixedArgs.name}" (${mode} mode)...`);
+      let result;
+      try {
+        result = await rawForgeTool.execute(fixedArgs as any, patchedCtx);
+      } catch (err) {
+        console.log(`  🔧 [forge_tool] EXCEPTION: ${err}`);
+        return { success: false, error: String(err) };
+      }
+      if (result.success) {
+        const out = result.output as any;
+        console.log(`  🔧 [forge_tool] ✓ "${args.name}" approved! toolId=${out?.toolId || '?'}`);
+      } else {
+        console.log(`  🔧 [forge_tool] ✗ "${args.name}" failed: ${result.error || JSON.stringify(result.output).slice(0, 300)}`);
+      }
+      return result;
+    },
+  };
 
   console.log(`  Emergent engine: ACTIVE (forge_tool available)`);
   console.log(`  Tools: web_search, forge_tool\n`);
@@ -259,7 +312,7 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
       emotionality: leader.hexaco.emotionality,
       honesty: leader.hexaco.honestyHumility,
     },
-    tools: [webSearchTool, forgeTool as unknown as ITool],
+    tools: [webSearchTool, wrappedForgeTool],
     maxSteps: 12,
   });
 
@@ -271,9 +324,20 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
 
 You have two tools:
 1. web_search: Search for real scientific papers, NASA data. Use this BEFORE every decision.
-2. forge_tool: Create new computational tools at runtime when you need to MODEL something quantitatively (population growth, radiation doses, resource depletion, structural loads, etc.). Call forge_tool with a name, description, input/output schemas, implementation mode ("compose" to chain existing tools or "sandbox" to write JavaScript code), and test cases.
+2. forge_tool: Create new computational tools at runtime when you need to MODEL something quantitatively. Call forge_tool with:
+   - name: machine_readable_name
+   - description: what the tool does
+   - inputSchema: JSON Schema object for input
+   - outputSchema: JSON Schema object for output
+   - implementation: { "mode": "sandbox", "code": "function execute(input) { /* your code */ return result; }", "allowlist": [] }
+   - testCases: [{ "input": {...}, "expectedOutput": {...} }]
 
-IMPORTANT: When you face a decision that involves numbers, projections, or calculations, use forge_tool to create a calculator/model tool BEFORE making the decision. Then use the forged tool to get real numbers. This is how you extend your own capabilities.
+CRITICAL: In sandbox mode, your code MUST be a function named "execute" that takes "input" as its parameter and returns the result. Example:
+  "code": "function execute(input) { return { result: input.a + input.b }; }"
+
+Do NOT use $input or reference global variables. The function receives input as a parameter.
+
+IMPORTANT: When you face a decision that involves numbers, projections, or calculations, use forge_tool to create a calculator BEFORE deciding. Then use that tool to get real numbers.
 
 Cite everything with inline markdown links from your web_search results. Your HEXACO personality: ${personalityDesc}
 
@@ -311,20 +375,39 @@ Acknowledge and prepare.`
 
     const parsed = parseResponse(result.text);
 
-    // Query the emergent engine for tools forged during this turn
+    // Detect forged tools from tool call records (forge_tool calls that succeeded)
+    const forgedFromCalls: ForgedToolRecord[] = (result.toolCalls || [])
+      .filter((tc: any) => (tc.name === 'forge_tool' || tc.toolName === 'forge_tool') && tc.result?.success !== false)
+      .map((tc: any) => {
+        const forgeArgs = tc.args || tc.result?.output || {};
+        const toolName = typeof forgeArgs === 'object' ? (forgeArgs.name || forgeArgs.toolName || 'unknown') : 'unknown';
+        const toolId = tc.result?.output?.toolId || tc.result?.toolId || '';
+        return {
+          name: typeof toolName === 'string' ? toolName : String(toolName),
+          mode: (forgeArgs?.implementation?.mode || 'sandbox') as 'compose' | 'sandbox',
+          description: typeof forgeArgs?.description === 'string' ? forgeArgs.description : 'Runtime-forged tool',
+          confidence: tc.result?.output?.verdict?.confidence ?? 0.85,
+          judgeVerdict: 'approved' as const,
+        };
+      })
+      .filter((t: ForgedToolRecord) => t.name !== 'unknown');
+
+    // Also query the engine registry
     const engineTools = engine.getSessionTools(sessionId);
     const agentTools = engine.getAgentTools(agentId);
     const allEmergentTools = [...engineTools, ...agentTools];
-    const newForgedTools: ForgedToolRecord[] = allEmergentTools
-      .filter(et => !parsed.toolsForged.some(pt => pt.name === et.name))
+    const engineForged: ForgedToolRecord[] = allEmergentTools
+      .filter(et => !forgedFromCalls.some(fc => fc.name === et.name))
       .map(et => ({
         name: et.name,
-        mode: (et as any).implementationMode || 'compose',
+        mode: (et as any).implementationMode || 'sandbox',
         description: et.description || 'Runtime-forged tool',
         confidence: (et as any).confidenceScore ?? 0.85,
         judgeVerdict: 'approved' as const,
       }));
-    const combinedForged = [...parsed.toolsForged, ...newForgedTools];
+
+    const combinedForged = [...forgedFromCalls, ...engineForged, ...parsed.toolsForged]
+      .filter((t, i, arr) => arr.findIndex(x => x.name === t.name) === i); // dedupe
 
     snapshot = evolveSnapshot(snapshot, parsed.snapshotUpdates, scenario.snapshotHints, combinedForged.length);
 
