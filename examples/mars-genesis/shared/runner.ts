@@ -34,26 +34,52 @@ const webSearchTool: ITool = {
   hasSideEffects: false,
   async execute(args: Record<string, unknown>) {
     const query = String(args.query || '');
-    const apiKey = process.env.SERPER_API_KEY;
-    if (!apiKey) {
-      return { success: false, error: 'SERPER_API_KEY not set' };
+
+    // Try Serper first, fall back to Brave Search
+    const serperKey = process.env.SERPER_API_KEY;
+    const braveKey = process.env.BRAVE_API_KEY;
+
+    if (serperKey) {
+      try {
+        const res = await fetch('https://google.serper.dev/search', {
+          method: 'POST',
+          headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: query, num: 5 }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { organic?: Array<{ title: string; link: string; snippet: string }> };
+          const results = (data.organic || []).slice(0, 5).map((r) => ({
+            title: r.title, url: r.link, snippet: r.snippet,
+          }));
+          console.log(`  [web_search/serper] "${query.slice(0, 50)}" -> ${results.length} results`);
+          return { success: true, output: { results, query } };
+        }
+        console.log(`  [web_search/serper] ${res.status}, trying Brave fallback...`);
+      } catch { /* fall through to Brave */ }
     }
-    try {
-      const res = await fetch('https://google.serper.dev/search', {
-        method: 'POST',
-        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: query, num: 5 }),
-      });
-      const data = await res.json() as { organic?: Array<{ title: string; link: string; snippet: string }> };
-      const results = (data.organic || []).slice(0, 5).map((r) => ({
-        title: r.title,
-        url: r.link,
-        snippet: r.snippet,
-      }));
-      return { success: true, output: { results, query } };
-    } catch (err) {
-      return { success: false, error: String(err) };
+
+    if (braveKey) {
+      try {
+        const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`;
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/json', 'X-Subscription-Token': braveKey },
+        });
+        if (res.ok) {
+          const data = await res.json() as { web?: { results?: Array<{ title: string; url: string; description: string }> } };
+          const results = (data.web?.results || []).slice(0, 5).map((r) => ({
+            title: r.title, url: r.url, snippet: r.description,
+          }));
+          console.log(`  [web_search/brave] "${query.slice(0, 50)}" -> ${results.length} results`);
+          return { success: true, output: { results, query } };
+        }
+        console.log(`  [web_search/brave] HTTP ${res.status}`);
+      } catch (err) {
+        console.log(`  [web_search/brave] ERROR: ${err}`);
+      }
     }
+
+    console.log(`  [web_search] No working search API. Set SERPER_API_KEY or BRAVE_API_KEY.`);
+    return { success: false, error: 'No search API available. Set SERPER_API_KEY or BRAVE_API_KEY.' };
   },
 };
 
