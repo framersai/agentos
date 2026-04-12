@@ -82,3 +82,12 @@ export interface TurnArtifact {
     deaths: number;
   };
 }
+
+export interface PromotionDecision {
+  promotions: Array<{
+    colonistId: string;
+    department: Department;
+    role: string;
+    reason: string;
+  }>;
+}

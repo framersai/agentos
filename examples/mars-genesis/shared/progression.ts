@@ -1,7 +1,97 @@
-import type { Colonist, ColonySystems, TurnEvent, SimulationState } from './state.js';
+import type { Colonist, ColonySystems, TurnEvent, SimulationState, HexacoProfile, TurnOutcome } from './state.js';
+import { HEXACO_TRAITS } from './state.js';
 import { SeededRng } from './rng.js';
 
 const MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365; // ~244.55 mSv/year
+
+// Trait activation profiles per department role (Tett & Burnett 2003)
+const ROLE_ACTIVATIONS: Record<string, Partial<HexacoProfile>> = {
+  medical:     { conscientiousness: 0.7, emotionality: 0.6, agreeableness: 0.6 },
+  engineering: { conscientiousness: 0.9, openness: 0.3 },
+  agriculture: { conscientiousness: 0.6, agreeableness: 0.7, openness: 0.5 },
+  psychology:  { agreeableness: 0.8, emotionality: 0.7, openness: 0.6 },
+  governance:  { extraversion: 0.7, honestyHumility: 0.6 },
+};
+
+export { ROLE_ACTIVATIONS };
+
+/**
+ * Apply personality drift to all promoted colonists. Deterministic from inputs.
+ * Three forces: leader pull, role pull, outcome pull.
+ */
+export function applyPersonalityDrift(
+  colonists: Colonist[],
+  commanderHexaco: HexacoProfile,
+  turnOutcome: TurnOutcome | null,
+  yearDelta: number,
+  turn: number,
+  year: number,
+): void {
+  for (const c of colonists) {
+    if (!c.health.alive || !c.promotion) continue;
+
+    const dept = c.promotion.department;
+    const activation = ROLE_ACTIVATIONS[dept] ?? {};
+
+    for (const trait of HEXACO_TRAITS) {
+      let pull = 0;
+
+      // Leader pull: traits converge toward commander (Van Iddekinge 2023)
+      pull += (commanderHexaco[trait] - c.hexaco[trait]) * 0.02;
+
+      // Role pull: department role activates specific traits (Tett & Burnett 2003)
+      if (activation[trait] !== undefined) {
+        pull += (activation[trait]! - c.hexaco[trait]) * 0.01;
+      }
+
+      // Outcome pull: success/failure reinforces or punishes traits
+      if (turnOutcome) {
+        if (trait === 'openness') {
+          if (turnOutcome === 'risky_success') pull += 0.03;
+          if (turnOutcome === 'risky_failure') pull -= 0.04;
+          if (turnOutcome === 'conservative_failure') pull += 0.02;
+        }
+        if (trait === 'conscientiousness') {
+          if (turnOutcome === 'risky_failure') pull += 0.03;
+          if (turnOutcome === 'conservative_success') pull += 0.02;
+        }
+      }
+
+      // Rate cap and bounds
+      const delta = Math.max(-0.05, Math.min(0.05, pull)) * yearDelta;
+      c.hexaco[trait] = Math.max(0.05, Math.min(0.95, c.hexaco[trait] + delta));
+    }
+
+    c.hexacoHistory.push({ turn, year, hexaco: { ...c.hexaco } });
+  }
+}
+
+/**
+ * Classify turn outcome as risky/conservative success/failure.
+ * Deterministic from seed + decision text.
+ */
+export function classifyOutcome(
+  decisionText: string,
+  riskyOption: string,
+  riskSuccessProbability: number,
+  colony: ColonySystems,
+  rng: SeededRng,
+): TurnOutcome {
+  const isRisky = decisionText.toLowerCase().includes(riskyOption.toLowerCase());
+
+  let prob = riskSuccessProbability;
+  if (colony.morale > 0.7) prob += 0.1;
+  if (colony.foodMonthsReserve > 12) prob += 0.05;
+  if (colony.population > 150) prob -= 0.05;
+  prob = Math.max(0.1, Math.min(0.9, prob));
+
+  const success = rng.chance(prob);
+
+  if (isRisky && success) return 'risky_success';
+  if (isRisky && !success) return 'risky_failure';
+  if (!isRisky && success) return 'conservative_success';
+  return 'conservative_failure';
+}
 
 /**
  * Run all between-turn progression: aging, mortality, births, careers,
@@ -71,12 +161,21 @@ export function progressBetweenTurns(
       const p2 = potentialParents[i + 1];
       const childName = `${turnRng.pick(['Nova', 'Kai', 'Sol', 'Tera', 'Eos', 'Zan', 'Lyra', 'Orion', 'Vega', 'Juno', 'Atlas', 'Iris', 'Clio', 'Pax', 'Io', 'Thea'])} ${p1.core.name.split(' ').pop()}`;
       const childId = `col-mars-${year}-${turnRng.int(1000, 9999)}`;
+      // Child inherits blend of parents' traits with slight noise
+      const childHexaco: any = {};
+      for (const trait of ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'emotionality', 'honestyHumility'] as const) {
+        childHexaco[trait] = Math.max(0.05, Math.min(0.95,
+          (p1.hexaco[trait] + p2.hexaco[trait]) / 2 + turnRng.next() * 0.1 - 0.05
+        ));
+      }
       const child: Colonist = {
         core: { id: childId, name: childName, birthYear: year, marsborn: true, department: 'science', role: 'Child' },
         health: { alive: true, boneDensityPct: 88, cumulativeRadiationMsv: 0, psychScore: 0.9, conditions: [] },
         career: { specialization: 'Undetermined', yearsExperience: 0, rank: 'junior', achievements: ['Born on Mars'] },
         social: { childrenIds: [], friendIds: [], earthContacts: 0 },
         narrative: { lifeEvents: [{ year, event: `Born on Mars to ${p1.core.name} and ${p2.core.name}`, source: 'kernel' }], featured: false },
+        hexaco: childHexaco,
+        hexacoHistory: [{ turn, year, hexaco: { ...childHexaco } }],
       };
       p1.social.childrenIds.push(childId);
       p2.social.childrenIds.push(childId);

@@ -79,4 +79,6 @@ export interface Scenario {
   crisis: string;
   researchKeywords: string[];
   snapshotHints: Partial<ColonySnapshot>;
+  riskyOption: string;
+  riskSuccessProbability: number;
 }

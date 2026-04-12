@@ -74,8 +74,24 @@ export function buildDepartmentContext(
   const featured = alive.filter(c => c.narrative.featured);
   const deptNote = researchPacket.departmentNotes[dept] || '';
 
+  // Inject promoted leader's evolving HEXACO profile
+  const leader = state.colonists.find(c => c.promotion?.department === dept && c.health.alive);
+  const hexacoBlock: string[] = [];
+  if (leader) {
+    const h = leader.hexaco;
+    hexacoBlock.push(
+      '',
+      'YOUR PERSONALITY PROFILE (evolves over time based on leadership and experience):',
+      `Openness: ${h.openness.toFixed(2)} | Conscientiousness: ${h.conscientiousness.toFixed(2)} | Extraversion: ${h.extraversion.toFixed(2)}`,
+      `Agreeableness: ${h.agreeableness.toFixed(2)} | Emotionality: ${h.emotionality.toFixed(2)} | Honesty-Humility: ${h.honestyHumility.toFixed(2)}`,
+      'Higher openness: consider novel solutions. Higher conscientiousness: demand evidence. Higher emotionality: weigh human impact.',
+      '',
+    );
+  }
+
   const lines = [
     `TURN ${state.metadata.currentTurn} — YEAR ${state.metadata.currentYear}: ${scenario.title}`,
+    ...hexacoBlock,
     '', scenario.crisis, '',
     'RESEARCH:',
     ...researchPacket.canonicalFacts.map(f => `- ${f.claim} [${f.source}](${f.url})`),
