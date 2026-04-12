@@ -6,7 +6,9 @@ import {
   EmergentCapabilityEngine, EmergentJudge, EmergentToolRegistry,
   ComposableToolBuilder, SandboxedToolForge, ForgeToolMetaTool, generateText,
 } from '@framers/agentos';
-import type { Department } from './state.js';
+import type { Department, TurnOutcome } from './state.js';
+import { SeededRng } from './rng.js';
+import { classifyOutcome } from './progression.js';
 import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
 import { SimulationKernel, type PolicyEffect } from './kernel.js';
 import type { KeyPersonnel } from './colonist-generator.js';
@@ -209,18 +211,69 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const cmdSess = commander.session(`${sid}-cmd`);
   await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. Return JSON with decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.');
 
+  // Turn 0: Commander promotes department heads from colonist roster
+  console.log('  [Turn 0] Commander evaluating roster for promotions...');
+  const promotionDepts: Department[] = ['medical', 'engineering', 'agriculture', 'psychology'];
+  const roleNames: Record<string, string> = {
+    medical: 'Chief Medical Officer', engineering: 'Chief Engineer',
+    agriculture: 'Head of Agriculture', psychology: 'Colony Psychologist',
+  };
+  const candidateSummaries = promotionDepts.map(dept => {
+    const candidates = kernel.getCandidates(dept, 5);
+    return `## ${dept.toUpperCase()} — Top 5 Candidates:\n${candidates.map(c => {
+      const age = 2035 - c.core.birthYear;
+      const h = c.hexaco;
+      return `- ${c.core.name} (${c.core.id}), age ${age}, spec: ${c.career.specialization}, O:${h.openness.toFixed(2)} C:${h.conscientiousness.toFixed(2)} E:${h.extraversion.toFixed(2)} A:${h.agreeableness.toFixed(2)} Em:${h.emotionality.toFixed(2)} HH:${h.honestyHumility.toFixed(2)}`;
+    }).join('\n')}`;
+  }).join('\n\n');
+
+  const promoResult = await cmdSess.send(
+    `You must promote 4 colonists to department head roles. Evaluate these candidates based on their personality traits and specialization. Choose people who align with YOUR leadership style.\n\n${candidateSummaries}\n\nReturn JSON: {"promotions":[{"colonistId":"col-...","department":"medical","role":"Chief Medical Officer","reason":"..."},...]}`
+  );
+
+  const promoMatch = promoResult.text.match(/\{[\s\S]*"promotions"[\s\S]*\}/);
+  if (promoMatch) {
+    try {
+      const pd = JSON.parse(promoMatch[0]);
+      for (const p of pd.promotions || []) {
+        try {
+          kernel.promoteColonist(p.colonistId, p.department, p.role, leader.name);
+          console.log(`  ✦ ${p.colonistId} → ${p.role}: ${p.reason?.slice(0, 80)}`);
+        } catch (err) { console.log(`  ✦ Promotion failed: ${err}`); }
+      }
+    } catch { /* fallback below */ }
+  }
+  // Fallback: promote top candidate per dept if commander didn't produce valid JSON
+  for (const dept of promotionDepts) {
+    const hasLeader = kernel.getState().colonists.some(c => c.promotion?.department === dept);
+    if (!hasLeader) {
+      const top = kernel.getCandidates(dept, 1)[0];
+      if (top) {
+        kernel.promoteColonist(top.core.id, dept, roleNames[dept] || `Head of ${dept}`, leader.name);
+        console.log(`  ✦ [fallback] ${top.core.name} → ${roleNames[dept]}`);
+      }
+    }
+  }
+
+  // Create department agent sessions from promoted colonists
   const deptAgents = new Map<Department, any>();
   const deptSess = new Map<Department, any>();
-  for (const cfg of DEPARTMENT_CONFIGS) {
-    const wrapped = wrapForgeTool(forgeTool, `${sid}-${cfg.department}`, sid, cfg.department);
+  const promoted = kernel.getState().colonists.filter(c => c.promotion);
+  for (const p of promoted) {
+    const dept = p.promotion!.department;
+    const cfg = DEPARTMENT_CONFIGS.find(c => c.department === dept);
+    if (!cfg) continue;
+    const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept);
     const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
     const a = agent({ provider: 'openai', model: cfg.model, instructions: cfg.instructions, tools, maxSteps: 8 });
-    deptAgents.set(cfg.department, a);
-    deptSess.set(cfg.department, a.session(`${sid}-${cfg.department}`));
+    deptAgents.set(dept, a);
+    deptSess.set(dept, a.session(`${sid}-${dept}`));
   }
+  console.log(`  Promoted ${promoted.length} department heads. Agents created.\n`);
 
   const artifacts: TurnArtifact[] = [];
   const scenarios = SCENARIOS.slice(0, maxTurns);
+  const outcomeLog: Array<{ turn: number; year: number; outcome: TurnOutcome }> = [];
 
   for (const scenario of scenarios) {
     const turn = scenario.turn;
@@ -267,6 +320,26 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
 
     kernel.applyPolicy(decisionToPolicy(decision, reports, turn, scenario.year));
+
+    // Classify outcome and apply personality drift
+    const prevYear = turn === 1 ? 2035 : scenarios[scenarios.indexOf(scenario) - 1]?.year ?? 2035;
+    const yearDelta = scenario.year - prevYear;
+    const outcomeRng = new SeededRng(seed).turnSeed(turn + 1000);
+    const outcome = classifyOutcome(
+      decision.decision, scenario.riskyOption, scenario.riskSuccessProbability,
+      kernel.getState().colony, outcomeRng,
+    );
+    kernel.applyDrift(leader.hexaco, outcome, Math.max(1, yearDelta));
+    outcomeLog.push({ turn, year: scenario.year, outcome });
+    console.log(`  [outcome] ${outcome} (risky: "${scenario.riskyOption}")`);
+
+    // Log drift for promoted colonists
+    const drifted = kernel.getState().colonists.filter(c => c.promotion && c.health.alive);
+    for (const p of drifted.slice(0, 3)) {
+      const h = p.hexaco;
+      console.log(`  [drift] ${p.core.name}: O:${h.openness.toFixed(2)} C:${h.conscientiousness.toFixed(2)}`);
+    }
+
     const after = kernel.getState();
 
     artifacts.push({
@@ -283,9 +356,25 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   }
 
   const final = kernel.export();
+
+  // Build colonist trajectories for promoted leaders
+  const trajectories = Object.fromEntries(
+    final.colonists
+      .filter(c => c.promotion && c.hexacoHistory.length > 1)
+      .map(c => [c.core.id, {
+        name: c.core.name,
+        promotedTurn: c.promotion!.turnPromoted,
+        promotedAs: c.promotion!.role,
+        promotedBy: c.promotion!.promotedBy,
+        hexacoTrajectory: c.hexacoHistory,
+      }])
+  );
+
   const output = {
-    simulation: 'mars-genesis-v2', leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
+    simulation: 'mars-genesis-v3', leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
     turnArtifacts: artifacts, finalState: final, toolRegistries: toolRegs,
+    colonistTrajectories: trajectories,
+    outcomeClassifications: outcomeLog,
     totalCitations: artifacts.reduce((s, t) => s + t.departmentReports.reduce((s2, r) => s2 + r.citations.length, 0), 0),
     totalToolsForged: Object.values(toolRegs).flat().length,
   };
@@ -294,7 +383,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   mkdirSync(outDir, { recursive: true });
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const tag = leader.archetype.toLowerCase().replace(/\s+/g, '-');
-  const path = resolve(outDir, `v2-${tag}-${ts}.json`);
+  const path = resolve(outDir, `v3-${tag}-${ts}.json`);
   writeFileSync(path, JSON.stringify(output, null, 2));
 
   console.log(`\n${'═'.repeat(60)}`);
