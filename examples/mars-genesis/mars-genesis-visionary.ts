@@ -8,12 +8,17 @@
  * Run:
  *   cd packages/agentos
  *   ANTHROPIC_API_KEY=... SERPER_API_KEY=... npx tsx examples/mars-genesis/mars-genesis-visionary.ts
+ *
+ * Smoke test (3 turns only):
+ *   ANTHROPIC_API_KEY=... SERPER_API_KEY=... npx tsx examples/mars-genesis/mars-genesis-visionary.ts 3
  */
 
 import { VISIONARY } from './shared/constants.js';
 import { runSimulation } from './shared/runner.js';
 
-runSimulation(VISIONARY).catch((err) => {
+const maxTurns = process.argv[2] ? parseInt(process.argv[2], 10) : undefined;
+
+runSimulation(VISIONARY, maxTurns).catch((err) => {
   console.error('Simulation failed:', err);
   process.exitCode = 1;
 });

@@ -8,12 +8,17 @@
  * Run:
  *   cd packages/agentos
  *   ANTHROPIC_API_KEY=... SERPER_API_KEY=... npx tsx examples/mars-genesis/mars-genesis-engineer.ts
+ *
+ * Smoke test (3 turns only):
+ *   ANTHROPIC_API_KEY=... SERPER_API_KEY=... npx tsx examples/mars-genesis/mars-genesis-engineer.ts 3
  */
 
 import { ENGINEER } from './shared/constants.js';
 import { runSimulation } from './shared/runner.js';
 
-runSimulation(ENGINEER).catch((err) => {
+const maxTurns = process.argv[2] ? parseInt(process.argv[2], 10) : undefined;
+
+runSimulation(ENGINEER, maxTurns).catch((err) => {
   console.error('Simulation failed:', err);
   process.exitCode = 1;
 });
