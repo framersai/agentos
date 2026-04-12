@@ -231,6 +231,26 @@ const m = mission('research').goal('Research {topic}').planner({ strategy: 'adap
 
 Auto-detection: OpenAI → Anthropic → OpenRouter → Gemini → Groq → Together → Mistral → xAI → CLI → Ollama
 
+### Model String Formats
+
+Three ways to specify a model:
+
+```ts
+// 1. Separate fields (recommended)
+generateText({ provider: 'anthropic', model: 'claude-sonnet-4-20250514', prompt: '...' });
+
+// 2. Colon format (canonical combined string)
+generateText({ model: 'anthropic:claude-sonnet-4-20250514', prompt: '...' });
+
+// 3. Slash format (also supported for known providers)
+generateText({ model: 'anthropic/claude-sonnet-4-20250514', prompt: '...' });
+
+// Auto-detect (omit both provider and model)
+generateText({ prompt: '...' }); // uses first available provider
+```
+
+The slash format only splits on known provider prefixes (`openai`, `anthropic`, `openrouter`, etc.). Unknown prefixes like `meta-llama/llama-3.1-8b` pass through as a plain model name to the auto-detected provider.
+
 ---
 
 ## API Reference
