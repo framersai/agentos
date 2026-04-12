@@ -1,3 +1,7 @@
+## <small>0.1.217 (2026-04-12)</small>
+
+* feat: support provider/model slash format in model strings ([266daf0](https://github.com/framersai/agentos/commit/266daf0))
+
 ## <small>0.1.216 (2026-04-12)</small>
 
 * fix(mars-genesis): normalize OpenAI forge_tool args (code->sandbox, default allowlist), strengthen d ([39adc0e](https://github.com/framersai/agentos/commit/39adc0e))
