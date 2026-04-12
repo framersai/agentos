@@ -2,6 +2,15 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ITool } from '@framers/agentos';
+import {
+  EmergentCapabilityEngine,
+  EmergentJudge,
+  EmergentToolRegistry,
+  ComposableToolBuilder,
+  SandboxedToolForge,
+  ForgeToolMetaTool,
+  generateText,
+} from '@framers/agentos';
 import type {
   LeaderConfig,
   TurnResult,
@@ -163,6 +172,54 @@ function injectState(template: string, snap: ColonySnapshot): string {
 }
 
 // ---------------------------------------------------------------------------
+// Emergent engine setup
+// ---------------------------------------------------------------------------
+
+function createEmergentEngine(toolMap: Map<string, ITool>): {
+  engine: EmergentCapabilityEngine;
+  forgeTool: ITool;
+} {
+  const llmCallback = async (model: string, prompt: string): Promise<string> => {
+    const result = await generateText({
+      provider: 'anthropic',
+      model: model || 'claude-sonnet-4-20250514',
+      prompt,
+    });
+    return result.text;
+  };
+
+  const registry = new EmergentToolRegistry();
+  const judge = new EmergentJudge({
+    judgeModel: 'claude-sonnet-4-20250514',
+    promotionJudgeModel: 'claude-opus-4-20250514',
+    generateText: llmCallback,
+  });
+  const composableBuilder = new ComposableToolBuilder(toolMap);
+  const sandboxForge = new SandboxedToolForge();
+
+  const engine = new EmergentCapabilityEngine({
+    config: {
+      enabled: true,
+      maxSessionTools: 20,
+      maxAgentTools: 50,
+      sandboxTimeoutMs: 10000,
+      sandboxMemoryMB: 128,
+      promotionThreshold: { uses: 5, confidence: 0.8 },
+      allowSandbox: true,
+      persistSandboxSource: true,
+    },
+    composableBuilder,
+    sandboxForge,
+    judge,
+    registry,
+  });
+
+  const forgeTool = new ForgeToolMetaTool(engine);
+
+  return { engine, forgeTool };
+}
+
+// ---------------------------------------------------------------------------
 // Main simulation
 // ---------------------------------------------------------------------------
 
@@ -178,6 +235,18 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
   console.log(`  HEXACO: O=${leader.hexaco.openness} C=${leader.hexaco.conscientiousness} E=${leader.hexaco.extraversion} A=${leader.hexaco.agreeableness} Em=${leader.hexaco.emotionality} HH=${leader.hexaco.honestyHumility}`);
   console.log(`${'═'.repeat(60)}\n`);
 
+  // Build tool map for the emergent composable builder
+  const toolMap = new Map<string, ITool>();
+  toolMap.set('web_search', webSearchTool);
+
+  // Create emergent engine with forge_tool
+  const { engine, forgeTool } = createEmergentEngine(toolMap);
+  const sessionId = `mars-genesis-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
+  const agentId = `commander-${leader.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+  console.log(`  Emergent engine: ACTIVE (forge_tool available)`);
+  console.log(`  Tools: web_search, forge_tool\n`);
+
   const sim = agent({
     provider: 'anthropic',
     model: 'claude-opus-4-20250514',
@@ -190,15 +259,25 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
       emotionality: leader.hexaco.emotionality,
       honesty: leader.hexaco.honestyHumility,
     },
-    tools: [webSearchTool],
-    maxSteps: 10,
+    tools: [webSearchTool, forgeTool as unknown as ITool],
+    maxSteps: 12,
   });
 
   const session = sim.session(`mars-genesis-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`);
 
   const personalityDesc = Object.entries(leader.hexaco).map(([k, v]) => `${k}: ${v}`).join(', ');
   await session.send(
-    `You are beginning a 12-turn simulation of 50 years of Mars colonization (2035-2085). Each turn presents a crisis grounded in real Mars science. You MUST use the web_search tool to research real scientific papers and NASA data before every decision. Cite everything with inline markdown links. Your HEXACO personality: ${personalityDesc}\n\nAcknowledge and prepare.`
+    `You are beginning a 12-turn simulation of 50 years of Mars colonization (2035-2085). Each turn presents a crisis grounded in real Mars science.
+
+You have two tools:
+1. web_search: Search for real scientific papers, NASA data. Use this BEFORE every decision.
+2. forge_tool: Create new computational tools at runtime when you need to MODEL something quantitatively (population growth, radiation doses, resource depletion, structural loads, etc.). Call forge_tool with a name, description, input/output schemas, implementation mode ("compose" to chain existing tools or "sandbox" to write JavaScript code), and test cases.
+
+IMPORTANT: When you face a decision that involves numbers, projections, or calculations, use forge_tool to create a calculator/model tool BEFORE making the decision. Then use the forged tool to get real numbers. This is how you extend your own capabilities.
+
+Cite everything with inline markdown links from your web_search results. Your HEXACO personality: ${personalityDesc}
+
+Acknowledge and prepare.`
   );
 
   let snapshot = { ...INITIAL_SNAPSHOT };
@@ -218,6 +297,7 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
       crisisWithState,
       '',
       `REQUIRED: Use web_search to research these topics BEFORE making your decision: ${scenario.researchKeywords.join(', ')}`,
+      `REQUIRED: If this decision involves numerical projections, calculations, or modeling, use forge_tool to create a computational tool and run it before deciding.`,
       '',
       `Current colony: Pop ${snapshot.population} | Water ${snapshot.waterLitersPerDay} L/day | Food ${snapshot.foodMonthsReserve}mo | Power ${snapshot.powerKw} kW | Morale ${Math.round(snapshot.morale * 100)}% | Modules ${snapshot.infrastructureModules} | Science ${snapshot.scienceOutput} | Deaths ${snapshot.unplannedDeaths} | Tools ${snapshot.toolsForgedTotal}`,
     ].join('\n');
@@ -230,7 +310,31 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
     }
 
     const parsed = parseResponse(result.text);
-    snapshot = evolveSnapshot(snapshot, parsed.snapshotUpdates, scenario.snapshotHints, parsed.toolsForged.length);
+
+    // Query the emergent engine for tools forged during this turn
+    const engineTools = engine.getSessionTools(sessionId);
+    const agentTools = engine.getAgentTools(agentId);
+    const allEmergentTools = [...engineTools, ...agentTools];
+    const newForgedTools: ForgedToolRecord[] = allEmergentTools
+      .filter(et => !parsed.toolsForged.some(pt => pt.name === et.name))
+      .map(et => ({
+        name: et.name,
+        mode: (et as any).implementationMode || 'compose',
+        description: et.description || 'Runtime-forged tool',
+        confidence: (et as any).confidenceScore ?? 0.85,
+        judgeVerdict: 'approved' as const,
+      }));
+    const combinedForged = [...parsed.toolsForged, ...newForgedTools];
+
+    snapshot = evolveSnapshot(snapshot, parsed.snapshotUpdates, scenario.snapshotHints, combinedForged.length);
+
+    // Register any newly forged tools with the agent's tool map so
+    // compose mode can chain them in subsequent turns
+    for (const et of allEmergentTools) {
+      if (!toolMap.has(et.name) && (et as any).execute) {
+        toolMap.set(et.name, et as unknown as ITool);
+      }
+    }
 
     turns.push({
       turn: scenario.turn,
@@ -240,17 +344,23 @@ export async function runSimulation(leader: LeaderConfig, maxTurns?: number): Pr
       decision: parsed.decision,
       reasoning: parsed.reasoning,
       citations: parsed.citations,
-      toolsForged: parsed.toolsForged,
+      toolsForged: combinedForged,
       snapshot: { ...snapshot },
       rawResponse: result.text,
     });
 
     console.log(`  Decision: ${parsed.decision.slice(0, 140)}${parsed.decision.length > 140 ? '...' : ''}`);
     console.log(`  Citations: ${parsed.citations.length}`);
-    console.log(`  Tools forged: ${parsed.toolsForged.map(t => t.name).join(', ') || 'none'}`);
+    if (combinedForged.length > 0) {
+      console.log(`  🔧 TOOLS FORGED: ${combinedForged.map(t => `${t.name} (${t.mode})`).join(', ')}`);
+    } else {
+      console.log(`  Tools forged: none`);
+    }
     console.log(`  Pop: ${snapshot.population} | Morale: ${Math.round(snapshot.morale * 100)}% | Deaths: ${snapshot.unplannedDeaths} | Tools: ${snapshot.toolsForgedTotal}`);
   }
 
+  // Clean up emergent session
+  engine.cleanupSession(sessionId);
   await sim.close();
 
   const log: SimulationLog = {
