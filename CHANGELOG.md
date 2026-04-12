@@ -1,3 +1,7 @@
+## <small>0.1.207 (2026-04-12)</small>
+
+* fix(examples): fix personality type (honesty not honestyHumility), switch to Opus, add maxTurns CLI  ([89e39a9](https://github.com/framersai/agentos/commit/89e39a9))
+
 ## <small>0.1.206 (2026-04-12)</small>
 
 * feat(examples): add 12 Mars Genesis crisis scenarios with research keywords ([5892bf5](https://github.com/framersai/agentos/commit/5892bf5))
