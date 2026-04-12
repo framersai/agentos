@@ -1,3 +1,7 @@
+## <small>0.1.213 (2026-04-12)</small>
+
+* feat(mars-genesis): add simulation kernel, typed contracts, and curated research packets (turns 1-12 ([6afe124](https://github.com/framersai/agentos/commit/6afe124))
+
 ## <small>0.1.212 (2026-04-12)</small>
 
 * fix: LLMVisionProvider passes ContentPart[] directly instead of JSON.stringify ([8bdc0e0](https://github.com/framersai/agentos/commit/8bdc0e0))
