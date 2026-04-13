@@ -1,0 +1,206 @@
+<h2>Mars Genesis Dashboard v3: Mirrored Columns</h2>
+<p class="subtitle">Each column is identical layout. Horizontal scan shows the diff. Judge badges on every forge attempt.</p>
+
+<div class="mockup">
+  <div class="mockup-header" style="font-size:13px">Turn 5/12 — Year 2046: Solar Particle Event</div>
+  <div class="mockup-body" style="font-family:'SF Mono',Menlo,monospace;font-size:11px;line-height:1.5;background:#0d0d1a;padding:0;border-radius:0 0 8px 8px">
+
+    <!-- TOP BAR -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:#111;border-bottom:1px solid #333">
+      <div style="font-weight:bold;color:#e2e8f0;font-size:13px">MARS GENESIS</div>
+      <div style="display:flex;gap:16px;font-size:10px;color:#888">
+        <span>Turn <b style="color:#e2e8f0">5</b>/12</span>
+        <span>Year <b style="color:#e2e8f0">2046</b></span>
+        <span>Seed <b style="color:#e2e8f0">950</b></span>
+        <span style="color:#6ee7b7">● Live</span>
+      </div>
+    </div>
+
+    <!-- CRISIS (shared) -->
+    <div style="padding:5px 12px;background:linear-gradient(90deg,#1e1b4b,#312e81);border-bottom:1px solid #4338ca;text-align:center">
+      <span style="color:#c4b5fd;font-size:11px;font-weight:bold">⚡ SOLAR PARTICLE EVENT</span>
+      <span style="color:#9ca3af;font-size:10px;margin-left:6px">CME in 4h. No magnetosphere. 100-500 mSv unshielded.</span>
+    </div>
+
+    <!-- TWO MIRRORED COLUMNS -->
+    <div style="display:flex;gap:1px;background:#222">
+
+      <!-- ═══ LEFT: VISIONARY ═══ -->
+      <div style="flex:1;padding:8px;background:#0d0d1a;display:flex;flex-direction:column;gap:5px">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><span style="color:#a78bfa;font-weight:bold">ARES HORIZON</span> <span style="color:#777;font-size:9px">Aria Chen</span></div>
+          <span style="font-size:8px;color:#a78bfa;background:#1e1b4b;padding:1px 5px;border-radius:2px">VISIONARY</span>
+        </div>
+
+        <!-- Gauges (row 1 — matches right) -->
+        <div style="display:flex;gap:4px;font-size:9px">
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Pop</span> <b style="color:#e2e8f0">287</b><div style="height:2px;background:#333;margin-top:1px;border-radius:1px"><div style="height:100%;width:72%;background:#a78bfa;border-radius:1px"></div></div></div>
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Morale</span> <b style="color:#fbbf24">71%</b><div style="height:2px;background:#333;margin-top:1px;border-radius:1px"><div style="height:100%;width:71%;background:#fbbf24;border-radius:1px"></div></div></div>
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Food</span> <b style="color:#6ee7b7">14mo</b></div>
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Deaths</span> <b style="color:#f87171">8</b></div>
+        </div>
+
+        <!-- Dept Report (row 2 — matches right) -->
+        <div style="background:#111827;border:1px solid #1e293b;border-radius:3px;padding:5px;font-size:9px">
+          <div style="color:#f9a8d4;font-weight:bold">🏥 Dr. Cruz <span style="color:#555;font-weight:normal">Medical | O:0.71 C:0.65</span></div>
+          <div style="color:#ccc;margin-top:2px">"12 colonists in perimeter. Triage protocol needed."</div>
+          <div style="color:#f87171;font-size:8px;margin-top:1px">⬤ CRITICAL: 12 colonists 150-300 mSv exposure</div>
+        </div>
+
+        <!-- Tool Forge (row 3 — matches right) -->
+        <div style="background:#0c1a0c;border:1px solid #166534;border-radius:3px;padding:5px;font-size:9px;display:flex;align-items:center;gap:6px">
+          <span style="color:#6ee7b7">🔧</span>
+          <div style="flex:1">
+            <span style="color:#a78bfa;font-weight:bold">radiation_triage_protocol</span>
+            <span style="color:#555">(compose)</span>
+          </div>
+          <span style="background:#166534;color:#6ee7b7;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:bold">APPROVED 0.82</span>
+        </div>
+        <!-- rejected attempt -->
+        <div style="background:#1a0c0c;border:1px solid #7f1d1d;border-radius:3px;padding:5px;font-size:9px;display:flex;align-items:center;gap:6px;opacity:0.7">
+          <span style="color:#888">🔧</span>
+          <div style="flex:1">
+            <span style="color:#888;text-decoration:line-through">exposure_predictor</span>
+            <span style="color:#555">(sandbox)</span>
+          </div>
+          <span style="background:#7f1d1d;color:#fca5a5;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:bold">REJECTED</span>
+        </div>
+
+        <!-- Decision (row 4 — matches right) -->
+        <div style="background:#1e1b4b;border:1px solid #4338ca;border-radius:3px;padding:5px;font-size:9px">
+          <div style="color:#c4b5fd;font-weight:bold">⚡ DECISION</div>
+          <div style="color:#e2e8f0;margin-top:1px">"Accept casualties. Expansion cannot stop."</div>
+          <div style="margin-top:3px"><span style="background:#92400e;color:#fbbf24;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:bold">⚠ RISKY FAILURE</span> <span style="color:#f87171;font-size:8px">12 colonists 200+ mSv</span></div>
+        </div>
+
+        <!-- Drift (row 5 — matches right) -->
+        <div style="background:#111;border-radius:3px;padding:4px 5px;font-size:8px;color:#d4d4d4">
+          <span style="color:#888">DRIFT:</span>
+          Cruz <span style="color:#a78bfa">O:0.71↑</span> <span style="color:#fbbf24">C:0.65↓</span> |
+          Bakker <span style="color:#a78bfa">O:0.42↑</span> C:0.76→
+        </div>
+
+        <!-- Code (row 6 — matches right) -->
+        <div style="background:#050510;border:1px solid #1e293b;border-radius:3px;padding:5px;font-size:9px">
+          <div style="color:#555;font-size:8px;font-weight:bold;margin-bottom:2px">CODE</div>
+          <code style="color:#c084fc">const</code> <code style="color:#d4d4d4">outcome = classifyOutcome(</code><br>
+          <code style="color:#d4d4d4">&nbsp;&nbsp;decision, </code><code style="color:#fbbf24">"expansion"</code><code style="color:#d4d4d4">, 0.40, colony);</code><br>
+          <code style="color:#c084fc">kernel</code><code style="color:#d4d4d4">.applyDrift(aria.hexaco,</code><br>
+          <code style="color:#d4d4d4">&nbsp;&nbsp;</code><code style="color:#f87171">"risky_failure"</code><code style="color:#d4d4d4">, 3);</code>
+        </div>
+
+        <!-- Citations (row 7 — matches right) -->
+        <div style="background:#050510;border:1px solid #1e293b;border-radius:3px;padding:4px 5px;font-size:8px">
+          <div style="color:#555;font-weight:bold;margin-bottom:1px">CITATIONS</div>
+          <div style="color:#6ee7b7">📚 Cucinotta 2010 <span style="color:#555">— NASA radiation risk</span></div>
+          <div style="color:#6ee7b7">📚 Acuña 1999 <span style="color:#555">— magnetosphere loss</span></div>
+          <div style="color:#6ee7b7">📚 Guo 2018 <span style="color:#555">— Curiosity CME data</span></div>
+        </div>
+      </div>
+
+      <!-- ═══ RIGHT: ENGINEER ═══ -->
+      <div style="flex:1;padding:8px;background:#0d0d1a;display:flex;flex-direction:column;gap:5px">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><span style="color:#60a5fa;font-weight:bold">MERIDIAN BASE</span> <span style="color:#777;font-size:9px">Dietrich Voss</span></div>
+          <span style="font-size:8px;color:#60a5fa;background:#172554;padding:1px 5px;border-radius:2px">ENGINEER</span>
+        </div>
+
+        <!-- Gauges (row 1) -->
+        <div style="display:flex;gap:4px;font-size:9px">
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Pop</span> <b style="color:#e2e8f0">142</b><div style="height:2px;background:#333;margin-top:1px;border-radius:1px"><div style="height:100%;width:36%;background:#60a5fa;border-radius:1px"></div></div></div>
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Morale</span> <b style="color:#6ee7b7">83%</b><div style="height:2px;background:#333;margin-top:1px;border-radius:1px"><div style="height:100%;width:83%;background:#6ee7b7;border-radius:1px"></div></div></div>
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Food</span> <b style="color:#6ee7b7">22mo</b></div>
+          <div style="flex:1;background:#111;padding:3px 5px;border-radius:2px"><span style="color:#888">Deaths</span> <b style="color:#6ee7b7">0</b></div>
+        </div>
+
+        <!-- Dept Report (row 2) -->
+        <div style="background:#111827;border:1px solid #1e293b;border-radius:3px;padding:5px;font-size:9px">
+          <div style="color:#f9a8d4;font-weight:bold">🏥 Dr. Tanaka <span style="color:#555;font-weight:normal">Medical | O:0.38 C:0.88</span></div>
+          <div style="color:#ccc;margin-top:2px">"All personnel in core. Zero exposure. Protocol 5C."</div>
+          <div style="color:#6ee7b7;font-size:8px;margin-top:1px">⬤ LOW: minor confinement stress</div>
+        </div>
+
+        <!-- Tool Forge (row 3) -->
+        <div style="background:#0c1a0c;border:1px solid #166534;border-radius:3px;padding:5px;font-size:9px;display:flex;align-items:center;gap:6px">
+          <span style="color:#6ee7b7">🔧</span>
+          <div style="flex:1">
+            <span style="color:#60a5fa;font-weight:bold">radiation_dose_calculator</span>
+            <span style="color:#555">(sandbox)</span>
+          </div>
+          <span style="background:#166534;color:#6ee7b7;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:bold">APPROVED 0.94</span>
+        </div>
+        <!-- approved on first try — no rejected attempts -->
+        <div style="background:#111;border-radius:3px;padding:5px;font-size:8px;color:#555;text-align:center">
+          No rejected attempts — approved on first try
+        </div>
+
+        <!-- Decision (row 4) -->
+        <div style="background:#172554;border:1px solid #1d4ed8;border-radius:3px;padding:5px;font-size:9px">
+          <div style="color:#93c5fd;font-weight:bold">⚡ DECISION</div>
+          <div style="color:#e2e8f0;margin-top:1px">"All personnel to core. Zero exposure. Protocol 5C."</div>
+          <div style="margin-top:3px"><span style="background:#064e3b;color:#6ee7b7;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:bold">✓ CONSERVATIVE SUCCESS</span> <span style="color:#6ee7b7;font-size:8px">0 exposed</span></div>
+        </div>
+
+        <!-- Drift (row 5) -->
+        <div style="background:#111;border-radius:3px;padding:4px 5px;font-size:8px;color:#d4d4d4">
+          <span style="color:#888">DRIFT:</span>
+          Tanaka <span style="color:#60a5fa">O:0.38↓</span> <span style="color:#6ee7b7">C:0.88↑</span> |
+          Lindqvist O:0.28↓ <span style="color:#6ee7b7">C:0.92↑</span>
+        </div>
+
+        <!-- Code (row 6) -->
+        <div style="background:#050510;border:1px solid #1e293b;border-radius:3px;padding:5px;font-size:9px">
+          <div style="color:#555;font-size:8px;font-weight:bold;margin-bottom:2px">CODE</div>
+          <code style="color:#c084fc">const</code> <code style="color:#d4d4d4">outcome = classifyOutcome(</code><br>
+          <code style="color:#d4d4d4">&nbsp;&nbsp;decision, </code><code style="color:#fbbf24">"expansion"</code><code style="color:#d4d4d4">, 0.40, colony);</code><br>
+          <code style="color:#c084fc">kernel</code><code style="color:#d4d4d4">.applyDrift(dietrich.hexaco,</code><br>
+          <code style="color:#d4d4d4">&nbsp;&nbsp;</code><code style="color:#6ee7b7">"conservative_success"</code><code style="color:#d4d4d4">, 3);</code>
+        </div>
+
+        <!-- Citations (row 7) -->
+        <div style="background:#050510;border:1px solid #1e293b;border-radius:3px;padding:4px 5px;font-size:8px">
+          <div style="color:#555;font-weight:bold;margin-bottom:1px">CITATIONS</div>
+          <div style="color:#6ee7b7">📚 Cucinotta 2010 <span style="color:#555">— NASA radiation risk</span></div>
+          <div style="color:#6ee7b7">📚 Acuña 1999 <span style="color:#555">— magnetosphere loss</span></div>
+          <div style="color:#6ee7b7">📚 Hassler 2014 <span style="color:#555">— RAD surface dose</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIMELINE (shared, below both) -->
+    <div style="border-top:2px solid #333;padding:6px 12px;background:#080810">
+      <div style="color:#888;font-size:9px;font-weight:bold;margin-bottom:4px">TIMELINE</div>
+      <div style="display:flex;gap:2px;overflow-x:auto;font-size:8px">
+        <div style="min-width:90px;padding:3px 5px;background:#111;border-left:2px solid #a78bfa;border-radius:0 2px 2px 0"><div style="color:#a78bfa;font-weight:bold">2035 A</div><div style="color:#ccc">Valles M.</div><div style="color:#6ee7b7">✓ risky</div></div>
+        <div style="min-width:90px;padding:3px 5px;background:#111;border-left:2px solid #60a5fa;border-radius:0 2px 2px 0"><div style="color:#60a5fa;font-weight:bold">2035 D</div><div style="color:#ccc">Arcadia</div><div style="color:#6ee7b7">✓ conserv</div></div>
+        <div style="min-width:90px;padding:3px 5px;background:#111;border-left:2px solid #a78bfa;border-radius:0 2px 2px 0"><div style="color:#a78bfa;font-weight:bold">2037 A</div><div style="color:#ccc">Drill deep</div><div style="color:#6ee7b7">✓ risky</div></div>
+        <div style="min-width:90px;padding:3px 5px;background:#111;border-left:2px solid #60a5fa;border-radius:0 2px 2px 0"><div style="color:#60a5fa;font-weight:bold">2037 D</div><div style="color:#ccc">WAVAR</div><div style="color:#6ee7b7">✓ conserv</div></div>
+        <div style="min-width:90px;padding:3px 5px;background:#111;border-left:2px solid #a78bfa;border-radius:0 2px 2px 0"><div style="color:#a78bfa;font-weight:bold">2040 A</div><div style="color:#ccc">Bioremed</div><div style="color:#fbbf24">⚠ failure</div></div>
+        <div style="min-width:90px;padding:3px 5px;background:#111;border-left:2px solid #60a5fa;border-radius:0 2px 2px 0"><div style="color:#60a5fa;font-weight:bold">2040 D</div><div style="color:#ccc">Hydroponic</div><div style="color:#6ee7b7">✓ conserv</div></div>
+        <div style="min-width:100px;padding:3px 5px;background:#1e1b4b;border:1px solid #4338ca;border-radius:2px"><div style="color:#c4b5fd;font-weight:bold">2046 A ◄</div><div style="color:#f87171">12 dead</div><div style="color:#fbbf24">⚠ failure</div></div>
+        <div style="min-width:100px;padding:3px 5px;background:#172554;border:1px solid #1d4ed8;border-radius:2px"><div style="color:#93c5fd;font-weight:bold">2046 D ◄</div><div style="color:#6ee7b7">0 dead</div><div style="color:#6ee7b7">✓ success</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="margin-top:16px">
+  <h3>Badge System</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;font-family:monospace;font-size:11px">
+    <span style="background:#166534;color:#6ee7b7;padding:2px 8px;border-radius:3px;font-weight:bold">APPROVED 0.94</span>
+    <span style="background:#7f1d1d;color:#fca5a5;padding:2px 8px;border-radius:3px;font-weight:bold">REJECTED</span>
+    <span style="background:#064e3b;color:#6ee7b7;padding:2px 8px;border-radius:3px;font-weight:bold">✓ CONSERVATIVE SUCCESS</span>
+    <span style="background:#92400e;color:#fbbf24;padding:2px 8px;border-radius:3px;font-weight:bold">⚠ RISKY FAILURE</span>
+    <span style="background:#1e1b4b;color:#c4b5fd;padding:2px 8px;border-radius:3px;font-weight:bold">✓ RISKY SUCCESS</span>
+    <span style="background:#422006;color:#f87171;padding:2px 8px;border-radius:3px;font-weight:bold">✗ CONSERVATIVE FAILURE</span>
+    <span style="background:#f87171;color:white;padding:2px 8px;border-radius:3px;font-weight:bold">⬤ CRITICAL</span>
+    <span style="background:#fbbf24;color:#1a1a2e;padding:2px 8px;border-radius:3px;font-weight:bold">⬤ HIGH</span>
+    <span style="background:#60a5fa;color:white;padding:2px 8px;border-radius:3px;font-weight:bold">⬤ MEDIUM</span>
+    <span style="background:#6ee7b7;color:#1a1a2e;padding:2px 8px;border-radius:3px;font-weight:bold">⬤ LOW</span>
+  </div>
+</div>
