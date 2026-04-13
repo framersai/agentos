@@ -14,9 +14,9 @@
 [![codecov](https://codecov.io/gh/framersai/agentos/graph/badge.svg)](https://codecov.io/gh/framersai/agentos)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord)](https://discord.gg/VXXC4SJMKh)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord)](https://wilds.ai/discord)
 
-[Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos) · [Discord](https://discord.gg/VXXC4SJMKh) · [Blog](https://docs.agentos.sh/blog)
+[Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos) · [Discord](https://wilds.ai/discord) · [Blog](https://docs.agentos.sh/blog)
 
 </div>
 
@@ -35,6 +35,43 @@ AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and
 | **CrewAI / Mastra** | Unified orchestration (workflow DAGs + agent graphs + goal-driven missions), personality-driven routing |
 
 > **Full comparison:** [AgentOS vs LangGraph vs CrewAI vs Mastra](https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai)
+
+---
+
+## See It In Action
+
+<table>
+<tr>
+<td width="60%">
+
+### 🔴 Mars Genesis Simulation
+
+Two AI commanders. Same colony. Different HEXACO personalities. Watch emergent civilizations diverge in real-time.
+
+- **Emergent crises** generated per-timeline by an AI Crisis Director
+- **Runtime tool forging** with LLM-as-judge review
+- **Personality evolution** over 50 simulated years
+- **Live side-by-side dashboard** with SSE streaming
+
+The entire simulation runs on `agent()`, `EmergentCapabilityEngine`, and `generateText()` from this package.
+
+**[View Demo Repo →](https://github.com/framersai/mars-genesis-simulation)**
+
+</td>
+<td width="40%">
+
+```bash
+git clone https://github.com/framersai/mars-genesis-simulation
+cd mars-genesis-simulation
+npm install
+# Add your API key to .env
+npm run dashboard
+# Open http://localhost:3456
+```
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -328,9 +365,10 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). See the [Co
 
 ## Community
 
-- **Discord:** [discord.gg/VXXC4SJMKh](https://discord.gg/VXXC4SJMKh)
+- **Discord:** [wilds.ai/discord](https://wilds.ai/discord)
 - **GitHub Issues:** [github.com/framersai/agentos/issues](https://github.com/framersai/agentos/issues)
 - **Blog:** [docs.agentos.sh/blog](https://docs.agentos.sh/blog)
+- **Mars Genesis:** [github.com/framersai/mars-genesis-simulation](https://github.com/framersai/mars-genesis-simulation) — live multi-agent simulation demo
 - **Wilds.ai:** [wilds.ai](https://wilds.ai) — AI game worlds powered by AgentOS
 
 ---
