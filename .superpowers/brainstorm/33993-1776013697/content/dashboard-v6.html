@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mars Genesis — AgentOS Live Simulation</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#07070f;color:#e2e8f0;font-family:'SF Mono',Menlo,'Cascadia Code',monospace;min-height:100vh;display:flex;flex-direction:column;width:100vw;overflow-x:hidden}
+  a{color:#a78bfa;text-decoration:none}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes barGrow{from{width:0}}
+  @keyframes typeIn{from{width:0}to{width:100%}}
+  .af{animation:fadeUp .5s ease both}
+
+  /* ── Top Bar ── */
+  .top{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:#0a0a14;border-bottom:1px solid #1e293b;width:100%}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo svg{width:32px;height:32px}
+  .logo h1{font-size:20px;color:#e2e8f0;letter-spacing:-.5px}
+  .logo small{display:block;font-size:11px;color:#6366f1;font-weight:600}
+  .topc{text-align:center}
+  .topc h2{color:#c4b5fd;font-size:15px;font-weight:700}
+  .topc p{color:#64748b;font-size:11px;margin-top:2px}
+  .meta{display:flex;gap:20px;font-size:13px;color:#64748b}
+  .meta b{color:#e2e8f0}
+  .live{color:#6ee7b7;animation:pulse 2s infinite}
+
+  /* ── Leader Showcase ── */
+  .leaders{display:flex;gap:1px;background:#1e293b;width:100%}
+  .leader-card{flex:1;padding:20px 24px;background:#0d0d1a}
+  .lc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+  .lc-name{font-size:22px;font-weight:800}
+  .lc-name.v{color:#a78bfa}.lc-name.e{color:#60a5fa}
+  .lc-role{color:#94a3b8;font-size:12px;margin-top:2px}
+  .lc-bio{color:#ccc;font-size:12px;line-height:1.6;margin-bottom:14px;border-left:3px solid;padding-left:12px}
+  .lc-bio.v{border-color:#a78bfa}.lc-bio.e{border-color:#60a5fa}
+  .arch{padding:4px 12px;border-radius:4px;font-size:11px;font-weight:800}
+  .arch.v{color:#a78bfa;background:#1e1b4b;border:1px solid #4338ca}
+  .arch.e{color:#60a5fa;background:#172554;border:1px solid #1d4ed8}
+
+  /* ASCII Radar */
+  .radar{font-size:11px;line-height:1.3;color:#64748b;background:#0a0a14;border:1px solid #1e293b;border-radius:6px;padding:10px 14px;white-space:pre;letter-spacing:.5px}
+  .radar .hi{font-weight:700}
+  .radar .v{color:#a78bfa}.radar .e{color:#60a5fa}
+  .radar .bar{color:#334155}
+
+  /* Sparkline */
+  .spark{font-size:13px;letter-spacing:1px;margin-top:8px}
+  .spark-label{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:1px}
+
+  /* ── Crisis ── */
+  .crisis{padding:10px 24px;background:linear-gradient(90deg,#1e1b4b,#312e81,#1e1b4b);border-bottom:1px solid #4338ca;text-align:center;width:100%}
+  .crisis b{color:#c4b5fd;font-size:16px}
+  .crisis span{color:#9ca3af;font-size:13px;margin-left:10px}
+
+  /* ── Stats Bar ── */
+  .stats{display:flex;justify-content:center;gap:40px;padding:16px 24px;background:#0a0a14;border-bottom:1px solid #1e293b;width:100%}
+  .st{text-align:center}
+  .st-v{font-size:32px;font-weight:800;line-height:1}
+  .st-v.v{color:#a78bfa}.st-v.e{color:#60a5fa}.st-v.vs{color:#334155;font-size:18px;padding:0 6px}
+  .st-l{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+
+  /* ── Divergence meter ── */
+  .divmeter{text-align:center;padding:8px 24px;background:#0a0a14;border-bottom:1px solid #1e293b;font-size:12px}
+  .divbar{color:#334155;letter-spacing:2px}
+  .divbar .v{color:#a78bfa}.divbar .e{color:#60a5fa}.divbar .center{color:#fbbf24}
+
+  /* ── Columns ── */
+  .cols{display:flex;gap:1px;background:#1e293b;flex:1;width:100%}
+  .col{flex:1;padding:16px 20px;background:#0d0d1a;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+
+  .col-h{display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #1e293b}
+  .cn{font-weight:800;font-size:18px}.cn.v{color:#a78bfa}.cn.e{color:#60a5fa}
+  .cl{color:#94a3b8;font-size:12px;margin-left:8px}
+
+  .gauges{display:flex;gap:8px}
+  .g{flex:1;background:#111;padding:8px 10px;border-radius:6px}
+  .gl{color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+  .gv{font-size:24px;font-weight:800;margin-top:2px;display:block}
+  .gb{height:4px;background:#222;margin-top:6px;border-radius:2px;overflow:hidden}
+  .gf{height:100%;border-radius:2px;animation:barGrow 1s ease both}
+
+  .dept{background:#111827;border:1px solid #1e293b;border-radius:6px;padding:12px;font-size:13px}
+  .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .dn{font-weight:700;font-size:14px}
+  .dhx{font-size:10px;color:#64748b;background:#0a0a14;padding:2px 8px;border-radius:3px}
+  .dt{color:#ccc;line-height:1.6}
+  .risk{margin-top:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .rd{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .rd.cr{background:#f87171}.rd.lo{background:#6ee7b7}
+
+  .forge{border-radius:6px;padding:10px 12px;font-size:12px;display:flex;align-items:center;gap:10px}
+  .forge.ok{background:#0c1a0c;border:1px solid #166534}
+  .forge.no{background:#1a0c0c;border:1px solid #7f1d1d;opacity:.6}
+  .fi{flex:1}
+  .fn{font-weight:700;font-size:14px}.fn.v{color:#a78bfa}.fn.e{color:#60a5fa}
+  .fm{color:#64748b;font-size:10px;margin-top:2px}
+  .jb{padding:4px 12px;border-radius:4px;font-size:11px;font-weight:800;white-space:nowrap}
+  .jb.p{background:#166534;color:#6ee7b7}.jb.f{background:#7f1d1d;color:#fca5a5}
+
+  /* Tool tree */
+  .tree{background:#0a0a14;border:1px solid #1e293b;border-radius:6px;padding:10px 14px;font-size:11px;color:#94a3b8;white-space:pre;line-height:1.5}
+  .tree .ok{color:#6ee7b7}.tree .no{color:#f87171}.tree .name{font-weight:700}
+
+  .dec{border-radius:6px;padding:14px;font-size:14px}
+  .dec.v{background:#1e1b4b;border:1px solid #4338ca}
+  .dec.e{background:#172554;border:1px solid #1d4ed8}
+  .dl{font-weight:800;font-size:15px;margin-bottom:6px}.dl.v{color:#c4b5fd}.dl.e{color:#93c5fd}
+  .ddt{color:#e2e8f0;line-height:1.6}
+  .out{margin-top:10px;display:flex;align-items:center;gap:10px}
+  .ob{padding:4px 12px;border-radius:4px;font-size:12px;font-weight:800}
+  .rs{background:#1e1b4b;color:#c4b5fd}.rf{background:#92400e;color:#fbbf24}.cs{background:#064e3b;color:#6ee7b7}.cf{background:#422006;color:#f87171}
+
+  .drift{background:#111;border-radius:6px;padding:10px 14px;font-size:12px;color:#94a3b8}
+  .drift b{font-weight:700;color:#64748b}
+
+  .code{background:#050510;border:1px solid #1e293b;border-radius:6px;padding:12px;font-size:12px;line-height:1.7}
+  .code-l{color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .kw{color:#c084fc}.str{color:#fbbf24}.fnn{color:#60a5fa}.cm{color:#334155}.err{color:#f87171}.okk{color:#6ee7b7}
+
+  .cites{background:#050510;border:1px solid #1e293b;border-radius:6px;padding:10px 14px;font-size:12px}
+  .cites-l{color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .ci{color:#6ee7b7;margin-bottom:3px}.ci-s{color:#334155;font-size:10px}
+
+  /* ── Timeline ── */
+  .tl{border-top:2px solid #1e293b;background:#080810;padding:16px 24px;width:100%}
+  .tl-h{color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+  .tl-c{display:flex;gap:1px;background:#1e293b}
+  .tl-col{flex:1;background:#080810;padding:6px;display:flex;flex-direction:column;gap:4px}
+  .tl-label{font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;margin-bottom:2px}
+  .tl-label.v{color:#a78bfa;background:#1e1b4b}.tl-label.e{color:#60a5fa;background:#172554}
+  .tr{padding:8px 12px;background:#111;border-radius:4px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+  .tr.now{border:1px solid}.tr.now.v{border-color:#4338ca;background:#1e1b4b}.tr.now.e{border-color:#1d4ed8;background:#172554}
+  .ty{font-weight:800;min-width:40px}.ty.v{color:#a78bfa}.ty.e{color:#60a5fa}
+  .tt{flex:1;margin:0 12px;color:#ccc}
+
+  .footer{padding:12px 24px;background:#0a0a14;border-top:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#475569;width:100%}
+  .fl{display:flex;gap:16px}.fl a{color:#6366f1;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- TOP -->
+<div class="top">
+  <div class="logo">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#6366F1"/><stop offset="50%" style="stop-color:#8B5CF6"/><stop offset="100%" style="stop-color:#EC4899"/></linearGradient></defs><circle cx="32" cy="32" r="8" fill="url(#g)"/><circle cx="32" cy="12" r="4" fill="#6366F1" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#8B5CF6" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#EC4899" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#06B6D4" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#8B5CF6" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#6366F1" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#g)" stroke-width="1.5" opacity=".5"/></svg>
+    <div><h1>AgentOS</h1><small>MARS GENESIS v3</small></div>
+  </div>
+  <div class="topc"><h2>Live Emergent Agent Simulation</h2><p>Personality-driven multi-agent colony simulation with runtime tool forging</p></div>
+  <div class="meta"><span>Turn <b>5</b>/12</span><span>Year <b>2046</b></span><span>Seed <b>950</b></span><span class="live">● Live</span></div>
+</div>
+
+<!-- LEADER SHOWCASE -->
+<div class="leaders">
+  <div class="leader-card af">
+    <div class="lc-top">
+      <div><div class="lc-name v">Commander Aria Chen</div><div class="lc-role">Founding Leader · Ares Horizon Colony</div></div>
+      <span class="arch v">THE VISIONARY</span>
+    </div>
+    <div class="lc-bio v">"Fortune favors the bold. We didn't cross 55 million kilometers to play it safe. Every setback is a lesson, every risk is an investment in our future."</div>
+    <div style="display:flex;gap:12px">
+      <div class="radar" style="flex:1"><span class="v hi">HEXACO PERSONALITY</span>
+Openness         <span class="v">████████████████████</span><span class="bar">░░</span> <span class="v hi">0.95</span>
+Conscientiousness <span class="v">███████</span><span class="bar">░░░░░░░░░░░░░░░</span> <span class="v">0.35</span>
+Extraversion     <span class="v">█████████████████</span><span class="bar">░░░░░</span> <span class="v hi">0.85</span>
+Agreeableness    <span class="v">███████████</span><span class="bar">░░░░░░░░░░░</span> <span class="v">0.55</span>
+Emotionality     <span class="v">██████</span><span class="bar">░░░░░░░░░░░░░░░░</span> <span class="v">0.30</span>
+Honesty-Humility <span class="v">█████████████</span><span class="bar">░░░░░░░░░</span> <span class="v">0.65</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <div class="radar"><span class="v hi">POPULATION TREND</span>
+<span class="spark-label">Turns 1-5</span>
+<span class="spark" style="color:#a78bfa">▁▂▃▅▇ 100→287</span> <span style="color:#6ee7b7;font-size:10px">+187%</span></div>
+        <div class="radar"><span class="v hi">MORALE TREND</span>
+<span class="spark-label">Turns 1-5</span>
+<span class="spark" style="color:#fbbf24">█▇▆▅▅ 85%→71%</span> <span style="color:#f87171;font-size:10px">-14%</span></div>
+        <div class="radar"><span class="v hi">LEADERSHIP STYLE</span>
+Risk tolerance:  <span class="v">██████████████████</span> HIGH
+Decision speed:  <span class="v">████████████████</span>   FAST
+Data reliance:   <span class="v">████████</span>           LOW
+Morale priority: <span class="v">██████████████</span>     MED</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="leader-card af" style="animation-delay:.1s">
+    <div class="lc-top">
+      <div><div class="lc-name e">Commander Dietrich Voss</div><div class="lc-role">Founding Leader · Meridian Base Colony</div></div>
+      <span class="arch e">THE ENGINEER</span>
+    </div>
+    <div class="lc-bio e">"Measure twice, cut once. Every gram of oxygen is accounted for. I will not gamble with 142 lives for the sake of ambition."</div>
+    <div style="display:flex;gap:12px">
+      <div class="radar" style="flex:1"><span class="e hi">HEXACO PERSONALITY</span>
+Openness         <span class="e">█████</span><span class="bar">░░░░░░░░░░░░░░░░░</span> <span class="e">0.25</span>
+Conscientiousness <span class="e">████████████████████</span><span class="bar">░</span> <span class="e hi">0.97</span>
+Extraversion     <span class="e">██████</span><span class="bar">░░░░░░░░░░░░░░░░</span> <span class="e">0.30</span>
+Agreeableness    <span class="e">█████████</span><span class="bar">░░░░░░░░░░░░░</span> <span class="e">0.45</span>
+Emotionality     <span class="e">██████████████</span><span class="bar">░░░░░░░░░</span> <span class="e hi">0.70</span>
+Honesty-Humility <span class="e">██████████████████</span><span class="bar">░░░░</span> <span class="e hi">0.90</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <div class="radar"><span class="e hi">POPULATION TREND</span>
+<span class="spark-label">Turns 1-5</span>
+<span class="spark" style="color:#60a5fa">▁▁▂▂▃ 100→142</span> <span style="color:#6ee7b7;font-size:10px">+42%</span></div>
+        <div class="radar"><span class="e hi">MORALE TREND</span>
+<span class="spark-label">Turns 1-5</span>
+<span class="spark" style="color:#6ee7b7">█▇▇▇█ 85%→83%</span> <span style="color:#6ee7b7;font-size:10px">-2%</span></div>
+        <div class="radar"><span class="e hi">LEADERSHIP STYLE</span>
+Risk tolerance:  <span class="e">█████</span>              LOW
+Decision speed:  <span class="e">████████████</span>       MED
+Data reliance:   <span class="e">██████████████████</span> HIGH
+Morale priority: <span class="e">████████████████</span>   HIGH</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CRISIS -->
+<div class="crisis af" style="animation-delay:.15s">
+  <b>⚡ CRISIS: Solar Particle Event</b>
+  <span>Massive CME aimed at Mars. 4 hours to impact. No magnetosphere. 100-500 mSv unshielded.</span>
+</div>
+
+<!-- STATS -->
+<div class="stats af" style="animation-delay:.2s">
+  <div class="st"><div><span class="st-v v">287</span><span class="st-v vs">vs</span><span class="st-v e">142</span></div><div class="st-l">Population</div></div>
+  <div class="st"><div><span class="st-v" style="color:#fbbf24">71%</span><span class="st-v vs">vs</span><span class="st-v" style="color:#6ee7b7">83%</span></div><div class="st-l">Morale</div></div>
+  <div class="st"><div><span class="st-v" style="color:#f87171">8</span><span class="st-v vs">vs</span><span class="st-v" style="color:#6ee7b7">0</span></div><div class="st-l">Deaths</div></div>
+  <div class="st"><div><span class="st-v v">7</span><span class="st-v vs">vs</span><span class="st-v e">5</span></div><div class="st-l">Tools Forged</div></div>
+  <div class="st"><div><span class="st-v" style="color:#fbbf24">2</span><span class="st-v vs">vs</span><span class="st-v" style="color:#6ee7b7">0</span></div><div class="st-l">Rejections</div></div>
+  <div class="st"><div><span class="st-v" style="color:#e2e8f0">18</span><span class="st-v vs">/</span><span class="st-v" style="color:#e2e8f0">15</span></div><div class="st-l">Citations</div></div>
+</div>
+
+<!-- DIVERGENCE METER -->
+<div class="divmeter af" style="animation-delay:.25s">
+  <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Decision Divergence Index</div>
+  <div class="divbar" style="font-size:14px;letter-spacing:1px"><span class="v">RISK ◄</span> ════════<span class="center">╬</span>══════════════ <span class="e">► SAFETY</span></div>
+  <div style="color:#64748b;font-size:10px;margin-top:4px">5/5 turns divergent · 0 matching decisions</div>
+</div>
+
+<!-- COLUMNS -->
+<div class="cols">
+  <!-- LEFT -->
+  <div class="col">
+    <div class="col-h af"><div><span class="cn v">ARES HORIZON</span><span class="cl">Cmdr. Aria Chen</span></div><span class="arch v" style="font-size:10px">VISIONARY</span></div>
+    <div class="gauges af" style="animation-delay:.3s">
+      <div class="g"><span class="gl">Pop</span><span class="gv" style="color:#e2e8f0">287</span><div class="gb"><div class="gf" style="width:72%;background:#a78bfa"></div></div></div>
+      <div class="g"><span class="gl">Morale</span><span class="gv" style="color:#fbbf24">71%</span><div class="gb"><div class="gf" style="width:71%;background:#fbbf24"></div></div></div>
+      <div class="g"><span class="gl">Food</span><span class="gv" style="color:#6ee7b7">14mo</span></div>
+      <div class="g"><span class="gl">Deaths</span><span class="gv" style="color:#f87171">8</span></div>
+    </div>
+    <div class="dept af" style="animation-delay:.35s"><div class="dh"><span class="dn" style="color:#f9a8d4">🏥 Dr. Idris Cruz</span><span class="dhx">O:0.71 C:0.65</span></div><div class="dt">"12 colonists in perimeter modules. Estimated exposure 150-300 mSv. Triage protocol required immediately."</div><div class="risk"><span class="rd cr"></span> CRITICAL: 12 colonists above acute radiation threshold</div></div>
+
+    <!-- Tool tree -->
+    <div class="tree af" style="animation-delay:.4s"><span class="name v">TOOL REGISTRY (Turn 5)</span>
+├── <span class="ok">✓</span> <span class="name">mars_site_risk_scorer</span>        <span style="color:#475569">T1 compose</span>
+├── <span class="ok">✓</span> <span class="name">water_strategy_risk_model</span>    <span style="color:#475569">T2 sandbox</span>
+├── <span class="no">✗</span> <span style="text-decoration:line-through;color:#555">bioremediation_predictor</span>     <span style="color:#7f1d1d">REJECTED</span>
+├── <span class="ok">✓</span> <span class="name">population_growth_model</span>      <span style="color:#475569">T4 sandbox</span>
+├── <span class="ok">✓</span> <span class="name">radiation_triage_protocol</span>    <span style="color:#475569">T5 compose</span>
+├── <span class="no">✗</span> <span style="text-decoration:line-through;color:#555">exposure_predictor</span>           <span style="color:#7f1d1d">REJECTED</span>
+└── <span style="color:#475569">7 tools · 2 rejected · 71% approval rate</span></div>
+
+    <div class="dec v af" style="animation-delay:.45s"><div class="dl v">⚡ DECISION</div><div class="ddt">"Accept casualties. Expansion cannot stop. Pull who we can but do not abandon the perimeter."</div><div class="out"><span class="ob rf">⚠ RISKY FAILURE</span><span style="color:#f87171;font-size:12px">12 colonists received 200+ mSv</span></div></div>
+    <div class="drift af" style="animation-delay:.5s"><b>DRIFT:</b> Cruz <span style="color:#a78bfa">O:0.71↑</span> <span style="color:#fbbf24">C:0.65↓</span> · Bakker <span style="color:#a78bfa">O:0.42↑</span> · Patel <span style="color:#a78bfa">O:0.68↑</span></div>
+    <div class="code af" style="animation-delay:.55s"><div class="code-l">Code Executing</div><code><span class="kw">const</span> outcome = classifyOutcome(decision, <span class="str">"expansion"</span>, <span class="str">0.40</span>, colony, rng);</code><br><code><span class="fnn">kernel</span>.applyDrift(aria.hexaco, <span class="err">"risky_failure"</span>, <span class="str">3</span>);</code><br><code class="cm">// Cruz: O 0.68→0.71 (leader +0.03) → 0.67 (failure -0.04)</code></div>
+    <div class="cites af" style="animation-delay:.6s"><div class="cites-l">Citations</div><div class="ci">📚 Cucinotta et al. 2010 <span class="ci-s">NASA radiation risk · DOI:10.1667/RR2397.1</span></div><div class="ci">📚 Acuña et al. 1999 <span class="ci-s">Mars magnetosphere · Science 284:5415</span></div><div class="ci">📚 Guo et al. 2018 <span class="ci-s">Curiosity CME · DOI:10.1029/2018GL077731</span></div></div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+    <div class="col-h af"><div><span class="cn e">MERIDIAN BASE</span><span class="cl">Cmdr. Dietrich Voss</span></div><span class="arch e" style="font-size:10px">ENGINEER</span></div>
+    <div class="gauges af" style="animation-delay:.3s">
+      <div class="g"><span class="gl">Pop</span><span class="gv" style="color:#e2e8f0">142</span><div class="gb"><div class="gf" style="width:36%;background:#60a5fa"></div></div></div>
+      <div class="g"><span class="gl">Morale</span><span class="gv" style="color:#6ee7b7">83%</span><div class="gb"><div class="gf" style="width:83%;background:#6ee7b7"></div></div></div>
+      <div class="g"><span class="gl">Food</span><span class="gv" style="color:#6ee7b7">22mo</span></div>
+      <div class="g"><span class="gl">Deaths</span><span class="gv" style="color:#6ee7b7">0</span></div>
+    </div>
+    <div class="dept af" style="animation-delay:.35s"><div class="dh"><span class="dn" style="color:#f9a8d4">🏥 Dr. Yuki Tanaka</span><span class="dhx">O:0.38 C:0.88</span></div><div class="dt">"All personnel secured in reinforced core 3 hours before impact. Zero exposure expected. Protocol 5C activated as designed."</div><div class="risk"><span class="rd lo"></span> LOW: minor confinement stress, manageable</div></div>
+
+    <div class="tree af" style="animation-delay:.4s"><span class="name e">TOOL REGISTRY (Turn 5)</span>
+├── <span class="ok">✓</span> <span class="name">structural_load_analyzer</span>     <span style="color:#475569">T1 sandbox 0.94</span>
+├── <span class="ok">✓</span> <span class="name">life_support_capacity_model</span>  <span style="color:#475569">T2 sandbox 0.91</span>
+├── <span class="ok">✓</span> <span class="name">hydroponic_yield_calculator</span>  <span style="color:#475569">T3 sandbox 0.93</span>
+├── <span class="ok">✓</span> <span class="name">population_safety_model</span>      <span style="color:#475569">T4 sandbox 0.90</span>
+├── <span class="ok">✓</span> <span class="name">radiation_dose_calculator</span>    <span style="color:#475569">T5 sandbox 0.94</span>
+└── <span style="color:#475569">5 tools · 0 rejected · 100% approval rate</span></div>
+
+    <div class="dec e af" style="animation-delay:.45s"><div class="dl e">⚡ DECISION</div><div class="ddt">"All personnel to reinforced core. Zero exposure. Protocol 5C executed exactly as designed."</div><div class="out"><span class="ob cs">✓ CONSERVATIVE SUCCESS</span><span style="color:#6ee7b7;font-size:12px">0 colonists exposed</span></div></div>
+    <div class="drift af" style="animation-delay:.5s"><b>DRIFT:</b> Tanaka <span style="color:#60a5fa">O:0.38↓</span> <span style="color:#6ee7b7">C:0.88↑</span> · Lindqvist <span style="color:#60a5fa">O:0.28↓</span> <span style="color:#6ee7b7">C:0.92↑</span></div>
+    <div class="code af" style="animation-delay:.55s"><div class="code-l">Code Executing</div><code><span class="kw">const</span> outcome = classifyOutcome(decision, <span class="str">"expansion"</span>, <span class="str">0.40</span>, colony, rng);</code><br><code><span class="fnn">kernel</span>.applyDrift(dietrich.hexaco, <span class="okk">"conservative_success"</span>, <span class="str">3</span>);</code><br><code class="cm">// Tanaka: O 0.40→0.38 (leader -0.02) C 0.86→0.88 (role +0.02)</code></div>
+    <div class="cites af" style="animation-delay:.6s"><div class="cites-l">Citations</div><div class="ci">📚 Cucinotta et al. 2010 <span class="ci-s">NASA radiation risk · DOI:10.1667/RR2397.1</span></div><div class="ci">📚 Acuña et al. 1999 <span class="ci-s">Mars magnetosphere · Science 284:5415</span></div><div class="ci">📚 Hassler et al. 2014 <span class="ci-s">RAD surface dose · DOI:10.1126/science.1244797</span></div></div>
+  </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="tl">
+  <div class="tl-h">Event Timeline — Side-by-Side Comparison</div>
+  <div class="tl-c">
+    <div class="tl-col">
+      <div class="tl-label v">ARES HORIZON (Visionary)</div>
+      <div class="tr af"><span class="ty v">2035</span><span class="tt">Valles Marineris — bold site</span><span class="ob rs" style="font-size:9px;padding:2px 8px">✓ risky</span></div>
+      <div class="tr af" style="animation-delay:.05s"><span class="ty v">2037</span><span class="tt">Experimental deep drill</span><span class="ob rs" style="font-size:9px;padding:2px 8px">✓ risky</span></div>
+      <div class="tr af" style="animation-delay:.1s"><span class="ty v">2040</span><span class="tt">Bioremediation bacteria</span><span class="ob rf" style="font-size:9px;padding:2px 8px">⚠ failure</span></div>
+      <div class="tr af" style="animation-delay:.15s"><span class="ty v">2043</span><span class="tt">Accept all 200 colonists</span><span class="ob rf" style="font-size:9px;padding:2px 8px">⚠ failure</span></div>
+      <div class="tr now v af" style="animation-delay:.2s"><span class="ty v">2046 ◄</span><span class="tt" style="color:#f87171">12 exposed, expansion first</span><span class="ob rf" style="font-size:9px;padding:2px 8px">⚠ failure</span></div>
+    </div>
+    <div class="tl-col">
+      <div class="tl-label e">MERIDIAN BASE (Engineer)</div>
+      <div class="tr af"><span class="ty e">2035</span><span class="tt">Arcadia Planitia — safe site</span><span class="ob cs" style="font-size:9px;padding:2px 8px">✓ conserv</span></div>
+      <div class="tr af" style="animation-delay:.05s"><span class="ty e">2037</span><span class="tt">WAVAR atmospheric system</span><span class="ob cs" style="font-size:9px;padding:2px 8px">✓ conserv</span></div>
+      <div class="tr af" style="animation-delay:.1s"><span class="ty e">2040</span><span class="tt">Full hydroponic conversion</span><span class="ob cs" style="font-size:9px;padding:2px 8px">✓ conserv</span></div>
+      <div class="tr af" style="animation-delay:.15s"><span class="ty e">2043</span><span class="tt">Accept 50, upgrade first</span><span class="ob cs" style="font-size:9px;padding:2px 8px">✓ conserv</span></div>
+      <div class="tr now e af" style="animation-delay:.2s"><span class="ty e">2046 ◄</span><span class="tt" style="color:#6ee7b7">All in core, zero exposure</span><span class="ob cs" style="font-size:9px;padding:2px 8px">✓ conserv</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div>Built with <a href="https://agentos.sh">AgentOS</a> · emergent tool forging · HEXACO personality · deterministic kernel · <code style="color:#6366f1">npm i @framers/agentos</code></div>
+  <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/VXXC4SJMKh">discord</a></div>
+</div>
+
+</body>
+</html>
