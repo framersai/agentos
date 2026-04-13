@@ -1,8 +1,9 @@
 /**
  * @fileoverview CognitiveMechanismsEngine — lifecycle hook orchestrator.
  *
- * Instantiates and delegates to 8 cognitive mechanisms across 5 lifecycle
+ * Instantiates and delegates to 8 core cognitive mechanisms across 5 lifecycle
  * hooks: onAccess, onRetrieval, onEncoding, onConsolidation, onPromptAssembly.
+ * Optional persona drift analysis runs as a separate consolidation-time pass.
  *
  * Cognitive science mechanisms:
  * - **Reconsolidation** (Nader, Schafe & Le Doux, 2000)
@@ -133,7 +134,7 @@ function applyPersonalityModulation(
 // ---------------------------------------------------------------------------
 
 /**
- * Orchestrates 8 cognitive mechanisms across the memory pipeline lifecycle.
+ * Orchestrates 8 core cognitive mechanisms across the memory pipeline lifecycle.
  *
  * When `cognitiveMechanisms` config is present on `CognitiveMemoryConfig`,
  * an instance is created during initialization. Existing pipeline files
@@ -254,7 +255,7 @@ export class CognitiveMechanismsEngine {
     const sourceDecayedCount = applySourceConfidenceDecay(traces, this.cfg.sourceConfidenceDecay);
     const regulatedCount = applyEmotionRegulation(traces, this.cfg.emotionRegulation);
 
-    // 9th mechanism: Persona Drift (heuristic, no LLM call)
+    // Optional persona drift pass (heuristic, no LLM call)
     let driftProposals: PersonalityDriftProposal[] = [];
     if (this.personaDriftCfg.enabled && this.hexaco) {
       driftProposals = analyzePersonaDrift(traces, this.hexaco, this.personaDriftCfg);
