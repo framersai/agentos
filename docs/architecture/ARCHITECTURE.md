@@ -162,7 +162,7 @@ src/
 │  grounding guard     │  capability discovery                │
 ├──────────────────────┴──────────────────────────────────────┤
 │  Memory & RAG                                               │
-│  4-tier memory · 8 cognitive mechanisms · HEXACO-modulated  │
+│  4-tier memory · 8 core cognitive mechanisms + optional drift │
 │  7 vector backends · HyDE · GraphRAG · hybrid retrieval     │
 ├─────────────────────────────────────────────────────────────┤
 │  LLM Providers (21)                                         │
