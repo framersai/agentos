@@ -29,4 +29,7 @@ export { MemorySearchTool } from './MemorySearchTool.js';
 export type { MemorySearchInput, MemorySearchOutput, MemorySearchResult } from './MemorySearchTool.js';
 export { MemoryReflectTool } from './MemoryReflectTool.js';
 export type { MemoryReflectInput } from './MemoryReflectTool.js';
+/** Opt-in tool for rehydrating gisted/archived memory traces. */
+export { RehydrateMemoryTool } from './RehydrateMemoryTool.js';
+export type { RehydrateMemoryInput, RehydrateMemoryOutput } from './RehydrateMemoryTool.js';
 //# sourceMappingURL=index.d.ts.map

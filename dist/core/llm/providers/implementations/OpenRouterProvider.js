@@ -9,11 +9,13 @@
  */
 import axios from 'axios';
 import { OpenRouterProviderError } from '../errors/OpenRouterProviderError.js';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 import { createGMIErrorFromError, GMIErrorCode } from '../../../../core/utils/errors.js'; // Corrected import path
 export class OpenRouterProvider {
     constructor() {
         this.providerId = 'openrouter';
         this.isInitialized = false;
+        this.keyPool = null;
         this.availableModelsCache = new Map();
     }
     async initialize(config) {
@@ -31,9 +33,10 @@ export class OpenRouterProvider {
             requestTimeout: config.requestTimeout || 60000,
             streamRequestTimeout: config.streamRequestTimeout || 180000,
         });
+        this.keyPool = new ApiKeyPool(config.apiKey);
         this.defaultModelId = this.config.defaultModelId; // Store the potentially undefined value
         const headers = {
-            'Authorization': `Bearer ${this.config.apiKey}`,
+            'Authorization': `Bearer ${this.keyPool.next()}`,
             'Content-Type': 'application/json',
             'User-Agent': `AgentOS/1.0 (OpenRouterProvider; ${this.config.appName || 'UnknownApp'})`,
         };

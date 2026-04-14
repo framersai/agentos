@@ -53,7 +53,7 @@ Two AI commanders. Same colony. Different HEXACO personalities. Watch emergent c
 - **Personality evolution** over 50 simulated years
 - **Live side-by-side dashboard** with SSE streaming
 
-The entire simulation runs on `agent()`, `EmergentCapabilityEngine`, and `generateText()` from this package.
+The demo combines the lightweight `agent()` facade with lower-level runtime systems such as `EmergentCapabilityEngine` and `generateText()` from this package.
 
 **[View Demo Repo →](https://github.com/framersai/mars-genesis-simulation)**
 
@@ -169,7 +169,10 @@ const tutor = agent({
     conscientiousness: 0.95,
     agreeableness: 0.85,
   },
-  memory: { enabled: true, cognitive: true },
+  memory: {
+    types: ['episodic', 'semantic'],
+    working: { enabled: true, maxTokens: 1200 },
+  },
 });
 
 const session = tutor.session('student-1');
@@ -224,6 +227,14 @@ const graph = new AgentGraph('review').addNode('draft', gmiNode({...})).addNode(
 // 3. mission() — goal-driven, planner decides steps
 const m = mission('research').goal('Research {topic}').planner({ strategy: 'adaptive' }).compile();
 ```
+
+## API Surfaces
+
+AgentOS exposes related entry points at different depths. The shared config surface does not imply identical enforcement across them.
+
+- The lightweight `agent()` facade owns prompt assembly, sessions, personality shaping, hooks, tools, and usage-ledger forwarding.
+- `generateText()` and `streamText()` are the low-level generation helpers for provider control, native tool calling, and text-fallback tool loops.
+- The full `AgentOS` runtime and `agency()` own emergent tooling, guardrails, discovery, RAG initialization, permissions/security tiers, HITL, channels/voice, and provenance-aware orchestration.
 
 ---
 
@@ -305,8 +316,8 @@ The slash format only splits on known provider prefixes (`openai`, `anthropic`, 
 | `generateMusic()` / `generateSFX()` | Audio generation |
 | `performOCR()` | Text extraction from images |
 | `embedText()` | Embedding generation |
-| `agent()` | Stateful agent with personality, memory, sessions |
-| `agency()` | Multi-agent teams with strategy coordination |
+| `agent()` | Lightweight stateful agent for prompts, tools, memory, and sessions |
+| `agency()` | Multi-agent teams plus full runtime-owned orchestration features |
 
 ### Orchestration
 

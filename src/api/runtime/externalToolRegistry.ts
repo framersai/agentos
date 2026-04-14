@@ -1,4 +1,5 @@
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import type { UserContext } from '../../cognitive_substrate/IGMI';
 
 import type { ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator';
 import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
@@ -85,6 +86,50 @@ type TemporaryExternalToolRegistration = {
 };
 
 const temporaryExternalToolRefs = new WeakMap<object, Map<string, TemporaryExternalToolRefState>>();
+
+export function normalizeOptionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+export function buildScopedExternalToolContextParts(input: {
+  userId: string;
+  organizationId?: string;
+  sessionId?: string;
+  conversationId?: string;
+  userContext?: Record<string, unknown>;
+}): {
+  userContext: UserContext;
+  sessionData: Record<string, unknown>;
+} {
+  const organizationId = normalizeOptionalString(input.organizationId);
+  const userContext: UserContext = {
+    ...(input.userContext ?? {}),
+    userId: input.userId,
+  };
+  if (organizationId) {
+    userContext.organizationId = organizationId;
+  }
+
+  const sessionData: Record<string, unknown> = {};
+  const sessionId = normalizeOptionalString(input.sessionId);
+  const conversationId = normalizeOptionalString(input.conversationId);
+  if (sessionId) {
+    sessionData.sessionId = sessionId;
+  }
+  if (conversationId) {
+    sessionData.conversationId = conversationId;
+  }
+  if (organizationId) {
+    sessionData.organizationId = organizationId;
+  }
+
+  return { userContext, sessionData };
+}
 
 function isIterableRegistry(value: unknown): value is Iterable<NamedExternalToolRegistryEntry> {
   return (

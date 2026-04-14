@@ -224,6 +224,17 @@ export interface CognitiveMemoryConfig {
      * @default undefined (no reranking)
      */
     rerankerService?: import('../../rag/reranking/RerankerService.js').RerankerService;
+    /**
+     * Optional memory archive for write-ahead verbatim preservation.
+     *
+     * When provided, TemporalGist preserves the original content in cold
+     * storage before overwriting with the gist. Enables on-demand rehydration
+     * via `CognitiveMemoryManager.rehydrate()`.
+     *
+     * @default undefined (no archive — gist is destructive)
+     * @see {@link IMemoryArchive} — the archive contract
+     */
+    archive?: import('../archive/IMemoryArchive.js').IMemoryArchive;
 }
 export declare const DEFAULT_ENCODING_CONFIG: EncodingConfig;
 export declare const DEFAULT_DECAY_CONFIG: DecayConfig;

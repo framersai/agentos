@@ -23,6 +23,7 @@
  */
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Session Implementation
 // ---------------------------------------------------------------------------
@@ -227,13 +228,16 @@ export class ElevenLabsStreamingTTS {
     constructor(config) {
         this.config = config;
         this.providerId = 'elevenlabs-streaming';
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Create a new streaming TTS session connected to ElevenLabs.
      * The session opens a WebSocket and is ready to receive text tokens.
+     * Each session gets a fresh key from the round-robin pool.
      */
     async startSession(config) {
-        const session = new ElevenLabsStreamingTTSSession(this.config, config ?? {});
+        const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };
+        const session = new ElevenLabsStreamingTTSSession(resolvedConfig, config ?? {});
         await session.connect();
         return session;
     }

@@ -100,6 +100,7 @@ export declare class DeepgramBatchSTTProvider implements SpeechToTextProvider {
      * });
      * ```
      */
+    private readonly keyPool;
     constructor(config: DeepgramBatchSTTProviderConfig);
     /**
      * Returns the human-readable provider name.

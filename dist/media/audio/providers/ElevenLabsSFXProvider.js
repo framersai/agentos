@@ -18,6 +18,8 @@
  *
  * @see {@link IAudioGenerator} for the provider interface contract.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
+import { isQuotaError } from '../../../core/providers/quotaErrors.js';
 // ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
@@ -69,6 +71,7 @@ export class ElevenLabsSFXProvider {
                 ? config.baseURL.trim()
                 : 'https://api.elevenlabs.io/v1',
         };
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -102,14 +105,26 @@ export class ElevenLabsSFXProvider {
         };
         if (request.durationSec !== undefined)
             body.duration_seconds = request.durationSec;
-        const response = await fetch(url, {
+        const doFetch = (key) => fetch(url, {
             method: 'POST',
             headers: {
-                'xi-api-key': this._config.apiKey,
+                'xi-api-key': key,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
         });
+        const key = this.keyPool.next();
+        let response = await doFetch(key);
+        if (!response.ok && this.keyPool.size > 1) {
+            const errBody = await response.text().catch(() => '');
+            if (isQuotaError(response.status, errBody)) {
+                this.keyPool.markExhausted(key);
+                response = await doFetch(this.keyPool.next());
+            }
+            else {
+                throw new Error(`ElevenLabs SFX generation failed (${response.status}): ${errBody}`);
+            }
+        }
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`ElevenLabs SFX generation failed (${response.status}): ${errorText}`);

@@ -1,3 +1,4 @@
+import type { UserContext } from '../../cognitive_substrate/IGMI';
 import type { ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator';
 import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type { ToolExecutionContext, ToolExecutionResult, ITool, JSONSchemaObject } from '../../core/tools/ITool';
@@ -28,6 +29,17 @@ export interface OpenAIFunctionToolSchema {
         parameters: JSONSchemaObject;
     };
 }
+export declare function normalizeOptionalString(value: unknown): string | undefined;
+export declare function buildScopedExternalToolContextParts(input: {
+    userId: string;
+    organizationId?: string;
+    sessionId?: string;
+    conversationId?: string;
+    userContext?: Record<string, unknown>;
+}): {
+    userContext: UserContext;
+    sessionData: Record<string, unknown>;
+};
 export declare function normalizeExternalToolRegistry(registry: ExternalToolRegistry | undefined): NormalizedExternalToolRegistry | undefined;
 export declare function mergeExternalToolRegistries(...registries: Array<ExternalToolRegistry | undefined>): NormalizedExternalToolRegistry | undefined;
 export declare function listPromptAwareExternalTools(registry: ExternalToolRegistry | undefined): PromptAwareExternalToolRegistryEntry[];

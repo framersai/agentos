@@ -25,6 +25,7 @@
  * @see {@link ReplicateVideoProvider} for the video counterpart using
  *   the same Replicate pattern.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -126,6 +127,7 @@ export class SunoProvider {
                 : 300000,
         };
         this.defaultModelId = this._config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -235,7 +237,7 @@ export class SunoProvider {
         const response = await fetch(`${this._config.baseURL}/predictions`, {
             method: 'POST',
             headers: {
-                Authorization: `Token ${this._config.apiKey}`,
+                Authorization: `Token ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
                 Prefer: 'wait=60',
             },
@@ -261,7 +263,7 @@ export class SunoProvider {
         while (Date.now() - startedAt < this._config.timeoutMs) {
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Token ${this._config.apiKey}`,
+                    Authorization: `Token ${this.keyPool.next()}`,
                 },
             });
             if (!response.ok) {

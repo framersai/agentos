@@ -94,6 +94,8 @@ export declare class ElevenLabsTextToSpeechProvider implements TextToSpeechProvi
     readonly supportsStreaming = true;
     /** Fetch implementation — injected for testability, defaults to global fetch. */
     private readonly fetchImpl;
+    /** API key pool for round-robin rotation and quota failover. */
+    private readonly keyPool;
     /**
      * Creates a new ElevenLabsTextToSpeechProvider.
      *

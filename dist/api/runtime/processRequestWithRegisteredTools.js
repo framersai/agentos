@@ -1,14 +1,7 @@
 import { AgentOSServiceError } from '../errors.js';
 import { GMIErrorCode } from '../../core/utils/errors.js';
-import { executeExternalToolFromRegistry, mergeExternalToolRegistries, registerTemporaryExternalTools, } from './externalToolRegistry.js';
+import { buildScopedExternalToolContextParts, executeExternalToolFromRegistry, mergeExternalToolRegistries, normalizeOptionalString, registerTemporaryExternalTools, } from './externalToolRegistry.js';
 import { processRequestWithExternalTools, } from './processRequestWithExternalTools.js';
-function normalizeOptionalString(value) {
-    if (typeof value !== 'string') {
-        return undefined;
-    }
-    const trimmed = value.trim();
-    return trimmed || undefined;
-}
 function resolveExternalToolsForRuntime(agentos, registry) {
     return mergeExternalToolRegistries(agentos.getExternalToolRegistry?.(), registry);
 }
@@ -18,33 +11,23 @@ function resolveExternalToolsForRuntime(agentos, registry) {
  * `processRequest(...)` stream.
  */
 export function buildRegisteredExternalToolExecutionContext(input, context, options = {}) {
-    const userContext = {
-        ...(options.userContext ?? {}),
-        userId: input.userId,
-    };
     const organizationId = normalizeOptionalString(options.organizationId ??
         context.requestChunk.metadata?.organizationId ??
         input.organizationId ??
-        userContext.organizationId);
-    if (organizationId) {
-        userContext.organizationId = organizationId;
-    }
+        options.userContext?.organizationId);
     const sessionId = normalizeOptionalString(context.requestChunk.metadata?.sessionId) ??
         normalizeOptionalString(input.sessionId) ??
         undefined;
     const conversationId = normalizeOptionalString(context.requestChunk.metadata?.conversationId) ??
         normalizeOptionalString(input.conversationId) ??
         sessionId;
-    const sessionData = {};
-    if (sessionId) {
-        sessionData.sessionId = sessionId;
-    }
-    if (conversationId) {
-        sessionData.conversationId = conversationId;
-    }
-    if (organizationId) {
-        sessionData.organizationId = organizationId;
-    }
+    const { userContext, sessionData } = buildScopedExternalToolContextParts({
+        userId: input.userId,
+        organizationId,
+        sessionId,
+        conversationId,
+        userContext: options.userContext,
+    });
     return {
         gmiId: context.requestChunk.gmiInstanceId,
         personaId: context.requestChunk.personaId,

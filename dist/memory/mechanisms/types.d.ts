@@ -151,6 +151,12 @@ export interface MechanismMetadata {
         previousValence: number;
         previousArousal: number;
     }>;
+    /** PerspectiveObserver: trace was encoded through a persona lens. */
+    perspectiveEncoded?: boolean;
+    /** PerspectiveObserver: ID of the source objective event. */
+    perspectiveSourceEventId?: string;
+    /** PerspectiveObserver: SHA-256 of the source objective event content. */
+    perspectiveSourceHash?: string;
 }
 export interface ResolvedReconsolidationConfig {
     enabled: boolean;
@@ -181,6 +187,10 @@ export interface ResolvedTemporalGistConfig {
     minRetrievalCount: number;
     preserveEntities: boolean;
     preserveEmotionalContext: boolean;
+    /** Optional archive for write-ahead verbatim preservation before gisting. */
+    archive?: import('../archive/IMemoryArchive.js').IMemoryArchive;
+    /** Agent ID for archive records. Required when archive is set. */
+    archiveAgentId?: string;
 }
 export interface ResolvedSchemaEncodingConfig {
     enabled: boolean;

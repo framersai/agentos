@@ -110,8 +110,8 @@ export class LLMVisionProvider {
         // Lazy import to avoid loading the full API machinery until needed
         const { generateText } = await import('../../api/generateText.js');
         // Build the multimodal message with text prompt + image.
-        // The content array format is the standard multimodal message shape
-        // accepted by all major vision LLM providers (OpenAI, Anthropic, Gemini).
+        // Message.content now natively accepts MessageContentPart[] so we
+        // pass the structured array directly instead of JSON.stringify.
         const result = await generateText({
             provider: this._config.provider,
             model: this._config.model,
@@ -119,12 +119,10 @@ export class LLMVisionProvider {
             baseUrl: this._config.baseUrl,
             messages: [{
                     role: 'user',
-                    // Serialize the content parts array as JSON. The provider adapter
-                    // will parse it back into the appropriate multimodal format.
-                    content: JSON.stringify([
+                    content: [
                         { type: 'text', text: this._prompt },
                         { type: 'image_url', image_url: { url: image } },
-                    ]),
+                    ],
                 }],
         });
         if (!result.text || result.text.trim().length === 0) {

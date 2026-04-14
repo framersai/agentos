@@ -48,6 +48,10 @@ async function main() {
   const assistant = agent({
     provider,
     instructions: 'You are a concise networking tutor.',
+    memory: {
+      types: ['episodic', 'semantic'],
+      working: { enabled: true },
+    },
     maxSteps: 3,
   });
 

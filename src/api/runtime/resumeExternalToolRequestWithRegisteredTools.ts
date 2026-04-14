@@ -10,21 +10,14 @@ import type { AgentOSResponse } from '../types/AgentOSResponse';
 import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import {
+  buildScopedExternalToolContextParts,
   executeExternalToolFromRegistry,
   mergeExternalToolRegistries,
+  normalizeOptionalString,
   registerTemporaryExternalTools,
   type ExternalToolRegistry,
 } from './externalToolRegistry';
 import type { AgentOSExternalToolHandlerResult } from './processRequestWithExternalTools';
-
-function normalizeOptionalString(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed || undefined;
-}
 
 function buildResumeOptions(
   options: ResumeExternalToolRequestWithRegisteredToolsOptions
@@ -112,25 +105,16 @@ export function buildPendingExternalToolExecutionContext(
   pendingRequest: AgentOSPendingExternalToolRequest,
   options: PendingExternalToolExecutionOptions = {}
 ): ToolExecutionContext {
-  const userContext: UserContext = {
-    ...(options.userContext ?? {}),
-    userId: pendingRequest.userId,
-  };
-
   const organizationId = normalizeOptionalString(
-    options.organizationId ?? userContext.organizationId
+    options.organizationId ?? options.userContext?.organizationId
   );
-  if (organizationId) {
-    userContext.organizationId = organizationId;
-  }
-
-  const sessionData: Record<string, any> = {
+  const { userContext, sessionData } = buildScopedExternalToolContextParts({
+    userId: pendingRequest.userId,
+    organizationId,
     sessionId: pendingRequest.sessionId,
     conversationId: pendingRequest.conversationId,
-  };
-  if (organizationId) {
-    sessionData.organizationId = organizationId;
-  }
+    userContext: options.userContext as Record<string, unknown> | undefined,
+  });
 
   return {
     gmiId: pendingRequest.gmiInstanceId,

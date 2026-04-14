@@ -109,6 +109,7 @@ export declare class ReplicateAudioProvider implements IAudioGenerator {
     defaultModelId?: string;
     /** Internal resolved configuration. */
     private _config;
+    private keyPool;
     /**
      * Initialize the provider with API credentials and optional configuration.
      *

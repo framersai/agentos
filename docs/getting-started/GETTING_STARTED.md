@@ -291,7 +291,7 @@ Usage: { inputTokens: 312, outputTokens: 487, totalTokens: 799, estimatedCost: 0
 | Audit trails and tamper evidence                  | [PROVENANCE.md](./PROVENANCE.md)             |
 | Episodic, semantic, procedural memory             | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) |
 | 8 core cognitive mechanisms (+ optional persona drift analysis) | [COGNITIVE_MECHANISMS.md](./COGNITIVE_MECHANISMS.md) |
-| HEXACO personality traits and on/off configuration | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md#hexaco-personality-modulation) |
+| HEXACO personality traits and on/off configuration | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md#1-hexaco-personality---encoding-weights) |
 | Testing and benchmarking agents                   | [EVALUATION.md](./EVALUATION.md)             |
 | Token-efficient capability discovery              | [DISCOVERY.md](./DISCOVERY.md)               |
 | Image generation across 5 providers               | [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) |

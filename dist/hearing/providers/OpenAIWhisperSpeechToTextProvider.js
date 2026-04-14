@@ -1,3 +1,4 @@
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 /**
  * Normalizes raw segment data from the OpenAI Whisper `verbose_json` response
  * into strongly-typed {@link SpeechTranscriptionSegment} objects.
@@ -98,20 +99,6 @@ function normalizeSegments(input) {
  * ```
  */
 export class OpenAIWhisperSpeechToTextProvider {
-    /**
-     * Creates a new OpenAIWhisperSpeechToTextProvider.
-     *
-     * @param config - Provider configuration including API key and optional defaults.
-     *
-     * @example
-     * ```ts
-     * const provider = new OpenAIWhisperSpeechToTextProvider({
-     *   apiKey: 'sk-xxxx',
-     *   baseUrl: 'https://api.openai.com/v1', // default
-     *   model: 'whisper-1', // default
-     * });
-     * ```
-     */
     constructor(config) {
         this.config = config;
         /** Unique provider identifier used for registration and resolution. */
@@ -121,6 +108,7 @@ export class OpenAIWhisperSpeechToTextProvider {
         /** Whisper API is batch-only; streaming requires a WebSocket adapter. */
         this.supportsStreaming = false;
         this.fetchImpl = config.fetchImpl ?? fetch;
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Returns the human-readable provider name.
@@ -178,7 +166,7 @@ export class OpenAIWhisperSpeechToTextProvider {
         const response = await this.fetchImpl(`${this.config.baseUrl ?? 'https://api.openai.com/v1'}/audio/transcriptions`, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this.config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 // Content-Type is NOT set — FormData sets it automatically with boundary
             },
             body: form,

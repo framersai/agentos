@@ -1,8 +1,9 @@
 /**
  * @fileoverview CognitiveMechanismsEngine — lifecycle hook orchestrator.
  *
- * Instantiates and delegates to 8 cognitive mechanisms across 5 lifecycle
+ * Instantiates and delegates to 8 core cognitive mechanisms across 5 lifecycle
  * hooks: onAccess, onRetrieval, onEncoding, onConsolidation, onPromptAssembly.
+ * Optional persona drift analysis runs as a separate consolidation-time pass.
  *
  * Cognitive science mechanisms:
  * - **Reconsolidation** (Nader, Schafe & Le Doux, 2000)
@@ -22,7 +23,7 @@ import type { PADState, HexacoTraits } from '../core/config.js';
 import type { CandidateTrace } from '../core/decay/RetrievalPriorityScorer.js';
 import { type PersonalityDriftProposal } from './PersonaDriftMechanism.js';
 /**
- * Orchestrates 8 cognitive mechanisms across the memory pipeline lifecycle.
+ * Orchestrates 8 core cognitive mechanisms across the memory pipeline lifecycle.
  *
  * When `cognitiveMechanisms` config is present on `CognitiveMemoryConfig`,
  * an instance is created during initialization. Existing pipeline files

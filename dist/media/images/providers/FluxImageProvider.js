@@ -36,6 +36,7 @@
  * @see {@link FalImageProvider} for Flux via Fal.ai.
  */
 import { parseImageSize, } from '../IImageProvider.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -114,6 +115,7 @@ export class FluxImageProvider {
                 : 120000,
         };
         this.defaultModelId = this._config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     /**
@@ -220,7 +222,7 @@ export class FluxImageProvider {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'X-Key': this._config.apiKey,
+                'X-Key': this.keyPool.next(),
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
@@ -250,7 +252,7 @@ export class FluxImageProvider {
             const url = `${this._config.baseURL}/v1/get_result?id=${encodeURIComponent(taskId)}`;
             const response = await fetch(url, {
                 headers: {
-                    'X-Key': this._config.apiKey,
+                    'X-Key': this.keyPool.next(),
                 },
             });
             if (!response.ok) {

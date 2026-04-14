@@ -63,10 +63,12 @@ export interface ElevenLabsStreamingTTSConfig {
 export declare class ElevenLabsStreamingTTS implements IStreamingTTS {
     private readonly config;
     readonly providerId = "elevenlabs-streaming";
+    private readonly keyPool;
     constructor(config: ElevenLabsStreamingTTSConfig);
     /**
      * Create a new streaming TTS session connected to ElevenLabs.
      * The session opens a WebSocket and is ready to receive text tokens.
+     * Each session gets a fresh key from the round-robin pool.
      */
     startSession(config?: StreamingTTSConfig): Promise<StreamingTTSSession>;
 }

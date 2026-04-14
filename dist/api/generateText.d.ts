@@ -3,6 +3,8 @@ import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import type { ITool } from '../core/tools/ITool.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
+import type { MessageContent, MessageContentPart } from '../core/llm/providers/IProvider.js';
+export type { MessageContent, MessageContentPart };
 /**
  * A single chat message in a conversation history.
  * Mirrors the OpenAI / Anthropic message shape accepted by provider adapters.
@@ -10,9 +12,14 @@ import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelR
 export interface Message {
     /** Role of the message author. */
     role: 'system' | 'user' | 'assistant' | 'tool';
-    /** Plain-text or serialised-JSON content of the message. */
-    content: string;
+    /** Content of the message. String for text-only, array for multimodal (images + text). */
+    content: MessageContent;
 }
+/**
+ * Extract plain text from a MessageContent value.
+ * For strings, returns as-is. For arrays, concatenates text parts.
+ */
+export declare function extractTextFromContent(content: MessageContent): string;
 /**
  * Record of a single tool invocation performed during a {@link generateText} call.
  * One record is appended per tool call, regardless of whether the call succeeded.

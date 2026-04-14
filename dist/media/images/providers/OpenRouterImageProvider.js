@@ -1,4 +1,5 @@
 import { getImageProviderOptions, normalizeOutputFormat, parseDataUrl, } from '../IImageProvider.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 export class OpenRouterImageProvider {
     constructor() {
         this.providerId = 'openrouter';
@@ -9,6 +10,7 @@ export class OpenRouterImageProvider {
         if (!apiKey) {
             throw new Error('OpenRouter image provider requires apiKey.');
         }
+        this.keyPool = new ApiKeyPool(apiKey);
         this.config = {
             apiKey,
             baseURL: typeof config.baseURL === 'string' && config.baseURL.trim()
@@ -65,7 +67,7 @@ export class OpenRouterImageProvider {
                 Object.assign(body, extraBody);
         }
         const headers = {
-            Authorization: `Bearer ${this.config.apiKey}`,
+            Authorization: `Bearer ${this.keyPool.next()}`,
             'Content-Type': 'application/json',
         };
         if (this.config.siteUrl)

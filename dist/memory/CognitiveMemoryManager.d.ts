@@ -81,6 +81,16 @@ export interface ICognitiveMemoryManager {
     getContextWindowStats(): ContextWindowStats | null;
     /** Get a human-readable compaction/transparency report when enabled. */
     getContextTransparencyReport(): string | null;
+    /**
+     * Return the verbatim content that was archived when this trace was
+     * consolidated, or `null` if the trace is not gisted/archived or the
+     * archive is unreachable.
+     *
+     * @param traceId - The trace id to rehydrate.
+     * @param requestContext - Optional caller hint for audit.
+     * @returns The original verbatim content, or `null`.
+     */
+    rehydrate?(traceId: string, requestContext?: string): Promise<string | null>;
     /** Shutdown and release resources. */
     shutdown(): Promise<void>;
 }
@@ -98,6 +108,7 @@ export declare class CognitiveMemoryManager implements ICognitiveMemoryManager {
     private contextWindow;
     private mechanismsEngine;
     private rerankerService;
+    private archive;
     /**
      * Optional HyDE retriever for hypothesis-driven memory recall.
      *
@@ -175,6 +186,17 @@ export declare class CognitiveMemoryManager implements ICognitiveMemoryManager {
     }): Promise<ProspectiveMemoryItem>;
     listProspective(): Promise<ProspectiveMemoryItem[]>;
     removeProspective(id: string): Promise<boolean>;
+    /**
+     * Rehydrate a gisted/archived trace to its original verbatim content.
+     *
+     * Delegates to the configured `IMemoryArchive`. Returns `null` when no
+     * archive is configured or when the trace is not found/integrity fails.
+     *
+     * @param traceId - The trace id to rehydrate.
+     * @param requestContext - Optional caller hint for audit.
+     * @returns The original verbatim content, or `null`.
+     */
+    rehydrate(traceId: string, requestContext?: string): Promise<string | null>;
     runConsolidation(): Promise<ConsolidationResult>;
     getMemoryHealth(): Promise<MemoryHealthReport>;
     /**

@@ -31,6 +31,8 @@ export declare class MemoryLifecycleManager implements IMemoryLifecycleManager {
     private utilityAI?;
     private isInitialized;
     private periodicCheckTimer?;
+    /** Optional memory archive. When set, the 'archive' action stores content before deleting. */
+    private archive;
     /**
      * Constructs a MemoryLifecycleManager instance.
      * The manager is not operational until `initialize` is called.
@@ -40,6 +42,15 @@ export declare class MemoryLifecycleManager implements IMemoryLifecycleManager {
      * @inheritdoc
      */
     initialize(config: MemoryLifecycleManagerConfig, vectorStoreManager: IVectorStoreManager, gmiResolver: GMIResolverFunction, utilityAI?: IUtilityAI): Promise<void>;
+    /**
+     * Attach an IMemoryArchive for real archive operations.
+     *
+     * When set, the `archive` and `summarize_and_archive` action types perform
+     * a real store-then-delete instead of the previous conceptual log-then-delete.
+     *
+     * @param archiveImpl - The archive implementation to use.
+     */
+    setArchive(archiveImpl: import('../../archive/IMemoryArchive.js').IMemoryArchive): void;
     /**
      * Ensures the manager is initialized before performing operations.
      * @private

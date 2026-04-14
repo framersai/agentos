@@ -73,6 +73,7 @@ export class ConsolidationPipeline {
             reinforcedCount: 0,
             totalProcessed: 0,
             durationMs: 0,
+            archivedPruned: 0,
         };
         const now = Date.now();
         // Gather traces from the store (scope: user for this agent)
@@ -101,6 +102,21 @@ export class ConsolidationPipeline {
                 ? (prompt) => this.config.llmInvoker('You are a memory consolidation assistant.', prompt)
                 : undefined;
             await this.config.mechanismsEngine.onConsolidation(batch, llmFn);
+        }
+        // --- Step 7: Prune archive (retention sweep with access-log awareness) ---
+        result.archivedPruned = 0;
+        if (this.config.archive) {
+            const maxAgeMs = this.config.archiveRetention?.maxAgeMs ?? 365 * 86400000;
+            const candidates = await this.config.archive.list({ olderThanMs: maxAgeMs });
+            for (const candidate of candidates) {
+                // Skip traces that were recently rehydrated — they're still in active use
+                const lastAccess = await this.config.archive.lastAccessedAt(candidate.traceId);
+                if (lastAccess !== null && (Date.now() - lastAccess) < maxAgeMs) {
+                    continue;
+                }
+                await this.config.archive.drop(candidate.traceId);
+                result.archivedPruned++;
+            }
         }
         result.durationMs = Date.now() - startTime;
         this.lastRunAt = now;

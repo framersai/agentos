@@ -1,3 +1,4 @@
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 /** Base URL for all AssemblyAI API v2 endpoints. */
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com/v2';
 /**
@@ -111,18 +112,6 @@ function wordsToSegments(words) {
  * ```
  */
 export class AssemblyAISTTProvider {
-    /**
-     * Creates a new AssemblyAISTTProvider.
-     *
-     * @param config - Provider configuration including the API key.
-     *
-     * @example
-     * ```ts
-     * const provider = new AssemblyAISTTProvider({
-     *   apiKey: 'your-assemblyai-api-key',
-     * });
-     * ```
-     */
     constructor(config) {
         this.config = config;
         /** Unique provider identifier used for registration and resolution. */
@@ -136,6 +125,7 @@ export class AssemblyAISTTProvider {
          */
         this.supportsStreaming = false;
         this.fetchImpl = config.fetchImpl ?? fetch;
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Returns the human-readable provider name.
@@ -190,7 +180,7 @@ export class AssemblyAISTTProvider {
         const uploadResponse = await this.fetchImpl(`${ASSEMBLYAI_BASE}/upload`, {
             method: 'POST',
             headers: {
-                Authorization: this.config.apiKey,
+                Authorization: this.keyPool.next(),
                 'Content-Type': audio.mimeType ?? 'audio/wav',
             },
             body: audio.data,
@@ -213,7 +203,7 @@ export class AssemblyAISTTProvider {
         const submitResponse = await this.fetchImpl(`${ASSEMBLYAI_BASE}/transcript`, {
             method: 'POST',
             headers: {
-                Authorization: this.config.apiKey,
+                Authorization: this.keyPool.next(),
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(submitPayload),
@@ -238,7 +228,7 @@ export class AssemblyAISTTProvider {
                 throw new Error(`AssemblyAI transcription timed out after ${timeoutMs / 1000}s (transcript id: ${id})`);
             }
             const pollResponse = await this.fetchImpl(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
-                headers: { Authorization: this.config.apiKey },
+                headers: { Authorization: this.keyPool.next() },
                 signal,
             });
             if (!pollResponse.ok) {

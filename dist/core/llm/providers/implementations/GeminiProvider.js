@@ -1,6 +1,7 @@
 // @ts-nocheck
 // File: backend/agentos/core/llm/providers/implementations/GeminiProvider.ts
 import { GeminiProviderError } from '../errors/GeminiProviderError.js';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Known model catalog
 // ---------------------------------------------------------------------------
@@ -87,6 +88,7 @@ export class GeminiProvider {
         this.providerId = 'gemini';
         /** @inheritdoc */
         this.isInitialized = false;
+        this.keyPool = null;
     }
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -113,6 +115,7 @@ export class GeminiProvider {
             defaultModelId: 'gemini-2.5-flash',
             ...config,
         };
+        this.keyPool = new ApiKeyPool(config.apiKey);
         this.defaultModelId = this.config.defaultModelId;
         this.isInitialized = true;
         console.log(`GeminiProvider initialized. Default model: ${this.defaultModelId || 'Not set'}.`);
@@ -806,7 +809,7 @@ export class GeminiProvider {
      */
     async makeApiRequest(endpoint, body) {
         // API key is passed as query parameter — Gemini's auth convention
-        const url = `${this.config.baseURL}${endpoint}?key=${this.config.apiKey}`;
+        const url = `${this.config.baseURL}${endpoint}?key=${this.keyPool?.hasKeys ? this.keyPool.next() : this.config.apiKey}`;
         const headers = {
             'Content-Type': 'application/json',
             'User-Agent': 'AgentOS/1.0 (GeminiProvider)',
@@ -885,7 +888,7 @@ export class GeminiProvider {
      */
     async makeStreamRequest(endpoint, body) {
         // Both alt=sse and key= are query params
-        const url = `${this.config.baseURL}${endpoint}?alt=sse&key=${this.config.apiKey}`;
+        const url = `${this.config.baseURL}${endpoint}?alt=sse&key=${this.keyPool?.hasKeys ? this.keyPool.next() : this.config.apiKey}`;
         const headers = {
             'Content-Type': 'application/json',
             'User-Agent': 'AgentOS/1.0 (GeminiProvider)',

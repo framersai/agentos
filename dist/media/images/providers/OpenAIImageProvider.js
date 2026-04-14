@@ -1,5 +1,6 @@
 import { getImageProviderOptions, normalizeOutputFormat, parseDataUrl, } from '../IImageProvider.js';
 import { bufferToBlobPart } from '../imageToBuffer.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 export class OpenAIImageProvider {
     constructor() {
         this.providerId = 'openai';
@@ -10,6 +11,7 @@ export class OpenAIImageProvider {
         if (!apiKey) {
             throw new Error('OpenAI image provider requires apiKey.');
         }
+        this.keyPool = new ApiKeyPool(apiKey);
         this.config = {
             apiKey,
             baseURL: typeof config.baseURL === 'string' && config.baseURL.trim()
@@ -69,7 +71,7 @@ export class OpenAIImageProvider {
                 Object.assign(body, extraBody);
         }
         const headers = {
-            Authorization: `Bearer ${this.config.apiKey}`,
+            Authorization: `Bearer ${this.keyPool.next()}`,
             'Content-Type': 'application/json',
         };
         if (this.config.organizationId)
@@ -140,7 +142,7 @@ export class OpenAIImageProvider {
         if (request.size)
             formData.append('size', request.size);
         const headers = {
-            Authorization: `Bearer ${this.config.apiKey}`,
+            Authorization: `Bearer ${this.keyPool.next()}`,
             // Content-Type is NOT set manually — the browser/Node runtime sets the
             // correct multipart boundary when FormData is used as the body.
         };
@@ -200,7 +202,7 @@ export class OpenAIImageProvider {
         if (request.size)
             formData.append('size', request.size);
         const headers = {
-            Authorization: `Bearer ${this.config.apiKey}`,
+            Authorization: `Bearer ${this.keyPool.next()}`,
         };
         if (this.config.organizationId)
             headers['OpenAI-Organization'] = this.config.organizationId;

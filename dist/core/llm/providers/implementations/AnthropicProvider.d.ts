@@ -86,6 +86,7 @@ export declare class AnthropicProvider implements IProvider {
     /** @inheritdoc */
     defaultModelId?: string;
     private config;
+    private keyPool;
     constructor();
     /**
      * Initialize the Anthropic provider with the given configuration.

@@ -56,6 +56,7 @@ export declare class OpenAIProvider implements IProvider {
     /** @inheritdoc */
     defaultModelId?: string;
     private config;
+    private keyPool;
     private availableModelsCache;
     private readonly modelPricing;
     /**

@@ -5,9 +5,9 @@
  */
 import type { IWebSearchProvider, WebSearchResult } from '../types';
 export declare class TavilyProvider implements IWebSearchProvider {
-    private readonly apiKey;
     readonly providerId: "tavily";
     readonly weight = 1;
+    private readonly keyPool;
     constructor(apiKey: string);
     isAvailable(): boolean;
     search(query: string, limit?: number): Promise<WebSearchResult[]>;

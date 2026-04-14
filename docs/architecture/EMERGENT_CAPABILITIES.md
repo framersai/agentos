@@ -2,6 +2,8 @@
 
 Agents with `emergent: true` can forge new tools at runtime when no existing capability fits the task. The agent calls the [`forge_tool`](/api/classes/ForgeToolMetaTool) meta-tool, which builds, tests, and judge-reviews the tool before making it available. The system is implemented across three core classes: [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine), [`EmergentJudge`](/api/classes/EmergentJudge), and [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry).
 
+Important: emergent tooling is a full runtime capability. Use `new AgentOS()` or another full runtime entry point that initializes `ToolOrchestrator` with emergent support. The lightweight `agent()` helper accepts `emergent` config for compatibility, but it does not activate `forge_tool` by itself.
+
 ## Quick Start
 
 ```typescript

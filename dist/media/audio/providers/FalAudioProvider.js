@@ -31,6 +31,7 @@
  * @see {@link FalVideoProvider} for the video counterpart.
  * @see {@link FalImageProvider} for the image counterpart.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -107,6 +108,7 @@ export class FalAudioProvider {
                 : 300000,
         };
         this.defaultModelId = this._config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -206,7 +208,7 @@ export class FalAudioProvider {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                Authorization: `Key ${this._config.apiKey}`,
+                Authorization: `Key ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
@@ -236,7 +238,7 @@ export class FalAudioProvider {
             const url = `${this._config.baseURL}/${model}/requests/${requestId}/status`;
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Key ${this._config.apiKey}`,
+                    Authorization: `Key ${this.keyPool.next()}`,
                 },
             });
             if (!response.ok) {
@@ -271,7 +273,7 @@ export class FalAudioProvider {
         const url = `${this._config.baseURL}/${model}/requests/${requestId}`;
         const response = await fetch(url, {
             headers: {
-                Authorization: `Key ${this._config.apiKey}`,
+                Authorization: `Key ${this.keyPool.next()}`,
             },
         });
         if (!response.ok) {

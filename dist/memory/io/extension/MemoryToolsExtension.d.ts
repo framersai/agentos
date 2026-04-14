@@ -36,6 +36,12 @@ export interface MemoryToolsExtensionOptions {
      * @default '1.0.0'
      */
     version?: string;
+    /**
+     * Include the `rehydrate_memory` tool for inflating gisted/archived traces.
+     * Requires an `IMemoryArchive` to be provided via the archive option.
+     * Defaults to `false`.
+     */
+    includeRehydrate?: boolean;
 }
 /**
  * Convert a standalone `Memory` facade's built-in tool set into extension

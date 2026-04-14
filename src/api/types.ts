@@ -1133,7 +1133,12 @@ export type Agency = Agent;
 // ---------------------------------------------------------------------------
 
 /**
- * Full shared configuration accepted by both `agent()` and `agency()`.
+ * Full shared configuration accepted across AgentOS API surfaces.
+ *
+ * Acceptance is intentionally broader than enforcement. The lightweight
+ * `agent()` helper, low-level generation helpers, and full runtime do not wire
+ * every field at the same depth. For the exact per-surface support level, see
+ * the runtime capability contract.
  *
  * Each field is optional; sensible defaults are applied at runtime.  For the
  * lightweight `agent()` helper, only `model`/`provider`, `instructions`, and

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
   generateText: vi.fn(),
@@ -42,13 +42,38 @@ describe('agent', () => {
     });
   });
 
-  it('accepts guardrails without throwing (stored as config for agency/runtime)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('warns once when runtime-only capabilities are passed to agent()', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const assistant = agent({
       model: 'openai:gpt-4.1-mini',
+      emergent: { enabled: true } as any,
       guardrails: ['pii-redaction'],
+      discovery: { enabled: true },
     });
-    // Should create the agent successfully — guardrails are accepted as config
+
     expect(typeof assistant.generate).toBe('function');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('agent() accepted config that requires the full AgentOS runtime'),
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not warn for lightweight-supported fields', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    agent({
+      model: 'openai:gpt-4.1-mini',
+      tools: {},
+      memory: false,
+      instructions: 'Be concise.',
+    });
+
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('forwards top-level usageLedger to observability.usageLedger', async () => {

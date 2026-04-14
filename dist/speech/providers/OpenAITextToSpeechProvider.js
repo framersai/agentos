@@ -1,3 +1,4 @@
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 /**
  * Static catalog of built-in OpenAI TTS voices.
  *
@@ -107,6 +108,7 @@ export class OpenAITextToSpeechProvider {
          */
         this.supportsStreaming = true;
         this.fetchImpl = config.fetchImpl ?? fetch;
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Returns the human-readable provider name.
@@ -148,7 +150,7 @@ export class OpenAITextToSpeechProvider {
         const response = await this.fetchImpl(`${this.config.baseUrl ?? 'https://api.openai.com/v1'}/audio/speech`, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this.config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
