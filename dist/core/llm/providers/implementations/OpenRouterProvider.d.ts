@@ -23,6 +23,7 @@ export declare class OpenRouterProvider implements IProvider {
     isInitialized: boolean;
     defaultModelId?: string;
     private config;
+    private keyPool;
     private client;
     private readonly availableModelsCache;
     constructor();

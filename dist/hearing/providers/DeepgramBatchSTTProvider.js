@@ -1,3 +1,4 @@
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 /**
  * Maps Deepgram word-level data to {@link SpeechTranscriptionSegment} objects.
  *
@@ -79,20 +80,6 @@ function wordsToSegments(words) {
  * ```
  */
 export class DeepgramBatchSTTProvider {
-    /**
-     * Creates a new DeepgramBatchSTTProvider.
-     *
-     * @param config - Provider configuration including API key and optional defaults.
-     *
-     * @example
-     * ```ts
-     * const provider = new DeepgramBatchSTTProvider({
-     *   apiKey: 'dg-xxxx',
-     *   model: 'nova-2',
-     *   language: 'en-US',
-     * });
-     * ```
-     */
     constructor(config) {
         this.config = config;
         /** Unique provider identifier used for registration and resolution. */
@@ -102,6 +89,7 @@ export class DeepgramBatchSTTProvider {
         /** This provider uses synchronous HTTP requests, not WebSocket streaming. */
         this.supportsStreaming = false;
         this.fetchImpl = config.fetchImpl ?? fetch;
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Returns the human-readable provider name.
@@ -158,7 +146,7 @@ export class DeepgramBatchSTTProvider {
         const response = await this.fetchImpl(url, {
             method: 'POST',
             headers: {
-                Authorization: `Token ${this.config.apiKey}`,
+                Authorization: `Token ${this.keyPool.next()}`,
                 'Content-Type': contentType,
             },
             // Cast needed because SpeechAudioInput.data is typed as Buffer but

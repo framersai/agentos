@@ -11,6 +11,7 @@ export declare class OpenRouterImageProvider implements IImageProvider {
     isInitialized: boolean;
     defaultModelId?: string;
     private config;
+    private keyPool;
     initialize(config: Record<string, unknown>): Promise<void>;
     generateImage(request: ImageGenerationRequest): Promise<ImageGenerationResult>;
     listAvailableModels(): Promise<ImageModelInfo[]>;

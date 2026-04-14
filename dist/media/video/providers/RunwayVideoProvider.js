@@ -29,6 +29,7 @@
  *
  * @see {@link IVideoGenerator} for the provider interface contract.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -104,6 +105,7 @@ export class RunwayVideoProvider {
                 : 300000,
         };
         this.defaultModelId = this._config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -210,7 +212,7 @@ export class RunwayVideoProvider {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this._config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
@@ -240,7 +242,7 @@ export class RunwayVideoProvider {
             const url = `${this._config.baseURL}/tasks/${taskId}`;
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Bearer ${this._config.apiKey}`,
+                    Authorization: `Bearer ${this.keyPool.next()}`,
                 },
             });
             if (!response.ok) {

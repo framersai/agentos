@@ -32,6 +32,7 @@
  * @see {@link IVideoGenerator} for the provider interface contract.
  * @see {@link ReplicateImageProvider} for the image counterpart.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -143,6 +144,7 @@ export class ReplicateVideoProvider {
                 : 300000,
         };
         this.defaultModelId = this._config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -278,7 +280,7 @@ export class ReplicateVideoProvider {
         const response = await fetch(`${this._config.baseURL}/predictions`, {
             method: 'POST',
             headers: {
-                Authorization: `Token ${this._config.apiKey}`,
+                Authorization: `Token ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
                 Prefer: 'wait=60',
             },
@@ -304,7 +306,7 @@ export class ReplicateVideoProvider {
         while (Date.now() - startedAt < this._config.timeoutMs) {
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Token ${this._config.apiKey}`,
+                    Authorization: `Token ${this.keyPool.next()}`,
                 },
             });
             if (!response.ok) {

@@ -1,5 +1,6 @@
 import { getImageProviderOptions, inferAspectRatioFromSize, normalizeOutputFormat, parseDataUrl, } from '../IImageProvider.js';
 import { bufferToBlobPart } from '../imageToBuffer.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 const STABILITY_ROUTE_ALIASES = {
     core: {
         path: '/v2beta/stable-image/generate/core',
@@ -86,6 +87,7 @@ export class StabilityImageProvider {
                 : 'stable-image-core',
         };
         this.defaultModelId = this.config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     async generateImage(request) {
@@ -122,7 +124,7 @@ export class StabilityImageProvider {
         const response = await fetch(`${this.config.baseURL}${route.path}`, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this.config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 Accept: 'application/json',
             },
             body: formData,
@@ -231,7 +233,7 @@ export class StabilityImageProvider {
         const response = await fetch(`${this.config.baseURL}/v2beta/stable-image/generate/sd3`, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this.config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 Accept: 'application/json',
             },
             body: formData,
@@ -280,7 +282,7 @@ export class StabilityImageProvider {
         const response = await fetch(`${this.config.baseURL}/v2beta/stable-image/upscale/conservative`, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this.config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 Accept: 'application/json',
             },
             body: formData,

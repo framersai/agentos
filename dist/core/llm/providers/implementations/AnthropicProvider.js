@@ -1,5 +1,6 @@
 // File: backend/agentos/core/llm/providers/implementations/AnthropicProvider.ts
 import { AnthropicProviderError } from '../errors/AnthropicProviderError.js';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Known model catalog — used by listAvailableModels / getModelInfo
 // ---------------------------------------------------------------------------
@@ -72,6 +73,7 @@ export class AnthropicProvider {
         this.providerId = 'anthropic';
         /** @inheritdoc */
         this.isInitialized = false;
+        this.keyPool = null;
     }
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -99,6 +101,7 @@ export class AnthropicProvider {
             defaultMaxTokens: 4096,
             ...config,
         };
+        this.keyPool = new ApiKeyPool(config.apiKey);
         this.defaultModelId = config.defaultModelId;
         this.isInitialized = true;
         console.log(`AnthropicProvider initialized. Default model: ${this.defaultModelId || 'Not set'}.`);
@@ -892,7 +895,7 @@ export class AnthropicProvider {
      */
     buildHeaders() {
         return {
-            'x-api-key': this.config.apiKey,
+            'x-api-key': this.keyPool?.hasKeys ? this.keyPool.next() : this.config.apiKey,
             'anthropic-version': '2023-06-01',
             'User-Agent': 'AgentOS/1.0 (AnthropicProvider)',
         };

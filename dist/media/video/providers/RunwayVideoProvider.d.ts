@@ -98,6 +98,7 @@ export declare class RunwayVideoProvider implements IVideoGenerator {
     defaultModelId?: string;
     /** Internal resolved configuration. */
     private _config;
+    private keyPool;
     /**
      * Initialize the provider with API credentials and optional configuration.
      *

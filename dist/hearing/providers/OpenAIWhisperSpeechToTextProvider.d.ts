@@ -89,6 +89,7 @@ export declare class OpenAIWhisperSpeechToTextProvider implements SpeechToTextPr
      * });
      * ```
      */
+    private readonly keyPool;
     constructor(config: OpenAIWhisperSpeechToTextProviderConfig);
     /**
      * Returns the human-readable provider name.

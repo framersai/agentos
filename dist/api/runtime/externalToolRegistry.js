@@ -1,6 +1,36 @@
 import { GMIErrorCode } from '../../core/utils/errors.js';
 import { AgentOSServiceError } from '../errors.js';
 const temporaryExternalToolRefs = new WeakMap();
+export function normalizeOptionalString(value) {
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed || undefined;
+}
+export function buildScopedExternalToolContextParts(input) {
+    const organizationId = normalizeOptionalString(input.organizationId);
+    const userContext = {
+        ...(input.userContext ?? {}),
+        userId: input.userId,
+    };
+    if (organizationId) {
+        userContext.organizationId = organizationId;
+    }
+    const sessionData = {};
+    const sessionId = normalizeOptionalString(input.sessionId);
+    const conversationId = normalizeOptionalString(input.conversationId);
+    if (sessionId) {
+        sessionData.sessionId = sessionId;
+    }
+    if (conversationId) {
+        sessionData.conversationId = conversationId;
+    }
+    if (organizationId) {
+        sessionData.organizationId = organizationId;
+    }
+    return { userContext, sessionData };
+}
 function isIterableRegistry(value) {
     return (value !== null &&
         value !== undefined &&

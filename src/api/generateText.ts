@@ -16,7 +16,7 @@ import { resolveModelOption, resolveProvider, createProviderManager } from './mo
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools, type AdaptableToolInput } from './runtime/toolAdapter.js';
 import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
+import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
@@ -890,27 +890,11 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
 
         const content = choice.message?.content;
         let textContent = typeof content === 'string' ? content : ((content as any)?.text ?? '');
-        let toolCallsInChoice = choice.message?.tool_calls ?? [];
-
-        // --- Text-based tool-call fallback ---
-        // When the provider returns no native tool_calls but tools were
-        // provided and the response text contains structured tool
-        // invocations, parse them from the text so models that lack native
-        // function-calling support (some Ollama / open-source models) still
-        // participate in the tool loop.
-        if (toolCallsInChoice.length === 0 && tools.length > 0 && textContent) {
-          const parsed = parseToolCallsFromText(textContent);
-          if (parsed.length > 0) {
-            toolCallsInChoice = parsed.map((p, idx) => ({
-              id: `text-tc-${step}-${idx}`,
-              type: 'function' as const,
-              function: {
-                name: p.name,
-                arguments: JSON.stringify(p.arguments),
-              },
-            }));
-          }
-        }
+        let toolCallsInChoice = resolveDynamicToolCalls(choice.message?.tool_calls, {
+          text: textContent,
+          step,
+          toolsAvailable: tools.length > 0,
+        });
 
         // --- onAfterGeneration hook ---
         if (opts.onAfterGeneration) {

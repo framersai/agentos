@@ -27,6 +27,7 @@ import type {
   AgentOSUsageAggregate,
   AgentOSUsageLedgerOptions,
 } from './runtime/usageLedger.js';
+import { warnOnDeferredLightweightAgentCapabilities } from './runtime/lightweightAgentDiagnostics.js';
 import type { BaseAgentConfig } from './types.js';
 import { exportAgentConfig, exportAgentConfigJSON, type AgentExportConfig } from './agentExportCore.js';
 
@@ -347,6 +348,8 @@ export function agent(opts: AgentOptions): Agent {
   const sessions = new Map<string, Message[]>();
   let avatarBindingOverrides: Record<string, unknown> = {};
   const useMemory = opts.memory !== false;
+
+  warnOnDeferredLightweightAgentCapabilities(opts);
 
   /*
    * Cognitive mechanisms validation.  When the caller provides a

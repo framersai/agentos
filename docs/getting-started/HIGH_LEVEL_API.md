@@ -501,6 +501,10 @@ import { agent } from '@framers/agentos';
 const researcher = agent({
   provider: 'openai',
   instructions: 'You are a concise research assistant.',
+  memory: {
+    types: ['episodic', 'semantic'],
+    working: { enabled: true },
+  },
   maxSteps: 4,
 });
 

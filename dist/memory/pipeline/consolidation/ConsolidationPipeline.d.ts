@@ -29,6 +29,8 @@ export interface ConsolidationResult {
     totalProcessed: number;
     /** Duration in ms. */
     durationMs: number;
+    /** Archived traces dropped by retention sweep. */
+    archivedPruned: number;
 }
 export interface ConsolidationPipelineConfig {
     store: MemoryStore;
@@ -41,6 +43,10 @@ export interface ConsolidationPipelineConfig {
     llmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
     /** Optional cognitive mechanisms engine for consolidation-time hooks. */
     mechanismsEngine?: import('../../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
+    /** Optional memory archive for retention sweep (step 7). */
+    archive?: import('../../archive/IMemoryArchive.js').IMemoryArchive;
+    /** Retention configuration for the archive sweep. */
+    archiveRetention?: import('../../archive/IMemoryArchive.js').MemoryArchiveRetentionConfig;
 }
 export declare class ConsolidationPipeline {
     private config;

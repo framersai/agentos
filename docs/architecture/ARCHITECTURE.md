@@ -177,6 +177,14 @@ src/
 
 The following diagram shows how a typical request flows through these layers:
 
+### API Surface Contract
+
+`generateText()`, `streamText()`, `agent()`, `agency()`, and the `AgentOS` runtime share some configuration names, but the shared config surface does not imply identical enforcement.
+
+- `agent()` is the lightweight stateful facade for prompt assembly, sessions, tools, hooks, personality shaping, and usage-ledger forwarding.
+- `generateText()` / `streamText()` are low-level helper loops for provider selection, direct tool execution, and text-fallback tool calling.
+- The full `AgentOS` runtime and `agency()` own the deeper runtime systems: emergent tooling, guardrails, discovery, RAG bootstrapping, permissions/security tiers, HITL, voice/channels, and provenance-aware orchestration.
+
 ```mermaid
 graph TB
     Client[Client / Channel Adapter] --> API[AgentOS.processRequest]

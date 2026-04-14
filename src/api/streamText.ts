@@ -24,7 +24,7 @@ import {
   type ToolCallRecord,
 } from './generateText.js';
 import type { ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
-import { parseToolCallsFromText } from './runtime/TextToolCallParser.js';
+import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
 import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../evaluation/observability/otel.js';
@@ -367,7 +367,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         const stepText = reconstructor.getFullText();
         const finalChunk = reconstructor.getFinalChunk();
-        let streamedToolCalls =
+        let streamedToolCalls = resolveDynamicToolCalls(
           finalChunk?.choices?.[0]?.message?.tool_calls ??
           reconstructor
             .getToolCalls()
@@ -379,21 +379,13 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
                 name: toolCall.name!,
                 arguments: toolCall.rawArguments || JSON.stringify(toolCall.arguments ?? {}),
               },
-            }));
-
-        if ((!streamedToolCalls || streamedToolCalls.length === 0) && tools.length > 0 && stepText) {
-          const parsedToolCalls = parseToolCallsFromText(stepText);
-          if (parsedToolCalls.length > 0) {
-            streamedToolCalls = parsedToolCalls.map((toolCall, idx) => ({
-              id: `text-tc-${step}-${idx}`,
-              type: 'function' as const,
-              function: {
-                name: toolCall.name,
-                arguments: JSON.stringify(toolCall.arguments),
-              },
-            }));
-          }
-        }
+            })),
+          {
+            text: stepText,
+            step,
+            toolsAvailable: tools.length > 0,
+          },
+        );
 
         // --- onAfterGeneration hook ---
         let effectiveStepText = stepText;
@@ -445,7 +437,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         messages.push({
           role: 'assistant',
-          content: stepText || null,
+          content: effectiveStepText || null,
           tool_calls: streamedToolCalls,
         } as any);
 

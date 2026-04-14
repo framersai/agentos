@@ -8,7 +8,7 @@
  * are not actively enforced in this lightweight layer — use the full AgentOS
  * runtime (`AgentOSOrchestrator`) or `agency()` for guardrail enforcement.
  */
-import { type FallbackProviderEntry, type GenerateTextOptions, type GenerateTextResult, type GenerationHookContext, type GenerationHookResult, type Message, type ToolCallHookInfo } from './generateText.js';
+import { type FallbackProviderEntry, type GenerateTextOptions, type GenerateTextResult, type GenerationHookContext, type GenerationHookResult, type Message, type MessageContent, type ToolCallHookInfo } from './generateText.js';
 import { type StreamTextResult } from './streamText.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
 import type { SkillEntry } from '../skills/types.js';
@@ -136,19 +136,21 @@ export interface AgentSession {
     /**
      * Sends a user message and returns the complete assistant reply.
      * Appends both turns to the session history when `memory` is enabled.
+     * Accepts plain text or multimodal content (text + image parts).
      *
-     * @param text - User message text.
+     * @param input - User message as text string or MessageContent array.
      * @returns The full generation result including text, usage, and tool calls.
      */
-    send(text: string): Promise<GenerateTextResult>;
+    send(input: MessageContent): Promise<GenerateTextResult>;
     /**
      * Streams a user message and returns streaming iterables.
      * The assistant reply is appended to session history once the `text` promise resolves.
+     * Accepts plain text or multimodal content (text + image parts).
      *
-     * @param text - User message text.
+     * @param input - User message as text string or MessageContent array.
      * @returns A {@link StreamTextResult} with async iterables and awaitable aggregates.
      */
-    stream(text: string): StreamTextResult;
+    stream(input: MessageContent): StreamTextResult;
     /** Returns a snapshot of the current conversation history for this session. */
     messages(): Message[];
     /** Returns persisted usage totals for this session when the usage ledger is enabled. */
@@ -162,20 +164,22 @@ export interface AgentSession {
 export interface Agent {
     /**
      * Generates a single reply without maintaining session history.
+     * Accepts plain text or multimodal content (text + image parts).
      *
-     * @param prompt - User prompt text.
+     * @param prompt - User prompt as text string or MessageContent array.
      * @param opts - Optional overrides merged on top of the agent's base options.
      * @returns The complete generation result.
      */
-    generate(prompt: string, opts?: Partial<GenerateTextOptions>): Promise<GenerateTextResult>;
+    generate(prompt: MessageContent, opts?: Partial<GenerateTextOptions>): Promise<GenerateTextResult>;
     /**
      * Streams a single reply without maintaining session history.
+     * Accepts plain text or multimodal content (text + image parts).
      *
-     * @param prompt - User prompt text.
+     * @param prompt - User prompt as text string or MessageContent array.
      * @param opts - Optional overrides merged on top of the agent's base options.
      * @returns A {@link StreamTextResult}.
      */
-    stream(prompt: string, opts?: Partial<GenerateTextOptions>): StreamTextResult;
+    stream(prompt: MessageContent, opts?: Partial<GenerateTextOptions>): StreamTextResult;
     /**
      * Returns (or creates) a named {@link AgentSession} with its own conversation history.
      *

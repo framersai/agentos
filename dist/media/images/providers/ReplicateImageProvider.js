@@ -1,4 +1,5 @@
 import { getImageProviderOptions, inferAspectRatioFromSize, parseDataUrl, normalizeOutputFormat, } from '../IImageProvider.js';
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -52,6 +53,7 @@ export class ReplicateImageProvider {
                 : 'black-forest-labs/flux-schnell',
         };
         this.defaultModelId = this.config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     async generateImage(request) {
@@ -340,7 +342,7 @@ export class ReplicateImageProvider {
         const response = await fetch(`${this.config.baseURL}/models/${owner}/${name}/predictions`, {
             method: 'POST',
             headers: {
-                Authorization: `Token ${this.config.apiKey}`,
+                Authorization: `Token ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
                 Prefer: `wait=${waitSeconds}`,
             },
@@ -356,7 +358,7 @@ export class ReplicateImageProvider {
         const response = await fetch(`${this.config.baseURL}/predictions`, {
             method: 'POST',
             headers: {
-                Authorization: `Token ${this.config.apiKey}`,
+                Authorization: `Token ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
                 Prefer: `wait=${waitSeconds}`,
             },
@@ -373,7 +375,7 @@ export class ReplicateImageProvider {
         while (Date.now() - startedAt < timeoutMs) {
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Token ${this.config.apiKey}`,
+                    Authorization: `Token ${this.keyPool.next()}`,
                 },
             });
             if (!response.ok) {

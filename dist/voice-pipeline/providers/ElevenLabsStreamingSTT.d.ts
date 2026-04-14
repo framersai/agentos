@@ -60,10 +60,12 @@ export declare class ElevenLabsStreamingSTT implements IStreamingSTT {
     private readonly config;
     readonly providerId = "elevenlabs-streaming-stt";
     readonly isStreaming = true;
+    private readonly keyPool;
     constructor(config: ElevenLabsStreamingSTTConfig);
     /**
      * Create a new STT session. Uses chunked REST calls to ElevenLabs'
      * batch STT endpoint for near-realtime transcription.
+     * Each session gets a fresh key from the round-robin pool.
      */
     startSession(config?: StreamingSTTConfig): Promise<StreamingSTTSession>;
 }

@@ -1,3 +1,5 @@
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { isQuotaError } from '../../core/providers/quotaErrors.js';
 /**
  * Text-to-speech provider that uses the ElevenLabs TTS API.
  *
@@ -74,6 +76,7 @@ export class ElevenLabsTextToSpeechProvider {
          */
         this.supportsStreaming = true;
         this.fetchImpl = config.fetchImpl ?? fetch;
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Returns the human-readable provider name.
@@ -122,38 +125,46 @@ export class ElevenLabsTextToSpeechProvider {
                 : undefined) ??
             'EXAVITQu4vr4xnSDxMaL'; // Default "Sarah" voice
         const model = options.model ?? this.config.model ?? 'eleven_multilingual_v2';
-        const response = await this.fetchImpl(`${this.config.baseUrl ?? 'https://api.elevenlabs.io/v1'}/text-to-speech/${voiceId}`, {
+        const baseUrl = this.config.baseUrl ?? 'https://api.elevenlabs.io/v1';
+        const requestBody = JSON.stringify({
+            text,
+            model_id: model,
+            voice_settings: {
+                stability: typeof options.providerSpecificOptions?.stability === 'number'
+                    ? options.providerSpecificOptions.stability
+                    : 0.5,
+                similarity_boost: typeof options.providerSpecificOptions?.similarityBoost === 'number'
+                    ? options.providerSpecificOptions.similarityBoost
+                    : 0.75,
+                style: typeof options.providerSpecificOptions?.style === 'number'
+                    ? options.providerSpecificOptions.style
+                    : undefined,
+                use_speaker_boost: typeof options.providerSpecificOptions?.useSpeakerBoost === 'boolean'
+                    ? options.providerSpecificOptions.useSpeakerBoost
+                    : true,
+            },
+        });
+        const doFetch = (key) => this.fetchImpl(`${baseUrl}/text-to-speech/${voiceId}`, {
             method: 'POST',
             headers: {
-                // ElevenLabs uses its own header format instead of standard Authorization
-                'xi-api-key': this.config.apiKey,
+                'xi-api-key': key,
                 'Content-Type': 'application/json',
-                // Request MP3 format in the response
                 Accept: 'audio/mpeg',
             },
-            body: JSON.stringify({
-                text,
-                model_id: model,
-                voice_settings: {
-                    // Extract provider-specific settings with sensible defaults.
-                    // These defaults produce natural-sounding output for most voices.
-                    stability: typeof options.providerSpecificOptions?.stability === 'number'
-                        ? options.providerSpecificOptions.stability
-                        : 0.5,
-                    similarity_boost: typeof options.providerSpecificOptions?.similarityBoost === 'number'
-                        ? options.providerSpecificOptions.similarityBoost
-                        : 0.75,
-                    // Style is only meaningful for v2+ models; omit if not specified
-                    style: typeof options.providerSpecificOptions?.style === 'number'
-                        ? options.providerSpecificOptions.style
-                        : undefined,
-                    // Speaker boost enhances vocal clarity and similarity
-                    use_speaker_boost: typeof options.providerSpecificOptions?.useSpeakerBoost === 'boolean'
-                        ? options.providerSpecificOptions.useSpeakerBoost
-                        : true,
-                },
-            }),
+            body: requestBody,
         });
+        const key = this.keyPool.next();
+        let response = await doFetch(key);
+        if (!response.ok && this.keyPool.size > 1) {
+            const errBody = await response.text().catch(() => '');
+            if (isQuotaError(response.status, errBody)) {
+                this.keyPool.markExhausted(key);
+                response = await doFetch(this.keyPool.next());
+            }
+            else {
+                throw new Error(`ElevenLabs synthesis failed (${response.status}): ${errBody}`);
+            }
+        }
         if (!response.ok) {
             const message = await response.text();
             throw new Error(`ElevenLabs synthesis failed (${response.status}): ${message}`);

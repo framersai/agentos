@@ -24,6 +24,7 @@
  *
  * @see {@link IAudioGenerator} for the provider interface contract.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
@@ -78,6 +79,7 @@ export class StableAudioProvider {
                 : 'stable-audio-open-1.0',
         };
         this.defaultModelId = this._config.defaultModelId;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -161,7 +163,7 @@ export class StableAudioProvider {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this._config.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),

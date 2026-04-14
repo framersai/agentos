@@ -51,6 +51,8 @@ export class CognitiveMemoryManager {
         this.mechanismsEngine = null;
         // Optional neural reranker for post-retrieval quality improvement
         this.rerankerService = null;
+        // Memory archive for write-ahead verbatim preservation
+        this.archive = null;
         /**
          * Optional HyDE retriever for hypothesis-driven memory recall.
          *
@@ -186,6 +188,10 @@ export class CognitiveMemoryManager {
         if (anyLlmInvoker && !this.hydeRetriever) {
             const { MemoryHydeRetriever } = await import('./retrieval/hyde/MemoryHydeRetriever.js');
             this.hydeRetriever = new MemoryHydeRetriever(anyLlmInvoker);
+        }
+        // --- Memory Archive ---
+        if (config.archive) {
+            this.archive = config.archive;
         }
         this.initialized = true;
     }
@@ -555,6 +561,25 @@ export class CognitiveMemoryManager {
         return this.prospective?.remove(id) ?? false;
     }
     // =========================================================================
+    // Archive: Rehydration
+    // =========================================================================
+    /**
+     * Rehydrate a gisted/archived trace to its original verbatim content.
+     *
+     * Delegates to the configured `IMemoryArchive`. Returns `null` when no
+     * archive is configured or when the trace is not found/integrity fails.
+     *
+     * @param traceId - The trace id to rehydrate.
+     * @param requestContext - Optional caller hint for audit.
+     * @returns The original verbatim content, or `null`.
+     */
+    async rehydrate(traceId, requestContext) {
+        if (!this.archive)
+            return null;
+        const result = await this.archive.rehydrate(traceId, requestContext);
+        return result?.verbatimContent ?? null;
+    }
+    // =========================================================================
     // Batch 2: Consolidation
     // =========================================================================
     async runConsolidation() {
@@ -567,6 +592,7 @@ export class CognitiveMemoryManager {
                 reinforcedCount: 0,
                 totalProcessed: 0,
                 durationMs: 0,
+                archivedPruned: 0,
             };
         }
         return this.consolidation.run();

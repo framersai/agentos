@@ -1,17 +1,18 @@
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 export class FirecrawlProvider {
     constructor(apiKey) {
-        this.apiKey = apiKey;
         this.providerId = 'firecrawl';
         this.weight = 1.5;
+        this.keyPool = new ApiKeyPool(apiKey);
     }
     isAvailable() {
-        return this.apiKey.length > 0;
+        return this.keyPool.hasKeys;
     }
     async search(query, limit = 5) {
         const res = await fetch('https://api.firecrawl.dev/v1/search', {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${this.apiKey}`,
+                Authorization: `Bearer ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({

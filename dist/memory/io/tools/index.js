@@ -23,4 +23,6 @@ export { MemoryDeleteTool } from './MemoryDeleteTool.js';
 export { MemoryMergeTool } from './MemoryMergeTool.js';
 export { MemorySearchTool } from './MemorySearchTool.js';
 export { MemoryReflectTool } from './MemoryReflectTool.js';
+/** Opt-in tool for rehydrating gisted/archived memory traces. */
+export { RehydrateMemoryTool } from './RehydrateMemoryTool.js';
 //# sourceMappingURL=index.js.map

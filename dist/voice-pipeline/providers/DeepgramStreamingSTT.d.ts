@@ -59,10 +59,11 @@ export declare class DeepgramStreamingSTT implements IStreamingSTT {
     private readonly config;
     readonly providerId = "deepgram-streaming";
     readonly isStreaming = true;
+    private readonly keyPool;
     constructor(config: DeepgramStreamingSTTConfig);
     /**
      * Create a new streaming STT session connected to Deepgram.
-     * The session opens a WebSocket and is ready to receive audio frames.
+     * Each session gets a fresh key from the round-robin pool.
      */
     startSession(config?: StreamingSTTConfig): Promise<StreamingSTTSession>;
 }

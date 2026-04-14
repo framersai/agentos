@@ -72,6 +72,16 @@ function rewriteSpecifiers(filePath) {
   }
 }
 
+function copyIfPresent(sourcePath, targetPath) {
+  if (!fs.existsSync(sourcePath)) {
+    return false;
+  }
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.copyFileSync(sourcePath, targetPath);
+  return true;
+}
+
 if (!fs.existsSync(distDir)) {
   console.log('[agentos fix-esm-imports] dist directory missing; nothing to do.');
   process.exit(0);
@@ -82,6 +92,13 @@ for (const file of jsFiles) {
   rewriteSpecifiers(file);
 }
 
-console.log(`[agentos fix-esm-imports] Processed ${jsFiles.length} files under ${distDir}.`);
+const copiedExtensionSecrets = copyIfPresent(
+  path.resolve(distDir, 'core', 'config', 'extension-secrets.json'),
+  path.resolve(distDir, 'config', 'extension-secrets.json'),
+);
 
+console.log(`[agentos fix-esm-imports] Processed ${jsFiles.length} files under ${distDir}.`);
+if (copiedExtensionSecrets) {
+  console.log('[agentos fix-esm-imports] Mirrored extension-secrets.json into dist/config for public package exports.');
+}
 

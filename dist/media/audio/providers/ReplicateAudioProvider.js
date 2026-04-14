@@ -32,6 +32,7 @@
  * @see {@link IAudioGenerator} for the provider interface contract.
  * @see {@link ReplicateVideoProvider} for the video counterpart.
  */
+import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -149,6 +150,7 @@ export class ReplicateAudioProvider {
                 : 300000,
         };
         this.defaultModelId = this._config.defaultMusicModel;
+        this.keyPool = new ApiKeyPool(apiKey);
         this.isInitialized = true;
     }
     // -------------------------------------------------------------------------
@@ -269,7 +271,7 @@ export class ReplicateAudioProvider {
         const response = await fetch(`${this._config.baseURL}/predictions`, {
             method: 'POST',
             headers: {
-                Authorization: `Token ${this._config.apiKey}`,
+                Authorization: `Token ${this.keyPool.next()}`,
                 'Content-Type': 'application/json',
                 Prefer: 'wait=60',
             },
@@ -295,7 +297,7 @@ export class ReplicateAudioProvider {
         while (Date.now() - startedAt < this._config.timeoutMs) {
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Token ${this._config.apiKey}`,
+                    Authorization: `Token ${this.keyPool.next()}`,
                 },
             });
             if (!response.ok) {

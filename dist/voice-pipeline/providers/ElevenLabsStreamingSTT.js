@@ -23,6 +23,7 @@
  * @see https://elevenlabs.io/docs/api-reference/speech-to-text
  */
 import { EventEmitter } from 'node:events';
+import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Session Implementation — Chunked REST fallback
 // ---------------------------------------------------------------------------
@@ -236,13 +237,16 @@ export class ElevenLabsStreamingSTT {
         this.config = config;
         this.providerId = 'elevenlabs-streaming-stt';
         this.isStreaming = true;
+        this.keyPool = new ApiKeyPool(config.apiKey);
     }
     /**
      * Create a new STT session. Uses chunked REST calls to ElevenLabs'
      * batch STT endpoint for near-realtime transcription.
+     * Each session gets a fresh key from the round-robin pool.
      */
     async startSession(config) {
-        return new ElevenLabsChunkedSTTSession(this.config, config ?? {});
+        const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };
+        return new ElevenLabsChunkedSTTSession(resolvedConfig, config ?? {});
     }
 }
 //# sourceMappingURL=ElevenLabsStreamingSTT.js.map

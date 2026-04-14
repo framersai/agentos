@@ -304,6 +304,84 @@ describe('streamText', () => {
     ]);
   });
 
+  it('uses onAfterGeneration text rewrites when continuing a streamed text-fallback tool loop', async () => {
+    hoisted.generateCompletionStream
+      .mockImplementationOnce(async function* () {
+        const toolText = 'Action: lookup\nInput: {"topic":"QUIC"}';
+        yield {
+          id: 'step-1',
+          object: 'chat.completion.chunk',
+          created: 1,
+          modelId: 'gpt-4.1-mini',
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: toolText },
+              finishReason: 'stop',
+            },
+          ],
+          responseTextDelta: toolText,
+          isFinal: true,
+          usage: { promptTokens: 8, completionTokens: 5, totalTokens: 13 },
+        };
+      })
+      .mockImplementationOnce(async function* () {
+        yield {
+          id: 'step-2',
+          object: 'chat.completion.chunk',
+          created: 2,
+          modelId: 'gpt-4.1-mini',
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: 'QUIC reduces handshake overhead.' },
+              finishReason: 'stop',
+            },
+          ],
+          responseTextDelta: 'QUIC reduces handshake overhead.',
+          isFinal: true,
+          usage: { promptTokens: 7, completionTokens: 4, totalTokens: 11 },
+        };
+      });
+
+    const result = streamText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Explain QUIC.',
+      maxSteps: 2,
+      onAfterGeneration: async (stepResult) =>
+        stepResult.toolCalls.length > 0
+          ? { ...stepResult, text: 'Use the lookup tool before answering.' }
+          : stepResult,
+      tools: {
+        lookup: {
+          description: 'Look up protocol context',
+          parameters: {
+            type: 'object',
+            properties: { topic: { type: 'string' } },
+            required: ['topic'],
+          },
+          execute: vi.fn(async () => ({
+            success: true,
+            output: { summary: 'ctx' },
+          })),
+        },
+      },
+    });
+
+    for await (const _part of result.fullStream) {
+      // Drain the stream so the second generation step runs.
+    }
+
+    expect(hoisted.generateCompletionStream.mock.calls[1]?.[1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'assistant',
+          content: 'Use the lookup tool before answering.',
+        }),
+      ])
+    );
+  });
+
   it('persists streaming usage when a ledger path is configured', async () => {
     const ledgerPath = path.join(os.tmpdir(), `agentos-stream-text-${Date.now()}.jsonl`);
 

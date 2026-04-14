@@ -103,6 +103,7 @@ export declare class AssemblyAISTTProvider implements SpeechToTextProvider {
      * });
      * ```
      */
+    private readonly keyPool;
     constructor(config: AssemblyAISTTProviderConfig);
     /**
      * Returns the human-readable provider name.

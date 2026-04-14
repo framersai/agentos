@@ -1,6 +1,7 @@
 // @ts-nocheck
 // File: backend/agentos/core/llm/providers/implementations/OpenAIProvider.ts
 import { OpenAIProviderError } from '../errors/OpenAIProviderError.js';
+import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 /**
  * @class OpenAIProvider
  * @implements {IProvider}
@@ -17,6 +18,7 @@ export class OpenAIProvider {
         this.providerId = 'openai';
         /** @inheritdoc */
         this.isInitialized = false;
+        this.keyPool = null;
         this.availableModelsCache = new Map();
         // Known pricing for common OpenAI models (USD per 1K tokens).
         // This should be updated periodically based on OpenAI's official pricing.
@@ -51,6 +53,7 @@ export class OpenAIProvider {
             requestTimeout: 60000, // 60 seconds
             ...config, // User-provided config overrides defaults
         };
+        this.keyPool = new ApiKeyPool(config.apiKey);
         this.defaultModelId = config.defaultModelId;
         try {
             // Attempt to list models to verify API key and connectivity.
@@ -187,6 +190,8 @@ export class OpenAIProvider {
         if (this.config.oauthFlow) {
             return await this.config.oauthFlow.getAccessToken();
         }
+        if (this.keyPool?.hasKeys)
+            return this.keyPool.next();
         if (this.config.apiKey)
             return this.config.apiKey;
         throw new OpenAIProviderError('No OpenAI API key available for the request.', 'API_KEY_MISSING');

@@ -51,7 +51,11 @@ export function applyReconsolidation(trace, currentMood, config) {
     if (cumulative >= config.maxDriftPerTrace)
         return;
     const remaining = config.maxDriftPerTrace - cumulative;
-    const rate = config.driftRate;
+    // Halve drift rate for perspective-encoded traces — they already shifted
+    // from objective truth at encoding time; full reconsolidation on retrieval
+    // would compound the distortion.
+    const perspectiveEncoded = meta.perspectiveEncoded === true;
+    const rate = perspectiveEncoded ? config.driftRate * 0.5 : config.driftRate;
     // Snapshot before drift
     const before = {
         valence: trace.emotionalContext.valence,

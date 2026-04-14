@@ -27,20 +27,11 @@
     "npm": "https://www.npmjs.com/package/@framers/agentos"
   },
   "sidebarLinks": {
-    "Architecture": "/docs/ARCHITECTURE.html",
-    "Cognitive Memory": "/docs/COGNITIVE_MEMORY.html",
-    "RAG & Memory": "/docs/RAG_MEMORY_CONFIGURATION.html",
-    "Capability Discovery": "/docs/CAPABILITY_DISCOVERY.html",
-    "Tool Calling": "/docs/TOOL_CALLING_AND_LOADING.html",
-    "Skills": "/docs/SKILLS.html",
-    "Voice TTS/STT": "/docs/VOICE_TTS_STT.html",
-    "Safety Primitives": "/docs/SAFETY_PRIMITIVES.html",
-    "Guardrails": "/docs/GUARDRAILS_USAGE.html",
-    "Observability": "/docs/OBSERVABILITY.html",
-    "Planning Engine": "/docs/PLANNING_ENGINE.html",
-    "Human-in-the-Loop": "/docs/HUMAN_IN_THE_LOOP.html",
-    "Agent Communication": "/docs/AGENT_COMMUNICATION.html",
-    "Changelog": "/docs/CHANGELOG.html"
+    "Documentation": "https://docs.agentos.sh/documentation",
+    "High-Level API": "https://docs.agentos.sh/getting-started/high-level-api",
+    "Unified Orchestration": "https://docs.agentos.sh/features/unified-orchestration",
+    "Guardrails": "https://docs.agentos.sh/features/guardrails",
+    "Skills": "https://docs.agentos.sh/skills/overview"
   },
   "plugin": [],
   "theme": "default",

@@ -8,8 +8,9 @@
  * are not actively enforced in this lightweight layer — use the full AgentOS
  * runtime (`AgentOSOrchestrator`) or `agency()` for guardrail enforcement.
  */
-import { generateText, } from './generateText.js';
+import { generateText, extractTextFromContent, } from './generateText.js';
 import { streamText } from './streamText.js';
+import { warnOnDeferredLightweightAgentCapabilities } from './runtime/lightweightAgentDiagnostics.js';
 import { exportAgentConfig, exportAgentConfigJSON } from './agentExportCore.js';
 function mergeUsageLedgerOptions(...parts) {
     const merged = Object.assign({}, ...parts.filter(Boolean));
@@ -120,6 +121,7 @@ export function agent(opts) {
     const sessions = new Map();
     let avatarBindingOverrides = {};
     const useMemory = opts.memory !== false;
+    warnOnDeferredLightweightAgentCapabilities(opts);
     /*
      * Cognitive mechanisms validation.  When the caller provides a
      * `cognitiveMechanisms` config but has memory disabled, the mechanisms
@@ -158,24 +160,36 @@ export function agent(opts) {
     };
     const agentInstance = {
         async generate(prompt, extra) {
-            return generateText({
+            const genOpts = {
                 ...baseOpts,
                 ...extra,
-                prompt,
                 usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
                     source: extra?.usageLedger?.source ?? 'agent.generate',
                 }),
-            });
+            };
+            if (typeof prompt === 'string') {
+                genOpts.prompt = prompt;
+            }
+            else {
+                genOpts.messages = [...(genOpts.messages ?? []), { role: 'user', content: prompt }];
+            }
+            return generateText(genOpts);
         },
         stream(prompt, extra) {
-            return streamText({
+            const streamOpts = {
                 ...baseOpts,
                 ...extra,
-                prompt,
                 usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
                     source: extra?.usageLedger?.source ?? 'agent.stream',
                 }),
-            });
+            };
+            if (typeof prompt === 'string') {
+                streamOpts.prompt = prompt;
+            }
+            else {
+                streamOpts.messages = [...(streamOpts.messages ?? []), { role: 'user', content: prompt }];
+            }
+            return streamText(streamOpts);
         },
         session(id) {
             const sessionId = id ?? crypto.randomUUID();
@@ -184,13 +198,14 @@ export function agent(opts) {
             const history = sessions.get(sessionId);
             return {
                 id: sessionId,
-                async send(text) {
+                async send(input) {
+                    const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
                     // Memory recall before generation
                     let memorySystemMsg;
                     if (opts.memoryProvider?.getContext) {
                         try {
                             const ctx = await Promise.race([
-                                opts.memoryProvider.getContext(text, { tokenBudget: 2000 }),
+                                opts.memoryProvider.getContext(textForMemory, { tokenBudget: 2000 }),
                                 new Promise((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
                             ]);
                             if (ctx?.contextText) {
@@ -206,9 +221,10 @@ export function agent(opts) {
                     if (memorySystemMsg) {
                         system = [memorySystemMsg, system].filter(Boolean).join('\n\n') || undefined;
                     }
+                    const userMessage = { role: 'user', content: input };
                     const requestMessages = useMemory
-                        ? [...history, { role: 'user', content: text }]
-                        : [{ role: 'user', content: text }];
+                        ? [...history, userMessage]
+                        : [userMessage];
                     const result = await generateText({
                         ...baseOpts,
                         system,
@@ -219,32 +235,34 @@ export function agent(opts) {
                         }),
                     });
                     if (useMemory) {
-                        history.push({ role: 'user', content: text });
+                        history.push(userMessage);
                         history.push({ role: 'assistant', content: result.text });
                     }
-                    // Memory observe after generation (fire-and-forget)
+                    // Memory observe after generation (fire-and-forget, text only)
                     if (opts.memoryProvider?.observe) {
-                        opts.memoryProvider.observe('user', text).catch(() => { });
+                        opts.memoryProvider.observe('user', textForMemory).catch(() => { });
                         if (result.text) {
                             opts.memoryProvider.observe('assistant', result.text).catch(() => { });
                         }
                     }
                     return result;
                 },
-                stream(text) {
+                stream(input) {
+                    const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
+                    const userMessage = { role: 'user', content: input };
                     // For streaming, use onBeforeGeneration hook to inject memory context
                     const originalBeforeHook = baseOpts.onBeforeGeneration;
                     const result = streamText({
                         ...baseOpts,
                         messages: useMemory
-                            ? [...history, { role: 'user', content: text }]
-                            : [{ role: 'user', content: text }],
+                            ? [...history, userMessage]
+                            : [userMessage],
                         onBeforeGeneration: opts.memoryProvider?.getContext
                             ? async (ctx) => {
                                 // Inject memory context
                                 try {
                                     const memCtx = await Promise.race([
-                                        opts.memoryProvider.getContext(text, { tokenBudget: 2000 }),
+                                        opts.memoryProvider.getContext(textForMemory, { tokenBudget: 2000 }),
                                         new Promise((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
                                     ]);
                                     if (memCtx?.contextText) {
@@ -273,13 +291,13 @@ export function agent(opts) {
                     });
                     // Capture text for history when done
                     if (useMemory) {
-                        history.push({ role: 'user', content: text });
+                        history.push(userMessage);
                         void result.text
                             .then((replyText) => {
                             history.push({ role: 'assistant', content: replyText });
-                            // Memory observe after stream completes
+                            // Memory observe after stream completes (text only)
                             if (opts.memoryProvider?.observe) {
-                                opts.memoryProvider.observe('user', text).catch(() => { });
+                                opts.memoryProvider.observe('user', textForMemory).catch(() => { });
                                 opts.memoryProvider.observe('assistant', replyText).catch(() => { });
                             }
                         })

@@ -69,6 +69,8 @@ export declare class ElevenLabsSFXProvider implements IAudioGenerator {
     defaultModelId?: string;
     /** Internal resolved configuration. */
     private _config;
+    /** API key pool for round-robin rotation and quota failover. */
+    private keyPool;
     /**
      * Initialize the provider with API credentials and optional configuration.
      *

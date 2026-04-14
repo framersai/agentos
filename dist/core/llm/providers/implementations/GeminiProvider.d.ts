@@ -83,6 +83,7 @@ export declare class GeminiProvider implements IProvider {
     /** @inheritdoc */
     defaultModelId?: string;
     private config;
+    private keyPool;
     constructor();
     /**
      * Initialize the Gemini provider with the given configuration.

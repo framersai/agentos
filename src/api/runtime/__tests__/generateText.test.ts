@@ -240,6 +240,67 @@ describe('generateText', () => {
     ]);
   });
 
+  it('uses onAfterGeneration text rewrites when continuing a text-fallback tool loop', async () => {
+    hoisted.generateCompletion
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 10, completionTokens: 6, totalTokens: 16 },
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: 'Action: lookup\nInput: {"topic":"QUIC"}',
+            },
+            finishReason: 'stop',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 7, completionTokens: 4, totalTokens: 11 },
+        choices: [
+          {
+            message: { role: 'assistant', content: 'QUIC reduces handshake overhead.' },
+            finishReason: 'stop',
+          },
+        ],
+      });
+
+    const result = await generateText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Explain QUIC.',
+      maxSteps: 2,
+      onAfterGeneration: async (stepResult) =>
+        stepResult.toolCalls.length > 0
+          ? { ...stepResult, text: 'Use the lookup tool before answering.' }
+          : stepResult,
+      tools: new Map([
+        [
+          'lookup',
+          {
+            description: 'Look up protocol context',
+            inputSchema: {
+              type: 'object',
+              properties: { topic: { type: 'string' } },
+              required: ['topic'],
+            },
+            execute: vi.fn(async () => ({ summary: 'ctx' })),
+          },
+        ],
+      ]) as any,
+    });
+
+    expect(hoisted.generateCompletion.mock.calls[1]?.[1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'assistant',
+          content: 'Use the lookup tool before answering.',
+        }),
+      ])
+    );
+    expect(result.text).toBe('QUIC reduces handshake overhead.');
+  });
+
   it('records malformed native tool arguments as a tool error without executing the tool', async () => {
     const execute = vi.fn(async () => ({ ok: true }));
 
