@@ -297,4 +297,6 @@ export type {
   AgentOSUsageRecordInput,
   AgentOSUsageAggregate,
 } from './api/runtime/usageLedger.js';
+// JSON extraction (centralized LLM output parsing)
+export { extractJson } from './core/validation/extractJson.js';
 // CI retrigger
