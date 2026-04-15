@@ -236,7 +236,9 @@ AgentOS exposes related entry points at different depths. The shared config surf
 | **Multi-Agent Teams** | 6 coordination strategies · shared memory · inter-agent messaging · HITL approval gates |
 | **Orchestration** | `workflow()` DAGs · `AgentGraph` cycles/subgraphs · `mission()` goal-driven planning · persistent checkpointing |
 | **Guardrails** | 5 security tiers · 6 packs (PII redaction, ML classifiers, topicality, code safety, grounding, content policy) |
-| **Emergent Capabilities** | Runtime tool forging · dynamic skill management · tiered promotion (session → agent → shared) |
+| **Emergent Capabilities** | Runtime tool forging · 4 self-improvement tools · tiered promotion (session → agent → shared) · skill export |
+| **Capability Discovery** | Semantic per-turn tool selection · ~90% token reduction · 3-tier context model · Neo4j graph backend |
+| **Skills** | 88 curated skills · 3-tier architecture (engine, content, catalog SDK) · auto-update on install |
 | **Voice & Telephony** | ElevenLabs, Deepgram, OpenAI Whisper · Twilio, Telnyx, Plivo |
 | **Channels** | 37 platform adapters (Telegram, Discord, Slack, WhatsApp, webchat, and more) |
 | **Structured Output** | Zod-validated JSON extraction with retry · provider-native structured output |
