@@ -40,40 +40,15 @@ AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and
 
 ## See It In Action
 
-<table>
-<tr>
-<td width="60%">
-
 ### 🌀 Paracosm — AI Agent Swarm Simulation
 
-Two AI commanders. Same world. Different HEXACO personalities. Watch emergent civilizations diverge in real-time.
-
-- **Define any scenario as JSON** — Mars colony, lunar outpost, submarine crew, corporate org
-- **Emergent crises** generated per-timeline by an AI Event Director
-- **Runtime tool forging** with LLM-as-judge review in sandboxed V8
-- **HEXACO personality evolution** over simulated years
-- **Live dashboard** with SSE streaming, guided tour, agent chat
-
-Built on AgentOS. Uses `agent()`, `EmergentCapabilityEngine`, `generateText()`, and the full cognitive substrate.
-
-**[Live Demo →](https://paracosm.agentos.sh/sim)** · **[Repo →](https://github.com/framersai/paracosm)** · **[npm →](https://www.npmjs.com/package/paracosm)**
-
-</td>
-<td width="40%">
+Define any scenario as JSON. Run it with AI commanders that have different HEXACO personalities. Same starting conditions, different decisions, divergent civilizations. Built on AgentOS.
 
 ```bash
 npm install paracosm
-# or clone the repo:
-git clone https://github.com/framersai/paracosm
-cd paracosm && npm install
-# Add your API key to .env
-npm run dashboard
-# Open http://localhost:3456
 ```
 
-</td>
-</tr>
-</table>
+**[Live Demo](https://paracosm.agentos.sh/sim)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[Landing Page](https://paracosm.agentos.sh)**
 
 ---
 
