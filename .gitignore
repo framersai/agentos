@@ -16,4 +16,8 @@ src/generated/
 docs/api/
 
 # Test coverage reports
-coverage/docs/superpowers/
+coverage/
+
+# Superpowers
+.superpowers/
+docs/superpowers/
