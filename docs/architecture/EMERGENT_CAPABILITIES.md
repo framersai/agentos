@@ -486,6 +486,42 @@ await importEmergentTool('./slugify.emergent-tool.yaml', { seedId: agentSeedId }
 - Raw sandbox source is redacted at rest by default
 - If no LLM is configured, all forge requests are rejected (fail-closed)
 
+## Self-Improvement Tools
+
+When `selfImprovement.enabled` is `true`, the engine registers four additional meta-tools that let agents modify their own behavior at runtime. All four are bounded by configurable limits to prevent runaway self-modification.
+
+| Tool | What it does |
+|------|-------------|
+| `adapt_personality` | Shift HEXACO traits by bounded deltas with per-session budgets and Ebbinghaus decay |
+| `manage_skills` | Enable, disable, search, and list skills with allowlist-based permission gating |
+| `self_evaluate` | LLM-as-judge response scoring (relevance, clarity, accuracy, helpfulness) with parameter adjustment |
+| `create_workflow` | Compose multi-step tool pipelines at runtime with reference resolution ($input, $prev, $steps[N]) |
+
+Configuration:
+
+```typescript
+{
+  selfImprovement: {
+    enabled: true,
+    personality: { maxDeltaPerSession: 0.15, persistWithDecay: true, decayRate: 0.05 },
+    skills: { allowlist: ['*'], requireApprovalForNewCategories: true },
+    workflows: { maxSteps: 10, allowedTools: ['*'] },
+    selfEval: { autoAdjust: true, adjustableParams: ['temperature', 'verbosity', 'personality'], maxEvaluationsPerSession: 10 },
+  },
+}
+```
+
+See [Emergent Capabilities](https://docs.agentos.sh/docs/features/emergent-capabilities#self-improvement-tools) for full documentation of each tool.
+
+## Skill Export
+
+The `SkillExporter` converts runtime-forged tools into `SKILL.md` + `CAPABILITY.yaml` format, bridging emergent tools into the curated skills ecosystem and capability discovery.
+
+```typescript
+import { exportToolAsSkillPack } from '@framers/agentos/emergent';
+await exportToolAsSkillPack(forgedTool, './skills/slugify');
+```
+
 ## Related
 
 - [Adaptive vs. Emergent Intelligence](https://agentos.sh/blog/adaptive-vs-emergent) -- how adaptive and emergent behavior differ in the AgentOS architecture
@@ -493,4 +529,4 @@ await importEmergentTool('./slugify.emergent-tool.yaml', { seedId: agentSeedId }
 - [Recursive Self-Building](/features/recursive-self-building) -- recursive tool creation and agent spawning
 - [Guardrails](/features/guardrails) -- safety mechanisms that constrain emergent behavior
 - [Agency API](/features/agency-api) -- multi-agent coordination strategies
-- **API Reference:** [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine) | [`EmergentJudge`](/api/classes/EmergentJudge) | [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry) | [`ForgeToolMetaTool`](/api/classes/ForgeToolMetaTool) | [`ComposableToolBuilder`](/api/classes/ComposableToolBuilder) | [`CodeSandbox`](/api/classes/CodeSandbox)
+- **API Reference:** [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine) | [`EmergentJudge`](/api/classes/EmergentJudge) | [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry) | [`ForgeToolMetaTool`](/api/classes/ForgeToolMetaTool) | [`ComposableToolBuilder`](/api/classes/ComposableToolBuilder) | [`CodeSandbox`](/api/classes/CodeSandbox) | [`AdaptPersonalityTool`](/api/classes/AdaptPersonalityTool) | [`ManageSkillsTool`](/api/classes/ManageSkillsTool) | [`SelfEvaluateTool`](/api/classes/SelfEvaluateTool) | [`CreateWorkflowTool`](/api/classes/CreateWorkflowTool) | [`SkillExporter`](/api/classes/SkillExporter)
