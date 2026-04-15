@@ -1,3 +1,7 @@
+## <small>0.1.221 (2026-04-15)</small>
+
+* fix: streamline Paracosm section in README ([d7e3034](https://github.com/framersai/agentos/commit/d7e3034))
+
 ## <small>0.1.220 (2026-04-15)</small>
 
 * feat: update README to reference Paracosm instead of mars-genesis-simulation ([da1522e](https://github.com/framersai/agentos/commit/da1522e))
