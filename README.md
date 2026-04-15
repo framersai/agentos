@@ -44,26 +44,28 @@ AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and
 <tr>
 <td width="60%">
 
-### 🔴 Mars Genesis Simulation
+### 🌀 Paracosm — AI Agent Swarm Simulation
 
-Two AI commanders. Same colony. Different HEXACO personalities. Watch emergent civilizations diverge in real-time.
+Two AI commanders. Same world. Different HEXACO personalities. Watch emergent civilizations diverge in real-time.
 
-- **Emergent crises** generated per-timeline by an AI Crisis Director
-- **Runtime tool forging** with LLM-as-judge review
-- **Personality evolution** over 50 simulated years
-- **Live side-by-side dashboard** with SSE streaming
+- **Define any scenario as JSON** — Mars colony, lunar outpost, submarine crew, corporate org
+- **Emergent crises** generated per-timeline by an AI Event Director
+- **Runtime tool forging** with LLM-as-judge review in sandboxed V8
+- **HEXACO personality evolution** over simulated years
+- **Live dashboard** with SSE streaming, guided tour, agent chat
 
-The demo combines the lightweight `agent()` facade with lower-level runtime systems such as `EmergentCapabilityEngine` and `generateText()` from this package.
+Built on AgentOS. Uses `agent()`, `EmergentCapabilityEngine`, `generateText()`, and the full cognitive substrate.
 
-**[View Demo Repo →](https://github.com/framersai/mars-genesis-simulation)**
+**[Live Demo →](https://paracosm.agentos.sh/sim)** · **[Repo →](https://github.com/framersai/paracosm)** · **[npm →](https://www.npmjs.com/package/paracosm)**
 
 </td>
 <td width="40%">
 
 ```bash
-git clone https://github.com/framersai/mars-genesis-simulation
-cd mars-genesis-simulation
-npm install
+npm install paracosm
+# or clone the repo:
+git clone https://github.com/framersai/paracosm
+cd paracosm && npm install
 # Add your API key to .env
 npm run dashboard
 # Open http://localhost:3456
@@ -121,7 +123,17 @@ const { text: claude } = await generateText({
 });
 ```
 
-16 providers. Auto-fallback on 402/429/5xx.
+16 providers. Provider fallback is opt-in via `fallbackProviders`:
+
+```typescript
+import { buildFallbackChain, generateText } from '@framers/agentos';
+
+const { text } = await generateText({
+  provider: 'anthropic',
+  prompt: 'Compare TCP and UDP.',
+  fallbackProviders: buildFallbackChain('anthropic'),
+});
+```
 
 ### Streaming
 
@@ -379,7 +391,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). See the [Co
 - **Discord:** [wilds.ai/discord](https://wilds.ai/discord)
 - **GitHub Issues:** [github.com/framersai/agentos/issues](https://github.com/framersai/agentos/issues)
 - **Blog:** [docs.agentos.sh/blog](https://docs.agentos.sh/blog)
-- **Mars Genesis:** [github.com/framersai/mars-genesis-simulation](https://github.com/framersai/mars-genesis-simulation) — live multi-agent simulation demo
+- **Paracosm:** [paracosm.agentos.sh](https://paracosm.agentos.sh) — AI agent swarm simulation engine built on AgentOS
 - **Wilds.ai:** [wilds.ai](https://wilds.ai) — AI game worlds powered by AgentOS
 
 ---

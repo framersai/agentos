@@ -27,6 +27,13 @@ describe('AgentOS docs alignment', () => {
     expect(readme).toContain('## API Surfaces');
   });
 
+  it('describes provider fallback as an explicit opt-in helper contract', () => {
+    const readme = read('../../../../README.md');
+    expect(readme).not.toContain('Auto-fallback on 402/429/5xx.');
+    expect(readme).toContain('fallbackProviders');
+    expect(readme).toContain('buildFallbackChain');
+  });
+
   it('documents the distinction between lightweight agent() and the full runtime', () => {
     const readme = read('../../../../README.md');
     expect(readme).toContain('lightweight `agent()`');
