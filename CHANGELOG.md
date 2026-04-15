@@ -1,3 +1,10 @@
+## <small>0.1.222 (2026-04-15)</small>
+
+* chore: update gitignore and db ([b76b2f7](https://github.com/framersai/agentos/commit/b76b2f7))
+* feat: export extractJson from barrel for centralized LLM JSON extraction ([397210a](https://github.com/framersai/agentos/commit/397210a))
+* docs: add capability discovery, skills, and self-improvement tools to README feature table ([0809af1](https://github.com/framersai/agentos/commit/0809af1))
+* docs: add self-improvement tools and SkillExporter to emergent capabilities docs ([1965d06](https://github.com/framersai/agentos/commit/1965d06))
+
 ## <small>0.1.221 (2026-04-15)</small>
 
 * fix: streamline Paracosm section in README ([d7e3034](https://github.com/framersai/agentos/commit/d7e3034))
