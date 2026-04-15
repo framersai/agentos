@@ -1,3 +1,11 @@
+## <small>0.1.220 (2026-04-15)</small>
+
+* feat: update README to reference Paracosm instead of mars-genesis-simulation ([da1522e](https://github.com/framersai/agentos/commit/da1522e))
+* fix: align runtime contracts and docs publication ([a4bba1a](https://github.com/framersai/agentos/commit/a4bba1a))
+* docs: add Mars Genesis featured demo section, update Discord to wilds.ai ([6fd85d6](https://github.com/framersai/agentos/commit/6fd85d6))
+* docs: clarify cognitive mechanism count and persona drift as optional ([c3150c4](https://github.com/framersai/agentos/commit/c3150c4))
+* chore: update Discord invite link ([3d55abe](https://github.com/framersai/agentos/commit/3d55abe))
+
 ## <small>0.1.219 (2026-04-12)</small>
 
 * feat(mars-genesis): v3 orchestrator with Turn 0 promotion, personality drift, outcome classification ([3678aa0](https://github.com/framersai/agentos/commit/3678aa0))
