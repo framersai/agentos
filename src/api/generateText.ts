@@ -19,7 +19,10 @@ import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { createLogger } from '../core/logging/loggerFactory.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
+
+const fallbackLogger = createLogger('fallback');
 import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 import type {
   MessageContent,
@@ -1090,12 +1093,25 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       isRetryableError(error)
     ) {
       let lastError = error;
+      let attempt = 0;
       for (const fb of effectiveFallbacks) {
+        attempt += 1;
         try {
-          opts.onFallback?.(
-            lastError instanceof Error ? lastError : new Error(String(lastError)),
-            fb.provider,
+          const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
+          fallbackLogger.info(
+            {
+              event: 'fallback_fired',
+              api: 'generateText',
+              primaryProvider: metricProviderId,
+              fallbackProvider: fb.provider,
+              fallbackModel: fb.model,
+              errorType: lastErr.name,
+              errorMessage: lastErr.message.slice(0, 200),
+              attempt,
+            },
+            'provider fallback triggered',
           );
+          opts.onFallback?.(lastErr, fb.provider);
           // Build a new options object targeting the fallback provider,
           // stripping the fallbackProviders to prevent recursive fallback.
           const fallbackResult = await generateText({
@@ -1109,6 +1125,17 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             fallbackProviders: undefined,
             onFallback: undefined,
           });
+          fallbackLogger.info(
+            {
+              event: 'fallback_succeeded',
+              api: 'generateText',
+              primaryProvider: metricProviderId,
+              fallbackProvider: fallbackResult.provider,
+              fallbackModel: fallbackResult.model,
+              attempt,
+            },
+            'provider fallback succeeded',
+          );
           metricStatus = 'ok';
           metricUsage = fallbackResult.usage;
           metricProviderId = fallbackResult.provider;
@@ -1119,6 +1146,18 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         }
       }
       // All fallbacks exhausted — fall through to throw
+      const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
+      fallbackLogger.warn(
+        {
+          event: 'fallback_exhausted',
+          api: 'generateText',
+          primaryProvider: metricProviderId,
+          attempts: attempt,
+          errorType: lastErr.name,
+          errorMessage: lastErr.message.slice(0, 200),
+        },
+        'all provider fallbacks exhausted',
+      );
       metricStatus = 'error';
       throw lastError;
     }
