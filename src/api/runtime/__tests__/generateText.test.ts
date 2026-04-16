@@ -369,4 +369,42 @@ describe('generateText', () => {
     ]);
     expect(result.text).toBe('I could not execute that tool call.');
   });
+
+  it('auto-builds fallback chain when fallbackProviders is undefined and primary throws 429', async () => {
+    hoisted.generateCompletion
+      .mockRejectedValueOnce(new Error('429 rate limit exceeded'))
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4o-mini',
+        usage: { promptTokens: 5, completionTokens: 3, totalTokens: 8 },
+        choices: [{ message: { role: 'assistant', content: 'fallback reply' }, finishReason: 'stop' }],
+      });
+
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    try {
+      const result = await generateText({
+        model: 'openai:gpt-4o',
+        prompt: 'hello',
+      });
+      expect(result.text).toBe('fallback reply');
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
+
+  it('does NOT fallback when fallbackProviders is explicitly []', async () => {
+    hoisted.generateCompletion.mockRejectedValueOnce(new Error('429 rate limit exceeded'));
+
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    try {
+      await expect(
+        generateText({
+          model: 'openai:gpt-4o',
+          prompt: 'hello',
+          fallbackProviders: [],
+        })
+      ).rejects.toThrow('429');
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
 });
