@@ -250,4 +250,39 @@ describe('generateObject', () => {
     expect(systemMsg?.content).toContain('You are an expert data extractor.');
     expect(systemMsg?.content).toContain('JSON Schema');
   });
+
+  it('accepts SystemContentBlock[] and preserves caller cache breakpoints', async () => {
+    hoisted.generateCompletion.mockResolvedValue(
+      mockResponse('{"name": "Iris", "age": 33}'),
+    );
+
+    await generateObject({
+      schema: personSchema,
+      system: [
+        { text: 'You are an expert data extractor.', cacheBreakpoint: true },
+        { text: 'Focus on the latest document.' },
+      ],
+      prompt: 'Extract person info',
+    });
+
+    // When SystemContentBlock[] is passed, generateText converts it to a
+    // content parts array with cache_control on cached blocks. Verify the
+    // caller's cache breakpoint survived and the schema block was appended.
+    const messages = hoisted.generateCompletion.mock.calls[0][1];
+    const systemMsg = messages.find((m: Record<string, unknown>) => m.role === 'system');
+    const parts = systemMsg?.content as Array<Record<string, unknown>>;
+    expect(Array.isArray(parts)).toBe(true);
+    expect(parts[0]).toMatchObject({
+      type: 'text',
+      text: 'You are an expert data extractor.',
+      cache_control: { type: 'ephemeral' },
+    });
+    expect(parts[1]).toMatchObject({ type: 'text', text: 'Focus on the latest document.' });
+    expect(parts[1]).not.toHaveProperty('cache_control');
+    // Trailing schema block must be present AND cached so repeat calls with
+    // the same schema hit the cache.
+    const last = parts[parts.length - 1];
+    expect(last.text).toContain('JSON Schema');
+    expect(last).toMatchObject({ cache_control: { type: 'ephemeral' } });
+  });
 });

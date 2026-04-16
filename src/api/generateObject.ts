@@ -14,7 +14,7 @@
 import type { ZodType, ZodError } from 'zod';
 
 import { generateText } from './generateText.js';
-import type { Message, TokenUsage } from './generateText.js';
+import type { Message, SystemContentBlock, TokenUsage } from './generateText.js';
 import { resolveModelOption } from './model.js';
 import { lowerZodToJsonSchema } from '../orchestration/compiler/SchemaLowering.js';
 
@@ -122,8 +122,15 @@ export interface GenerateObjectOptions<T extends ZodType> {
   /**
    * System prompt. The schema extraction instructions are appended to this,
    * so any custom system context is preserved.
+   *
+   * Accepts a plain string (single system message) or an ordered array of
+   * {@link SystemContentBlock} entries. When an array is supplied, caller
+   * `cacheBreakpoint` flags are preserved on each block and a final
+   * non-cached block is appended with the JSON schema + formatting rules.
+   * This enables Anthropic prompt caching on the stable prefix while letting
+   * the per-call schema vary freely.
    */
-  system?: string;
+  system?: string | SystemContentBlock[];
 
   /** Full conversation history. */
   messages?: Message[];
@@ -202,44 +209,54 @@ export interface GenerateObjectResult<T> {
 const JSON_MODE_PROVIDERS = new Set(['openai', 'openrouter']);
 
 /**
- * Builds the system prompt that instructs the LLM to produce structured JSON.
- *
- * Appends schema documentation and strict formatting rules to any user-supplied
- * system prompt, ensuring the model knows exactly what shape to produce.
- *
- * @param userSystem - Optional user-supplied system prompt to prepend.
- * @param jsonSchema - The JSON Schema representation of the Zod schema.
- * @param schemaName - Optional human-readable name for the schema.
- * @param schemaDescription - Optional description of the schema.
- * @returns The assembled system prompt string.
+ * Builds the schema-specific instruction text appended to every
+ * generateObject call. Kept free of caller context so it can be composed
+ * with either a plain string system prompt or a structured block array.
  */
-function buildSchemaSystemPrompt(
-  userSystem: string | undefined,
+function buildSchemaInstructionText(
   jsonSchema: Record<string, unknown>,
   schemaName?: string,
   schemaDescription?: string,
 ): string {
   const parts: string[] = [];
+  parts.push('You MUST respond with ONLY a valid JSON object — no markdown, no code fences, no explanation.');
+  if (schemaName) parts.push(`The JSON object should be a "${schemaName}".`);
+  if (schemaDescription) parts.push(schemaDescription);
+  parts.push('');
+  parts.push('The JSON MUST conform to this JSON Schema:');
+  parts.push(JSON.stringify(jsonSchema, null, 2));
+  return parts.join('\n');
+}
 
-  // Preserve any user-supplied system context
+/**
+ * Builds the system prompt passed to generateText.
+ *
+ * - String input: concatenates caller prompt with schema instructions and
+ *   returns a single string (legacy behavior).
+ * - `SystemContentBlock[]` input: preserves caller blocks and their
+ *   `cacheBreakpoint` flags, then appends the schema instructions as a
+ *   cached block. Placing `cacheBreakpoint` on the schema block maximizes
+ *   the cached prefix length for repeat calls with the same schema, while
+ *   the per-call prompt/messages still vary freely.
+ */
+function buildSchemaSystemPrompt(
+  userSystem: string | SystemContentBlock[] | undefined,
+  jsonSchema: Record<string, unknown>,
+  schemaName?: string,
+  schemaDescription?: string,
+): string | SystemContentBlock[] {
+  const schemaText = buildSchemaInstructionText(jsonSchema, schemaName, schemaDescription);
+
+  if (Array.isArray(userSystem)) {
+    return [...userSystem, { text: schemaText, cacheBreakpoint: true }];
+  }
+
+  const parts: string[] = [];
   if (userSystem) {
     parts.push(userSystem);
     parts.push('');
   }
-
-  parts.push('You MUST respond with ONLY a valid JSON object — no markdown, no code fences, no explanation.');
-
-  if (schemaName) {
-    parts.push(`The JSON object should be a "${schemaName}".`);
-  }
-  if (schemaDescription) {
-    parts.push(schemaDescription);
-  }
-
-  parts.push('');
-  parts.push('The JSON MUST conform to this JSON Schema:');
-  parts.push(JSON.stringify(jsonSchema, null, 2));
-
+  parts.push(schemaText);
   return parts.join('\n');
 }
 
