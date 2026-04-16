@@ -602,19 +602,16 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         for (const fb of effectiveFallbacks) {
           attempt += 1;
           try {
-            fallbackLogger.info(
-              {
-                event: 'fallback_fired',
-                api: 'streamText',
-                primaryProvider: recordedProviderId,
-                fallbackProvider: fb.provider,
-                fallbackModel: fb.model,
-                errorType: lastFallbackError.name,
-                errorMessage: lastFallbackError.message.slice(0, 200),
-                attempt,
-              },
-              'streaming provider fallback triggered',
-            );
+            fallbackLogger.info('streaming provider fallback triggered', {
+              event: 'fallback_fired',
+              api: 'streamText',
+              primaryProvider: recordedProviderId,
+              fallbackProvider: fb.provider,
+              fallbackModel: fb.model,
+              errorType: lastFallbackError.name,
+              errorMessage: lastFallbackError.message.slice(0, 200),
+              attempt,
+            });
             opts.onFallback?.(lastFallbackError, fb.provider);
             const fallbackResult = streamText({
               ...opts,
@@ -645,17 +642,14 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             const fbToolCalls = await fallbackResult.toolCalls;
             allToolCalls.push(...fbToolCalls);
 
-            fallbackLogger.info(
-              {
-                event: 'fallback_succeeded',
-                api: 'streamText',
-                primaryProvider: recordedProviderId,
-                fallbackProvider: fb.provider,
-                fallbackModel: fb.model,
-                attempt,
-              },
-              'streaming provider fallback succeeded',
-            );
+            fallbackLogger.info('streaming provider fallback succeeded', {
+              event: 'fallback_succeeded',
+              api: 'streamText',
+              primaryProvider: recordedProviderId,
+              fallbackProvider: fb.provider,
+              fallbackModel: fb.model,
+              attempt,
+            });
             fallbackSucceeded = true;
             break;
           } catch (fbErr: any) {
@@ -668,17 +662,14 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           resolveUsage!(usage);
           resolveToolCalls!(allToolCalls);
         } else {
-          fallbackLogger.warn(
-            {
-              event: 'fallback_exhausted',
-              api: 'streamText',
-              primaryProvider: recordedProviderId,
-              attempts: attempt,
-              errorType: lastFallbackError.name,
-              errorMessage: lastFallbackError.message.slice(0, 200),
-            },
-            'streaming provider fallbacks exhausted',
-          );
+          fallbackLogger.warn('streaming provider fallbacks exhausted', {
+            event: 'fallback_exhausted',
+            api: 'streamText',
+            primaryProvider: recordedProviderId,
+            attempts: attempt,
+            errorType: lastFallbackError.name,
+            errorMessage: lastFallbackError.message.slice(0, 200),
+          });
           metricStatus = 'error';
           const errorPart: StreamPart = { type: 'error', error: lastFallbackError };
           parts.push(errorPart);

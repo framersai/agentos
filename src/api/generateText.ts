@@ -91,6 +91,27 @@ export interface TokenUsage {
   totalTokens: number;
   /** Total cost reported by the provider across all steps, when available. */
   costUSD?: number;
+  /**
+   * Tokens served from the provider's prompt-prefix cache. When present,
+   * these were billed at the cache-read rate (0.1× input price on
+   * Anthropic) and are NOT also counted in `promptTokens`. Callers that
+   * want total tokens-ever-sent should add `promptTokens + cacheReadTokens
+   * + cacheCreationTokens`.
+   *
+   * Undefined when the provider does not report cache usage (OpenAI's
+   * auto-cache does not expose this at the per-call layer; Anthropic
+   * does via `cache_read_input_tokens`).
+   */
+  cacheReadTokens?: number;
+  /**
+   * Tokens written to the provider's prompt-prefix cache as a new cache
+   * entry. Billed at the cache-creation rate (1.25× input price on
+   * Anthropic for 5-minute TTL, 2× for 1-hour TTL). NOT also counted in
+   * `promptTokens`. A `cacheReadTokens` of 0 and `cacheCreationTokens > 0`
+   * indicates the first call that filled the cache; subsequent calls
+   * with a cache hit flip the numbers.
+   */
+  cacheCreationTokens?: number;
 }
 
 /**
@@ -508,6 +529,17 @@ export async function createPlan(
     if (typeof response.usage.costUSD === 'number') {
       totalUsage.costUSD = (totalUsage.costUSD ?? 0) + response.usage.costUSD;
     }
+    // Provider-layer ModelUsage carries prompt-cache metrics that were
+    // previously dropped by the TokenUsage mapping. Plumb them through
+    // so callers can see cache hit rate and per-hit savings.
+    const cacheRead = (response.usage as { cacheReadInputTokens?: number }).cacheReadInputTokens;
+    const cacheCreate = (response.usage as { cacheCreationInputTokens?: number }).cacheCreationInputTokens;
+    if (typeof cacheRead === 'number' && cacheRead > 0) {
+      totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + cacheRead;
+    }
+    if (typeof cacheCreate === 'number' && cacheCreate > 0) {
+      totalUsage.cacheCreationTokens = (totalUsage.cacheCreationTokens ?? 0) + cacheCreate;
+    }
   }
 
   const rawContent = response.choices?.[0]?.message?.content;
@@ -892,6 +924,17 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           if (typeof response.usage.costUSD === 'number') {
             totalUsage.costUSD = (totalUsage.costUSD ?? 0) + response.usage.costUSD;
           }
+          // Plumb prompt-cache metrics through so generateText() callers
+          // can measure cache hit rate. Provider-layer ModelUsage carries
+          // these fields; TokenUsage was dropping them.
+          const cacheRead = (response.usage as { cacheReadInputTokens?: number }).cacheReadInputTokens;
+          const cacheCreate = (response.usage as { cacheCreationInputTokens?: number }).cacheCreationInputTokens;
+          if (typeof cacheRead === 'number' && cacheRead > 0) {
+            totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + cacheRead;
+          }
+          if (typeof cacheCreate === 'number' && cacheCreate > 0) {
+            totalUsage.cacheCreationTokens = (totalUsage.cacheCreationTokens ?? 0) + cacheCreate;
+          }
         }
 
         const choice = response.choices?.[0];
@@ -913,6 +956,8 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
               completionTokens: response.usage?.completionTokens ?? 0,
               totalTokens: response.usage?.totalTokens ?? 0,
               costUSD: response.usage?.costUSD,
+              cacheReadTokens: (response.usage as { cacheReadInputTokens?: number } | undefined)?.cacheReadInputTokens,
+              cacheCreationTokens: (response.usage as { cacheCreationInputTokens?: number } | undefined)?.cacheCreationInputTokens,
             };
             const toolCallRecords: ToolCallRecord[] = toolCallsInChoice.map((tc: any) => ({
               name: (tc as any).function?.name ?? (tc as any).name ?? '',
@@ -1098,19 +1143,16 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         attempt += 1;
         try {
           const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
-          fallbackLogger.info(
-            {
-              event: 'fallback_fired',
-              api: 'generateText',
-              primaryProvider: metricProviderId,
-              fallbackProvider: fb.provider,
-              fallbackModel: fb.model,
-              errorType: lastErr.name,
-              errorMessage: lastErr.message.slice(0, 200),
-              attempt,
-            },
-            'provider fallback triggered',
-          );
+          fallbackLogger.info('provider fallback triggered', {
+            event: 'fallback_fired',
+            api: 'generateText',
+            primaryProvider: metricProviderId,
+            fallbackProvider: fb.provider,
+            fallbackModel: fb.model,
+            errorType: lastErr.name,
+            errorMessage: lastErr.message.slice(0, 200),
+            attempt,
+          });
           opts.onFallback?.(lastErr, fb.provider);
           // Build a new options object targeting the fallback provider,
           // stripping the fallbackProviders to prevent recursive fallback.
@@ -1125,17 +1167,14 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             fallbackProviders: undefined,
             onFallback: undefined,
           });
-          fallbackLogger.info(
-            {
-              event: 'fallback_succeeded',
-              api: 'generateText',
-              primaryProvider: metricProviderId,
-              fallbackProvider: fallbackResult.provider,
-              fallbackModel: fallbackResult.model,
-              attempt,
-            },
-            'provider fallback succeeded',
-          );
+          fallbackLogger.info('provider fallback succeeded', {
+            event: 'fallback_succeeded',
+            api: 'generateText',
+            primaryProvider: metricProviderId,
+            fallbackProvider: fallbackResult.provider,
+            fallbackModel: fallbackResult.model,
+            attempt,
+          });
           metricStatus = 'ok';
           metricUsage = fallbackResult.usage;
           metricProviderId = fallbackResult.provider;
@@ -1147,17 +1186,14 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       }
       // All fallbacks exhausted — fall through to throw
       const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
-      fallbackLogger.warn(
-        {
-          event: 'fallback_exhausted',
-          api: 'generateText',
-          primaryProvider: metricProviderId,
-          attempts: attempt,
-          errorType: lastErr.name,
-          errorMessage: lastErr.message.slice(0, 200),
-        },
-        'all provider fallbacks exhausted',
-      );
+      fallbackLogger.warn('all provider fallbacks exhausted', {
+        event: 'fallback_exhausted',
+        api: 'generateText',
+        primaryProvider: metricProviderId,
+        attempts: attempt,
+        errorType: lastErr.name,
+        errorMessage: lastErr.message.slice(0, 200),
+      });
       metricStatus = 'error';
       throw lastError;
     }
