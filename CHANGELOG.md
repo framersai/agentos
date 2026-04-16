@@ -1,3 +1,8 @@
+## <small>0.1.225 (2026-04-16)</small>
+
+* merge: integrate remote 0.1.224 release tag ([b8be2bf](https://github.com/framersai/agentos/commit/b8be2bf))
+* feat(anthropic): cache-aware estimateCost + surface cacheRead/CreationInputTokens ([ae63c16](https://github.com/framersai/agentos/commit/ae63c16))
+
 ## <small>0.1.224 (2026-04-16)</small>
 
 * fix(api): correct ILogger signature on fallback telemetry calls ([8898c0c](https://github.com/framersai/agentos/commit/8898c0c))
