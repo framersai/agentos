@@ -1,3 +1,9 @@
+## <small>0.1.223 (2026-04-16)</small>
+
+* feat: add fallback + JSON mode + retry cap to generateObject ([4c9dd9b](https://github.com/framersai/agentos/commit/4c9dd9b))
+* feat: default-on auto-fallback in generateText ([3292fbf](https://github.com/framersai/agentos/commit/3292fbf))
+* feat: default-on auto-fallback in streamText ([76369b3](https://github.com/framersai/agentos/commit/76369b3))
+
 ## <small>0.1.222 (2026-04-15)</small>
 
 * chore: update gitignore and db ([b76b2f7](https://github.com/framersai/agentos/commit/b76b2f7))
