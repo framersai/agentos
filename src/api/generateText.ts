@@ -296,6 +296,11 @@ export interface GenerateTextOptions {
    * permission checks, or return `null` to skip the tool call entirely.
    */
   onBeforeToolExecution?: (info: ToolCallHookInfo) => Promise<ToolCallHookInfo | null>;
+  /**
+   * @internal Used by generateObject to forward response_format to the provider.
+   * Not part of the public API. Use generateObject for structured output.
+   */
+  _responseFormat?: { type: string };
 }
 
 /**
@@ -864,6 +869,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 tools: toolSchemas,
                 temperature: opts.temperature,
                 maxTokens: opts.maxTokens,
+                ...(opts._responseFormat ? { responseFormat: opts._responseFormat } : {}),
               } as any
             );
             attachUsageAttributes(stepSpan, {

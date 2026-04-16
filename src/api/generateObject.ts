@@ -148,6 +148,18 @@ export interface GenerateObjectOptions<T extends ZodType> {
 
   /** Override the provider base URL (useful for local proxies or Ollama). */
   baseUrl?: string;
+
+  /**
+   * Ordered fallback providers tried when the primary fails with a retryable
+   * error. When undefined, auto-built from env keys. Pass `[]` to disable.
+   * @see {@link import('./generateText.js').GenerateTextOptions.fallbackProviders}
+   */
+  fallbackProviders?: import('./generateText.js').FallbackProviderEntry[];
+
+  /**
+   * Called when a fallback provider is about to be tried.
+   */
+  onFallback?: (error: Error, fallbackProvider: string) => void;
 }
 
 /**
@@ -270,6 +282,35 @@ function extractJson(text: string): unknown {
 }
 
 // ---------------------------------------------------------------------------
+// Retry feedback truncation
+// ---------------------------------------------------------------------------
+
+const MAX_FEEDBACK_BAD_RESPONSE_CHARS = 500;
+const MAX_FEEDBACK_VALIDATION_ISSUES = 5;
+
+/**
+ * Truncates a bad LLM response for retry feedback to avoid prompt-token bloat.
+ * @internal
+ */
+function summarizeBadResponse(text: string): string {
+  if (text.length <= MAX_FEEDBACK_BAD_RESPONSE_CHARS) return text;
+  return `${text.slice(0, MAX_FEEDBACK_BAD_RESPONSE_CHARS)}... (truncated, ${text.length - MAX_FEEDBACK_BAD_RESPONSE_CHARS} more chars)`;
+}
+
+/**
+ * Truncates Zod validation errors for retry feedback.
+ * @internal
+ */
+function summarizeZodErrors(error: ZodError): string {
+  const issues = error.issues.slice(0, MAX_FEEDBACK_VALIDATION_ISSUES);
+  const lines = issues.map(i => `- ${i.path.join('.') || '<root>'}: ${i.message}`);
+  if (error.issues.length > MAX_FEEDBACK_VALIDATION_ISSUES) {
+    lines.push(`(${error.issues.length - MAX_FEEDBACK_VALIDATION_ISSUES} more issues omitted)`);
+  }
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Main function
 // ---------------------------------------------------------------------------
 
@@ -356,10 +397,9 @@ export async function generateObject<T extends ZodType>(
       maxTokens: opts.maxTokens,
       apiKey: opts.apiKey,
       baseUrl: opts.baseUrl,
-      // Sneak in response_format via the provider's options when supported.
-      // generateText doesn't have a dedicated param for this, but the system
-      // prompt approach is the primary mechanism — JSON mode is an extra hint.
-      ...(supportsJsonMode ? {} : {}),
+      fallbackProviders: opts.fallbackProviders,
+      onFallback: opts.onFallback,
+      _responseFormat: supportsJsonMode ? { type: 'json_object' } : undefined,
     });
 
     // Accumulate token usage across attempts
@@ -377,9 +417,9 @@ export async function generateObject<T extends ZodType>(
     try {
       parsed = extractJson(result.text);
     } catch (parseErr) {
-      // JSON extraction failed — append feedback and retry
+      // JSON extraction failed — append truncated feedback and retry
       if (attempt < maxRetries) {
-        messages.push({ role: 'assistant', content: result.text });
+        messages.push({ role: 'assistant', content: summarizeBadResponse(result.text) });
         messages.push({
           role: 'user',
           content: `Your response was not valid JSON. Error: ${(parseErr as Error).message}\n\nPlease respond with ONLY a valid JSON object matching the schema. No markdown, no code fences.`,
@@ -413,11 +453,11 @@ export async function generateObject<T extends ZodType>(
     lastValidationError = validation.error;
 
     if (attempt < maxRetries) {
-      // Append the assistant's broken response and validation feedback
-      messages.push({ role: 'assistant', content: result.text });
+      // Append truncated feedback to avoid prompt-token bloat on retries
+      messages.push({ role: 'assistant', content: summarizeBadResponse(result.text) });
       messages.push({
         role: 'user',
-        content: `The JSON you produced does not match the required schema. Validation errors:\n${validation.error.message}\n\nPlease fix the JSON and respond with ONLY a valid JSON object.`,
+        content: `The JSON you produced does not match the required schema. Validation errors:\n${summarizeZodErrors(validation.error)}\n\nPlease fix the JSON and respond with ONLY a valid JSON object.`,
       });
       continue;
     }
