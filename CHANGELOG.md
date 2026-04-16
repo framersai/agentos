@@ -1,3 +1,9 @@
+## <small>0.1.224 (2026-04-16)</small>
+
+* fix(api): correct ILogger signature on fallback telemetry calls ([8898c0c](https://github.com/framersai/agentos/commit/8898c0c))
+* feat(api): structured telemetry on provider fallback chain ([a802d0c](https://github.com/framersai/agentos/commit/a802d0c))
+* feat(generateObject): accept SystemContentBlock[] for prompt caching ([391779a](https://github.com/framersai/agentos/commit/391779a))
+
 ## <small>0.1.223 (2026-04-16)</small>
 
 * feat: add fallback + JSON mode + retry cap to generateObject ([4c9dd9b](https://github.com/framersai/agentos/commit/4c9dd9b))
