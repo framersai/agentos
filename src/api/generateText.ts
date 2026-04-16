@@ -1073,16 +1073,18 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
     });
   } catch (error) {
     // ── Fallback chain ────────────────────────────────────────────────
-    // When the primary provider fails with a retryable error and
-    // fallbackProviders are configured, try each fallback in order.
-    // The first successful response wins; if all fail, the last error
-    // is re-thrown.
+    // Resolve fallback chain: caller-supplied wins, undefined triggers
+    // auto-build from env keys, empty array explicitly opts out.
+    const effectiveFallbacks = opts.fallbackProviders === undefined
+      ? buildFallbackChain(metricProviderId)
+      : opts.fallbackProviders;
+
     if (
-      opts.fallbackProviders?.length &&
+      effectiveFallbacks.length &&
       isRetryableError(error)
     ) {
       let lastError = error;
-      for (const fb of opts.fallbackProviders) {
+      for (const fb of effectiveFallbacks) {
         try {
           opts.onFallback?.(
             lastError instanceof Error ? lastError : new Error(String(lastError)),
