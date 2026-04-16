@@ -12,6 +12,7 @@ import { resolveModelOption, resolveProvider, createProviderManager } from './mo
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools } from './runtime/toolAdapter.js';
 import {
+  buildFallbackChain,
   createPlan,
   isRetryableError,
   resolveChainOfThought,
@@ -584,11 +585,17 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       // fallbackProviders are configured, delegate to a new streamText
       // call targeting the next available fallback.  All parts from the
       // fallback stream are yielded transparently to the consumer.
-      if (opts.fallbackProviders?.length && isRetryableError(error)) {
+      // Resolve fallback chain: caller-supplied wins, undefined triggers
+      // auto-build from env keys, empty array explicitly opts out.
+      const effectiveFallbacks = opts.fallbackProviders === undefined
+        ? buildFallbackChain(recordedProviderId)
+        : opts.fallbackProviders;
+
+      if (effectiveFallbacks.length && isRetryableError(error)) {
         let lastFallbackError: Error = error;
         let fallbackSucceeded = false;
 
-        for (const fb of opts.fallbackProviders) {
+        for (const fb of effectiveFallbacks) {
           try {
             opts.onFallback?.(lastFallbackError, fb.provider);
             const fallbackResult = streamText({
