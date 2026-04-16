@@ -947,6 +947,8 @@ export class AnthropicProvider implements IProvider {
         apiResponse.usage.input_tokens,
         apiResponse.usage.output_tokens,
         apiResponse.model,
+        apiResponse.usage.cache_read_input_tokens,
+        apiResponse.usage.cache_creation_input_tokens,
       ),
       cacheCreationInputTokens: apiResponse.usage.cache_creation_input_tokens,
       cacheReadInputTokens: apiResponse.usage.cache_read_input_tokens,
@@ -1027,17 +1029,45 @@ export class AnthropicProvider implements IProvider {
    * @returns {number | undefined} Estimated cost in USD.
    * @private
    */
+  /**
+   * Estimate cost in USD for a completion, including Anthropic's prompt-
+   * caching tier pricing.
+   *
+   * Anthropic billing tiers (as of 2025):
+   *   input_tokens            × 1.00 × base input rate  (non-cached input)
+   *   cache_read_input_tokens × 0.10 × base input rate  (cache hit)
+   *   cache_creation_input_tokens × 1.25 × base input rate  (5-min TTL write)
+   *   output_tokens           × 1.00 × base output rate
+   *
+   * The API's `input_tokens` field already EXCLUDES cached tokens, so we
+   * sum three separate components for total input cost. Previous
+   * implementation used only `input_tokens` × rate, which happened to
+   * be correct for the non-cached portion but hid cache creation cost
+   * and ignored cache read cost entirely — meaning reported costUSD
+   * was always BELOW true billed amount whenever caching was active.
+   *
+   * 1-hour TTL cache-creation rate is 2× the base input rate, not 1.25×.
+   * We can't tell which TTL was used from the response, so we assume
+   * the default 5-minute tier. For long-lived cached contexts the
+   * reported cost will under-estimate by the 0.75× difference on
+   * creation tokens (minor; mostly one-shot at run start).
+   */
   private estimateCost(
     inputTokens: number,
     outputTokens: number,
     modelId: string,
+    cacheReadTokens?: number,
+    cacheCreationTokens?: number,
   ): number | undefined {
     const info = ANTHROPIC_MODELS.find(m => m.modelId === modelId);
     if (!info?.pricePer1MTokensInput || !info?.pricePer1MTokensOutput) return undefined;
-    return (
-      (inputTokens / 1_000_000) * info.pricePer1MTokensInput +
-      (outputTokens / 1_000_000) * info.pricePer1MTokensOutput
-    );
+    const inputPrice = info.pricePer1MTokensInput;
+    const outputPrice = info.pricePer1MTokensOutput;
+    const nonCachedInput = (inputTokens / 1_000_000) * inputPrice;
+    const cachedRead = ((cacheReadTokens ?? 0) / 1_000_000) * inputPrice * 0.10;
+    const cachedCreate = ((cacheCreationTokens ?? 0) / 1_000_000) * inputPrice * 1.25;
+    const output = (outputTokens / 1_000_000) * outputPrice;
+    return nonCachedInput + cachedRead + cachedCreate + output;
   }
 
   /**
