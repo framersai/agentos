@@ -1,3 +1,8 @@
+## <small>0.1.226 (2026-04-17)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([7049828](https://github.com/framersai/agentos/commit/7049828))
+* feat(emergent): optional generateTextWithSystem callback for judge prompt caching ([8420324](https://github.com/framersai/agentos/commit/8420324))
+
 ## <small>0.1.225 (2026-04-16)</small>
 
 * merge: integrate remote 0.1.224 release tag ([b8be2bf](https://github.com/framersai/agentos/commit/b8be2bf))
