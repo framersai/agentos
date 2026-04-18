@@ -1,3 +1,7 @@
+## <small>0.1.238 (2026-04-18)</small>
+
+* fix(storage): SqlStorageAdapter persists + aggregates cache tokens ([b78ade8](https://github.com/framersai/agentos/commit/b78ade8))
+
 ## <small>0.1.237 (2026-04-18)</small>
 
 * fix(storage): ITokenUsage carries optional cache-token fields ([e2ab9ed](https://github.com/framersai/agentos/commit/e2ab9ed))
