@@ -138,5 +138,7 @@ export { parseModelString, resolveProvider, resolveModelOption } from './api/mod
 export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/runtime/provider-defaults.js';
 export { adaptTools, adaptToolsToMap, mergeAdaptableTools } from './api/runtime/toolAdapter.js';
 export { getDefaultAgentOSUsageLedgerPath, resolveAgentOSUsageLedgerPath, readRecordedAgentOSUsageEvents, recordAgentOSUsage, getRecordedAgentOSUsage, clearRecordedAgentOSUsage, } from './api/runtime/usageLedger.js';
+// JSON extraction (centralized LLM output parsing)
+export { extractJson } from './core/validation/extractJson.js';
 // CI retrigger
 //# sourceMappingURL=index.js.map

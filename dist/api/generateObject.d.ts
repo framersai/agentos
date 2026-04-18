@@ -12,7 +12,7 @@
  * @see {@link streamObject} for the streaming counterpart.
  */
 import type { ZodType, ZodError } from 'zod';
-import type { Message, TokenUsage } from './generateText.js';
+import type { Message, SystemContentBlock, TokenUsage } from './generateText.js';
 /**
  * Thrown when structured output generation fails after exhausting all retries.
  *
@@ -100,8 +100,15 @@ export interface GenerateObjectOptions<T extends ZodType> {
     /**
      * System prompt. The schema extraction instructions are appended to this,
      * so any custom system context is preserved.
+     *
+     * Accepts a plain string (single system message) or an ordered array of
+     * {@link SystemContentBlock} entries. When an array is supplied, caller
+     * `cacheBreakpoint` flags are preserved on each block and a final
+     * non-cached block is appended with the JSON schema + formatting rules.
+     * This enables Anthropic prompt caching on the stable prefix while letting
+     * the per-call schema vary freely.
      */
-    system?: string;
+    system?: string | SystemContentBlock[];
     /** Full conversation history. */
     messages?: Message[];
     /** Sampling temperature forwarded to the provider (0-2 for most providers). */
@@ -120,6 +127,16 @@ export interface GenerateObjectOptions<T extends ZodType> {
     apiKey?: string;
     /** Override the provider base URL (useful for local proxies or Ollama). */
     baseUrl?: string;
+    /**
+     * Ordered fallback providers tried when the primary fails with a retryable
+     * error. When undefined, auto-built from env keys. Pass `[]` to disable.
+     * @see {@link import('./generateText.js').GenerateTextOptions.fallbackProviders}
+     */
+    fallbackProviders?: import('./generateText.js').FallbackProviderEntry[];
+    /**
+     * Called when a fallback provider is about to be tried.
+     */
+    onFallback?: (error: Error, fallbackProvider: string) => void;
 }
 /**
  * The completed result returned by {@link generateObject}.

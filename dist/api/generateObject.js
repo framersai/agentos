@@ -51,34 +51,44 @@ export class ObjectGenerationError extends Error {
  */
 const JSON_MODE_PROVIDERS = new Set(['openai', 'openrouter']);
 /**
- * Builds the system prompt that instructs the LLM to produce structured JSON.
+ * Builds the schema-specific instruction text appended to every
+ * generateObject call. Kept free of caller context so it can be composed
+ * with either a plain string system prompt or a structured block array.
+ */
+function buildSchemaInstructionText(jsonSchema, schemaName, schemaDescription) {
+    const parts = [];
+    parts.push('You MUST respond with ONLY a valid JSON object — no markdown, no code fences, no explanation.');
+    if (schemaName)
+        parts.push(`The JSON object should be a "${schemaName}".`);
+    if (schemaDescription)
+        parts.push(schemaDescription);
+    parts.push('');
+    parts.push('The JSON MUST conform to this JSON Schema:');
+    parts.push(JSON.stringify(jsonSchema, null, 2));
+    return parts.join('\n');
+}
+/**
+ * Builds the system prompt passed to generateText.
  *
- * Appends schema documentation and strict formatting rules to any user-supplied
- * system prompt, ensuring the model knows exactly what shape to produce.
- *
- * @param userSystem - Optional user-supplied system prompt to prepend.
- * @param jsonSchema - The JSON Schema representation of the Zod schema.
- * @param schemaName - Optional human-readable name for the schema.
- * @param schemaDescription - Optional description of the schema.
- * @returns The assembled system prompt string.
+ * - String input: concatenates caller prompt with schema instructions and
+ *   returns a single string (legacy behavior).
+ * - `SystemContentBlock[]` input: preserves caller blocks and their
+ *   `cacheBreakpoint` flags, then appends the schema instructions as a
+ *   cached block. Placing `cacheBreakpoint` on the schema block maximizes
+ *   the cached prefix length for repeat calls with the same schema, while
+ *   the per-call prompt/messages still vary freely.
  */
 function buildSchemaSystemPrompt(userSystem, jsonSchema, schemaName, schemaDescription) {
+    const schemaText = buildSchemaInstructionText(jsonSchema, schemaName, schemaDescription);
+    if (Array.isArray(userSystem)) {
+        return [...userSystem, { text: schemaText, cacheBreakpoint: true }];
+    }
     const parts = [];
-    // Preserve any user-supplied system context
     if (userSystem) {
         parts.push(userSystem);
         parts.push('');
     }
-    parts.push('You MUST respond with ONLY a valid JSON object — no markdown, no code fences, no explanation.');
-    if (schemaName) {
-        parts.push(`The JSON object should be a "${schemaName}".`);
-    }
-    if (schemaDescription) {
-        parts.push(schemaDescription);
-    }
-    parts.push('');
-    parts.push('The JSON MUST conform to this JSON Schema:');
-    parts.push(JSON.stringify(jsonSchema, null, 2));
+    parts.push(schemaText);
     return parts.join('\n');
 }
 /**
@@ -114,6 +124,32 @@ function extractJson(text) {
         return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
     }
     throw new SyntaxError(`No valid JSON found in LLM response: ${trimmed.slice(0, 200)}`);
+}
+// ---------------------------------------------------------------------------
+// Retry feedback truncation
+// ---------------------------------------------------------------------------
+const MAX_FEEDBACK_BAD_RESPONSE_CHARS = 500;
+const MAX_FEEDBACK_VALIDATION_ISSUES = 5;
+/**
+ * Truncates a bad LLM response for retry feedback to avoid prompt-token bloat.
+ * @internal
+ */
+function summarizeBadResponse(text) {
+    if (text.length <= MAX_FEEDBACK_BAD_RESPONSE_CHARS)
+        return text;
+    return `${text.slice(0, MAX_FEEDBACK_BAD_RESPONSE_CHARS)}... (truncated, ${text.length - MAX_FEEDBACK_BAD_RESPONSE_CHARS} more chars)`;
+}
+/**
+ * Truncates Zod validation errors for retry feedback.
+ * @internal
+ */
+function summarizeZodErrors(error) {
+    const issues = error.issues.slice(0, MAX_FEEDBACK_VALIDATION_ISSUES);
+    const lines = issues.map(i => `- ${i.path.join('.') || '<root>'}: ${i.message}`);
+    if (error.issues.length > MAX_FEEDBACK_VALIDATION_ISSUES) {
+        lines.push(`(${error.issues.length - MAX_FEEDBACK_VALIDATION_ISSUES} more issues omitted)`);
+    }
+    return lines.join('\n');
 }
 // ---------------------------------------------------------------------------
 // Main function
@@ -188,10 +224,9 @@ export async function generateObject(opts) {
             maxTokens: opts.maxTokens,
             apiKey: opts.apiKey,
             baseUrl: opts.baseUrl,
-            // Sneak in response_format via the provider's options when supported.
-            // generateText doesn't have a dedicated param for this, but the system
-            // prompt approach is the primary mechanism — JSON mode is an extra hint.
-            ...(supportsJsonMode ? {} : {}),
+            fallbackProviders: opts.fallbackProviders,
+            onFallback: opts.onFallback,
+            _responseFormat: supportsJsonMode ? { type: 'json_object' } : undefined,
         });
         // Accumulate token usage across attempts
         totalUsage.promptTokens += result.usage.promptTokens;
@@ -207,9 +242,9 @@ export async function generateObject(opts) {
             parsed = extractJson(result.text);
         }
         catch (parseErr) {
-            // JSON extraction failed — append feedback and retry
+            // JSON extraction failed — append truncated feedback and retry
             if (attempt < maxRetries) {
-                messages.push({ role: 'assistant', content: result.text });
+                messages.push({ role: 'assistant', content: summarizeBadResponse(result.text) });
                 messages.push({
                     role: 'user',
                     content: `Your response was not valid JSON. Error: ${parseErr.message}\n\nPlease respond with ONLY a valid JSON object matching the schema. No markdown, no code fences.`,
@@ -234,11 +269,11 @@ export async function generateObject(opts) {
         // Validation failed — record the error and maybe retry
         lastValidationError = validation.error;
         if (attempt < maxRetries) {
-            // Append the assistant's broken response and validation feedback
-            messages.push({ role: 'assistant', content: result.text });
+            // Append truncated feedback to avoid prompt-token bloat on retries
+            messages.push({ role: 'assistant', content: summarizeBadResponse(result.text) });
             messages.push({
                 role: 'user',
-                content: `The JSON you produced does not match the required schema. Validation errors:\n${validation.error.message}\n\nPlease fix the JSON and respond with ONLY a valid JSON object.`,
+                content: `The JSON you produced does not match the required schema. Validation errors:\n${summarizeZodErrors(validation.error)}\n\nPlease fix the JSON and respond with ONLY a valid JSON object.`,
             });
             continue;
         }

@@ -11,10 +11,12 @@ import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools } from './runtime/toolAdapter.js';
-import { createPlan, isRetryableError, resolveChainOfThought, } from './generateText.js';
+import { buildFallbackChain, createPlan, isRetryableError, resolveChainOfThought, } from './generateText.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
 import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../evaluation/observability/otel.js';
+import { createLogger } from '../core/logging/loggerFactory.js';
+const fallbackLogger = createLogger('fallback');
 async function recordAgentOSUsageLazy(input) {
     const { recordAgentOSUsage } = await import('./runtime/usageLedger.js');
     return recordAgentOSUsage(input);
@@ -463,11 +465,28 @@ export function streamText(opts) {
             // fallbackProviders are configured, delegate to a new streamText
             // call targeting the next available fallback.  All parts from the
             // fallback stream are yielded transparently to the consumer.
-            if (opts.fallbackProviders?.length && isRetryableError(error)) {
+            // Resolve fallback chain: caller-supplied wins, undefined triggers
+            // auto-build from env keys, empty array explicitly opts out.
+            const effectiveFallbacks = opts.fallbackProviders === undefined
+                ? buildFallbackChain(recordedProviderId)
+                : opts.fallbackProviders;
+            if (effectiveFallbacks.length && isRetryableError(error)) {
                 let lastFallbackError = error;
                 let fallbackSucceeded = false;
-                for (const fb of opts.fallbackProviders) {
+                let attempt = 0;
+                for (const fb of effectiveFallbacks) {
+                    attempt += 1;
                     try {
+                        fallbackLogger.info('streaming provider fallback triggered', {
+                            event: 'fallback_fired',
+                            api: 'streamText',
+                            primaryProvider: recordedProviderId,
+                            fallbackProvider: fb.provider,
+                            fallbackModel: fb.model,
+                            errorType: lastFallbackError.name,
+                            errorMessage: lastFallbackError.message.slice(0, 200),
+                            attempt,
+                        });
                         opts.onFallback?.(lastFallbackError, fb.provider);
                         const fallbackResult = streamText({
                             ...opts,
@@ -494,6 +513,14 @@ export function streamText(opts) {
                         }
                         const fbToolCalls = await fallbackResult.toolCalls;
                         allToolCalls.push(...fbToolCalls);
+                        fallbackLogger.info('streaming provider fallback succeeded', {
+                            event: 'fallback_succeeded',
+                            api: 'streamText',
+                            primaryProvider: recordedProviderId,
+                            fallbackProvider: fb.provider,
+                            fallbackModel: fb.model,
+                            attempt,
+                        });
                         fallbackSucceeded = true;
                         break;
                     }
@@ -507,6 +534,14 @@ export function streamText(opts) {
                     resolveToolCalls(allToolCalls);
                 }
                 else {
+                    fallbackLogger.warn('streaming provider fallbacks exhausted', {
+                        event: 'fallback_exhausted',
+                        api: 'streamText',
+                        primaryProvider: recordedProviderId,
+                        attempts: attempt,
+                        errorType: lastFallbackError.name,
+                        errorMessage: lastFallbackError.message.slice(0, 200),
+                    });
                     metricStatus = 'error';
                     const errorPart = { type: 'error', error: lastFallbackError };
                     parts.push(errorPart);

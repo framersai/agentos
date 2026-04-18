@@ -47,6 +47,27 @@ export interface TokenUsage {
     totalTokens: number;
     /** Total cost reported by the provider across all steps, when available. */
     costUSD?: number;
+    /**
+     * Tokens served from the provider's prompt-prefix cache. When present,
+     * these were billed at the cache-read rate (0.1× input price on
+     * Anthropic) and are NOT also counted in `promptTokens`. Callers that
+     * want total tokens-ever-sent should add `promptTokens + cacheReadTokens
+     * + cacheCreationTokens`.
+     *
+     * Undefined when the provider does not report cache usage (OpenAI's
+     * auto-cache does not expose this at the per-call layer; Anthropic
+     * does via `cache_read_input_tokens`).
+     */
+    cacheReadTokens?: number;
+    /**
+     * Tokens written to the provider's prompt-prefix cache as a new cache
+     * entry. Billed at the cache-creation rate (1.25× input price on
+     * Anthropic for 5-minute TTL, 2× for 1-hour TTL). NOT also counted in
+     * `promptTokens`. A `cacheReadTokens` of 0 and `cacheCreationTokens > 0`
+     * indicates the first call that filled the cache; subsequent calls
+     * with a cache hit flip the numbers.
+     */
+    cacheCreationTokens?: number;
 }
 /**
  * Configuration for the optional plan-then-execute planning phase.
@@ -247,6 +268,13 @@ export interface GenerateTextOptions {
      * permission checks, or return `null` to skip the tool call entirely.
      */
     onBeforeToolExecution?: (info: ToolCallHookInfo) => Promise<ToolCallHookInfo | null>;
+    /**
+     * @internal Used by generateObject to forward response_format to the provider.
+     * Not part of the public API. Use generateObject for structured output.
+     */
+    _responseFormat?: {
+        type: string;
+    };
 }
 /**
  * The completed result returned by {@link generateText}.
