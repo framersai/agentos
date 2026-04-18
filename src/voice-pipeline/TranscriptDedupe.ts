@@ -28,7 +28,7 @@ export interface DedupeResult {
   against?: { provider: string; text: string };
 }
 
-const PUNCT_RE = /[.,!?;:"'()\[\]{}]/g;
+const PUNCT_RE = /[.,!?;:"'()[\]{}]/g;
 const WS_RE = /\s+/g;
 
 function normalize(text: string): string {
