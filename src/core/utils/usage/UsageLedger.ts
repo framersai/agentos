@@ -26,6 +26,19 @@ interface UsageBucket extends UsageDimensions {
   totalTokens: number;        // Sum of total tokens (may differ from prompt+completion if provider supplies extras)
   costUSD: number;            // Accumulated cost in USD
   calls: number;              // Number of completed calls contributing usage
+  /**
+   * Tokens served from the provider's prompt-prefix cache (Anthropic
+   * cache_read_input_tokens). Only set when the provider reports it;
+   * undefined otherwise so consumers can distinguish "not reported"
+   * from "zero hits".
+   */
+  cacheReadTokens?: number;
+  /**
+   * Tokens written to the provider's prompt-prefix cache as a new
+   * entry (Anthropic cache_creation_input_tokens). Same not-reported
+   * vs zero convention as cacheReadTokens.
+   */
+  cacheCreationTokens?: number;
 }
 
 /** Result returned by summary queries. */
@@ -91,6 +104,17 @@ export class UsageLedger {
     b.completionTokens += usage.completionTokens || 0;
     b.totalTokens += usage.totalTokens || 0;
 
+    // Prompt-cache metrics. Anthropic surfaces these on ModelUsage via
+    // cacheReadInputTokens / cacheCreationInputTokens. Forward into the
+    // bucket only when the provider actually reported a value so the
+    // undefined sentinel stays meaningful.
+    const cacheRead = (usage as { cacheReadInputTokens?: number; cacheReadTokens?: number })
+      .cacheReadInputTokens ?? (usage as { cacheReadTokens?: number }).cacheReadTokens;
+    const cacheCreate = (usage as { cacheCreationInputTokens?: number; cacheCreationTokens?: number })
+      .cacheCreationInputTokens ?? (usage as { cacheCreationTokens?: number }).cacheCreationTokens;
+    if (typeof cacheRead === 'number') b.cacheReadTokens = (b.cacheReadTokens ?? 0) + cacheRead;
+    if (typeof cacheCreate === 'number') b.cacheCreationTokens = (b.cacheCreationTokens ?? 0) + cacheCreate;
+
     // Cost: prefer provided costUSD else derive from fallback pricing.
     let cost = usage.costUSD || 0;
     if (!usage.costUSD && this.options.pricingFallbacks) {
@@ -116,6 +140,13 @@ export class UsageLedger {
     b.promptTokens += usage.promptTokens || 0;
     b.completionTokens += usage.completionTokens || 0;
     b.totalTokens += usage.totalTokens || 0;
+    // Same cache-token forwarding as ingestCompletionChunk.
+    const cacheRead = (usage as { cacheReadInputTokens?: number; cacheReadTokens?: number })
+      .cacheReadInputTokens ?? (usage as { cacheReadTokens?: number }).cacheReadTokens;
+    const cacheCreate = (usage as { cacheCreationInputTokens?: number; cacheCreationTokens?: number })
+      .cacheCreationInputTokens ?? (usage as { cacheCreationTokens?: number }).cacheCreationTokens;
+    if (typeof cacheRead === 'number') b.cacheReadTokens = (b.cacheReadTokens ?? 0) + cacheRead;
+    if (typeof cacheCreate === 'number') b.cacheCreationTokens = (b.cacheCreationTokens ?? 0) + cacheCreate;
 
     let cost = usage.costUSD || 0;
     if (!usage.costUSD && this.options.pricingFallbacks) {
@@ -155,6 +186,12 @@ export class UsageLedger {
         acc.totalTokens += b.totalTokens;
         acc.costUSD += b.costUSD;
         acc.calls += b.calls;
+        if (typeof b.cacheReadTokens === 'number') {
+          acc.cacheReadTokens = (acc.cacheReadTokens ?? 0) + b.cacheReadTokens;
+        }
+        if (typeof b.cacheCreationTokens === 'number') {
+          acc.cacheCreationTokens = (acc.cacheCreationTokens ?? 0) + b.cacheCreationTokens;
+        }
       }
       return acc;
     }, buckets[0]);
@@ -179,6 +216,12 @@ export class UsageLedger {
       existing.totalTokens += b.totalTokens;
       existing.costUSD += b.costUSD;
       existing.calls += b.calls;
+      if (typeof b.cacheReadTokens === 'number') {
+        existing.cacheReadTokens = (existing.cacheReadTokens ?? 0) + b.cacheReadTokens;
+      }
+      if (typeof b.cacheCreationTokens === 'number') {
+        existing.cacheCreationTokens = (existing.cacheCreationTokens ?? 0) + b.cacheCreationTokens;
+      }
     }
   }
 }
