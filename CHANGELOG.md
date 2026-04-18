@@ -1,3 +1,7 @@
+## <small>0.1.234 (2026-04-18)</small>
+
+* fix(strategies): propagate cache tokens in all agency accumulators ([2daa6a3](https://github.com/framersai/agentos/commit/2daa6a3))
+
 ## <small>0.1.233 (2026-04-18)</small>
 
 * fix(api): streamText + streamObject propagate prompt-cache tokens ([2a78b66](https://github.com/framersai/agentos/commit/2a78b66))
