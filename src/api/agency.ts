@@ -977,6 +977,10 @@ type UsageTotals = {
   completionTokens: number;
   totalTokens: number;
   costUSD?: number;
+  /** Anthropic `cache_read_input_tokens`. Undefined when no source reported. */
+  cacheReadTokens?: number;
+  /** Anthropic `cache_creation_input_tokens`. Same undefined convention. */
+  cacheCreationTokens?: number;
 };
 
 function emptyUsageTotals(): UsageTotals {
@@ -990,6 +994,10 @@ function normalizeUsage(raw: unknown): UsageTotals {
     completionTokens: usage.completionTokens ?? 0,
     totalTokens: usage.totalTokens ?? 0,
     costUSD: usage.costUSD,
+    // Preserve cache-token fields from the source. Undefined stays
+    // undefined so consumers distinguish "not reported" from "zero".
+    cacheReadTokens: usage.cacheReadTokens,
+    cacheCreationTokens: usage.cacheCreationTokens,
   };
 }
 
@@ -999,6 +1007,12 @@ function addUsageTotals(target: UsageTotals, usage: UsageTotals): void {
   target.totalTokens += usage.totalTokens;
   if (typeof usage.costUSD === 'number') {
     target.costUSD = (target.costUSD ?? 0) + usage.costUSD;
+  }
+  if (typeof usage.cacheReadTokens === 'number') {
+    target.cacheReadTokens = (target.cacheReadTokens ?? 0) + usage.cacheReadTokens;
+  }
+  if (typeof usage.cacheCreationTokens === 'number') {
+    target.cacheCreationTokens = (target.cacheCreationTokens ?? 0) + usage.cacheCreationTokens;
   }
 }
 
