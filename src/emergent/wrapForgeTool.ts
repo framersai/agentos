@@ -16,8 +16,8 @@
  * through the optional `log` callback.
  */
 
-import type { ITool } from '../core/tools/ITool.js';
-import { ForgeToolMetaTool } from './ForgeToolMetaTool.js';
+import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
+import { ForgeToolMetaTool, type ForgeToolInput } from './ForgeToolMetaTool.js';
 import { validateForgeShape } from './ForgeShapeValidator.js';
 import { inferSchemaFromTestCases } from './ForgeSchemaInference.js';
 
@@ -228,7 +228,15 @@ export function wrapForgeTool(options: WrapForgeToolOptions): ITool {
         },
       };
       try {
-        const r = await raw.execute(fixed, patched as never);
+        // Cast is intentional: the wrapper's job is to normalize
+        // arbitrary LLM output into something the engine can handle.
+        // By this point `fixed` is shape-validated enough to run; TS
+        // cannot statically prove it matches every ForgeToolInput
+        // field because the source is untyped LLM output.
+        const r = await raw.execute(
+          fixed as unknown as ForgeToolInput,
+          patched as unknown as ToolExecutionContext,
+        );
         const out = r.output as { verdict?: { approved?: boolean; confidence?: number; reasoning?: string }; testResults?: unknown; result?: unknown; error?: unknown } | undefined;
         const verdict = out?.verdict ?? {};
         // Judge confidence is the judge's score for whether the tool is
