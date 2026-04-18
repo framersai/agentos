@@ -1,3 +1,8 @@
+## <small>0.1.241 (2026-04-18)</small>
+
+* fix(replicate-image): editImage now routes unpinned models to modern endpoint ([5099f31](https://github.com/framersai/agentos/commit/5099f31))
+* feat(agent): expose per-call maxTokens on agent() config ([cfd0d6d](https://github.com/framersai/agentos/commit/cfd0d6d)), closes [hi#volume](https://github.com/hi/issues/volume)
+
 ## <small>0.1.240 (2026-04-18)</small>
 
 * fix(api): autoDetectProvider prioritizes openrouter over openai ([6465974](https://github.com/framersai/agentos/commit/6465974))
