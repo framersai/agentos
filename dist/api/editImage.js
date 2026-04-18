@@ -64,7 +64,35 @@ export async function editImage(opts) {
     let metricModelId;
     try {
         return await withAgentOSSpan('agentos.api.edit_image', async (span) => {
-            const { providerId, modelId } = resolveModelOption(opts, 'image');
+            let { providerId, modelId } = resolveModelOption(opts, 'image');
+            let effectiveProviderOptions = opts.providerOptions;
+            // Policy-tier-aware routing. Mirrors the generateImage flow so
+            // both generate and edit surfaces of the API respect the same
+            // uncensored catalog and safety-checker bypass. The router only
+            // kicks in for mature/private-adult — safe/standard edits keep
+            // whatever model the caller resolved above.
+            if (opts.policyTier
+                && (opts.policyTier === 'mature' || opts.policyTier === 'private-adult')) {
+                const { PolicyAwareImageRouter } = await import('../media/images/PolicyAwareImageRouter.js');
+                const { createUncensoredModelCatalog } = await import('../core/llm/routing/UncensoredModelCatalog.js');
+                const imageRouter = new PolicyAwareImageRouter(createUncensoredModelCatalog());
+                // When the caller didn't pin a capability, default to img2img so
+                // the catalog never picks a txt2img-only model for an edit call.
+                const capabilities = opts.capabilities ?? ['img2img'];
+                const pref = imageRouter.getPreferredProvider(opts.policyTier, capabilities);
+                if (pref) {
+                    providerId = pref.providerId;
+                    modelId = pref.modelId;
+                    const existingReplicate = effectiveProviderOptions?.replicate;
+                    effectiveProviderOptions = {
+                        ...(effectiveProviderOptions ?? {}),
+                        replicate: {
+                            ...(existingReplicate ?? {}),
+                            disableSafetyChecker: true,
+                        },
+                    };
+                }
+            }
             const resolved = resolveMediaProvider(providerId, modelId, {
                 apiKey: opts.apiKey,
                 baseUrl: opts.baseUrl,
@@ -98,7 +126,7 @@ export async function editImage(opts) {
                 size: opts.size,
                 seed: opts.seed,
                 n: opts.n,
-                providerOptions: opts.providerOptions,
+                providerOptions: effectiveProviderOptions,
             });
             metricUsage = result.usage;
             span?.setAttribute('agentos.api.images_count', result.images.length);

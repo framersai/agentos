@@ -113,5 +113,13 @@ export { VoicePipelineOrchestrator } from './VoicePipelineOrchestrator.js';
 // Typed error for barge-in interruptions
 export { VoiceInterruptError } from './VoiceInterruptError.js';
 // Streaming provider implementations
-export { DeepgramStreamingSTT, ElevenLabsStreamingSTT, ElevenLabsStreamingTTS, AgentSessionVoiceAdapter, } from './providers/index.js';
+export { DeepgramStreamingSTT, ElevenLabsStreamingSTT, ElevenLabsStreamingTTS, AgentSessionVoiceAdapter, StreamingSTTChain, StreamingTTSChain, } from './providers/index.js';
+// Resilience primitives
+export { VoicePipelineError, AggregateVoiceError, } from './VoicePipelineError.js';
+export { defaultCapabilities, supportsLanguage, } from './HealthyProvider.js';
+export { CircuitBreaker, } from './CircuitBreaker.js';
+export { AudioRingBuffer } from './AudioRingBuffer.js';
+export { TranscriptDedupe, } from './TranscriptDedupe.js';
+export { VoiceMetricsReporter, } from './VoiceMetricsReporter.js';
+export { createVoiceProvidersFromEnv, NoVoiceProvidersAvailableError, } from './env-constructor.js';
 //# sourceMappingURL=index.js.map

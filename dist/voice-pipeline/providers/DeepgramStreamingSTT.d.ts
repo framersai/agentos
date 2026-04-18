@@ -24,6 +24,16 @@
  * @see https://developers.deepgram.com/docs/streaming
  */
 import type { IStreamingSTT, StreamingSTTSession, StreamingSTTConfig } from '../types.js';
+import { type HealthyProvider, type HealthCheckResult, type ProviderCapabilities } from '../HealthyProvider.js';
+/**
+ * Shape of the injected health probe used for deterministic tests.
+ * Default implementation hits Deepgram's /v1/projects endpoint.
+ */
+export type VoiceHealthProbe = (apiKey: string) => Promise<{
+    ok: boolean;
+    status: number;
+    latencyMs: number;
+}>;
 /**
  * Configuration for the {@link DeepgramStreamingSTT} provider.
  */
@@ -40,6 +50,15 @@ export interface DeepgramStreamingSTTConfig {
      * @default 'nova-2'
      */
     model?: string;
+    /**
+     * Chain priority. Lower values are tried first.
+     * @default 10
+     */
+    priority?: number;
+    /** Optional capability overrides. Merged into defaultCapabilities(). */
+    capabilities?: Partial<ProviderCapabilities>;
+    /** Injectable health probe for tests. Defaults to Deepgram /v1/projects. */
+    healthProbe?: VoiceHealthProbe;
 }
 /**
  * Streaming STT provider that creates Deepgram WebSocket sessions.
@@ -55,12 +74,16 @@ export interface DeepgramStreamingSTTConfig {
  * session.on('transcript', (event) => console.log(event.text));
  * ```
  */
-export declare class DeepgramStreamingSTT implements IStreamingSTT {
+export declare class DeepgramStreamingSTT implements IStreamingSTT, HealthyProvider {
     private readonly config;
     readonly providerId = "deepgram-streaming";
     readonly isStreaming = true;
+    readonly priority: number;
+    readonly capabilities: ProviderCapabilities;
     private readonly keyPool;
+    private readonly healthProbe;
     constructor(config: DeepgramStreamingSTTConfig);
+    healthCheck(): Promise<HealthCheckResult>;
     /**
      * Create a new streaming STT session connected to Deepgram.
      * Each session gets a fresh key from the round-robin pool.

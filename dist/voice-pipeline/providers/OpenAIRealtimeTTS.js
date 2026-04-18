@@ -11,6 +11,16 @@
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { defaultCapabilities, } from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+async function defaultOpenAIProbe(apiKey) {
+    const start = Date.now();
+    const res = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(1000),
+    });
+    return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+}
 class OpenAIRealtimeTTSSession extends EventEmitter {
     constructor(config, sessionConfig) {
         super();
@@ -129,6 +139,42 @@ export class OpenAIRealtimeTTS {
         this.providerId = 'openai-realtime';
         this.config = config;
         this.keyPool = new ApiKeyPool(config.apiKey);
+        this.priority = config.priority ?? 20;
+        this.capabilities = defaultCapabilities({
+            languages: ['*'],
+            streaming: true,
+            costTier: 'premium',
+            latencyClass: 'realtime',
+            ...(config.capabilities ?? {}),
+        });
+        this.healthProbe = config.healthProbe ?? defaultOpenAIProbe;
+    }
+    async healthCheck() {
+        if (!this.keyPool.hasKeys) {
+            return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+        }
+        const key = this.keyPool.next();
+        try {
+            const res = await this.healthProbe(key);
+            if (res.ok)
+                return { ok: true, latencyMs: res.latencyMs };
+            const classified = VoicePipelineError.classifyError(new Error(`HTTP ${res.status}`), { kind: 'tts', provider: this.providerId });
+            return {
+                ok: false,
+                latencyMs: res.latencyMs,
+                error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+            };
+        }
+        catch (err) {
+            const classified = VoicePipelineError.classifyError(err, {
+                kind: 'tts',
+                provider: this.providerId,
+            });
+            return {
+                ok: false,
+                error: { class: classified.errorClass, message: classified.message },
+            };
+        }
     }
     async startSession(config) {
         const resolvedConfig = { ...this.config, apiKey: this.keyPool.next() };

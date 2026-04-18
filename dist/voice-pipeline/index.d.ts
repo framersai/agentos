@@ -104,5 +104,12 @@ export { WebSocketStreamTransport } from './WebSocketStreamTransport.js';
 export { WebRTCStreamTransport, createWebRTCTransport } from './WebRTCStreamTransport.js';
 export { VoicePipelineOrchestrator } from './VoicePipelineOrchestrator.js';
 export { VoiceInterruptError } from './VoiceInterruptError.js';
-export { DeepgramStreamingSTT, type DeepgramStreamingSTTConfig, ElevenLabsStreamingSTT, type ElevenLabsStreamingSTTConfig, ElevenLabsStreamingTTS, type ElevenLabsStreamingTTSConfig, AgentSessionVoiceAdapter, } from './providers/index.js';
+export { DeepgramStreamingSTT, type DeepgramStreamingSTTConfig, ElevenLabsStreamingSTT, type ElevenLabsStreamingSTTConfig, ElevenLabsStreamingTTS, type ElevenLabsStreamingTTSConfig, AgentSessionVoiceAdapter, StreamingSTTChain, type StreamingSTTChainOptions, type ProviderSelectedEvent, type ProviderFailedEvent, type ProviderFailoverEvent, StreamingTTSChain, type StreamingTTSChainOptions, type TTSProviderSelectedEvent, type TTSProviderFailedEvent, type TTSProviderFailoverEvent, } from './providers/index.js';
+export { VoicePipelineError, AggregateVoiceError, type HealthErrorClass, type VoicePipelineErrorInit, } from './VoicePipelineError.js';
+export { type HealthyProvider, type ProviderCapabilities, type HealthCheckResult, defaultCapabilities, supportsLanguage, } from './HealthyProvider.js';
+export { CircuitBreaker, type BreakerState, type CircuitBreakerOptions, type StateChangeEvent, } from './CircuitBreaker.js';
+export { AudioRingBuffer, type AudioRingBufferOptions } from './AudioRingBuffer.js';
+export { TranscriptDedupe, type TranscriptObservation, type DedupeResult, } from './TranscriptDedupe.js';
+export { VoiceMetricsReporter, type VoiceMetricEvent, type VoiceMetricListener, } from './VoiceMetricsReporter.js';
+export { createVoiceProvidersFromEnv, NoVoiceProvidersAvailableError, type VoiceProviderEnvConfig, type VoiceProviderBundle, } from './env-constructor.js';
 //# sourceMappingURL=index.d.ts.map

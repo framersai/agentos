@@ -24,6 +24,16 @@
  */
 import { EventEmitter } from 'node:events';
 import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { defaultCapabilities, } from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+async function defaultElevenLabsProbe(apiKey) {
+    const start = Date.now();
+    const res = await fetch('https://api.elevenlabs.io/v1/user', {
+        headers: { 'xi-api-key': apiKey },
+        signal: AbortSignal.timeout(1000),
+    });
+    return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+}
 // ---------------------------------------------------------------------------
 // Session Implementation — Chunked REST fallback
 // ---------------------------------------------------------------------------
@@ -238,6 +248,42 @@ export class ElevenLabsStreamingSTT {
         this.providerId = 'elevenlabs-streaming-stt';
         this.isStreaming = true;
         this.keyPool = new ApiKeyPool(config.apiKey);
+        this.priority = config.priority ?? 20;
+        this.capabilities = defaultCapabilities({
+            languages: ['*'],
+            streaming: true,
+            costTier: 'standard',
+            latencyClass: 'near-realtime',
+            ...(config.capabilities ?? {}),
+        });
+        this.healthProbe = config.healthProbe ?? defaultElevenLabsProbe;
+    }
+    async healthCheck() {
+        if (!this.keyPool.hasKeys) {
+            return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+        }
+        const key = this.keyPool.next();
+        try {
+            const res = await this.healthProbe(key);
+            if (res.ok)
+                return { ok: true, latencyMs: res.latencyMs };
+            const classified = VoicePipelineError.classifyError(new Error(`HTTP ${res.status}`), { kind: 'stt', provider: this.providerId });
+            return {
+                ok: false,
+                latencyMs: res.latencyMs,
+                error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+            };
+        }
+        catch (err) {
+            const classified = VoicePipelineError.classifyError(err, {
+                kind: 'stt',
+                provider: this.providerId,
+            });
+            return {
+                ok: false,
+                error: { class: classified.errorClass, message: classified.message },
+            };
+        }
     }
     /**
      * Create a new STT session. Uses chunked REST calls to ElevenLabs'

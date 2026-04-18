@@ -95,6 +95,27 @@ export interface EditImageOptions {
   providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
   /** Optional usage ledger configuration. */
   usageLedger?: AgentOSUsageLedgerOptions;
+  /**
+   * Content policy tier. When `'mature'` or `'private-adult'`, the edit is
+   * rerouted through {@link PolicyAwareImageRouter} to pick an uncensored
+   * community model (e.g. IP-Adapter FaceID SDXL for face-consistent
+   * edits, SDXL for generic img2img) and `disable_safety_checker: true`
+   * is applied automatically to the Replicate request so the model's own
+   * NSFW filter does not veto the prompt.
+   *
+   * `'safe'` and `'standard'` tiers fall back to whatever `provider` /
+   * `model` the caller supplied (or env-detected defaults), keeping the
+   * existing censored path intact.
+   */
+  policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
+  /**
+   * Required provider capabilities for mature/private-adult routing.
+   * Drives {@link UncensoredModelCatalog} filtering so callers can ask
+   * for `'face-consistency'` when editing a character's outfit, or
+   * `'img2img'` when the source is a scene the author wants preserved.
+   * Ignored for safe/standard tiers.
+   */
+  capabilities?: string[];
 }
 
 /**
@@ -158,7 +179,49 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
 
   try {
     return await withAgentOSSpan('agentos.api.edit_image', async (span) => {
-      const { providerId, modelId } = resolveModelOption(opts, 'image');
+      let { providerId, modelId } = resolveModelOption(opts, 'image');
+      let effectiveProviderOptions = opts.providerOptions;
+
+      // Policy-tier-aware routing. Mirrors the generateImage flow so
+      // both generate and edit surfaces of the API respect the same
+      // uncensored catalog and safety-checker bypass. The router only
+      // kicks in for mature/private-adult — safe/standard edits keep
+      // whatever model the caller resolved above.
+      if (
+        opts.policyTier
+        && (opts.policyTier === 'mature' || opts.policyTier === 'private-adult')
+      ) {
+        const { PolicyAwareImageRouter } = await import(
+          '../media/images/PolicyAwareImageRouter.js'
+        );
+        const { createUncensoredModelCatalog } = await import(
+          '../core/llm/routing/UncensoredModelCatalog.js'
+        );
+        const imageRouter = new PolicyAwareImageRouter(createUncensoredModelCatalog());
+        // When the caller didn't pin a capability, default to img2img so
+        // the catalog never picks a txt2img-only model for an edit call.
+        const capabilities = opts.capabilities ?? ['img2img'];
+        const pref = imageRouter.getPreferredProvider(
+          opts.policyTier as 'mature' | 'private-adult',
+          capabilities,
+        );
+        if (pref) {
+          providerId = pref.providerId;
+          modelId = pref.modelId;
+          const existingReplicate =
+            (effectiveProviderOptions as Record<string, unknown> | undefined)?.replicate as
+              | Record<string, unknown>
+              | undefined;
+          effectiveProviderOptions = {
+            ...(effectiveProviderOptions ?? {}),
+            replicate: {
+              ...(existingReplicate ?? {}),
+              disableSafetyChecker: true,
+            },
+          } as ImageProviderOptionBag;
+        }
+      }
+
       const resolved = resolveMediaProvider(providerId, modelId, {
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
@@ -197,7 +260,7 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
         size: opts.size,
         seed: opts.seed,
         n: opts.n,
-        providerOptions: opts.providerOptions,
+        providerOptions: effectiveProviderOptions,
       });
 
       metricUsage = result.usage;

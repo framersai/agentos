@@ -6,6 +6,16 @@
  */
 import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 import { isQuotaError } from '../../core/providers/quotaErrors.js';
+import { defaultCapabilities, } from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+async function defaultElevenLabsBatchProbe(apiKey) {
+    const start = Date.now();
+    const res = await fetch('https://api.elevenlabs.io/v1/user', {
+        headers: { 'xi-api-key': apiKey },
+        signal: AbortSignal.timeout(1000),
+    });
+    return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+}
 /** Approximate bytes per second for 128kbps MP3 audio. */
 const BYTES_PER_SEC_MP3 = 16000;
 /**
@@ -21,6 +31,42 @@ export class ElevenLabsBatchTTS {
         this.defaultVoiceId = config.voiceId ?? 'EXAVITQu4vr4xnSDxMaL';
         this.model = config.model ?? 'eleven_multilingual_v2';
         this.baseUrl = config.baseUrl ?? 'https://api.elevenlabs.io/v1';
+        this.priority = config.priority ?? 80;
+        this.capabilities = defaultCapabilities({
+            languages: ['*'],
+            streaming: false,
+            costTier: 'standard',
+            latencyClass: 'batch',
+            ...(config.capabilities ?? {}),
+        });
+        this.healthProbe = config.healthProbe ?? defaultElevenLabsBatchProbe;
+    }
+    async healthCheck() {
+        if (!this.keyPool.hasKeys) {
+            return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+        }
+        const key = this.keyPool.next();
+        try {
+            const res = await this.healthProbe(key);
+            if (res.ok)
+                return { ok: true, latencyMs: res.latencyMs };
+            const classified = VoicePipelineError.classifyError(new Error(`HTTP ${res.status}`), { kind: 'tts', provider: this.providerId });
+            return {
+                ok: false,
+                latencyMs: res.latencyMs,
+                error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+            };
+        }
+        catch (err) {
+            const classified = VoicePipelineError.classifyError(err, {
+                kind: 'tts',
+                provider: this.providerId,
+            });
+            return {
+                ok: false,
+                error: { class: classified.errorClass, message: classified.message },
+            };
+        }
     }
     /**
      * Synthesize complete text into MP3 audio via ElevenLabs REST API.

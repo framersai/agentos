@@ -60,9 +60,20 @@ export interface GenerateImageOptions {
     /**
      * Content policy tier. When mature or private-adult, the image provider
      * chain is reordered to prefer uncensored providers (Replicate, Fal)
-     * over censored ones (DALL-E, Stability safe mode).
+     * over censored ones (DALL-E, Stability safe mode) and
+     * `disable_safety_checker: true` is applied automatically to the
+     * Replicate request so the community model's own NSFW filter does
+     * not veto the prompt.
      */
     policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
+    /**
+     * Required provider capabilities for mature/private-adult routing.
+     * When `referenceImageUrl` is set, `'face-consistency'` is added
+     * automatically so the catalog prefers an IP-Adapter or Instant-ID
+     * model that actually respects the reference. Ignored for
+     * safe/standard tiers.
+     */
+    capabilities?: string[];
     /** Optional durable usage ledger configuration for helper-level accounting. */
     usageLedger?: AgentOSUsageLedgerOptions;
     /** Reference image URL for character/face consistency. See IImageProvider docs. */

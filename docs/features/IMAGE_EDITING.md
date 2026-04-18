@@ -37,6 +37,14 @@ scratch, these APIs operate on existing images:
 All three accept a `Buffer`, `Uint8Array`, or file path as input and return
 the same `ImageResult` shape used by `generateImage()`.
 
+**Mature edits:** `editImage` accepts a `policyTier` option. Pass
+`'mature'` or `'private-adult'` to route through an uncensored
+face-consistency model (IP-Adapter FaceID SDXL by default, SDXL as
+fallback) with the Replicate safety filter disabled automatically. Use
+`capabilities: ['face-consistency', 'img2img']` when preserving an
+existing character's identity matters. See
+[UNCENSORED_CONTENT.md](./UNCENSORED_CONTENT.md).
+
 ---
 
 ## editImage() API

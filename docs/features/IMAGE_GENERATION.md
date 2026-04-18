@@ -38,6 +38,13 @@ without touching application code.
 | Stable Diffusion Local | `stable-diffusion-local` | `STABLE_DIFFUSION_LOCAL_BASE_URL` | Privacy, no API cost |
 | Ollama | `ollama` | `OLLAMA_BASE_URL` | Local, offline |
 
+**Mature content:** pass `policyTier: 'mature'` or `'private-adult'` and
+`generateImage` reroutes through the uncensored catalog (Replicate
+community models, face-consistency aware) and disables the provider
+safety filter automatically. See
+[UNCENSORED_CONTENT.md](./UNCENSORED_CONTENT.md) for the full API and
+catalog.
+
 ---
 
 ## generateImage() API

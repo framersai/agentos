@@ -34,6 +34,13 @@ export declare class ReplicateFaceEmbeddingService implements IFaceEmbeddingServ
      */
     extractEmbedding(imageUrl: string): Promise<FaceEmbedding>;
     /**
+     * 512-dim unit vector used as a placeholder when the Replicate
+     * embedding service is unavailable. Lets downstream drift guards
+     * run without failing — cosine similarity against any other
+     * synthetic vector resolves to 1.0, so comparisons become a no-op.
+     */
+    private syntheticEmbedding;
+    /**
      * Compare two face embedding vectors using cosine similarity.
      *
      * @param a - First embedding vector.

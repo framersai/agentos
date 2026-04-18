@@ -17,4 +17,6 @@ export { OpenAIBatchTTS } from './OpenAIBatchTTS.js';
 export { ElevenLabsBatchTTS } from './ElevenLabsBatchTTS.js';
 export { BatchTTSFallback } from './BatchTTSFallback.js';
 export { OpenAIRealtimeTTS } from './OpenAIRealtimeTTS.js';
+export { StreamingSTTChain, } from './StreamingSTTChain.js';
+export { StreamingTTSChain, } from './StreamingTTSChain.js';
 //# sourceMappingURL=index.js.map

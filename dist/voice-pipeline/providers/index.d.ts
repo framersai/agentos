@@ -17,4 +17,6 @@ export { OpenAIBatchTTS, type OpenAIBatchTTSConfig } from './OpenAIBatchTTS.js';
 export { ElevenLabsBatchTTS, type ElevenLabsBatchTTSConfig } from './ElevenLabsBatchTTS.js';
 export { BatchTTSFallback } from './BatchTTSFallback.js';
 export { OpenAIRealtimeTTS, type OpenAIRealtimeTTSConfig } from './OpenAIRealtimeTTS.js';
+export { StreamingSTTChain, type StreamingSTTChainOptions, type ProviderSelectedEvent, type ProviderFailedEvent, type ProviderFailoverEvent, } from './StreamingSTTChain.js';
+export { StreamingTTSChain, type StreamingTTSChainOptions, type TTSProviderSelectedEvent, type TTSProviderFailedEvent, type TTSProviderFailoverEvent, } from './StreamingTTSChain.js';
 //# sourceMappingURL=index.d.ts.map
