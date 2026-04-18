@@ -1,3 +1,7 @@
+## <small>0.1.236 (2026-04-18)</small>
+
+* fix(usage): UsageLedger forwards Anthropic cache-token counters ([7245b23](https://github.com/framersai/agentos/commit/7245b23))
+
 ## <small>0.1.235 (2026-04-18)</small>
 
 * fix(emergent): wrap-forge-tool tests pass strict tsc ([b18bd21](https://github.com/framersai/agentos/commit/b18bd21))
