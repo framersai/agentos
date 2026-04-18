@@ -48,6 +48,49 @@ export function isAgent(value: BaseAgentConfig | Agent): value is Agent {
 }
 
 /**
+ * Accumulate Anthropic prompt-cache tokens from a per-call usage snapshot
+ * onto a running strategy-level totalUsage. Fills in the fields the
+ * existing accumulators (promptTokens / completionTokens / totalTokens)
+ * already handle — keeping cache metrics undefined on the accumulator
+ * until at least one call reports a value, so callers can distinguish
+ * "provider does not report cache" (undefined) from "zero hits" (0).
+ *
+ * Safe to call against any usage shape: missing fields are skipped
+ * without throwing, and numeric zero values are still counted.
+ *
+ * @param totalUsage - The strategy's running usage accumulator. Mutated
+ *   in place to add cacheReadTokens / cacheCreationTokens.
+ * @param call - The per-call usage snapshot (typically from an Agent
+ *   result or generateText-style TokenUsage). May be undefined.
+ */
+export function accumulateCacheTokens(
+  totalUsage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
+  },
+  call:
+    | {
+        promptTokens?: number;
+        completionTokens?: number;
+        totalTokens?: number;
+        cacheReadTokens?: number;
+        cacheCreationTokens?: number;
+      }
+    | undefined,
+): void {
+  if (!call) return;
+  if (typeof call.cacheReadTokens === 'number') {
+    totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + call.cacheReadTokens;
+  }
+  if (typeof call.cacheCreationTokens === 'number') {
+    totalUsage.cacheCreationTokens = (totalUsage.cacheCreationTokens ?? 0) + call.cacheCreationTokens;
+  }
+}
+
+/**
  * Merge agency-level defaults into an agent config.
  *
  * Agent-level values take precedence over agency-level defaults. Tools are
