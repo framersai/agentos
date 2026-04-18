@@ -1,3 +1,7 @@
+## <small>0.1.235 (2026-04-18)</small>
+
+* fix(emergent): wrap-forge-tool tests pass strict tsc ([b18bd21](https://github.com/framersai/agentos/commit/b18bd21))
+
 ## <small>0.1.234 (2026-04-18)</small>
 
 * fix(strategies): propagate cache tokens in all agency accumulators ([2daa6a3](https://github.com/framersai/agentos/commit/2daa6a3))
