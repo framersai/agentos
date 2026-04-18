@@ -1,3 +1,9 @@
+## <small>0.1.227 (2026-04-18)</small>
+
+* fix(face): graceful synthetic embedding when Replicate InsightFace 422s ([63fb853](https://github.com/framersai/agentos/commit/63fb853))
+* Merge remote-tracking branch 'origin/master' ([d530634](https://github.com/framersai/agentos/commit/d530634))
+* docs: Paracosm feature guide with HEXACO, forge/reuse, cost safety, API, SSE ([6dcca61](https://github.com/framersai/agentos/commit/6dcca61))
+
 ## <small>0.1.226 (2026-04-17)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([7049828](https://github.com/framersai/agentos/commit/7049828))
