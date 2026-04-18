@@ -1,3 +1,8 @@
+## <small>0.1.239 (2026-04-18)</small>
+
+* fix(agency): UsageTotals carries + accumulates cache-token fields ([89b99f2](https://github.com/framersai/agentos/commit/89b99f2))
+* test(storage): lock in SqlStorageAdapter cache-token migration ([d75b736](https://github.com/framersai/agentos/commit/d75b736))
+
 ## <small>0.1.238 (2026-04-18)</small>
 
 * fix(storage): SqlStorageAdapter persists + aggregates cache tokens ([b78ade8](https://github.com/framersai/agentos/commit/b78ade8))
