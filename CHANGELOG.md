@@ -1,3 +1,7 @@
+## <small>0.1.233 (2026-04-18)</small>
+
+* fix(api): streamText + streamObject propagate prompt-cache tokens ([2a78b66](https://github.com/framersai/agentos/commit/2a78b66))
+
 ## <small>0.1.232 (2026-04-18)</small>
 
 * fix(api): generateObject propagates prompt-cache tokens ([cee0eaa](https://github.com/framersai/agentos/commit/cee0eaa))
