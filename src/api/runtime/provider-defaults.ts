@@ -116,9 +116,15 @@ type AutoDetectProbe =
  * the requested task type, so the order matters most for the default (text) case.
  */
 const AUTO_DETECT_ORDER: AutoDetectProbe[] = [
+  // OpenRouter first: users who set OPENROUTER_API_KEY alongside a
+  // direct-provider key typically intend the OpenRouter aggregator
+  // to mediate (failover, cost routing, etc.). Matches the documented
+  // priority comment below and the provider-defaults.test.ts pin that
+  // "openrouter wins when both OPENROUTER_API_KEY and OPENAI_API_KEY
+  // are set".
+  { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'OPENAI_API_KEY', provider: 'openai' },
   { envKey: 'ANTHROPIC_API_KEY', provider: 'anthropic' },
-  { envKey: 'OPENROUTER_API_KEY', provider: 'openrouter' },
   { envKey: 'GEMINI_API_KEY', provider: 'gemini' },
   { envKey: 'GROQ_API_KEY', provider: 'groq' },
   { envKey: 'TOGETHER_API_KEY', provider: 'together' },
