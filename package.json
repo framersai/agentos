@@ -1,6 +1,6 @@
 {
   "name": "@framers/agentos",
-  "version": "0.1.229",
+  "version": "0.1.230",
   "description": "Modular AgentOS orchestration library",
   "type": "module",
   "main": "dist/index.js",
