@@ -1,3 +1,7 @@
+## <small>0.1.231 (2026-04-18)</small>
+
+* fix(voice-pipeline): resolve 2 lint errors unblocking CI ([43fd59a](https://github.com/framersai/agentos/commit/43fd59a))
+
 ## <small>0.1.230 (2026-04-18)</small>
 
 * fix(emergent): strict build — cast LLM-origin args to ForgeToolInput ([52cad99](https://github.com/framersai/agentos/commit/52cad99))
