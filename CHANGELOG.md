@@ -1,3 +1,19 @@
+## <small>0.1.228 (2026-04-18)</small>
+
+* chore(build): rebuild dist for provider catalog updates ([e72831f](https://github.com/framersai/agentos/commit/e72831f))
+* feat(providers): add Claude Opus 4.7 + Sonnet 4.6 models + updated pricing ([625e0b2](https://github.com/framersai/agentos/commit/625e0b2))
+* feat(voice): all existing providers implement HealthyProvider ([3c2a4bc](https://github.com/framersai/agentos/commit/3c2a4bc))
+* feat(voice): AudioRingBuffer for mid-utterance failover replay ([ab2e41e](https://github.com/framersai/agentos/commit/ab2e41e))
+* feat(voice): createVoiceProvidersFromEnv batteries-included constructor ([ab9a130](https://github.com/framersai/agentos/commit/ab9a130))
+* feat(voice): export new resilience symbols from package barrel ([0a9401a](https://github.com/framersai/agentos/commit/0a9401a))
+* feat(voice): HealthyProvider trait + capability helpers ([122585e](https://github.com/framersai/agentos/commit/122585e))
+* feat(voice): per-provider CircuitBreaker with auth-permanent + cooldown recovery ([b2a58bd](https://github.com/framersai/agentos/commit/b2a58bd))
+* feat(voice): StreamingSTTChain with init-time fallback + mid-utterance failover ([f214cb6](https://github.com/framersai/agentos/commit/f214cb6))
+* feat(voice): StreamingTTSChain with init-time + mid-synthesis failover ([028ec7f](https://github.com/framersai/agentos/commit/028ec7f))
+* feat(voice): TranscriptDedupe for cross-provider overlap suppression ([271defd](https://github.com/framersai/agentos/commit/271defd))
+* feat(voice): VoiceMetricsReporter typed event bus with isolated listeners ([4c327a3](https://github.com/framersai/agentos/commit/4c327a3))
+* feat(voice): VoicePipelineError + AggregateVoiceError with structured classification ([be0f66a](https://github.com/framersai/agentos/commit/be0f66a))
+
 ## <small>0.1.227 (2026-04-18)</small>
 
 * fix(face): graceful synthetic embedding when Replicate InsightFace 422s ([63fb853](https://github.com/framersai/agentos/commit/63fb853))
