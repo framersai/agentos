@@ -357,6 +357,21 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
               if (typeof chunk.usage.costUSD === 'number') {
                 usage.costUSD = (usage.costUSD ?? 0) + chunk.usage.costUSD;
               }
+              // Prompt-cache metrics from the provider layer. Provider
+              // surfaces these as cacheReadInputTokens /
+              // cacheCreationInputTokens on the final chunk's usage
+              // (mirrors Anthropic's cache_read_input_tokens /
+              // cache_creation_input_tokens); forward them onto the
+              // aggregated TokenUsage so downstream cost trackers see
+              // cache hits.
+              const cacheRead = (chunk.usage as { cacheReadInputTokens?: number }).cacheReadInputTokens;
+              const cacheCreate = (chunk.usage as { cacheCreationInputTokens?: number }).cacheCreationInputTokens;
+              if (typeof cacheRead === 'number') {
+                usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + cacheRead;
+              }
+              if (typeof cacheCreate === 'number') {
+                usage.cacheCreationTokens = (usage.cacheCreationTokens ?? 0) + cacheCreate;
+              }
               attachUsageAttributes(stepSpan, {
                 promptTokens: chunk.usage.promptTokens,
                 completionTokens: chunk.usage.completionTokens,
@@ -400,6 +415,8 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
               completionTokens: usage.completionTokens,
               totalTokens: usage.totalTokens,
               costUSD: usage.costUSD,
+              cacheReadTokens: usage.cacheReadTokens,
+              cacheCreationTokens: usage.cacheCreationTokens,
             };
             const toolCallRecords: ToolCallRecord[] = (streamedToolCalls ?? []).map((tc: any) => ({
               name: tc.function?.name ?? '',
@@ -637,6 +654,12 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             usage.totalTokens += fbUsage.totalTokens;
             if (typeof fbUsage.costUSD === 'number') {
               usage.costUSD = (usage.costUSD ?? 0) + fbUsage.costUSD;
+            }
+            if (typeof fbUsage.cacheReadTokens === 'number') {
+              usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + fbUsage.cacheReadTokens;
+            }
+            if (typeof fbUsage.cacheCreationTokens === 'number') {
+              usage.cacheCreationTokens = (usage.cacheCreationTokens ?? 0) + fbUsage.cacheCreationTokens;
             }
 
             const fbToolCalls = await fallbackResult.toolCalls;
