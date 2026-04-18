@@ -26,6 +26,21 @@
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import { defaultCapabilities, } from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+async function defaultDeepgramProbe(apiKey) {
+    const start = Date.now();
+    try {
+        const res = await fetch('https://api.deepgram.com/v1/projects', {
+            headers: { Authorization: `Token ${apiKey}` },
+            signal: AbortSignal.timeout(1000),
+        });
+        return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+    }
+    catch (err) {
+        throw err;
+    }
+}
 // ---------------------------------------------------------------------------
 // Session Implementation
 // ---------------------------------------------------------------------------
@@ -229,6 +244,42 @@ export class DeepgramStreamingSTT {
         this.providerId = 'deepgram-streaming';
         this.isStreaming = true;
         this.keyPool = new ApiKeyPool(config.apiKey);
+        this.priority = config.priority ?? 10;
+        this.capabilities = defaultCapabilities({
+            languages: ['*'],
+            streaming: true,
+            costTier: 'standard',
+            latencyClass: 'realtime',
+            ...(config.capabilities ?? {}),
+        });
+        this.healthProbe = config.healthProbe ?? defaultDeepgramProbe;
+    }
+    async healthCheck() {
+        if (!this.keyPool.hasKeys) {
+            return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+        }
+        const key = this.keyPool.next();
+        try {
+            const res = await this.healthProbe(key);
+            if (res.ok)
+                return { ok: true, latencyMs: res.latencyMs };
+            const classified = VoicePipelineError.classifyError(new Error(`HTTP ${res.status}`), { kind: 'stt', provider: this.providerId });
+            return {
+                ok: false,
+                latencyMs: res.latencyMs,
+                error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+            };
+        }
+        catch (err) {
+            const classified = VoicePipelineError.classifyError(err, {
+                kind: 'stt',
+                provider: this.providerId,
+            });
+            return {
+                ok: false,
+                error: { class: classified.errorClass, message: classified.message },
+            };
+        }
     }
     /**
      * Create a new streaming STT session connected to Deepgram.

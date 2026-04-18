@@ -276,6 +276,29 @@ export declare class AnthropicProvider implements IProvider {
      * @returns {number | undefined} Estimated cost in USD.
      * @private
      */
+    /**
+     * Estimate cost in USD for a completion, including Anthropic's prompt-
+     * caching tier pricing.
+     *
+     * Anthropic billing tiers (as of 2025):
+     *   input_tokens            × 1.00 × base input rate  (non-cached input)
+     *   cache_read_input_tokens × 0.10 × base input rate  (cache hit)
+     *   cache_creation_input_tokens × 1.25 × base input rate  (5-min TTL write)
+     *   output_tokens           × 1.00 × base output rate
+     *
+     * The API's `input_tokens` field already EXCLUDES cached tokens, so we
+     * sum three separate components for total input cost. Previous
+     * implementation used only `input_tokens` × rate, which happened to
+     * be correct for the non-cached portion but hid cache creation cost
+     * and ignored cache read cost entirely — meaning reported costUSD
+     * was always BELOW true billed amount whenever caching was active.
+     *
+     * 1-hour TTL cache-creation rate is 2× the base input rate, not 1.25×.
+     * We can't tell which TTL was used from the response, so we assume
+     * the default 5-minute tier. For long-lived cached contexts the
+     * reported cost will under-estimate by the 0.75× difference on
+     * creation tokens (minor; mostly one-shot at run start).
+     */
     private estimateCost;
     /**
      * Builds an abort chunk for early stream termination.

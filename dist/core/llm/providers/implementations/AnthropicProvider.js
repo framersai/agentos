@@ -4,26 +4,57 @@ import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 // ---------------------------------------------------------------------------
 // Known model catalog — used by listAvailableModels / getModelInfo
 // ---------------------------------------------------------------------------
-/** Static catalog of well-known Anthropic models and their metadata. */
+/**
+ * Static catalog of well-known Anthropic models and their metadata.
+ *
+ * Pricing verified against anthropic.com/pricing on 2026-04-16 (USD per 1M tokens).
+ * Update when Anthropic publishes new rate cards.
+ */
 const ANTHROPIC_MODELS = [
     {
-        modelId: 'claude-opus-4-20250514',
+        modelId: 'claude-opus-4-7',
         providerId: 'anthropic',
-        displayName: 'Claude Opus 4',
-        description: 'Most capable model for complex reasoning and analysis.',
+        displayName: 'Claude Opus 4.7',
+        description: 'Most intelligent model for agents and coding.',
         capabilities: ['chat', 'tool_use', 'vision_input'],
         contextWindowSize: 200000,
         outputTokenLimit: 32000,
-        pricePer1MTokensInput: 15,
-        pricePer1MTokensOutput: 75,
+        pricePer1MTokensInput: 5,
+        pricePer1MTokensOutput: 25,
         supportsStreaming: true,
         status: 'active',
     },
     {
-        modelId: 'claude-sonnet-4-20250514',
+        modelId: 'claude-opus-4-6',
         providerId: 'anthropic',
-        displayName: 'Claude Sonnet 4',
-        description: 'Best balance of speed and intelligence for everyday tasks.',
+        displayName: 'Claude Opus 4.6',
+        description: 'Previous-generation Opus with same pricing as 4.7.',
+        capabilities: ['chat', 'tool_use', 'vision_input'],
+        contextWindowSize: 200000,
+        outputTokenLimit: 32000,
+        pricePer1MTokensInput: 5,
+        pricePer1MTokensOutput: 25,
+        supportsStreaming: true,
+        status: 'active',
+    },
+    {
+        modelId: 'claude-sonnet-4-6',
+        providerId: 'anthropic',
+        displayName: 'Claude Sonnet 4.6',
+        description: 'Optimal balance of intelligence, cost, and speed.',
+        capabilities: ['chat', 'tool_use', 'vision_input'],
+        contextWindowSize: 200000,
+        outputTokenLimit: 16000,
+        pricePer1MTokensInput: 3,
+        pricePer1MTokensOutput: 15,
+        supportsStreaming: true,
+        status: 'active',
+    },
+    {
+        modelId: 'claude-sonnet-4-5',
+        providerId: 'anthropic',
+        displayName: 'Claude Sonnet 4.5',
+        description: 'Previous-generation Sonnet with same pricing as 4.6.',
         capabilities: ['chat', 'tool_use', 'vision_input'],
         contextWindowSize: 200000,
         outputTokenLimit: 16000,
@@ -36,12 +67,40 @@ const ANTHROPIC_MODELS = [
         modelId: 'claude-haiku-4-5-20251001',
         providerId: 'anthropic',
         displayName: 'Claude Haiku 4.5',
-        description: 'Fastest and most cost-effective model for lightweight tasks.',
+        description: 'Fastest, most cost-efficient model for lightweight tasks.',
         capabilities: ['chat', 'tool_use', 'vision_input'],
         contextWindowSize: 200000,
         outputTokenLimit: 8192,
-        pricePer1MTokensInput: 0.80,
-        pricePer1MTokensOutput: 4,
+        pricePer1MTokensInput: 1,
+        pricePer1MTokensOutput: 5,
+        supportsStreaming: true,
+        status: 'active',
+    },
+    // Legacy entries retained for model-ID back-compat. Prices reflect the
+    // original rate card for those specific snapshots.
+    {
+        modelId: 'claude-opus-4-20250514',
+        providerId: 'anthropic',
+        displayName: 'Claude Opus 4 (2025-05-14)',
+        description: 'Original Opus 4 snapshot. Legacy pricing retained.',
+        capabilities: ['chat', 'tool_use', 'vision_input'],
+        contextWindowSize: 200000,
+        outputTokenLimit: 32000,
+        pricePer1MTokensInput: 15,
+        pricePer1MTokensOutput: 75,
+        supportsStreaming: true,
+        status: 'active',
+    },
+    {
+        modelId: 'claude-sonnet-4-20250514',
+        providerId: 'anthropic',
+        displayName: 'Claude Sonnet 4 (2025-05-14)',
+        description: 'Original Sonnet 4 snapshot.',
+        capabilities: ['chat', 'tool_use', 'vision_input'],
+        contextWindowSize: 200000,
+        outputTokenLimit: 16000,
+        pricePer1MTokensInput: 3,
+        pricePer1MTokensOutput: 15,
         supportsStreaming: true,
         status: 'active',
     },
@@ -666,7 +725,7 @@ export class AnthropicProvider {
             promptTokens: apiResponse.usage.input_tokens,
             completionTokens: apiResponse.usage.output_tokens,
             totalTokens: apiResponse.usage.input_tokens + apiResponse.usage.output_tokens,
-            costUSD: this.estimateCost(apiResponse.usage.input_tokens, apiResponse.usage.output_tokens, apiResponse.model),
+            costUSD: this.estimateCost(apiResponse.usage.input_tokens, apiResponse.usage.output_tokens, apiResponse.model, apiResponse.usage.cache_read_input_tokens, apiResponse.usage.cache_creation_input_tokens),
             cacheCreationInputTokens: apiResponse.usage.cache_creation_input_tokens,
             cacheReadInputTokens: apiResponse.usage.cache_read_input_tokens,
         };
@@ -740,12 +799,40 @@ export class AnthropicProvider {
      * @returns {number | undefined} Estimated cost in USD.
      * @private
      */
-    estimateCost(inputTokens, outputTokens, modelId) {
+    /**
+     * Estimate cost in USD for a completion, including Anthropic's prompt-
+     * caching tier pricing.
+     *
+     * Anthropic billing tiers (as of 2025):
+     *   input_tokens            × 1.00 × base input rate  (non-cached input)
+     *   cache_read_input_tokens × 0.10 × base input rate  (cache hit)
+     *   cache_creation_input_tokens × 1.25 × base input rate  (5-min TTL write)
+     *   output_tokens           × 1.00 × base output rate
+     *
+     * The API's `input_tokens` field already EXCLUDES cached tokens, so we
+     * sum three separate components for total input cost. Previous
+     * implementation used only `input_tokens` × rate, which happened to
+     * be correct for the non-cached portion but hid cache creation cost
+     * and ignored cache read cost entirely — meaning reported costUSD
+     * was always BELOW true billed amount whenever caching was active.
+     *
+     * 1-hour TTL cache-creation rate is 2× the base input rate, not 1.25×.
+     * We can't tell which TTL was used from the response, so we assume
+     * the default 5-minute tier. For long-lived cached contexts the
+     * reported cost will under-estimate by the 0.75× difference on
+     * creation tokens (minor; mostly one-shot at run start).
+     */
+    estimateCost(inputTokens, outputTokens, modelId, cacheReadTokens, cacheCreationTokens) {
         const info = ANTHROPIC_MODELS.find(m => m.modelId === modelId);
         if (!info?.pricePer1MTokensInput || !info?.pricePer1MTokensOutput)
             return undefined;
-        return ((inputTokens / 1000000) * info.pricePer1MTokensInput +
-            (outputTokens / 1000000) * info.pricePer1MTokensOutput);
+        const inputPrice = info.pricePer1MTokensInput;
+        const outputPrice = info.pricePer1MTokensOutput;
+        const nonCachedInput = (inputTokens / 1000000) * inputPrice;
+        const cachedRead = ((cacheReadTokens ?? 0) / 1000000) * inputPrice * 0.10;
+        const cachedCreate = ((cacheCreationTokens ?? 0) / 1000000) * inputPrice * 1.25;
+        const output = (outputTokens / 1000000) * outputPrice;
+        return nonCachedInput + cachedRead + cachedCreate + output;
     }
     /**
      * Builds an abort chunk for early stream termination.

@@ -24,12 +24,14 @@ describe('UncensoredModelCatalog', () => {
     });
 
     it('filters by quality', () => {
+      // hermes-3-405b, hermes-3-70b, dolphin-mixtral-8x22b
       const high = catalog.getTextModels({ quality: 'high' });
-      expect(high).toHaveLength(2);
+      expect(high).toHaveLength(3);
       expect(high.every((m) => m.quality === 'high')).toBe(true);
 
+      // mythomax-l2-13b
       const low = catalog.getTextModels({ quality: 'low' });
-      expect(low).toHaveLength(2);
+      expect(low).toHaveLength(1);
       expect(low.every((m) => m.quality === 'low')).toBe(true);
     });
 
@@ -37,8 +39,10 @@ describe('UncensoredModelCatalog', () => {
       const erotic = catalog.getTextModels({
         contentPermissions: ['erotic'],
       });
-      // hermes-3-405b, dolphin-mixtral, hermes-3-70b, toppy-m-7b
-      expect(erotic).toHaveLength(4);
+      // Every curated text entry currently permits erotic content;
+      // the catalog exists precisely to route mature/private-adult
+      // traffic off the default censored chain.
+      expect(erotic).toHaveLength(5);
       expect(erotic.every((m) => m.contentPermissions.includes('erotic'))).toBe(
         true,
       );
@@ -49,7 +53,7 @@ describe('UncensoredModelCatalog', () => {
         quality: 'high',
         contentPermissions: ['erotic'],
       });
-      expect(highErotic).toHaveLength(2);
+      expect(highErotic).toHaveLength(3);
     });
   });
 

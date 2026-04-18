@@ -65,6 +65,27 @@ export interface EditImageOptions {
     providerOptions?: ImageProviderOptionBag | Record<string, unknown>;
     /** Optional usage ledger configuration. */
     usageLedger?: AgentOSUsageLedgerOptions;
+    /**
+     * Content policy tier. When `'mature'` or `'private-adult'`, the edit is
+     * rerouted through {@link PolicyAwareImageRouter} to pick an uncensored
+     * community model (e.g. IP-Adapter FaceID SDXL for face-consistent
+     * edits, SDXL for generic img2img) and `disable_safety_checker: true`
+     * is applied automatically to the Replicate request so the model's own
+     * NSFW filter does not veto the prompt.
+     *
+     * `'safe'` and `'standard'` tiers fall back to whatever `provider` /
+     * `model` the caller supplied (or env-detected defaults), keeping the
+     * existing censored path intact.
+     */
+    policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
+    /**
+     * Required provider capabilities for mature/private-adult routing.
+     * Drives {@link UncensoredModelCatalog} filtering so callers can ask
+     * for `'face-consistency'` when editing a character's outfit, or
+     * `'img2img'` when the source is a scene the author wants preserved.
+     * Ignored for safe/standard tiers.
+     */
+    capabilities?: string[];
 }
 /**
  * Result returned by {@link editImage}.

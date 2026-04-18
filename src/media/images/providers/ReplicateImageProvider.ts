@@ -278,6 +278,13 @@ export class ReplicateImageProvider implements IImageProvider {
     if (request.negativePrompt) input.negative_prompt = request.negativePrompt;
     if (request.seed !== undefined) input.seed = request.seed;
     if (request.n) input.num_outputs = request.n;
+    // Mirror the generateImage handling so mature/private-adult edits can
+    // bypass the community-model NSFW filter. Without this, policy-aware
+    // routing picks an uncensored model but the model's own safety flag
+    // still rejects the prompt, returning a placeholder gradient.
+    if (providerOptions?.disableSafetyChecker !== undefined) {
+      input.disable_safety_checker = providerOptions.disableSafetyChecker;
+    }
 
     const model = request.modelId || defaultModel;
     const body: Record<string, unknown> = {

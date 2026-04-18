@@ -22,6 +22,7 @@
  * @see https://elevenlabs.io/docs/api-reference/websockets
  */
 import type { IStreamingTTS, StreamingTTSSession, StreamingTTSConfig } from '../types.js';
+import { type HealthyProvider, type HealthCheckResult, type ProviderCapabilities } from '../HealthyProvider.js';
 /**
  * Configuration for the {@link ElevenLabsStreamingTTS} provider.
  */
@@ -43,6 +44,16 @@ export interface ElevenLabsStreamingTTSConfig {
      * @default 'eleven_multilingual_v2'
      */
     model?: string;
+    /** Chain priority. Lower values are tried first. @default 10 */
+    priority?: number;
+    /** Optional capability overrides. */
+    capabilities?: Partial<ProviderCapabilities>;
+    /** Injectable health probe for tests. */
+    healthProbe?: (apiKey: string) => Promise<{
+        ok: boolean;
+        status: number;
+        latencyMs: number;
+    }>;
 }
 /**
  * Streaming TTS provider that creates ElevenLabs WebSocket sessions.
@@ -60,11 +71,15 @@ export interface ElevenLabsStreamingTTSConfig {
  * await session.flush();
  * ```
  */
-export declare class ElevenLabsStreamingTTS implements IStreamingTTS {
+export declare class ElevenLabsStreamingTTS implements IStreamingTTS, HealthyProvider {
     private readonly config;
     readonly providerId = "elevenlabs-streaming";
+    readonly priority: number;
+    readonly capabilities: ProviderCapabilities;
     private readonly keyPool;
+    private readonly healthProbe;
     constructor(config: ElevenLabsStreamingTTSConfig);
+    healthCheck(): Promise<HealthCheckResult>;
     /**
      * Create a new streaming TTS session connected to ElevenLabs.
      * The session opens a WebSocket and is ready to receive text tokens.

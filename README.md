@@ -347,6 +347,7 @@ Full API reference: [docs.agentos.sh/api](https://docs.agentos.sh/api)
 | [Emergent Capabilities](./docs/architecture/EMERGENT_CAPABILITIES.md) | Runtime tool forging |
 | [Channels & Platforms](./docs/architecture/PLATFORM_SUPPORT.md) | 37 platform adapters |
 | [Voice Pipeline](./docs/features/VOICE_PIPELINE.md) | TTS, STT, telephony |
+| [Uncensored Content](./docs/features/UNCENSORED_CONTENT.md) | `policyTier`-driven routing for mature text + image generation |
 
 Full documentation: [docs.agentos.sh](https://docs.agentos.sh)
 

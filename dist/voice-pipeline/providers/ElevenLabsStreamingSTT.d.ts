@@ -23,6 +23,7 @@
  * @see https://elevenlabs.io/docs/api-reference/speech-to-text
  */
 import type { IStreamingSTT, StreamingSTTSession, StreamingSTTConfig } from '../types.js';
+import { type HealthyProvider, type HealthCheckResult, type ProviderCapabilities } from '../HealthyProvider.js';
 /**
  * Configuration for the {@link ElevenLabsStreamingSTT} provider.
  */
@@ -39,6 +40,16 @@ export interface ElevenLabsStreamingSTTConfig {
      * @default 'scribe_v1'
      */
     model?: string;
+    /** Chain priority. Lower values are tried first. @default 20 */
+    priority?: number;
+    /** Optional capability overrides. */
+    capabilities?: Partial<ProviderCapabilities>;
+    /** Injectable health probe for tests. */
+    healthProbe?: (apiKey: string) => Promise<{
+        ok: boolean;
+        status: number;
+        latencyMs: number;
+    }>;
 }
 /**
  * Streaming STT provider using ElevenLabs' Speech-to-Text API.
@@ -56,12 +67,16 @@ export interface ElevenLabsStreamingSTTConfig {
  * session.on('transcript', (event) => console.log(event.text));
  * ```
  */
-export declare class ElevenLabsStreamingSTT implements IStreamingSTT {
+export declare class ElevenLabsStreamingSTT implements IStreamingSTT, HealthyProvider {
     private readonly config;
     readonly providerId = "elevenlabs-streaming-stt";
     readonly isStreaming = true;
+    readonly priority: number;
+    readonly capabilities: ProviderCapabilities;
     private readonly keyPool;
+    private readonly healthProbe;
     constructor(config: ElevenLabsStreamingSTTConfig);
+    healthCheck(): Promise<HealthCheckResult>;
     /**
      * Create a new STT session. Uses chunked REST calls to ElevenLabs'
      * batch STT endpoint for near-realtime transcription.

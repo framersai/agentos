@@ -5,6 +5,7 @@
  * for one-shot narration synthesis with voice settings control.
  */
 import type { IBatchTTS, BatchTTSConfig, BatchTTSResult } from '../types.js';
+import { type HealthyProvider, type HealthCheckResult, type ProviderCapabilities } from '../HealthyProvider.js';
 /** Configuration for the ElevenLabs batch TTS provider. */
 export interface ElevenLabsBatchTTSConfig {
     /** ElevenLabs API key. */
@@ -15,6 +16,16 @@ export interface ElevenLabsBatchTTSConfig {
     model?: string;
     /** Base URL for the ElevenLabs API. Defaults to 'https://api.elevenlabs.io/v1'. */
     baseUrl?: string;
+    /** Chain priority. Lower values are tried first. @default 80 */
+    priority?: number;
+    /** Optional capability overrides. */
+    capabilities?: Partial<ProviderCapabilities>;
+    /** Injectable health probe for tests. */
+    healthProbe?: (apiKey: string) => Promise<{
+        ok: boolean;
+        status: number;
+        latencyMs: number;
+    }>;
 }
 /**
  * Batch (one-shot) TTS provider using ElevenLabs' REST text-to-speech endpoint.
@@ -22,8 +33,10 @@ export interface ElevenLabsBatchTTSConfig {
  * Accepts complete text and returns finished MP3 audio with voice settings
  * control via `providerOptions` (stability, similarityBoost, style, useSpeakerBoost).
  */
-export declare class ElevenLabsBatchTTS implements IBatchTTS {
+export declare class ElevenLabsBatchTTS implements IBatchTTS, HealthyProvider {
     readonly providerId = "elevenlabs-batch";
+    readonly priority: number;
+    readonly capabilities: ProviderCapabilities;
     /** API key pool for round-robin rotation and quota failover. */
     private readonly keyPool;
     /** Default voice ID when none is provided in the synthesis config. */
@@ -32,7 +45,10 @@ export declare class ElevenLabsBatchTTS implements IBatchTTS {
     private readonly model;
     /** Base URL for all API requests. */
     private readonly baseUrl;
+    /** Injectable health probe for tests. */
+    private readonly healthProbe;
     constructor(config: ElevenLabsBatchTTSConfig);
+    healthCheck(): Promise<HealthCheckResult>;
     /**
      * Synthesize complete text into MP3 audio via ElevenLabs REST API.
      *

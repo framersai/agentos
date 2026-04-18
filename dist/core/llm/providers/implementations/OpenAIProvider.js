@@ -21,21 +21,48 @@ export class OpenAIProvider {
         this.keyPool = null;
         this.availableModelsCache = new Map();
         // Known pricing for common OpenAI models (USD per 1K tokens).
-        // This should be updated periodically based on OpenAI's official pricing.
-        // Input: cost for prompt tokens, Output: cost for completion tokens.
-        // For embedding models, 'input' is typically used for total tokens.
+        // Verified against openai.com/api/pricing and developers.openai.com/api/docs/pricing
+        // on 2026-04-16. Values are standard (non-batch, non-regional) rates.
+        // Input: cost for prompt tokens. Output: cost for completion tokens.
+        // For embedding models, 'input' is total tokens.
         this.modelPricing = {
-            // Chat models (per 1K tokens)
-            'gpt-4o': { input: 0.005, output: 0.015 },
+            // GPT-5.4 family (current flagship and siblings, Mar 2026)
+            'gpt-5.4': { input: 0.0025, output: 0.015 },
+            'gpt-5.4-mini': { input: 0.00075, output: 0.0045 },
+            'gpt-5.4-nano': { input: 0.0002, output: 0.00125 },
+            'gpt-5.4-pro': { input: 0.030, output: 0.180 },
+            // GPT-5.3 family (ChatGPT / Codex variants, priced per Azure/OpenAI listings)
+            'gpt-5.3-chat-latest': { input: 0.00175, output: 0.014 },
+            'gpt-5.3-codex': { input: 0.00175, output: 0.014 },
+            // GPT-5.2 family
+            'gpt-5.2': { input: 0.00175, output: 0.014 },
+            // GPT-5.1 and GPT-5 base (legacy, same tier pricing)
+            'gpt-5': { input: 0.00125, output: 0.010 },
+            'gpt-5.1': { input: 0.00125, output: 0.010 },
+            'gpt-5-mini': { input: 0.00025, output: 0.002 },
+            'gpt-5-nano': { input: 0.00005, output: 0.0004 },
+            // GPT-4.1 family (legacy but still in rotation)
+            'gpt-4.1': { input: 0.002, output: 0.008 },
+            'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
+            'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },
+            // GPT-4o family (legacy, repriced to current list at $2.50/$10 per 1M)
+            'gpt-4o': { input: 0.0025, output: 0.010 },
             'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-            'gpt-4-turbo': { input: 0.01, output: 0.03 }, // Example, check current pricing
-            'gpt-4-turbo-preview': { input: 0.01, output: 0.03 }, // Example
-            'gpt-4-vision-preview': { input: 0.01, output: 0.03 }, // Example
+            // Deprecated but still potentially referenced
+            'gpt-4-turbo': { input: 0.01, output: 0.03 },
+            'gpt-4-turbo-preview': { input: 0.01, output: 0.03 },
+            'gpt-4-vision-preview': { input: 0.01, output: 0.03 },
             'gpt-4': { input: 0.03, output: 0.06 },
             'gpt-4-32k': { input: 0.06, output: 0.12 },
-            'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 }, // Example for gpt-3.5-turbo-0125
-            'gpt-3.5-turbo-16k': { input: 0.001, output: 0.002 }, // Example for gpt-3.5-turbo-16k-0613
-            // Embedding models (per 1K tokens, typically only input cost matters)
+            'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
+            'gpt-3.5-turbo-16k': { input: 0.001, output: 0.002 },
+            // o-series reasoning models
+            'o3': { input: 0.002, output: 0.008 },
+            'o3-pro-2025-06-10': { input: 0.020, output: 0.080 },
+            'o4-mini': { input: 0.001, output: 0.004 },
+            'o1': { input: 0.015, output: 0.060 },
+            'o1-pro': { input: 0.150, output: 0.600 },
+            // Embedding models (per 1K tokens, input only)
             'text-embedding-3-large': { input: 0.00013, output: 0 },
             'text-embedding-3-small': { input: 0.00002, output: 0 },
             'text-embedding-ada-002': { input: 0.0001, output: 0 },

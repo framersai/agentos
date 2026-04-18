@@ -166,12 +166,17 @@ export async function generateImage(opts) {
                 }
                 providerChain = [providerId, ...fallbackIds];
             }
-            // Policy-tier-aware provider override
+            // Policy-tier-aware provider override. Uses the explicit
+            // capabilities hint when provided, else infers
+            // `'face-consistency'` from the presence of a reference image so
+            // character portraits keep the right face instead of drifting.
             if (opts.policyTier && (opts.policyTier === 'mature' || opts.policyTier === 'private-adult')) {
                 const { PolicyAwareImageRouter } = await import('../media/images/PolicyAwareImageRouter.js');
                 const { createUncensoredModelCatalog } = await import('../core/llm/routing/UncensoredModelCatalog.js');
                 const imageRouter = new PolicyAwareImageRouter(createUncensoredModelCatalog());
-                const pref = imageRouter.getPreferredProvider(opts.policyTier);
+                const inferredCaps = opts.capabilities
+                    ?? (opts.referenceImageUrl ? ['face-consistency'] : undefined);
+                const pref = imageRouter.getPreferredProvider(opts.policyTier, inferredCaps);
                 if (pref) {
                     providerId = pref.providerId;
                     modelId = pref.modelId;
