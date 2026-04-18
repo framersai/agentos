@@ -14,11 +14,20 @@
 import { describe, it, expect } from 'vitest';
 import { wrapForgeTool, type CapturedForge, type ForgeLogEvent } from '../wrapForgeTool.js';
 import type { ForgeToolMetaTool } from '../ForgeToolMetaTool.js';
+import type { ToolExecutionContext } from '../../core/tools/ITool.js';
 
 function makeCapture() {
   const records: CapturedForge[] = [];
   return { records, capture: (r: CapturedForge) => { records.push(r); } };
 }
+
+/**
+ * The wrapper patches gmiId + sessionData onto the context it forwards;
+ * callers never actually read from the outer ctx, so an empty stand-in
+ * is fine. Cast through unknown to satisfy strict tsc without adding a
+ * fake GMI.
+ */
+const EMPTY_CTX = {} as unknown as ToolExecutionContext;
 
 describe('wrapForgeTool', () => {
   it('synthesizes schemas from testCases so concrete-only forges reach the judge', async () => {
@@ -58,7 +67,7 @@ describe('wrapForgeTool', () => {
       ],
     };
 
-    const result = await wrapped.execute(llmArgs, {});
+    const result = await wrapped.execute(llmArgs, EMPTY_CTX);
     expect((result as { success?: boolean }).success).toBe(true);
     expect(rawExecuteCalledWith).not.toBeNull();
     expect(records.length).toBe(1);
@@ -67,7 +76,7 @@ describe('wrapForgeTool', () => {
       name: 'landing_site_suitability_score',
       scope: 'engineering',
     });
-    const forwarded = rawExecuteCalledWith as {
+    const forwarded = rawExecuteCalledWith as unknown as {
       inputSchema: { properties: Record<string, unknown> };
       outputSchema: { properties: Record<string, unknown> };
     };
@@ -96,7 +105,7 @@ describe('wrapForgeTool', () => {
       implementation: { mode: 'sandbox', code: 'function execute(){ return {}; }', allowlist: [] },
     };
 
-    const result = await wrapped.execute(llmArgs, {});
+    const result = await wrapped.execute(llmArgs, EMPTY_CTX);
     expect((result as { success?: boolean }).success).toBe(false);
     expect(rawCalled).toBe(false);
     expect(records.length).toBe(1);
@@ -136,7 +145,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect((result as { success?: boolean }).success).toBe(false);
     expect(records.length).toBe(1);
@@ -172,7 +181,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect(records.length).toBe(1);
     expect(records[0].approved).toBe(true);
@@ -206,7 +215,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect(records[0].confidence).toBe(0.85);
   });
@@ -235,7 +244,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect((result as { success?: boolean }).success).toBe(false);
     expect(records.length).toBe(1);
@@ -272,7 +281,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect(records[0].scope).toBe('chat:agent-99');
   });
@@ -304,7 +313,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect(records[0].scope).toBeUndefined();
   });
@@ -339,7 +348,7 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
     expect(events.map(e => e.kind)).toEqual(['start', 'approved']);
     expect(events[0]).toMatchObject({ kind: 'start', scope: 'engineering', toolName: 'tool' });
@@ -366,7 +375,7 @@ describe('wrapForgeTool', () => {
         name: 'bad',
         implementation: { mode: 'sandbox', code: 'function execute(){ return {}; }', allowlist: [] },
       },
-      {},
+      EMPTY_CTX,
     );
     expect(events.length).toBe(1);
     expect(events[0].kind).toBe('rejected');
@@ -398,9 +407,9 @@ describe('wrapForgeTool', () => {
           { input: { a: 2 }, expectedOutput: { x: 2 } },
         ],
       },
-      {},
+      EMPTY_CTX,
     );
-    expect((rawExecuteArgs as { implementation: { mode: string } }).implementation.mode).toBe('sandbox');
+    expect((rawExecuteArgs as unknown as { implementation: { mode: string } }).implementation.mode).toBe('sandbox');
   });
 
   it('parses stringified-JSON schema fields before validation', async () => {
@@ -439,9 +448,9 @@ describe('wrapForgeTool', () => {
         outputSchema,
         testCases,
       },
-      {},
+      EMPTY_CTX,
     );
     expect((result as { success?: boolean }).success).toBe(true);
-    expect((rawExecuteArgs as { inputSchema: { properties: Record<string, unknown> } }).inputSchema.properties.a).toBeTruthy();
+    expect((rawExecuteArgs as unknown as { inputSchema: { properties: Record<string, unknown> } }).inputSchema.properties.a).toBeTruthy();
   });
 });
