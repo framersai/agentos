@@ -83,6 +83,85 @@ describe('generateObject', () => {
     expect(result.usage.totalTokens).toBe(15);
   });
 
+  it('propagates cacheReadTokens + cacheCreationTokens from the provider', async () => {
+    // Anthropic provider surfaces cache_read_input_tokens +
+    // cache_creation_input_tokens on every cached call; generateText
+    // translates them to cacheReadTokens + cacheCreationTokens on its
+    // TokenUsage result. generateObject's accumulator must forward
+    // those fields — without this, every generateObject caller sees
+    // usage.cacheReadTokens as undefined even on hits, which blinds
+    // cost trackers to prompt-cache savings.
+    hoisted.generateCompletion.mockResolvedValue(
+      mockResponse('{"name": "Cached", "age": 40}', {
+        promptTokens: 100,
+        completionTokens: 10,
+        totalTokens: 110,
+        cacheReadInputTokens: 80,
+        cacheCreationInputTokens: 20,
+      } as unknown as { promptTokens: number; completionTokens: number; totalTokens: number }),
+    );
+
+    const result = await generateObject({
+      schema: personSchema,
+      prompt: 'Extract person info',
+    });
+
+    expect(result.usage.cacheReadTokens).toBe(80);
+    expect(result.usage.cacheCreationTokens).toBe(20);
+  });
+
+  it('accumulates cache tokens across retry attempts', async () => {
+    // First attempt: cache miss (writes to cache). Second attempt:
+    // cache hit. The aggregated usage should sum both so downstream
+    // cost savings math reflects the full call.
+    hoisted.generateCompletion
+      .mockResolvedValueOnce(
+        mockResponse('{"name": "Bad",', {
+          promptTokens: 100,
+          completionTokens: 5,
+          totalTokens: 105,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 90,
+        } as unknown as { promptTokens: number; completionTokens: number; totalTokens: number }),
+      )
+      .mockResolvedValueOnce(
+        mockResponse('{"name": "Fixed", "age": 30}', {
+          promptTokens: 100,
+          completionTokens: 10,
+          totalTokens: 110,
+          cacheReadInputTokens: 85,
+          cacheCreationInputTokens: 0,
+        } as unknown as { promptTokens: number; completionTokens: number; totalTokens: number }),
+      );
+
+    const result = await generateObject({
+      schema: personSchema,
+      prompt: 'Extract person info',
+    });
+
+    expect(result.object).toEqual({ name: 'Fixed', age: 30 });
+    expect(result.usage.cacheReadTokens).toBe(85);
+    expect(result.usage.cacheCreationTokens).toBe(90);
+  });
+
+  it('leaves cache-token fields undefined when provider does not report them', async () => {
+    // OpenAI auto-caches but does not surface per-call counters. The
+    // provider's usage has no cacheReadInputTokens; generateObject must
+    // NOT invent a zero for that case — callers rely on undefined to
+    // decide whether to hide cache UI for the run.
+    hoisted.generateCompletion.mockResolvedValue(
+      mockResponse('{"name": "NoCache", "age": 25}'),
+    );
+
+    const result = await generateObject({
+      schema: personSchema,
+      prompt: 'Extract person info',
+    });
+
+    expect(result.usage.cacheReadTokens).toBeUndefined();
+    expect(result.usage.cacheCreationTokens).toBeUndefined();
+  });
+
   it('extracts JSON from code fences when the model wraps output', async () => {
     hoisted.generateCompletion.mockResolvedValue(
       mockResponse('Here is the result:\n```json\n{"name": "Bob", "age": 42}\n```'),
