@@ -1,3 +1,7 @@
+## <small>0.1.229 (2026-04-18)</small>
+
+* feat(api): first-class policyTier routing for editImage + generateImage ([00bd595](https://github.com/framersai/agentos/commit/00bd595))
+
 ## <small>0.1.228 (2026-04-18)</small>
 
 * chore(build): rebuild dist for provider catalog updates ([e72831f](https://github.com/framersai/agentos/commit/e72831f))
