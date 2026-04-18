@@ -1,3 +1,8 @@
+## <small>0.1.230 (2026-04-18)</small>
+
+* fix(emergent): strict build — cast LLM-origin args to ForgeToolInput ([52cad99](https://github.com/framersai/agentos/commit/52cad99))
+* feat(emergent): forge observability utilities ([42108b0](https://github.com/framersai/agentos/commit/42108b0))
+
 ## <small>0.1.229 (2026-04-18)</small>
 
 * feat(api): first-class policyTier routing for editImage + generateImage ([00bd595](https://github.com/framersai/agentos/commit/00bd595))
