@@ -1,3 +1,7 @@
+## <small>0.1.232 (2026-04-18)</small>
+
+* fix(api): generateObject propagates prompt-cache tokens ([cee0eaa](https://github.com/framersai/agentos/commit/cee0eaa))
+
 ## <small>0.1.231 (2026-04-18)</small>
 
 * fix(voice-pipeline): resolve 2 lint errors unblocking CI ([43fd59a](https://github.com/framersai/agentos/commit/43fd59a))
