@@ -32,7 +32,7 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 
 /**
  * Attempts to parse a reviewer response as JSON with an `approved` field.
@@ -165,6 +165,7 @@ export function compileReviewLoop(
         totalUsage.promptTokens += prodUsage.promptTokens ?? 0;
         totalUsage.completionTokens += prodUsage.completionTokens ?? 0;
         totalUsage.totalTokens += prodUsage.totalTokens ?? 0;
+        accumulateCacheTokens(totalUsage, prodUsage);
 
         // ---- HITL: check beforeAgent gate for the reviewer ----
         const revDecision = await checkBeforeAgent(reviewerName, prompt, agentCalls, agencyConfig);
@@ -203,6 +204,7 @@ export function compileReviewLoop(
         totalUsage.promptTokens += revUsage.promptTokens ?? 0;
         totalUsage.completionTokens += revUsage.completionTokens ?? 0;
         totalUsage.totalTokens += revUsage.totalTokens ?? 0;
+        accumulateCacheTokens(totalUsage, revUsage);
 
         // Parse the review decision. If approved, exit the loop early.
         // If not, capture feedback for the next producer revision.

@@ -35,7 +35,7 @@ import type {
 } from '../types.js';
 import { createBufferedAsyncReplay } from '../streamBuffer.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 
 // ---------------------------------------------------------------------------
 // Topological sort
@@ -173,6 +173,7 @@ export function compileGraph(
             totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
             totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
             totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+            accumulateCacheTokens(totalUsage, resultUsage);
 
             return result;
           }),
@@ -282,6 +283,7 @@ export function compileGraph(
             totalUsage.promptTokens += resultUsage.promptTokens;
             totalUsage.completionTokens += resultUsage.completionTokens;
             totalUsage.totalTokens += resultUsage.totalTokens;
+            accumulateCacheTokens(totalUsage, resultUsage);
 
             yield {
               type: 'agent-end' as const,

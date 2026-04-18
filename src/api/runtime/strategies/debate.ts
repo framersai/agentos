@@ -34,7 +34,7 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 
 /**
  * Compiles a debate execution strategy.
@@ -130,6 +130,7 @@ export function compileDebate(
           totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
           totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
           totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+          accumulateCacheTokens(totalUsage, resultUsage);
         }
       }
 
@@ -157,6 +158,7 @@ export function compileDebate(
       totalUsage.promptTokens += synthUsage.promptTokens ?? 0;
       totalUsage.completionTokens += synthUsage.completionTokens ?? 0;
       totalUsage.totalTokens += synthUsage.totalTokens ?? 0;
+      accumulateCacheTokens(totalUsage, synthUsage);
 
       return { ...synthesis, agentCalls, usage: totalUsage };
     },
