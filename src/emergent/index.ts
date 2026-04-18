@@ -54,3 +54,31 @@ export { SelfEvaluateTool } from './SelfEvaluateTool.js';
 export { PersonalityMutationStore } from './PersonalityMutationStore.js';
 export type { PersonalityMutation, RecordMutationInput, DecayResult } from './PersonalityMutationStore.js';
 export type { SelfImprovementToolDeps } from './EmergentCapabilityEngine.js';
+
+// Forge observability — instrumentation for consumers that want live
+// visibility into forge health (rejection-reason histogram, shape-check
+// pre-validator, schema inference from testCases, capture wrapper,
+// aggregator).
+export {
+  classifyForgeRejection,
+  type ForgeRejectionCategory,
+} from './ForgeRejectionClassifier.js';
+export {
+  validateForgeShape,
+  type ForgeShapeRequest,
+} from './ForgeShapeValidator.js';
+export {
+  inferSchemaFromTestCases,
+  type ForgeSchemaInferenceRequest,
+} from './ForgeSchemaInference.js';
+export {
+  wrapForgeTool,
+  type CapturedForge,
+  type ForgeLogEvent,
+  type WrapForgeToolOptions,
+} from './wrapForgeTool.js';
+export {
+  ForgeStatsAggregator,
+  emptyForgeStats,
+  type ForgeStats,
+} from './ForgeStatsAggregator.js';
