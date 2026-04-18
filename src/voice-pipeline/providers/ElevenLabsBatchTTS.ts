@@ -8,6 +8,22 @@
 import type { IBatchTTS, BatchTTSConfig, BatchTTSResult } from '../types.js';
 import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
 import { isQuotaError } from '../../core/providers/quotaErrors.js';
+import {
+  defaultCapabilities,
+  type HealthyProvider,
+  type HealthCheckResult,
+  type ProviderCapabilities,
+} from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+
+async function defaultElevenLabsBatchProbe(apiKey: string) {
+  const start = Date.now();
+  const res = await fetch('https://api.elevenlabs.io/v1/user', {
+    headers: { 'xi-api-key': apiKey },
+    signal: AbortSignal.timeout(1000),
+  });
+  return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+}
 
 /** Configuration for the ElevenLabs batch TTS provider. */
 export interface ElevenLabsBatchTTSConfig {
@@ -19,6 +35,12 @@ export interface ElevenLabsBatchTTSConfig {
   model?: string;
   /** Base URL for the ElevenLabs API. Defaults to 'https://api.elevenlabs.io/v1'. */
   baseUrl?: string;
+  /** Chain priority. Lower values are tried first. @default 80 */
+  priority?: number;
+  /** Optional capability overrides. */
+  capabilities?: Partial<ProviderCapabilities>;
+  /** Injectable health probe for tests. */
+  healthProbe?: (apiKey: string) => Promise<{ ok: boolean; status: number; latencyMs: number }>;
 }
 
 /** Approximate bytes per second for 128kbps MP3 audio. */
@@ -30,8 +52,10 @@ const BYTES_PER_SEC_MP3 = 16_000;
  * Accepts complete text and returns finished MP3 audio with voice settings
  * control via `providerOptions` (stability, similarityBoost, style, useSpeakerBoost).
  */
-export class ElevenLabsBatchTTS implements IBatchTTS {
+export class ElevenLabsBatchTTS implements IBatchTTS, HealthyProvider {
   readonly providerId = 'elevenlabs-batch';
+  readonly priority: number;
+  readonly capabilities: ProviderCapabilities;
 
   /** API key pool for round-robin rotation and quota failover. */
   private readonly keyPool: ApiKeyPool;
@@ -45,11 +69,52 @@ export class ElevenLabsBatchTTS implements IBatchTTS {
   /** Base URL for all API requests. */
   private readonly baseUrl: string;
 
+  /** Injectable health probe for tests. */
+  private readonly healthProbe: NonNullable<ElevenLabsBatchTTSConfig['healthProbe']>;
+
   constructor(config: ElevenLabsBatchTTSConfig) {
     this.keyPool = new ApiKeyPool(config.apiKey);
     this.defaultVoiceId = config.voiceId ?? 'EXAVITQu4vr4xnSDxMaL';
     this.model = config.model ?? 'eleven_multilingual_v2';
     this.baseUrl = config.baseUrl ?? 'https://api.elevenlabs.io/v1';
+    this.priority = config.priority ?? 80;
+    this.capabilities = defaultCapabilities({
+      languages: ['*'],
+      streaming: false,
+      costTier: 'standard',
+      latencyClass: 'batch',
+      ...(config.capabilities ?? {}),
+    });
+    this.healthProbe = config.healthProbe ?? defaultElevenLabsBatchProbe;
+  }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    if (!this.keyPool.hasKeys) {
+      return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+    }
+    const key = this.keyPool.next();
+    try {
+      const res = await this.healthProbe(key);
+      if (res.ok) return { ok: true, latencyMs: res.latencyMs };
+      const classified = VoicePipelineError.classifyError(
+        new Error(`HTTP ${res.status}`),
+        { kind: 'tts', provider: this.providerId }
+      );
+      return {
+        ok: false,
+        latencyMs: res.latencyMs,
+        error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+      };
+    } catch (err) {
+      const classified = VoicePipelineError.classifyError(err, {
+        kind: 'tts',
+        provider: this.providerId,
+      });
+      return {
+        ok: false,
+        error: { class: classified.errorClass, message: classified.message },
+      };
+    }
   }
 
   /**

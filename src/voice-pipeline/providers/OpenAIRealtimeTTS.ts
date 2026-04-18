@@ -18,11 +18,33 @@ import type {
   EncodedAudioChunk,
 } from '../types.js';
 import { ApiKeyPool } from '../../core/providers/ApiKeyPool.js';
+import {
+  defaultCapabilities,
+  type HealthyProvider,
+  type HealthCheckResult,
+  type ProviderCapabilities,
+} from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+
+async function defaultOpenAIProbe(apiKey: string) {
+  const start = Date.now();
+  const res = await fetch('https://api.openai.com/v1/models', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(1000),
+  });
+  return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+}
 
 export interface OpenAIRealtimeTTSConfig {
   apiKey: string;
   model?: string;
   baseUrl?: string;
+  /** Chain priority. Lower values are tried first. @default 20 */
+  priority?: number;
+  /** Optional capability overrides. */
+  capabilities?: Partial<ProviderCapabilities>;
+  /** Injectable health probe for tests. */
+  healthProbe?: (apiKey: string) => Promise<{ ok: boolean; status: number; latencyMs: number }>;
 }
 
 class OpenAIRealtimeTTSSession extends EventEmitter implements StreamingTTSSession {
@@ -152,14 +174,55 @@ class OpenAIRealtimeTTSSession extends EventEmitter implements StreamingTTSSessi
   }
 }
 
-export class OpenAIRealtimeTTS implements IStreamingTTS {
+export class OpenAIRealtimeTTS implements IStreamingTTS, HealthyProvider {
   readonly providerId = 'openai-realtime';
+  readonly priority: number;
+  readonly capabilities: ProviderCapabilities;
   private readonly config: OpenAIRealtimeTTSConfig;
   private readonly keyPool: ApiKeyPool;
+  private readonly healthProbe: NonNullable<OpenAIRealtimeTTSConfig['healthProbe']>;
 
   constructor(config: OpenAIRealtimeTTSConfig) {
     this.config = config;
     this.keyPool = new ApiKeyPool(config.apiKey);
+    this.priority = config.priority ?? 20;
+    this.capabilities = defaultCapabilities({
+      languages: ['*'],
+      streaming: true,
+      costTier: 'premium',
+      latencyClass: 'realtime',
+      ...(config.capabilities ?? {}),
+    });
+    this.healthProbe = config.healthProbe ?? defaultOpenAIProbe;
+  }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    if (!this.keyPool.hasKeys) {
+      return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+    }
+    const key = this.keyPool.next();
+    try {
+      const res = await this.healthProbe(key);
+      if (res.ok) return { ok: true, latencyMs: res.latencyMs };
+      const classified = VoicePipelineError.classifyError(
+        new Error(`HTTP ${res.status}`),
+        { kind: 'tts', provider: this.providerId }
+      );
+      return {
+        ok: false,
+        latencyMs: res.latencyMs,
+        error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+      };
+    } catch (err) {
+      const classified = VoicePipelineError.classifyError(err, {
+        kind: 'tts',
+        provider: this.providerId,
+      });
+      return {
+        ok: false,
+        error: { class: classified.errorClass, message: classified.message },
+      };
+    }
   }
 
   async startSession(config?: StreamingTTSConfig): Promise<StreamingTTSSession> {
