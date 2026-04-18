@@ -135,4 +135,5 @@ export { adaptTools, adaptToolsToMap, mergeAdaptableTools } from './api/runtime/
 export type { AdaptableToolInput, ToolDefinitionMap } from './api/runtime/toolAdapter.js';
 export { getDefaultAgentOSUsageLedgerPath, resolveAgentOSUsageLedgerPath, readRecordedAgentOSUsageEvents, recordAgentOSUsage, getRecordedAgentOSUsage, clearRecordedAgentOSUsage, } from './api/runtime/usageLedger.js';
 export type { AgentOSUsageLedgerOptions, AgentOSUsageEvent, AgentOSUsageRecordInput, AgentOSUsageAggregate, } from './api/runtime/usageLedger.js';
+export { extractJson } from './core/validation/extractJson.js';
 //# sourceMappingURL=index.d.ts.map

@@ -17,6 +17,8 @@ import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { adaptTools } from './runtime/toolAdapter.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { createLogger } from '../core/logging/loggerFactory.js';
+const fallbackLogger = createLogger('fallback');
 async function recordAgentOSUsageLazy(input) {
     const { recordAgentOSUsage } = await import('./runtime/usageLedger.js');
     return recordAgentOSUsage(input);
@@ -122,6 +124,17 @@ export async function createPlan(provider, modelId, userMessages, toolNames, con
         totalUsage.totalTokens += response.usage.totalTokens ?? 0;
         if (typeof response.usage.costUSD === 'number') {
             totalUsage.costUSD = (totalUsage.costUSD ?? 0) + response.usage.costUSD;
+        }
+        // Provider-layer ModelUsage carries prompt-cache metrics that were
+        // previously dropped by the TokenUsage mapping. Plumb them through
+        // so callers can see cache hit rate and per-hit savings.
+        const cacheRead = response.usage.cacheReadInputTokens;
+        const cacheCreate = response.usage.cacheCreationInputTokens;
+        if (typeof cacheRead === 'number' && cacheRead > 0) {
+            totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + cacheRead;
+        }
+        if (typeof cacheCreate === 'number' && cacheCreate > 0) {
+            totalUsage.cacheCreationTokens = (totalUsage.cacheCreationTokens ?? 0) + cacheCreate;
         }
     }
     const rawContent = response.choices?.[0]?.message?.content;
@@ -433,6 +446,7 @@ export async function generateText(opts) {
                         tools: toolSchemas,
                         temperature: opts.temperature,
                         maxTokens: opts.maxTokens,
+                        ...(opts._responseFormat ? { responseFormat: opts._responseFormat } : {}),
                     });
                     attachUsageAttributes(stepSpan, {
                         promptTokens: stepResponse.usage?.promptTokens,
@@ -448,6 +462,17 @@ export async function generateText(opts) {
                     totalUsage.totalTokens += response.usage.totalTokens ?? 0;
                     if (typeof response.usage.costUSD === 'number') {
                         totalUsage.costUSD = (totalUsage.costUSD ?? 0) + response.usage.costUSD;
+                    }
+                    // Plumb prompt-cache metrics through so generateText() callers
+                    // can measure cache hit rate. Provider-layer ModelUsage carries
+                    // these fields; TokenUsage was dropping them.
+                    const cacheRead = response.usage.cacheReadInputTokens;
+                    const cacheCreate = response.usage.cacheCreationInputTokens;
+                    if (typeof cacheRead === 'number' && cacheRead > 0) {
+                        totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + cacheRead;
+                    }
+                    if (typeof cacheCreate === 'number' && cacheCreate > 0) {
+                        totalUsage.cacheCreationTokens = (totalUsage.cacheCreationTokens ?? 0) + cacheCreate;
                     }
                 }
                 const choice = response.choices?.[0];
@@ -468,6 +493,8 @@ export async function generateText(opts) {
                             completionTokens: response.usage?.completionTokens ?? 0,
                             totalTokens: response.usage?.totalTokens ?? 0,
                             costUSD: response.usage?.costUSD,
+                            cacheReadTokens: response.usage?.cacheReadInputTokens,
+                            cacheCreationTokens: response.usage?.cacheCreationInputTokens,
                         };
                         const toolCallRecords = toolCallsInChoice.map((tc) => ({
                             name: tc.function?.name ?? tc.name ?? '',
@@ -627,16 +654,30 @@ export async function generateText(opts) {
     }
     catch (error) {
         // ── Fallback chain ────────────────────────────────────────────────
-        // When the primary provider fails with a retryable error and
-        // fallbackProviders are configured, try each fallback in order.
-        // The first successful response wins; if all fail, the last error
-        // is re-thrown.
-        if (opts.fallbackProviders?.length &&
+        // Resolve fallback chain: caller-supplied wins, undefined triggers
+        // auto-build from env keys, empty array explicitly opts out.
+        const effectiveFallbacks = opts.fallbackProviders === undefined
+            ? buildFallbackChain(metricProviderId)
+            : opts.fallbackProviders;
+        if (effectiveFallbacks.length &&
             isRetryableError(error)) {
             let lastError = error;
-            for (const fb of opts.fallbackProviders) {
+            let attempt = 0;
+            for (const fb of effectiveFallbacks) {
+                attempt += 1;
                 try {
-                    opts.onFallback?.(lastError instanceof Error ? lastError : new Error(String(lastError)), fb.provider);
+                    const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
+                    fallbackLogger.info('provider fallback triggered', {
+                        event: 'fallback_fired',
+                        api: 'generateText',
+                        primaryProvider: metricProviderId,
+                        fallbackProvider: fb.provider,
+                        fallbackModel: fb.model,
+                        errorType: lastErr.name,
+                        errorMessage: lastErr.message.slice(0, 200),
+                        attempt,
+                    });
+                    opts.onFallback?.(lastErr, fb.provider);
                     // Build a new options object targeting the fallback provider,
                     // stripping the fallbackProviders to prevent recursive fallback.
                     const fallbackResult = await generateText({
@@ -650,6 +691,14 @@ export async function generateText(opts) {
                         fallbackProviders: undefined,
                         onFallback: undefined,
                     });
+                    fallbackLogger.info('provider fallback succeeded', {
+                        event: 'fallback_succeeded',
+                        api: 'generateText',
+                        primaryProvider: metricProviderId,
+                        fallbackProvider: fallbackResult.provider,
+                        fallbackModel: fallbackResult.model,
+                        attempt,
+                    });
                     metricStatus = 'ok';
                     metricUsage = fallbackResult.usage;
                     metricProviderId = fallbackResult.provider;
@@ -661,6 +710,15 @@ export async function generateText(opts) {
                 }
             }
             // All fallbacks exhausted — fall through to throw
+            const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
+            fallbackLogger.warn('all provider fallbacks exhausted', {
+                event: 'fallback_exhausted',
+                api: 'generateText',
+                primaryProvider: metricProviderId,
+                attempts: attempt,
+                errorType: lastErr.name,
+                errorMessage: lastErr.message.slice(0, 200),
+            });
             metricStatus = 'error';
             throw lastError;
         }
