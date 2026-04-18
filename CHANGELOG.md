@@ -1,3 +1,7 @@
+## <small>0.1.237 (2026-04-18)</small>
+
+* fix(storage): ITokenUsage carries optional cache-token fields ([e2ab9ed](https://github.com/framersai/agentos/commit/e2ab9ed))
+
 ## <small>0.1.236 (2026-04-18)</small>
 
 * fix(usage): UsageLedger forwards Anthropic cache-token counters ([7245b23](https://github.com/framersai/agentos/commit/7245b23))
