@@ -66,4 +66,58 @@ describe('UsageLedger', () => {
     expect(agg?.costUSD).toBeCloseTo(0.08);
     expect(agg?.calls).toBe(2);
   });
+
+  it('accumulates Anthropic cache_read_input_tokens via cacheReadInputTokens alias', () => {
+    const ledger = new UsageLedger();
+    const dim = { sessionId: 's5', providerId: 'anthropic' };
+    ledger.ingestCompletionChunk(dim, makeChunk('c5', true, {
+      promptTokens: 100,
+      completionTokens: 20,
+      totalTokens: 120,
+      cacheReadInputTokens: 80,
+      cacheCreationInputTokens: 30,
+    }));
+
+    const summaries = ledger.getSummariesBySession('s5');
+    expect(summaries.length).toBe(1);
+    expect(summaries[0].cacheReadTokens).toBe(80);
+    expect(summaries[0].cacheCreationTokens).toBe(30);
+  });
+
+  it('leaves cache-token fields undefined when provider does not report them', () => {
+    const ledger = new UsageLedger();
+    const dim = { sessionId: 's6', providerId: 'openai' };
+    ledger.ingestCompletionChunk(dim, makeChunk('c6', true, {
+      promptTokens: 50,
+      completionTokens: 10,
+      totalTokens: 60,
+    }));
+
+    const bucket = ledger.getSummariesBySession('s6')[0];
+    expect(bucket.cacheReadTokens).toBeUndefined();
+    expect(bucket.cacheCreationTokens).toBeUndefined();
+  });
+
+  it('sums cache tokens across buckets in getSessionAggregate', () => {
+    const ledger = new UsageLedger();
+    const d1 = { sessionId: 's7', personaId: 'a', providerId: 'anthropic' };
+    const d2 = { sessionId: 's7', personaId: 'b', providerId: 'anthropic' };
+    ledger.ingestCompletionChunk(d1, makeChunk('c7a', true, {
+      promptTokens: 100,
+      completionTokens: 10,
+      totalTokens: 110,
+      cacheReadInputTokens: 40,
+    }));
+    ledger.ingestCompletionChunk(d2, makeChunk('c7b', true, {
+      promptTokens: 80,
+      completionTokens: 5,
+      totalTokens: 85,
+      cacheReadInputTokens: 60,
+      cacheCreationInputTokens: 20,
+    }));
+
+    const agg = ledger.getSessionAggregate('s7');
+    expect(agg?.cacheReadTokens).toBe(100);
+    expect(agg?.cacheCreationTokens).toBe(20);
+  });
 });
