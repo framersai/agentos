@@ -1192,6 +1192,18 @@ export interface BaseAgentConfig {
   /** Maximum number of agentic steps (LLM calls) per invocation. Defaults to `5`. */
   maxSteps?: number;
   /**
+   * Upper bound on completion tokens for each LLM call the agent makes.
+   * Forwarded to the underlying `generateText` / `streamText` call on
+   * every `generate()`, `stream()`, and `session.send()` invocation.
+   *
+   * Caps tail spend when a model misbehaves and yaps past the intended
+   * output size — without it, calls fall back to the provider default
+   * (OpenAI 4096, Anthropic 4096-8192). Set to ~2× the agent's typical
+   * response size so normal calls finish naturally and only runaway
+   * generations hit the cap. Omit to use the provider default.
+   */
+  maxTokens?: number;
+  /**
    * Memory configuration.
    * - `true` — enable in-memory conversation history with default settings.
    * - `false` — disable memory; every call is stateless.
