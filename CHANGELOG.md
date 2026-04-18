@@ -1,3 +1,7 @@
+## <small>0.1.240 (2026-04-18)</small>
+
+* fix(api): autoDetectProvider prioritizes openrouter over openai ([6465974](https://github.com/framersai/agentos/commit/6465974))
+
 ## <small>0.1.239 (2026-04-18)</small>
 
 * fix(agency): UsageTotals carries + accumulates cache-token fields ([89b99f2](https://github.com/framersai/agentos/commit/89b99f2))
