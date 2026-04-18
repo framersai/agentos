@@ -558,4 +558,47 @@ describe('streamText', () => {
       },
     });
   });
+
+  it('propagates cacheReadInputTokens + cacheCreationInputTokens onto result.usage', async () => {
+    // Final chunk from the provider mirrors Anthropic's streaming shape:
+    // cache_read_input_tokens + cache_creation_input_tokens ride on the
+    // usage object. streamText's accumulator must forward both onto the
+    // aggregated TokenUsage so downstream cost trackers see cache hits.
+    hoisted.generateCompletionStream.mockImplementationOnce(async function* () {
+      yield {
+        id: 'step-1',
+        object: 'chat.completion.chunk',
+        created: 1,
+        modelId: 'gpt-4.1-mini',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: 'Cached!' },
+            finishReason: 'stop',
+          },
+        ],
+        responseTextDelta: 'Cached!',
+        isFinal: true,
+        usage: {
+          promptTokens: 100,
+          completionTokens: 5,
+          totalTokens: 105,
+          cacheReadInputTokens: 80,
+          cacheCreationInputTokens: 15,
+        },
+      };
+    });
+
+    const result = streamText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Say hi.',
+    });
+
+    for await (const _ of result.fullStream) {
+      // drain
+    }
+    const usage = await result.usage;
+    expect(usage.cacheReadTokens).toBe(80);
+    expect(usage.cacheCreationTokens).toBe(15);
+  });
 });
