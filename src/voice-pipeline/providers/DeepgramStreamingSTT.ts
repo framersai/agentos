@@ -35,6 +35,34 @@ import type {
   TranscriptEvent,
   TranscriptWord,
 } from '../types.js';
+import {
+  defaultCapabilities,
+  type HealthyProvider,
+  type HealthCheckResult,
+  type ProviderCapabilities,
+} from '../HealthyProvider.js';
+import { VoicePipelineError } from '../VoicePipelineError.js';
+
+/**
+ * Shape of the injected health probe used for deterministic tests.
+ * Default implementation hits Deepgram's /v1/projects endpoint.
+ */
+export type VoiceHealthProbe = (
+  apiKey: string
+) => Promise<{ ok: boolean; status: number; latencyMs: number }>;
+
+async function defaultDeepgramProbe(apiKey: string) {
+  const start = Date.now();
+  try {
+    const res = await fetch('https://api.deepgram.com/v1/projects', {
+      headers: { Authorization: `Token ${apiKey}` },
+      signal: AbortSignal.timeout(1000),
+    });
+    return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
+  } catch (err) {
+    throw err;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -58,6 +86,18 @@ export interface DeepgramStreamingSTTConfig {
    * @default 'nova-2'
    */
   model?: string;
+
+  /**
+   * Chain priority. Lower values are tried first.
+   * @default 10
+   */
+  priority?: number;
+
+  /** Optional capability overrides. Merged into defaultCapabilities(). */
+  capabilities?: Partial<ProviderCapabilities>;
+
+  /** Injectable health probe for tests. Defaults to Deepgram /v1/projects. */
+  healthProbe?: VoiceHealthProbe;
 }
 
 // ---------------------------------------------------------------------------
@@ -331,13 +371,54 @@ class DeepgramStreamingSTTSession extends EventEmitter implements StreamingSTTSe
  * session.on('transcript', (event) => console.log(event.text));
  * ```
  */
-export class DeepgramStreamingSTT implements IStreamingSTT {
+export class DeepgramStreamingSTT implements IStreamingSTT, HealthyProvider {
   readonly providerId = 'deepgram-streaming';
   readonly isStreaming = true;
+  readonly priority: number;
+  readonly capabilities: ProviderCapabilities;
   private readonly keyPool: ApiKeyPool;
+  private readonly healthProbe: VoiceHealthProbe;
 
   constructor(private readonly config: DeepgramStreamingSTTConfig) {
     this.keyPool = new ApiKeyPool(config.apiKey);
+    this.priority = config.priority ?? 10;
+    this.capabilities = defaultCapabilities({
+      languages: ['*'],
+      streaming: true,
+      costTier: 'standard',
+      latencyClass: 'realtime',
+      ...(config.capabilities ?? {}),
+    });
+    this.healthProbe = config.healthProbe ?? defaultDeepgramProbe;
+  }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    if (!this.keyPool.hasKeys) {
+      return { ok: false, error: { class: 'auth', message: 'no api key available' } };
+    }
+    const key = this.keyPool.next();
+    try {
+      const res = await this.healthProbe(key);
+      if (res.ok) return { ok: true, latencyMs: res.latencyMs };
+      const classified = VoicePipelineError.classifyError(
+        new Error(`HTTP ${res.status}`),
+        { kind: 'stt', provider: this.providerId }
+      );
+      return {
+        ok: false,
+        latencyMs: res.latencyMs,
+        error: { class: classified.errorClass, message: `HTTP ${res.status}` },
+      };
+    } catch (err) {
+      const classified = VoicePipelineError.classifyError(err, {
+        kind: 'stt',
+        provider: this.providerId,
+      });
+      return {
+        ok: false,
+        error: { class: classified.errorClass, message: classified.message },
+      };
+    }
   }
 
   /**
