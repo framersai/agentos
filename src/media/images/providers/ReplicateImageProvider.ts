@@ -287,14 +287,64 @@ export class ReplicateImageProvider implements IImageProvider {
     }
 
     const model = request.modelId || defaultModel;
-    const body: Record<string, unknown> = {
-      version: model,
-      input,
-    };
-    if (providerOptions?.extraBody) Object.assign(body, providerOptions.extraBody);
-
     const waitSeconds = providerOptions?.wait ?? 60;
-    let prediction = await this.createPrediction(body, waitSeconds);
+
+    // Dual-endpoint routing, mirroring generateImage.
+    //
+    //   A) modelId contains a colon (owner/name:SHA) → the caller pinned
+    //      a community-model version inline. Use the legacy
+    //      `/predictions` endpoint; the SHA goes into `body.version`.
+    //   B) providerOptions.extraBody.version is set → the caller pinned
+    //      a version out-of-band (e.g. wilds-ai's broken-catalog
+    //      substitution forwards the SHA via providerOptions rather
+    //      than mutating the modelId). Also use the legacy endpoint so
+    //      Replicate honors the pin.
+    //   C) Otherwise → official model with no pin. Use the modern
+    //      `/models/{owner}/{name}/predictions` endpoint which accepts
+    //      `{ input }` directly. Passing a bare owner/name as `version`
+    //      to the legacy endpoint returns 422 "Invalid version or not
+    //      permitted" — this was the silent-422 bug that blocked every
+    //      wilds-ai outfit / avatar / selfie edit.
+    //
+    // Before this patch editImage unconditionally hit the legacy
+    // endpoint so path C always 422'd; generateImage already had this
+    // split and worked correctly.
+    const extraBodyVersion =
+      typeof (providerOptions?.extraBody as Record<string, unknown> | undefined)?.version === 'string'
+        ? ((providerOptions?.extraBody as Record<string, unknown>).version as string)
+        : undefined;
+    const hasInlineVersionHash = model.includes(':');
+    let prediction: ReplicatePrediction;
+
+    if (hasInlineVersionHash) {
+      const body: Record<string, unknown> = {
+        version: model,
+        input,
+      };
+      if (providerOptions?.extraBody) Object.assign(body, providerOptions.extraBody);
+      prediction = await this.createPrediction(body, waitSeconds);
+    } else if (extraBodyVersion) {
+      // Version supplied via providerOptions.extraBody.version. Build
+      // the legacy body so the SHA ends up on `version` rather than
+      // being dropped by the modern endpoint.
+      const body: Record<string, unknown> = {
+        version: extraBodyVersion,
+        input,
+      };
+      const { version: _v, ...rest } = providerOptions?.extraBody ?? {};
+      if (Object.keys(rest).length > 0) Object.assign(body, rest);
+      prediction = await this.createPrediction(body, waitSeconds);
+    } else {
+      const slashIndex = model.indexOf('/');
+      if (slashIndex === -1) {
+        throw new Error(
+          `Replicate edit modelId must be "owner/name" or "owner/name:version" (got "${model}")`,
+        );
+      }
+      const owner = model.substring(0, slashIndex);
+      const name = model.substring(slashIndex + 1);
+      prediction = await this.createModelPrediction(owner, name, input, waitSeconds);
+    }
 
     if (
       prediction.status
