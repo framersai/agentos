@@ -125,6 +125,19 @@ export interface ITokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  /**
+   * Tokens served from the provider's prompt-prefix cache (Anthropic
+   * `cache_read_input_tokens`). Optional — undefined when no aggregated
+   * message reported cache activity, so consumers can distinguish
+   * "provider did not report" from "zero hits".
+   */
+  cacheReadTokens?: number;
+  /**
+   * Tokens written to the provider's prompt-prefix cache as a new entry
+   * (Anthropic `cache_creation_input_tokens`). Same undefined-vs-zero
+   * convention as `cacheReadTokens`.
+   */
+  cacheCreationTokens?: number;
 }
 
 /**
