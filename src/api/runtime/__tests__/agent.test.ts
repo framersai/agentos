@@ -202,4 +202,29 @@ describe('agent', () => {
       })
     );
   });
+
+  it('forwards maxTokens from agent config to every generateText call (generate / session.send)', async () => {
+    const assistant = agent({
+      model: 'openai:gpt-4.1-mini',
+      instructions: 'be brief',
+      maxTokens: 1500,
+    });
+
+    await assistant.generate('Hello.');
+    expect(hoisted.generateText).toHaveBeenLastCalledWith(
+      expect.objectContaining({ maxTokens: 1500 }),
+    );
+
+    await assistant.session('s1').send('Hello again.');
+    expect(hoisted.generateText).toHaveBeenLastCalledWith(
+      expect.objectContaining({ maxTokens: 1500 }),
+    );
+  });
+
+  it('omits maxTokens from the generateText call when agent config does not set it', async () => {
+    const assistant = agent({ model: 'openai:gpt-4.1-mini', instructions: 'be brief' });
+    await assistant.generate('Hello.');
+    const callArgs = hoisted.generateText.mock.calls.at(-1)?.[0];
+    expect(callArgs?.maxTokens).toBeUndefined();
+  });
 });
