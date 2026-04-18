@@ -426,6 +426,22 @@ export async function generateObject<T extends ZodType>(
     if (typeof result.usage.costUSD === 'number') {
       totalUsage.costUSD = (totalUsage.costUSD ?? 0) + result.usage.costUSD;
     }
+    // Prompt-cache metrics. generateText propagates these from the
+    // provider layer (Anthropic's cache_read_input_tokens /
+    // cache_creation_input_tokens); without this accumulation every
+    // generateObject caller saw usage.cacheReadTokens as undefined even
+    // on hits, blinding cost trackers to prompt-cache savings.
+    // Only set the aggregate when the provider actually reported a
+    // value — leaving it undefined for OpenAI (whose auto-cache does
+    // not surface per-call counters) so callers can distinguish
+    // "not reported" from "zero hits".
+    if (typeof result.usage.cacheReadTokens === 'number') {
+      totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + result.usage.cacheReadTokens;
+    }
+    if (typeof result.usage.cacheCreationTokens === 'number') {
+      totalUsage.cacheCreationTokens =
+        (totalUsage.cacheCreationTokens ?? 0) + result.usage.cacheCreationTokens;
+    }
 
     lastRawText = result.text;
 
