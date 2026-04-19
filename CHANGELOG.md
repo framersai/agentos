@@ -1,3 +1,7 @@
+## <small>0.1.247 (2026-04-19)</small>
+
+* fix(memory): emit real scoringTimeMs + vectorSearchTimeMs diagnostics ([fc0b25c](https://github.com/framersai/agentos/commit/fc0b25c))
+
 ## <small>0.1.246 (2026-04-19)</small>
 
 * fix: add missing Required fields (enabled, syntax_error) unblocking CI ([b60eb31](https://github.com/framersai/agentos/commit/b60eb31)), closes [#2](https://github.com/framersai/agentos/issues/2)
