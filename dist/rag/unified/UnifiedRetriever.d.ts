@@ -54,6 +54,7 @@
  */
 import { EventEmitter } from 'node:events';
 import type { RetrievalPlan, UnifiedRetrievalResult, UnifiedRetrieverEvent } from './types.js';
+import type { MemoryRetrievalPolicy } from './policy.js';
 import type { RetrievedChunk } from '../../query-router/types.js';
 import type { HybridSearcher } from '../search/HybridSearcher.js';
 import type { RaptorTree } from '../raptor/RaptorTree.js';
@@ -283,6 +284,7 @@ export declare class UnifiedRetriever extends EventEmitter {
      * ```
      */
     retrieve(query: string, plan: RetrievalPlan, topK?: number): Promise<UnifiedRetrievalResult>;
+    retrieveWithPolicy(query: string, policyInput?: MemoryRetrievalPolicy): Promise<UnifiedRetrievalResult>;
     /**
      * Checks episodic memory for a previous retrieval about the same topic.
      *

@@ -207,35 +207,63 @@ export function resolveModelOption(opts, task = 'text') {
 }
 // ---------------------------------------------------------------------------
 /**
+ * Process-scoped cache of initialised {@link AIModelProviderManager}
+ * instances, keyed by `providerId + apiKey + baseUrl`. Every LLM call
+ * inside agentos goes through `createProviderManager`, and without
+ * memoisation each call allocates a fresh manager (four init log lines
+ * per call) and repeats provider listing. Cache key includes the key
+ * + base URL so a config swap picks up a new manager, but identical
+ * configs reuse the same one for the life of the process.
+ */
+const managerCache = new Map();
+function buildCacheKey(resolved) {
+    return `${resolved.providerId}::${resolved.apiKey ?? ''}::${resolved.baseUrl ?? ''}`;
+}
+/**
  * Instantiates and initialises an {@link AIModelProviderManager} for a single provider.
  *
  * Constructs the provider config object from the `resolved` credentials and calls
- * `manager.initialize()` before returning.  The returned manager is ready for
+ * `manager.initialize()` before returning. The returned manager is ready for
  * immediate use via `manager.getProvider(providerId)`.
+ *
+ * The manager is cached process-wide by resolved key + base URL, so repeated
+ * calls with the same credentials reuse one manager instead of allocating
+ * a new one per LLM call.
  *
  * @param resolved - A `ResolvedProvider` produced by {@link resolveProvider}
  *   or `resolveMediaProvider()`.
  * @returns A fully initialised {@link AIModelProviderManager} instance.
  */
 export async function createProviderManager(resolved) {
-    const manager = new AIModelProviderManager();
-    const providerConfig = {};
-    if (resolved.apiKey)
-        providerConfig.apiKey = resolved.apiKey;
-    if (resolved.baseUrl) {
-        providerConfig.baseURL = resolved.baseUrl;
-        providerConfig.baseUrl = resolved.baseUrl;
-    }
-    await manager.initialize({
-        providers: [
-            {
-                providerId: resolved.providerId,
-                enabled: true,
-                isDefault: true,
-                config: providerConfig,
-            },
-        ],
-    });
-    return manager;
+    const key = buildCacheKey(resolved);
+    const cached = managerCache.get(key);
+    if (cached)
+        return cached;
+    const pending = (async () => {
+        const manager = new AIModelProviderManager();
+        const providerConfig = {};
+        if (resolved.apiKey)
+            providerConfig.apiKey = resolved.apiKey;
+        if (resolved.baseUrl) {
+            providerConfig.baseURL = resolved.baseUrl;
+            providerConfig.baseUrl = resolved.baseUrl;
+        }
+        await manager.initialize({
+            providers: [
+                {
+                    providerId: resolved.providerId,
+                    enabled: true,
+                    isDefault: true,
+                    config: providerConfig,
+                },
+            ],
+        });
+        return manager;
+    })();
+    // Drop from cache if init rejected so the next call retries cleanly
+    // instead of surfacing the stale rejection forever.
+    pending.catch(() => managerCache.delete(key));
+    managerCache.set(key, pending);
+    return pending;
 }
 //# sourceMappingURL=model.js.map

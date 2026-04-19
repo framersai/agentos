@@ -57,6 +57,14 @@ export declare class AIModelProviderManager {
     isInitialized: boolean;
     constructor();
     /**
+     * Emit informational init traces only when AGENTOS_DEBUG=1 (or when
+     * the caller has explicitly set AGENTOS_LOG_LEVEL=debug). Each new
+     * manager instance would otherwise produce four console.log lines
+     * on every LLM call site that memoizes a fresh manager, drowning
+     * out actual run progress. Errors and warnings still log unchanged.
+     */
+    private static debugEnabled;
+    /**
      * Ensures the manager has been properly initialized before any operations.
      * @private
      * @throws {GMIError} If the manager is not initialized.

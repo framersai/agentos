@@ -26,7 +26,7 @@
  */
 import { agent as createAgent } from '../agent.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 /**
  * Compiles a parallel execution strategy.
  *
@@ -124,6 +124,7 @@ export function compileParallel(agents, agencyConfig) {
                 totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
                 totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
                 totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+                accumulateCacheTokens(totalUsage, resultUsage);
             }
             // Synthesize outputs using the agency-level model.
             // Each agent's output is labeled with its name so the synthesizer
@@ -151,6 +152,7 @@ export function compileParallel(agents, agencyConfig) {
             totalUsage.promptTokens += synthUsage.promptTokens ?? 0;
             totalUsage.completionTokens += synthUsage.completionTokens ?? 0;
             totalUsage.totalTokens += synthUsage.totalTokens ?? 0;
+            accumulateCacheTokens(totalUsage, synthUsage);
             return { ...synthesis, agentCalls, usage: totalUsage };
         },
         stream(prompt, opts) {

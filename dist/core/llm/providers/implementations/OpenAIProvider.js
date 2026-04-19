@@ -8,6 +8,28 @@ import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
  * Provides an interface to OpenAI's suite of models (GPT, Embeddings).
  * It handles API requests, streaming, error management, and model information.
  */
+/**
+ * Whether the given model id belongs to the family that requires
+ * `max_completion_tokens` instead of the legacy `max_tokens` parameter.
+ *
+ * OpenAI's reasoning models (o1, o3, o4) and the GPT-5 family reject
+ * `max_tokens` outright with HTTP 400 "Unsupported parameter:
+ * 'max_tokens' is not supported with this model. Use
+ * 'max_completion_tokens' instead." Legacy chat completions
+ * (gpt-4o, gpt-4-turbo, gpt-4.1, gpt-3.5, etc.) still accept the
+ * old field.
+ *
+ * Errs on the conservative side — any model id that is not a clear
+ * member of one of the new families uses `max_tokens` so older
+ * deployments do not silently break when the param-name flag changes.
+ *
+ * @param modelId Provider-side model identifier (e.g. `'gpt-5.4-mini'`).
+ * @returns `true` when the model needs `max_completion_tokens`.
+ */
+export function modelRequiresMaxCompletionTokens(modelId) {
+    // o1 / o3 / o4 reasoning models, plus GPT-5 family.
+    return /^(o\d|gpt-5)/i.test(modelId);
+}
 export class OpenAIProvider {
     /**
      * Creates an instance of OpenAIProvider.
@@ -86,7 +108,11 @@ export class OpenAIProvider {
             // Attempt to list models to verify API key and connectivity.
             await this.refreshAvailableModels();
             this.isInitialized = true;
-            console.log(`OpenAIProvider initialized successfully. Default model: ${this.defaultModelId || 'Not set'}. Found ${this.availableModelsCache.size} models.`);
+            const env = typeof process !== 'undefined' ? process.env : undefined;
+            const debugOn = !!env && (env.AGENTOS_DEBUG === '1' || env.AGENTOS_DEBUG === 'true' || (env.AGENTOS_LOG_LEVEL ?? '').toLowerCase() === 'debug');
+            if (debugOn) {
+                console.log(`OpenAIProvider initialized successfully. Default model: ${this.defaultModelId || 'Not set'}. Found ${this.availableModelsCache.size} models.`);
+            }
         }
         catch (error) {
             this.isInitialized = false;
@@ -388,8 +414,19 @@ export class OpenAIProvider {
             payload.temperature = options.temperature;
         if (options.topP !== undefined)
             payload.top_p = options.topP;
-        if (options.maxTokens !== undefined)
-            payload.max_tokens = options.maxTokens;
+        if (options.maxTokens !== undefined) {
+            // OpenAI's reasoning + GPT-5 model families reject `max_tokens`
+            // and require `max_completion_tokens` instead. Legacy chat
+            // completions (gpt-4o, gpt-4-turbo, gpt-3.5, etc.) keep
+            // `max_tokens`. The two fields are otherwise equivalent — same
+            // semantic meaning, just renamed in the newer API surface.
+            if (modelRequiresMaxCompletionTokens(modelId)) {
+                payload.max_completion_tokens = options.maxTokens;
+            }
+            else {
+                payload.max_tokens = options.maxTokens;
+            }
+        }
         if (options.presencePenalty !== undefined)
             payload.presence_penalty = options.presencePenalty;
         if (options.frequencyPenalty !== undefined)

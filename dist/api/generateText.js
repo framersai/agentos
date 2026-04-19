@@ -14,6 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import { hostPolicyToRouteParams, mergeRequiredCapabilities, } from './runtime/hostPolicy.js';
 import { adaptTools } from './runtime/toolAdapter.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
@@ -303,12 +304,20 @@ export async function generateText(opts) {
                             .map((t) => t.name ?? t.function?.name)
                             .filter(Boolean)
                         : [];
+                    const hostPolicyRouteParams = hostPolicyToRouteParams(opts.hostPolicy);
+                    const requiredCapabilities = mergeRequiredCapabilities(hostPolicyRouteParams.requiredCapabilities, opts.routerParams?.requiredCapabilities, toolNames.length > 0 ? ['function_calling'] : undefined);
                     const routeParams = {
                         taskHint: opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
-                        requiredCapabilities: opts.routerParams?.requiredCapabilities ??
-                            (toolNames.length > 0 ? ['function_calling'] : undefined),
-                        optimizationPreference: opts.routerParams?.optimizationPreference ?? 'balanced',
+                        ...hostPolicyRouteParams,
                         ...opts.routerParams,
+                        optimizationPreference: opts.routerParams?.optimizationPreference
+                            ?? hostPolicyRouteParams.optimizationPreference
+                            ?? 'balanced',
+                        requiredCapabilities,
+                        preferredProviderIds: opts.routerParams?.preferredProviderIds
+                            ?? hostPolicyRouteParams.preferredProviderIds,
+                        policyTier: opts.routerParams?.policyTier
+                            ?? hostPolicyRouteParams.policyTier,
                     };
                     const routeResult = await opts.router.selectModel(routeParams, undefined);
                     if (routeResult) {

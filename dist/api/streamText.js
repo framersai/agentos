@@ -10,6 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import { hostPolicyToRouteParams, mergeRequiredCapabilities } from './runtime/hostPolicy.js';
 import { adaptTools } from './runtime/toolAdapter.js';
 import { buildFallbackChain, createPlan, isRetryableError, resolveChainOfThought, } from './generateText.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
@@ -94,12 +95,20 @@ export function streamText(opts) {
                             .map((t) => t.name ?? t.function?.name)
                             .filter(Boolean)
                         : [];
+                    const hostPolicyRouteParams = hostPolicyToRouteParams(opts.hostPolicy);
+                    const requiredCapabilities = mergeRequiredCapabilities(hostPolicyRouteParams.requiredCapabilities, opts.routerParams?.requiredCapabilities, toolNames.length > 0 ? ['function_calling'] : undefined);
                     const routeParams = {
                         taskHint: opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
-                        requiredCapabilities: opts.routerParams?.requiredCapabilities ??
-                            (toolNames.length > 0 ? ['function_calling'] : undefined),
-                        optimizationPreference: opts.routerParams?.optimizationPreference ?? 'balanced',
+                        ...hostPolicyRouteParams,
                         ...opts.routerParams,
+                        optimizationPreference: opts.routerParams?.optimizationPreference
+                            ?? hostPolicyRouteParams.optimizationPreference
+                            ?? 'balanced',
+                        requiredCapabilities,
+                        preferredProviderIds: opts.routerParams?.preferredProviderIds
+                            ?? hostPolicyRouteParams.preferredProviderIds,
+                        policyTier: opts.routerParams?.policyTier
+                            ?? hostPolicyRouteParams.policyTier,
                     };
                     const routeResult = await opts.router.selectModel(routeParams, undefined);
                     if (routeResult) {
@@ -254,6 +263,21 @@ export function streamText(opts) {
                             if (typeof chunk.usage.costUSD === 'number') {
                                 usage.costUSD = (usage.costUSD ?? 0) + chunk.usage.costUSD;
                             }
+                            // Prompt-cache metrics from the provider layer. Provider
+                            // surfaces these as cacheReadInputTokens /
+                            // cacheCreationInputTokens on the final chunk's usage
+                            // (mirrors Anthropic's cache_read_input_tokens /
+                            // cache_creation_input_tokens); forward them onto the
+                            // aggregated TokenUsage so downstream cost trackers see
+                            // cache hits.
+                            const cacheRead = chunk.usage.cacheReadInputTokens;
+                            const cacheCreate = chunk.usage.cacheCreationInputTokens;
+                            if (typeof cacheRead === 'number') {
+                                usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + cacheRead;
+                            }
+                            if (typeof cacheCreate === 'number') {
+                                usage.cacheCreationTokens = (usage.cacheCreationTokens ?? 0) + cacheCreate;
+                            }
                             attachUsageAttributes(stepSpan, {
                                 promptTokens: chunk.usage.promptTokens,
                                 completionTokens: chunk.usage.completionTokens,
@@ -293,6 +317,8 @@ export function streamText(opts) {
                             completionTokens: usage.completionTokens,
                             totalTokens: usage.totalTokens,
                             costUSD: usage.costUSD,
+                            cacheReadTokens: usage.cacheReadTokens,
+                            cacheCreationTokens: usage.cacheCreationTokens,
                         };
                         const toolCallRecords = (streamedToolCalls ?? []).map((tc) => ({
                             name: tc.function?.name ?? '',
@@ -510,6 +536,12 @@ export function streamText(opts) {
                         usage.totalTokens += fbUsage.totalTokens;
                         if (typeof fbUsage.costUSD === 'number') {
                             usage.costUSD = (usage.costUSD ?? 0) + fbUsage.costUSD;
+                        }
+                        if (typeof fbUsage.cacheReadTokens === 'number') {
+                            usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + fbUsage.cacheReadTokens;
+                        }
+                        if (typeof fbUsage.cacheCreationTokens === 'number') {
+                            usage.cacheCreationTokens = (usage.cacheCreationTokens ?? 0) + fbUsage.cacheCreationTokens;
                         }
                         const fbToolCalls = await fallbackResult.toolCalls;
                         allToolCalls.push(...fbToolCalls);

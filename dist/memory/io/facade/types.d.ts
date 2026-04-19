@@ -7,6 +7,7 @@
  *
  * @module memory/facade/types
  */
+import type { MemoryRetrievalPolicy } from '../../../rag/unified/policy.js';
 /**
  * Configuration for the embedding model used to encode memory content and
  * document chunks into dense vectors.
@@ -302,6 +303,11 @@ export interface RecallOptions {
      * Part of the three-date temporal model for time-ranged recall.
      */
     before?: number;
+    /**
+     * Optional shared retrieval policy override.
+     * When omitted, recall preserves the current standalone behavior.
+     */
+    policy?: MemoryRetrievalPolicy;
 }
 /**
  * Options controlling a document-ingestion job launched via `Memory.ingest()`.

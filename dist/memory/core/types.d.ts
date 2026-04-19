@@ -1,3 +1,5 @@
+import type { RetrievalConfidenceSummary } from '../../rag/unified/confidence.js';
+import type { MemoryRetrievalPolicy, MemoryRetrievalProfile } from '../../rag/unified/policy.js';
 /**
  * @fileoverview Core types for the Cognitive Memory System.
  *
@@ -144,6 +146,8 @@ export interface CognitiveRetrievalOptions {
      * @default false
      */
     hyde?: boolean;
+    /** Shared retrieval profile and confidence policy. */
+    policy?: MemoryRetrievalPolicy;
 }
 export interface ScoredMemoryTrace extends MemoryTrace {
     /** Composite retrieval score (0-1). */
@@ -172,6 +176,10 @@ export interface CognitiveRetrievalResult {
         vectorSearchTimeMs: number;
         scoringTimeMs: number;
         totalTimeMs: number;
+        policyProfile?: MemoryRetrievalProfile;
+        suppressed?: 'weak_hits';
+        confidence?: RetrievalConfidenceSummary;
+        escalations?: string[];
     };
 }
 export interface MemoryBudgetAllocation {

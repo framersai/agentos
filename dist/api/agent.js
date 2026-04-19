@@ -146,6 +146,10 @@ export function agent(opts) {
         system: opts.systemBlocks ?? buildSystemPrompt(opts),
         tools: opts.tools,
         maxSteps: opts.maxSteps ?? 5,
+        // Per-call completion-token cap applied to every generate /
+        // session.send / stream invocation this agent makes. Unset means
+        // the underlying generateText falls back to the provider default.
+        maxTokens: opts.maxTokens,
         chainOfThought: opts.chainOfThought ?? true,
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
@@ -153,6 +157,7 @@ export function agent(opts) {
         fallbackProviders: opts.fallbackProviders,
         onFallback: opts.onFallback,
         router: opts.router,
+        hostPolicy: opts.hostPolicy,
         routerParams: opts.routerParams,
         onBeforeGeneration: opts.onBeforeGeneration,
         onAfterGeneration: opts.onAfterGeneration,

@@ -18,6 +18,8 @@
  * ```
  */
 export { buildDefaultPlan } from './types.js';
+export { DEFAULT_MEMORY_RETRIEVAL_POLICY, buildRetrievalPlanFromPolicy, getCandidateLimit, resolveMemoryRetrievalPolicy, } from './policy.js';
+export { evaluateRetrievalConfidence } from './confidence.js';
 // Core
 export { UnifiedRetriever } from './UnifiedRetriever.js';
 //# sourceMappingURL=index.js.map

@@ -30,8 +30,8 @@ import { z } from 'zod';
  * - relational: trust signals, boundary events, emotional bonds
  */
 export declare const MemoryTypeEnum: z.ZodEnum<{
-    semantic: "semantic";
     episodic: "episodic";
+    semantic: "semantic";
     procedural: "procedural";
     prospective: "prospective";
     relational: "relational";
@@ -81,8 +81,8 @@ export declare const ObservationNoteOutput: z.ZodObject<{
 export declare const ReflectionTraceOutput: z.ZodObject<{
     reasoning: z.ZodOptional<z.ZodString>;
     type: z.ZodEnum<{
-        semantic: "semantic";
         episodic: "episodic";
+        semantic: "semantic";
         procedural: "procedural";
         prospective: "prospective";
         relational: "relational";

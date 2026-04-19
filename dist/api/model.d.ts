@@ -140,8 +140,12 @@ export declare function resolveModelOption(opts: ModelOption, task?: TaskType): 
  * Instantiates and initialises an {@link AIModelProviderManager} for a single provider.
  *
  * Constructs the provider config object from the `resolved` credentials and calls
- * `manager.initialize()` before returning.  The returned manager is ready for
+ * `manager.initialize()` before returning. The returned manager is ready for
  * immediate use via `manager.getProvider(providerId)`.
+ *
+ * The manager is cached process-wide by resolved key + base URL, so repeated
+ * calls with the same credentials reuse one manager instead of allocating
+ * a new one per LLM call.
  *
  * @param resolved - A `ResolvedProvider` produced by {@link resolveProvider}
  *   or `resolveMediaProvider()`.

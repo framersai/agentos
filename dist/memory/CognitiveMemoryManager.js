@@ -25,6 +25,7 @@ import { ProspectiveMemoryManager, } from './retrieval/prospective/ProspectiveMe
 import { ConsolidationPipeline, } from './pipeline/consolidation/ConsolidationPipeline.js';
 // Batch 3: Infinite Context
 import { ContextWindowManager } from './pipeline/context/ContextWindowManager.js';
+import { evaluateRetrievalConfidence, resolveMemoryRetrievalPolicy, } from '../rag/unified/index.js';
 // ---------------------------------------------------------------------------
 // Implementation
 // ---------------------------------------------------------------------------
@@ -267,13 +268,16 @@ export class CognitiveMemoryManager {
     async retrieve(query, mood, options = {}) {
         this.ensureInitialized();
         const startTime = Date.now();
+        const resolvedPolicy = options.policy ? resolveMemoryRetrievalPolicy(options.policy) : null;
+        const effectiveTopK = options.topK ?? resolvedPolicy?.topK;
+        const effectiveHyde = options.hyde ?? (resolvedPolicy?.hyde === 'always');
         // When HyDE is enabled and a retriever is available, generate a
         // hypothetical memory trace and use it as the search query. The
         // hypothesis is a plausible memory that the agent *would* have stored,
         // producing an embedding that's semantically closer to actual stored
         // traces than the raw recall query.
         let effectiveQuery = query;
-        if (options.hyde && this.hydeRetriever) {
+        if (effectiveHyde && this.hydeRetriever) {
             try {
                 const hypoResult = await this.hydeRetriever.generateHypothesis(`Recall a memory about: ${query}`);
                 if (hypoResult.hypothesis) {
@@ -284,7 +288,10 @@ export class CognitiveMemoryManager {
                 // HyDE generation is non-critical — fall through to raw query.
             }
         }
-        const { scored, partial } = await this.store.query(effectiveQuery, mood, options);
+        const { scored, partial } = await this.store.query(effectiveQuery, mood, {
+            ...options,
+            topK: effectiveTopK,
+        });
         // --- Batch 2: Spreading activation ---
         if (this.graph && scored.length > 0) {
             const seedIds = scored.slice(0, 5).map((t) => t.id);
@@ -340,7 +347,7 @@ export class CognitiveMemoryManager {
                         content: t.content,
                         originalScore: t.retrievalScore,
                     })),
-                }, { topN: options.topK ?? 10 });
+                }, { topN: effectiveTopK });
                 const rerankedScores = new Map(rerankerOutput.results.map((r) => [r.id, r.relevanceScore]));
                 for (const trace of scored) {
                     const neuralScore = rerankedScores.get(trace.id);
@@ -353,6 +360,28 @@ export class CognitiveMemoryManager {
             catch {
                 // Reranking is non-critical — use cognitive scores as-is
             }
+        }
+        const confidence = evaluateRetrievalConfidence(scored, {
+            adaptive: resolvedPolicy?.adaptive ?? false,
+            minScore: resolvedPolicy?.minScore ?? 0,
+        });
+        if (resolvedPolicy && confidence.suppressResults) {
+            await this.workingMemory.decayActivations();
+            const totalTime = Date.now() - startTime;
+            return {
+                retrieved: [],
+                partiallyRetrieved: partial,
+                diagnostics: {
+                    candidatesScanned: scored.length + partial.length,
+                    vectorSearchTimeMs: totalTime,
+                    scoringTimeMs: 0,
+                    totalTimeMs: totalTime,
+                    policyProfile: resolvedPolicy.profile,
+                    suppressed: 'weak_hits',
+                    confidence,
+                    escalations: [],
+                },
+            };
         }
         // Record access for retrieved memories (spaced repetition)
         for (const trace of scored.slice(0, 5)) {
@@ -370,6 +399,9 @@ export class CognitiveMemoryManager {
                 vectorSearchTimeMs: totalTime,
                 scoringTimeMs: 0,
                 totalTimeMs: totalTime,
+                policyProfile: resolvedPolicy?.profile,
+                confidence: resolvedPolicy ? confidence : undefined,
+                escalations: resolvedPolicy ? [] : undefined,
             },
         };
     }

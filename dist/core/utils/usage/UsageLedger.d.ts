@@ -23,6 +23,19 @@ interface UsageBucket extends UsageDimensions {
     totalTokens: number;
     costUSD: number;
     calls: number;
+    /**
+     * Tokens served from the provider's prompt-prefix cache (Anthropic
+     * cache_read_input_tokens). Only set when the provider reports it;
+     * undefined otherwise so consumers can distinguish "not reported"
+     * from "zero hits".
+     */
+    cacheReadTokens?: number;
+    /**
+     * Tokens written to the provider's prompt-prefix cache as a new
+     * entry (Anthropic cache_creation_input_tokens). Same not-reported
+     * vs zero convention as cacheReadTokens.
+     */
+    cacheCreationTokens?: number;
 }
 /** Result returned by summary queries. */
 export type UsageSummary = UsageBucket;

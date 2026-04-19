@@ -163,7 +163,11 @@ export class AnthropicProvider {
         this.keyPool = new ApiKeyPool(config.apiKey);
         this.defaultModelId = config.defaultModelId;
         this.isInitialized = true;
-        console.log(`AnthropicProvider initialized. Default model: ${this.defaultModelId || 'Not set'}.`);
+        const env = typeof process !== 'undefined' ? process.env : undefined;
+        const debugOn = env && (env.AGENTOS_DEBUG === '1' || env.AGENTOS_DEBUG === 'true' || (env.AGENTOS_LOG_LEVEL ?? '').toLowerCase() === 'debug');
+        if (debugOn) {
+            console.log(`AnthropicProvider initialized. Default model: ${this.defaultModelId || 'Not set'}.`);
+        }
     }
     // -------------------------------------------------------------------------
     // Chat completions

@@ -1,3 +1,4 @@
+import { type HostLLMPolicy } from './runtime/hostPolicy.js';
 import { type AdaptableToolInput } from './runtime/toolAdapter.js';
 import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import type { ITool } from '../core/tools/ITool.js';
@@ -5,6 +6,7 @@ import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
 import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 import type { MessageContent, MessageContentPart } from '../core/llm/providers/IProvider.js';
 export type { MessageContent, MessageContentPart };
+export type { HostLLMPolicy } from './runtime/hostPolicy.js';
 /**
  * A single chat message in a conversation history.
  * Mirrors the OpenAI / Anthropic message shape accepted by provider adapters.
@@ -251,6 +253,11 @@ export interface GenerateTextOptions {
      * from system prompt and tool names when not provided.
      */
     routerParams?: Partial<ModelRouteParams>;
+    /**
+     * Host-level routing hints that can be forwarded into the model router
+     * without requiring callers to construct raw router params directly.
+     */
+    hostPolicy?: HostLLMPolicy;
     /**
      * Called before each LLM generation step.  Can inject memory context
      * into messages, sanitize input via guardrails, or modify the prompt.

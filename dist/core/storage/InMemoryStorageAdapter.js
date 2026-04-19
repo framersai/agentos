@@ -323,6 +323,18 @@ export class InMemoryStorageAdapter {
                 usage.promptTokens += message.usage.promptTokens || 0;
                 usage.completionTokens += message.usage.completionTokens || 0;
                 usage.totalTokens += message.usage.totalTokens || 0;
+                // Forward Anthropic prompt-cache metrics when the stored
+                // message carries them. Undefined stays undefined — lets
+                // consumers distinguish "provider does not report cache" from
+                // "zero hits", matching the UsageLedger + generateObject
+                // propagation convention.
+                if (typeof message.usage.cacheReadTokens === 'number') {
+                    usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + message.usage.cacheReadTokens;
+                }
+                if (typeof message.usage.cacheCreationTokens === 'number') {
+                    usage.cacheCreationTokens =
+                        (usage.cacheCreationTokens ?? 0) + message.usage.cacheCreationTokens;
+                }
             }
         }
         return usage;

@@ -23,7 +23,7 @@
  */
 import { agent as createAgent } from '../agent.js';
 import { createBufferedAsyncReplay } from '../streamBuffer.js';
-import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 /**
  * Compiles a sequential execution strategy.
  *
@@ -93,6 +93,7 @@ export function compileSequential(agents, agencyConfig) {
                 totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
                 totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
                 totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+                accumulateCacheTokens(totalUsage, resultUsage);
                 // Chain: subsequent agents see the original task plus previous output.
                 // This ensures each agent has full context without losing the original prompt.
                 context = `Original task: ${prompt}\n\nPrevious agent (${name}) output:\n${resultText}`;
@@ -190,6 +191,7 @@ export function compileSequential(agents, agencyConfig) {
                         totalUsage.promptTokens += resultUsage.promptTokens;
                         totalUsage.completionTokens += resultUsage.completionTokens;
                         totalUsage.totalTokens += resultUsage.totalTokens;
+                        accumulateCacheTokens(totalUsage, resultUsage);
                     }
                     catch (err) {
                         const error = err instanceof Error ? err : new Error(String(err));

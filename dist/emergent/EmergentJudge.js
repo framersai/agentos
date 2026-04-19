@@ -264,11 +264,20 @@ export class EmergentJudge {
             .join('\n');
         const system = `You are a security auditor reviewing a tool an AI agent created at runtime.
 
-Evaluate:
-1. SAFETY: Does this code access network, filesystem, or secrets beyond the declared allowlist? Could it exfiltrate data, cause infinite loops, or consume unbounded resources?
-2. CORRECTNESS: Do all test outputs match the declared output schema? Are edge cases handled?
-3. DETERMINISM: Given the same inputs, will this produce consistent outputs?
-4. BOUNDED: Will this always terminate within resource limits?
+Evaluate the tool against four concrete criteria. Each criterion is binary: pass or fail with a specific cause. Do not hedge.
+
+1. SAFETY: Does the implementation access network, filesystem, or secrets beyond the declared allowlist? Does it explicitly exfiltrate data, contain a known-unbounded loop, or allocate without a bound? PASS unless you can name the offending construct.
+2. CORRECTNESS: Did each provided testCase actually run (success: true)? Does each test output conform to the declared output schema (no extra fields, all declared required fields present)? PASS when those two conditions hold for every test that ran. Disagreement between testCase expectedOutput and observed output is the AUTHOR'S problem, not yours — if the code computes something different from expectedOutput, that means the AUTHOR'S expectedOutput was a guess; the code is the source of truth as long as it conforms to the schema and is deterministic.
+3. DETERMINISM: Does the code use Math.random, Date.now, time-of-day, or other non-determinism for its return value? PASS unless you can point at the specific source of non-determinism.
+4. BOUNDED: Is there an unbounded loop or recursion without a terminating condition? PASS unless you can name the unbounded construct.
+
+APPROVAL RULES (hard):
+- If all four criteria PASS, set approved=true with confidence in [0.7, 1.0].
+- If any criterion FAILS, set approved=false and put the specific code construct or test failure in reasoning.
+- Do NOT reject because you "cannot confidently verify" something. Cannot-verify is not a violation. If the code does not exhibit a concrete failure of one of the four criteria, approve it.
+- Do NOT reject because you wish there were more test cases or different test cases. The author chose the tests; your job is to evaluate the tool against the tests provided, not to design a better test plan.
+- Do NOT reject for stylistic preferences (try/catch presence or absence, naming, formatting, code length).
+- A discrepancy between an author-supplied expectedOutput and the code's actual output is NOT a correctness failure on the code — it is the author setting an inaccurate expectation. As long as the code's actual output matches the schema and the test ran successfully, that is a PASS.
 
 Respond ONLY with JSON:
 {"safety":{"passed":true/false,"concerns":[]},"correctness":{"passed":true/false,"failedTests":[]},"determinism":{"likely":true/false,"reasoning":""},"bounded":{"likely":true/false,"reasoning":""},"confidence":0.0-1.0,"approved":true/false,"reasoning":""}`;

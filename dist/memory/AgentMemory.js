@@ -148,6 +148,7 @@ export class AgentMemory {
             types: options?.types,
             tags: options?.tags,
             minConfidence: options?.minConfidence,
+            policy: options?.policy,
         });
         return {
             memories: result.retrieved,

@@ -109,7 +109,8 @@ export { HybridSearcher, type HybridSearcherConfig, type HybridResult } from './
 export { SemanticChunker, type SemanticChunkerConfig, type SemanticChunk, type BoundaryType, } from './chunking/index.js';
 export { RaptorTree, type RaptorTreeConfig, type RaptorInputChunk, type RaptorTreeStats, type RaptorResult, } from './raptor/index.js';
 export { UnifiedRetriever, buildDefaultPlan } from './unified/index.js';
-export type { RetrievalPlan, RetrievalPlanSources, MemoryTypeFilter, ModalityFilter, TemporalConfig, GraphTraversalConfig, UnifiedRetrievalResult, SourceDiagnostics, UnifiedRetrieverEvent, UnifiedRetrieverDeps, } from './unified/index.js';
+export type { MemoryRetrievalPolicy, MemoryRetrievalProfile, ResolvedMemoryRetrievalPolicy, RetrievalPlan, RetrievalPlanSources, MemoryTypeFilter, ModalityFilter, TemporalConfig, GraphTraversalConfig, UnifiedRetrievalResult, SourceDiagnostics, UnifiedRetrieverEvent, UnifiedRetrieverDeps, } from './unified/index.js';
+export { DEFAULT_MEMORY_RETRIEVAL_POLICY, buildRetrievalPlanFromPolicy, getCandidateLimit, resolveMemoryRetrievalPolicy, } from './unified/index.js';
 export { cosineSimilarity, dotProduct, euclideanDistance, embeddingToBlob, blobToEmbedding, blobToFloat32, isLegacyJsonBlob, type VectorLike, } from './utils/vectorMath.js';
 export { PineconeVectorStore, type PineconeVectorStoreConfig } from './vector_stores/PineconeVectorStore.js';
 export { MigrationEngine } from './migration/MigrationEngine.js';
