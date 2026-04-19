@@ -1,3 +1,9 @@
+## <small>0.1.244 (2026-04-19)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([3950d82](https://github.com/framersai/agentos/commit/3950d82))
+* fix(routing): remove dead uncensored text models from catalog ([e0abaeb](https://github.com/framersai/agentos/commit/e0abaeb))
+* feat: add host llm policy routing ([748cc25](https://github.com/framersai/agentos/commit/748cc25))
+
 ## <small>0.1.243 (2026-04-19)</small>
 
 * fix(judge): tighten creation-review rubric to eliminate false rejects ([9cd8765](https://github.com/framersai/agentos/commit/9cd8765))
