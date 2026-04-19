@@ -27,7 +27,7 @@
 import { agent as createAgent } from '../agent.js';
 import { createBufferedAsyncReplay } from '../streamBuffer.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, checkBeforeAgent } from './shared.js';
+import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 // ---------------------------------------------------------------------------
 // Topological sort
 // ---------------------------------------------------------------------------
@@ -134,6 +134,7 @@ export function compileGraph(agents, agencyConfig) {
                     totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
                     totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
                     totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+                    accumulateCacheTokens(totalUsage, resultUsage);
                     return result;
                 }));
                 // Track the last non-null result (the final tier's output).
@@ -224,6 +225,7 @@ export function compileGraph(agents, agencyConfig) {
                         totalUsage.promptTokens += resultUsage.promptTokens;
                         totalUsage.completionTokens += resultUsage.completionTokens;
                         totalUsage.totalTokens += resultUsage.totalTokens;
+                        accumulateCacheTokens(totalUsage, resultUsage);
                         yield {
                             type: 'agent-end',
                             agent: name,

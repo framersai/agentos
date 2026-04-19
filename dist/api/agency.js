@@ -789,6 +789,10 @@ function normalizeUsage(raw) {
         completionTokens: usage.completionTokens ?? 0,
         totalTokens: usage.totalTokens ?? 0,
         costUSD: usage.costUSD,
+        // Preserve cache-token fields from the source. Undefined stays
+        // undefined so consumers distinguish "not reported" from "zero".
+        cacheReadTokens: usage.cacheReadTokens,
+        cacheCreationTokens: usage.cacheCreationTokens,
     };
 }
 function addUsageTotals(target, usage) {
@@ -797,6 +801,12 @@ function addUsageTotals(target, usage) {
     target.totalTokens += usage.totalTokens;
     if (typeof usage.costUSD === 'number') {
         target.costUSD = (target.costUSD ?? 0) + usage.costUSD;
+    }
+    if (typeof usage.cacheReadTokens === 'number') {
+        target.cacheReadTokens = (target.cacheReadTokens ?? 0) + usage.cacheReadTokens;
+    }
+    if (typeof usage.cacheCreationTokens === 'number') {
+        target.cacheCreationTokens = (target.cacheCreationTokens ?? 0) + usage.cacheCreationTokens;
     }
 }
 function getSessionUsage(usageMap, sessionId) {

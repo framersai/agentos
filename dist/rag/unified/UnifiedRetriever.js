@@ -53,6 +53,8 @@
  * @see buildDefaultPlan for creating default plans
  */
 import { EventEmitter } from 'node:events';
+import { evaluateRetrievalConfidence } from './confidence.js';
+import { buildRetrievalPlanFromPolicy, resolveMemoryRetrievalPolicy, } from './policy.js';
 // ============================================================================
 // UNIFIED RETRIEVER
 // ============================================================================
@@ -223,6 +225,39 @@ export class UnifiedRetriever extends EventEmitter {
         // ── Phase 7: Memory feedback ─────────────────────────────────────────
         await this.storeMemoryFeedback(query, reranked, plan);
         return this.buildResult(reranked, plan, diagnostics, startTime, false, researchSynthesis);
+    }
+    async retrieveWithPolicy(query, policyInput = {}) {
+        const policy = resolveMemoryRetrievalPolicy(policyInput);
+        const escalations = [];
+        let plan = buildRetrievalPlanFromPolicy(policy);
+        let result = await this.retrieve(query, plan, policy.topK);
+        let confidence = evaluateRetrievalConfidence(result.chunks, {
+            adaptive: policy.adaptive,
+            minScore: policy.minScore,
+        });
+        if (policy.adaptive && confidence.shouldEscalate) {
+            escalations.push('upgrade:max-recall');
+            plan = buildRetrievalPlanFromPolicy({
+                ...policy,
+                profile: 'max-recall',
+                reranker: 'always',
+                hyde: 'always',
+            });
+            result = await this.retrieve(query, plan, policy.topK);
+            confidence = evaluateRetrievalConfidence(result.chunks, {
+                adaptive: false,
+                minScore: policy.minScore,
+            });
+        }
+        return {
+            ...result,
+            plan,
+            policyDiagnostics: {
+                policy,
+                confidence,
+                escalations,
+            },
+        };
     }
     // --------------------------------------------------------------------------
     // PHASE 1: Memory-first check

@@ -13,7 +13,7 @@
  * Same-provider observations are never considered duplicates — interim
  * transcripts from a single streaming provider are part of its protocol.
  */
-const PUNCT_RE = /[.,!?;:"'()\[\]{}]/g;
+const PUNCT_RE = /[.,!?;:"'()[\]{}]/g;
 const WS_RE = /\s+/g;
 function normalize(text) {
     return text.toLowerCase().replace(PUNCT_RE, '').replace(WS_RE, ' ').trim();

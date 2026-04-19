@@ -27,7 +27,7 @@
  */
 import { agent as createAgent } from '../agent.js';
 import { AgencyConfigError } from '../types.js';
-import { resolveAgent, checkBeforeAgent } from './shared.js';
+import { resolveAgent, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
 /**
  * Compiles a debate execution strategy.
  *
@@ -106,6 +106,7 @@ export function compileDebate(agents, agencyConfig) {
                     totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
                     totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
                     totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+                    accumulateCacheTokens(totalUsage, resultUsage);
                 }
             }
             // Synthesize all arguments into a final answer using the agency-level model.
@@ -127,6 +128,7 @@ export function compileDebate(agents, agencyConfig) {
             totalUsage.promptTokens += synthUsage.promptTokens ?? 0;
             totalUsage.completionTokens += synthUsage.completionTokens ?? 0;
             totalUsage.totalTokens += synthUsage.totalTokens ?? 0;
+            accumulateCacheTokens(totalUsage, synthUsage);
             return { ...synthesis, agentCalls, usage: totalUsage };
         },
         stream(prompt, opts) {

@@ -43,7 +43,24 @@ import { UrlLoader } from '../ingestion/UrlLoader.js';
 import { RetrievalFeedbackSignal } from '../../retrieval/feedback/RetrievalFeedbackSignal.js';
 import { ConsolidationLoop } from '../../pipeline/consolidation/ConsolidationLoop.js';
 import { penalizeUnused, updateOnRetrieval } from '../../core/decay/DecayModel.js';
+import { evaluateRetrievalConfidence, getCandidateLimit, resolveMemoryRetrievalPolicy, } from '../../../rag/unified/index.js';
 import { MemoryAddTool, MemoryUpdateTool, MemoryDeleteTool, MemoryMergeTool, MemorySearchTool, MemoryReflectTool, } from '../tools/index.js';
+/**
+ * Standalone recall paths produce backend-specific ranking signals
+ * (FTS rank products and RRF fusion scores), not calibrated 0–1
+ * confidences. Translate them into a conservative confidence band
+ * before applying shared retrieval-policy thresholds.
+ *
+ * Key property: "balanced" defaults should pass clearly relevant
+ * lexical hits, while very high thresholds (for explicit suppression)
+ * can still zero them out.
+ */
+function standaloneRecallConfidence(score) {
+    if (!Number.isFinite(score) || score <= 0) {
+        return 0;
+    }
+    return Math.min(0.9, Math.max(0, (Math.log10(score) + 10) / 10));
+}
 // ---------------------------------------------------------------------------
 // Constants & defaults
 // ---------------------------------------------------------------------------
@@ -345,7 +362,11 @@ export class Memory {
         if (!ftsQuery) {
             return [];
         }
-        const limit = options?.limit ?? 10;
+        const resolvedPolicy = options?.policy ? resolveMemoryRetrievalPolicy(options.policy) : null;
+        const limit = options?.limit ?? resolvedPolicy?.topK ?? 10;
+        const candidateLimit = resolvedPolicy
+            ? getCandidateLimit(limit, resolvedPolicy.candidateMultiplier)
+            : limit;
         const minStrength = options?.minStrength ?? 0;
         // Build WHERE clause fragments for optional filters.
         const conditions = ['t.deleted = 0'];
@@ -393,7 +414,7 @@ export class Memory {
             }
             // Get vector candidates from HNSW (3x over-fetch for fusion).
             const hnswCandidates = queryEmbedding.length > 0
-                ? this._hnswSidecar.query(queryEmbedding, limit * 3)
+                ? this._hnswSidecar.query(queryEmbedding, candidateLimit)
                 : [];
             // If HNSW returned candidates, merge with FTS5 via RRF.
             if (hnswCandidates.length > 0) {
@@ -411,7 +432,7 @@ export class Memory {
         `;
                 let ftsRows = [];
                 try {
-                    ftsRows = await this._brain.all(ftsSql, [...params, ftsQuery, limit * 3]);
+                    ftsRows = await this._brain.all(ftsSql, [...params, ftsQuery, candidateLimit]);
                 }
                 catch (error) {
                     if (!isFtsUnavailableError(error)) {
@@ -432,17 +453,24 @@ export class Memory {
                 }
                 // Sort by RRF score descending, take top limit.
                 scored.sort((a, b) => b.rrfScore - a.rrfScore);
-                const topIds = scored.slice(0, limit).map(s => s.id);
+                const topIds = scored.slice(0, candidateLimit).map(s => s.id);
                 // Fetch full rows for the top candidates.
                 if (topIds.length > 0) {
                     const placeholders = topIds.map(() => '?').join(',');
                     const fullRows = await this._brain.all(`SELECT t.*, 0.0 as rank FROM memory_traces t WHERE t.id IN (${placeholders}) AND t.deleted = 0`, topIds);
                     const updatedRows = await this._applyRecallAccessUpdates(fullRows);
                     const rrfMap = new Map(scored.map(s => [s.id, s.rrfScore]));
-                    return updatedRows.map((row) => ({
+                    const results = updatedRows.map((row) => ({
                         trace: this._buildTrace(row),
                         score: rrfMap.get(row.id) ?? 0,
                     })).sort((a, b) => b.score - a.score);
+                    if (!resolvedPolicy) {
+                        return results.slice(0, limit);
+                    }
+                    const confidence = evaluateRetrievalConfidence(results.map((row) => ({
+                        relevanceScore: standaloneRecallConfidence(row.score),
+                    })), { adaptive: resolvedPolicy.adaptive, minScore: resolvedPolicy.minScore });
+                    return confidence.suppressResults ? [] : results.slice(0, limit);
                 }
             }
         }
@@ -458,7 +486,7 @@ export class Memory {
       ORDER BY (t.strength * abs(${ftsB.rankExpression('fts')})) DESC
       LIMIT ?
     `;
-        params.push(ftsQuery, limit);
+        params.push(ftsQuery, candidateLimit);
         let rows;
         try {
             rows = await this._brain.all(sql, params);
@@ -467,13 +495,20 @@ export class Memory {
             if (!isFtsUnavailableError(error)) {
                 throw error;
             }
-            rows = await this._recallWithoutFts(query, whereClause, params.slice(0, -2), limit);
+            rows = await this._recallWithoutFts(query, whereClause, params.slice(0, -2), candidateLimit);
         }
         const updatedRows = await this._applyRecallAccessUpdates(rows);
-        return updatedRows.map((row) => ({
+        const results = updatedRows.map((row) => ({
             trace: this._buildTrace(row),
             score: row.strength * Math.abs(row.rank),
         }));
+        if (!resolvedPolicy) {
+            return results.slice(0, limit);
+        }
+        const confidence = evaluateRetrievalConfidence(results.map((row) => ({
+            relevanceScore: standaloneRecallConfidence(row.score),
+        })), { adaptive: resolvedPolicy.adaptive, minScore: resolvedPolicy.minScore });
+        return confidence.suppressResults ? [] : results.slice(0, limit);
     }
     /**
      * Soft-delete a memory trace by setting `deleted = 1`.

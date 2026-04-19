@@ -36,6 +36,7 @@ import type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
 import type { ObservationNote } from './pipeline/observation/MemoryObserver.js';
 import type { ProspectiveMemoryItem } from './retrieval/prospective/ProspectiveMemoryManager.js';
 import { Memory as StandaloneMemory } from './io/facade/Memory.js';
+import type { MemoryRetrievalPolicy } from '../rag/unified/policy.js';
 import type { MemoryConfig, IngestOptions, IngestResult, ExportOptions, ImportOptions, ImportResult } from './io/facade/types.js';
 export interface RecallResult {
     /** Relevant memory traces sorted by relevance. */
@@ -59,6 +60,8 @@ export interface SearchOptions {
     tags?: string[];
     /** Minimum confidence. Default: 0. */
     minConfidence?: number;
+    /** Shared retrieval policy surface. */
+    policy?: MemoryRetrievalPolicy;
 }
 type StandaloneMemoryBackend = Pick<StandaloneMemory, 'remember' | 'recall' | 'consolidate' | 'health' | 'close' | 'ingest' | 'importFrom' | 'export' | 'feedback'>;
 /**

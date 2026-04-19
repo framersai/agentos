@@ -94,6 +94,7 @@ export * from './core/storage/index.js';
 export * from './core/utils/usage/UsageLedger.js';
 // RAG (Retrieval Augmented Generation)
 export * from './rag/index.js';
+export { DEFAULT_MEMORY_RETRIEVAL_POLICY, buildRetrievalPlanFromPolicy, getCandidateLimit, resolveMemoryRetrievalPolicy, } from './rag/unified/policy.js';
 // Cognitive Memory System
 export * from './memory/index.js';
 // Query Router (classification, retrieval dispatch, grounded answer generation)
@@ -110,6 +111,7 @@ export * from './emergent/index.js';
 export { EXTENSION_SECRET_DEFINITIONS, getSecretDefinition, resolveSecretForProvider, } from './core/config/extensionSecrets.js';
 // --- High-Level API (AI SDK style) ---
 export { generateText, isRetryableError, buildFallbackChain } from './api/generateText.js';
+export { normalizeHostLLMPolicy } from './api/runtime/hostPolicy.js';
 export { streamText } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export { ModelRouter } from './core/llm/routing/ModelRouter.js';

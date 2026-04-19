@@ -1,3 +1,4 @@
+import { resolveMemoryRetrievalPolicy } from '../../rag/unified/policy.js';
 export const LONG_TERM_MEMORY_POLICY_METADATA_KEY = 'longTermMemoryPolicy';
 export const ORGANIZATION_ID_METADATA_KEY = 'organizationId';
 export const DEFAULT_LONG_TERM_MEMORY_POLICY = {
@@ -11,6 +12,7 @@ export const DEFAULT_LONG_TERM_MEMORY_POLICY = {
     shareWithOrganization: false,
     storeAtomicDocs: true,
     allowedCategories: null,
+    retrieval: null,
 };
 const KNOWN_CATEGORIES = new Set([
     'facts',
@@ -47,6 +49,7 @@ export function resolveLongTermMemoryPolicy(args) {
         shareWithOrganization: previous?.shareWithOrganization ?? base.shareWithOrganization,
         storeAtomicDocs: previous?.storeAtomicDocs ?? base.storeAtomicDocs,
         allowedCategories: previous?.allowedCategories ?? base.allowedCategories,
+        retrieval: previous?.retrieval ?? base.retrieval ?? null,
     };
     if (input) {
         if (typeof input.enabled === 'boolean')
@@ -71,6 +74,12 @@ export function resolveLongTermMemoryPolicy(args) {
                 .map((c) => normalizeCategory(c))
                 .filter((c) => Boolean(c))));
             resolved.allowedCategories = normalized;
+        }
+        if (input.retrieval === null) {
+            resolved.retrieval = null;
+        }
+        else if (input.retrieval) {
+            resolved.retrieval = resolveMemoryRetrievalPolicy(input.retrieval);
         }
     }
     return resolved;

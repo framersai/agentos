@@ -280,7 +280,11 @@ export class OpenAIProvider implements IProvider {
       // Attempt to list models to verify API key and connectivity.
       await this.refreshAvailableModels();
       this.isInitialized = true;
-      console.log(`OpenAIProvider initialized successfully. Default model: ${this.defaultModelId || 'Not set'}. Found ${this.availableModelsCache.size} models.`);
+      const env = typeof process !== 'undefined' ? process.env : undefined;
+      const debugOn = !!env && (env.AGENTOS_DEBUG === '1' || env.AGENTOS_DEBUG === 'true' || (env.AGENTOS_LOG_LEVEL ?? '').toLowerCase() === 'debug');
+      if (debugOn) {
+        console.log(`OpenAIProvider initialized successfully. Default model: ${this.defaultModelId || 'Not set'}. Found ${this.availableModelsCache.size} models.`);
+      }
     } catch (error: unknown) {
       this.isInitialized = false;
       if (error instanceof OpenAIProviderError) {

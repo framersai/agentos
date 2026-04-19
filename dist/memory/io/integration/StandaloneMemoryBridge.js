@@ -161,10 +161,12 @@ export function createStandaloneMemoryLongTermRetriever(memory, options) {
             }
             const scopeResults = [];
             for (const target of targets) {
+                const recallPolicy = input.retrievalPolicy ?? policy.retrieval ?? undefined;
                 const recallOptions = {
                     limit: getScopeLimit(target, input, resolvedOptions),
                     scope: target.memoryScope,
                     scopeId: target.scopeId,
+                    policy: recallPolicy,
                 };
                 const hits = await memory.recall(input.queryText, recallOptions);
                 if (hits.length > 0) {

@@ -30,16 +30,11 @@ import { defaultCapabilities, } from '../HealthyProvider.js';
 import { VoicePipelineError } from '../VoicePipelineError.js';
 async function defaultDeepgramProbe(apiKey) {
     const start = Date.now();
-    try {
-        const res = await fetch('https://api.deepgram.com/v1/projects', {
-            headers: { Authorization: `Token ${apiKey}` },
-            signal: AbortSignal.timeout(1000),
-        });
-        return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
-    }
-    catch (err) {
-        throw err;
-    }
+    const res = await fetch('https://api.deepgram.com/v1/projects', {
+        headers: { Authorization: `Token ${apiKey}` },
+        signal: AbortSignal.timeout(1000),
+    });
+    return { ok: res.ok, status: res.status, latencyMs: Date.now() - start };
 }
 // ---------------------------------------------------------------------------
 // Session Implementation

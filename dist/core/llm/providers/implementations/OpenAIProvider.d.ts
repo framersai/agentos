@@ -48,6 +48,25 @@ export interface OpenAIProviderConfig {
  * Provides an interface to OpenAI's suite of models (GPT, Embeddings).
  * It handles API requests, streaming, error management, and model information.
  */
+/**
+ * Whether the given model id belongs to the family that requires
+ * `max_completion_tokens` instead of the legacy `max_tokens` parameter.
+ *
+ * OpenAI's reasoning models (o1, o3, o4) and the GPT-5 family reject
+ * `max_tokens` outright with HTTP 400 "Unsupported parameter:
+ * 'max_tokens' is not supported with this model. Use
+ * 'max_completion_tokens' instead." Legacy chat completions
+ * (gpt-4o, gpt-4-turbo, gpt-4.1, gpt-3.5, etc.) still accept the
+ * old field.
+ *
+ * Errs on the conservative side — any model id that is not a clear
+ * member of one of the new families uses `max_tokens` so older
+ * deployments do not silently break when the param-name flag changes.
+ *
+ * @param modelId Provider-side model identifier (e.g. `'gpt-5.4-mini'`).
+ * @returns `true` when the model needs `max_completion_tokens`.
+ */
+export declare function modelRequiresMaxCompletionTokens(modelId: string): boolean;
 export declare class OpenAIProvider implements IProvider {
     /** @inheritdoc */
     readonly providerId: string;

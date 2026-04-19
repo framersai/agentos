@@ -11,6 +11,8 @@ import { MetadataFilter, MetadataValue } from './IVectorStore';
 import { IVectorStoreManager } from './IVectorStoreManager';
 import { RetrievalAugmentorServiceConfig } from '../core/config/RetrievalAugmentorConfiguration';
 import type { RAGAuditTrail } from './audit/RAGAuditTypes';
+import type { RetrievalConfidenceSummary } from './unified/confidence.js';
+import type { MemoryRetrievalPolicy, MemoryRetrievalProfile } from './unified/policy.js';
 /**
  * Logical buckets that the RAG system can target.  These allow integrators to map different
  * document types or knowledge sources to distinct vector store data sources and policies.
@@ -147,6 +149,11 @@ export interface RagRetrievalDiagnostics {
         effectiveThreshold: number;
         thresholdSteps: number;
     };
+    policy?: {
+        profile: MemoryRetrievalProfile;
+        confidence: RetrievalConfidenceSummary;
+        escalations: string[];
+    };
 }
 /**
  * Options controlling retrieval behavior.
@@ -222,6 +229,8 @@ export interface RagRetrievalOptions {
     userId?: string;
     /** When true, generates a RAGAuditTrail with per-operation transparency. */
     includeAudit?: boolean;
+    /** Optional shared retrieval policy overlay. */
+    policy?: MemoryRetrievalPolicy;
 }
 /**
  * Retrieval result passed back to callers.

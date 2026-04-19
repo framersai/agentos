@@ -15,6 +15,8 @@
  * @see QueryClassifier.classifyWithPlan for plan generation
  */
 import type { RetrievalStrategy, RetrievedChunk } from '../../query-router/types.js';
+import type { RetrievalConfidenceSummary } from './confidence.js';
+import type { ResolvedMemoryRetrievalPolicy } from './policy.js';
 /**
  * Structured retrieval plan produced by the query classifier.
  *
@@ -237,6 +239,12 @@ export interface UnifiedRetrievalResult {
     durationMs: number;
     /** Whether a memory cache hit was used (episodic memory shortcut). */
     memoryCacheHit: boolean;
+    /** Optional policy-level diagnostics when retrieval was policy-driven. */
+    policyDiagnostics?: {
+        policy: ResolvedMemoryRetrievalPolicy;
+        confidence: RetrievalConfidenceSummary;
+        escalations: string[];
+    };
 }
 /**
  * Per-source diagnostics for a unified retrieval operation.

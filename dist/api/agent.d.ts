@@ -10,6 +10,7 @@
  */
 import { type FallbackProviderEntry, type GenerateTextOptions, type GenerateTextResult, type GenerationHookContext, type GenerationHookResult, type Message, type MessageContent, type ToolCallHookInfo } from './generateText.js';
 import { type StreamTextResult } from './streamText.js';
+import type { HostLLMPolicy } from './runtime/hostPolicy.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
 import type { SkillEntry } from '../skills/types.js';
 import type { AgentOSUsageAggregate, AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
@@ -55,6 +56,8 @@ export interface AgentOptions extends BaseAgentConfig {
     onFallback?: (error: Error, fallbackProvider: string) => void;
     /** Model router for intelligent provider selection per-call. */
     router?: IModelRouter;
+    /** Host-level routing hints forwarded to the high-level generation helpers. */
+    hostPolicy?: HostLLMPolicy;
     /**
      * Routing hints passed to the model router's `selectModel()` call.
      *

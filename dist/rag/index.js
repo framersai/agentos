@@ -127,6 +127,7 @@ export { RaptorTree, } from './raptor/index.js';
 // Unified Retrieval (plan-based orchestrator)
 // ============================================================================
 export { UnifiedRetriever, buildDefaultPlan } from './unified/index.js';
+export { DEFAULT_MEMORY_RETRIEVAL_POLICY, buildRetrievalPlanFromPolicy, getCandidateLimit, resolveMemoryRetrievalPolicy, } from './unified/index.js';
 // ============================================================================
 // Vector Math Utilities
 // ============================================================================

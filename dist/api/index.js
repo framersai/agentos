@@ -11,6 +11,7 @@
 export { AgentOS } from './AgentOS.js';
 // --- High-level generation functions ---
 export { generateText, isRetryableError, buildFallbackChain, } from './generateText.js';
+export { normalizeHostLLMPolicy } from './runtime/hostPolicy.js';
 export { streamText } from './streamText.js';
 export { generateObject } from './generateObject.js';
 export { streamObject } from './streamObject.js';

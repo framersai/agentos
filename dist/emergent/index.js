@@ -25,4 +25,13 @@ export { ManageSkillsTool } from './ManageSkillsTool.js';
 export { CreateWorkflowTool } from './CreateWorkflowTool.js';
 export { SelfEvaluateTool } from './SelfEvaluateTool.js';
 export { PersonalityMutationStore } from './PersonalityMutationStore.js';
+// Forge observability — instrumentation for consumers that want live
+// visibility into forge health (rejection-reason histogram, shape-check
+// pre-validator, schema inference from testCases, capture wrapper,
+// aggregator).
+export { classifyForgeRejection, } from './ForgeRejectionClassifier.js';
+export { validateForgeShape, } from './ForgeShapeValidator.js';
+export { inferSchemaFromTestCases, } from './ForgeSchemaInference.js';
+export { wrapForgeTool, } from './wrapForgeTool.js';
+export { ForgeStatsAggregator, emptyForgeStats, } from './ForgeStatsAggregator.js';
 //# sourceMappingURL=index.js.map

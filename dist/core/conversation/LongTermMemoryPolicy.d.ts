@@ -1,3 +1,4 @@
+import type { MemoryRetrievalPolicy, ResolvedMemoryRetrievalPolicy } from '../../rag/unified/policy.js';
 export type LongTermMemoryScope = 'conversation' | 'user' | 'persona' | 'organization';
 export type RollingSummaryMemoryCategory = 'facts' | 'preferences' | 'people' | 'projects' | 'decisions' | 'open_loops' | 'todo' | 'tags';
 export declare const LONG_TERM_MEMORY_POLICY_METADATA_KEY = "longTermMemoryPolicy";
@@ -32,6 +33,8 @@ export interface LongTermMemoryPolicyInput {
      * - `[]`: persist none
      */
     allowedCategories?: RollingSummaryMemoryCategory[];
+    /** Optional retrieval policy override for prompt-time long-term recall. */
+    retrieval?: MemoryRetrievalPolicy | null;
 }
 export interface AgentOSMemoryControl {
     longTermMemory?: LongTermMemoryPolicyInput;
@@ -42,6 +45,7 @@ export interface ResolvedLongTermMemoryPolicy {
     shareWithOrganization: boolean;
     storeAtomicDocs: boolean;
     allowedCategories: RollingSummaryMemoryCategory[] | null;
+    retrieval?: ResolvedMemoryRetrievalPolicy | null;
 }
 export declare const DEFAULT_LONG_TERM_MEMORY_POLICY: ResolvedLongTermMemoryPolicy;
 export declare function resolveLongTermMemoryPolicy(args: {

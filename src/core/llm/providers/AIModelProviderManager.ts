@@ -65,6 +65,21 @@ export class AIModelProviderManager {
   constructor() {}
 
   /**
+   * Emit informational init traces only when AGENTOS_DEBUG=1 (or when
+   * the caller has explicitly set AGENTOS_LOG_LEVEL=debug). Each new
+   * manager instance would otherwise produce four console.log lines
+   * on every LLM call site that memoizes a fresh manager, drowning
+   * out actual run progress. Errors and warnings still log unchanged.
+   */
+  private static debugEnabled(): boolean {
+    const env = typeof process !== 'undefined' ? process.env : undefined;
+    if (!env) return false;
+    return env.AGENTOS_DEBUG === '1'
+      || env.AGENTOS_DEBUG === 'true'
+      || (env.AGENTOS_LOG_LEVEL ?? '').toLowerCase() === 'debug';
+  }
+
+  /**
    * Ensures the manager has been properly initialized before any operations.
    * @private
    * @throws {GMIError} If the manager is not initialized.
@@ -145,7 +160,9 @@ export class AIModelProviderManager {
 
         await providerInstance.initialize(providerEntry.config || {});
         this.providers.set(providerInstance.providerId, providerInstance);
-        console.log(`AIModelProviderManager: Initialized provider '${providerInstance.providerId}'.`);
+        if (AIModelProviderManager.debugEnabled()) {
+          console.log(`AIModelProviderManager: Initialized provider '${providerInstance.providerId}'.`);
+        }
 
         if (providerEntry.isDefault && !this.defaultProviderId) {
           this.defaultProviderId = providerInstance.providerId;
@@ -169,14 +186,18 @@ export class AIModelProviderManager {
     }
 
     if (this.defaultProviderId) {
-      console.log(`AIModelProviderManager: Default provider set to '${this.defaultProviderId}'.`);
+      if (AIModelProviderManager.debugEnabled()) {
+        console.log(`AIModelProviderManager: Default provider set to '${this.defaultProviderId}'.`);
+      }
     } else if (config.providers.some(p => p.enabled)) {
       console.warn("AIModelProviderManager: No default provider could be set.");
-    } else {
+    } else if (AIModelProviderManager.debugEnabled()) {
       console.log("AIModelProviderManager: No providers enabled or configured.");
     }
     this.isInitialized = true;
-    console.log(`AIModelProviderManager initialized with ${this.providers.size} active providers.`);
+    if (AIModelProviderManager.debugEnabled()) {
+      console.log(`AIModelProviderManager initialized with ${this.providers.size} active providers.`);
+    }
   }
 
   private async cacheModelsFromProvider(provider: IProvider): Promise<void> {

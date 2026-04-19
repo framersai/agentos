@@ -141,6 +141,8 @@ export class SqlStorageAdapter {
         promptTokens INTEGER,
         completionTokens INTEGER,
         totalTokens INTEGER,
+        cacheReadTokens INTEGER,
+        cacheCreationTokens INTEGER,
         toolCalls TEXT,
         toolCallId TEXT,
         name TEXT,
@@ -151,6 +153,22 @@ export class SqlStorageAdapter {
       CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
       CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
     `);
+        // Back-compat migration: add cacheReadTokens / cacheCreationTokens
+        // columns on pre-existing databases. CREATE TABLE IF NOT EXISTS
+        // above only helps on fresh DBs; on DBs that predate this field
+        // set the table already exists and the new columns never land
+        // without an explicit ALTER. Swallow the duplicate-column error
+        // because neither SQLite nor Postgres has portable IF NOT EXISTS
+        // on ADD COLUMN (Postgres does; SQLite does not until 3.35).
+        for (const col of ['cacheReadTokens', 'cacheCreationTokens']) {
+            try {
+                await this.adapter.exec(`ALTER TABLE messages ADD COLUMN ${col} INTEGER;`);
+            }
+            catch {
+                // Column already exists — expected on every startup after the
+                // first post-migration run. No-op.
+            }
+        }
         this.initialized = true;
     }
     /**
@@ -289,9 +307,9 @@ export class SqlStorageAdapter {
         const toolCallsJson = message.toolCalls ? JSON.stringify(message.toolCalls) : null;
         const metadataJson = message.metadata ? JSON.stringify(message.metadata) : null;
         // Insert message
-        await this.adapter.run(`INSERT INTO messages 
-       (id, conversationId, role, content, timestamp, model, promptTokens, completionTokens, totalTokens, toolCalls, toolCallId, name, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        await this.adapter.run(`INSERT INTO messages
+       (id, conversationId, role, content, timestamp, model, promptTokens, completionTokens, totalTokens, cacheReadTokens, cacheCreationTokens, toolCalls, toolCallId, name, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             message.id,
             message.conversationId,
             message.role,
@@ -301,6 +319,12 @@ export class SqlStorageAdapter {
             message.usage?.promptTokens || null,
             message.usage?.completionTokens || null,
             message.usage?.totalTokens || null,
+            // Persist cache-token counters when the caller reports them so
+            // getConversationTokenUsage can SUM a full cache picture later.
+            // Null when undefined — distinguishes "provider did not report"
+            // from a genuine zero.
+            message.usage?.cacheReadTokens ?? null,
+            message.usage?.cacheCreationTokens ?? null,
             toolCallsJson,
             message.toolCallId || null,
             message.name || null,
@@ -405,17 +429,33 @@ export class SqlStorageAdapter {
      */
     async getConversationTokenUsage(conversationId) {
         this.ensureInitialized();
-        const row = await this.adapter.get(`SELECT 
+        const row = await this.adapter.get(`SELECT
         SUM(promptTokens) as promptTokens,
         SUM(completionTokens) as completionTokens,
-        SUM(totalTokens) as totalTokens
-       FROM messages 
+        SUM(totalTokens) as totalTokens,
+        SUM(cacheReadTokens) as cacheReadTokens,
+        SUM(cacheCreationTokens) as cacheCreationTokens,
+        COUNT(cacheReadTokens) as cacheReadCount,
+        COUNT(cacheCreationTokens) as cacheCreationCount
+       FROM messages
        WHERE conversationId = ?`, [conversationId]);
-        return {
+        const usage = {
             promptTokens: row?.promptTokens || 0,
             completionTokens: row?.completionTokens || 0,
             totalTokens: row?.totalTokens || 0,
         };
+        // COUNT returns the number of non-NULL rows; when nothing recorded
+        // cache metrics, SUM collapses to NULL / 0 but the count is also 0.
+        // We only populate the optional cache fields when at least one
+        // message carried a value, preserving the "not reported" signal
+        // on cache-silent providers (e.g. OpenAI).
+        if (row?.cacheReadCount && Number(row.cacheReadCount) > 0) {
+            usage.cacheReadTokens = Number(row.cacheReadTokens) || 0;
+        }
+        if (row?.cacheCreationCount && Number(row.cacheCreationCount) > 0) {
+            usage.cacheCreationTokens = Number(row.cacheCreationTokens) || 0;
+        }
+        return usage;
     }
     // ==================== Private Helper Methods ====================
     /**
@@ -464,12 +504,22 @@ export class SqlStorageAdapter {
         };
         if (row.model)
             message.model = row.model;
-        if (row.promptTokens || row.completionTokens || row.totalTokens) {
+        if (row.promptTokens ||
+            row.completionTokens ||
+            row.totalTokens ||
+            row.cacheReadTokens != null ||
+            row.cacheCreationTokens != null) {
             message.usage = {
                 promptTokens: row.promptTokens || 0,
                 completionTokens: row.completionTokens || 0,
                 totalTokens: row.totalTokens || 0,
             };
+            // Only set cache fields when the row actually stored a value so
+            // callers retain "not reported" vs "zero hits" distinction.
+            if (row.cacheReadTokens != null)
+                message.usage.cacheReadTokens = row.cacheReadTokens;
+            if (row.cacheCreationTokens != null)
+                message.usage.cacheCreationTokens = row.cacheCreationTokens;
         }
         if (row.toolCalls)
             message.toolCalls = JSON.parse(row.toolCalls);
