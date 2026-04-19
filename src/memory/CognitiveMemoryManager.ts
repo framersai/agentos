@@ -327,6 +327,14 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     this.prospective = new ProspectiveMemoryManager(config.embeddingManager);
 
     // --- Batch 2: Consolidation Pipeline ---
+    // We construct the pipeline whenever consolidation config is
+    // supplied OR a graph is present (so `runConsolidation()` is
+    // always callable on-demand). The auto-started periodic timer is
+    // only armed when `config.consolidation.enabled !== false`.
+    // Short-lived contexts (bench runs, tests, one-shot scripts) can
+    // suppress the timer by passing `{ enabled: false }` so they
+    // don't leak setInterval handles that keep the Node event loop
+    // alive past the meaningful work.
     if (config.consolidation || this.graph) {
       this.consolidation = new ConsolidationPipeline({
         store: this.store,
@@ -338,8 +346,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         llmInvoker: config.reflector?.llmInvoker ?? config.featureDetectionLlmInvoker,
         mechanismsEngine: this.mechanismsEngine ?? undefined,
       });
-      // Auto-start periodic consolidation
-      this.consolidation.start();
+      if (config.consolidation?.enabled !== false) {
+        this.consolidation.start();
+      }
     }
 
     // --- Batch 3: Infinite Context Window ---
