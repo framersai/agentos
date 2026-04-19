@@ -1,3 +1,14 @@
+## <small>0.1.246 (2026-04-19)</small>
+
+* fix: add missing Required fields (enabled, syntax_error) unblocking CI ([b60eb31](https://github.com/framersai/agentos/commit/b60eb31)), closes [#2](https://github.com/framersai/agentos/issues/2)
+* fix: correct IKnowledgeGraph import path in memory specs ([e4705ed](https://github.com/framersai/agentos/commit/e4705ed))
+* fix(emergent): pre-parse syntax validation + actionable hints + classifier category ([b9f4d65](https://github.com/framersai/agentos/commit/b9f4d65))
+* fix(memory): honour consolidation.enabled=false + unref timer ([bfc8c1b](https://github.com/framersai/agentos/commit/bfc8c1b))
+* chore: rebuild dist (consolidation.enabled fix + scoringWeights override) ([3442fac](https://github.com/framersai/agentos/commit/3442fac))
+* feat: expose public CognitiveMemoryManager.getTraceCount() ([5929380](https://github.com/framersai/agentos/commit/5929380))
+* feat(memory): scoringWeights override on CognitiveRetrievalOptions ([e48cd64](https://github.com/framersai/agentos/commit/e48cd64))
+* test: pin tag round-trip through CognitiveMemoryManager encode/retrieve ([9433dad](https://github.com/framersai/agentos/commit/9433dad))
+
 ## <small>0.1.245 (2026-04-19)</small>
 
 * feat: add shared memory retrieval policy contract ([d70ab08](https://github.com/framersai/agentos/commit/d70ab08))
