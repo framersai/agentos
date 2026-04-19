@@ -30,6 +30,12 @@ export interface ScoringWeights {
   importance: number;
 }
 
+/**
+ * Name of a single retrieval signal. Enables ablation studies — zero
+ * one weight at a time and measure Δaccuracy.
+ */
+export type SignalName = keyof ScoringWeights;
+
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
   strength: 0.25,
   similarity: 0.35,

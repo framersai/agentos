@@ -96,6 +96,7 @@ export type {
   ScoringWeights,
   ScoringContext,
   CandidateTrace,
+  SignalName,
 } from './core/decay/RetrievalPriorityScorer.js';
 
 // --- Working Memory ---
