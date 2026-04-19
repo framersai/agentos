@@ -297,7 +297,7 @@ export class CognitiveMemoryManager {
                 // HyDE generation is non-critical — fall through to raw query.
             }
         }
-        const { scored, partial } = await this.store.query(effectiveQuery, mood, {
+        const { scored, partial, timings: storeTimings } = await this.store.query(effectiveQuery, mood, {
             ...options,
             topK: effectiveTopK,
         });
@@ -382,8 +382,8 @@ export class CognitiveMemoryManager {
                 partiallyRetrieved: partial,
                 diagnostics: {
                     candidatesScanned: scored.length + partial.length,
-                    vectorSearchTimeMs: totalTime,
-                    scoringTimeMs: 0,
+                    vectorSearchTimeMs: storeTimings.vectorSearchMs,
+                    scoringTimeMs: storeTimings.scoringMs,
                     totalTimeMs: totalTime,
                     policyProfile: resolvedPolicy.profile,
                     suppressed: 'weak_hits',
@@ -405,8 +405,8 @@ export class CognitiveMemoryManager {
             partiallyRetrieved: partial,
             diagnostics: {
                 candidatesScanned: scored.length + partial.length,
-                vectorSearchTimeMs: totalTime,
-                scoringTimeMs: 0,
+                vectorSearchTimeMs: storeTimings.vectorSearchMs,
+                scoringTimeMs: storeTimings.scoringMs,
                 totalTimeMs: totalTime,
                 policyProfile: resolvedPolicy?.profile,
                 confidence: resolvedPolicy ? confidence : undefined,

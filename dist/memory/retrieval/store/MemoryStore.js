@@ -217,7 +217,7 @@ export class MemoryStore {
         // Determine which collections to search
         const scopes = options.scopes?.length ? options.scopes : this.getKnownScopes();
         if (scopes.length === 0) {
-            return { scored: [], partial: [] };
+            return { scored: [], partial: [], timings: { vectorSearchMs: 0, scoringMs: 0 } };
         }
         // Generate query embedding
         const embeddingResponse = await this.config.embeddingManager.generateEmbeddings({
@@ -237,6 +237,7 @@ export class MemoryStore {
         }
         // Search across scopes
         const allCandidates = [];
+        const vectorSearchStart = Date.now();
         for (const { scope, scopeId } of scopes) {
             const collection = collectionName(this.config.collectionPrefix, scope, scopeId);
             try {
@@ -275,6 +276,7 @@ export class MemoryStore {
                 // Collection may not exist yet; skip
             }
         }
+        const vectorSearchMs = Date.now() - vectorSearchStart;
         // Score and rank — optional per-call scoringWeights override
         // enables ablation studies (zero one signal at a time).
         const effectiveWeights = options.scoringWeights
@@ -287,14 +289,16 @@ export class MemoryStore {
             decayConfig: this.decay,
             weights: effectiveWeights,
         };
+        const scoringStart = Date.now();
         const scored = scoreAndRankTraces(allCandidates, scoringContext).slice(0, topK);
         const partial = detectPartiallyRetrieved(allCandidates, now);
+        const scoringMs = Date.now() - scoringStart;
         // Cognitive mechanisms: RIF + FOK
         if (this.mechanismsEngine && scored.length > 0) {
             const cutoff = scored[scored.length - 1].retrievalScore;
             this.mechanismsEngine.onRetrieval(scored, allCandidates, cutoff, []);
         }
-        return { scored, partial };
+        return { scored, partial, timings: { vectorSearchMs, scoringMs } };
     }
     // =========================================================================
     // Access tracking

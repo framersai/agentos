@@ -72,6 +72,15 @@ export declare class MemoryStore {
     query(queryText: string, currentMood: PADState, options?: CognitiveRetrievalOptions): Promise<{
         scored: ScoredMemoryTrace[];
         partial: PartiallyRetrievedTrace[];
+        /**
+         * Per-stage wall-clock timings. Surfaced so
+         * {@link CognitiveMemoryManager} can populate its diagnostics
+         * with real numbers instead of the former 0-placeholder.
+         */
+        timings: {
+            vectorSearchMs: number;
+            scoringMs: number;
+        };
     }>;
     /**
      * Record that a memory was accessed (retrieved).
