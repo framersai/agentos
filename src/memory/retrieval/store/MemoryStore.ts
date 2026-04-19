@@ -36,8 +36,10 @@ import {
 import {
   scoreAndRankTraces,
   detectPartiallyRetrieved,
+  DEFAULT_SCORING_WEIGHTS,
   type CandidateTrace,
   type ScoringContext,
+  type ScoringWeights,
 } from '../../core/decay/RetrievalPriorityScorer.js';
 
 // ---------------------------------------------------------------------------
@@ -366,12 +368,17 @@ export class MemoryStore {
       }
     }
 
-    // Score and rank
+    // Score and rank — optional per-call scoringWeights override
+    // enables ablation studies (zero one signal at a time).
+    const effectiveWeights: ScoringWeights | undefined = options.scoringWeights
+      ? { ...DEFAULT_SCORING_WEIGHTS, ...options.scoringWeights }
+      : undefined;
     const scoringContext: ScoringContext = {
       currentMood,
       now,
       neutralMood: options.neutralMood,
       decayConfig: this.decay,
+      weights: effectiveWeights,
     };
 
     const scored = scoreAndRankTraces(allCandidates, scoringContext).slice(0, topK);
