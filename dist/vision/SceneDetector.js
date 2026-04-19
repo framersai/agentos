@@ -19,8 +19,8 @@
  * ## Usage
  *
  * ```typescript
- * import { SceneDetector } from '../vision/index.js';
- * import type { Frame, SceneBoundary } from '../vision/index.js';
+ * import { SceneDetector } from '@framers/agentos/vision';
+ * import type { Frame, SceneBoundary } from '@framers/agentos/vision';
  *
  * const detector = new SceneDetector({ hardCutThreshold: 0.3 });
  *

@@ -13,10 +13,10 @@
  */
 import { AgentOSResponseChunkType, } from '../types/AgentOSResponse.js';
 import { GMIInteractionType, GMIOutputChunkType, } from '../../cognitive_substrate/IGMI.js';
-import { GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers.js';
 import { withAgentOSSpan } from '../../evaluation/observability/otel.js';
-import { uuidv4 } from '../../core/utils/uuid.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import { CapabilityContextAssembler } from '../../discovery/CapabilityContextAssembler.js';
 import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';
 /** Builds metadata payload attached to TOOL_CALL_REQUEST chunks. */

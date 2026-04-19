@@ -25,8 +25,8 @@ import { getProvenanceSchema } from '../../provenance/schema/provenance-schema.j
  *
  * Usage:
  * ```ts
- * import { profiles } from '../../provenance/index.js';
- * import { createProvenancePack } from '../../extensions/packs/provenance-pack.js';
+ * import { profiles } from '@framers/agentos/provenance';
+ * import { createProvenancePack } from '@framers/agentos/extensions/packs/provenance-pack';
  *
  * const pack = createProvenancePack(
  *   profiles.sealedAutonomous(),

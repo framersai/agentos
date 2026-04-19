@@ -148,6 +148,14 @@ export interface CognitiveRetrievalOptions {
     hyde?: boolean;
     /** Shared retrieval profile and confidence policy. */
     policy?: MemoryRetrievalPolicy;
+    /**
+     * Override the 6-signal retrieval weights for this call. Missing
+     * keys fall back to {@link DEFAULT_SCORING_WEIGHTS}. Useful for
+     * ablation studies (zero one weight at a time and measure
+     * Δaccuracy) and for A/B testing alternate weight configurations
+     * without mutating global defaults.
+     */
+    scoringWeights?: Partial<import('./decay/RetrievalPriorityScorer.js').ScoringWeights>;
 }
 export interface ScoredMemoryTrace extends MemoryTrace {
     /** Composite retrieval score (0-1). */

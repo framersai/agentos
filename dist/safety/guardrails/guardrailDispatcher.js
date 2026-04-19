@@ -29,7 +29,7 @@
  * );
  * ```
  */
-import { uuidv4 } from '../../core/utils/uuid.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import { AgentOSResponseChunkType, } from '../../api/types/AgentOSResponse.js';
 import { ParallelGuardrailDispatcher } from './ParallelGuardrailDispatcher.js';
 /**

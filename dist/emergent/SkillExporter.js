@@ -117,7 +117,7 @@ function buildParameterTable(schema) {
  *
  * @example
  * ```ts
- * import { exportToolAsSkill } from '../emergent/SkillExporter.js';
+ * import { exportToolAsSkill } from '@framers/agentos/emergent/SkillExporter';
  *
  * const markdown = exportToolAsSkill(myEmergentTool);
  * console.log(markdown);

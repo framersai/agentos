@@ -22,7 +22,7 @@ import { InMemoryWorkflowStore } from '../../orchestration/workflows/storage/InM
 import { WorkflowRuntime } from '../../orchestration/workflows/runtime/WorkflowRuntime.js';
 import { AgencyRegistry } from '../../agents/agency/AgencyRegistry.js';
 import { AgentOSServiceError } from '../errors.js';
-import { GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 /**
  * @class WorkflowFacade
  *

@@ -132,6 +132,14 @@ export class CognitiveMemoryManager {
         // --- Batch 2: Prospective Memory ---
         this.prospective = new ProspectiveMemoryManager(config.embeddingManager);
         // --- Batch 2: Consolidation Pipeline ---
+        // We construct the pipeline whenever consolidation config is
+        // supplied OR a graph is present (so `runConsolidation()` is
+        // always callable on-demand). The auto-started periodic timer is
+        // only armed when `config.consolidation.enabled !== false`.
+        // Short-lived contexts (bench runs, tests, one-shot scripts) can
+        // suppress the timer by passing `{ enabled: false }` so they
+        // don't leak setInterval handles that keep the Node event loop
+        // alive past the meaningful work.
         if (config.consolidation || this.graph) {
             this.consolidation = new ConsolidationPipeline({
                 store: this.store,
@@ -143,8 +151,9 @@ export class CognitiveMemoryManager {
                 llmInvoker: config.reflector?.llmInvoker ?? config.featureDetectionLlmInvoker,
                 mechanismsEngine: this.mechanismsEngine ?? undefined,
             });
-            // Auto-start periodic consolidation
-            this.consolidation.start();
+            if (config.consolidation?.enabled !== false) {
+                this.consolidation.start();
+            }
         }
         // --- Batch 3: Infinite Context Window ---
         if (config.infiniteContext?.enabled && config.maxContextTokens) {
@@ -736,6 +745,16 @@ export class CognitiveMemoryManager {
     // =========================================================================
     getStore() {
         return this.store;
+    }
+    /**
+     * Total number of memory traces currently resident in the manager's
+     * in-memory trace cache. Ergonomic passthrough to
+     * {@link MemoryStore.getTraceCount}; used by agentos-bench for
+     * memory-footprint telemetry without reaching into `getStore()`.
+     */
+    getTraceCount() {
+        this.ensureInitialized();
+        return this.store.getTraceCount();
     }
     getWorkingMemory() {
         return this.workingMemory;

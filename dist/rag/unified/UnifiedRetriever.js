@@ -73,8 +73,8 @@ import { buildRetrievalPlanFromPolicy, resolveMemoryRetrievalPolicy, } from './p
  *
  * @example
  * ```typescript
- * import { UnifiedRetriever } from '../../rag/unified/index.js';
- * import { buildDefaultPlan } from '../../rag/unified/types.js';
+ * import { UnifiedRetriever } from '@framers/agentos/rag/unified';
+ * import { buildDefaultPlan } from '@framers/agentos/rag/unified/types';
  *
  * const retriever = new UnifiedRetriever({
  *   hybridSearcher,

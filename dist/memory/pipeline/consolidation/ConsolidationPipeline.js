@@ -45,11 +45,22 @@ export class ConsolidationPipeline {
     }
     /**
      * Start the periodic consolidation timer.
+     *
+     * The timer is `.unref()`'d so it does NOT keep the Node event loop
+     * alive on its own. Long-running agents keep the process alive
+     * through their own mechanisms (HTTP server, message bus, etc.);
+     * short-lived contexts (benches, scripts) can exit cleanly once
+     * their meaningful work completes. Callers that need a guaranteed
+     * consolidation cycle before shutdown should call `runConsolidation()`
+     * directly or trigger it via {@link CognitiveMemoryManager.runConsolidation}.
      */
     start() {
         if (this.timer)
             return;
         this.timer = setInterval(() => { void this.run(); }, this.consolidationConfig.intervalMs);
+        // Allow Node to exit even if the timer is pending. Works on both
+        // Node and jsdom; has no effect in the browser.
+        this.timer.unref?.();
     }
     /**
      * Stop the periodic consolidation timer.

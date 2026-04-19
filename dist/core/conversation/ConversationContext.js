@@ -10,8 +10,8 @@
  * @see ../ai_utilities/IUtilityAI.ts For IUtilityAI and SummarizationOptions definitions.
  */
 import { MessageRole, createConversationMessage } from './ConversationMessage.js';
-import { uuidv4 } from '../../core/utils/uuid.js';
-import { GMIError, GMIErrorCode } from '../../core/utils/errors.js'; // Corrected path
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected path
 // Constants for summarization logic
 const DEFAULT_MAX_HISTORY_MESSAGES = 100;
 const DEFAULT_VERBATIM_TAIL_COUNT = 10;

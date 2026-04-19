@@ -21,6 +21,11 @@ export interface ScoringWeights {
     graphActivation: number;
     importance: number;
 }
+/**
+ * Name of a single retrieval signal. Enables ablation studies — zero
+ * one weight at a time and measure Δaccuracy.
+ */
+export type SignalName = keyof ScoringWeights;
 export declare const DEFAULT_SCORING_WEIGHTS: ScoringWeights;
 /**
  * Recency boost: exponential decay from recent events.

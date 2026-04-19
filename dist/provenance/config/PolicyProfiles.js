@@ -10,7 +10,7 @@
  *
  * @example
  * ```typescript
- * import { profiles } from '../../provenance/index.js';
+ * import { profiles } from '@framers/agentos/provenance';
  *
  * // For development:
  * const config = profiles.mutableDev();

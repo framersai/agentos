@@ -3,7 +3,7 @@
  * @description Registry for tracking active Agency sessions in the AgentOS runtime.
  * @module AgentOS/Agency
  */
-import { uuidv4 } from '../../core/utils/uuid.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 /**
  * Tracks the Agencies (multi-GMI collectives) active inside the AgentOS runtime.
  *

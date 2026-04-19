@@ -27,8 +27,8 @@
  * @see ../../config/ToolOrchestratorConfig.ts for configuration options.
  * @see ../../cognitive_substrate/IGMI.ts for GMI-related types like ToolCallRequest, ToolCallResult, UserContext.
  */
-import { uuidv4 } from '../../core/utils/uuid.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../../core/utils/errors.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import { DEFAULT_EMERGENT_CONFIG } from '../../emergent/types.js';
 import { DEFAULT_SELF_IMPROVEMENT_CONFIG } from '../../emergent/SelfImprovementConfig.js';
 import { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';

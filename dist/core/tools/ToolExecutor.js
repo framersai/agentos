@@ -12,8 +12,8 @@
  */
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { uuidv4 } from '../../core/utils/uuid.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../../core/utils/errors.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import { ExtensionRegistry, EXTENSION_KIND_TOOL } from '../../extensions/index.js';
 /**
  * @class ToolExecutor

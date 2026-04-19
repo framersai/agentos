@@ -18,8 +18,8 @@
  * @see ./IEmbeddingManager.ts
  * @see ./IVectorStoreManager.ts
  */
-import { uuidv4 } from '../core/utils/uuid.js';
-import { GMIError, GMIErrorCode } from '../core/utils/errors.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { RerankerService } from './reranking/RerankerService.js';
 import { CohereReranker } from './reranking/providers/CohereReranker.js';
 import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncoderReranker.js';
@@ -140,7 +140,7 @@ export class RetrievalAugmentor {
      *
      * @example
      * ```typescript
-     * import { CohereReranker, LocalCrossEncoderReranker } from '../rag/reranking/index.js';
+     * import { CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
      *
      * // After initialization
      * augmentor.registerRerankerProvider(new CohereReranker({

@@ -62,7 +62,7 @@ import type { HydeRetriever } from '../HydeRetriever.js';
  *
  * @example
  * ```typescript
- * import { MultimodalIndexer } from '../../rag/multimodal';
+ * import { MultimodalIndexer } from '@framers/agentos/rag/multimodal';
  *
  * const indexer = new MultimodalIndexer({
  *   embeddingManager,

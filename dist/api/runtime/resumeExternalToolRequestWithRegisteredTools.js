@@ -1,5 +1,5 @@
 import { AgentOSServiceError } from '../errors.js';
-import { GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { buildScopedExternalToolContextParts, executeExternalToolFromRegistry, mergeExternalToolRegistries, normalizeOptionalString, registerTemporaryExternalTools, } from './externalToolRegistry.js';
 function buildResumeOptions(options) {
     const resumeOptions = {};

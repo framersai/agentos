@@ -11,8 +11,8 @@
  * @see ../nlp/ai_utilities/IUtilityAI.ts for summarization.
  * @see ../core/vector-store/IVectorStore.ts and ../rag/IVectorStoreManager.ts
  */
-import { uuidv4 } from '../../../core/utils/uuid.js';
-import { GMIError, GMIErrorCode } from '../../../core/utils/errors.js';
+import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 // import * as path from 'path'; // Only if dealing with file paths for archiveTargetId
 /**
  * Helper to parse duration strings (e.g., "7d", "24h", "30m") into milliseconds.

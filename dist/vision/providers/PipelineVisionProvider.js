@@ -18,8 +18,8 @@
  *
  * @example
  * ```typescript
- * import { VisionPipeline, PipelineVisionProvider } from '../../vision/index.js';
- * import { MultimodalIndexer } from '../../rag/multimodal/index.js';
+ * import { VisionPipeline, PipelineVisionProvider } from '@framers/agentos/vision';
+ * import { MultimodalIndexer } from '@framers/agentos/rag/multimodal';
  *
  * const pipeline = new VisionPipeline({
  *   strategy: 'progressive',
