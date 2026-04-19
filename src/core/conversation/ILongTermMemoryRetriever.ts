@@ -1,4 +1,5 @@
 import type { ResolvedLongTermMemoryPolicy } from './LongTermMemoryPolicy';
+import type { MemoryRetrievalPolicy } from '../../rag/unified/policy.js';
 
 export interface LongTermMemoryRetrievalInput {
   userId: string;
@@ -8,6 +9,7 @@ export interface LongTermMemoryRetrievalInput {
   mode: string;
   queryText: string;
   memoryPolicy: ResolvedLongTermMemoryPolicy;
+  retrievalPolicy?: MemoryRetrievalPolicy;
   /**
    * Advisory character budget for the returned context string.
    * Implementations may truncate to stay within this budget.

@@ -229,6 +229,22 @@ describe('Memory facade', () => {
     expect(results[0]?.trace.content).toContain('command palettes');
   });
 
+  it('applies retrieval policy minScore suppression in recall()', async () => {
+    const mem = await createMemory();
+
+    await mem.remember('Coffee creamer coupon details from an old email', {
+      type: 'semantic',
+      scope: 'user',
+      scopeId: 'user-1',
+    });
+
+    const hits = await mem.recall('creamer coupon', {
+      policy: { profile: 'balanced', minScore: 0.95 },
+    });
+
+    expect(hits).toEqual([]);
+  });
+
   it('should persist decay state across Memory restarts', async () => {
     const dbPath = tempDb();
     const first = await createMemory({ path: dbPath });

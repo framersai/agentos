@@ -119,6 +119,7 @@ export async function executeLongTermMemoryPhase(
         mode: input.modeForRouting,
         queryText,
         memoryPolicy: longTermMemoryPolicy ?? DEFAULT_LONG_TERM_MEMORY_POLICY,
+        retrievalPolicy: longTermMemoryPolicy?.retrieval ?? undefined,
         maxContextChars: input.recallConfig.maxContextChars,
         topKByScope: input.recallConfig.topKByScope,
       });
