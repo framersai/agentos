@@ -14,7 +14,7 @@ import { CognitiveMemoryManager } from '../../src/memory/CognitiveMemoryManager'
 import type { CognitiveMemoryConfig, PADState } from '../../src/memory/core/config';
 import type { IVectorStore, VectorDocument, QueryResult } from '../../src/rag/IVectorStore';
 import type { IEmbeddingManager } from '../../src/rag/IEmbeddingManager';
-import type { IKnowledgeGraph } from '../../src/core/knowledge/IKnowledgeGraph';
+import type { IKnowledgeGraph } from '../../src/memory/retrieval/graph/knowledge/IKnowledgeGraph';
 import type { IWorkingMemory } from '../../src/cognitive_substrate/memory/IWorkingMemory';
 
 function createMockVectorStore(): IVectorStore {
