@@ -106,6 +106,24 @@ export interface ScoredTrace {
   score: number;
 }
 
+/**
+ * Standalone recall paths produce backend-specific ranking signals
+ * (FTS rank products and RRF fusion scores), not calibrated 0–1
+ * confidences. Translate them into a conservative confidence band
+ * before applying shared retrieval-policy thresholds.
+ *
+ * Key property: "balanced" defaults should pass clearly relevant
+ * lexical hits, while very high thresholds (for explicit suppression)
+ * can still zero them out.
+ */
+function standaloneRecallConfidence(score: number): number {
+  if (!Number.isFinite(score) || score <= 0) {
+    return 0;
+  }
+
+  return Math.min(0.9, Math.max(0, (Math.log10(score) + 10) / 10));
+}
+
 // ---------------------------------------------------------------------------
 // Internal row types (matched to SqliteBrain DDL)
 // ---------------------------------------------------------------------------
@@ -621,7 +639,9 @@ export class Memory {
           }
 
           const confidence = evaluateRetrievalConfidence(
-            results.map((row) => ({ relevanceScore: row.score })),
+            results.map((row) => ({
+              relevanceScore: standaloneRecallConfidence(row.score),
+            })),
             { adaptive: resolvedPolicy.adaptive, minScore: resolvedPolicy.minScore },
           );
 
@@ -667,7 +687,9 @@ export class Memory {
     }
 
     const confidence = evaluateRetrievalConfidence(
-      results.map((row) => ({ relevanceScore: row.score })),
+      results.map((row) => ({
+        relevanceScore: standaloneRecallConfidence(row.score),
+      })),
       { adaptive: resolvedPolicy.adaptive, minScore: resolvedPolicy.minScore },
     );
 

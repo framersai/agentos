@@ -208,6 +208,34 @@ describe('Memory facade', () => {
     expect(secondRecall[0]?.trace.retrievalCount).toBe(2);
   });
 
+  it('should not suppress relevant FTS hits under the balanced retrieval policy', async () => {
+    const mem = await createMemory({
+      selfImprove: false,
+      graph: false,
+      decay: false,
+    });
+
+    await mem.remember('My favorite coffee order is an oat flat white with an extra shot.', {
+      type: 'semantic',
+      scope: 'user',
+      scopeId: 'user-1',
+    });
+    await mem.remember('I enjoyed the pasta last night.', {
+      type: 'semantic',
+      scope: 'user',
+      scopeId: 'user-1',
+    });
+
+    const results = await mem.recall('What did I say about my favorite coffee order?', {
+      scope: 'user',
+      scopeId: 'user-1',
+      policy: { profile: 'balanced', adaptive: true },
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]?.trace.content).toContain('oat flat white');
+  });
+
   it('should sanitize natural-language recall queries before hitting FTS5', async () => {
     const mem = await createMemory();
 
