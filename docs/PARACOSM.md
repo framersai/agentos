@@ -3,7 +3,7 @@ title: "Paracosm — AI Simulation Engine"
 sidebar_position: 1
 ---
 
-Paracosm is an AI agent swarm simulation engine built on AgentOS. Define a scenario as JSON, run it with AI commanders that have different [HEXACO](/features/hexaco-personality) personality profiles, and watch their decisions diverge into measurably different outcomes from the same seed. The reference scenario ships as Mars Genesis: a thirty-colonist Mars colony running from 2035 to 2067 across six turns.
+Paracosm is an AI agent swarm simulation engine built on AgentOS. Define a scenario as JSON, run it with AI commanders that have different [HEXACO](/features/cognitive-memory) personality profiles, and watch their decisions diverge into measurably different outcomes from the same seed. The reference scenario ships as Mars Genesis: a thirty-colonist Mars colony running from 2035 to 2067 across six turns.
 
 **[Live demo](https://paracosm.agentos.sh/sim)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[API reference](/paracosm)** · **[Case study blog post](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation)**
 
@@ -61,7 +61,7 @@ Two runs on the same seed produce identical deterministic stages. The LLM stages
 
 ## How HEXACO drives decisions
 
-Paracosm uses the [HEXACO model](/features/hexaco-personality) (Ashton & Lee, 2007) across all six axes, with both poles producing concrete behavioral cues in the commander's decision-style block and the department analysis prompts:
+Paracosm uses the [HEXACO model](/features/cognitive-memory) (Ashton & Lee, 2007) across all six axes, with both poles producing concrete behavioral cues in the commander's decision-style block and the department analysis prompts:
 
 - **Openness** — high: favor novel, untested approaches; low: trust proven protocols.
 - **Conscientiousness** — high: demand evidence and contingency plans; low: move fast, accept ambiguity.
@@ -100,7 +100,7 @@ Any domain works. Mars colonies, submarine habitats, space stations, medieval ki
 }
 ```
 
-`compileScenario()` turns JSON into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls. Compilation costs about $0.10 per scenario and caches to disk. See [`compileScenario`](/paracosm/functions/compileScenario) for the full hook contract.
+`compileScenario()` turns JSON into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls. Compilation costs about $0.10 per scenario and caches to disk. See [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario) for the full hook contract.
 
 ## Cost safety
 
@@ -128,8 +128,8 @@ Full type reference is auto-generated from source at [/paracosm](/paracosm). The
 - [`LeaderConfig`](/paracosm/interfaces/LeaderConfig) — commander identity + HEXACO profile
 - [`HexacoProfile`](/paracosm/interfaces/HexacoProfile) — six-axis personality vector
 - [`SimulationKernel`](/paracosm/classes/SimulationKernel) — deterministic state machine
-- [`runSimulation`](/paracosm/functions/runSimulation) — single-leader turn loop
-- [`runBatch`](/paracosm/functions/runBatch) — parallel multi-scenario runner
+- [`runSimulation`](/paracosm/runtime/functions/runSimulation) — single-leader turn loop
+- [`runBatch`](/paracosm/runtime/functions/runBatch) — parallel multi-scenario runner
 
 ## HTTP + SSE server
 
@@ -151,7 +151,7 @@ The dashboard server exposes a small HTTP API for driving sims from any client:
 ## Related
 
 - [Emergent Capabilities](/features/emergent-capabilities) — the forge + judge machinery underlying `forge_tool`
-- [HEXACO Personality](/features/hexaco-personality) — trait model, mutation system, persona overlays
+- [HEXACO Personality](/features/cognitive-memory) — trait model, mutation system, persona overlays
 - [Cognitive Memory Guide](/features/cognitive-memory-guide) — the memory pipeline colonists use as chat agents
 - [Inside Mars Genesis (blog)](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation) — full case study
 - [Emergent Tools and HEXACO Leaders (blog)](https://agentos.sh/blog/emergent-tools-hexaco-leaders) — two-leader-one-seed comparison
