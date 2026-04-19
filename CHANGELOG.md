@@ -1,3 +1,13 @@
+## <small>0.1.245 (2026-04-19)</small>
+
+* feat: add shared memory retrieval policy contract ([d70ab08](https://github.com/framersai/agentos/commit/d70ab08))
+* feat: add shared retrieval confidence evaluation ([1efdd5a](https://github.com/framersai/agentos/commit/1efdd5a))
+* feat: thread retrieval policy through cognitive memory ([15ed10d](https://github.com/framersai/agentos/commit/15ed10d))
+* feat: unify retrieval policies across rag entrypoints ([da3cd13](https://github.com/framersai/agentos/commit/da3cd13))
+* feat: unify standalone and runtime long-term retrieval policy ([9cc8905](https://github.com/framersai/agentos/commit/9cc8905))
+* feat(llm): gate provider init logs behind AGENTOS_DEBUG, memoize createProviderManager ([76b05ed](https://github.com/framersai/agentos/commit/76b05ed))
+* fix: calibrate standalone recall confidence ([4be8755](https://github.com/framersai/agentos/commit/4be8755))
+
 ## <small>0.1.244 (2026-04-19)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([3950d82](https://github.com/framersai/agentos/commit/3950d82))
