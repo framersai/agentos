@@ -1,3 +1,7 @@
+## <small>0.1.242 (2026-04-19)</small>
+
+* fix(openai): use max_completion_tokens for gpt-5 + o-series models ([675c004](https://github.com/framersai/agentos/commit/675c004))
+
 ## <small>0.1.241 (2026-04-18)</small>
 
 * fix(replicate-image): editImage now routes unpinned models to modern endpoint ([5099f31](https://github.com/framersai/agentos/commit/5099f31))
