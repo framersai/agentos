@@ -43,6 +43,11 @@ export {
   getCandidateLimit,
   resolveMemoryRetrievalPolicy,
 } from './policy.js';
+export type {
+  RetrievalConfidenceInput,
+  RetrievalConfidenceSummary,
+} from './confidence.js';
+export { evaluateRetrievalConfidence } from './confidence.js';
 
 // Core
 export { UnifiedRetriever } from './UnifiedRetriever.js';
