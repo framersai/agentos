@@ -41,6 +41,10 @@ import { LocalCrossEncoderReranker } from './reranking/providers/LocalCrossEncod
 import { RAGAuditCollector } from './audit/RAGAuditCollector';
 import { HydeRetriever, resolveHydeConfig, type HydeLlmCaller } from './HydeRetriever';
 import { SemanticChunker } from './chunking/SemanticChunker';
+import {
+  evaluateRetrievalConfidence,
+  resolveMemoryRetrievalPolicy,
+} from './unified/index.js';
 
 const DEFAULT_CONTEXT_JOIN_SEPARATOR = "\n\n---\n\n";
 const DEFAULT_MAX_CHARS_FOR_AUGMENTED_PROMPT = 4000;
@@ -748,6 +752,16 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     this.ensureInitialized();
     const diagnostics: RagRetrievalResult['diagnostics'] = { messages: [] };
     const startTime = Date.now();
+    const resolvedPolicy = options?.policy ? resolveMemoryRetrievalPolicy(options.policy) : null;
+    const requestedTopK = options?.topK ?? resolvedPolicy?.topK ?? DEFAULT_TOP_K;
+    const effectiveRerankerConfig =
+      options?.rerankerConfig ??
+      (resolvedPolicy?.reranker === 'always'
+        ? {
+            enabled: true,
+            topN: requestedTopK,
+          }
+        : undefined);
 
     // Audit trail collector (opt-in, zero overhead when disabled)
     const collector = options?.includeAudit
@@ -777,7 +791,9 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     //
     // If HyDE is requested but no LLM caller is available, we log a
     // warning and fall through to the standard embedding path.
-    const useHyde = options?.hyde?.enabled === true;
+    const useHyde =
+      options?.hyde?.enabled === true ||
+      resolvedPolicy?.hyde === 'always';
     const hydeRetriever = useHyde
       ? this.getOrCreateHydeRetriever(options?.hyde)
       : undefined;
@@ -957,7 +973,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
           ...(options?.strategyParams ?? {}),
         };
 
-        const topKRequested = options?.topK ?? retrievalOptsFromCat.topK ?? globalRetrievalOpts.topK ?? DEFAULT_TOP_K;
+        const topKRequested = requestedTopK ?? retrievalOptsFromCat.topK ?? globalRetrievalOpts.topK ?? DEFAULT_TOP_K;
 
         const includeEmbeddingsRequested =
           options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings;
@@ -1038,7 +1054,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
     allRetrievedChunks.sort((a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0));
     
     // Apply topK again after merging, if different from store-level topK or if specified in general options
-    const overallTopK = options?.topK ?? this.config.globalDefaultRetrievalOptions?.topK ?? DEFAULT_TOP_K;
+    const overallTopK = requestedTopK;
     let processedChunks = allRetrievedChunks.slice(0, overallTopK * effectiveDataSourceIds.size); // Take more initially if merging from many
     processedChunks.sort((a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0));
     processedChunks = processedChunks.slice(0, Math.max(overallTopK, 1));
@@ -1055,7 +1071,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
 
     // Cross-encoder reranking step (optional)
-    if (options?.rerankerConfig?.enabled) {
+    if (effectiveRerankerConfig?.enabled) {
       if (!this.rerankerService) {
         diagnostics.messages?.push("Reranking requested but RerankerService not configured. Skipping reranking step.");
       } else {
@@ -1063,15 +1079,15 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
           const rerankAuditOp = collector?.startOperation('rerank');
           const rerankStartTime = Date.now();
           const docsBeforeRerank = processedChunks.length;
-          processedChunks = await this._applyReranking(queryText, processedChunks, options.rerankerConfig);
+          processedChunks = await this._applyReranking(queryText, processedChunks, effectiveRerankerConfig);
           diagnostics.rerankingTimeMs = Date.now() - rerankStartTime;
-          diagnostics.messages?.push(`Reranking applied with provider '${options.rerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default'}' in ${diagnostics.rerankingTimeMs}ms`);
+          diagnostics.messages?.push(`Reranking applied with provider '${effectiveRerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default'}' in ${diagnostics.rerankingTimeMs}ms`);
 
           // Audit: record reranking operation
           if (rerankAuditOp) {
             rerankAuditOp.setRerankDetails({
-              providerId: options.rerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default',
-              modelId: options.rerankerConfig.modelId || this.config.defaultRerankerModelId || 'default',
+              providerId: effectiveRerankerConfig.providerId || this.config.defaultRerankerProviderId || 'default',
+              modelId: effectiveRerankerConfig.modelId || this.config.defaultRerankerModelId || 'default',
               documentsReranked: docsBeforeRerank,
             });
             rerankAuditOp.complete(processedChunks.length);
@@ -1091,6 +1107,18 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
       processedChunks.forEach((c) => {
         delete (c as any).embedding;
       });
+    }
+
+    if (resolvedPolicy) {
+      const confidence = evaluateRetrievalConfidence(processedChunks, {
+        adaptive: resolvedPolicy.adaptive,
+        minScore: resolvedPolicy.minScore,
+      });
+      diagnostics.policy = {
+        profile: resolvedPolicy.profile,
+        confidence,
+        escalations: [],
+      };
     }
 
 

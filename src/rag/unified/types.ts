@@ -16,6 +16,8 @@
  */
 
 import type { RetrievalStrategy, RetrievedChunk } from '../../query-router/types.js';
+import type { RetrievalConfidenceSummary } from './confidence.js';
+import type { ResolvedMemoryRetrievalPolicy } from './policy.js';
 
 // ============================================================================
 // RETRIEVAL PLAN
@@ -275,6 +277,13 @@ export interface UnifiedRetrievalResult {
 
   /** Whether a memory cache hit was used (episodic memory shortcut). */
   memoryCacheHit: boolean;
+
+  /** Optional policy-level diagnostics when retrieval was policy-driven. */
+  policyDiagnostics?: {
+    policy: ResolvedMemoryRetrievalPolicy;
+    confidence: RetrievalConfidenceSummary;
+    escalations: string[];
+  };
 }
 
 /**

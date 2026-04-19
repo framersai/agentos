@@ -61,6 +61,12 @@ import type {
   UnifiedRetrieverEvent,
   SourceDiagnostics,
 } from './types.js';
+import { evaluateRetrievalConfidence } from './confidence.js';
+import {
+  buildRetrievalPlanFromPolicy,
+  resolveMemoryRetrievalPolicy,
+} from './policy.js';
+import type { MemoryRetrievalPolicy } from './policy.js';
 import type { RetrievedChunk } from '../../query-router/types.js';
 import type { HybridSearcher, HybridResult } from '../search/HybridSearcher.js';
 import type { RaptorTree, RaptorResult } from '../raptor/RaptorTree.js';
@@ -421,6 +427,46 @@ export class UnifiedRetriever extends EventEmitter {
     await this.storeMemoryFeedback(query, reranked, plan);
 
     return this.buildResult(reranked, plan, diagnostics, startTime, false, researchSynthesis);
+  }
+
+  async retrieveWithPolicy(
+    query: string,
+    policyInput: MemoryRetrievalPolicy = {},
+  ): Promise<UnifiedRetrievalResult> {
+    const policy = resolveMemoryRetrievalPolicy(policyInput);
+    const escalations: string[] = [];
+
+    let plan = buildRetrievalPlanFromPolicy(policy);
+    let result = await this.retrieve(query, plan, policy.topK);
+    let confidence = evaluateRetrievalConfidence(result.chunks, {
+      adaptive: policy.adaptive,
+      minScore: policy.minScore,
+    });
+
+    if (policy.adaptive && confidence.shouldEscalate) {
+      escalations.push('upgrade:max-recall');
+      plan = buildRetrievalPlanFromPolicy({
+        ...policy,
+        profile: 'max-recall',
+        reranker: 'always',
+        hyde: 'always',
+      });
+      result = await this.retrieve(query, plan, policy.topK);
+      confidence = evaluateRetrievalConfidence(result.chunks, {
+        adaptive: false,
+        minScore: policy.minScore,
+      });
+    }
+
+    return {
+      ...result,
+      plan,
+      policyDiagnostics: {
+        policy,
+        confidence,
+        escalations,
+      },
+    };
   }
 
   // --------------------------------------------------------------------------
