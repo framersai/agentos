@@ -79,6 +79,28 @@ const CASES: Array<{ input: string; expected: ForgeRejectionCategory; label: str
     input: 'Sandbox timeout exceeded after 10000ms',
     expected: 'other',
   },
+  {
+    label: 'syntax error — "Unexpected token const" from production',
+    input:
+      "Correctness FAIL: all provided test cases did not run successfully due to a syntax error in the implementation: 'SyntaxError: Unexpected token \\'const\\''",
+    expected: 'syntax_error',
+  },
+  {
+    label: 'syntax error — pre-parse message',
+    input: 'SyntaxError before execution: Unexpected identifier | Hint: missing commas in objects',
+    expected: 'syntax_error',
+  },
+  {
+    label: 'syntax error — unexpected end of input (missing brace)',
+    input:
+      'Correctness FAIL: SyntaxError: Unexpected end of input — implementation is missing a closing brace',
+    expected: 'syntax_error',
+  },
+  {
+    label: 'syntax error — reserved word (TypeScript leaked)',
+    input: 'SyntaxError: Unexpected reserved word interface in implementation',
+    expected: 'syntax_error',
+  },
 ];
 
 describe('classifyForgeRejection', () => {

@@ -165,7 +165,20 @@ export class ForgeToolMetaTool implements ITool<ForgeToolInput, ForgeResult> {
             type: 'object',
             properties: {
               mode: { type: 'string', const: 'sandbox' },
-              code: { type: 'string' },
+              code: {
+                type: 'string',
+                description:
+                  'Pure JavaScript (ES2020). MUST define `function execute(input) { ... }` ' +
+                  '(or an async equivalent) at the top level. RULES that block the judge from ' +
+                  'approving otherwise-correct tools: ' +
+                  '(1) NO TypeScript: no `: type` annotations, no `interface`, no `type` aliases, no `<T>` generics, no `enum`. ' +
+                  '(2) Every `if`/`for`/`while`/`else` body uses BLOCK BRACES `{ ... }` — ' +
+                  'single-line bodies with declarations are forbidden. ' +
+                  '(3) Arrow functions that declare variables must use `(...) => { const x = ...; return x; }` — ' +
+                  'never `(...) => const x = ...` (a SyntaxError). ' +
+                  '(4) Output MUST conform exactly to `outputSchema` — no extra fields. ' +
+                  'If the schema has `additionalProperties: false`, return ONLY the declared keys.',
+              },
               allowlist: {
                 type: 'array',
                 items: { type: 'string', enum: ['fetch', 'fs.readFile', 'crypto'] },

@@ -189,6 +189,46 @@ export class SandboxedToolForge {
    * // result.violations === ['eval() is forbidden']
    * ```
    */
+  /**
+   * Translate a raw V8 SyntaxError message into a concrete hint that
+   * points the LLM (or the retry loop) at the likely cause. Returns
+   * empty string when no known pattern matches — callers still surface
+   * the raw message in that case. The hints map to the 4 most common
+   * LLM forge mistakes observed in production.
+   */
+  private describeSyntaxError(message: string): string {
+    const m = message || '';
+    if (/Unexpected token 'const'/.test(m) || /Unexpected token 'let'/.test(m)) {
+      return (
+        'A `const` or `let` appeared in a position JavaScript does not allow. ' +
+        'Common causes: arrow function without braces (`() => const x = 1` — wrap in `{}` and add `return`), ' +
+        '`if (x) const y = 1` without a block, or a declaration used as an expression. ' +
+        'Every `if`/`for`/`while` body must use block braces; every arrow fn that declares variables must use `{ ... }` and `return`.'
+      );
+    }
+    if (/Unexpected token '?:'?/.test(m)) {
+      return (
+        'Unexpected `:` — most likely a TypeScript type annotation leaked into the output. ' +
+        'Output must be pure JavaScript. Remove all `: type` annotations, `interface` blocks, and generic brackets `<T>`.'
+      );
+    }
+    if (/Unexpected reserved word/.test(m) && /interface|type/.test(m)) {
+      return (
+        'TypeScript-only keyword leaked into the output. Remove `interface`, `type`, `enum`, and `implements` — emit pure JavaScript only.'
+      );
+    }
+    if (/Unexpected identifier/.test(m)) {
+      return (
+        'Two identifiers appeared adjacent without a binding keyword. ' +
+        'Commonly caused by missing commas in objects or missing semicolons between statements.'
+      );
+    }
+    if (/Unexpected end of input/.test(m)) {
+      return 'Code is missing a closing `}`, `)`, or `]` somewhere. Check all brace/paren pairs.';
+    }
+    return '';
+  }
+
   validateCode(code: string, allowlist: SandboxAPI[]): { valid: boolean; violations: string[] } {
     const violations: string[] = [];
 
@@ -294,6 +334,34 @@ export class SandboxedToolForge {
         return JSON.stringify(await __entry(${JSON.stringify(request.input)}));
       })();
     `;
+
+    // Step 3.5: Pre-parse to isolate syntax errors with line-level hints
+    // BEFORE running test cases. Without this, LLM-generated code that
+    // has a `SyntaxError: Unexpected token 'const'` (common when the LLM
+    // writes `() => const x = 1` or sneaks in TypeScript types) would
+    // cause every test case to fail with the same opaque message, and
+    // the judge's retry prompt wouldn't have enough context to fix it.
+    // Throwing an AsyncFunction is the cheapest parse-only check that
+    // covers the exact same async-IIFE shape we run in the VM — so any
+    // syntax issue here is guaranteed to also fail in runInContext.
+    try {
+      // The wrappedCode is an expression (an IIFE), not statements,
+      // so wrap it once more in a function body. `new AsyncFunction`
+      // parses + instantiates without executing.
+      const AsyncFunctionCtor = Object.getPrototypeOf(async function () {
+        /* pre-parse probe */
+      }).constructor as typeof Function;
+      new AsyncFunctionCtor('return (async () => {' + request.code + '})();');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const hint = this.describeSyntaxError(msg);
+      return {
+        success: false,
+        error: `SyntaxError before execution: ${msg}${hint ? ` | Hint: ${hint}` : ''}`,
+        executionTimeMs: Math.round(performance.now() - startTime),
+        memoryUsedBytes: 0,
+      };
+    }
 
     // Step 4: Execute in VM with timeout.
     try {
