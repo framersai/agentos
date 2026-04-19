@@ -292,6 +292,29 @@ describe('RetrievalAugmentor Reranking', () => {
       expect.stringContaining('RerankerService not configured'),
     );
   });
+
+  it('maps shared retrieval policy to HyDE, reranking, and topK', async () => {
+    const mockPolicyHydeLlmCaller = vi.fn<[string, string], Promise<string>>().mockResolvedValue(
+      'Hypothetical answer about test content that matches stored documents.',
+    ) as unknown as HydeLlmCaller;
+    augmentor.setHydeLlmCaller(mockPolicyHydeLlmCaller);
+
+    const result = await augmentor.retrieveContext('test query', {
+      targetDataSourceIds: ['test-ds-1'],
+      policy: {
+        profile: 'max-recall',
+        adaptive: false,
+        topK: 3,
+        hyde: 'always',
+        reranker: 'always',
+      },
+    });
+
+    expect(result.diagnostics?.policy?.profile).toBe('max-recall');
+    expect(result.diagnostics?.hyde).toBeDefined();
+    expect(mockPolicyHydeLlmCaller).toHaveBeenCalled();
+    expect(mockRerankerProvider.rerank).toHaveBeenCalled();
+  });
 });
 
 describe('RetrievalAugmentor registerRerankerProvider', () => {

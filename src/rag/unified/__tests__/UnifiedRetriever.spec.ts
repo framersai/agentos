@@ -85,6 +85,26 @@ describe('UnifiedRetriever', () => {
     expect(result.plan.strategy).toBe('simple');
   });
 
+  it('retrieveWithPolicy escalates from balanced to max-recall on weak hits', async () => {
+    const retriever = new UnifiedRetriever({
+      vectorSearch: vi
+        .fn()
+        .mockResolvedValueOnce([makeChunk({ id: 'weak', content: 'weak', relevanceScore: 0.12 })])
+        .mockResolvedValueOnce([makeChunk({ id: 'strong', content: 'strong', relevanceScore: 0.91 })]),
+      rerank: vi.fn(async (_query, chunks) => chunks),
+    });
+
+    const result = await (retriever as any).retrieveWithPolicy('shipping date', {
+      profile: 'balanced',
+      adaptive: true,
+      minScore: 0.3,
+    });
+
+    expect(result.policyDiagnostics?.policy.profile).toBe('balanced');
+    expect(result.policyDiagnostics?.escalations).toContain('upgrade:max-recall');
+    expect(result.chunks[0]?.content).toBe('strong');
+  });
+
   // -----------------------------------------------------------------------
   // 3. All sources plan triggers parallel execution
   // -----------------------------------------------------------------------
