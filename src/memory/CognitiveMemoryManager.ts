@@ -144,6 +144,14 @@ export interface ICognitiveMemoryManager {
   /** Access the underlying long-term memory store for diagnostics/devtools. */
   getStore(): MemoryStore;
 
+  /**
+   * Total number of memory traces currently resident in the manager's
+   * in-memory trace cache. Ergonomic passthrough to
+   * {@link MemoryStore.getTraceCount}; used by agentos-bench for
+   * memory-footprint telemetry.
+   */
+  getTraceCount(): number;
+
   /** Access the working-memory model for diagnostics/devtools. */
   getWorkingMemory(): CognitiveWorkingMemory;
 
@@ -1096,6 +1104,17 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
 
   getStore(): MemoryStore {
     return this.store;
+  }
+
+  /**
+   * Total number of memory traces currently resident in the manager's
+   * in-memory trace cache. Ergonomic passthrough to
+   * {@link MemoryStore.getTraceCount}; used by agentos-bench for
+   * memory-footprint telemetry without reaching into `getStore()`.
+   */
+  getTraceCount(): number {
+    this.ensureInitialized();
+    return this.store.getTraceCount();
   }
 
   getWorkingMemory(): CognitiveWorkingMemory {
