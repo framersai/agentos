@@ -19,7 +19,7 @@
 import { AgentOSResponseChunkType, } from '../types/AgentOSResponse.js';
 import { MessageRole } from '../../core/conversation/ConversationMessage.js';
 import { GMIInteractionType } from '../../cognitive_substrate/IGMI.js';
-import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { withAgentOSSpan } from '../../evaluation/observability/otel.js';
 import { executeRollingSummaryPhase, } from './turn-phases/rolling-summary.js';
 import { executePromptProfilePhase } from './turn-phases/prompt-profile.js';

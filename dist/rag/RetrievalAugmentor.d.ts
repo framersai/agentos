@@ -75,7 +75,7 @@ export declare class RetrievalAugmentor implements IRetrievalAugmentor {
      *
      * @example
      * ```typescript
-     * import { CohereReranker, LocalCrossEncoderReranker } from '../rag/reranking';
+     * import { CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
      *
      * // After initialization
      * augmentor.registerRerankerProvider(new CohereReranker({

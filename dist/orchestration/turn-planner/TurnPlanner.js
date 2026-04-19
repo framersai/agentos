@@ -6,7 +6,7 @@
  * - tool selection scope (all tools vs discovery-selected tools)
  * - optional per-turn capability discovery payload
  */
-import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 const TURN_PLANNER_VERSION = 'agentos-turn-planner-v1';
 const DEFAULT_TURN_PLANNER_CONFIG = {
     enabled: true,

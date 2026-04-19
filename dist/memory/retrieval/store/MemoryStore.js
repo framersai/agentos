@@ -11,7 +11,7 @@
  */
 import { DEFAULT_DECAY_CONFIG } from '../../core/config.js';
 import { updateOnRetrieval, } from '../../core/decay/DecayModel.js';
-import { scoreAndRankTraces, detectPartiallyRetrieved, } from '../../core/decay/RetrievalPriorityScorer.js';
+import { scoreAndRankTraces, detectPartiallyRetrieved, DEFAULT_SCORING_WEIGHTS, } from '../../core/decay/RetrievalPriorityScorer.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -275,12 +275,17 @@ export class MemoryStore {
                 // Collection may not exist yet; skip
             }
         }
-        // Score and rank
+        // Score and rank — optional per-call scoringWeights override
+        // enables ablation studies (zero one signal at a time).
+        const effectiveWeights = options.scoringWeights
+            ? { ...DEFAULT_SCORING_WEIGHTS, ...options.scoringWeights }
+            : undefined;
         const scoringContext = {
             currentMood,
             now,
             neutralMood: options.neutralMood,
             decayConfig: this.decay,
+            weights: effectiveWeights,
         };
         const scored = scoreAndRankTraces(allCandidates, scoringContext).slice(0, topK);
         const partial = detectPartiallyRetrieved(allCandidates, now);

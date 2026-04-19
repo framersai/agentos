@@ -33,7 +33,7 @@ import type { EmergentTool } from './types.js';
  *
  * @example
  * ```ts
- * import { exportToolAsSkill } from '../emergent/SkillExporter';
+ * import { exportToolAsSkill } from '@framers/agentos/emergent/SkillExporter';
  *
  * const markdown = exportToolAsSkill(myEmergentTool);
  * console.log(markdown);

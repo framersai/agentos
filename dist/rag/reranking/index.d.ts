@@ -9,7 +9,7 @@
  *
  * @example Basic usage with local model
  * ```typescript
- * import { RerankerService, LocalCrossEncoderReranker } from '../../rag/reranking';
+ * import { RerankerService, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
  *
  * const service = new RerankerService({
  *   config: {
@@ -28,7 +28,7 @@
  *
  * @example Using Cohere API
  * ```typescript
- * import { RerankerService, CohereReranker } from '../../rag/reranking';
+ * import { RerankerService, CohereReranker } from '@framers/agentos/rag/reranking';
  *
  * const service = new RerankerService({
  *   config: {

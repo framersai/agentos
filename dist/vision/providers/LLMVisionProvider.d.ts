@@ -18,7 +18,7 @@
  *
  * @example
  * ```typescript
- * import { LLMVisionProvider } from '../../vision';
+ * import { LLMVisionProvider } from '@framers/agentos/vision';
  *
  * const vision = new LLMVisionProvider({
  *   provider: 'openai',

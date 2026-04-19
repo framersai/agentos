@@ -10,7 +10,7 @@
 import axios from 'axios';
 import { OpenRouterProviderError } from '../errors/OpenRouterProviderError.js';
 import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
-import { createGMIErrorFromError, GMIErrorCode } from '../../../../core/utils/errors.js'; // Corrected import path
+import { createGMIErrorFromError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected import path
 export class OpenRouterProvider {
     constructor() {
         this.providerId = 'openrouter';

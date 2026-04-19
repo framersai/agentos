@@ -3,7 +3,7 @@
  * Extracted from AgentOSOrchestrator for focused chunk construction logic.
  */
 import { AgentOSResponseChunkType, } from '../types/AgentOSResponse.js';
-import { GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { normalizeUsage } from '../../orchestration/turn-planner/helpers.js';
 import { getActiveTraceMetadata, shouldIncludeTraceInAgentOSResponses, } from '../../evaluation/observability/otel.js';
 /**

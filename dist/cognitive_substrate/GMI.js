@@ -16,7 +16,7 @@ import { GMIOutputChunkType, GMIPrimeState, GMIMood, ReasoningEntryType, GMIInte
 // AudioOutputConfig, ImageOutputConfig are part of GMIOutput
  } from './IGMI.js';
 import { RagMemoryCategory } from '../rag/IRetrievalAugmentor.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../core/utils/errors.js';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import { ConversationHistoryManager } from './ConversationHistoryManager.js';
 import { CognitiveMemoryBridge } from './CognitiveMemoryBridge.js';
 import { SentimentTracker } from './SentimentTracker.js';

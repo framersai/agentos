@@ -10,7 +10,7 @@
  *
  * @example
  * ```typescript
- * import { UnifiedRetriever, buildDefaultPlan } from '../../rag/unified/index.js';
+ * import { UnifiedRetriever, buildDefaultPlan } from '@framers/agentos/rag/unified';
  *
  * const retriever = new UnifiedRetriever({ hybridSearcher, memoryManager });
  * const plan = buildDefaultPlan('moderate');

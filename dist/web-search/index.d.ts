@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { WebSearchService, FirecrawlProvider, TavilyProvider } from '../web-search';
+ * import { WebSearchService, FirecrawlProvider, TavilyProvider } from '@framers/agentos/web-search';
  *
  * const service = new WebSearchService();
  * service.registerProvider(new FirecrawlProvider(process.env.FIRECRAWL_API_KEY!));

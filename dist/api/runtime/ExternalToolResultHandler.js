@@ -13,7 +13,7 @@
 import { AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY } from '../types/AgentOSExternalToolRequest.js';
 import { AgentOSResponseChunkType, } from '../types/AgentOSResponse.js';
 import { MessageRole } from '../../core/conversation/ConversationMessage.js';
-import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers.js';
 import { withAgentOSSpan, recordAgentOSToolResultMetrics, } from '../../evaluation/observability/otel.js';
 import { ORGANIZATION_ID_METADATA_KEY } from '../../core/conversation/LongTermMemoryPolicy.js';

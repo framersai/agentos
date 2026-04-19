@@ -202,8 +202,8 @@ export interface UnifiedRetrieverDeps {
  *
  * @example
  * ```typescript
- * import { UnifiedRetriever } from '../../rag/unified';
- * import { buildDefaultPlan } from '../../rag/unified/types';
+ * import { UnifiedRetriever } from '@framers/agentos/rag/unified';
+ * import { buildDefaultPlan } from '@framers/agentos/rag/unified/types';
  *
  * const retriever = new UnifiedRetriever({
  *   hybridSearcher,

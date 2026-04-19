@@ -7,7 +7,7 @@
  *
  * @example
  * ```ts
- * import type { EmergentTool, ForgeToolRequest, DEFAULT_EMERGENT_CONFIG } from '../emergent/index.js';
+ * import type { EmergentTool, ForgeToolRequest, DEFAULT_EMERGENT_CONFIG } from '@framers/agentos/emergent';
  * ```
  */
 export * from './types.js';

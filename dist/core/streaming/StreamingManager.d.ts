@@ -10,7 +10,7 @@
  */
 import { AgentOSResponse } from '../../api/types/AgentOSResponse';
 import { IStreamClient, StreamClientId } from './IStreamClient';
-import { GMIError, GMIErrorCode } from '../../core/utils/errors';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 /**
  * Represents a unique identifier for a data stream.
  * @typedef {string} StreamId

@@ -96,6 +96,18 @@ export declare const DEFAULT_GRAPH_CONFIG: Required<Omit<MemoryGraphConfig, 'dis
     disabled: false;
 };
 export interface ConsolidationConfig {
+    /**
+     * Whether the periodic consolidation timer is active. Set to false
+     * for short-lived contexts (benches, tests, one-shot scripts) where
+     * a lingering `setInterval` would keep the Node event loop alive
+     * past the meaningful work.
+     *
+     * When false, `CognitiveMemoryManager` still constructs the
+     * pipeline so `runConsolidation()` works on-demand; only the
+     * auto-started timer is suppressed.
+     * @default true
+     */
+    enabled?: boolean;
     /** How often to run consolidation (ms). @default 3_600_000 (1 hour) */
     intervalMs: number;
     /** Max traces to process per cycle. @default 500 */

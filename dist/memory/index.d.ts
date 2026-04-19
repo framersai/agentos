@@ -19,7 +19,7 @@ export type { IContentFeatureDetector } from './core/encoding/ContentFeatureDete
 export { computeCurrentStrength, updateOnRetrieval, computeInterference, findPrunableTraces, } from './core/decay/DecayModel.js';
 export type { RetrievalUpdateResult, InterferenceResult, InterferenceVictim, } from './core/decay/DecayModel.js';
 export { scoreAndRankTraces, detectPartiallyRetrieved, computeRecencyBoost, computeEmotionalCongruence, DEFAULT_SCORING_WEIGHTS, } from './core/decay/RetrievalPriorityScorer.js';
-export type { ScoringWeights, ScoringContext, CandidateTrace, } from './core/decay/RetrievalPriorityScorer.js';
+export type { ScoringWeights, ScoringContext, CandidateTrace, SignalName, } from './core/decay/RetrievalPriorityScorer.js';
 export { CognitiveWorkingMemory } from './core/working/CognitiveWorkingMemory.js';
 export type { CognitiveWorkingMemoryConfig } from './core/working/CognitiveWorkingMemory.js';
 export { assembleMemoryContext } from './core/prompt/MemoryPromptAssembler.js';

@@ -1,6 +1,6 @@
 import { isActionableToolCallRequestChunk, } from '../types/AgentOSResponse.js';
 import { AgentOSServiceError } from '../errors.js';
-import { GMIErrorCode } from '../../core/utils/errors.js';
+import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 async function* continueStreamWithExternalTools(agentos, stream, executeToolCall) {
     for await (const chunk of stream) {
         yield chunk;

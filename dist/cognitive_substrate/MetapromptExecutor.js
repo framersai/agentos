@@ -15,7 +15,7 @@
  */
 import { GMIMood, GMIPrimeState, } from './IGMI.js';
 import { GMIEventType } from './GMIEvent.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../core/utils/errors.js';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 /**
  * Handles metaprompt trigger checking, execution, and state application.
  *

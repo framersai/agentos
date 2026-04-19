@@ -21,7 +21,7 @@ import { QdrantVectorStore } from './vector_stores/QdrantVectorStore.js';
 // Import other IVectorStore implementations as they are created, e.g.:
 // import { PineconeVectorStore } from './vector_stores/PineconeVectorStore.js';
 // import { WeaviateVectorStore } from './vector_stores/WeaviateVectorStore';
-import { GMIError, GMIErrorCode } from '../core/utils/errors.js';
+import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { uuidv4 } from '../core/utils/uuid.js';
 /**
  * Implements the `IVectorStoreManager` interface.
