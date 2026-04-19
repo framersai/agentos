@@ -119,24 +119,19 @@ const TEXT_MODELS: CatalogEntry[] = [
     contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
     capabilities: ['chat', 'tool_use', 'json_mode'],
   },
-  {
-    modelId: 'cognitivecomputations/dolphin3.0-llama3.1-8b',
-    displayName: 'Dolphin 3.0 Llama 3.1 8B',
-    providerId: 'openrouter',
-    modality: 'text',
-    quality: 'medium',
-    contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
-    capabilities: ['chat', 'tool_use'],
-  },
-  {
-    modelId: 'cognitivecomputations/dolphin-mixtral-8x22b',
-    displayName: 'Dolphin Mixtral 8x22B',
-    providerId: 'openrouter',
-    modality: 'text',
-    quality: 'high',
-    contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
-    capabilities: ['chat', 'tool_use'],
-  },
+  // Removed `cognitivecomputations/dolphin3.0-llama3.1-8b` — OpenRouter
+  // returns "not a valid model ID" on every call. The entry was dead
+  // weight in the retry chain, burning a round-trip + 100ms before
+  // failing over to the next candidate.
+  // Removed `cognitivecomputations/dolphin-mixtral-8x22b` — OpenRouter
+  // returns "No endpoints found" on every call. Same story: pure
+  // latency in the fallback path with no functional benefit. If the
+  // upstream fixes its catalog, re-add with the same config.
+  // MythoMax stays only because a bottom-tier uncensored model is still
+  // useful when everything above refuses — but the companion orchestrator
+  // now runs a coherence check on its output, so the DAX / SQL training-
+  // data leaks it frequently produces are rejected before shipping to
+  // the user.
   {
     modelId: 'gryphe/mythomax-l2-13b',
     displayName: 'MythoMax L2 13B',
@@ -263,8 +258,10 @@ export function createUncensoredModelCatalog(): UncensoredModelCatalog {
         const preferred = [
           'nousresearch/hermes-3-llama-3.1-405b',
           'nousresearch/hermes-3-llama-3.1-70b',
-          'cognitivecomputations/dolphin-mixtral-8x22b',
-          'cognitivecomputations/dolphin3.0-llama3.1-8b',
+          // Dolphin Mixtral 8x22B and Dolphin 3.0 8B are removed from the
+          // catalog — OpenRouter returns 404/invalid on both slugs. Their
+          // names stayed here as stale priority hints. If upstream ever
+          // relists them, re-add + restore this priority list.
           'gryphe/mythomax-l2-13b',
         ];
         candidates.sort((a, b) => {
