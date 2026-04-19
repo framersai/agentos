@@ -233,6 +233,26 @@ describe('EmergentJudge', () => {
       expect(verdict.reasoning).toContain('Failed to parse');
     });
 
+    it('rubric explicitly forbids the "cannot confidently verify" hedge + author-expectation false-rejects', async () => {
+      // Regression for the false-reject pattern observed in production:
+      // judges were returning approved=false with reasoning that hedged
+      // ("cannot confidently verify") or rejected because the author's
+      // declared expectedOutput differed from the code's actual output
+      // even when the actual output conformed to the schema. The
+      // tightened rubric must explicitly close both loopholes.
+      generateText.mockResolvedValueOnce(approvedCreationResponse());
+      await judge.reviewCreation(makeCandidate());
+      const sentArgs = generateText.mock.calls[0].join(' ');
+      // Approval-rule guidance must be present.
+      expect(sentArgs).toContain('cannot confidently verify');
+      expect(sentArgs).toContain('Cannot-verify is not a violation');
+      // expectedOutput-vs-actual guidance must be present.
+      expect(sentArgs).toContain("expectedOutput");
+      expect(sentArgs).toContain('the code is the source of truth');
+      // Stylistic-rejection guidance must be present.
+      expect(sentArgs).toContain('try/catch');
+    });
+
     it('includes source code and test results in prompt', async () => {
       generateText.mockResolvedValueOnce(approvedCreationResponse());
 
