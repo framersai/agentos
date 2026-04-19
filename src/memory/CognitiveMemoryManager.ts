@@ -504,9 +504,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     this.ensureInitialized();
 
     const startTime = Date.now();
-    const resolvedPolicy = resolveMemoryRetrievalPolicy(options.policy);
-    const effectiveTopK = options.topK ?? resolvedPolicy.topK;
-    const effectiveHyde = options.hyde ?? resolvedPolicy.hyde === 'always';
+    const resolvedPolicy = options.policy ? resolveMemoryRetrievalPolicy(options.policy) : null;
+    const effectiveTopK = options.topK ?? resolvedPolicy?.topK;
+    const effectiveHyde = options.hyde ?? (resolvedPolicy?.hyde === 'always');
 
     // When HyDE is enabled and a retriever is available, generate a
     // hypothetical memory trace and use it as the search query. The
@@ -619,11 +619,11 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     }
 
     const confidence = evaluateRetrievalConfidence(scored, {
-      adaptive: resolvedPolicy.adaptive,
-      minScore: resolvedPolicy.minScore,
+      adaptive: resolvedPolicy?.adaptive ?? false,
+      minScore: resolvedPolicy?.minScore ?? 0,
     });
 
-    if (confidence.suppressResults) {
+    if (resolvedPolicy && confidence.suppressResults) {
       await this.workingMemory.decayActivations();
       const totalTime = Date.now() - startTime;
       return {
@@ -661,9 +661,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         vectorSearchTimeMs: totalTime,
         scoringTimeMs: 0,
         totalTimeMs: totalTime,
-        policyProfile: resolvedPolicy.profile,
-        confidence,
-        escalations: [],
+        policyProfile: resolvedPolicy?.profile,
+        confidence: resolvedPolicy ? confidence : undefined,
+        escalations: resolvedPolicy ? [] : undefined,
       },
     };
   }

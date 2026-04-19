@@ -1,3 +1,9 @@
+import type {
+  MemoryRetrievalPolicy,
+  ResolvedMemoryRetrievalPolicy,
+} from '../../rag/unified/policy.js';
+import { resolveMemoryRetrievalPolicy } from '../../rag/unified/policy.js';
+
 export type LongTermMemoryScope = 'conversation' | 'user' | 'persona' | 'organization';
 
 export type RollingSummaryMemoryCategory =
@@ -43,6 +49,8 @@ export interface LongTermMemoryPolicyInput {
    * - `[]`: persist none
    */
   allowedCategories?: RollingSummaryMemoryCategory[];
+  /** Optional retrieval policy override for prompt-time long-term recall. */
+  retrieval?: MemoryRetrievalPolicy | null;
 }
 
 export interface AgentOSMemoryControl {
@@ -55,6 +63,7 @@ export interface ResolvedLongTermMemoryPolicy {
   shareWithOrganization: boolean;
   storeAtomicDocs: boolean;
   allowedCategories: RollingSummaryMemoryCategory[] | null;
+  retrieval?: ResolvedMemoryRetrievalPolicy | null;
 }
 
 export const DEFAULT_LONG_TERM_MEMORY_POLICY: ResolvedLongTermMemoryPolicy = {
@@ -68,6 +77,7 @@ export const DEFAULT_LONG_TERM_MEMORY_POLICY: ResolvedLongTermMemoryPolicy = {
   shareWithOrganization: false,
   storeAtomicDocs: true,
   allowedCategories: null,
+  retrieval: null,
 };
 
 const KNOWN_CATEGORIES = new Set<RollingSummaryMemoryCategory>([
@@ -110,6 +120,7 @@ export function resolveLongTermMemoryPolicy(args: {
     shareWithOrganization: previous?.shareWithOrganization ?? base.shareWithOrganization,
     storeAtomicDocs: previous?.storeAtomicDocs ?? base.storeAtomicDocs,
     allowedCategories: previous?.allowedCategories ?? base.allowedCategories,
+    retrieval: previous?.retrieval ?? base.retrieval ?? null,
   };
 
   if (input) {
@@ -139,6 +150,11 @@ export function resolveLongTermMemoryPolicy(args: {
       );
       resolved.allowedCategories = normalized;
     }
+    if (input.retrieval === null) {
+      resolved.retrieval = null;
+    } else if (input.retrieval) {
+      resolved.retrieval = resolveMemoryRetrievalPolicy(input.retrieval);
+    }
   }
 
   return resolved;
@@ -152,4 +168,3 @@ export function hasAnyLongTermMemoryScope(policy: ResolvedLongTermMemoryPolicy):
     policy?.scopes?.organization,
   );
 }
-
