@@ -64,6 +64,7 @@ export interface ConsolidationPipelineConfig {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONSOLIDATION: Required<ConsolidationConfig> = {
+  enabled: true,
   intervalMs: 3_600_000,
   maxTracesPerCycle: 500,
   mergeSimilarityThreshold: 0.92,

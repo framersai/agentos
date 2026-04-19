@@ -18,7 +18,7 @@
  * @example
  * ```ts
  * import { agent } from '@framers/agentos';
- * import { exportAgentConfig, importAgent, exportAgentConfigJSON } from '@framers/agentos/api/agentExport';
+ * import { exportAgentConfig, importAgent, exportAgentConfigJSON } from '../api/agentExport.js';
  *
  * const myAgent = agent({ model: 'openai:gpt-4o', instructions: 'Be helpful.' });
  * const json = exportAgentConfigJSON(myAgent);

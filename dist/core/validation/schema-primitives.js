@@ -8,7 +8,7 @@
  *
  * @example
  * ```ts
- * import { MemoryTypeEnum, ConfidenceScore, EntityArray } from '@framers/agentos/core/validation';
+ * import { MemoryTypeEnum, ConfidenceScore, EntityArray } from '../../core/validation/index.js';
  *
  * const MySchema = z.object({
  *   type: MemoryTypeEnum,

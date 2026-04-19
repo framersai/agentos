@@ -4,7 +4,7 @@
  * Bridges the push-based StreamingManager to a pull-based AsyncGenerator
  * consumable by AgentOS.processRequest and similar facades.
  */
-import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { uuidv4 } from '../../core/utils/uuid.js';
 /**
  * Acts as an IStreamClient to bridge push-based data flow from StreamingManager
  * to a pull-based AsyncGenerator. Queues incoming chunks and uses promises to

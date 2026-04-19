@@ -11,7 +11,7 @@
 import * as fsPromises from 'fs/promises'; // Use fs/promises for async operations
 import * as path from 'path';
 import { uuidv4 } from '../../core/utils/uuid.js';
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 import { mergeMetapromptPresets } from './metaprompt_presets.js';
 /**
  * Implements IPersonaLoader to load persona definitions from the file system.

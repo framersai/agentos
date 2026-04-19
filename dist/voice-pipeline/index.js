@@ -53,7 +53,7 @@
  *   ElevenLabsStreamingSTT,
  *   ElevenLabsStreamingTTS,
  *   AgentSessionVoiceAdapter,
- * } from '@framers/agentos/voice-pipeline';
+ * } from '../voice-pipeline/index.js';
  * import { agent } from '@framers/agentos';
  *
  * // Create agent and voice adapter

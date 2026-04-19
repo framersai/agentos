@@ -1,4 +1,4 @@
-import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIErrorCode } from '../../core/utils/errors.js';
 import { AgentOSServiceError } from '../errors.js';
 const temporaryExternalToolRefs = new WeakMap();
 export function normalizeOptionalString(value) {

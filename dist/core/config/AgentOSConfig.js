@@ -10,7 +10,7 @@
  */
 import { PrismaClient } from '../storage/prismaClient.js';
 // Utility for error handling
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 /**
  * Validates the environment configuration for required variables.
  *

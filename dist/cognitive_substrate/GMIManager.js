@@ -9,7 +9,7 @@ import { GMI } from './GMI.js';
 import { validatePersonas, formatAggregateReport, applyStrictMode } from './personas/PersonaValidation.js';
 import { PersonaLoader } from './personas/PersonaLoader.js';
 import { InMemoryWorkingMemory } from './memory/InMemoryWorkingMemory.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../core/utils/errors.js';
 import { PersonaOverlayManager } from './persona_overlays/PersonaOverlayManager.js';
 import { resolveSecretForProvider } from '../core/config/extensionSecrets.js';
 /**

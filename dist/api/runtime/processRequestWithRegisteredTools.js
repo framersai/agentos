@@ -1,5 +1,5 @@
 import { AgentOSServiceError } from '../errors.js';
-import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIErrorCode } from '../../core/utils/errors.js';
 import { buildScopedExternalToolContextParts, executeExternalToolFromRegistry, mergeExternalToolRegistries, normalizeOptionalString, registerTemporaryExternalTools, } from './externalToolRegistry.js';
 import { processRequestWithExternalTools, } from './processRequestWithExternalTools.js';
 function resolveExternalToolsForRuntime(agentos, registry) {

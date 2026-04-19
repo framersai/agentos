@@ -19,7 +19,7 @@
  *   VisionPipeline,
  *   type VisionPipelineConfig,
  *   type VisionResult,
- * } from '@framers/agentos/vision';
+ * } from '../vision';
  *
  * // Auto-detect available providers
  * const pipeline = await createVisionPipeline();

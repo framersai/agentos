@@ -16,7 +16,7 @@ import { GMIOutputChunkType, } from '../../cognitive_substrate/IGMI.js';
 import { MessageRole } from '../../core/conversation/ConversationMessage.js';
 // IToolOrchestrator — referenced via AgentOSOrchestratorDependencies
 // uuidv4 — now used by GMIChunkTransformer
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers.js';
 // AIModelProviderManager — referenced via AgentOSOrchestratorDependencies
 import { DEFAULT_PROMPT_PROFILE_CONFIG, } from '../../structured/prompting/PromptProfileRouter.js';

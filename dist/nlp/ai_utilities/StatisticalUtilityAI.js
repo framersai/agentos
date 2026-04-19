@@ -12,7 +12,7 @@ import * as fs from 'fs/promises'; // For loading resources
 import * as path from 'path'; // For path manipulation
 import { uuidv4 } from '../../core/utils/uuid.js';
 import * as natural from 'natural';
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 import { detectLanguageTrigram } from './trigram-language-profiles.js';
 const NATURAL_STEMMER_LANGUAGE_KEYS = {
     De: 'de',

@@ -21,7 +21,7 @@
  * @example
  * ```typescript
  * import { agent } from '@framers/agentos';
- * import { AgentSessionVoiceAdapter } from '@framers/agentos/voice-pipeline';
+ * import { AgentSessionVoiceAdapter } from '../../voice-pipeline/index.js';
  *
  * const a = agent({ model: 'gpt-4o' });
  * const session = a.session('voice-session-1');

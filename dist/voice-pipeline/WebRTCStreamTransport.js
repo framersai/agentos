@@ -87,7 +87,7 @@ import { randomUUID } from 'node:crypto';
  *
  * @example
  * ```typescript
- * import { WebRTCStreamTransport } from '@framers/agentos/voice-pipeline';
+ * import { WebRTCStreamTransport } from '../voice-pipeline/index.js';
  *
  * // Receive RTCPeerConnection from your signaling server
  * const transport = new WebRTCStreamTransport(peerConnection, { sampleRate: 16000 });

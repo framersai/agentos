@@ -13,7 +13,7 @@
  *   IGuardrailService,
  *   GuardrailAction,
  *   type GuardrailInputPayload
- * } from '@framers/agentos/safety/guardrails';
+ * } from '../../safety/guardrails';
  *
  * class ContentFilter implements IGuardrailService {
  *   async evaluateInput({ input }: GuardrailInputPayload) {
@@ -33,7 +33,7 @@
  * import {
  *   ICrossAgentGuardrailService,
  *   GuardrailAction
- * } from '@framers/agentos/safety/guardrails';
+ * } from '../../safety/guardrails';
  *
  * class SupervisorGuardrail implements ICrossAgentGuardrailService {
  *   observeAgentIds = ['worker-1', 'worker-2'];

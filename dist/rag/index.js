@@ -48,7 +48,7 @@
  *   VectorStoreManager,
  *   EmbeddingManager,
  *   RetrievalAugmentor
- * } from '@framers/agentos/rag';
+ * } from '../rag/index.js';
  *
  * // Initialize vector store manager
  * const vectorStoreManager = new VectorStoreManager();
