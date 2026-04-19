@@ -61,6 +61,10 @@ import {
 import { ContextWindowManager } from './pipeline/context/ContextWindowManager.js';
 import type { ContextMessage, CompactionEntry } from './pipeline/context/types.js';
 import type { ContextWindowStats } from './pipeline/context/ContextWindowManager.js';
+import {
+  evaluateRetrievalConfidence,
+  resolveMemoryRetrievalPolicy,
+} from '../rag/unified/index.js';
 
 // HyDE (Hypothetical Document Embedding) for improved memory retrieval
 import type { HydeRetriever } from '../rag/HydeRetriever.js';
@@ -500,6 +504,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     this.ensureInitialized();
 
     const startTime = Date.now();
+    const resolvedPolicy = resolveMemoryRetrievalPolicy(options.policy);
+    const effectiveTopK = options.topK ?? resolvedPolicy.topK;
+    const effectiveHyde = options.hyde ?? resolvedPolicy.hyde === 'always';
 
     // When HyDE is enabled and a retriever is available, generate a
     // hypothetical memory trace and use it as the search query. The
@@ -507,7 +514,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     // producing an embedding that's semantically closer to actual stored
     // traces than the raw recall query.
     let effectiveQuery = query;
-    if (options.hyde && this.hydeRetriever) {
+    if (effectiveHyde && this.hydeRetriever) {
       try {
         const hypoResult = await this.hydeRetriever.generateHypothesis(
           `Recall a memory about: ${query}`,
@@ -520,7 +527,10 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       }
     }
 
-    const { scored, partial } = await this.store.query(effectiveQuery, mood, options);
+    const { scored, partial } = await this.store.query(effectiveQuery, mood, {
+      ...options,
+      topK: effectiveTopK,
+    });
 
     // --- Batch 2: Spreading activation ---
     if (this.graph && scored.length > 0) {
@@ -589,7 +599,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
             content: t.content,
             originalScore: t.retrievalScore,
           })),
-        }, { topN: options.topK ?? 10 });
+        }, { topN: effectiveTopK });
 
         const rerankedScores = new Map(
           rerankerOutput.results.map((r) => [r.id, r.relevanceScore])
@@ -606,6 +616,30 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       } catch {
         // Reranking is non-critical — use cognitive scores as-is
       }
+    }
+
+    const confidence = evaluateRetrievalConfidence(scored, {
+      adaptive: resolvedPolicy.adaptive,
+      minScore: resolvedPolicy.minScore,
+    });
+
+    if (confidence.suppressResults) {
+      await this.workingMemory.decayActivations();
+      const totalTime = Date.now() - startTime;
+      return {
+        retrieved: [],
+        partiallyRetrieved: partial,
+        diagnostics: {
+          candidatesScanned: scored.length + partial.length,
+          vectorSearchTimeMs: totalTime,
+          scoringTimeMs: 0,
+          totalTimeMs: totalTime,
+          policyProfile: resolvedPolicy.profile,
+          suppressed: 'weak_hits',
+          confidence,
+          escalations: [],
+        },
+      };
     }
 
     // Record access for retrieved memories (spaced repetition)
@@ -627,6 +661,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         vectorSearchTimeMs: totalTime,
         scoringTimeMs: 0,
         totalTimeMs: totalTime,
+        policyProfile: resolvedPolicy.profile,
+        confidence,
+        escalations: [],
       },
     };
   }
