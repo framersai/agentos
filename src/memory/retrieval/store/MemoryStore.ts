@@ -293,14 +293,26 @@ export class MemoryStore {
     queryText: string,
     currentMood: PADState,
     options: CognitiveRetrievalOptions = {}
-  ): Promise<{ scored: ScoredMemoryTrace[]; partial: PartiallyRetrievedTrace[] }> {
+  ): Promise<{
+    scored: ScoredMemoryTrace[];
+    partial: PartiallyRetrievedTrace[];
+    /**
+     * Per-stage wall-clock timings. Surfaced so
+     * {@link CognitiveMemoryManager} can populate its diagnostics
+     * with real numbers instead of the former 0-placeholder.
+     */
+    timings: {
+      vectorSearchMs: number;
+      scoringMs: number;
+    };
+  }> {
     const now = Date.now();
     const topK = options.topK ?? 20;
 
     // Determine which collections to search
     const scopes = options.scopes?.length ? options.scopes : this.getKnownScopes();
     if (scopes.length === 0) {
-      return { scored: [], partial: [] };
+      return { scored: [], partial: [], timings: { vectorSearchMs: 0, scoringMs: 0 } };
     }
 
     // Generate query embedding
@@ -323,6 +335,7 @@ export class MemoryStore {
 
     // Search across scopes
     const allCandidates: CandidateTrace[] = [];
+    const vectorSearchStart = Date.now();
 
     for (const { scope, scopeId } of scopes) {
       const collection = collectionName(this.config.collectionPrefix, scope, scopeId);
@@ -368,6 +381,8 @@ export class MemoryStore {
       }
     }
 
+    const vectorSearchMs = Date.now() - vectorSearchStart;
+
     // Score and rank — optional per-call scoringWeights override
     // enables ablation studies (zero one signal at a time).
     const effectiveWeights: ScoringWeights | undefined = options.scoringWeights
@@ -381,8 +396,10 @@ export class MemoryStore {
       weights: effectiveWeights,
     };
 
+    const scoringStart = Date.now();
     const scored = scoreAndRankTraces(allCandidates, scoringContext).slice(0, topK);
     const partial = detectPartiallyRetrieved(allCandidates, now);
+    const scoringMs = Date.now() - scoringStart;
 
     // Cognitive mechanisms: RIF + FOK
     if (this.mechanismsEngine && scored.length > 0) {
@@ -390,7 +407,7 @@ export class MemoryStore {
       this.mechanismsEngine.onRetrieval(scored, allCandidates, cutoff, []);
     }
 
-    return { scored, partial };
+    return { scored, partial, timings: { vectorSearchMs, scoringMs } };
   }
 
   // =========================================================================

@@ -544,10 +544,14 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       }
     }
 
-    const { scored, partial } = await this.store.query(effectiveQuery, mood, {
-      ...options,
-      topK: effectiveTopK,
-    });
+    const { scored, partial, timings: storeTimings } = await this.store.query(
+      effectiveQuery,
+      mood,
+      {
+        ...options,
+        topK: effectiveTopK,
+      },
+    );
 
     // --- Batch 2: Spreading activation ---
     if (this.graph && scored.length > 0) {
@@ -648,8 +652,8 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         partiallyRetrieved: partial,
         diagnostics: {
           candidatesScanned: scored.length + partial.length,
-          vectorSearchTimeMs: totalTime,
-          scoringTimeMs: 0,
+          vectorSearchTimeMs: storeTimings.vectorSearchMs,
+          scoringTimeMs: storeTimings.scoringMs,
           totalTimeMs: totalTime,
           policyProfile: resolvedPolicy.profile,
           suppressed: 'weak_hits',
@@ -675,8 +679,8 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       partiallyRetrieved: partial,
       diagnostics: {
         candidatesScanned: scored.length + partial.length,
-        vectorSearchTimeMs: totalTime,
-        scoringTimeMs: 0,
+        vectorSearchTimeMs: storeTimings.vectorSearchMs,
+        scoringTimeMs: storeTimings.scoringMs,
         totalTimeMs: totalTime,
         policyProfile: resolvedPolicy?.profile,
         confidence: resolvedPolicy ? confidence : undefined,
