@@ -14,6 +14,11 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import {
+  hostPolicyToRouteParams,
+  mergeRequiredCapabilities,
+  type HostLLMPolicy,
+} from './runtime/hostPolicy.js';
 import { adaptTools, type AdaptableToolInput } from './runtime/toolAdapter.js';
 import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
@@ -31,6 +36,7 @@ import type {
 
 // Re-export multimodal types for downstream consumers
 export type { MessageContent, MessageContentPart };
+export type { HostLLMPolicy } from './runtime/hostPolicy.js';
 
 async function recordAgentOSUsageLazy(
   input: Parameters<typeof import('./runtime/usageLedger.js')['recordAgentOSUsage']>[0]
@@ -303,6 +309,11 @@ export interface GenerateTextOptions {
    * from system prompt and tool names when not provided.
    */
   routerParams?: Partial<ModelRouteParams>;
+  /**
+   * Host-level routing hints that can be forwarded into the model router
+   * without requiring callers to construct raw router params directly.
+   */
+  hostPolicy?: HostLLMPolicy;
   /**
    * Called before each LLM generation step.  Can inject memory context
    * into messages, sanitize input via guardrails, or modify the prompt.
@@ -726,15 +737,28 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 .map((t: any) => t.name ?? t.function?.name)
                 .filter(Boolean) as string[]
             : [];
+          const hostPolicyRouteParams = hostPolicyToRouteParams(opts.hostPolicy);
+          const requiredCapabilities = mergeRequiredCapabilities(
+            hostPolicyRouteParams.requiredCapabilities,
+            opts.routerParams?.requiredCapabilities,
+            toolNames.length > 0 ? ['function_calling'] : undefined,
+          );
           const routeParams: ModelRouteParams = {
             taskHint:
               opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
-            requiredCapabilities:
-              opts.routerParams?.requiredCapabilities ??
-              (toolNames.length > 0 ? ['function_calling'] : undefined),
-            optimizationPreference:
-              opts.routerParams?.optimizationPreference ?? 'balanced',
+            ...hostPolicyRouteParams,
             ...opts.routerParams,
+            optimizationPreference:
+              opts.routerParams?.optimizationPreference
+              ?? hostPolicyRouteParams.optimizationPreference
+              ?? 'balanced',
+            requiredCapabilities,
+            preferredProviderIds:
+              opts.routerParams?.preferredProviderIds
+              ?? hostPolicyRouteParams.preferredProviderIds,
+            policyTier:
+              opts.routerParams?.policyTier
+              ?? hostPolicyRouteParams.policyTier,
           };
           const routeResult = await opts.router.selectModel(
             routeParams,

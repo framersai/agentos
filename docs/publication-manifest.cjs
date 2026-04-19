@@ -215,6 +215,8 @@ const publicationManifest = [
 
   agentosDoc('IMAGE_GENERATION.md', 'features/image-generation.md', 'Image Generation', 'Media Generation', 1),
   agentosDoc('IMAGE_EDITING.md', 'features/image-editing.md', 'Image Editing (Img2Img, Inpainting, Upscaling)', 'Media Generation', 2),
+  agentosDoc('CHARACTER_CONSISTENCY.md', 'features/character-consistency.md', 'Character Consistency', 'Media Generation', 2.5),
+  agentosDoc('STYLE_TRANSFER.md', 'features/style-transfer.md', 'Style Transfer', 'Media Generation', 2.6),
   agentosDoc('VISION_PIPELINE.md', 'features/vision-pipeline.md', 'Vision Pipeline (OCR & Image Understanding)', 'Media Generation', 3),
   staticDoc('features/audio-generation.md', 'features/audio-generation.md', 'Audio Generation', 'Media Generation', 4),
   staticDoc('features/provider-preferences.md', 'features/provider-preferences.md', 'Provider Preferences', 'Media Generation', 5),
@@ -228,6 +230,7 @@ const publicationManifest = [
   siteDoc('features/llm-output-validation.md', 'features/llm-output-validation.md', 'LLM Output Validation', 'AI & LLM', 1.5),
   agentosDoc('EVALUATION.md', 'features/evaluation-guide.md', 'Evaluation Guide', 'AI & LLM', 2),
   agentosDoc('COST_OPTIMIZATION.md', 'features/cost-optimization.md', 'Cost Optimization', 'AI & LLM', 3),
+  agentosDoc('UNCENSORED_CONTENT.md', 'features/uncensored-content.md', 'Uncensored Content & Policy-Tier Routing', 'AI & LLM', 3.5),
   agentosDoc('EVALUATION_FRAMEWORK.md', 'features/evaluation-framework.md', 'Evaluation Framework', 'AI & LLM', 4, {
     sidebar: false,
   }),

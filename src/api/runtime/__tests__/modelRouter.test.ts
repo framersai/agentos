@@ -163,6 +163,31 @@ describe('ModelRouter integration', () => {
     );
   });
 
+  it('threads hostPolicy hints into router selection', async () => {
+    const router = createMockRouter(null);
+
+    await generateText({
+      prompt: 'hello',
+      router,
+      hostPolicy: {
+        optimizationPreference: 'cost',
+        requiredCapabilities: ['json_mode'],
+        allowedProviders: ['anthropic'],
+        policyTier: 'mature',
+      },
+    });
+
+    expect(router.selectModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        optimizationPreference: 'cost',
+        requiredCapabilities: ['json_mode'],
+        preferredProviderIds: ['anthropic'],
+        policyTier: 'mature',
+      }),
+      undefined,
+    );
+  });
+
   it('auto-extracts taskHint from system prompt when routerParams not provided', async () => {
     const router = createMockRouter(null);
 

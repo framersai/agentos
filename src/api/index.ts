@@ -23,10 +23,12 @@ export {
   type GenerateTextOptions,
   type GenerateTextResult,
   type FallbackProviderEntry,
+  type HostLLMPolicy,
   type Message,
   type ToolCallRecord,
   type TokenUsage,
 } from './generateText.js';
+export { normalizeHostLLMPolicy } from './runtime/hostPolicy.js';
 export { streamText } from './streamText.js';
 export { generateObject } from './generateObject.js';
 export { streamObject } from './streamObject.js';

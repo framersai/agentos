@@ -197,6 +197,7 @@ export type {
   GenerateTextOptions,
   GenerateTextResult,
   FallbackProviderEntry,
+  HostLLMPolicy,
   GenerationHookContext,
   GenerationHookResult,
   Message,
@@ -205,6 +206,7 @@ export type {
   TokenUsage,
   SystemContentBlock,
 } from './api/generateText.js';
+export { normalizeHostLLMPolicy } from './api/runtime/hostPolicy.js';
 export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
