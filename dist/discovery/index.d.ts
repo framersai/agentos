@@ -14,7 +14,7 @@
  *   CapabilityManifestScanner,
  *   createDiscoverCapabilitiesTool,
  *   createLoadCapabilityExtensionTool,
- * } from '@framers/agentos/discovery';
+ * } from '../discovery';
  *
  * // Initialize
  * const engine = new CapabilityDiscoveryEngine(embeddingManager, vectorStore);

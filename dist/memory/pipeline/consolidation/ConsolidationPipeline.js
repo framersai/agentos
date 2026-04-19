@@ -17,6 +17,7 @@ import { findPrunableTraces } from '../../core/decay/DecayModel.js';
 // Defaults
 // ---------------------------------------------------------------------------
 const DEFAULT_CONSOLIDATION = {
+    enabled: true,
     intervalMs: 3600000,
     maxTracesPerCycle: 500,
     mergeSimilarityThreshold: 0.92,

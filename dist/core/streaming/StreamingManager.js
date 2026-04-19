@@ -11,7 +11,7 @@
  */
 import { uuidv4 } from '../../core/utils/uuid.js';
 import { AgentOSResponseChunkType } from '../../api/types/AgentOSResponse.js';
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected path
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js'; // Corrected path
 /**
  * Custom error class for errors originating from the StreamingManager.
  * @class StreamError

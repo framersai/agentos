@@ -28,7 +28,7 @@
  * ## Usage
  *
  * ```typescript
- * import { VideoAnalyzer } from '@framers/agentos/media/video';
+ * import { VideoAnalyzer } from '../../media/video';
  *
  * const analyzer = new VideoAnalyzer();
  * const result = await analyzer.analyzeVideo({

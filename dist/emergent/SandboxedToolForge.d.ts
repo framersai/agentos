@@ -132,6 +132,14 @@ export declare class SandboxedToolForge {
      * // result.violations === ['eval() is forbidden']
      * ```
      */
+    /**
+     * Translate a raw V8 SyntaxError message into a concrete hint that
+     * points the LLM (or the retry loop) at the likely cause. Returns
+     * empty string when no known pattern matches — callers still surface
+     * the raw message in that case. The hints map to the 4 most common
+     * LLM forge mistakes observed in production.
+     */
+    private describeSyntaxError;
     validateCode(code: string, allowlist: SandboxAPI[]): {
         valid: boolean;
         violations: string[];

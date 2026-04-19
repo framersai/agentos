@@ -8,7 +8,7 @@
  * @see ../../core/llm/providers/AIModelProviderManager.ts
  */
 import { MessageRole } from '../../core/conversation/ConversationMessage.js';
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 import { uuidv4 } from '../../core/utils/uuid.js';
 import Ajv from 'ajv';
 export class LLMUtilityAI {

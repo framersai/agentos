@@ -63,6 +63,7 @@ export function emptyForgeStats(): ForgeStats {
       shape_check: 0,
       parse_error: 0,
       judge_correctness: 0,
+      syntax_error: 0,
       other: 0,
     },
   };

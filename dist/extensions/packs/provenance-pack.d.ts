@@ -43,8 +43,8 @@ export interface ProvenancePackResult {
  *
  * Usage:
  * ```ts
- * import { profiles } from '@framers/agentos/provenance';
- * import { createProvenancePack } from '@framers/agentos/extensions/packs/provenance-pack';
+ * import { profiles } from '../../provenance';
+ * import { createProvenancePack } from '../../extensions/packs/provenance-pack';
  *
  * const pack = createProvenancePack(
  *   profiles.sealedAutonomous(),

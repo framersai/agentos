@@ -28,7 +28,7 @@ import { XAIProvider } from './implementations/XAIProvider.js';
 import { GeminiProvider } from './implementations/GeminiProvider.js';
 import { ClaudeCodeProvider } from './implementations/ClaudeCodeProvider.js';
 import { GeminiCLIProvider } from './implementations/GeminiCLIProvider.js';
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors'; // Corrected import path
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../../../core/utils/errors.js'; // Corrected import path
 /**
  * @class AIModelProviderManager
  * @description Manages and provides access to various configured AI model provider instances (`IProvider`).

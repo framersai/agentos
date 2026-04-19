@@ -51,8 +51,8 @@ import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI.js';
 import { ConversationManager, } from '../core/conversation/ConversationManager.js';
 import { StreamingManager, } from '../core/streaming/StreamingManager.js';
 // IStreamClient and StreamClientId reserved for streaming integration
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode } from '../core/utils/errors.js';
+import { uuidv4 } from '../core/utils/uuid.js';
 import { createLogger } from '../logging/loggerFactory.js';
 import { configureAgentOSObservability, } from '../evaluation/observability/otel.js';
 // SelfImprovementToolDeps reserved for emergent capability integration

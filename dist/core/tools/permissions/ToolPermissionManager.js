@@ -42,8 +42,8 @@
  * See `ISubscriptionService` and `ISubscriptionTier` in `types/auth`.
  * See `GMIError` and `GMIErrorCode` in `@framers/agentos/utils/errors`.
  */
-import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
-import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../../../core/utils/errors.js';
+import { uuidv4 } from '../../../core/utils/uuid.js';
 /**
  * @class ToolPermissionManager
  * @implements {IToolPermissionManager}

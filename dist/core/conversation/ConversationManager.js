@@ -12,8 +12,8 @@
  */
 import { ConversationContext } from './ConversationContext.js';
 import { createConversationMessage } from './ConversationMessage.js';
-import { uuidv4 } from '@framers/agentos/core/utils/uuid';
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { uuidv4 } from '../../core/utils/uuid.js';
+import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 /**
  * SQL schema for conversations table (compatible with SQLite, PostgreSQL, IndexedDB)
  */

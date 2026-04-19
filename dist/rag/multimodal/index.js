@@ -31,7 +31,7 @@
  *   type MultimodalSearchResult,
  *   type ContentModality,
  *   type IngestResult,
- * } from '@framers/agentos/rag/multimodal';
+ * } from '../../rag/multimodal/index.js';
  * ```
  */
 export { MultimodalIndexer } from './MultimodalIndexer.js';

@@ -9,7 +9,7 @@
  * @see ../../cognitive_substrate/IGMI.ts for ToolCallRequest definition.
  * @see ../ai_utilities/IUtilityAI.ts for SentimentResult.
  */
-import { uuidv4 } from '@framers/agentos/core/utils/uuid';
+import { uuidv4 } from '../../core/utils/uuid.js';
 /**
  * Represents the role of the entity that produced the message.
  * Critical for LLM interpretation and system logic.

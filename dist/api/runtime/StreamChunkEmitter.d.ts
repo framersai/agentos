@@ -4,7 +4,7 @@
  */
 import type { StreamId, StreamingManager } from '../../core/streaming/StreamingManager';
 import { AgentOSResponseChunkType } from '../types/AgentOSResponse';
-import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIErrorCode } from '../../core/utils/errors';
 type TurnExecutionLifecyclePhase = 'planned' | 'executing' | 'degraded' | 'recovered' | 'completed' | 'errored';
 interface StreamContext {
     languageNegotiation?: any;

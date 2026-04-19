@@ -16,7 +16,7 @@
  * @see ../core/llm/providers/IProvider.ts for the provider contract.
  */
 import { LRUCache } from 'lru-cache'; // Popular LRU cache library
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Assuming a GMIError utility
+import { GMIError, GMIErrorCode } from '../core/utils/errors.js'; // Assuming a GMIError utility
 /**
  * Implements the `IEmbeddingManager` interface to provide robust embedding generation services.
  *

@@ -18,7 +18,7 @@
  * @see ../../IVectorStore.ts for the interface definition.
  * @see ../../../config/VectorStoreConfiguration.ts for `InMemoryVectorStoreConfig`.
  */
-import { GMIError } from '@framers/agentos/core/utils/errors'; // Assuming a GMIError utility
+import { GMIError } from '../../core/utils/errors.js'; // Assuming a GMIError utility
 import { uuidv4 } from '../../core/utils/uuid.js';
 // Node.js built-in modules for optional file persistence
 import * as fs from 'fs/promises';

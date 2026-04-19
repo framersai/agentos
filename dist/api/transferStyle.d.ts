@@ -15,7 +15,7 @@
  *
  * @example
  * ```typescript
- * import { transferStyle } from '@framers/agentos/api/transferStyle';
+ * import { transferStyle } from '../api/transferStyle';
  *
  * const result = await transferStyle({
  *   image: './photo.jpg',

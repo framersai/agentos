@@ -11,7 +11,7 @@ import type { ProvenanceSystemConfig } from '../types.js';
  *
  * @example
  * ```typescript
- * import { profiles } from '@framers/agentos/provenance';
+ * import { profiles } from '../../provenance';
  *
  * // For development:
  * const config = profiles.mutableDev();

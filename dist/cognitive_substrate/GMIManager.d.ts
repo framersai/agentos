@@ -11,7 +11,7 @@ import type { IAuthService, ISubscriptionService } from '../types/auth';
 import { InMemoryWorkingMemory } from './memory/InMemoryWorkingMemory';
 import { ConversationManager } from '../core/conversation/ConversationManager';
 import { ConversationContext } from '../core/conversation/ConversationContext';
-import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
+import { GMIError, GMIErrorCode } from '../core/utils/errors';
 import { IPromptEngine } from '../core/llm/IPromptEngine';
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager';
 import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';

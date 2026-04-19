@@ -75,7 +75,7 @@ const isNodeBuffer = (value) => typeof Buffer !== 'undefined' && Buffer.isBuffer
  *
  * @example
  * ```typescript
- * import { MultimodalIndexer } from '@framers/agentos/rag/multimodal';
+ * import { MultimodalIndexer } from '../../rag/multimodal/index.js';
  *
  * const indexer = new MultimodalIndexer({
  *   embeddingManager,
