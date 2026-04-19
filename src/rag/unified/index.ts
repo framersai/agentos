@@ -32,6 +32,17 @@ export type {
 } from './types.js';
 
 export { buildDefaultPlan } from './types.js';
+export type {
+  MemoryRetrievalPolicy,
+  MemoryRetrievalProfile,
+  ResolvedMemoryRetrievalPolicy,
+} from './policy.js';
+export {
+  DEFAULT_MEMORY_RETRIEVAL_POLICY,
+  buildRetrievalPlanFromPolicy,
+  getCandidateLimit,
+  resolveMemoryRetrievalPolicy,
+} from './policy.js';
 
 // Core
 export { UnifiedRetriever } from './UnifiedRetriever.js';

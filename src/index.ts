@@ -131,6 +131,17 @@ export * from './core/storage';
 export * from './core/utils/usage/UsageLedger';
 // RAG (Retrieval Augmented Generation)
 export * from './rag';
+export type {
+  MemoryRetrievalPolicy,
+  MemoryRetrievalProfile,
+  ResolvedMemoryRetrievalPolicy,
+} from './rag/unified/policy.js';
+export {
+  DEFAULT_MEMORY_RETRIEVAL_POLICY,
+  buildRetrievalPlanFromPolicy,
+  getCandidateLimit,
+  resolveMemoryRetrievalPolicy,
+} from './rag/unified/policy.js';
 // Cognitive Memory System
 export * from './memory';
 // Query Router (classification, retrieval dispatch, grounded answer generation)

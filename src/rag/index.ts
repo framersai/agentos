@@ -250,6 +250,9 @@ export {
 
 export { UnifiedRetriever, buildDefaultPlan } from './unified/index.js';
 export type {
+  MemoryRetrievalPolicy,
+  MemoryRetrievalProfile,
+  ResolvedMemoryRetrievalPolicy,
   RetrievalPlan,
   RetrievalPlanSources,
   MemoryTypeFilter,
@@ -260,6 +263,12 @@ export type {
   SourceDiagnostics,
   UnifiedRetrieverEvent,
   UnifiedRetrieverDeps,
+} from './unified/index.js';
+export {
+  DEFAULT_MEMORY_RETRIEVAL_POLICY,
+  buildRetrievalPlanFromPolicy,
+  getCandidateLimit,
+  resolveMemoryRetrievalPolicy,
 } from './unified/index.js';
 
 // ============================================================================
@@ -309,4 +318,3 @@ export type {
 // Citation verification
 export { CitationVerifier } from './citation/index.js';
 export type { CitationVerifierConfig, ClaimVerdict, VerifiedResponse, VerificationSource } from './citation/index.js';
-
