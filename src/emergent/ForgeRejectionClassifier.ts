@@ -41,6 +41,15 @@ export type ForgeRejectionCategory =
    */
   | 'judge_correctness'
   /**
+   * Implementation could not be parsed as JavaScript — typically an
+   * LLM forge emitting TypeScript syntax (`interface`, `: type`),
+   * declarations in the wrong position (`() => const x = ...`), or
+   * single-line `if`/`for`/`while` without braces. Caught by the
+   * sandbox pre-parse step or by a failing `execute` call that could
+   * not even instantiate the function.
+   */
+  | 'syntax_error'
+  /**
    * Everything else. A non-zero `other` bucket is a signal to inspect
    * the raw reasons and consider adding a new category.
    */
@@ -95,6 +104,17 @@ const PARSE_ERROR_PATTERNS = [
   'judge response was not valid json',
 ];
 
+const SYNTAX_ERROR_PATTERNS = [
+  'syntaxerror',
+  'syntax error',
+  'unexpected token',
+  'unexpected identifier',
+  'unexpected end of input',
+  'unexpected reserved word',
+  'did not run successfully due to a syntax',
+  'syntaxerror before execution',
+];
+
 const JUDGE_CORRECTNESS_PATTERNS = [
   'logic error',
   'threshold ordering',
@@ -146,6 +166,9 @@ export function classifyForgeRejection(errorReason: string | undefined): ForgeRe
   }
   for (const p of SHAPE_CHECK_PATTERNS) {
     if (lower.includes(p)) return 'shape_check';
+  }
+  for (const p of SYNTAX_ERROR_PATTERNS) {
+    if (lower.includes(p)) return 'syntax_error';
   }
   for (const p of PARSE_ERROR_PATTERNS) {
     if (lower.includes(p)) return 'parse_error';

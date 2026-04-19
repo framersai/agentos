@@ -402,4 +402,47 @@ describe('SandboxedToolForge', () => {
     expect(result.success).toBe(true);
     expect(result.output).toEqual({ total: 55, count: 3 });
   });
+
+  // -------------------------------------------------------------------------
+  // Pre-parse: syntax errors surface with actionable hints (not generic
+  // "test cases failed" opaqueness that the judge gets otherwise).
+  // -------------------------------------------------------------------------
+  it('pre-parse catches arrow-fn with const in expression position', async () => {
+    const request = makeRequest(
+      // Invalid: const in arrow body without braces
+      'const calc = (x) => const doubled = x * 2;\nfunction execute(input) { return { out: calc(input.n) }; }',
+      { n: 5 },
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/SyntaxError before execution/);
+    expect(result.error).toMatch(/arrow function without braces|wrap in `{}`/i);
+  });
+
+  it('pre-parse catches TypeScript syntax leaks', async () => {
+    const request = makeRequest(
+      // Invalid JS: interface keyword
+      'interface Input { n: number }\nfunction execute(input) { return { n: input.n }; }',
+      { n: 1 },
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/SyntaxError before execution/);
+  });
+
+  it('pre-parse passes valid ES2020 code through to execution', async () => {
+    const request = makeRequest(
+      'async function execute(input) { return { doubled: input.n * 2 }; }',
+      { n: 7 },
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toEqual({ doubled: 14 });
+  });
 });
