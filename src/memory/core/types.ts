@@ -256,6 +256,13 @@ export interface CognitiveRetrievalResult {
     suppressed?: 'weak_hits';
     confidence?: RetrievalConfidenceSummary;
     escalations?: string[];
+    /**
+     * Step-4: when a `HybridRetriever` runs with a `hydeRetriever`
+     * attached, the first ~120 chars of the generated hypothesis
+     * are surfaced here for post-hoc analysis of which queries
+     * benefited from expansion.
+     */
+    hyde?: { hypothesis: string };
   };
 }
 

@@ -130,3 +130,84 @@ describe('HybridRetriever', () => {
     expect(result.retrieved.length).toBe(5);
   });
 });
+
+class FakeHyde {
+  public calls: string[] = [];
+  constructor(private readonly hypothesis: string = 'HYPOTHETICAL ANSWER TEXT') {}
+  async generateHypothesis(query: string): Promise<{ hypothesis: string; latencyMs: number }> {
+    this.calls.push(query);
+    return { hypothesis: this.hypothesis, latencyMs: 1 };
+  }
+}
+
+class CapturingMemoryStore {
+  public lastQuery: string | undefined;
+  constructor(private traces: ScoredMemoryTrace[] = []) {}
+  async query(q: string, _mood: PADState, opts: CognitiveRetrievalOptions) {
+    this.lastQuery = q;
+    return {
+      scored: this.traces.slice(0, opts.topK ?? 10),
+      partial: [],
+      timings: { vectorSearchMs: 1, scoringMs: 1 },
+    };
+  }
+}
+
+class CapturingReranker {
+  public lastQuery: string | undefined;
+  async rerank(input: { query: string; documents: Array<{ id: string; content: string; originalScore?: number }> }) {
+    this.lastQuery = input.query;
+    return {
+      results: input.documents.map((d, i) => ({
+        id: d.id,
+        relevanceScore: 1 - i * 0.1,
+        originalScore: d.originalScore,
+      })),
+      model: 'fake-rerank',
+      usage: { searchUnits: 1 },
+    };
+  }
+}
+
+describe('HybridRetriever + HyDE', () => {
+  it('generates hypothesis and uses it for dense query when hydeRetriever is set', async () => {
+    const memoryStore = new CapturingMemoryStore([mkTrace('t1', 0.9, 'relevant content')]);
+    const hyde = new FakeHyde('User prefers hiking and cooking at home.');
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+      hydeRetriever: hyde as unknown as import('../../../../rag/HydeRetriever.js').HydeRetriever,
+    });
+    r.bm25.addDocument('t1', 'hiking cooking');
+    await r.retrieve('What does the user like?', neutralMood, scope, { recallTopK: 10 });
+    expect(hyde.calls.length).toBe(1);
+    expect(memoryStore.lastQuery).toBe('User prefers hiking and cooking at home.');
+  });
+
+  it('uses raw query (no hypothesis call) when hydeRetriever is undefined', async () => {
+    const memoryStore = new CapturingMemoryStore([mkTrace('t1', 0.9)]);
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+    });
+    r.bm25.addDocument('t1', 'alpha');
+    await r.retrieve('alpha', neutralMood, scope, { recallTopK: 10 });
+    expect(memoryStore.lastQuery).toBe('alpha');
+  });
+
+  it('passes ORIGINAL query (not hypothesis) to reranker', async () => {
+    const memoryStore = new CapturingMemoryStore([mkTrace('t1', 0.9), mkTrace('t2', 0.8)]);
+    const hyde = new FakeHyde('hypothetical expanded answer');
+    const reranker = new CapturingReranker();
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+      hydeRetriever: hyde as unknown as import('../../../../rag/HydeRetriever.js').HydeRetriever,
+      rerankerService: reranker as unknown as RerankerService,
+    });
+    // BM25 content includes tokens from the hypothesis so sparse
+    // returns hits (otherwise the sparse-empty early-return skips
+    // rerank and this test can't observe reranker.lastQuery).
+    r.bm25.addDocument('t1', 'hypothetical expanded content');
+    r.bm25.addDocument('t2', 'another expanded answer');
+    await r.retrieve('what is the user up to?', neutralMood, scope, { recallTopK: 10 });
+    expect(reranker.lastQuery).toBe('what is the user up to?');
+  });
+});
