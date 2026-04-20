@@ -159,6 +159,37 @@ export type { RetrievalFeedback } from './retrieval/feedback/index.js';
 // Pipeline Tier — consolidation, observation, context
 // ---------------------------------------------------------------------------
 
+// --- Ingest Enrichment (Contextual Retrieval) ---
+// Session-level contextual retrieval (Anthropic Sep 2024 variant adapted
+// for conversational memory). Generates a dense LLM summary of each
+// session at ingest time; consumers prepend it to every chunk before
+// embedding so the vector captures session-wide context each chunk
+// would otherwise lack. Persistent on-disk cache mirrors CachedEmbedder.
+export { SessionSummarizer } from './ingest/SessionSummarizer.js';
+export type {
+  SessionSummarizerInvoker,
+  SessionSummarizerOptions,
+  SummarizerStats,
+} from './ingest/SessionSummarizer.js';
+
+// --- Session-Level Hierarchical Retrieval (Step 2) ---
+// Two-stage retriever (xMemory / TACITREE pattern, session-granularity
+// variant). Stage 1 picks top-K sessions via summary similarity, Stage
+// 2 runs a chunk-level query and post-filters to those sessions,
+// taking top-M chunks each. Companion to SessionSummarizer (which
+// generates the summaries indexed here).
+export { SessionSummaryStore } from './retrieval/session/SessionSummaryStore.js';
+export type {
+  SessionSummaryStoreOptions,
+  IndexSessionInput,
+  QueriedSession,
+} from './retrieval/session/SessionSummaryStore.js';
+export { SessionRetriever } from './retrieval/session/SessionRetriever.js';
+export type {
+  SessionRetrieverOptions,
+  SessionRetrieveOptions,
+} from './retrieval/session/SessionRetriever.js';
+
 // --- Observation System ---
 export { ObservationBuffer } from './pipeline/observation/ObservationBuffer.js';
 export type { BufferedMessage, ObservationBufferConfig } from './pipeline/observation/ObservationBuffer.js';
