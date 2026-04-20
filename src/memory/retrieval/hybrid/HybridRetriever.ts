@@ -46,6 +46,7 @@ import { BM25Index, type BM25Config } from '../../../rag/search/BM25Index.js';
 import { reciprocalRankFusion, type RankedDoc } from './reciprocalRankFusion.js';
 import type { MemoryStore } from '../store/MemoryStore.js';
 import type { RerankerService } from '../../../rag/reranking/RerankerService.js';
+import type { HydeRetriever } from '../../../rag/HydeRetriever.js';
 import type {
   CognitiveRetrievalResult,
   MemoryScope,
@@ -66,6 +67,16 @@ export interface HybridRetrieverOptions {
    * baseline uses is the matched-ablation path.
    */
   rerankerService?: RerankerService;
+  /**
+   * Optional HyDE retriever for query expansion (Step 4). When set,
+   * each `retrieve()` call generates a hypothesis and uses it as the
+   * query for BOTH dense (`memoryStore.query`) and sparse
+   * (`bm25.search`). The reranker continues to use the ORIGINAL user
+   * query so it scores documents against real user intent, not the
+   * hypothesis. HyDE generation is non-critical — errors fall back
+   * to the raw query without aborting retrieval.
+   */
+  hydeRetriever?: HydeRetriever;
   /** Default dense weight in RRF. @default 0.7 */
   defaultDenseWeight?: number;
   /** Default sparse weight in RRF. @default 0.3 */
@@ -109,6 +120,7 @@ export class HybridRetriever {
 
   private readonly memoryStore: MemoryStore;
   private readonly rerankerService?: RerankerService;
+  private readonly hydeRetriever?: HydeRetriever;
   private readonly defaultDenseWeight: number;
   private readonly defaultSparseWeight: number;
   private readonly defaultRrfK: number;
@@ -117,6 +129,7 @@ export class HybridRetriever {
     this.memoryStore = opts.memoryStore;
     this.bm25 = new BM25Index(opts.bm25Config);
     this.rerankerService = opts.rerankerService;
+    this.hydeRetriever = opts.hydeRetriever;
     this.defaultDenseWeight = opts.defaultDenseWeight ?? 0.7;
     this.defaultSparseWeight = opts.defaultSparseWeight ?? 0.3;
     this.defaultRrfK = opts.defaultRrfK ?? 60;
@@ -136,16 +149,35 @@ export class HybridRetriever {
     const wSparse = options.sparseWeight ?? this.defaultSparseWeight;
     const rrfK = options.rrfK ?? this.defaultRrfK;
 
+    // HyDE expansion (Step 4): when a hydeRetriever is attached,
+    // generate a hypothetical answer and use it as the query for BOTH
+    // dense and sparse sides. The reranker (below) keeps the ORIGINAL
+    // query so it scores documents against the user's real intent,
+    // not the hypothesis. Errors are non-critical — fall back to raw.
+    let effectiveQuery = query;
+    let hypothesisDiagnostic: string | undefined;
+    if (this.hydeRetriever) {
+      try {
+        const hypo = await this.hydeRetriever.generateHypothesis(query);
+        if (hypo.hypothesis && hypo.hypothesis.trim().length > 0) {
+          effectiveQuery = hypo.hypothesis;
+          hypothesisDiagnostic = hypo.hypothesis.slice(0, 120);
+        }
+      } catch {
+        // HyDE generation failed — raw query fallback.
+      }
+    }
+
     // Dense side: use MemoryStore.query so we keep the 6-signal
     // cognitive scoring (strength, recency, etc.) — matches baseline.
     const { scored: denseScored, timings: denseTimings } = await this.memoryStore.query(
-      query,
+      effectiveQuery,
       mood,
       { topK: overFetchTopK, scopes: [scope] },
     );
 
     // Sparse side: BM25 over the per-instance index.
-    const sparseResults = this.bm25.search(query, overFetchTopK);
+    const sparseResults = this.bm25.search(effectiveQuery, overFetchTopK);
 
     // Fallback: empty BM25 index or zero sparse hits => dense-only
     // with explicit escalation diagnostic.
@@ -156,6 +188,7 @@ export class HybridRetriever {
         vectorSearchMs: denseTimings.vectorSearchMs,
         scoringMs: denseTimings.scoringMs,
         totalMs: Date.now() - startTime,
+        hypothesis: hypothesisDiagnostic,
       });
     }
 
@@ -216,6 +249,7 @@ export class HybridRetriever {
       vectorSearchMs: denseTimings.vectorSearchMs,
       scoringMs: denseTimings.scoringMs,
       totalMs: Date.now() - startTime,
+      hypothesis: hypothesisDiagnostic,
     });
   }
 
@@ -228,6 +262,7 @@ export class HybridRetriever {
       vectorSearchMs: number;
       scoringMs: number;
       totalMs: number;
+      hypothesis?: string;
     },
   ): CognitiveRetrievalResult {
     return {
@@ -239,6 +274,7 @@ export class HybridRetriever {
         scoringTimeMs: d.scoringMs,
         totalTimeMs: d.totalMs,
         ...(d.escalations ? { escalations: d.escalations } : {}),
+        ...(d.hypothesis ? { hyde: { hypothesis: d.hypothesis } } : {}),
       },
     };
   }
