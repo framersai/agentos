@@ -55,9 +55,9 @@ import type { RerankerService } from '../../../rag/reranking/RerankerService.js'
 import type {
   CognitiveRetrievalResult,
   MemoryScope,
-  PADState,
   ScoredMemoryTrace,
 } from '../../core/types.js';
+import type { PADState } from '../../core/config.js';
 import type { SessionSummaryStore } from './SessionSummaryStore.js';
 
 /**
