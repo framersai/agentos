@@ -190,6 +190,23 @@ export type {
   SessionRetrieveOptions,
 } from './retrieval/session/SessionRetriever.js';
 
+// --- Hybrid BM25 + Dense Retrieval (Step 3) ---
+// Rank-fusion retriever combining BM25 sparse search with cognitive-
+// scored dense retrieval via Reciprocal Rank Fusion. Optional rerank
+// applied to merged pool. Targets failure modes (exact-term matches,
+// specific-value questions) that pure semantic embedding misses.
+export { HybridRetriever } from './retrieval/hybrid/HybridRetriever.js';
+export type {
+  HybridRetrieverOptions,
+  HybridRetrieveOptions,
+} from './retrieval/hybrid/HybridRetriever.js';
+export { reciprocalRankFusion } from './retrieval/hybrid/reciprocalRankFusion.js';
+export type {
+  RankedDoc,
+  RRFOptions,
+  RRFResult,
+} from './retrieval/hybrid/reciprocalRankFusion.js';
+
 // --- Observation System ---
 export { ObservationBuffer } from './pipeline/observation/ObservationBuffer.js';
 export type { BufferedMessage, ObservationBufferConfig } from './pipeline/observation/ObservationBuffer.js';
