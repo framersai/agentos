@@ -274,6 +274,17 @@ export interface CognitiveRetrievalResult {
       llmLatencyMs: number;
       notes?: string[];
     };
+    /**
+     * Step-6: when `HybridRetriever` runs with `splitAmbiguousThreshold`
+     * set, the bottom fraction of traces by first-pass rerank score
+     * are split at sentence boundaries and rescored. Replacements are
+     * recorded here for post-hoc analysis.
+     */
+    splitOnAmbiguous?: {
+      threshold: number;
+      candidateCount: number;
+      replacedIds: string[];
+    };
   };
 }
 

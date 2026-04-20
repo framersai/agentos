@@ -77,6 +77,16 @@ export interface HybridRetrieverOptions {
    * to the raw query without aborting retrieval.
    */
   hydeRetriever?: HydeRetriever;
+  /**
+   * Step-6: enable split-on-ambiguous rerank refinement. When set to a
+   * value in (0, 1], the bottom fraction of traces by first-pass
+   * rerank score are split at sentence boundaries, rescored with a
+   * second rerank call (same query), and replaced by their better
+   * half ONLY IF the better half outscores the original. Monotonic.
+   *
+   * Default: undefined (no split, Step 3 behavior preserved).
+   */
+  splitAmbiguousThreshold?: number;
   /** Default dense weight in RRF. @default 0.7 */
   defaultDenseWeight?: number;
   /** Default sparse weight in RRF. @default 0.3 */
@@ -121,6 +131,7 @@ export class HybridRetriever {
   private readonly memoryStore: MemoryStore;
   private readonly rerankerService?: RerankerService;
   private readonly hydeRetriever?: HydeRetriever;
+  private readonly splitAmbiguousThreshold?: number;
   private readonly defaultDenseWeight: number;
   private readonly defaultSparseWeight: number;
   private readonly defaultRrfK: number;
@@ -130,6 +141,7 @@ export class HybridRetriever {
     this.bm25 = new BM25Index(opts.bm25Config);
     this.rerankerService = opts.rerankerService;
     this.hydeRetriever = opts.hydeRetriever;
+    this.splitAmbiguousThreshold = opts.splitAmbiguousThreshold;
     this.defaultDenseWeight = opts.defaultDenseWeight ?? 0.7;
     this.defaultSparseWeight = opts.defaultSparseWeight ?? 0.3;
     this.defaultRrfK = opts.defaultRrfK ?? 60;
@@ -214,6 +226,7 @@ export class HybridRetriever {
     }
 
     // Optional rerank: same 0.7 cognitive + 0.3 neural blend as baseline.
+    let splitDiagnostic: { threshold: number; candidateCount: number; replacedIds: string[] } | undefined;
     if (this.rerankerService && hydrated.length > 0) {
       try {
         const rerankerOutput = await this.rerankerService.rerank(
@@ -236,6 +249,21 @@ export class HybridRetriever {
             trace.retrievalScore = 0.7 * trace.retrievalScore + 0.3 * neural;
           }
         }
+
+        // Step-6: split-on-ambiguous refinement.
+        if (
+          this.splitAmbiguousThreshold !== undefined &&
+          this.splitAmbiguousThreshold > 0 &&
+          hydrated.length > 0
+        ) {
+          splitDiagnostic = await this.refineAmbiguous(
+            hydrated,
+            neuralScores,
+            query,
+            this.splitAmbiguousThreshold,
+          );
+        }
+
         hydrated.sort((a, b) => b.retrievalScore - a.retrievalScore);
       } catch {
         // Reranker errors are non-critical: keep RRF ordering.
@@ -250,6 +278,7 @@ export class HybridRetriever {
       scoringMs: denseTimings.scoringMs,
       totalMs: Date.now() - startTime,
       hypothesis: hypothesisDiagnostic,
+      splitOnAmbiguous: splitDiagnostic,
     });
   }
 
@@ -263,6 +292,7 @@ export class HybridRetriever {
       scoringMs: number;
       totalMs: number;
       hypothesis?: string;
+      splitOnAmbiguous?: { threshold: number; candidateCount: number; replacedIds: string[] };
     },
   ): CognitiveRetrievalResult {
     return {
@@ -275,7 +305,111 @@ export class HybridRetriever {
         totalTimeMs: d.totalMs,
         ...(d.escalations ? { escalations: d.escalations } : {}),
         ...(d.hypothesis ? { hyde: { hypothesis: d.hypothesis } } : {}),
+        ...(d.splitOnAmbiguous ? { splitOnAmbiguous: d.splitOnAmbiguous } : {}),
       },
     };
+  }
+
+  /**
+   * Step-6: split bottom-fraction traces by neural score, rescore the
+   * halves, replace a trace's content with its better half IFF the
+   * better half's neural score outranks the original's. Monotonic.
+   *
+   * Modifies `hydrated` in place: `trace.content` and `trace.retrievalScore`
+   * are updated for replaced traces. Returns a diagnostic summary.
+   */
+  private async refineAmbiguous(
+    hydrated: ScoredMemoryTrace[],
+    neuralScores: Map<string, number>,
+    query: string,
+    threshold: number,
+  ): Promise<{ threshold: number; candidateCount: number; replacedIds: string[] }> {
+    const replacedIds: string[] = [];
+
+    const sortedByNeural = hydrated
+      .map((t) => ({ trace: t, neural: neuralScores.get(t.id) ?? 0 }))
+      .sort((a, b) => a.neural - b.neural);
+    const candidateCount = Math.ceil(hydrated.length * threshold);
+    const candidates = sortedByNeural.slice(0, candidateCount);
+
+    type Split = { traceId: string; halfAId: string; halfBId: string; halfA: string; halfB: string; originalNeural: number };
+    const splits: Split[] = [];
+    for (const { trace, neural } of candidates) {
+      const halves = this.splitAtMidpointSentence(trace.content);
+      if (!halves) continue;
+      splits.push({
+        traceId: trace.id,
+        halfAId: `${trace.id}::a`,
+        halfBId: `${trace.id}::b`,
+        halfA: halves[0],
+        halfB: halves[1],
+        originalNeural: neural,
+      });
+    }
+
+    if (splits.length === 0) {
+      return { threshold, candidateCount, replacedIds };
+    }
+
+    const halfDocs = splits.flatMap((s) => [
+      { id: s.halfAId, content: s.halfA },
+      { id: s.halfBId, content: s.halfB },
+    ]);
+    let halfScores: Map<string, number>;
+    try {
+      const halfOut = await this.rerankerService!.rerank(
+        { query, documents: halfDocs },
+        { topN: halfDocs.length },
+      );
+      halfScores = new Map(halfOut.results.map((r) => [r.id, r.relevanceScore]));
+    } catch {
+      return { threshold, candidateCount, replacedIds };
+    }
+
+    const traceById = new Map(hydrated.map((t) => [t.id, t]));
+    for (const s of splits) {
+      const a = halfScores.get(s.halfAId) ?? -Infinity;
+      const b = halfScores.get(s.halfBId) ?? -Infinity;
+      const winningScore = Math.max(a, b);
+      if (winningScore <= s.originalNeural) continue;
+      const winningText = a >= b ? s.halfA : s.halfB;
+      const trace = traceById.get(s.traceId);
+      if (!trace) continue;
+      trace.content = winningText;
+      trace.retrievalScore += 0.3 * (winningScore - s.originalNeural);
+      replacedIds.push(s.traceId);
+    }
+
+    return { threshold, candidateCount, replacedIds };
+  }
+
+  /**
+   * Split a string at the sentence boundary nearest its midpoint.
+   * Returns [firstHalf, secondHalf] or null if the string is too short
+   * or no valid boundary is found.
+   */
+  private splitAtMidpointSentence(text: string): [string, string] | null {
+    if (text.length < 50) return null;
+    const mid = Math.floor(text.length / 2);
+    const window = Math.floor(text.length * 0.4);
+    const lo = Math.max(0, mid - window);
+    const hi = Math.min(text.length, mid + window);
+    for (let offset = 0; offset <= window; offset++) {
+      for (const sign of [-1, 1] as const) {
+        const i = mid + sign * offset;
+        if (i < lo || i > hi) continue;
+        if (
+          i > 0 &&
+          i < text.length - 1 &&
+          /[.!?]/.test(text[i]) &&
+          /\s/.test(text[i + 1])
+        ) {
+          return [text.slice(0, i + 1).trim(), text.slice(i + 1).trim()];
+        }
+      }
+    }
+    const spaceIdx = text.indexOf(' ', mid);
+    if (spaceIdx === -1 || spaceIdx >= text.length - 1) return null;
+    return [text.slice(0, spaceIdx).trim(), text.slice(spaceIdx + 1).trim()];
   }
 }

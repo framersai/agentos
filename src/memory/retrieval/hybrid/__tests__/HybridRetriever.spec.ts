@@ -211,3 +211,96 @@ describe('HybridRetriever + HyDE', () => {
     expect(reranker.lastQuery).toBe('what is the user up to?');
   });
 });
+
+class TableDrivenReranker {
+  public lastQuery: string | undefined;
+  public callCount = 0;
+  public calls: Array<{ query: string; docIds: string[] }> = [];
+  constructor(private readonly scoreTable: Record<string, number>) {}
+  async rerank(input: { query: string; documents: Array<{ id: string; content: string; originalScore?: number }> }) {
+    this.lastQuery = input.query;
+    this.callCount += 1;
+    this.calls.push({ query: input.query, docIds: input.documents.map((d) => d.id) });
+    return {
+      results: input.documents.map((d) => ({
+        id: d.id,
+        relevanceScore: this.scoreTable[d.id] ?? 0,
+        originalScore: d.originalScore,
+      })),
+      model: 'table-rerank',
+      usage: { searchUnits: 1 },
+    };
+  }
+}
+
+describe('HybridRetriever + split-on-ambiguous', () => {
+  it('identifies bottom-N% by rerank score at threshold=0.3', async () => {
+    const traces = Array.from({ length: 10 }, (_, i) =>
+      mkTrace(`t${i}`, 0.9 - i * 0.01, `probe sentence one. probe sentence two. probe sentence three ${'x'.repeat(40)}.`),
+    );
+    const memoryStore = new FakeMemoryStore(traces);
+    const neural: Record<string, number> = {};
+    traces.forEach((t, i) => { neural[t.id] = 1 - i * 0.1; });
+    traces.forEach((t) => {
+      neural[`${t.id}::a`] = -1;
+      neural[`${t.id}::b`] = -1;
+    });
+    const reranker = new TableDrivenReranker(neural);
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+      rerankerService: reranker as unknown as RerankerService,
+      splitAmbiguousThreshold: 0.3,
+    });
+    for (const t of traces) r.bm25.addDocument(t.id, t.content);
+    const result = await r.retrieve('probe', neutralMood, scope, { recallTopK: 10 });
+    expect(reranker.callCount).toBe(2);
+    expect(reranker.calls[1].docIds).toHaveLength(6);
+    expect(result.diagnostics.splitOnAmbiguous?.candidateCount).toBe(3);
+    expect(result.diagnostics.splitOnAmbiguous?.replacedIds).toEqual([]);
+  });
+
+  it('replaces content only when winning half outscores original', async () => {
+    const longContent = 'probe first half sentence. probe second half sentence with lots of extra padding so splitting works right here.';
+    const traces = [
+      mkTrace('t0', 0.9, longContent),
+      mkTrace('t1', 0.8, longContent),
+      mkTrace('t2', 0.7, longContent),
+    ];
+    const memoryStore = new FakeMemoryStore(traces);
+    const neural: Record<string, number> = { t0: 0.9, t1: 0.5, t2: 0.2 };
+    neural['t2::a'] = 0.1;
+    neural['t2::b'] = 0.7;
+    neural['t1::a'] = 0.0;
+    neural['t1::b'] = 0.0;
+    const reranker = new TableDrivenReranker(neural);
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+      rerankerService: reranker as unknown as RerankerService,
+      splitAmbiguousThreshold: 0.34,
+    });
+    for (const t of traces) r.bm25.addDocument(t.id, t.content);
+    const result = await r.retrieve('probe', neutralMood, scope, { recallTopK: 10 });
+    const replaced = result.retrieved.find((t) => t.id === 't2');
+    expect(replaced).toBeDefined();
+    expect(replaced!.content).toBe('probe second half sentence with lots of extra padding so splitting works right here.');
+    const unchanged = result.retrieved.find((t) => t.id === 't1');
+    expect(unchanged).toBeDefined();
+    expect(unchanged!.content).toBe(longContent);
+    expect(result.diagnostics.splitOnAmbiguous?.replacedIds).toEqual(['t2']);
+  });
+
+  it('split disabled (threshold=0 or undefined) → no second rerank call', async () => {
+    const traces = [mkTrace('t0', 0.9, 'probe some content'), mkTrace('t1', 0.8, 'probe other content')];
+    const memoryStore = new FakeMemoryStore(traces);
+    const neural: Record<string, number> = { t0: 0.9, t1: 0.8 };
+    const reranker = new TableDrivenReranker(neural);
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+      rerankerService: reranker as unknown as RerankerService,
+    });
+    for (const t of traces) r.bm25.addDocument(t.id, t.content);
+    const result = await r.retrieve('probe', neutralMood, scope, { recallTopK: 10 });
+    expect(reranker.callCount).toBe(1);
+    expect(result.diagnostics.splitOnAmbiguous).toBeUndefined();
+  });
+});
