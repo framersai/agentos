@@ -176,6 +176,14 @@ export interface ICognitiveMemoryManager {
   /** Get the HyDE retriever if configured, or `null`. */
   getHydeRetriever?(): HydeRetriever | null;
 
+  /**
+   * Get the attached neural reranker, or `null` when none is
+   * configured. Step 3 uses this so the bench-side `HybridRetriever`
+   * can plumb the manager's reranker into the per-case retriever
+   * without bracket-accessing a private field.
+   */
+  getRerankerService?(): import('../rag/reranking/RerankerService.js').RerankerService | null;
+
   /** Get infinite-context runtime stats when enabled. */
   getContextWindowStats(): ContextWindowStats | null;
 
@@ -1208,6 +1216,17 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   /** Get the HyDE retriever if configured, or `null`. */
   getHydeRetriever(): HydeRetriever | null {
     return this.hydeRetriever;
+  }
+
+  /**
+   * Return the attached neural reranker, or `null` when none is
+   * configured. Public read-only accessor for Step-3 bench wiring:
+   * the bench constructs a per-case `HybridRetriever` that needs the
+   * same reranker the manager uses, without bracket-accessing the
+   * private field.
+   */
+  getRerankerService(): import('../rag/reranking/RerankerService.js').RerankerService | null {
+    return this.rerankerService;
   }
 
   // =========================================================================
