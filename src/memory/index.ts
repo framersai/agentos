@@ -387,3 +387,11 @@ export type {
   RelationshipDriftInput,
   HEXACOTrait,
 } from './mechanisms/PersonaDriftMechanism.js';
+
+// Step-5: FactSupersession post-retrieval filter.
+export { FactSupersession } from './retrieval/fact-supersession/index.js';
+export type {
+  FactSupersessionOptions,
+  FactSupersessionInput,
+  FactSupersessionResult,
+} from './retrieval/fact-supersession/index.js';
