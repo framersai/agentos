@@ -263,6 +263,17 @@ export interface CognitiveRetrievalResult {
      * benefited from expansion.
      */
     hyde?: { hypothesis: string };
+    /**
+     * Step-5: post-retrieve FactSupersession pass diagnostics.
+     * Populated only when a bench adapter or downstream consumer
+     * ran `FactSupersession.resolve()` over the retrieved traces.
+     */
+    factSupersession?: {
+      droppedIds: string[];
+      parseOk: boolean;
+      llmLatencyMs: number;
+      notes?: string[];
+    };
   };
 }
 
