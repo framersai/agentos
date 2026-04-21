@@ -16,23 +16,26 @@ describe('UncensoredModelCatalog', () => {
   // -------------------------------------------------------------------------
 
   describe('getTextModels', () => {
-    it('returns all 5 text models with no filter', () => {
+    it('returns all live text models with no filter', () => {
+      // Current catalog: hermes-3-405b, hermes-3-70b. Dolphin
+      // Mixtral / Dolphin 3.0 / MythoMax were all removed — see the
+      // TEXT_MODELS comments for each removal's rationale.
       const models = catalog.getTextModels();
-      expect(models).toHaveLength(5);
+      expect(models).toHaveLength(2);
       expect(models.every((m) => m.modality === 'text')).toBe(true);
       expect(models.every((m) => m.providerId === 'openrouter')).toBe(true);
     });
 
     it('filters by quality', () => {
-      // hermes-3-405b, hermes-3-70b, dolphin-mixtral-8x22b
+      // Both remaining entries (hermes-405b, hermes-70b) are `high`.
       const high = catalog.getTextModels({ quality: 'high' });
-      expect(high).toHaveLength(3);
+      expect(high).toHaveLength(2);
       expect(high.every((m) => m.quality === 'high')).toBe(true);
 
-      // mythomax-l2-13b
+      // Low-tier entries were removed; the filter still works but
+      // returns nothing.
       const low = catalog.getTextModels({ quality: 'low' });
-      expect(low).toHaveLength(1);
-      expect(low.every((m) => m.quality === 'low')).toBe(true);
+      expect(low).toHaveLength(0);
     });
 
     it('filters by contentPermissions', () => {
@@ -42,7 +45,7 @@ describe('UncensoredModelCatalog', () => {
       // Every curated text entry currently permits erotic content;
       // the catalog exists precisely to route mature/private-adult
       // traffic off the default censored chain.
-      expect(erotic).toHaveLength(5);
+      expect(erotic).toHaveLength(2);
       expect(erotic.every((m) => m.contentPermissions.includes('erotic'))).toBe(
         true,
       );
@@ -53,7 +56,7 @@ describe('UncensoredModelCatalog', () => {
         quality: 'high',
         contentPermissions: ['erotic'],
       });
-      expect(highErotic).toHaveLength(3);
+      expect(highErotic).toHaveLength(2);
     });
   });
 
