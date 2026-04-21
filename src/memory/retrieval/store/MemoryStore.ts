@@ -41,6 +41,11 @@ import {
   type ScoringContext,
   type ScoringWeights,
 } from '../../core/decay/RetrievalPriorityScorer.js';
+import {
+  extractEntities,
+  slugifyEntityId,
+} from '../graph/extraction/index.js';
+import { spreadActivation } from '../graph/SpreadingActivation.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -59,6 +64,16 @@ export interface MemoryStoreConfig {
   mechanismsEngine?: import('../../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
   /** Optional mood provider for reconsolidation drift during recordAccess. */
   moodProvider?: () => PADState;
+  /**
+   * Step 13: enable graph activation. When true, `store` upserts entity
+   * nodes and `co_occurs` edges at ingest (from `trace.entities`), and
+   * `query` seeds Anderson spreading activation from query-extracted
+   * entities to compute the per-candidate `graphActivation` score
+   * (weight 0.10 in `RetrievalPriorityScorer`). Default: false, which
+   * preserves the legacy `graphActivation: 0` behavior for all
+   * candidates.
+   */
+  enableGraphActivation?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +232,13 @@ export class MemoryStore {
 
     await this.config.vectorStore.upsert(collection, [doc]);
 
-    // Record in knowledge graph as episodic memory
+    // Record in knowledge graph as episodic memory. Step 13: thread
+    // `trace.entities` through as `entityIds` (slugified for deterministic
+    // lookup). Previously hardcoded to `[]`, which silenced the sixth
+    // signal in the composite scoring formula.
+    const entityIds = (trace.entities ?? [])
+      .map(slugifyEntityId)
+      .filter((id) => id.length > 0);
     try {
       await this.config.knowledgeGraph.recordMemory({
         type: trace.type === 'episodic' ? 'conversation' : 'discovery',
@@ -226,7 +247,7 @@ export class MemoryStore {
         participants: [trace.scopeId],
         valence: trace.emotionalContext.valence,
         importance: trace.encodingStrength,
-        entityIds: [],
+        entityIds,
         embedding,
         occurredAt: new Date(trace.createdAt).toISOString(),
         outcome: 'unknown',
@@ -239,6 +260,13 @@ export class MemoryStore {
       });
     } catch {
       // Knowledge graph may not be available; non-critical
+    }
+
+    // Step 13: upsert entity nodes and co-occurrence edges when the
+    // feature flag is on. Non-critical; swallows errors so an unavailable
+    // KG backend does not block encoding.
+    if (this.config.enableGraphActivation) {
+      await this.ingestEntityGraph(trace);
     }
 
     // Cache trace and its embedding (avoids re-generation on recordAccess)
@@ -333,6 +361,50 @@ export class MemoryStore {
       metadataFilter.createdAt = { $gte: options.timeRange.after };
     }
 
+    // Step 13: compute graph activation for this query. Extract query
+    // entities, seed spreading activation from their entity nodes, build
+    // a per-entity-ID activation map. Per-candidate activation is computed
+    // inside the candidate loop as max over the trace's entity IDs. When
+    // the flag is off or no query entities are extracted, the map stays
+    // empty and all candidates get graphActivation = 0 (legacy).
+    const activationByEntityId: Map<string, number> = new Map();
+    if (this.config.enableGraphActivation) {
+      const queryEntities = extractEntities(queryText);
+      const seedIds = queryEntities
+        .map(slugifyEntityId)
+        .filter((id) => id.length > 0);
+      if (seedIds.length > 0) {
+        try {
+          const activated = await spreadActivation({
+            seedIds,
+            getNeighbors: async (nodeId) => {
+              const rels = await this.config.knowledgeGraph.getRelations(
+                nodeId,
+                { direction: 'both' },
+              );
+              return rels
+                .filter((r) => r.type === 'related_to' && r.label === 'co_occurs')
+                .map((r) => ({
+                  id: r.sourceId === nodeId ? r.targetId : r.sourceId,
+                  weight: r.weight ?? 1,
+                }));
+            },
+          });
+          for (const node of activated) {
+            activationByEntityId.set(node.memoryId, node.activation);
+          }
+          // Seeds themselves always count as fully-activated self-matches.
+          for (const id of seedIds) {
+            if (!activationByEntityId.has(id)) {
+              activationByEntityId.set(id, 1);
+            }
+          }
+        } catch {
+          // Non-critical: activation failure falls back to legacy behavior.
+        }
+      }
+    }
+
     // Search across scopes
     const allCandidates: CandidateTrace[] = [];
     const vectorSearchStart = Date.now();
@@ -370,10 +442,24 @@ export class MemoryStore {
             this.registerScope(trace.scope, trace.scopeId);
           }
 
+          // Step 13: per-candidate activation score. Max over the
+          // trace's entity IDs (slugified) against the query-seeded
+          // activation map. Zero when the feature flag is off, no
+          // query entities matched, or the trace has no entities.
+          let graphActivation = 0;
+          if (this.config.enableGraphActivation && activationByEntityId.size > 0) {
+            const ids = (trace.entities ?? [])
+              .map(slugifyEntityId)
+              .filter((id) => id.length > 0);
+            for (const id of ids) {
+              const a = activationByEntityId.get(id);
+              if (a !== undefined && a > graphActivation) graphActivation = a;
+            }
+          }
           allCandidates.push({
             trace,
             vectorSimilarity: result.similarityScore ?? 0,
-            graphActivation: 0, // Batch 2
+            graphActivation,
           });
         }
       } catch {
@@ -630,5 +716,63 @@ export class MemoryStore {
 
   private getKnownScopes(): Array<{ scope: MemoryScope; scopeId: string }> {
     return [...this.knownScopes.values()];
+  }
+
+  /**
+   * Step 13: upsert entity nodes for every label in `trace.entities` and
+   * create bidirectional `co_occurs` relations between every pair. Uses
+   * deterministic slug IDs via {@link slugifyEntityId}. Idempotent.
+   *
+   * Called from `store(trace)` only when `config.enableGraphActivation`
+   * is true. Non-critical: errors are caught and swallowed so an
+   * unavailable KG backend never blocks encoding.
+   *
+   * @param trace - The memory trace just persisted via `store`.
+   */
+  private async ingestEntityGraph(trace: MemoryTrace): Promise<void> {
+    const labels = trace.entities ?? [];
+    if (labels.length === 0) return;
+
+    const kg = this.config.knowledgeGraph;
+    const now = new Date().toISOString();
+
+    const ids: string[] = [];
+    for (const label of labels) {
+      const id = slugifyEntityId(label);
+      if (!id) continue;
+      try {
+        await kg.upsertEntity({
+          id,
+          type: 'concept',
+          label,
+          confidence: 1,
+          source: { type: 'conversation', timestamp: now },
+          properties: {},
+        });
+        ids.push(id);
+      } catch {
+        // Non-critical.
+      }
+    }
+
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        try {
+          await kg.upsertRelation({
+            sourceId: ids[i],
+            targetId: ids[j],
+            type: 'related_to',
+            label: 'co_occurs',
+            weight: 1,
+            bidirectional: true,
+            confidence: 1,
+            source: { type: 'conversation', timestamp: now },
+            properties: { traceId: trace.id, timestamp: now },
+          });
+        } catch {
+          // Non-critical.
+        }
+      }
+    }
   }
 }
