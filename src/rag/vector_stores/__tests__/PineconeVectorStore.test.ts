@@ -145,6 +145,21 @@ describe('PineconeVectorStore', () => {
       await store.initialize();
       expect(fetchCalls.length).toBe(count);
     });
+
+    it('retries throttled initialization checks with exponential backoff', async () => {
+      vi.useFakeTimers();
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({ namespaces: {}, totalVectorCount: 0 }));
+      store = new PineconeVectorStore(makeConfig());
+
+      const initPromise = store.initialize();
+      await vi.runAllTimersAsync();
+      await initPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[0].url).toContain('/describe_index_stats');
+      expect(fetchCalls[1].url).toContain('/describe_index_stats');
+    });
   });
 
   // =========================================================================
@@ -550,6 +565,27 @@ describe('PineconeVectorStore', () => {
       expect(result.deletedCount).toBe(3);
     });
 
+    it('retries throttled ID deletes with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({}));
+
+      const resultPromise = store.delete('ns', ['a', 'b']);
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(parseFetchBody(fetchCalls[0]).ids).toEqual(['a', 'b']);
+      expect(parseFetchBody(fetchCalls[1]).ids).toEqual(['a', 'b']);
+      expect(result.deletedCount).toBe(2);
+    });
+
     it('deleteAll sends deleteAll=true', async () => {
       fetchResponseQueue.push(okJson({})); // init
       store = new PineconeVectorStore(makeConfig());
@@ -562,6 +598,27 @@ describe('PineconeVectorStore', () => {
       const body = parseFetchBody(fetchCalls[0]);
       expect(body.deleteAll).toBe(true);
       expect(result.deletedCount).toBe(-1); // Pinecone doesn't return count.
+    });
+
+    it('retries throttled deleteAll requests with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({}));
+
+      const resultPromise = store.delete('ns', undefined, { deleteAll: true });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(parseFetchBody(fetchCalls[0]).deleteAll).toBe(true);
+      expect(parseFetchBody(fetchCalls[1]).deleteAll).toBe(true);
+      expect(result.deletedCount).toBe(-1);
     });
 
     it('deletes by metadata filter through /vectors/delete', async () => {
@@ -711,9 +768,37 @@ describe('PineconeVectorStore', () => {
       store = new PineconeVectorStore(makeConfig());
       await store.initialize();
       resetMocks();
+      vi.useFakeTimers();
 
-      mockFetch.mockRejectedValueOnce(new Error('network error'));
-      expect(await store.healthCheck()).toBe(false);
+      mockFetch
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockRejectedValueOnce(new Error('network error'));
+
+      const healthPromise = store.healthCheck();
+      await vi.runAllTimersAsync();
+
+      expect(await healthPromise).toBe(false);
+    });
+
+    it('retries throttled health checks with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({ namespaces: {}, totalVectorCount: 0 }));
+
+      const healthPromise = store.healthCheck();
+      await vi.runAllTimersAsync();
+
+      expect(await healthPromise).toBe(true);
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[0].url).toContain('/describe_index_stats');
+      expect(fetchCalls[1].url).toContain('/describe_index_stats');
     });
   });
 
