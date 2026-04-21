@@ -1,3 +1,7 @@
+## <small>0.1.249 (2026-04-21)</small>
+
+* feat(memory): getReflector() accessor + flushReflection() for forced reflection at caller boundaries ([e21e08e](https://github.com/framersai/agentos/commit/e21e08e))
+
 ## <small>0.1.248 (2026-04-21)</small>
 
 * feat(memory): HybridRetriever + progressive enhancement flags ship as v0.1.248 ([5657f31](https://github.com/framersai/agentos/commit/5657f31))
