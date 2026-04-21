@@ -13,6 +13,7 @@
  * @module agentos/memory/observation/MemoryReflector
  */
 
+import { createHash } from 'node:crypto';
 import type { MemoryTrace, MemoryType, MemoryScope } from '../../core/types.js';
 import type { HexacoTraits, PADState, ReflectorConfig } from '../../core/config.js';
 import type { ObservationNote } from './MemoryObserver.js';
@@ -144,6 +145,26 @@ After your <thinking> block, output JSON objects, one per line:
 
 Output your <thinking> block first, then ONLY valid JSON objects, one per line.`;
 }
+
+/**
+ * Content-addressed hash of the reflector system prompt, computed at
+ * module load time from the prompt rendered with neutral HEXACO traits.
+ * Exported so consumers (bench cache-key fingerprinting, observability)
+ * can auto-invalidate caches whenever the prompt text changes — no
+ * manual version bumping needed.
+ */
+const NEUTRAL_HEXACO_TRAITS: HexacoTraits = {
+  honesty: 0.5,
+  emotionality: 0.5,
+  extraversion: 0.5,
+  agreeableness: 0.5,
+  conscientiousness: 0.5,
+  openness: 0.5,
+} as HexacoTraits;
+
+export const REFLECTOR_PROMPT_HASH: string = createHash('sha256')
+  .update(buildReflectorSystemPrompt(NEUTRAL_HEXACO_TRAITS))
+  .digest('hex');
 
 // ---------------------------------------------------------------------------
 // MemoryReflector

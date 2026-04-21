@@ -231,7 +231,10 @@ export { ObservationBuffer } from './pipeline/observation/ObservationBuffer.js';
 export type { BufferedMessage, ObservationBufferConfig } from './pipeline/observation/ObservationBuffer.js';
 export { MemoryObserver } from './pipeline/observation/MemoryObserver.js';
 export type { ObservationNote } from './pipeline/observation/MemoryObserver.js';
-export { MemoryReflector } from './pipeline/observation/MemoryReflector.js';
+export {
+  MemoryReflector,
+  REFLECTOR_PROMPT_HASH,
+} from './pipeline/observation/MemoryReflector.js';
 export type { MemoryReflectionResult } from './pipeline/observation/MemoryReflector.js';
 
 // --- Observation Compression & Reflection ---
