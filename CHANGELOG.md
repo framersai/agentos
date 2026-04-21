@@ -1,3 +1,7 @@
+## <small>0.1.251 (2026-04-21)</small>
+
+* feat(memory): HybridRetriever emits per-stage candidate IDs in diagnostics ([b36c015](https://github.com/framersai/agentos/commit/b36c015))
+
 ## <small>0.1.250 (2026-04-21)</small>
 
 * fix(memory): flushReflection scopeOverride param — ensures reflection traces land in caller's scope, ([1ac24cb](https://github.com/framersai/agentos/commit/1ac24cb))
