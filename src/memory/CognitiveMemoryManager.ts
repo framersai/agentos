@@ -186,8 +186,18 @@ export interface ICognitiveMemoryManager {
    * notes regardless of accumulated-token threshold. Encoded reflection
    * traces land in the memory store; superseded trace IDs are soft-deleted.
    * Returns the IDs so callers can apply side effects (e.g. BM25 indexing).
+   *
+   * @param mood - Optional mood override passed to each encoded trace.
+   * @param scopeOverride - When set, overrides the `scope` + `scopeId` on
+   *   every reflection-derived trace before encoding. Needed when the
+   *   caller (e.g. bench adapter) needs all reflection traces to land in
+   *   the same scope the retrieval path queries, regardless of what the
+   *   reflector LLM invented.
    */
-  flushReflection(mood?: PADState): Promise<FlushReflectionResult>;
+  flushReflection(
+    mood?: PADState,
+    scopeOverride?: { scope: MemoryScope; scopeId: string },
+  ): Promise<FlushReflectionResult>;
 
   /** Get prospective-memory manager when enabled. */
   getProspective(): ProspectiveMemoryManager | null;
@@ -1189,8 +1199,17 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
    * threshold. Encodes reflection traces, soft-deletes superseded IDs.
    * Safe to call when no reflector or no pending notes exist (returns
    * an empty result). Errors do not propagate — reflection is non-critical.
+   *
+   * `scopeOverride` forces every encoded reflection trace to use the
+   * caller-supplied scope + scopeId, overriding whatever the reflector
+   * LLM invented. Callers that want all reflection traces to land in a
+   * single canonical scope (e.g. bench adapters that retrieve under
+   * `user/bench`) should pass this override.
    */
-  async flushReflection(mood?: PADState): Promise<FlushReflectionResult> {
+  async flushReflection(
+    mood?: PADState,
+    scopeOverride?: { scope: MemoryScope; scopeId: string },
+  ): Promise<FlushReflectionResult> {
     if (!this.reflector) {
       return { encodedTraceIds: [], supersededTraceIds: [], compressionRatio: 1 };
     }
@@ -1211,8 +1230,8 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         '',
         {
           type: traceData.type,
-          scope: traceData.scope,
-          scopeId: traceData.scopeId,
+          scope: scopeOverride?.scope ?? traceData.scope,
+          scopeId: scopeOverride?.scopeId ?? traceData.scopeId,
           sourceType: traceData.provenance.sourceType,
           tags: traceData.tags,
           entities: traceData.entities,
