@@ -104,7 +104,7 @@ const snapshot = await createCuratedSkillSnapshot({ skills: ['github', 'weather'
 ---
 
 ### [@framers/agentos-skills](https://github.com/framersai/agentos-skills)
-**Skills Content** — 69 curated SKILL.md prompt modules + `registry.json` index.
+**Skills Content** — 88 curated SKILL.md prompt modules + `registry.json` index.
 
 ```bash
 npm install @framers/agentos-skills
@@ -114,7 +114,7 @@ This is the content package for skills. The runtime engine (SkillLoader, SkillRe
 
 ```
 @framers/agentos/skills               <- Engine (SkillLoader, SkillRegistry, path utils)
-@framers/agentos-skills               <- Content (69 SKILL.md files + registry.json)
+@framers/agentos-skills               <- Content (88 SKILL.md files + registry.json)
 @framers/agentos-skills-registry      <- Catalog SDK (SKILLS_CATALOG, query helpers, factories)
 ```
 
@@ -159,7 +159,7 @@ npm install wunderland
 | Documentation | [agentos.sh/docs](https://agentos.sh/docs) |
 | API Reference | [agentos-live-docs branch](https://github.com/framersai/agentos/tree/agentos-live-docs) |
 | npm | [@framers/agentos](https://www.npmjs.com/package/@framers/agentos) |
-| Discord | [Join Community](https://discord.gg/3bYhhcrn) |
+| Discord | [Join Community](https://discord.gg/usEkfCeQxs) |
 | Twitter | [@framersai](https://twitter.com/framersai) |
 
 ---
