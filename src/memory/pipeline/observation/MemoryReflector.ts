@@ -110,8 +110,9 @@ Before producing traces, reason step by step inside <thinking> tags:
 3. What PATTERNS or PREFERENCES emerged? (procedural)
 4. What FUTURE INTENTIONS were expressed? (prospective)
 5. What RELATIONSHIP SIGNALS appeared — vulnerability, trust, conflict, warmth? (relational)
-6. Do any of these CONTRADICT existing memories? If so, which is more reliable?
-7. What can be MERGED from multiple notes into a single trace?
+6. What SPECIFIC TOKENS must be preserved verbatim? (names, dates, numeric amounts, addresses, phone numbers, product/model names, proper nouns, organization names, URLs)
+7. Do any of these CONTRADICT existing memories? If so, which is more reliable?
+8. What can be MERGED from multiple notes into a single trace?
 
 Rules:
 1. Merge redundant or overlapping observations into single traces
@@ -119,7 +120,12 @@ Rules:
 3. Assign a scope: "user" (about the user), "thread" (conversation-specific), "persona" (about the agent), or "organization" (shared)
 4. ${conflictStrategy}
 5. ${memoryStyle}
-6. Target 5-40x compression: many notes → few high-quality traces${relationalBlock}
+6. Target 5-40x compression: many notes → few high-quality traces
+7. PRESERVE LITERAL TOKENS. When a note contains specific values — names ("Alice", "Wells Fargo"), dates ("March 15, 2024"), numeric amounts ("$350,000", "3 days"), addresses, phone numbers, product or model names ("iPhone 15 Pro"), organization names, URLs — copy them VERBATIM into the consolidated trace's \`content\` field. Do NOT paraphrase, generalize, round, or abbreviate. Example:
+   ❌ "The user mentioned a recent residence change."
+   ✓ "User moved to Berlin on March 15, 2024."
+   ❌ "User was pre-approved for a mortgage."
+   ✓ "User pre-approved by Wells Fargo for \$350,000 mortgage."${relationalBlock}
 
 After your <thinking> block, output JSON objects, one per line:
 {
