@@ -1,3 +1,22 @@
+## <small>0.1.248 (2026-04-21)</small>
+
+* feat(memory): HybridRetriever + progressive enhancement flags ship as v0.1.248 ([5657f31](https://github.com/framersai/agentos/commit/5657f31))
+* memory: barrel exports + CognitiveMemoryManager.getRerankerService getter ([e6ac741](https://github.com/framersai/agentos/commit/e6ac741))
+* memory: barrel-export SessionSummaryStore + SessionRetriever; fix PADState import ([a563cf0](https://github.com/framersai/agentos/commit/a563cf0))
+* memory: FactSupersession post-retrieval LLM filter (drops superseded traces) ([30ae52a](https://github.com/framersai/agentos/commit/30ae52a))
+* memory: HybridRetriever for BM25 + dense RRF retrieval ([b32099d](https://github.com/framersai/agentos/commit/b32099d))
+* memory: HybridRetriever integration tests with real MemoryStore + BM25Index ([d44001a](https://github.com/framersai/agentos/commit/d44001a))
+* memory: HybridRetriever split-on-ambiguous rerank refinement (monotonic, additive) ([c2c0a52](https://github.com/framersai/agentos/commit/c2c0a52))
+* memory: optional HyDE retriever in HybridRetriever (hypothesis for dense+sparse, original query for  ([3781d75](https://github.com/framersai/agentos/commit/3781d75))
+* memory: reciprocalRankFusion for rank-based fusion of retrievers ([9c4a6f4](https://github.com/framersai/agentos/commit/9c4a6f4))
+* memory: restore SessionSummarizer + tests (tracked file missing from prior push — unblocks CI) ([1472981](https://github.com/framersai/agentos/commit/1472981))
+* memory: SessionRetriever for two-stage hierarchical retrieval ([b6aa1ef](https://github.com/framersai/agentos/commit/b6aa1ef))
+* memory: SessionRetriever integration tests with real in-memory components ([c9374e2](https://github.com/framersai/agentos/commit/c9374e2))
+* memory: SessionSummaryStore for session-level vector indexing ([aecfc85](https://github.com/framersai/agentos/commit/aecfc85))
+* memory(test): fix typecheck — test stubs cast as interface at usage sites, PADState from core/config ([732d475](https://github.com/framersai/agentos/commit/732d475))
+* docs(memory): architecture doc for SessionRetriever ([a41c4f9](https://github.com/framersai/agentos/commit/a41c4f9))
+* docs(memory): HybridRetriever architecture doc ([38f1d5f](https://github.com/framersai/agentos/commit/38f1d5f))
+
 ## <small>0.1.247 (2026-04-19)</small>
 
 * fix(memory): emit real scoringTimeMs + vectorSearchTimeMs diagnostics ([fc0b25c](https://github.com/framersai/agentos/commit/fc0b25c))
