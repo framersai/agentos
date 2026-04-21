@@ -1211,7 +1211,13 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
                     const filterDeleteResult = await store.delete(collectionName, undefined, {
                         filter: { originalDocumentId: docId },
                     });
-                    successCount += filterDeleteResult.deletedCount;
+                    if (filterDeleteResult.deletedCount > 0) {
+                        successCount += filterDeleteResult.deletedCount;
+                    } else if (filterDeleteResult.deletedCount < 0) {
+                        // Some providers accept the delete request but do not
+                        // return an exact count. Count the logical document as handled.
+                        successCount += 1;
+                    }
                     if (filterDeleteResult.errors) {
                         filterDeleteResult.errors.forEach((err: any) => {
                             errors.push({
@@ -1225,7 +1231,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
                     // If the provider deleted matching chunks (or surfaced concrete
                     // errors), we do not need to fall back to direct ID deletion.
-                    if (filterDeleteResult.deletedCount > 0 || filterDeleteResult.errors?.length) {
+                    if (filterDeleteResult.deletedCount !== 0 || filterDeleteResult.errors?.length) {
                         continue;
                     }
                 } catch {

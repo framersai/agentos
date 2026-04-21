@@ -106,6 +106,7 @@ describe('PineconeVectorStore', () => {
     try {
       await store?.close();
     } catch { /* ok */ }
+    vi.useRealTimers();
     resetMocks();
   });
 
@@ -126,6 +127,7 @@ describe('PineconeVectorStore', () => {
       // Verify headers include API key.
       const headers = fetchCalls[0].init.headers as Record<string, string>;
       expect(headers['Api-Key']).toBe('test-api-key-123');
+      expect(headers['X-Pinecone-Api-Version']).toBe('2026-04');
     });
 
     it('throws on non-OK response', async () => {
@@ -237,15 +239,71 @@ describe('PineconeVectorStore', () => {
       store = new PineconeVectorStore(makeConfig());
       await store.initialize();
       resetMocks();
+      vi.useFakeTimers();
 
       fetchResponseQueue.push(errResponse(500, 'server error'));
+      fetchResponseQueue.push(errResponse(500, 'server error'));
+      fetchResponseQueue.push(errResponse(500, 'server error'));
+      fetchResponseQueue.push(errResponse(500, 'server error'));
 
-      const result = await store.upsert('ns', [
+      const resultPromise = store.upsert('ns', [
         { id: 'f1', embedding: [1, 2, 3, 4] },
         { id: 'f2', embedding: [5, 6, 7, 8] },
       ]);
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
 
       expect(result.upsertedCount).toBe(0);
+      expect(result.failedCount).toBe(2);
+    });
+
+    it('retries throttled upsert batches with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({ upsertedCount: 1 }));
+
+      const resultPromise = store.upsert('ns', [
+        { id: 'u1', embedding: [0.1, 0.2, 0.3, 0.4] },
+      ]);
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[0].url).toContain('/vectors/upsert');
+      expect(fetchCalls[1].url).toContain('/vectors/upsert');
+      expect(result.upsertedCount).toBe(1);
+      expect(result.upsertedIds).toEqual(['u1']);
+      expect(result.failedCount).toBe(0);
+    });
+
+    it('does not claim failed batch ids as upserted', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(500, 'server error'));
+      fetchResponseQueue.push(errResponse(500, 'server error'));
+      fetchResponseQueue.push(errResponse(500, 'server error'));
+      fetchResponseQueue.push(errResponse(500, 'server error'));
+
+      const resultPromise = store.upsert('ns', [
+        { id: 'f1', embedding: [0.1, 0.2, 0.3, 0.4] },
+        { id: 'f2', embedding: [0.5, 0.6, 0.7, 0.8] },
+      ]);
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.upsertedCount).toBe(0);
+      expect(result.upsertedIds).toEqual([]);
       expect(result.failedCount).toBe(2);
     });
   });
@@ -301,6 +359,134 @@ describe('PineconeVectorStore', () => {
       await expect(
         store.query('ns', [1, 2, 3, 4]),
       ).rejects.toThrow('Pinecone query failed');
+    });
+
+    it('retries throttled queries with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({
+        matches: [{ id: 'm1', score: 0.91, metadata: { topic: 'ai' } }],
+      }));
+
+      const resultPromise = store.query('ns', [0.1, 0.2, 0.3, 0.4], {
+        topK: 1,
+        includeMetadata: true,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[0].url).toContain('/query');
+      expect(fetchCalls[1].url).toContain('/query');
+      expect(result.documents).toHaveLength(1);
+      expect(result.documents[0]).toMatchObject({
+        id: 'm1',
+        similarityScore: 0.91,
+        metadata: { topic: 'ai' },
+      });
+    });
+  });
+
+  describe('scanByMetadata()', () => {
+    it('uses fetch_by_metadata with namespace, filter, limit, and pagination token', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+
+      fetchResponseQueue.push(okJson({
+        vectors: {
+          first: {
+            id: 'first',
+            values: [0.11, 0.22, 0.33, 0.44],
+            metadata: { topic: 'ai', source: 'memory' },
+          },
+          second: {
+            id: 'second',
+            values: [0.55, 0.66, 0.77, 0.88],
+            metadata: { topic: 'ai', source: 'session' },
+          },
+        },
+        namespace: 'memory-ns',
+        pagination: {
+          next: 'page-2-token',
+        },
+      }));
+
+      const result = await store.scanByMetadata?.('memory-ns', {
+        filter: { topic: { $eq: 'ai' } },
+        limit: 2,
+        cursor: 'page-1-token',
+        includeEmbedding: true,
+        includeMetadata: true,
+      });
+
+      expect(fetchCalls.length).toBe(1);
+      expect(fetchCalls[0].url).toContain('/vectors/fetch_by_metadata');
+
+      const headers = fetchCalls[0].init.headers as Record<string, string>;
+      expect(headers['X-Pinecone-Api-Version']).toBe('2026-04');
+
+      const body = parseFetchBody(fetchCalls[0]);
+      expect(body.namespace).toBe('memory-ns');
+      expect(body.filter).toEqual({ topic: { $eq: 'ai' } });
+      expect(body.limit).toBe(2);
+      expect(body.paginationToken).toBe('page-1-token');
+
+      expect(result?.nextCursor).toBe('page-2-token');
+      expect(result?.documents).toHaveLength(2);
+      expect(result?.documents[0]).toMatchObject({
+        id: 'first',
+        similarityScore: 1,
+        embedding: [0.11, 0.22, 0.33, 0.44],
+        metadata: { topic: 'ai', source: 'memory' },
+      });
+      expect(result?.documents[1]).toMatchObject({
+        id: 'second',
+        similarityScore: 1,
+        embedding: [0.55, 0.66, 0.77, 0.88],
+        metadata: { topic: 'ai', source: 'session' },
+      });
+    });
+
+    it('retries throttled metadata scans with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({
+        vectors: {
+          first: {
+            id: 'first',
+            values: [0.1, 0.2, 0.3, 0.4],
+            metadata: { topic: 'ai' },
+          },
+        },
+      }));
+
+      const resultPromise = store.scanByMetadata?.('memory-ns', {
+        filter: { topic: { $eq: 'ai' } },
+        limit: 1,
+        includeMetadata: true,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[0].url).toContain('/vectors/fetch_by_metadata');
+      expect(fetchCalls[1].url).toContain('/vectors/fetch_by_metadata');
+      expect(result?.documents).toHaveLength(1);
+      expect(result?.documents[0].id).toBe('first');
     });
   });
 
@@ -376,6 +562,64 @@ describe('PineconeVectorStore', () => {
       const body = parseFetchBody(fetchCalls[0]);
       expect(body.deleteAll).toBe(true);
       expect(result.deletedCount).toBe(-1); // Pinecone doesn't return count.
+    });
+
+    it('deletes by metadata filter through /vectors/delete', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+
+      fetchResponseQueue.push(okJson({}));
+      const result = await store.delete('ns', undefined, {
+        filter: { originalDocumentId: 'doc-1' },
+      });
+
+      expect(fetchCalls).toHaveLength(1);
+      expect(fetchCalls[0].url).toContain('/vectors/delete');
+
+      const body = parseFetchBody(fetchCalls[0]);
+      expect(body.namespace).toBe('ns');
+      expect(body.filter).toEqual({ originalDocumentId: { $eq: 'doc-1' } });
+      expect(body.ids).toBeUndefined();
+      expect(body.deleteAll).toBeUndefined();
+      expect(result.deletedCount).toBe(-1);
+    });
+
+    it('retries throttled metadata deletes with exponential backoff', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+      vi.useFakeTimers();
+
+      fetchResponseQueue.push(errResponse(429, 'rate limited'));
+      fetchResponseQueue.push(okJson({}));
+
+      const resultPromise = store.delete('ns', undefined, {
+        filter: { originalDocumentId: 'doc-1' },
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(parseFetchBody(fetchCalls[0]).filter).toEqual({ originalDocumentId: { $eq: 'doc-1' } });
+      expect(parseFetchBody(fetchCalls[1]).filter).toEqual({ originalDocumentId: { $eq: 'doc-1' } });
+      expect(result.deletedCount).toBe(-1);
+    });
+
+    it('throws when ids and filter are both provided', async () => {
+      fetchResponseQueue.push(okJson({})); // init
+      store = new PineconeVectorStore(makeConfig());
+      await store.initialize();
+      resetMocks();
+
+      await expect(
+        store.delete('ns', ['doc-1'], { filter: { originalDocumentId: 'doc-1' } }),
+      ).rejects.toThrow('Pinecone delete options are mutually exclusive');
+
+      expect(fetchCalls).toHaveLength(0);
     });
 
     it('returns 0 when no ids and not deleteAll', async () => {
