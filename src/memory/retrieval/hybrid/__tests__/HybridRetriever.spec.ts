@@ -96,6 +96,38 @@ describe('HybridRetriever', () => {
     expect(result.diagnostics.escalations).toContain('hybrid-retriever:sparse-empty');
   });
 
+  it('emits ranked candidate IDs per stage in diagnostics', async () => {
+    const memoryStore = new FakeMemoryStore([mkTrace('a', 0.9), mkTrace('b', 0.8)]);
+    const reranker = new FakeReranker();
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+      rerankerService: reranker as unknown as RerankerService,
+    });
+    r.bm25.addDocument('a', 'alpha');
+    r.bm25.addDocument('b', 'beta');
+
+    const result = await r.retrieve('alpha', neutralMood, scope, { recallTopK: 2 });
+
+    expect(result.diagnostics.stageIds).toBeDefined();
+    expect(result.diagnostics.stageIds!.dense).toEqual(expect.arrayContaining(['a', 'b']));
+    expect(result.diagnostics.stageIds!.sparse.length).toBeGreaterThan(0);
+    expect(result.diagnostics.stageIds!.merged.length).toBeGreaterThan(0);
+    expect(result.diagnostics.stageIds!.reranked.length).toBeGreaterThan(0);
+    expect(result.diagnostics.stageIds!.final).toContain('a');
+  });
+
+  it('emits dense + final stage IDs even when BM25 sparse list is empty', async () => {
+    const memoryStore = new FakeMemoryStore([mkTrace('a', 0.9)]);
+    const r = new HybridRetriever({
+      memoryStore: memoryStore as unknown as MemoryStore,
+    });
+    const result = await r.retrieve('q', neutralMood, scope, { recallTopK: 1 });
+    expect(result.diagnostics.stageIds).toBeDefined();
+    expect(result.diagnostics.stageIds!.dense).toContain('a');
+    expect(result.diagnostics.stageIds!.sparse).toEqual([]);
+    expect(result.diagnostics.stageIds!.final).toContain('a');
+  });
+
   it('rerank applied when rerankerService present', async () => {
     const memoryStore = new FakeMemoryStore([mkTrace('t1', 0.9), mkTrace('t2', 0.8)]);
     const reranker = new FakeReranker();

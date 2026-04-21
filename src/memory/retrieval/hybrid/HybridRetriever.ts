@@ -161,6 +161,17 @@ export class HybridRetriever {
     const wSparse = options.sparseWeight ?? this.defaultSparseWeight;
     const rrfK = options.rrfK ?? this.defaultRrfK;
 
+    // Per-stage ranked ID accumulators. Filled as each stage runs so
+    // the final diagnostics carry a full trace of where each candidate
+    // lived at every step of the pipeline.
+    const stageIds: {
+      dense: string[];
+      sparse: string[];
+      merged: string[];
+      reranked: string[];
+      final: string[];
+    } = { dense: [], sparse: [], merged: [], reranked: [], final: [] };
+
     // HyDE expansion (Step 4): when a hydeRetriever is attached,
     // generate a hypothetical answer and use it as the query for BOTH
     // dense and sparse sides. The reranker (below) keeps the ORIGINAL
@@ -187,20 +198,25 @@ export class HybridRetriever {
       mood,
       { topK: overFetchTopK, scopes: [scope] },
     );
+    stageIds.dense = denseScored.map((t) => t.id);
 
     // Sparse side: BM25 over the per-instance index.
     const sparseResults = this.bm25.search(effectiveQuery, overFetchTopK);
+    stageIds.sparse = sparseResults.map((r) => r.id);
 
     // Fallback: empty BM25 index or zero sparse hits => dense-only
     // with explicit escalation diagnostic.
     if (sparseResults.length === 0) {
-      return this.buildResult(denseScored.slice(0, recallTopK), {
+      const denseFinal = denseScored.slice(0, recallTopK);
+      stageIds.final = denseFinal.map((t) => t.id);
+      return this.buildResult(denseFinal, {
         escalations: ['hybrid-retriever:sparse-empty'],
         candidatesScanned: denseScored.length,
         vectorSearchMs: denseTimings.vectorSearchMs,
         scoringMs: denseTimings.scoringMs,
         totalMs: Date.now() - startTime,
         hypothesis: hypothesisDiagnostic,
+        stageIds,
       });
     }
 
@@ -212,6 +228,7 @@ export class HybridRetriever {
       sparseWeight: wSparse,
       k: rrfK,
     });
+    stageIds.merged = merged.map((m) => m.id);
 
     // Hydrate: resolve each RRFResult.id to the ScoredMemoryTrace from
     // the dense side. Skip sparse-only docs (see file docstring).
@@ -265,6 +282,7 @@ export class HybridRetriever {
         }
 
         hydrated.sort((a, b) => b.retrievalScore - a.retrievalScore);
+        stageIds.reranked = hydrated.map((t) => t.id);
       } catch {
         // Reranker errors are non-critical: keep RRF ordering.
       }
@@ -272,6 +290,7 @@ export class HybridRetriever {
 
     // Truncate to recallTopK.
     const truncated = hydrated.slice(0, recallTopK);
+    stageIds.final = truncated.map((t) => t.id);
     return this.buildResult(truncated, {
       candidatesScanned: denseScored.length + sparseResults.length,
       vectorSearchMs: denseTimings.vectorSearchMs,
@@ -279,6 +298,7 @@ export class HybridRetriever {
       totalMs: Date.now() - startTime,
       hypothesis: hypothesisDiagnostic,
       splitOnAmbiguous: splitDiagnostic,
+      stageIds,
     });
   }
 
@@ -293,6 +313,13 @@ export class HybridRetriever {
       totalMs: number;
       hypothesis?: string;
       splitOnAmbiguous?: { threshold: number; candidateCount: number; replacedIds: string[] };
+      stageIds?: {
+        dense: string[];
+        sparse: string[];
+        merged: string[];
+        reranked: string[];
+        final: string[];
+      };
     },
   ): CognitiveRetrievalResult {
     return {
@@ -306,6 +333,7 @@ export class HybridRetriever {
         ...(d.escalations ? { escalations: d.escalations } : {}),
         ...(d.hypothesis ? { hyde: { hypothesis: d.hypothesis } } : {}),
         ...(d.splitOnAmbiguous ? { splitOnAmbiguous: d.splitOnAmbiguous } : {}),
+        ...(d.stageIds ? { stageIds: d.stageIds } : {}),
       },
     };
   }

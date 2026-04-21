@@ -285,6 +285,21 @@ export interface CognitiveRetrievalResult {
       candidateCount: number;
       replacedIds: string[];
     };
+    /**
+     * Per-stage ranked trace IDs for the hybrid retrieval pipeline
+     * (dense → sparse → merged → reranked → final). Populated by
+     * `HybridRetriever` so downstream consumers can compute per-stage
+     * retrieval-quality metrics (Recall@K, NDCG@K, MRR) and attribute
+     * losses to the stage that caused them. Absent for non-hybrid
+     * retrieval paths.
+     */
+    stageIds?: {
+      dense: string[];
+      sparse: string[];
+      merged: string[];
+      reranked: string[];
+      final: string[];
+    };
   };
 }
 
