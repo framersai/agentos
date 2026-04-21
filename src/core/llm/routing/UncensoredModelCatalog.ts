@@ -127,20 +127,19 @@ const TEXT_MODELS: CatalogEntry[] = [
   // returns "No endpoints found" on every call. Same story: pure
   // latency in the fallback path with no functional benefit. If the
   // upstream fixes its catalog, re-add with the same config.
-  // MythoMax stays only because a bottom-tier uncensored model is still
-  // useful when everything above refuses — but the companion orchestrator
-  // now runs a coherence check on its output, so the DAX / SQL training-
-  // data leaks it frequently produces are rejected before shipping to
-  // the user.
-  {
-    modelId: 'gryphe/mythomax-l2-13b',
-    displayName: 'MythoMax L2 13B',
-    providerId: 'openrouter',
-    modality: 'text',
-    quality: 'low',
-    contentPermissions: ['general', 'romantic', 'erotic', 'violent', 'horror'],
-    capabilities: ['chat'],
-  },
+  // Removed `gryphe/mythomax-l2-13b` on 2026-04-21. The coherence
+  // gate caught its SQL/DAX training-data leaks but not its other
+  // failure modes: classical-literature rambling (triggered on
+  // "Avoiding the direct question, Remarks to the curious, as I
+  // recall... Greek, Roman, and Norse writers, from Homer's epics to
+  // Ovid's myths..."), fantasy-farewell slop ("we might meet in
+  // another life, another world. Until then, I must return to the
+  // shadows of history, and you to your mortal realm. Farewell.")
+  // and occasional Devanagari token corruption. All surfaced in
+  // production as Cleopatra VII responses and made a $10 companion
+  // chat look like a broken chatbot demo. The last two candidates
+  // (Hermes 405B + 70B) handle the refusal-retry path fine; Haiku
+  // last-resort catches anything they miss.
 ];
 
 /** Curated image models available via Replicate. */
@@ -258,11 +257,12 @@ export function createUncensoredModelCatalog(): UncensoredModelCatalog {
         const preferred = [
           'nousresearch/hermes-3-llama-3.1-405b',
           'nousresearch/hermes-3-llama-3.1-70b',
-          // Dolphin Mixtral 8x22B and Dolphin 3.0 8B are removed from the
-          // catalog — OpenRouter returns 404/invalid on both slugs. Their
-          // names stayed here as stale priority hints. If upstream ever
-          // relists them, re-add + restore this priority list.
-          'gryphe/mythomax-l2-13b',
+          // Dolphin Mixtral 8x22B, Dolphin 3.0 8B, and MythoMax L2 13B
+          // are all removed from the live catalog — the first two are
+          // gone from OpenRouter, MythoMax was producing classical-
+          // literature rambling and fantasy-farewell slop that shipped
+          // to users. See the CATALOG_ENTRIES array for the full
+          // removal rationale.
         ];
         candidates.sort((a, b) => {
           const aIdx = preferred.indexOf(a.modelId);
