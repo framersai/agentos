@@ -4,9 +4,9 @@ import { SessionSummaryStore } from '../SessionSummaryStore.js';
 import type {
   ScoredMemoryTrace,
   CognitiveRetrievalOptions,
-  PADState,
   MemoryScope,
 } from '../../../core/types.js';
+import type { PADState } from '../../../core/config.js';
 
 class FakeSummaryStore {
   constructor(private sessions: Array<{ sessionId: string; similarity: number }> = []) {}
