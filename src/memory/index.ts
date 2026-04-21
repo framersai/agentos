@@ -207,6 +207,25 @@ export type {
   RRFResult,
 } from './retrieval/hybrid/reciprocalRankFusion.js';
 
+// --- Fact-graph (Step 9, Mem0-style tuple extraction) ---
+// Closed-schema LLM fact extraction + in-memory FactStore keyed by
+// (scope, subject, predicate). Preserves literal object tokens where
+// summary-based approaches (Steps 5, 7, 8) erased them.
+export { FactStore, FactExtractor } from './retrieval/fact-graph/index.js';
+export type {
+  Fact,
+  FactStoreEntry,
+  FactExtractorOptions,
+  FactExtractorSession,
+} from './retrieval/fact-graph/index.js';
+export {
+  canonicalizeSubject,
+  hashSubject,
+  hashPredicate,
+  isValidPredicate,
+  PREDICATE_SCHEMA,
+} from './retrieval/fact-graph/index.js';
+
 // --- Observation System ---
 export { ObservationBuffer } from './pipeline/observation/ObservationBuffer.js';
 export type { BufferedMessage, ObservationBufferConfig } from './pipeline/observation/ObservationBuffer.js';
