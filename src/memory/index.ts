@@ -362,7 +362,7 @@ export {
 // ---------------------------------------------------------------------------
 
 export { CognitiveMemoryManager } from './CognitiveMemoryManager.js';
-export type { ICognitiveMemoryManager } from './CognitiveMemoryManager.js';
+export type { ICognitiveMemoryManager, FlushReflectionResult } from './CognitiveMemoryManager.js';
 
 // ---------------------------------------------------------------------------
 // Cognitive Mechanisms (optional)
