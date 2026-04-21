@@ -1,3 +1,7 @@
+## <small>0.1.250 (2026-04-21)</small>
+
+* fix(memory): flushReflection scopeOverride param — ensures reflection traces land in caller's scope, ([1ac24cb](https://github.com/framersai/agentos/commit/1ac24cb))
+
 ## <small>0.1.249 (2026-04-21)</small>
 
 * feat(memory): getReflector() accessor + flushReflection() for forced reflection at caller boundaries ([e21e08e](https://github.com/framersai/agentos/commit/e21e08e))
