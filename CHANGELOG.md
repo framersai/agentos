@@ -1,3 +1,11 @@
+## <small>0.1.252 (2026-04-21)</small>
+
+* fix(llm-routing): drop MythoMax L2 13B from uncensored catalog ([ef21e90](https://github.com/framersai/agentos/commit/ef21e90))
+* feat(memory): export fact-graph module from memory barrel ([7f05f56](https://github.com/framersai/agentos/commit/7f05f56))
+* feat(memory): fact-graph canonicalization + 25-predicate closed schema ([7f3af44](https://github.com/framersai/agentos/commit/7f3af44))
+* feat(memory): FactExtractor — LLM fact extraction with closed schema + session cache ([af4bbcc](https://github.com/framersai/agentos/commit/af4bbcc))
+* feat(memory): FactStore — in-memory fact-graph keyed by scope/subject/predicate ([4d7b8fc](https://github.com/framersai/agentos/commit/4d7b8fc))
+
 ## <small>0.1.251 (2026-04-21)</small>
 
 * feat(memory): HybridRetriever emits per-stage candidate IDs in diagnostics ([b36c015](https://github.com/framersai/agentos/commit/b36c015))
