@@ -267,6 +267,19 @@ export interface CognitiveMemoryConfig {
   /** @default 'cogmem' */
   collectionPrefix?: string;
 
+  /**
+   * Step 13: enable graph activation. Propagates to
+   * `MemoryStoreConfig.enableGraphActivation`. When true, the internal
+   * `MemoryStore` upserts entity nodes + `related_to:co_occurs` edges
+   * at encode time (from `trace.entities`), and seeds Anderson
+   * spreading activation from query-extracted entities at retrieve to
+   * compute the sixth composite-scoring signal. Default: false (legacy
+   * behavior, `graphActivation` signal is a silent zero).
+   *
+   * @default false
+   */
+  enableGraphActivation?: boolean;
+
   // --- Persistence (optional) ---
   /**
    * Optional SqliteBrain instance for durable persistence.
