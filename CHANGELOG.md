@@ -1,3 +1,7 @@
+## <small>0.1.255 (2026-04-21)</small>
+
+* feat(memory): export REFLECTOR_PROMPT_HASH for content-addressed cache keys ([c1fb669](https://github.com/framersai/agentos/commit/c1fb669))
+
 ## <small>0.1.254 (2026-04-21)</small>
 
 * feat(memory): MemoryReflector prompt preserves literal tokens verbatim ([35b75ae](https://github.com/framersai/agentos/commit/35b75ae))
