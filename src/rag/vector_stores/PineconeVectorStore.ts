@@ -88,7 +88,7 @@ export class PineconeVectorStore implements IVectorStore {
     if (this.isInitialized) return;
 
     // Ping the index to verify API key and host are correct.
-    const res = await this._fetch('/describe_index_stats', { method: 'POST', body: '{}' });
+    const res = await this._fetchWithRetry('/describe_index_stats', { method: 'POST', body: '{}' });
     if (!res.ok) {
       const body = await res.text().catch(() => 'unknown error');
       throw new Error(`Pinecone initialization failed (${res.status}): ${body}`);
@@ -110,7 +110,7 @@ export class PineconeVectorStore implements IVectorStore {
   /** Health check — verify index is reachable (legacy). */
   async healthCheck(): Promise<boolean> {
     try {
-      const res = await this._fetch('/describe_index_stats', { method: 'POST', body: '{}' });
+      const res = await this._fetchWithRetry('/describe_index_stats', { method: 'POST', body: '{}' });
       return res.ok;
     } catch {
       return false;
@@ -145,11 +145,7 @@ export class PineconeVectorStore implements IVectorStore {
    */
   async dropCollection(name: string): Promise<void> {
     await this._ensureInit();
-    const ns = name || this.config.namespace || '';
-    await this._fetch('/vectors/delete', {
-      method: 'POST',
-      body: JSON.stringify({ deleteAll: true, namespace: ns }),
-    });
+    await this.delete(name, undefined, { deleteAll: true });
   }
 
   // =========================================================================
@@ -464,7 +460,7 @@ export class PineconeVectorStore implements IVectorStore {
     }
 
     if (hasDeleteAll) {
-      await this._fetch('/vectors/delete', {
+      await this._fetchWithRetry('/vectors/delete', {
         method: 'POST',
         body: JSON.stringify({ deleteAll: true, namespace: ns }),
       });
@@ -477,7 +473,7 @@ export class PineconeVectorStore implements IVectorStore {
       let deleted = 0;
       for (let i = 0; i < ids.length; i += batchSize) {
         const batch = ids.slice(i, i + batchSize);
-        const res = await this._fetch('/vectors/delete', {
+        const res = await this._fetchWithRetry('/vectors/delete', {
           method: 'POST',
           body: JSON.stringify({ ids: batch, namespace: ns }),
         });
@@ -537,9 +533,6 @@ export class PineconeVectorStore implements IVectorStore {
 
   /**
    * Retry transient Pinecone failures with exponential backoff.
-   *
-   * This is intentionally scoped to metadata-heavy operations in this adapter,
-   * where Pinecone documents lower request-per-second limits.
    */
   private async _fetchWithRetry(
     path: string,
