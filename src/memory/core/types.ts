@@ -34,7 +34,8 @@ export type MemorySourceType =
   | 'tool_result'
   | 'observation'
   | 'reflection'
-  | 'external';
+  | 'external'
+  | 'fact_graph';
 
 // ---------------------------------------------------------------------------
 // Provenance (source monitoring — prevents confabulation)

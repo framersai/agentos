@@ -53,6 +53,9 @@ import type {
   ScoredMemoryTrace,
 } from '../../core/types.js';
 import type { PADState } from '../../core/config.js';
+import type { FactStore } from '../fact-graph/FactStore.js';
+import type { Fact } from '../fact-graph/types.js';
+import { PREDICATE_SCHEMA, hashPredicate, hashSubject } from '../fact-graph/canonicalization.js';
 
 /**
  * Options for constructing a {@link HybridRetriever}.
@@ -93,7 +96,34 @@ export interface HybridRetrieverOptions {
   defaultSparseWeight?: number;
   /** Default RRF constant. @default 60 */
   defaultRrfK?: number;
+  /**
+   * Step-9: optional {@link FactStore} of `(subject, predicate) → Fact[]`
+   * tuples extracted at session-ingest time. When present AND the query
+   * classifier extracts at least one `(subject, predicate)` pair from
+   * the query, the latest fact per pair is prepended as a synthetic
+   * {@link ScoredMemoryTrace} (retrievalScore: 1.0, sourceType:
+   * 'fact_graph') to the merged pool BEFORE rerank. Preserves literal
+   * `object` tokens where summary-based approaches (Steps 5/7/8)
+   * paraphrased them away.
+   */
+  factStore?: FactStore;
+  /**
+   * Step-9: optional query classifier. Given the user's query, returns
+   * `(subject, predicate)` pairs to look up in the {@link factStore},
+   * plus whether the query is temporal (in which case ALL facts for a
+   * subject are prepended, not just the latest). When absent and
+   * `factStore` is set, a keyword-based default is used.
+   */
+  factGraphQueryClassifier?: FactGraphQueryClassifier;
 }
+
+/** Return type of a fact-graph query classifier. */
+export interface FactGraphClassification {
+  isTemporalQuestion: boolean;
+  extractedSubjectPredicates: Array<{ subject: string; predicate: string }>;
+}
+
+export type FactGraphQueryClassifier = (query: string) => FactGraphClassification;
 
 /**
  * Per-call options for {@link HybridRetriever.retrieve}.
@@ -135,6 +165,8 @@ export class HybridRetriever {
   private readonly defaultDenseWeight: number;
   private readonly defaultSparseWeight: number;
   private readonly defaultRrfK: number;
+  private readonly factStore?: FactStore;
+  private readonly factGraphQueryClassifier: FactGraphQueryClassifier;
 
   constructor(opts: HybridRetrieverOptions) {
     this.memoryStore = opts.memoryStore;
@@ -145,6 +177,9 @@ export class HybridRetriever {
     this.defaultDenseWeight = opts.defaultDenseWeight ?? 0.7;
     this.defaultSparseWeight = opts.defaultSparseWeight ?? 0.3;
     this.defaultRrfK = opts.defaultRrfK ?? 60;
+    this.factStore = opts.factStore;
+    this.factGraphQueryClassifier =
+      opts.factGraphQueryClassifier ?? defaultKeywordFactGraphClassifier;
   }
 
   async retrieve(
@@ -171,6 +206,14 @@ export class HybridRetriever {
       reranked: string[];
       final: string[];
     } = { dense: [], sparse: [], merged: [], reranked: [], final: [] };
+
+    // Step-9: build synthetic fact-graph traces to prepend before
+    // rerank. Empty array when factStore is unset or the classifier
+    // extracts no (subject, predicate) pairs from the query.
+    const factGraphTraces =
+      this.factStore
+        ? this.buildFactGraphTraces(query, scope)
+        : [];
 
     // HyDE expansion (Step 4): when a hydeRetriever is attached,
     // generate a hypothetical answer and use it as the query for BOTH
@@ -205,13 +248,16 @@ export class HybridRetriever {
     stageIds.sparse = sparseResults.map((r) => r.id);
 
     // Fallback: empty BM25 index or zero sparse hits => dense-only
-    // with explicit escalation diagnostic.
+    // with explicit escalation diagnostic. Fact-graph synthetic traces
+    // still prepend (Step 9) since they're an additive signal independent
+    // of BM25.
     if (sparseResults.length === 0) {
-      const denseFinal = denseScored.slice(0, recallTopK);
+      const combined = [...factGraphTraces, ...denseScored];
+      const denseFinal = combined.slice(0, recallTopK);
       stageIds.final = denseFinal.map((t) => t.id);
       return this.buildResult(denseFinal, {
         escalations: ['hybrid-retriever:sparse-empty'],
-        candidatesScanned: denseScored.length,
+        candidatesScanned: combined.length,
         vectorSearchMs: denseTimings.vectorSearchMs,
         scoringMs: denseTimings.scoringMs,
         totalMs: Date.now() - startTime,
@@ -234,6 +280,15 @@ export class HybridRetriever {
     // the dense side. Skip sparse-only docs (see file docstring).
     const denseById = new Map(denseScored.map((t) => [t.id, t]));
     const hydrated: ScoredMemoryTrace[] = [];
+    // Step-9: prepend synthetic fact-graph traces BEFORE the rerank
+    // pass. Each synthetic trace carries retrievalScore: 1.0 so it
+    // enters the rerank input at the top; rerank can still downrank it
+    // if it genuinely misses the query, in which case the blend
+    // reflects that. This is the composition discipline that let Step 3
+    // Hybrid ship — additive signal, not destructive replacement.
+    for (const synthetic of factGraphTraces) {
+      hydrated.push(synthetic);
+    }
     for (const m of merged) {
       const trace = denseById.get(m.id);
       if (trace) {
@@ -412,6 +467,103 @@ export class HybridRetriever {
   }
 
   /**
+   * Step-9: build synthetic `ScoredMemoryTrace[]` from the fact-graph.
+   * Uses the configured classifier to extract (subject, predicate)
+   * pairs from the query. For temporal questions, returns ALL facts
+   * for each extracted subject (time-ordered ascending). For non-
+   * temporal questions, returns only the LATEST fact per (subject,
+   * predicate) pair.
+   */
+  private buildFactGraphTraces(
+    query: string,
+    scope: { scope: MemoryScope; scopeId: string },
+  ): ScoredMemoryTrace[] {
+    if (!this.factStore) return [];
+    const classification = this.factGraphQueryClassifier(query);
+    const out: ScoredMemoryTrace[] = [];
+    const seenFactIds = new Set<string>();
+
+    for (const { subject, predicate } of classification.extractedSubjectPredicates) {
+      if (classification.isTemporalQuestion) {
+        // Temporal: include all facts for the subject across all predicates
+        // in the schema — temporal reasoning often spans multiple facts.
+        const all = this.factStore.getAllTimeOrdered(scope.scope, scope.scopeId, subject);
+        for (const fact of all) {
+          const id = this.factTraceId(fact);
+          if (seenFactIds.has(id)) continue;
+          seenFactIds.add(id);
+          out.push(this.factToScoredTrace(fact, scope));
+        }
+      } else {
+        const latest = this.factStore.getLatest(
+          scope.scope,
+          scope.scopeId,
+          subject,
+          predicate,
+        );
+        if (!latest) continue;
+        const id = this.factTraceId(latest);
+        if (seenFactIds.has(id)) continue;
+        seenFactIds.add(id);
+        out.push(this.factToScoredTrace(latest, scope));
+      }
+    }
+    return out;
+  }
+
+  private factTraceId(fact: Fact): string {
+    return `fact-graph:${hashSubject(fact.subject)}:${hashPredicate(fact.predicate)}:${fact.timestamp}`;
+  }
+
+  private factToScoredTrace(
+    fact: Fact,
+    scope: { scope: MemoryScope; scopeId: string },
+  ): ScoredMemoryTrace {
+    const id = this.factTraceId(fact);
+    return {
+      id,
+      type: 'semantic',
+      scope: scope.scope,
+      scopeId: scope.scopeId,
+      content: `${fact.subject} ${fact.predicate} ${fact.object} (as of ${new Date(fact.timestamp).toISOString()}).`,
+      entities: [fact.subject],
+      tags: ['fact-graph', `predicate:${fact.predicate}`],
+      provenance: {
+        sourceType: 'fact_graph',
+        sourceTimestamp: fact.timestamp,
+        confidence: 1,
+        verificationCount: 0,
+      },
+      emotionalContext: {
+        valence: 0,
+        arousal: 0,
+        dominance: 0,
+        intensity: 0,
+        gmiMood: '',
+      },
+      encodingStrength: 1,
+      stability: 1,
+      retrievalCount: 0,
+      lastAccessedAt: fact.timestamp,
+      accessCount: 0,
+      reinforcementInterval: 0,
+      associatedTraceIds: [],
+      createdAt: fact.timestamp,
+      updatedAt: fact.timestamp,
+      isActive: true,
+      retrievalScore: 1,
+      scoreBreakdown: {
+        strengthScore: 1,
+        similarityScore: 1,
+        recencyScore: 1,
+        emotionalCongruenceScore: 0,
+        graphActivationScore: 0,
+        importanceScore: 1,
+      },
+    };
+  }
+
+  /**
    * Split a string at the sentence boundary nearest its midpoint.
    * Returns [firstHalf, secondHalf] or null if the string is too short
    * or no valid boundary is found.
@@ -440,4 +592,44 @@ export class HybridRetriever {
     if (spaceIdx === -1 || spaceIdx >= text.length - 1) return null;
     return [text.slice(0, spaceIdx).trim(), text.slice(spaceIdx + 1).trim()];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Default fact-graph query classifier (keyword-based, zero-LLM MVP)
+// ---------------------------------------------------------------------------
+
+const TEMPORAL_MARKERS =
+  /\b(first|last|when|before|after|most recent|originally|initially|latest)\b/i;
+const FIRST_PERSON_IN_QUERY = /\b(i|my|me|user)\b/i;
+
+/**
+ * Default keyword-based classifier for fact-graph query expansion.
+ * Recognizes:
+ * - Temporal markers ("first", "last", "when", "before", "after", ...)
+ * - First-person references ("I", "my", "me", "user") → subject "user"
+ * - Predicate stems present in the query
+ *
+ * MVP-scoped: LLM-based classification is a follow-up experiment if this
+ * keyword path misses on Tier A. The priority is keeping query-time zero
+ * LLM overhead on queries the classifier skips.
+ */
+export function defaultKeywordFactGraphClassifier(
+  query: string,
+): FactGraphClassification {
+  const isTemporalQuestion = TEMPORAL_MARKERS.test(query);
+  const extractedSubjectPredicates: Array<{ subject: string; predicate: string }> = [];
+
+  if (!FIRST_PERSON_IN_QUERY.test(query)) {
+    return { isTemporalQuestion, extractedSubjectPredicates };
+  }
+  const lowerQuery = query.toLowerCase();
+  for (const predicate of PREDICATE_SCHEMA) {
+    // Match the predicate stem OR its common inflections. A cheap
+    // substring check beats regex compilation per query.
+    const stem = predicate.toLowerCase();
+    if (lowerQuery.includes(stem)) {
+      extractedSubjectPredicates.push({ subject: 'user', predicate });
+    }
+  }
+  return { isTemporalQuestion, extractedSubjectPredicates };
 }
