@@ -1,3 +1,7 @@
+## <small>0.1.254 (2026-04-21)</small>
+
+* feat(memory): MemoryReflector prompt preserves literal tokens verbatim ([35b75ae](https://github.com/framersai/agentos/commit/35b75ae))
+
 ## <small>0.1.253 (2026-04-21)</small>
 
 * feat(memory): HybridRetriever fact-graph integration + synthetic trace prepending ([1147043](https://github.com/framersai/agentos/commit/1147043))
