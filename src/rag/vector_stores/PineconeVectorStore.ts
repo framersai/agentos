@@ -24,6 +24,8 @@ import type {
   RetrievedVectorDocument,
   QueryOptions,
   QueryResult,
+  MetadataScanOptions,
+  MetadataScanResult,
   UpsertOptions,
   UpsertResult,
   DeleteOptions,
@@ -34,6 +36,14 @@ import type {
   MetadataValue,
 } from '../IVectorStore.js';
 
+const DEFAULT_PINECONE_API_VERSION = '2026-04';
+const DEFAULT_PINECONE_MAX_RETRIES = 3;
+const DEFAULT_PINECONE_RETRY_DELAY_MS = 500;
+const DEFAULT_PINECONE_MAX_RETRY_DELAY_MS = 4000;
+const RETRYABLE_PINECONE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -43,6 +53,8 @@ export interface PineconeVectorStoreConfig extends VectorStoreProviderConfig {
   type: 'pinecone';
   /** Pinecone API key. Required. */
   apiKey: string;
+  /** Explicit Pinecone API version header. Defaults to the current stable version used by this adapter. */
+  apiVersion?: string;
   /**
    * Pinecone index host URL (e.g. 'https://my-index-abc123.svc.aped-1234.pinecone.io').
    * This is the Data Plane endpoint for a specific index — NOT the control plane URL.
@@ -157,6 +169,7 @@ export class PineconeVectorStore implements IVectorStore {
     const ns = collectionName || this.config.namespace || '';
     const batchSize = 100; // Pinecone max vectors per upsert request.
     let successCount = 0;
+    const successfulIds: string[] = [];
     const failedIds: string[] = [];
     const sparseVectorsById = this._readSparseVectorsById(options?.customParams);
 
@@ -175,7 +188,7 @@ export class PineconeVectorStore implements IVectorStore {
       });
 
       try {
-        const res = await this._fetch('/vectors/upsert', {
+        const res = await this._fetchWithRetry('/vectors/upsert', {
           method: 'POST',
           body: JSON.stringify({ vectors, namespace: ns }),
         });
@@ -183,6 +196,7 @@ export class PineconeVectorStore implements IVectorStore {
         if (res.ok) {
           const data = await res.json() as { upsertedCount?: number };
           successCount += data.upsertedCount ?? batch.length;
+          successfulIds.push(...batch.map(d => d.id));
         } else {
           failedIds.push(...batch.map(d => d.id));
         }
@@ -193,7 +207,7 @@ export class PineconeVectorStore implements IVectorStore {
 
     return {
       upsertedCount: successCount,
-      upsertedIds: documents.map(d => d.id),
+      upsertedIds: successfulIds,
       failedCount: failedIds.length,
     };
   }
@@ -228,7 +242,7 @@ export class PineconeVectorStore implements IVectorStore {
       body.filter = this._buildPineconeFilter(options.filter);
     }
 
-    const res = await this._fetch('/query', {
+    const res = await this._fetchWithRetry('/query', {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -266,6 +280,79 @@ export class PineconeVectorStore implements IVectorStore {
         totalCandidates: documents.length,
         filteredCandidates: documents.length,
         returnedCount: documents.length,
+      },
+    };
+  }
+
+  /**
+   * Enumerate vectors by metadata filter using Pinecone's fetch_by_metadata endpoint.
+   */
+  async scanByMetadata(
+    collectionName: string,
+    options?: MetadataScanOptions,
+  ): Promise<MetadataScanResult> {
+    await this._ensureInit();
+    const ns = collectionName || this.config.namespace || '';
+
+    const body: Record<string, unknown> = {
+      namespace: ns,
+      limit: Math.max(1, options?.limit ?? 100),
+    };
+
+    if (options?.filter) {
+      body.filter = this._buildPineconeFilter(options.filter);
+    }
+
+    if (options?.cursor) {
+      body.paginationToken = options.cursor;
+    }
+
+    const res = await this._fetchWithRetry('/vectors/fetch_by_metadata', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Pinecone metadata scan failed (${res.status}): ${text}`);
+    }
+
+    const data = await res.json() as {
+      vectors?: Record<string, {
+        id?: string;
+        values?: number[];
+        metadata?: Record<string, unknown>;
+      }>;
+      namespace?: string;
+      pagination?: {
+        next?: string;
+      };
+      usage?: Record<string, unknown>;
+    };
+
+    const vectorEntries = Object.entries(data.vectors ?? {});
+    const documents: RetrievedVectorDocument[] = vectorEntries.map(([fallbackId, vector], index) => {
+      const id = vector.id ?? fallbackId ?? `pinecone-scan-${index}`;
+      const doc: RetrievedVectorDocument = {
+        id,
+        similarityScore: 1,
+        embedding: options?.includeEmbedding ? (vector.values ?? []) : [],
+      };
+
+      if (options?.includeMetadata !== false && vector.metadata) {
+        doc.metadata = vector.metadata as Record<string, MetadataValue>;
+      }
+
+      return doc;
+    });
+
+    return {
+      documents,
+      nextCursor: data.pagination?.next,
+      stats: {
+        returnedCount: documents.length,
+        namespace: data.namespace ?? ns,
+        usage: data.usage,
       },
     };
   }
@@ -311,7 +398,7 @@ export class PineconeVectorStore implements IVectorStore {
       body.filter = this._buildPineconeFilter(options.filter);
     }
 
-    const res = await this._fetch('/query', {
+    const res = await this._fetchWithRetry('/query', {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -366,8 +453,17 @@ export class PineconeVectorStore implements IVectorStore {
   ): Promise<DeleteResult> {
     await this._ensureInit();
     const ns = collectionName || this.config.namespace || '';
+    const hasIds = Boolean(ids && ids.length > 0);
+    const hasFilter = Boolean(options?.filter && Object.keys(options.filter).length > 0);
+    const hasDeleteAll = options?.deleteAll === true;
 
-    if (options?.deleteAll) {
+    if ((hasIds && hasFilter) || (hasDeleteAll && hasIds) || (hasDeleteAll && hasFilter)) {
+      throw new Error(
+        'Pinecone delete options are mutually exclusive: use exactly one of ids, filter, or deleteAll.',
+      );
+    }
+
+    if (hasDeleteAll) {
       await this._fetch('/vectors/delete', {
         method: 'POST',
         body: JSON.stringify({ deleteAll: true, namespace: ns }),
@@ -375,7 +471,7 @@ export class PineconeVectorStore implements IVectorStore {
       return { deletedCount: -1 }; // Pinecone doesn't return count on deleteAll.
     }
 
-    if (ids && ids.length > 0) {
+    if (hasIds && ids) {
       // Pinecone supports up to 1000 IDs per delete.
       const batchSize = 1000;
       let deleted = 0;
@@ -388,6 +484,23 @@ export class PineconeVectorStore implements IVectorStore {
         if (res.ok) deleted += batch.length;
       }
       return { deletedCount: deleted };
+    }
+
+    if (hasFilter && options?.filter) {
+      const res = await this._fetchWithRetry('/vectors/delete', {
+        method: 'POST',
+        body: JSON.stringify({
+          namespace: ns,
+          filter: this._buildPineconeFilter(options.filter),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Pinecone delete failed (${res.status}): ${text}`);
+      }
+
+      return { deletedCount: -1 };
     }
 
     return { deletedCount: 0 };
@@ -404,7 +517,7 @@ export class PineconeVectorStore implements IVectorStore {
 
   /**
    * Make a fetch request to the Pinecone Data Plane API.
-   * Automatically sets Authorization header and Content-Type.
+   * Automatically sets API version, API key, and Content-Type headers.
    */
   private async _fetch(
     path: string,
@@ -416,9 +529,83 @@ export class PineconeVectorStore implements IVectorStore {
       headers: {
         'Api-Key': this.config.apiKey,
         'Content-Type': 'application/json',
+        'X-Pinecone-Api-Version': this.config.apiVersion ?? DEFAULT_PINECONE_API_VERSION,
       },
       body: init.body,
     });
+  }
+
+  /**
+   * Retry transient Pinecone failures with exponential backoff.
+   *
+   * This is intentionally scoped to metadata-heavy operations in this adapter,
+   * where Pinecone documents lower request-per-second limits.
+   */
+  private async _fetchWithRetry(
+    path: string,
+    init: { method: string; body?: string },
+  ): Promise<Response> {
+    for (let attempt = 0; attempt <= DEFAULT_PINECONE_MAX_RETRIES; attempt += 1) {
+      try {
+        const response = await this._fetch(path, init);
+        if (response.ok) {
+          return response;
+        }
+
+        if (attempt < DEFAULT_PINECONE_MAX_RETRIES && this._isRetryableStatus(response.status)) {
+          await wait(this._computeRetryDelayMs(attempt, response));
+          continue;
+        }
+
+        return response;
+      } catch (error) {
+        if (attempt >= DEFAULT_PINECONE_MAX_RETRIES) {
+          throw error;
+        }
+
+        await wait(this._computeRetryDelayMs(attempt));
+      }
+    }
+
+    throw new Error('Pinecone request failed after retry attempts were exhausted.');
+  }
+
+  private _isRetryableStatus(status: number): boolean {
+    return RETRYABLE_PINECONE_STATUSES.has(status);
+  }
+
+  private _computeRetryDelayMs(attempt: number, response?: { headers?: unknown }): number {
+    const retryAfterMs = this._readRetryAfterMs(response);
+    if (retryAfterMs !== undefined) {
+      return Math.min(DEFAULT_PINECONE_MAX_RETRY_DELAY_MS, Math.max(1, retryAfterMs));
+    }
+
+    const rawDelay = DEFAULT_PINECONE_RETRY_DELAY_MS * 2 ** attempt;
+    return Math.min(DEFAULT_PINECONE_MAX_RETRY_DELAY_MS, rawDelay);
+  }
+
+  private _readRetryAfterMs(response?: { headers?: unknown }): number | undefined {
+    const headers = response?.headers as { get?: (name: string) => string | null } | undefined;
+    if (!headers || typeof headers.get !== 'function') {
+      return undefined;
+    }
+
+    const raw = headers.get('Retry-After') ?? headers.get('retry-after');
+    if (!raw) {
+      return undefined;
+    }
+
+    const seconds = Number(raw);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return seconds * 1000;
+    }
+
+    const dateMs = Date.parse(raw);
+    if (Number.isFinite(dateMs)) {
+      return Math.max(0, dateMs - Date.now());
+    }
+
+    return undefined;
   }
 
   /**

@@ -32,8 +32,8 @@ import { InMemoryVectorStore } from './vector_stores/InMemoryVectorStore';
 import { SqlVectorStore } from './vector_stores/SqlVectorStore';
 import { HnswlibVectorStore } from './vector_stores/HnswlibVectorStore';
 import { QdrantVectorStore } from './vector_stores/QdrantVectorStore';
+import { PineconeVectorStore } from './vector_stores/PineconeVectorStore';
 // Import other IVectorStore implementations as they are created, e.g.:
-// import { PineconeVectorStore } from './vector_stores/PineconeVectorStore';
 // import { WeaviateVectorStore } from './vector_stores/WeaviateVectorStore';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { uuidv4 } from '../core/utils/uuid';
@@ -175,6 +175,8 @@ export class VectorStoreManager implements IVectorStoreManager {
       case 'in_memory':
         // Type assertion is safe here due to the 'type' discriminant.
         return new InMemoryVectorStore();
+      case 'pinecone':
+        return new PineconeVectorStore(providerConfig as Extract<AnyVectorStoreProviderConfig, { type: 'pinecone' }>);
       case 'sql':
         // SQL-backed vector store using @framers/sql-storage-adapter
         // Supports SQLite, PostgreSQL, IndexedDB, and more
