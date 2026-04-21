@@ -144,6 +144,12 @@ export { KnowledgeGraphMemoryGraph } from './retrieval/graph/KnowledgeGraphMemor
 export { spreadActivation } from './retrieval/graph/SpreadingActivation.js';
 export type { SpreadingActivationInput } from './retrieval/graph/SpreadingActivation.js';
 
+// --- Heuristic entity extraction (Step 13) ---
+export {
+  extractEntities,
+  slugifyEntityId,
+} from './retrieval/graph/extraction/index.js';
+
 // --- Prospective Memory ---
 export { ProspectiveMemoryManager } from './retrieval/prospective/ProspectiveMemoryManager.js';
 export type {
