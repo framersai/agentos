@@ -1,3 +1,7 @@
+## <small>0.1.253 (2026-04-21)</small>
+
+* feat(memory): HybridRetriever fact-graph integration + synthetic trace prepending ([1147043](https://github.com/framersai/agentos/commit/1147043))
+
 ## <small>0.1.252 (2026-04-21)</small>
 
 * fix(llm-routing): drop MythoMax L2 13B from uncensored catalog ([ef21e90](https://github.com/framersai/agentos/commit/ef21e90))
