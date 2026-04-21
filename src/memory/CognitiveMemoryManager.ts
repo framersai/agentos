@@ -73,6 +73,20 @@ import type { HydeRetriever } from '../rag/HydeRetriever.js';
 // Interface
 // ---------------------------------------------------------------------------
 
+/**
+ * Result from a forced reflection via {@link CognitiveMemoryManager.flushReflection}.
+ * Step-8: used to surface reflection-derived trace IDs so downstream
+ * consumers (e.g. a hybrid BM25 index) can apply side effects.
+ */
+export interface FlushReflectionResult {
+  /** IDs of traces newly encoded from the reflection result. */
+  encodedTraceIds: string[];
+  /** IDs of existing traces soft-deleted because they were superseded. */
+  supersededTraceIds: string[];
+  /** Compression ratio achieved by the reflection. */
+  compressionRatio: number;
+}
+
 export interface ICognitiveMemoryManager {
   initialize(config: CognitiveMemoryConfig): Promise<void>;
 
@@ -163,6 +177,17 @@ export interface ICognitiveMemoryManager {
 
   /** Get observer module when enabled. */
   getObserver(): MemoryObserver | null;
+
+  /** Get the memory reflector if configured, or `null`. */
+  getReflector(): MemoryReflector | null;
+
+  /**
+   * Step-8: Force the memory reflector to run over any pending observation
+   * notes regardless of accumulated-token threshold. Encoded reflection
+   * traces land in the memory store; superseded trace IDs are soft-deleted.
+   * Returns the IDs so callers can apply side effects (e.g. BM25 indexing).
+   */
+  flushReflection(mood?: PADState): Promise<FlushReflectionResult>;
 
   /** Get prospective-memory manager when enabled. */
   getProspective(): ProspectiveMemoryManager | null;
@@ -1152,6 +1177,57 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
 
   getObserver(): MemoryObserver | null {
     return this.observer;
+  }
+
+  /** Step-8: accessor mirror of {@link getObserver}, for the reflector. */
+  getReflector(): MemoryReflector | null {
+    return this.reflector;
+  }
+
+  /**
+   * Step-8: Force the reflector to run over pending notes regardless of
+   * threshold. Encodes reflection traces, soft-deletes superseded IDs.
+   * Safe to call when no reflector or no pending notes exist (returns
+   * an empty result). Errors do not propagate — reflection is non-critical.
+   */
+  async flushReflection(mood?: PADState): Promise<FlushReflectionResult> {
+    if (!this.reflector) {
+      return { encodedTraceIds: [], supersededTraceIds: [], compressionRatio: 1 };
+    }
+    const reflection = await this.reflector.reflect();
+    if (reflection.traces.length === 0 && reflection.supersededTraceIds.length === 0) {
+      return {
+        encodedTraceIds: [],
+        supersededTraceIds: [],
+        compressionRatio: reflection.compressionRatio,
+      };
+    }
+    const encodedIds: string[] = [];
+    const effMood = mood ?? { valence: 0, arousal: 0, dominance: 0 };
+    for (const traceData of reflection.traces) {
+      const encoded = await this.encode(
+        traceData.content,
+        effMood,
+        '',
+        {
+          type: traceData.type,
+          scope: traceData.scope,
+          scopeId: traceData.scopeId,
+          sourceType: traceData.provenance.sourceType,
+          tags: traceData.tags,
+          entities: traceData.entities,
+        },
+      );
+      encodedIds.push(encoded.id);
+    }
+    for (const id of reflection.supersededTraceIds) {
+      await this.store.softDelete(id);
+    }
+    return {
+      encodedTraceIds: encodedIds,
+      supersededTraceIds: reflection.supersededTraceIds,
+      compressionRatio: reflection.compressionRatio,
+    };
   }
 
   getProspective(): ProspectiveMemoryManager | null {
