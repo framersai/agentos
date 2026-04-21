@@ -3,7 +3,8 @@ import { SessionSummaryStore } from '../SessionSummaryStore.js';
 import { InMemoryVectorStore } from '../../../../rag/vector_stores/InMemoryVectorStore.js';
 import type { IEmbeddingManager } from '../../../../core/embeddings/IEmbeddingManager.js';
 
-class FakeEmbedder implements IEmbeddingManager {
+// Test stub: cast at usage site below via `as unknown as IEmbeddingManager`.
+class FakeEmbedder {
   async generateEmbeddings(input: { texts: string | string[] }) {
     const texts = Array.isArray(input.texts) ? input.texts : [input.texts];
     const embeddings = texts.map((t) => {
@@ -29,7 +30,7 @@ async function mkStore(): Promise<SessionSummaryStore> {
     defaultEmbeddingDimension: 8,
     similarityMetric: 'cosine',
   } as import('../../../../core/vector-store/IVectorStore.js').VectorStoreProviderConfig);
-  return new SessionSummaryStore({ vectorStore, embeddingManager: new FakeEmbedder() });
+  return new SessionSummaryStore({ vectorStore, embeddingManager: new FakeEmbedder() as unknown as IEmbeddingManager });
 }
 
 describe('SessionSummaryStore', () => {

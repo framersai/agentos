@@ -5,9 +5,13 @@ import { MemoryStore } from '../../store/MemoryStore.js';
 import { InMemoryVectorStore } from '../../../../rag/vector_stores/InMemoryVectorStore.js';
 import type { IKnowledgeGraph } from '../../graph/knowledge/IKnowledgeGraph.js';
 import type { IEmbeddingManager } from '../../../../core/embeddings/IEmbeddingManager.js';
-import type { MemoryTrace, PADState, MemoryScope } from '../../../core/types.js';
+import type { MemoryTrace, MemoryScope } from '../../../core/types.js';
+import type { PADState } from '../../../core/config.js';
 
-class HashEmbedder implements IEmbeddingManager {
+// Test stubs: use structural typing + `as unknown as IEmbeddingManager`
+// at construction sites. Interfaces have methods (initialize,
+// getEmbeddingModelInfo, checkHealth) we don't need for these tests.
+class HashEmbedder {
   async generateEmbeddings(input: { texts: string | string[] }) {
     const texts = Array.isArray(input.texts) ? input.texts : [input.texts];
     const embeddings = texts.map((t) => {
@@ -26,7 +30,7 @@ class HashEmbedder implements IEmbeddingManager {
   getModel() { return 'hash'; }
 }
 
-class NoopKG implements IKnowledgeGraph {
+class NoopKG {
   async recordMemory() { return 'noop'; }
   async findRelatedMemories() { return []; }
   async findEntityRelationships() { return []; }
@@ -63,7 +67,7 @@ const scope = { scope: 'user' as MemoryScope, scopeId: 'u1' };
 
 describe('SessionRetriever (integration)', () => {
   it('end-to-end: index 3 session summaries, encode chunks, retrieve returns at least one chunk', async () => {
-    const embedder = new HashEmbedder();
+    const embedder = new HashEmbedder() as unknown as IEmbeddingManager;
     const traceVectorStore = await mkVectorStore();
     const summaryVectorStore = await mkVectorStore();
     const summaryStore = new SessionSummaryStore({
@@ -114,7 +118,7 @@ describe('SessionRetriever (integration)', () => {
   });
 
   it('cache smoke: two retrieve calls with the same query return stable results', async () => {
-    const embedder = new HashEmbedder();
+    const embedder = new HashEmbedder() as unknown as IEmbeddingManager;
     const summaryStore = new SessionSummaryStore({
       vectorStore: await mkVectorStore(), embeddingManager: embedder,
     });

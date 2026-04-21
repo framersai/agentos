@@ -7,7 +7,10 @@ import type { IEmbeddingManager } from '../../../../core/embeddings/IEmbeddingMa
 import type { MemoryTrace, MemoryScope } from '../../../core/types.js';
 import type { PADState } from '../../../core/config.js';
 
-class HashEmbedder implements IEmbeddingManager {
+// Test stubs: use structural typing + `as unknown as IEmbeddingManager` at
+// construction sites below. Interfaces have methods (initialize,
+// getEmbeddingModelInfo, checkHealth) we don't need for these tests.
+class HashEmbedder {
   async generateEmbeddings(input: { texts: string | string[] }) {
     const texts = Array.isArray(input.texts) ? input.texts : [input.texts];
     const embeddings = texts.map((t) => {
@@ -26,7 +29,7 @@ class HashEmbedder implements IEmbeddingManager {
   getModel() { return 'hash'; }
 }
 
-class NoopKG implements IKnowledgeGraph {
+class NoopKG {
   async recordMemory() { return 'noop'; }
   async findRelatedMemories() { return []; }
   async findEntityRelationships() { return []; }
@@ -67,7 +70,7 @@ describe('HybridRetriever (integration)', () => {
     const traceVectorStore = await mkVectorStore();
     const memoryStore = new MemoryStore({
       vectorStore: traceVectorStore,
-      embeddingManager: embedder,
+      embeddingManager: embedder as unknown as IEmbeddingManager,
       knowledgeGraph: new NoopKG() as unknown as IKnowledgeGraph,
       collectionPrefix: 'cogmem',
     });
@@ -94,7 +97,7 @@ describe('HybridRetriever (integration)', () => {
     const embedder = new HashEmbedder();
     const memoryStore = new MemoryStore({
       vectorStore: await mkVectorStore(),
-      embeddingManager: embedder,
+      embeddingManager: embedder as unknown as IEmbeddingManager,
       knowledgeGraph: new NoopKG() as unknown as IKnowledgeGraph,
       collectionPrefix: 'cogmem',
     });
