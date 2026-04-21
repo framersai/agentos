@@ -308,6 +308,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       decayConfig: config.decay ? { ...DEFAULT_DECAY_CONFIG, ...config.decay } : undefined,
       mechanismsEngine: this.mechanismsEngine ?? undefined,
       moodProvider: config.moodProvider,
+      enableGraphActivation: config.enableGraphActivation ?? false,
     });
 
     // Attach SqliteBrain for durable write-through when configured.
