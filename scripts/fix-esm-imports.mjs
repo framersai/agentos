@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.resolve(__dirname, '..', 'dist');
+const SELF_PACKAGE_NAME = '@framers/agentos';
 
 function collectJsFiles(dirPath) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -23,6 +24,25 @@ function collectJsFiles(dirPath) {
 }
 
 function resolveSpecifier(filePath, specifier) {
+  if (specifier === SELF_PACKAGE_NAME || specifier.startsWith(`${SELF_PACKAGE_NAME}/`)) {
+    const relativeExportPath =
+      specifier === SELF_PACKAGE_NAME ? 'index' : specifier.slice(SELF_PACKAGE_NAME.length + 1);
+    const targetCandidates = [
+      path.resolve(distDir, `${relativeExportPath}.js`),
+      path.resolve(distDir, relativeExportPath, 'index.js'),
+    ];
+    const targetPath = targetCandidates.find((candidate) => fs.existsSync(candidate));
+    if (!targetPath) {
+      return specifier;
+    }
+
+    let relativePath = path.relative(path.dirname(filePath), targetPath).replace(/\\/g, '/');
+    if (!relativePath.startsWith('.')) {
+      relativePath = `./${relativePath}`;
+    }
+    return relativePath;
+  }
+
   if (!specifier.startsWith('.')) {
     return specifier;
   }
@@ -52,8 +72,8 @@ function rewriteSpecifiers(filePath) {
   let changed = false;
 
   const patterns = [
-    /(from\s+['"])(\.{1,2}\/[^'"]+)(['"])/g,
-    /(import\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g
+    /(^\s*(?:import|export)\s[^'"\n]*from\s+['"])([^'"]+)(['"])/gm,
+    /(import\(\s*['"])([^'"]+)(['"]\s*\))/g
   ];
 
   for (const pattern of patterns) {
@@ -101,4 +121,3 @@ console.log(`[agentos fix-esm-imports] Processed ${jsFiles.length} files under $
 if (copiedExtensionSecrets) {
   console.log('[agentos fix-esm-imports] Mirrored extension-secrets.json into dist/config for public package exports.');
 }
-
