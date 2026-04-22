@@ -72,7 +72,11 @@ function rewriteSpecifiers(filePath) {
   let changed = false;
 
   const patterns = [
-    /(^\s*(?:import|export)\s[^'"\n]*from\s+['"])([^'"]+)(['"])/gm,
+    // Multi-line aware: `[\s\S]*?` matches anything including newlines, non-greedy, so
+    // imports with destructuring across multiple lines (e.g. `import { A,\n B\n} from './X'`)
+    // are caught. Anchored to start-of-line by `^` + `m` flag and terminated by the `from`
+    // keyword before a quote.
+    /(^\s*(?:import|export)\s[\s\S]*?from\s+['"])([^'"]+)(['"])/gm,
     /(import\(\s*['"])([^'"]+)(['"]\s*\))/g
   ];
 
