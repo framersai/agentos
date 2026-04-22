@@ -20,7 +20,7 @@ import { runSimulation } from 'paracosm/runtime';
 const aria = {
   name: 'Aria Chen',
   archetype: 'The Visionary',
-  colony: 'Colony Alpha',
+  unit: 'Colony Alpha',
   hexaco: {
     openness: 0.95, conscientiousness: 0.35, extraversion: 0.85,
     agreeableness: 0.55, emotionality: 0.30, honestyHumility: 0.65,
@@ -35,7 +35,7 @@ const result = await runSimulation(aria, [], {
   onEvent: e => console.log(e.type, e.data?.title),
 });
 
-console.log(result.finalState.colony.population);
+console.log(result.finalState.systems.population);
 console.log(result.totalToolsForged);
 ```
 
