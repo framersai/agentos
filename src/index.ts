@@ -221,7 +221,12 @@ export { normalizeHostLLMPolicy } from './api/runtime/hostPolicy.js';
 export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
-export type { Agent, AgentSession, AgentOptions } from './api/agent.js';
+export type {
+  Agent,
+  AgentSession,
+  AgentOptions,
+  AgentMemoryProvider,
+} from './api/agent.js';
 export type {
   IModelRouter,
   ModelRouteParams,
