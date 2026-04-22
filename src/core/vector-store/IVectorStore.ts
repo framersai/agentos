@@ -60,10 +60,10 @@ export type MetadataValue = MetadataScalarValue | MetadataScalarValue[];
 export interface MetadataFieldCondition {
   $eq?: MetadataScalarValue;        // Equal to
   $ne?: MetadataScalarValue;        // Not equal to
-  $gt?: number;                     // Greater than
-  $gte?: number;                    // Greater than or equal to
-  $lt?: number;                     // Less than
-  $lte?: number;                    // Less than or equal to
+  $gt?: number | string;            // Greater than. Strings are compared lexicographically (e.g. ISO timestamps).
+  $gte?: number | string;           // Greater than or equal to. Strings are compared lexicographically.
+  $lt?: number | string;            // Less than. Strings are compared lexicographically (e.g. ISO timestamps).
+  $lte?: number | string;           // Less than or equal to. Strings are compared lexicographically.
   $in?: MetadataScalarValue[];      // Value is one of these (for scalar fields)
   $nin?: MetadataScalarValue[];     // Value is not one of these (for scalar fields)
   $exists?: boolean;                // Field exists (true) or does not exist (false)
@@ -157,6 +157,28 @@ export interface RetrievedVectorDocument extends VectorDocument {
 export interface QueryResult {
   documents: RetrievedVectorDocument[];
   queryId?: string;
+  stats?: Record<string, any>;
+}
+
+/**
+ * Options for enumerating documents by metadata without a query embedding.
+ */
+export interface MetadataScanOptions {
+  filter?: MetadataFilter;
+  limit?: number;
+  includeEmbedding?: boolean;
+  includeMetadata?: boolean;
+  includeTextContent?: boolean;
+  cursor?: string;
+  customParams?: Record<string, any>;
+}
+
+/**
+ * Result of a metadata-only document scan.
+ */
+export interface MetadataScanResult {
+  documents: RetrievedVectorDocument[];
+  nextCursor?: string;
   stats?: Record<string, any>;
 }
 
@@ -290,6 +312,15 @@ export interface IVectorStore {
     queryEmbedding: number[],
     options?: QueryOptions,
   ): Promise<QueryResult>;
+
+  /**
+   * Optional: Enumerates documents using metadata-only filtering without
+   * requiring a query embedding.
+   */
+  scanByMetadata?(
+    collectionName: string,
+    options?: MetadataScanOptions,
+  ): Promise<MetadataScanResult>;
 
   /**
    * Optional: Hybrid retrieval combining dense vector similarity with lexical search.
