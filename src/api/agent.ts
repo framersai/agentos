@@ -33,6 +33,50 @@ import type { BaseAgentConfig } from './types.js';
 import { exportAgentConfig, exportAgentConfigJSON, type AgentExportConfig } from './agentExportCore.js';
 
 /**
+ * Provider hook interface consumed by `agent()` for memory integration.
+ *
+ * When provided on the agent config, `getContext` is called before each
+ * LLM generation to inject retrieved memory into the system prompt, and
+ * `observe` is called after each turn to encode the exchange for future
+ * recall. Both hooks are optional — implementations may choose to provide
+ * read-only or write-only memory behavior.
+ *
+ * Auto-wires on every agent call path as of AgentOS 0.2.0: direct
+ * `agent.stream()` / `.generate()` and `agent.session().send()` / `.stream()`
+ * all invoke the hooks when the provider is present.
+ */
+export interface AgentMemoryProvider {
+  /**
+   * Retrieve a memory context block to prepend to the system prompt.
+   *
+   * @param text - The user input for the current turn.
+   * @param opts - Retrieval options. `tokenBudget` caps the memory block size.
+   * @returns An object whose `contextText` (when present) is injected as a
+   *   system message before the LLM call. Returning `null` or an object
+   *   without `contextText` skips injection.
+   */
+  getContext?: (
+    text: string,
+    opts?: { tokenBudget?: number },
+  ) => Promise<{ contextText?: string } | null>;
+
+  /**
+   * Record an observation of a turn exchange.
+   *
+   * Invoked twice per turn (`role: 'user'` with the input, then
+   * `role: 'assistant'` with the reply) as fire-and-forget. Rejections
+   * are swallowed so memory-backend errors do not break generation.
+   *
+   * @param role - Whether the content came from the user or assistant.
+   * @param text - Plain text content of the turn.
+   */
+  observe?: (
+    role: 'user' | 'assistant',
+    text: string,
+  ) => Promise<void>;
+}
+
+/**
  * Configuration options for the {@link agent} factory function.
  *
  * Extends `BaseAgentConfig` with backward-compatible convenience fields.
@@ -125,13 +169,14 @@ export interface AgentOptions extends BaseAgentConfig {
   /** Pre-tool-execution hook. */
   onBeforeToolExecution?: (info: ToolCallHookInfo) => Promise<ToolCallHookInfo | null>;
   /**
-   * Optional memory provider.  When provided:
-   * - `session.send()`/`stream()` calls `memory.getContext()` before each turn
-   *   and prepends results to the system prompt.
-   * - `session.send()`/`stream()` calls `memory.observe()` after each turn
-   *   to encode the exchange into long-term memory.
+   * Optional memory provider. When provided, memory auto-wires on all four
+   * agent call paths (see {@link AgentMemoryProvider} for hook contract).
+   *
+   * - `getContext` runs before each LLM call; result prepended as a system
+   *   message.
+   * - `observe` runs after each LLM call as fire-and-forget.
    */
-  memoryProvider?: any;
+  memoryProvider?: AgentMemoryProvider;
   /**
    * Optional skill entries to inject into the system prompt.
    * Skill content is appended to the system prompt as markdown sections.
@@ -515,7 +560,7 @@ export function agent(opts: AgentOptions): Agent {
                   // Inject memory context
                   try {
                     const memCtx = await Promise.race([
-                      opts.memoryProvider!.getContext(textForMemory, { tokenBudget: 2000 }),
+                      opts.memoryProvider!.getContext!(textForMemory, { tokenBudget: 2000 }),
                       new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
                     ]);
                     if (memCtx?.contextText) {
