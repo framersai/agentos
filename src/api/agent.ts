@@ -523,56 +523,32 @@ export function agent(opts: AgentOptions): Agent {
         stream(input: MessageContent): StreamTextResult {
           const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
           const userMessage: Message = { role: 'user', content: input };
-          // For streaming, use onBeforeGeneration hook to inject memory context
-          const originalBeforeHook = baseOpts.onBeforeGeneration;
 
-          const result = streamText({
-            ...baseOpts,
-            messages: useMemory
-              ? [...history, userMessage]
-              : [userMessage],
-            onBeforeGeneration: opts.memoryProvider?.getContext
-              ? async (ctx) => {
-                  // Inject memory context
-                  try {
-                    const memCtx = await Promise.race([
-                      opts.memoryProvider!.getContext!(textForMemory, { tokenBudget: 2000 }),
-                      new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
-                    ]);
-                    if (memCtx?.contextText) {
-                      ctx = {
-                        ...ctx,
-                        messages: [
-                          { role: 'system' as const, content: memCtx.contextText },
-                          ...ctx.messages,
-                        ],
-                      };
-                    }
-                  } catch { /* non-fatal */ }
-                  // Chain with user's hook if present
-                  if (originalBeforeHook) {
-                    const userResult = await originalBeforeHook(ctx);
-                    return userResult ?? ctx;
-                  }
-                  return ctx;
-                }
-              : originalBeforeHook,
-            usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
-              sessionId,
-              source: 'agent.session.stream',
-            }),
-          } as GenerateTextOptions);
-          // Capture text for history when done
+          const wrappedOpts = applyMemoryProvider(
+            {
+              ...baseOpts,
+              messages: useMemory
+                ? [...history, userMessage]
+                : [userMessage],
+              usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
+                sessionId,
+                source: 'agent.session.stream',
+              }),
+            },
+            opts.memoryProvider,
+            textForMemory,
+          );
+
+          const result = streamText(wrappedOpts as GenerateTextOptions);
+
+          // Capture text for history when done. Memory observe runs inside
+          // applyMemoryProvider's onAfterGeneration wrapper so it's not
+          // re-fired here.
           if (useMemory) {
             history.push(userMessage);
             void result.text
               .then((replyText) => {
                 history.push({ role: 'assistant', content: replyText });
-                // Memory observe after stream completes (text only)
-                if (opts.memoryProvider?.observe) {
-                  opts.memoryProvider.observe('user', textForMemory).catch(() => {});
-                  opts.memoryProvider.observe('assistant', replyText).catch(() => {});
-                }
               })
               .catch(() => {
                 /* history update failed, non-critical */
