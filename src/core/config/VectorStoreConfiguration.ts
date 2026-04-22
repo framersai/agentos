@@ -14,6 +14,7 @@
 import type { VectorStoreProviderConfig } from '../vector-store/IVectorStore.js';
 import type { StorageAdapter, StorageResolutionOptions } from '@framers/sql-storage-adapter';
 import type { HnswlibVectorStoreConfig } from '../../rag/vector_stores/HnswlibVectorStore.js';
+import type { PineconeVectorStoreConfig as AdapterPineconeVectorStoreConfig } from '../../rag/vector_stores/PineconeVectorStore.js';
 import type { QdrantVectorStoreConfig } from '../../rag/vector_stores/QdrantVectorStore.js';
 import type { Neo4jVectorStoreConfig } from '../../rag/vector_stores/Neo4jVectorStore.js';
 
@@ -103,23 +104,15 @@ export interface LocalFileVectorStoreConfig extends VectorStoreProviderConfig {
 /**
  * Specific configuration for a Pinecone vector store.
  *
- * @interface PineconeVectorStoreConfig
- * @extends VectorStoreProviderConfig
- * @property {'pinecone'} type - Identifier for the Pinecone provider type.
- * @property {string} apiKey - Pinecone API key. Ensure this is securely managed (e.g., via environment variables).
- * @property {string} environment - Pinecone environment (e.g., 'gcp-starter', 'us-east-1-aws').
- * @property {number} [defaultEmbeddingDimension] - Default embedding dimension for collections created
- * or managed by this provider instance if not specified per collection.
- * @property {'cosine' | 'euclidean' | 'dotproduct'} [similarityMetric='cosine'] - Default similarity metric for new Pinecone indexes
- * created through this configuration, if applicable.
+ * This re-exports the runtime adapter config so the shared configuration contract
+ * stays aligned with the real Pinecone implementation and docs:
+ * - `apiKey`
+ * - `indexHost`
+ * - optional `namespace`
+ * - optional `defaultDimension`
+ * - optional `apiVersion`
  */
-export interface PineconeVectorStoreConfig extends VectorStoreProviderConfig {
-  type: 'pinecone';
-  apiKey: string; // Should be sourced from environment variables
-  environment: string;
-  defaultEmbeddingDimension?: number;
-  similarityMetric?: 'cosine' | 'euclidean' | 'dotproduct';
-}
+export type PineconeVectorStoreConfig = AdapterPineconeVectorStoreConfig;
 
 /**
  * Specific configuration for a Weaviate vector store.
@@ -255,16 +248,16 @@ export interface RagDataLayerConfig {
 const systemRagDataLayerConfig: RagDataLayerConfig = {
   vectorStoreManager: {
     managerId: 'main-vsm',
-    defaultProviderId: 'pinecone_main_prod',
+    defaultProviderId: 'qdrant_main_prod',
     defaultEmbeddingDimension: 1536, // System-wide default if not specified lower
     providers: [
       {
-        id: 'pinecone_main_prod', // Matches VectorStoreProviderConfig.id
-        type: 'pinecone',
-        apiKey: process.env.PINECONE_API_KEY!,
-        environment: process.env.PINECONE_ENVIRONMENT!,
+        id: 'qdrant_main_prod', // Matches VectorStoreProviderConfig.id
+        type: 'qdrant',
+        url: process.env.QDRANT_URL!,
+        apiKey: process.env.QDRANT_API_KEY,
         defaultEmbeddingDimension: 1536, // Provider-level default
-      } as PineconeVectorStoreConfig,
+      } as QdrantVectorStoreConfig,
       {
         id: 'in_memory_dev_store',
         type: 'in_memory',
@@ -277,8 +270,8 @@ const systemRagDataLayerConfig: RagDataLayerConfig = {
       dataSourceId: 'global_company_wiki',
       displayName: 'Global Company Wiki',
       description: 'Shared knowledge base for all company agents and employees.',
-      vectorStoreProviderId: 'pinecone_main_prod',
-      actualNameInProvider: 'company-wiki-prod-v2', // e.g., Pinecone index name
+      vectorStoreProviderId: 'qdrant_main_prod',
+      actualNameInProvider: 'company-wiki-prod-v2', // e.g., Qdrant collection name
       embeddingDimension: 1536, // Specific to this data source's content
       isDefaultQuerySource: true,
       metadataSchema: { "department": "string", "lastReviewed": "date" }
@@ -287,7 +280,7 @@ const systemRagDataLayerConfig: RagDataLayerConfig = {
       dataSourceId: 'user_personal_notes_main',
       displayName: 'User Personal Notes (Encrypted)',
       description: 'Personal notes and memories for individual users. Data segregated by user ID in metadata filters.',
-      vectorStoreProviderId: 'pinecone_main_prod',
+      vectorStoreProviderId: 'qdrant_main_prod',
       actualNameInProvider: 'user-notes-prod-encrypted',
       embeddingDimension: 1536,
       // This collection would typically be queried with a strong `userId` metadata filter.
