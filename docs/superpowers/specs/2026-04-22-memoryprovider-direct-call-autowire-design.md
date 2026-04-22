@@ -1,7 +1,7 @@
 ---
 title: Memory Provider Auto-Wire on Direct Calls — Design Spec
 date: 2026-04-22
-status: draft
+status: implemented
 owner: agentos
 audience: agentos open-source users + wilds-ai
 ---
@@ -364,3 +364,26 @@ await session.send('Continue where we left off.');
 ## Immediate next step after approval
 
 Invoke `superpowers:writing-plans` to produce `packages/agentos/docs/superpowers/plans/2026-04-22-memoryprovider-direct-call-autowire.md` — the TDD implementation plan that walks the scope task-by-task.
+
+## Commits (landed)
+
+| Commit | Scope |
+|---|---|
+| `3a1785dae` | `feat(memory): type memoryProvider as AgentMemoryProvider interface` |
+| `392c1bd5d` | `feat(memory): applyMemoryProvider helper + 10 unit tests` |
+| `415608402` | `refactor(memory): session.send uses applyMemoryProvider helper` |
+| `38f0cf87a` | `refactor(memory): session.stream uses applyMemoryProvider helper` |
+| `ab3a2d94b` | `feat(memory): auto-wire memoryProvider on direct agent.generate()` |
+| `13efc856d` | `feat(memory): auto-wire memoryProvider on direct agent.stream() + drop dead MEMORY_TIMEOUT_MS` |
+| `9250da4b7` | `feat(memory): export AgentMemoryProvider type from public barrel` |
+| `ad8988d5f` | `docs(readme): document memoryProvider auto-wire on direct calls` |
+| `d866ad4f2` | `feat(memory)!: memoryProvider auto-wires on all four agent call paths` (BREAKING CHANGE marker for semantic-release 0.1.255 → 0.2.0 bump) |
+
+### Final state
+
+- 23/23 tests pass (10 helper unit + 13 agent integration including 5 new direct-path tests + 8 existing session-path regression).
+- `AgentMemoryProvider` interface exported from public barrel at `src/index.ts`.
+- All four agent call paths consume the shared `applyMemoryProvider` helper — zero duplication.
+- README `Agent with Personality & Memory` section extended with the direct-call example.
+- Version bump + CHANGELOG entry are handled by `semantic-release` on master push (triggered by the `feat!:` + `BREAKING CHANGE:` footer in commit `d866ad4f2`).
+- Per rollout plan: agentos master stays unpushed until wilds-ai bakes the changes for 3-5 days. Wilds consumption happens via the sibling plan at `apps/wilds-ai/docs/superpowers/plans/2026-04-22-wilds-memory-integration-completion.md`.
