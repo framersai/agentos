@@ -1,3 +1,9 @@
+## <small>0.2.1 (2026-04-22)</small>
+
+* Merge remote-tracking branch 'origin/master' ([126d6e3](https://github.com/framersai/agentos/commit/126d6e3))
+* fix(build): handle multi-line import statements in fix-esm-imports ([72ddc75](https://github.com/framersai/agentos/commit/72ddc75))
+* fix(deps): bump @framers/sql-storage-adapter peer + dev pin to ^0.6.3 ([3ea2f3d](https://github.com/framersai/agentos/commit/3ea2f3d))
+
 ## 0.2.0 (2026-04-22)
 
 * fix(build): rewrite agentos self-package imports ([cd22430](https://github.com/framersai/agentos/commit/cd22430))
