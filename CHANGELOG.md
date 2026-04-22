@@ -1,3 +1,49 @@
+## 0.2.0 (2026-04-22)
+
+* fix(build): rewrite agentos self-package imports ([cd22430](https://github.com/framersai/agentos/commit/cd22430))
+* fix(lint): drop unnecessary $ escape in MemoryReflector template literal ([a472a53](https://github.com/framersai/agentos/commit/a472a53))
+* fix(rag): export MetadataScan types + align Pinecone config contract ([fc724a8](https://github.com/framersai/agentos/commit/fc724a8))
+* fix(rag): vector-store implementations handle number+string MetadataFieldCondition ([a2030ba](https://github.com/framersai/agentos/commit/a2030ba))
+* docs(plan): implementation plan for memoryProvider direct-call autowire (0.2.0) ([307de07](https://github.com/framersai/agentos/commit/307de07))
+* docs(readme): document memoryProvider auto-wire on direct calls ([ad8988d](https://github.com/framersai/agentos/commit/ad8988d))
+* docs(spec): mark memoryProvider-direct-call-autowire implemented ([e2a2d43](https://github.com/framersai/agentos/commit/e2a2d43))
+* docs(spec): memoryProvider auto-wire on direct agent calls (0.2.0) ([8bde92a](https://github.com/framersai/agentos/commit/8bde92a))
+* feat(memory)!: memoryProvider auto-wires on all four agent call paths ([d866ad4](https://github.com/framersai/agentos/commit/d866ad4))
+* feat(memory): applyMemoryProvider helper + 10 unit tests ([392c1bd](https://github.com/framersai/agentos/commit/392c1bd))
+* feat(memory): auto-wire memoryProvider on direct agent.generate() ([ab3a2d9](https://github.com/framersai/agentos/commit/ab3a2d9))
+* feat(memory): auto-wire memoryProvider on direct agent.stream() + drop dead MEMORY_TIMEOUT_MS ([13efc85](https://github.com/framersai/agentos/commit/13efc85))
+* feat(memory): export AgentMemoryProvider type from public barrel ([9250da4](https://github.com/framersai/agentos/commit/9250da4))
+* feat(memory): heuristic entity extraction + graph activation wire-up ([796467c](https://github.com/framersai/agentos/commit/796467c))
+* feat(memory): thread enableGraphActivation through CognitiveMemoryConfig ([d568b62](https://github.com/framersai/agentos/commit/d568b62))
+* feat(memory): type memoryProvider as AgentMemoryProvider interface ([3a1785d](https://github.com/framersai/agentos/commit/3a1785d))
+* feat(pinecone): add metadata scan, retry with backoff, and expanded tests ([0cb6ba9](https://github.com/framersai/agentos/commit/0cb6ba9))
+* refactor(memory): session.send uses applyMemoryProvider helper ([4156084](https://github.com/framersai/agentos/commit/4156084))
+* refactor(memory): session.stream uses applyMemoryProvider helper ([38f0cf8](https://github.com/framersai/agentos/commit/38f0cf8))
+* chore: update Discord invite to permanent link ([fb6fcb0](https://github.com/framersai/agentos/commit/fb6fcb0))
+* chore(pinecone): continue vector store refinements ([7021709](https://github.com/framersai/agentos/commit/7021709))
+
+### BREAKING CHANGE
+
+* Direct agent.stream() / agent.generate() now invoke
+memoryProvider.getContext before the LLM call and memoryProvider.observe
+after. Callers who passed memoryProvider on createAgent but did not want
+it to fire on direct calls (no legitimate use case) will see behavior
+change. Callers using .session() paths are unaffected — behavior
+unchanged.
+
+Type change: memoryProvider: any is now typed as AgentMemoryProvider
+interface with optional getContext + observe methods. Callers passing
+malformed providers will see TypeScript errors at the provider
+boundary.
+
+Migration:
+- .session() path: no change required, behavior unchanged.
+- Direct path wanting memory: already passed memoryProvider; now it
+  works. Remove any manual onBeforeGeneration wiring that previously
+  worked around the silent-ignore.
+- Direct path not wanting memory: remove memoryProvider from the
+  createAgent config.
+
 ## <small>0.1.255 (2026-04-21)</small>
 
 * feat(memory): export REFLECTOR_PROMPT_HASH for content-addressed cache keys ([c1fb669](https://github.com/framersai/agentos/commit/c1fb669))
