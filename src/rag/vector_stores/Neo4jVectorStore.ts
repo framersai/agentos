@@ -32,6 +32,8 @@ import type {
   MetadataFieldCondition,
   MetadataScalarValue,
   MetadataValue,
+  MetadataScanOptions,
+  MetadataScanResult,
 } from '../IVectorStore.js';
 import type { Neo4jConnectionConfig } from '../../memory/retrieval/graph/neo4j/types.js';
 import { Neo4jConnectionManager } from '../../memory/retrieval/graph/neo4j/Neo4jConnectionManager.js';
@@ -100,10 +102,17 @@ function matchesFilter(metadata: Record<string, MetadataValue>, filter: Metadata
 
     if (cond.$eq !== undefined && value !== cond.$eq) return false;
     if (cond.$ne !== undefined && value === cond.$ne) return false;
-    if (cond.$gt !== undefined && (typeof value !== 'number' || value <= cond.$gt)) return false;
-    if (cond.$gte !== undefined && (typeof value !== 'number' || value < cond.$gte)) return false;
-    if (cond.$lt !== undefined && (typeof value !== 'number' || value >= cond.$lt)) return false;
-    if (cond.$lte !== undefined && (typeof value !== 'number' || value > cond.$lte)) return false;
+    if (typeof value === 'number') {
+      if (typeof cond.$gt === 'number' && value <= cond.$gt) return false;
+      if (typeof cond.$gte === 'number' && value < cond.$gte) return false;
+      if (typeof cond.$lt === 'number' && value >= cond.$lt) return false;
+      if (typeof cond.$lte === 'number' && value > cond.$lte) return false;
+    } else if (typeof value === 'string') {
+      if (cond.$gt !== undefined && value <= String(cond.$gt)) return false;
+      if (cond.$gte !== undefined && value < String(cond.$gte)) return false;
+      if (cond.$lt !== undefined && value >= String(cond.$lt)) return false;
+      if (cond.$lte !== undefined && value > String(cond.$lte)) return false;
+    }
     if (cond.$in !== undefined && !cond.$in.includes(value as MetadataScalarValue)) return false;
     if (cond.$nin !== undefined && cond.$nin.includes(value as MetadataScalarValue)) return false;
     if (cond.$exists !== undefined) {
@@ -402,6 +411,60 @@ export class Neo4jVectorStore implements IVectorStore {
     });
 
     return { documents };
+  }
+
+  async scanByMetadata(
+    collectionName: string,
+    options?: MetadataScanOptions,
+  ): Promise<MetadataScanResult> {
+    const results = await this.cypher.read<{
+      docId: string;
+      embedding: number[];
+      textContent: string;
+      metadata_json: string;
+    }>(
+      `MATCH (n:${VECTOR_DOC_LABEL} { collectionName: $collectionName })
+       RETURN n.docId AS docId,
+              n.embedding AS embedding,
+              n.textContent AS textContent,
+              n.metadata_json AS metadata_json
+       ORDER BY n.updatedAt ASC, n.docId ASC`,
+      { collectionName },
+    );
+
+    const limit = Math.max(1, options?.limit ?? 100);
+    const documents: RetrievedVectorDocument[] = [];
+
+    for (const row of results) {
+      const metadata = deserializeMetadata(row.metadata_json);
+      if (options?.filter && !matchesFilter(metadata, options.filter)) {
+        continue;
+      }
+
+      const doc: RetrievedVectorDocument = {
+        id: row.docId,
+        embedding: options?.includeEmbedding ? row.embedding : [],
+        similarityScore: 1,
+      };
+
+      if (options?.includeMetadata !== false) {
+        doc.metadata = metadata;
+      }
+      if (options?.includeTextContent && row.textContent) {
+        doc.textContent = row.textContent;
+      }
+
+      documents.push(doc);
+      if (documents.length >= limit) break;
+    }
+
+    return {
+      documents,
+      stats: {
+        totalCandidates: results.length,
+        returnedCount: documents.length,
+      },
+    };
   }
 
   async delete(

@@ -26,6 +26,8 @@ import {
   RetrievedVectorDocument,
   QueryOptions,
   QueryResult,
+  MetadataScanOptions,
+  MetadataScanResult,
   UpsertOptions,
   UpsertResult,
   DeleteOptions,
@@ -326,6 +328,42 @@ export class InMemoryVectorStore implements IVectorStore {
     };
   }
 
+  public async scanByMetadata(
+    collectionName: string,
+    options?: MetadataScanOptions,
+  ): Promise<MetadataScanResult> {
+    const collection = this.getCollection(collectionName);
+    const limit = Math.max(1, options?.limit ?? 100);
+    const documents: RetrievedVectorDocument[] = [];
+
+    for (const doc of collection.documents.values()) {
+      if (options?.filter && !this.matchesFilter(doc, options.filter)) {
+        continue;
+      }
+
+      const scannedDoc: RetrievedVectorDocument = {
+        id: doc.id,
+        embedding: options?.includeEmbedding ? doc.embedding : [],
+        similarityScore: 1,
+      };
+
+      if (options?.includeMetadata !== false && doc.metadata) {
+        scannedDoc.metadata = doc.metadata;
+      }
+      if (options?.includeTextContent && doc.textContent) {
+        scannedDoc.textContent = doc.textContent;
+      }
+
+      documents.push(scannedDoc);
+      if (documents.length >= limit) break;
+    }
+
+    return {
+      documents,
+      stats: { returnedCount: documents.length },
+    };
+  }
+
   /**
    * @inheritdoc
    */
@@ -561,10 +599,15 @@ export class InMemoryVectorStore implements IVectorStore {
 
     // Type checks for comparisons
     if (typeof docValue === 'number') {
-        if (condition.$gt !== undefined && !(docValue > condition.$gt)) return false;
-        if (condition.$gte !== undefined && !(docValue >= condition.$gte)) return false;
-        if (condition.$lt !== undefined && !(docValue < condition.$lt)) return false;
-        if (condition.$lte !== undefined && !(docValue <= condition.$lte)) return false;
+        if (typeof condition.$gt === 'number' && !(docValue > condition.$gt)) return false;
+        if (typeof condition.$gte === 'number' && !(docValue >= condition.$gte)) return false;
+        if (typeof condition.$lt === 'number' && !(docValue < condition.$lt)) return false;
+        if (typeof condition.$lte === 'number' && !(docValue <= condition.$lte)) return false;
+    } else if (typeof docValue === 'string') {
+        if (condition.$gt !== undefined && !(docValue > String(condition.$gt))) return false;
+        if (condition.$gte !== undefined && !(docValue >= String(condition.$gte))) return false;
+        if (condition.$lt !== undefined && !(docValue < String(condition.$lt))) return false;
+        if (condition.$lte !== undefined && !(docValue <= String(condition.$lte))) return false;
     }
 
 

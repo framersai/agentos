@@ -49,6 +49,8 @@ import {
   RetrievedVectorDocument,
   QueryOptions,
   QueryResult,
+  MetadataScanOptions,
+  MetadataScanResult,
   UpsertOptions,
   UpsertResult,
   DeleteOptions,
@@ -772,6 +774,55 @@ export class SqlVectorStore implements IVectorStore {
         totalCandidates: rows.length,
         filteredCandidates: candidates.length,
         returnedCount: results.length,
+      },
+    };
+  }
+
+  public async scanByMetadata(
+    collectionName: string,
+    options?: MetadataScanOptions
+  ): Promise<MetadataScanResult> {
+    this.ensureInitialized();
+    await this.getCollectionMetadata(collectionName);
+
+    const limit = Math.max(1, options?.limit ?? 100);
+    const rows = await this.adapter.all<DocumentRow>(
+      `SELECT id, embedding_blob, text_content, metadata_json
+       FROM ${this.tablePrefix}documents
+       WHERE collection_name = ?
+       ORDER BY updated_at ASC, id ASC`,
+      [collectionName],
+    );
+
+    const documents: RetrievedVectorDocument[] = [];
+    for (const row of rows) {
+      const metadata = row.metadata_json ? JSON.parse(row.metadata_json) as Record<string, MetadataValue> : undefined;
+      if (options?.filter && !this.matchesFilter(metadata, options.filter)) {
+        continue;
+      }
+
+      const scannedDoc: RetrievedVectorDocument = {
+        id: row.id,
+        embedding: options?.includeEmbedding ? this.decodeStoredEmbedding(row.embedding_blob) : [],
+        similarityScore: 1,
+      };
+
+      if (options?.includeMetadata !== false && metadata) {
+        scannedDoc.metadata = metadata;
+      }
+      if (options?.includeTextContent && row.text_content) {
+        scannedDoc.textContent = row.text_content;
+      }
+
+      documents.push(scannedDoc);
+      if (documents.length >= limit) break;
+    }
+
+    return {
+      documents,
+      stats: {
+        totalCandidates: rows.length,
+        returnedCount: documents.length,
       },
     };
   }
@@ -1515,10 +1566,15 @@ export class SqlVectorStore implements IVectorStore {
     if (condition.$ne !== undefined && docValue === condition.$ne) return false;
 
     if (typeof docValue === 'number') {
-      if (condition.$gt !== undefined && !(docValue > condition.$gt)) return false;
-      if (condition.$gte !== undefined && !(docValue >= condition.$gte)) return false;
-      if (condition.$lt !== undefined && !(docValue < condition.$lt)) return false;
-      if (condition.$lte !== undefined && !(docValue <= condition.$lte)) return false;
+      if (typeof condition.$gt === 'number' && !(docValue > condition.$gt)) return false;
+      if (typeof condition.$gte === 'number' && !(docValue >= condition.$gte)) return false;
+      if (typeof condition.$lt === 'number' && !(docValue < condition.$lt)) return false;
+      if (typeof condition.$lte === 'number' && !(docValue <= condition.$lte)) return false;
+    } else if (typeof docValue === 'string') {
+      if (condition.$gt !== undefined && !(docValue > String(condition.$gt))) return false;
+      if (condition.$gte !== undefined && !(docValue >= String(condition.$gte))) return false;
+      if (condition.$lt !== undefined && !(docValue < String(condition.$lt))) return false;
+      if (condition.$lte !== undefined && !(docValue <= String(condition.$lte))) return false;
     }
 
     if (condition.$in !== undefined) {
