@@ -167,6 +167,39 @@ await session.send('Explain recursion with an analogy.');
 await session.send('Can you expand on that?'); // remembers context
 ```
 
+#### Memory on direct calls
+
+Memory auto-wires on `agent.stream()` / `agent.generate()` as well — sessions are not required to get memory integration. As of AgentOS 0.2.0, any call path invokes `memoryProvider.getContext` before the LLM call and `memoryProvider.observe` after.
+
+```typescript
+import type { AgentMemoryProvider } from '@framers/agentos';
+
+const myProvider: AgentMemoryProvider = {
+  async getContext(text, opts) {
+    return { contextText: await recallRelevant(text, opts?.tokenBudget) };
+  },
+  async observe(role, text) {
+    await persist(role, text);
+  },
+};
+
+const tutor = agent({
+  provider: 'anthropic',
+  instructions: 'You are a patient CS tutor.',
+  memoryProvider: myProvider,
+});
+
+// Direct stream — memory context injected before the call, observations
+// recorded after. No session required.
+const stream = tutor.stream('Explain recursion.');
+
+// Session — same memory wiring, plus per-session conversation history.
+const session = tutor.session('student-1');
+await session.send('Continue where we left off.');
+```
+
+Both `getContext` and `observe` hooks are optional; implementations may provide read-only or write-only memory behavior.
+
 ### Multi-Agent Teams
 
 ```typescript
