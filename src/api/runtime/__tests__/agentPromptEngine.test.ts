@@ -219,6 +219,38 @@ describe('agent() PromptEngine/Memory/Skills integration', () => {
       const combined = systemMsgs.map((m: any) => m.content).join('\n');
       expect(combined).toContain('Memory: user likes hiking');
     });
+
+    it('calls getContext before direct agent.stream() (new in 0.2.0)', async () => {
+      const memory = createMockMemory();
+      const a = agent({ instructions: 'test', memoryProvider: memory });
+
+      const streamResult = a.stream('hello from stream');
+      // Drain the stream to ensure generation completes
+      for await (const _chunk of streamResult.textStream) {
+        // consume
+      }
+      await streamResult.text;
+
+      expect(memory.getContext).toHaveBeenCalledWith(
+        'hello from stream',
+        expect.objectContaining({ tokenBudget: expect.any(Number) }),
+      );
+    });
+
+    it('calls observe after direct agent.stream() completes (new in 0.2.0)', async () => {
+      const memory = createMockMemory();
+      const a = agent({ instructions: 'test', memoryProvider: memory });
+
+      const streamResult = a.stream('hello from stream');
+      for await (const _chunk of streamResult.textStream) {
+        // consume
+      }
+      await streamResult.text;
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(memory.observe).toHaveBeenCalledWith('user', 'hello from stream');
+      expect(memory.observe).toHaveBeenCalledWith('assistant', 'streamed');
+    });
   });
 
   describe('all three compose together', () => {
