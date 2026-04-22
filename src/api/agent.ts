@@ -452,13 +452,18 @@ export function agent(opts: AgentOptions): Agent {
       prompt: MessageContent,
       extra?: Partial<GenerateTextOptions>
     ): Promise<GenerateTextResult> {
-      const genOpts: Partial<GenerateTextOptions> = {
-        ...baseOpts,
-        ...extra,
-        usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
-          source: extra?.usageLedger?.source ?? 'agent.generate',
-        }),
-      };
+      const userText = typeof prompt === 'string' ? prompt : extractTextFromContent(prompt);
+      const genOpts: Partial<GenerateTextOptions> = applyMemoryProvider(
+        {
+          ...baseOpts,
+          ...extra,
+          usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
+            source: extra?.usageLedger?.source ?? 'agent.generate',
+          }),
+        },
+        opts.memoryProvider,
+        userText,
+      );
       if (typeof prompt === 'string') {
         genOpts.prompt = prompt;
       } else {
