@@ -337,7 +337,7 @@
   "devDependencies": {
     "@eslint/js": "^9.11.0",
     "@framers/agentos-extensions-registry": "^0.15.0",
-    "@framers/sql-storage-adapter": "^0.6.1",
+    "@framers/sql-storage-adapter": "^0.6.3",
     "@opentelemetry/context-async-hooks": "^2.0.1",
     "@opentelemetry/sdk-metrics": "^2.0.1",
     "@opentelemetry/sdk-trace-base": "^2.0.1",
@@ -390,7 +390,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "peerDependencies": {
-    "@framers/sql-storage-adapter": "^0.6.1",
+    "@framers/sql-storage-adapter": "^0.6.3",
     "graphology": ">=0.25.0",
     "graphology-communities-louvain": ">=2.0.0",
     "graphology-types": ">=0.24.0",
