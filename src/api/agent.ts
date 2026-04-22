@@ -290,9 +290,6 @@ async function loadRecordedAgentOSUsage(
   return getRecordedAgentOSUsage(options);
 }
 
-/** Timeout for memory operations to prevent blocking generation. */
-const MEMORY_TIMEOUT_MS = 5000;
-
 /**
  * Convert HEXACO trait values (0-1) into behavioral descriptions the LLM can act on.
  *
@@ -473,13 +470,18 @@ export function agent(opts: AgentOptions): Agent {
     },
 
     stream(prompt: MessageContent, extra?: Partial<GenerateTextOptions>): StreamTextResult {
-      const streamOpts: Partial<GenerateTextOptions> = {
-        ...baseOpts,
-        ...extra,
-        usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
-          source: extra?.usageLedger?.source ?? 'agent.stream',
-        }),
-      };
+      const userText = typeof prompt === 'string' ? prompt : extractTextFromContent(prompt);
+      const streamOpts: Partial<GenerateTextOptions> = applyMemoryProvider(
+        {
+          ...baseOpts,
+          ...extra,
+          usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, extra?.usageLedger, {
+            source: extra?.usageLedger?.source ?? 'agent.stream',
+          }),
+        },
+        opts.memoryProvider,
+        userText,
+      );
       if (typeof prompt === 'string') {
         streamOpts.prompt = prompt;
       } else {
