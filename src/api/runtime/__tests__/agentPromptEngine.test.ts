@@ -180,6 +180,45 @@ describe('agent() PromptEngine/Memory/Skills integration', () => {
 
       expect(result.text).toBe('agent response');
     });
+
+    it('calls getContext before direct agent.generate() (new in 0.2.0)', async () => {
+      const memory = createMockMemory();
+      const a = agent({ instructions: 'test', memoryProvider: memory });
+
+      await a.generate('hello from direct');
+
+      expect(memory.getContext).toHaveBeenCalledWith(
+        'hello from direct',
+        expect.objectContaining({ tokenBudget: expect.any(Number) }),
+      );
+    });
+
+    it('calls observe after direct agent.generate() (new in 0.2.0)', async () => {
+      const memory = createMockMemory();
+      const a = agent({ instructions: 'test', memoryProvider: memory });
+
+      await a.generate('hello from direct');
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(memory.observe).toHaveBeenCalledWith('user', 'hello from direct');
+      expect(memory.observe).toHaveBeenCalledWith('assistant', 'agent response');
+    });
+
+    it('prepends memory context to direct agent.generate() system prompt (new in 0.2.0)', async () => {
+      const memory = createMockMemory();
+      const a = agent({
+        instructions: 'You are helpful.',
+        memoryProvider: memory,
+      });
+
+      await a.generate('hello from direct');
+
+      const callArgs = mockGenerateCompletion.mock.calls[0];
+      const messages = callArgs[1];
+      const systemMsgs = messages.filter((m: any) => m.role === 'system');
+      const combined = systemMsgs.map((m: any) => m.content).join('\n');
+      expect(combined).toContain('Memory: user likes hiking');
+    });
   });
 
   describe('all three compose together', () => {
