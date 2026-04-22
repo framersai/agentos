@@ -35,6 +35,8 @@ import type {
   MetadataFieldCondition,
   MetadataScalarValue,
   MetadataValue,
+  MetadataScanOptions,
+  MetadataScanResult,
 } from '../IVectorStore.js';
 import { GMIError, GMIErrorCode } from '../../core/utils/errors.js';
 import { uuidv4 } from '../../core/utils/uuid.js';
@@ -85,6 +87,11 @@ type QdrantScoredPoint = {
 
 type QdrantQueryResult = {
   points: QdrantScoredPoint[];
+};
+
+type QdrantScrollResult = {
+  points: QdrantScoredPoint[];
+  next_page_offset?: QdrantPointId | null;
 };
 
 type QdrantCollectionInfo = {
@@ -209,10 +216,10 @@ const buildQdrantFilter = (filter: MetadataFilter | undefined): QdrantFilter | u
     if (Array.isArray(condition.$nin)) addNotAny(key, condition.$nin.filter(isScalar));
 
     addRange(key, {
-      gt: condition.$gt,
-      gte: condition.$gte,
-      lt: condition.$lt,
-      lte: condition.$lte,
+      gt: typeof condition.$gt === 'number' ? condition.$gt : undefined,
+      gte: typeof condition.$gte === 'number' ? condition.$gte : undefined,
+      lt: typeof condition.$lt === 'number' ? condition.$lt : undefined,
+      lte: typeof condition.$lte === 'number' ? condition.$lte : undefined,
     });
 
     // Best-effort: `$contains` works for array payloads in Qdrant (any element equals).
@@ -224,6 +231,117 @@ const buildQdrantFilter = (filter: MetadataFilter | undefined): QdrantFilter | u
   if (must.length > 0) qFilter.must = must;
   if (must_not.length > 0) qFilter.must_not = must_not;
   return qFilter;
+};
+
+const payloadToMetadata = (
+  payload: Record<string, unknown> | null | undefined,
+): Record<string, MetadataValue> | undefined => {
+  if (!payload || typeof payload !== 'object') return undefined;
+
+  const metadata: Record<string, MetadataValue> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (key === RESERVED_TEXT_PAYLOAD_KEY) continue;
+    const sanitized = sanitizeMetadataValue(value);
+    if (sanitized === undefined) continue;
+    metadata[key] = sanitized;
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+};
+
+const matchesMetadataFilter = (
+  metadata: Record<string, MetadataValue> | undefined,
+  filter: MetadataFilter,
+): boolean => {
+  if (!metadata) {
+    for (const key in filter) {
+      const condition = filter[key];
+      if (typeof condition === 'object' && condition !== null && (condition as MetadataFieldCondition).$exists === false) {
+        continue;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  for (const key in filter) {
+    const docValue = metadata[key];
+    const filterValue = filter[key];
+
+    if (typeof filterValue === 'object' && filterValue !== null) {
+      if (!evaluateMetadataCondition(docValue, filterValue as MetadataFieldCondition)) {
+        return false;
+      }
+    } else if (Array.isArray(docValue)) {
+      if (!docValue.includes(filterValue as MetadataScalarValue)) {
+        return false;
+      }
+    } else if (docValue !== filterValue) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const evaluateMetadataCondition = (
+  docValue: MetadataValue | undefined,
+  condition: MetadataFieldCondition,
+): boolean => {
+  if (condition.$exists !== undefined) {
+    return condition.$exists === (docValue !== undefined);
+  }
+  if (docValue === undefined) return false;
+
+  if (condition.$eq !== undefined && docValue !== condition.$eq) return false;
+  if (condition.$ne !== undefined && docValue === condition.$ne) return false;
+
+  if (typeof docValue === 'number') {
+    if (typeof condition.$gt === 'number' && !(docValue > condition.$gt)) return false;
+    if (typeof condition.$gte === 'number' && !(docValue >= condition.$gte)) return false;
+    if (typeof condition.$lt === 'number' && !(docValue < condition.$lt)) return false;
+    if (typeof condition.$lte === 'number' && !(docValue <= condition.$lte)) return false;
+  } else if (typeof docValue === 'string') {
+    if (condition.$gt !== undefined && !(docValue > String(condition.$gt))) return false;
+    if (condition.$gte !== undefined && !(docValue >= String(condition.$gte))) return false;
+    if (condition.$lt !== undefined && !(docValue < String(condition.$lt))) return false;
+    if (condition.$lte !== undefined && !(docValue <= String(condition.$lte))) return false;
+  }
+
+  if (condition.$in !== undefined) {
+    if (!Array.isArray(condition.$in)) return false;
+    if (Array.isArray(docValue)) {
+      if (!docValue.some((value) => condition.$in!.includes(value as MetadataScalarValue))) return false;
+    } else if (!condition.$in.includes(docValue as MetadataScalarValue)) {
+      return false;
+    }
+  }
+
+  if (condition.$nin !== undefined) {
+    if (!Array.isArray(condition.$nin)) return false;
+    if (Array.isArray(docValue)) {
+      if (docValue.some((value) => condition.$nin!.includes(value as MetadataScalarValue))) return false;
+    } else if (condition.$nin.includes(docValue as MetadataScalarValue)) {
+      return false;
+    }
+  }
+
+  if (Array.isArray(docValue)) {
+    if (condition.$contains !== undefined && !docValue.includes(condition.$contains as MetadataScalarValue)) return false;
+    if (condition.$all !== undefined) {
+      if (!Array.isArray(condition.$all) || !condition.$all.every((value) => docValue.includes(value))) return false;
+    }
+  } else if (typeof docValue === 'string' && condition.$contains !== undefined && typeof condition.$contains === 'string') {
+    if (!docValue.includes(condition.$contains)) return false;
+  }
+
+  if (condition.$textSearch !== undefined) {
+    if (typeof docValue !== 'string' || !docValue.toLowerCase().includes(condition.$textSearch.toLowerCase())) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export class QdrantVectorStore implements IVectorStore {
@@ -558,14 +676,8 @@ export class QdrantVectorStore implements IVectorStore {
           : undefined;
 
       let metadata: Record<string, MetadataValue> | undefined;
-      if (includeMetadata && payload && typeof payload === 'object') {
-        metadata = {};
-        for (const [key, value] of Object.entries(payload)) {
-          if (key === RESERVED_TEXT_PAYLOAD_KEY) continue;
-          const sanitized = sanitizeMetadataValue(value);
-          if (sanitized === undefined) continue;
-          (metadata as any)[key] = sanitized;
-        }
+      if (includeMetadata) {
+        metadata = payloadToMetadata(payload);
       }
 
       let embedding: number[] | undefined;
@@ -622,6 +734,85 @@ export class QdrantVectorStore implements IVectorStore {
     return {
       documents: this.toRetrievedDocs(points, options),
       stats: resp.data?.time ? { time: resp.data.time } : undefined,
+    };
+  }
+
+  public async scanByMetadata(
+    collectionName: string,
+    options?: MetadataScanOptions,
+  ): Promise<MetadataScanResult> {
+    this.ensureInitialized();
+
+    const encoded = encodeURIComponent(collectionName);
+    const limit = Math.max(1, options?.limit ?? 100);
+    const qFilter = buildQdrantFilter(options?.filter);
+    const withPayload = options?.includeMetadata !== false || Boolean(options?.includeTextContent) || Boolean(options?.filter);
+    const withVector = Boolean(options?.includeEmbedding);
+
+    const documents: RetrievedVectorDocument[] = [];
+    let offset: string | undefined = options?.cursor;
+    let pagesScanned = 0;
+    let totalCandidates = 0;
+
+    while (documents.length < limit) {
+      const body: Record<string, unknown> = {
+        limit: limit - documents.length,
+        with_payload: withPayload,
+        with_vector: withVector,
+      };
+
+      if (qFilter) body.filter = qFilter;
+      if (offset !== undefined) body.offset = offset;
+
+      const resp = await this.requestJson<QdrantOkResponse<QdrantScrollResult>>({
+        method: 'POST',
+        path: `/collections/${encoded}/points/scroll`,
+        body,
+      });
+
+      pagesScanned += 1;
+      const points = resp.data?.result?.points ?? [];
+      totalCandidates += points.length;
+
+      for (const point of points) {
+        const metadata = payloadToMetadata((point.payload ?? undefined) as Record<string, unknown> | undefined);
+        if (options?.filter && !matchesMetadataFilter(metadata, options.filter)) {
+          continue;
+        }
+
+        const [retrieved] = this.toRetrievedDocs([point], {
+          includeEmbedding: options?.includeEmbedding,
+          includeMetadata: options?.includeMetadata,
+          includeTextContent: options?.includeTextContent,
+        });
+
+        documents.push({
+          ...retrieved,
+          similarityScore: 1,
+        });
+
+        if (documents.length >= limit) {
+          break;
+        }
+      }
+
+      const nextOffset = resp.data?.result?.next_page_offset;
+      if (nextOffset === null || nextOffset === undefined || points.length === 0) {
+        offset = undefined;
+        break;
+      }
+
+      offset = safeStringId(nextOffset);
+    }
+
+    return {
+      documents,
+      nextCursor: offset,
+      stats: {
+        pagesScanned,
+        totalCandidates,
+        returnedCount: documents.length,
+      },
     };
   }
 
