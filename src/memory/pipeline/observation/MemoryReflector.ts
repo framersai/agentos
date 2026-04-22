@@ -126,7 +126,7 @@ Rules:
    ❌ "The user mentioned a recent residence change."
    ✓ "User moved to Berlin on March 15, 2024."
    ❌ "User was pre-approved for a mortgage."
-   ✓ "User pre-approved by Wells Fargo for \$350,000 mortgage."${relationalBlock}
+   ✓ "User pre-approved by Wells Fargo for $350,000 mortgage."${relationalBlock}
 
 After your <thinking> block, output JSON objects, one per line:
 {
