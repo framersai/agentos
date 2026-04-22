@@ -31,6 +31,7 @@ import type {
 import { warnOnDeferredLightweightAgentCapabilities } from './runtime/lightweightAgentDiagnostics.js';
 import type { BaseAgentConfig } from './types.js';
 import { exportAgentConfig, exportAgentConfigJSON, type AgentExportConfig } from './agentExportCore.js';
+import { applyMemoryProvider } from './runtime/memoryProviderHooks.js';
 
 /**
  * Provider hook interface consumed by `agent()` for memory integration.
@@ -492,53 +493,28 @@ export function agent(opts: AgentOptions): Agent {
 
         async send(input: MessageContent): Promise<GenerateTextResult> {
           const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
-
-          // Memory recall before generation
-          let memorySystemMsg: string | undefined;
-          if (opts.memoryProvider?.getContext) {
-            try {
-              const ctx = await Promise.race([
-                opts.memoryProvider.getContext(textForMemory, { tokenBudget: 2000 }),
-                new Promise<null>((resolve) => setTimeout(() => resolve(null), MEMORY_TIMEOUT_MS)),
-              ]);
-              if (ctx?.contextText) {
-                memorySystemMsg = ctx.contextText;
-              }
-            } catch {
-              // Memory recall failure is non-fatal
-            }
-          }
-
-          // Prepend memory context to system prompt
-          let system = baseOpts.system;
-          if (memorySystemMsg) {
-            system = [memorySystemMsg, system].filter(Boolean).join('\n\n') || undefined;
-          }
-
           const userMessage: Message = { role: 'user', content: input };
           const requestMessages = useMemory
             ? [...history, userMessage]
             : [userMessage];
-          const result = await generateText({
-            ...baseOpts,
-            system,
-            messages: requestMessages,
-            usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
-              sessionId,
-              source: 'agent.session.send',
-            }),
-          } as GenerateTextOptions);
+
+          const wrappedOpts = applyMemoryProvider(
+            {
+              ...baseOpts,
+              messages: requestMessages,
+              usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
+                sessionId,
+                source: 'agent.session.send',
+              }),
+            },
+            opts.memoryProvider,
+            textForMemory,
+          );
+
+          const result = await generateText(wrappedOpts as GenerateTextOptions);
           if (useMemory) {
             history.push(userMessage);
             history.push({ role: 'assistant', content: result.text });
-          }
-
-          // Memory observe after generation (fire-and-forget, text only)
-          if (opts.memoryProvider?.observe) {
-            opts.memoryProvider.observe('user', textForMemory).catch(() => {});
-            if (result.text) {
-              opts.memoryProvider.observe('assistant', result.text).catch(() => {});
-            }
           }
 
           return result;
