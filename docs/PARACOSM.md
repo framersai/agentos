@@ -35,11 +35,69 @@ const result = await runSimulation(aria, [], {
   onEvent: e => console.log(e.type, e.data?.title),
 });
 
-console.log(result.finalState.systems.population);
-console.log(result.totalToolsForged);
+console.log(result.finalState?.metrics.population);
+console.log(result.forgedTools?.length ?? 0);
 ```
 
 Or run the hosted demo at [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/sim) with zero setup. The demo caps turns, population, and model tier so public access stays affordable; paste your own OpenAI or Anthropic key into Settings to unlock full scope.
+
+## The universal result contract
+
+Every `runSimulation()` call returns a Zod-validated `RunArtifact` exported from the `paracosm/schema` subpath. One shape covers three simulation modes, discriminated on `metadata.mode`:
+
+- `turn-loop`: civilization sims (paracosm's built-in mode). Populates `trajectory.timepoints[]` and `decisions[]` with per-turn specialist notes.
+- `batch-trajectory`: digital-twin simulations (digital-twin). Labeled timepoints over a horizon, populated by external LangGraph-style executors.
+- `batch-point`: one-shot forecasts. Overview and risk flags only, no trajectory.
+
+```typescript
+import { RunArtifactSchema, type RunArtifact } from 'paracosm/schema';
+import { runSimulation } from 'paracosm/runtime';
+
+const artifact: RunArtifact = await runSimulation(leader, [], opts);
+const parsed = RunArtifactSchema.parse(artifact); // optional runtime validation
+
+switch (artifact.metadata.mode) {
+  case 'turn-loop':
+  case 'batch-trajectory':
+  case 'batch-point':
+}
+
+artifact.trajectory?.timepoints?.forEach((tp) => {
+  console.log(tp.label, tp.score?.value, tp.narrative);
+});
+```
+
+The schema exposes 11 content primitives (`RunMetadata`, `WorldSnapshot`, `Score`, `HighlightMetric`, `Timepoint`, `TrajectoryPoint`, `Trajectory`, `Citation`, `SpecialistDetail`, `SpecialistNote`, `RiskFlag`, `Decision`) plus operational types (`Cost`, `ProviderError`). Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch for domain-specific fields that must not pollute the universal shape.
+
+Non-TypeScript consumers generate equivalent types from JSON Schema: `npm run export:json-schema` emits `schema/run-artifact.schema.json` and `schema/stream-event.schema.json`. Python projects use `datamodel-codegen`; any ecosystem with a JSON-Schema code generator adopts cleanly. Full adoption walkthrough at [paracosm/docs/adoption/digital-twin.md](https://github.com/framersai/paracosm/blob/master/docs/adoption/digital-twin.md).
+
+### Subjects and interventions
+
+For simulations built around a single subject (a person, character, organism, vessel) under a counterfactual intervention, `paracosm/schema` exposes `SubjectConfig` and `InterventionConfig` as first-class input primitives. Pass them through `RunOptions` and they carry through to `RunArtifact.subject` and `RunArtifact.intervention` for downstream consumers:
+
+```typescript
+import { SubjectConfigSchema, InterventionConfigSchema } from 'paracosm/schema';
+
+const subject = SubjectConfigSchema.parse({
+  id: 'user-42',
+  name: 'Alice',
+  profile: { age: 34, diet: 'mediterranean' },
+  signals: [{ label: 'HRV', value: 48.2, unit: 'ms', recordedAt: '2026-04-21T08:00:00Z' }],
+  markers: [{ id: 'rs4680', category: 'genome', value: 'AA' }],
+});
+
+const intervention = InterventionConfigSchema.parse({
+  id: 'intv-1',
+  name: 'Creatine + Sleep Hygiene',
+  description: '5g daily + 11pm bedtime.',
+  duration: { value: 12, unit: 'weeks' },
+  adherenceProfile: { expected: 0.7 },
+});
+
+const artifact = await runSimulation(leader, [], { scenario, subject, intervention });
+```
+
+Turn-loop mode stashes both verbatim without semantic consumption; external batch-trajectory executors populate them from their own flow.
 
 ## What it does
 
@@ -115,21 +173,33 @@ Users who want more runs paste their own OpenAI or Anthropic key. The dashboard'
 ## API surface
 
 ```typescript
-import type { ScenarioPackage, Agent } from 'paracosm';
+import type { ScenarioPackage, Agent, LeaderConfig, HexacoProfile } from 'paracosm';
+import { SimulationKernel, SeededRng } from 'paracosm';
 import { marsScenario } from 'paracosm/mars';
 import { lunarScenario } from 'paracosm/lunar';
 import { runSimulation, runBatch } from 'paracosm/runtime';
-import { SimulationKernel, SeededRng } from 'paracosm';
+import { compileScenario } from 'paracosm/compiler';
+import {
+  RunArtifactSchema,
+  StreamEventSchema,
+  SubjectConfigSchema,
+  InterventionConfigSchema,
+  type RunArtifact,
+  type StreamEvent,
+  type SubjectConfig,
+  type InterventionConfig,
+} from 'paracosm/schema';
 ```
 
 Full type reference is auto-generated from source at [/paracosm](/paracosm). The core types:
 
-- [`ScenarioPackage`](/paracosm/interfaces/ScenarioPackage) — domain-agnostic scenario bundle
-- [`LeaderConfig`](/paracosm/interfaces/LeaderConfig) — commander identity + HEXACO profile
-- [`HexacoProfile`](/paracosm/interfaces/HexacoProfile) — six-axis personality vector
-- [`SimulationKernel`](/paracosm/classes/SimulationKernel) — deterministic state machine
-- [`runSimulation`](/paracosm/runtime/functions/runSimulation) — single-leader turn loop
-- [`runBatch`](/paracosm/runtime/functions/runBatch) — parallel multi-scenario runner
+- [`ScenarioPackage`](/paracosm/engine/interfaces/ScenarioPackage): domain-agnostic scenario bundle
+- [`LeaderConfig`](/paracosm/engine/interfaces/LeaderConfig): commander identity plus HEXACO profile
+- [`HexacoProfile`](/paracosm/engine/interfaces/HexacoProfile): six-axis personality vector
+- [`SimulationKernel`](/paracosm/engine/classes/SimulationKernel): deterministic state machine
+- [`runSimulation`](/paracosm/runtime/functions/runSimulation): single-leader turn loop, returns `Promise<RunArtifact>`
+- [`runBatch`](/paracosm/runtime/functions/runBatch): parallel multi-scenario runner
+- [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario): turns scenario JSON into a runnable `ScenarioPackage`
 
 ## HTTP + SSE server
 
@@ -147,6 +217,17 @@ The dashboard server exposes a small HTTP API for driving sims from any client:
 | `GET` | `/admin-config` | Hosted-demo flags + effective caps |
 
 `/events` replays a buffered event history on reconnect (persisted to disk so restarts do not evaporate completed runs), closes with a `replay_done` marker so clients can distinguish historical from live events.
+
+The SSE stream emits a 17-variant `StreamEvent` discriminated union (defined in `paracosm/schema`), every event carrying a universal `e.data.summary` one-liner so consumers can render cleanly without narrowing on per-event fields:
+
+```
+turn_start, event_start, specialist_start, specialist_done, forge_attempt,
+decision_pending, decision_made, outcome, personality_drift, agent_reactions,
+bulletin, turn_done, promotion, systems_snapshot, provider_error,
+validation_fallback, sim_aborted
+```
+
+Narrow via `e.type` for per-event intellisense on `e.data`. Validate the envelope at runtime with `StreamEventSchema.parse(evt)` when ingesting untrusted streams.
 
 ## Related
 
