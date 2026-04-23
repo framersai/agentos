@@ -145,8 +145,8 @@ Any domain works. Mars colonies, submarine habitats, space stations, medieval ki
 ```json
 {
   "id": "mars-genesis",
-  "labels": { "name": "Mars Genesis", "populationNoun": "colonists", "settlementNoun": "colony" },
-  "setup": { "defaultTurns": 6, "defaultSeed": 950, "defaultStartYear": 2035 },
+  "labels": { "name": "Mars Genesis", "populationNoun": "colonists", "settlementNoun": "colony", "timeUnitNoun": "year", "timeUnitNounPlural": "years" },
+  "setup": { "defaultTurns": 6, "defaultSeed": 950, "defaultStartTime": 2035 },
   "departments": [
     { "id": "medical", "label": "Medical", "role": "Chief Medical Officer", "instructions": "..." },
     { "id": "engineering", "label": "Engineering", "role": "Chief Engineer", "instructions": "..." }
