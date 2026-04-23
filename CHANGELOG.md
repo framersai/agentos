@@ -1,3 +1,12 @@
+## <small>0.2.2 (2026-04-23)</small>
+
+* docs: domain-neutral naming in paracosm + ecosystem guides ([49cb85b](https://github.com/framersai/agentos/commit/49cb85b))
+* docs(emergent): add forge-observability section covering 5-utility telemetry API ([45ef25e](https://github.com/framersai/agentos/commit/45ef25e))
+* docs(paracosm): cover 0.6.0 universal schema + list as ecosystem app ([0cb3fae](https://github.com/framersai/agentos/commit/0cb3fae))
+* docs(paracosm): P1 rename drift \u2014 colony \u2192 unit + finalState.colony \u2192 finalState.syst ([2e3406d](https://github.com/framersai/agentos/commit/2e3406d))
+* docs(paracosm): update scenario example for 0.7.0 time-unit field names ([80fcc22](https://github.com/framersai/agentos/commit/80fcc22))
+* fix(ecosystem): coderabbit review - point live demo to /sim path ([49495b6](https://github.com/framersai/agentos/commit/49495b6))
+
 ## <small>0.2.1 (2026-04-22)</small>
 
 * Merge remote-tracking branch 'origin/master' ([126d6e3](https://github.com/framersai/agentos/commit/126d6e3))
