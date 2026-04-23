@@ -1,1 +1,0 @@
-{"version":3,"file":"NoOpLemmatizer.js","sourceRoot":"","sources":["../../../src/nlp/lemmatizers/NoOpLemmatizer.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAKH,MAAM,OAAO,cAAc;IAA3B;QACW,SAAI,GAAG,gBAAgB,CAAC;IAKnC,CAAC;IAHC,OAAO,CAAC,MAAe;QACrB,OAAO,MAAM,CAAC;IAChB,CAAC;CACF"}

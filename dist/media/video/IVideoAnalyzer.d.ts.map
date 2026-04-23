@@ -1,1 +1,0 @@
-{"version":3,"file":"IVideoAnalyzer.d.ts","sourceRoot":"","sources":["../../../src/media/video/IVideoAnalyzer.ts"],"names":[],"mappings":"AAAA;;;;;;;;;GASG;AAEH,OAAO,KAAK,EAAE,mBAAmB,EAAE,aAAa,EAAE,MAAM,YAAY,CAAC;AAMrE;;;;;;;GAOG;AACH,MAAM,WAAW,cAAc;IAC7B;;;;;OAKG;IACH,YAAY,CAAC,OAAO,EAAE,mBAAmB,GAAG,OAAO,CAAC,aAAa,CAAC,CAAC;CACpE"}

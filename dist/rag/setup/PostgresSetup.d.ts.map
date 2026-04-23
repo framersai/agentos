@@ -1,1 +1,0 @@
-{"version":3,"file":"PostgresSetup.d.ts","sourceRoot":"","sources":["../../../src/rag/setup/PostgresSetup.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAGH,OAAO,KAAK,EAAE,aAAa,EAAE,WAAW,EAAE,MAAM,YAAY,CAAC;AAa7D,qBAAa,aAAa;IACxB;;;;;OAKG;WACU,MAAM,CAAC,MAAM,CAAC,EAAE,WAAW,GAAG,OAAO,CAAC,aAAa,CAAC;CA8GlE"}

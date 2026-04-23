@@ -1,1 +1,0 @@
-{"version":3,"file":"NoOpStemmer.js","sourceRoot":"","sources":["../../../src/nlp/stemmers/NoOpStemmer.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAKH,MAAM,OAAO,WAAW;IAAxB;QACW,SAAI,GAAG,aAAa,CAAC;IAKhC,CAAC;IAHC,OAAO,CAAC,MAAe;QACrB,OAAO,MAAM,CAAC;IAChB,CAAC;CACF"}
