@@ -122,6 +122,26 @@ This is the content package for skills. The runtime engine (SkillLoader, SkillRe
 
 ## Applications
 
+### [Paracosm](https://github.com/framersai/paracosm)
+**AI Agent Swarm Simulation Engine** — Define worlds as JSON, assign AI leaders with HEXACO personality profiles, and watch their decisions compound into measurably different outcomes from identical starting conditions. Built on `@framers/agentos`.
+
+```bash
+npm install paracosm
+```
+
+[![npm](https://img.shields.io/npm/v/paracosm?logo=npm&color=cb3837)](https://www.npmjs.com/package/paracosm)
+[![GitHub](https://img.shields.io/github/stars/framersai/paracosm?style=social)](https://github.com/framersai/paracosm)
+
+**Features:**
+- Universal `RunArtifact` schema at `paracosm/schema` covering turn-loop civilization sims, batch-trajectory digital twins, and batch-point forecasts
+- HEXACO personality-driven commander decisions with runtime tool forging through AgentOS's `EmergentCapabilityEngine`
+- Deterministic kernel: same seed plus same crises equals replayable, diff-able runs
+- `SubjectConfig` and `InterventionConfig` input primitives for digital-twin adoption
+
+🌐 **Live demo:** [paracosm.agentos.sh](https://paracosm.agentos.sh) · **Docs:** [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
+
+---
+
 ### [agentos.sh](https://github.com/framersai/agentos.sh)
 **Documentation Website** — Official documentation and marketing site.
 
@@ -157,7 +177,7 @@ npm install wunderland
 | Resource | Link |
 |----------|------|
 | Documentation | [agentos.sh/docs](https://agentos.sh/docs) |
-| API Reference | [agentos-live-docs branch](https://github.com/framersai/agentos/tree/agentos-live-docs) |
+| API Reference | [docs.agentos.sh/api](https://docs.agentos.sh/api/) |
 | npm | [@framers/agentos](https://www.npmjs.com/package/@framers/agentos) |
 | Discord | [Join Community](https://discord.gg/usEkfCeQxs) |
 | Twitter | [@framersai](https://twitter.com/framersai) |
