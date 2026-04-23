@@ -1,1 +1,0 @@
-{"version":3,"file":"IUIComponent.d.ts","sourceRoot":"","sources":["../../../src/core/utils/IUIComponent.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,WAAW,wBAAwB;IACvC,EAAE,EAAE,MAAM,CAAC;IACX,IAAI,EAAE,MAAM,CAAC;IACb,IAAI,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,CAAC;IAC9B,QAAQ,CAAC,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,CAAC;CACpC"}

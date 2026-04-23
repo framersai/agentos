@@ -1,4 +1,6 @@
 dist/
+knowledge/
+db_data/
 tsconfig.tsbuildinfo
 tsconfig.build.tsbuildinfo
 **/*.js
