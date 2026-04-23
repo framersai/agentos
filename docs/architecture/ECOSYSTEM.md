@@ -138,7 +138,7 @@ npm install paracosm
 - Deterministic kernel: same seed plus same crises equals replayable, diff-able runs
 - `SubjectConfig` and `InterventionConfig` input primitives for digital-twin adoption
 
-🌐 **Live demo:** [paracosm.agentos.sh](https://paracosm.agentos.sh) · **Docs:** [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
+🌐 **Live demo:** [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/sim) · **Docs:** [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
 
 ---
 
