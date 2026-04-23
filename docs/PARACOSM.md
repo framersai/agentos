@@ -46,7 +46,7 @@ Or run the hosted demo at [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/
 Every `runSimulation()` call returns a Zod-validated `RunArtifact` exported from the `paracosm/schema` subpath. One shape covers three simulation modes, discriminated on `metadata.mode`:
 
 - `turn-loop`: civilization sims (paracosm's built-in mode). Populates `trajectory.timepoints[]` and `decisions[]` with per-turn specialist notes.
-- `batch-trajectory`: digital-twin simulations (digital-twin). Labeled timepoints over a horizon, populated by external LangGraph-style executors.
+- `batch-trajectory`: digital-twin simulations. Labeled timepoints over a horizon, populated by external LangGraph-style executors.
 - `batch-point`: one-shot forecasts. Overview and risk flags only, no trajectory.
 
 ```typescript
@@ -69,7 +69,7 @@ artifact.trajectory?.timepoints?.forEach((tp) => {
 
 The schema exposes 11 content primitives (`RunMetadata`, `WorldSnapshot`, `Score`, `HighlightMetric`, `Timepoint`, `TrajectoryPoint`, `Trajectory`, `Citation`, `SpecialistDetail`, `SpecialistNote`, `RiskFlag`, `Decision`) plus operational types (`Cost`, `ProviderError`). Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch for domain-specific fields that must not pollute the universal shape.
 
-Non-TypeScript consumers generate equivalent types from JSON Schema: `npm run export:json-schema` emits `schema/run-artifact.schema.json` and `schema/stream-event.schema.json`. Python projects use `datamodel-codegen`; any ecosystem with a JSON-Schema code generator adopts cleanly. Full adoption walkthrough at [paracosm/docs/adoption/digital-twin.md](https://github.com/framersai/paracosm/blob/master/docs/adoption/digital-twin.md).
+Non-TypeScript consumers generate equivalent types from JSON Schema: `npm run export:json-schema` emits `schema/run-artifact.schema.json` and `schema/stream-event.schema.json`. Python projects use `datamodel-codegen`; any ecosystem with a JSON-Schema code generator adopts cleanly.
 
 ### Subjects and interventions
 
