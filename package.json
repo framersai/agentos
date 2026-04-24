@@ -258,6 +258,11 @@
       "default": "./dist/query-router/index.js",
       "types": "./dist/query-router/index.d.ts"
     },
+    "./memory-router": {
+      "import": "./dist/memory-router/index.js",
+      "default": "./dist/memory-router/index.js",
+      "types": "./dist/memory-router/index.d.ts"
+    },
     "./memory/index": {
       "import": "./dist/memory/index.js",
       "default": "./dist/memory/index.js",
