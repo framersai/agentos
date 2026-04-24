@@ -1,11 +1,17 @@
 ---
-title: "Paracosm — AI Simulation Engine"
+title: "Paracosm: Structured World Model for AI Agents"
 sidebar_position: 1
 ---
 
-Paracosm is an AI agent swarm simulation engine built on AgentOS. Define a scenario as JSON, run it with AI commanders that have different [HEXACO](/features/cognitive-memory) personality profiles, and watch their decisions diverge into measurably different outcomes from the same seed. The reference scenario ships as Mars Genesis: a thirty-colonist Mars colony running from 2035 to 2067 across six turns.
+Paracosm is a **structured world model for AI agents**, built on AgentOS. Define a world as JSON, pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles, and watch their decisions diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
-**[Live demo](https://paracosm.agentos.sh/sim)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[API reference](/paracosm)** · **[Case study blog post](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation)**
+## Where paracosm sits in the world-model landscape
+
+Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449), and a counterfactual world simulation model in the sense of [Kirfel et al, Stanford 2025](https://cicl.stanford.edu/papers/kirfel2025when.pdf). It is **not** a generative visual or spatial world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model (LeCun's AMI Labs), **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up swarm intelligence simulator (MiroFish, OASIS), and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a JSON-defined state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+
+Full taxonomy mapping lives at [docs/positioning/world-model-mapping.md](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md).
+
+**[Live demo](https://paracosm.agentos.sh/sim)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[API reference](/paracosm)** · **[Positioning map](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md)** · **[Case study blog post](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation)**
 
 ## Quick Start
 
@@ -121,12 +127,12 @@ Two runs on the same seed produce identical deterministic stages. The LLM stages
 
 Paracosm uses the [HEXACO model](/features/cognitive-memory) (Ashton & Lee, 2007) across all six axes, with both poles producing concrete behavioral cues in the commander's decision-style block and the department analysis prompts:
 
-- **Openness** — high: favor novel, untested approaches; low: trust proven protocols.
-- **Conscientiousness** — high: demand evidence and contingency plans; low: move fast, accept ambiguity.
-- **Extraversion** — high: lead from the front with public comms; low: work through technical channels.
-- **Agreeableness** — high: seek consensus with departments and Earth; low: override consensus when you see a better path.
-- **Emotionality** — high: weigh human cost heavily; low: accept casualties for strategic gain.
-- **Honesty-Humility** — high: report failures transparently; low: leverage information asymmetries.
+- **Openness.** High: favor novel, untested approaches. Low: trust proven protocols.
+- **Conscientiousness.** High: demand evidence and contingency plans. Low: move fast, accept ambiguity.
+- **Extraversion.** High: lead from the front with public comms. Low: work through technical channels.
+- **Agreeableness.** High: seek consensus with departments and Earth. Low: override consensus when you see a better path.
+- **Emotionality.** High: weigh human cost heavily. Low: accept casualties for strategic gain.
+- **Honesty-Humility.** High: report failures transparently. Low: leverage information asymmetries.
 
 Trait thresholds are 0.7 (high) and 0.3 (low); cues only fire when a trait is meaningfully expressed. Visible in action at [departments.ts:90](https://github.com/framersai/paracosm/blob/master/src/runtime/departments.ts#L90) and [commander-setup.ts:30](https://github.com/framersai/paracosm/blob/master/src/runtime/commander-setup.ts#L30).
 
@@ -231,9 +237,9 @@ Narrow via `e.type` for per-event intellisense on `e.data`. Validate the envelop
 
 ## Related
 
-- [Emergent Capabilities](/features/emergent-capabilities) — the forge + judge machinery underlying `forge_tool`
-- [HEXACO Personality](/features/cognitive-memory) — trait model, mutation system, persona overlays
-- [Cognitive Memory Guide](/features/cognitive-memory-guide) — the memory pipeline colonists use as chat agents
-- [Inside Mars Genesis (blog)](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation) — full case study
-- [Emergent Tools and HEXACO Leaders (blog)](https://agentos.sh/blog/emergent-tools-hexaco-leaders) — two-leader-one-seed comparison
-- [Build an AI Civilization in 5 Minutes (blog)](https://agentos.sh/blog/build-ai-civilization-simulation-paracosm) — tutorial
+- [Emergent Capabilities](/features/emergent-capabilities): the forge + judge machinery underlying `forge_tool`
+- [HEXACO Personality](/features/cognitive-memory): trait model, mutation system, persona overlays
+- [Cognitive Memory Guide](/features/cognitive-memory-guide): the memory pipeline colonists use as chat agents
+- [Inside Mars Genesis (blog)](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation): full case study
+- [Emergent Tools and HEXACO Leaders (blog)](https://agentos.sh/blog/emergent-tools-hexaco-leaders): two-leader-one-seed comparison
+- [Build an AI Civilization in 5 Minutes (blog)](https://agentos.sh/blog/build-ai-civilization-simulation-paracosm): tutorial
