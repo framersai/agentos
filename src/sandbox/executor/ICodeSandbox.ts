@@ -56,9 +56,13 @@ export interface SandboxConfig {
    * SandboxedToolForge) needs to expose allowlisted APIs (`fetch`, `fs`,
    * `crypto`) without forking a second sandbox implementation.
    *
-   * Security-critical keys (`process`, `global`, `globalThis`, `require`,
-   * `eval`, `Function`) are silently dropped from this map at merge time
-   * so callers cannot accidentally undo the sandbox's hardenings.
+   * Security-critical keys are silently dropped from this map at merge time
+   * so callers cannot accidentally undo the sandbox's hardenings:
+   *   - Host-state escape: `process`, `global`, `globalThis`, `require`
+   *   - Code-generation reflection: `eval`, `Function`
+   *   - Realm-reflection / introspection: `Reflect`, `Proxy`
+   *   - Memory side-channels (Spectre family): `SharedArrayBuffer`, `Atomics`
+   *   - Native compilation surface: `WebAssembly`
    */
   extraGlobals?: Record<string, unknown>;
 }

@@ -53,6 +53,13 @@ const DEFAULT_CONFIG: SandboxConfig = {
  * we let extraGlobals re-bind them the entire isolation guarantee evaporates.
  * Filtered silently at merge time so a forge-style consumer that includes one
  * of these by accident still gets a working sandbox without a noisy error.
+ *
+ * Categorized:
+ *   - Host-state escape: process, global, globalThis, require
+ *   - Code-generation reflection: eval, Function
+ *   - Realm-reflection / introspection: Reflect, Proxy
+ *   - Memory side-channels (Spectre family): SharedArrayBuffer, Atomics
+ *   - Native compilation surface: WebAssembly
  */
 const DANGEROUS_GLOBAL_KEYS: ReadonlySet<string> = new Set([
   'process',
@@ -61,6 +68,11 @@ const DANGEROUS_GLOBAL_KEYS: ReadonlySet<string> = new Set([
   'require',
   'eval',
   'Function',
+  'Reflect',
+  'Proxy',
+  'WebAssembly',
+  'SharedArrayBuffer',
+  'Atomics',
 ]);
 
 /** Dangerous patterns by language */
@@ -307,6 +319,18 @@ export class CodeSandbox implements ICodeSandbox {
       clearInterval: undefined,
       clearImmediate: undefined,
       queueMicrotask: undefined,
+      // Realm intrinsics that node:vm exposes by default but untrusted
+      // sandbox code has no legitimate need for. Explicitly nulling them
+      // blocks runtime reflection paths (Reflect.construct(Function,...)),
+      // Proxy-based prototype-chain attacks, and the SharedArrayBuffer/
+      // Atomics Spectre side-channel surface. WebAssembly is already
+      // blocked via codeGeneration: { wasm: false } but nulled here for
+      // belt-and-suspenders.
+      Reflect: undefined,
+      Proxy: undefined,
+      WebAssembly: undefined,
+      SharedArrayBuffer: undefined,
+      Atomics: undefined,
     };
 
     // Merge caller-supplied extras AFTER the hardened defaults so an explicit
