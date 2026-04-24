@@ -185,6 +185,72 @@ describe('AnthropicProvider', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Temperature deprecation for reasoning-default models (Opus 4.7)
+  // -------------------------------------------------------------------------
+
+  describe('temperature handling per model', () => {
+    it('includes temperature in the payload for Claude Sonnet / Haiku / Opus <= 4.6', async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      await provider.generateCompletion(
+        'claude-sonnet-4-6',
+        [{ role: 'user', content: 'Hi' }],
+        { temperature: 0.3 },
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.temperature).toBe(0.3);
+    });
+
+    it('includes temperature for older Opus (claude-opus-4-6)', async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      await provider.generateCompletion(
+        'claude-opus-4-6',
+        [{ role: 'user', content: 'Hi' }],
+        { temperature: 0.7 },
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.temperature).toBe(0.7);
+    });
+
+    it('OMITS temperature for claude-opus-4-7 even when caller passes it', async () => {
+      // Opus 4.7 deprecated temperature (reasoning-default). The Anthropic
+      // API returns 400 "`temperature` is deprecated for this model" when
+      // temperature is present, so the provider must silently drop it.
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      await provider.generateCompletion(
+        'claude-opus-4-7',
+        [{ role: 'user', content: 'Hi' }],
+        { temperature: 0.5 },
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.temperature).toBeUndefined();
+    });
+
+    it('OMITS temperature for claude-opus-4-7 with provider-qualified id variations', async () => {
+      // Guards against a future change that keeps the major/minor but
+      // tacks on a date suffix (e.g. claude-opus-4-7-20260501).
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      await provider.generateCompletion(
+        'claude-opus-4-7-20260501',
+        [{ role: 'user', content: 'Hi' }],
+        { temperature: 0.5 },
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.temperature).toBeUndefined();
+    });
+
+    it('passes temperature unchanged when model is not a reasoning-default family', async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      await provider.generateCompletion(
+        'claude-haiku-4-5-20251001',
+        [{ role: 'user', content: 'Hi' }],
+        { temperature: 0 },
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.temperature).toBe(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Tool calling format conversion
   // -------------------------------------------------------------------------
 

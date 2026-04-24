@@ -83,6 +83,36 @@ export interface AnthropicProviderConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Model capability helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether the given Claude model id accepts the `temperature` parameter.
+ *
+ * Anthropic deprecated `temperature` on reasoning-default models. Opus 4.7
+ * (extended-thinking by default) rejects requests that include it with
+ * HTTP 400 "`temperature` is deprecated for this model." Every earlier
+ * Claude model (Opus ≤ 4.6, Sonnet, Haiku) still accepts it.
+ *
+ * Deny-by-explicit-family, allow-by-default: keeps older models
+ * producing deterministic output and lets new, non-reasoning Claude
+ * models keep their temperature control unless added to the deny
+ * regex here. Mirrors the pattern `modelRequiresMaxCompletionTokens`
+ * uses on OpenAIProvider for `max_tokens` vs `max_completion_tokens`.
+ *
+ * @param modelId Anthropic-side model id (e.g. `"claude-opus-4-7"` or
+ *   a dated variant like `"claude-opus-4-7-20260501"`).
+ * @returns `false` when Anthropic will reject `temperature` for this
+ *   model, `true` otherwise.
+ */
+export function modelSupportsTemperature(modelId: string): boolean {
+  // Claude Opus 4.7 and any dated variant of 4.7 — reasoning-default.
+  // Anticipated future reasoning-first siblings (4.8+, 5.x) would be
+  // added here as Anthropic releases them.
+  return !/^claude-opus-4-7\b/i.test(modelId);
+}
+
+// ---------------------------------------------------------------------------
 // Anthropic API types
 // ---------------------------------------------------------------------------
 
@@ -797,7 +827,15 @@ export class AnthropicProvider implements IProvider {
     }
 
     // --- Optional parameters ---
-    if (options.temperature !== undefined) payload.temperature = options.temperature;
+    // Guard temperature behind modelSupportsTemperature: Opus 4.7 (and
+    // future reasoning-first Claude models) reject it with HTTP 400.
+    // Older models still accept it. See modelSupportsTemperature() above.
+    if (
+      options.temperature !== undefined &&
+      modelSupportsTemperature(modelId)
+    ) {
+      payload.temperature = options.temperature;
+    }
     if (options.topP !== undefined) payload.top_p = options.topP;
     if (options.stopSequences?.length) payload.stop_sequences = options.stopSequences;
 
