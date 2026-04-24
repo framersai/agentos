@@ -317,6 +317,37 @@ describe('CodeSandbox — JavaScript execution', () => {
    * rather than passing because `process` is already undefined by
    * default in node:vm contexts.
    */
+  it('drops the expanded danger list (Reflect/Proxy/WebAssembly/SharedArrayBuffer/Atomics)', async () => {
+    const result = await sandbox.execute({
+      language: 'javascript',
+      code: `
+        const safe = typeof safeApi === 'function' ? 'ok' : 'missing';
+        const reflect = typeof Reflect === 'undefined' ? 'blocked' : 'LEAKED';
+        const proxy = typeof Proxy === 'undefined' ? 'blocked' : 'LEAKED';
+        const wasm = typeof WebAssembly === 'undefined' ? 'blocked' : 'LEAKED';
+        const sab = typeof SharedArrayBuffer === 'undefined' ? 'blocked' : 'LEAKED';
+        const atomics = typeof Atomics === 'undefined' ? 'blocked' : 'LEAKED';
+        return safe + ':' + reflect + ':' + proxy + ':' + wasm + ':' + sab + ':' + atomics;
+      `,
+      config: {
+        extraGlobals: {
+          // Caller tries to inject dangerous globals; all dropped.
+          Reflect: { get: () => 'pwned' },
+          Proxy: function () { return 'pwned'; },
+          WebAssembly: { compile: () => 'pwned' },
+          SharedArrayBuffer: function () { return 'pwned'; },
+          Atomics: { load: () => 'pwned' },
+          // Plus a safe one that should land.
+          safeApi: () => 'ok',
+        },
+      },
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.output?.stdout).toContain('ok:blocked:blocked:blocked:blocked:blocked');
+    expect(result.output?.stdout).not.toContain('LEAKED');
+  });
+
   it('drops dangerous keys from extraGlobals while keeping safe ones', async () => {
     const fakeProcess = { env: { LEAKED: 'should-not-reach-sandbox' } };
     const result = await sandbox.execute({
