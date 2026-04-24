@@ -283,6 +283,61 @@ describe('CodeSandbox — JavaScript execution', () => {
     const retrieved = await sandbox.getExecution('test-js-1');
     expect(retrieved?.status).toBe('success');
   });
+
+  /**
+   * Cycle 1 RED: extraGlobals is the new SandboxConfig field that lets
+   * callers (notably SandboxedToolForge) inject allowlisted APIs (fetch,
+   * fs, crypto wrappers) into the hardened sandbox context without
+   * forking a second sandbox impl.
+   */
+  it('exposes custom APIs via SandboxConfig.extraGlobals', async () => {
+    const result = await sandbox.execute({
+      language: 'javascript',
+      code: 'const out = await myCustomApi(5); return out;',
+      config: {
+        extraGlobals: {
+          myCustomApi: async (n: number) => n * 2,
+        },
+      },
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.output?.stdout).toContain('10');
+  });
+
+  /**
+   * Cycle 2 RED: extraGlobals MUST NOT be allowed to reintroduce
+   * security-critical names that the hardened context explicitly
+   * undefines. A caller passing process/global/globalThis/require via
+   * extraGlobals should have those keys silently filtered out, while
+   * still injecting any other safe names supplied alongside.
+   *
+   * The combined assertion (safe key works AND dangerous key blocked)
+   * guarantees the test actually exercises the extraGlobals code path
+   * rather than passing because `process` is already undefined by
+   * default in node:vm contexts.
+   */
+  it('drops dangerous keys from extraGlobals while keeping safe ones', async () => {
+    const fakeProcess = { env: { LEAKED: 'should-not-reach-sandbox' } };
+    const result = await sandbox.execute({
+      language: 'javascript',
+      code: `
+        const safeWorks = typeof safeApi === 'function' ? 'safe-ok' : 'safe-missing';
+        const dangerousBlocked = typeof process === 'undefined' ? 'process-blocked' : 'process-LEAKED';
+        return safeWorks + ':' + dangerousBlocked;
+      `,
+      config: {
+        extraGlobals: {
+          process: fakeProcess,
+          safeApi: () => 'works',
+        },
+      },
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.output?.stdout).toContain('safe-ok:process-blocked');
+    expect(result.output?.stdout).not.toContain('should-not-reach-sandbox');
+  });
 });
 
 // ============================================================================

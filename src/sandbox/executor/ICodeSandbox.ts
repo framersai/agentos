@@ -50,6 +50,17 @@ export interface SandboxConfig {
   blockedModules?: string[];
   /** Maximum CPU time in milliseconds */
   maxCpuTimeMs?: number;
+  /**
+   * Extra global bindings to inject into the sandbox context alongside the
+   * hardened defaults. Use this when a higher-level wrapper (such as
+   * SandboxedToolForge) needs to expose allowlisted APIs (`fetch`, `fs`,
+   * `crypto`) without forking a second sandbox implementation.
+   *
+   * Security-critical keys (`process`, `global`, `globalThis`, `require`,
+   * `eval`, `Function`) are silently dropped from this map at merge time
+   * so callers cannot accidentally undo the sandbox's hardenings.
+   */
+  extraGlobals?: Record<string, unknown>;
 }
 
 /**

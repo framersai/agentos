@@ -445,4 +445,49 @@ describe('SandboxedToolForge', () => {
     expect(result.success).toBe(true);
     expect(result.output).toEqual({ doubled: 14 });
   });
+
+  // -------------------------------------------------------------------------
+  // Cycle 3: delegation to CodeSandbox proves codeGeneration: false now in effect
+  // -------------------------------------------------------------------------
+  it('blocks Function-constructor escape via codeGeneration restriction', async () => {
+    // The literal `Function(` would be caught by validateCode regex.
+    // The constructor-reflection chain `({}).constructor.constructor` bypasses
+    // the regex but should be caught at runtime once the JS path delegates to
+    // CodeSandbox (which sets codeGeneration: { strings: false }).
+    const request = makeRequest(
+      'function execute() { const F = ({}).constructor.constructor; return F("return 42")(); }',
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(false);
+    // node:vm raises EvalError or similar; just verify the escape did not return 42.
+    expect(result.output).not.toBe(42);
+  });
+
+  // -------------------------------------------------------------------------
+  // Cycle 4: memoryUsedBytes returns honest heap delta after delegation
+  // -------------------------------------------------------------------------
+  it('reports a non-zero memoryUsedBytes after a meaningful allocation', async () => {
+    const request = makeRequest(
+      // Allocate ~5 MB of strings; the host heap delta should register
+      // something positive even with GC noise.
+      `function execute() {
+        const chunks = [];
+        for (let i = 0; i < 50; i++) {
+          chunks.push("x".repeat(100000));
+        }
+        return chunks.length;
+      }`,
+    );
+
+    const result = await forge.execute(request);
+
+    expect(result.success).toBe(true);
+    expect(result.output).toBe(50);
+    // Honest field: was hard-coded to 0; after the heap-delta heuristic it
+    // should report something positive. The exact bound depends on GC timing,
+    // so just assert > 0.
+    expect(result.memoryUsedBytes).toBeGreaterThan(0);
+  });
 });
