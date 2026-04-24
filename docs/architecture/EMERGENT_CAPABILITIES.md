@@ -27,7 +27,7 @@ await agent.initialize({
         ▼
  ┌─── Build ───┐
  │ compose? → ComposableToolBuilder (chains existing tools)
- │ sandbox? → SandboxedToolForge (isolated VM execution)
+ │ sandbox? → SandboxedToolForge (hardened node:vm context via CodeSandbox)
  └──────┬──────┘
         │
         ▼
@@ -157,7 +157,7 @@ const forgeRequest = {
 
 ### Sandbox Mode -- Write Novel Code
 
-Sandbox mode runs agent-written JavaScript in an isolated V8 context via [`CodeSandbox`](/api/classes/CodeSandbox) with hard memory and timeout limits. More powerful but requires explicit opt-in.
+Sandbox mode runs agent-written JavaScript in a hardened node:vm context. The forge-specific [`SandboxedToolForge`](/api/classes/SandboxedToolForge) layers the `function execute(input)` contract and allowlist-injected APIs on top of [`CodeSandbox`](/api/classes/CodeSandbox), which provides the hardening: `codeGeneration: { strings: false, wasm: false }`, frozen console, and explicit `process` / `globalThis` / `require` set to undefined. Wall-clock timeouts are enforced; memory limits are not (node:vm shares the host heap; an isolated-vm soft dependency would be required for preemptive memory limits and is deferred).
 
 **Example: CSV parser**
 
@@ -285,7 +285,7 @@ These are rejected at code validation time (before execution):
 | Resource | Default | Config key |
 |---|---|---|
 | Execution timeout | 5,000 ms | `sandboxTimeoutMs` |
-| Memory limit | 128 MB | `sandboxMemoryMB` |
+| Memory observed (heap delta heuristic, NOT preempted) | 128 MB nominal | `sandboxMemoryMB` |
 | Session tools | 10 | `maxSessionTools` |
 | Agent tools | 50 | `maxAgentTools` |
 
@@ -584,7 +584,7 @@ await importEmergentTool('./slugify.emergent-tool.yaml', { seedId: agentSeedId }
 
 - Emergent tools **cannot** modify the guardrail pipeline
 - Emergent tools **cannot** access other agents' memory or credentials
-- Sandbox runs in an isolated V8 context — no escape to the host process
+- Sandbox runs in a hardened node:vm context (own realm, `process` / `globalThis` / `require` set to undefined, `codeGeneration: { strings: false, wasm: false }` blocks runtime `eval`/`Function` reflection). Host-realm escape is blocked; runaway memory is not preempted (use isolated-vm for that, currently deferred).
 - All forge decisions and metadata are logged to the provenance audit trail
 - Human approval is required for shared-tier promotion
 - Raw sandbox source is redacted at rest by default

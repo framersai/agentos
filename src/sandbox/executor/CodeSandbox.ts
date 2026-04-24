@@ -47,6 +47,22 @@ const DEFAULT_CONFIG: SandboxConfig = {
   maxCpuTimeMs: 10000, // 10 seconds
 };
 
+/**
+ * Keys that callers MUST NOT be able to override via SandboxConfig.extraGlobals.
+ * The hardened context explicitly nulls these to prevent host-state leaks; if
+ * we let extraGlobals re-bind them the entire isolation guarantee evaporates.
+ * Filtered silently at merge time so a forge-style consumer that includes one
+ * of these by accident still gets a working sandbox without a noisy error.
+ */
+const DANGEROUS_GLOBAL_KEYS: ReadonlySet<string> = new Set([
+  'process',
+  'global',
+  'globalThis',
+  'require',
+  'eval',
+  'Function',
+]);
+
 /** Dangerous patterns by language */
 const DANGEROUS_PATTERNS: Record<SandboxLanguage, RegExp[]> = {
   javascript: [
@@ -292,6 +308,18 @@ export class CodeSandbox implements ICodeSandbox {
       clearImmediate: undefined,
       queueMicrotask: undefined,
     };
+
+    // Merge caller-supplied extras AFTER the hardened defaults so an explicit
+    // override (e.g., SandboxedToolForge injecting an allowlisted fetch wrapper)
+    // can replace the hardened-undefined values where it makes sense. Keys in
+    // DANGEROUS_GLOBAL_KEYS are dropped silently to keep the hardening intact.
+    if (config.extraGlobals) {
+      for (const [key, value] of Object.entries(config.extraGlobals)) {
+        if (!DANGEROUS_GLOBAL_KEYS.has(key)) {
+          contextObj[key] = value;
+        }
+      }
+    }
 
     const context = vm.createContext(contextObj, {
       name: `sandbox-${executionId}`,
