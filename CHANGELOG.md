@@ -1,3 +1,7 @@
+## <small>0.2.6 (2026-04-24)</small>
+
+* fix(sandbox): expand CodeSandbox hardening to block realm intrinsics ([c748b26](https://github.com/framersai/agentos/commit/c748b26))
+
 ## <small>0.2.5 (2026-04-24)</small>
 
 * fix(sandbox): consolidate SandboxedToolForge to delegate to hardened CodeSandbox ([eb7a812](https://github.com/framersai/agentos/commit/eb7a812))
