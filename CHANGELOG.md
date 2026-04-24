@@ -1,3 +1,7 @@
+## <small>0.2.7 (2026-04-24)</small>
+
+* feat(memory-router): LLM-as-judge orchestrator for per-query memory-architecture routing ([fc4792c](https://github.com/framersai/agentos/commit/fc4792c))
+
 ## <small>0.2.6 (2026-04-24)</small>
 
 * fix(sandbox): expand CodeSandbox hardening to block realm intrinsics ([c748b26](https://github.com/framersai/agentos/commit/c748b26))
