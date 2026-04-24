@@ -1,3 +1,9 @@
+## <small>0.2.3 (2026-04-24)</small>
+
+* fix(paracosm-doc): coderabbit review. correct Kirfel citation ([39000de](https://github.com/framersai/agentos/commit/39000de))
+* docs(paracosm): reposition PARACOSM doc as structured world model ([aec39a3](https://github.com/framersai/agentos/commit/aec39a3))
+* chore: untrack build artifacts and local db_data ([d8f7bfc](https://github.com/framersai/agentos/commit/d8f7bfc))
+
 ## <small>0.2.2 (2026-04-23)</small>
 
 * docs: domain-neutral naming in paracosm + ecosystem guides ([49cb85b](https://github.com/framersai/agentos/commit/49cb85b))
