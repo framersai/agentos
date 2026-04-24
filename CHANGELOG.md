@@ -1,3 +1,7 @@
+## <small>0.2.4 (2026-04-24)</small>
+
+* fix(anthropic-provider): drop temperature for Claude Opus 4.7 ([9a7d90f](https://github.com/framersai/agentos/commit/9a7d90f))
+
 ## <small>0.2.3 (2026-04-24)</small>
 
 * fix(paracosm-doc): coderabbit review. correct Kirfel citation ([39000de](https://github.com/framersai/agentos/commit/39000de))
