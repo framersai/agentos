@@ -1,3 +1,7 @@
+## <small>0.2.5 (2026-04-24)</small>
+
+* fix(sandbox): consolidate SandboxedToolForge to delegate to hardened CodeSandbox ([eb7a812](https://github.com/framersai/agentos/commit/eb7a812))
+
 ## <small>0.2.4 (2026-04-24)</small>
 
 * fix(anthropic-provider): drop temperature for Claude Opus 4.7 ([9a7d90f](https://github.com/framersai/agentos/commit/9a7d90f))
