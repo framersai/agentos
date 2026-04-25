@@ -218,3 +218,17 @@ export {
   buildAdaptiveRoutingTable,
   AdaptiveMemoryRouter,
 } from './adaptive.js';
+
+// ============================================================================
+// Reference recall-stage backends (Stage I: Mem0-v3-style entity-linking)
+// ============================================================================
+
+export {
+  EntityRetrievalRanker,
+  createEntityRetrievalRanker,
+} from './backends/index.js';
+export type {
+  RankedCandidate,
+  RankedCandidateWithBoost,
+  EntityRetrievalRankerOptions,
+} from './backends/index.js';
