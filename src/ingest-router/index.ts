@@ -130,12 +130,20 @@ export {
   SummarizedIngestExecutor,
   RawChunksIngestExecutor,
   SkipIngestExecutor,
+  EntityExtractor,
+  EntityLinkingIngestExecutor,
   createSummarizedIngestExecutor,
   createRawChunksIngestExecutor,
   createSkipIngestExecutor,
+  createEntityLinkingIngestExecutor,
 } from './executors/index.js';
 export type {
   IngestOutcome,
   IngestPayload,
   RawChunksOutcome,
+  EntityLinkingOutcome,
+  EntityKind,
+  ExtractedEntity,
+  EntityExtractionResult,
+  EntityLinkingOptions,
 } from './executors/index.js';

@@ -19,11 +19,22 @@ export type { IngestOutcome, IngestPayload } from './SummarizedIngestExecutor.js
 export { RawChunksIngestExecutor } from './RawChunksIngestExecutor.js';
 export type { RawChunksOutcome } from './RawChunksIngestExecutor.js';
 export { SkipIngestExecutor } from './SkipIngestExecutor.js';
+export { EntityExtractor } from './EntityExtractor.js';
+export { EntityLinkingIngestExecutor } from './EntityLinkingIngestExecutor.js';
+export type { EntityLinkingOutcome } from './EntityLinkingIngestExecutor.js';
+export type {
+  EntityKind,
+  ExtractedEntity,
+  EntityExtractionResult,
+  EntityLinkingOptions,
+} from './entity-types.js';
 
 import { SummarizedIngestExecutor } from './SummarizedIngestExecutor.js';
 import { RawChunksIngestExecutor } from './RawChunksIngestExecutor.js';
 import { SkipIngestExecutor } from './SkipIngestExecutor.js';
+import { EntityLinkingIngestExecutor } from './EntityLinkingIngestExecutor.js';
 import type { SessionSummarizer } from '../../memory/ingest/SessionSummarizer.js';
+import type { EntityLinkingOptions } from './entity-types.js';
 
 export function createSummarizedIngestExecutor(opts: {
   summarizer: SessionSummarizer;
@@ -37,4 +48,10 @@ export function createRawChunksIngestExecutor(): RawChunksIngestExecutor {
 
 export function createSkipIngestExecutor(): SkipIngestExecutor {
   return new SkipIngestExecutor();
+}
+
+export function createEntityLinkingIngestExecutor(
+  opts: EntityLinkingOptions = {},
+): EntityLinkingIngestExecutor {
+  return new EntityLinkingIngestExecutor(opts);
 }
