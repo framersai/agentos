@@ -34,7 +34,7 @@ Why this matters: a 3-turn chat snippet doesn't justify the LLM cost of observat
 | `hybrid` | parallel raw + summarized + observational | $0.030/ingest |
 | `skip` | content discarded; nothing written | $0 |
 
-The `summarized` strategy implements Anthropic's "contextual retrieval" pattern (every chunk prepended with a dense session/document summary before embedding). The `observational` strategy implements Mastra's Observational Memory pattern (LLM-extracted observation log). The `fact-graph` strategy implements Mem0's fact-triple-extraction pattern.
+The `summarized` strategy implements Anthropic's "contextual retrieval" pattern (every chunk prepended with a dense session/document summary before embedding). The `observational` strategy implements Mastra's Observational Memory pattern (LLM-extracted observation log). The `fact-graph` strategy stores extracted typed facts plus an entity-relation graph at retrieval time — used by Hindsight (typed network of World, Experience, Opinion, Observation) and the original Mem0 v2 design. Mem0 v3 (Mar 2026) dropped its graph store in favor of single-pass ADD-only extraction with multi-signal hybrid search; the `fact-graph` ID here remains valid for systems that still want a queryable fact graph.
 
 ## Four shipping presets
 
