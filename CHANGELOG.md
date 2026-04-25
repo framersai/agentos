@@ -1,3 +1,7 @@
+## <small>0.2.8 (2026-04-25)</small>
+
+* feat: ship multi-stage guardrails — ingest-router + read-router + adaptive memory-router + compositi ([7866f7a](https://github.com/framersai/agentos/commit/7866f7a))
+
 ## <small>0.2.7 (2026-04-24)</small>
 
 * feat(memory-router): LLM-as-judge orchestrator for per-query memory-architecture routing ([fc4792c](https://github.com/framersai/agentos/commit/fc4792c))
