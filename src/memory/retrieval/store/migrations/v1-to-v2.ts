@@ -16,6 +16,7 @@
  */
 
 import type { StorageAdapter, StorageFeatures } from '@framers/sql-storage-adapter';
+import { PORTABLE_TABLES } from '../portable-tables.js';
 
 interface TableSpec {
   /** Table name. */
@@ -313,6 +314,21 @@ const V2_TABLES: TableSpec[] = [
     ],
   },
 ];
+
+// Sanity check: V2_TABLES names must exactly equal PORTABLE_TABLES order.
+// Failing this assertion means the migration order would not match the
+// portable-artifact order, breaking import/export.
+const v2TableNames = V2_TABLES.map((t) => t.name);
+const portableTableNames = [...PORTABLE_TABLES];
+if (
+  v2TableNames.length !== portableTableNames.length ||
+  v2TableNames.some((n, i) => n !== portableTableNames[i])
+) {
+  throw new Error(
+    `v1-to-v2.ts: V2_TABLES order (${v2TableNames.join(',')}) does not match ` +
+      `PORTABLE_TABLES (${portableTableNames.join(',')}). Reconcile portable-tables.ts.`,
+  );
+}
 
 /**
  * Run the v1 -> v2 migration on the given storage adapter.
