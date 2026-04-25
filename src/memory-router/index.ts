@@ -197,3 +197,24 @@ export {
   MemoryRouter,
   MemoryRouterDispatcherMissingError,
 } from './MemoryRouter.js';
+
+// ============================================================================
+// Self-calibrating adaptive router
+// ============================================================================
+
+export type {
+  CalibrationSample,
+  CalibrationCell,
+  AggregatedCalibration,
+  AdaptivePresetRule,
+  SelectByPresetArgs,
+  BuildAdaptiveRoutingTableArgs,
+  AdaptiveMemoryRouterOptions,
+} from './adaptive.js';
+
+export {
+  aggregateCalibration,
+  selectByPreset,
+  buildAdaptiveRoutingTable,
+  AdaptiveMemoryRouter,
+} from './adaptive.js';

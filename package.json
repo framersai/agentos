@@ -263,6 +263,21 @@
       "default": "./dist/memory-router/index.js",
       "types": "./dist/memory-router/index.d.ts"
     },
+    "./ingest-router": {
+      "import": "./dist/ingest-router/index.js",
+      "default": "./dist/ingest-router/index.js",
+      "types": "./dist/ingest-router/index.d.ts"
+    },
+    "./read-router": {
+      "import": "./dist/read-router/index.js",
+      "default": "./dist/read-router/index.js",
+      "types": "./dist/read-router/index.d.ts"
+    },
+    "./multi-stage-guardrails": {
+      "import": "./dist/multi-stage-guardrails/index.js",
+      "default": "./dist/multi-stage-guardrails/index.js",
+      "types": "./dist/multi-stage-guardrails/index.d.ts"
+    },
     "./memory/index": {
       "import": "./dist/memory/index.js",
       "default": "./dist/memory/index.js",

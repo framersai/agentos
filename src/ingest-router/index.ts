@@ -1,0 +1,114 @@
+/**
+ * AgentOS IngestRouter Module
+ *
+ * Input-stage LLM-as-judge orchestrator for memory ingest. Sibling of
+ * {@link MemoryRouter} (recall-stage), {@link QueryRouter} (Q&A-stage),
+ * and the output-stage guardrails. Together they form the agentos
+ * multi-stage guardrails pattern.
+ *
+ * Where MemoryRouter picks the recall architecture for a query,
+ * IngestRouter picks the storage architecture for incoming content. The
+ * choice affects what's STORED, which downstream MemoryRouter then queries.
+ *
+ * **Architecture Overview:**
+ * ```
+ *   Content stream
+ *         │
+ *         ▼
+ *  ┌────────────────────────────────────────────────┐
+ *  │              IngestRouter                      │
+ *  │  classify content → pick strategy → store      │
+ *  └────────────────────────────────────────────────┘
+ *         │             │              │
+ *         ▼             ▼              ▼
+ *   raw-chunks      summarized    observational
+ *   fact-graph      hybrid        skip
+ * ```
+ *
+ * @module @framers/agentos/ingest-router
+ */
+
+export type {
+  IngestContentKind,
+  IngestStrategyId,
+  IngestRouterPreset,
+  IngestRoutingTable,
+} from './routing-tables.js';
+export { INGEST_CONTENT_KINDS } from './routing-tables.js';
+
+export type { IngestStrategyCostPoint } from './costs.js';
+
+export type {
+  IngestBudgetMode,
+  IngestRouterConfig,
+  IngestRoutingDecision,
+} from './select-strategy.js';
+
+export type {
+  IIngestClassifier,
+  IIngestClassifierLLM,
+  IngestClassifierLLMRequest,
+  IngestClassifierLLMResponse,
+  IngestClassifierClassifyOptions,
+  IngestClassifierResult,
+  LLMIngestClassifierOptions,
+} from './classifier.js';
+
+export type {
+  IIngestDispatcher,
+  IngestDispatchArgs,
+  IngestDispatchResult,
+  IngestStrategyExecutor,
+  IngestStrategyRegistry,
+} from './dispatcher.js';
+
+export type {
+  IngestBudgetPolicy,
+  IngestRouterOptions,
+  IngestRouterDecideOptions,
+  IngestRouterDecision,
+  IngestRouterDispatchedResult,
+} from './IngestRouter.js';
+
+export {
+  RAW_CHUNKS_TABLE,
+  SUMMARIZED_TABLE,
+  OBSERVATIONAL_TABLE,
+  HYBRID_TABLE,
+  PRESET_INGEST_TABLES,
+} from './routing-tables.js';
+
+export {
+  RAW_CHUNKS_COST,
+  SUMMARIZED_COST,
+  OBSERVATIONAL_COST,
+  FACT_GRAPH_COST,
+  HYBRID_COST,
+  SKIP_COST,
+  DEFAULT_INGEST_COSTS,
+} from './costs.js';
+
+export {
+  selectIngestStrategy,
+  IngestRouterUnknownKindError,
+  IngestRouterBudgetExceededError,
+} from './select-strategy.js';
+
+export {
+  INGEST_CLASSIFIER_SYSTEM_PROMPT,
+  INGEST_CLASSIFIER_SYSTEM_PROMPT_FEWSHOT,
+  SAFE_INGEST_FALLBACK_KIND,
+  LLMIngestClassifier,
+  normalizeIngestClassifierOutput,
+  parseIngestClassifierOutput,
+} from './classifier.js';
+
+export {
+  FunctionIngestDispatcher,
+  UnsupportedIngestStrategyError,
+} from './dispatcher.js';
+
+export {
+  IngestRouter,
+  IngestRouterDispatcherMissingError,
+} from './IngestRouter.js';
