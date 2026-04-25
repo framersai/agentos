@@ -12,6 +12,9 @@
 
 export { SummarizedIngestExecutor } from './SummarizedIngestExecutor.js';
 export type { IngestOutcome, IngestPayload } from './SummarizedIngestExecutor.js';
+export { RawChunksIngestExecutor } from './RawChunksIngestExecutor.js';
+export type { RawChunksOutcome } from './RawChunksIngestExecutor.js';
+export { SkipIngestExecutor } from './SkipIngestExecutor.js';
 export { summarizeSession, ANTHROPIC_CONTEXTUAL_PROMPT } from './sessionSummarizer.js';
 export type {
   SessionContent,
@@ -21,6 +24,8 @@ export type {
 } from './types.js';
 
 import { SummarizedIngestExecutor } from './SummarizedIngestExecutor.js';
+import { RawChunksIngestExecutor } from './RawChunksIngestExecutor.js';
+import { SkipIngestExecutor } from './SkipIngestExecutor.js';
 import type { SummarizerLLM } from './types.js';
 
 export function createSummarizedIngestExecutor(opts: {
@@ -28,4 +33,12 @@ export function createSummarizedIngestExecutor(opts: {
   maxSummaryTokens?: number;
 }): SummarizedIngestExecutor {
   return new SummarizedIngestExecutor(opts);
+}
+
+export function createRawChunksIngestExecutor(): RawChunksIngestExecutor {
+  return new RawChunksIngestExecutor();
+}
+
+export function createSkipIngestExecutor(): SkipIngestExecutor {
+  return new SkipIngestExecutor();
 }
