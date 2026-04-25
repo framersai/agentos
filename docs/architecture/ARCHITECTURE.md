@@ -157,7 +157,7 @@ src/
 │  ConversationHistory · CognitiveMemory · Sentiment · Persona│
 ├──────────────────────┬──────────────────────────────────────┤
 │  Safety & Guardrails │  Tools & Extensions                  │
-│  5-tier security     │  107 extensions, 72 skills           │
+│  5-tier security     │  110 extensions, 88 skills           │
 │  PII · toxicity      │  CLI executor, web search            │
 │  grounding guard     │  capability discovery                │
 ├──────────────────────┴──────────────────────────────────────┤
@@ -670,6 +670,46 @@ CognitiveMemoryManager (orchestrator)
   └── ConsolidationPipeline -- 5-step periodic maintenance
 ```
 
+### Cognitive Pipeline (per-message smart orchestration)
+
+Above the storage substrate sits an LLM-as-judge orchestration layer that picks strategy per message at three pipeline boundaries. Each stage is its own router primitive — independently shippable, independently testable, composable via the `CognitivePipeline` facade. This is **smart orchestration, not safety guardrails** — orchestration picks strategies, guardrails enforce safety/policy at the output stage. They live in different packages on purpose.
+
+```
+   Content                 Query                    Query
+      │                      │                       │
+      ▼                      ▼                       ▼
+  ┌─────────┐          ┌─────────────┐         ┌─────────────┐
+  │ Ingest  │          │   Memory    │         │    Read     │
+  │ Router  │          │   Router    │         │   Router    │
+  │ (input) │          │  (recall)   │         │   (read)    │
+  └─────────┘          └─────────────┘         └─────────────┘
+      │                      │                       │
+      ▼                      ▼                       ▼
+  Memory state          Retrieved traces         Final answer
+                                                       │
+                                                       ▼
+                                              ┌──────────────┐
+                                              │ core/        │
+                                              │ guardrails   │
+                                              │ (output      │
+                                              │  validation) │
+                                              └──────────────┘
+```
+
+Every router has the same internal structure: a classifier (LLM-as-judge that maps input to a category/intent token), a pure `select*` function (category + routing table + budget policy → strategy decision), a dispatcher (registry of executors per strategy), and three shipping presets calibrated from LongMemEval-S Phase B N=500 measurements.
+
+| Primitive | Subpath | Categories | Strategies |
+|---|---|---|---|
+| Memory Router | `@framers/agentos/memory-router` | 6 query categories | 3 backends (canonical-hybrid, OM-v10, OM-v11) |
+| Ingest Router | `@framers/agentos/ingest-router` | 6 content kinds | 6 strategies (raw / summarized / observational / fact-graph / hybrid / skip) |
+| Read Router | `@framers/agentos/read-router` | 5 read intents | 5 strategies (single-call / two-call extract+answer / commit-vs-abstain / verbatim / scratchpad) |
+| Cognitive Pipeline | `@framers/agentos/cognitive-pipeline` | (composition) | wires all three stages |
+| Adaptive Memory Router | `@framers/agentos/memory-router` | (self-calibrating) | derives routing tables from your own calibration data |
+
+Each classifier is provider-agnostic — talks to a small `IXClassifierLLM` adapter interface, not an SDK. One OpenAI key reproduces the entire pipeline; no Claude / Gemini accounts required for the shipping configuration.
+
+Each router ships 26-38 contract tests; the entire family ships 163 tests. See the dedicated [Cognitive Pipeline](../COGNITIVE_PIPELINE.md) guide for the unified architecture overview, or the per-stage docs ([Memory Router](../MEMORY_ROUTER.md), [Ingest Router](../INGEST_ROUTER.md), [Read Router](../READ_ROUTER.md), [Adaptive Memory Router](../ADAPTIVE_MEMORY_ROUTER.md)) for the routing tables and presets each stage exposes.
+
 ### The MemoryTrace Envelope
 
 Every memory is stored as a `MemoryTrace` (defined in `memory/core/types.ts`):
@@ -736,6 +776,8 @@ For full details, see [Cognitive Memory](../memory/COGNITIVE_MEMORY.md), [Cognit
 
 The RAG subsystem provides retrieval-augmented generation with multiple vector backends and retrieval strategies.
 
+Runtime truth: the default AgentOS bootstrap path still wires `EmbeddingManager` -> `VectorStoreManager` -> `RetrievalAugmentor`. `UnifiedRetriever` is implemented as a higher-level orchestration layer, but it remains opt-in rather than the default runtime path.
+
 ### Retrieval Pipeline
 
 ```mermaid
@@ -753,8 +795,12 @@ graph LR
 
 The GMI integrates with RAG through persona-configurable hooks:
 - `shouldTriggerRAGRetrieval()` checks `ragConfig.retrievalTriggers` (on user query, on tool failure, on intent detection)
-- `retrievalAugmentor.retrieveContext()` runs the retrieval pipeline
+- `retrievalAugmentor.retrieveContext()` runs the default runtime retrieval pipeline
 - `performPostTurnIngestion()` summarizes and embeds conversation turns
+
+When a host explicitly wires `QueryRouter.setUnifiedRetriever(...)`, plan-aware retrieval can run through `UnifiedRetriever` instead of the legacy dispatcher path. That path is real, but not the default bootstrap today.
+
+Within the default QueryRouter path, `cacheResults` now provides in-memory `route()` result caching, and `verifyCitations` can attach `QueryResult.grounding` by running `CitationVerifier` over retrieved chunks when embeddings are available.
 
 ### Vector Store Backends
 
@@ -764,9 +810,9 @@ Seven `IVectorStore` implementations provide different tradeoffs:
 |---------|---------------------|-------------|----------|
 | `HnswlibVectorStore` | 2-10ms (ANN) | File-based | Production (self-hosted) |
 | `InMemoryVectorStore` | 10-50ms (linear scan) | None | Development / testing |
-| `PostgresVectorStore` | 5-20ms (pgvector) | PostgreSQL | Production (cloud) |
-| `PineconeVectorStore` | 20-50ms (API) | Managed cloud | Serverless scale |
-| `QdrantVectorStore` | 5-15ms (API) | Managed/self-hosted | High-volume production |
+| `PostgresVectorStore` | 5-20ms (pgvector) | PostgreSQL | Production (SQL-native) |
+| `QdrantVectorStore` | 5-15ms (API) | Managed/self-hosted | Default OSS production |
+| `PineconeVectorStore` | 20-50ms (API) | Managed cloud | Optional vendor-managed scale |
 | `SqliteVectorStore` | 10-30ms | SQLite file | Edge / embedded |
 | `IndexedDBVectorStore` | 20-80ms | Browser | Client-side apps |
 
