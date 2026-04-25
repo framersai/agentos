@@ -3,11 +3,13 @@ title: "Paracosm: Structured World Model for AI Agents"
 sidebar_position: 1
 ---
 
-Paracosm is a **structured world model for AI agents**, built on AgentOS. Define a world as JSON, pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles, and watch their decisions diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
+Paracosm is a **structured world model for AI agents**, built on AgentOS. Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their decisions diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
 ## Where paracosm sits in the world-model landscape
 
-Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449), and a counterfactual world simulation model in the sense of [Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4). It is **not** a generative visual or spatial world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model (LeCun's AMI Labs), **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up swarm intelligence simulator (MiroFish, OASIS), and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a JSON-defined state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449), and a counterfactual world simulation model in the sense of [Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4). It is **not** a generative visual or spatial world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model (LeCun's AMI Labs), **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up swarm intelligence simulator (MiroFish, OASIS), and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a prompt/document/URL-grounded, JSON-contract-backed state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+
+The important boundary: JSON is the canonical contract, not the product boundary. Today `compileScenario()` takes a scenario JSON draft plus optional `seedText` or `seedUrl` grounding. The next wrapper should take one prompt or document, ask an LLM to propose the same scenario contract, validate it, then compile and run it.
 
 Full taxonomy mapping lives at [docs/positioning/world-model-mapping.md](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md).
 
@@ -146,7 +148,7 @@ Cost follows. Reuse via `call_forged_tool` costs essentially nothing; every fres
 
 ## Scenario authoring
 
-Any domain works. Mars colonies, submarine habitats, space stations, medieval kingdoms. The engine is domain-agnostic; the scenario JSON defines what gets simulated.
+Any domain works. Mars colonies, submarine habitats, space stations, medieval kingdoms. The engine is domain-agnostic; the compiled scenario contract defines what gets simulated.
 
 ```json
 {
@@ -164,7 +166,7 @@ Any domain works. Mars colonies, submarine habitats, space stations, medieval ki
 }
 ```
 
-`compileScenario()` turns JSON into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls. Compilation costs about $0.10 per scenario and caches to disk. See [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario) for the full hook contract.
+`compileScenario()` turns a scenario JSON draft plus optional `seedText` / `seedUrl` grounding into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls. Compilation costs about $0.10 per scenario and caches to disk. See [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario) for the full hook contract.
 
 ## Cost safety
 
@@ -205,7 +207,7 @@ Full type reference is auto-generated from source at [/paracosm](/paracosm). The
 - [`SimulationKernel`](/paracosm/engine/classes/SimulationKernel): deterministic state machine
 - [`runSimulation`](/paracosm/runtime/functions/runSimulation): single-leader turn loop, returns `Promise<RunArtifact>`
 - [`runBatch`](/paracosm/runtime/functions/runBatch): parallel multi-scenario runner
-- [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario): turns scenario JSON into a runnable `ScenarioPackage`
+- [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario): turns a scenario draft plus optional source grounding into a runnable `ScenarioPackage`
 
 ## HTTP + SSE server
 
@@ -219,7 +221,7 @@ The dashboard server exposes a small HTTP API for driving sims from any client:
 | `POST` | `/chat` | Chat with a colonist agent |
 | `GET` | `/results` | Full simulation results including verdict |
 | `GET` | `/rate-limit` | Check rate limit status |
-| `POST` | `/compile` | Compile a custom scenario from JSON |
+| `POST` | `/compile` | Compile a custom scenario draft with optional `seedText` / `seedUrl` grounding |
 | `GET` | `/admin-config` | Hosted-demo flags + effective caps |
 
 `/events` replays a buffered event history on reconnect (persisted to disk so restarts do not evaporate completed runs), closes with a `replay_done` marker so clients can distinguish historical from live events.
