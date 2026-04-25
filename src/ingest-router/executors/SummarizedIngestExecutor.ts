@@ -3,26 +3,26 @@
  * @description Anthropic Contextual Retrieval reference executor for
  * the IngestRouter `summarized` strategy.
  *
- * Per session: one LLM summarize call. Per chunk: prepend that session's
- * summary before passing to the embedding pipeline. Designed to plug
- * into IngestRouter's {@link FunctionIngestDispatcher} as the
- * `summarized` strategy executor.
+ * Wraps the existing {@link SessionSummarizer} (in
+ * `@framers/agentos/memory`) which carries the conversation-tuned
+ * summarization prompt + persistent disk cache + cost-tracking. This
+ * executor is the IngestRouter-shaped facade over that primitive, so
+ * the production SessionSummarizer is the single source of truth for
+ * session-level summarization across both the bench and the
+ * IngestRouter dispatcher path.
  *
- * Source recipe: platform.claude.com/cookbook/capabilities-contextual-embeddings-guide
- *
- * Cost model: ~$0.003 per session at gpt-5-mini, fully cached after
- * first run via the per-sessionId in-memory cache.
+ * Cost model: ~$0.003 per session at gpt-5-mini. SessionSummarizer's
+ * SHA-256 disk cache means re-runs against the same sessions are $0.
  *
  * @module @framers/agentos/ingest-router/executors/SummarizedIngestExecutor
  */
 
-import { summarizeSession } from './sessionSummarizer.js';
-import type { SummarizerLLM } from './types.js';
+import { SessionSummarizer } from '../../memory/ingest/SessionSummarizer.js';
 
 /**
  * Outcome shape returned by {@link SummarizedIngestExecutor.ingest}.
- * Compatible with the {@link IIngestDispatcher.dispatch} expected
- * outcome type when wired through {@link FunctionIngestDispatcher}.
+ * Mirrors the shape of every other executor's outcome so the dispatch
+ * type stays uniform across strategies.
  */
 export interface IngestOutcome {
   writtenTraces: number;
@@ -33,9 +33,9 @@ export interface IngestOutcome {
 }
 
 /**
- * Per-call payload. The executor needs the sessionId for caching and
- * the optional chunks list for splitting content. When `chunks` is
- * omitted, the entire `content` becomes a single chunk.
+ * Per-call payload. The executor needs the sessionId for SessionSummarizer
+ * cache lookups (also used for stable identification in logging) and
+ * the optional chunks list for splitting content.
  */
 export interface IngestPayload {
   sessionId: string;
@@ -43,43 +43,35 @@ export interface IngestPayload {
 }
 
 /**
- * Reference executor for the IngestRouter `summarized` strategy.
- * Wire as: `new FunctionIngestDispatcher({ summarized: (c, p) => exec.ingest(c, p), ... })`.
+ * Reference executor for the IngestRouter `summarized` strategy. Wires
+ * the existing SessionSummarizer through the IngestRouter dispatcher
+ * pattern so consumers using IngestRouter get Anthropic Contextual
+ * Retrieval out of the box.
  */
 export class SummarizedIngestExecutor {
   /** Strategy ID expected by IngestRouter's FunctionIngestDispatcher registry. */
   readonly strategyId = 'summarized' as const;
 
-  private readonly llm: SummarizerLLM;
-  private readonly maxSummaryTokens?: number;
-  private readonly cache = new Map<string, string>();
+  private readonly summarizer: SessionSummarizer;
 
-  constructor(opts: { llm: SummarizerLLM; maxSummaryTokens?: number }) {
-    this.llm = opts.llm;
-    this.maxSummaryTokens = opts.maxSummaryTokens;
+  constructor(opts: { summarizer: SessionSummarizer }) {
+    this.summarizer = opts.summarizer;
   }
 
   /**
-   * Ingest a session's content. On first call for a sessionId, runs the
-   * summarize LLM call. On subsequent calls for the same sessionId,
-   * uses the cached summary.
+   * Ingest a session's content. Delegates to the wrapped
+   * SessionSummarizer for the LLM call (which handles caching, cost
+   * tracking, and prompt management). Returns the summary prepended
+   * to every chunk, ready for embedding.
+   *
+   * Per-call tokensIn/tokensOut are reported as 0 because the
+   * SessionSummarizer's disk cache obscures whether a particular
+   * `summarize()` call hit the cache or fired the LLM. Callers that
+   * need precise per-call cost should inspect
+   * {@link SessionSummarizer.stats} directly.
    */
   async ingest(content: string, payload: IngestPayload): Promise<IngestOutcome> {
-    const sessionId = payload.sessionId;
-    let summary = this.cache.get(sessionId);
-    let tokensIn = 0;
-    let tokensOut = 0;
-    if (summary === undefined) {
-      const result = await summarizeSession(
-        { sessionId, text: content },
-        { llm: this.llm, maxSummaryTokens: this.maxSummaryTokens },
-      );
-      summary = result.summary;
-      tokensIn = result.tokensIn;
-      tokensOut = result.tokensOut;
-      this.cache.set(sessionId, summary);
-    }
-
+    const summary = await this.summarizer.summarize(payload.sessionId, content);
     const chunks = payload.chunks ?? [content];
     const embedTexts = chunks.map((chunk) => `${summary}\n\n${chunk}`);
 
@@ -87,17 +79,8 @@ export class SummarizedIngestExecutor {
       writtenTraces: chunks.length,
       summary,
       embedTexts,
-      tokensIn,
-      tokensOut,
+      tokensIn: 0,
+      tokensOut: 0,
     };
-  }
-
-  /**
-   * Drop the per-session cache. Useful for tests or memory-pressure
-   * scenarios. The shipping caller typically lets the cache live for
-   * the agent's lifetime.
-   */
-  clearCache(): void {
-    this.cache.clear();
   }
 }
