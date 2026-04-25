@@ -120,36 +120,37 @@ const publicationManifest = [
 
   agentosDoc('ARCHITECTURE.md', 'architecture/system-architecture.md', 'System Architecture', 'Architecture', 1),
   agentosDoc('PLATFORM_SUPPORT.md', 'architecture/platform-support.md', 'Platform Support', 'Architecture', 2),
-  extraDoc('docs/architecture/sandbox-security.md', 'architecture/sandbox-security.md', 'Sandbox Security', 'Architecture', 3),
-  extraDoc('docs/architecture/cli-subprocess.md', 'architecture/cli-subprocess.md', 'CLI Subprocess Bridge', 'Architecture', 4, {
+  extraDoc('docs/architecture/runtime-status-matrix.md', 'architecture/runtime-status-matrix.md', 'Runtime Status Matrix', 'Architecture', 3),
+  extraDoc('docs/architecture/sandbox-security.md', 'architecture/sandbox-security.md', 'Sandbox Security', 'Architecture', 4),
+  extraDoc('docs/architecture/cli-subprocess.md', 'architecture/cli-subprocess.md', 'CLI Subprocess Bridge', 'Architecture', 5, {
     sidebar: false,
   }),
-  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Architecture', 5),
-  extraDoc('docs/architecture/extension-loading.md', 'architecture/extension-loading.md', 'Extension Loading', 'Architecture', 6),
-  extraDoc('docs/architecture/skills-engine.md', 'architecture/skills-engine.md', 'Skills Engine', 'Architecture', 7),
-  siteDoc('architecture/skills-vs-tools-vs-extensions.md', 'architecture/skills-vs-tools-vs-extensions.md', 'Skills vs Tools vs Extensions', 'Architecture', 7.5),
-  agentosDoc('OBSERVABILITY.md', 'architecture/observability.md', 'Observability (OpenTelemetry)', 'Architecture', 8),
-  agentosDoc('LOGGING.md', 'architecture/logging.md', 'Logging (Pino + OpenTelemetry)', 'Architecture', 9),
-  agentosDoc('TOOL_CALLING_AND_LOADING.md', 'architecture/tool-calling-and-loading.md', 'Tool Calling & Lazy Loading', 'Architecture', 10),
-  agentosDoc('LLM_PROVIDERS.md', 'architecture/llm-providers.md', 'LLM Providers', 'Architecture', 11),
-  agentosDoc('STREAMING_SEMANTICS.md', 'architecture/streaming-semantics.md', 'Streaming Semantics', 'Architecture', 12),
-  agentosDoc('OAUTH_AUTH.md', 'architecture/oauth-auth.md', 'OAuth Auth', 'Architecture', 13),
-  extraDoc('docs/EMERGENT_AGENCY_SYSTEM.md', 'architecture/emergent-agency-system.md', 'Emergent Agency System', 'Architecture', 14, {
+  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Architecture', 6),
+  extraDoc('docs/architecture/extension-loading.md', 'architecture/extension-loading.md', 'Extension Loading', 'Architecture', 7),
+  extraDoc('docs/architecture/skills-engine.md', 'architecture/skills-engine.md', 'Skills Engine', 'Architecture', 8),
+  siteDoc('architecture/skills-vs-tools-vs-extensions.md', 'architecture/skills-vs-tools-vs-extensions.md', 'Skills vs Tools vs Extensions', 'Architecture', 8.5),
+  agentosDoc('OBSERVABILITY.md', 'architecture/observability.md', 'Observability (OpenTelemetry)', 'Architecture', 9),
+  agentosDoc('LOGGING.md', 'architecture/logging.md', 'Logging (Pino + OpenTelemetry)', 'Architecture', 10),
+  agentosDoc('TOOL_CALLING_AND_LOADING.md', 'architecture/tool-calling-and-loading.md', 'Tool Calling & Lazy Loading', 'Architecture', 11),
+  agentosDoc('LLM_PROVIDERS.md', 'architecture/llm-providers.md', 'LLM Providers', 'Architecture', 12),
+  agentosDoc('STREAMING_SEMANTICS.md', 'architecture/streaming-semantics.md', 'Streaming Semantics', 'Architecture', 13),
+  agentosDoc('OAUTH_AUTH.md', 'architecture/oauth-auth.md', 'OAuth Auth', 'Architecture', 14),
+  extraDoc('docs/EMERGENT_AGENCY_SYSTEM.md', 'architecture/emergent-agency-system.md', 'Emergent Agency System', 'Architecture', 15, {
     sidebar: false,
   }),
-  extraDoc('docs/BACKEND_API.md', 'architecture/backend-api.md', 'Backend API', 'Architecture', 15, {
+  extraDoc('docs/BACKEND_API.md', 'architecture/backend-api.md', 'Backend API', 'Architecture', 16, {
     sidebar: false,
   }),
-  extraDoc('docs/MULTI_GMI_COLLABORATION.md', 'architecture/multi-gmi-implementation-plan.md', 'Multi-GMI Collaboration', 'Architecture', 16, {
+  extraDoc('docs/MULTI_GMI_COLLABORATION.md', 'architecture/multi-gmi-implementation-plan.md', 'Multi-GMI Collaboration', 'Architecture', 17, {
     sidebar: false,
   }),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/http-streaming-api.md', 'architecture/http-streaming-api.md', 'HTTP Streaming API', 'Architecture', 17, {
+  extraDoc('apps/wunderland-sol/docs-site/docs/guides/http-streaming-api.md', 'architecture/http-streaming-api.md', 'HTTP Streaming API', 'Architecture', 18, {
     sidebar: false,
   }),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/chat-server.md', 'architecture/chat-server.md', 'Chat Server (HTTP API)', 'Architecture', 18, {
+  extraDoc('apps/wunderland-sol/docs-site/docs/guides/chat-server.md', 'architecture/chat-server.md', 'Chat Server (HTTP API)', 'Architecture', 19, {
     sidebar: false,
   }),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/tools.md', 'architecture/tools.md', 'Tools', 'Architecture', 19, {
+  extraDoc('apps/wunderland-sol/docs-site/docs/guides/tools.md', 'architecture/tools.md', 'Tools', 'Architecture', 20, {
     sidebar: false,
   }),
 
@@ -163,6 +164,7 @@ const publicationManifest = [
   agentosDoc('CHECKPOINTING.md', 'features/checkpointing.md', 'Checkpointing and Time-Travel', 'Orchestration', 6),
   agentosDoc('PLANNING_ENGINE.md', 'features/planning-engine.md', 'Planning Engine', 'Orchestration', 7),
   agentosDoc('HUMAN_IN_THE_LOOP.md', 'features/human-in-the-loop.md', 'Human-in-the-Loop', 'Orchestration', 8),
+  agentosDoc('COGNITIVE_PIPELINE.md', 'features/cognitive-pipeline.md', 'Cognitive Pipeline (Smart Per-Message Orchestration)', 'Orchestration', 9),
 
   agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 1),
   agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 2),
@@ -199,6 +201,10 @@ const publicationManifest = [
   agentosDoc('HYDE_RETRIEVAL.md', 'features/hyde-retrieval.md', 'HyDE Retrieval', 'RAG & Retrieval', 2),
   agentosDoc('DEEP_RESEARCH.md', 'features/deep-research.md', 'Deep Research & Query Classification', 'RAG & Retrieval', 3),
   agentosDoc('QUERY_ROUTER.md', 'features/query-routing.md', 'Query Router', 'RAG & Retrieval', 4),
+  agentosDoc('MEMORY_ROUTER.md', 'features/memory-router.md', 'Memory Router (Recall-Stage Smart Orchestration)', 'RAG & Retrieval', 4.1),
+  agentosDoc('INGEST_ROUTER.md', 'features/ingest-router.md', 'Ingest Router (Input-Stage Smart Orchestration)', 'RAG & Retrieval', 4.2),
+  agentosDoc('READ_ROUTER.md', 'features/read-router.md', 'Read Router (Read-Stage Smart Orchestration)', 'RAG & Retrieval', 4.3),
+  agentosDoc('ADAPTIVE_MEMORY_ROUTER.md', 'features/adaptive-memory-router.md', 'Adaptive Memory Router (Self-Calibrating)', 'RAG & Retrieval', 4.4),
   siteDoc('features/citation-verification.md', 'features/citation-verification.md', 'Citation Verification', 'RAG & Retrieval', 4.5),
   siteDoc('features/reranker-chain.md', 'features/reranker-chain.md', 'Reranker Chain', 'RAG & Retrieval', 4.6),
   agentosDoc('MULTIMODAL_RAG.md', 'features/multimodal-rag.md', 'Multimodal RAG (Image + Audio)', 'RAG & Retrieval', 5),
@@ -326,24 +332,12 @@ const publicationManifest = [
   builtInExtension('media/image-search', 'extensions/built-in/image-search.md', 'Image Search', 8),
   builtInExtension('media/voice-synthesis', 'extensions/built-in/voice-synthesis.md', 'Voice Synthesis', 9),
   builtInExtension('integrations/telegram', 'extensions/built-in/telegram.md', 'Telegram', 10),
-  builtInExtension('communications/telegram-bot', 'extensions/built-in/telegram-bot.md', 'Telegram Bot (Comms)', 11, {
-    allowMissingSource: true,
-  }),
-  builtInExtension('channels/discord', 'extensions/built-in/channel-discord.md', 'Channel: Discord', 12, {
-    allowMissingSource: true,
-  }),
-  builtInExtension('channels/slack', 'extensions/built-in/channel-slack.md', 'Channel: Slack', 13, {
-    allowMissingSource: true,
-  }),
-  builtInExtension('channels/telegram', 'extensions/built-in/channel-telegram.md', 'Channel: Telegram', 14, {
-    allowMissingSource: true,
-  }),
-  builtInExtension('channels/whatsapp', 'extensions/built-in/channel-whatsapp.md', 'Channel: WhatsApp', 15, {
-    allowMissingSource: true,
-  }),
-  builtInExtension('channels/webchat', 'extensions/built-in/channel-webchat.md', 'Channel: WebChat', 16, {
-    allowMissingSource: true,
-  }),
+  builtInExtension('communications/telegram-bot', 'extensions/built-in/telegram-bot.md', 'Telegram Bot (Comms)', 11),
+  builtInExtension('channels/discord', 'extensions/built-in/channel-discord.md', 'Channel: Discord', 12),
+  builtInExtension('channels/slack', 'extensions/built-in/channel-slack.md', 'Channel: Slack', 13),
+  builtInExtension('channels/telegram', 'extensions/built-in/channel-telegram.md', 'Channel: Telegram', 14),
+  builtInExtension('channels/whatsapp', 'extensions/built-in/channel-whatsapp.md', 'Channel: WhatsApp', 15),
+  builtInExtension('channels/webchat', 'extensions/built-in/channel-webchat.md', 'Channel: WebChat', 16),
   builtInExtension('research/citation-verifier', 'extensions/built-in/citation-verifier.md', 'Citation Verifier', 16.1),
   builtInExtension('tools/local-file-search', 'extensions/built-in/local-file-search.md', 'Local File Search', 16.2),
   builtInExtension('tools/send-file-to-channel', 'extensions/built-in/send-file-to-channel.md', 'Send File to Channel', 16.3),
@@ -371,11 +365,6 @@ const publicationManifest = [
   builtInExtension('provenance/anchor-providers', 'extensions/built-in/anchor-providers.md', 'Anchor Providers', 18, {
     group: 'Provenance Extensions',
   }),
-  builtInExtension('provenance/wunderland-tip-ingestion', 'extensions/built-in/tip-ingestion.md', 'Tip Ingestion', 19, {
-    allowMissingSource: true,
-    group: 'Provenance Extensions',
-  }),
-
   extraDoc('packages/agentos/CHANGELOG.md', 'getting-started/changelog.md', 'Changelog', 'Getting Started', 7),
 ];
 
