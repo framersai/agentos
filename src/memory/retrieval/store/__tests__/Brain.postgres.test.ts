@@ -16,26 +16,10 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { Brain } from '../Brain.js';
+import { PORTABLE_TABLES } from '../portable-tables.js';
 
 const POSTGRES_URL = process.env.AGENTOS_TEST_POSTGRES_URL;
 const describeIfPostgres = POSTGRES_URL ? describe : describe.skip;
-
-const PORTABLE_TABLES = [
-  'brain_meta',
-  'memory_traces',
-  'knowledge_nodes',
-  'knowledge_edges',
-  'documents',
-  'document_chunks',
-  'document_images',
-  'consolidation_log',
-  'retrieval_feedback',
-  'conversations',
-  'messages',
-  'prospective_items',
-  'archived_traces',
-  'archive_access_log',
-] as const;
 
 function uniqueBrainId(): string {
   return `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
