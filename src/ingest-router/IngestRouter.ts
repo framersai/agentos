@@ -4,8 +4,8 @@
  * ingest classifier and the pure {@link selectIngestStrategy} into a
  * single per-content routing call.
  *
- * Same shape as MemoryRouter (recall-stage) so the multi-stage guardrails
- * orchestrator can compose them uniformly. Decide-only and decide+dispatch
+ * Same shape as MemoryRouter (recall-stage) so Cognitive Pipeline can
+ * compose them uniformly. Decide-only and decide+dispatch
  * flows are both supported.
  *
  * @module @framers/agentos/ingest-router/IngestRouter

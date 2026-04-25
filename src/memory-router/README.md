@@ -250,7 +250,7 @@ Calibrating your own cost-points takes one sweep per backend across a representa
 
 - `@framers/agentos/query-router` — general Q&A routing (vector search / graph / keyword). Sibling primitive; different use case (ask-a-question vs recall-past-context).
 - `@framers/agentos/memory` — the underlying Memory + HybridRetriever + SessionRetriever primitives the canonical-hybrid backend calls.
-- `@framers/agentos/core/guardrails` — output-stage guardrails. MemoryRouter is the input-stage guardrail that picks architecture; core/guardrails validate the output.
+- `@framers/agentos/core/guardrails` — output-stage guardrails. MemoryRouter is the recall-stage orchestrator that picks architecture; core/guardrails validate the output.
 - `@framers/agentos-ext-grounding-guard` — output-stage grounding judge for retrieved-evidence-backed answers.
 
-Together, these form the multi-stage guardrails pattern: `ingest → memory-router → retrieve → read → core/guardrails + grounding-guard`. Each stage is an LLM-as-judge decision point with its own interface.
+Together, the router stages form the Cognitive Pipeline pattern: `ingest-router → memory-router → read-router`. The ingest, recall, and read stages are LLM-as-judge orchestration points with their own interfaces. In a full app, `core/guardrails` and `agentos-ext-grounding-guard` run downstream as safety/policy validators.
