@@ -17,6 +17,7 @@
 
 import type { StorageAdapter, StorageFeatures } from '@framers/sql-storage-adapter';
 import { PORTABLE_TABLES } from '../portable-tables.js';
+import type { Migration } from './types.js';
 
 interface TableSpec {
   /** Table name. */
@@ -521,3 +522,43 @@ async function migratePostgresTable(
     await adapter.exec(idx);
   }
 }
+
+/**
+ * The v1 -> v2 schema migration as a Migration object for MigrationRunner.
+ *
+ * The runner handles transaction wrapping, advisory locking, and the
+ * schema_version bump. This Migration's `up` function only runs the schema
+ * diff (the 14-table walk).
+ */
+export const v1ToV2: Migration = {
+  version: 2,
+  up: async (adapter, _features, brainId) => {
+    // The runner already detected that schema_version < 2 (or null=fresh; in
+    // the fresh case the runner would have skipped this migration entirely).
+    // We still defensively check brain_meta column existence so a partial v1
+    // schema doesn't blow up the migration.
+    const isPostgres = adapter.kind.includes('postgres');
+    const hasBrainId = isPostgres
+      ? await postgresHasColumn(adapter, 'brain_meta', 'brain_id')
+      : await sqliteHasColumn(adapter, 'brain_meta', 'brain_id');
+
+    if (hasBrainId) {
+      // Schema is already at v2 column shape; runner's version filter caught
+      // this case. Defensive no-op.
+      return;
+    }
+
+    for (const table of V2_TABLES) {
+      const exists = isPostgres
+        ? await postgresTableExists(adapter, table.name)
+        : await sqliteTableExists(adapter, table.name);
+      if (!exists) continue;
+
+      if (isPostgres) {
+        await migratePostgresTable(adapter, table, brainId);
+      } else {
+        await migrateSqliteTable(adapter, table, brainId);
+      }
+    }
+  },
+};
