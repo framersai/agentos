@@ -4,7 +4,7 @@
  * with automatic activation at a configurable document count threshold
  * and graceful fallback when the native addon is unavailable.
  *
- * Used by both the RAG system (SqlVectorStore) and the Memory system (SqliteBrain).
+ * Used by both the RAG system (SqlVectorStore) and the Memory system (Brain).
  *
  * @module agentos/rag/vector-search/HnswIndexSidecar
  */

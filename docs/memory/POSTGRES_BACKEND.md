@@ -171,3 +171,65 @@ You changed `defaultDimension` after creating a collection. pgvector enforces di
 ### Pool exhaustion (`too many clients already`)
 
 Increase `poolSize` in the config, or reduce concurrent usage. The default of 10 is usually sufficient for single-agent deployments. Multi-agent setups may need 20-50.
+
+## Postgres for the cognitive Brain (0.3.0+)
+
+Beyond the `PostgresVectorStore`, agentos 0.3.0+ runs the entire cognitive `Brain` on Postgres via three named factories. The `Brain` class is dialect-agnostic; the factory chooses the backend.
+
+```ts
+import { Brain } from '@framers/agentos/memory';
+
+const brain = await Brain.openPostgres(
+  'postgresql://user:pass@host:5432/db',
+  { brainId: 'companion-alice', poolSize: 10 },
+);
+```
+
+`brainId` is required in Postgres mode because all brains share the same schema. The discriminator scopes every query so two brains in the same database stay isolated. Per-file SQLite mode derives `brainId` from the filename automatically.
+
+### Multi-tenant isolation
+
+```ts
+const aliceBrain = await Brain.openPostgres(connStr, { brainId: 'companion-alice' });
+const bobBrain = await Brain.openPostgres(connStr, { brainId: 'companion-bob' });
+
+// alice's traces are not visible to bob (and vice versa).
+await aliceBrain.run(
+  `INSERT INTO memory_traces (brain_id, id, type, scope, content, created_at)
+   VALUES ($1, $2, $3, $4, $5, $6)`,
+  ['companion-alice', 't1', 'episodic', 'user', 'private to alice', Date.now()],
+);
+```
+
+### Sharing an adapter pool
+
+When the application already owns a `StorageAdapter` (e.g. wilds-ai's foundation store) and wants the brain to share that connection pool:
+
+```ts
+import { Brain } from '@framers/agentos/memory';
+import { createDatabase } from '@framers/sql-storage-adapter';
+
+const adapter = await createDatabase({
+  postgres: { connectionString: process.env.DATABASE_URL },
+});
+const brain = await Brain.openWithAdapter(adapter, { brainId: 'companion-alice' });
+```
+
+### Schema migration
+
+The first call to `Brain.openPostgres` (or `openSqlite`) on an existing v1 database runs an idempotent v1→v2 migration that adds the `brain_id` column to every brain-owned table and updates primary keys to `(brain_id, id)`. SQLite uses the recreate-table dance; Postgres uses `ALTER TABLE ADD COLUMN` + `ALTER TABLE ADD PRIMARY KEY`. Subsequent opens are no-ops once the schema is at v2.
+
+### Portable export / import
+
+The brain's `exportToSqlite()` and `importFromSqlite()` decouple portability from live storage. Use a Postgres-backed live brain in production while keeping `.wildsoul`-style snapshots as portable SQLite files:
+
+```ts
+const liveBrain = await Brain.openPostgres(connStr, { brainId: 'alice' });
+await liveBrain.exportToSqlite('/tmp/alice-snapshot.sqlite');
+
+// Later, fork into a different brain (importing rewrites brain_id).
+const forkBrain = await Brain.openPostgres(connStr, { brainId: 'alice-fork' });
+await forkBrain.importFromSqlite('/tmp/alice-snapshot.sqlite');
+```
+
+See the design spec at [`packages/agentos/docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md`](../superpowers/specs/2026-04-26-brain-storage-abstraction-design.md) for the full architecture.

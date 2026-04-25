@@ -20,7 +20,7 @@ describe('SqlStorageMemoryArchive (in-memory SQLite)', () => {
       quiet: true,
     });
     const features = createStorageFeatures(adapter);
-    const archive = new SqlStorageMemoryArchive(adapter, features);
+    const archive = new SqlStorageMemoryArchive(adapter, features, 'test-brain');
     await archive.initialize();
     return {
       archive,

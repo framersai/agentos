@@ -123,7 +123,7 @@ describe('CognitiveMemoryManager — consolidation disabled does not spawn timer
 
   it('shutdown completes without leaving the event loop active', async () => {
     // Shutdown must be quick; any lingering timers would show up as
-    // unresolved promises / long shutdown times on real SqliteBrain.
+    // unresolved promises / long shutdown times on real Brain.
     const start = Date.now();
     await manager.shutdown();
     expect(Date.now() - start).toBeLessThan(500);

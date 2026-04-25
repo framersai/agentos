@@ -1,7 +1,7 @@
 /**
  * @fileoverview Integration tests for the 6 agent memory editor tools.
  *
- * Each test uses a real {@link SqliteBrain} backed by a temp SQLite file
+ * Each test uses a real {@link Brain} backed by a temp SQLite file
  * so that all SQL interactions are exercised end-to-end. The
  * {@link ConsolidationLoop} is mocked for {@link MemoryReflectTool} tests
  * to avoid pulling in the full graphology dependency tree.
@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { SqliteBrain } from '../../../retrieval/store/SqliteBrain.js';
+import { Brain } from '../../../retrieval/store/Brain.js';
 import { ConsolidationLoop } from '../../../pipeline/consolidation/ConsolidationLoop.js';
 
 import { MemoryAddTool } from '../MemoryAddTool.js';
@@ -42,8 +42,8 @@ import type { ConsolidationResult } from '../../../io/facade/types.js';
 /** Registered temp DB paths cleaned up after each test. */
 const cleanupPaths: string[] = [];
 
-/** All SqliteBrain instances opened during the test run. */
-const openBrains: SqliteBrain[] = [];
+/** All Brain instances opened during the test run. */
+const openBrains: Brain[] = [];
 
 /**
  * Return a unique temp `.sqlite` path (file not yet created).
@@ -58,11 +58,11 @@ function tempDbPath(): string {
 }
 
 /**
- * Open a fresh {@link SqliteBrain} backed by a temp file and register it
+ * Open a fresh {@link Brain} backed by a temp file and register it
  * for cleanup after the test.
  */
-async function openBrain(): Promise<SqliteBrain> {
-  const brain = await SqliteBrain.open(tempDbPath());
+async function openBrain(): Promise<Brain> {
+  const brain = await Brain.openSqlite(tempDbPath());
   openBrains.push(brain);
   return brain;
 }

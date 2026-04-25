@@ -154,7 +154,7 @@ export class AgentMemory {
    * Create an initialized SQLite-backed AgentMemory for standalone usage.
    */
   static async sqlite(config?: MemoryConfig): Promise<AgentMemory> {
-    const memory = await StandaloneMemory.create(config);
+    const memory = await StandaloneMemory.createSqlite(config);
     return AgentMemory.wrapMemory(memory);
   }
 

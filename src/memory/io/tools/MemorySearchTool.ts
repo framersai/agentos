@@ -19,7 +19,7 @@ import type {
   ToolExecutionContext,
   JSONSchemaObject,
 } from '../../../core/tools/ITool.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 import { buildNaturalLanguageFtsQuery } from '../../retrieval/store/tracePersistence.js';
 import { resolveMemoryToolScopeId } from './scopeContext.js';
 
@@ -156,7 +156,7 @@ export class MemorySearchTool implements ITool<MemorySearchInput, MemorySearchOu
   /**
    * @param brain - The agent's shared SQLite brain database connection.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // ---------------------------------------------------------------------------
   // execute

@@ -17,7 +17,7 @@ import type {
   ToolExecutionContext,
   JSONSchemaObject,
 } from '../../../core/tools/ITool.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 import { buildInitialTraceMetadata, sha256Hex } from '../../retrieval/store/tracePersistence.js';
 import { resolveMemoryToolScopeId } from './scopeContext.js';
 
@@ -133,7 +133,7 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
   /**
    * @param brain - The agent's shared SQLite brain database connection.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // ---------------------------------------------------------------------------
   // execute
@@ -180,10 +180,10 @@ export class MemoryAddTool implements ITool<MemoryAddInput, MemoryAddOutput> {
       await this.brain.transaction(async (trx) => {
         await trx.run(
           `INSERT INTO memory_traces
-             (id, type, scope, content, embedding, strength, created_at,
+             (brain_id, id, type, scope, content, embedding, strength, created_at,
               last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`,
-          [traceId, type, scope, args.content, now, tags, metadata],
+           VALUES (?, ?, ?, ?, ?, NULL, 1.0, ?, NULL, 0, ?, '{}', ?, 0)`,
+          [this.brain.brainId, traceId, type, scope, args.content, now, tags, metadata],
         );
 
         await trx.run(

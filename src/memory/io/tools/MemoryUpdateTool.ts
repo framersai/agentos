@@ -11,7 +11,7 @@
  */
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../../core/tools/ITool.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 import { parseTraceMetadata, sha256Hex } from '../../retrieval/store/tracePersistence.js';
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
   /**
    * @param brain - The agent's shared SQLite brain database connection.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // ---------------------------------------------------------------------------
   // execute
@@ -143,11 +143,12 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
         return { success: true, output: { updated: false } };
       }
 
+      const brainId = this.brain.brainId;
       const current = await this.brain.get<{ content: string; tags: string; metadata: string }>(
         `SELECT content, tags, metadata
          FROM memory_traces
-         WHERE id = ? AND deleted = 0`,
-        [traceId],
+         WHERE brain_id = ? AND id = ? AND deleted = 0`,
+        [brainId, traceId],
       );
 
       if (!current) {
@@ -167,13 +168,13 @@ export class MemoryUpdateTool implements ITool<MemoryUpdateInput, MemoryUpdateOu
       const sql = content !== undefined
         ? `UPDATE memory_traces
              SET content = ?, tags = ?, metadata = ?, embedding = NULL
-             WHERE id = ? AND deleted = 0`
+             WHERE brain_id = ? AND id = ? AND deleted = 0`
         : `UPDATE memory_traces
              SET content = ?, tags = ?, metadata = ?
-             WHERE id = ? AND deleted = 0`;
+             WHERE brain_id = ? AND id = ? AND deleted = 0`;
 
       const changes = await this.brain.transaction(async (trx) => {
-        const info = await trx.run(sql, [nextContent, nextTags, nextMetadata, traceId]);
+        const info = await trx.run(sql, [nextContent, nextTags, nextMetadata, brainId, traceId]);
 
         if (info.changes > 0) {
           await trx.exec(this.brain.features.fts.rebuildCommand('memory_traces_fts'));

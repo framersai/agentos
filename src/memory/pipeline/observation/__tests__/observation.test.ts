@@ -43,7 +43,7 @@ function tempDb(): string {
 
 async function createMemory(overrides?: Record<string, unknown>): Promise<Memory> {
   const dbPath = tempDb();
-  const mem = await Memory.create({
+  const mem = await Memory.createSqlite({
     store: 'sqlite',
     path: dbPath,
     graph: true,

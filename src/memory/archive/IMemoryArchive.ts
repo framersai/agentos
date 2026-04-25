@@ -117,9 +117,9 @@ export interface MemoryArchiveRetentionConfig {
  * Implementations use `@framers/sql-storage-adapter`'s `StorageAdapter` for
  * cross-platform persistence (SQLite, Postgres, IndexedDB, Capacitor).
  *
- * @example Shared adapter with SqliteBrain
+ * @example Shared adapter with Brain
  * ```ts
- * const brain = await SqliteBrain.open('/path/to/brain.sqlite');
+ * const brain = await Brain.openSqlite('/path/to/brain.sqlite');
  * const archive = new SqlStorageMemoryArchive(brain.adapter, brain.features);
  * await archive.initialize();
  * ```

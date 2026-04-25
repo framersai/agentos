@@ -3,7 +3,7 @@
  *
  * Serialises all memory traces, knowledge graph nodes/edges, document registry
  * rows, document chunks/images, conversations, and conversation messages from
- * a `SqliteBrain` into a single structured JSON file.
+ * a `Brain` into a single structured JSON file.
  * Optionally includes raw embedding vectors encoded as base64 strings.
  *
  * ## Output shape
@@ -25,11 +25,11 @@
  */
 
 import type { ExportOptions } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 import { asBinaryBytes, bytesToBase64 } from './base64.js';
 
 // ---------------------------------------------------------------------------
-// Row types (internal — matched to SqliteBrain DDL)
+// Row types (internal — matched to Brain DDL)
 // ---------------------------------------------------------------------------
 
 /** Raw row shape from the `memory_traces` table. */
@@ -132,7 +132,7 @@ interface MessageRow {
 // ---------------------------------------------------------------------------
 
 /**
- * Exports a `SqliteBrain` to a structured JSON file.
+ * Exports a `Brain` to a structured JSON file.
  *
  * **Usage:**
  * ```ts
@@ -142,9 +142,9 @@ interface MessageRow {
  */
 export class JsonExporter {
   /**
-   * @param brain - The `SqliteBrain` instance to read from.
+   * @param brain - The `Brain` instance to read from.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // -------------------------------------------------------------------------
   // Public API
@@ -187,9 +187,12 @@ export class JsonExporter {
     const includeEmbeddings = options?.includeEmbeddings ?? false;
     const includeConversations = options?.includeConversations ?? true;
 
+    const brainId = this.brain.brainId;
+
     // Collect brain_meta as a plain object for the `meta` field.
     const metaRows = await this.brain.all<{ key: string; value: string }>(
-      'SELECT key, value FROM brain_meta',
+      'SELECT key, value FROM brain_meta WHERE brain_id = ?',
+      [brainId],
     );
     const meta: Record<string, string> = {};
     for (const row of metaRows) {
@@ -198,35 +201,35 @@ export class JsonExporter {
     meta['exported_at'] = String(Date.now());
 
     // ---- memory_traces ----
-    const rawTraces = await this.brain.all<TraceRow>('SELECT * FROM memory_traces');
+    const rawTraces = await this.brain.all<TraceRow>('SELECT * FROM memory_traces WHERE brain_id = ?', [brainId]);
     const traces = rawTraces.map((row) => this._serializeTrace(row, includeEmbeddings));
 
     // ---- knowledge_nodes ----
-    const rawNodes = await this.brain.all<NodeRow>('SELECT * FROM knowledge_nodes');
+    const rawNodes = await this.brain.all<NodeRow>('SELECT * FROM knowledge_nodes WHERE brain_id = ?', [brainId]);
     const nodes = rawNodes.map((row) => this._serializeNode(row, includeEmbeddings));
 
     // ---- knowledge_edges ----
-    const edges = await this.brain.all<EdgeRow>('SELECT * FROM knowledge_edges');
+    const edges = await this.brain.all<EdgeRow>('SELECT * FROM knowledge_edges WHERE brain_id = ?', [brainId]);
 
     // ---- documents ----
-    const documents = await this.brain.all<DocumentRow>('SELECT * FROM documents');
+    const documents = await this.brain.all<DocumentRow>('SELECT * FROM documents WHERE brain_id = ?', [brainId]);
 
     // ---- document_chunks ----
-    const rawChunks = await this.brain.all<DocumentChunkRow>('SELECT * FROM document_chunks');
+    const rawChunks = await this.brain.all<DocumentChunkRow>('SELECT * FROM document_chunks WHERE brain_id = ?', [brainId]);
     const chunks = rawChunks.map((row) => this._serializeChunk(row, includeEmbeddings));
 
     // ---- document_images ----
-    const rawImages = await this.brain.all<DocumentImageRow>('SELECT * FROM document_images');
+    const rawImages = await this.brain.all<DocumentImageRow>('SELECT * FROM document_images WHERE brain_id = ?', [brainId]);
     const images = rawImages.map((row) => this._serializeImage(row, includeEmbeddings));
 
     // ---- conversations ----
     const conversations: ConversationRow[] = includeConversations
-      ? await this.brain.all<ConversationRow>('SELECT * FROM conversations')
+      ? await this.brain.all<ConversationRow>('SELECT * FROM conversations WHERE brain_id = ?', [brainId])
       : [];
 
     // ---- messages ----
     const messages: MessageRow[] = includeConversations
-      ? await this.brain.all<MessageRow>('SELECT * FROM messages')
+      ? await this.brain.all<MessageRow>('SELECT * FROM messages WHERE brain_id = ?', [brainId])
       : [];
 
     return {

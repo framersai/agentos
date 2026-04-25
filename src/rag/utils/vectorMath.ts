@@ -4,7 +4,7 @@
  *
  * Single source of truth for vector math across the entire AgentOS codebase.
  * Replaces 6+ duplicate implementations scattered across SqlVectorStore,
- * InMemoryVectorStore, KnowledgeGraph, SqliteKnowledgeGraph,
+ * InMemoryVectorStore, KnowledgeGraph, SqlKnowledgeGraph,
  * ConsolidationLoop, ProspectiveMemoryManager, and ChunkingEngine.
  *
  * Optimized for hot-loop performance:

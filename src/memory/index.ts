@@ -124,10 +124,10 @@ export { MemoryStore } from './retrieval/store/MemoryStore.js';
 export type { MemoryStoreConfig } from './retrieval/store/MemoryStore.js';
 
 // --- SQLite Storage ---
-export { SqliteBrain } from './retrieval/store/SqliteBrain.js';
-export { SqliteKnowledgeGraph } from './retrieval/store/SqliteKnowledgeGraph.js';
+export { Brain } from './retrieval/store/Brain.js';
+export { SqlKnowledgeGraph } from './retrieval/store/SqlKnowledgeGraph.js';
 export { HnswSidecar, type HnswSidecarConfig, type HnswQueryResult } from './retrieval/store/HnswSidecar.js';
-export { SqliteMemoryGraph } from './retrieval/store/SqliteMemoryGraph.js';
+export { SqlMemoryGraph } from './retrieval/store/SqlMemoryGraph.js';
 
 // --- Memory Graph ---
 export type {

@@ -13,7 +13,7 @@
  */
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../../core/tools/ITool.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // Input / Output types
@@ -100,7 +100,7 @@ export class MemoryDeleteTool implements ITool<MemoryDeleteInput, MemoryDeleteOu
   /**
    * @param brain - The agent's shared SQLite brain database connection.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // ---------------------------------------------------------------------------
   // execute
@@ -123,8 +123,8 @@ export class MemoryDeleteTool implements ITool<MemoryDeleteInput, MemoryDeleteOu
   ): Promise<ToolExecutionResult<MemoryDeleteOutput>> {
     try {
       const info = await this.brain.run(
-        `UPDATE memory_traces SET deleted = 1 WHERE id = ? AND deleted = 0`,
-        [args.traceId],
+        `UPDATE memory_traces SET deleted = 1 WHERE brain_id = ? AND id = ? AND deleted = 0`,
+        [this.brain.brainId, args.traceId],
       );
 
       return { success: true, output: { deleted: info.changes > 0 } };

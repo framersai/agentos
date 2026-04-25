@@ -150,7 +150,7 @@ describe('AgentOS.processRequest standalone memory integration', () => {
     const dir = mkdtempSync(join(tmpdir(), 'agentos-process-memory-'));
     tempDirs.push(dir);
 
-    const memory = await Memory.create({
+    const memory = await Memory.createSqlite({
       path: join(dir, 'brain.sqlite'),
       selfImprove: true,
     });

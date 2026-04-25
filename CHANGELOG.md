@@ -1,3 +1,84 @@
+## 0.3.0 (2026-04-26)
+
+### BREAKING CHANGES
+
+#### Brain storage abstraction (universal SQLite + Postgres backbone)
+
+The cognitive memory storage layer is dialect-agnostic. The class-name lie is fixed. Postgres is now a first-class backend.
+
+##### Renames
+
+| Old | New |
+|---|---|
+| `SqliteBrain` | `Brain` |
+| `SqliteBrain.open(path)` | `Brain.openSqlite(path)` |
+| `SqliteBrain.create(path)` | `Brain.openSqlite(path)` |
+| n/a | `Brain.openPostgres(connStr, { brainId, poolSize? })` |
+| n/a | `Brain.openWithAdapter(adapter, { brainId? })` |
+| `SqliteKnowledgeGraph` | `SqlKnowledgeGraph` |
+| `SqliteMemoryGraph` | `SqlMemoryGraph` |
+| `Memory.create({ path, ... })` | `Memory.createSqlite(path, opts?)` (also accepts a config object for back-compat) |
+| n/a | `Memory.createPostgres(connStr, { brainId, poolSize?, graph?, selfImprove?, ... })` |
+| n/a | `Memory.createWithAdapter(adapter, opts?)` |
+
+`SqliteImporter` and `SqliteExporter` keep their names because they actually require the `better-sqlite3` native module.
+
+##### Schema v2: `brain_id` discriminator
+
+Every brain-owned table (14 total: 12 in the main DDL + 2 in the archive subsystem) gains a `brain_id TEXT NOT NULL` column with composite primary keys `(brain_id, id)` and indexes leading with `brain_id`. This enables multi-tenant brain storage in Postgres (many brains share one schema, scoped per query) without changing the per-file SQLite isolation model.
+
+Existing SQLite files auto-migrate on first `Brain.openSqlite()` call. The migration is idempotent for both SQLite (uses the recreate-table dance) and Postgres (uses `ALTER TABLE ADD COLUMN` + new primary key constraint). Subsequent opens are no-ops once the schema is at v2.
+
+##### Portable export / import
+
+`Brain.exportToSqlite(path)` materialises any brain (regardless of live backend) to a portable SQLite file. `Brain.importFromSqlite(path, opts?)` loads that file into a receiving Brain, rewriting `brain_id` to the receiving brain's identity. This means importing a snapshot under a different `brainId` produces a fork. The `.wildsoul` portability format stays SQLite-based even when production runs on Postgres.
+
+```ts
+const liveBrain = await Brain.openPostgres(connStr, { brainId: 'alice' });
+await liveBrain.exportToSqlite('/tmp/alice-snapshot.sqlite');
+
+const forkBrain = await Brain.openPostgres(connStr, { brainId: 'alice-fork' });
+await forkBrain.importFromSqlite('/tmp/alice-snapshot.sqlite'); // fork
+```
+
+##### Postgres CI integration tests
+
+`Brain.postgres.test.ts` is gated on the `AGENTOS_TEST_POSTGRES_URL` env var. CI now provisions a `pgvector/pgvector:pg16` service container and runs the suite against it. Local contributors without Postgres see all 5 postgres tests skipped (suite stays green).
+
+##### Migration guide
+
+Most consumers upgrade with one-line search-replace:
+
+```ts
+// Before
+await Memory.create({ path: './brain.sqlite', graph: true });
+
+// After
+await Memory.createSqlite('./brain.sqlite', { graph: true });
+// (or pass the config object: Memory.createSqlite({ path, graph }) — both work)
+```
+
+For Postgres deployments (new):
+
+```ts
+const mem = await Memory.createPostgres(process.env.DATABASE_URL, {
+  brainId: 'companion-alice',
+  graph: true,
+});
+```
+
+For sharing an adapter across foundation tables and brains:
+
+```ts
+const adapter = await createDatabase({ postgres: { connectionString } });
+const brain = await Brain.openWithAdapter(adapter, { brainId: 'agent-1' });
+```
+
+##### Spec
+
+- Spec: [packages/agentos/docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md](docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md)
+- Plan: [packages/agentos/docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md](docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md)
+
 ## <small>0.2.12 (2026-04-25)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([fc7cf50](https://github.com/framersai/agentos/commit/fc7cf50))

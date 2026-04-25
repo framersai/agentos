@@ -21,7 +21,7 @@
 import { sha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportResult } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 import { MarkdownImporter } from './MarkdownImporter.js';
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ interface TraceFrontmatter {
 // ---------------------------------------------------------------------------
 
 /**
- * Imports an Obsidian vault (directory of Markdown files) into a `SqliteBrain`.
+ * Imports an Obsidian vault (directory of Markdown files) into a `Brain`.
  *
  * **Usage:**
  * ```ts
@@ -79,9 +79,9 @@ interface TraceFrontmatter {
  */
 export class ObsidianImporter extends MarkdownImporter {
   /**
-   * @param brain - The target `SqliteBrain` to import into.
+   * @param brain - The target `Brain` to import into.
    */
-  constructor(brain: SqliteBrain) {
+  constructor(brain: Brain) {
     super(brain);
   }
 
@@ -162,11 +162,12 @@ export class ObsidianImporter extends MarkdownImporter {
     result: ImportResult,
   ): Promise<void> {
     try {
-      const brainRef = (this as unknown as { brain: SqliteBrain }).brain;
+      const brainRef = (this as unknown as { brain: Brain }).brain;
+      const brainId = brainRef.brainId;
 
       const row = await brainRef.get<{ tags: string }>(
-        'SELECT tags FROM memory_traces WHERE id = ?',
-        [traceId],
+        'SELECT tags FROM memory_traces WHERE brain_id = ? AND id = ?',
+        [brainId, traceId],
       );
 
       if (!row) return;
@@ -181,8 +182,8 @@ export class ObsidianImporter extends MarkdownImporter {
       const merged = Array.from(new Set([...existing, ...newTags]));
 
       await brainRef.run(
-        'UPDATE memory_traces SET tags = ? WHERE id = ?',
-        [JSON.stringify(merged), traceId],
+        'UPDATE memory_traces SET tags = ? WHERE brain_id = ? AND id = ?',
+        [JSON.stringify(merged), brainId, traceId],
       );
     } catch (err) {
       result.errors.push(`Tag merge error for trace ${traceId}: ${String(err)}`);
@@ -212,8 +213,9 @@ export class ObsidianImporter extends MarkdownImporter {
     result: ImportResult,
   ): Promise<void> {
     try {
-      const brainRef = (this as unknown as { brain: SqliteBrain }).brain;
+      const brainRef = (this as unknown as { brain: Brain }).brain;
       const { dialect } = brainRef.features;
+      const brainId = brainRef.brainId;
 
       // ---- Upsert source knowledge node for the trace ----
       // We use the trace ID itself as the node label so the graph stays navigable.
@@ -222,8 +224,8 @@ export class ObsidianImporter extends MarkdownImporter {
 
       let sourceNodeId: string;
       const existingSource = await brainRef.get<{ id: string }>(
-        `SELECT id FROM knowledge_nodes WHERE label = ? LIMIT 1`,
-        [sourceLabel],
+        `SELECT id FROM knowledge_nodes WHERE brain_id = ? AND label = ? LIMIT 1`,
+        [brainId, sourceLabel],
       );
 
       if (existingSource) {
@@ -233,10 +235,11 @@ export class ObsidianImporter extends MarkdownImporter {
         await brainRef.run(
           dialect.insertOrIgnore(
             'knowledge_nodes',
-            ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
-            ['?', "'trace'", '?', '?', 'NULL', '1.0', "'{}'", '?'],
+            ['brain_id', 'id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+            ['?', '?', "'trace'", '?', '?', 'NULL', '1.0', "'{}'", '?'],
           ),
           [
+            brainId,
             sourceNodeId,
             sourceLabel,
             JSON.stringify({ import_hash: sourceHash, trace_id: sourceTraceId }),
@@ -250,8 +253,8 @@ export class ObsidianImporter extends MarkdownImporter {
 
       let targetNodeId: string;
       const existingTarget = await brainRef.get<{ id: string }>(
-        `SELECT id FROM knowledge_nodes WHERE label = ? LIMIT 1`,
-        [targetLabel],
+        `SELECT id FROM knowledge_nodes WHERE brain_id = ? AND label = ? LIMIT 1`,
+        [brainId, targetLabel],
       );
 
       if (existingTarget) {
@@ -261,10 +264,11 @@ export class ObsidianImporter extends MarkdownImporter {
         await brainRef.run(
           dialect.insertOrIgnore(
             'knowledge_nodes',
-            ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
-            ['?', "'concept'", '?', '?', 'NULL', '1.0', "'{}'", '?'],
+            ['brain_id', 'id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+            ['?', '?', "'concept'", '?', '?', 'NULL', '1.0', "'{}'", '?'],
           ),
           [
+            brainId,
             targetNodeId,
             targetLabel,
             JSON.stringify({ import_hash: targetHash, obsidian_wikilink: true }),
@@ -279,18 +283,19 @@ export class ObsidianImporter extends MarkdownImporter {
       // Check for existing edge before insert (extra safety beyond OR IGNORE).
       const existingEdge = await brainRef.get<{ id: string }>(
         `SELECT id FROM knowledge_edges
-           WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
-        [edgeHash],
+           WHERE brain_id = ? AND ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
+        [brainId, edgeHash],
       );
 
       if (!existingEdge) {
         await brainRef.run(
           dialect.insertOrIgnore(
             'knowledge_edges',
-            ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
-            ['?', '?', '?', "'related_to'", '1.0', '0', '?', '?'],
+            ['brain_id', 'id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+            ['?', '?', '?', '?', "'related_to'", '1.0', '0', '?', '?'],
           ),
           [
+            brainId,
             `ke_${uuidv4()}`,
             sourceNodeId,
             targetNodeId,

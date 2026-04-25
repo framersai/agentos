@@ -88,7 +88,7 @@ src/
 │   ├── io/tools/            # MemoryAdd/Search/Update/Delete/Merge tools
 │   ├── mechanisms/          # Neuroscience-grounded cognitive mechanisms
 │   ├── pipeline/            # Consolidation, context, lifecycle, observation
-│   └── retrieval/           # SqliteBrain, graphs, feedback, prospective memory
+│   └── retrieval/           # Brain, graphs, feedback, prospective memory
 │
 ├── nlp/                     # NLP processing
 │   ├── ai_utilities/        # AI utility helpers (LLM-backed summarization, etc.)
@@ -1234,8 +1234,8 @@ When `emergent: true` is set in `AgentOSConfig`, the agent gains access to the `
 
 1. The agent generates JavaScript code for a new tool (name, description, input schema, implementation)
 2. `SandboxedToolForge` performs static validation, rejecting dangerous patterns (`eval`, `Function`, `process`, `require`, `import`, `child_process`, `fs.write*`)
-3. Validated code executes in an isolated sandbox (preferring `isolated-vm` for V8 isolate sandboxing, falling back to Node.js `vm` module) with configurable limits:
-   - Memory: 128 MB default
+3. Validated code executes in a hardened node:vm sandbox via `CodeSandbox` with configurable bounds:
+   - Memory: observed as a heap delta only, not preemptively capped
    - Timeout: 5,000 ms default
    - API allowlist: only `fetch` (domain-restricted), `fs.readFile` (path-restricted, 1 MB max), `crypto` (hash/HMAC only)
 4. `EmergentJudge` evaluates the tool against safety criteria before permanent registration

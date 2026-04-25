@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { CognitiveMemoryManager } from '../CognitiveMemoryManager.js';
-import { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import { Brain } from '../retrieval/store/Brain.js';
 import { InMemoryVectorStore } from '../../rag/vector_stores/InMemoryVectorStore.js';
 import { InMemoryWorkingMemory } from '../../cognitive_substrate/memory/InMemoryWorkingMemory.js';
 import { KnowledgeGraph } from '../retrieval/graph/knowledge/KnowledgeGraph.js';
@@ -17,11 +17,11 @@ afterEach(() => {
   cleanupPaths.length = 0;
 });
 
-async function createTestManager(): Promise<{ manager: CognitiveMemoryManager; brain: SqliteBrain }> {
+async function createTestManager(): Promise<{ manager: CognitiveMemoryManager; brain: Brain }> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cogmem-export-'));
   cleanupPaths.push(tmpDir);
   const dbPath = path.join(tmpDir, 'brain.sqlite');
-  const brain = await SqliteBrain.open(dbPath);
+  const brain = await Brain.openSqlite(dbPath);
 
   const vectorStore = new InMemoryVectorStore();
   await vectorStore.initialize({ id: 'test-export', type: 'in_memory' });
@@ -54,9 +54,9 @@ describe('CognitiveMemoryManager export/import', () => {
 
     // Insert a trace directly into the brain
     await brain.run(
-      `INSERT INTO memory_traces (id, type, scope, content, strength, created_at, tags, emotions, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['mt_export_1', 'episodic', 'user', 'The player likes hiking', 1.0, Date.now(), '[]', '{}', '{}'],
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, strength, created_at, tags, emotions, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [brain.brainId, 'mt_export_1', 'episodic', 'user', 'The player likes hiking', 1.0, Date.now(), '[]', '{}', '{}'],
     );
 
     const json = await manager.exportToString();
@@ -74,9 +74,9 @@ describe('CognitiveMemoryManager export/import', () => {
     const { manager: targetManager, brain: targetBrain } = await createTestManager();
 
     await sourceBrain.run(
-      `INSERT INTO memory_traces (id, type, scope, content, strength, created_at, tags, emotions, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['mt_src_1', 'semantic', 'user', 'Paris is the capital of France', 1.0, Date.now(), '[]', '{}', '{}'],
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, strength, created_at, tags, emotions, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [sourceBrain.brainId, 'mt_src_1', 'semantic', 'user', 'Paris is the capital of France', 1.0, Date.now(), '[]', '{}', '{}'],
     );
 
     const json = await sourceManager.exportToString();

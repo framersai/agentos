@@ -43,7 +43,7 @@ describe('StandaloneMemoryBridge retrieval policy', () => {
       os.tmpdir(),
       `agentos-bridge-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`,
     );
-    const memory = await Memory.create({ store: 'sqlite', path: dbPath });
+    const memory = await Memory.createSqlite({ store: 'sqlite', path: dbPath });
 
     await memory.remember('Project Atlas ships Friday', {
       scope: 'user',

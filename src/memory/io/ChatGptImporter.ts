@@ -2,7 +2,7 @@
  * @fileoverview ChatGPT export importer for AgentOS memory brain.
  *
  * Parses the `conversations.json` file produced by ChatGPT's "Export data"
- * feature and imports each conversation into the target `SqliteBrain`.
+ * feature and imports each conversation into the target `Brain`.
  *
  * ## Import strategy
  *
@@ -38,7 +38,7 @@
 import { sha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportOptions, ImportResult } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // ChatGPT export format types
@@ -83,7 +83,7 @@ interface ChatGptConversation {
 // ---------------------------------------------------------------------------
 
 /**
- * Imports a ChatGPT `conversations.json` export into a `SqliteBrain`.
+ * Imports a ChatGPT `conversations.json` export into a `Brain`.
  *
  * **Usage:**
  * ```ts
@@ -93,9 +93,9 @@ interface ChatGptConversation {
  */
 export class ChatGptImporter {
   /**
-   * @param brain - The target `SqliteBrain` to import into.
+   * @param brain - The target `Brain` to import into.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // -------------------------------------------------------------------------
   // Public API
@@ -177,10 +177,11 @@ export class ChatGptImporter {
       await this.brain.run(
         dialect.insertOrIgnore(
           'conversations',
-          ['id', 'title', 'created_at', 'updated_at', 'metadata'],
-          ['?', '?', '?', '?', '?'],
+          ['brain_id', 'id', 'title', 'created_at', 'updated_at', 'metadata'],
+          ['?', '?', '?', '?', '?', '?'],
         ),
         [
+          this.brain.brainId,
           conversationId,
           title,
           createdAt,
@@ -293,8 +294,8 @@ export class ChatGptImporter {
     if (options?.dedup ?? true) {
       const { dialect } = this.brain.features;
       const existing = await this.brain.get<{ id: string }>(
-        `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
-        [hash],
+        `SELECT id FROM memory_traces WHERE brain_id = ? AND ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
+        [this.brain.brainId, hash],
       );
 
       if (existing) {
@@ -306,10 +307,11 @@ export class ChatGptImporter {
     try {
       await this.brain.run(
         `INSERT INTO memory_traces
-             (id, type, scope, content, embedding, strength, created_at, last_accessed,
+             (brain_id, id, type, scope, content, embedding, strength, created_at, last_accessed,
               retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, 'episodic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
+           VALUES (?, ?, 'episodic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
         [
+          this.brain.brainId,
           `mt_${uuidv4()}`,
           content,
           createdAt,

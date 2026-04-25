@@ -21,7 +21,7 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import { Brain } from '../../retrieval/store/Brain.js';
 import {
   JsonExporter,
   JsonImporter,
@@ -67,16 +67,16 @@ function tempDb(): string {
   return p;
 }
 
-/** All `SqliteBrain` instances opened during the test. */
-const openBrains: SqliteBrain[] = [];
+/** All `Brain` instances opened during the test. */
+const openBrains: Brain[] = [];
 
 /**
- * Open a `SqliteBrain` at `dbPath` and register it for cleanup.
+ * Open a `Brain` at `dbPath` and register it for cleanup.
  */
-async function openBrain(dbPath?: string): Promise<SqliteBrain> {
+async function openBrain(dbPath?: string): Promise<Brain> {
   const p = dbPath ?? tempDb();
   if (!cleanupPaths.includes(p)) cleanupPaths.push(p);
-  const brain = await SqliteBrain.open(p);
+  const brain = await Brain.openSqlite(p);
   openBrains.push(brain);
   return brain;
 }
@@ -86,7 +86,7 @@ async function openBrain(dbPath?: string): Promise<SqliteBrain> {
  * Returns the inserted trace ID.
  */
 async function seedTrace(
-  brain: SqliteBrain,
+  brain: Brain,
   overrides: {
     id?: string;
     type?: string;
@@ -99,10 +99,11 @@ async function seedTrace(
   const id = overrides.id ?? `mt_test_${Math.random().toString(36).slice(2)}`;
   await brain.run(
     `INSERT INTO memory_traces
-         (id, type, scope, content, embedding, strength, created_at, last_accessed,
+         (brain_id, id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, '{}', '{}', 0)`,
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, '{}', '{}', 0)`,
     [
+      brain.brainId,
       id,
       overrides.type ?? 'episodic',
       overrides.scope ?? 'user',
@@ -200,10 +201,10 @@ describe('JsonExporter + JsonImporter', () => {
     const fakeEmbedding = Buffer.alloc(8, 0x42); // 8 bytes of 0x42
     await brain.run(
       `INSERT INTO memory_traces
-           (id, type, scope, content, embedding, strength, created_at,
+           (brain_id, id, type, scope, content, embedding, strength, created_at,
             retrieval_count, tags, emotions, metadata, deleted)
-         VALUES (?, 'semantic', 'user', 'embedding test', ?, 1.0, ?, 0, '[]', '{}', '{}', 0)`,
-      [id, fakeEmbedding, Date.now()],
+         VALUES (?, ?, 'semantic', 'user', 'embedding test', ?, 1.0, ?, 0, '[]', '{}', '{}', 0)`,
+      [brain.brainId, id, fakeEmbedding, Date.now()],
     );
 
     const dir = tempDir();
@@ -230,38 +231,40 @@ describe('JsonExporter + JsonImporter', () => {
       id: 'mt_json_chunk_1',
       content: 'Chunk-backed trace',
     });
+    const sBrainId = sourceBrain.brainId;
     await sourceBrain.run(
-      `INSERT OR REPLACE INTO brain_meta (key, value) VALUES ('last_sync', '1234567890')`,
+      `INSERT OR REPLACE INTO brain_meta (brain_id, key, value) VALUES (?, 'last_sync', '1234567890')`,
+      [sBrainId],
     );
     await sourceBrain.run(
       `INSERT INTO documents
-         (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['doc_json_1', '/tmp/notes.md', 'markdown', 'Notes', 'hash-1', 3, '{"source":"test"}', Date.now()],
+         (brain_id, id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [sBrainId, 'doc_json_1', '/tmp/notes.md', 'markdown', 'Notes', 'hash-1', 3, '{"source":"test"}', Date.now()],
     );
     await sourceBrain.run(
       `INSERT INTO conversations
-         (id, title, created_at, updated_at, metadata)
-       VALUES (?, ?, ?, ?, ?)`,
-      ['conv_json_1', 'Import Export', Date.now(), Date.now(), '{"channel":"test"}'],
+         (brain_id, id, title, created_at, updated_at, metadata)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [sBrainId, 'conv_json_1', 'Import Export', Date.now(), Date.now(), '{"channel":"test"}'],
     );
     await sourceBrain.run(
       `INSERT INTO document_chunks
-         (id, document_id, trace_id, content, chunk_index, page_number, embedding)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['chunk_json_1', 'doc_json_1', traceId, 'Chunk content', 0, 2, Buffer.from([1, 2, 3, 4])],
+         (brain_id, id, document_id, trace_id, content, chunk_index, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [sBrainId, 'chunk_json_1', 'doc_json_1', traceId, 'Chunk content', 0, 2, Buffer.from([1, 2, 3, 4])],
     );
     await sourceBrain.run(
       `INSERT INTO document_images
-         (id, document_id, chunk_id, data, mime_type, caption, page_number, embedding)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['img_json_1', 'doc_json_1', 'chunk_json_1', Buffer.from([0xde, 0xad, 0xbe, 0xef]), 'image/png', 'Diagram', 2, Buffer.from([5, 6, 7, 8])],
+         (brain_id, id, document_id, chunk_id, data, mime_type, caption, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [sBrainId, 'img_json_1', 'doc_json_1', 'chunk_json_1', Buffer.from([0xde, 0xad, 0xbe, 0xef]), 'image/png', 'Diagram', 2, Buffer.from([5, 6, 7, 8])],
     );
     await sourceBrain.run(
       `INSERT INTO messages
-         (id, conversation_id, role, content, created_at, metadata)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      ['msg_json_1', 'conv_json_1', 'user', 'Hello export', Date.now(), '{"turn":1}'],
+         (brain_id, id, conversation_id, role, content, created_at, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [sBrainId, 'msg_json_1', 'conv_json_1', 'user', 'Hello export', Date.now(), '{"turn":1}'],
     );
 
     const payload = await new JsonExporter(sourceBrain).exportToString({ includeEmbeddings: true });
@@ -525,16 +528,17 @@ describe('ObsidianExporter', () => {
     const sourceNodeId = `kn_src_${Math.random().toString(36).slice(2)}`;
     const targetNodeId = `kn_tgt_${Math.random().toString(36).slice(2)}`;
 
+    const bId = brain.brainId;
     await brain.run(
-      `INSERT INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
-         VALUES (?, 'trace', ?, '{}', 1.0, '{}', ?)`,
-      [sourceNodeId, `trace:${traceId}`, Date.now()],
+      `INSERT INTO knowledge_nodes (brain_id, id, type, label, properties, confidence, source, created_at)
+         VALUES (?, ?, 'trace', ?, '{}', 1.0, '{}', ?)`,
+      [bId, sourceNodeId, `trace:${traceId}`, Date.now()],
     );
 
     await brain.run(
-      `INSERT INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
-         VALUES (?, 'concept', 'Python Programming', '{}', 1.0, '{}', ?)`,
-      [targetNodeId, Date.now()],
+      `INSERT INTO knowledge_nodes (brain_id, id, type, label, properties, confidence, source, created_at)
+         VALUES (?, ?, 'concept', 'Python Programming', '{}', 1.0, '{}', ?)`,
+      [bId, targetNodeId, Date.now()],
     );
 
     // Edge: source trace node → target concept node.
@@ -546,15 +550,16 @@ describe('ObsidianExporter', () => {
     // Let's create a node whose id equals the traceId so the FK + query both work.
     const traceNodeId = traceId; // reuse trace ID as node ID for test simplicity
     await brain.run(
-      `INSERT OR IGNORE INTO knowledge_nodes (id, type, label, properties, confidence, source, created_at)
-         VALUES (?, 'trace', ?, '{}', 1.0, '{}', ?)`,
-      [traceNodeId, `trace:${traceId}`, Date.now()],
+      `INSERT OR IGNORE INTO knowledge_nodes (brain_id, id, type, label, properties, confidence, source, created_at)
+         VALUES (?, ?, 'trace', ?, '{}', 1.0, '{}', ?)`,
+      [bId, traceNodeId, `trace:${traceId}`, Date.now()],
     );
 
     await brain.run(
-      `INSERT INTO knowledge_edges (id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
-         VALUES (?, ?, ?, 'related_to', 1.0, 0, '{}', ?)`,
+      `INSERT INTO knowledge_edges (brain_id, id, source_id, target_id, type, weight, bidirectional, metadata, created_at)
+         VALUES (?, ?, ?, ?, 'related_to', 1.0, 0, '{}', ?)`,
       [
+        bId,
         `ke_test_${Math.random().toString(36).slice(2)}`,
         traceNodeId,   // source: knowledge node whose id = traceId
         targetNodeId,  // target: Python Programming concept node
@@ -714,7 +719,7 @@ describe('SqliteExporter', () => {
     expect(stat.size).toBeGreaterThan(0);
   });
 
-  it('backup is a valid SQLite file readable by SqliteBrain', async () => {
+  it('backup is a valid SQLite file readable by Brain', async () => {
     const brain = await openBrain();
     await seedTrace(brain, { content: 'Backup read test' });
 

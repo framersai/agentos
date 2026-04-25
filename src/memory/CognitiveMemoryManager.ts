@@ -299,7 +299,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     }
 
     // Memory store — in-memory vector index for fast reads, with optional
-    // SqliteBrain write-through for durable persistence across restarts.
+    // Brain write-through for durable persistence across restarts.
     this.store = new MemoryStore({
       vectorStore: config.vectorStore,
       embeddingManager: config.embeddingManager,
@@ -311,7 +311,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       enableGraphActivation: config.enableGraphActivation ?? false,
     });
 
-    // Attach SqliteBrain for durable write-through when configured.
+    // Attach Brain for durable write-through when configured.
     // All store/softDelete/recordAccess operations mirror to SQL.
     if (config.brain) {
       this.store.setBrain(config.brain);
@@ -1262,7 +1262,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   async exportToString(options?: import('./io/facade/types.js').ExportOptions): Promise<string> {
     const brain = this.store.getBrain();
     if (!brain) {
-      throw new Error('Cannot export: no SqliteBrain attached to MemoryStore');
+      throw new Error('Cannot export: no Brain attached to MemoryStore');
     }
     const { JsonExporter } = await import('./io/JsonExporter.js');
     return new JsonExporter(brain).exportToString(options);
@@ -1279,7 +1279,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   ): Promise<import('./io/facade/types.js').ImportResult> {
     const brain = this.store.getBrain();
     if (!brain) {
-      throw new Error('Cannot import: no SqliteBrain attached to MemoryStore');
+      throw new Error('Cannot import: no Brain attached to MemoryStore');
     }
     const { JsonImporter } = await import('./io/JsonImporter.js');
     return new JsonImporter(brain).importFromString(json, options);

@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Memory } from '../Memory.js';
-import type { SqliteBrain } from '../../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
@@ -74,7 +74,7 @@ const mockEmbed = async (text: string): Promise<number[]> => {
  * Helper: create a Memory with or without embed, configured for 4-dim vectors.
  */
 async function createMemory(opts?: { embed?: boolean; dbPath?: string }): Promise<Memory> {
-  const mem = await Memory.create({
+  const mem = await Memory.createSqlite({
     store: 'sqlite',
     path: opts?.dbPath ?? tempDb(),
     graph: false,
@@ -109,7 +109,7 @@ describe('Memory embedding integration', () => {
     expect(trace.content).toBe('The capital of France is Paris');
 
     // Access the internal brain to verify embedding was stored.
-    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const brain = (mem as unknown as { _brain: Brain })._brain;
     const row = await brain.get<{ embedding: Buffer | null }>(
       'SELECT embedding FROM memory_traces WHERE id = ?',
       [trace.id],
@@ -129,7 +129,7 @@ describe('Memory embedding integration', () => {
 
     const trace = await mem.remember('Plain text without vector');
 
-    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const brain = (mem as unknown as { _brain: Brain })._brain;
     const row = await brain.get<{ embedding: Buffer | null }>(
       'SELECT embedding FROM memory_traces WHERE id = ?',
       [trace.id],
@@ -218,7 +218,7 @@ describe('Memory embedding integration', () => {
     // Store a trace and verify it went through the embedding path.
     const trace = await mem.remember('Vector indexed content');
 
-    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const brain = (mem as unknown as { _brain: Brain })._brain;
     const row = await brain.get<{ embedding: Buffer | null }>(
       'SELECT embedding FROM memory_traces WHERE id = ?',
       [trace.id],
@@ -249,7 +249,7 @@ describe('Memory embedding integration', () => {
     expect(trace1.id).toBe(trace2.id);
 
     // Verify only one row exists.
-    const brain = (mem as unknown as { _brain: SqliteBrain })._brain;
+    const brain = (mem as unknown as { _brain: Brain })._brain;
     const count = await brain.get<{ c: number }>(
       "SELECT COUNT(*) as c FROM memory_traces WHERE content = 'Duplicate test content' AND deleted = 0",
     );

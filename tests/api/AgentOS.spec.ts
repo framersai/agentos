@@ -96,7 +96,7 @@ describe('AgentOS memory tool auto-registration', () => {
   async function createTempMemory(selfImprove = true): Promise<Memory> {
     const dir = mkdtempSync(join(tmpdir(), 'agentos-memory-tools-'));
     tempDirs.push(dir);
-    return await Memory.create({
+    return await Memory.createSqlite({
       path: join(dir, 'brain.sqlite'),
       selfImprove,
     });

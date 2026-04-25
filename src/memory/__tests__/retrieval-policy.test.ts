@@ -54,6 +54,7 @@ describe('memory retrieval policy', () => {
           },
         ],
         partial: [],
+        timings: { vectorSearchMs: 0, scoringMs: 0 },
       }),
       recordAccess: vi.fn(),
     };

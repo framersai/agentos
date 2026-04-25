@@ -1,7 +1,7 @@
 /**
  * @fileoverview Default IMemoryArchive implementation backed by StorageAdapter.
  *
- * Uses the same `@framers/sql-storage-adapter` contract as `SqliteBrain`,
+ * Uses the same `@framers/sql-storage-adapter` contract as `Brain`,
  * `GraphRAGEngine`, and every other agentos persistence layer. Supports all
  * sql-storage-adapter backends: better-sqlite3, sql.js, IndexedDB, Capacitor
  * SQLite, and PostgreSQL.
@@ -14,7 +14,7 @@
  *
  * @module agentos/memory/archive/SqlStorageMemoryArchive
  * @see {@link IMemoryArchive} for the contract definition.
- * @see {@link ../../retrieval/store/SqliteBrain} for the shared-adapter pattern.
+ * @see {@link ../../retrieval/store/Brain} for the shared-adapter pattern.
  */
 
 import type { StorageAdapter, StorageFeatures } from '@framers/sql-storage-adapter';
@@ -28,7 +28,7 @@ import type {
 } from './IMemoryArchive.js';
 
 // ---------------------------------------------------------------------------
-// DDL — exported for SqliteBrain to include in _initSchema()
+// DDL — exported for Brain to include in _initSchema()
 // ---------------------------------------------------------------------------
 
 /**
@@ -37,7 +37,8 @@ import type {
  */
 export const DDL_ARCHIVED_TRACES = `
 CREATE TABLE IF NOT EXISTS archived_traces (
-  trace_id         TEXT    PRIMARY KEY,
+  brain_id         TEXT    NOT NULL,
+  trace_id         TEXT    NOT NULL,
   agent_id         TEXT    NOT NULL,
   verbatim_content TEXT    NOT NULL,
   content_hash     TEXT    NOT NULL,
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS archived_traces (
   created_at       INTEGER NOT NULL,
   archived_at      INTEGER NOT NULL,
   archive_reason   TEXT    NOT NULL,
-  byte_size        INTEGER NOT NULL DEFAULT 0
+  byte_size        INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (brain_id, trace_id)
 );
 `;
 
@@ -57,8 +59,8 @@ CREATE TABLE IF NOT EXISTS archived_traces (
  * @internal
  */
 export const DDL_ARCHIVED_TRACES_IDX_AGENT_TIME = `
-CREATE INDEX IF NOT EXISTS idx_archived_traces_agent_time
-  ON archived_traces (agent_id, archived_at);
+CREATE INDEX IF NOT EXISTS idx_archived_traces_brain_time
+  ON archived_traces (brain_id, archived_at);
 `;
 
 /**
@@ -66,8 +68,8 @@ CREATE INDEX IF NOT EXISTS idx_archived_traces_agent_time
  * @internal
  */
 export const DDL_ARCHIVED_TRACES_IDX_REASON = `
-CREATE INDEX IF NOT EXISTS idx_archived_traces_reason
-  ON archived_traces (archive_reason);
+CREATE INDEX IF NOT EXISTS idx_archived_traces_brain_reason
+  ON archived_traces (brain_id, archive_reason);
 `;
 
 /**
@@ -76,10 +78,11 @@ CREATE INDEX IF NOT EXISTS idx_archived_traces_reason
  */
 export const DDL_ARCHIVE_ACCESS_LOG = `
 CREATE TABLE IF NOT EXISTS archive_access_log (
+  brain_id        TEXT    NOT NULL,
   trace_id        TEXT    NOT NULL,
   accessed_at     INTEGER NOT NULL,
   request_context TEXT,
-  PRIMARY KEY (trace_id, accessed_at)
+  PRIMARY KEY (brain_id, trace_id, accessed_at)
 );
 `;
 
@@ -89,7 +92,7 @@ CREATE TABLE IF NOT EXISTS archive_access_log (
  */
 export const DDL_ARCHIVE_ACCESS_LOG_IDX = `
 CREATE INDEX IF NOT EXISTS idx_archive_access_recency
-  ON archive_access_log (trace_id, accessed_at DESC);
+  ON archive_access_log (brain_id, trace_id, accessed_at DESC);
 `;
 
 // ---------------------------------------------------------------------------
@@ -124,10 +127,10 @@ interface AccessLogRow {
 /**
  * Default `IMemoryArchive` implementation using `@framers/sql-storage-adapter`.
  *
- * @example Shared adapter with SqliteBrain
+ * @example Shared adapter with Brain
  * ```ts
- * const brain = await SqliteBrain.open('/path/to/brain.sqlite');
- * const archive = new SqlStorageMemoryArchive(brain.adapter, brain.features);
+ * const brain = await Brain.openSqlite('/path/to/brain.sqlite');
+ * const archive = new SqlStorageMemoryArchive(brain.adapter, brain.features, brain.brainId);
  * await archive.initialize();
  * ```
  *
@@ -137,7 +140,7 @@ interface AccessLogRow {
  *   postgres: { connectionString: process.env.DATABASE_URL },
  * });
  * const features = createStorageFeatures(pgAdapter);
- * const archive = new SqlStorageMemoryArchive(pgAdapter, features);
+ * const archive = new SqlStorageMemoryArchive(pgAdapter, features, 'companion-alice');
  * await archive.initialize();
  * ```
  */
@@ -146,12 +149,16 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
    * Create an archive backed by the given storage adapter.
    *
    * @param adapter - An initialized `StorageAdapter` instance. Can be shared
-   *   with `SqliteBrain` (same DB) or standalone (own DB).
+   *   with `Brain` (same DB) or standalone (own DB).
    * @param features - Platform-aware feature bundle for dialect-portable SQL.
+   * @param brainId - Brain identifier scoping every archive query.
+   *   When constructed via Brain, pass `brain.brainId`. For standalone
+   *   archives, supply a stable identifier per archived dataset.
    */
   constructor(
     private readonly adapter: StorageAdapter,
     private readonly features: StorageFeatures,
+    private readonly brainId: string,
   ) {}
 
   /**
@@ -178,8 +185,8 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
   async store(trace: ArchivedTrace): Promise<ArchiveWriteResult> {
     // Idempotent: skip if already stored
     const existing = await this.adapter.get<{ trace_id: string }>(
-      'SELECT trace_id FROM archived_traces WHERE trace_id = ?',
-      [trace.traceId],
+      'SELECT trace_id FROM archived_traces WHERE brain_id = ? AND trace_id = ?',
+      [this.brainId, trace.traceId],
     );
     if (existing) {
       return { success: true, traceId: trace.traceId, bytesWritten: 0 };
@@ -189,11 +196,12 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
 
     await this.adapter.run(
       `INSERT INTO archived_traces
-        (trace_id, agent_id, verbatim_content, content_hash, trace_type,
+        (brain_id, trace_id, agent_id, verbatim_content, content_hash, trace_type,
          emotional_context, entities, tags, created_at, archived_at,
          archive_reason, byte_size)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        this.brainId,
         trace.traceId,
         trace.agentId,
         trace.verbatimContent,
@@ -225,8 +233,8 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
    */
   async rehydrate(traceId: string, requestContext?: string): Promise<RehydratedTrace | null> {
     const row = await this.adapter.get<ArchivedTraceRow>(
-      'SELECT verbatim_content, content_hash, archived_at, archive_reason FROM archived_traces WHERE trace_id = ?',
-      [traceId],
+      'SELECT verbatim_content, content_hash, archived_at, archive_reason FROM archived_traces WHERE brain_id = ? AND trace_id = ?',
+      [this.brainId, traceId],
     );
     if (!row) return null;
 
@@ -238,8 +246,8 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
 
     // Write access log entry for retention awareness
     await this.adapter.run(
-      'INSERT INTO archive_access_log (trace_id, accessed_at, request_context) VALUES (?, ?, ?)',
-      [traceId, Date.now(), requestContext ?? null],
+      'INSERT INTO archive_access_log (brain_id, trace_id, accessed_at, request_context) VALUES (?, ?, ?, ?)',
+      [this.brainId, traceId, Date.now(), requestContext ?? null],
     );
 
     return {
@@ -258,8 +266,14 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
    * @param traceId - The trace id to remove from the archive.
    */
   async drop(traceId: string): Promise<void> {
-    await this.adapter.run('DELETE FROM archived_traces WHERE trace_id = ?', [traceId]);
-    await this.adapter.run('DELETE FROM archive_access_log WHERE trace_id = ?', [traceId]);
+    await this.adapter.run(
+      'DELETE FROM archived_traces WHERE brain_id = ? AND trace_id = ?',
+      [this.brainId, traceId],
+    );
+    await this.adapter.run(
+      'DELETE FROM archive_access_log WHERE brain_id = ? AND trace_id = ?',
+      [this.brainId, traceId],
+    );
   }
 
   /**
@@ -273,8 +287,8 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
     olderThanMs?: number;
     limit?: number;
   }): Promise<ArchiveListEntry[]> {
-    const conditions: string[] = [];
-    const params: (string | number)[] = [];
+    const conditions: string[] = ['brain_id = ?'];
+    const params: (string | number)[] = [this.brainId];
 
     if (options?.agentId) {
       conditions.push('agent_id = ?');
@@ -286,7 +300,7 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
       params.push(cutoff);
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where = `WHERE ${conditions.join(' AND ')}`;
     const limit = options?.limit ? `LIMIT ${options.limit}` : '';
 
     const rows = await this.adapter.all<{
@@ -319,8 +333,8 @@ export class SqlStorageMemoryArchive implements IMemoryArchive {
    */
   async lastAccessedAt(traceId: string): Promise<number | null> {
     const row = await this.adapter.get<AccessLogRow>(
-      'SELECT accessed_at FROM archive_access_log WHERE trace_id = ? ORDER BY accessed_at DESC LIMIT 1',
-      [traceId],
+      'SELECT accessed_at FROM archive_access_log WHERE brain_id = ? AND trace_id = ? ORDER BY accessed_at DESC LIMIT 1',
+      [this.brainId, traceId],
     );
     return row?.accessed_at ?? null;
   }

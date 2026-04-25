@@ -22,7 +22,7 @@ async function createTempDir(): Promise<string> {
 }
 
 async function openMemory(dbPath: string): Promise<Memory> {
-  const memory = await Memory.create({
+  const memory = await Memory.createSqlite({
     store: 'sqlite',
     path: dbPath,
     graph: false,

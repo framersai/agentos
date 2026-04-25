@@ -3,7 +3,7 @@
  *
  * Reads a JSON file produced by `JsonExporter` (or a compatible schema) and
  * merges traces, graph rows, documents, document chunks/images, conversations,
- * and messages into a target `SqliteBrain`.
+ * and messages into a target `Brain`.
  *
  * Trace deduplication is performed via SHA-256 content hash by default, but it
  * can be disabled via `{ dedup: false }` on the importer or `Memory.importFrom`.
@@ -14,7 +14,7 @@
 import { sha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportOptions, ImportResult } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 import { base64ToBytes } from './base64.js';
 
 // ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ interface ImportContext {
 // ---------------------------------------------------------------------------
 
 /**
- * Imports a `JsonExporter`-compatible JSON file into a `SqliteBrain`.
+ * Imports a `JsonExporter`-compatible JSON file into a `Brain`.
  *
  * **Usage:**
  * ```ts
@@ -158,9 +158,9 @@ interface ImportContext {
  */
 export class JsonImporter {
   /**
-   * @param brain - The target `SqliteBrain` to import into.
+   * @param brain - The target `Brain` to import into.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // -------------------------------------------------------------------------
   // Public API
@@ -283,21 +283,21 @@ export class JsonImporter {
    * `exported_at` is export-specific and intentionally ignored on import.
    */
   private async _importMeta(
-    trx: { run: SqliteBrain['run'] },
+    trx: { run: Brain['run'] },
     meta?: Record<string, string>,
   ): Promise<void> {
     if (!meta) return;
     const { dialect } = this.brain.features;
     const upsertSql = dialect.insertOrReplace(
       'brain_meta',
-      ['key', 'value'],
-      ['?', '?'],
-      'key',
+      ['brain_id', 'key', 'value'],
+      ['?', '?', '?'],
+      'brain_id, key',
     );
 
     for (const [key, value] of Object.entries(meta)) {
       if (key === 'exported_at') continue;
-      await trx.run(upsertSql, [key, value]);
+      await trx.run(upsertSql, [this.brain.brainId, key, value]);
     }
   }
 
@@ -312,25 +312,26 @@ export class JsonImporter {
    * @param result - Mutable `ImportResult` to accumulate counts.
    */
   private async _importTraces(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     traces: TraceRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
-    const checkSql = `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
+    const brainId = this.brain.brainId;
+    const checkSql = `SELECT id FROM memory_traces WHERE brain_id = ? AND ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
 
     const insertSql = `INSERT INTO memory_traces
-         (id, type, scope, content, embedding, strength, created_at, last_accessed,
+         (brain_id, id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     for (const t of traces) {
       try {
         const hash = await this._sha256(t.content);
         const sourceId = t.id;
         if (context.dedup) {
-          const existing = await trx.get<{ id: string }>(checkSql, [hash]);
+          const existing = await trx.get<{ id: string }>(checkSql, [brainId, hash]);
           if (existing) {
             if (sourceId) context.traceIds.set(sourceId, existing.id);
             result.skipped++;
@@ -361,6 +362,7 @@ export class JsonImporter {
         );
 
         await trx.run(insertSql, [
+          brainId,
           id,
           t.type ?? 'episodic',
           t.scope ?? 'user',
@@ -394,25 +396,26 @@ export class JsonImporter {
    * @param result - Mutable `ImportResult` to accumulate counts.
    */
   private async _importNodes(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     nodes: NodeRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
-    const checkSql = `SELECT id FROM knowledge_nodes WHERE ${dialect.jsonExtract('properties', '$.import_hash')} = ? LIMIT 1`;
+    const brainId = this.brain.brainId;
+    const checkSql = `SELECT id FROM knowledge_nodes WHERE brain_id = ? AND ${dialect.jsonExtract('properties', '$.import_hash')} = ? LIMIT 1`;
 
     const insertSql = dialect.insertOrIgnore(
       'knowledge_nodes',
-      ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
-      ['?', '?', '?', '?', '?', '?', '?', '?'],
+      ['brain_id', 'id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?', '?'],
     );
 
     for (const n of nodes) {
       try {
         const hash = await this._sha256(`${n.label ?? ''}::${n.type ?? ''}`);
         const sourceId = n.id;
-        const existing = await trx.get<{ id: string }>(checkSql, [hash]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, hash]);
         if (existing) {
           if (sourceId) context.nodeIds.set(sourceId, existing.id);
           result.skipped++;
@@ -440,6 +443,7 @@ export class JsonImporter {
         );
 
         await trx.run(insertSql, [
+          brainId,
           id,
           n.type ?? 'concept',
           n.label ?? '',
@@ -469,18 +473,19 @@ export class JsonImporter {
    * @param result - Mutable `ImportResult` to accumulate counts.
    */
   private async _importEdges(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     edges: EdgeRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
-    const checkSql = `SELECT id FROM knowledge_edges WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
+    const brainId = this.brain.brainId;
+    const checkSql = `SELECT id FROM knowledge_edges WHERE brain_id = ? AND ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`;
 
     const insertSql = dialect.insertOrIgnore(
       'knowledge_edges',
-      ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
-      ['?', '?', '?', '?', '?', '?', '?', '?'],
+      ['brain_id', 'id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?', '?'],
     );
 
     for (const e of edges) {
@@ -493,7 +498,7 @@ export class JsonImporter {
         }
 
         const hash = await this._sha256(`${sourceId}::${targetId}::${e.type ?? ''}`);
-        const existing = await trx.get<{ id: string }>(checkSql, [hash]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, hash]);
         if (existing) {
           result.skipped++;
           continue;
@@ -508,6 +513,7 @@ export class JsonImporter {
         meta['import_hash'] = hash;
 
         await trx.run(insertSql, [
+          brainId,
           await this._resolveUniqueId(
             trx,
             'knowledge_edges',
@@ -538,25 +544,26 @@ export class JsonImporter {
    * Documents are deduplicated by their exported `id`.
    */
   private async _importDocuments(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     documents: DocumentRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
-    const checkSql = 'SELECT id FROM documents WHERE id = ? LIMIT 1';
+    const brainId = this.brain.brainId;
+    const checkSql = 'SELECT id FROM documents WHERE brain_id = ? AND id = ? LIMIT 1';
     const upsertSql = dialect.insertOrReplace(
       'documents',
-      ['id', 'path', 'format', 'title', 'content_hash', 'chunk_count', 'metadata', 'ingested_at'],
-      ['?', '?', '?', '?', '?', '?', '?', '?'],
-      'id',
+      ['brain_id', 'id', 'path', 'format', 'title', 'content_hash', 'chunk_count', 'metadata', 'ingested_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?', '?'],
+      'brain_id, id',
     );
 
     for (const doc of documents) {
       try {
         const sourceId = doc.id;
         const id = sourceId ?? `doc_${uuidv4()}`;
-        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, id]);
         if (existing) {
           if (sourceId) context.documentIds.set(sourceId, existing.id);
           result.skipped++;
@@ -564,6 +571,7 @@ export class JsonImporter {
         }
 
         await trx.run(upsertSql, [
+          brainId,
           id,
           doc.path ?? '',
           doc.format ?? 'unknown',
@@ -585,21 +593,22 @@ export class JsonImporter {
    * Import document chunk rows.
    */
   private async _importChunks(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     chunks: DocumentChunkRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
-    const checkSql = 'SELECT id FROM document_chunks WHERE id = ? LIMIT 1';
+    const brainId = this.brain.brainId;
+    const checkSql = 'SELECT id FROM document_chunks WHERE brain_id = ? AND id = ? LIMIT 1';
     const insertSql = `INSERT INTO document_chunks
-         (id, document_id, trace_id, content, chunk_index, page_number, embedding)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`;
+         (brain_id, id, document_id, trace_id, content, chunk_index, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
     for (const chunk of chunks) {
       try {
         const sourceId = chunk.id;
         const id = sourceId ?? `chunk_${uuidv4()}`;
-        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, id]);
         if (existing) {
           if (sourceId) context.chunkIds.set(sourceId, existing.id);
           result.skipped++;
@@ -623,6 +632,7 @@ export class JsonImporter {
           : null;
 
         await trx.run(insertSql, [
+          brainId,
           id,
           documentId,
           traceId,
@@ -644,20 +654,21 @@ export class JsonImporter {
    * Import document image rows.
    */
   private async _importImages(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     images: DocumentImageRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
-    const checkSql = 'SELECT id FROM document_images WHERE id = ? LIMIT 1';
+    const brainId = this.brain.brainId;
+    const checkSql = 'SELECT id FROM document_images WHERE brain_id = ? AND id = ? LIMIT 1';
     const insertSql = `INSERT INTO document_images
-         (id, document_id, chunk_id, data, mime_type, caption, page_number, embedding)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+         (brain_id, id, document_id, chunk_id, data, mime_type, caption, page_number, embedding)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     for (const image of images) {
       try {
         const id = image.id ?? `img_${uuidv4()}`;
-        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, id]);
         if (existing) {
           result.skipped++;
           continue;
@@ -680,6 +691,7 @@ export class JsonImporter {
           : null;
 
         await trx.run(insertSql, [
+          brainId,
           id,
           documentId,
           chunkId,
@@ -704,25 +716,26 @@ export class JsonImporter {
    * keys can be remapped safely when IDs collide or sessions already exist.
    */
   private async _importConversations(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     conversations: ConversationRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
     const { dialect } = this.brain.features;
-    const checkSql = 'SELECT id FROM conversations WHERE id = ? LIMIT 1';
+    const brainId = this.brain.brainId;
+    const checkSql = 'SELECT id FROM conversations WHERE brain_id = ? AND id = ? LIMIT 1';
     const upsertSql = dialect.insertOrReplace(
       'conversations',
-      ['id', 'title', 'created_at', 'updated_at', 'metadata'],
-      ['?', '?', '?', '?', '?'],
-      'id',
+      ['brain_id', 'id', 'title', 'created_at', 'updated_at', 'metadata'],
+      ['?', '?', '?', '?', '?', '?'],
+      'brain_id, id',
     );
 
     for (const convo of conversations) {
       try {
         const sourceId = convo.id;
         const id = sourceId ?? `conv_${uuidv4()}`;
-        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, id]);
         if (existing) {
           if (sourceId) context.conversationIds.set(sourceId, existing.id);
           result.skipped++;
@@ -731,6 +744,7 @@ export class JsonImporter {
 
         const createdAt = convo.created_at ?? Date.now();
         await trx.run(upsertSql, [
+          brainId,
           id,
           convo.title ?? null,
           createdAt,
@@ -749,20 +763,21 @@ export class JsonImporter {
    * Import conversation message rows.
    */
   private async _importMessages(
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     messages: MessageRecord[],
     result: ImportResult,
     context: ImportContext,
   ): Promise<void> {
-    const checkSql = 'SELECT id FROM messages WHERE id = ? LIMIT 1';
+    const brainId = this.brain.brainId;
+    const checkSql = 'SELECT id FROM messages WHERE brain_id = ? AND id = ? LIMIT 1';
     const insertSql = `INSERT INTO messages
-         (id, conversation_id, role, content, created_at, metadata)
-       VALUES (?, ?, ?, ?, ?, ?)`;
+         (brain_id, id, conversation_id, role, content, created_at, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
     for (const message of messages) {
       try {
         const id = message.id ?? `msg_${uuidv4()}`;
-        const existing = await trx.get<{ id: string }>(checkSql, [id]);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, id]);
         if (existing) {
           result.skipped++;
           continue;
@@ -777,6 +792,7 @@ export class JsonImporter {
         }
 
         await trx.run(insertSql, [
+          brainId,
           id,
           conversationId,
           message.role,
@@ -793,12 +809,15 @@ export class JsonImporter {
   }
 
   private async _resolveUniqueId(
-    trx: { get: SqliteBrain['get'] },
+    trx: { get: Brain['get'] },
     table: string,
     preferredId: string,
     prefix: string,
   ): Promise<string> {
-    const existing = await trx.get<{ id: string }>(`SELECT id FROM ${table} WHERE id = ? LIMIT 1`, [preferredId]);
+    const existing = await trx.get<{ id: string }>(
+      `SELECT id FROM ${table} WHERE brain_id = ? AND id = ? LIMIT 1`,
+      [this.brain.brainId, preferredId],
+    );
     return existing ? `${prefix}${uuidv4()}` : preferredId;
   }
 }
