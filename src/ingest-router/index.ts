@@ -117,15 +117,19 @@ export {
 // Reference executors ship in agentos core so the IngestRouter strategy
 // IDs work out of the box. See ./executors/ for the source.
 //
-// Strategy ID coverage (Stage L = summarized; trivial executors for
-// raw-chunks + skip; observational coordinator added in Stage 2.2;
-// fact-graph + hybrid land in Stage I + later).
+// SummarizedIngestExecutor wraps the existing SessionSummarizer from
+// `@framers/agentos/memory` so the production summarization primitive is
+// the single source of truth across the bench and the IngestRouter
+// dispatcher path.
+//
+// Strategy ID coverage today: summarized (Stage L), raw-chunks, skip.
+// Observational + fact-graph + hybrid executors land in later phases;
+// consumers can register their own closures via FunctionIngestDispatcher
+// in the meantime.
 export {
   SummarizedIngestExecutor,
   RawChunksIngestExecutor,
   SkipIngestExecutor,
-  summarizeSession,
-  ANTHROPIC_CONTEXTUAL_PROMPT,
   createSummarizedIngestExecutor,
   createRawChunksIngestExecutor,
   createSkipIngestExecutor,
@@ -134,8 +138,4 @@ export type {
   IngestOutcome,
   IngestPayload,
   RawChunksOutcome,
-  SessionContent,
-  SummarizerLLM,
-  SummarizedIngestOptions,
-  SummarizedTrace,
 } from './executors/index.js';

@@ -6,8 +6,12 @@
  * `import { SummarizedIngestExecutor } from '@framers/agentos/ingest-router'`.
  *
  * Reference executors ship in agentos core (not in extension packages)
- * so the IngestRouter strategy IDs (`summarized`, `fact-graph`) work
- * out of the box rather than being empty promises.
+ * so the IngestRouter strategy IDs (`summarized`, `raw-chunks`, `skip`)
+ * work out of the box rather than being empty promises.
+ *
+ * The summarized executor wraps the existing
+ * {@link SessionSummarizer} from `@framers/agentos/memory` so the
+ * production summarization primitive is the single source of truth.
  */
 
 export { SummarizedIngestExecutor } from './SummarizedIngestExecutor.js';
@@ -15,22 +19,14 @@ export type { IngestOutcome, IngestPayload } from './SummarizedIngestExecutor.js
 export { RawChunksIngestExecutor } from './RawChunksIngestExecutor.js';
 export type { RawChunksOutcome } from './RawChunksIngestExecutor.js';
 export { SkipIngestExecutor } from './SkipIngestExecutor.js';
-export { summarizeSession, ANTHROPIC_CONTEXTUAL_PROMPT } from './sessionSummarizer.js';
-export type {
-  SessionContent,
-  SummarizerLLM,
-  SummarizedIngestOptions,
-  SummarizedTrace,
-} from './types.js';
 
 import { SummarizedIngestExecutor } from './SummarizedIngestExecutor.js';
 import { RawChunksIngestExecutor } from './RawChunksIngestExecutor.js';
 import { SkipIngestExecutor } from './SkipIngestExecutor.js';
-import type { SummarizerLLM } from './types.js';
+import type { SessionSummarizer } from '../../memory/ingest/SessionSummarizer.js';
 
 export function createSummarizedIngestExecutor(opts: {
-  llm: SummarizerLLM;
-  maxSummaryTokens?: number;
+  summarizer: SessionSummarizer;
 }): SummarizedIngestExecutor {
   return new SummarizedIngestExecutor(opts);
 }
