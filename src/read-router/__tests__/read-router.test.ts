@@ -207,7 +207,10 @@ describe('ReadRouter.decideAndDispatch: composes', () => {
         'scratchpad-then-answer': async () => ({ answer: 'X-scratch' }),
       }),
     });
-    const result = await router.decideAndDispatch('Q?', ['e1', 'e2']);
+    const result = await router.decideAndDispatch<{ answer: string }>(
+      'Q?',
+      ['e1', 'e2'],
+    );
     expect(result.outcome.answer.startsWith('X')).toBe(true);
   });
 });
