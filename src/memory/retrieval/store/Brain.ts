@@ -46,6 +46,7 @@ import {
   DDL_ARCHIVE_ACCESS_LOG_IDX,
 } from '../../archive/SqlStorageMemoryArchive.js';
 import { migrateV1ToV2 } from './migrations/v1-to-v2.js';
+import { PORTABLE_TABLES, PORTABLE_TABLE_PRIMARY_KEYS } from './portable-tables.js';
 
 /**
  * Derive a stable brain identifier from the database file path.
@@ -942,51 +943,5 @@ export class Brain {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Portable-artifact constants
-// ---------------------------------------------------------------------------
-
-/**
- * Tables exported and imported by `Brain.exportToSqlite` / `importFromSqlite`.
- * Order matters for import: parents before children to satisfy FKs.
- */
-const PORTABLE_TABLES = [
-  'brain_meta',
-  'memory_traces',
-  'knowledge_nodes',
-  'knowledge_edges',
-  'documents',
-  'document_chunks',
-  'document_images',
-  'consolidation_log',
-  'retrieval_feedback',
-  'conversations',
-  'messages',
-  'prospective_items',
-  'archived_traces',
-  'archive_access_log',
-] as const;
-
-/**
- * Composite primary key columns for each portable table, used by
- * `dialect.insertOrReplace` as the conflict target during merge import.
- *
- * Tables with `INTEGER PRIMARY KEY AUTOINCREMENT` (consolidation_log,
- * retrieval_feedback) use `id` alone since their PK is system-generated.
- */
-const PORTABLE_TABLE_PRIMARY_KEYS: Record<string, string> = {
-  brain_meta: 'brain_id, key',
-  memory_traces: 'brain_id, id',
-  knowledge_nodes: 'brain_id, id',
-  knowledge_edges: 'brain_id, id',
-  documents: 'brain_id, id',
-  document_chunks: 'brain_id, id',
-  document_images: 'brain_id, id',
-  consolidation_log: 'id',
-  retrieval_feedback: 'id',
-  conversations: 'brain_id, id',
-  messages: 'brain_id, id',
-  prospective_items: 'brain_id, id',
-  archived_traces: 'brain_id, trace_id',
-  archive_access_log: 'brain_id, trace_id, accessed_at',
-};
+// PORTABLE_TABLES + PORTABLE_TABLE_PRIMARY_KEYS moved to ./portable-tables.ts
+// (single source of truth shared with v1-to-v2 migration + postgres test cleanup).
