@@ -1,4 +1,4 @@
-# @framers/agentos/multi-stage-guardrails
+# @framers/agentos/cognitive-pipeline
 
 Composition primitive that wires the four LLM-as-judge stages of agentos into a single orchestrator. Each stage is independent and shippable on its own; this module is what you use when you want all four (or any subset) to coordinate as one pipeline.
 
@@ -31,7 +31,7 @@ Each stage is an LLM-as-judge that classifies its input and picks a strategy. Th
 - **Read stage:** [`@framers/agentos/read-router`](../read-router/README.md)
 - **Output guardrails:** `@framers/agentos/core/guardrails` + `agentos-ext-grounding-guard` + `agentos-ext-topicality` + `agentos-ext-pii-redaction`
 
-This module's job is composition — it does NOT add new routing logic. The `MultiStageGuardrails` class is a thin facade over interfaces that any stage implementation can satisfy.
+This module's job is composition — it does NOT add new routing logic. The `CognitivePipeline` class is a thin facade over interfaces that any stage implementation can satisfy.
 
 ## Why one composition primitive
 
@@ -45,11 +45,11 @@ Without composition, every consumer has to wire the four stages independently �
 
 ```ts
 import {
-  MultiStageGuardrails,
+  CognitivePipeline,
   ingestRouterAsStage,
   memoryRouterAsStage,
   readRouterAsStage,
-} from '@framers/agentos/multi-stage-guardrails';
+} from '@framers/agentos/cognitive-pipeline';
 ```
 
 ## Usage
@@ -65,7 +65,7 @@ const ingestRouter = new IngestRouter({ /* ... */ });
 const memoryRouter = new MemoryRouter({ /* ... */ });
 const readRouter = new ReadRouter({ /* ... */ });
 
-const guardrails = new MultiStageGuardrails({
+const guardrails = new CognitivePipeline({
   ingest: ingestRouterAsStage(ingestRouter),
   recall: memoryRouterAsStage(memoryRouter),
   read: readRouterAsStage(readRouter),
@@ -92,7 +92,7 @@ console.log(result.recallStage.memoryRouterDecision); // full decision telemetry
 
 ```ts
 // Recall + read only (ingest is handled elsewhere):
-const guardrails = new MultiStageGuardrails({
+const guardrails = new CognitivePipeline({
   recall: memoryRouterAsStage(memoryRouter),
   read: readRouterAsStage(readRouter),
 });
@@ -117,7 +117,7 @@ const customIngest: IngestStage = {
   },
 };
 
-const guardrails = new MultiStageGuardrails({
+const guardrails = new CognitivePipeline({
   ingest: customIngest,
   // ...
 });
@@ -146,8 +146,8 @@ Each result shape carries:
 
 ## API surface
 
-- `MultiStageGuardrails<TTrace, TOutcome>` — orchestrator class
-- `MultiStageGuardrailsOptions<TTrace, TOutcome>`
+- `CognitivePipeline<TTrace, TOutcome>` — orchestrator class
+- `CognitivePipelineOptions<TTrace, TOutcome>`
 - `IngestStage`, `RecallStage<TTrace>`, `ReadStage<TTrace, TOutcome>` — pluggable interfaces
 - `IngestStageResult`, `RecallStageResult<TTrace>`, `ReadStageResult<TOutcome>`, `RecallAndReadResult<TTrace, TOutcome>` — output shapes
 - `ingestRouterAsStage(IngestRouter)` — adapter

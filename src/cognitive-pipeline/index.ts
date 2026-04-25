@@ -1,11 +1,18 @@
 /**
- * AgentOS MultiStageGuardrails Module
+ * AgentOS CognitivePipeline Module
  *
- * Composition primitive that wires the LLM-as-judge stages of the
- * agentos pipeline into one orchestrator. Each stage is independent and
- * optional — wire only the stages you need, or compose all four.
+ * Smart per-message orchestration. Composes the LLM-as-judge stages of
+ * the agentos pipeline into one orchestrator. Each stage is independent
+ * and optional — wire only the stages you need, or compose all four.
  *
- * **The four stages:**
+ * **What this is NOT:** safety guardrails. CognitivePipeline picks
+ * strategies (which architecture per ingest, which retrieval per recall,
+ * which reader per read). It does NOT block, refuse, or validate output —
+ * those concerns live in `core/guardrails` and the
+ * `agentos-ext-grounding-guard` / `agentos-ext-topicality` /
+ * `agentos-ext-pii-redaction` extensions.
+ *
+ * **The three orchestrator stages:**
  *
  * ```
  *   Content                 Query                    Query
@@ -21,14 +28,14 @@
  *  Memory state          Retrieved traces         Final answer
  * ```
  *
- * Plus the existing output-stage `core/guardrails` and
- * `agentos-ext-grounding-guard` which validate the answer post-generation.
+ * Output guardrails (a separate, existing concern) sit downstream of the
+ * Read stage's answer to enforce safety and policy.
  *
  * **Why a composition primitive:** each individual router is independently
  * useful and ships with its own classifier + dispatcher + table machinery.
- * MultiStageGuardrails gives consumers a single object to coordinate the
+ * CognitivePipeline gives consumers a single object to coordinate the
  * stages without duplicating per-stage wiring. It does NOT add new
- * routing logic — it's a thin facade over the four primitives.
+ * routing logic — it's a thin facade over the stage primitives.
  *
  * The interfaces below ({@link IngestStage}, {@link RecallStage},
  * {@link ReadStage}) are deliberately minimal so consumers can wire any
@@ -36,11 +43,11 @@
  *
  * - The shipping `IngestRouter` / `MemoryRouter` / `ReadRouter` classes
  *   each satisfy the corresponding stage interface via thin adapters
- *   (see `agentosStageAdapters` below).
+ *   (see `ingestRouterAsStage` / `memoryRouterAsStage` / `readRouterAsStage`).
  * - Custom implementations (rule-based, ML-driven, mock for tests) can
  *   satisfy the same interfaces and slot in.
  *
- * @module @framers/agentos/multi-stage-guardrails
+ * @module @framers/agentos/cognitive-pipeline
  */
 
 // ============================================================================
@@ -71,7 +78,7 @@ export interface ReadStageResult<TOutcome> {
 }
 
 /**
- * Pluggable input-stage. Wrap an {@link IngestRouter} or any equivalent
+ * Pluggable input-stage. Wrap an `IngestRouter` or any equivalent
  * implementation that turns content into stored traces.
  */
 export interface IngestStage {
@@ -79,7 +86,7 @@ export interface IngestStage {
 }
 
 /**
- * Pluggable recall-stage. Wrap a {@link MemoryRouter} or any equivalent
+ * Pluggable recall-stage. Wrap a `MemoryRouter` or any equivalent
  * implementation that turns a query into retrieved traces.
  */
 export interface RecallStage<TTrace> {
@@ -87,7 +94,7 @@ export interface RecallStage<TTrace> {
 }
 
 /**
- * Pluggable read-stage. Wrap a {@link ReadRouter} or any equivalent
+ * Pluggable read-stage. Wrap a `ReadRouter` or any equivalent
  * implementation that turns a query+evidence pair into a final answer.
  */
 export interface ReadStage<TTrace, TOutcome> {
@@ -112,7 +119,7 @@ export interface RecallAndReadResult<TTrace, TOutcome> {
 // Constructor options
 // ============================================================================
 
-export interface MultiStageGuardrailsOptions<TTrace, TOutcome> {
+export interface CognitivePipelineOptions<TTrace, TOutcome> {
   readonly ingest?: IngestStage;
   readonly recall?: RecallStage<TTrace>;
   readonly read?: ReadStage<TTrace, TOutcome>;
@@ -125,7 +132,7 @@ export interface MultiStageGuardrailsOptions<TTrace, TOutcome> {
 export class MissingStageError extends Error {
   constructor(stage: 'IngestStage' | 'RecallStage' | 'ReadStage') {
     super(
-      `MultiStageGuardrails: ${stage} is not configured. ` +
+      `CognitivePipeline: ${stage} is not configured. ` +
         `Pass it in options at construction.`,
     );
     this.name = 'MissingStageError';
@@ -142,25 +149,25 @@ export class MissingStageError extends Error {
  *
  * @example Full pipeline
  * ```ts
- * import { MultiStageGuardrails } from '@framers/agentos/multi-stage-guardrails';
- * import { ingestRouterAsStage } from '@framers/agentos/multi-stage-guardrails';
+ * import { CognitivePipeline } from '@framers/agentos/cognitive-pipeline';
+ * import { ingestRouterAsStage } from '@framers/agentos/cognitive-pipeline';
  *
- * const guardrails = new MultiStageGuardrails({
+ * const pipeline = new CognitivePipeline({
  *   ingest: ingestRouterAsStage(myIngestRouter),
  *   recall: memoryRouterAsStage(myMemoryRouter),
  *   read: readRouterAsStage(myReadRouter),
  * });
  *
- * await guardrails.ingest(newContent);
- * const { outcome } = await guardrails.recallAndRead("what's my latest job?");
+ * await pipeline.ingest(newContent);
+ * const { outcome } = await pipeline.recallAndRead("what's my latest job?");
  * ```
  */
-export class MultiStageGuardrails<TTrace, TOutcome> {
+export class CognitivePipeline<TTrace, TOutcome> {
   private readonly ingestStage: IngestStage | null;
   private readonly recallStage: RecallStage<TTrace> | null;
   private readonly readStage: ReadStage<TTrace, TOutcome> | null;
 
-  constructor(options: MultiStageGuardrailsOptions<TTrace, TOutcome>) {
+  constructor(options: CognitivePipelineOptions<TTrace, TOutcome>) {
     this.ingestStage = options.ingest ?? null;
     this.recallStage = options.recall ?? null;
     this.readStage = options.read ?? null;
@@ -230,7 +237,7 @@ export class MultiStageGuardrails<TTrace, TOutcome> {
 // ============================================================================
 
 /**
- * Wrap an {@link IngestRouter} as an {@link IngestStage}. The IngestRouter
+ * Wrap an `IngestRouter` as an {@link IngestStage}. The IngestRouter
  * must have been constructed with a dispatcher; otherwise the stage will
  * throw on every call.
  */
@@ -258,7 +265,7 @@ export function ingestRouterAsStage<TOutcome extends { writtenTraces?: number }>
 }
 
 /**
- * Wrap a {@link MemoryRouter} as a {@link RecallStage}. The MemoryRouter
+ * Wrap a `MemoryRouter` as a {@link RecallStage}. The MemoryRouter
  * must have been constructed with a dispatcher.
  */
 export function memoryRouterAsStage<TTrace>(router: {
@@ -284,7 +291,7 @@ export function memoryRouterAsStage<TTrace>(router: {
 }
 
 /**
- * Wrap a {@link ReadRouter} as a {@link ReadStage}. The ReadRouter must
+ * Wrap a `ReadRouter` as a {@link ReadStage}. The ReadRouter must
  * have been constructed with a dispatcher.
  */
 export function readRouterAsStage<TTrace extends { id?: string; text?: string }, TOutcome>(

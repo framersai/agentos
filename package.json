@@ -273,10 +273,10 @@
       "default": "./dist/read-router/index.js",
       "types": "./dist/read-router/index.d.ts"
     },
-    "./multi-stage-guardrails": {
-      "import": "./dist/multi-stage-guardrails/index.js",
-      "default": "./dist/multi-stage-guardrails/index.js",
-      "types": "./dist/multi-stage-guardrails/index.d.ts"
+    "./cognitive-pipeline": {
+      "import": "./dist/cognitive-pipeline/index.js",
+      "default": "./dist/cognitive-pipeline/index.js",
+      "types": "./dist/cognitive-pipeline/index.d.ts"
     },
     "./memory/index": {
       "import": "./dist/memory/index.js",

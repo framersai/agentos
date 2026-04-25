@@ -106,5 +106,5 @@ const decision = await router.decide(query, evidence, {
 
 - `@framers/agentos/ingest-router` — input-stage sibling
 - `@framers/agentos/memory-router` — recall-stage sibling
-- `@framers/agentos/multi-stage-guardrails` — composition primitive
+- `@framers/agentos/cognitive-pipeline` — composition primitive
 - `@framers/agentos/core/guardrails` + `agentos-ext-grounding-guard` — output-stage validation

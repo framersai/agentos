@@ -125,5 +125,5 @@ const router = new IngestRouter({
 
 - `@framers/agentos/memory-router` — recall-stage sibling
 - `@framers/agentos/read-router` — read-stage sibling
-- `@framers/agentos/multi-stage-guardrails` — composition primitive that wires the three stages together
+- `@framers/agentos/cognitive-pipeline` — composition primitive that wires the three stages together
 - `@framers/agentos/core/guardrails` + `agentos-ext-grounding-guard` — output-stage validation
