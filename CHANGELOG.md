@@ -1,3 +1,7 @@
+## <small>0.2.9 (2026-04-25)</small>
+
+* refactor(cognitive-pipeline): rename multi-stage-guardrails → cognitive-pipeline + ship 5 canonical  ([fc0dadb](https://github.com/framersai/agentos/commit/fc0dadb))
+
 ## <small>0.2.8 (2026-04-25)</small>
 
 * feat: ship multi-stage guardrails — ingest-router + read-router + adaptive memory-router + compositi ([7866f7a](https://github.com/framersai/agentos/commit/7866f7a))
