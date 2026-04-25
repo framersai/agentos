@@ -19,7 +19,7 @@ import path from 'node:path';
 
 import { penalizeUnused, computeCurrentStrength } from '../../../core/decay/DecayModel.js';
 import { RetrievalFeedbackSignal } from '../RetrievalFeedbackSignal.js';
-import { SqliteBrain } from '../../../retrieval/store/SqliteBrain.js';
+import { Brain } from '../../../retrieval/store/Brain.js';
 import type { MemoryTrace } from '../../../core/types.js';
 
 // ---------------------------------------------------------------------------
@@ -35,11 +35,11 @@ function tempDbPath(): string {
 }
 
 /** Registry of brains opened during a test run so afterEach can clean up. */
-const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
+const openBrains: Array<{ brain: Brain; dbPath: string }> = [];
 
-async function openBrain(dbPath?: string): Promise<{ brain: SqliteBrain; dbPath: string }> {
+async function openBrain(dbPath?: string): Promise<{ brain: Brain; dbPath: string }> {
   const p = dbPath ?? tempDbPath();
-  const brain = await SqliteBrain.open(p);
+  const brain = await Brain.openSqlite(p);
   openBrains.push({ brain, dbPath: p });
   return { brain, dbPath: p };
 }
@@ -114,12 +114,13 @@ function makeTrace(overrides: Partial<MemoryTrace> = {}): MemoryTrace {
  * Insert a minimal memory_traces row so the `retrieval_feedback` FK
  * constraint is satisfied.  Only columns that have no DEFAULT are provided.
  */
-async function seedTraceRow(brain: SqliteBrain, trace: MemoryTrace): Promise<void> {
+async function seedTraceRow(brain: Brain, trace: MemoryTrace): Promise<void> {
   await brain.run(
     `INSERT OR IGNORE INTO memory_traces
-       (id, type, scope, content, strength, created_at, tags, emotions, metadata)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (brain_id, id, type, scope, content, strength, created_at, tags, emotions, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      brain.brainId,
       trace.id,
       trace.type,
       trace.scope,

@@ -10,6 +10,24 @@ jobs:
   test:
     name: Test & Lint
     runs-on: ubuntu-latest
+
+    # Postgres service container for the Brain.openPostgres integration tests
+    # (gated on AGENTOS_TEST_POSTGRES_URL — tests skip when env var is absent).
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: ci_test_password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      AGENTOS_TEST_POSTGRES_URL: postgresql://postgres:ci_test_password@localhost:5432/postgres
+
     steps:
       - uses: actions/checkout@v4
 

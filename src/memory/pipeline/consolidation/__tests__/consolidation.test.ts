@@ -20,8 +20,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { MemoryTrace } from '../../../core/types.js';
-import { SqliteBrain } from '../../../retrieval/store/SqliteBrain.js';
-import { SqliteMemoryGraph } from '../../../retrieval/store/SqliteMemoryGraph.js';
+import { Brain } from '../../../retrieval/store/Brain.js';
+import { SqlMemoryGraph } from '../../../retrieval/store/SqlMemoryGraph.js';
 import { RetrievalFeedbackSignal } from '../../../retrieval/feedback/RetrievalFeedbackSignal.js';
 import { ConsolidationLoop } from '../ConsolidationLoop.js';
 
@@ -41,21 +41,21 @@ function tempDbPath(): string {
  * Registry of brains opened during a test run so afterEach can clean up.
  * Prevents leaked file handles and stale temp files.
  */
-const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
+const openBrains: Array<{ brain: Brain; dbPath: string }> = [];
 
 /**
- * Create a fresh SqliteBrain + SqliteMemoryGraph pair backed by a temp file.
+ * Create a fresh Brain + SqlMemoryGraph pair backed by a temp file.
  * The pair is registered for afterEach cleanup automatically.
  */
 async function createTestEnv(): Promise<{
-  brain: SqliteBrain;
-  graph: SqliteMemoryGraph;
+  brain: Brain;
+  graph: SqlMemoryGraph;
   dbPath: string;
 }> {
   const dbPath = tempDbPath();
-  const brain = await SqliteBrain.open(dbPath);
+  const brain = await Brain.openSqlite(dbPath);
   openBrains.push({ brain, dbPath });
-  const graph = new SqliteMemoryGraph(brain);
+  const graph = new SqlMemoryGraph(brain);
   await graph.initialize();
   return { brain, graph, dbPath };
 }
@@ -83,7 +83,7 @@ afterEach(async () => {
  * Uses the full column set required by tests.
  */
 async function insertTrace(
-  brain: SqliteBrain,
+  brain: Brain,
   opts: {
     id: string;
     type?: string;
@@ -101,9 +101,10 @@ async function insertTrace(
   const now = Date.now();
   await brain.run(
     `INSERT INTO memory_traces
-       (id, type, scope, content, strength, created_at, last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (brain_id, id, type, scope, content, strength, created_at, last_accessed, retrieval_count, tags, emotions, metadata, deleted)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      brain.brainId,
       opts.id,
       opts.type ?? 'episodic',
       opts.scope ?? 'user',
@@ -123,7 +124,7 @@ async function insertTrace(
 /**
  * Query whether a trace is soft-deleted.
  */
-async function isDeleted(brain: SqliteBrain, id: string): Promise<boolean> {
+async function isDeleted(brain: Brain, id: string): Promise<boolean> {
   const row = await brain.get<{ deleted: number }>(
     'SELECT deleted FROM memory_traces WHERE id = ?',
     [id],
@@ -134,7 +135,7 @@ async function isDeleted(brain: SqliteBrain, id: string): Promise<boolean> {
 /**
  * Get a trace row from the database.
  */
-async function getTrace(brain: SqliteBrain, id: string): Promise<{
+async function getTrace(brain: Brain, id: string): Promise<{
   id: string;
   type: string;
   content: string;
@@ -232,14 +233,14 @@ describe('ConsolidationLoop — Strengthen', () => {
     // Add retrieval feedback rows showing both were 'used' for the same query.
     const now = Date.now();
     await brain.run(
-      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-       VALUES (?, ?, ?, ?)`,
-      ['co-a', 'used', 'how do distributed systems work?', now],
+      `INSERT INTO retrieval_feedback (brain_id, trace_id, signal, query, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [brain.brainId, 'co-a', 'used', 'how do distributed systems work?', now],
     );
     await brain.run(
-      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-       VALUES (?, ?, ?, ?)`,
-      ['co-b', 'used', 'how do distributed systems work?', now],
+      `INSERT INTO retrieval_feedback (brain_id, trace_id, signal, query, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [brain.brainId, 'co-b', 'used', 'how do distributed systems work?', now],
     );
 
     const loop = new ConsolidationLoop(brain, graph);
@@ -550,12 +551,12 @@ describe('ConsolidationLoop — Full cycle', () => {
     await insertTrace(brain, { id: 'full-co-a', content: 'Co-used memory about cats' });
     await insertTrace(brain, { id: 'full-co-b', content: 'Co-used memory about kittens' });
     await brain.run(
-      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at) VALUES (?, ?, ?, ?)`,
-      ['full-co-a', 'used', 'tell me about cats', now],
+      `INSERT INTO retrieval_feedback (brain_id, trace_id, signal, query, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [brain.brainId, 'full-co-a', 'used', 'tell me about cats', now],
     );
     await brain.run(
-      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at) VALUES (?, ?, ?, ?)`,
-      ['full-co-b', 'used', 'tell me about cats', now],
+      `INSERT INTO retrieval_feedback (brain_id, trace_id, signal, query, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [brain.brainId, 'full-co-b', 'used', 'tell me about cats', now],
     );
 
     // Derive targets: a cluster of 5 related traces.

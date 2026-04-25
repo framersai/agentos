@@ -21,7 +21,7 @@
  *
  * ## Persistence
  * Each feedback event is written to the `retrieval_feedback` table in the
- * agent's `SqliteBrain`.  The `detect()` method therefore requires that a
+ * agent's `Brain`.  The `detect()` method therefore requires that a
  * corresponding row exists in `memory_traces` for every trace passed in
  * (i.e. the trace must already be persisted).
  *
@@ -29,7 +29,7 @@
  */
 
 import type { MemoryTrace } from '../../core/types.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 import { penalizeUnused, updateOnRetrieval } from '../../core/decay/DecayModel.js';
 import {
   parseTraceMetadata,
@@ -118,7 +118,7 @@ export class RetrievalFeedbackSignal {
    *   current implementation uses the keyword path only (reserved for future use).
    */
   constructor(
-    private readonly brain: SqliteBrain,
+    private readonly brain: Brain,
     private readonly similarityFn?: (a: string, b: string) => Promise<number>,
   ) {}
 
@@ -154,23 +154,24 @@ export class RetrievalFeedbackSignal {
     const feedbacks: RetrievalFeedback[] = [];
     const now = Date.now();
 
+    const brainId = this.brain.brainId;
     const insertSql =
-      `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-       VALUES (?, ?, ?, ?)`;
+      `INSERT INTO retrieval_feedback (brain_id, trace_id, signal, query, created_at)
+       VALUES (?, ?, ?, ?, ?)`;
     const selectTraceSql =
       `SELECT id, type, scope, content, strength, created_at, last_accessed,
               retrieval_count, tags, emotions, metadata, deleted
        FROM memory_traces
-       WHERE id = ?
+       WHERE brain_id = ? AND id = ?
        LIMIT 1`;
     const usedUpdateSql =
       `UPDATE memory_traces
        SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
-       WHERE id = ?`;
+       WHERE brain_id = ? AND id = ?`;
     const ignoredUpdateSql =
       `UPDATE memory_traces
        SET strength = ?, last_accessed = ?, metadata = ?
-       WHERE id = ?`;
+       WHERE brain_id = ? AND id = ?`;
 
     await this.brain.transaction(async (trx) => {
       for (const trace of injectedTraces) {
@@ -185,9 +186,9 @@ export class RetrievalFeedbackSignal {
           }
         }
 
-        await trx.run(insertSql, [trace.id, signal, context ?? null, now]);
+        await trx.run(insertSql, [brainId, trace.id, signal, context ?? null, now]);
 
-        const row = await trx.get<TraceRow>(selectTraceSql, [trace.id]);
+        const row = await trx.get<TraceRow>(selectTraceSql, [brainId, trace.id]);
         if (row) {
           const persistedTrace = this._buildTrace(row);
           if (signal === 'used') {
@@ -205,6 +206,7 @@ export class RetrievalFeedbackSignal {
               update.lastAccessedAt,
               update.retrievalCount,
               metadata,
+              brainId,
               trace.id,
             ]);
           } else {
@@ -227,6 +229,7 @@ export class RetrievalFeedbackSignal {
               penalty.encodingStrength,
               penalty.lastAccessedAt,
               metadata,
+              brainId,
               trace.id,
             ]);
           }
@@ -256,10 +259,10 @@ export class RetrievalFeedbackSignal {
     const rows = await this.brain.all<FeedbackRow>(
       `SELECT id, trace_id, signal, query, created_at
        FROM retrieval_feedback
-       WHERE trace_id = ?
+       WHERE brain_id = ? AND trace_id = ?
        ORDER BY created_at DESC, id DESC
        LIMIT ?`,
-      [traceId, limit],
+      [this.brain.brainId, traceId, limit],
     );
 
     return rows.map((row) => ({
@@ -283,9 +286,9 @@ export class RetrievalFeedbackSignal {
     const rows = await this.brain.all<{ signal: string; count: number }>(
       `SELECT signal, COUNT(*) AS count
        FROM retrieval_feedback
-       WHERE trace_id = ?
+       WHERE brain_id = ? AND trace_id = ?
        GROUP BY signal`,
-      [traceId],
+      [this.brain.brainId, traceId],
     );
 
     let used = 0;

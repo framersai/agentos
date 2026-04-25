@@ -3,7 +3,7 @@
  *
  * Opens a source SQLite file via `@framers/sql-storage-adapter` (supporting
  * better-sqlite3, sql.js, IndexedDB, etc.) and merges traces, knowledge
- * nodes, and edges into the target `SqliteBrain`.
+ * nodes, and edges into the target `Brain`.
  *
  * ## Merge strategy
  * - **memory_traces**: deduplicated by SHA-256 of `content`.
@@ -22,12 +22,12 @@
 import { sha256 as crossSha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportOptions, ImportResult } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { resolveStorageAdapter } from '@framers/sql-storage-adapter';
 
 // ---------------------------------------------------------------------------
-// Internal row types (matched to SqliteBrain DDL)
+// Internal row types (matched to Brain DDL)
 // ---------------------------------------------------------------------------
 
 interface TraceRow {
@@ -73,7 +73,7 @@ interface EdgeRow {
 // ---------------------------------------------------------------------------
 
 /**
- * Merges a source SQLite brain file into a target `SqliteBrain`.
+ * Merges a source SQLite brain file into a target `Brain`.
  *
  * Uses `@framers/sql-storage-adapter` to open the source file, enabling
  * cross-platform operation (better-sqlite3, sql.js, IndexedDB).
@@ -85,7 +85,7 @@ interface EdgeRow {
  * ```
  */
 export class SqliteImporter {
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   /**
    * Open `sourcePath` via StorageAdapter, read all tables, and merge
@@ -135,7 +135,7 @@ export class SqliteImporter {
   private async _mergeTraces(
     src: StorageAdapter,
     result: ImportResult,
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
     options?: Pick<ImportOptions, 'dedup'>,
   ): Promise<void> {
     let sourceRows: TraceRow[];
@@ -146,25 +146,27 @@ export class SqliteImporter {
     }
 
     const { dialect } = this.brain.features;
+    const brainId = this.brain.brainId;
     const checkSql = `SELECT id, created_at, tags
        FROM memory_traces
-       WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ?
-          OR content = ?
+       WHERE brain_id = ?
+         AND (${dialect.jsonExtract('metadata', '$.import_hash')} = ?
+              OR content = ?)
        LIMIT 1`;
 
     const insertSql = `INSERT INTO memory_traces
-         (id, type, scope, content, embedding, strength, created_at, last_accessed,
+         (brain_id, id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    const updateTimestampSql = `UPDATE memory_traces SET created_at = ?, tags = ? WHERE id = ?`;
+    const updateTimestampSql = `UPDATE memory_traces SET created_at = ?, tags = ? WHERE brain_id = ? AND id = ?`;
 
     for (const row of sourceRows) {
       try {
         const hash = await this._sha256(row.content);
         if (options?.dedup ?? true) {
           const existing = await trx.get<{ id: string; created_at: number; tags: string }>(
-            checkSql, [hash, row.content],
+            checkSql, [brainId, hash, row.content],
           );
 
           if (existing) {
@@ -174,7 +176,7 @@ export class SqliteImporter {
             let sourceTags: string[] = [];
             try { sourceTags = JSON.parse(row.tags) as string[]; } catch { /* ignore */ }
             const merged = Array.from(new Set([...existingTags, ...sourceTags]));
-            await trx.run(updateTimestampSql, [newerAt, JSON.stringify(merged), existing.id]);
+            await trx.run(updateTimestampSql, [newerAt, JSON.stringify(merged), brainId, existing.id]);
             result.skipped++;
             continue;
           }
@@ -187,6 +189,7 @@ export class SqliteImporter {
         const id = await this._resolveTraceId(trx, row.id ?? `mt_${uuidv4()}`);
 
         await trx.run(insertSql, [
+          brainId,
           id,
           row.type ?? 'episodic',
           row.scope ?? 'user',
@@ -212,7 +215,7 @@ export class SqliteImporter {
   private async _mergeNodes(
     src: StorageAdapter,
     result: ImportResult,
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
   ): Promise<void> {
     let sourceRows: NodeRow[];
     try {
@@ -221,24 +224,26 @@ export class SqliteImporter {
       return;
     }
 
-    const checkSql = `SELECT id FROM knowledge_nodes WHERE label = ? AND type = ? LIMIT 1`;
+    const checkSql = `SELECT id FROM knowledge_nodes WHERE brain_id = ? AND label = ? AND type = ? LIMIT 1`;
 
     const { dialect } = this.brain.features;
+    const brainId = this.brain.brainId;
     const insertSql = dialect.insertOrIgnore(
       'knowledge_nodes',
-      ['id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
-      ['?', '?', '?', '?', '?', '?', '?', '?'],
+      ['brain_id', 'id', 'type', 'label', 'properties', 'embedding', 'confidence', 'source', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?', '?'],
     );
 
     for (const row of sourceRows) {
       try {
-        const existing = await trx.get<{ id: string }>(checkSql, [row.label ?? '', row.type ?? '']);
+        const existing = await trx.get<{ id: string }>(checkSql, [brainId, row.label ?? '', row.type ?? '']);
         if (existing) {
           result.skipped++;
           continue;
         }
 
         await trx.run(insertSql, [
+          brainId,
           row.id ?? `kn_${uuidv4()}`,
           row.type ?? 'concept',
           row.label ?? '',
@@ -259,7 +264,7 @@ export class SqliteImporter {
   private async _mergeEdges(
     src: StorageAdapter,
     result: ImportResult,
-    trx: { run: SqliteBrain['run']; get: SqliteBrain['get'] },
+    trx: { run: Brain['run']; get: Brain['get'] },
   ): Promise<void> {
     let sourceRows: EdgeRow[];
     try {
@@ -269,14 +274,15 @@ export class SqliteImporter {
     }
 
     const checkSql = `SELECT id FROM knowledge_edges
-       WHERE source_id = ? AND target_id = ? AND type = ?
+       WHERE brain_id = ? AND source_id = ? AND target_id = ? AND type = ?
        LIMIT 1`;
 
     const { dialect } = this.brain.features;
+    const brainId = this.brain.brainId;
     const insertSql = dialect.insertOrIgnore(
       'knowledge_edges',
-      ['id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
-      ['?', '?', '?', '?', '?', '?', '?', '?'],
+      ['brain_id', 'id', 'source_id', 'target_id', 'type', 'weight', 'bidirectional', 'metadata', 'created_at'],
+      ['?', '?', '?', '?', '?', '?', '?', '?', '?'],
     );
 
     for (const row of sourceRows) {
@@ -287,7 +293,7 @@ export class SqliteImporter {
         }
 
         const existing = await trx.get<{ id: string }>(
-          checkSql, [row.source_id, row.target_id, row.type ?? ''],
+          checkSql, [brainId, row.source_id, row.target_id, row.type ?? ''],
         );
         if (existing) {
           result.skipped++;
@@ -295,6 +301,7 @@ export class SqliteImporter {
         }
 
         await trx.run(insertSql, [
+          brainId,
           row.id ?? `ke_${uuidv4()}`,
           row.source_id,
           row.target_id,
@@ -313,12 +320,12 @@ export class SqliteImporter {
   }
 
   private async _resolveTraceId(
-    trx: { get: SqliteBrain['get'] },
+    trx: { get: Brain['get'] },
     preferredId: string,
   ): Promise<string> {
     const existing = await trx.get<{ id: string }>(
-      'SELECT id FROM memory_traces WHERE id = ? LIMIT 1',
-      [preferredId],
+      'SELECT id FROM memory_traces WHERE brain_id = ? AND id = ? LIMIT 1',
+      [this.brain.brainId, preferredId],
     );
     return existing ? `mt_${uuidv4()}` : preferredId;
   }

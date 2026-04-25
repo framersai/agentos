@@ -1,7 +1,7 @@
 /**
  * @fileoverview CSV importer for AgentOS memory brain.
  *
- * Imports flat CSV files into a target `SqliteBrain`. A header row is
+ * Imports flat CSV files into a target `Brain`. A header row is
  * required and must include a `content` column. Optional columns map onto
  * `memory_traces` fields when present.
  *
@@ -26,13 +26,13 @@
 import { sha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ImportOptions, ImportResult } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 
 /**
- * Imports a flat CSV file into a `SqliteBrain`.
+ * Imports a flat CSV file into a `Brain`.
  */
 export class CsvImporter {
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   /**
    * Read, parse, and import a CSV file.
@@ -109,16 +109,18 @@ export class CsvImporter {
     const metadataIndex = indexOf('metadata');
 
     const { dialect } = this.brain.features;
+    const brainId = this.brain.brainId;
     const checkSql = `SELECT id
        FROM memory_traces
-       WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ?
-          OR ${dialect.jsonExtract('metadata', '$.content_hash')} = ?
+       WHERE brain_id = ?
+         AND (${dialect.jsonExtract('metadata', '$.import_hash')} = ?
+              OR ${dialect.jsonExtract('metadata', '$.content_hash')} = ?)
        LIMIT 1`;
 
     const insertSql = `INSERT INTO memory_traces
-         (id, type, scope, content, embedding, strength, created_at, last_accessed,
+         (brain_id, id, type, scope, content, embedding, strength, created_at, last_accessed,
           retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, '{}', ?, ?)`;
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, '{}', ?, ?)`;
 
     await this.brain.transaction(async (trx) => {
       for (const row of dataRows) {
@@ -131,7 +133,7 @@ export class CsvImporter {
 
           const hash = await this._sha256(content);
           if (options?.dedup ?? true) {
-            const existing = await trx.get<{ id: string }>(checkSql, [hash, hash]);
+            const existing = await trx.get<{ id: string }>(checkSql, [brainId, hash, hash]);
             if (existing) {
               result.skipped++;
               continue;
@@ -161,6 +163,7 @@ export class CsvImporter {
           const traceId = await this._resolveTraceId(trx, preferredId);
 
           await trx.run(insertSql, [
+            brainId,
             traceId,
             this._readCell(row, typeIndex) || 'episodic',
             this._readCell(row, scopeIndex) || 'user',
@@ -189,12 +192,12 @@ export class CsvImporter {
   }
 
   private async _resolveTraceId(
-    trx: { get: SqliteBrain['get'] },
+    trx: { get: Brain['get'] },
     preferredId: string,
   ): Promise<string> {
     const existing = await trx.get<{ id: string }>(
-      'SELECT id FROM memory_traces WHERE id = ? LIMIT 1',
-      [preferredId],
+      'SELECT id FROM memory_traces WHERE brain_id = ? AND id = ? LIMIT 1',
+      [this.brain.brainId, preferredId],
     );
     return existing ? `mt_${uuidv4()}` : preferredId;
   }

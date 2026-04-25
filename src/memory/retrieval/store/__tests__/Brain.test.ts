@@ -1,17 +1,17 @@
 /**
- * @fileoverview Tests for SqliteBrain — unified SQLite connection manager.
+ * @fileoverview Tests for Brain — unified SQLite connection manager.
  *
  * Verifies schema initialisation, WAL mode, brain_meta helpers,
  * and embedding dimension compatibility checks.
  *
- * @module memory/store/__tests__/SqliteBrain.test
+ * @module memory/store/__tests__/Brain.test
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { SqliteBrain } from '../SqliteBrain.js';
+import { Brain } from '../Brain.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -19,7 +19,7 @@ import { SqliteBrain } from '../SqliteBrain.js';
 
 /**
  * Generate a unique temp file path for each test so tests are fully isolated.
- * The file is NOT created — SqliteBrain creates it on open.
+ * The file is NOT created — Brain creates it on open.
  */
 function tempDbPath(): string {
   return path.join(os.tmpdir(), `agentos-test-brain-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`);
@@ -30,11 +30,11 @@ function tempDbPath(): string {
 // ---------------------------------------------------------------------------
 
 /** Tracks brains opened during each test so afterEach can close + delete them. */
-const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
+const openBrains: Array<{ brain: Brain; dbPath: string }> = [];
 
-async function openBrain(dbPath?: string): Promise<{ brain: SqliteBrain; dbPath: string }> {
+async function openBrain(dbPath?: string): Promise<{ brain: Brain; dbPath: string }> {
   const p = dbPath ?? tempDbPath();
-  const brain = await SqliteBrain.open(p);
+  const brain = await Brain.openSqlite(p);
   openBrains.push({ brain, dbPath: p });
   return { brain, dbPath: p };
 }
@@ -66,7 +66,7 @@ afterEach(async () => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('SqliteBrain', () => {
+describe('Brain', () => {
   // -------------------------------------------------------------------------
   // Schema initialisation
   // -------------------------------------------------------------------------
@@ -118,7 +118,7 @@ describe('SqliteBrain', () => {
       await first.close();
 
       // Open again — should not throw (CREATE TABLE IF NOT EXISTS).
-      const brain2 = await SqliteBrain.open(dbPath);
+      const brain2 = await Brain.openSqlite(dbPath);
       openBrains.push({ brain: brain2, dbPath });
     });
   });
@@ -160,9 +160,9 @@ describe('SqliteBrain', () => {
   // -------------------------------------------------------------------------
 
   describe('schema version', () => {
-    it('sets schema_version to "1" on first creation', async () => {
+    it('sets schema_version to "2" on first creation', async () => {
       const { brain } = await openBrain();
-      expect(await brain.getMeta('schema_version')).toBe('1');
+      expect(await brain.getMeta('schema_version')).toBe('2');
     });
 
     it('sets created_at on first creation', async () => {
@@ -183,10 +183,10 @@ describe('SqliteBrain', () => {
       const { brain: first } = await openBrain(dbPath);
       await first.close();
 
-      // Re-open — schema_version must still be '1' (INSERT OR IGNORE in _seedMeta).
-      const brain2 = await SqliteBrain.open(dbPath);
+      // Re-open — schema_version must still be '2' (INSERT OR IGNORE in _seedMeta).
+      const brain2 = await Brain.openSqlite(dbPath);
       openBrains.push({ brain: brain2, dbPath });
-      expect(await brain2.getMeta('schema_version')).toBe('1');
+      expect(await brain2.getMeta('schema_version')).toBe('2');
     });
   });
 
@@ -252,7 +252,7 @@ describe('SqliteBrain', () => {
   describe('close()', () => {
     it('closes the database without throwing', async () => {
       const dbPath = tempDbPath();
-      const brain = await SqliteBrain.open(dbPath);
+      const brain = await Brain.openSqlite(dbPath);
       await brain.close();
       // Manually clean up since we bypassed openBrain().
       for (const suffix of ['', '-wal', '-shm']) {

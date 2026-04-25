@@ -4,13 +4,13 @@
  * All importers and exporters for the AgentOS memory brain are re-exported
  * from this single entry point.
  *
- * **Exporters** — serialise a `SqliteBrain` to an external format:
+ * **Exporters** — serialise a `Brain` to an external format:
  * - `JsonExporter`     — JSON file with optional base64-encoded embeddings.
  * - `MarkdownExporter` — directory of `.md` files with YAML front-matter.
  * - `ObsidianExporter` — Obsidian vault with `[[wikilinks]]` and `#tags`.
  * - `SqliteExporter`   — full-fidelity SQLite file copy via `VACUUM INTO`.
  *
- * **Importers** — merge external data into a `SqliteBrain`:
+ * **Importers** — merge external data into a `Brain`:
  * - `JsonImporter`     — parses a `JsonExporter` JSON file.
  * - `MarkdownImporter` — walks a directory of YAML front-matter Markdown files.
  * - `ObsidianImporter` — extends `MarkdownImporter` with wikilink → edge parsing.

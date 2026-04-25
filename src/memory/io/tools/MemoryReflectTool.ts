@@ -20,7 +20,7 @@
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../../core/tools/ITool.js';
 import type { ConsolidationLoop } from '../../pipeline/consolidation/ConsolidationLoop.js';
 import type { ConsolidationResult } from '../../io/facade/types.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // Input type
@@ -99,7 +99,7 @@ export class MemoryReflectTool implements ITool<MemoryReflectInput, Consolidatio
    * @param consolidation - The {@link ConsolidationLoop} instance to invoke.
    */
   constructor(
-    private readonly brain: SqliteBrain,
+    private readonly brain: Brain,
     private readonly consolidation: ConsolidationLoop,
   ) {}
 

@@ -4,7 +4,7 @@
  * change that drops tags during vector-store hydration breaks this
  * test.
  *
- * The real SqliteBrain round-trip is covered downstream in
+ * The real Brain round-trip is covered downstream in
  * agentos-bench integration tests; this spec pins the in-memory
  * MemoryStore → VectorStore hydration path.
  */

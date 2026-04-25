@@ -60,7 +60,7 @@ function tempDb(): string {
  */
 async function createMemory(overrides?: Record<string, unknown>): Promise<Memory> {
   const dbPath = tempDb();
-  const mem = await Memory.create({
+  const mem = await Memory.createSqlite({
     store: 'sqlite',
     path: dbPath,
     graph: true,
@@ -285,7 +285,7 @@ describe('Memory facade', () => {
 
     await first.close();
 
-    const second = await Memory.create({
+    const second = await Memory.createSqlite({
       store: 'sqlite',
       path: dbPath,
       graph: true,
@@ -592,7 +592,7 @@ describe('Memory facade', () => {
   });
 
   it('should throw for unsupported non-sqlite stores', async () => {
-    await expect(Memory.create({ store: 'memory' })).rejects.toThrow(/only the SQLite-backed facade/i);
+    await expect(Memory.createSqlite({ store: 'memory' })).rejects.toThrow(/only the SQLite-backed facade/i);
   });
 
   // -----------------------------------------------------------------------

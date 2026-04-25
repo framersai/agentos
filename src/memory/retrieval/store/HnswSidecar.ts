@@ -51,7 +51,7 @@ export interface HnswQueryResult {
  * Memory-specific HNSW sidecar that wraps the canonical {@link HnswIndexSidecar}.
  *
  * Maintains the original constructor-based API expected by `Memory` facade
- * and `SqliteBrain` consumers, while delegating all index operations to the
+ * and `Brain` consumers, while delegating all index operations to the
  * shared RAG implementation.
  */
 export class HnswSidecar {

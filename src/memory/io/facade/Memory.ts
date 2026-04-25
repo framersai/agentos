@@ -2,9 +2,9 @@
  * @fileoverview Memory facade -- unified public API for the complete memory system.
  *
  * The `Memory` class wires together every subsystem built in Tasks 1-12:
- * - SqliteBrain (unified SQLite connection with WAL, full schema)
- * - SqliteKnowledgeGraph (IKnowledgeGraph backed by SQLite)
- * - SqliteMemoryGraph (IMemoryGraph with spreading activation)
+ * - Brain (unified SQLite connection with WAL, full schema)
+ * - SqlKnowledgeGraph (IKnowledgeGraph backed by SQLite)
+ * - SqlMemoryGraph (IMemoryGraph with spreading activation)
  * - LoaderRegistry (document loaders: text, md, html, pdf, docx)
  * - FolderScanner (recursive directory scanning)
  * - ChunkingEngine (4 chunking strategies)
@@ -60,7 +60,7 @@ import type {
 import type { LoaderRegistry } from '../ingestion/LoaderRegistry.js';
 import type { FolderScanner } from '../ingestion/FolderScanner.js';
 
-import { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import { Brain } from '../../retrieval/store/Brain.js';
 import {
   buildNaturalLanguageFtsQuery,
   buildInitialTraceMetadata,
@@ -68,8 +68,8 @@ import {
   readPersistedDecayState,
   withPersistedDecayState,
 } from '../../retrieval/store/tracePersistence.js';
-import { SqliteKnowledgeGraph } from '../../retrieval/store/SqliteKnowledgeGraph.js';
-import { SqliteMemoryGraph } from '../../retrieval/store/SqliteMemoryGraph.js';
+import { SqlKnowledgeGraph } from '../../retrieval/store/SqlKnowledgeGraph.js';
+import { SqlMemoryGraph } from '../../retrieval/store/SqlMemoryGraph.js';
 import { ChunkingEngine } from '../ingestion/ChunkingEngine.js';
 import { UrlLoader } from '../ingestion/UrlLoader.js';
 import { RetrievalFeedbackSignal } from '../../retrieval/feedback/RetrievalFeedbackSignal.js';
@@ -125,7 +125,7 @@ function standaloneRecallConfidence(score: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Internal row types (matched to SqliteBrain DDL)
+// Internal row types (matched to Brain DDL)
 // ---------------------------------------------------------------------------
 
 /** Raw row shape from the `memory_traces` table. */
@@ -199,9 +199,9 @@ async function sha256(content: string): Promise<string> {
  */
 export class Memory {
   // ---- Internal subsystem handles ----
-  private readonly _brain: SqliteBrain;
-  private readonly _knowledgeGraph: SqliteKnowledgeGraph;
-  private readonly _memoryGraph: SqliteMemoryGraph;
+  private readonly _brain: Brain;
+  private readonly _knowledgeGraph: SqlKnowledgeGraph;
+  private readonly _memoryGraph: SqlMemoryGraph;
   private _loaderRegistry: LoaderRegistry | null = null;
   private _folderScanner: FolderScanner | null = null;
   private _ingestionToolsPromise:
@@ -210,7 +210,7 @@ export class Memory {
   private readonly _chunkingEngine: ChunkingEngine;
   private readonly _feedbackSignal: RetrievalFeedbackSignal | null;
   private readonly _consolidationLoop: ConsolidationLoop | null;
-  private readonly _config: Required<Pick<MemoryConfig, 'store' | 'path' | 'graph' | 'selfImprove' | 'decay'>> & MemoryConfig;
+  private readonly _config: Required<Pick<MemoryConfig, 'store' | 'graph' | 'selfImprove' | 'decay'>> & MemoryConfig;
   private _initPromise: Promise<void>;
 
   /** HNSW sidecar index for O(log n) vector search alongside SQLite. */
@@ -224,12 +224,12 @@ export class Memory {
   // -------------------------------------------------------------------
 
   /**
-   * Private constructor. Receives an already-opened SqliteBrain and
+   * Private constructor. Receives an already-opened Brain and
    * pre-computed configuration. Use {@link Memory.create} to instantiate.
    */
   private constructor(
-    brain: SqliteBrain,
-    config: Required<Pick<MemoryConfig, 'store' | 'path' | 'graph' | 'selfImprove' | 'decay'>> & MemoryConfig,
+    brain: Brain,
+    config: Required<Pick<MemoryConfig, 'store' | 'graph' | 'selfImprove' | 'decay'>> & MemoryConfig,
   ) {
     this._brain = brain;
     this._config = config;
@@ -237,11 +237,11 @@ export class Memory {
     // Store the optional embedding function for vector search.
     this._embed = config.embed ?? null;
 
-    // Create SqliteKnowledgeGraph.
-    this._knowledgeGraph = new SqliteKnowledgeGraph(this._brain);
+    // Create SqlKnowledgeGraph.
+    this._knowledgeGraph = new SqlKnowledgeGraph(this._brain);
 
-    // Create SqliteMemoryGraph and initialize.
-    this._memoryGraph = new SqliteMemoryGraph(this._brain);
+    // Create SqlMemoryGraph and initialize.
+    this._memoryGraph = new SqlMemoryGraph(this._brain);
     this._initPromise = this._memoryGraph.initialize();
 
     // Create ChunkingEngine.
@@ -287,10 +287,10 @@ export class Memory {
    * Initialization sequence:
    * 1. Merge `config` with defaults (store='sqlite', path=tmpdir, graph=true,
    *    selfImprove=true, decay=true).
-   * 2. Await `SqliteBrain.open(config.path)`.
+   * 2. Await `Brain.openSqlite(config.path)`.
    * 3. Check embedding dimension compatibility (warn on mismatch).
-   * 4. Create `SqliteKnowledgeGraph(brain)`.
-   * 5. Create `SqliteMemoryGraph(brain)` and call `.initialize()`.
+   * 4. Create `SqlKnowledgeGraph(brain)`.
+   * 5. Create `SqlMemoryGraph(brain)` and call `.initialize()`.
    * 6. Create `ChunkingEngine()`.
    * 7. Lazily create ingestion loaders on first `ingest()` call.
    * 8. If `selfImprove`: create `RetrievalFeedbackSignal(brain)` and
@@ -299,37 +299,109 @@ export class Memory {
    * @param config - Optional configuration; see {@link MemoryConfig}.
    * @returns A fully initialised Memory instance.
    */
-  static async create(config?: MemoryConfig): Promise<Memory> {
-    // Step 1: merge with defaults.
-    const randomSuffix = Math.random().toString(36).slice(2, 10);
-    let defaultPath: string;
-    if (_isNode) {
-      const osModule = await _getOs();
-      const pathModule = await _getPath();
-      defaultPath = pathModule.join(osModule.tmpdir(), `brain-${randomSuffix}.sqlite`);
+  /**
+   * Open a Memory backed by SQLite. Defaults to a tmp file when no path is given.
+   *
+   * Accepts either a path string + opts, or a `MemoryConfig` object for
+   * compatibility with the old `Memory.create(config)` shape.
+   *
+   * @example
+   * ```ts
+   * await Memory.createSqlite('./brain.sqlite');
+   * await Memory.createSqlite('./brain.sqlite', { graph: true });
+   * await Memory.createSqlite({ path: './brain.sqlite', graph: true });
+   * ```
+   */
+  static async createSqlite(
+    pathOrConfig?: string | MemoryConfig,
+    opts: Omit<MemoryConfig, 'store' | 'path'> & {
+      brainId?: string;
+      priority?: ('better-sqlite3' | 'sqljs' | 'indexeddb')[];
+    } = {},
+  ): Promise<Memory> {
+    let path: string | undefined;
+    let mergedOpts: typeof opts;
+
+    if (typeof pathOrConfig === 'string' || pathOrConfig === undefined) {
+      path = pathOrConfig;
+      mergedOpts = opts;
     } else {
-      defaultPath = `brain-${randomSuffix}.sqlite`;
+      // Config-object form for compat with the prior Memory.create({path, ...}) API.
+      // Reject explicit non-sqlite stores so callers know to use a different factory.
+      if (pathOrConfig.store && pathOrConfig.store !== 'sqlite') {
+        throw new Error(
+          `Memory.createSqlite supports only the SQLite-backed facade at runtime. ` +
+          `Received store="${pathOrConfig.store}". ` +
+          `Use Memory.createPostgres(connectionString, opts) for Postgres or ` +
+          `Memory.createWithAdapter(adapter, opts) for a pre-resolved adapter.`,
+        );
+      }
+      const { store: _store, path: cfgPath, ...rest } = pathOrConfig;
+      path = cfgPath;
+      mergedOpts = { ...rest, ...opts };
     }
+
+    const resolvedPath = path ?? (await Memory._defaultSqlitePath());
+    const brain = await Brain.openSqlite(resolvedPath, {
+      brainId: mergedOpts.brainId,
+      priority: mergedOpts.priority,
+    });
+    return Memory._initialize(brain, { ...mergedOpts, store: 'sqlite', path: resolvedPath });
+  }
+
+  /**
+   * Open a Memory backed by PostgreSQL. Requires the `pg` npm package.
+   *
+   * @param connectionString - Standard Postgres connection URL.
+   * @param opts.brainId - REQUIRED. Multi-tenant scope per query.
+   * @param opts.poolSize - pg pool max size. Defaults to 10.
+   * @param opts - Plus standard Memory options (graph, selfImprove, decay,
+   *   embeddings).
+   */
+  static async createPostgres(
+    connectionString: string,
+    opts: Omit<MemoryConfig, 'store' | 'path'> & {
+      brainId: string;
+      poolSize?: number;
+    },
+  ): Promise<Memory> {
+    const brain = await Brain.openPostgres(connectionString, {
+      brainId: opts.brainId,
+      poolSize: opts.poolSize,
+    });
+    return Memory._initialize(brain, { ...opts, store: 'sqlite' });
+  }
+
+  /**
+   * Open a Memory with a pre-resolved StorageAdapter. Use when sharing an
+   * adapter across subsystems or when you need full control over adapter
+   * resolution.
+   */
+  static async createWithAdapter(
+    adapter: import('@framers/sql-storage-adapter').StorageAdapter,
+    opts: Omit<MemoryConfig, 'store' | 'path'> & { brainId?: string } = {},
+  ): Promise<Memory> {
+    const brain = await Brain.openWithAdapter(adapter, { brainId: opts.brainId });
+    return Memory._initialize(brain, { ...opts, store: 'sqlite' });
+  }
+
+  /**
+   * Internal common initialization path for all three factories.
+   * Wires the Memory facade around an already-opened Brain.
+   */
+  private static async _initialize(
+    brain: Brain,
+    config: MemoryConfig,
+  ): Promise<Memory> {
     const merged = {
       store: 'sqlite' as const,
-      path: defaultPath,
       graph: true,
       selfImprove: true,
       decay: true,
       ...config,
     };
 
-    if (merged.store !== 'sqlite') {
-      throw new Error(
-        `Memory currently supports only the SQLite-backed facade at runtime. ` +
-        `Received store="${merged.store}".`,
-      );
-    }
-
-    // Step 2: create SqliteBrain (async).
-    const brain = await SqliteBrain.open(merged.path!);
-
-    // Step 3: check embedding dimension compatibility.
+    // Embedding dimension compatibility check.
     const dimensions = merged.embeddings?.dimensions ?? 1536;
     const compatible = await brain.checkEmbeddingCompat(dimensions);
     if (!compatible) {
@@ -341,6 +413,21 @@ export class Memory {
     }
 
     return new Memory(brain, merged);
+  }
+
+  /**
+   * Generate a default temp SQLite path for `createSqlite()` when no
+   * explicit path is supplied. Node-only; browsers must pass a path
+   * (typically `:memory:` or an indexeddb-backed adapter).
+   */
+  private static async _defaultSqlitePath(): Promise<string> {
+    const randomSuffix = Math.random().toString(36).slice(2, 10);
+    if (_isNode) {
+      const osModule = await _getOs();
+      const pathModule = await _getPath();
+      return pathModule.join(osModule.tmpdir(), `brain-${randomSuffix}.sqlite`);
+    }
+    return `brain-${randomSuffix}.sqlite`;
   }
 
   // =========================================================================
@@ -391,10 +478,11 @@ export class Memory {
     // Insert into memory_traces.
     await this._brain.run(
       `INSERT INTO memory_traces
-         (id, type, scope, content, embedding, strength, created_at,
+         (brain_id, id, type, scope, content, embedding, strength, created_at,
           last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?, 0)`,
       [
+        this._brain.brainId,
         id,
         type,
         scope,
@@ -708,8 +796,8 @@ export class Memory {
     await this._initPromise;
 
     await this._brain.run(
-      'UPDATE memory_traces SET deleted = 1 WHERE id = ?',
-      [traceId],
+      'UPDATE memory_traces SET deleted = 1 WHERE brain_id = ? AND id = ?',
+      [this._brain.brainId, traceId],
     );
   }
 
@@ -855,7 +943,7 @@ export class Memory {
   /**
    * Add or update an entity in the knowledge graph.
    *
-   * Delegates to `SqliteKnowledgeGraph.upsertEntity()`. Accepts a partial
+   * Delegates to `SqlKnowledgeGraph.upsertEntity()`. Accepts a partial
    * entity; `id`, `createdAt`, and `updatedAt` are auto-generated when omitted.
    *
    * @param entity - Partial entity descriptor.
@@ -886,7 +974,7 @@ export class Memory {
   /**
    * Add or update a relation (edge) in the knowledge graph.
    *
-   * Delegates to `SqliteKnowledgeGraph.upsertRelation()`. Accepts a partial
+   * Delegates to `SqlKnowledgeGraph.upsertRelation()`. Accepts a partial
    * relation; `id` and `createdAt` are auto-generated when omitted.
    *
    * @param relation - Partial relation descriptor.
@@ -966,19 +1054,20 @@ export class Memory {
 
     try {
       const now = Date.now();
+      const brainId = this._brain.brainId;
       const row = await this._brain.get<TraceRow>(
         `SELECT id, type, scope, content, embedding, strength, created_at,
                 last_accessed, retrieval_count, tags, emotions, metadata, deleted
          FROM memory_traces
-         WHERE id = ?
+         WHERE brain_id = ? AND id = ?
          LIMIT 1`,
-        [traceId],
+        [brainId, traceId],
       );
 
       await this._brain.run(
-        `INSERT INTO retrieval_feedback (trace_id, signal, query, created_at)
-         VALUES (?, ?, ?, ?)`,
-        [traceId, signal, query ?? null, now],
+        `INSERT INTO retrieval_feedback (brain_id, trace_id, signal, query, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [brainId, traceId, signal, query ?? null, now],
       );
 
       if (!row) return;
@@ -996,12 +1085,13 @@ export class Memory {
         await this._brain.run(
           `UPDATE memory_traces
            SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
-           WHERE id = ?`,
+           WHERE brain_id = ? AND id = ?`,
           [
             update.encodingStrength,
             update.lastAccessedAt,
             update.retrievalCount,
             metadata,
+            brainId,
             traceId,
           ],
         );
@@ -1023,8 +1113,8 @@ export class Memory {
       await this._brain.run(
         `UPDATE memory_traces
          SET strength = ?, last_accessed = ?, metadata = ?
-         WHERE id = ?`,
-        [penalty.encodingStrength, penalty.lastAccessedAt, metadata, traceId],
+         WHERE brain_id = ? AND id = ?`,
+        [penalty.encodingStrength, penalty.lastAccessedAt, metadata, brainId, traceId],
       );
     } catch {
       // Explicit feedback is best-effort; the caller should not fail on analytics updates.
@@ -1454,6 +1544,7 @@ export class Memory {
 
     const now = Date.now();
 
+    const brainId = this._brain.brainId;
     return this._brain.transaction(async (trx) => {
       const results: FtsJoinRow[] = [];
       for (const row of rows) {
@@ -1469,12 +1560,13 @@ export class Memory {
         await trx.run(
           `UPDATE memory_traces
            SET strength = ?, last_accessed = ?, retrieval_count = ?, metadata = ?
-           WHERE id = ?`,
+           WHERE brain_id = ? AND id = ?`,
           [
             update.encodingStrength,
             update.lastAccessedAt,
             update.retrievalCount,
             metadata,
+            brainId,
             row.id,
           ],
         );
@@ -1507,10 +1599,11 @@ export class Memory {
     },
     result: IngestResult,
   ): Promise<void> {
+    const brainId = this._brain.brainId;
     const contentHash = await sha256(doc.content);
     const existingDoc = await this._brain.get<{ id: string }>(
-      `SELECT id FROM documents WHERE content_hash = ? LIMIT 1`,
-      [contentHash],
+      `SELECT id FROM documents WHERE brain_id = ? AND content_hash = ? LIMIT 1`,
+      [brainId, contentHash],
     );
 
     if (existingDoc) {
@@ -1522,9 +1615,10 @@ export class Memory {
 
     await this._brain.run(
       `INSERT INTO documents
-         (id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (brain_id, id, path, format, title, content_hash, chunk_count, metadata, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        brainId,
         docId,
         doc.metadata.source ?? source,
         doc.format,
@@ -1543,10 +1637,11 @@ export class Memory {
 
       await this._brain.run(
         `INSERT INTO memory_traces
-           (id, type, scope, content, embedding, strength, created_at,
+           (brain_id, id, type, scope, content, embedding, strength, created_at,
             last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-         VALUES (?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
+         VALUES (?, ?, 'semantic', 'user', ?, NULL, 1.0, ?, NULL, 0, '[]', '{}', ?, 0)`,
         [
+          brainId,
           traceId,
           chunk.content,
           createdAt,
@@ -1582,9 +1677,10 @@ export class Memory {
       }
 
       await this._brain.run(
-        `INSERT INTO document_chunks (id, document_id, trace_id, content, chunk_index, page_number, embedding)
-         VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+        `INSERT INTO document_chunks (brain_id, id, document_id, trace_id, content, chunk_index, page_number, embedding)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
         [
+          brainId,
           chunkId,
           docId,
           traceId,

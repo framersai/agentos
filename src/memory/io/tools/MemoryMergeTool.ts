@@ -17,7 +17,7 @@
  */
 
 import type { ITool, ToolExecutionResult, ToolExecutionContext, JSONSchemaObject } from '../../../core/tools/ITool.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 import {
   parseTraceMetadata,
   readPersistedDecayState,
@@ -131,7 +131,7 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
   /**
    * @param brain - The agent's shared SQLite brain database connection.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // ---------------------------------------------------------------------------
   // execute
@@ -168,12 +168,13 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
       }
 
       // Load all matching active traces.
+      const brainId = this.brain.brainId;
       const placeholders = traceIds.map(() => '?').join(', ');
       const rows = await this.brain.all<TraceRow>(
         `SELECT id, content, retrieval_count, tags, metadata, last_accessed, created_at
          FROM memory_traces
-         WHERE id IN (${placeholders}) AND deleted = 0`,
-        traceIds,
+         WHERE brain_id = ? AND id IN (${placeholders}) AND deleted = 0`,
+        [brainId, ...traceIds],
       );
 
       if (rows.length < 2) {
@@ -240,16 +241,16 @@ export class MemoryMergeTool implements ITool<MemoryMergeInput, MemoryMergeOutpu
         await trx.run(
           `UPDATE memory_traces
            SET content = ?, embedding = NULL, tags = ?, metadata = ?, retrieval_count = ?, last_accessed = ?
-           WHERE id = ?`,
-          [finalContent, finalTags, mergedMetadata, mergedRetrievalCount, mergedLastAccessed, survivor.id],
+           WHERE brain_id = ? AND id = ?`,
+          [finalContent, finalTags, mergedMetadata, mergedRetrievalCount, mergedLastAccessed, brainId, survivor.id],
         );
 
         // Soft-delete all non-survivors.
         for (const row of rows) {
           if (row.id !== survivor.id) {
             await trx.run(
-              `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
-              [row.id],
+              `UPDATE memory_traces SET deleted = 1 WHERE brain_id = ? AND id = ?`,
+              [brainId, row.id],
             );
             deletedIds.push(row.id);
           }

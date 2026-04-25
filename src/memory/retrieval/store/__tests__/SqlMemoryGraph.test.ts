@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests for SqliteMemoryGraph — IMemoryGraph backed by SQLite.
+ * @fileoverview Tests for SqlMemoryGraph — IMemoryGraph backed by SQLite.
  *
  * Covers:
  * - Node CRUD (addNode, hasNode, removeNode)
@@ -11,15 +11,15 @@
  * - nodeCount / edgeCount counters
  * - clear: wipes all nodes and edges
  *
- * @module memory/store/__tests__/SqliteMemoryGraph.test
+ * @module memory/store/__tests__/SqlMemoryGraph.test
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { SqliteBrain } from '../SqliteBrain.js';
-import { SqliteMemoryGraph } from '../SqliteMemoryGraph.js';
+import { Brain } from '../Brain.js';
+import { SqlMemoryGraph } from '../SqlMemoryGraph.js';
 import type { MemoryGraphNodeMeta } from '../../../retrieval/graph/IMemoryGraph.js';
 
 // ---------------------------------------------------------------------------
@@ -49,21 +49,21 @@ function nodeMeta(type = 'episodic'): MemoryGraphNodeMeta {
 // Test-state tracking — cleaned up in afterEach
 // ---------------------------------------------------------------------------
 
-const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
+const openBrains: Array<{ brain: Brain; dbPath: string }> = [];
 
 /**
- * Create a fresh SqliteBrain + SqliteMemoryGraph pair backed by a temp file.
+ * Create a fresh Brain + SqlMemoryGraph pair backed by a temp file.
  * The pair is registered for afterEach cleanup automatically.
  */
 async function createGraph(): Promise<{
-  graph: SqliteMemoryGraph;
-  brain: SqliteBrain;
+  graph: SqlMemoryGraph;
+  brain: Brain;
   dbPath: string;
 }> {
   const dbPath = tempDbPath();
-  const brain = await SqliteBrain.open(dbPath);
+  const brain = await Brain.openSqlite(dbPath);
   openBrains.push({ brain, dbPath });
-  const graph = new SqliteMemoryGraph(brain);
+  const graph = new SqlMemoryGraph(brain);
   await graph.initialize();
   return { graph, brain, dbPath };
 }
@@ -91,7 +91,7 @@ afterEach(async () => {
 // 1. Node CRUD
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — node CRUD', () => {
+describe('SqlMemoryGraph — node CRUD', () => {
   it('addNode makes hasNode return true', async () => {
     const { graph } = await createGraph();
     expect(graph.hasNode('mem-1')).toBe(false);
@@ -127,7 +127,7 @@ describe('SqliteMemoryGraph — node CRUD', () => {
     await graph.addNode('mem-persist', nodeMeta('semantic'));
 
     // Create a second graph instance over the same brain to simulate restart.
-    const graph2 = new SqliteMemoryGraph(brain);
+    const graph2 = new SqlMemoryGraph(brain);
     await graph2.initialize();
 
     expect(graph2.hasNode('mem-persist')).toBe(true);
@@ -138,7 +138,7 @@ describe('SqliteMemoryGraph — node CRUD', () => {
 // 2. Edge CRUD + getEdges
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — edge CRUD', () => {
+describe('SqlMemoryGraph — edge CRUD', () => {
   it('addEdge makes edge retrievable via getEdges', async () => {
     const { graph } = await createGraph();
     await graph.addNode('mem-a', nodeMeta());
@@ -238,7 +238,7 @@ describe('SqliteMemoryGraph — edge CRUD', () => {
 // 3. Spreading activation
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — spreadingActivation', () => {
+describe('SqlMemoryGraph — spreadingActivation', () => {
   it('activates direct neighbours with decay applied', async () => {
     const { graph } = await createGraph();
 
@@ -341,7 +341,7 @@ describe('SqliteMemoryGraph — spreadingActivation', () => {
 // 4. recordCoActivation (Hebbian learning)
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — recordCoActivation', () => {
+describe('SqlMemoryGraph — recordCoActivation', () => {
   it('creates CO_ACTIVATED edges for all pairs', async () => {
     const { graph } = await createGraph();
     await graph.addNode('X', nodeMeta());
@@ -403,7 +403,7 @@ describe('SqliteMemoryGraph — recordCoActivation', () => {
 // 5. getConflicts
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — getConflicts', () => {
+describe('SqlMemoryGraph — getConflicts', () => {
   it('returns CONTRADICTS edges for the node', async () => {
     const { graph } = await createGraph();
     await graph.addNode('fact-1', nodeMeta('semantic'));
@@ -443,7 +443,7 @@ describe('SqliteMemoryGraph — getConflicts', () => {
 // 6. detectClusters
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — detectClusters', () => {
+describe('SqlMemoryGraph — detectClusters', () => {
   it('returns two separate clusters for two disconnected components', async () => {
     const { graph } = await createGraph();
 
@@ -503,7 +503,7 @@ describe('SqliteMemoryGraph — detectClusters', () => {
 // 7. nodeCount + edgeCount
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — nodeCount / edgeCount', () => {
+describe('SqlMemoryGraph — nodeCount / edgeCount', () => {
   it('counts nodes accurately after add/remove', async () => {
     const { graph } = await createGraph();
     expect(graph.nodeCount()).toBe(0);
@@ -537,7 +537,7 @@ describe('SqliteMemoryGraph — nodeCount / edgeCount', () => {
 // 8. clear
 // ---------------------------------------------------------------------------
 
-describe('SqliteMemoryGraph — clear', () => {
+describe('SqlMemoryGraph — clear', () => {
   it('removes all nodes and edges', async () => {
     const { graph } = await createGraph();
 
@@ -565,7 +565,7 @@ describe('SqliteMemoryGraph — clear', () => {
 
     await graph.clear();
 
-    const graph2 = new SqliteMemoryGraph(brain);
+    const graph2 = new SqlMemoryGraph(brain);
     await graph2.initialize();
 
     expect(graph2.nodeCount()).toBe(0);

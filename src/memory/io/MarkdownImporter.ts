@@ -2,7 +2,7 @@
  * @fileoverview Markdown importer for AgentOS memory brain.
  *
  * Recursively walks a directory of Markdown files and inserts each file as a
- * memory trace in the target `SqliteBrain`.  Front-matter fields (parsed via
+ * memory trace in the target `Brain`.  Front-matter fields (parsed via
  * `gray-matter`) are mapped to trace columns; the document body becomes the
  * trace content.
  *
@@ -16,7 +16,7 @@ import { sha256 } from '../core/util/crossPlatformCrypto.js';
 import { v4 as uuidv4 } from 'uuid';
 import matter from 'gray-matter';
 import type { ImportOptions, ImportResult } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -41,7 +41,7 @@ interface TraceFrontmatter {
 // ---------------------------------------------------------------------------
 
 /**
- * Imports Markdown files from a directory into a `SqliteBrain`.
+ * Imports Markdown files from a directory into a `Brain`.
  *
  * **Usage:**
  * ```ts
@@ -52,9 +52,9 @@ interface TraceFrontmatter {
  */
 export class MarkdownImporter {
   /**
-   * @param brain - The target `SqliteBrain` to import into.
+   * @param brain - The target `Brain` to import into.
    */
-  constructor(protected readonly brain: SqliteBrain) {}
+  constructor(protected readonly brain: Brain) {}
 
   // -------------------------------------------------------------------------
   // Public API
@@ -186,8 +186,8 @@ export class MarkdownImporter {
     const { dialect } = this.brain.features;
     if (options?.dedup ?? true) {
       const existing = await this.brain.get<{ id: string }>(
-        `SELECT id FROM memory_traces WHERE ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
-        [hash],
+        `SELECT id FROM memory_traces WHERE brain_id = ? AND ${dialect.jsonExtract('metadata', '$.import_hash')} = ? LIMIT 1`,
+        [this.brain.brainId, hash],
       );
 
       if (existing) {
@@ -206,10 +206,11 @@ export class MarkdownImporter {
     try {
       await this.brain.run(
         `INSERT INTO memory_traces
-             (id, type, scope, content, embedding, strength, created_at, last_accessed,
+             (brain_id, id, type, scope, content, embedding, strength, created_at, last_accessed,
               retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, '{}', ?, 0)`,
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, 0, ?, '{}', ?, 0)`,
         [
+          this.brain.brainId,
           traceId,
           typeof fm.type === 'string' ? fm.type : 'episodic',
           typeof fm.scope === 'string' ? fm.scope : 'user',
@@ -232,8 +233,8 @@ export class MarkdownImporter {
 
   private async _resolveTraceId(preferredId: string): Promise<string> {
     const existing = await this.brain.get<{ id: string }>(
-      'SELECT id FROM memory_traces WHERE id = ? LIMIT 1',
-      [preferredId],
+      'SELECT id FROM memory_traces WHERE brain_id = ? AND id = ? LIMIT 1',
+      [this.brain.brainId, preferredId],
     );
     return existing ? `mt_${uuidv4()}` : preferredId;
   }

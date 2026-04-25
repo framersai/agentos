@@ -26,7 +26,7 @@
 
 import { sha256 } from '../../core/util/crossPlatformCrypto.js';
 import type { ConsolidationResult, ExtendedConsolidationConfig } from '../../io/facade/types.js';
-import type { SqliteBrain } from '../../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../../retrieval/store/Brain.js';
 import type { IMemoryGraph } from '../../retrieval/graph/IMemoryGraph.js';
 import type { PersonalityMutationStore } from '../../../emergent/PersonalityMutationStore.js';
 import { computeCurrentStrength } from '../../core/decay/DecayModel.js';
@@ -96,7 +96,7 @@ const COMPACT_MIN_RETRIEVAL_COUNT = 3;
  * prune, merge, strengthen, derive, compact, re-index.
  *
  * All database operations use the async `StorageAdapter` API through
- * the shared {@link SqliteBrain} connection. The `run()` method is async
+ * the shared {@link Brain} connection. The `run()` method is async
  * to accommodate both the database calls and the LLM-backed derive step.
  */
 export class ConsolidationLoop {
@@ -113,7 +113,7 @@ export class ConsolidationLoop {
    *   personality mutation store for derive, merge, and decay steps respectively.
    */
   constructor(
-    private readonly brain: SqliteBrain,
+    private readonly brain: Brain,
     private readonly memoryGraph: IMemoryGraph,
     private readonly options?: {
       /** LLM function for deriving insights from memory clusters. */
@@ -227,11 +227,13 @@ export class ConsolidationLoop {
    */
   private async _prune(threshold: number): Promise<number> {
     const now = Date.now();
+    const brainId = this.brain.brainId;
     const rows = await this.brain.all<TraceRow>(
       `SELECT id, type, scope, content, embedding, strength, created_at,
               last_accessed, retrieval_count, tags, emotions, metadata, deleted
        FROM memory_traces
-       WHERE deleted = 0`,
+       WHERE brain_id = ? AND deleted = 0`,
+      [brainId],
     );
 
     let pruned = 0;
@@ -241,8 +243,8 @@ export class ConsolidationLoop {
       const strength = computeCurrentStrength(trace, now);
       if (strength < threshold) {
         await this.brain.run(
-          `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
-          [row.id],
+          `UPDATE memory_traces SET deleted = 1 WHERE brain_id = ? AND id = ?`,
+          [brainId, row.id],
         );
         pruned++;
       }
@@ -275,7 +277,8 @@ export class ConsolidationLoop {
       `SELECT id, type, scope, content, embedding, strength, created_at,
               last_accessed, retrieval_count, tags, emotions, metadata, deleted
        FROM memory_traces
-       WHERE deleted = 0`,
+       WHERE brain_id = ? AND deleted = 0`,
+      [this.brain.brainId],
     );
 
     if (rows.length < 2) return 0;
@@ -379,7 +382,7 @@ export class ConsolidationLoop {
     await this.brain.run(
       `UPDATE memory_traces
        SET tags = ?, emotions = ?, strength = ?, retrieval_count = ?, last_accessed = ?, metadata = ?
-       WHERE id = ?`,
+       WHERE brain_id = ? AND id = ?`,
       [
         JSON.stringify(mergedTags),
         JSON.stringify(avgEmotions),
@@ -387,14 +390,15 @@ export class ConsolidationLoop {
         survivor.retrieval_count + loser.retrieval_count,
         mergedLastAccessed,
         mergedMetadata,
+        this.brain.brainId,
         survivor.id,
       ],
     );
 
     // Soft-delete loser.
     await this.brain.run(
-      `UPDATE memory_traces SET deleted = 1 WHERE id = ?`,
-      [loser.id],
+      `UPDATE memory_traces SET deleted = 1 WHERE brain_id = ? AND id = ?`,
+      [this.brain.brainId, loser.id],
     );
 
     deletedIds.add(loser.id);
@@ -412,12 +416,14 @@ export class ConsolidationLoop {
    * @returns Number of co-activation pairs strengthened.
    */
   private async _strengthen(): Promise<number> {
+    const brainId = this.brain.brainId;
     // Find all queries where at least 2 traces were 'used'.
     const queryRows = await this.brain.all<{ query: string }>(
       `SELECT query FROM retrieval_feedback
-       WHERE signal = 'used' AND query IS NOT NULL
+       WHERE brain_id = ? AND signal = 'used' AND query IS NOT NULL
        GROUP BY query
        HAVING COUNT(DISTINCT trace_id) >= 2`,
+      [brainId],
     );
 
     let strengthened = 0;
@@ -425,8 +431,8 @@ export class ConsolidationLoop {
     for (const { query } of queryRows) {
       const traceRows = await this.brain.all<FeedbackCoUsageRow>(
         `SELECT DISTINCT trace_id, query FROM retrieval_feedback
-         WHERE signal = 'used' AND query = ?`,
-        [query],
+         WHERE brain_id = ? AND signal = 'used' AND query = ?`,
+        [brainId, query],
       );
 
       const traceIds = traceRows.map((r) => r.trace_id);
@@ -483,8 +489,8 @@ export class ConsolidationLoop {
       const contents: string[] = [];
       for (const memberId of cluster.memberIds) {
         const row = await this.brain.get<{ content: string }>(
-          `SELECT content FROM memory_traces WHERE id = ? AND deleted = 0`,
-          [memberId],
+          `SELECT content FROM memory_traces WHERE brain_id = ? AND id = ? AND deleted = 0`,
+          [this.brain.brainId, memberId],
         );
         if (row) contents.push(row.content);
       }
@@ -505,9 +511,10 @@ export class ConsolidationLoop {
 
         await this.brain.run(
           `INSERT INTO memory_traces
-             (id, type, scope, content, strength, created_at, retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (brain_id, id, type, scope, content, strength, created_at, retrieval_count, tags, emotions, metadata, deleted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
+            this.brain.brainId,
             id,
             'semantic',
             'user',
@@ -549,21 +556,22 @@ export class ConsolidationLoop {
     const now = Date.now();
     const cutoff = now - COMPACT_AGE_MS;
 
+    const brainId = this.brain.brainId;
     const rows = await this.brain.all<{ id: string }>(
       `SELECT id FROM memory_traces
-       WHERE deleted = 0
+       WHERE brain_id = ? AND deleted = 0
          AND type = 'episodic'
          AND created_at < ?
          AND retrieval_count >= ?`,
-      [cutoff, COMPACT_MIN_RETRIEVAL_COUNT],
+      [brainId, cutoff, COMPACT_MIN_RETRIEVAL_COUNT],
     );
 
     if (rows.length === 0) return 0;
 
     for (const row of rows) {
       await this.brain.run(
-        `UPDATE memory_traces SET type = 'semantic' WHERE id = ?`,
-        [row.id],
+        `UPDATE memory_traces SET type = 'semantic' WHERE brain_id = ? AND id = ?`,
+        [brainId, row.id],
       );
     }
 
@@ -633,9 +641,9 @@ export class ConsolidationLoop {
 
     // Log the consolidation run.
     await this.brain.run(
-      `INSERT INTO consolidation_log (ran_at, pruned, merged, derived, compacted, duration_ms)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [Date.now(), pruned, merged, derived, compacted, durationMs],
+      `INSERT INTO consolidation_log (brain_id, ran_at, pruned, merged, derived, compacted, duration_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [this.brain.brainId, Date.now(), pruned, merged, derived, compacted, durationMs],
     );
   }
 

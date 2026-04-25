@@ -30,7 +30,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import type { ExportOptions } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -62,9 +62,9 @@ interface TraceRow {
  */
 export class MarkdownExporter {
   /**
-   * @param brain - The `SqliteBrain` instance to read from.
+   * @param brain - The `Brain` instance to read from.
    */
-  constructor(protected readonly brain: SqliteBrain) {}
+  constructor(protected readonly brain: Brain) {}
 
   // -------------------------------------------------------------------------
   // Public API

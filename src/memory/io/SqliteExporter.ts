@@ -1,7 +1,7 @@
 /**
  * @fileoverview SQLite exporter for AgentOS memory brain.
  *
- * Provides a full-fidelity backup of the `SqliteBrain` SQLite file by copying
+ * Provides a full-fidelity backup of the `Brain` SQLite file by copying
  * the database file to a specified output path.  This is the highest-fidelity
  * export format — it preserves all tables, indexes, and metadata exactly.
  *
@@ -12,14 +12,14 @@
  */
 
 import type { ExportOptions } from './facade/types.js';
-import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
+import type { Brain } from '../retrieval/store/Brain.js';
 
 // ---------------------------------------------------------------------------
 // SqliteExporter
 // ---------------------------------------------------------------------------
 
 /**
- * Exports a `SqliteBrain` as a portable SQLite file.
+ * Exports a `Brain` as a portable SQLite file.
  *
  * **Usage:**
  * ```ts
@@ -29,9 +29,9 @@ import type { SqliteBrain } from '../retrieval/store/SqliteBrain.js';
  */
 export class SqliteExporter {
   /**
-   * @param brain - The `SqliteBrain` instance to export.
+   * @param brain - The `Brain` instance to export.
    */
-  constructor(private readonly brain: SqliteBrain) {}
+  constructor(private readonly brain: Brain) {}
 
   // -------------------------------------------------------------------------
   // Public API

@@ -102,7 +102,7 @@ When `TemporalGist` runs during step 6's cognitive mechanisms phase, it now pres
 ```ts
 import { Memory } from '@framers/agentos';
 
-const mem = await Memory.create({
+const mem = await Memory.createSqlite({
   path: './brain.sqlite',
   selfImprove: true,
   consolidation: {
@@ -143,7 +143,7 @@ console.log(`Avg strength: ${health.avgStrength.toFixed(2)}`);
 
 ```ts
 // Turn-based: consolidate every 50 conversation turns
-const mem = await Memory.create({
+const mem = await Memory.createSqlite({
   path: './brain.sqlite',
   selfImprove: true,
   consolidation: {
@@ -153,7 +153,7 @@ const mem = await Memory.create({
 });
 
 // Manual only
-const mem2 = await Memory.create({
+const mem2 = await Memory.createSqlite({
   path: './brain.sqlite',
   selfImprove: true,
   consolidation: {

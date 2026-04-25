@@ -1,19 +1,19 @@
 /**
- * @fileoverview Tests for SqliteKnowledgeGraph — IKnowledgeGraph backed by SQLite.
+ * @fileoverview Tests for SqlKnowledgeGraph — IKnowledgeGraph backed by SQLite.
  *
  * Verifies entity CRUD, relation CRUD, episodic memory operations,
  * graph traversal (BFS, shortest path, neighbourhood), entity merging,
  * memory decay, statistics, and full clear.
  *
- * @module memory/store/__tests__/SqliteKnowledgeGraph.test
+ * @module memory/store/__tests__/SqlKnowledgeGraph.test
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { SqliteBrain } from '../SqliteBrain.js';
-import { SqliteKnowledgeGraph } from '../SqliteKnowledgeGraph.js';
+import { Brain } from '../Brain.js';
+import { SqlKnowledgeGraph } from '../SqlKnowledgeGraph.js';
 import type {
   KnowledgeSource,
   EntityType,
@@ -44,13 +44,13 @@ function defaultSource(): KnowledgeSource {
 // ---------------------------------------------------------------------------
 
 /** Tracks brains opened during each test so afterEach can close + delete them. */
-const openBrains: Array<{ brain: SqliteBrain; dbPath: string }> = [];
+const openBrains: Array<{ brain: Brain; dbPath: string }> = [];
 
-async function createGraph(): Promise<{ graph: SqliteKnowledgeGraph; brain: SqliteBrain; dbPath: string }> {
+async function createGraph(): Promise<{ graph: SqlKnowledgeGraph; brain: Brain; dbPath: string }> {
   const dbPath = tempDbPath();
-  const brain = await SqliteBrain.open(dbPath);
+  const brain = await Brain.openSqlite(dbPath);
   openBrains.push({ brain, dbPath });
-  const graph = new SqliteKnowledgeGraph(brain);
+  const graph = new SqlKnowledgeGraph(brain);
   return { graph, brain, dbPath };
 }
 
@@ -77,7 +77,7 @@ afterEach(async () => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('SqliteKnowledgeGraph', () => {
+describe('SqlKnowledgeGraph', () => {
   // =========================================================================
   // Entity CRUD
   // =========================================================================
@@ -565,7 +565,7 @@ describe('SqliteKnowledgeGraph', () => {
     /**
      * Helper: create a chain A -> B -> C -> D with directed edges.
      */
-    async function createChain(graph: SqliteKnowledgeGraph) {
+    async function createChain(graph: SqlKnowledgeGraph) {
       const entities = [];
       for (const label of ['A', 'B', 'C', 'D']) {
         const e = await graph.upsertEntity({

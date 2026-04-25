@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SqliteBrain } from '../SqliteBrain.js';
+import { Brain } from '../Brain.js';
 import { MemoryStore } from '../MemoryStore.js';
 import { InMemoryVectorStore } from '../../../../rag/vector_stores/InMemoryVectorStore.js';
 import os from 'node:os';
@@ -21,7 +21,7 @@ describe('MemoryStore.getBrain', () => {
   it('returns the brain after setBrain()', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memstore-test-'));
     const dbPath = path.join(tmpDir, 'test.sqlite');
-    const brain = await SqliteBrain.open(dbPath);
+    const brain = await Brain.openSqlite(dbPath);
 
     const vectorStore = new InMemoryVectorStore();
     const store = new MemoryStore({

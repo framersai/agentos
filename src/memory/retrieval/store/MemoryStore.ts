@@ -158,12 +158,12 @@ export class MemoryStore {
   /** Optional cognitive mechanisms engine for retrieval-time hooks. */
   private mechanismsEngine?: import('../../mechanisms/CognitiveMechanismsEngine.js').CognitiveMechanismsEngine;
   /**
-   * Optional SqliteBrain for durable write-through persistence.
+   * Optional Brain for durable write-through persistence.
    * When set, store/softDelete/recordAccess also write to the brain's SQL tables.
    * The in-memory vector index remains the hot read path (fast); the brain is
    * the durable backing store that survives process restarts.
    */
-  private brain: import('./SqliteBrain.js').SqliteBrain | null = null;
+  private brain: import('./Brain.js').Brain | null = null;
 
   constructor(config: MemoryStoreConfig) {
     this.config = config;
@@ -172,21 +172,21 @@ export class MemoryStore {
   }
 
   /**
-   * Attach a SqliteBrain for durable write-through persistence.
+   * Attach a Brain for durable write-through persistence.
    * Once attached, all store/softDelete/recordAccess operations also
    * write to the brain's `memory_traces` table.
    *
-   * @param brain - SqliteBrain instance (already initialized with schema)
+   * @param brain - Brain instance (already initialized with schema)
    */
-  setBrain(brain: import('./SqliteBrain.js').SqliteBrain): void {
+  setBrain(brain: import('./Brain.js').Brain): void {
     this.brain = brain;
   }
 
   /**
-   * Access the attached SqliteBrain for export/import operations.
+   * Access the attached Brain for export/import operations.
    * Returns null when no brain is attached (in-memory only mode).
    */
-  getBrain(): import('./SqliteBrain.js').SqliteBrain | null {
+  getBrain(): import('./Brain.js').Brain | null {
     return this.brain;
   }
 
@@ -274,14 +274,20 @@ export class MemoryStore {
     this.embeddingCache.set(trace.id, embedding);
     this.registerScope(trace.scope, trace.scopeId);
 
-    // Write-through to SqliteBrain for durability.
+    // Write-through to Brain for durability.
     // The SQL row mirrors the in-memory cache so traces survive restart.
     if (this.brain) {
       try {
+        const { dialect } = this.brain.features;
         await this.brain.run(
-          `INSERT OR REPLACE INTO memory_traces (id, type, scope, content, embedding, strength, created_at, last_accessed, retrieval_count, tags, emotions, metadata, deleted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          dialect.insertOrReplace(
+            'memory_traces',
+            ['brain_id', 'id', 'type', 'scope', 'content', 'embedding', 'strength', 'created_at', 'last_accessed', 'retrieval_count', 'tags', 'emotions', 'metadata', 'deleted'],
+            ['?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '0'],
+            'brain_id, id',
+          ),
           [
+            this.brain.brainId,
             trace.id,
             trace.type,
             trace.scope,
@@ -556,8 +562,8 @@ export class MemoryStore {
     if (this.brain) {
       try {
         await this.brain.run(
-          'UPDATE memory_traces SET last_accessed = ?, retrieval_count = ?, strength = ? WHERE id = ?',
-          [trace.lastAccessedAt, trace.retrievalCount, trace.encodingStrength, traceId]
+          'UPDATE memory_traces SET last_accessed = ?, retrieval_count = ?, strength = ? WHERE brain_id = ? AND id = ?',
+          [trace.lastAccessedAt, trace.retrievalCount, trace.encodingStrength, this.brain.brainId, traceId]
         );
       } catch {
         // Best-effort persistence
@@ -649,7 +655,7 @@ export class MemoryStore {
     // Write-through: mark trace as deleted in the durable SQL store
     if (this.brain) {
       try {
-        await this.brain.run('UPDATE memory_traces SET deleted = 1 WHERE id = ?', [traceId]);
+        await this.brain.run('UPDATE memory_traces SET deleted = 1 WHERE brain_id = ? AND id = ?', [this.brain.brainId, traceId]);
       } catch {
         // Best-effort persistence
       }

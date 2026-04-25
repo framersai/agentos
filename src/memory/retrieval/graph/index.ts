@@ -18,7 +18,10 @@ export type { SpreadingActivationInput } from './SpreadingActivation.js';
 export * from './knowledge/IKnowledgeGraph.js';
 export { KnowledgeGraph } from './knowledge/KnowledgeGraph.js';
 export { Neo4jKnowledgeGraph } from './knowledge/Neo4jKnowledgeGraph.js';
-export { SqliteKnowledgeGraph } from './knowledge/SqliteKnowledgeGraph.js';
+// SqlKnowledgeGraph is exported from memory/retrieval/store/SqlKnowledgeGraph
+// via the memory subbarrel; the formerly-shimmed compat re-export at
+// `knowledge/SqlKnowledgeGraph` was removed in 0.3.0. Import from
+// `@framers/agentos/memory` (or directly from the store path) instead.
 
 // GraphRAG
 export * from './graphrag/index.js';

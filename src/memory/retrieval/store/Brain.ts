@@ -26,16 +26,18 @@
  * - **JSON columns**: tags, emotions, metadata stored as JSON TEXT for schema flexibility
  *   without sacrificing query-ability via SQLite's json_extract().
  *
- * @module memory/store/SqliteBrain
+ * @module memory/store/Brain
  */
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import type {
   StorageAdapter,
   StorageRunResult,
   StorageParameters,
   StorageFeatures,
 } from '@framers/sql-storage-adapter';
-import { resolveStorageAdapter, createStorageFeatures } from '@framers/sql-storage-adapter';
+import { resolveStorageAdapter, createStorageFeatures, createPostgresAdapter } from '@framers/sql-storage-adapter';
 import {
   DDL_ARCHIVED_TRACES,
   DDL_ARCHIVED_TRACES_IDX_AGENT_TIME,
@@ -43,13 +45,31 @@ import {
   DDL_ARCHIVE_ACCESS_LOG,
   DDL_ARCHIVE_ACCESS_LOG_IDX,
 } from '../../archive/SqlStorageMemoryArchive.js';
+import { migrateV1ToV2 } from './migrations/v1-to-v2.js';
+
+/**
+ * Derive a stable brain identifier from the database file path.
+ *
+ * `:memory:` becomes `'default'`. For real paths, the file basename is used
+ * with extensions stripped (e.g. `companion-alice.sqlite` becomes
+ * `companion-alice`; `foo.brain.sqlite` becomes `foo.brain`).
+ *
+ * Used by {@link Brain.open} when the caller does not supply an
+ * explicit `brainId`.
+ */
+function deriveBrainIdFromPath(dbPath: string): string {
+  if (dbPath === ':memory:') return 'default';
+  const basename = path.basename(dbPath);
+  const lastDot = basename.lastIndexOf('.');
+  return lastDot > 0 ? basename.slice(0, lastDot) : basename;
+}
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 /** Current schema version. Increment when breaking schema changes are made. */
-const SCHEMA_VERSION = '1';
+const SCHEMA_VERSION = '2';
 
 // ---------------------------------------------------------------------------
 // DDL — full schema
@@ -61,8 +81,10 @@ const SCHEMA_VERSION = '1';
  */
 const DDL_BRAIN_META = `
 CREATE TABLE IF NOT EXISTS brain_meta (
-  key   TEXT PRIMARY KEY,
-  value TEXT NOT NULL
+  brain_id TEXT NOT NULL,
+  key      TEXT NOT NULL,
+  value    TEXT NOT NULL,
+  PRIMARY KEY (brain_id, key)
 );
 `;
 
@@ -77,7 +99,8 @@ CREATE TABLE IF NOT EXISTS brain_meta (
  */
 const DDL_MEMORY_TRACES = `
 CREATE TABLE IF NOT EXISTS memory_traces (
-  id              TEXT    PRIMARY KEY,
+  brain_id        TEXT    NOT NULL,
+  id              TEXT    NOT NULL,
   type            TEXT    NOT NULL,
   scope           TEXT    NOT NULL,
   content         TEXT    NOT NULL,
@@ -89,8 +112,14 @@ CREATE TABLE IF NOT EXISTS memory_traces (
   tags            TEXT    NOT NULL DEFAULT '[]',
   emotions        TEXT    NOT NULL DEFAULT '{}',
   metadata        TEXT    NOT NULL DEFAULT '{}',
-  deleted         INTEGER NOT NULL DEFAULT 0
+  deleted         INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (brain_id, id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_memory_traces_brain_type
+  ON memory_traces (brain_id, type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memory_traces_brain_scope
+  ON memory_traces (brain_id, scope);
 `;
 
 // FTS index DDL is now generated dynamically by features.fts.createIndex()
@@ -106,15 +135,20 @@ CREATE TABLE IF NOT EXISTS memory_traces (
  */
 const DDL_KNOWLEDGE_NODES = `
 CREATE TABLE IF NOT EXISTS knowledge_nodes (
-  id         TEXT    PRIMARY KEY,
+  brain_id   TEXT    NOT NULL,
+  id         TEXT    NOT NULL,
   type       TEXT    NOT NULL,
   label      TEXT    NOT NULL,
   properties TEXT    NOT NULL DEFAULT '{}',
   embedding  BLOB,
   confidence REAL    NOT NULL DEFAULT 1.0,
   source     TEXT    NOT NULL DEFAULT '{}',
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (brain_id, id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_nodes_brain_type
+  ON knowledge_nodes (brain_id, type);
 `;
 
 /**
@@ -126,15 +160,24 @@ CREATE TABLE IF NOT EXISTS knowledge_nodes (
  */
 const DDL_KNOWLEDGE_EDGES = `
 CREATE TABLE IF NOT EXISTS knowledge_edges (
-  id            TEXT    PRIMARY KEY,
-  source_id     TEXT    NOT NULL REFERENCES knowledge_nodes(id),
-  target_id     TEXT    NOT NULL REFERENCES knowledge_nodes(id),
+  brain_id      TEXT    NOT NULL,
+  id            TEXT    NOT NULL,
+  source_id     TEXT    NOT NULL,
+  target_id     TEXT    NOT NULL,
   type          TEXT    NOT NULL,
   weight        REAL    NOT NULL DEFAULT 1.0,
   bidirectional INTEGER NOT NULL DEFAULT 0,
   metadata      TEXT    NOT NULL DEFAULT '{}',
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  PRIMARY KEY (brain_id, id),
+  FOREIGN KEY (brain_id, source_id) REFERENCES knowledge_nodes(brain_id, id),
+  FOREIGN KEY (brain_id, target_id) REFERENCES knowledge_nodes(brain_id, id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_edges_brain_source
+  ON knowledge_edges (brain_id, source_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_edges_brain_target
+  ON knowledge_edges (brain_id, target_id);
 `;
 
 /**
@@ -147,14 +190,16 @@ CREATE TABLE IF NOT EXISTS knowledge_edges (
  */
 const DDL_DOCUMENTS = `
 CREATE TABLE IF NOT EXISTS documents (
-  id           TEXT    PRIMARY KEY,
+  brain_id     TEXT    NOT NULL,
+  id           TEXT    NOT NULL,
   path         TEXT    NOT NULL,
   format       TEXT    NOT NULL,
   title        TEXT,
   content_hash TEXT    NOT NULL,
   chunk_count  INTEGER NOT NULL DEFAULT 0,
   metadata     TEXT    NOT NULL DEFAULT '{}',
-  ingested_at  INTEGER NOT NULL
+  ingested_at  INTEGER NOT NULL,
+  PRIMARY KEY (brain_id, id)
 );
 `;
 
@@ -167,14 +212,21 @@ CREATE TABLE IF NOT EXISTS documents (
  */
 const DDL_DOCUMENT_CHUNKS = `
 CREATE TABLE IF NOT EXISTS document_chunks (
-  id           TEXT    PRIMARY KEY,
-  document_id  TEXT    NOT NULL REFERENCES documents(id),
-  trace_id     TEXT    REFERENCES memory_traces(id),
+  brain_id     TEXT    NOT NULL,
+  id           TEXT    NOT NULL,
+  document_id  TEXT    NOT NULL,
+  trace_id     TEXT,
   content      TEXT    NOT NULL,
   chunk_index  INTEGER NOT NULL,
   page_number  INTEGER,
-  embedding    BLOB
+  embedding    BLOB,
+  PRIMARY KEY (brain_id, id),
+  FOREIGN KEY (brain_id, document_id) REFERENCES documents(brain_id, id),
+  FOREIGN KEY (brain_id, trace_id) REFERENCES memory_traces(brain_id, id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_document_chunks_brain_document
+  ON document_chunks (brain_id, document_id, chunk_index);
 `;
 
 /**
@@ -185,14 +237,18 @@ CREATE TABLE IF NOT EXISTS document_chunks (
  */
 const DDL_DOCUMENT_IMAGES = `
 CREATE TABLE IF NOT EXISTS document_images (
-  id          TEXT    PRIMARY KEY,
-  document_id TEXT    NOT NULL REFERENCES documents(id),
-  chunk_id    TEXT    REFERENCES document_chunks(id),
+  brain_id    TEXT    NOT NULL,
+  id          TEXT    NOT NULL,
+  document_id TEXT    NOT NULL,
+  chunk_id    TEXT,
   data        BLOB    NOT NULL,
   mime_type   TEXT    NOT NULL,
   caption     TEXT,
   page_number INTEGER,
-  embedding   BLOB
+  embedding   BLOB,
+  PRIMARY KEY (brain_id, id),
+  FOREIGN KEY (brain_id, document_id) REFERENCES documents(brain_id, id),
+  FOREIGN KEY (brain_id, chunk_id) REFERENCES document_chunks(brain_id, id)
 );
 `;
 
@@ -206,6 +262,7 @@ CREATE TABLE IF NOT EXISTS document_images (
 const DDL_CONSOLIDATION_LOG = `
 CREATE TABLE IF NOT EXISTS consolidation_log (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  brain_id    TEXT    NOT NULL,
   ran_at      INTEGER NOT NULL,
   pruned      INTEGER NOT NULL DEFAULT 0,
   merged      INTEGER NOT NULL DEFAULT 0,
@@ -213,6 +270,9 @@ CREATE TABLE IF NOT EXISTS consolidation_log (
   compacted   INTEGER NOT NULL DEFAULT 0,
   duration_ms INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE INDEX IF NOT EXISTS idx_consolidation_log_brain_time
+  ON consolidation_log (brain_id, ran_at DESC);
 `;
 
 /**
@@ -227,11 +287,16 @@ CREATE TABLE IF NOT EXISTS consolidation_log (
 const DDL_RETRIEVAL_FEEDBACK = `
 CREATE TABLE IF NOT EXISTS retrieval_feedback (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  trace_id   TEXT    NOT NULL REFERENCES memory_traces(id),
+  brain_id   TEXT    NOT NULL,
+  trace_id   TEXT    NOT NULL,
   signal     TEXT    NOT NULL,
   query      TEXT,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (brain_id, trace_id) REFERENCES memory_traces(brain_id, id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_retrieval_feedback_brain_trace
+  ON retrieval_feedback (brain_id, trace_id, created_at DESC);
 `;
 
 /**
@@ -242,11 +307,13 @@ CREATE TABLE IF NOT EXISTS retrieval_feedback (
  */
 const DDL_CONVERSATIONS = `
 CREATE TABLE IF NOT EXISTS conversations (
-  id         TEXT    PRIMARY KEY,
+  brain_id   TEXT    NOT NULL,
+  id         TEXT    NOT NULL,
   title      TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  metadata   TEXT    NOT NULL DEFAULT '{}'
+  metadata   TEXT    NOT NULL DEFAULT '{}',
+  PRIMARY KEY (brain_id, id)
 );
 `;
 
@@ -258,13 +325,19 @@ CREATE TABLE IF NOT EXISTS conversations (
  */
 const DDL_MESSAGES = `
 CREATE TABLE IF NOT EXISTS messages (
-  id              TEXT    PRIMARY KEY,
-  conversation_id TEXT    NOT NULL REFERENCES conversations(id),
+  brain_id        TEXT    NOT NULL,
+  id              TEXT    NOT NULL,
+  conversation_id TEXT    NOT NULL,
   role            TEXT    NOT NULL,
   content         TEXT    NOT NULL,
   created_at      INTEGER NOT NULL,
-  metadata        TEXT    NOT NULL DEFAULT '{}'
+  metadata        TEXT    NOT NULL DEFAULT '{}',
+  PRIMARY KEY (brain_id, id),
+  FOREIGN KEY (brain_id, conversation_id) REFERENCES conversations(brain_id, id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_messages_brain_conversation
+  ON messages (brain_id, conversation_id, created_at);
 `;
 
 /**
@@ -281,7 +354,8 @@ CREATE TABLE IF NOT EXISTS messages (
  */
 const DDL_PROSPECTIVE_ITEMS = `
 CREATE TABLE IF NOT EXISTS prospective_items (
-  id                   TEXT    PRIMARY KEY,
+  brain_id             TEXT    NOT NULL,
+  id                   TEXT    NOT NULL,
   content              TEXT    NOT NULL,
   trigger_type         TEXT    NOT NULL,
   trigger_at           INTEGER,
@@ -293,12 +367,13 @@ CREATE TABLE IF NOT EXISTS prospective_items (
   triggered            INTEGER NOT NULL DEFAULT 0,
   recurring            INTEGER NOT NULL DEFAULT 0,
   source_trace_id      TEXT,
-  created_at           INTEGER NOT NULL
+  created_at           INTEGER NOT NULL,
+  PRIMARY KEY (brain_id, id)
 );
 `;
 
 // ---------------------------------------------------------------------------
-// SqliteBrain
+// Brain
 // ---------------------------------------------------------------------------
 
 /**
@@ -310,7 +385,7 @@ CREATE TABLE IF NOT EXISTS prospective_items (
  *
  * **Usage:**
  * ```ts
- * const brain = await SqliteBrain.open('/path/to/agent/brain.sqlite');
+ * const brain = await Brain.open('/path/to/agent/brain.sqlite');
  *
  * // Async query API for subsystems
  * const row = await brain.get<{ value: string }>('SELECT value FROM brain_meta WHERE key = ?', ['schema_version']);
@@ -323,10 +398,10 @@ CREATE TABLE IF NOT EXISTS prospective_items (
  * ```
  *
  * Subsystems (KnowledgeGraph, MemoryGraph, ConsolidationLoop, etc.)
- * receive the `SqliteBrain` instance and call its async proxy methods
+ * receive the `Brain` instance and call its async proxy methods
  * (`run`, `get`, `all`, `exec`, `transaction`) for all database operations.
  */
-export class SqliteBrain {
+export class Brain {
   /**
    * The cross-platform storage adapter backing this brain.
    * Not exposed publicly — consumers use the async proxy methods instead.
@@ -339,77 +414,149 @@ export class SqliteBrain {
    */
   private readonly _features: StorageFeatures;
 
+  /**
+   * Brain identifier used to scope every brain-owned table row.
+   *
+   * In SQLite per-file mode, defaults to the file basename (or `'default'`
+   * for `:memory:`); subsystems pass it through to the `brain_id` column
+   * on every INSERT/UPDATE and into every WHERE clause on SELECT.
+   *
+   * In Postgres mode (multi-tenant), this is required and must be unique
+   * per brain across the database.
+   */
+  private readonly _brainId: string;
+
   // ---------------------------------------------------------------------------
-  // Constructor (private — use SqliteBrain.open())
+  // Constructor (private — use Brain.open())
   // ---------------------------------------------------------------------------
 
   /**
-   * Private constructor — use `SqliteBrain.open(dbPath)` instead.
+   * Private constructor — use `Brain.open(dbPath)` instead.
    *
    * @param adapter  - A fully initialised StorageAdapter instance.
    * @param features - Platform-aware feature bundle.
+   * @param brainId  - Brain identifier used to scope multi-tenant queries.
    */
-  private constructor(adapter: StorageAdapter, features: StorageFeatures) {
+  private constructor(adapter: StorageAdapter, features: StorageFeatures, brainId: string) {
     this._adapter = adapter;
     this._features = features;
+    this._brainId = brainId;
+  }
+
+  /**
+   * Brain identifier scoping every query through this Brain instance.
+   * Subsystems (KnowledgeGraph, MemoryGraph, ConsolidationLoop) read this
+   * to inject `brain_id` into their own SQL.
+   */
+  get brainId(): string {
+    return this._brainId;
   }
 
   // ---------------------------------------------------------------------------
-  // Async factory
+  // Async factories (three named entry points)
   // ---------------------------------------------------------------------------
 
   /**
-   * Create or open the agent's brain database at `dbPath`.
+   * Open a Brain backed by SQLite. Tries adapters in order:
+   * better-sqlite3 (Node native) -> sql.js (WASM) -> indexeddb (browser).
    *
-   * Async factory that replaces the previous synchronous constructor.
-   *
-   * Initialization sequence:
-   * 1. Resolve the best available storage adapter for the current runtime.
-   * 2. Enable WAL journal mode for concurrent read access (when supported).
-   * 3. Enable foreign key enforcement (OFF by default in SQLite).
-   * 4. Execute the full DDL schema (all `CREATE TABLE IF NOT EXISTS`).
-   * 5. Create the FTS5 virtual table for full-text memory search.
-   * 6. Seed `brain_meta` with `schema_version` and `created_at` if absent.
-   *
-   * @param dbPath - Absolute path to the `.sqlite` file. The file is created
-   *   if it does not exist; parent directories must already exist.
-   * @returns A fully initialised `SqliteBrain` instance.
+   * @param path - File path. Use `:memory:` for in-process testing.
+   * @param opts.brainId - Optional explicit brainId; defaults to file basename
+   *   (or `'default'` for `:memory:`).
+   * @param opts.priority - Override the default adapter priority.
+   * @returns A fully initialised `Brain` instance with the v2 schema.
    */
-  static async open(dbPath: string): Promise<SqliteBrain> {
+  static async openSqlite(
+    path: string,
+    opts: {
+      brainId?: string;
+      priority?: ('better-sqlite3' | 'sqljs' | 'indexeddb')[];
+    } = {},
+  ): Promise<Brain> {
     const adapter = await resolveStorageAdapter({
-      filePath: dbPath,
-      priority: ['better-sqlite3', 'sqljs', 'indexeddb'],
+      filePath: path,
+      priority: opts.priority ?? ['better-sqlite3', 'sqljs', 'indexeddb'],
       quiet: true,
     });
+    const brainId = opts.brainId ?? deriveBrainIdFromPath(path);
+    return Brain._initialize(adapter, brainId);
+  }
 
+  /**
+   * Open a Brain backed by PostgreSQL. Requires the `pg` npm package and
+   * a reachable Postgres instance.
+   *
+   * @param connectionString - Standard Postgres connection URL.
+   * @param opts.brainId - REQUIRED. Used to scope every query so multiple
+   *   brains can share one Postgres database without leaking rows.
+   * @param opts.poolSize - pg connection pool size. Defaults to 10.
+   */
+  static async openPostgres(
+    connectionString: string,
+    opts: { brainId: string; poolSize?: number },
+  ): Promise<Brain> {
+    if (!opts.brainId) {
+      throw new Error('Brain.openPostgres: opts.brainId is required (Postgres mode is multi-tenant)');
+    }
+    // Use createPostgresAdapter directly so we can pass pool size; the
+    // resolveStorageAdapter facade only forwards `connectionString`.
+    const adapter = await createPostgresAdapter({
+      connectionString,
+      max: opts.poolSize ?? 10,
+    });
+    await adapter.open();
+    return Brain._initialize(adapter, opts.brainId);
+  }
+
+  /**
+   * Open a Brain with a pre-resolved StorageAdapter. Use when sharing an
+   * adapter across subsystems (e.g., wilds-ai foundation pool + brain) or
+   * when the consumer needs full control over adapter resolution.
+   *
+   * @param adapter - Pre-built StorageAdapter instance.
+   * @param opts.brainId - Required for postgres-kind adapters; optional for
+   *   sqlite-kind adapters (defaults to `'default'`).
+   */
+  static async openWithAdapter(
+    adapter: StorageAdapter,
+    opts: { brainId?: string } = {},
+  ): Promise<Brain> {
+    const isPostgres = adapter.kind.includes('postgres');
+    if (isPostgres && !opts.brainId) {
+      throw new Error(
+        'Brain.openWithAdapter: opts.brainId is required for postgres-kind adapters',
+      );
+    }
+    const brainId = opts.brainId ?? 'default';
+    return Brain._initialize(adapter, brainId);
+  }
+
+  /**
+   * Internal common initialization path used by all three factories.
+   *
+   * Sequence:
+   * 1. Build platform-aware feature bundle.
+   * 2. Set WAL mode (dialect.pragma returns null on Postgres).
+   * 3. Enable foreign key enforcement (dialect.pragma returns null on Postgres).
+   * 4. Auto-migrate v1 schemas to v2 (idempotent; no-op for fresh DBs and v2).
+   * 5. Apply full DDL via _initSchema().
+   * 6. Seed brain_meta defaults.
+   */
+  private static async _initialize(adapter: StorageAdapter, brainId: string): Promise<Brain> {
     const features = createStorageFeatures(adapter);
-    const brain = new SqliteBrain(adapter, features);
+    const brain = new Brain(adapter, features, brainId);
 
-    // Step 1: WAL mode — dialect returns null for non-SQLite adapters.
     const walPragma = features.dialect.pragma('journal_mode', 'WAL');
     if (walPragma) await adapter.exec(walPragma);
 
-    // Step 2: Foreign key enforcement — dialect returns null for Postgres (enforced by default).
     const fkPragma = features.dialect.pragma('foreign_keys', 'ON');
     if (fkPragma) await adapter.exec(fkPragma);
 
-    // Step 3: Apply full schema in a single transaction for atomicity.
+    await migrateV1ToV2(adapter, features, brainId);
     await brain._initSchema();
-
-    // Step 4: Seed brain_meta defaults if this is a fresh database.
     await brain._seedMeta();
 
     return brain;
-  }
-
-  /**
-   * Alias for `open()` — matches the naming convention used by WildsMemoryFacade.
-   *
-   * @param dbPath - Absolute path to the `.sqlite` file.
-   * @returns A fully initialised `SqliteBrain` instance.
-   */
-  static async create(dbPath: string): Promise<SqliteBrain> {
-    return SqliteBrain.open(dbPath);
   }
 
   // ---------------------------------------------------------------------------
@@ -553,12 +700,12 @@ export class SqliteBrain {
     // Avoids sql.js "cannot rollback" errors when DDL from _initSchema()
     // leaves the connection in an implicit-commit state.
     await this._adapter.run(
-      dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']),
-      ['schema_version', SCHEMA_VERSION],
+      dialect.insertOrIgnore('brain_meta', ['brain_id', 'key', 'value'], ['?', '?', '?']),
+      [this._brainId, 'schema_version', SCHEMA_VERSION],
     );
     await this._adapter.run(
-      dialect.insertOrIgnore('brain_meta', ['key', 'value'], ['?', '?']),
-      ['created_at', Date.now().toString()],
+      dialect.insertOrIgnore('brain_meta', ['brain_id', 'key', 'value'], ['?', '?', '?']),
+      [this._brainId, 'created_at', Date.now().toString()],
     );
   }
 
@@ -574,8 +721,8 @@ export class SqliteBrain {
    */
   async getMeta(key: string): Promise<string | undefined> {
     const row = await this._adapter.get<{ value: string }>(
-      'SELECT value FROM brain_meta WHERE key = ?',
-      [key],
+      'SELECT value FROM brain_meta WHERE brain_id = ? AND key = ?',
+      [this._brainId, key],
     );
 
     return row?.value;
@@ -592,8 +739,13 @@ export class SqliteBrain {
    */
   async setMeta(key: string, value: string): Promise<void> {
     await this._adapter.run(
-      this._features.dialect.insertOrReplace('brain_meta', ['key', 'value'], ['?', '?'], 'key'),
-      [key, value],
+      this._features.dialect.insertOrReplace(
+        'brain_meta',
+        ['brain_id', 'key', 'value'],
+        ['?', '?', '?'],
+        'brain_id, key',
+      ),
+      [this._brainId, key, value],
     );
   }
 
@@ -622,6 +774,162 @@ export class SqliteBrain {
     return parseInt(stored, 10) === dimensions;
   }
 
+  // ---------------------------------------------------------------------------
+  // Portable artifact: export to / import from a SQLite snapshot
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Materialize this brain to a portable SQLite file at `targetPath`.
+   *
+   * Source can be any backend (SQLite, Postgres, Capacitor, etc.); output
+   * is always a fresh SQLite file. Used by `.wildsoul`-style export and
+   * other portability flows.
+   *
+   * Refuses to overwrite an existing file at `targetPath` so callers do
+   * not silently lose data.
+   *
+   * Forking semantics: rows are emitted with the source brainId. Importing
+   * the resulting file under a different brainId produces a fork.
+   *
+   * @param targetPath - Destination file path. File must not exist.
+   * @returns Bytes written to the destination file.
+   */
+  async exportToSqlite(targetPath: string): Promise<{ bytesWritten: number }> {
+    // Refuse to overwrite an existing file.
+    try {
+      await fs.access(targetPath);
+      throw new Error(`Brain.exportToSqlite: target already exists: ${targetPath}`);
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        // Re-throw the "already exists" error and any other access error
+        // that isn't a missing-file response.
+        throw err;
+      }
+    }
+
+    // Open a fresh SQLite Brain at the target path. We import under the
+    // source brainId so the export file is identifiable as belonging to
+    // this brain even if the receiving Brain has a different id.
+    const target = await Brain.openSqlite(targetPath, { brainId: this._brainId });
+    try {
+      for (const table of PORTABLE_TABLES) {
+        const rows = await this.all<Record<string, unknown>>(
+          `SELECT * FROM ${table} WHERE brain_id = ?`,
+          [this._brainId],
+        );
+        if (rows.length === 0) continue;
+
+        // Upsert so source rows override the brain_meta defaults
+        // (schema_version, created_at) seeded during target initialisation.
+        await this._bulkCopy(target, table, rows, this._brainId, { upsert: true });
+      }
+    } finally {
+      await target.close();
+    }
+
+    const stat = await fs.stat(targetPath);
+    return { bytesWritten: stat.size };
+  }
+
+  /**
+   * Load a portable SQLite file into this Brain's adapter.
+   *
+   * Forking semantics: rows from the source file are written under the
+   * RECEIVING brain's `brainId`, not the brainId stored in the source
+   * file. This means importing an `alice` snapshot into a Brain opened
+   * with `brainId: 'alice-fork'` produces a fork with no shared identity.
+   *
+   * @param sourcePath - Source SQLite file path (typically produced by
+   *   `Brain.exportToSqlite`).
+   * @param opts.strategy - `'merge'` (default) upserts on PK collision;
+   *   `'replace'` wipes all rows for the receiving `brainId` first.
+   * @returns Counts of rows imported per table.
+   */
+  async importFromSqlite(
+    sourcePath: string,
+    opts: { strategy?: 'merge' | 'replace' } = {},
+  ): Promise<{ tablesImported: Record<string, number> }> {
+    const strategy = opts.strategy ?? 'merge';
+    const source = await Brain.openSqlite(sourcePath);
+    const tablesImported: Record<string, number> = {};
+
+    try {
+      if (strategy === 'replace') {
+        // Wipe existing rows for the receiving brainId in every portable table.
+        // Order matters: child tables before parent tables to satisfy FKs.
+        for (const table of [...PORTABLE_TABLES].reverse()) {
+          await this.run(
+            `DELETE FROM ${table} WHERE brain_id = ?`,
+            [this._brainId],
+          );
+        }
+      }
+
+      for (const table of PORTABLE_TABLES) {
+        // Read every row in the source file regardless of its stored brainId
+        // so we capture the full snapshot for re-insertion under our brainId.
+        const rows = await source.all<Record<string, unknown>>(
+          `SELECT * FROM ${table}`,
+        );
+        tablesImported[table] = rows.length;
+        if (rows.length === 0) continue;
+
+        // Always use upsert to gracefully handle the brain_meta rows seeded
+        // by `_seedMeta` during the receiving Brain's initialization (which
+        // would otherwise collide with the source's schema_version/created_at).
+        await this._bulkCopy(this, table, rows, this._brainId, { upsert: true });
+      }
+    } finally {
+      await source.close();
+    }
+
+    return { tablesImported };
+  }
+
+  /**
+   * Internal helper: bulk-insert `rows` into `target.<table>`, rewriting
+   * `brain_id` on each row to `targetBrainId`. When `opts.upsert` is true,
+   * uses `dialect.insertOrReplace` so PK collisions overwrite (idempotent).
+   */
+  private async _bulkCopy(
+    target: Brain,
+    table: string,
+    rows: Record<string, unknown>[],
+    targetBrainId: string,
+    opts: { upsert?: boolean } = {},
+  ): Promise<void> {
+    if (rows.length === 0) return;
+
+    const columns = Object.keys(rows[0]!);
+    const placeholders = columns.map(() => '?').join(', ');
+    const colList = columns.join(', ');
+
+    const stmt = opts.upsert
+      ? target._features.dialect.insertOrReplace(
+          table,
+          columns,
+          columns.map(() => '?'),
+          PORTABLE_TABLE_PRIMARY_KEYS[table] ?? 'brain_id, id',
+        )
+      : `INSERT INTO ${table} (${colList}) VALUES (${placeholders})`;
+
+    // Single transaction per table for bulk-insert performance + atomicity.
+    await target._adapter.exec('BEGIN');
+    try {
+      for (const row of rows) {
+        const values = columns.map((c) =>
+          c === 'brain_id' ? targetBrainId : row[c],
+        );
+        await target._adapter.run(stmt, values as never[]);
+      }
+      await target._adapter.exec('COMMIT');
+    } catch (err) {
+      await target._adapter.exec('ROLLBACK');
+      throw err;
+    }
+  }
+
   /**
    * Close the database connection.
    *
@@ -633,3 +941,52 @@ export class SqliteBrain {
     await this._adapter.close();
   }
 }
+
+// ---------------------------------------------------------------------------
+// Portable-artifact constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Tables exported and imported by `Brain.exportToSqlite` / `importFromSqlite`.
+ * Order matters for import: parents before children to satisfy FKs.
+ */
+const PORTABLE_TABLES = [
+  'brain_meta',
+  'memory_traces',
+  'knowledge_nodes',
+  'knowledge_edges',
+  'documents',
+  'document_chunks',
+  'document_images',
+  'consolidation_log',
+  'retrieval_feedback',
+  'conversations',
+  'messages',
+  'prospective_items',
+  'archived_traces',
+  'archive_access_log',
+] as const;
+
+/**
+ * Composite primary key columns for each portable table, used by
+ * `dialect.insertOrReplace` as the conflict target during merge import.
+ *
+ * Tables with `INTEGER PRIMARY KEY AUTOINCREMENT` (consolidation_log,
+ * retrieval_feedback) use `id` alone since their PK is system-generated.
+ */
+const PORTABLE_TABLE_PRIMARY_KEYS: Record<string, string> = {
+  brain_meta: 'brain_id, key',
+  memory_traces: 'brain_id, id',
+  knowledge_nodes: 'brain_id, id',
+  knowledge_edges: 'brain_id, id',
+  documents: 'brain_id, id',
+  document_chunks: 'brain_id, id',
+  document_images: 'brain_id, id',
+  consolidation_log: 'id',
+  retrieval_feedback: 'id',
+  conversations: 'brain_id, id',
+  messages: 'brain_id, id',
+  prospective_items: 'brain_id, id',
+  archived_traces: 'brain_id, trace_id',
+  archive_access_log: 'brain_id, trace_id, accessed_at',
+};

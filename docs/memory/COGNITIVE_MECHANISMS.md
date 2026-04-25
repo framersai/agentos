@@ -92,7 +92,7 @@ All mechanisms share common guard patterns:
 
 ## Rehydration
 
-Gisted/archived content can be inflated on demand via `CognitiveMemoryManager.rehydrate(traceId)`. Content does not decay while archived; age-based retention applies instead. The archive is backed by `IMemoryArchive` (default: `SqlStorageMemoryArchive`), which uses the same `StorageAdapter` contract as `SqliteBrain`. When sharing the brain's adapter, archive tables (`archived_traces`, `archive_access_log`) live in the same database.
+Gisted/archived content can be inflated on demand via `CognitiveMemoryManager.rehydrate(traceId)`. Content does not decay while archived; age-based retention applies instead. The archive is backed by `IMemoryArchive` (default: `SqlStorageMemoryArchive`), which uses the same `StorageAdapter` contract as `Brain`. When sharing the brain's adapter, archive tables (`archived_traces`, `archive_access_log`) live in the same database.
 
 The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
 

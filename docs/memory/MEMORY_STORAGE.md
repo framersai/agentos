@@ -10,7 +10,7 @@ description: 'Single brain.sqlite per agent — 12-table schema, WAL mode, FTS5 
 
 ## Overview
 
-The `SqliteBrain` class manages a single WAL-mode SQLite database that contains all memory subsystem data. One file holds everything an agent has ever learned, ingested, or been told:
+The `Brain` class manages a single WAL-mode SQLite database that contains all memory subsystem data. One file holds everything an agent has ever learned, ingested, or been told:
 
 ```
 ~/.agentos/agents/{name}/brain.sqlite
@@ -271,14 +271,14 @@ brain.setMeta('embedding_dimension', '1536');
 
 ### Dimension Compatibility Check
 
-At construction time, `SqliteBrain.checkEmbeddingCompat(dimensions)` compares the requested dimension against the stored value. A mismatch produces a warning --- vector similarity searches may return incorrect results when dimensions don't match.
+At construction time, `Brain.checkEmbeddingCompat(dimensions)` compares the requested dimension against the stored value. A mismatch produces a warning --- vector similarity searches may return incorrect results when dimensions don't match.
 
 ### When to Re-index
 
 If you switch embedding providers (e.g., from OpenAI `text-embedding-3-small` at 1536 dimensions to Cohere at 1024 dimensions), call `reindex()` to re-embed all traces:
 
 ```ts
-const mem = await Memory.create({
+const mem = await Memory.createSqlite({
   path: './brain.sqlite',
   embeddings: {
     provider: 'cohere',
@@ -304,7 +304,7 @@ By default, agents store their brain at:
 You can override this with any path:
 
 ```ts
-const mem = await Memory.create({ path: '/data/custom-brain.sqlite' });
+const mem = await Memory.createSqlite({ path: '/data/custom-brain.sqlite' });
 ```
 
 The parent directory must already exist; the SQLite file is created if absent.
@@ -357,7 +357,7 @@ await mem.export('./vault/', { format: 'obsidian' });
 
 ## Initialization Sequence
 
-When `SqliteBrain.open()` is called:
+When `Brain.openSqlite()` is called:
 
 1. **Open** (or create) the SQLite file at `dbPath`.
 2. **Enable WAL** journal mode for concurrent read access.
@@ -367,7 +367,7 @@ When `SqliteBrain.open()` is called:
 6. **Seed brain_meta** with `schema_version` and `created_at` if absent.
 
 ```ts
-const brain = await SqliteBrain.open('/path/to/agent/brain.sqlite');
+const brain = await Brain.openSqlite('/path/to/agent/brain.sqlite');
 
 // Direct DB access for subsystems
 const row = await brain.get('SELECT * FROM memory_traces WHERE id = ?', [id]);
@@ -418,7 +418,7 @@ interface MemoryHealth {
 | File | Purpose |
 |------|---------|
 | `memory/archive/SqlStorageMemoryArchive.ts` | IMemoryArchive impl (cold storage for verbatim content) |
-| `memory/store/SqliteBrain.ts` | Unified SQLite connection, DDL, meta helpers (includes archive DDL) |
-| `memory/store/SqliteKnowledgeGraph.ts` | IKnowledgeGraph over SQLite tables |
-| `memory/store/SqliteMemoryGraph.ts` | IMemoryGraph with spreading activation |
+| `memory/store/Brain.ts` | Unified SQLite connection, DDL, meta helpers (includes archive DDL) |
+| `memory/store/SqlKnowledgeGraph.ts` | IKnowledgeGraph over SQLite tables |
+| `memory/store/SqlMemoryGraph.ts` | IMemoryGraph with spreading activation |
 | `memory/store/tracePersistence.ts` | FTS5 query builder, trace serialisation, hash utilities |
