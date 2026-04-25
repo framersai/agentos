@@ -1,3 +1,8 @@
+## <small>0.2.10 (2026-04-25)</small>
+
+* fix(read-router): typecheck failure on result.outcome.answer access ([1651180](https://github.com/framersai/agentos/commit/1651180))
+* docs(architecture): add Cognitive Pipeline section to ARCHITECTURE.md ([425a9fc](https://github.com/framersai/agentos/commit/425a9fc))
+
 ## <small>0.2.9 (2026-04-25)</small>
 
 * refactor(cognitive-pipeline): rename multi-stage-guardrails → cognitive-pipeline + ship 5 canonical  ([fc0dadb](https://github.com/framersai/agentos/commit/fc0dadb))
