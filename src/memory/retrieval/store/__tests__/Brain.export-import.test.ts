@@ -63,8 +63,10 @@ describe('Brain.exportToSqlite + importFromSqlite', () => {
 
     // Verify the export file is a valid SQLite Brain at v2 with the
     // SAME brainId as the source.
-    const exportBrain = await Brain.openSqlite(exportPath);
-    expect(exportBrain.brainId).toBe('alice-export');
+    // Specify brainId to avoid polluting brain_meta with a path-derived id
+    // (which would break subsequent importFromSqlite single-brain validation).
+    const exportBrain = await Brain.openSqlite(exportPath, { brainId: 'alice' });
+    expect(exportBrain.brainId).toBe('alice');
     const exportedTraces = await exportBrain.all<{ brain_id: string; id: string }>(
       `SELECT brain_id, id FROM memory_traces ORDER BY id`,
     );
@@ -171,6 +173,26 @@ describe('Brain.exportToSqlite + importFromSqlite', () => {
     expect(traces).toHaveLength(1);
     expect(traces[0]).toMatchObject({ id: 'imported', content: 'imported content' });
 
+    await target.close();
+  });
+
+  it('importFromSqlite rejects a multi-brain source file', async () => {
+    // Synthesize a multi-brain SQLite file by manually inserting brain_meta
+    // rows for two distinct brain_ids.
+    const sourcePath = path.join(tmpDir, 'multi-brain.sqlite');
+    const setup = await Brain.openSqlite(sourcePath, { brainId: 'brain-a' });
+    // Inject a second brain's meta row.
+    await setup.run(
+      `INSERT INTO brain_meta (brain_id, key, value) VALUES (?, ?, ?)`,
+      ['brain-b', 'schema_version', '2'],
+    );
+    await setup.close();
+
+    // Open a target brain and try to import the multi-brain source.
+    const target = await Brain.openSqlite(':memory:', { brainId: 'brain-target' });
+    await expect(target.importFromSqlite(sourcePath)).rejects.toThrow(
+      /multiple brain_ids|brain-a|brain-b/i,
+    );
     await target.close();
   });
 });
