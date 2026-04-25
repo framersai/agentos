@@ -852,7 +852,40 @@ export class Brain {
     opts: { strategy?: 'merge' | 'replace' } = {},
   ): Promise<{ tablesImported: Record<string, number> }> {
     const strategy = opts.strategy ?? 'merge';
-    const source = await Brain.openSqlite(sourcePath);
+
+    // Peek at the source's brain_meta BEFORE opening it as a Brain. Opening
+    // via Brain.openSqlite without a brainId would derive one from the file
+    // path and pollute brain_meta with that synthetic id (via _seedMeta),
+    // breaking the single-brain check below. We use a raw adapter for the
+    // peek so we don't trigger any seeding.
+    const peekAdapter = await resolveStorageAdapter({
+      filePath: sourcePath,
+      priority: ['better-sqlite3', 'sqljs'],
+      quiet: true,
+    });
+    let sourceBrainIds: { brain_id: string }[];
+    try {
+      sourceBrainIds = await peekAdapter.all<{ brain_id: string }>(
+        `SELECT DISTINCT brain_id FROM brain_meta WHERE brain_id IS NOT NULL`,
+      );
+    } finally {
+      await peekAdapter.close();
+    }
+
+    if (sourceBrainIds.length > 1) {
+      const ids = sourceBrainIds.map((r) => r.brain_id).join(', ');
+      throw new Error(
+        `Brain.importFromSqlite: source contains multiple brain_ids (${ids}). ` +
+          `Imports must be from a single-brain export (use Brain.exportToSqlite).`,
+      );
+    }
+
+    // Open the source as a Brain with the peeked brainId (if any) to avoid
+    // _seedMeta polluting brain_meta with a path-derived id.
+    const sourceBrainId = sourceBrainIds[0]?.brain_id;
+    const source = sourceBrainId
+      ? await Brain.openSqlite(sourcePath, { brainId: sourceBrainId })
+      : await Brain.openSqlite(sourcePath);
     const tablesImported: Record<string, number> = {};
 
     try {
