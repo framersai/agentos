@@ -1,3 +1,14 @@
+## <small>0.2.12 (2026-04-25)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([fc7cf50](https://github.com/framersai/agentos/commit/fc7cf50))
+* refactor(ingest-router): SummarizedIngestExecutor wraps existing SessionSummarizer ([dbb3d31](https://github.com/framersai/agentos/commit/dbb3d31))
+* feat(ingest-router): add executors sub-barrel + top-level re-exports ([7aaf38d](https://github.com/framersai/agentos/commit/7aaf38d))
+* feat(ingest-router): implement session summarizer with verbatim Anthropic prompt ([a62a716](https://github.com/framersai/agentos/commit/a62a716))
+* feat(ingest-router): RawChunks + Skip reference executors + uniform outcome shape ([8c4fa6f](https://github.com/framersai/agentos/commit/8c4fa6f))
+* feat(ingest-router): SummarizedIngestExecutor with per-session caching ([995954d](https://github.com/framersai/agentos/commit/995954d))
+* feat(ingest-router): types for summarized + entity-linking executors ([8823792](https://github.com/framersai/agentos/commit/8823792))
+* test(ingest-router): SummarizedIngestExecutor + FunctionIngestDispatcher integration ([d44f1e8](https://github.com/framersai/agentos/commit/d44f1e8))
+
 ## <small>0.2.11 (2026-04-25)</small>
 
 * docs(ingest-router): correct fact-graph attribution per Mem0 v3 graph removal ([1fdef22](https://github.com/framersai/agentos/commit/1fdef22))
