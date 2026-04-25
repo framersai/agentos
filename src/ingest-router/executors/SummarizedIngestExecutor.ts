@@ -28,6 +28,8 @@ export interface IngestOutcome {
   writtenTraces: number;
   summary: string;
   embedTexts: string[];
+  tokensIn: number;
+  tokensOut: number;
 }
 
 /**
@@ -65,12 +67,16 @@ export class SummarizedIngestExecutor {
   async ingest(content: string, payload: IngestPayload): Promise<IngestOutcome> {
     const sessionId = payload.sessionId;
     let summary = this.cache.get(sessionId);
+    let tokensIn = 0;
+    let tokensOut = 0;
     if (summary === undefined) {
       const result = await summarizeSession(
         { sessionId, text: content },
         { llm: this.llm, maxSummaryTokens: this.maxSummaryTokens },
       );
       summary = result.summary;
+      tokensIn = result.tokensIn;
+      tokensOut = result.tokensOut;
       this.cache.set(sessionId, summary);
     }
 
@@ -81,6 +87,8 @@ export class SummarizedIngestExecutor {
       writtenTraces: chunks.length,
       summary,
       embedTexts,
+      tokensIn,
+      tokensOut,
     };
   }
 

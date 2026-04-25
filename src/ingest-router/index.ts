@@ -113,18 +113,27 @@ export {
   IngestRouterDispatcherMissingError,
 } from './IngestRouter.js';
 
-// --- Reference executors (Stage L: Anthropic Contextual Retrieval) ---
+// --- Reference executors ---
 // Reference executors ship in agentos core so the IngestRouter strategy
 // IDs work out of the box. See ./executors/ for the source.
+//
+// Strategy ID coverage (Stage L = summarized; trivial executors for
+// raw-chunks + skip; observational coordinator added in Stage 2.2;
+// fact-graph + hybrid land in Stage I + later).
 export {
   SummarizedIngestExecutor,
+  RawChunksIngestExecutor,
+  SkipIngestExecutor,
   summarizeSession,
   ANTHROPIC_CONTEXTUAL_PROMPT,
   createSummarizedIngestExecutor,
+  createRawChunksIngestExecutor,
+  createSkipIngestExecutor,
 } from './executors/index.js';
 export type {
   IngestOutcome,
   IngestPayload,
+  RawChunksOutcome,
   SessionContent,
   SummarizerLLM,
   SummarizedIngestOptions,
