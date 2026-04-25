@@ -45,7 +45,7 @@ import {
   DDL_ARCHIVE_ACCESS_LOG,
   DDL_ARCHIVE_ACCESS_LOG_IDX,
 } from '../../archive/SqlStorageMemoryArchive.js';
-import { migrateV1ToV2 } from './migrations/v1-to-v2.js';
+import { MigrationRunner, MIGRATIONS, LATEST_SCHEMA_VERSION } from './migrations/index.js';
 import { PORTABLE_TABLES, PORTABLE_TABLE_PRIMARY_KEYS } from './portable-tables.js';
 
 /**
@@ -68,9 +68,9 @@ function deriveBrainIdFromPath(dbPath: string): string {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/** Current schema version. Increment when breaking schema changes are made. */
-const SCHEMA_VERSION = '2';
+// SCHEMA_VERSION moved to migrations/index.ts as LATEST_SCHEMA_VERSION
+// (derived from the highest registered migration, so adding v2-to-v3.ts
+// auto-bumps the seed value).
 
 // ---------------------------------------------------------------------------
 // DDL — full schema
@@ -553,7 +553,7 @@ export class Brain {
     const fkPragma = features.dialect.pragma('foreign_keys', 'ON');
     if (fkPragma) await adapter.exec(fkPragma);
 
-    await migrateV1ToV2(adapter, features, brainId);
+    await MigrationRunner.runPending(adapter, features, brainId, MIGRATIONS);
     await brain._initSchema();
     await brain._seedMeta();
 
@@ -702,7 +702,7 @@ export class Brain {
     // leaves the connection in an implicit-commit state.
     await this._adapter.run(
       dialect.insertOrIgnore('brain_meta', ['brain_id', 'key', 'value'], ['?', '?', '?']),
-      [this._brainId, 'schema_version', SCHEMA_VERSION],
+      [this._brainId, 'schema_version', String(LATEST_SCHEMA_VERSION)],
     );
     await this._adapter.run(
       dialect.insertOrIgnore('brain_meta', ['brain_id', 'key', 'value'], ['?', '?', '?']),
