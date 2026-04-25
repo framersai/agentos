@@ -1,3 +1,19 @@
+## 0.3.0 (2026-04-25)
+
+* feat(memory): Brain storage abstraction v2 (universal SQLite + Postgres backbone) ([0676d8b](https://github.com/framersai/agentos/commit/0676d8b))
+* feat(ingest-router,memory-router): Stage I entity-linking executors + ranker ([b59cd43](https://github.com/framersai/agentos/commit/b59cd43))
+* Merge branch 'master' of https://github.com/framersai/agentos ([c6d7465](https://github.com/framersai/agentos/commit/c6d7465))
+
+### BREAKING CHANGE
+
+* SqliteBrain, SqliteKnowledgeGraph, SqliteMemoryGraph,
+Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
+Postgres deployments require brainId on every brain operation. Existing
+SQLite files auto-migrate on first open.
+
+Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
+Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
+
 ## 0.3.0 (2026-04-26)
 
 ### BREAKING CHANGES
