@@ -1,3 +1,9 @@
+## <small>0.2.11 (2026-04-25)</small>
+
+* docs(ingest-router): correct fact-graph attribution per Mem0 v3 graph removal ([1fdef22](https://github.com/framersai/agentos/commit/1fdef22))
+* docs(paracosm): note prompt/URL-grounded scenario authoring ([630d913](https://github.com/framersai/agentos/commit/630d913))
+* refactor(cognitive-pipeline): finish rename + clean lingering JSDoc refs ([bbb46d8](https://github.com/framersai/agentos/commit/bbb46d8))
+
 ## <small>0.2.10 (2026-04-25)</small>
 
 * fix(read-router): typecheck failure on result.outcome.answer access ([1651180](https://github.com/framersai/agentos/commit/1651180))
