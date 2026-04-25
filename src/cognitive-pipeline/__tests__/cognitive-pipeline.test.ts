@@ -61,48 +61,48 @@ function makeReadStage(): ReadStage<FakeTrace, FakeAnswer> {
 describe('CognitivePipeline: ingest stage', () => {
   it('forwards content to the configured IngestStage', async () => {
     const ingest = makeIngestStage();
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({ ingest });
-    const result = await guardrails.ingest('hello');
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({ ingest });
+    const result = await pipeline.ingest('hello');
     expect(ingest.ingest).toHaveBeenCalledWith('hello', undefined);
     expect(result.writtenTraces).toBe(1);
   });
 
   it('throws when ingest is called without an IngestStage', async () => {
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({});
-    await expect(guardrails.ingest('hello')).rejects.toThrow(/IngestStage/);
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({});
+    await expect(pipeline.ingest('hello')).rejects.toThrow(/IngestStage/);
   });
 });
 
 describe('CognitivePipeline: recall stage', () => {
   it('forwards query to the configured RecallStage', async () => {
     const recall = makeRecallStage();
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({ recall });
-    const result = await guardrails.recall('what is X?');
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({ recall });
+    const result = await pipeline.recall('what is X?');
     expect(recall.recall).toHaveBeenCalledWith('what is X?', undefined);
     expect(result.traces).toHaveLength(2);
     expect(result.backend).toBe('canonical-hybrid');
   });
 
   it('throws when recall is called without a RecallStage', async () => {
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({});
-    await expect(guardrails.recall('q')).rejects.toThrow(/RecallStage/);
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({});
+    await expect(pipeline.recall('q')).rejects.toThrow(/RecallStage/);
   });
 });
 
 describe('CognitivePipeline: read stage', () => {
   it('forwards query+traces to the configured ReadStage', async () => {
     const read = makeReadStage();
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({ read });
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({ read });
     const traces: FakeTrace[] = [{ id: 't1', text: 'e' }];
-    const result = await guardrails.read('q?', traces);
+    const result = await pipeline.read('q?', traces);
     expect(read.read).toHaveBeenCalledWith('q?', traces, undefined);
     expect(result.outcome.answer).toBe('answered: q?');
   });
 
   it('throws when read is called without a ReadStage', async () => {
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({});
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({});
     await expect(
-      guardrails.read('q?', []),
+      pipeline.read('q?', []),
     ).rejects.toThrow(/ReadStage/);
   });
 });
@@ -111,12 +111,12 @@ describe('CognitivePipeline: end-to-end recallAndRead', () => {
   it('chains recall + read in one call and returns full telemetry', async () => {
     const recall = makeRecallStage();
     const read = makeReadStage();
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({
       recall,
       read,
     });
 
-    const result = await guardrails.recallAndRead('what is X?');
+    const result = await pipeline.recallAndRead('what is X?');
 
     expect(recall.recall).toHaveBeenCalledTimes(1);
     expect(read.read).toHaveBeenCalledTimes(1);
@@ -128,17 +128,17 @@ describe('CognitivePipeline: end-to-end recallAndRead', () => {
   });
 
   it('throws on recallAndRead when recall stage is missing', async () => {
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({
       read: makeReadStage(),
     });
-    await expect(guardrails.recallAndRead('q')).rejects.toThrow(/RecallStage/);
+    await expect(pipeline.recallAndRead('q')).rejects.toThrow(/RecallStage/);
   });
 
   it('throws on recallAndRead when read stage is missing', async () => {
-    const guardrails = new CognitivePipeline<FakeTrace, FakeAnswer>({
+    const pipeline = new CognitivePipeline<FakeTrace, FakeAnswer>({
       recall: makeRecallStage(),
     });
-    await expect(guardrails.recallAndRead('q')).rejects.toThrow(/ReadStage/);
+    await expect(pipeline.recallAndRead('q')).rejects.toThrow(/ReadStage/);
   });
 });
 

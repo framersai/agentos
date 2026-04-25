@@ -3,9 +3,8 @@
  * @description LLM-as-judge classifier that maps a piece of content to
  * one of the six {@link IngestContentKind} values.
  *
- * Same shape as the memory-router classifier — deliberately so the
- * multi-stage guardrails orchestrator can compose them with one mental
- * model.
+ * Same shape as the memory-router classifier, deliberately so Cognitive
+ * Pipeline can compose them with one mental model.
  *
  * @module @framers/agentos/ingest-router/classifier
  */

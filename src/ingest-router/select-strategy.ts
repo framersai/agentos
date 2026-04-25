@@ -4,8 +4,8 @@
  * predicted content kind + routing table + budget policy.
  *
  * Stateless. Deterministic. No I/O. Same shape as
- * {@link selectBackend} in memory-router so the multi-stage guardrails
- * orchestrator can compose them uniformly.
+ * {@link selectBackend} in memory-router so Cognitive Pipeline can compose
+ * them uniformly.
  *
  * @module @framers/agentos/ingest-router/select-strategy
  */

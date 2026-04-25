@@ -65,7 +65,7 @@ const ingestRouter = new IngestRouter({ /* ... */ });
 const memoryRouter = new MemoryRouter({ /* ... */ });
 const readRouter = new ReadRouter({ /* ... */ });
 
-const guardrails = new CognitivePipeline({
+const pipeline = new CognitivePipeline({
   ingest: ingestRouterAsStage(ingestRouter),
   recall: memoryRouterAsStage(memoryRouter),
   read: readRouterAsStage(readRouter),
@@ -76,12 +76,12 @@ const guardrails = new CognitivePipeline({
 
 ```ts
 // Independent stages:
-await guardrails.ingest(newContent);                 // input stage
-const recalled = await guardrails.recall(query);     // recall stage
-const answer = await guardrails.read(query, recalled.traces);  // read stage
+await pipeline.ingest(newContent);                 // input stage
+const recalled = await pipeline.recall(query);     // recall stage
+const answer = await pipeline.read(query, recalled.traces);  // read stage
 
 // End-to-end recall + read:
-const result = await guardrails.recallAndRead(query);
+const result = await pipeline.recallAndRead(query);
 console.log(result.outcome);                          // final answer
 console.log(result.recallStage.backend);              // which memory backend ran
 console.log(result.readStage.strategy);               // which reader strategy ran
@@ -92,13 +92,13 @@ console.log(result.recallStage.memoryRouterDecision); // full decision telemetry
 
 ```ts
 // Recall + read only (ingest is handled elsewhere):
-const guardrails = new CognitivePipeline({
+const pipeline = new CognitivePipeline({
   recall: memoryRouterAsStage(memoryRouter),
   read: readRouterAsStage(readRouter),
 });
 
-await guardrails.recallAndRead(query);   // works
-await guardrails.ingest(content);        // throws MissingStageError
+await pipeline.recallAndRead(query);   // works
+await pipeline.ingest(content);        // throws MissingStageError
 ```
 
 ### Custom stage implementations
@@ -117,7 +117,7 @@ const customIngest: IngestStage = {
   },
 };
 
-const guardrails = new CognitivePipeline({
+const pipeline = new CognitivePipeline({
   ingest: customIngest,
   // ...
 });

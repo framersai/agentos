@@ -2,9 +2,9 @@
  * AgentOS IngestRouter Module
  *
  * Input-stage LLM-as-judge orchestrator for memory ingest. Sibling of
- * {@link MemoryRouter} (recall-stage), {@link QueryRouter} (Q&A-stage),
- * and the output-stage guardrails. Together they form the agentos
- * multi-stage guardrails pattern.
+ * {@link MemoryRouter} (recall-stage) and {@link QueryRouter} (Q&A-stage).
+ * IngestRouter is the first stage in the agentos Cognitive Pipeline
+ * pattern; output-stage guardrails remain a separate downstream concern.
  *
  * Where MemoryRouter picks the recall architecture for a query,
  * IngestRouter picks the storage architecture for incoming content. The
