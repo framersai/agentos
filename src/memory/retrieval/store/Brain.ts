@@ -990,7 +990,16 @@ export class Brain {
    * an unconsumed WAL file.
    */
   async close(): Promise<void> {
-    await this._adapter.close();
+    try {
+      await this._adapter.close();
+    } catch (err) {
+      // Adapter close failures (pool drain timeouts, lock-release races on
+      // shutdown) shouldn't propagate to callers who are themselves shutting
+      // down and can't usefully react. Log to stderr so CI artifacts capture
+      // the failure context if it ever indicates a real problem.
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[Brain.close] adapter close failed: ${msg}\n`);
+    }
   }
 }
 
