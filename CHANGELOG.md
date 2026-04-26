@@ -1,3 +1,8 @@
+## <small>0.5.2 (2026-04-26)</small>
+
+* Merge remote-tracking branch 'origin/master' ([297ec9e](https://github.com/framersai/agentos/commit/297ec9e))
+* fix(memory/typed-network): tolerant observer parsing for gpt-5-mini extraction ([7ee0ff5](https://github.com/framersai/agentos/commit/7ee0ff5))
+
 ## <small>0.5.1 (2026-04-26)</small>
 
 * feat(memory): re-export typed-network primitives from memory barrel ([f597978](https://github.com/framersai/agentos/commit/f597978))
