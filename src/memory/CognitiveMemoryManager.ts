@@ -16,6 +16,7 @@ import type {
   MemoryTrace,
   MemoryType,
   MemoryScope,
+  ScoredMemoryTrace,
   CognitiveRetrievalOptions,
   CognitiveRetrievalResult,
   AssembledMemoryContext,
