@@ -86,7 +86,7 @@ describe('TypedNetworkObserver', () => {
     expect(facts).toEqual([]);
   });
 
-  it('drops fact with bank label that does not coerce to W/E/O/S', async () => {
+  it('drops fact with bank label that does not coerce to WORLD/EXPERIENCE/OPINION/OBSERVATION', async () => {
     const llm = mockLLM(JSON.stringify({
       facts: [{
         text: 'foo',

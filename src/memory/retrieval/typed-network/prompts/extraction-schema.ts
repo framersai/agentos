@@ -25,9 +25,10 @@
  *   The model frequently emits the fact without these keys when no
  *   participants/entities/markers apply.
  *
- * Per-fact failures (text below minimum length, bank not in W/E/O/S
- * after uppercase coercion, confidence outside [0, 1]) still cause the
- * INDIVIDUAL fact to drop. The {@link TypedNetworkObserver} validates
+ * Per-fact failures (text below minimum length, bank not in
+ * WORLD/EXPERIENCE/OPINION/OBSERVATION after uppercase coercion,
+ * confidence outside [0, 1]) still cause the INDIVIDUAL fact to drop.
+ * The {@link TypedNetworkObserver} validates
  * facts one by one (`safeParse` per fact) and keeps the valid ones.
  *
  * @module @framers/agentos/memory/retrieval/typed-network/prompts/extraction-schema
