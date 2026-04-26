@@ -436,7 +436,7 @@ export class Brain {
    * In Postgres mode (multi-tenant), this is required and must be unique
    * per brain across the database.
    */
-  private readonly _brainId: string;
+  readonly #brainId: string;
 
   // ---------------------------------------------------------------------------
   // Constructor (private — use Brain.open())
@@ -452,7 +452,7 @@ export class Brain {
   private constructor(adapter: StorageAdapter, features: StorageFeatures, brainId: string) {
     this._adapter = adapter;
     this._features = features;
-    this._brainId = brainId;
+    this.#brainId = brainId;
   }
 
   /**
@@ -461,7 +461,7 @@ export class Brain {
    * to inject `brain_id` into their own SQL.
    */
   get brainId(): string {
-    return this._brainId;
+    return this.#brainId;
   }
 
   // ---------------------------------------------------------------------------
@@ -732,11 +732,11 @@ export class Brain {
     // leaves the connection in an implicit-commit state.
     await this._adapter.run(
       dialect.insertOrIgnore('brain_meta', ['brain_id', 'key', 'value'], ['?', '?', '?']),
-      [this._brainId, 'schema_version', String(LATEST_SCHEMA_VERSION)],
+      [this.#brainId, 'schema_version', String(LATEST_SCHEMA_VERSION)],
     );
     await this._adapter.run(
       dialect.insertOrIgnore('brain_meta', ['brain_id', 'key', 'value'], ['?', '?', '?']),
-      [this._brainId, 'created_at', Date.now().toString()],
+      [this.#brainId, 'created_at', Date.now().toString()],
     );
   }
 
@@ -753,7 +753,7 @@ export class Brain {
   async getMeta(key: string): Promise<string | undefined> {
     const row = await this._adapter.get<{ value: string }>(
       'SELECT value FROM brain_meta WHERE brain_id = ? AND key = ?',
-      [this._brainId, key],
+      [this.#brainId, key],
     );
 
     return row?.value;
@@ -776,7 +776,7 @@ export class Brain {
         ['?', '?', '?'],
         'brain_id, key',
       ),
-      [this._brainId, key, value],
+      [this.#brainId, key, value],
     );
   }
 
@@ -842,18 +842,18 @@ export class Brain {
     // Open a fresh SQLite Brain at the target path. We import under the
     // source brainId so the export file is identifiable as belonging to
     // this brain even if the receiving Brain has a different id.
-    const target = await Brain.openSqlite(targetPath, { brainId: this._brainId });
+    const target = await Brain.openSqlite(targetPath, { brainId: this.#brainId });
     try {
       for (const table of PORTABLE_TABLES) {
         const rows = await this.all<Record<string, unknown>>(
           `SELECT * FROM ${table} WHERE brain_id = ?`,
-          [this._brainId],
+          [this.#brainId],
         );
         if (rows.length === 0) continue;
 
         // Upsert so source rows override the brain_meta defaults
         // (schema_version, created_at) seeded during target initialisation.
-        await this._bulkCopy(target, table, rows, this._brainId, { upsert: true });
+        await this._bulkCopy(target, table, rows, this.#brainId, { upsert: true });
       }
     } finally {
       await target.close();
@@ -925,7 +925,7 @@ export class Brain {
         for (const table of [...PORTABLE_TABLES].reverse()) {
           await this.run(
             `DELETE FROM ${table} WHERE brain_id = ?`,
-            [this._brainId],
+            [this.#brainId],
           );
         }
       }
@@ -942,7 +942,7 @@ export class Brain {
         // Always use upsert to gracefully handle the brain_meta rows seeded
         // by `_seedMeta` during the receiving Brain's initialization (which
         // would otherwise collide with the source's schema_version/created_at).
-        await this._bulkCopy(this, table, rows, this._brainId, { upsert: true });
+        await this._bulkCopy(this, table, rows, this.#brainId, { upsert: true });
       }
     } finally {
       await source.close();
