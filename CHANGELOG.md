@@ -1,3 +1,8 @@
+## <small>0.5.1 (2026-04-26)</small>
+
+* feat(memory): re-export typed-network primitives from memory barrel ([f597978](https://github.com/framersai/agentos/commit/f597978))
+* fix(structured-output): address coderabbit findings on session.send overload ([198b0a0](https://github.com/framersai/agentos/commit/198b0a0)), closes [hi#relevance](https://github.com/hi/issues/relevance)
+
 ## 0.5.0 (2026-04-26)
 
 * fix(memory): Stage E coderabbit C1+C2 - gate extractAtEncode + delegate retrieve to TypedNetworkRetr ([01ea591](https://github.com/framersai/agentos/commit/01ea591))
