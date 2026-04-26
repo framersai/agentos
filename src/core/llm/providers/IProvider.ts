@@ -133,8 +133,30 @@ export interface ModelCompletionOptions {
   tools?: Array<Record<string, unknown>>;
   /** Controls how the model uses tools. */
   toolChoice?: string | Record<string, unknown>;
-  /** Specifies the format of the response, e.g. for JSON mode. */
-  responseFormat?: { type: 'text' | 'json_object' | string };
+  /**
+   * Response-format constraint for the provider call. Shape is
+   * provider-specific; the adapter at
+   * `src/core/llm/providers/structuredOutputFormat.ts` builds the right
+   * shape per provider given a Zod schema.
+   *
+   * Examples:
+   *   - OpenAI bare JSON mode:
+   *       `{ type: 'json_object' }`
+   *   - OpenAI strict JSON Schema mode:
+   *       `{ type: 'json_schema',
+   *          json_schema: { name, strict: true, schema } }`
+   *   - Anthropic forced tool-use marker (routed to tool_choice
+   *     internally by AnthropicProvider):
+   *       `{ _agentosUseToolForStructuredOutput: true,
+   *          tool: { name, input_schema } }`
+   *   - Gemini responseSchema (routed to generationConfig
+   *     internally by GeminiProvider):
+   *       `{ type: 'json_object', _gemini: { responseSchema } }`
+   */
+  responseFormat?:
+    | { type: 'text' | 'json_object' }
+    | { type: 'json_schema'; json_schema: { name: string; strict: boolean; schema: Record<string, unknown> } }
+    | Record<string, unknown>;
 }
 
 /**
