@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 
 const hoisted = vi.hoisted(() => ({
   generateText: vi.fn(),
@@ -226,5 +227,156 @@ describe('agent', () => {
     await assistant.generate('Hello.');
     const callArgs = hoisted.generateText.mock.calls.at(-1)?.[0];
     expect(callArgs?.maxTokens).toBeUndefined();
+  });
+});
+
+describe('agent session.send: structured output (responseSchema)', () => {
+  beforeEach(() => {
+    hoisted.generateText.mockReset();
+    hoisted.streamText.mockReset();
+    hoisted.getRecordedAgentOSUsage.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const Decision = z.object({
+    verdict: z.enum(['yes', 'no']),
+    confidence: z.number().min(0).max(1),
+  });
+
+  it('returns plain GenerateTextResult when responseSchema is omitted (regression guard)', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: 'plain reply',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    const session = assistant.session('demo');
+    const r = await session.send('hi');
+    expect(r.text).toBe('plain reply');
+    expect('object' in r).toBe(false);
+  });
+
+  it('returns typed object alongside text when responseSchema is set', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: '{"verdict":"yes","confidence":0.92}',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    const session = assistant.session('demo');
+    const r = await session.send('decide', { responseSchema: Decision });
+    expect(r.object).toEqual({ verdict: 'yes', confidence: 0.92 });
+    expect(r.text).toBe('{"verdict":"yes","confidence":0.92}');
+  });
+
+  it('forwards _responseFormat to generateText when responseSchema is set (openai → json_schema)', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: '{"verdict":"yes","confidence":0.5}',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    await assistant.session('demo').send('decide', {
+      responseSchema: Decision,
+      schemaName: 'Decision',
+    });
+    const callArgs = hoisted.generateText.mock.calls.at(-1)?.[0];
+    expect(callArgs?._responseFormat).toMatchObject({
+      type: 'json_schema',
+      json_schema: { name: 'Decision', strict: true },
+    });
+  });
+
+  it('strips caller-provided tools when responseSchema is set and warns once', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: '{"verdict":"no","confidence":0.1}',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fakeTool = {
+      stub: {
+        description: 'stub',
+        inputSchema: { type: 'object' as const, properties: {} },
+        execute: async () => ({ success: true, output: {} }),
+      },
+    };
+    const assistant = agent({ model: 'openai:gpt-4.1-mini', tools: fakeTool as any });
+    await assistant.session('demo').send('decide', { responseSchema: Decision });
+    const callArgs = hoisted.generateText.mock.calls.at(-1)?.[0];
+    expect(callArgs?.tools).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('tools are ignored when responseSchema is set'),
+    );
+  });
+
+  it('throws ObjectGenerationError when provider returns non-JSON text', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: 'not json at all',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    await expect(
+      assistant.session('demo').send('decide', { responseSchema: Decision }),
+    ).rejects.toThrow(/not valid JSON/);
+  });
+
+  it('throws ObjectGenerationError when JSON fails Zod validation', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: '{"verdict":"maybe","confidence":2}',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    await expect(
+      assistant.session('demo').send('decide', { responseSchema: Decision }),
+    ).rejects.toThrow(/Zod validation/);
+  });
+
+  it('preserves session memory across schema-aware sends', async () => {
+    hoisted.generateText.mockResolvedValue({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: '{"verdict":"yes","confidence":0.8}',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    const session = assistant.session('demo');
+    await session.send('first', { responseSchema: Decision });
+    await session.send('second', { responseSchema: Decision });
+    expect(hoisted.generateText).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        messages: [
+          { role: 'user', content: 'first' },
+          { role: 'assistant', content: '{"verdict":"yes","confidence":0.8}' },
+          { role: 'user', content: 'second' },
+        ],
+      }),
+    );
   });
 });
