@@ -292,6 +292,12 @@ const V2_TABLES: TableSpec[] = [
     primaryKey: ['brain_id', 'trace_id'],
     // Migration: copy existing agent_id column into brain_id (legacy archive
     // already discriminated by agent_id, which is semantically the same).
+    //
+    // CAVEAT: if the caller passes an explicit brainId override that differs
+    // from the original agent_id, archived_traces row brain_ids stay at the
+    // original agent_id values (not the override). Live tables receive the
+    // override; only archived_traces inherits agent_id. To rebrand archives,
+    // run a separate UPDATE statement after migration.
     brainIdSourceColumn: 'agent_id',
     indexes: [
       `CREATE INDEX IF NOT EXISTS idx_archived_traces_brain_time
