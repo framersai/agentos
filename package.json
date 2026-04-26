@@ -93,6 +93,11 @@
       "default": "./dist/memory/index.js",
       "types": "./dist/memory/index.d.ts"
     },
+    "./memory/retrieval/typed-network": {
+      "import": "./dist/memory/retrieval/typed-network/index.js",
+      "default": "./dist/memory/retrieval/typed-network/index.js",
+      "types": "./dist/memory/retrieval/typed-network/index.d.ts"
+    },
     "./speech": {
       "import": "./dist/speech/index.js",
       "default": "./dist/speech/index.js",
