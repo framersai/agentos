@@ -30,8 +30,13 @@ async function cleanup(brain: Brain): Promise<void> {
   for (const table of [...PORTABLE_TABLES].reverse()) {
     try {
       await brain.run(`DELETE FROM ${table} WHERE brain_id = ?`, [brain.brainId]);
-    } catch {
-      // Table may not exist on first run; ignore.
+    } catch (err) {
+      // Table may not exist on first run; log non-trivial failures so CI
+      // artifacts capture context if cleanup fails for an unexpected reason.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/does not exist|no such table/i.test(msg)) {
+        process.stderr.write(`[Brain.postgres.test cleanup] ${table}: ${msg}\n`);
+      }
     }
   }
 }
@@ -44,13 +49,15 @@ describeIfPostgres('Brain.openPostgres', () => {
       const brain = openedBrains.pop()!;
       try {
         await cleanup(brain);
-      } catch {
-        // Best-effort.
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[Brain.postgres.test afterEach.cleanup] ${msg}\n`);
       }
       try {
         await brain.close();
-      } catch {
-        // Best-effort.
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[Brain.postgres.test afterEach.close] ${msg}\n`);
       }
     }
   });
