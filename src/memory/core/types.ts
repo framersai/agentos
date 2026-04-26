@@ -303,13 +303,24 @@ export interface CognitiveRetrievalResult {
       final: string[];
     };
     /**
-     * Stage E: optional Hindsight typed-network output. When the manager is
-     * configured with `typedNetwork` and the variant supports retrieval-side
-     * activation (`'full'`), spreading activation across the typed graph
-     * produces 0+ activated facts; the top-K are surfaced here for downstream
-     * prompt assembly. Absent when typed-network is not configured.
+     * Stage E: optional Hindsight typed-network output as canonical-shaped
+     * scored traces. When the manager is configured with `typedNetwork` and
+     * the variant supports retrieval-side activation (`'full'`), the manager
+     * delegates to a `TypedNetworkRetriever` which performs seed-finding
+     * (proper-noun + quoted-string entity extraction, case-insensitive
+     * intersection), spreading activation, and top-K ranking. Top-K results
+     * are surfaced as `ScoredMemoryTrace[]` for drop-in compatibility with
+     * the canonical retrieval pipeline (bank-prefixed content, namespaced
+     * IDs `typed-network:<factId>`, sourceType `'typed_network'`).
+     *
+     * Absent when typed-network is not configured. Empty when the retriever
+     * found no seed matches in the typed-network store.
+     *
+     * Phase 4.3 MVP: surfaced in diagnostics but NOT merged into the primary
+     * `retrieved` ranking. Phase 4.4 fusion lands when consumers wire the
+     * merged ranking. See `2026-04-26-hindsight-4network-observer-design.md`.
      */
-    retrievedTypedFacts?: import('../retrieval/typed-network/index.js').TypedFact[];
+    retrievedTypedTraces?: ScoredMemoryTrace[];
   };
 }
 

@@ -213,7 +213,7 @@ describeIfPostgres('Brain.openPostgres', () => {
       [failingBrainId, 'schema_version', '1'],
     );
 
-    const { MigrationRunner } = await import('../../migrations/index.js');
+    const { MigrationRunner } = await import('../migrations/index.js');
     const { createStorageFeatures } = await import('@framers/sql-storage-adapter');
     const features = createStorageFeatures(seedBrain.adapter);
     const failingMigration = {

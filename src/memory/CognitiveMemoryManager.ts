@@ -61,6 +61,7 @@ import {
   TypedNetworkStore,
   TypedNetworkObserver,
   TypedSpreadingActivation,
+  TypedNetworkRetriever,
 } from './retrieval/typed-network/index.js';
 
 // Batch 3: Infinite Context
@@ -299,8 +300,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
   private typedNetworkStore: TypedNetworkStore | null = null;
   private typedNetworkObserver: TypedNetworkObserver | null = null;
   private typedSpreadingActivation: TypedSpreadingActivation | null = null;
+  private typedNetworkRetriever: TypedNetworkRetriever | null = null;
   private typedNetworkVariant: 'minimal' | 'full' | null = null;
-  private typedNetworkWeight = 0.5;
+  private typedNetworkExtractAtEncode = false;
 
   async initialize(config: CognitiveMemoryConfig): Promise<void> {
     this.config = config;
@@ -468,9 +470,23 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     }
 
     // --- Stage E: Hindsight 4-network typed observer (optional) ---
+    // The observer needs an LLM invoker to do extraction; if config
+    // declares typedNetwork without observerLLM, fail fast with a
+    // descriptive error rather than constructing TypedNetworkObserver
+    // with an undefined LLM (which would throw deep inside extraction
+    // at first encode() call). Mirrors the `config.observer?.llmInvoker`
+    // gating used by the legacy observer above.
     if (config.typedNetwork) {
+      if (!config.typedNetwork.observerLLM) {
+        throw new Error(
+          'CognitiveMemoryManager: config.typedNetwork is present but ' +
+          'config.typedNetwork.observerLLM is missing. The Stage E ' +
+          'typed-network observer requires an LLM invoker. Either supply ' +
+          'observerLLM or omit config.typedNetwork to disable the feature.',
+        );
+      }
       this.typedNetworkVariant = config.typedNetwork.variant;
-      this.typedNetworkWeight = config.typedNetwork.weight ?? 0.5;
+      this.typedNetworkExtractAtEncode = config.typedNetwork.extractAtEncode ?? false;
       this.typedNetworkStore = new TypedNetworkStore();
       this.typedNetworkObserver = new TypedNetworkObserver({
         llm: config.typedNetwork.observerLLM,
@@ -480,6 +496,16 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       if (config.typedNetwork.variant === 'full') {
         this.typedSpreadingActivation = new TypedSpreadingActivation({
           decay: config.typedNetwork.decay ?? 0.5,
+        });
+        // Single retriever instance owned by the manager. Used by retrieve()
+        // for both seed-finding and spreading activation. The retriever's
+        // internal logic is the single source of truth (case-insensitive
+        // entity match, quoted-string extraction, store.iterateFacts walk),
+        // so retrieve() calls into it instead of duplicating helpers.
+        this.typedNetworkRetriever = new TypedNetworkRetriever({
+          store: this.typedNetworkStore,
+          spreading: this.typedSpreadingActivation,
+          maxDepth: config.typedNetwork.maxDepth ?? 3,
         });
       }
     }
@@ -599,13 +625,23 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       });
     }
 
-    // --- Stage E: typed-network extraction (optional) ---
+    // --- Stage E: typed-network extraction (optional, OFF by default) ---
+    // Gated on `config.typedNetwork.extractAtEncode` (default false). When
+    // false, the consumer is responsible for invoking
+    // `getTypedNetworkObserver()?.extract(...)` at the granularity that
+    // makes sense (typically session boundaries). This default prevents
+    // the bench-style double-extraction pattern: a bench that extracts
+    // per-session at LongMemEvalS would otherwise pay 2× the LLM cost.
+    //
     // Routes the encoded content through the LLM observer to produce 0+
-    // typed facts (W/E/O/S banks). Facts are namespaced by the parent
-    // trace ID so they can be cross-referenced at retrieval time. Best
-    // effort: extraction failures are logged via stderr but do not abort
-    // the encode (the trace is already persisted at this point).
-    if (this.typedNetworkObserver && this.typedNetworkStore) {
+    // typed facts (W/E/O/S banks) when enabled. Facts are namespaced by
+    // the parent trace ID. Best effort: extraction failures are logged
+    // to stderr but do not abort the encode (the trace is already persisted).
+    if (
+      this.typedNetworkExtractAtEncode &&
+      this.typedNetworkObserver &&
+      this.typedNetworkStore
+    ) {
       try {
         const facts = await this.typedNetworkObserver.extract(input, trace.id);
         for (const fact of facts) {
@@ -774,41 +810,40 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       };
     }
 
-    // --- Stage E: typed-network spreading activation (optional) ---
-    // When the typed-network module is configured with the 'full' variant,
-    // derive seed facts from entities mentioned in the query AND in the top
-    // scored memory traces, then run typed spreading activation across the
-    // 4-bank graph. Top-K activated facts are surfaced via
-    // `diagnostics.retrievedTypedFacts` for downstream prompt assembly.
+    // --- Stage E: typed-network retrieval (optional, 'full' variant only) ---
+    // Delegates to the manager-owned TypedNetworkRetriever for both seed-
+    // finding (proper-noun + quoted-string extraction, case-insensitive
+    // entity intersection) and spreading activation. Single source of
+    // truth: the standalone TypedNetworkRetriever defines the algorithm
+    // and the manager calls into it. This eliminates the prior divergence
+    // where the manager and the bench's standalone retriever used different
+    // entity-matching code paths.
     //
-    // NOTE: Phase 4.3 MVP does not yet fuse typed-network rankings into the
-    // composite trace score. That fusion (4-way RRF + weighted merge) lands
-    // in a follow-up iteration once Phase 4.4 wires the bench reader to
-    // consume typed facts directly. See spec §4.2 for the full design.
-    let retrievedTypedFacts: import('./retrieval/typed-network/index.js').TypedFact[] | undefined;
-    if (this.typedNetworkStore && this.typedSpreadingActivation) {
+    // Result is surfaced as ScoredMemoryTrace[] (drop-in compatible with
+    // the canonical retrieval pipeline; bank-prefixed content + namespaced
+    // IDs `typed-network:<factId>`) on `diagnostics.retrievedTypedTraces`.
+    //
+    // NOTE: Phase 4.3 MVP exposes the typed traces in diagnostics but
+    // does not merge them into the primary `retrieved` ranking. Phase 4.4
+    // fusion lands when the consumer is ready to consume merged output.
+    let retrievedTypedTraces: ScoredMemoryTrace[] | undefined;
+    if (this.typedNetworkRetriever) {
       try {
-        const seedEntities = this.collectStageESeedEntities(query, scored);
-        const seedFactIds = this.findTypedFactsByEntities(seedEntities);
-        if (seedFactIds.length > 0) {
-          const activated = this.typedSpreadingActivation.spread(
-            this.typedNetworkStore,
-            seedFactIds,
-            { maxDepth: this.config.typedNetwork?.maxDepth ?? 3 },
-          );
-          // Sort by activation level descending; surface top-10 facts.
-          const ranked = [...activated.entries()]
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 10)
-            .map(([factId]) => this.typedNetworkStore!.getFact(factId))
-            .filter((f): f is import('./retrieval/typed-network/index.js').TypedFact => Boolean(f));
-          retrievedTypedFacts = ranked;
-        } else {
-          retrievedTypedFacts = [];
-        }
+        // Use the scope from the first scored trace as the typed-fact scope.
+        // Falls back to ('user', agentId) when no traces scored (so the typed
+        // facts still get a reasonable scope tag).
+        const scopeRef = scored[0] ?? null;
+        const typedScope = scopeRef
+          ? { scope: scopeRef.scope, scopeId: scopeRef.scopeId }
+          : { scope: 'user' as const, scopeId: this.config.agentId };
+        retrievedTypedTraces = await this.typedNetworkRetriever.retrieve(query, {
+          topK: 10,
+          scope: typedScope,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`[CognitiveMemoryManager.retrieve typed-network spread failed] ${msg}\n`);
+        process.stderr.write(`[CognitiveMemoryManager.retrieve typed-network failed] ${msg}\n`);
+        retrievedTypedTraces = [];
       }
     }
 
@@ -834,57 +869,9 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         policyProfile: resolvedPolicy?.profile,
         confidence: resolvedPolicy ? confidence : undefined,
         escalations: resolvedPolicy ? [] : undefined,
-        retrievedTypedFacts,
+        retrievedTypedTraces,
       },
     };
-  }
-
-  /**
-   * Stage E helper: collect seed entities for typed-network spreading
-   * activation. Combines:
-   * - Entities mentioned in the top scored memory traces (high-relevance signal)
-   * - Naive proper-noun extraction from the query (capitalized whitespace tokens)
-   *
-   * Returns deduplicated entity strings. Empty when no signal is available;
-   * caller treats empty seed list as "no spreading activation to do".
-   */
-  private collectStageESeedEntities(
-    query: string,
-    scored: ScoredMemoryTrace[],
-  ): string[] {
-    const out = new Set<string>();
-    // From top 5 scored traces' entities
-    for (const trace of scored.slice(0, 5)) {
-      for (const e of trace.entities ?? []) out.add(e);
-    }
-    // Naive query-side extraction: capitalized whitespace-separated tokens
-    // longer than 1 char (filters articles like "I"). Production deployments
-    // can override via a richer entity extractor injected through config.
-    const tokens = query.match(/\b[A-Z][a-zA-Z]+\b/g) ?? [];
-    for (const t of tokens) out.add(t);
-    return [...out];
-  }
-
-  /**
-   * Stage E helper: find typed-fact IDs whose `entities` array contains
-   * any of the provided seed entities. Returns deduplicated fact IDs to
-   * use as spreading-activation seeds.
-   */
-  private findTypedFactsByEntities(seedEntities: string[]): string[] {
-    if (!this.typedNetworkStore || seedEntities.length === 0) return [];
-    const seedSet = new Set(seedEntities);
-    const factIds = new Set<string>();
-    // Iterate each bank's fact IDs; check entity overlap.
-    for (const bank of ['WORLD', 'EXPERIENCE', 'OPINION', 'OBSERVATION'] as const) {
-      for (const factId of this.typedNetworkStore.getBank(bank)) {
-        const fact = this.typedNetworkStore.getFact(factId);
-        if (!fact) continue;
-        if (fact.entities.some((e) => seedSet.has(e))) {
-          factIds.add(factId);
-        }
-      }
-    }
-    return [...factIds];
   }
 
   // =========================================================================

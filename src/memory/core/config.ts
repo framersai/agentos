@@ -357,9 +357,23 @@ export interface TypedNetworkRuntimeConfig {
   /** LLM adapter for the 6-step extraction call. */
   observerLLM: import('../retrieval/typed-network/index.js').ITypedExtractionLLM;
   /**
+   * Whether `encode()` invokes the typed-network observer per call.
+   *
+   * - `false` (default): manager NEVER calls the observer at encode. The consumer
+   *   is responsible for invoking `getTypedNetworkObserver()?.extract(...)` at
+   *   whatever granularity makes sense (typically session boundaries).
+   * - `true`: manager calls the observer on every `encode()` with the full input
+   *   text and writes facts into the store namespaced by the trace ID.
+   *
+   * Default is `false` to prevent the bench-style double-extraction pattern
+   * (manager extracts per-encode AND consumer extracts per-session). When in
+   * doubt, leave this `false` and let the consumer drive extraction explicitly.
+   */
+  extractAtEncode?: boolean;
+  /**
    * Weight applied to the typed-network ranking when merging into the
    * standard cognitive score. 0.0 ignores typed-network; 1.0 uses only
-   * typed-network. Default 0.5.
+   * typed-network. Default 0.5. RESERVED for Phase 4.4 fusion; currently unused.
    */
   weight?: number;
   /** Spreading-activation max depth. Default 3. */
