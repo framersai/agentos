@@ -466,6 +466,18 @@ export class Brain {
 
   // ---------------------------------------------------------------------------
   // Async factories (three named entry points)
+  //
+  // Naming convention:
+  //   - openSqlite / openPostgres: factory by-DIALECT. The caller specifies
+  //     "I want a SQLite-backed brain at this file" or "I want a Postgres-
+  //     backed brain at this URL." The adapter is constructed internally.
+  //   - openWithAdapter: factory by-PRE-BUILT-ADAPTER. The caller has already
+  //     built the StorageAdapter (e.g., to share a connection pool with
+  //     another subsystem) and hands it to Brain to consume.
+  //
+  // The naming asymmetry is intentional: the first two are dialect-specific
+  // entry points; the third is the escape hatch for advanced cases where the
+  // adapter is owned outside the Brain.
   // ---------------------------------------------------------------------------
 
   /**
