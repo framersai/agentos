@@ -499,10 +499,28 @@ async function migratePostgresTable(
   const escapedBrainId = brainId.replace(/'/g, "''");
 
   if (table.brainIdSourceColumn) {
-    // Add nullable, then UPDATE from source column, then SET NOT NULL.
-    await adapter.exec(`ALTER TABLE ${table.name} ADD COLUMN brain_id TEXT`);
-    await adapter.exec(`UPDATE ${table.name} SET brain_id = ${table.brainIdSourceColumn}`);
-    await adapter.exec(`ALTER TABLE ${table.name} ALTER COLUMN brain_id SET NOT NULL`);
+    // Defensive: an old archived_traces table might exist without the
+    // expected source column (e.g., schema drift from manual SQL or pre-
+    // archive-feature deployments). Mirror the SQLite path's column-existence
+    // check (see migrateSqliteTable) so a missing source column falls back
+    // to the supplied brainId default rather than crashing the migration.
+    const hasSourceColumn = await postgresHasColumn(
+      adapter,
+      table.name,
+      table.brainIdSourceColumn,
+    );
+    if (hasSourceColumn) {
+      await adapter.exec(`ALTER TABLE ${table.name} ADD COLUMN brain_id TEXT`);
+      await adapter.exec(`UPDATE ${table.name} SET brain_id = ${table.brainIdSourceColumn}`);
+      await adapter.exec(`ALTER TABLE ${table.name} ALTER COLUMN brain_id SET NOT NULL`);
+    } else {
+      // Source column missing: fall back to the supplied brainId default,
+      // same as the no-source-column path.
+      await adapter.exec(
+        `ALTER TABLE ${table.name} ADD COLUMN brain_id TEXT NOT NULL DEFAULT '${escapedBrainId}'`,
+      );
+      await adapter.exec(`ALTER TABLE ${table.name} ALTER COLUMN brain_id DROP DEFAULT`);
+    }
   } else {
     await adapter.exec(
       `ALTER TABLE ${table.name} ADD COLUMN brain_id TEXT NOT NULL DEFAULT '${escapedBrainId}'`,
