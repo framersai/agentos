@@ -1,3 +1,10 @@
+## <small>0.3.3 (2026-04-26)</small>
+
+* fix(memory): MigrationRunner._readSchemaVersion handles v1 schema (no brain_id column) ([794649a](https://github.com/framersai/agentos/commit/794649a))
+* fix(memory): redact passwords in keyword-form Postgres connection strings ([f4bc827](https://github.com/framersai/agentos/commit/f4bc827))
+* fix(memory): use adapter.transaction in _bulkCopy to fix Postgres atomicity ([e72d7cf](https://github.com/framersai/agentos/commit/e72d7cf))
+* fix(memory/typed-network): broaden stripCodeFence regex to any alphabetic language tag ([f7ecef3](https://github.com/framersai/agentos/commit/f7ecef3))
+
 ## <small>0.3.2 (2026-04-26)</small>
 
 * feat(memory/typed-network): Phase 1 primitives (types + store + temporal overlap) ([ebdf565](https://github.com/framersai/agentos/commit/ebdf565))
