@@ -54,3 +54,11 @@ export {
   type FourWayRrfInput,
   type FourWayRrfOptions,
 } from './FourWayRrf.js';
+
+export {
+  TypedNetworkRetriever,
+  extractQueryEntities,
+  typedFactToScoredTrace,
+  type TypedNetworkRetrieverOptions,
+  type TypedNetworkRetrieveOptions,
+} from './TypedNetworkRetriever.js';
