@@ -871,6 +871,11 @@ export class Brain {
    * file. This means importing an `alice` snapshot into a Brain opened
    * with `brainId: 'alice-fork'` produces a fork with no shared identity.
    *
+   * **CAVEAT:** importing from a pre-0.3.0 SQLite file MUTATES the source
+   * file. Opening the source via `Brain.openSqlite` runs the v1 to v2
+   * migration in place. To preserve the source unchanged, copy the file to
+   * a temp path before calling this method.
+   *
    * @param sourcePath - Source SQLite file path (typically produced by
    *   `Brain.exportToSqlite`).
    * @param opts.strategy - `'merge'` (default) upserts on PK collision;
