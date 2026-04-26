@@ -1,3 +1,26 @@
+## <small>0.3.1 (2026-04-26)</small>
+
+* docs: add 0.3.1 hardening pass changelog entry ([6d72d2f](https://github.com/framersai/agentos/commit/6d72d2f))
+* docs(memory): document archived_traces brain_id source caveat ([9efe4aa](https://github.com/framersai/agentos/commit/9efe4aa))
+* docs(memory): document pool contention semantics for shared adapter brains ([8fd929f](https://github.com/framersai/agentos/commit/8fd929f))
+* docs(memory): explain Brain factory naming asymmetry ([fd3f3d3](https://github.com/framersai/agentos/commit/fd3f3d3))
+* docs(memory): note importFromSqlite mutates the source file in-place ([16c6b2b](https://github.com/framersai/agentos/commit/16c6b2b))
+* test(memory): add cross-dialect round-trip test (sqlite->postgres->sqlite) ([3f6e2e0](https://github.com/framersai/agentos/commit/3f6e2e0))
+* test(memory): add Postgres tests for concurrent open + FK + rollback ([3e9001d](https://github.com/framersai/agentos/commit/3e9001d))
+* test(memory): log Postgres test cleanup errors instead of swallowing ([e71ce1d](https://github.com/framersai/agentos/commit/e71ce1d))
+* fix(memory): guard agent_id column existence in Postgres v1->v2 migration ([ca31c3d](https://github.com/framersai/agentos/commit/ca31c3d))
+* fix(memory): make Brain.close best-effort with logged failures ([09e4125](https://github.com/framersai/agentos/commit/09e4125))
+* fix(memory): redact password in Brain.openPostgres connection errors ([75d00c3](https://github.com/framersai/agentos/commit/75d00c3))
+* fix(memory): reject multi-brain source in Brain.importFromSqlite ([9e51f3d](https://github.com/framersai/agentos/commit/9e51f3d))
+* refactor(memory): assert V2_TABLES order matches PORTABLE_TABLES ([d9adf1a](https://github.com/framersai/agentos/commit/d9adf1a))
+* refactor(memory): hoist PORTABLE_TABLES to shared module ([6b058a3](https://github.com/framersai/agentos/commit/6b058a3))
+* refactor(memory): use ECMAScript private field syntax for #brainId ([611d04a](https://github.com/framersai/agentos/commit/611d04a)), closes [#brainId](https://github.com/framersai/agentos/issues/brainId)
+* refactor(memory): use shared PORTABLE_TABLES in Brain.postgres test ([b7a3ae9](https://github.com/framersai/agentos/commit/b7a3ae9))
+* feat(memory): add MigrationRunner with transaction + lock + version-bump ([f309028](https://github.com/framersai/agentos/commit/f309028))
+* feat(memory): add migrations/index.ts registry ([5963d1c](https://github.com/framersai/agentos/commit/5963d1c))
+* feat(memory): export v1ToV2 as Migration object alongside legacy function ([3e06300](https://github.com/framersai/agentos/commit/3e06300))
+* feat(memory): wire Brain._initialize to MigrationRunner ([76cd58a](https://github.com/framersai/agentos/commit/76cd58a))
+
 ## 0.3.1 (2026-04-25)
 
 Hardening pass for the Brain storage abstraction shipped in 0.3.0. Closes 16 correctness, maintainability, and polish gaps from the post-0.3.0 code review.
