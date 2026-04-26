@@ -8,6 +8,7 @@
  * are not actively enforced in this lightweight layer — use the full AgentOS
  * runtime (`AgentOSOrchestrator`) or `agency()` for guardrail enforcement.
  */
+import type { ZodType, z } from 'zod';
 import {
   generateText,
   extractTextFromContent,
@@ -20,6 +21,8 @@ import {
   type MessageContent,
   type ToolCallHookInfo,
 } from './generateText.js';
+import { buildResponseFormat } from '../core/llm/providers/structuredOutputFormat.js';
+import { ObjectGenerationError } from './generateObject.js';
 import { streamText, type StreamTextResult } from './streamText.js';
 import type { HostLLMPolicy } from './runtime/hostPolicy.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
@@ -193,6 +196,40 @@ export interface AgentOptions extends BaseAgentConfig {
 }
 
 /**
+ * Options for a single {@link AgentSession.send} call.
+ */
+export interface SessionSendOptions<S extends ZodType | undefined = undefined> {
+  /**
+   * Zod schema describing the expected shape of the assistant reply. When
+   * present, agentos converts the schema to JSON Schema, routes through
+   * the provider's native structured-output API (OpenAI json_schema,
+   * Anthropic forced tool-use, Gemini responseSchema), and returns a
+   * Zod-validated typed object on `result.object` alongside the JSON
+   * string in `result.text`.
+   *
+   * Tools (caller-provided in baseOpts.tools) are still passed through;
+   * the structured-output mode adds its own forced tool on Anthropic
+   * but the existing tool definitions remain in the payload.
+   */
+  responseSchema?: S;
+  /**
+   * Display name for the schema in provider payloads. Surfaces in OpenAI's
+   * json_schema.name and Anthropic's tool name. Defaults to 'response'.
+   * Sanitized to /[a-zA-Z0-9_]/ and truncated to 64 chars.
+   */
+  schemaName?: string;
+}
+
+/**
+ * Result returned by {@link AgentSession.send} when `responseSchema` is set.
+ * Extends {@link GenerateTextResult} with a typed Zod-validated `object`.
+ */
+export interface SessionSendStructuredResult<T> extends GenerateTextResult {
+  /** Zod-validated typed object. */
+  object: T;
+}
+
+/**
  * A named conversation session returned by `Agent.session()`.
  * Maintains its own message history independently of other sessions on the same agent.
  */
@@ -208,6 +245,26 @@ export interface AgentSession {
    * @returns The full generation result including text, usage, and tool calls.
    */
   send(input: MessageContent): Promise<GenerateTextResult>;
+  /**
+   * Sends a user message with a Zod schema enforced server-side via the
+   * provider's native structured-output API. The reply is parsed and
+   * validated; the typed object is returned on `result.object` alongside
+   * the JSON string in `result.text`. Session history is appended just
+   * as in the text-only path, so subsequent `send` calls see the
+   * structured response in their conversation context.
+   *
+   * @throws {ObjectGenerationError} If the provider returns
+   *         schema-enforced JSON that nonetheless fails Zod validation
+   *         (real provider bug; not retried).
+   *
+   * @param input - User message as text string or MessageContent array.
+   * @param opts - Must include `responseSchema`.
+   * @returns Result with a typed `object: z.infer<S>` field.
+   */
+  send<S extends ZodType>(
+    input: MessageContent,
+    opts: SessionSendOptions<S> & { responseSchema: S },
+  ): Promise<SessionSendStructuredResult<z.infer<S>>>;
   /**
    * Streams a user message and returns streaming iterables.
    * The assistant reply is appended to session history once the `text` promise resolves.
@@ -274,6 +331,23 @@ export interface Agent {
   getAvatarBindings(): import('./types').AvatarBindingInputs & Record<string, unknown>;
   /** Inject game-specific binding overrides (healthBand, combatMode, etc.). */
   setAvatarBindingOverrides(overrides: Record<string, unknown>): void;
+}
+
+/**
+ * Resolve the provider id from agentos baseOpts for structured-output
+ * adapter routing. Reads `opts.provider` first, then parses the
+ * `'<provider>:<model>'` form from `opts.model`. Falls back to 'openai'
+ * to match the legacy default elsewhere in agentos.
+ *
+ * Used only by {@link AgentSession.send} when a `responseSchema` is set,
+ * to pick the right native structured-output payload shape per provider.
+ */
+function resolveProviderForStructuredOutput(opts: Partial<GenerateTextOptions>): string {
+  if (opts.provider) return opts.provider;
+  if (typeof opts.model === 'string' && opts.model.includes(':')) {
+    return opts.model.split(':', 1)[0]!;
+  }
+  return 'openai';
 }
 
 function mergeUsageLedgerOptions(
@@ -498,12 +572,31 @@ export function agent(opts: AgentOptions): Agent {
       return {
         id: sessionId,
 
-        async send(input: MessageContent): Promise<GenerateTextResult> {
+        async send(
+          input: MessageContent,
+          sendOpts?: SessionSendOptions<ZodType>,
+        ): Promise<GenerateTextResult> {
           const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
           const userMessage: Message = { role: 'user', content: input };
           const requestMessages = useMemory
             ? [...history, userMessage]
             : [userMessage];
+
+          // Schema-driven structured output: when responseSchema is set,
+          // route through the provider's native enforcement API. The
+          // adapter at structuredOutputFormat.ts maps the Zod schema to
+          // the per-provider payload shape; generateText passes it
+          // through to the provider via _responseFormat (see
+          // generateText.ts:931 for the plumbing).
+          let responseFormat: Record<string, unknown> | undefined;
+          if (sendOpts?.responseSchema) {
+            const providerId = resolveProviderForStructuredOutput(baseOpts);
+            responseFormat = buildResponseFormat({
+              provider: providerId,
+              schema: sendOpts.responseSchema,
+              schemaName: sendOpts.schemaName ?? 'response',
+            });
+          }
 
           const wrappedOpts = applyMemoryProvider(
             {
@@ -513,18 +606,52 @@ export function agent(opts: AgentOptions): Agent {
                 sessionId,
                 source: 'agent.session.send',
               }),
+              ...(responseFormat ? { _responseFormat: responseFormat } : {}),
             },
             opts.memoryProvider,
             textForMemory,
           );
 
           const result = await generateText(wrappedOpts as GenerateTextOptions);
+
+          // Validate + parse when a schema was supplied. Native enforcement
+          // guarantees a valid shape on every successful response, so a
+          // parse/validation failure here is a real provider bug rather
+          // than retry-worthy. Throw with the rawText + Zod error attached.
+          let object: unknown;
+          if (sendOpts?.responseSchema) {
+            try {
+              const parsed = JSON.parse(result.text);
+              const safe = sendOpts.responseSchema.safeParse(parsed);
+              if (!safe.success) {
+                throw new ObjectGenerationError(
+                  'session.send: provider-enforced JSON failed Zod validation',
+                  result.text,
+                  safe.error,
+                );
+              }
+              object = safe.data;
+            } catch (err) {
+              if (err instanceof ObjectGenerationError) throw err;
+              throw new ObjectGenerationError(
+                `session.send: provider response is not valid JSON despite enforcement (${err instanceof Error ? err.message : String(err)})`,
+                result.text,
+              );
+            }
+          }
+
           if (useMemory) {
             history.push(userMessage);
             history.push({ role: 'assistant', content: result.text });
           }
 
-          return result;
+          // Backwards-compat: when no schema, return plain GenerateTextResult.
+          // When schema, attach typed object. The overload signature on
+          // AgentSession.send narrows the return type for callers; runtime
+          // payload is identical apart from the extra .object field.
+          return object !== undefined
+            ? ({ ...result, object } as SessionSendStructuredResult<unknown>)
+            : result;
         },
 
         stream(input: MessageContent): StreamTextResult {

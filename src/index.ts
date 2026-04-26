@@ -226,6 +226,8 @@ export type {
   AgentSession,
   AgentOptions,
   AgentMemoryProvider,
+  SessionSendOptions,
+  SessionSendStructuredResult,
 } from './api/agent.js';
 export type {
   IModelRouter,
