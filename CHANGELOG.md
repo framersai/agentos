@@ -1,3 +1,9 @@
+## <small>0.3.2 (2026-04-26)</small>
+
+* feat(memory/typed-network): Phase 1 primitives (types + store + temporal overlap) ([ebdf565](https://github.com/framersai/agentos/commit/ebdf565))
+* feat(memory/typed-network): Phase 2 LLM observer (6-step extraction prompt + zod schema) ([ee8f463](https://github.com/framersai/agentos/commit/ee8f463))
+* feat(memory/typed-network): Phase 3 retrieval (spreading activation + 4-way RRF) ([d867849](https://github.com/framersai/agentos/commit/d867849))
+
 ## <small>0.3.1 (2026-04-26)</small>
 
 * docs: add 0.3.1 hardening pass changelog entry ([6d72d2f](https://github.com/framersai/agentos/commit/6d72d2f))
