@@ -79,13 +79,14 @@ describe('TypedNetworkObserver', () => {
     expect(facts[0].reasoningMarkers).toEqual(['Because', 'we use']);
   });
 
-  it('throws on missing required field (zod validation)', async () => {
+  it('drops fact with empty text (per-fact tolerance)', async () => {
     const llm = mockLLM('{"facts": [{"text": ""}]}');
     const obs = new TypedNetworkObserver({ llm });
-    await expect(obs.extract('blah', 'session-2')).rejects.toThrow();
+    const facts = await obs.extract('blah', 'session-2');
+    expect(facts).toEqual([]);
   });
 
-  it('throws on unknown bank label', async () => {
+  it('drops fact with bank label that does not coerce to W/E/O/S', async () => {
     const llm = mockLLM(JSON.stringify({
       facts: [{
         text: 'foo',
@@ -98,10 +99,11 @@ describe('TypedNetworkObserver', () => {
       }],
     }));
     const obs = new TypedNetworkObserver({ llm });
-    await expect(obs.extract('text', 's1')).rejects.toThrow();
+    const facts = await obs.extract('text', 's1');
+    expect(facts).toEqual([]);
   });
 
-  it('throws on confidence outside [0, 1]', async () => {
+  it('drops fact with confidence outside [0, 1]', async () => {
     const llm = mockLLM(JSON.stringify({
       facts: [{
         text: 'foo',
@@ -114,7 +116,155 @@ describe('TypedNetworkObserver', () => {
       }],
     }));
     const obs = new TypedNetworkObserver({ llm });
-    await expect(obs.extract('text', 's1')).rejects.toThrow();
+    const facts = await obs.extract('text', 's1');
+    expect(facts).toEqual([]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Tolerance fixes (Phase 4c smoke surfaced 240+ zod errors at gpt-5-mini)
+  // ---------------------------------------------------------------------------
+
+  it('auto-wraps top-level array as {facts: ...} when LLM omits the wrapping object', async () => {
+    // gpt-5-mini frequently returns a bare facts array instead of {facts: [...]}.
+    // The observer detects this shape and wraps it so the rest of the pipeline
+    // works unchanged.
+    const llm = mockLLM(JSON.stringify([{
+      text: 'Berlin is in Germany',
+      bank: 'WORLD',
+      temporal: { mention: '2026-04-26' },
+      participants: [],
+      reasoning_markers: [],
+      entities: ['Berlin', 'Germany'],
+      confidence: 1.0,
+    }]));
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('User: Where is Berlin?', 'session-aw');
+    expect(facts).toHaveLength(1);
+    expect(facts[0].bank).toBe('WORLD');
+    expect(facts[0].entities).toContain('Berlin');
+  });
+
+  it('drops invalid facts and keeps valid facts in the same response', async () => {
+    // Per-fact tolerance: one bad apple does not spoil the bunch. The
+    // shipped strict-mode parser threw on any single-fact failure, losing
+    // every other fact in the same extraction call.
+    const llm = mockLLM(JSON.stringify({
+      facts: [
+        {
+          text: 'Berlin is in Germany',
+          bank: 'WORLD',
+          temporal: { mention: '2026-04-26' },
+          participants: [],
+          reasoning_markers: [],
+          entities: ['Berlin'],
+          confidence: 1.0,
+        },
+        null,
+        'a string fact',
+        {
+          text: 'Munich is in Germany',
+          bank: 'WORLD',
+          temporal: { mention: '2026-04-26' },
+          participants: [],
+          reasoning_markers: [],
+          entities: ['Munich'],
+          confidence: 1.0,
+        },
+      ],
+    }));
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('blah', 'session-pft');
+    expect(facts).toHaveLength(2);
+    expect(facts.map((f) => f.text)).toEqual([
+      'Berlin is in Germany',
+      'Munich is in Germany',
+    ]);
+  });
+
+  it('defaults missing array fields (participants, reasoning_markers, entities) to []', async () => {
+    // gpt-5-mini frequently omits empty array fields entirely instead of
+    // emitting them as []. The schema accepts the missing fields and fills
+    // in [].
+    const llm = mockLLM(JSON.stringify({
+      facts: [{
+        text: 'Berlin is in Germany',
+        bank: 'WORLD',
+        temporal: { mention: '2026-04-26' },
+        confidence: 1.0,
+        // missing: participants, reasoning_markers, entities
+      }],
+    }));
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('blah', 'session-def');
+    expect(facts).toHaveLength(1);
+    expect(facts[0].participants).toEqual([]);
+    expect(facts[0].reasoningMarkers).toEqual([]);
+    expect(facts[0].entities).toEqual([]);
+  });
+
+  it('coerces lowercase bank to uppercase before validation', async () => {
+    // The 6-step prompt instructs UPPERCASE banks but the LLM sometimes
+    // emits lowercase. A single uppercase coercion at parse time recovers
+    // the fact instead of dropping it.
+    const llm = mockLLM(JSON.stringify({
+      facts: [{
+        text: 'Berlin is in Germany',
+        bank: 'world',
+        temporal: { mention: '2026-04-26' },
+        participants: [],
+        reasoning_markers: [],
+        entities: ['Berlin'],
+        confidence: 1.0,
+      }],
+    }));
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('blah', 'session-co');
+    expect(facts).toHaveLength(1);
+    expect(facts[0].bank).toBe('WORLD');
+  });
+
+  it('retries once when outer parse fails completely (spec section 6 retry path)', async () => {
+    // Spec §6: "malformed outputs are retried once with the validation
+    // error appended to the prompt." Originally specified, not implemented
+    // in shipping code. Only retries on catastrophic outer failure
+    // (invalid JSON, primitive value, missing facts key) — per-fact errors
+    // are handled silently via tolerance above.
+    let calls = 0;
+    const llm: ITypedExtractionLLM = {
+      invoke: async () => {
+        calls += 1;
+        if (calls === 1) return 'definitely not json';
+        return JSON.stringify({
+          facts: [{
+            text: 'Berlin is in Germany',
+            bank: 'WORLD',
+            temporal: { mention: '2026-04-26' },
+            participants: [],
+            reasoning_markers: [],
+            entities: ['Berlin'],
+            confidence: 1.0,
+          }],
+        });
+      },
+    };
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('blah', 'session-rt');
+    expect(calls).toBe(2);
+    expect(facts).toHaveLength(1);
+  });
+
+  it('returns [] when retry also fails (no infinite retry loop)', async () => {
+    let calls = 0;
+    const llm: ITypedExtractionLLM = {
+      invoke: async () => {
+        calls += 1;
+        return 'still not json';
+      },
+    };
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('blah', 'session-rt2');
+    expect(calls).toBe(2);
+    expect(facts).toEqual([]);
   });
 
   it('tolerates triple-backtick code fence around JSON', async () => {
