@@ -192,4 +192,82 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     // No store to inspect; verifying via absence of error + null state above.
     expect(manager.getTypedNetworkStore()).toBeNull();
   });
+
+  it('retrieve() surfaces activated typed facts via diagnostics.retrievedTypedFacts (full variant)', async () => {
+    // LLM produces 2 facts on encode; spreading-activation seed entities
+    // come from the query ("Berlin").
+    const extractingLLM: ITypedExtractionLLM = {
+      invoke: async () =>
+        JSON.stringify({
+          facts: [
+            {
+              text: 'Berlin is in Germany',
+              bank: 'WORLD',
+              temporal: { mention: '2026-04-25T12:00:00Z' },
+              participants: [],
+              reasoning_markers: [],
+              entities: ['Berlin', 'Germany'],
+              confidence: 1.0,
+            },
+            {
+              text: 'Germany is in Europe',
+              bank: 'WORLD',
+              temporal: { mention: '2026-04-25T12:00:00Z' },
+              participants: [],
+              reasoning_markers: [],
+              entities: ['Germany', 'Europe'],
+              confidence: 1.0,
+            },
+          ],
+        }),
+    };
+    await manager.initialize({
+      ...makeMinimalDeps(),
+      typedNetwork: { variant: 'full', observerLLM: extractingLLM },
+    });
+
+    await manager.encode(
+      'Berlin is in Germany. Germany is in Europe.',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+      'neutral',
+    );
+
+    // Query mentions Berlin (capitalized → naive entity extraction picks it up).
+    const result = await manager.retrieve(
+      'Tell me about Berlin',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+    );
+
+    // The Berlin fact should activate (seed match on 'Berlin' entity).
+    expect(result.diagnostics.retrievedTypedFacts).toBeDefined();
+    expect(result.diagnostics.retrievedTypedFacts!.length).toBeGreaterThan(0);
+    const berlinFact = result.diagnostics.retrievedTypedFacts!.find((f) =>
+      f.text.includes('Berlin'),
+    );
+    expect(berlinFact).toBeDefined();
+  });
+
+  it('retrieve() omits retrievedTypedFacts when typed-network not configured', async () => {
+    await manager.initialize(makeMinimalDeps());
+    const result = await manager.retrieve(
+      'Berlin',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+    );
+    expect(result.diagnostics.retrievedTypedFacts).toBeUndefined();
+  });
+
+  it('retrieve() returns empty retrievedTypedFacts when no seed entity matches', async () => {
+    await manager.initialize({
+      ...makeMinimalDeps(),
+      typedNetwork: { variant: 'full', observerLLM: stubLLM },
+    });
+    // No facts in store (stub LLM returns empty); query has no matching entities.
+    const result = await manager.retrieve(
+      'random unrelated query',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+    );
+    // Defined (typed-network ran) but empty (no seeds matched).
+    expect(result.diagnostics.retrievedTypedFacts).toBeDefined();
+    expect(result.diagnostics.retrievedTypedFacts).toEqual([]);
+  });
 });

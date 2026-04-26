@@ -302,6 +302,14 @@ export interface CognitiveRetrievalResult {
       final: string[];
     };
   };
+  /**
+   * Stage E: optional Hindsight typed-network output. When the manager is
+   * configured with `typedNetwork` and the variant supports retrieval-side
+   * activation (`'full'`), spreading activation across the typed graph
+   * produces 0+ activated facts; the top-K are surfaced here for downstream
+   * prompt assembly. Absent when typed-network is not configured.
+   */
+  retrievedTypedFacts?: import('../retrieval/typed-network/index.js').TypedFact[];
 }
 
 // ---------------------------------------------------------------------------
