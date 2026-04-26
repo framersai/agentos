@@ -569,13 +569,13 @@ export function agent(opts: AgentOptions): Agent {
       if (!sessions.has(sessionId)) sessions.set(sessionId, []);
       const history = sessions.get(sessionId)!;
 
-      return {
+      const session = {
         id: sessionId,
 
         async send(
           input: MessageContent,
           sendOpts?: SessionSendOptions<ZodType>,
-        ): Promise<GenerateTextResult> {
+        ): Promise<GenerateTextResult | SessionSendStructuredResult<unknown>> {
           const textForMemory = typeof input === 'string' ? input : extractTextFromContent(input);
           const userMessage: Message = { role: 'user', content: input };
           const requestMessages = useMemory
@@ -707,6 +707,11 @@ export function agent(opts: AgentOptions): Agent {
           history.length = 0;
         },
       };
+      // The send() implementation returns a union (GenerateTextResult |
+      // SessionSendStructuredResult<unknown>) to cover both interface
+      // overloads. Cast through unknown so TypeScript accepts the
+      // implementation as satisfying the overloaded interface.
+      return session as unknown as AgentSession;
     },
 
     async usage(sessionId?: string): Promise<AgentOSUsageAggregate> {

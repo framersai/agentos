@@ -332,10 +332,17 @@ export interface GenerateTextOptions {
    */
   onBeforeToolExecution?: (info: ToolCallHookInfo) => Promise<ToolCallHookInfo | null>;
   /**
-   * @internal Used by generateObject to forward response_format to the provider.
-   * Not part of the public API. Use generateObject for structured output.
+   * @internal Used by generateObject and AgentSession.send (with
+   * responseSchema) to forward a provider-specific response_format
+   * payload to the provider. Not part of the public API.
+   *
+   * Shape varies by provider: OpenAI accepts json_object or
+   * json_schema, Anthropic uses an internal _agentosUseToolForStructuredOutput
+   * marker that AnthropicProvider routes to forced tool_use, Gemini uses
+   * a _gemini.responseSchema extra. The provider implementations consume
+   * whatever shape is here.
    */
-  _responseFormat?: { type: string };
+  _responseFormat?: { type: string } | Record<string, unknown>;
 }
 
 /**
