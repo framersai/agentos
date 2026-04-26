@@ -176,6 +176,70 @@ describe('Brain.exportToSqlite + importFromSqlite', () => {
     await target.close();
   });
 
+  // Gated on AGENTOS_TEST_POSTGRES_URL: skipped without a Postgres instance.
+  const POSTGRES_URL = process.env.AGENTOS_TEST_POSTGRES_URL;
+  const itIfPostgres = POSTGRES_URL ? it : it.skip;
+
+  itIfPostgres('round-trips a brain through sqlite -> postgres -> sqlite', async () => {
+    const brainId = `roundtrip-${Date.now()}`;
+    const sqliteSourcePath = path.join(tmpDir, 'roundtrip-source.sqlite');
+    const sqliteFinalPath = path.join(tmpDir, 'roundtrip-final.sqlite');
+
+    // 1. Create a SQLite brain and populate with a few traces + a document.
+    const source = await Brain.openSqlite(sqliteSourcePath, { brainId });
+    await source.run(
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      [brainId, 'rt-trace-1', 'episodic', 'user', 'first trace', 1000],
+    );
+    await source.run(
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      [brainId, 'rt-trace-2', 'semantic', 'world', 'second trace', 2000],
+    );
+    await source.run(
+      `INSERT INTO documents (brain_id, id, path, format, content_hash, ingested_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      [brainId, 'rt-doc-1', '/test/doc.md', 'markdown', 'hash-abc', 3000],
+    );
+    await source.close();
+
+    // 2. Open a Postgres brain and import from SQLite.
+    const pgBrain = await Brain.openPostgres(POSTGRES_URL!, { brainId });
+    await pgBrain.importFromSqlite(sqliteSourcePath, { strategy: 'replace' });
+
+    // 3. Export the Postgres brain back to a fresh SQLite file.
+    await pgBrain.exportToSqlite(sqliteFinalPath);
+    await pgBrain.close();
+
+    // 4. Open the final SQLite file and verify all rows came through.
+    const final = await Brain.openSqlite(sqliteFinalPath, { brainId });
+
+    const traces = await final.all<{ id: string; content: string }>(
+      `SELECT id, content FROM memory_traces WHERE brain_id = ? ORDER BY id`,
+      [brainId],
+    );
+    expect(traces).toEqual([
+      { id: 'rt-trace-1', content: 'first trace' },
+      { id: 'rt-trace-2', content: 'second trace' },
+    ]);
+
+    const docs = await final.all<{ id: string; path: string }>(
+      `SELECT id, path FROM documents WHERE brain_id = ? ORDER BY id`,
+      [brainId],
+    );
+    expect(docs).toEqual([{ id: 'rt-doc-1', path: '/test/doc.md' }]);
+
+    await final.close();
+
+    // 5. Cleanup Postgres rows.
+    const cleanup = await Brain.openPostgres(POSTGRES_URL!, { brainId });
+    for (const table of ['memory_traces', 'documents', 'brain_meta']) {
+      await cleanup.run(`DELETE FROM ${table} WHERE brain_id = $1`, [brainId]);
+    }
+    await cleanup.close();
+  });
+
   it('importFromSqlite rejects a multi-brain source file', async () => {
     // Synthesize a multi-brain SQLite file by manually inserting brain_meta
     // rows for two distinct brain_ids.
