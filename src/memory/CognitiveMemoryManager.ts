@@ -773,6 +773,44 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       };
     }
 
+    // --- Stage E: typed-network spreading activation (optional) ---
+    // When the typed-network module is configured with the 'full' variant,
+    // derive seed facts from entities mentioned in the query AND in the top
+    // scored memory traces, then run typed spreading activation across the
+    // 4-bank graph. Top-K activated facts are surfaced via
+    // `diagnostics.retrievedTypedFacts` for downstream prompt assembly.
+    //
+    // NOTE: Phase 4.3 MVP does not yet fuse typed-network rankings into the
+    // composite trace score. That fusion (4-way RRF + weighted merge) lands
+    // in a follow-up iteration once Phase 4.4 wires the bench reader to
+    // consume typed facts directly. See spec §4.2 for the full design.
+    let retrievedTypedFacts: import('./retrieval/typed-network/index.js').TypedFact[] | undefined;
+    if (this.typedNetworkStore && this.typedSpreadingActivation) {
+      try {
+        const seedEntities = this.collectStageESeedEntities(query, scored);
+        const seedFactIds = this.findTypedFactsByEntities(seedEntities);
+        if (seedFactIds.length > 0) {
+          const activated = this.typedSpreadingActivation.spread(
+            this.typedNetworkStore,
+            seedFactIds,
+            { maxDepth: this.config.typedNetwork?.maxDepth ?? 3 },
+          );
+          // Sort by activation level descending; surface top-10 facts.
+          const ranked = [...activated.entries()]
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 10)
+            .map(([factId]) => this.typedNetworkStore!.getFact(factId))
+            .filter((f): f is import('./retrieval/typed-network/index.js').TypedFact => Boolean(f));
+          retrievedTypedFacts = ranked;
+        } else {
+          retrievedTypedFacts = [];
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[CognitiveMemoryManager.retrieve typed-network spread failed] ${msg}\n`);
+      }
+    }
+
     // Record access for retrieved memories (spaced repetition)
     for (const trace of scored.slice(0, 5)) {
       await this.store.recordAccess(trace.id);
@@ -795,8 +833,57 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
         policyProfile: resolvedPolicy?.profile,
         confidence: resolvedPolicy ? confidence : undefined,
         escalations: resolvedPolicy ? [] : undefined,
+        retrievedTypedFacts,
       },
     };
+  }
+
+  /**
+   * Stage E helper: collect seed entities for typed-network spreading
+   * activation. Combines:
+   * - Entities mentioned in the top scored memory traces (high-relevance signal)
+   * - Naive proper-noun extraction from the query (capitalized whitespace tokens)
+   *
+   * Returns deduplicated entity strings. Empty when no signal is available;
+   * caller treats empty seed list as "no spreading activation to do".
+   */
+  private collectStageESeedEntities(
+    query: string,
+    scored: ScoredMemoryTrace[],
+  ): string[] {
+    const out = new Set<string>();
+    // From top 5 scored traces' entities
+    for (const trace of scored.slice(0, 5)) {
+      for (const e of trace.entities ?? []) out.add(e);
+    }
+    // Naive query-side extraction: capitalized whitespace-separated tokens
+    // longer than 1 char (filters articles like "I"). Production deployments
+    // can override via a richer entity extractor injected through config.
+    const tokens = query.match(/\b[A-Z][a-zA-Z]+\b/g) ?? [];
+    for (const t of tokens) out.add(t);
+    return [...out];
+  }
+
+  /**
+   * Stage E helper: find typed-fact IDs whose `entities` array contains
+   * any of the provided seed entities. Returns deduplicated fact IDs to
+   * use as spreading-activation seeds.
+   */
+  private findTypedFactsByEntities(seedEntities: string[]): string[] {
+    if (!this.typedNetworkStore || seedEntities.length === 0) return [];
+    const seedSet = new Set(seedEntities);
+    const factIds = new Set<string>();
+    // Iterate each bank's fact IDs; check entity overlap.
+    for (const bank of ['WORLD', 'EXPERIENCE', 'OPINION', 'OBSERVATION'] as const) {
+      for (const factId of this.typedNetworkStore.getBank(bank)) {
+        const fact = this.typedNetworkStore.getFact(factId);
+        if (!fact) continue;
+        if (fact.entities.some((e) => seedSet.has(e))) {
+          factIds.add(factId);
+        }
+      }
+    }
+    return [...factIds];
   }
 
   // =========================================================================
