@@ -598,6 +598,24 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       });
     }
 
+    // --- Stage E: typed-network extraction (optional) ---
+    // Routes the encoded content through the LLM observer to produce 0+
+    // typed facts (W/E/O/S banks). Facts are namespaced by the parent
+    // trace ID so they can be cross-referenced at retrieval time. Best
+    // effort: extraction failures are logged via stderr but do not abort
+    // the encode (the trace is already persisted at this point).
+    if (this.typedNetworkObserver && this.typedNetworkStore) {
+      try {
+        const facts = await this.typedNetworkObserver.extract(input, trace.id);
+        for (const fact of facts) {
+          this.typedNetworkStore.addFact(fact);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[CognitiveMemoryManager.encode typed-network extraction failed] ${msg}\n`);
+      }
+    }
+
     return trace;
   }
 
