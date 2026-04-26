@@ -215,6 +215,10 @@ const adapter = await createDatabase({
 const brain = await Brain.openWithAdapter(adapter, { brainId: 'companion-alice' });
 ```
 
+**Pool contention:** the pool is shared across all brains opened against the same adapter. Five brains opened against a `max: 10` pool compete for the same 10 connections; one slow query can starve the others. Size the pool for the total concurrent query load across all brains, not per-brain. For high-fan-out deployments (e.g., one process serving 50 active brains), consider a dedicated pool per brain via `Brain.openPostgres(connStr, { brainId, poolSize: N })` instead of sharing.
+
+The 0.3.1 hardening pass uses `pg_advisory_xact_lock` to serialize concurrent first-opens against the same `brainId`. The lock is per-brain (different brainIds boot in parallel; same brainId from two workers serializes), so pool sizing should account for one extra connection-second per brain at process startup.
+
 ### Schema migration
 
 The first call to `Brain.openPostgres` (or `openSqlite`) on an existing v1 database runs an idempotent v1→v2 migration that adds the `brain_id` column to every brain-owned table and updates primary keys to `(brain_id, id)`. SQLite uses the recreate-table dance; Postgres uses `ALTER TABLE ADD COLUMN` + `ALTER TABLE ADD PRIMARY KEY`. Subsequent opens are no-ops once the schema is at v2.
