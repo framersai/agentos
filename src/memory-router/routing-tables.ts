@@ -22,8 +22,17 @@
  *   temporal-reasoning back to canonical-hybrid after Phase B revealed the
  *   v1 routing's accuracy gain was within CI noise but paid OM ingest cost.
  *
+ * **Augmented routing (2026-04-26):** The {@link AugmentedRoutingTable}
+ * extends the basic dispatch contract with an orthogonal axis — a
+ * per-category {@link RetrievalConfigId} pick — so the router can
+ * dispatch on (backend × retrieval-config) rather than backend alone.
+ * The {@link MINIMIZE_COST_AUGMENTED_TABLE} preset is calibrated from
+ * the LongMemEval-M Phase A N=54 ablation matrix (2026-04-26).
+ *
  * @module @framers/agentos/memory-router/routing-tables
  */
+
+import type { RetrievalConfigId } from './retrieval-config.js';
 
 // ============================================================================
 // Public types
@@ -187,3 +196,162 @@ export const PRESET_TABLES: Readonly<Record<MemoryRouterPreset, RoutingTable>> =
     'balanced': BALANCED_TABLE,
     'maximize-accuracy': MAXIMIZE_ACCURACY_TABLE,
   });
+
+// ============================================================================
+// Augmented routing: (backend × retrieval-config) dispatch
+// ============================================================================
+
+/**
+ * The cheapest-and-safest {@link MemoryBackendId} the router can ever
+ * pick. Used by {@link SAFE_FALLBACK_DISPATCH_KEY} when an augmented
+ * lookup misses (e.g. the predicted category is not in the table or
+ * the table is malformed). Matches the existing behavior of
+ * {@link MINIMIZE_COST_TABLE} for unknown categories: degrade to the
+ * cheap path rather than the OM-premium path.
+ */
+export const SAFE_FALLBACK_BACKEND: MemoryBackendId = 'canonical-hybrid';
+
+/**
+ * Composite dispatch key that the augmented router emits per query.
+ * Carries both the recall-backend axis (existing
+ * {@link MemoryBackendId}) and the retrieval-config axis (new
+ * {@link RetrievalConfigId}). Wider than the legacy single-axis key
+ * but the legacy key is recoverable via the `backend` field.
+ *
+ * **Backwards compatibility,** consumers using only the existing
+ * routing tables continue to dispatch on `MemoryBackendId` alone;
+ * the augmented router maps each augmented key to the same backend
+ * with `retrievalConfig: 'canonical'` implicitly when the consumer
+ * has not opted into augmented dispatch.
+ */
+export interface MemoryDispatchKey {
+  readonly backend: MemoryBackendId;
+  readonly retrievalConfig: RetrievalConfigId;
+}
+
+/**
+ * Default {@link MemoryDispatchKey} used when an augmented lookup
+ * misses. Matches the cheap-and-safe path: canonical-hybrid backend
+ * with the canonical retrieval config (no HyDE, default rerank,
+ * default reader top-K).
+ *
+ * Frozen at module load.
+ */
+export const SAFE_FALLBACK_DISPATCH_KEY: MemoryDispatchKey = Object.freeze({
+  backend: SAFE_FALLBACK_BACKEND,
+  retrievalConfig: 'canonical' as const,
+});
+
+/**
+ * The augmented preset names. v2 (2026-04-26) ships only the
+ * `minimize-cost-augmented` preset; the other two preset names are
+ * reserved for v3 calibration alongside Stage E.
+ */
+export type AugmentedMemoryRouterPreset =
+  | 'minimize-cost-augmented'
+  | 'balanced-augmented'
+  | 'maximize-accuracy-augmented';
+
+/**
+ * An augmented routing table maps every {@link MemoryQueryCategory}
+ * to a {@link MemoryDispatchKey} (backend × retrieval-config). The
+ * shape is parallel to {@link RoutingTable} but every value is a
+ * composite key rather than a backend id.
+ *
+ * Tables ship frozen so consumers cannot mutate the routing surface
+ * from outside the module.
+ */
+export interface AugmentedRoutingTable {
+  readonly preset: AugmentedMemoryRouterPreset;
+  readonly defaultMapping: Readonly<Record<MemoryQueryCategory, MemoryDispatchKey>>;
+}
+
+/**
+ * Preset: minimize-cost-augmented (2026-04-26 v2).
+ *
+ * Combines two calibrations into one dispatch table:
+ *
+ * - **Backend axis** from the LongMemEval-S Phase B N=500
+ *   {@link MINIMIZE_COST_TABLE}: SSP and MS pay the OM-v11 premium
+ *   (architectural lift earns it); every other category routes to
+ *   canonical-hybrid (cheapest Pareto-dominant).
+ * - **Retrieval-config axis** from the LongMemEval-M Phase A N=54
+ *   ablation matrix (per-category-oracle picks): SSA + SSU + MS use
+ *   the full combined `hyde-topk50-mult5`; KU uses `topk50` (top-K
+ *   alone is sufficient and cheaper); TR + SSP use `hyde` alone (the
+ *   wider rerank pool actively hurts these categories).
+ *
+ * The 2026-04-26 forecasted aggregate at this dispatch table on
+ * LongMemEval-M is **68.5%** (per-category-oracle empirical from the
+ * ablation matrix), vs **57.4%** static M-tuned (`hyde-topk50-mult5`
+ * everywhere) and **30.6%** baseline (`canonical` everywhere).
+ * Phase A validation at this preset is the next gate (see
+ * `2026-04-26-retrieval-config-router-productionization-plan.md`).
+ *
+ * **Calibration validity,** N=54 single-seed Phase A on M plus N=500
+ * Phase B on S. Phase B at full N=500 on M will tighten per-category
+ * confidence intervals; the table here is the directional best-guess
+ * for v2 and SHOULD be re-derived from any future Phase B run.
+ */
+export const MINIMIZE_COST_AUGMENTED_TABLE: AugmentedRoutingTable = Object.freeze({
+  preset: 'minimize-cost-augmented' as const,
+  defaultMapping: Object.freeze({
+    'single-session-assistant': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'hyde-topk50-mult5' as const,
+    }),
+    'single-session-user': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'hyde-topk50-mult5' as const,
+    }),
+    'single-session-preference': Object.freeze({
+      backend: 'observational-memory-v11' as const,
+      retrievalConfig: 'hyde' as const,
+    }),
+    'knowledge-update': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'topk50' as const,
+    }),
+    'multi-session': Object.freeze({
+      backend: 'observational-memory-v11' as const,
+      retrievalConfig: 'hyde-topk50-mult5' as const,
+    }),
+    'temporal-reasoning': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'hyde' as const,
+    }),
+  }),
+}) as AugmentedRoutingTable;
+
+/**
+ * Convenience registry of augmented preset tables, keyed by preset
+ * name. v2 ships only `minimize-cost-augmented`; the other two
+ * preset names will be wired in v3 alongside Stage E.
+ */
+export const AUGMENTED_PRESET_TABLES: Readonly<
+  Partial<Record<AugmentedMemoryRouterPreset, AugmentedRoutingTable>>
+> = Object.freeze({
+  'minimize-cost-augmented': MINIMIZE_COST_AUGMENTED_TABLE,
+});
+
+/**
+ * Pure-function selector: given a category and an
+ * {@link AugmentedRoutingTable}, return the calibrated
+ * {@link MemoryDispatchKey}. Falls back to
+ * {@link SAFE_FALLBACK_DISPATCH_KEY} when the table is missing the
+ * category (a defensive guard for custom-table misuse; the shipping
+ * presets cover every category).
+ *
+ * Stateless. Deterministic. No I/O. Suitable for use inside
+ * cache-key construction and hot dispatch loops.
+ *
+ * @param category - The classifier-predicted query category.
+ * @param table - The augmented routing table to consult.
+ * @returns A frozen {@link MemoryDispatchKey} for the category.
+ */
+export function selectAugmentedDispatch(
+  category: MemoryQueryCategory,
+  table: AugmentedRoutingTable,
+): MemoryDispatchKey {
+  return table.defaultMapping[category] ?? SAFE_FALLBACK_DISPATCH_KEY;
+}

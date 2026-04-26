@@ -118,6 +118,9 @@ export type {
   MemoryBackendId,
   MemoryRouterPreset,
   RoutingTable,
+  AugmentedMemoryRouterPreset,
+  AugmentedRoutingTable,
+  MemoryDispatchKey,
 } from './routing-tables.js';
 export { MEMORY_QUERY_CATEGORIES } from './routing-tables.js';
 
@@ -144,6 +147,7 @@ export type {
   MemoryDispatchArgs,
   MemoryDispatchResult,
   MemoryBackendExecutor,
+  MemoryBackendExecutorContext,
   MemoryBackendRegistry,
 } from './dispatcher.js';
 
@@ -153,6 +157,8 @@ export type {
   MemoryRouterDecideOptions,
   MemoryRouterDecision,
   MemoryRouterDispatchedDecision,
+  MemoryRouterAugmentedDecision,
+  MemoryRouterAugmentedDispatchedDecision,
 } from './MemoryRouter.js';
 
 // ============================================================================
@@ -164,6 +170,11 @@ export {
   BALANCED_TABLE,
   MAXIMIZE_ACCURACY_TABLE,
   PRESET_TABLES,
+  MINIMIZE_COST_AUGMENTED_TABLE,
+  AUGMENTED_PRESET_TABLES,
+  SAFE_FALLBACK_BACKEND,
+  SAFE_FALLBACK_DISPATCH_KEY,
+  selectAugmentedDispatch,
 } from './routing-tables.js';
 
 export {
@@ -196,6 +207,7 @@ export {
 export {
   MemoryRouter,
   MemoryRouterDispatcherMissingError,
+  MemoryRouterAugmentedTableMissingError,
 } from './MemoryRouter.js';
 
 // ============================================================================
@@ -232,3 +244,24 @@ export type {
   RankedCandidateWithBoost,
   EntityRetrievalRankerOptions,
 } from './backends/index.js';
+
+// ============================================================================
+// RetrievalConfigRouter (per-query retrieval-config dispatch, calibrated
+// from 2026-04-26 LongMemEval-M Phase A N=54 ablation matrix)
+// ============================================================================
+
+export {
+  RETRIEVAL_CONFIG_IDS,
+  RETRIEVAL_CONFIG_SPECS,
+  M_PHASE_A_PER_CATEGORY_ACCURACY,
+  M_PHASE_A_COST_PER_CORRECT,
+  M_TUNED_PER_CATEGORY_TABLE,
+  selectBestRetrievalConfig,
+  computeOracleAggregate,
+  computeOracleCostPerCorrect,
+} from './retrieval-config.js';
+
+export type {
+  RetrievalConfigId,
+  RetrievalConfigSpec,
+} from './retrieval-config.js';

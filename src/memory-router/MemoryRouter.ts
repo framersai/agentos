@@ -28,7 +28,10 @@ import {
 } from './backend-costs.js';
 import {
   PRESET_TABLES,
+  selectAugmentedDispatch,
+  type AugmentedRoutingTable,
   type MemoryBackendId,
+  type MemoryDispatchKey,
   type MemoryQueryCategory,
   type MemoryRouterPreset,
   type RoutingTable,
@@ -111,6 +114,17 @@ export interface MemoryRouterOptions {
    * execute the chosen backend themselves.
    */
   readonly dispatcher?: IMemoryDispatcher<unknown, unknown>;
+  /**
+   * Optional augmented routing table. When supplied,
+   * {@link MemoryRouter.decideAugmented} and
+   * {@link MemoryRouter.decideAndDispatchAugmented} resolve each query
+   * to a composite {@link MemoryDispatchKey} (backend × retrieval-config)
+   * instead of the legacy single-axis backend pick.
+   *
+   * Existing consumers see no behavioral change unless they call the
+   * new augmented methods.
+   */
+  readonly augmentedTable?: AugmentedRoutingTable;
 }
 
 /**
@@ -152,6 +166,26 @@ export interface MemoryRouterDispatchedDecision<TTrace> {
 }
 
 /**
+ * Bundled result of a `decideAugmented()` call. Carries the classifier
+ * result and the composite {@link MemoryDispatchKey} (backend ×
+ * retrieval-config) the augmented router resolved.
+ */
+export interface MemoryRouterAugmentedDecision {
+  readonly classifier: MemoryClassifierResult;
+  readonly dispatch: MemoryDispatchKey;
+}
+
+/**
+ * Bundled result of a `decideAndDispatchAugmented()` call. Combines
+ * the augmented decision with the dispatched traces.
+ */
+export interface MemoryRouterAugmentedDispatchedDecision<TTrace> {
+  readonly decision: MemoryRouterAugmentedDecision;
+  readonly traces: TTrace[];
+  readonly dispatch: MemoryDispatchKey;
+}
+
+/**
  * Thrown when `decideAndDispatch` is called on a router that was
  * constructed without a dispatcher.
  */
@@ -162,6 +196,22 @@ export class MemoryRouterDispatcherMissingError extends Error {
         'Either pass a dispatcher in options, or call `decide` and dispatch yourself.',
     );
     this.name = 'MemoryRouterDispatcherMissingError';
+  }
+}
+
+/**
+ * Thrown when `decideAugmented` or `decideAndDispatchAugmented` is
+ * called on a router that was constructed without an
+ * {@link AugmentedRoutingTable}.
+ */
+export class MemoryRouterAugmentedTableMissingError extends Error {
+  constructor() {
+    super(
+      'MemoryRouter.decideAugmented requires an augmentedTable. ' +
+        'Pass one in MemoryRouterOptions (e.g. MINIMIZE_COST_AUGMENTED_TABLE), ' +
+        'or use the legacy `decide` / `decideAndDispatch` methods.',
+    );
+    this.name = 'MemoryRouterAugmentedTableMissingError';
   }
 }
 
@@ -202,6 +252,7 @@ export class MemoryRouter {
   private readonly classifier: IMemoryClassifier;
   private readonly preset: MemoryRouterPreset;
   private readonly routingTable: RoutingTable;
+  private readonly augmentedTable: AugmentedRoutingTable | null;
   private readonly budgetPerQuery: number | null;
   private readonly budgetMode: MemoryBudgetMode;
   private readonly backendCosts: Readonly<
@@ -214,6 +265,7 @@ export class MemoryRouter {
     this.classifier = options.classifier;
     this.preset = options.preset ?? 'minimize-cost';
     this.dispatcher = options.dispatcher ?? null;
+    this.augmentedTable = options.augmentedTable ?? null;
 
     // Resolve routing table: explicit > preset's default.
     const baseTable = options.routingTable ?? PRESET_TABLES[this.preset];
@@ -311,6 +363,96 @@ export class MemoryRouter {
       decision,
       traces: dispatched.traces,
       backend: dispatched.backend,
+    };
+  }
+
+  /**
+   * Decide-only routing using the augmented table. Classifies the
+   * query, resolves a composite {@link MemoryDispatchKey} (backend ×
+   * retrieval-config) from the configured
+   * {@link AugmentedRoutingTable}, and returns both pieces.
+   *
+   * Does NOT execute the recall — pair with {@link IMemoryDispatcher}
+   * for the end-to-end flow, or call
+   * {@link MemoryRouter.decideAndDispatchAugmented} when both an
+   * augmented table and a dispatcher are wired.
+   *
+   * @param query - The user's memory-recall query text.
+   * @param options - Per-call overrides (ground-truth telemetry,
+   *   prompt variant). The `groundTruthCategory` field is unused on
+   *   this path because augmented routing has no `selectBackend`-style
+   *   telemetry surface; tests pass it through anyway for parity.
+   * @returns The classifier result + composite dispatch key.
+   *
+   * @throws {@link MemoryRouterAugmentedTableMissingError} when no
+   *   augmented table was supplied at construction.
+   */
+  async decideAugmented(
+    query: string,
+    options?: MemoryRouterDecideOptions,
+  ): Promise<MemoryRouterAugmentedDecision> {
+    if (!this.augmentedTable) {
+      throw new MemoryRouterAugmentedTableMissingError();
+    }
+    const useFewShot =
+      options?.useFewShotPrompt ?? this.defaultUseFewShotPrompt;
+    const classifierOptions = useFewShot
+      ? { useFewShotPrompt: true }
+      : undefined;
+
+    const classifier = await this.classifier.classify(query, classifierOptions);
+    const dispatch = selectAugmentedDispatch(
+      classifier.category,
+      this.augmentedTable,
+    );
+
+    return { classifier, dispatch };
+  }
+
+  /**
+   * Decide + dispatch in one call, using the augmented table.
+   * Requires the router to have been constructed with both an
+   * {@link AugmentedRoutingTable} and a {@link IMemoryDispatcher}.
+   *
+   * The selected {@link RetrievalConfigId} is forwarded to the
+   * dispatcher's `retrievalConfig` arg; consumer-defined executors
+   * read it via the third-arg
+   * {@link MemoryBackendExecutorContext} parameter.
+   *
+   * @typeParam TTrace - Caller's trace shape (passed through verbatim).
+   * @typeParam TPayload - Caller's payload shape for the dispatcher.
+   * @param query - User memory-recall query.
+   * @param dispatchPayload - Optional payload forwarded to the
+   *   per-backend executor (e.g. topK, retrieval policy).
+   * @param options - Per-call overrides (ground-truth telemetry,
+   *   prompt variant).
+   *
+   * @throws {@link MemoryRouterAugmentedTableMissingError} when no
+   *   augmented table was supplied at construction.
+   * @throws {@link MemoryRouterDispatcherMissingError} when no
+   *   dispatcher was supplied at construction.
+   */
+  async decideAndDispatchAugmented<TTrace, TPayload = undefined>(
+    query: string,
+    dispatchPayload?: TPayload,
+    options?: MemoryRouterDecideOptions,
+  ): Promise<MemoryRouterAugmentedDispatchedDecision<TTrace>> {
+    if (!this.dispatcher) {
+      throw new MemoryRouterDispatcherMissingError();
+    }
+    const decision = await this.decideAugmented(query, options);
+
+    const dispatched = (await this.dispatcher.dispatch({
+      backend: decision.dispatch.backend,
+      retrievalConfig: decision.dispatch.retrievalConfig,
+      query,
+      payload: dispatchPayload as unknown,
+    })) as MemoryDispatchResult<TTrace>;
+
+    return {
+      decision,
+      traces: dispatched.traces,
+      dispatch: decision.dispatch,
     };
   }
 }
