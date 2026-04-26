@@ -128,4 +128,68 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     // Minimal variant skips spreading activation: bank routing only.
     expect(manager.getTypedSpreadingActivation()).toBeNull();
   });
+
+  it('encode() extracts typed facts via observer and persists into the typed-network store', async () => {
+    // The stub LLM returns 2 typed facts: one WORLD, one OPINION.
+    const extractingLLM: ITypedExtractionLLM = {
+      invoke: async () =>
+        JSON.stringify({
+          facts: [
+            {
+              text: 'Berlin is in Germany',
+              bank: 'WORLD',
+              temporal: { mention: '2026-04-25T12:00:00Z' },
+              participants: [],
+              reasoning_markers: [],
+              entities: ['Berlin', 'Germany'],
+              confidence: 1.0,
+            },
+            {
+              text: 'The user prefers TypeScript',
+              bank: 'OPINION',
+              temporal: { mention: '2026-04-25T12:00:00Z' },
+              participants: [{ name: 'user', role: 'subject' }],
+              reasoning_markers: ['because'],
+              entities: ['TypeScript'],
+              confidence: 0.7,
+            },
+          ],
+        }),
+    };
+    await manager.initialize({
+      ...makeMinimalDeps(),
+      typedNetwork: { variant: 'full', observerLLM: extractingLLM },
+    });
+
+    // Encode triggers extraction.
+    const trace = await manager.encode(
+      'Berlin is in Germany. I think the user prefers TypeScript because it is statically typed.',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+      'neutral',
+    );
+
+    const store = manager.getTypedNetworkStore()!;
+    expect(store.getBank('WORLD').size).toBe(1);
+    expect(store.getBank('OPINION').size).toBe(1);
+    expect(store.getBank('EXPERIENCE').size).toBe(0);
+    expect(store.getBank('OBSERVATION').size).toBe(0);
+
+    // Trace ID should be the namespace anchor for the extracted facts so the
+    // facts are linked back to the parent encoding event.
+    const expectedFactId = `${trace.id}-fact-0`;
+    expect(store.getFact(expectedFactId)).toBeDefined();
+    expect(store.getFact(expectedFactId)?.text).toBe('Berlin is in Germany');
+  });
+
+  it('encode() is a no-op (no extraction call) when typedNetwork not configured', async () => {
+    await manager.initialize(makeMinimalDeps());
+    // No typedNetwork: extraction must never be called.
+    await manager.encode(
+      'Sample text',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+      'neutral',
+    );
+    // No store to inspect; verifying via absence of error + null state above.
+    expect(manager.getTypedNetworkStore()).toBeNull();
+  });
 });
