@@ -240,6 +240,109 @@ describe('Brain.exportToSqlite + importFromSqlite', () => {
     await cleanup.close();
   });
 
+  it('importFromSqlite rolls back fully on mid-table failure (no partial row persistence)', async () => {
+    // Set up a source brain with valid data that will provoke a FK violation
+    // when imported into the target. Specifically: a document_chunk row whose
+    // document_id does not exist in the source's documents table. The source
+    // can hold this row directly because we'll bypass FK checks when seeding.
+    const sourcePath = path.join(tmpDir, 'rollback-source.sqlite');
+    const targetPath = path.join(tmpDir, 'rollback-target.sqlite');
+
+    const source = await Brain.openSqlite(sourcePath, { brainId: 'rb' });
+    // Insert a valid trace + a document.
+    await source.run(
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      ['rb', 'trace-1', 'episodic', 'user', 'good trace', 1000],
+    );
+    await source.run(
+      `INSERT INTO documents (brain_id, id, path, format, content_hash, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      ['rb', 'doc-1', '/x.md', 'markdown', 'hash', 2000],
+    );
+    // Insert a document_chunk WITHOUT its parent document by bypassing FK
+    // (PRAGMA foreign_keys is OFF by default in this raw insert path; agentos
+    // turns it on at Brain init, so we have to disable for this seed only).
+    await source.exec('PRAGMA foreign_keys = OFF');
+    await source.run(
+      `INSERT INTO document_chunks (brain_id, id, document_id, content, chunk_index)
+       VALUES (?, ?, ?, ?, ?)`,
+      ['rb', 'orphan-chunk', 'nonexistent-doc', 'orphaned', 0],
+    );
+    await source.exec('PRAGMA foreign_keys = ON');
+    await source.close();
+
+    // Target brain. FK enforcement is on (set by Brain._initialize). When
+    // importFromSqlite tries to copy the orphan chunk, the FK fails. _bulkCopy
+    // must roll back the entire document_chunks table, leaving no rows.
+    const target = await Brain.openSqlite(targetPath, { brainId: 'rb' });
+
+    await expect(target.importFromSqlite(sourcePath)).rejects.toThrow(
+      /FOREIGN KEY|constraint/i,
+    );
+
+    // Verify no orphan chunk made it into the target.
+    const chunks = await target.all<{ id: string }>(
+      `SELECT id FROM document_chunks WHERE brain_id = ?`,
+      ['rb'],
+    );
+    expect(chunks).toEqual([]);
+
+    await target.close();
+  });
+
+  it('importFromSqlite handles a v1 source file (no brain_id column in brain_meta)', async () => {
+    // Synthesize a v1-shaped SQLite file: brain_meta has key/value but no
+    // brain_id column. The peek SELECT should not throw "no such column"; it
+    // should fall through to opening the source via Brain.openSqlite (which
+    // auto-runs v1 to v2 migration in place), then import normally.
+    const sourcePath = path.join(tmpDir, 'v1-source.sqlite');
+
+    // Create v1 schema directly (single connection raw SQL, bypassing Brain).
+    const Database = (await import('better-sqlite3')).default;
+    const db = new Database(sourcePath);
+    db.exec(`
+      CREATE TABLE brain_meta (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      CREATE TABLE memory_traces (
+        id              TEXT PRIMARY KEY,
+        type            TEXT NOT NULL,
+        scope           TEXT NOT NULL,
+        content         TEXT NOT NULL,
+        embedding       BLOB,
+        strength        REAL NOT NULL DEFAULT 1.0,
+        created_at      INTEGER NOT NULL,
+        last_accessed   INTEGER,
+        retrieval_count INTEGER NOT NULL DEFAULT 0,
+        tags            TEXT NOT NULL DEFAULT '[]',
+        emotions        TEXT NOT NULL DEFAULT '{}',
+        metadata        TEXT NOT NULL DEFAULT '{}',
+        deleted         INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT INTO brain_meta (key, value) VALUES ('schema_version', '1');
+      INSERT INTO memory_traces (id, type, scope, content, created_at)
+        VALUES ('legacy-trace', 'episodic', 'user', 'pre-0.3.0 trace', 1700000000);
+    `);
+    db.close();
+
+    // Import into a fresh target. Should NOT throw "no such column: brain_id".
+    const target = await Brain.openSqlite(':memory:', { brainId: 'v1-import-target' });
+    const result = await target.importFromSqlite(sourcePath);
+
+    // Verify the legacy trace got imported under the receiving brain's id.
+    expect(result.tablesImported.memory_traces).toBeGreaterThanOrEqual(1);
+    const traces = await target.all<{ brain_id: string; id: string; content: string }>(
+      `SELECT brain_id, id, content FROM memory_traces WHERE brain_id = ?`,
+      ['v1-import-target'],
+    );
+    const legacy = traces.find((t) => t.id === 'legacy-trace');
+    expect(legacy?.content).toBe('pre-0.3.0 trace');
+
+    await target.close();
+  });
+
   it('importFromSqlite rejects a multi-brain source file', async () => {
     // Synthesize a multi-brain SQLite file by manually inserting brain_meta
     // rows for two distinct brain_ids.

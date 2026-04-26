@@ -237,4 +237,67 @@ describeIfPostgres('Brain.openPostgres', () => {
     // Cleanup the test row.
     await seedBrain.run(`DELETE FROM brain_meta WHERE brain_id = $1`, [failingBrainId]);
   });
+
+  it('importFromSqlite into Postgres rolls back fully on mid-table FK failure', async () => {
+    // Reproduces the C1 bug from the post-0.3.1 code review: _bulkCopy used
+    // raw `adapter.exec("BEGIN")` then `adapter.run(stmt, ...)` then
+    // `adapter.exec("COMMIT")`. On Postgres the pool returns a different
+    // connection per call, so each INSERT auto-committed and the BEGIN/COMMIT
+    // were no-ops. The fix uses adapter.transaction() to pin all writes to
+    // one pooled connection.
+    //
+    // Test setup: build a SQLite source with 5 valid document_chunks + 1
+    // orphan chunk pointing at a nonexistent document. Importing into a
+    // Postgres target with FK enforcement on must roll back document_chunks
+    // entirely after the orphan fails. Without the fix, the 5 valid chunks
+    // would persist (each individually committed).
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'rb-pg-'));
+    const sourcePath = path.join(tmpDir, 'rb-pg-source.sqlite');
+    const brainId = uniqueBrainId();
+
+    const source = await Brain.openSqlite(sourcePath, { brainId });
+    await source.run(
+      `INSERT INTO documents (brain_id, id, path, format, content_hash, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [brainId, 'parent-doc', '/x.md', 'markdown', 'hash', 1000],
+    );
+    // 5 valid chunks pointing at the parent doc.
+    for (let i = 0; i < 5; i++) {
+      await source.run(
+        `INSERT INTO document_chunks (brain_id, id, document_id, content, chunk_index)
+         VALUES (?, ?, ?, ?, ?)`,
+        [brainId, `valid-chunk-${i}`, 'parent-doc', `chunk ${i}`, i],
+      );
+    }
+    // 1 orphan chunk; bypass FK on source to seed it.
+    await source.exec('PRAGMA foreign_keys = OFF');
+    await source.run(
+      `INSERT INTO document_chunks (brain_id, id, document_id, content, chunk_index)
+       VALUES (?, ?, ?, ?, ?)`,
+      [brainId, 'orphan-chunk', 'nonexistent-doc', 'orphan', 99],
+    );
+    await source.exec('PRAGMA foreign_keys = ON');
+    await source.close();
+
+    // Import into Postgres. FK enforcement is implicit in Postgres; the orphan
+    // chunk INSERT must fail and trigger rollback of all 5 valid chunks.
+    const target = await Brain.openPostgres(POSTGRES_URL!, { brainId });
+    openedBrains.push(target);
+
+    await expect(target.importFromSqlite(sourcePath)).rejects.toThrow(
+      /foreign key|constraint|violates/i,
+    );
+
+    // Verify document_chunks rolled back fully (zero rows for this brain).
+    const chunks = await target.all<{ id: string }>(
+      `SELECT id FROM document_chunks WHERE brain_id = $1`,
+      [brainId],
+    );
+    expect(chunks).toEqual([]);
+
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
 });
