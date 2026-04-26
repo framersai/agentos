@@ -145,4 +145,96 @@ describeIfPostgres('Brain.openPostgres', () => {
     openedBrains.push(brain2);
     expect(await brain2.getMeta('schema_version')).toBe('2');
   });
+
+  it('serializes concurrent first-opens against the same brainId', async () => {
+    const brainId = uniqueBrainId();
+    // Two parallel opens against the same brainId.
+    const [brainA, brainB] = await Promise.all([
+      Brain.openPostgres(POSTGRES_URL!, { brainId }),
+      Brain.openPostgres(POSTGRES_URL!, { brainId }),
+    ]);
+    openedBrains.push(brainA, brainB);
+
+    // Both must see schema_version = '2' (latest). The lock + transaction
+    // serialization in MigrationRunner ensures only one runs the migration
+    // (or in the fresh-DB case, both safely no-op since _initSchema is
+    // idempotent).
+    expect(await brainA.getMeta('schema_version')).toBe('2');
+    expect(await brainB.getMeta('schema_version')).toBe('2');
+
+    // Both must be able to write and read independently (no corruption).
+    await brainA.run(
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+      [brainId, 'race-trace-a', 'episodic', 'user', 'from A', Date.now()],
+    );
+    await brainB.run(
+      `INSERT INTO memory_traces (brain_id, id, type, scope, content, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+      [brainId, 'race-trace-b', 'episodic', 'user', 'from B', Date.now()],
+    );
+
+    const rows = await brainA.all<{ id: string }>(
+      `SELECT id FROM memory_traces WHERE brain_id = $1 ORDER BY id`,
+      [brainId],
+    );
+    expect(rows.map((r) => r.id)).toEqual(['race-trace-a', 'race-trace-b']);
+  });
+
+  it('enforces FK constraints across brain-scoped tables', async () => {
+    const brainId = uniqueBrainId();
+    const brain = await Brain.openPostgres(POSTGRES_URL!, { brainId });
+    openedBrains.push(brain);
+
+    // Insert a document_chunk referencing a non-existent document.
+    // The composite FK (brain_id, document_id) -> documents(brain_id, id)
+    // should fire and reject the insert.
+    await expect(
+      brain.run(
+        `INSERT INTO document_chunks (brain_id, id, document_id, content, chunk_index)
+           VALUES ($1, $2, $3, $4, $5)`,
+        [brainId, 'orphan-chunk', 'nonexistent-doc', 'orphaned content', 0],
+      ),
+    ).rejects.toThrow(/foreign key|constraint|violates/i);
+  });
+
+  it('rolls back on synthetic mid-migration failure (transactional)', async () => {
+    const brainId = uniqueBrainId();
+    const failingBrainId = `${brainId}-failing`;
+
+    // Use a real brain to seed brain_meta with a failing-brain row at v1, then
+    // drive MigrationRunner with a synthetic Migration whose `up` throws.
+    // Verify schema_version stays at '1' after the failure.
+    const seedBrain = await Brain.openPostgres(POSTGRES_URL!, { brainId });
+    openedBrains.push(seedBrain);
+    await seedBrain.run(
+      `INSERT INTO brain_meta (brain_id, key, value) VALUES ($1, $2, $3)
+         ON CONFLICT (brain_id, key) DO UPDATE SET value = EXCLUDED.value`,
+      [failingBrainId, 'schema_version', '1'],
+    );
+
+    const { MigrationRunner } = await import('../../migrations/index.js');
+    const { createStorageFeatures } = await import('@framers/sql-storage-adapter');
+    const features = createStorageFeatures(seedBrain.adapter);
+    const failingMigration = {
+      version: 99,
+      up: async () => {
+        throw new Error('synthetic mid-migration failure');
+      },
+    };
+
+    await expect(
+      MigrationRunner.runPending(seedBrain.adapter, features, failingBrainId, [failingMigration]),
+    ).rejects.toThrow(/synthetic mid-migration failure/);
+
+    // Verify schema_version was NOT bumped (transaction rolled back).
+    const ver = await seedBrain.get<{ value: string }>(
+      `SELECT value FROM brain_meta WHERE brain_id = $1 AND key = $2`,
+      [failingBrainId, 'schema_version'],
+    );
+    expect(ver?.value).toBe('1');
+
+    // Cleanup the test row.
+    await seedBrain.run(`DELETE FROM brain_meta WHERE brain_id = $1`, [failingBrainId]);
+  });
 });
