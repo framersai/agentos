@@ -89,6 +89,10 @@ export class MigrationRunner {
   /**
    * Read the current schema_version from brain_meta. Returns null when
    * brain_meta does not exist (fresh database).
+   *
+   * Handles both v1 (no brain_id column) and v2+ (composite-key) schemas.
+   * On v1, the SELECT omits the brain_id WHERE clause so the column-existence
+   * check in v1ToV2.up can proceed with the migration.
    */
   private static async _readSchemaVersion(
     adapter: StorageAdapter,
@@ -99,6 +103,20 @@ export class MigrationRunner {
       ? await MigrationRunner._postgresTableExists(adapter, 'brain_meta')
       : await MigrationRunner._sqliteTableExists(adapter, 'brain_meta');
     if (!brainMetaExists) return null;
+
+    const hasBrainIdCol = isPostgres
+      ? await MigrationRunner._postgresHasColumn(adapter, 'brain_meta', 'brain_id')
+      : await MigrationRunner._sqliteHasColumn(adapter, 'brain_meta', 'brain_id');
+
+    if (!hasBrainIdCol) {
+      // v1 schema: brain_meta has key/value only. v1ToV2 migration will add
+      // brain_id and namespace existing rows. Read the unscoped schema_version.
+      const row = await adapter.get<{ value: string }>(
+        `SELECT value FROM brain_meta WHERE key = ?`,
+        ['schema_version'],
+      );
+      return row ? parseInt(row.value, 10) : null;
+    }
 
     const row = await adapter.get<{ value: string }>(
       `SELECT value FROM brain_meta WHERE brain_id = ? AND key = ?`,
@@ -137,6 +155,30 @@ export class MigrationRunner {
       [table],
     );
     return Boolean(row);
+  }
+
+  private static async _sqliteHasColumn(
+    adapter: StorageAdapter,
+    table: string,
+    column: string,
+  ): Promise<boolean> {
+    const rows = await adapter.all<{ name: string }>(`PRAGMA table_info(${table})`);
+    return rows.some((r) => r.name === column);
+  }
+
+  private static async _postgresHasColumn(
+    adapter: StorageAdapter,
+    table: string,
+    column: string,
+  ): Promise<boolean> {
+    const row = await adapter.get<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_name = $1 AND column_name = $2
+       ) AS exists`,
+      [table, column],
+    );
+    return row?.exists ?? false;
   }
 
   private static async _postgresTableExists(
