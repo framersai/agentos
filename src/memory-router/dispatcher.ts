@@ -30,15 +30,46 @@
  */
 
 import type { MemoryBackendId } from './routing-tables.js';
+import type { RetrievalConfigId } from './retrieval-config.js';
 
 // ============================================================================
 // Public types
 // ============================================================================
 
 /**
+ * Optional execution context passed as the third argument to a
+ * {@link MemoryBackendExecutor}. Carries cross-cutting per-call hints
+ * the dispatcher knows about but the user-defined payload should not
+ * have to encode (e.g. the {@link RetrievalConfigId} chosen by the
+ * augmented router).
+ *
+ * Existing executors with the older two-argument signature
+ * `(query, payload) => traces` remain assignable to
+ * {@link MemoryBackendExecutor} because the context arg is optional —
+ * functions are contravariant in their parameters and JavaScript
+ * silently ignores unused trailing arguments.
+ */
+export interface MemoryBackendExecutorContext {
+  /**
+   * Augmented router's per-query retrieval-config pick. When set, the
+   * executor SHOULD apply the corresponding flags
+   * (see `RETRIEVAL_CONFIG_SPECS`) to its retrieval pipeline.
+   * Undefined when the dispatcher was called via the legacy backend-
+   * only path.
+   */
+  readonly retrievalConfig?: RetrievalConfigId;
+}
+
+/**
  * Per-backend execution function. Takes the query string + an optional
  * caller-defined payload (e.g. topK, retrieval policy, session filter),
  * returns the trace array.
+ *
+ * The optional third arg, {@link MemoryBackendExecutorContext}, carries
+ * cross-cutting hints the dispatcher routes through — currently the
+ * augmented router's per-query {@link RetrievalConfigId}. Executors
+ * written before augmented routing existed remain assignable because
+ * the third arg is optional.
  *
  * @typeParam TTrace - Shape of the trace the caller's memory layer emits.
  *   Defaults to the {@link ScoredTrace} shape from `@framers/agentos/memory`
@@ -48,6 +79,7 @@ import type { MemoryBackendId } from './routing-tables.js';
 export type MemoryBackendExecutor<TTrace, TPayload = undefined> = (
   query: string,
   payload: TPayload,
+  context?: MemoryBackendExecutorContext,
 ) => Promise<TTrace[]>;
 
 /**
@@ -58,6 +90,14 @@ export interface MemoryDispatchArgs<TPayload = undefined> {
   readonly query: string;
   /** Optional payload forwarded to the per-backend executor verbatim. */
   readonly payload?: TPayload;
+  /**
+   * Optional augmented-router pick. When supplied, the dispatcher
+   * forwards it as the third executor arg
+   * ({@link MemoryBackendExecutorContext.retrievalConfig}). Existing
+   * legacy callers omit this field; existing executors ignore the
+   * third arg unless they opt in.
+   */
+  readonly retrievalConfig?: RetrievalConfigId;
 }
 
 /**
@@ -151,7 +191,16 @@ export class FunctionMemoryDispatcher<TTrace, TPayload = undefined>
     if (!executor) {
       throw new UnsupportedMemoryBackendError(args.backend);
     }
-    const traces = await executor(args.query, args.payload as TPayload);
+    // Preserve the legacy two-argument call shape on legacy dispatch
+    // calls (no retrievalConfig). Only pass the context arg when the
+    // augmented router has supplied a retrievalConfig — keeps existing
+    // mocks asserting `executor(query, payload)` working unchanged.
+    const traces =
+      args.retrievalConfig !== undefined
+        ? await executor(args.query, args.payload as TPayload, {
+            retrievalConfig: args.retrievalConfig,
+          })
+        : await executor(args.query, args.payload as TPayload);
     return { traces, backend: args.backend };
   }
 }
