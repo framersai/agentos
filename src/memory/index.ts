@@ -423,3 +423,44 @@ export type {
   FactSupersessionInput,
   FactSupersessionResult,
 } from './retrieval/fact-supersession/index.js';
+
+// Stage E: Hindsight 4-network typed observer module. Re-exported here so
+// consumers can `import { TypedNetworkStore } from '@framers/agentos/memory'`
+// instead of going through the deep subpath (which has TS-bundler resolution
+// quirks for downstream tsconfigs in some configurations).
+export {
+  BANK_IDS,
+  EDGE_KINDS,
+  isBankId,
+  TypedNetworkStore,
+  TypedNetworkObserver,
+  TypedSpreadingActivation,
+  TypedNetworkRetriever,
+  rankByTemporalOverlap,
+  fourWayRrf,
+  TYPED_EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionUserPrompt,
+  TypedExtractionSchema,
+  TypedExtractionFactSchema,
+  DEFAULT_EDGE_MULTIPLIERS,
+  extractQueryEntities,
+  typedFactToScoredTrace,
+} from './retrieval/typed-network/index.js';
+export type {
+  BankId,
+  EdgeKind,
+  TypedFact,
+  TypedEdge,
+  FactTemporal,
+  Participant,
+  ITypedExtractionLLM,
+  TypedNetworkObserverOptions,
+  TypedSpreadingActivationOptions,
+  SpreadOptions,
+  FourWayRrfInput,
+  FourWayRrfOptions,
+  TypedExtractionOutput,
+  TypedExtractionFact,
+  TypedNetworkRetrieverOptions,
+  TypedNetworkRetrieveOptions,
+} from './retrieval/typed-network/index.js';
