@@ -47,6 +47,7 @@ import {
 } from '../../archive/SqlStorageMemoryArchive.js';
 import { MigrationRunner, MIGRATIONS, LATEST_SCHEMA_VERSION } from './migrations/index.js';
 import { PORTABLE_TABLES, PORTABLE_TABLE_PRIMARY_KEYS } from './portable-tables.js';
+import { redactPostgresPassword } from './postgresPasswordRedaction.js';
 
 /**
  * Derive a stable brain identifier from the database file path.
@@ -65,16 +66,8 @@ function deriveBrainIdFromPath(dbPath: string): string {
   return lastDot > 0 ? basename.slice(0, lastDot) : basename;
 }
 
-/**
- * Redact the password segment from a Postgres connection string for safe
- * inclusion in error messages.
- *
- * `postgresql://user:secret@host/db` becomes `postgresql://user:***@host/db`.
- * Connection strings without embedded passwords pass through unchanged.
- */
-function redactPostgresPassword(connStr: string): string {
-  return connStr.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1***$2');
-}
+// redactPostgresPassword extracted to ./postgresPasswordRedaction.ts
+// (handles both URL form and keyword form; see postgresPasswordRedaction.test.ts).
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -544,6 +537,19 @@ export class Brain {
    * adapter across subsystems (e.g., wilds-ai foundation pool + brain) or
    * when the consumer needs full control over adapter resolution.
    *
+   * **CONCURRENCY CAVEAT (Postgres adapters):** the underlying
+   * `PostgresAdapter` tracks `transactionalClient` as instance-shared
+   * mutable state. Two concurrent `Brain.transaction(...)` calls on the
+   * same shared adapter (or any subsystem call that internally opens a
+   * transaction) will overwrite each other's connection assignment, which
+   * corrupts both transactions silently. If the consumer dispatches
+   * concurrent writes through subsystems sharing one adapter, either:
+   *   1. construct a fresh `PostgresAdapter` per logical actor, OR
+   *   2. serialize transactions at the consumer layer until the adapter
+   *      gets `AsyncLocalStorage`-tracked transactional clients.
+   * Non-transactional concurrent reads/writes against a shared adapter
+   * are safe (the pool handles those correctly).
+   *
    * @param adapter - Pre-built StorageAdapter instance.
    * @param opts.brainId - Required for postgres-kind adapters; optional for
    *   sqlite-kind adapters (defaults to `'default'`).
@@ -898,11 +904,23 @@ export class Brain {
       priority: ['better-sqlite3', 'sqljs'],
       quiet: true,
     });
-    let sourceBrainIds: { brain_id: string }[];
+    let sourceBrainIds: { brain_id: string }[] = [];
     try {
-      sourceBrainIds = await peekAdapter.all<{ brain_id: string }>(
-        `SELECT DISTINCT brain_id FROM brain_meta WHERE brain_id IS NOT NULL`,
+      // Check brain_meta has the brain_id column before querying it. v1
+      // schemas (pre-0.3.0) only have key/value columns; the SELECT would
+      // throw "no such column: brain_id" otherwise. When the column is
+      // missing, treat as a single-brain v1 source (the auto-migration on
+      // Brain.openSqlite below will add brain_id and namespace by the
+      // path-derived brainId, then importFromSqlite proceeds normally).
+      const cols = await peekAdapter.all<{ name: string }>(
+        `PRAGMA table_info(brain_meta)`,
       );
+      const hasBrainIdColumn = cols.some((c) => c.name === 'brain_id');
+      if (hasBrainIdColumn) {
+        sourceBrainIds = await peekAdapter.all<{ brain_id: string }>(
+          `SELECT DISTINCT brain_id FROM brain_meta WHERE brain_id IS NOT NULL`,
+        );
+      }
     } finally {
       await peekAdapter.close();
     }
@@ -984,19 +1002,18 @@ export class Brain {
       : `INSERT INTO ${table} (${colList}) VALUES (${placeholders})`;
 
     // Single transaction per table for bulk-insert performance + atomicity.
-    await target._adapter.exec('BEGIN');
-    try {
+    // MUST use adapter.transaction() (not raw exec BEGIN/COMMIT) so all writes
+    // pin to one pooled connection on Postgres. Raw BEGIN against a pool
+    // connection would land each query on a different connection, breaking
+    // the transactional guarantee silently.
+    await target._adapter.transaction(async (trx) => {
       for (const row of rows) {
         const values = columns.map((c) =>
           c === 'brain_id' ? targetBrainId : row[c],
         );
-        await target._adapter.run(stmt, values as never[]);
+        await trx.run(stmt, values as never[]);
       }
-      await target._adapter.exec('COMMIT');
-    } catch (err) {
-      await target._adapter.exec('ROLLBACK');
-      throw err;
-    }
+    });
   }
 
   /**
