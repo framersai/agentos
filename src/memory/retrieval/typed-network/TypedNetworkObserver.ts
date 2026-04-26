@@ -104,13 +104,15 @@ export class TypedNetworkObserver {
 }
 
 /**
- * Strip leading/trailing markdown code fences. Tolerates both
- * triple-backtick-with-language and bare triple-backtick wrappers.
+ * Strip leading/trailing markdown code fences. Tolerates triple-backtick
+ * wrappers with any alphabetic language tag (json, javascript, typescript,
+ * etc.) or no tag. Necessary because providers occasionally emit fences
+ * even with explicit "no commentary" prompts, and the language tag varies.
  */
 function stripCodeFence(s: string): string {
   const trimmed = s.trim();
   if (!trimmed.startsWith('```')) return trimmed;
-  // Drop the opening ``` (with or without language tag) and any trailing ```
-  const withoutOpen = trimmed.replace(/^```(?:json|JSON)?\s*\n?/, '');
+  // Drop the opening ``` (with or without alphabetic language tag) and any trailing ```
+  const withoutOpen = trimmed.replace(/^```([a-zA-Z]+)?\s*\n?/, '');
   return withoutOpen.replace(/\n?```\s*$/, '');
 }

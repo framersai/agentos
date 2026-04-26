@@ -131,6 +131,16 @@ describe('TypedNetworkObserver', () => {
     expect(facts).toEqual([]);
   });
 
+  it('tolerates non-json language tags on code fences (e.g. javascript)', async () => {
+    // Some LLM providers (or mis-prompted models) wrap output in ```javascript
+    // or ```typescript fences. We accept any alphabetic language tag, not
+    // just `json`, so a single tag drift doesn't cause SyntaxError.
+    const llm = mockLLM('```javascript\n{"facts": []}\n```');
+    const obs = new TypedNetworkObserver({ llm });
+    const facts = await obs.extract('text', 's1');
+    expect(facts).toEqual([]);
+  });
+
   it('passes maxTokens and temperature to the LLM', async () => {
     let capturedArgs: { maxTokens: number; temperature: number } | undefined;
     const llm: ITypedExtractionLLM = {
