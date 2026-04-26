@@ -1,3 +1,7 @@
+## <small>0.4.1 (2026-04-26)</small>
+
+* feat(memory/typed-network): TypedNetworkRetriever for canonical-shaped retrieval ([230c6ae](https://github.com/framersai/agentos/commit/230c6ae))
+
 ## 0.4.0 (2026-04-26)
 
 * fix(agent+memory): unblock CI build (TS errors in 0.3.4 release commit) ([cf045fa](https://github.com/framersai/agentos/commit/cf045fa))
