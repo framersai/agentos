@@ -1,3 +1,13 @@
+## <small>0.3.4 (2026-04-26)</small>
+
+* chore(IProvider): tighten responseFormat type to admit json_schema shape ([1e5c4ac](https://github.com/framersai/agentos/commit/1e5c4ac))
+* feat(memory): Stage E Phase 4.1 - typedNetwork config field + manager wiring ([cac63c2](https://github.com/framersai/agentos/commit/cac63c2))
+* feat(memory): Stage E Phase 4.2 - encode() routes through typed-network observer ([a604d86](https://github.com/framersai/agentos/commit/a604d86))
+* feat(structured-output): provider-format adapter for session-aware schema enforcement ([17f7198](https://github.com/framersai/agentos/commit/17f7198))
+* docs(spec+plan): session-aware structured output for agent.session.send ([bcbdcf5](https://github.com/framersai/agentos/commit/bcbdcf5))
+* Merge branch 'master' of https://github.com/framersai/agentos ([72a25d8](https://github.com/framersai/agentos/commit/72a25d8))
+* Merge pull request #2 from framersai/structured-output-spec ([7c4d0e6](https://github.com/framersai/agentos/commit/7c4d0e6)), closes [#2](https://github.com/framersai/agentos/issues/2)
+
 ## <small>0.3.3 (2026-04-26)</small>
 
 * fix(memory): MigrationRunner._readSchemaVersion handles v1 schema (no brain_id column) ([794649a](https://github.com/framersai/agentos/commit/794649a))
