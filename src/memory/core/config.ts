@@ -320,10 +320,52 @@ export interface CognitiveMemoryConfig {
    * storage before overwriting with the gist. Enables on-demand rehydration
    * via `CognitiveMemoryManager.rehydrate()`.
    *
-   * @default undefined (no archive — gist is destructive)
+   * @default undefined (no archive, gist is destructive)
    * @see {@link IMemoryArchive} — the archive contract
    */
   archive?: import('../archive/IMemoryArchive.js').IMemoryArchive;
+
+  /**
+   * Stage E: optional Hindsight 4-network typed observer wiring.
+   *
+   * When provided, `encode()` additionally extracts typed facts (World /
+   * Experience / Opinion / Observation banks) via the configured LLM and
+   * persists them in an in-memory `TypedNetworkStore`. `retrieve()` runs
+   * typed-graph spreading activation (`'full'` variant only) and produces
+   * a 4-way RRF fused ranking that's merged into the existing scoring.
+   *
+   * Variants:
+   * - `'minimal'`: bank routing + observer only (no graph traversal at retrieve).
+   * - `'full'`: minimal + spreading activation per Hindsight Eq. 12 + 4-way RRF.
+   *
+   * @default undefined (Stage E disabled, zero-cost no-op)
+   * @see `packages/agentos-bench/docs/specs/2026-04-26-hindsight-4network-observer-design.md`
+   */
+  typedNetwork?: TypedNetworkRuntimeConfig;
+}
+
+/**
+ * Stage E runtime config for the typed-network observer + retrieval fusion.
+ */
+export interface TypedNetworkRuntimeConfig {
+  /**
+   * Variant selector.
+   * - `'minimal'`: 4-bank routing only at encode; no spreading activation.
+   * - `'full'`: minimal + spreading activation + 4-way RRF at retrieve.
+   */
+  variant: 'minimal' | 'full';
+  /** LLM adapter for the 6-step extraction call. */
+  observerLLM: import('../retrieval/typed-network/index.js').ITypedExtractionLLM;
+  /**
+   * Weight applied to the typed-network ranking when merging into the
+   * standard cognitive score. 0.0 ignores typed-network; 1.0 uses only
+   * typed-network. Default 0.5.
+   */
+  weight?: number;
+  /** Spreading-activation max depth. Default 3. */
+  maxDepth?: number;
+  /** Spreading-activation per-hop decay δ. Default 0.5. */
+  decay?: number;
 }
 
 // ---------------------------------------------------------------------------

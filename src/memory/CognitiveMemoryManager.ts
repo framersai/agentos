@@ -56,6 +56,11 @@ import {
   ConsolidationPipeline,
   type ConsolidationResult,
 } from './pipeline/consolidation/ConsolidationPipeline.js';
+import {
+  TypedNetworkStore,
+  TypedNetworkObserver,
+  TypedSpreadingActivation,
+} from './retrieval/typed-network/index.js';
 
 // Batch 3: Infinite Context
 import { ContextWindowManager } from './pipeline/context/ContextWindowManager.js';
@@ -289,6 +294,13 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
    */
   private hydeRetriever: HydeRetriever | null = null;
 
+  // Stage E: Hindsight 4-network typed observer wiring (optional)
+  private typedNetworkStore: TypedNetworkStore | null = null;
+  private typedNetworkObserver: TypedNetworkObserver | null = null;
+  private typedSpreadingActivation: TypedSpreadingActivation | null = null;
+  private typedNetworkVariant: 'minimal' | 'full' | null = null;
+  private typedNetworkWeight = 0.5;
+
   async initialize(config: CognitiveMemoryConfig): Promise<void> {
     this.config = config;
 
@@ -454,7 +466,43 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       this.archive = config.archive;
     }
 
+    // --- Stage E: Hindsight 4-network typed observer (optional) ---
+    if (config.typedNetwork) {
+      this.typedNetworkVariant = config.typedNetwork.variant;
+      this.typedNetworkWeight = config.typedNetwork.weight ?? 0.5;
+      this.typedNetworkStore = new TypedNetworkStore();
+      this.typedNetworkObserver = new TypedNetworkObserver({
+        llm: config.typedNetwork.observerLLM,
+      });
+      // Spreading activation only for the 'full' variant. 'minimal' performs
+      // bank routing at encode but skips graph traversal at retrieve.
+      if (config.typedNetwork.variant === 'full') {
+        this.typedSpreadingActivation = new TypedSpreadingActivation({
+          decay: config.typedNetwork.decay ?? 0.5,
+        });
+      }
+    }
+
     this.initialized = true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stage E typed-network accessors
+  // ---------------------------------------------------------------------------
+
+  /** Stage E: typed-network store, or `null` when typed-network not configured. */
+  getTypedNetworkStore(): TypedNetworkStore | null {
+    return this.typedNetworkStore;
+  }
+
+  /** Stage E: typed-network observer (LLM extractor), or `null`. */
+  getTypedNetworkObserver(): TypedNetworkObserver | null {
+    return this.typedNetworkObserver;
+  }
+
+  /** Stage E: typed spreading activation, or `null` (only set for 'full' variant). */
+  getTypedSpreadingActivation(): TypedSpreadingActivation | null {
+    return this.typedSpreadingActivation;
   }
 
   // =========================================================================
