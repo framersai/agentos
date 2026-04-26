@@ -268,10 +268,11 @@ const sf = options.responseFormat as
   | { _agentosUseToolForStructuredOutput?: boolean; tool?: { name: string; input_schema: Record<string, unknown> } }
   | undefined;
 if (sf?._agentosUseToolForStructuredOutput && sf.tool) {
-  payload.tools = [
-    { name: sf.tool.name, input_schema: sf.tool.input_schema },
-    ...(payload.tools ?? []),
-  ];
+  // Tools disabled when schema is set (per spec §3). The schema tool
+  // is the only tool; caller-provided tools are dropped by
+  // AgentSession.send before reaching here. This is the provider-side
+  // enforcement.
+  payload.tools = [{ name: sf.tool.name, input_schema: sf.tool.input_schema }];
   payload.tool_choice = { type: 'tool', name: sf.tool.name };
 }
 ```
@@ -529,15 +530,32 @@ async send(input: MessageContent, sendOpts?: SessionSendOptions<any>): Promise<a
 
   const responseFormat = sendOpts?.responseSchema
     ? buildResponseFormat({
-        provider: resolveProviderId(baseOpts),
+        provider: resolveProviderForStructuredOutput(baseOpts),
         schema: sendOpts.responseSchema,
         schemaName: sendOpts.schemaName ?? 'response',
       })
     : undefined;
 
+  // Tools are disabled for the duration of a schema-aware call (spec §3).
+  // Forced tool_use on Anthropic uses the schema as the only tool; mixing
+  // caller tools with the schema tool produces unpredictable model behavior.
+  // Strip caller-provided tools/toolChoice from baseOpts when responseSchema
+  // is set, with a console.warn so callers notice the override.
+  const baseForRequest: Partial<GenerateTextOptions> = sendOpts?.responseSchema
+    ? (() => {
+        if (baseOpts.tools !== undefined || baseOpts.toolChoice !== undefined) {
+          console.warn(
+            '[agentos] session.send: tools and toolChoice are ignored when responseSchema is set. Use generateObject for one-shot schema calls or call send() without a schema for tool-loop calls.',
+          );
+        }
+        const { tools: _tools, toolChoice: _toolChoice, ...rest } = baseOpts;
+        return rest;
+      })()
+    : baseOpts;
+
   const wrappedOpts = applyMemoryProvider(
     {
-      ...baseOpts,
+      ...baseForRequest,
       messages: requestMessages,
       usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
         sessionId,
@@ -551,18 +569,30 @@ async send(input: MessageContent, sendOpts?: SessionSendOptions<any>): Promise<a
 
   const result = await generateText(wrappedOpts as GenerateTextOptions);
 
-  let object: unknown = undefined;
+  // Validate + parse when a schema was supplied. Native enforcement
+  // guarantees a valid shape on every successful response, so a
+  // parse/validation failure here is a real provider bug rather
+  // than retry-worthy. Throw with the rawText + Zod error attached.
+  let object: unknown;
   if (sendOpts?.responseSchema) {
-    const text = result.text; // Anthropic forced-tool-use also surfaces input as text per Task 3
-    const parsed = JSON.parse(text);
-    const safe = sendOpts.responseSchema.safeParse(parsed);
-    if (!safe.success) {
+    try {
+      const parsed = JSON.parse(result.text);
+      const safe = sendOpts.responseSchema.safeParse(parsed);
+      if (!safe.success) {
+        throw new ObjectGenerationError(
+          'session.send: provider-enforced JSON failed Zod validation',
+          result.text,
+          safe.error,
+        );
+      }
+      object = safe.data;
+    } catch (err) {
+      if (err instanceof ObjectGenerationError) throw err;
       throw new ObjectGenerationError(
-        'session.send: provider returned schema-enforced JSON that failed Zod validation',
-        { rawText: text, zodError: safe.error },
+        `session.send: provider response is not valid JSON despite enforcement (${err instanceof Error ? err.message : String(err)})`,
+        result.text,
       );
     }
-    object = safe.data;
   }
 
   if (useMemory) {
@@ -570,23 +600,26 @@ async send(input: MessageContent, sendOpts?: SessionSendOptions<any>): Promise<a
     history.push({ role: 'assistant', content: result.text });
   }
 
-  return object !== undefined ? { ...result, object } : result;
+  return object !== undefined
+    ? ({ ...result, object } as SessionSendStructuredResult<unknown>)
+    : result;
 },
 ```
 
-`resolveProviderId(baseOpts)` is a local helper (top of file):
+`resolveProviderForStructuredOutput(baseOpts)` is a local helper (top of file). It mirrors the provider-resolution rules used elsewhere in agentos (explicit `provider` wins; otherwise parse the `provider:model` head; otherwise default to `openai`). Trim + empty-check on the parsed head to avoid producing `''` from a malformed `':gpt-4o'` model string:
 
 ```ts
-function resolveProviderId(opts: { model?: string; provider?: string }): string {
+function resolveProviderForStructuredOutput(opts: Partial<GenerateTextOptions>): string {
   if (opts.provider) return opts.provider;
   if (typeof opts.model === 'string' && opts.model.includes(':')) {
-    return opts.model.split(':', 1)[0];
+    const head = opts.model.split(':', 1)[0]?.trim();
+    if (head) return head;
   }
   return 'openai'; // existing default
 }
 ```
 
-`ObjectGenerationError` is imported from agentos's existing error module (used by `generateObject` already): `import { ObjectGenerationError } from '../core/validation/errors.js';` (or wherever it's currently re-exported from `@framers/agentos`).
+`ObjectGenerationError` is imported from agentos's existing error module (used by `generateObject` already): `import { ObjectGenerationError } from './generateObject.js';`. The constructor signature is `(message: string, rawText: string, validationError?: Error)`.
 
 `buildResponseFormat` import from Task 1: `import { buildResponseFormat } from '../core/llm/providers/structuredOutputFormat.js';`.
 

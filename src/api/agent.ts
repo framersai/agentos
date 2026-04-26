@@ -345,7 +345,10 @@ export interface Agent {
 function resolveProviderForStructuredOutput(opts: Partial<GenerateTextOptions>): string {
   if (opts.provider) return opts.provider;
   if (typeof opts.model === 'string' && opts.model.includes(':')) {
-    return opts.model.split(':', 1)[0]!;
+    // Trim handles inputs like ":openai" / "  openai:gpt-4". Empty after
+    // trim falls back to the default.
+    const head = opts.model.split(':', 1)[0]?.trim();
+    if (head) return head;
   }
   return 'openai';
 }
@@ -598,9 +601,30 @@ export function agent(opts: AgentOptions): Agent {
             });
           }
 
+          // Schema-aware calls disable tools. Mixing native structured
+          // output with tool-calling requires a multi-turn schema+tool
+          // protocol that this overload doesn't speak. Anthropic's
+          // forced tool-use mode reserves the tool slot for the schema
+          // tool, and OpenAI's json_schema mode forbids tools alongside.
+          // Strip caller-provided tools when responseSchema is set;
+          // surface a console.warn so the caller can adjust if they
+          // meant to pass both. (toolChoice is not part of
+          // GenerateTextOptions; tools is the only public surface here.)
+          const baseForRequest: Partial<GenerateTextOptions> = sendOpts?.responseSchema
+            ? (() => {
+                if (baseOpts.tools !== undefined) {
+                  console.warn(
+                    '[agentos] session.send: tools are ignored when responseSchema is set. Use generateObject for one-shot schema calls or call send() without a schema for tool-loop calls.',
+                  );
+                }
+                const { tools: _tools, ...rest } = baseOpts;
+                return rest;
+              })()
+            : baseOpts;
+
           const wrappedOpts = applyMemoryProvider(
             {
-              ...baseOpts,
+              ...baseForRequest,
               messages: requestMessages,
               usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
                 sessionId,

@@ -171,10 +171,17 @@ export class MigrationRunner {
     table: string,
     column: string,
   ): Promise<boolean> {
+    // Scope to current_schema() to match _postgresTableExists. Without
+    // the schema filter, a table with the same name in another schema
+    // (e.g. a previous test deployment in another search-path entry)
+    // would falsely return true and skip the actual ALTER TABLE this
+    // probe gates.
     const row = await adapter.get<{ exists: boolean }>(
       `SELECT EXISTS (
          SELECT 1 FROM information_schema.columns
-          WHERE table_name = $1 AND column_name = $2
+          WHERE table_schema = current_schema()
+            AND table_name = $1
+            AND column_name = $2
        ) AS exists`,
       [table, column],
     );

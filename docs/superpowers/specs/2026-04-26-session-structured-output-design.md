@@ -99,15 +99,34 @@ async send<S extends ZodType | undefined = undefined>(
   // Resolve provider-specific structured-output payload when a schema is set.
   const responseFormat = sendOpts?.responseSchema
     ? buildResponseFormat({
-        provider: resolveProviderId(baseOpts),
+        provider: resolveProviderForStructuredOutput(baseOpts),
         schema: sendOpts.responseSchema,
         schemaName: sendOpts.schemaName ?? 'response',
       })
     : undefined;
 
+  // Schema-aware calls disable tools (§3). Mixing native structured
+  // output with tool-calling requires a multi-turn schema+tool protocol
+  // this overload doesn't speak. Strip caller-provided tools and
+  // toolChoice; warn if the caller passed both so they can correct
+  // their setup. Anthropic's forced tool-use mode reserves the tool
+  // slot for the schema tool, and OpenAI's json_schema mode forbids
+  // tools alongside.
+  const baseForRequest: Partial<GenerateTextOptions> = sendOpts?.responseSchema
+    ? (() => {
+        if (baseOpts.tools !== undefined || baseOpts.toolChoice !== undefined) {
+          console.warn(
+            '[agentos] session.send: tools and toolChoice are ignored when responseSchema is set. Use generateObject for one-shot schema calls or call send() without a schema for tool-loop calls.',
+          );
+        }
+        const { tools: _tools, toolChoice: _toolChoice, ...rest } = baseOpts;
+        return rest;
+      })()
+    : baseOpts;
+
   const wrappedOpts = applyMemoryProvider(
     {
-      ...baseOpts,
+      ...baseForRequest,
       messages: requestMessages,
       usageLedger: mergeUsageLedgerOptions(baseOpts.usageLedger, {
         sessionId,
@@ -125,15 +144,25 @@ async send<S extends ZodType | undefined = undefined>(
   // failure rather than retrying — native enforcement guarantees a valid
   // shape on every successful response, so a parse failure here is a real
   // bug (provider returned a malformed payload despite enforcement).
+  // Both JSON.parse failure and Zod failure surface as ObjectGenerationError
+  // with the rawText attached for forensic inspection.
   let object: z.infer<NonNullable<S>> | undefined;
   if (sendOpts?.responseSchema) {
-    const text = extractStructuredOutputText(result, resolveProviderId(baseOpts));
-    const parsed = JSON.parse(text);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(result.text);
+    } catch (err) {
+      throw new ObjectGenerationError(
+        `session.send: provider returned non-JSON despite enforcement (${err instanceof Error ? err.message : String(err)})`,
+        result.text,
+      );
+    }
     const safe = sendOpts.responseSchema.safeParse(parsed);
     if (!safe.success) {
       throw new ObjectGenerationError(
         'session.send: provider returned schema-enforced JSON that failed Zod validation',
-        { rawText: text, zodError: safe.error },
+        result.text,
+        safe.error,
       );
     }
     object = safe.data;
@@ -150,7 +179,9 @@ async send<S extends ZodType | undefined = undefined>(
 },
 ```
 
-`resolveProviderId(baseOpts)` is a new local helper that reads the resolved provider from `baseOpts.model` (already a `'provider:model'` string today). `extractStructuredOutputText` is a small helper that pulls the JSON string out of the provider response: for OpenAI/Gemini it's just `result.text`; for Anthropic with forced tool_use the JSON is in the `tool_use` content block's `input` field, requiring shape inspection.
+`resolveProviderForStructuredOutput(baseOpts)` is a new local helper at the top of `agent.ts` that returns the provider id by reading `baseOpts.provider` first, then parsing `baseOpts.model` (the `'<provider>:<model>'` string form), trimming whitespace, and falling back to `'openai'` if no provider can be derived. Used only by this code path.
+
+For the response-text extraction: OpenAI and Gemini surface the JSON as `result.text` directly. Anthropic's forced tool_use surfaces it in the matching `tool_use` block's `input` field, but `AnthropicProvider.mapResponseToCompletion` already normalizes that into `result.text` (writing `JSON.stringify(toolBlock.input)` as the choice's content) when `responseFormat._agentosUseToolForStructuredOutput` was set. The session.send caller therefore reads `result.text` regardless of provider, which keeps this code path provider-agnostic.
 
 ### §4.3 Provider-format adapter
 
@@ -253,10 +284,13 @@ if (options.responseFormat
   && (options.responseFormat as any)._agentosUseToolForStructuredOutput
 ) {
   const sf = options.responseFormat as { tool: { name: string; input_schema: Record<string, unknown> } };
-  payload.tools = [
-    { name: sf.tool.name, input_schema: sf.tool.input_schema },
-    ...(payload.tools ?? []),
-  ];
+  // Tools are disabled when responseSchema is set (§3): the schema tool
+  // is the only tool. Caller-side AgentSession.send strips its tools
+  // before reaching here; this block enforces it provider-side as a
+  // second line of defense for any direct provider.generateCompletion
+  // caller that passes both a structured-output marker AND a tools
+  // array.
+  payload.tools = [{ name: sf.tool.name, input_schema: sf.tool.input_schema }];
   payload.tool_choice = { type: 'tool', name: sf.tool.name };
 }
 ```

@@ -21,7 +21,7 @@ opt-in via config.typedNetwork.extractAtEncode (default false).
 * feat(AnthropicProvider): forced tool-use for schema-enforced structured output ([0ba00b9](https://github.com/framersai/agentos/commit/0ba00b9))
 * feat(GeminiProvider): responseSchema for schema-enforced structured output ([b5e1bcb](https://github.com/framersai/agentos/commit/b5e1bcb))
 * feat(memory): add subpath export for typed-network module ([db9ea8b](https://github.com/framersai/agentos/commit/db9ea8b))
-* feat(memory): Stage E Phase 4.3 - retrieve() runs typed spreading activation ([d0ab11c](https://github.com/framersai/agentos/commit/d0ab11c)), closes [hi#relevance](https://github.com/hi/issues/relevance)
+* feat(memory): Stage E Phase 4.3 - retrieve() runs typed spreading activation ([d0ab11c](https://github.com/framersai/agentos/commit/d0ab11c))
 
 ## <small>0.3.4 (2026-04-26)</small>
 

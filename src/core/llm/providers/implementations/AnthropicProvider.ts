@@ -875,11 +875,15 @@ export class AnthropicProvider implements IProvider {
       | { _agentosUseToolForStructuredOutput?: boolean; tool?: { name: string; input_schema: Record<string, unknown> } }
       | undefined;
     if (sf?._agentosUseToolForStructuredOutput && sf.tool) {
-      const existingTools = (payload.tools as Array<Record<string, unknown>>) ?? [];
-      payload.tools = [
-        { name: sf.tool.name, input_schema: sf.tool.input_schema },
-        ...existingTools,
-      ];
+      // Schema-aware mode reserves the tool slot for the schema tool;
+      // mixing structured output with caller-provided tools requires a
+      // multi-turn protocol the session.send overload doesn't speak.
+      // The caller path (AgentSession.send) already strips its tools
+      // before reaching us; this drop is the second line of defense
+      // against a direct provider.generateCompletion call that
+      // accidentally passes both responseFormat (structured-output
+      // marker) and a tools array.
+      payload.tools = [{ name: sf.tool.name, input_schema: sf.tool.input_schema }];
       payload.tool_choice = { type: 'tool', name: sf.tool.name };
     }
 
