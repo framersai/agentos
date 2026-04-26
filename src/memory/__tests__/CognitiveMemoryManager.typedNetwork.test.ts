@@ -129,7 +129,7 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     expect(manager.getTypedSpreadingActivation()).toBeNull();
   });
 
-  it('encode() extracts typed facts via observer and persists into the typed-network store', async () => {
+  it('encode() extracts typed facts via observer when extractAtEncode=true', async () => {
     // The stub LLM returns 2 typed facts: one WORLD, one OPINION.
     const extractingLLM: ITypedExtractionLLM = {
       invoke: async () =>
@@ -158,10 +158,14 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     };
     await manager.initialize({
       ...makeMinimalDeps(),
-      typedNetwork: { variant: 'full', observerLLM: extractingLLM },
+      typedNetwork: {
+        variant: 'full',
+        observerLLM: extractingLLM,
+        extractAtEncode: true,
+      },
     });
 
-    // Encode triggers extraction.
+    // Encode triggers extraction (extractAtEncode is true).
     const trace = await manager.encode(
       'Berlin is in Germany. I think the user prefers TypeScript because it is statically typed.',
       { valence: 0, arousal: 0.3, dominance: 0 },
@@ -181,6 +185,32 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     expect(store.getFact(expectedFactId)?.text).toBe('Berlin is in Germany');
   });
 
+  it('encode() does NOT extract by default (extractAtEncode defaults to false)', async () => {
+    // Default extractAtEncode=false prevents the bench-style double-extraction
+    // pattern. Consumer is responsible for calling observer.extract directly.
+    let extractCalls = 0;
+    const countingLLM: ITypedExtractionLLM = {
+      invoke: async () => {
+        extractCalls++;
+        return JSON.stringify({ facts: [] });
+      },
+    };
+    await manager.initialize({
+      ...makeMinimalDeps(),
+      typedNetwork: { variant: 'full', observerLLM: countingLLM },
+      // extractAtEncode omitted -> defaults to false
+    });
+
+    await manager.encode(
+      'Berlin is in Germany',
+      { valence: 0, arousal: 0.3, dominance: 0 },
+      'neutral',
+    );
+
+    expect(extractCalls).toBe(0);
+    expect(manager.getTypedNetworkStore()!.getBank('WORLD').size).toBe(0);
+  });
+
   it('encode() is a no-op (no extraction call) when typedNetwork not configured', async () => {
     await manager.initialize(makeMinimalDeps());
     // No typedNetwork: extraction must never be called.
@@ -193,7 +223,7 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     expect(manager.getTypedNetworkStore()).toBeNull();
   });
 
-  it('retrieve() surfaces activated typed facts via diagnostics.retrievedTypedFacts (full variant)', async () => {
+  it('retrieve() surfaces typed traces via diagnostics.retrievedTypedTraces (full variant)', async () => {
     // LLM produces 2 facts on encode; spreading-activation seed entities
     // come from the query ("Berlin").
     const extractingLLM: ITypedExtractionLLM = {
@@ -223,7 +253,11 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
     };
     await manager.initialize({
       ...makeMinimalDeps(),
-      typedNetwork: { variant: 'full', observerLLM: extractingLLM },
+      typedNetwork: {
+        variant: 'full',
+        observerLLM: extractingLLM,
+        extractAtEncode: true,
+      },
     });
 
     await manager.encode(
@@ -232,31 +266,37 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
       'neutral',
     );
 
-    // Query mentions Berlin (capitalized → naive entity extraction picks it up).
+    // Query mentions Berlin (proper-noun extractor picks it up).
     const result = await manager.retrieve(
       'Tell me about Berlin',
       { valence: 0, arousal: 0.3, dominance: 0 },
     );
 
     // The Berlin fact should activate (seed match on 'Berlin' entity).
-    expect(result.diagnostics.retrievedTypedFacts).toBeDefined();
-    expect(result.diagnostics.retrievedTypedFacts!.length).toBeGreaterThan(0);
-    const berlinFact = result.diagnostics.retrievedTypedFacts!.find((f) =>
-      f.text.includes('Berlin'),
+    // Result is now ScoredMemoryTrace[] (via TypedNetworkRetriever).
+    expect(result.diagnostics.retrievedTypedTraces).toBeDefined();
+    expect(result.diagnostics.retrievedTypedTraces!.length).toBeGreaterThan(0);
+    const berlinTrace = result.diagnostics.retrievedTypedTraces!.find((t) =>
+      t.content.includes('Berlin'),
     );
-    expect(berlinFact).toBeDefined();
+    expect(berlinTrace).toBeDefined();
+    // ID is namespaced via TypedNetworkRetriever's typedFactToScoredTrace helper.
+    expect(berlinTrace?.id.startsWith('typed-network:')).toBe(true);
+    // Tag includes the bank + the typed-network attribution.
+    expect(berlinTrace?.tags).toContain('typed-network');
+    expect(berlinTrace?.tags).toContain('bank:WORLD');
   });
 
-  it('retrieve() omits retrievedTypedFacts when typed-network not configured', async () => {
+  it('retrieve() omits retrievedTypedTraces when typed-network not configured', async () => {
     await manager.initialize(makeMinimalDeps());
     const result = await manager.retrieve(
       'Berlin',
       { valence: 0, arousal: 0.3, dominance: 0 },
     );
-    expect(result.diagnostics.retrievedTypedFacts).toBeUndefined();
+    expect(result.diagnostics.retrievedTypedTraces).toBeUndefined();
   });
 
-  it('retrieve() returns empty retrievedTypedFacts when no seed entity matches', async () => {
+  it('retrieve() returns empty retrievedTypedTraces when no seed entity matches', async () => {
     await manager.initialize({
       ...makeMinimalDeps(),
       typedNetwork: { variant: 'full', observerLLM: stubLLM },
@@ -267,7 +307,7 @@ describe('CognitiveMemoryManager: typedNetwork wiring', () => {
       { valence: 0, arousal: 0.3, dominance: 0 },
     );
     // Defined (typed-network ran) but empty (no seeds matched).
-    expect(result.diagnostics.retrievedTypedFacts).toBeDefined();
-    expect(result.diagnostics.retrievedTypedFacts).toEqual([]);
+    expect(result.diagnostics.retrievedTypedTraces).toBeDefined();
+    expect(result.diagnostics.retrievedTypedTraces).toEqual([]);
   });
 });
