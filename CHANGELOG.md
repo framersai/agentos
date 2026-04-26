@@ -1,3 +1,45 @@
+## 0.3.1 (2026-04-25)
+
+Hardening pass for the Brain storage abstraction shipped in 0.3.0. Closes 16 correctness, maintainability, and polish gaps from the post-0.3.0 code review.
+
+### Critical fixes
+
+- Schema migration is now fully transactional. Failure rolls back to the prior schema version cleanly. (C1)
+- Concurrent first-opens against the same `brainId` serialize via per-brain `pg_advisory_xact_lock` (Postgres) or `BEGIN IMMEDIATE` (SQLite). Two workers booting against the same brain no longer race. (C2)
+- `Brain.importFromSqlite` validates the source file contains exactly one `brain_id` and throws on multi-brain sources. Previously it silently collapsed all rows into the target brain. (C3)
+- `schema_version` is bumped atomically inside the migration transaction. Was previously stuck at `'1'` after a v1 to v2 migration because the seed used `INSERT OR IGNORE`. (C5)
+- Postgres `archived_traces` migration now checks for `agent_id` column existence before referencing it. Mirrors the SQLite path's existing guard. (I6)
+
+### Maintainability
+
+- New `MigrationRunner` centralizes transaction wrapping, advisory locking, and version detection. Future schema migrations register a `Migration` object instead of re-implementing this logic.
+- `PORTABLE_TABLES` hoisted to a single shared module (`store/portable-tables.ts`). Adding a portable table now requires touching one file.
+- New `migrations/index.ts` registry exposes `MIGRATIONS` and `LATEST_SCHEMA_VERSION` constants. Both `Brain._initialize` and `Brain._seedMeta` derive from the registry.
+- Cross-dialect round-trip test (sqlite to postgres to sqlite) verifies the portability contract.
+
+### Polish
+
+- `Brain.openPostgres` redacts the password segment from connection-failure error messages.
+- `Brain.close` is best-effort with logged failures: pool drain timeouts no longer propagate to shutdown callers.
+- `_brainId` private field uses ECMAScript `#` syntax (true private) instead of underscore convention.
+- Brain factory naming asymmetry (`openSqlite`/`openPostgres` vs `openWithAdapter`) documented in class JSDoc as intentional: by-dialect entry points vs by-pre-built-adapter escape hatch.
+- Postgres integration tests log cleanup errors to stderr instead of silently swallowing them.
+
+### Documentation
+
+- `docs/memory/POSTGRES_BACKEND.md` documents pool-contention semantics for shared adapter brains.
+- `Brain.importFromSqlite` JSDoc warns that the source SQLite file is mutated in-place by the auto-migration.
+- `archived_traces` brain_id-from-agent_id behavior documented as a migration caveat.
+
+### Downgrade warning
+
+This release auto-migrates v1 schemas to v2 on first open. **Downgrading from 0.3.x to 0.2.x is not supported by automatic migration.** Restore from a pre-0.3.0 backup or use `Brain.exportToSqlite` and `Brain.importFromSqlite` to round-trip data through a portable file.
+
+### Out of scope
+
+- A `--rebrand-archives` migration option (write archived_traces brain_id to the explicit override). Tracked as a follow-up.
+- A Postgres vs SQLite benchmark sweep on the `agentos-bench` suite. Tracked as a follow-up.
+
 ## 0.3.0 (2026-04-25)
 
 * feat(memory): Brain storage abstraction v2 (universal SQLite + Postgres backbone) ([0676d8b](https://github.com/framersai/agentos/commit/0676d8b))
