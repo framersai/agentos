@@ -1,3 +1,14 @@
+## 0.5.0 (2026-04-26)
+
+* fix(memory): Stage E coderabbit C1+C2 - gate extractAtEncode + delegate retrieve to TypedNetworkRetr ([01ea591](https://github.com/framersai/agentos/commit/01ea591))
+
+### BREAKING CHANGE
+
+* CognitiveRetrievalResult.diagnostics.retrievedTypedFacts
+renamed to retrievedTypedTraces and now ScoredMemoryTrace[] instead of
+TypedFact[]. Stage E typed-network manager-side encoding now requires
+opt-in via config.typedNetwork.extractAtEncode (default false).
+
 ## <small>0.4.1 (2026-04-26)</small>
 
 * feat(memory/typed-network): TypedNetworkRetriever for canonical-shaped retrieval ([230c6ae](https://github.com/framersai/agentos/commit/230c6ae))
