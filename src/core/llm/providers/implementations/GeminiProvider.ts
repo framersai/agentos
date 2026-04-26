@@ -728,9 +728,19 @@ export class GeminiProvider implements IProvider {
     if (options.maxTokens !== undefined) generationConfig.maxOutputTokens = options.maxTokens;
     if (options.topP !== undefined) generationConfig.topP = options.topP;
     if (options.stopSequences?.length) generationConfig.stopSequences = options.stopSequences;
-    // JSON mode: Gemini uses responseMimeType to enforce JSON output
+    // JSON mode: Gemini uses responseMimeType to enforce JSON output.
+    // Schema-driven structured output: when the buildResponseFormat
+    // adapter routes a Zod schema through Gemini, it sets
+    // responseFormat: { type: 'json_object', _gemini: { responseSchema } }.
+    // Forwarding the schema to generationConfig.responseSchema enables
+    // Gemini's constrained-decoding enforcement (output is guaranteed
+    // valid JSON conforming to the schema).
     if (options.responseFormat?.type === 'json_object') {
       generationConfig.responseMimeType = 'application/json';
+      const geminiExtra = (options.responseFormat as { _gemini?: { responseSchema?: Record<string, unknown> } })._gemini;
+      if (geminiExtra?.responseSchema) {
+        generationConfig.responseSchema = geminiExtra.responseSchema;
+      }
     }
     // topK support via customModelParams
     if (options.customModelParams?.topK !== undefined) {
