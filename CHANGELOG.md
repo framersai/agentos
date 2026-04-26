@@ -1,3 +1,13 @@
+## 0.4.0 (2026-04-26)
+
+* fix(agent+memory): unblock CI build (TS errors in 0.3.4 release commit) ([cf045fa](https://github.com/framersai/agentos/commit/cf045fa))
+* fix(memory): place retrievedTypedFacts inside diagnostics + add ScoredMemoryTrace import ([64a5e69](https://github.com/framersai/agentos/commit/64a5e69))
+* feat(agent): session.send accepts responseSchema for typed structured output ([827b6b9](https://github.com/framersai/agentos/commit/827b6b9))
+* feat(AnthropicProvider): forced tool-use for schema-enforced structured output ([0ba00b9](https://github.com/framersai/agentos/commit/0ba00b9))
+* feat(GeminiProvider): responseSchema for schema-enforced structured output ([b5e1bcb](https://github.com/framersai/agentos/commit/b5e1bcb))
+* feat(memory): add subpath export for typed-network module ([db9ea8b](https://github.com/framersai/agentos/commit/db9ea8b))
+* feat(memory): Stage E Phase 4.3 - retrieve() runs typed spreading activation ([d0ab11c](https://github.com/framersai/agentos/commit/d0ab11c)), closes [hi#relevance](https://github.com/hi/issues/relevance)
+
 ## <small>0.3.4 (2026-04-26)</small>
 
 * chore(IProvider): tighten responseFormat type to admit json_schema shape ([1e5c4ac](https://github.com/framersai/agentos/commit/1e5c4ac))
