@@ -440,7 +440,17 @@ export class AnthropicProvider implements IProvider {
       payload,
     );
 
-    return this.mapResponseToCompletion(apiResponse);
+    // Capture the structured-output tool name from the request options
+    // so the response mapper can surface the matching tool_use block's
+    // input as JSON-string content (uniform API across providers).
+    const sf = options.responseFormat as
+      | { _agentosUseToolForStructuredOutput?: boolean; tool?: { name: string } }
+      | undefined;
+    const structuredOutputName = sf?._agentosUseToolForStructuredOutput
+      ? sf.tool?.name
+      : undefined;
+
+    return this.mapResponseToCompletion(apiResponse, structuredOutputName);
   }
 
   /**
@@ -849,6 +859,30 @@ export class AnthropicProvider implements IProvider {
       }
     }
 
+    // --- Schema-driven structured output via forced tool-use ---
+    // Anthropic doesn't have an OpenAI-style response_format with
+    // json_schema. The equivalent is a single forced tool whose
+    // input_schema matches the desired output shape; the model returns
+    // a tool_use block whose input is JSON-validated by Anthropic's
+    // own enforcement.
+    //
+    // The provider-format adapter (structuredOutputFormat.ts) signals
+    // this mode by setting _agentosUseToolForStructuredOutput on the
+    // responseFormat option. The downstream response-mapper detects the
+    // matching block by the tool's name and surfaces its input as the
+    // JSON-string body of the choice's message.
+    const sf = options.responseFormat as
+      | { _agentosUseToolForStructuredOutput?: boolean; tool?: { name: string; input_schema: Record<string, unknown> } }
+      | undefined;
+    if (sf?._agentosUseToolForStructuredOutput && sf.tool) {
+      const existingTools = (payload.tools as Array<Record<string, unknown>>) ?? [];
+      payload.tools = [
+        { name: sf.tool.name, input_schema: sf.tool.input_schema },
+        ...existingTools,
+      ];
+      payload.tool_choice = { type: 'tool', name: sf.tool.name };
+    }
+
     // Pass through any custom model params
     if (options.customModelParams) {
       Object.assign(payload, options.customModelParams);
@@ -1018,12 +1052,15 @@ export class AnthropicProvider implements IProvider {
    * @returns {ModelCompletionResponse} Normalized completion response.
    * @private
    */
-  private mapResponseToCompletion(apiResponse: AnthropicMessagesResponse): ModelCompletionResponse {
+  private mapResponseToCompletion(
+    apiResponse: AnthropicMessagesResponse,
+    structuredOutputName?: string,
+  ): ModelCompletionResponse {
     // Collect text content
     const textParts = apiResponse.content
       .filter(block => block.type === 'text' && block.text)
       .map(block => block.text!);
-    const fullText = textParts.join('');
+    let fullText = textParts.join('');
 
     // Collect tool_use blocks and convert to OpenAI-style tool_calls
     const toolCalls = apiResponse.content
@@ -1036,6 +1073,20 @@ export class AnthropicProvider implements IProvider {
           arguments: JSON.stringify(block.input ?? {}),
         },
       }));
+
+    // Schema-driven structured output: if the request set a forced tool
+    // for structured output, find the matching tool_use block and surface
+    // its input as JSON-string content. This keeps result.text uniform
+    // with OpenAI's json_schema response (text is valid JSON) for
+    // session.send callers that consume result.text directly.
+    if (structuredOutputName) {
+      const toolBlock = apiResponse.content.find(
+        b => b.type === 'tool_use' && b.name === structuredOutputName,
+      );
+      if (toolBlock?.input !== undefined) {
+        fullText = JSON.stringify(toolBlock.input);
+      }
+    }
 
     const hasToolCalls = toolCalls.length > 0;
     const finishReason = this.mapStopReason(apiResponse.stop_reason);
