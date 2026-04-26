@@ -65,6 +65,17 @@ function deriveBrainIdFromPath(dbPath: string): string {
   return lastDot > 0 ? basename.slice(0, lastDot) : basename;
 }
 
+/**
+ * Redact the password segment from a Postgres connection string for safe
+ * inclusion in error messages.
+ *
+ * `postgresql://user:secret@host/db` becomes `postgresql://user:***@host/db`.
+ * Connection strings without embedded passwords pass through unchanged.
+ */
+function redactPostgresPassword(connStr: string): string {
+  return connStr.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1***$2');
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -501,11 +512,18 @@ export class Brain {
     }
     // Use createPostgresAdapter directly so we can pass pool size; the
     // resolveStorageAdapter facade only forwards `connectionString`.
-    const adapter = await createPostgresAdapter({
-      connectionString,
-      max: opts.poolSize ?? 10,
-    });
-    await adapter.open();
+    let adapter: StorageAdapter;
+    try {
+      adapter = await createPostgresAdapter({
+        connectionString,
+        max: opts.poolSize ?? 10,
+      });
+      await adapter.open();
+    } catch (err) {
+      const safe = redactPostgresPassword(connectionString);
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Brain.openPostgres: connection failed for ${safe}: ${msg}`);
+    }
     return Brain._initialize(adapter, opts.brainId);
   }
 
