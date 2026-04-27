@@ -1,3 +1,10 @@
+## <small>0.5.3 (2026-04-27)</small>
+
+* fix(memory/typed-network): per-attempt 30s timeout on observer LLM invoke ([4f41a8d](https://github.com/framersai/agentos/commit/4f41a8d))
+* feat(memory-router): augmented routing for backend × retrieval-config dispatch ([fa14f7f](https://github.com/framersai/agentos/commit/fa14f7f))
+* Merge remote-tracking branch 'origin/master' ([1dceecd](https://github.com/framersai/agentos/commit/1dceecd))
+* docs(memory/typed-network): expand W/E/O/S abbreviation to full bank names ([73cb557](https://github.com/framersai/agentos/commit/73cb557))
+
 ## <small>0.5.2 (2026-04-26)</small>
 
 * Merge remote-tracking branch 'origin/master' ([297ec9e](https://github.com/framersai/agentos/commit/297ec9e))
