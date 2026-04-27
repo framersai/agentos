@@ -98,15 +98,40 @@ const { text: claude } = await generateText({
 });
 ```
 
-16 providers. Provider fallback is opt-in via `fallbackProviders`:
+16 providers, automatic fallback. When the primary provider returns a retryable error (HTTP 402/429/5xx, network failures, auth issues), `generateText` walks the canonical fallback chain for that provider using whichever API keys are present in the environment — no extra imports, no chain construction needed:
 
 ```typescript
-import { buildFallbackChain, generateText } from '@framers/agentos';
+import { generateText } from '@framers/agentos';
 
 const { text } = await generateText({
   provider: 'anthropic',
   prompt: 'Compare TCP and UDP.',
-  fallbackProviders: buildFallbackChain('anthropic'),
+});
+// Anthropic primary, falls through to OpenAI / Gemini / OpenRouter / etc. on retryable errors
+```
+
+Want strict single-provider routing (e.g. for billing isolation, capability auditing, or provider-pinned tests)? Pass an empty array to opt out:
+
+```typescript
+const { text } = await generateText({
+  provider: 'anthropic',
+  prompt: 'Compare TCP and UDP.',
+  fallbackProviders: [], // strict mode — fail if Anthropic is unavailable
+});
+```
+
+Or supply your own chain (and import `buildFallbackChain` only if you want to derive a default chain to splice from):
+
+```typescript
+import { generateText, buildFallbackChain } from '@framers/agentos';
+
+const { text } = await generateText({
+  provider: 'anthropic',
+  prompt: 'Compare TCP and UDP.',
+  fallbackProviders: [
+    { provider: 'openai', model: 'gpt-4o-mini' },
+    { provider: 'openrouter' },
+  ],
 });
 ```
 
