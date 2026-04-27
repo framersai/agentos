@@ -269,14 +269,41 @@ export interface GenerateTextOptions {
    * Ordered list of fallback providers to try when the primary provider fails
    * with a retryable error (HTTP 402/429/5xx, network errors, auth failures).
    *
-   * Each entry specifies a provider and an optional model override.  When the
-   * model is omitted, the provider's default text model (from
-   * {@link PROVIDER_DEFAULTS}) is used.
+   * **Default behavior (omit / `undefined`):** auto-build the canonical
+   * fallback chain for the primary provider via {@link buildFallbackChain},
+   * filtered to providers that have API keys present in the environment.
+   * No import needed — fallback is on by default.
    *
-   * Providers are tried left-to-right; the first successful response wins.
-   * When all fallbacks are exhausted, the last error is re-thrown.
+   * **Strict mode (`[]`):** explicitly opt out of fallback. The primary
+   * provider's error is re-thrown after exhausting any provider-internal
+   * retries. Use this when billing isolation, capability auditing, or
+   * provider-pinned testing requires a single-provider guarantee.
    *
-   * @example
+   * **Custom chain (array of entries):** specify exactly which providers
+   * (and optional model overrides) to try, in order. Each entry's model
+   * defaults to the provider's text-generation default from
+   * {@link PROVIDER_DEFAULTS} when omitted. Providers are tried
+   * left-to-right; the first successful response wins.
+   *
+   * @example Default — auto-fallback through the canonical chain
+   * ```ts
+   * const result = await generateText({
+   *   provider: 'anthropic',
+   *   prompt: 'Hello',
+   * });
+   * // On retryable Anthropic failure, walks anthropic → openai → gemini → ...
+   * ```
+   *
+   * @example Strict mode — fail if the primary is unavailable
+   * ```ts
+   * const result = await generateText({
+   *   provider: 'anthropic',
+   *   prompt: 'Hello',
+   *   fallbackProviders: [],
+   * });
+   * ```
+   *
+   * @example Custom chain
    * ```ts
    * const result = await generateText({
    *   provider: 'anthropic',

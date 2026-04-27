@@ -105,8 +105,11 @@ export interface AgentOptions extends BaseAgentConfig {
    * Ordered list of fallback providers to try when the primary provider
    * fails with a retryable error (HTTP 402/429/5xx, network errors).
    *
-   * Applied to every `generate()`, `stream()`, and `session.send()` /
-   * `session.stream()` call made through this agent.
+   * **Defaults to auto-built chain** when omitted — fallback is on by
+   * default. Pass `[]` for strict single-provider mode, or supply a
+   * custom array to control the chain. Applied to every `generate()`,
+   * `stream()`, and `session.send()` / `session.stream()` call made
+   * through this agent.
    *
    * @see {@link GenerateTextOptions.fallbackProviders}
    */
