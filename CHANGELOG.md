@@ -1,3 +1,8 @@
+## <small>0.5.4 (2026-04-27)</small>
+
+* Merge pull request #3 from framersai/docs/auto-fallback-default ([b872c85](https://github.com/framersai/agentos/commit/b872c85)), closes [#3](https://github.com/framersai/agentos/issues/3)
+* fix(generate-text): document auto-fallback default; flag strict mode opt-out ([2146a98](https://github.com/framersai/agentos/commit/2146a98))
+
 ## <small>0.5.3 (2026-04-27)</small>
 
 * fix(memory/typed-network): per-attempt 30s timeout on observer LLM invoke ([4f41a8d](https://github.com/framersai/agentos/commit/4f41a8d))
