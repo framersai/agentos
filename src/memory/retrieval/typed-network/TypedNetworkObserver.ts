@@ -70,6 +70,14 @@ export interface TypedNetworkObserverOptions {
   maxTokens?: number;
   /** Temperature. Default 0 for deterministic extraction. */
   temperature?: number;
+  /**
+   * Per-attempt request timeout in milliseconds. When the underlying
+   * `llm.invoke()` does not resolve within this window the attempt is
+   * abandoned and the observer falls through to the retry path. Used
+   * to prevent stale TCP sockets / hung OpenAI requests from
+   * deadlocking long-running ingest pipelines. Default 30 000 ms (30 s).
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -87,11 +95,13 @@ export class TypedNetworkObserver {
   private readonly llm: ITypedExtractionLLM;
   private readonly maxTokens: number;
   private readonly temperature: number;
+  private readonly timeoutMs: number;
 
   constructor(options: TypedNetworkObserverOptions) {
     this.llm = options.llm;
     this.maxTokens = options.maxTokens ?? 4096;
     this.temperature = options.temperature ?? 0;
+    this.timeoutMs = options.timeoutMs ?? 30_000;
   }
 
   /**
@@ -125,12 +135,21 @@ export class TypedNetworkObserver {
           ? baseUserPrompt
           : `${baseUserPrompt}\n\nThe previous response failed validation: ${lastValidationError}\nReturn JSON matching the schema strictly. Do not add commentary.`;
 
-      const raw = await this.llm.invoke({
-        system: TYPED_EXTRACTION_SYSTEM_PROMPT,
-        user: userPrompt,
-        maxTokens: this.maxTokens,
-        temperature: this.temperature,
-      });
+      // Race the underlying invoke against a per-attempt timeout. A
+      // hung TCP socket / unresponsive provider would otherwise
+      // deadlock long-running ingest pipelines — at concurrency=1 a
+      // single hung request stalls every subsequent session forever.
+      // The timeout fires from the agentos side without requiring the
+      // adapter to surface AbortSignal support; the underlying request
+      // is abandoned (its socket leaks until GC / process exit) but
+      // the observer moves to its retry path.
+      let raw: string;
+      try {
+        raw = await this.invokeWithTimeout(userPrompt);
+      } catch (err) {
+        lastValidationError = err instanceof Error ? err.message : String(err);
+        continue;
+      }
 
       const stripped = stripCodeFence(raw);
 
@@ -173,6 +192,37 @@ export class TypedNetworkObserver {
     // responsible for downstream "no typed facts in this session"
     // semantics.
     return [];
+  }
+
+  /**
+   * Run `this.llm.invoke()` with a per-attempt timeout. Throws an
+   * `Error('TypedNetworkObserver: extraction timed out after Nms')`
+   * when the timer fires before the LLM responds. The timer is cleared
+   * on resolution to avoid leaking pending timeouts into subsequent
+   * extractions.
+   */
+  private async invokeWithTimeout(userPrompt: string): Promise<string> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    const invokePromise = this.llm.invoke({
+      system: TYPED_EXTRACTION_SYSTEM_PROMPT,
+      user: userPrompt,
+      maxTokens: this.maxTokens,
+      temperature: this.temperature,
+    });
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(
+          new Error(
+            `TypedNetworkObserver: extraction timed out after ${this.timeoutMs}ms`,
+          ),
+        );
+      }, this.timeoutMs);
+    });
+    try {
+      return await Promise.race([invokePromise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+    }
   }
 }
 
