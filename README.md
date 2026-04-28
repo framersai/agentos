@@ -38,6 +38,55 @@ AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and
 
 ---
 
+## Classifier-Driven Memory Pipeline
+
+Most memory libraries retrieve on every query. AgentOS gates memory through three independent LLM-as-judge classifiers, so trivial queries skip retrieval entirely, queries that need memory get the right architecture, and the right reader handles each category.
+
+```
+            User query
+                │
+                ▼
+┌──────────────────────────────────┐
+│  Stage 1: QueryClassifier        │   gpt-5-mini few-shot, ~$0.0001 / query
+│  Memory needed at all?           │
+│  T0 = none ────────────────► answer from context, skip retrieval
+│  T1+ = simple/moderate/complex   │
+└──────────────────────────────────┘
+                │ (T1+ only)
+                ▼
+┌──────────────────────────────────┐
+│  Stage 2: MemoryRouter           │   reuses Stage 1 classification
+│  Which retrieval architecture?   │
+│  canonical-hybrid · OM-v10 · OM-v11
+└──────────────────────────────────┘
+                │
+                ▼
+┌──────────────────────────────────┐
+│  Stage 3: ReaderRouter           │   reuses Stage 1 classification
+│  Which reader tier?              │
+│  gpt-4o (TR/SSU)  ·  gpt-5-mini (SSA/SSP/KU/MS)
+└──────────────────────────────────┘
+                │
+                ▼
+        Grounded answer
+```
+
+Each stage is a small LLM-as-judge classifier (gpt-5-mini, ~$0.0001-0.0014 per call). Each stage is independent and shippable on its own. Stages 2 and 3 reuse the Stage 1 classification output, so the full pipeline costs **one classifier call per query**, not three.
+
+**Validated on LongMemEval-S Phase B at N=500, gpt-4o judge, bootstrap CI 10k resamples**: 85.6% [82.4%, 88.6%] accuracy at $0.0090 per correct, 4-second average latency. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp on accuracy at 6.5× lower cost-per-correct.
+
+| Primitive | Source | Decision per query | Cost per call |
+|---|---|---|---:|
+| `QueryClassifier` | `@framers/agentos/query-router` | T0/none vs T1/simple vs T2/moderate vs T3/complex | ~$0.0001 |
+| `MemoryRouter` | `@framers/agentos/memory-router` | canonical-hybrid vs observational-memory-v10 vs observational-memory-v11 | reuses Stage 1 output |
+| `ReaderRouter` | `@framers/agentos/memory-router` (v0.5.5) | gpt-4o vs gpt-5-mini per category | reuses Stage 1 output |
+
+The pipeline is novel because the **T0 / no-memory gate** removes retrieval entirely for queries that don't need it (greetings, small talk, general knowledge), saving the embedding+rerank+reader cost on a substantial fraction of typical agent traffic. The per-category dispatch then routes the remaining queries to the architecture and reader best-suited for the question type, calibrated from per-category Phase B accuracy data on LongMemEval-S.
+
+**[Full benchmark suite + reproducible run JSONs →](https://github.com/framersai/agentos-bench)** · **[Cognitive Pipeline docs →](https://docs.agentos.sh/features/cognitive-pipeline)** · **[Query Router docs →](https://docs.agentos.sh/features/query-routing)** · **[Memory Router docs →](https://docs.agentos.sh/features/memory-router)**
+
+---
+
 ## See It In Action
 
 ### 🌀 Paracosm — AI Agent Swarm Simulation
