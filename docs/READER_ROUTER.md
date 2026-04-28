@@ -63,6 +63,19 @@ When ReaderRouter is the only classifier-firing primitive in the pipeline (no [M
 
 When ReaderRouter runs alongside MemoryRouter (the typical config), it consumes the MemoryRouter classifier's output and adds zero LLM calls.
 
+### Why the default classifier is gpt-5-mini and not gpt-4o
+
+Two independent Phase B measurements at full N=500 on LongMemEval-S confirm that upgrading the classifier from `gpt-5-mini` to `gpt-4o` does NOT lift aggregate accuracy on this benchmark, while costing ~12× more per query:
+
+| Configuration | gpt-5-mini classifier | gpt-4o classifier | Δ |
+|---|---:|---:|---|
+| Tier 3 + reader router | 84.8% [81.6%, 87.8%] | 84.4% [81.2%, 87.6%] | tied, gpt-4o classifier 87% more expensive |
+| Canonical-hybrid + reader router (the 85.6% headline base) | 85.6% [82.4%, 88.6%] | 84.0% [80.6%, 87.0%] | gpt-4o classifier −1.6 pp at +44% cost-per-correct |
+
+In both runs, the gpt-4o classifier reclassifies edge cases more aggressively, gaining marginally on SSU/SSA/SSP (always within CI) but losing meaningfully on KU (-3.9 to -5.1 pp) and MS (-5.2 pp on the second measurement) as edge cases get routed away from their gpt-5-mini-best dispatch tier.
+
+The `--om-classifier-model gpt-4o` flag remains wired in for per-workload empirical testing — workloads with very different category distributions from LongMemEval-S may see a meaningful lift — but on this benchmark's category mix the recommended default is unambiguously `gpt-5-mini`.
+
 ## Cost per case
 
 ```
