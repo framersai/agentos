@@ -1,8 +1,10 @@
 # Memory Router
 
-Recall-stage smart orchestrator. Picks the best memory-recall architecture per query — classifier-driven dispatch across `canonical-hybrid`, `observational-memory-v10`, and `observational-memory-v11` backends. Validated on LongMemEval-S Phase B N=500: **76.6% [72.8, 80.2] at $0.058/correct**, Pareto-dominating four prior single-architecture tiers.
+Stage 2 of the [Classifier-Driven Memory Pipeline](./COGNITIVE_PIPELINE.md). Recall-stage smart orchestrator. Picks the best memory-recall architecture per query, classifier-driven dispatch across `canonical-hybrid`, `observational-memory-v10`, and `observational-memory-v11` backends. Sibling primitives: [Query Classifier](./QUERY_ROUTER.md) (Stage 1, the memory-or-not gate), [Reader Router](./READER_ROUTER.md) (Stage 3, the reader-tier dispatch), [Ingest Router](./INGEST_ROUTER.md) (input stage).
 
-This is the recall stage of the [Cognitive Pipeline](./COGNITIVE_PIPELINE.md). Sibling primitives: [Ingest Router](./INGEST_ROUTER.md) (input stage), [Read Router](./READ_ROUTER.md) (read stage).
+The 2026-04-28 v1 publication's validated deployed-config headline pairs MemoryRouter (Stage 2) with the [ReaderRouter](./READER_ROUTER.md) (Stage 3) and the `text-embedding-3-small` embedder: **85.6% [82.4%, 88.6%] at $0.0090/correct, 4 second avg latency on LongMemEval-S Phase B N=500**. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp accuracy at 6.5× lower cost-per-correct.
+
+The MemoryRouter primitive itself ships three calibrated presets (`maximize-accuracy`, `balanced`, `minimize-cost`). The earlier shipping headline at 76.6% [72.8, 80.2] / $0.058/correct ran against `CharHashEmbedder` (the bench's "no embedder configured" fallback). The +9 pp lift to the current 85.6% number came from (1) wiring `text-embedding-3-small` as the embedder, the documented production path, and (2) dropping the `minimize-cost` preset's MS+SSP → OM-v11 routing in favor of canonical-hybrid for all categories paired with ReaderRouter (see [Tier 3 minimize-cost staleness for sem-embed deployments](#tier-3-minimize-cost-staleness-for-sem-embed-deployments) below).
 
 ## What it actually does
 
@@ -192,12 +194,24 @@ The shipping cost-points in `DEFAULT_MEMORY_BACKEND_COSTS` come from LongMemEval
 
 For workloads whose cost/accuracy profile diverges from LongMemEval-S, see [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) — derives the routing table from your own calibration data instead of relying on Phase B presets.
 
+## Tier 3 minimize-cost staleness for sem-embed deployments
+
+The `minimize-cost` preset's routing table sends `multi-session` and `single-session-preference` cases to the `observational-memory-v11` backend. That table was calibrated on Phase B data measured against `CharHashEmbedder` (recall@10 around 0.62 on canonical-hybrid). With `text-embedding-3-small` the canonical-hybrid recall@10 lifts to 0.981, and the per-category accuracy story changes:
+
+At gpt-4o reader, dropping the OM-v11 routing produces a +1.0 pp aggregate lift (SSP gains 13.4 pp on canonical, MS loses 4 pp, case-weighted aggregate favors canonical). At gpt-5-mini reader (via [ReaderRouter](./READER_ROUTER.md)), OM-v11 routing for MS/SSP is statistically tied with canonical, but OM-v11 imposes a 60-120 second observer pipeline per OM-routed case (p95 latency 111 sec with the routing on, 7 sec with it off, a 15× tail-latency reduction by dropping it).
+
+For new sem-embed deployments, the recommended config is **canonical-hybrid for all categories + [ReaderRouter](./READER_ROUTER.md) per-category reader-tier dispatch + `text-embedding-3-small` embedder**. This is the validated 85.6% headline. The `minimize-cost` preset's table will be re-derived from sem-embed Phase B data in v2.
+
+Existing CharHash-era deployments using `minimize-cost` continue to work (no breaking change in the API), but the 76.6% headline they validate against is the older bench-default-fallback number. Migrating to sem-embed embedder + dropping the policy-router preset (using canonical-hybrid directly) + adding ReaderRouter is a +9 pp accuracy lift at lower cost and faster latency.
+
 ## Related
 
-- [Cognitive Pipeline](./COGNITIVE_PIPELINE.md) — composition primitive that ties this with Ingest Router + Read Router
-- [Ingest Router](./INGEST_ROUTER.md) — input stage sibling
-- [Read Router](./READ_ROUTER.md) — read stage sibling
-- [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) — self-calibrating extension
-- [Query Router](./QUERY_ROUTER.md) — sibling primitive for general Q&A (different use case)
-- [Cognitive Memory](./COGNITIVE_MEMORY.md) — the storage substrate canonical-hybrid retrieves from
-- [HyDE Retrieval](./HYDE_RETRIEVAL.md) — alternate retrieval strategy MemoryRouter can dispatch to
+- [Cognitive Pipeline](./COGNITIVE_PIPELINE.md) - the three-stage classifier dispatch this fits inside
+- [Query Router](./QUERY_ROUTER.md) - Stage 1, the memory-or-not gate
+- [Reader Router](./READER_ROUTER.md) - Stage 3, the reader-tier dispatch
+- [Ingest Router](./INGEST_ROUTER.md) - input stage sibling
+- [Read Router](./READ_ROUTER.md) - read stage sibling
+- [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) - self-calibrating extension
+- [Cognitive Memory](./COGNITIVE_MEMORY.md) - the storage substrate canonical-hybrid retrieves from
+- [HyDE Retrieval](./HYDE_RETRIEVAL.md) - alternate retrieval strategy MemoryRouter can dispatch to
+- [agentos-bench](https://github.com/framersai/agentos-bench) - reproducible run JSONs, full transparency stack
