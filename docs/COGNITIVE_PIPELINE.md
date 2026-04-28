@@ -6,15 +6,23 @@ Smart per-message orchestration in agentos. Composes the LLM-as-judge stages of 
 
 ## What it actually does
 
-Every message that flows through an agentos agent goes through a chain of decisions. Each decision is a small `gpt-5-mini`-style classifier call that picks the best strategy for that specific message:
+Every message that flows through an agentos agent goes through a chain of decisions. Each decision is a small `gpt-5-mini`-style classifier call that picks the best strategy for that specific message. The novel piece for query-time is that the **first decision is whether memory should be touched at all** (most memory libraries skip this step and retrieve on every query).
 
-1. **Ingest stage**: when content arrives (a new conversation turn, a document, a code file), classify the content kind and pick a storage strategy. Short conversations don't need observation extraction; long articles benefit from session summarization. The stage decides per-content.
+For incoming content:
 
-2. **Recall stage**: when a query arrives, classify the query category and pick a memory backend. Single-session-user questions go to canonical hybrid retrieval. Multi-session synthesis questions go to observational memory. The stage decides per-query.
+1. **Ingest stage**: when content arrives (a new conversation turn, a document, a code file), classify the content kind and pick a storage strategy. Short conversations don't need observation extraction; long articles benefit from session summarization. The stage decides per-content. See [Ingest Router](./INGEST_ROUTER.md).
 
-3. **Read stage**: when retrieved evidence comes back, classify the query+evidence read intent and pick a reader strategy. Precise-fact lookups use a single reader call. Multi-source synthesis uses two-call extract-then-answer. Time-interval questions use scratchpad-then-answer. The stage decides per-query+evidence.
+For incoming queries:
 
-Each stage is a router. Each router is an LLM-as-judge that classifies its input, picks a strategy from its routing table, and dispatches to a registered executor. Cognitive Pipeline composes the three routers into one orchestrator.
+2. **Stage 1: Memory-or-not gate ([QueryClassifier](./QUERY_ROUTER.md))**: assigns each query a retrieval tier (T0 / T1 / T2 / T3). T0 is "no retrieval, answer from context alone" — greetings, small talk, general-knowledge questions that don't need memory at all. T1+ activates the rest of the pipeline. This stage saves the embedding+rerank+reader cost on every memory-irrelevant query.
+
+3. **Stage 2: Architecture dispatch ([MemoryRouter](./MEMORY_ROUTER.md))**: for T1+ queries only, classify the query category (one of six: single-session-user, single-session-assistant, single-session-preference, knowledge-update, multi-session, temporal-reasoning) and pick the best memory backend (canonical-hybrid, observational-memory-v10, or observational-memory-v11). Single-session-user questions go to canonical hybrid retrieval. Multi-session synthesis questions used to go to observational memory under the `minimize-cost` preset's CharHash-era calibration; in the sem-embed era canonical-hybrid handles them at lower latency. See [MEMORY_ROUTER.md § Tier 3 minimize-cost staleness](./MEMORY_ROUTER.md#tier-3-minimize-cost-staleness-for-sem-embed-deployments) for details.
+
+4. **Stage 3: Reader-tier dispatch ([ReaderRouter](./READER_ROUTER.md))**: reuses Stage 2's category classification (zero extra LLM calls) to dispatch the answer call to the best reader for that category. gpt-4o for temporal-reasoning + single-session-user (long-context arithmetic and exact recall). gpt-5-mini for single-session-assistant + single-session-preference + knowledge-update + multi-session (structured extraction at ~12× lower per-token cost). The single-session-preference lift alone is +23.4 pp on a reader-tier swap (63.3% gpt-4o → 86.7% gpt-5-mini at the same retrieval).
+
+5. **Read intent dispatch ([ReadRouter](./READ_ROUTER.md))**: a separate primitive that picks read strategy (precise-fact lookups use single-call; multi-source synthesis uses two-call extract-then-answer; time-interval questions use scratchpad-then-answer). Composable with ReaderRouter or used independently.
+
+Each stage is a router. Each router is an LLM-as-judge that classifies its input, picks a strategy from its routing table, and dispatches to a registered executor. The pipeline costs **one classifier call per query** because Stages 2 and 3 reuse Stage 1's classification output. Cognitive Pipeline composes the routers into one orchestrator.
 
 ## Architecture
 
