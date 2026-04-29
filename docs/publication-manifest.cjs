@@ -14,6 +14,7 @@ const DOC_SEARCH_SUBDIRS = [
 
 const SECTION_ORDER = [
   'Getting Started',
+  'Benchmarks',
   'Architecture',
   'Orchestration',
   'Memory',
@@ -117,6 +118,10 @@ const publicationManifest = [
   agentosDoc('EXAMPLES.md', 'getting-started/examples.md', 'Examples Cookbook', 'Getting Started', 4),
   agentosDoc('ECOSYSTEM.md', 'getting-started/ecosystem.md', 'Ecosystem', 'Getting Started', 5),
   agentosDoc('RELEASING.md', 'getting-started/releasing.md', 'Releasing', 'Getting Started', 6),
+
+  siteDoc('benchmarks/index.md', 'benchmarks/index.md', 'Memory Benchmarks', 'Benchmarks', 1, {
+    categoryIndex: true,
+  }),
 
   agentosDoc('ARCHITECTURE.md', 'architecture/system-architecture.md', 'System Architecture', 'Architecture', 1),
   agentosDoc('PLATFORM_SUPPORT.md', 'architecture/platform-support.md', 'Platform Support', 'Architecture', 2),
