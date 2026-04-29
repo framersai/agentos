@@ -361,7 +361,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.11.0",
-    "@framers/agentos-extensions-registry": "^0.15.0",
+    "@framers/agentos-extensions-registry": "^0.18.0",
     "@framers/sql-storage-adapter": "^0.6.3",
     "@opentelemetry/context-async-hooks": "^2.0.1",
     "@opentelemetry/sdk-metrics": "^2.0.1",
