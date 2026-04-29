@@ -1,0 +1,489 @@
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@framers/agentos - v0.5.6</title><meta name="description" content="Documentation for @framers/agentos"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-search"></use></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div><div class="field"><div id="tsd-toolbar-links"><a href="https://agentos.sh">Website</a><a href="https://github.com/framersai/agentos">GitHub</a><a href="https://www.npmjs.com/package/@framers/agentos">npm</a></div></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">@framers/agentos - v0.5.6</a></div><div class="table-cell" id="tsd-widgets"><a href="#" class="tsd-widget tsd-toolbar-icon menu no-caption" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h2>@framers/agentos - v0.5.6</h2></div><div class="tsd-panel tsd-typography"><div align="center">
+
+<a href="https://agentos.sh">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-no-tagline-transparent-2x.png" alt="AgentOS — TypeScript AI Agent Framework" height="100" />
+</a>
+
+<br />
+
+<p><strong>Open-source TypeScript runtime for autonomous AI agents with cognitive memory, HEXACO personality, and emergent tool forging.</strong></p>
+<p><a href="https://www.npmjs.com/package/@framers/agentos"><img src="https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837" alt="npm"></a>
+<a href="https://github.com/framersai/agentos/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI" alt="CI"></a>
+<a href="https://github.com/framersai/agentos/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-3%2C866%2B_passed-2ea043?style=flat-square&logo=vitest&logoColor=white" alt="tests"></a>
+<a href="https://codecov.io/gh/framersai/agentos"><img src="https://codecov.io/gh/framersai/agentos/graph/badge.svg" alt="codecov"></a>
+<a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
+<a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square" alt="License"></a>
+<a href="https://wilds.ai/discord"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord" alt="Discord"></a></p>
+<p><a href="https://agentos.sh">Website</a> · <a href="https://docs.agentos.sh">Docs</a> · <a href="https://www.npmjs.com/package/@framers/agentos">npm</a> · <a href="https://github.com/framersai/agentos">GitHub</a> · <a href="https://wilds.ai/discord">Discord</a> · <a href="https://docs.agentos.sh/blog">Blog</a></p>
+</div>
+
+<hr>
+<a id="md:what-is-agentos" class="tsd-anchor"></a><h2><a href="#md:what-is-agentos">What is AgentOS?</a></h2><p>AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and create new tools at runtime. Each agent is a <strong>Generalized Mind Instance</strong> (GMI) with its own personality, memory lifecycle, and behavioral adaptation loop.</p>
+<a id="md:why-agentos-over-alternatives" class="tsd-anchor"></a><h3><a href="#md:why-agentos-over-alternatives">Why AgentOS over alternatives?</a></h3><table>
+<thead>
+<tr>
+<th>vs.</th>
+<th>AgentOS differentiator</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LangChain / LangGraph</strong></td>
+<td>Cognitive memory (8 neuroscience-backed mechanisms), HEXACO personality, runtime tool forging</td>
+</tr>
+<tr>
+<td><strong>Vercel AI SDK</strong></td>
+<td>Multi-agent teams (6 strategies), full RAG pipeline (7 vector backends), guardrails, voice/telephony</td>
+</tr>
+<tr>
+<td><strong>CrewAI / Mastra</strong></td>
+<td>Unified orchestration (workflow DAGs + agent graphs + goal-driven missions), personality-driven routing</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Full comparison:</strong> <a href="https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai">AgentOS vs LangGraph vs CrewAI vs Mastra</a></p>
+</blockquote>
+<hr>
+<a id="md:classifier-driven-memory-pipeline" class="tsd-anchor"></a><h2><a href="#md:classifier-driven-memory-pipeline">Classifier-Driven Memory Pipeline</a></h2><p>Most memory libraries retrieve on every query. AgentOS gates memory through three independent LLM-as-judge classifiers, so trivial queries skip retrieval entirely, queries that need memory get the right architecture, and the right reader handles each category.</p>
+<pre><code><span class="hl-0">            User query</span><br/><span class="hl-0">                │</span><br/><span class="hl-0">                ▼</span><br/><span class="hl-0">┌──────────────────────────────────┐</span><br/><span class="hl-0">│  Stage </span><span class="hl-1">1</span><span class="hl-0">: QueryClassifier        │   gpt</span><span class="hl-2">-</span><span class="hl-1">5</span><span class="hl-2">-</span><span class="hl-0">mini few</span><span class="hl-2">-</span><span class="hl-0">shot, </span><span class="hl-2">~</span><span class="hl-0">$0.</span><span class="hl-1">0001</span><span class="hl-0"> </span><span class="hl-2">/</span><span class="hl-0"> query</span><br/><span class="hl-0">│  Memory needed at all</span><span class="hl-2">?</span><span class="hl-0">           │</span><br/><span class="hl-0">│  </span><span class="hl-1">T0</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> none ────────────────► answer from context, skip retrieval</span><br/><span class="hl-0">│  </span><span class="hl-1">T1</span><span class="hl-2">+</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> simple</span><span class="hl-2">/</span><span class="hl-0">moderate</span><span class="hl-2">/</span><span class="hl-0">complex   │</span><br/><span class="hl-0">└──────────────────────────────────┘</span><br/><span class="hl-0">                │ (</span><span class="hl-1">T1</span><span class="hl-2">+</span><span class="hl-0"> only)</span><br/><span class="hl-0">                ▼</span><br/><span class="hl-0">┌──────────────────────────────────┐</span><br/><span class="hl-0">│  Stage </span><span class="hl-1">2</span><span class="hl-2">:</span><span class="hl-0"> MemoryRouter           │   reuses Stage </span><span class="hl-1">1</span><span class="hl-0"> classification</span><br/><span class="hl-0">│  Which retrieval architecture</span><span class="hl-2">?</span><span class="hl-0">   │</span><br/><span class="hl-0">│  canonical</span><span class="hl-2">-</span><span class="hl-0">hybrid · </span><span class="hl-1">OM</span><span class="hl-2">-</span><span class="hl-0">v10 · </span><span class="hl-1">OM</span><span class="hl-2">-</span><span class="hl-0">v11</span><br/><span class="hl-0">└──────────────────────────────────┘</span><br/><span class="hl-0">                │</span><br/><span class="hl-0">                ▼</span><br/><span class="hl-0">┌──────────────────────────────────┐</span><br/><span class="hl-0">│  Stage </span><span class="hl-1">3</span><span class="hl-2">:</span><span class="hl-0"> ReaderRouter           │   reuses Stage </span><span class="hl-1">1</span><span class="hl-0"> classification</span><br/><span class="hl-0">│  Which reader tier</span><span class="hl-2">?</span><span class="hl-0">              │</span><br/><span class="hl-0">│  gpt</span><span class="hl-2">-</span><span class="hl-0">4</span><span class="hl-3">o</span><span class="hl-0"> (</span><span class="hl-1">TR</span><span class="hl-2">/</span><span class="hl-1">SSU</span><span class="hl-0">)  ·  gpt</span><span class="hl-2">-</span><span class="hl-1">5</span><span class="hl-2">-</span><span class="hl-3">mini</span><span class="hl-0"> (</span><span class="hl-1">SSA</span><span class="hl-2">/</span><span class="hl-1">SSP</span><span class="hl-2">/</span><span class="hl-1">KU</span><span class="hl-2">/</span><span class="hl-1">MS</span><span class="hl-0">)</span><br/><span class="hl-0">└──────────────────────────────────┘</span><br/><span class="hl-0">                │</span><br/><span class="hl-0">                ▼</span><br/><span class="hl-0">        Grounded answer</span>
+</code><button>Copy</button></pre>
+<p>Each stage is a small LLM-as-judge classifier (gpt-5-mini, ~$0.0001-0.0014 per call). Each stage is independent and shippable on its own. Stages 2 and 3 reuse the Stage 1 classification output, so the full pipeline costs <strong>one classifier call per query</strong>, not three.</p>
+<p><strong>Validated on LongMemEval-S Phase B at N=500, gpt-4o judge, bootstrap CI 10k resamples</strong>: 85.6% [82.4%, 88.6%] accuracy at $0.0090 per correct, 4-second average latency. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp on accuracy at 6.5× lower cost-per-correct.</p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Source</th>
+<th>Decision per query</th>
+<th align="right">Cost per call</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>QueryClassifier</code></td>
+<td><code>@framers/agentos/query-router</code></td>
+<td>T0/none vs T1/simple vs T2/moderate vs T3/complex</td>
+<td align="right">~$0.0001</td>
+</tr>
+<tr>
+<td><code>MemoryRouter</code></td>
+<td><code>@framers/agentos/memory-router</code></td>
+<td>canonical-hybrid vs observational-memory-v10 vs observational-memory-v11</td>
+<td align="right">reuses Stage 1 output</td>
+</tr>
+<tr>
+<td><code>ReaderRouter</code></td>
+<td><code>@framers/agentos/memory-router</code> (v0.5.5)</td>
+<td>gpt-4o vs gpt-5-mini per category</td>
+<td align="right">reuses Stage 1 output</td>
+</tr>
+</tbody></table>
+<p>The pipeline is novel because the <strong>T0 / no-memory gate</strong> removes retrieval entirely for queries that don&#39;t need it (greetings, small talk, general knowledge), saving the embedding+rerank+reader cost on a substantial fraction of typical agent traffic. The per-category dispatch then routes the remaining queries to the architecture and reader best-suited for the question type, calibrated from per-category Phase B accuracy data on LongMemEval-S.</p>
+<p><strong><a href="https://github.com/framersai/agentos-bench">Full benchmark suite + reproducible run JSONs →</a></strong> · <strong><a href="https://docs.agentos.sh/features/cognitive-pipeline">Cognitive Pipeline docs →</a></strong> · <strong><a href="https://docs.agentos.sh/features/query-routing">Query Router docs →</a></strong> · <strong><a href="https://docs.agentos.sh/features/memory-router">Memory Router docs →</a></strong></p>
+<hr>
+<a id="md:see-it-in-action" class="tsd-anchor"></a><h2><a href="#md:see-it-in-action">See It In Action</a></h2><a id="md:🌀-paracosm--ai-agent-swarm-simulation" class="tsd-anchor"></a><h3><a href="#md:🌀-paracosm--ai-agent-swarm-simulation">🌀 Paracosm — AI Agent Swarm Simulation</a></h3><p>Define any scenario as JSON. Run it with AI commanders that have different HEXACO personalities. Same starting conditions, different decisions, divergent civilizations. Built on AgentOS.</p>
+<pre><code class="language-bash"><span class="hl-3">npm</span><span class="hl-0"> </span><span class="hl-4">install</span><span class="hl-0"> </span><span class="hl-4">paracosm</span>
+</code><button>Copy</button></pre>
+<p><strong><a href="https://paracosm.agentos.sh/sim">Live Demo</a></strong> · <strong><a href="https://github.com/framersai/paracosm">GitHub</a></strong> · <strong><a href="https://www.npmjs.com/package/paracosm">npm</a></strong> · <strong><a href="https://paracosm.agentos.sh">Landing Page</a></strong></p>
+<hr>
+<a id="md:install" class="tsd-anchor"></a><h2><a href="#md:install">Install</a></h2><pre><code class="language-bash"><span class="hl-3">npm</span><span class="hl-0"> </span><span class="hl-4">install</span><span class="hl-0"> </span><span class="hl-4">@framers/agentos</span>
+</code><button>Copy</button></pre>
+<a id="md:configure-api-keys" class="tsd-anchor"></a><h3><a href="#md:configure-api-keys">Configure API Keys</a></h3><pre><code class="language-bash"><span class="hl-5"># Environment variables (recommended for production)</span><br/><span class="hl-2">export</span><span class="hl-0"> OPENAI_API_KEY</span><span class="hl-2">=</span><span class="hl-4">sk-...</span><br/><span class="hl-2">export</span><span class="hl-0"> ANTHROPIC_API_KEY</span><span class="hl-2">=</span><span class="hl-4">sk-ant-...</span><br/><span class="hl-2">export</span><span class="hl-0"> GEMINI_API_KEY</span><span class="hl-2">=</span><span class="hl-4">AIza...</span><br/><br/><span class="hl-5"># Key rotation — comma-separated keys auto-rotate with quota detection</span><br/><span class="hl-2">export</span><span class="hl-0"> OPENAI_API_KEY</span><span class="hl-2">=</span><span class="hl-4">sk-key1,sk-key2,sk-key3</span>
+</code><button>Copy</button></pre>
+<pre><code class="language-typescript"><span class="hl-5">// Or pass apiKey inline (multi-tenant apps, tests, dynamic config)</span><br/><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateText</span><span class="hl-0">({ provider: </span><span class="hl-4">&#39;openai&#39;</span><span class="hl-0">, apiKey: </span><span class="hl-4">&#39;sk-...&#39;</span><span class="hl-0">, prompt: </span><span class="hl-4">&#39;...&#39;</span><span class="hl-0"> });</span>
+</code><button>Copy</button></pre>
+<p>All high-level functions accept <code>apiKey</code> and <code>baseUrl</code> parameters.</p>
+<hr>
+<a id="md:quick-start" class="tsd-anchor"></a><h2><a href="#md:quick-start">Quick Start</a></h2><a id="md:generate-text" class="tsd-anchor"></a><h3><a href="#md:generate-text">Generate Text</a></h3><pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { generateText } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-5">// Auto-detect provider from env vars</span><br/><span class="hl-2">const</span><span class="hl-0"> { </span><span class="hl-1">text</span><span class="hl-0"> } </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateText</span><span class="hl-0">({</span><br/><span class="hl-0">  prompt: </span><span class="hl-4">&#39;Explain TCP handshakes in 3 bullets.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">});</span><br/><br/><span class="hl-5">// Pin a provider</span><br/><span class="hl-2">const</span><span class="hl-0"> { </span><span class="hl-6">text</span><span class="hl-0">: </span><span class="hl-1">claude</span><span class="hl-0"> } </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateText</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  prompt: </span><span class="hl-4">&#39;Compare TCP and UDP.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">});</span>
+</code><button>Copy</button></pre>
+<p>16 providers, automatic fallback. When the primary provider returns a retryable error (HTTP 402/429/5xx, network failures, auth issues), <code>generateText</code> walks the canonical fallback chain for that provider using whichever API keys are present in the environment — no extra imports, no chain construction needed:</p>
+<pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { generateText } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> { </span><span class="hl-1">text</span><span class="hl-0"> } </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateText</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  prompt: </span><span class="hl-4">&#39;Compare TCP and UDP.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">});</span><br/><span class="hl-5">// Anthropic primary, falls through to OpenAI / Gemini / OpenRouter / etc. on retryable errors</span>
+</code><button>Copy</button></pre>
+<p>Want strict single-provider routing (e.g. for billing isolation, capability auditing, or provider-pinned tests)? Pass an empty array to opt out:</p>
+<pre><code class="language-typescript"><span class="hl-2">const</span><span class="hl-0"> { </span><span class="hl-1">text</span><span class="hl-0"> } </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateText</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  prompt: </span><span class="hl-4">&#39;Compare TCP and UDP.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  fallbackProviders: [], </span><span class="hl-5">// strict mode — fail if Anthropic is unavailable</span><br/><span class="hl-0">});</span>
+</code><button>Copy</button></pre>
+<p>Or supply your own chain (and import <code>buildFallbackChain</code> only if you want to derive a default chain to splice from):</p>
+<pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { generateText, buildFallbackChain } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> { </span><span class="hl-1">text</span><span class="hl-0"> } </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateText</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  prompt: </span><span class="hl-4">&#39;Compare TCP and UDP.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  fallbackProviders: [</span><br/><span class="hl-0">    { provider: </span><span class="hl-4">&#39;openai&#39;</span><span class="hl-0">, model: </span><span class="hl-4">&#39;gpt-4o-mini&#39;</span><span class="hl-0"> },</span><br/><span class="hl-0">    { provider: </span><span class="hl-4">&#39;openrouter&#39;</span><span class="hl-0"> },</span><br/><span class="hl-0">  ],</span><br/><span class="hl-0">});</span>
+</code><button>Copy</button></pre>
+<a id="md:streaming" class="tsd-anchor"></a><h3><a href="#md:streaming">Streaming</a></h3><pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { streamText } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">stream</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">streamText</span><span class="hl-0">({ provider: </span><span class="hl-4">&#39;openai&#39;</span><span class="hl-0">, prompt: </span><span class="hl-4">&#39;Write a haiku.&#39;</span><span class="hl-0"> });</span><br/><span class="hl-2">for</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> (</span><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">chunk</span><span class="hl-0"> </span><span class="hl-2">of</span><span class="hl-0"> stream.textStream) process.stdout.</span><span class="hl-3">write</span><span class="hl-0">(chunk);</span>
+</code><button>Copy</button></pre>
+<a id="md:structured-output" class="tsd-anchor"></a><h3><a href="#md:structured-output">Structured Output</a></h3><pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { generateObject } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><span class="hl-2">import</span><span class="hl-0"> { z } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;zod&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> { </span><span class="hl-1">object</span><span class="hl-0"> } </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateObject</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;gemini&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  schema: z.</span><span class="hl-3">object</span><span class="hl-0">({</span><br/><span class="hl-0">    sentiment: z.</span><span class="hl-3">enum</span><span class="hl-0">([</span><span class="hl-4">&#39;positive&#39;</span><span class="hl-0">, </span><span class="hl-4">&#39;negative&#39;</span><span class="hl-0">, </span><span class="hl-4">&#39;neutral&#39;</span><span class="hl-0">]),</span><br/><span class="hl-0">    topics: z.</span><span class="hl-3">array</span><span class="hl-0">(z.</span><span class="hl-3">string</span><span class="hl-0">()),</span><br/><span class="hl-0">  }),</span><br/><span class="hl-0">  prompt: </span><span class="hl-4">&#39;Analyze: &quot;Great camera but disappointing battery.&quot;&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">});</span>
+</code><button>Copy</button></pre>
+<a id="md:create-an-agent" class="tsd-anchor"></a><h3><a href="#md:create-an-agent">Create an Agent</a></h3><pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { agent } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">bot</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">agent</span><span class="hl-0">({ provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">, instructions: </span><span class="hl-4">&#39;You are a helpful assistant.&#39;</span><span class="hl-0"> });</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">reply</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> bot.</span><span class="hl-3">session</span><span class="hl-0">(</span><span class="hl-4">&#39;demo&#39;</span><span class="hl-0">).</span><span class="hl-3">send</span><span class="hl-0">(</span><span class="hl-4">&#39;What is 2+2?&#39;</span><span class="hl-0">);</span><br/><span class="hl-0">console.</span><span class="hl-3">log</span><span class="hl-0">(reply.text);</span>
+</code><button>Copy</button></pre>
+<a id="md:agent-with-personality-amp-memory" class="tsd-anchor"></a><h3><a href="#md:agent-with-personality-amp-memory">Agent with Personality &amp; Memory</a></h3><pre><code class="language-typescript"><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">tutor</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">agent</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  instructions: </span><span class="hl-4">&#39;You are a patient CS tutor.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  personality: {</span><br/><span class="hl-0">    openness: </span><span class="hl-1">0.9</span><span class="hl-0">,</span><br/><span class="hl-0">    conscientiousness: </span><span class="hl-1">0.95</span><span class="hl-0">,</span><br/><span class="hl-0">    agreeableness: </span><span class="hl-1">0.85</span><span class="hl-0">,</span><br/><span class="hl-0">  },</span><br/><span class="hl-0">  memory: {</span><br/><span class="hl-0">    types: [</span><span class="hl-4">&#39;episodic&#39;</span><span class="hl-0">, </span><span class="hl-4">&#39;semantic&#39;</span><span class="hl-0">],</span><br/><span class="hl-0">    working: { enabled: </span><span class="hl-1">true</span><span class="hl-0">, maxTokens: </span><span class="hl-1">1200</span><span class="hl-0"> },</span><br/><span class="hl-0">  },</span><br/><span class="hl-0">});</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">session</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> tutor.</span><span class="hl-3">session</span><span class="hl-0">(</span><span class="hl-4">&#39;student-1&#39;</span><span class="hl-0">);</span><br/><span class="hl-2">await</span><span class="hl-0"> session.</span><span class="hl-3">send</span><span class="hl-0">(</span><span class="hl-4">&#39;Explain recursion with an analogy.&#39;</span><span class="hl-0">);</span><br/><span class="hl-2">await</span><span class="hl-0"> session.</span><span class="hl-3">send</span><span class="hl-0">(</span><span class="hl-4">&#39;Can you expand on that?&#39;</span><span class="hl-0">); </span><span class="hl-5">// remembers context</span>
+</code><button>Copy</button></pre>
+<a id="md:memory-on-direct-calls" class="tsd-anchor"></a><h4><a href="#md:memory-on-direct-calls">Memory on direct calls</a></h4><p>Memory auto-wires on <code>agent.stream()</code> / <code>agent.generate()</code> as well — sessions are not required to get memory integration. As of AgentOS 0.2.0, any call path invokes <code>memoryProvider.getContext</code> before the LLM call and <code>memoryProvider.observe</code> after.</p>
+<pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> </span><span class="hl-2">type</span><span class="hl-0"> { AgentMemoryProvider } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">myProvider</span><span class="hl-2">:</span><span class="hl-0"> </span><span class="hl-3">AgentMemoryProvider</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> {</span><br/><span class="hl-0">  </span><span class="hl-2">async</span><span class="hl-0"> </span><span class="hl-3">getContext</span><span class="hl-0">(</span><span class="hl-6">text</span><span class="hl-0">, </span><span class="hl-6">opts</span><span class="hl-0">) {</span><br/><span class="hl-0">    </span><span class="hl-2">return</span><span class="hl-0"> { contextText: </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">recallRelevant</span><span class="hl-0">(text, opts?.tokenBudget) };</span><br/><span class="hl-0">  },</span><br/><span class="hl-0">  </span><span class="hl-2">async</span><span class="hl-0"> </span><span class="hl-3">observe</span><span class="hl-0">(</span><span class="hl-6">role</span><span class="hl-0">, </span><span class="hl-6">text</span><span class="hl-0">) {</span><br/><span class="hl-0">    </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">persist</span><span class="hl-0">(role, text);</span><br/><span class="hl-0">  },</span><br/><span class="hl-0">};</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">tutor</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">agent</span><span class="hl-0">({</span><br/><span class="hl-0">  provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  instructions: </span><span class="hl-4">&#39;You are a patient CS tutor.&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  memoryProvider: myProvider,</span><br/><span class="hl-0">});</span><br/><br/><span class="hl-5">// Direct stream — memory context injected before the call, observations</span><br/><span class="hl-5">// recorded after. No session required.</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">stream</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> tutor.</span><span class="hl-3">stream</span><span class="hl-0">(</span><span class="hl-4">&#39;Explain recursion.&#39;</span><span class="hl-0">);</span><br/><br/><span class="hl-5">// Session — same memory wiring, plus per-session conversation history.</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">session</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> tutor.</span><span class="hl-3">session</span><span class="hl-0">(</span><span class="hl-4">&#39;student-1&#39;</span><span class="hl-0">);</span><br/><span class="hl-2">await</span><span class="hl-0"> session.</span><span class="hl-3">send</span><span class="hl-0">(</span><span class="hl-4">&#39;Continue where we left off.&#39;</span><span class="hl-0">);</span>
+</code><button>Copy</button></pre>
+<p>Both <code>getContext</code> and <code>observe</code> hooks are optional; implementations may provide read-only or write-only memory behavior.</p>
+<a id="md:multi-agent-teams" class="tsd-anchor"></a><h3><a href="#md:multi-agent-teams">Multi-Agent Teams</a></h3><pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { agency } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">team</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">agency</span><span class="hl-0">({</span><br/><span class="hl-0">  strategy: </span><span class="hl-4">&#39;graph&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  agents: {</span><br/><span class="hl-0">    researcher: { provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">, instructions: </span><span class="hl-4">&#39;Find relevant facts.&#39;</span><span class="hl-0"> },</span><br/><span class="hl-0">    writer:     { provider: </span><span class="hl-4">&#39;openai&#39;</span><span class="hl-0">, instructions: </span><span class="hl-4">&#39;Write a clear summary.&#39;</span><span class="hl-0">, dependsOn: [</span><span class="hl-4">&#39;researcher&#39;</span><span class="hl-0">] },</span><br/><span class="hl-0">    reviewer:   { provider: </span><span class="hl-4">&#39;gemini&#39;</span><span class="hl-0">, instructions: </span><span class="hl-4">&#39;Check accuracy.&#39;</span><span class="hl-0">, dependsOn: [</span><span class="hl-4">&#39;writer&#39;</span><span class="hl-0">] },</span><br/><span class="hl-0">  },</span><br/><span class="hl-0">});</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">result</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> team.</span><span class="hl-3">generate</span><span class="hl-0">(</span><span class="hl-4">&#39;Compare TCP vs UDP for game networking.&#39;</span><span class="hl-0">);</span>
+</code><button>Copy</button></pre>
+<p>6 strategies: <code>sequential</code> · <code>parallel</code> · <code>debate</code> · <code>review-loop</code> · <code>hierarchical</code> · <code>graph</code></p>
+<a id="md:multimodal" class="tsd-anchor"></a><h3><a href="#md:multimodal">Multimodal</a></h3><pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { generateImage, generateVideo, generateMusic, performOCR, embedText } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">image</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateImage</span><span class="hl-0">({ provider: </span><span class="hl-4">&#39;openai&#39;</span><span class="hl-0">, prompt: </span><span class="hl-4">&#39;Neon cityscape at sunset&#39;</span><span class="hl-0"> });</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">video</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateVideo</span><span class="hl-0">({ prompt: </span><span class="hl-4">&#39;Drone over misty forest&#39;</span><span class="hl-0"> });</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">music</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">generateMusic</span><span class="hl-0">({ prompt: </span><span class="hl-4">&#39;Lo-fi hip hop beat&#39;</span><span class="hl-0"> });</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">ocr</span><span class="hl-0">   </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">performOCR</span><span class="hl-0">({ image: </span><span class="hl-4">&#39;./receipt.png&#39;</span><span class="hl-0">, strategy: </span><span class="hl-4">&#39;progressive&#39;</span><span class="hl-0"> });</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">embed</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">await</span><span class="hl-0"> </span><span class="hl-3">embedText</span><span class="hl-0">({ provider: </span><span class="hl-4">&#39;openai&#39;</span><span class="hl-0">, input: [</span><span class="hl-4">&#39;hello&#39;</span><span class="hl-0">, </span><span class="hl-4">&#39;world&#39;</span><span class="hl-0">] });</span>
+</code><button>Copy</button></pre>
+<a id="md:orchestration" class="tsd-anchor"></a><h3><a href="#md:orchestration">Orchestration</a></h3><p>Three authoring APIs, one graph runtime:</p>
+<pre><code class="language-typescript"><span class="hl-2">import</span><span class="hl-0"> { workflow, AgentGraph, mission } </span><span class="hl-2">from</span><span class="hl-0"> </span><span class="hl-4">&#39;@framers/agentos/orchestration&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-5">// 1. workflow() — deterministic DAG</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">pipe</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">workflow</span><span class="hl-0">(</span><span class="hl-4">&#39;content&#39;</span><span class="hl-0">).</span><span class="hl-3">step</span><span class="hl-0">(</span><span class="hl-4">&#39;research&#39;</span><span class="hl-0">, { tool: </span><span class="hl-4">&#39;web_search&#39;</span><span class="hl-0"> }).</span><span class="hl-3">then</span><span class="hl-0">(</span><span class="hl-4">&#39;draft&#39;</span><span class="hl-0">, { gmi: { instructions: </span><span class="hl-4">&#39;...&#39;</span><span class="hl-0"> } }).</span><span class="hl-3">compile</span><span class="hl-0">();</span><br/><br/><span class="hl-5">// 2. AgentGraph — cycles, subgraphs</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">graph</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-2">new</span><span class="hl-0"> </span><span class="hl-3">AgentGraph</span><span class="hl-0">(</span><span class="hl-4">&#39;review&#39;</span><span class="hl-0">).</span><span class="hl-3">addNode</span><span class="hl-0">(</span><span class="hl-4">&#39;draft&#39;</span><span class="hl-0">, </span><span class="hl-3">gmiNode</span><span class="hl-0">({</span><span class="hl-2">...</span><span class="hl-0">})).</span><span class="hl-3">addNode</span><span class="hl-0">(</span><span class="hl-4">&#39;review&#39;</span><span class="hl-0">, </span><span class="hl-3">judgeNode</span><span class="hl-0">({</span><span class="hl-2">...</span><span class="hl-0">})).</span><span class="hl-3">addEdge</span><span class="hl-0">(</span><span class="hl-4">&#39;draft&#39;</span><span class="hl-0">,</span><span class="hl-4">&#39;review&#39;</span><span class="hl-0">).</span><span class="hl-3">compile</span><span class="hl-0">();</span><br/><br/><span class="hl-5">// 3. mission() — goal-driven, planner decides steps</span><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-1">m</span><span class="hl-0"> </span><span class="hl-2">=</span><span class="hl-0"> </span><span class="hl-3">mission</span><span class="hl-0">(</span><span class="hl-4">&#39;research&#39;</span><span class="hl-0">).</span><span class="hl-3">goal</span><span class="hl-0">(</span><span class="hl-4">&#39;Research {topic}&#39;</span><span class="hl-0">).</span><span class="hl-3">planner</span><span class="hl-0">({ strategy: </span><span class="hl-4">&#39;adaptive&#39;</span><span class="hl-0"> }).</span><span class="hl-3">compile</span><span class="hl-0">();</span>
+</code><button>Copy</button></pre>
+<a id="md:api-surfaces" class="tsd-anchor"></a><h2><a href="#md:api-surfaces">API Surfaces</a></h2><p>AgentOS exposes related entry points at different depths. The shared config surface does not imply identical enforcement across them.</p>
+<ul>
+<li>The lightweight <code>agent()</code> facade owns prompt assembly, sessions, personality shaping, hooks, tools, and usage-ledger forwarding.</li>
+<li><code>generateText()</code> and <code>streamText()</code> are the low-level generation helpers for provider control, native tool calling, and text-fallback tool loops.</li>
+<li>The full <code>AgentOS</code> runtime and <code>agency()</code> own emergent tooling, guardrails, discovery, RAG initialization, permissions/security tiers, HITL, channels/voice, and provenance-aware orchestration.</li>
+</ul>
+<hr>
+<a id="md:key-features" class="tsd-anchor"></a><h2><a href="#md:key-features">Key Features</a></h2><table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Highlights</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LLM Providers</strong></td>
+<td>16 providers: OpenAI, Anthropic, Gemini, Groq, Ollama, OpenRouter, Together, Mistral, xAI, Claude CLI, Gemini CLI, + 5 image/video</td>
+</tr>
+<tr>
+<td><strong>Cognitive Memory</strong></td>
+<td>8 neuroscience-backed mechanisms (reconsolidation, RIF, involuntary recall, FOK, gist extraction, schema encoding, source decay, emotion regulation)</td>
+</tr>
+<tr>
+<td><strong>HEXACO Personality</strong></td>
+<td>6 traits modulate memory, retrieval bias, response style — agents have consistent identity</td>
+</tr>
+<tr>
+<td><strong>RAG Pipeline</strong></td>
+<td>7 vector backends (InMemory, SQL, HNSW, Qdrant, Neo4j, pgvector, Pinecone) · 4 retrieval strategies · GraphRAG</td>
+</tr>
+<tr>
+<td><strong>Multi-Agent Teams</strong></td>
+<td>6 coordination strategies · shared memory · inter-agent messaging · HITL approval gates</td>
+</tr>
+<tr>
+<td><strong>Orchestration</strong></td>
+<td><code>workflow()</code> DAGs · <code>AgentGraph</code> cycles/subgraphs · <code>mission()</code> goal-driven planning · persistent checkpointing</td>
+</tr>
+<tr>
+<td><strong>Guardrails</strong></td>
+<td>5 security tiers · 6 packs (PII redaction, ML classifiers, topicality, code safety, grounding, content policy)</td>
+</tr>
+<tr>
+<td><strong>Emergent Capabilities</strong></td>
+<td>Runtime tool forging · 4 self-improvement tools · tiered promotion (session → agent → shared) · skill export</td>
+</tr>
+<tr>
+<td><strong>Capability Discovery</strong></td>
+<td>Semantic per-turn tool selection · ~90% token reduction · 3-tier context model · Neo4j graph backend</td>
+</tr>
+<tr>
+<td><strong>Skills</strong></td>
+<td>88 curated skills · 3-tier architecture (engine, content, catalog SDK) · auto-update on install</td>
+</tr>
+<tr>
+<td><strong>Voice &amp; Telephony</strong></td>
+<td>ElevenLabs, Deepgram, OpenAI Whisper · Twilio, Telnyx, Plivo</td>
+</tr>
+<tr>
+<td><strong>Channels</strong></td>
+<td>37 platform adapters (Telegram, Discord, Slack, WhatsApp, webchat, and more)</td>
+</tr>
+<tr>
+<td><strong>Structured Output</strong></td>
+<td>Zod-validated JSON extraction with retry · provider-native structured output</td>
+</tr>
+<tr>
+<td><strong>Observability</strong></td>
+<td>OpenTelemetry traces/metrics · usage ledger · cost guard · circuit breaker</td>
+</tr>
+</tbody></table>
+<hr>
+<a id="md:default-models-per-provider" class="tsd-anchor"></a><h2><a href="#md:default-models-per-provider">Default Models Per Provider</a></h2><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Text Model</th>
+<th>Image Model</th>
+<th>Env Var</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>openai</code></td>
+<td>gpt-4o</td>
+<td>gpt-image-1</td>
+<td><code>OPENAI_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>anthropic</code></td>
+<td>claude-sonnet-4</td>
+<td>—</td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>gemini</code></td>
+<td>gemini-2.5-flash</td>
+<td>—</td>
+<td><code>GEMINI_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>groq</code></td>
+<td>llama-3.3-70b</td>
+<td>—</td>
+<td><code>GROQ_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>ollama</code></td>
+<td>llama3.2</td>
+<td>stable-diffusion</td>
+<td><code>OLLAMA_BASE_URL</code></td>
+</tr>
+<tr>
+<td><code>openrouter</code></td>
+<td>openai/gpt-4o</td>
+<td>—</td>
+<td><code>OPENROUTER_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>together</code></td>
+<td>Llama-3.1-70B</td>
+<td>—</td>
+<td><code>TOGETHER_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>mistral</code></td>
+<td>mistral-large</td>
+<td>—</td>
+<td><code>MISTRAL_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>xai</code></td>
+<td>grok-2</td>
+<td>—</td>
+<td><code>XAI_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>stability</code></td>
+<td>—</td>
+<td>stable-diffusion-xl</td>
+<td><code>STABILITY_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>replicate</code></td>
+<td>—</td>
+<td>flux-1.1-pro</td>
+<td><code>REPLICATE_API_TOKEN</code></td>
+</tr>
+<tr>
+<td><code>bfl</code></td>
+<td>—</td>
+<td>flux-pro-1.1</td>
+<td><code>BFL_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>fal</code></td>
+<td>—</td>
+<td>fal-ai/flux/dev</td>
+<td><code>FAL_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>claude-code-cli</code></td>
+<td>claude-sonnet-4</td>
+<td>—</td>
+<td><code>claude</code> on PATH</td>
+</tr>
+<tr>
+<td><code>gemini-cli</code></td>
+<td>gemini-2.5-flash</td>
+<td>—</td>
+<td><code>gemini</code> on PATH</td>
+</tr>
+</tbody></table>
+<p>Auto-detection: OpenAI → Anthropic → OpenRouter → Gemini → Groq → Together → Mistral → xAI → CLI → Ollama</p>
+<a id="md:model-string-formats" class="tsd-anchor"></a><h3><a href="#md:model-string-formats">Model String Formats</a></h3><p>Three ways to specify a model:</p>
+<pre><code class="language-ts"><span class="hl-5">// 1. Separate fields (recommended)</span><br/><span class="hl-3">generateText</span><span class="hl-0">({ provider: </span><span class="hl-4">&#39;anthropic&#39;</span><span class="hl-0">, model: </span><span class="hl-4">&#39;claude-sonnet-4-20250514&#39;</span><span class="hl-0">, prompt: </span><span class="hl-4">&#39;...&#39;</span><span class="hl-0"> });</span><br/><br/><span class="hl-5">// 2. Colon format (canonical combined string)</span><br/><span class="hl-3">generateText</span><span class="hl-0">({ model: </span><span class="hl-4">&#39;anthropic:claude-sonnet-4-20250514&#39;</span><span class="hl-0">, prompt: </span><span class="hl-4">&#39;...&#39;</span><span class="hl-0"> });</span><br/><br/><span class="hl-5">// 3. Slash format (also supported for known providers)</span><br/><span class="hl-3">generateText</span><span class="hl-0">({ model: </span><span class="hl-4">&#39;anthropic/claude-sonnet-4-20250514&#39;</span><span class="hl-0">, prompt: </span><span class="hl-4">&#39;...&#39;</span><span class="hl-0"> });</span><br/><br/><span class="hl-5">// Auto-detect (omit both provider and model)</span><br/><span class="hl-3">generateText</span><span class="hl-0">({ prompt: </span><span class="hl-4">&#39;...&#39;</span><span class="hl-0"> }); </span><span class="hl-5">// uses first available provider</span>
+</code><button>Copy</button></pre>
+<p>The slash format only splits on known provider prefixes (<code>openai</code>, <code>anthropic</code>, <code>openrouter</code>, etc.). Unknown prefixes like <code>meta-llama/llama-3.1-8b</code> pass through as a plain model name to the auto-detected provider.</p>
+<hr>
+<a id="md:api-reference" class="tsd-anchor"></a><h2><a href="#md:api-reference">API Reference</a></h2><a id="md:high-level-functions" class="tsd-anchor"></a><h3><a href="#md:high-level-functions">High-Level Functions</a></h3><table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>generateText()</code></td>
+<td>Text generation with multi-step tool calling</td>
+</tr>
+<tr>
+<td><code>streamText()</code></td>
+<td>Streaming text with async iterables</td>
+</tr>
+<tr>
+<td><code>generateObject()</code></td>
+<td>Zod-validated structured output</td>
+</tr>
+<tr>
+<td><code>streamObject()</code></td>
+<td>Streaming structured output</td>
+</tr>
+<tr>
+<td><code>generateImage()</code></td>
+<td>Image generation (7 providers, character consistency)</td>
+</tr>
+<tr>
+<td><code>generateVideo()</code></td>
+<td>Video generation</td>
+</tr>
+<tr>
+<td><code>generateMusic()</code> / <code>generateSFX()</code></td>
+<td>Audio generation</td>
+</tr>
+<tr>
+<td><code>performOCR()</code></td>
+<td>Text extraction from images</td>
+</tr>
+<tr>
+<td><code>embedText()</code></td>
+<td>Embedding generation</td>
+</tr>
+<tr>
+<td><code>agent()</code></td>
+<td>Lightweight stateful agent for prompts, tools, memory, and sessions</td>
+</tr>
+<tr>
+<td><code>agency()</code></td>
+<td>Multi-agent teams plus full runtime-owned orchestration features</td>
+</tr>
+</tbody></table>
+<a id="md:orchestration-1" class="tsd-anchor"></a><h3><a href="#md:orchestration-1">Orchestration</a></h3><table>
+<thead>
+<tr>
+<th>Builder</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>workflow(name)</code></td>
+<td>Deterministic DAG with typed steps</td>
+</tr>
+<tr>
+<td><code>AgentGraph</code></td>
+<td>Explicit graph with cycles, subgraphs</td>
+</tr>
+<tr>
+<td><code>mission(name)</code></td>
+<td>Goal-driven, planner decides steps</td>
+</tr>
+</tbody></table>
+<p>Full API reference: <a href="https://docs.agentos.sh/api">docs.agentos.sh/api</a></p>
+<hr>
+<a id="md:ecosystem" class="tsd-anchor"></a><h2><a href="#md:ecosystem">Ecosystem</a></h2><table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos"><code>@framers/agentos</code></a></td>
+<td>Core runtime — agents, providers, memory, RAG, orchestration, guardrails</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-extensions"><code>@framers/agentos-extensions</code></a></td>
+<td>100+ extensions and templates</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-extensions-registry"><code>@framers/agentos-extensions-registry</code></a></td>
+<td>Curated manifest builder</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-skills"><code>@framers/agentos-skills</code></a></td>
+<td>88 curated SKILL.md definitions</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-skills-registry"><code>@framers/agentos-skills-registry</code></a></td>
+<td>Skills catalog SDK</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/sql-storage-adapter"><code>@framers/sql-storage-adapter</code></a></td>
+<td>SQL persistence (SQLite, Postgres, IndexedDB)</td>
+</tr>
+</tbody></table>
+<hr>
+<a id="md:documentation" class="tsd-anchor"></a><h2><a href="#md:documentation">Documentation</a></h2><table>
+<thead>
+<tr>
+<th>Guide</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./docs/architecture/ARCHITECTURE.md">Architecture</a></td>
+<td>System design, data flow, layer breakdown</td>
+</tr>
+<tr>
+<td><a href="./docs/getting-started/HIGH_LEVEL_API.md">High-Level API</a></td>
+<td><code>generateText</code>, <code>agent</code>, <code>agency</code> reference</td>
+</tr>
+<tr>
+<td><a href="./docs/orchestration/UNIFIED_ORCHESTRATION.md">Orchestration</a></td>
+<td>Workflows, graphs, missions</td>
+</tr>
+<tr>
+<td><a href="./docs/memory/COGNITIVE_MECHANISMS.md">Cognitive Memory</a></td>
+<td>8 mechanisms, 30+ APA citations</td>
+</tr>
+<tr>
+<td><a href="./docs/memory/RAG_MEMORY_CONFIGURATION.md">RAG Configuration</a></td>
+<td>Vector stores, embeddings, data sources</td>
+</tr>
+<tr>
+<td><a href="./docs/safety/GUARDRAILS_USAGE.md">Guardrails</a></td>
+<td>5 tiers, 6 packs</td>
+</tr>
+<tr>
+<td><a href="./docs/safety/HUMAN_IN_THE_LOOP.md">Human-in-the-Loop</a></td>
+<td>Approval workflows, escalation</td>
+</tr>
+<tr>
+<td><a href="./docs/architecture/EMERGENT_CAPABILITIES.md">Emergent Capabilities</a></td>
+<td>Runtime tool forging</td>
+</tr>
+<tr>
+<td><a href="./docs/architecture/PLATFORM_SUPPORT.md">Channels &amp; Platforms</a></td>
+<td>37 platform adapters</td>
+</tr>
+<tr>
+<td><a href="./docs/features/VOICE_PIPELINE.md">Voice Pipeline</a></td>
+<td>TTS, STT, telephony</td>
+</tr>
+<tr>
+<td><a href="./docs/features/UNCENSORED_CONTENT.md">Uncensored Content</a></td>
+<td><code>policyTier</code>-driven routing for mature text + image generation</td>
+</tr>
+</tbody></table>
+<p>Full documentation: <a href="https://docs.agentos.sh">docs.agentos.sh</a></p>
+<hr>
+<a id="md:contributing" class="tsd-anchor"></a><h2><a href="#md:contributing">Contributing</a></h2><pre><code class="language-bash"><span class="hl-3">git</span><span class="hl-0"> </span><span class="hl-4">clone</span><span class="hl-0"> </span><span class="hl-4">https://github.com/framersai/agentos.git</span><span class="hl-0"> &amp;&amp; </span><span class="hl-1">cd</span><span class="hl-0"> </span><span class="hl-4">agentos</span><br/><span class="hl-3">pnpm</span><span class="hl-0"> </span><span class="hl-4">install</span><span class="hl-0"> &amp;&amp; </span><span class="hl-3">pnpm</span><span class="hl-0"> </span><span class="hl-4">build</span><span class="hl-0"> &amp;&amp; </span><span class="hl-3">pnpm</span><span class="hl-0"> </span><span class="hl-4">test</span>
+</code><button>Copy</button></pre>
+<p>We use <a href="https://www.conventionalcommits.org/">Conventional Commits</a>. See the <a href="https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md">Contributing Guide</a>.</p>
+<hr>
+<a id="md:community" class="tsd-anchor"></a><h2><a href="#md:community">Community</a></h2><ul>
+<li><strong>Discord:</strong> <a href="https://wilds.ai/discord">wilds.ai/discord</a></li>
+<li><strong>GitHub Issues:</strong> <a href="https://github.com/framersai/agentos/issues">github.com/framersai/agentos/issues</a></li>
+<li><strong>Blog:</strong> <a href="https://docs.agentos.sh/blog">docs.agentos.sh/blog</a></li>
+<li><strong>Paracosm:</strong> <a href="https://paracosm.agentos.sh">paracosm.agentos.sh</a> — AI agent swarm simulation engine built on AgentOS</li>
+<li><strong>Wilds.ai:</strong> <a href="https://wilds.ai">wilds.ai</a> — AI game worlds powered by AgentOS</li>
+</ul>
+<hr>
+<a id="md:license" class="tsd-anchor"></a><h2><a href="#md:license">License</a></h2><p><a href="./LICENSE">Apache 2.0</a></p>
+<div align="center">
+
+<a href="https://agentos.sh">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
+</a>
+&nbsp;&nbsp;&nbsp;
+<a href="https://frame.dev">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
+</a>
+
+<p><strong>Built by <a href="https://manic.agency">Manic Agency LLC</a> · <a href="https://frame.dev">Frame.dev</a> · <a href="https://wilds.ai">Wilds.ai</a></strong></p>
+</div></div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-index-accordion"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><h4 class="uppercase">Member Visibility</h4><form><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-alpha" name="alpha"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Alpha</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-beta" name="beta"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Beta</span></label></li></ul></form></div><div class="tsd-theme-toggle"><h4 class="uppercase">Theme</h4><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-index-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#md:what-is-agentos"><span>What is <wbr/>AgentOS?</span></a><ul><li><a href="#md:why-agentos-over-alternatives"><span>Why <wbr/>AgentOS over alternatives?</span></a></li></ul><a href="#md:classifier-driven-memory-pipeline"><span>Classifier-<wbr/>Driven <wbr/>Memory <wbr/>Pipeline</span></a><a href="#md:see-it-in-action"><span>See <wbr/>It <wbr/>In <wbr/>Action</span></a><ul><li><a href="#md:🌀-paracosm--ai-agent-swarm-simulation"><span>🌀 <wbr/>Paracosm — AI <wbr/>Agent <wbr/>Swarm <wbr/>Simulation</span></a></li></ul><a href="#md:install"><span>Install</span></a><ul><li><a href="#md:configure-api-keys"><span>Configure API <wbr/>Keys</span></a></li></ul><a href="#md:quick-start"><span>Quick <wbr/>Start</span></a><ul><li><a href="#md:generate-text"><span>Generate <wbr/>Text</span></a></li><li><a href="#md:streaming"><span>Streaming</span></a></li><li><a href="#md:structured-output"><span>Structured <wbr/>Output</span></a></li><li><a href="#md:create-an-agent"><span>Create an <wbr/>Agent</span></a></li><li><a href="#md:agent-with-personality-amp-memory"><span>Agent with <wbr/>Personality &amp; <wbr/>Memory</span></a></li><li><ul><li><a href="#md:memory-on-direct-calls"><span>Memory on direct calls</span></a></li></ul></li><li><a href="#md:multi-agent-teams"><span>Multi-<wbr/>Agent <wbr/>Teams</span></a></li><li><a href="#md:multimodal"><span>Multimodal</span></a></li><li><a href="#md:orchestration"><span>Orchestration</span></a></li></ul><a href="#md:api-surfaces"><span>API <wbr/>Surfaces</span></a><a href="#md:key-features"><span>Key <wbr/>Features</span></a><a href="#md:default-models-per-provider"><span>Default <wbr/>Models <wbr/>Per <wbr/>Provider</span></a><ul><li><a href="#md:model-string-formats"><span>Model <wbr/>String <wbr/>Formats</span></a></li></ul><a href="#md:api-reference"><span>API <wbr/>Reference</span></a><ul><li><a href="#md:high-level-functions"><span>High-<wbr/>Level <wbr/>Functions</span></a></li><li><a href="#md:orchestration-1"><span>Orchestration</span></a></li></ul><a href="#md:ecosystem"><span>Ecosystem</span></a><a href="#md:documentation"><span>Documentation</span></a><a href="#md:contributing"><span>Contributing</span></a><a href="#md:community"><span>Community</span></a><a href="#md:license"><span>License</span></a></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://docs.agentos.sh/documentation">Documentation</a><a href="https://docs.agentos.sh/getting-started/high-level-api">High-Level API</a><a href="https://docs.agentos.sh/features/unified-orchestration">Unified Orchestration</a><a href="https://docs.agentos.sh/features/guardrails">Guardrails</a><a href="https://docs.agentos.sh/skills/overview">Skills</a></nav><nav class="tsd-navigation"><a href="modules.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="assets/icons.svg#icon-1"></use></svg><span>@framers/agentos - v0.5.6</span></a><ul class="tsd-small-nested-navigation" id="tsd-nav-container" data-base="."><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

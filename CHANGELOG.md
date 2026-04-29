@@ -1,0 +1,2431 @@
+## <small>0.5.6 (2026-04-29)</small>
+
+* feat(memory-router): add topk50-mult5-on-MS S-tuned preset (follow-up to refuted HyDE preset) ([fb79c65](https://github.com/framersai/agentos/commit/fb79c65))
+
+## <small>0.5.5 (2026-04-29)</small>
+
+* feat(memory-router): add S-tuned per-category retrieval router preset ([9690d0f](https://github.com/framersai/agentos/commit/9690d0f))
+* docs: surface 3-stage classifier-driven memory pipeline + add READER_ROUTER source doc ([99ac99a](https://github.com/framersai/agentos/commit/99ac99a))
+* docs(READER_ROUTER): add 'Why the default classifier is gpt-5-mini and not gpt-4o' subsection ([ff1e26b](https://github.com/framersai/agentos/commit/ff1e26b))
+* docs(README): surface the classifier-driven memory pipeline as a top-level section ([1aa864c](https://github.com/framersai/agentos/commit/1aa864c))
+* chore: stop tracking tmp-parity.sqlite + ignore local sqlite test artifacts ([6bc1dc7](https://github.com/framersai/agentos/commit/6bc1dc7))
+
+## <small>0.5.4 (2026-04-27)</small>
+
+* Merge pull request #3 from framersai/docs/auto-fallback-default ([b872c85](https://github.com/framersai/agentos/commit/b872c85)), closes [#3](https://github.com/framersai/agentos/issues/3)
+* fix(generate-text): document auto-fallback default; flag strict mode opt-out ([2146a98](https://github.com/framersai/agentos/commit/2146a98))
+
+## <small>0.5.3 (2026-04-27)</small>
+
+* fix(memory/typed-network): per-attempt 30s timeout on observer LLM invoke ([4f41a8d](https://github.com/framersai/agentos/commit/4f41a8d))
+* feat(memory-router): augmented routing for backend × retrieval-config dispatch ([fa14f7f](https://github.com/framersai/agentos/commit/fa14f7f))
+* Merge remote-tracking branch 'origin/master' ([1dceecd](https://github.com/framersai/agentos/commit/1dceecd))
+* docs(memory/typed-network): expand W/E/O/S abbreviation to full bank names ([73cb557](https://github.com/framersai/agentos/commit/73cb557))
+
+## <small>0.5.2 (2026-04-26)</small>
+
+* Merge remote-tracking branch 'origin/master' ([297ec9e](https://github.com/framersai/agentos/commit/297ec9e))
+* fix(memory/typed-network): tolerant observer parsing for gpt-5-mini extraction ([7ee0ff5](https://github.com/framersai/agentos/commit/7ee0ff5))
+
+## <small>0.5.1 (2026-04-26)</small>
+
+* feat(memory): re-export typed-network primitives from memory barrel ([f597978](https://github.com/framersai/agentos/commit/f597978))
+* fix(structured-output): address coderabbit findings on session.send overload ([198b0a0](https://github.com/framersai/agentos/commit/198b0a0)), closes [hi#relevance](https://github.com/hi/issues/relevance)
+
+## 0.5.0 (2026-04-26)
+
+* fix(memory): Stage E coderabbit C1+C2 - gate extractAtEncode + delegate retrieve to TypedNetworkRetr ([01ea591](https://github.com/framersai/agentos/commit/01ea591))
+
+### BREAKING CHANGE
+
+* CognitiveRetrievalResult.diagnostics.retrievedTypedFacts
+renamed to retrievedTypedTraces and now ScoredMemoryTrace[] instead of
+TypedFact[]. Stage E typed-network manager-side encoding now requires
+opt-in via config.typedNetwork.extractAtEncode (default false).
+
+## <small>0.4.1 (2026-04-26)</small>
+
+* feat(memory/typed-network): TypedNetworkRetriever for canonical-shaped retrieval ([230c6ae](https://github.com/framersai/agentos/commit/230c6ae))
+
+## 0.4.0 (2026-04-26)
+
+* fix(agent+memory): unblock CI build (TS errors in 0.3.4 release commit) ([cf045fa](https://github.com/framersai/agentos/commit/cf045fa))
+* fix(memory): place retrievedTypedFacts inside diagnostics + add ScoredMemoryTrace import ([64a5e69](https://github.com/framersai/agentos/commit/64a5e69))
+* feat(agent): session.send accepts responseSchema for typed structured output ([827b6b9](https://github.com/framersai/agentos/commit/827b6b9))
+* feat(AnthropicProvider): forced tool-use for schema-enforced structured output ([0ba00b9](https://github.com/framersai/agentos/commit/0ba00b9))
+* feat(GeminiProvider): responseSchema for schema-enforced structured output ([b5e1bcb](https://github.com/framersai/agentos/commit/b5e1bcb))
+* feat(memory): add subpath export for typed-network module ([db9ea8b](https://github.com/framersai/agentos/commit/db9ea8b))
+* feat(memory): Stage E Phase 4.3 - retrieve() runs typed spreading activation ([d0ab11c](https://github.com/framersai/agentos/commit/d0ab11c))
+
+## <small>0.3.4 (2026-04-26)</small>
+
+* chore(IProvider): tighten responseFormat type to admit json_schema shape ([1e5c4ac](https://github.com/framersai/agentos/commit/1e5c4ac))
+* feat(memory): Stage E Phase 4.1 - typedNetwork config field + manager wiring ([cac63c2](https://github.com/framersai/agentos/commit/cac63c2))
+* feat(memory): Stage E Phase 4.2 - encode() routes through typed-network observer ([a604d86](https://github.com/framersai/agentos/commit/a604d86))
+* feat(structured-output): provider-format adapter for session-aware schema enforcement ([17f7198](https://github.com/framersai/agentos/commit/17f7198))
+* docs(spec+plan): session-aware structured output for agent.session.send ([bcbdcf5](https://github.com/framersai/agentos/commit/bcbdcf5))
+* Merge branch 'master' of https://github.com/framersai/agentos ([72a25d8](https://github.com/framersai/agentos/commit/72a25d8))
+* Merge pull request #2 from framersai/structured-output-spec ([7c4d0e6](https://github.com/framersai/agentos/commit/7c4d0e6)), closes [#2](https://github.com/framersai/agentos/issues/2)
+
+## <small>0.3.3 (2026-04-26)</small>
+
+* fix(memory): MigrationRunner._readSchemaVersion handles v1 schema (no brain_id column) ([794649a](https://github.com/framersai/agentos/commit/794649a))
+* fix(memory): redact passwords in keyword-form Postgres connection strings ([f4bc827](https://github.com/framersai/agentos/commit/f4bc827))
+* fix(memory): use adapter.transaction in _bulkCopy to fix Postgres atomicity ([e72d7cf](https://github.com/framersai/agentos/commit/e72d7cf))
+* fix(memory/typed-network): broaden stripCodeFence regex to any alphabetic language tag ([f7ecef3](https://github.com/framersai/agentos/commit/f7ecef3))
+
+## <small>0.3.2 (2026-04-26)</small>
+
+* feat(memory/typed-network): Phase 1 primitives (types + store + temporal overlap) ([ebdf565](https://github.com/framersai/agentos/commit/ebdf565))
+* feat(memory/typed-network): Phase 2 LLM observer (6-step extraction prompt + zod schema) ([ee8f463](https://github.com/framersai/agentos/commit/ee8f463))
+* feat(memory/typed-network): Phase 3 retrieval (spreading activation + 4-way RRF) ([d867849](https://github.com/framersai/agentos/commit/d867849))
+
+## <small>0.3.1 (2026-04-26)</small>
+
+* docs: add 0.3.1 hardening pass changelog entry ([6d72d2f](https://github.com/framersai/agentos/commit/6d72d2f))
+* docs(memory): document archived_traces brain_id source caveat ([9efe4aa](https://github.com/framersai/agentos/commit/9efe4aa))
+* docs(memory): document pool contention semantics for shared adapter brains ([8fd929f](https://github.com/framersai/agentos/commit/8fd929f))
+* docs(memory): explain Brain factory naming asymmetry ([fd3f3d3](https://github.com/framersai/agentos/commit/fd3f3d3))
+* docs(memory): note importFromSqlite mutates the source file in-place ([16c6b2b](https://github.com/framersai/agentos/commit/16c6b2b))
+* test(memory): add cross-dialect round-trip test (sqlite->postgres->sqlite) ([3f6e2e0](https://github.com/framersai/agentos/commit/3f6e2e0))
+* test(memory): add Postgres tests for concurrent open + FK + rollback ([3e9001d](https://github.com/framersai/agentos/commit/3e9001d))
+* test(memory): log Postgres test cleanup errors instead of swallowing ([e71ce1d](https://github.com/framersai/agentos/commit/e71ce1d))
+* fix(memory): guard agent_id column existence in Postgres v1->v2 migration ([ca31c3d](https://github.com/framersai/agentos/commit/ca31c3d))
+* fix(memory): make Brain.close best-effort with logged failures ([09e4125](https://github.com/framersai/agentos/commit/09e4125))
+* fix(memory): redact password in Brain.openPostgres connection errors ([75d00c3](https://github.com/framersai/agentos/commit/75d00c3))
+* fix(memory): reject multi-brain source in Brain.importFromSqlite ([9e51f3d](https://github.com/framersai/agentos/commit/9e51f3d))
+* refactor(memory): assert V2_TABLES order matches PORTABLE_TABLES ([d9adf1a](https://github.com/framersai/agentos/commit/d9adf1a))
+* refactor(memory): hoist PORTABLE_TABLES to shared module ([6b058a3](https://github.com/framersai/agentos/commit/6b058a3))
+* refactor(memory): use ECMAScript private field syntax for #brainId ([611d04a](https://github.com/framersai/agentos/commit/611d04a)), closes [#brainId](https://github.com/framersai/agentos/issues/brainId)
+* refactor(memory): use shared PORTABLE_TABLES in Brain.postgres test ([b7a3ae9](https://github.com/framersai/agentos/commit/b7a3ae9))
+* feat(memory): add MigrationRunner with transaction + lock + version-bump ([f309028](https://github.com/framersai/agentos/commit/f309028))
+* feat(memory): add migrations/index.ts registry ([5963d1c](https://github.com/framersai/agentos/commit/5963d1c))
+* feat(memory): export v1ToV2 as Migration object alongside legacy function ([3e06300](https://github.com/framersai/agentos/commit/3e06300))
+* feat(memory): wire Brain._initialize to MigrationRunner ([76cd58a](https://github.com/framersai/agentos/commit/76cd58a))
+
+## 0.3.1 (2026-04-25)
+
+Hardening pass for the Brain storage abstraction shipped in 0.3.0. Closes 16 correctness, maintainability, and polish gaps from the post-0.3.0 code review.
+
+### Critical fixes
+
+- Schema migration is now fully transactional. Failure rolls back to the prior schema version cleanly. (C1)
+- Concurrent first-opens against the same `brainId` serialize via per-brain `pg_advisory_xact_lock` (Postgres) or `BEGIN IMMEDIATE` (SQLite). Two workers booting against the same brain no longer race. (C2)
+- `Brain.importFromSqlite` validates the source file contains exactly one `brain_id` and throws on multi-brain sources. Previously it silently collapsed all rows into the target brain. (C3)
+- `schema_version` is bumped atomically inside the migration transaction. Was previously stuck at `'1'` after a v1 to v2 migration because the seed used `INSERT OR IGNORE`. (C5)
+- Postgres `archived_traces` migration now checks for `agent_id` column existence before referencing it. Mirrors the SQLite path's existing guard. (I6)
+
+### Maintainability
+
+- New `MigrationRunner` centralizes transaction wrapping, advisory locking, and version detection. Future schema migrations register a `Migration` object instead of re-implementing this logic.
+- `PORTABLE_TABLES` hoisted to a single shared module (`store/portable-tables.ts`). Adding a portable table now requires touching one file.
+- New `migrations/index.ts` registry exposes `MIGRATIONS` and `LATEST_SCHEMA_VERSION` constants. Both `Brain._initialize` and `Brain._seedMeta` derive from the registry.
+- Cross-dialect round-trip test (sqlite to postgres to sqlite) verifies the portability contract.
+
+### Polish
+
+- `Brain.openPostgres` redacts the password segment from connection-failure error messages.
+- `Brain.close` is best-effort with logged failures: pool drain timeouts no longer propagate to shutdown callers.
+- `_brainId` private field uses ECMAScript `#` syntax (true private) instead of underscore convention.
+- Brain factory naming asymmetry (`openSqlite`/`openPostgres` vs `openWithAdapter`) documented in class JSDoc as intentional: by-dialect entry points vs by-pre-built-adapter escape hatch.
+- Postgres integration tests log cleanup errors to stderr instead of silently swallowing them.
+
+### Documentation
+
+- `docs/memory/POSTGRES_BACKEND.md` documents pool-contention semantics for shared adapter brains.
+- `Brain.importFromSqlite` JSDoc warns that the source SQLite file is mutated in-place by the auto-migration.
+- `archived_traces` brain_id-from-agent_id behavior documented as a migration caveat.
+
+### Downgrade warning
+
+This release auto-migrates v1 schemas to v2 on first open. **Downgrading from 0.3.x to 0.2.x is not supported by automatic migration.** Restore from a pre-0.3.0 backup or use `Brain.exportToSqlite` and `Brain.importFromSqlite` to round-trip data through a portable file.
+
+### Out of scope
+
+- A `--rebrand-archives` migration option (write archived_traces brain_id to the explicit override). Tracked as a follow-up.
+- A Postgres vs SQLite benchmark sweep on the `agentos-bench` suite. Tracked as a follow-up.
+
+## 0.3.0 (2026-04-25)
+
+* feat(memory): Brain storage abstraction v2 (universal SQLite + Postgres backbone) ([0676d8b](https://github.com/framersai/agentos/commit/0676d8b))
+* feat(ingest-router,memory-router): Stage I entity-linking executors + ranker ([b59cd43](https://github.com/framersai/agentos/commit/b59cd43))
+* Merge branch 'master' of https://github.com/framersai/agentos ([c6d7465](https://github.com/framersai/agentos/commit/c6d7465))
+
+### BREAKING CHANGE
+
+* SqliteBrain, SqliteKnowledgeGraph, SqliteMemoryGraph,
+Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
+Postgres deployments require brainId on every brain operation. Existing
+SQLite files auto-migrate on first open.
+
+Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
+Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
+
+## 0.3.0 (2026-04-26)
+
+### BREAKING CHANGES
+
+#### Brain storage abstraction (universal SQLite + Postgres backbone)
+
+The cognitive memory storage layer is dialect-agnostic. The class-name lie is fixed. Postgres is now a first-class backend.
+
+##### Renames
+
+| Old | New |
+|---|---|
+| `SqliteBrain` | `Brain` |
+| `SqliteBrain.open(path)` | `Brain.openSqlite(path)` |
+| `SqliteBrain.create(path)` | `Brain.openSqlite(path)` |
+| n/a | `Brain.openPostgres(connStr, { brainId, poolSize? })` |
+| n/a | `Brain.openWithAdapter(adapter, { brainId? })` |
+| `SqliteKnowledgeGraph` | `SqlKnowledgeGraph` |
+| `SqliteMemoryGraph` | `SqlMemoryGraph` |
+| `Memory.create({ path, ... })` | `Memory.createSqlite(path, opts?)` (also accepts a config object for back-compat) |
+| n/a | `Memory.createPostgres(connStr, { brainId, poolSize?, graph?, selfImprove?, ... })` |
+| n/a | `Memory.createWithAdapter(adapter, opts?)` |
+
+`SqliteImporter` and `SqliteExporter` keep their names because they actually require the `better-sqlite3` native module.
+
+##### Schema v2: `brain_id` discriminator
+
+Every brain-owned table (14 total: 12 in the main DDL + 2 in the archive subsystem) gains a `brain_id TEXT NOT NULL` column with composite primary keys `(brain_id, id)` and indexes leading with `brain_id`. This enables multi-tenant brain storage in Postgres (many brains share one schema, scoped per query) without changing the per-file SQLite isolation model.
+
+Existing SQLite files auto-migrate on first `Brain.openSqlite()` call. The migration is idempotent for both SQLite (uses the recreate-table dance) and Postgres (uses `ALTER TABLE ADD COLUMN` + new primary key constraint). Subsequent opens are no-ops once the schema is at v2.
+
+##### Portable export / import
+
+`Brain.exportToSqlite(path)` materialises any brain (regardless of live backend) to a portable SQLite file. `Brain.importFromSqlite(path, opts?)` loads that file into a receiving Brain, rewriting `brain_id` to the receiving brain's identity. This means importing a snapshot under a different `brainId` produces a fork. The `.wildsoul` portability format stays SQLite-based even when production runs on Postgres.
+
+```ts
+const liveBrain = await Brain.openPostgres(connStr, { brainId: 'alice' });
+await liveBrain.exportToSqlite('/tmp/alice-snapshot.sqlite');
+
+const forkBrain = await Brain.openPostgres(connStr, { brainId: 'alice-fork' });
+await forkBrain.importFromSqlite('/tmp/alice-snapshot.sqlite'); // fork
+```
+
+##### Postgres CI integration tests
+
+`Brain.postgres.test.ts` is gated on the `AGENTOS_TEST_POSTGRES_URL` env var. CI now provisions a `pgvector/pgvector:pg16` service container and runs the suite against it. Local contributors without Postgres see all 5 postgres tests skipped (suite stays green).
+
+##### Migration guide
+
+Most consumers upgrade with one-line search-replace:
+
+```ts
+// Before
+await Memory.create({ path: './brain.sqlite', graph: true });
+
+// After
+await Memory.createSqlite('./brain.sqlite', { graph: true });
+// (or pass the config object: Memory.createSqlite({ path, graph }) — both work)
+```
+
+For Postgres deployments (new):
+
+```ts
+const mem = await Memory.createPostgres(process.env.DATABASE_URL, {
+  brainId: 'companion-alice',
+  graph: true,
+});
+```
+
+For sharing an adapter across foundation tables and brains:
+
+```ts
+const adapter = await createDatabase({ postgres: { connectionString } });
+const brain = await Brain.openWithAdapter(adapter, { brainId: 'agent-1' });
+```
+
+##### Spec
+
+- Spec: [packages/agentos/docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md](docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md)
+- Plan: [packages/agentos/docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md](docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md)
+
+## <small>0.2.12 (2026-04-25)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([fc7cf50](https://github.com/framersai/agentos/commit/fc7cf50))
+* refactor(ingest-router): SummarizedIngestExecutor wraps existing SessionSummarizer ([dbb3d31](https://github.com/framersai/agentos/commit/dbb3d31))
+* feat(ingest-router): add executors sub-barrel + top-level re-exports ([7aaf38d](https://github.com/framersai/agentos/commit/7aaf38d))
+* feat(ingest-router): implement session summarizer with verbatim Anthropic prompt ([a62a716](https://github.com/framersai/agentos/commit/a62a716))
+* feat(ingest-router): RawChunks + Skip reference executors + uniform outcome shape ([8c4fa6f](https://github.com/framersai/agentos/commit/8c4fa6f))
+* feat(ingest-router): SummarizedIngestExecutor with per-session caching ([995954d](https://github.com/framersai/agentos/commit/995954d))
+* feat(ingest-router): types for summarized + entity-linking executors ([8823792](https://github.com/framersai/agentos/commit/8823792))
+* test(ingest-router): SummarizedIngestExecutor + FunctionIngestDispatcher integration ([d44f1e8](https://github.com/framersai/agentos/commit/d44f1e8))
+
+## <small>0.2.11 (2026-04-25)</small>
+
+* docs(ingest-router): correct fact-graph attribution per Mem0 v3 graph removal ([1fdef22](https://github.com/framersai/agentos/commit/1fdef22))
+* docs(paracosm): note prompt/URL-grounded scenario authoring ([630d913](https://github.com/framersai/agentos/commit/630d913))
+* refactor(cognitive-pipeline): finish rename + clean lingering JSDoc refs ([bbb46d8](https://github.com/framersai/agentos/commit/bbb46d8))
+
+## <small>0.2.10 (2026-04-25)</small>
+
+* fix(read-router): typecheck failure on result.outcome.answer access ([1651180](https://github.com/framersai/agentos/commit/1651180))
+* docs(architecture): add Cognitive Pipeline section to ARCHITECTURE.md ([425a9fc](https://github.com/framersai/agentos/commit/425a9fc))
+
+## <small>0.2.9 (2026-04-25)</small>
+
+* refactor(cognitive-pipeline): rename multi-stage-guardrails → cognitive-pipeline + ship 5 canonical  ([fc0dadb](https://github.com/framersai/agentos/commit/fc0dadb))
+
+## <small>0.2.8 (2026-04-25)</small>
+
+* feat: ship multi-stage guardrails — ingest-router + read-router + adaptive memory-router + compositi ([7866f7a](https://github.com/framersai/agentos/commit/7866f7a))
+
+## <small>0.2.7 (2026-04-24)</small>
+
+* feat(memory-router): LLM-as-judge orchestrator for per-query memory-architecture routing ([fc4792c](https://github.com/framersai/agentos/commit/fc4792c))
+
+## <small>0.2.6 (2026-04-24)</small>
+
+* fix(sandbox): expand CodeSandbox hardening to block realm intrinsics ([c748b26](https://github.com/framersai/agentos/commit/c748b26))
+
+## <small>0.2.5 (2026-04-24)</small>
+
+* fix(sandbox): consolidate SandboxedToolForge to delegate to hardened CodeSandbox ([eb7a812](https://github.com/framersai/agentos/commit/eb7a812))
+
+## <small>0.2.4 (2026-04-24)</small>
+
+* fix(anthropic-provider): drop temperature for Claude Opus 4.7 ([9a7d90f](https://github.com/framersai/agentos/commit/9a7d90f))
+
+## <small>0.2.3 (2026-04-24)</small>
+
+* fix(paracosm-doc): coderabbit review. correct Kirfel citation ([39000de](https://github.com/framersai/agentos/commit/39000de))
+* docs(paracosm): reposition PARACOSM doc as structured world model ([aec39a3](https://github.com/framersai/agentos/commit/aec39a3))
+* chore: untrack build artifacts and local db_data ([d8f7bfc](https://github.com/framersai/agentos/commit/d8f7bfc))
+
+## <small>0.2.2 (2026-04-23)</small>
+
+* docs: domain-neutral naming in paracosm + ecosystem guides ([49cb85b](https://github.com/framersai/agentos/commit/49cb85b))
+* docs(emergent): add forge-observability section covering 5-utility telemetry API ([45ef25e](https://github.com/framersai/agentos/commit/45ef25e))
+* docs(paracosm): cover 0.6.0 universal schema + list as ecosystem app ([0cb3fae](https://github.com/framersai/agentos/commit/0cb3fae))
+* docs(paracosm): P1 rename drift \u2014 colony \u2192 unit + finalState.colony \u2192 finalState.syst ([2e3406d](https://github.com/framersai/agentos/commit/2e3406d))
+* docs(paracosm): update scenario example for 0.7.0 time-unit field names ([80fcc22](https://github.com/framersai/agentos/commit/80fcc22))
+* fix(ecosystem): coderabbit review - point live demo to /sim path ([49495b6](https://github.com/framersai/agentos/commit/49495b6))
+
+## <small>0.2.1 (2026-04-22)</small>
+
+* Merge remote-tracking branch 'origin/master' ([126d6e3](https://github.com/framersai/agentos/commit/126d6e3))
+* fix(build): handle multi-line import statements in fix-esm-imports ([72ddc75](https://github.com/framersai/agentos/commit/72ddc75))
+* fix(deps): bump @framers/sql-storage-adapter peer + dev pin to ^0.6.3 ([3ea2f3d](https://github.com/framersai/agentos/commit/3ea2f3d))
+
+## 0.2.0 (2026-04-22)
+
+* fix(build): rewrite agentos self-package imports ([cd22430](https://github.com/framersai/agentos/commit/cd22430))
+* fix(lint): drop unnecessary $ escape in MemoryReflector template literal ([a472a53](https://github.com/framersai/agentos/commit/a472a53))
+* fix(rag): export MetadataScan types + align Pinecone config contract ([fc724a8](https://github.com/framersai/agentos/commit/fc724a8))
+* fix(rag): vector-store implementations handle number+string MetadataFieldCondition ([a2030ba](https://github.com/framersai/agentos/commit/a2030ba))
+* docs(plan): implementation plan for memoryProvider direct-call autowire (0.2.0) ([307de07](https://github.com/framersai/agentos/commit/307de07))
+* docs(readme): document memoryProvider auto-wire on direct calls ([ad8988d](https://github.com/framersai/agentos/commit/ad8988d))
+* docs(spec): mark memoryProvider-direct-call-autowire implemented ([e2a2d43](https://github.com/framersai/agentos/commit/e2a2d43))
+* docs(spec): memoryProvider auto-wire on direct agent calls (0.2.0) ([8bde92a](https://github.com/framersai/agentos/commit/8bde92a))
+* feat(memory)!: memoryProvider auto-wires on all four agent call paths ([d866ad4](https://github.com/framersai/agentos/commit/d866ad4))
+* feat(memory): applyMemoryProvider helper + 10 unit tests ([392c1bd](https://github.com/framersai/agentos/commit/392c1bd))
+* feat(memory): auto-wire memoryProvider on direct agent.generate() ([ab3a2d9](https://github.com/framersai/agentos/commit/ab3a2d9))
+* feat(memory): auto-wire memoryProvider on direct agent.stream() + drop dead MEMORY_TIMEOUT_MS ([13efc85](https://github.com/framersai/agentos/commit/13efc85))
+* feat(memory): export AgentMemoryProvider type from public barrel ([9250da4](https://github.com/framersai/agentos/commit/9250da4))
+* feat(memory): heuristic entity extraction + graph activation wire-up ([796467c](https://github.com/framersai/agentos/commit/796467c))
+* feat(memory): thread enableGraphActivation through CognitiveMemoryConfig ([d568b62](https://github.com/framersai/agentos/commit/d568b62))
+* feat(memory): type memoryProvider as AgentMemoryProvider interface ([3a1785d](https://github.com/framersai/agentos/commit/3a1785d))
+* feat(pinecone): add metadata scan, retry with backoff, and expanded tests ([0cb6ba9](https://github.com/framersai/agentos/commit/0cb6ba9))
+* refactor(memory): session.send uses applyMemoryProvider helper ([4156084](https://github.com/framersai/agentos/commit/4156084))
+* refactor(memory): session.stream uses applyMemoryProvider helper ([38f0cf8](https://github.com/framersai/agentos/commit/38f0cf8))
+* chore: update Discord invite to permanent link ([fb6fcb0](https://github.com/framersai/agentos/commit/fb6fcb0))
+* chore(pinecone): continue vector store refinements ([7021709](https://github.com/framersai/agentos/commit/7021709))
+
+### BREAKING CHANGE
+
+* Direct agent.stream() / agent.generate() now invoke
+memoryProvider.getContext before the LLM call and memoryProvider.observe
+after. Callers who passed memoryProvider on createAgent but did not want
+it to fire on direct calls (no legitimate use case) will see behavior
+change. Callers using .session() paths are unaffected — behavior
+unchanged.
+
+Type change: memoryProvider: any is now typed as AgentMemoryProvider
+interface with optional getContext + observe methods. Callers passing
+malformed providers will see TypeScript errors at the provider
+boundary.
+
+Migration:
+- .session() path: no change required, behavior unchanged.
+- Direct path wanting memory: already passed memoryProvider; now it
+  works. Remove any manual onBeforeGeneration wiring that previously
+  worked around the silent-ignore.
+- Direct path not wanting memory: remove memoryProvider from the
+  createAgent config.
+
+## <small>0.1.255 (2026-04-21)</small>
+
+* feat(memory): export REFLECTOR_PROMPT_HASH for content-addressed cache keys ([c1fb669](https://github.com/framersai/agentos/commit/c1fb669))
+
+## <small>0.1.254 (2026-04-21)</small>
+
+* feat(memory): MemoryReflector prompt preserves literal tokens verbatim ([35b75ae](https://github.com/framersai/agentos/commit/35b75ae))
+
+## <small>0.1.253 (2026-04-21)</small>
+
+* feat(memory): HybridRetriever fact-graph integration + synthetic trace prepending ([1147043](https://github.com/framersai/agentos/commit/1147043))
+
+## <small>0.1.252 (2026-04-21)</small>
+
+* fix(llm-routing): drop MythoMax L2 13B from uncensored catalog ([ef21e90](https://github.com/framersai/agentos/commit/ef21e90))
+* feat(memory): export fact-graph module from memory barrel ([7f05f56](https://github.com/framersai/agentos/commit/7f05f56))
+* feat(memory): fact-graph canonicalization + 25-predicate closed schema ([7f3af44](https://github.com/framersai/agentos/commit/7f3af44))
+* feat(memory): FactExtractor — LLM fact extraction with closed schema + session cache ([af4bbcc](https://github.com/framersai/agentos/commit/af4bbcc))
+* feat(memory): FactStore — in-memory fact-graph keyed by scope/subject/predicate ([4d7b8fc](https://github.com/framersai/agentos/commit/4d7b8fc))
+
+## <small>0.1.251 (2026-04-21)</small>
+
+* feat(memory): HybridRetriever emits per-stage candidate IDs in diagnostics ([b36c015](https://github.com/framersai/agentos/commit/b36c015))
+
+## <small>0.1.250 (2026-04-21)</small>
+
+* fix(memory): flushReflection scopeOverride param — ensures reflection traces land in caller's scope, ([1ac24cb](https://github.com/framersai/agentos/commit/1ac24cb))
+
+## <small>0.1.249 (2026-04-21)</small>
+
+* feat(memory): getReflector() accessor + flushReflection() for forced reflection at caller boundaries ([e21e08e](https://github.com/framersai/agentos/commit/e21e08e))
+
+## <small>0.1.248 (2026-04-21)</small>
+
+* feat(memory): HybridRetriever + progressive enhancement flags ship as v0.1.248 ([5657f31](https://github.com/framersai/agentos/commit/5657f31))
+* memory: barrel exports + CognitiveMemoryManager.getRerankerService getter ([e6ac741](https://github.com/framersai/agentos/commit/e6ac741))
+* memory: barrel-export SessionSummaryStore + SessionRetriever; fix PADState import ([a563cf0](https://github.com/framersai/agentos/commit/a563cf0))
+* memory: FactSupersession post-retrieval LLM filter (drops superseded traces) ([30ae52a](https://github.com/framersai/agentos/commit/30ae52a))
+* memory: HybridRetriever for BM25 + dense RRF retrieval ([b32099d](https://github.com/framersai/agentos/commit/b32099d))
+* memory: HybridRetriever integration tests with real MemoryStore + BM25Index ([d44001a](https://github.com/framersai/agentos/commit/d44001a))
+* memory: HybridRetriever split-on-ambiguous rerank refinement (monotonic, additive) ([c2c0a52](https://github.com/framersai/agentos/commit/c2c0a52))
+* memory: optional HyDE retriever in HybridRetriever (hypothesis for dense+sparse, original query for  ([3781d75](https://github.com/framersai/agentos/commit/3781d75))
+* memory: reciprocalRankFusion for rank-based fusion of retrievers ([9c4a6f4](https://github.com/framersai/agentos/commit/9c4a6f4))
+* memory: restore SessionSummarizer + tests (tracked file missing from prior push — unblocks CI) ([1472981](https://github.com/framersai/agentos/commit/1472981))
+* memory: SessionRetriever for two-stage hierarchical retrieval ([b6aa1ef](https://github.com/framersai/agentos/commit/b6aa1ef))
+* memory: SessionRetriever integration tests with real in-memory components ([c9374e2](https://github.com/framersai/agentos/commit/c9374e2))
+* memory: SessionSummaryStore for session-level vector indexing ([aecfc85](https://github.com/framersai/agentos/commit/aecfc85))
+* memory(test): fix typecheck — test stubs cast as interface at usage sites, PADState from core/config ([732d475](https://github.com/framersai/agentos/commit/732d475))
+* docs(memory): architecture doc for SessionRetriever ([a41c4f9](https://github.com/framersai/agentos/commit/a41c4f9))
+* docs(memory): HybridRetriever architecture doc ([38f1d5f](https://github.com/framersai/agentos/commit/38f1d5f))
+
+## <small>0.1.247 (2026-04-19)</small>
+
+* fix(memory): emit real scoringTimeMs + vectorSearchTimeMs diagnostics ([fc0b25c](https://github.com/framersai/agentos/commit/fc0b25c))
+
+## <small>0.1.246 (2026-04-19)</small>
+
+* fix: add missing Required fields (enabled, syntax_error) unblocking CI ([b60eb31](https://github.com/framersai/agentos/commit/b60eb31)), closes [#2](https://github.com/framersai/agentos/issues/2)
+* fix: correct IKnowledgeGraph import path in memory specs ([e4705ed](https://github.com/framersai/agentos/commit/e4705ed))
+* fix(emergent): pre-parse syntax validation + actionable hints + classifier category ([b9f4d65](https://github.com/framersai/agentos/commit/b9f4d65))
+* fix(memory): honour consolidation.enabled=false + unref timer ([bfc8c1b](https://github.com/framersai/agentos/commit/bfc8c1b))
+* chore: rebuild dist (consolidation.enabled fix + scoringWeights override) ([3442fac](https://github.com/framersai/agentos/commit/3442fac))
+* feat: expose public CognitiveMemoryManager.getTraceCount() ([5929380](https://github.com/framersai/agentos/commit/5929380))
+* feat(memory): scoringWeights override on CognitiveRetrievalOptions ([e48cd64](https://github.com/framersai/agentos/commit/e48cd64))
+* test: pin tag round-trip through CognitiveMemoryManager encode/retrieve ([9433dad](https://github.com/framersai/agentos/commit/9433dad))
+
+## <small>0.1.245 (2026-04-19)</small>
+
+* feat: add shared memory retrieval policy contract ([d70ab08](https://github.com/framersai/agentos/commit/d70ab08))
+* feat: add shared retrieval confidence evaluation ([1efdd5a](https://github.com/framersai/agentos/commit/1efdd5a))
+* feat: thread retrieval policy through cognitive memory ([15ed10d](https://github.com/framersai/agentos/commit/15ed10d))
+* feat: unify retrieval policies across rag entrypoints ([da3cd13](https://github.com/framersai/agentos/commit/da3cd13))
+* feat: unify standalone and runtime long-term retrieval policy ([9cc8905](https://github.com/framersai/agentos/commit/9cc8905))
+* feat(llm): gate provider init logs behind AGENTOS_DEBUG, memoize createProviderManager ([76b05ed](https://github.com/framersai/agentos/commit/76b05ed))
+* fix: calibrate standalone recall confidence ([4be8755](https://github.com/framersai/agentos/commit/4be8755))
+
+## <small>0.1.244 (2026-04-19)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([3950d82](https://github.com/framersai/agentos/commit/3950d82))
+* fix(routing): remove dead uncensored text models from catalog ([e0abaeb](https://github.com/framersai/agentos/commit/e0abaeb))
+* feat: add host llm policy routing ([748cc25](https://github.com/framersai/agentos/commit/748cc25))
+
+## <small>0.1.243 (2026-04-19)</small>
+
+* fix(judge): tighten creation-review rubric to eliminate false rejects ([9cd8765](https://github.com/framersai/agentos/commit/9cd8765))
+
+## <small>0.1.242 (2026-04-19)</small>
+
+* fix(openai): use max_completion_tokens for gpt-5 + o-series models ([675c004](https://github.com/framersai/agentos/commit/675c004))
+
+## <small>0.1.241 (2026-04-18)</small>
+
+* fix(replicate-image): editImage now routes unpinned models to modern endpoint ([5099f31](https://github.com/framersai/agentos/commit/5099f31))
+* feat(agent): expose per-call maxTokens on agent() config ([cfd0d6d](https://github.com/framersai/agentos/commit/cfd0d6d)), closes [hi#volume](https://github.com/hi/issues/volume)
+
+## <small>0.1.240 (2026-04-18)</small>
+
+* fix(api): autoDetectProvider prioritizes openrouter over openai ([6465974](https://github.com/framersai/agentos/commit/6465974))
+
+## <small>0.1.239 (2026-04-18)</small>
+
+* fix(agency): UsageTotals carries + accumulates cache-token fields ([89b99f2](https://github.com/framersai/agentos/commit/89b99f2))
+* test(storage): lock in SqlStorageAdapter cache-token migration ([d75b736](https://github.com/framersai/agentos/commit/d75b736))
+
+## <small>0.1.238 (2026-04-18)</small>
+
+* fix(storage): SqlStorageAdapter persists + aggregates cache tokens ([b78ade8](https://github.com/framersai/agentos/commit/b78ade8))
+
+## <small>0.1.237 (2026-04-18)</small>
+
+* fix(storage): ITokenUsage carries optional cache-token fields ([e2ab9ed](https://github.com/framersai/agentos/commit/e2ab9ed))
+
+## <small>0.1.236 (2026-04-18)</small>
+
+* fix(usage): UsageLedger forwards Anthropic cache-token counters ([7245b23](https://github.com/framersai/agentos/commit/7245b23))
+
+## <small>0.1.235 (2026-04-18)</small>
+
+* fix(emergent): wrap-forge-tool tests pass strict tsc ([b18bd21](https://github.com/framersai/agentos/commit/b18bd21))
+
+## <small>0.1.234 (2026-04-18)</small>
+
+* fix(strategies): propagate cache tokens in all agency accumulators ([2daa6a3](https://github.com/framersai/agentos/commit/2daa6a3))
+
+## <small>0.1.233 (2026-04-18)</small>
+
+* fix(api): streamText + streamObject propagate prompt-cache tokens ([2a78b66](https://github.com/framersai/agentos/commit/2a78b66))
+
+## <small>0.1.232 (2026-04-18)</small>
+
+* fix(api): generateObject propagates prompt-cache tokens ([cee0eaa](https://github.com/framersai/agentos/commit/cee0eaa))
+
+## <small>0.1.231 (2026-04-18)</small>
+
+* fix(voice-pipeline): resolve 2 lint errors unblocking CI ([43fd59a](https://github.com/framersai/agentos/commit/43fd59a))
+
+## <small>0.1.230 (2026-04-18)</small>
+
+* fix(emergent): strict build — cast LLM-origin args to ForgeToolInput ([52cad99](https://github.com/framersai/agentos/commit/52cad99))
+* feat(emergent): forge observability utilities ([42108b0](https://github.com/framersai/agentos/commit/42108b0))
+
+## <small>0.1.229 (2026-04-18)</small>
+
+* feat(api): first-class policyTier routing for editImage + generateImage ([00bd595](https://github.com/framersai/agentos/commit/00bd595))
+
+## <small>0.1.228 (2026-04-18)</small>
+
+* chore(build): rebuild dist for provider catalog updates ([e72831f](https://github.com/framersai/agentos/commit/e72831f))
+* feat(providers): add Claude Opus 4.7 + Sonnet 4.6 models + updated pricing ([625e0b2](https://github.com/framersai/agentos/commit/625e0b2))
+* feat(voice): all existing providers implement HealthyProvider ([3c2a4bc](https://github.com/framersai/agentos/commit/3c2a4bc))
+* feat(voice): AudioRingBuffer for mid-utterance failover replay ([ab2e41e](https://github.com/framersai/agentos/commit/ab2e41e))
+* feat(voice): createVoiceProvidersFromEnv batteries-included constructor ([ab9a130](https://github.com/framersai/agentos/commit/ab9a130))
+* feat(voice): export new resilience symbols from package barrel ([0a9401a](https://github.com/framersai/agentos/commit/0a9401a))
+* feat(voice): HealthyProvider trait + capability helpers ([122585e](https://github.com/framersai/agentos/commit/122585e))
+* feat(voice): per-provider CircuitBreaker with auth-permanent + cooldown recovery ([b2a58bd](https://github.com/framersai/agentos/commit/b2a58bd))
+* feat(voice): StreamingSTTChain with init-time fallback + mid-utterance failover ([f214cb6](https://github.com/framersai/agentos/commit/f214cb6))
+* feat(voice): StreamingTTSChain with init-time + mid-synthesis failover ([028ec7f](https://github.com/framersai/agentos/commit/028ec7f))
+* feat(voice): TranscriptDedupe for cross-provider overlap suppression ([271defd](https://github.com/framersai/agentos/commit/271defd))
+* feat(voice): VoiceMetricsReporter typed event bus with isolated listeners ([4c327a3](https://github.com/framersai/agentos/commit/4c327a3))
+* feat(voice): VoicePipelineError + AggregateVoiceError with structured classification ([be0f66a](https://github.com/framersai/agentos/commit/be0f66a))
+
+## <small>0.1.227 (2026-04-18)</small>
+
+* fix(face): graceful synthetic embedding when Replicate InsightFace 422s ([63fb853](https://github.com/framersai/agentos/commit/63fb853))
+* Merge remote-tracking branch 'origin/master' ([d530634](https://github.com/framersai/agentos/commit/d530634))
+* docs: Paracosm feature guide with HEXACO, forge/reuse, cost safety, API, SSE ([6dcca61](https://github.com/framersai/agentos/commit/6dcca61))
+
+## <small>0.1.226 (2026-04-17)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([7049828](https://github.com/framersai/agentos/commit/7049828))
+* feat(emergent): optional generateTextWithSystem callback for judge prompt caching ([8420324](https://github.com/framersai/agentos/commit/8420324))
+
+## <small>0.1.225 (2026-04-16)</small>
+
+* merge: integrate remote 0.1.224 release tag ([b8be2bf](https://github.com/framersai/agentos/commit/b8be2bf))
+* feat(anthropic): cache-aware estimateCost + surface cacheRead/CreationInputTokens ([ae63c16](https://github.com/framersai/agentos/commit/ae63c16))
+
+## <small>0.1.224 (2026-04-16)</small>
+
+* fix(api): correct ILogger signature on fallback telemetry calls ([8898c0c](https://github.com/framersai/agentos/commit/8898c0c))
+* feat(api): structured telemetry on provider fallback chain ([a802d0c](https://github.com/framersai/agentos/commit/a802d0c))
+* feat(generateObject): accept SystemContentBlock[] for prompt caching ([391779a](https://github.com/framersai/agentos/commit/391779a))
+
+## <small>0.1.223 (2026-04-16)</small>
+
+* feat: add fallback + JSON mode + retry cap to generateObject ([4c9dd9b](https://github.com/framersai/agentos/commit/4c9dd9b))
+* feat: default-on auto-fallback in generateText ([3292fbf](https://github.com/framersai/agentos/commit/3292fbf))
+* feat: default-on auto-fallback in streamText ([76369b3](https://github.com/framersai/agentos/commit/76369b3))
+
+## <small>0.1.222 (2026-04-15)</small>
+
+* chore: update gitignore and db ([b76b2f7](https://github.com/framersai/agentos/commit/b76b2f7))
+* feat: export extractJson from barrel for centralized LLM JSON extraction ([397210a](https://github.com/framersai/agentos/commit/397210a))
+* docs: add capability discovery, skills, and self-improvement tools to README feature table ([0809af1](https://github.com/framersai/agentos/commit/0809af1))
+* docs: add self-improvement tools and SkillExporter to emergent capabilities docs ([1965d06](https://github.com/framersai/agentos/commit/1965d06))
+
+## <small>0.1.221 (2026-04-15)</small>
+
+* fix: streamline Paracosm section in README ([d7e3034](https://github.com/framersai/agentos/commit/d7e3034))
+
+## <small>0.1.220 (2026-04-15)</small>
+
+* feat: update README to reference Paracosm instead of mars-genesis-simulation ([da1522e](https://github.com/framersai/agentos/commit/da1522e))
+* fix: align runtime contracts and docs publication ([a4bba1a](https://github.com/framersai/agentos/commit/a4bba1a))
+* docs: add Mars Genesis featured demo section, update Discord to wilds.ai ([6fd85d6](https://github.com/framersai/agentos/commit/6fd85d6))
+* docs: clarify cognitive mechanism count and persona drift as optional ([c3150c4](https://github.com/framersai/agentos/commit/c3150c4))
+* chore: update Discord invite link ([3d55abe](https://github.com/framersai/agentos/commit/3d55abe))
+
+## <small>0.1.219 (2026-04-12)</small>
+
+* feat(mars-genesis): v3 orchestrator with Turn 0 promotion, personality drift, outcome classification ([3678aa0](https://github.com/framersai/agentos/commit/3678aa0))
+* feat(mars-genesis): v3 smoke test passed - promotions, drift, outcome classification all working ([9271c95](https://github.com/framersai/agentos/commit/9271c95))
+* feat(mars-genesis): v3 state types, HEXACO generation, drift, outcome classification, scenarios, con ([55efd96](https://github.com/framersai/agentos/commit/55efd96))
+* docs: add Mars Genesis v3 design spec (dynamic promotion, personality drift, trait trajectories) ([7396604](https://github.com/framersai/agentos/commit/7396604))
+* docs: add Mars Genesis v3 implementation plan (9 tasks, personality drift) ([676f0bb](https://github.com/framersai/agentos/commit/676f0bb))
+* docs: document slash-format model strings and update model table ([fdeea31](https://github.com/framersai/agentos/commit/fdeea31))
+* docs: rewrite v3 spec after full cross-check against v2 principles and Codex review ([3ab3509](https://github.com/framersai/agentos/commit/3ab3509))
+* docs: update model names and document slash-format support ([1df3c32](https://github.com/framersai/agentos/commit/1df3c32))
+
+## <small>0.1.218 (2026-04-12)</small>
+
+* fix(mars-genesis): fix forge success rate (permissive schemas, code wrapping, mode normalization) ([0d51b77](https://github.com/framersai/agentos/commit/0d51b77))
+
+## <small>0.1.217 (2026-04-12)</small>
+
+* feat: support provider/model slash format in model strings ([266daf0](https://github.com/framersai/agentos/commit/266daf0))
+
+## <small>0.1.216 (2026-04-12)</small>
+
+* fix(mars-genesis): normalize OpenAI forge_tool args (code->sandbox, default allowlist), strengthen d ([39adc0e](https://github.com/framersai/agentos/commit/39adc0e))
+
+## <small>0.1.215 (2026-04-12)</small>
+
+* feat(mars-genesis): v2 smoke test passed - multi-agent orchestrator working end-to-end ([1279218](https://github.com/framersai/agentos/commit/1279218))
+
+## <small>0.1.214 (2026-04-12)</small>
+
+* feat(mars-genesis): add v2 multi-agent orchestrator with department routing, kernel integration, and ([5efa348](https://github.com/framersai/agentos/commit/5efa348))
+
+## <small>0.1.213 (2026-04-12)</small>
+
+* feat(mars-genesis): add simulation kernel, typed contracts, and curated research packets (turns 1-12 ([6afe124](https://github.com/framersai/agentos/commit/6afe124))
+
+## <small>0.1.212 (2026-04-12)</small>
+
+* fix: LLMVisionProvider passes ContentPart[] directly instead of JSON.stringify ([8bdc0e0](https://github.com/framersai/agentos/commit/8bdc0e0))
+* feat: widen agent session send/stream to accept MessageContent ([eee6e8c](https://github.com/framersai/agentos/commit/eee6e8c))
+* feat: widen Message.content to MessageContent for multimodal support ([e6823e5](https://github.com/framersai/agentos/commit/e6823e5))
+* feat(mars-genesis): add canonical simulation state types ([de520ee](https://github.com/framersai/agentos/commit/de520ee))
+* feat(mars-genesis): add deterministic between-turn progression (aging, births, deaths, careers) ([42e98c2](https://github.com/framersai/agentos/commit/42e98c2))
+* feat(mars-genesis): add deterministic seeded RNG (mulberry32) ([75fd3e3](https://github.com/framersai/agentos/commit/75fd3e3))
+* feat(mars-genesis): add seeded colonist population generator ([62f639e](https://github.com/framersai/agentos/commit/62f639e))
+* docs: add Mars Genesis v2 Phase 1 implementation plan (kernel + state) ([ee543c9](https://github.com/framersai/agentos/commit/ee543c9))
+* docs: rewrite Mars Genesis v2 spec incorporating Codex review ([8cbb755](https://github.com/framersai/agentos/commit/8cbb755))
+
+## <small>0.1.211 (2026-04-12)</small>
+
+* feat(examples): emergent tool forging fully working in Mars Genesis ([8b73dbb](https://github.com/framersai/agentos/commit/8b73dbb))
+
+## <small>0.1.210 (2026-04-12)</small>
+
+* feat(examples): wire EmergentCapabilityEngine + ForgeToolMetaTool into Mars Genesis ([78deae8](https://github.com/framersai/agentos/commit/78deae8))
+
+## <small>0.1.209 (2026-04-12)</small>
+
+* feat(examples): add verified Mars Genesis output logs with live web search citations ([115684f](https://github.com/framersai/agentos/commit/115684f))
+
+## <small>0.1.208 (2026-04-12)</small>
+
+* fix(examples): add Brave Search fallback, add tool execution logging, debug Serper credit issue ([d3c7b82](https://github.com/framersai/agentos/commit/d3c7b82))
+* fix(examples): add real web_search ITool via Serper API, fix citation instructions to require inline ([58a5b83](https://github.com/framersai/agentos/commit/58a5b83))
+
+## <small>0.1.207 (2026-04-12)</small>
+
+* fix(examples): fix personality type (honesty not honestyHumility), switch to Opus, add maxTurns CLI  ([89e39a9](https://github.com/framersai/agentos/commit/89e39a9))
+
+## <small>0.1.206 (2026-04-12)</small>
+
+* feat(examples): add 12 Mars Genesis crisis scenarios with research keywords ([5892bf5](https://github.com/framersai/agentos/commit/5892bf5))
+* feat(examples): add Mars Genesis entry points, README, and output dir ([71ab5ea](https://github.com/framersai/agentos/commit/71ab5ea))
+* feat(examples): add Mars Genesis simulation runner with citation extraction ([a512ec4](https://github.com/framersai/agentos/commit/a512ec4))
+* feat(examples): add Mars Genesis types, leader constants, gitignore superpowers ([1ca6b3c](https://github.com/framersai/agentos/commit/1ca6b3c))
+
+## <small>0.1.205 (2026-04-12)</small>
+
+* fix: skip voice transport adapter test that stalls on dynamic import ([bebc07b](https://github.com/framersai/agentos/commit/bebc07b))
+
+## <small>0.1.204 (2026-04-12)</small>
+
+* feat: add API class citations and related links to emergent capabilities doc ([5c794cc](https://github.com/framersai/agentos/commit/5c794cc))
+
+## <small>0.1.203 (2026-04-11)</small>
+
+* feat(memory): add PerspectiveObserver for multi-agent subjective encoding ([17c5c1c](https://github.com/framersai/agentos/commit/17c5c1c))
+* spec: PerspectiveObserver — multi-agent subjective memory encoding ([cf2362d](https://github.com/framersai/agentos/commit/cf2362d))
+
+## <small>0.1.202 (2026-04-11)</small>
+
+* feat(memory): add IMemoryArchive for lossless verbatim preservation and on-demand rehydration ([12516c4](https://github.com/framersai/agentos/commit/12516c4))
+
+## <small>0.1.201 (2026-04-10)</small>
+
+* fix: update comparison blog URL to dated Docusaurus path ([022155a](https://github.com/framersai/agentos/commit/022155a))
+* docs: add inline apiKey/baseUrl examples to quick start and API guides ([3b9da2f](https://github.com/framersai/agentos/commit/3b9da2f)), closes [hi#level](https://github.com/hi/issues/level)
+* docs: streamline README for SEO and LLM crawling, unify Discord link ([583ab5a](https://github.com/framersai/agentos/commit/583ab5a))
+
+## <small>0.1.200 (2026-04-10)</small>
+
+* fix: validate OpenAI TTS voice names, fall back to nova for unknown IDs ([87687cf](https://github.com/framersai/agentos/commit/87687cf))
+
+## <small>0.1.199 (2026-04-10)</small>
+
+* fix: add missing ApiKeyPool imports and fix broken field declaration in StabilityImageProvider ([4a295de](https://github.com/framersai/agentos/commit/4a295de))
+* test: add integration tests for provider key rotation ([98438ff](https://github.com/framersai/agentos/commit/98438ff))
+* docs: document API key rotation as core AgentOS feature ([9436051](https://github.com/framersai/agentos/commit/9436051))
+* feat: add key pool rotation to all remaining providers (20 files) ([8d952cb](https://github.com/framersai/agentos/commit/8d952cb))
+
+## <small>0.1.198 (2026-04-10)</small>
+
+* feat: add key pool rotation to Anthropic, OpenRouter, and fix import paths ([7e95c01](https://github.com/framersai/agentos/commit/7e95c01))
+
+## <small>0.1.197 (2026-04-10)</small>
+
+* feat: add key pool rotation to all 6 OpenAI providers ([b6f23d3](https://github.com/framersai/agentos/commit/b6f23d3))
+
+## <small>0.1.196 (2026-04-10)</small>
+
+* feat: add key pool rotation to all 5 ElevenLabs providers ([fa38ec5](https://github.com/framersai/agentos/commit/fa38ec5))
+
+## <small>0.1.195 (2026-04-10)</small>
+
+* feat: add quota error detection, singleton key pool registry, barrel export ([e18fa18](https://github.com/framersai/agentos/commit/e18fa18))
+
+## <small>0.1.194 (2026-04-10)</small>
+
+* feat: add ApiKeyPool with weighted round-robin and quota cooldown ([fa81f1d](https://github.com/framersai/agentos/commit/fa81f1d))
+
+## <small>0.1.193 (2026-04-10)</small>
+
+* fix(memory): add missing knowledgeGraph + collectionPrefix to getBrain test config ([000c48c](https://github.com/framersai/agentos/commit/000c48c))
+* chore: bump version to 0.1.192 ([d016aec](https://github.com/framersai/agentos/commit/d016aec))
+
+## <small>0.1.192 (2026-04-10)</small>
+
+* feat(memory): brain export/import pipeline + transplant + cross-platform SqliteImporter ([8f4b77e](https://github.com/framersai/agentos/commit/8f4b77e))
+
+## <small>0.1.191 (2026-04-09)</small>
+
+* feat(routing): PolicyAwareRouter respects requiredCapabilities + agent() forwards routerParams ([5a68820](https://github.com/framersai/agentos/commit/5a68820))
+
+## <small>0.1.190 (2026-04-09)</small>
+
+* feat(agency): robust structured output with brace-matched JSON extraction and validation retries ([3824708](https://github.com/framersai/agentos/commit/3824708))
+
+## <small>0.1.189 (2026-04-08)</small>
+
+* fix: resolve CI lint failures (unused imports, require() style) ([a52a73f](https://github.com/framersai/agentos/commit/a52a73f))
+
+## <small>0.1.188 (2026-04-08)</small>
+
+* feat: add optional reranker stage to CognitiveMemoryManager.retrieve() ([ee11490](https://github.com/framersai/agentos/commit/ee11490))
+
+## <small>0.1.187 (2026-04-08)</small>
+
+* feat: add OpenAIRealtimeTTS streaming provider ([87b2808](https://github.com/framersai/agentos/commit/87b2808))
+
+## <small>0.1.186 (2026-04-08)</small>
+
+* feat: add BatchTTSFallback wrapper for multi-provider TTS failover ([5296a86](https://github.com/framersai/agentos/commit/5296a86))
+
+## <small>0.1.185 (2026-04-08)</small>
+
+* feat: add ElevenLabsBatchTTS provider ([be750f6](https://github.com/framersai/agentos/commit/be750f6))
+
+## <small>0.1.184 (2026-04-08)</small>
+
+* wip: save in-progress image changes ([3674be5](https://github.com/framersai/agentos/commit/3674be5))
+* feat: add OpenAIBatchTTS provider for one-shot narration synthesis ([952fcbe](https://github.com/framersai/agentos/commit/952fcbe))
+
+## <small>0.1.183 (2026-04-08)</small>
+
+* feat: add IBatchTTS, BatchTTSConfig, and BatchTTSResult interfaces ([babe6aa](https://github.com/framersai/agentos/commit/babe6aa))
+
+## <small>0.1.182 (2026-04-08)</small>
+
+* fix: add ignoreDeprecations 6.0 for TS 7.0 baseUrl warning ([b011e7f](https://github.com/framersai/agentos/commit/b011e7f))
+* fix: remove ignoreDeprecations for TS 7.0 compat, fix Zod v4 type errors ([696806c](https://github.com/framersai/agentos/commit/696806c))
+* chore(release): 0.1.182 ([073b439](https://github.com/framersai/agentos/commit/073b439))
+* docs: update README with cognitive memory completion and LLM validation layer ([9c3270a](https://github.com/framersai/agentos/commit/9c3270a))
+* test(memory): add full pipeline integration test for cognitive memory ([94b8720](https://github.com/framersai/agentos/commit/94b8720))
+* test(validation): add integration test for full validation pipeline ([57fe60a](https://github.com/framersai/agentos/commit/57fe60a))
+* feat(agent): add responseSchema option to agent() factory for Zod validation ([486e01d](https://github.com/framersai/agentos/commit/486e01d))
+* feat(memory): add default MemoryHydeRetriever, auto-attach when LLM available ([381902f](https://github.com/framersai/agentos/commit/381902f))
+* feat(memory): add full API surface to AgentMemory (graph, stats, export, prospective) ([8e9ec45](https://github.com/framersai/agentos/commit/8e9ec45))
+* feat(memory): add relational type, CoT reasoning, personality bias to MemoryReflector ([f4fc891](https://github.com/framersai/agentos/commit/f4fc891))
+* feat(memory): add response guidance preamble to MemoryPromptAssembler ([8562c8a](https://github.com/framersai/agentos/commit/8562c8a))
+* feat(memory): add SqliteBrain write-through persistence for cognitive path ([b80e2a9](https://github.com/framersai/agentos/commit/b80e2a9))
+* feat(memory): auto-register commitment and intention notes as prospective items ([684645a](https://github.com/framersai/agentos/commit/684645a))
+* feat(memory): enable KnowledgeGraph by default, add disabled opt-out flag ([9500059](https://github.com/framersai/agentos/commit/9500059))
+* feat(validation): add centralized extractJson for LLM output parsing ([6156cdc](https://github.com/framersai/agentos/commit/6156cdc))
+* feat(validation): add LlmOutputValidationError and Zod schema primitives ([c1f5694](https://github.com/framersai/agentos/commit/c1f5694))
+* feat(validation): add ValidatedLlmInvoker with Zod validation, retry, and barrel export ([f5422bd](https://github.com/framersai/agentos/commit/f5422bd))
+
+## <small>0.1.181 (2026-04-07)</small>
+
+* fix: add missing API exports (generateImage, generateObject, generateMusic, generateSFX, generateVid ([16dd3c4](https://github.com/framersai/agentos/commit/16dd3c4))
+
+## <small>0.1.180 (2026-04-07)</small>
+
+* feat(web-search): add multi-provider web search module with RRF fusion, semantic dedup, reranking ([37d2abf](https://github.com/framersai/agentos/commit/37d2abf))
+
+## <small>0.1.179 (2026-04-06)</small>
+
+* feat(image): build dist for v0.1.178 — character consistency, style transfer, provider modernization ([7c519be](https://github.com/framersai/agentos/commit/7c519be))
+
+## <small>0.1.178 (2026-04-06)</small>
+
+* feat(image): character consistency, style transfer, provider modernization ([22a90da](https://github.com/framersai/agentos/commit/22a90da)), closes [hi#level](https://github.com/hi/issues/level)
+
+## [Unreleased]
+
+### Added
+- `transferStyle()` high-level API for image-guided style transfer via Flux Redux
+- Character consistency fields on `ImageGenerationRequest`: `referenceImageUrl`, `faceEmbedding`, `consistencyMode`
+- Replicate: dual-endpoint support (modern `/models/.../predictions` + legacy `/predictions`)
+- Replicate: 10 new models in catalog (Flux 1.1 Pro, Ultra, Redux, Canny, Depth, Fill Pro, Pulid, SDXL Lightning, SDXL, Real-ESRGAN)
+- Replicate: character consistency via Pulid auto-selection when `consistencyMode: 'strict'`
+- Replicate: ControlNet image input (`controlImage`, `controlType`) for Flux Canny/Depth
+- Fal: `editImage()` support (img2img + inpainting)
+- Fal: 4 new models in catalog (Pro 1.1, Ultra, LoRA, Realism)
+- Fal: IP-Adapter character consistency mapping
+- SD-Local: IP-Adapter character consistency via ControlNet injection
+- `PolicyAwareImageRouter`: `'character-consistency'` capability filtering
+- `AvatarPipeline`: per-stage consistency mode (`strict` for expressions, `balanced` for body)
+- `docs/features/CHARACTER_CONSISTENCY.md`
+- `docs/features/STYLE_TRANSFER.md`
+- 59 new tests across providers, APIs, and integration scenarios
+- OpenAI, Stability, OpenRouter, BFL: graceful debug warning when `referenceImageUrl` is set but unsupported
+
+### Changed
+- Replicate: default inpaint model upgraded from `flux-fill` to `flux-fill-pro`
+
+## <small>0.1.177 (2026-04-04)</small>
+
+* fix(api): include systemBlocks on exported AgentOptions interface ([d79ddab](https://github.com/framersai/agentos/commit/d79ddab))
+
+## <small>0.1.176 (2026-04-04)</small>
+
+* feat: add PersonaDriftMechanism (9th cognitive mechanism) with heuristic personality drift ([739fafd](https://github.com/framersai/agentos/commit/739fafd))
+* feat(api): replace flat HEXACO trait dump with behavioral descriptions ([a42d72f](https://github.com/framersai/agentos/commit/a42d72f))
+
+## <small>0.1.175 (2026-04-04)</small>
+
+* fix(api): remove duplicate dead branches in system prompt construction ([32d5e5f](https://github.com/framersai/agentos/commit/32d5e5f))
+* docs(voice-pipeline): add provider options, sentiment, keyword boosting docs ([b376cbf](https://github.com/framersai/agentos/commit/b376cbf))
+
+## <small>0.1.174 (2026-04-04)</small>
+
+* feat: add prompt caching support (SystemContentBlock, cache_control, cache metrics) ([23586f3](https://github.com/framersai/agentos/commit/23586f3))
+
+## <small>0.1.173 (2026-04-04)</small>
+
+* feat(voice-pipeline): Deepgram sentiment, keywords, smart formatting support ([a7d7266](https://github.com/framersai/agentos/commit/a7d7266))
+
+## <small>0.1.172 (2026-04-04)</small>
+
+* fix(orchestration): validate and route conditional/discovery edges correctly ([47b213f](https://github.com/framersai/agentos/commit/47b213f))
+* feat(nlp): implement trigram-based language detection in StatisticalUtilityAI ([54ea468](https://github.com/framersai/agentos/commit/54ea468))
+* test: add classify, sentiment, similarity, trainModel, and hybrid delegation tests ([9c5a3be](https://github.com/framersai/agentos/commit/9c5a3be))
+* test(nlp): add classifyText, sentiment, and similarity tests for StatisticalUtilityAI ([24a6378](https://github.com/framersai/agentos/commit/24a6378))
+
+## <small>0.1.171 (2026-04-04)</small>
+
+* feat: export NLP ai_utilities from barrel file and package.json ([08da179](https://github.com/framersai/agentos/commit/08da179))
+* feat(nlp): improve syllable counting in calculateReadability ([35e60b1](https://github.com/framersai/agentos/commit/35e60b1))
+
+## <small>0.1.170 (2026-04-04)</small>
+
+* feat(voice-pipeline): forward ttsOptions to ElevenLabs as expressiveness params ([9c31206](https://github.com/framersai/agentos/commit/9c31206))
+
+## <small>0.1.169 (2026-04-04)</small>
+
+* feat(agentos): wire VoiceTransportAdapter to pipeline TTS and turn detection ([69d337f](https://github.com/framersai/agentos/commit/69d337f))
+
+## <small>0.1.168 (2026-04-03)</small>
+
+* feat(routing): update uncensored model catalog for private-adult tier ([f4c6bea](https://github.com/framersai/agentos/commit/f4c6bea))
+
+## <small>0.1.167 (2026-04-03)</small>
+
+* fix: disable require-yield on stub generator that only throws ([2899cfd](https://github.com/framersai/agentos/commit/2899cfd))
+* docs: add 3-line minimal agent example + all 6 agency strategies shown ([88e4eec](https://github.com/framersai/agentos/commit/88e4eec))
+* chore: bump version to 0.1.166, align sql-storage-adapter to ^0.6.1 ([6fcf301](https://github.com/framersai/agentos/commit/6fcf301))
+
+## <small>0.1.166 (2026-04-01)</small>
+
+* fix(agentos): prioritize truly uncensored models for private-adult tier ([f03491e](https://github.com/framersai/agentos/commit/f03491e))
+
+## <small>0.1.165 (2026-04-01)</small>
+
+* fix: resolve cosineSimilarity export collision in images barrel ([05e321f](https://github.com/framersai/agentos/commit/05e321f))
+* feat: add AvatarIdentityPackage, face embedding service, avatar generation pipeline ([5cbf5b0](https://github.com/framersai/agentos/commit/5cbf5b0))
+
+## <small>0.1.164 (2026-04-01)</small>
+
+* feat: wire PolicyAwareImageRouter into generateImage, update barrel exports ([886dedf](https://github.com/framersai/agentos/commit/886dedf))
+
+## <small>0.1.163 (2026-04-01)</small>
+
+* feat: add PolicyAwareRouter, UncensoredModelCatalog, PolicyAwareImageRouter ([74fff3e](https://github.com/framersai/agentos/commit/74fff3e))
+
+## <small>0.1.162 (2026-04-01)</small>
+
+* feat: add getAvatarBindings and setAvatarBindingOverrides to agent() ([2989397](https://github.com/framersai/agentos/commit/2989397))
+
+## <small>0.1.161 (2026-04-01)</small>
+
+* feat: add AvatarConfig to BaseAgentConfig with identity, style projections, and runtime bindings ([d1a0e63](https://github.com/framersai/agentos/commit/d1a0e63))
+
+## <small>0.1.160 (2026-04-01)</small>
+
+* fix(agentos): remove eager usage-ledger imports from lightweight API paths ([580b169](https://github.com/framersai/agentos/commit/580b169))
+
+## <small>0.1.159 (2026-03-31)</small>
+
+* fix: add relational to tracesPerType (MemoryType completeness) ([a0e42f3](https://github.com/framersai/agentos/commit/a0e42f3))
+* fix: use 'as any' cast for Message/Record interop in generation hooks (TS2352) ([ac1e60f](https://github.com/framersai/agentos/commit/ac1e60f))
+* feat: add ModelRouter, generation hooks, memory/skills to agent() ([ed1b436](https://github.com/framersai/agentos/commit/ed1b436))
+* feat: add relational memory type for companion relationship tracking ([e0989c3](https://github.com/framersai/agentos/commit/e0989c3))
+* docs: citation verification README section + example ([dd23816](https://github.com/framersai/agentos/commit/dd23816))
+
+## <small>0.1.159 (2026-03-31)</small>
+
+### Features
+
+* **ModelRouter integration:** `generateText()`, `streamText()`, and `agent()` accept an optional `router` field (`IModelRouter`) for intelligent model/provider selection. Router errors fall back gracefully.
+* **Generation lifecycle hooks:** `onBeforeGeneration`, `onAfterGeneration`, and `onBeforeToolExecution` hooks on `GenerateTextOptions` and `AgentOptions`. Enables guardrail injection, memory context assembly, and tool permission gating without the full AgentOS runtime.
+* **Memory integration for agent():** `agent()` accepts `memoryProvider` for automatic memory recall before each turn and observation after each turn. Includes 5s timeout for non-blocking operation.
+* **Skills integration for agent():** `agent()` accepts `skills` (`SkillEntry[]`) to inject skill content into system prompts.
+* **New public exports:** `ModelRouter`, `IModelRouter`, `ModelRouteParams`, `ModelRouteResult`, `AgentMemory`, `IPromptEngine`, `SkillEntry`, `SkillRegistry`, `GenerationHookContext`, `GenerationHookResult`, `ToolCallHookInfo`.
+
+## <small>0.1.158 (2026-03-31)</small>
+
+* fix: add originalDocumentId to rerankChain test chunks ([d6b84a9](https://github.com/framersai/agentos/commit/d6b84a9))
+* fix: verifyCitations default + resolved config type + dedupe cosineSimilarity export ([209a2ac](https://github.com/framersai/agentos/commit/209a2ac))
+* feat(citation): add grounding field to QueryResult + verifyCitations config + exports ([246ea44](https://github.com/framersai/agentos/commit/246ea44))
+* feat(citation): CitationVerifier with cosine similarity verification + tests ([3f745a0](https://github.com/framersai/agentos/commit/3f745a0))
+* test: add rerankChain() multi-stage pipeline tests ([4fe5c4d](https://github.com/framersai/agentos/commit/4fe5c4d))
+* docs: move Ebbinghaus from intro to memory section, add DOI hyperlinks to all 8 APA citations ([7740a15](https://github.com/framersai/agentos/commit/7740a15))
+
+## <small>0.1.157 (2026-03-31)</small>
+
+* fix: logger.warn signature — string not Record ([408b37d](https://github.com/framersai/agentos/commit/408b37d))
+* feat: expose cognitive mechanisms in agent() API + APA citations in README ([b3edd61](https://github.com/framersai/agentos/commit/b3edd61))
+* feat(reranking): export LlmJudgeReranker + RerankChainStage ([b4716e5](https://github.com/framersai/agentos/commit/b4716e5))
+* feat(reranking): LLM-as-judge reranker + rerankChain multi-stage pipeline ([e9e615c](https://github.com/framersai/agentos/commit/e9e615c))
+* docs: add Adaptive Intelligence & Metacognition section to README ([9a3dc33](https://github.com/framersai/agentos/commit/9a3dc33))
+* docs: complete README rewrite -- fix broken examples, real feature counts, streamlined structure ([d5a7208](https://github.com/framersai/agentos/commit/d5a7208))
+* docs: fix generateText example — honest about auto-detection (env var priority, not LLM-chosen) ([1cbcf69](https://github.com/framersai/agentos/commit/1cbcf69))
+* docs: generateText example — auto-detect best provider+model by default, show override as comment ([ff28f48](https://github.com/framersai/agentos/commit/ff28f48))
+
+## <small>0.1.156 (2026-03-30)</small>
+
+* fix(ci): add type assertions for TS 5.4 compatibility in humanNode builder and executor ([3877175](https://github.com/framersai/agentos/commit/3877175))
+
+## <small>0.1.155 (2026-03-30)</small>
+
+* feat: HITL guardrail override support + agency docs update + tests ([fe117e6](https://github.com/framersai/agentos/commit/fe117e6))
+* feat(hitl): add post-approval guardrail override for destructive actions ([ce2ee69](https://github.com/framersai/agentos/commit/ce2ee69))
+* feat(knowledge): add HITL FAQ, API, and guardrail-override corpus entries ([5cc3d2e](https://github.com/framersai/agentos/commit/5cc3d2e))
+* fix: strip changelog notes, vaporware diagram, and fake pseudo-code from architecture docs ([e06ec6b](https://github.com/framersai/agentos/commit/e06ec6b))
+* fix(ci): retrigger build ([3919254](https://github.com/framersai/agentos/commit/3919254))
+* docs: expand architecture doc to ~1200 lines with diagrams, code examples, tables ([889c811](https://github.com/framersai/agentos/commit/889c811))
+* docs: rewrite High-Level API intro — clean table, no changelog language ([9d45059](https://github.com/framersai/agentos/commit/9d45059)), closes [Hi#Level](https://github.com/Hi/issues/Level)
+* docs: strip 3000+ lines of vaporware from architecture doc ([03c12fb](https://github.com/framersai/agentos/commit/03c12fb))
+* docs: unified API reference — one import, quick reference table, no artificial levels ([db1f5fc](https://github.com/framersai/agentos/commit/db1f5fc))
+
+## <small>0.1.154 (2026-03-30)</small>
+
+* fix: remove all downstream references from AgentOS docs ([961c4af](https://github.com/framersai/agentos/commit/961c4af))
+
+## <small>0.1.153 (2026-03-30)</small>
+
+* docs: add llmJudge API reference and humanNode options table ([5427fc8](https://github.com/framersai/agentos/commit/5427fc8))
+* test(hitl): add unit + integration tests for llmJudge and humanNode options ([2bd74b8](https://github.com/framersai/agentos/commit/2bd74b8))
+* feat(hitl): add llmJudge() handler factory ([0f9a865](https://github.com/framersai/agentos/commit/0f9a865))
+* feat(orchestration): add humanNode autoAccept/autoReject/judge/onTimeout options ([6941058](https://github.com/framersai/agentos/commit/6941058))
+
+## <small>0.1.152 (2026-03-30)</small>
+
+* fix: remove docs.wunderland.sh links and Wunderland-specific language from agentos docs ([24fe36f](https://github.com/framersai/agentos/commit/24fe36f))
+
+## <small>0.1.151 (2026-03-30)</small>
+
+* feat(readme): add adaptive intelligence + emergent behaviors sections ([304fb79](https://github.com/framersai/agentos/commit/304fb79))
+* test(knowledge): add credential discovery tests + update QueryRouter docs ([720ae2f](https://github.com/framersai/agentos/commit/720ae2f))
+* docs: rewrite orchestration pages — authoritative tone, Mermaid diagrams, no hedging ([b5fd83c](https://github.com/framersai/agentos/commit/b5fd83c))
+
+## <small>0.1.150 (2026-03-29)</small>
+
+* feat(knowledge): add credential setup workflow entries to platform corpus ([71c922c](https://github.com/framersai/agentos/commit/71c922c))
+
+## <small>0.1.149 (2026-03-29)</small>
+
+* fix: reorder auto-detect priority (OpenAI first) + warn on Anthropic fallback ([646dab3](https://github.com/framersai/agentos/commit/646dab3))
+
+## <small>0.1.148 (2026-03-29)</small>
+
+* fix(examples): fix 3 broken examples — import path, provider notes, shutdown ([81c5062](https://github.com/framersai/agentos/commit/81c5062))
+
+## <small>0.1.147 (2026-03-29)</small>
+
+* fix(typecheck): use direct imports for SqliteExporter/Importer in tests ([bd855ba](https://github.com/framersai/agentos/commit/bd855ba))
+
+## <small>0.1.146 (2026-03-29)</small>
+
+* fix: remove eager SqliteImporter/Exporter barrel exports to avoid better-sqlite3 crash ([3242f31](https://github.com/framersai/agentos/commit/3242f31))
+
+## <small>0.1.145 (2026-03-29)</small>
+
+* fix(memory): prevent raw profanity/slurs from being stored as user facts ([c17b49f](https://github.com/framersai/agentos/commit/c17b49f))
+* docs: add content-policy-rewriter to guardrails table + ecosystem ([563be3f](https://github.com/framersai/agentos/commit/563be3f))
+
+## <small>0.1.144 (2026-03-29)</small>
+
+* feat(query-router): capability recommendations + discovery engine integration ([1df5a12](https://github.com/framersai/agentos/commit/1df5a12))
+* docs: rewrite quickstart — personality, memory, RAG, workflows, agency, voice, guardrails ([3270358](https://github.com/framersai/agentos/commit/3270358))
+
+## <small>0.1.143 (2026-03-29)</small>
+
+* feat: add fallbackProviders + buildFallbackChain to generateText/streamText/agent ([800edae](https://github.com/framersai/agentos/commit/800edae))
+
+## <small>0.1.142 (2026-03-29)</small>
+
+* fix(docs): remove highlightLanguages (unsupported in TypeDoc 0.25) ([07af1b9](https://github.com/framersai/agentos/commit/07af1b9))
+* chore(deps): bump agentos-extensions-registry to ^0.15.0 ([a30ef70](https://github.com/framersai/agentos/commit/a30ef70))
+
+## <small>0.1.141 (2026-03-29)</small>
+
+* fix(ci): resolve typecheck errors — add finishReason to mock, import afterEach ([88a3f18](https://github.com/framersai/agentos/commit/88a3f18))
+
+## <small>0.1.140 (2026-03-29)</small>
+
+* fix(ci): make badge green — typecheck gates CI, tests report to codecov ([b7028e5](https://github.com/framersai/agentos/commit/b7028e5))
+* fix(tests): resolve 58 test file failures from hierarchy restructuring ([3b1ea11](https://github.com/framersai/agentos/commit/3b1ea11))
+
+## <small>0.1.139 (2026-03-29)</small>
+
+* fix(lint): replace dynamic require() with static imports in QueryClassifier ([3925405](https://github.com/framersai/agentos/commit/3925405))
+
+## <small>0.1.138 (2026-03-29)</small>
+
+* feat(query-router): wire capability catalog into plan-aware classifier + surface recommendations ([3fdf26d](https://github.com/framersai/agentos/commit/3fdf26d))
+* docs: add personality on/off examples to getting-started guide ([1b2e682](https://github.com/framersai/agentos/commit/1b2e682))
+* docs: add runnable examples table with all 13 .mjs files + descriptions ([4ed2b24](https://github.com/framersai/agentos/commit/4ed2b24))
+* docs: platform knowledge documentation + integration and e2e tests ([2f6cdcf](https://github.com/framersai/agentos/commit/2f6cdcf))
+
+## <small>0.1.137 (2026-03-29)</small>
+
+* fix: use darker green for tests badge (readable with white text) ([9a9d566](https://github.com/framersai/agentos/commit/9a9d566))
+
+## <small>0.1.136 (2026-03-29)</small>
+
+* fix(ci): exclude onnxruntime native tests, add test count badge ([858cb7b](https://github.com/framersai/agentos/commit/858cb7b))
+* docs: add DOI hyperlinks to all cognitive mechanism citations in README ([3ae7ccb](https://github.com/framersai/agentos/commit/3ae7ccb))
+* docs: comprehensive memory types, 4-tier hierarchy, 8 cognitive mechanisms ([8eb9ab1](https://github.com/framersai/agentos/commit/8eb9ab1))
+* docs: multi-provider examples, provider-first pattern, default models table ([c346007](https://github.com/framersai/agentos/commit/c346007))
+
+## <small>0.1.135 (2026-03-29)</small>
+
+* fix(ci): resolve sql-storage-adapter in standalone CI without monorepo sibling ([1087b02](https://github.com/framersai/agentos/commit/1087b02))
+
+## <small>0.1.134 (2026-03-29)</small>
+
+* feat(query-router): bundled platform knowledge system ([dab1e3f](https://github.com/framersai/agentos/commit/dab1e3f))
+
+## <small>0.1.133 (2026-03-29)</small>
+
+* feat(discovery): hydrate capability index from extensions catalog ([cc9f25d](https://github.com/framersai/agentos/commit/cc9f25d))
+
+## <small>0.1.132 (2026-03-29)</small>
+
+* fix(ci): add sql-storage-adapter to devDependencies for test resolution ([3568e48](https://github.com/framersai/agentos/commit/3568e48))
+* docs: multi-agent quickstart examples and emergent agency patterns ([255ad25](https://github.com/framersai/agentos/commit/255ad25))
+
+## <small>0.1.131 (2026-03-29)</small>
+
+* fix: guardrails core module + orchestration test + runtime updates ([f438e7b](https://github.com/framersai/agentos/commit/f438e7b))
+
+## <small>0.1.130 (2026-03-28)</small>
+
+* fix(lint): suppress prefer-const for organizationIdForMemory (assigned in later phase) ([12b12de](https://github.com/framersai/agentos/commit/12b12de))
+
+## <small>0.1.129 (2026-03-28)</small>
+
+* fix(build): restore let declarations and add unknown casts for strict type safety ([6693e00](https://github.com/framersai/agentos/commit/6693e00))
+* fix(lint): prefer-const for organizationIdForMemory and currentToolForges ([8afba95](https://github.com/framersai/agentos/commit/8afba95))
+
+## <small>0.1.128 (2026-03-28)</small>
+
+* fix(ci): add @framers/agentos-extensions-registry as devDependency ([11e6151](https://github.com/framersai/agentos/commit/11e6151))
+
+## <small>0.1.127 (2026-03-28)</small>
+
+* fix: resolve 16 TODO stubs across GMI, agency, memory, and RAG ([e1c4822](https://github.com/framersai/agentos/commit/e1c4822))
+* fix: resolve all import paths broken by core/ restructuring ([89aec7b](https://github.com/framersai/agentos/commit/89aec7b))
+* fix: resolve CI build errors from TODO stub implementations ([39e5008](https://github.com/framersai/agentos/commit/39e5008))
+* fix: resolve remaining TODO stubs — UtilityAI, AudioProcessor, RAG stubs ([185d11b](https://github.com/framersai/agentos/commit/185d11b))
+* fix: resolve stale services/auth imports and QueryRouter type error ([ee7b475](https://github.com/framersai/agentos/commit/ee7b475))
+* fix: resolve test failures and typecheck errors in query-router, vision, emergent ([cbf8491](https://github.com/framersai/agentos/commit/cbf8491))
+* fix: set noEmitOnError false to allow build with pending type stubs ([e776aca](https://github.com/framersai/agentos/commit/e776aca))
+* fix(ci): resolve all build errors — vendor stubs + type casts ([db9f6ee](https://github.com/framersai/agentos/commit/db9f6ee))
+* fix(gmi): update tests for extracted GMI subsystems and fix case-insensitive mood matching ([3db2ec0](https://github.com/framersai/agentos/commit/3db2ec0))
+* feat: add MissionPlanner — Tree of Thought decomposition with evaluation and refinement ([e900d04](https://github.com/framersai/agentos/commit/e900d04))
+* feat: add planning types — autonomy, provider strategy, graph expansion, mission events ([1647a71](https://github.com/framersai/agentos/commit/1647a71))
+* feat: add ProviderAssignmentEngine and GraphExpander with tests ([5194183](https://github.com/framersai/agentos/commit/5194183))
+* feat: add RequestExpansionTool and ManageGraphTool for dynamic graph modification ([ec7f3f9](https://github.com/framersai/agentos/commit/ec7f3f9))
+* feat: extend MissionBuilder and GraphEvent for self-expanding missions ([7dd0827](https://github.com/framersai/agentos/commit/7dd0827))
+* feat: extract CLI registry to JSON files, expand to 49 CLIs ([abb644d](https://github.com/framersai/agentos/commit/abb644d))
+* feat: integration test + barrel exports for mission orchestrator ([dd89dbe](https://github.com/framersai/agentos/commit/dd89dbe))
+* feat: loadable flag in capability discovery results ([5b6911d](https://github.com/framersai/agentos/commit/5b6911d))
+* feat: runtime extension loading in ToolOrchestrator ([04b403a](https://github.com/framersai/agentos/commit/04b403a))
+* feat: universal provider support for mission planner + execution model split ([c3c33f5](https://github.com/framersai/agentos/commit/c3c33f5))
+* feat: universal provider support for QueryRouter ([1a5993a](https://github.com/framersai/agentos/commit/1a5993a))
+* feat(memory): add cognitive mechanisms module — 8 neuroscience-grounded mechanisms ([48aaa6b](https://github.com/framersai/agentos/commit/48aaa6b))
+* feat(sandbox): real Python/Shell execution + hardened JS sandbox with node:vm ([50df221](https://github.com/framersai/agentos/commit/50df221))
+* refactor: absorb core/ui,usage into core/utils, move core/vector-search into rag/ ([23beffe](https://github.com/framersai/agentos/commit/23beffe))
+* refactor: consolidate graph systems — move neo4j/, rag/graphrag/ → knowledge/ ([da0b4f5](https://github.com/framersai/agentos/commit/da0b4f5))
+* refactor: create hearing/ module (audio processing + STT/VAD providers) ([130fd6f](https://github.com/framersai/agentos/commit/130fd6f))
+* refactor: delete stale AgentOrchestrator, merge HNSW sidecars ([dfe5c6e](https://github.com/framersai/agentos/commit/dfe5c6e))
+* refactor: extract core/agents,agency into agents/ ([b652aac](https://github.com/framersai/agentos/commit/b652aac))
+* refactor: extract core/audio,images,video,vision,media into media/ ([a15938a](https://github.com/framersai/agentos/commit/a15938a))
+* refactor: extract core/guardrails,safety into safety/ ([3c7a6a9](https://github.com/framersai/agentos/commit/3c7a6a9))
+* refactor: extract core/provenance into provenance/ ([53c742f](https://github.com/framersai/agentos/commit/53c742f))
+* refactor: extract core/text-processing,language,ai_utilities into nlp/ ([7a7395e](https://github.com/framersai/agentos/commit/7a7395e))
+* refactor: extract evaluation,knowledge,planning,sandbox,structured,marketplace from core/ ([6f0381f](https://github.com/framersai/agentos/commit/6f0381f))
+* refactor: extract IEmbeddingManager, IVectorStore to core/ — break memory/rag circular dependency ([d1b5f5d](https://github.com/framersai/agentos/commit/d1b5f5d))
+* refactor: extract IEmbeddingManager, IVectorStore to core/ — break memory↔rag circular dep ([7ecad07](https://github.com/framersai/agentos/commit/7ecad07))
+* refactor: flatten rag/implementations/vector_stores → rag/vector_stores ([24fd16e](https://github.com/framersai/agentos/commit/24fd16e))
+* refactor: hierarchy phase 1 — dissolve junk drawers, fix split-brain, slim core ([46a382b](https://github.com/framersai/agentos/commit/46a382b))
+* refactor: merge planning/ into orchestration/ ([509c819](https://github.com/framersai/agentos/commit/509c819))
+* refactor: move social-posting/ → channels/social-posting/ ([318f77a](https://github.com/framersai/agentos/commit/318f77a))
+* refactor: move telephony/ → channels/telephony/ ([d7457b1](https://github.com/framersai/agentos/commit/d7457b1))
+* refactor: promote media/vision/ to top-level vision/ (perception module) ([df7e943](https://github.com/framersai/agentos/commit/df7e943))
+* refactor: rename voice/ → telephony/ (phone call control) ([adb71f9](https://github.com/framersai/agentos/commit/adb71f9))
+* refactor: split api/ monolith — move 19 internal runtime files to api/runtime/ ([3f8d223](https://github.com/framersai/agentos/commit/3f8d223))
+* refactor: update barrel exports for perception module reorganization ([206453e](https://github.com/framersai/agentos/commit/206453e))
+* refactor: update skills engine JSDoc and docs-alignment test ([949c09d](https://github.com/framersai/agentos/commit/949c09d))
+* refactor(api): extract CapabilityDiscoveryInitializer from AgentOS.ts ([1fd780d](https://github.com/framersai/agentos/commit/1fd780d))
+* refactor(api): extract ExternalToolResultHandler from AgentOSOrchestrator ([f5bef1f](https://github.com/framersai/agentos/commit/f5bef1f))
+* refactor(api): extract GMIChunkTransformer from AgentOSOrchestrator ([1caff11](https://github.com/framersai/agentos/commit/1caff11))
+* refactor(api): extract RagMemoryInitializer from AgentOS.ts ([735434a](https://github.com/framersai/agentos/commit/735434a))
+* refactor(api): extract SelfImprovementSessionManager from AgentOS.ts ([b8104ca](https://github.com/framersai/agentos/commit/b8104ca))
+* refactor(api): extract TurnExecutionPipeline from AgentOSOrchestrator ([d245a0c](https://github.com/framersai/agentos/commit/d245a0c))
+* refactor(api): extract WorkflowFacade from AgentOS.ts ([0de273c](https://github.com/framersai/agentos/commit/0de273c))
+* refactor(gmi): extract CognitiveMemoryBridge from GMI.ts ([c949978](https://github.com/framersai/agentos/commit/c949978))
+* refactor(gmi): extract ConversationHistoryManager from GMI.ts ([051c886](https://github.com/framersai/agentos/commit/051c886))
+* refactor(gmi): extract MetapromptExecutor from GMI.ts ([4181176](https://github.com/framersai/agentos/commit/4181176))
+* refactor(gmi): extract SentimentTracker from GMI.ts ([616af33](https://github.com/framersai/agentos/commit/616af33))
+* refactor(memory): reorganize 20 flat subdirs into 4-tier hierarchy ([f7e969a](https://github.com/framersai/agentos/commit/f7e969a))
+* docs: add CLI Registry documentation ([f437e57](https://github.com/framersai/agentos/commit/f437e57))
+* docs: add cognitive mechanisms to README and COGNITIVE_MEMORY cross-reference ([14a1a80](https://github.com/framersai/agentos/commit/14a1a80))
+* docs: add mission planning prompts — decomposition, evaluation, refinement, expansion ([c57a5aa](https://github.com/framersai/agentos/commit/c57a5aa))
+* docs: remove duplicate api/media/ and organize 72 flat docs into subfolders ([a7e7846](https://github.com/framersai/agentos/commit/a7e7846)), closes [hi#level](https://github.com/hi/issues/level)
+* docs: update all documentation for new directory structure after core/ flattening ([43ed93d](https://github.com/framersai/agentos/commit/43ed93d))
+* docs: update architecture, diagrams, and references for restructured hierarchy ([3488e0e](https://github.com/framersai/agentos/commit/3488e0e))
+* chore: delete orphaned services/ directory, move auth types to types/auth ([b3fe9bb](https://github.com/framersai/agentos/commit/b3fe9bb))
+* chore: remove dead dirs, build artifacts, absorb services/ and memory_lifecycle/ ([a72572b](https://github.com/framersai/agentos/commit/a72572b))
+* test: add CLIRegistry → CapabilityDescriptor integration contract test ([b07bcf0](https://github.com/framersai/agentos/commit/b07bcf0))
+* ci: trigger fresh CI run with all fixes ([a3b753d](https://github.com/framersai/agentos/commit/a3b753d))
+
+## <small>0.1.126 (2026-03-27)</small>
+
+* fix: replace top-level await with synchronous require in AgentKeyManager ([0bcf573](https://github.com/framersai/agentos/commit/0bcf573))
+* fix: use npm sql-storage-adapter >=0.6.0 (now published), remove GitHub devDep hack ([d48a32c](https://github.com/framersai/agentos/commit/d48a32c))
+* fix(ci): add sql-storage-adapter 0.6.0 from GitHub as devDep for CI builds ([c59cb9d](https://github.com/framersai/agentos/commit/c59cb9d))
+* test: close all RAG text-processing coverage gaps + fix preset stop word inconsistency ([89036be](https://github.com/framersai/agentos/commit/89036be))
+* feat: add TextProcessingPipeline and HnswIndexSidecar core modules ([a9248d4](https://github.com/framersai/agentos/commit/a9248d4))
+* feat: use natural's 170-word stop word list as default across all tokenizers ([883763d](https://github.com/framersai/agentos/commit/883763d))
+* feat: wire TextProcessingPipeline + HnswIndexSidecar into RAG system ([ffb4e77](https://github.com/framersai/agentos/commit/ffb4e77))
+* feat(memory): browser compatibility + cross-platform crypto + string I/O ([c2541ca](https://github.com/framersai/agentos/commit/c2541ca))
+* feat(memory): wire SqlDialect, FTS, BlobCodec, Exporter into memory subsystem ([6f32269](https://github.com/framersai/agentos/commit/6f32269))
+* refactor: use shared ENGLISH_STOP_WORDS from text-processing — remove duplicated stop word lists ([d384d7e](https://github.com/framersai/agentos/commit/d384d7e))
+* docs: add cross-references to wunderland CLI docs ([84a39a9](https://github.com/framersai/agentos/commit/84a39a9))
+
+## <small>0.1.125 (2026-03-27)</small>
+
+* feat(agentos): wire self-improvement tools into emergent bootstrap ([d4b7a80](https://github.com/framersai/agentos/commit/d4b7a80))
+
+## <small>0.1.124 (2026-03-27)</small>
+
+* fix(lint): remove unnecessary escape characters in BM25 tokenizer regex ([caf2be9](https://github.com/framersai/agentos/commit/caf2be9))
+
+## <small>0.1.123 (2026-03-27)</small>
+
+* feat: self-improvement tool factory, consolidation personality decay, barrel exports ([c580042](https://github.com/framersai/agentos/commit/c580042))
+* feat(api): add text-based tool-call fallback parser for non-native models ([c136f25](https://github.com/framersai/agentos/commit/c136f25))
+* feat(api): wire PlanningEngine into generateText tool loop ([a97e059](https://github.com/framersai/agentos/commit/a97e059))
+* feat(emergent): add self-improvement tools — personality adaptation, skill management, workflow crea ([3614f50](https://github.com/framersai/agentos/commit/3614f50))
+* feat(gmi): make tool-loop safety break configurable via maxToolLoopIterations ([d9c4767](https://github.com/framersai/agentos/commit/d9c4767))
+* feat(memory): migrate from better-sqlite3 to cross-platform StorageAdapter ([aaab1b8](https://github.com/framersai/agentos/commit/aaab1b8))
+* docs(gmi): document LoopController duplication and future refactor path ([337f539](https://github.com/framersai/agentos/commit/337f539))
+
+## <small>0.1.122 (2026-03-27)</small>
+
+* feat(emergent): add AdaptPersonalityTool for runtime HEXACO trait mutation ([f7a75ae](https://github.com/framersai/agentos/commit/f7a75ae))
+* feat(emergent): add CreateWorkflowTool for multi-step tool composition ([9f1cd6b](https://github.com/framersai/agentos/commit/9f1cd6b))
+* feat(emergent): add ManageSkillsTool for runtime skill enable/disable/search ([be0a5aa](https://github.com/framersai/agentos/commit/be0a5aa))
+* feat(emergent): add PersonalityMutationStore with SQLite persistence and decay ([cbe058a](https://github.com/framersai/agentos/commit/cbe058a))
+* feat(emergent): add SelfEvaluateTool for response quality evaluation and parameter adjustment ([4d46b85](https://github.com/framersai/agentos/commit/4d46b85))
+* feat(emergent): add SelfImprovementConfig types and defaults ([8b77827](https://github.com/framersai/agentos/commit/8b77827))
+* docs: explain why type stubs exist for optional native dependencies ([64411c5](https://github.com/framersai/agentos/commit/64411c5))
+
+## <small>0.1.121 (2026-03-27)</small>
+
+* fix: align Pinecone/Postgres vector stores with IVectorStore interface ([0055bd6](https://github.com/framersai/agentos/commit/0055bd6))
+* fix(build): add sharp type stub for VideoAnalyzer dynamic import ([8c23c6a](https://github.com/framersai/agentos/commit/8c23c6a))
+* fix(types): resolve Agent interface stream return type mismatches ([7b80ed6](https://github.com/framersai/agentos/commit/7b80ed6))
+* fix(types): resolve all TypeScript compilation errors across codebase ([33e19ef](https://github.com/framersai/agentos/commit/33e19ef)), closes [cast-throu#unknown](https://github.com/cast-throu/issues/unknown)
+* feat: add barrel exports for audio generation, ProviderPreferences, generateMusic, generateSFX ([66ce977](https://github.com/framersai/agentos/commit/66ce977))
+* feat: add claude-code-cli provider + generalized CLI subprocess bridge ([e4db654](https://github.com/framersai/agentos/commit/e4db654))
+* feat: add gemini-cli provider + env support in CLISubprocessBridge ([c761915](https://github.com/framersai/agentos/commit/c761915))
+* feat: add generateMusic() and generateSFX() high-level APIs ([1a6f5c2](https://github.com/framersai/agentos/commit/1a6f5c2)), closes [hi#level](https://github.com/hi/issues/level)
+* feat: add stream buffer, scene detector, media providers, agency streaming, and CLI subprocess bridg ([5dd1e1b](https://github.com/framersai/agentos/commit/5dd1e1b))
+* feat: register all 8 audio providers in the factory registry ([927a59d](https://github.com/framersai/agentos/commit/927a59d))
+* feat: retrofit ProviderPreferences into generateImage and generateVideo ([1cf2211](https://github.com/framersai/agentos/commit/1cf2211))
+* feat(api): add high-level video APIs — generateVideo, analyzeVideo, detectScenes ([3238cfe](https://github.com/framersai/agentos/commit/3238cfe)), closes [hi#level](https://github.com/hi/issues/level)
+* feat(api): add top-level performOCR() high-level API ([a0a5ebb](https://github.com/framersai/agentos/commit/a0a5ebb)), closes [hi#level](https://github.com/hi/issues/level)
+* feat(api): export performOCR from barrel index ([f63e517](https://github.com/framersai/agentos/commit/f63e517))
+* feat(audio): add audio types, IAudioGenerator interface, FallbackAudioProxy, and provider factory re ([3784092](https://github.com/framersai/agentos/commit/3784092))
+* feat(audio): add MusicGenLocalProvider and AudioGenLocalProvider ([3ca041a](https://github.com/framersai/agentos/commit/3ca041a))
+* feat(audio): add ReplicateAudioProvider and FalAudioProvider ([2ae0121](https://github.com/framersai/agentos/commit/2ae0121))
+* feat(audio): add StableAudioProvider and ElevenLabsSFXProvider ([2f83d6d](https://github.com/framersai/agentos/commit/2f83d6d))
+* feat(audio): add SunoProvider and UdioProvider ([e2f5b76](https://github.com/framersai/agentos/commit/e2f5b76))
+* feat(images): add FallbackImageProxy for automatic provider failover ([9cfa1c8](https://github.com/framersai/agentos/commit/9cfa1c8))
+* feat(media): add ProviderPreferences shared resolver ([a4fe778](https://github.com/framersai/agentos/commit/a4fe778))
+* feat(memory): query-time embedding generation — embed() config enables HNSW vector recall ([2a8ac44](https://github.com/framersai/agentos/commit/2a8ac44))
+* feat(memory): wire HNSW sidecar into Memory facade — hybrid FTS5+ANN recall with RRF fusion ([e2b9eab](https://github.com/framersai/agentos/commit/e2b9eab))
+* feat(query-router): add githubRepos config with background ecosystem indexing ([7b0a4a3](https://github.com/framersai/agentos/commit/7b0a4a3))
+* feat(query-router): extend RetrievalPlan to ExecutionPlan with skill/tool/extension recommendations ([2f50784](https://github.com/framersai/agentos/commit/2f50784))
+* feat(rag): add BM25 sparse index and hybrid dense+sparse search with RRF fusion ([65dca28](https://github.com/framersai/agentos/commit/65dca28))
+* feat(rag): add RetrievalPlan types and plan builder ([db5d962](https://github.com/framersai/agentos/commit/db5d962))
+* feat(rag): add UnifiedRetriever orchestrating all sources with memory feedback ([6808aab](https://github.com/framersai/agentos/commit/6808aab))
+* feat(rag): barrel exports for migration engine, setup, vectorMath + extend MemoryConfig for Postgres ([81ebc9b](https://github.com/framersai/agentos/commit/81ebc9b))
+* feat(rag): Docker auto-setup for Qdrant and Postgres with cloud detection and health polling ([4927430](https://github.com/framersai/agentos/commit/4927430))
+* feat(rag): enhance QueryClassifier with plan-based output and wire into router ([5f4bc2d](https://github.com/framersai/agentos/commit/5f4bc2d))
+* feat(rag): multi-hypothesis HyDE for improved recall via diverse perspectives ([67b3201](https://github.com/framersai/agentos/commit/67b3201))
+* feat(rag): Pinecone vector store adapter with fetch-based API, metadata filtering, migration source ([65dcde4](https://github.com/framersai/agentos/commit/65dcde4))
+* feat(rag): PostgresVectorStore with pgvector HNSW + RRF hybrid search, feature parity test suite ([717b1b9](https://github.com/framersai/agentos/commit/717b1b9))
+* feat(rag): RAPTOR recursive abstractive tree for hierarchical corpus summarization ([0f94ae9](https://github.com/framersai/agentos/commit/0f94ae9))
+* feat(rag): semantic chunker with paragraph/sentence/heading boundary detection ([94eb74b](https://github.com/framersai/agentos/commit/94eb74b))
+* feat(rag): universal MigrationEngine with SQLite, Postgres, and Qdrant adapters ([00d5650](https://github.com/framersai/agentos/commit/00d5650))
+* feat(rag): wire HyDE retrieval into RetrievalAugmentor, multimodal search, and memory recall ([313e586](https://github.com/framersai/agentos/commit/313e586))
+* feat(rag): wire strategy-based dispatch into QueryRouter, add graph expansion to complex pipeline ([28fb7f7](https://github.com/framersai/agentos/commit/28fb7f7))
+* feat(video): add analysis types, progress events, and scene description ([23318a6](https://github.com/framersai/agentos/commit/23318a6))
+* feat(video): add FalVideoProvider with queue-based API support ([5aef6ac](https://github.com/framersai/agentos/commit/5aef6ac))
+* feat(video): add provider factory registry and barrel exports ([61476fe](https://github.com/framersai/agentos/commit/61476fe))
+* feat(video): add ReplicateVideoProvider with predictions API support ([c4b0ccb](https://github.com/framersai/agentos/commit/c4b0ccb))
+* feat(video): update RunwayVideoProvider to match canonical types ([b17ba6b](https://github.com/framersai/agentos/commit/b17ba6b))
+* feat(vision): add SceneDetector with histogram-based scene boundary detection ([aab90ce](https://github.com/framersai/agentos/commit/aab90ce))
+* docs: add CLI providers reference, update LLM providers and OAuth docs ([e4c5379](https://github.com/framersai/agentos/commit/e4c5379))
+* docs: add HyDE retrieval configuration guide ([dcecbdb](https://github.com/framersai/agentos/commit/dcecbdb))
+* docs: add PostgresVectorStore, PineconeVectorStore, and memory scaling section to README ([22011e3](https://github.com/framersai/agentos/commit/22011e3))
+* docs: memory scaling guide — 4-tier path, migration CLI, backend comparison, Docker auto-setup ([ab6b408](https://github.com/framersai/agentos/commit/ab6b408))
+* docs: per-backend guides for Postgres, Qdrant, and Pinecone vector stores ([17427fc](https://github.com/framersai/agentos/commit/17427fc))
+* refactor: remove agentos-ext-skills dependency, skills discovered directly via SkillRegistry ([823bbab](https://github.com/framersai/agentos/commit/823bbab))
+* test: comprehensive mocked tests for Postgres, Pinecone, Qdrant, and Memory embedding flow ([a7191ae](https://github.com/framersai/agentos/commit/a7191ae))
+
+## <small>0.1.120 (2026-03-27)</small>
+
+* fix(ci): add better-sqlite3 to devDependencies for memory tests ([0c15534](https://github.com/framersai/agentos/commit/0c15534))
+* feat(memory): HNSW sidecar index — O(log n) ANN alongside brain.sqlite, auto-activates at 1K vectors ([b171a61](https://github.com/framersai/agentos/commit/b171a61))
+
+## <small>0.1.119 (2026-03-27)</small>
+
+* perf(rag): SQL-level metadata filtering via json_extract — avoid loading unmatched rows ([9f3618a](https://github.com/framersai/agentos/commit/9f3618a))
+
+## <small>0.1.118 (2026-03-27)</small>
+
+* perf(rag): binary blob embeddings in SqlVectorStore — 3-4x faster queries, shared vectorMath utils ([5d040a0](https://github.com/framersai/agentos/commit/5d040a0))
+
+## <small>0.1.117 (2026-03-27)</small>
+
+* feat(rag): shared vectorMath utils — cosine similarity, dot product, euclidean distance, binary blob ([97b19cb](https://github.com/framersai/agentos/commit/97b19cb))
+* test: add QueryRouter E2E integration test ([2b69b3e](https://github.com/framersai/agentos/commit/2b69b3e))
+
+## <small>0.1.116 (2026-03-26)</small>
+
+* fix(lint): resolve unreachable else-if branch in orchestrator tool result handler ([ec1acb2](https://github.com/framersai/agentos/commit/ec1acb2))
+
+## <small>0.1.115 (2026-03-26)</small>
+
+* fix(lint): suppress require imports in multimodal indexer, use const for embeddedImages ([8c3a18d](https://github.com/framersai/agentos/commit/8c3a18d))
+
+## <small>0.1.114 (2026-03-26)</small>
+
+* fix(build): add query-router to tsconfig.build.json include list ([6903904](https://github.com/framersai/agentos/commit/6903904))
+* fix(build): resolve all CI errors — missing modules, Buffer types, sharp import, query-router ([72031e8](https://github.com/framersai/agentos/commit/72031e8))
+* fix(emergent): input validation, sandbox crypto leak, strict mode, nullish coalescing ([825e641](https://github.com/framersai/agentos/commit/825e641))
+* fix(emergent): validate full JSON schema in reuse checks, prevent promotion after validation failure ([2cdc1e4](https://github.com/framersai/agentos/commit/2cdc1e4))
+* fix(guardrails): resolve integration test failures and lint issues ([03a0ab8](https://github.com/framersai/agentos/commit/03a0ab8))
+* fix(types): resolve typecheck errors in tests and vision pipeline ([bf098c8](https://github.com/framersai/agentos/commit/bf098c8))
+* feat: add ./query-router sub-export to package exports map ([ce70333](https://github.com/framersai/agentos/commit/ce70333))
+* feat: add query-router module to barrel exports ([c072bfa](https://github.com/framersai/agentos/commit/c072bfa))
+* feat: add QueryRouter orchestrator — classify/dispatch/generate pipeline ([7e28b89](https://github.com/framersai/agentos/commit/7e28b89))
+* feat(api): add agent config export/import with JSON and YAML support ([7f335c4](https://github.com/framersai/agentos/commit/7f335c4))
+* feat(api): add editImage with img2img, inpainting, and outpainting support ([f5bc775](https://github.com/framersai/agentos/commit/f5bc775))
+* feat(api): add embedText for direct embedding generation ([a86f847](https://github.com/framersai/agentos/commit/a86f847))
+* feat(api): add generateObject and streamObject for Zod-validated structured output ([67a8fd5](https://github.com/framersai/agentos/commit/67a8fd5))
+* feat(api): add upscaleImage and variateImage for image post-processing ([d13952a](https://github.com/framersai/agentos/commit/d13952a))
+* feat(emergent): add SKILL.md and CAPABILITY.yaml export for forged tools ([cd29461](https://github.com/framersai/agentos/commit/cd29461))
+* feat(images): add Flux (BFL) and Fal.ai image providers with async polling ([2f6e8c1](https://github.com/framersai/agentos/commit/2f6e8c1))
+* feat(llm): add Anthropic provider with native Messages API, tool calling, and streaming ([407a0ee](https://github.com/framersai/agentos/commit/407a0ee))
+* feat(llm): add Google Gemini provider with native API, tool calling, and streaming ([552f20d](https://github.com/framersai/agentos/commit/552f20d))
+* feat(llm): add Groq, Together, Mistral, and xAI providers via OpenAI-compatible adapters ([c841a3c](https://github.com/framersai/agentos/commit/c841a3c))
+* feat(orchestration): add parallel node execution and agent-level graph builder ([0629d3c](https://github.com/framersai/agentos/commit/0629d3c))
+* feat(orchestration): compile agency strategies to CompiledExecutionGraph for real DAG execution ([6690dfe](https://github.com/framersai/agentos/commit/6690dfe)), closes [hi#level](https://github.com/hi/issues/level)
+* feat(query-router): add KeywordFallback for degraded-mode retrieval ([38c9cb4](https://github.com/framersai/agentos/commit/38c9cb4))
+* feat(query-router): add QueryGenerator — tier-appropriate prompt construction and LLM generation ([3064a53](https://github.com/framersai/agentos/commit/3064a53))
+* feat(query-router): add TopicExtractor with dedup, sort, cap, and prompt formatting ([81ad93f](https://github.com/framersai/agentos/commit/81ad93f))
+* feat(query-router): add types, interfaces, and barrel exports ([de99953](https://github.com/framersai/agentos/commit/de99953))
+* feat(rag): add multimodal indexer for image and audio content ([62f2653](https://github.com/framersai/agentos/commit/62f2653))
+* feat(rag): add multimodal memory bridge for image, audio, video, and PDF ingestion ([fc986a7](https://github.com/framersai/agentos/commit/fc986a7))
+* feat(rag): share STT and vision providers between voice pipeline and multimodal RAG ([293be37](https://github.com/framersai/agentos/commit/293be37))
+* feat(vision): add unified vision pipeline with PaddleOCR, TrOCR, Florence-2, CLIP, and cloud fallbac ([1238f66](https://github.com/framersai/agentos/commit/1238f66))
+* feat(vision): wire pipeline into multimodal indexer and add IVisionProvider implementations ([4011279](https://github.com/framersai/agentos/commit/4011279))
+* feat(voice-pipeline): add WebRTC DataChannel transport for low-latency audio streaming ([28dfd1b](https://github.com/framersai/agentos/commit/28dfd1b))
+* docs: add 6 memory system guide pages — ingestion, import/export, consolidation, tools, storage, arc ([4d08f7f](https://github.com/framersai/agentos/commit/4d08f7f))
+* docs: add image editing, vision pipeline, LLM providers, structured output, and export guides ([94e9a23](https://github.com/framersai/agentos/commit/94e9a23))
+* test: add full pipeline E2E integration test covering all high-level APIs ([d903d35](https://github.com/framersai/agentos/commit/d903d35)), closes [hi#level](https://github.com/hi/issues/level)
+
+## <small>0.1.113 (2026-03-26)</small>
+
+* feat(memory): add observational compression, reflection, and temporal reasoning ([b424f68](https://github.com/framersai/agentos/commit/b424f68))
+* refactor(api): Opus rewrite — agency API, strategies, HITL with comprehensive TSDoc ([d550c12](https://github.com/framersai/agentos/commit/d550c12))
+* refactor(orchestration): Opus rewrite — voice-graph integration TSDoc + inline comments ([1ce41fe](https://github.com/framersai/agentos/commit/1ce41fe))
+
+## <small>0.1.112 (2026-03-26)</small>
+
+* refactor(voice): Opus rewrite — comprehensive TSDoc on telephony providers, parsers, transport ([da5ef9b](https://github.com/framersai/agentos/commit/da5ef9b))
+
+## <small>0.1.111 (2026-03-26)</small>
+
+* refactor(speech): Opus rewrite — comprehensive TSDoc, inline comments, stricter types across provide ([9b745cd](https://github.com/framersai/agentos/commit/9b745cd))
+* fix: audit fixes — memory + agency critical/high issues ([7d0591c](https://github.com/framersai/agentos/commit/7d0591c))
+
+## <small>0.1.110 (2026-03-26)</small>
+
+* fix: add ternary support and boolean result handling to safe expression evaluator ([ac4137e](https://github.com/framersai/agentos/commit/ac4137e))
+
+## <small>0.1.109 (2026-03-26)</small>
+
+* refactor(voice-pipeline): Opus rewrite — comprehensive TSDoc, inline comments, stricter types ([4de7f16](https://github.com/framersai/agentos/commit/4de7f16))
+
+## <small>0.1.108 (2026-03-26)</small>
+
+* fix(memory): resolve cosine similarity division-by-zero and path traversal bugs ([17347fa](https://github.com/framersai/agentos/commit/17347fa))
+
+## <small>0.1.107 (2026-03-26)</small>
+
+* fix: resolve 5 critical bugs in orchestration and API layers ([6002b28](https://github.com/framersai/agentos/commit/6002b28))
+* security: replace new Function() with safe expression evaluator in orchestration layer ([3052c7f](https://github.com/framersai/agentos/commit/3052c7f))
+
+## <small>0.1.106 (2026-03-26)</small>
+
+* feat(memory): commit Memory facade integration, tools, extension bridge, tests ([1e19688](https://github.com/framersai/agentos/commit/1e19688))
+
+## <small>0.1.105 (2026-03-26)</small>
+
+* fix(ci): add better-sqlite3 to test.server.deps.external in vitest config ([9a9d986](https://github.com/framersai/agentos/commit/9a9d986))
+
+## <small>0.1.104 (2026-03-26)</small>
+
+* fix(ci): mark better-sqlite3 as external in vitest config — native addon cannot be transformed by Vi ([f2c5546](https://github.com/framersai/agentos/commit/f2c5546))
+
+## <small>0.1.103 (2026-03-26)</small>
+
+* fix: resolve 4 ESLint errors — prefer-const, no-this-alias, no-useless-escape ([ff171a1](https://github.com/framersai/agentos/commit/ff171a1))
+
+## <small>0.1.102 (2026-03-26)</small>
+
+* fix(memory): add @types/better-sqlite3 and fix implicit any parameters for CI ([98945c3](https://github.com/framersai/agentos/commit/98945c3))
+* feat(memory): add 6 agent memory editor tools — add, update, delete, merge, search, reflect ([7531a2c](https://github.com/framersai/agentos/commit/7531a2c))
+* feat(memory): add ChunkingEngine — fixed, semantic, hierarchical, and layout strategies ([fdf4e5e](https://github.com/framersai/agentos/commit/fdf4e5e))
+* feat(memory): add ConsolidationLoop — self-improving prune/merge/strengthen/derive/compact/reindex ([e174869](https://github.com/framersai/agentos/commit/e174869))
+* feat(memory): add facade types and extend ConsolidationConfig ([ae8c04b](https://github.com/framersai/agentos/commit/ae8c04b))
+* feat(memory): add FolderScanner, MultimodalAggregator, UrlLoader ([c12546d](https://github.com/framersai/agentos/commit/c12546d))
+* feat(memory): add IDocumentLoader interface, TextLoader, MarkdownLoader, HtmlLoader, LoaderRegistry ([f871a3b](https://github.com/framersai/agentos/commit/f871a3b))
+* feat(memory): add import/export — JSON, Markdown, Obsidian vault, SQLite, ChatGPT ([c815b4a](https://github.com/framersai/agentos/commit/c815b4a))
+* feat(memory): add Memory facade — unified public API for the complete memory system ([155586a](https://github.com/framersai/agentos/commit/155586a))
+* feat(memory): add PdfLoader (unpdf), OcrPdfLoader (tesseract.js), DoclingLoader, DocxLoader ([6af478d](https://github.com/framersai/agentos/commit/6af478d))
+* feat(memory): add RetrievalFeedbackSignal and DecayModel.penalizeUnused() ([e4daa7a](https://github.com/framersai/agentos/commit/e4daa7a))
+* feat(memory): add SqliteBrain — unified SQLite connection with schema and WAL mode ([9a7d91d](https://github.com/framersai/agentos/commit/9a7d91d))
+* feat(memory): add SqliteKnowledgeGraph — IKnowledgeGraph backed by SQLite with recursive CTE travers ([da4b0c6](https://github.com/framersai/agentos/commit/da4b0c6))
+* feat(memory): add SqliteMemoryGraph — IMemoryGraph with spreading activation and cluster detection ([dc538ef](https://github.com/framersai/agentos/commit/dc538ef))
+* feat(memory): integrate Memory facade — barrel exports, deps verified, full test suite passing ([c19e99c](https://github.com/framersai/agentos/commit/c19e99c))
+* docs: add comprehensive guides for all AgentOS components — getting started, orchestration, channels ([3c3f770](https://github.com/framersai/agentos/commit/3c3f770))
+* docs(agency): add graph strategy docs, README, and example ([997cbc9](https://github.com/framersai/agentos/commit/997cbc9))
+
+## <small>0.1.101 (2026-03-26)</small>
+
+* feat(agency): add graph strategy with explicit dependsOn agent dependencies ([c7c2c44](https://github.com/framersai/agentos/commit/c7c2c44))
+
+## <small>0.1.100 (2026-03-26)</small>
+
+* fix(api): fix WebSocketServer import and implicit any in agency.ts ([946012e](https://github.com/framersai/agentos/commit/946012e))
+* feat(api): add real streaming with per-agent events for sequential strategy, session stream history ([eace3d2](https://github.com/framersai/agentos/commit/eace3d2))
+* feat(api): wire listen() for voice transport and connect() for channels on agency ([a37bf45](https://github.com/framersai/agentos/commit/a37bf45))
+* feat(api): wire RAG context injection placeholder into agency execution ([e67304c](https://github.com/framersai/agentos/commit/e67304c))
+
+## <small>0.1.99 (2026-03-25)</small>
+
+* test(api): add full agency integration test ([1931af1](https://github.com/framersai/agentos/commit/1931af1))
+* test(api): add HITL beforeAgent, guardrail, and structured output tests ([8d8df48](https://github.com/framersai/agentos/commit/8d8df48))
+* test(api): add nested agency and emergent validation tests ([318a463](https://github.com/framersai/agentos/commit/318a463))
+* feat(api): add agency() factory function with validation, resource controls, and session management ([aa2d66c](https://github.com/framersai/agentos/commit/aa2d66c))
+* feat(api): add BaseAgentConfig, AgencyOptions, and extended result types ([bb3d417](https://github.com/framersai/agentos/commit/bb3d417))
+* feat(api): add debate, review-loop, and hierarchical strategy compilers with adaptive mode ([ec174de](https://github.com/framersai/agentos/commit/ec174de))
+* feat(api): add HITL approval handlers (cli, webhook, slack, auto) ([8ceb66d](https://github.com/framersai/agentos/commit/8ceb66d))
+* feat(api): add sequential and parallel strategy compilers ([a398b73](https://github.com/framersai/agentos/commit/a398b73))
+* feat(api): wire beforeAgent HITL into strategy compilers, forward beforeTool to sub-agents ([3332209](https://github.com/framersai/agentos/commit/3332209))
+* feat(api): wire guardrail input/output evaluation into agency execution ([cc917f9](https://github.com/framersai/agentos/commit/cc917f9))
+* docs: add AGENCY_API.md and update README with high-level API showcase ([9807c1e](https://github.com/framersai/agentos/commit/9807c1e)), closes [hi#level](https://github.com/hi/issues/level)
+* refactor(api): unify agent() with BaseAgentConfig, remove guardrails throw ([b2a9b33](https://github.com/framersai/agentos/commit/b2a9b33))
+
+## <small>0.1.98 (2026-03-25)</small>
+
+* fix(emergent): add missing ToolPackage.ts — fixes CI build ([322139a](https://github.com/framersai/agentos/commit/322139a))
+* docs: fix HIGH_LEVEL_API.md — use provider-first style, add local providers ([281cfbd](https://github.com/framersai/agentos/commit/281cfbd))
+* docs(emergent): expand EMERGENT_CAPABILITIES.md with comprehensive examples ([007005a](https://github.com/framersai/agentos/commit/007005a))
+
+## <small>0.1.97 (2026-03-25)</small>
+
+* docs: add EMERGENT_CAPABILITIES.md, update README + registry ([16a7a1f](https://github.com/framersai/agentos/commit/16a7a1f))
+* fix(ci): fix emergent test mock types for generateText ([f742ae9](https://github.com/framersai/agentos/commit/f742ae9))
+
+## <small>0.1.96 (2026-03-25)</small>
+
+* fix(ci): suppress empty-object-type lint error in usageLedger ([4029e70](https://github.com/framersai/agentos/commit/4029e70))
+
+## <small>0.1.95 (2026-03-25)</small>
+
+* feat(discovery): wire emergent tools into CapabilityDiscoveryEngine ([d60308a](https://github.com/framersai/agentos/commit/d60308a))
+* feat(emergent): add EmergentJudge — LLM-as-judge for forged tool evaluation ([dea5600](https://github.com/framersai/agentos/commit/dea5600))
+* feat(emergent): commit EmergentCapabilityEngine, ForgeToolMetaTool, and integration wiring ([30b3895](https://github.com/framersai/agentos/commit/30b3895))
+* feat(emergent): wire EmergentCapabilityEngine into ToolOrchestrator and AgentOSConfig ([4608dc2](https://github.com/framersai/agentos/commit/4608dc2))
+* test(voice): add E2E voice pipeline tests with real Deepgram + OpenAI TTS ([b86b333](https://github.com/framersai/agentos/commit/b86b333))
+* docs: add Emergent Capabilities section to README ([4e87a17](https://github.com/framersai/agentos/commit/4e87a17))
+
+## <small>0.1.94 (2026-03-25)</small>
+
+* feat(api): add observability + usage tracking, update provider APIs, fix CI type errors ([cec6339](https://github.com/framersai/agentos/commit/cec6339))
+
+## <small>0.1.93 (2026-03-25)</small>
+
+* feat(emergent): add EmergentToolRegistry with tiered lifecycle management ([74bdb4f](https://github.com/framersai/agentos/commit/74bdb4f))
+
+## <small>0.1.92 (2026-03-25)</small>
+
+* feat(emergent): add SandboxedToolForge for isolated code execution ([c6bbee7](https://github.com/framersai/agentos/commit/c6bbee7))
+* feat(emergent): Task 2 — ComposableToolBuilder with pipeline resolution and tests ([f237352](https://github.com/framersai/agentos/commit/f237352))
+
+## <small>0.1.91 (2026-03-25)</small>
+
+* feat(emergent): Task 1 — define all types and interfaces for Emergent Capability Engine ([8f80f98](https://github.com/framersai/agentos/commit/8f80f98))
+
+## <small>0.1.90 (2026-03-25)</small>
+
+* fix(ci): resolve typecheck errors in test files ([8dc9b14](https://github.com/framersai/agentos/commit/8dc9b14))
+
+## <small>0.1.89 (2026-03-25)</small>
+
+* fix(ci): add ./voice subpath export to resolve @framers/agentos/voice imports ([457159a](https://github.com/framersai/agentos/commit/457159a))
+* docs: update README tagline ([5d09422](https://github.com/framersai/agentos/commit/5d09422))
+
+## <small>0.1.88 (2026-03-25)</small>
+
+* fix(ci): resolve TS errors in voice test files — null assertions, return types, provider config ([b2caecf](https://github.com/framersai/agentos/commit/b2caecf))
+
+## <small>0.1.87 (2026-03-25)</small>
+
+* feat(images): add local Stable Diffusion provider with A1111 and ComfyUI support ([dc3fdeb](https://github.com/framersai/agentos/commit/dc3fdeb))
+
+## <small>0.1.86 (2026-03-25)</small>
+
+* fix(ci): prefer-const in NodeExecutor, prefix unused params, remove unused import ([1e44d7c](https://github.com/framersai/agentos/commit/1e44d7c))
+* docs: add voice-graph integration guide to VOICE_PIPELINE.md ([fdeab10](https://github.com/framersai/agentos/commit/fdeab10))
+* test(orchestration): add voice graph integration tests ([b39539a](https://github.com/framersai/agentos/commit/b39539a))
+
+## <small>0.1.85 (2026-03-25)</small>
+
+* feat(orchestration): add voice step support to WorkflowBuilder configToNode ([c7ed210](https://github.com/framersai/agentos/commit/c7ed210))
+* feat(orchestration): add voiceNode() builder DSL and WorkflowBuilder.transport() ([8310ac5](https://github.com/framersai/agentos/commit/8310ac5))
+* feat(orchestration): add VoiceTransportAdapter for voice transport mode ([8725b4c](https://github.com/framersai/agentos/commit/8725b4c))
+
+## <small>0.1.84 (2026-03-25)</small>
+
+* feat(orchestration): add 5 voice event variants to GraphEvent union ([5286b3a](https://github.com/framersai/agentos/commit/5286b3a))
+* feat(orchestration): add voice variant to NodeExecutorConfig + VoiceNodeConfig type ([1b44b8b](https://github.com/framersai/agentos/commit/1b44b8b))
+* feat(orchestration): add VoiceNodeExecutor with exit-condition racing and barge-in abort ([d4631a2](https://github.com/framersai/agentos/commit/d4631a2))
+* feat(orchestration): add VoiceTurnCollector for voice node transcript buffering ([16ff7e8](https://github.com/framersai/agentos/commit/16ff7e8))
+* feat(voice-pipeline): add VoiceInterruptError and public waitForUserTurn/pushToTTS methods ([57b351a](https://github.com/framersai/agentos/commit/57b351a))
+
+## <small>0.1.83 (2026-03-24)</small>
+
+* feat(orchestration): implement real extension node execution via extensionExecutor dep ([4782a63](https://github.com/framersai/agentos/commit/4782a63))
+
+## <small>0.1.82 (2026-03-24)</small>
+
+* fix(ci): update generateText test to match new provider-defaults error message ([4212cb0](https://github.com/framersai/agentos/commit/4212cb0))
+
+## <small>0.1.81 (2026-03-24)</small>
+
+* fix(ci): skip docs-alignment tests when cross-repo files are unavailable ([36a5d46](https://github.com/framersai/agentos/commit/36a5d46))
+
+## <small>0.1.80 (2026-03-24)</small>
+
+* feat(orchestration): implement real gmi/subgraph execution, expression eval, discovery/personality r ([cdd908c](https://github.com/framersai/agentos/commit/cdd908c))
+
+## <small>0.1.79 (2026-03-24)</small>
+
+* fix(lint): exclude stale .js from lint, suppress this-alias in VoicePipeline ([5c0527c](https://github.com/framersai/agentos/commit/5c0527c))
+
+## <small>0.1.78 (2026-03-24)</small>
+
+* docs: add known limitations section to VOICE_PIPELINE.md ([ea7de63](https://github.com/framersai/agentos/commit/ea7de63))
+* docs: soften claims where implementation is lighter than described ([06433c0](https://github.com/framersai/agentos/commit/06433c0))
+* docs: update VOICE_PIPELINE.md and add orchestration examples ([d422c57](https://github.com/framersai/agentos/commit/d422c57))
+* refactor(builders): tighten builder validation and type safety ([3e62502](https://github.com/framersai/agentos/commit/3e62502))
+* fix(orchestration): stop on node failure, persist skippedNodes in checkpoints, fix branch resume ([15656c8](https://github.com/framersai/agentos/commit/15656c8))
+
+## <small>0.1.77 (2026-03-24)</small>
+
+* docs: update examples and README for provider-first API ([6aa8387](https://github.com/framersai/agentos/commit/6aa8387))
+* feat(api): add provider option to generateText, streamText, generateImage, agent ([bd4bd1a](https://github.com/framersai/agentos/commit/bd4bd1a)), closes [hi#level](https://github.com/hi/issues/level)
+* feat(api): add provider-defaults registry and resolveModelOption ([ae0076a](https://github.com/framersai/agentos/commit/ae0076a))
+
+## <small>0.1.76 (2026-03-24)</small>
+
+* fix: update package.json deps and orchestration runtime exports ([378aa06](https://github.com/framersai/agentos/commit/378aa06))
+* fix(build): cast audio.data to BodyInit, add voice-pipeline to tsconfig include ([1d3006b](https://github.com/framersai/agentos/commit/1d3006b))
+* fix(build): rename LoopToolCallRequest/Result to avoid barrel collision, fix Buffer→Uint8Array in sp ([ad768bf](https://github.com/framersai/agentos/commit/ad768bf))
+* fix(build): widen PipelineState comparison to avoid TS2367 narrowing error ([129c1d6](https://github.com/framersai/agentos/commit/129c1d6))
+* fix(test): correct import paths in tests/api/ spec files ([4b3823e](https://github.com/framersai/agentos/commit/4b3823e))
+* docs: add speech provider ecosystem guide ([de920a9](https://github.com/framersai/agentos/commit/de920a9))
+* docs: add telephony provider setup and configuration guide ([49063d6](https://github.com/framersai/agentos/commit/49063d6))
+* test(speech): add resolver integration test with full discovery and fallback ([d3a972f](https://github.com/framersai/agentos/commit/d3a972f))
+* test(voice): add telephony integration test with full Twilio media stream flow ([323bd97](https://github.com/framersai/agentos/commit/323bd97))
+* feat(agency): improve AgentCommunicationBus with typed events and examples ([f4b2c71](https://github.com/framersai/agentos/commit/f4b2c71))
+* feat(speech): add AssemblyAISTTProvider with upload+poll flow ([967ef65](https://github.com/framersai/agentos/commit/967ef65))
+* feat(speech): add AzureSpeechSTTProvider ([ce6f05b](https://github.com/framersai/agentos/commit/ce6f05b))
+* feat(speech): add AzureSpeechTTSProvider with SSML synthesis ([fdfcbc8](https://github.com/framersai/agentos/commit/fdfcbc8))
+* feat(speech): add DeepgramBatchSTTProvider ([0f9233a](https://github.com/framersai/agentos/commit/0f9233a))
+* feat(speech): add FallbackSTTProxy and FallbackTTSProxy for provider chain fallback ([76d65e2](https://github.com/framersai/agentos/commit/76d65e2))
+* feat(speech): add resolver types, catalog updates, mark unavailable providers ([ced86db](https://github.com/framersai/agentos/commit/ced86db))
+* feat(speech): add SpeechProviderResolver with capability-based resolution and fallback ([8a3ac6b](https://github.com/framersai/agentos/commit/8a3ac6b))
+* feat(speech): wire SpeechProviderResolver into SpeechRuntime ([e21c728](https://github.com/framersai/agentos/commit/e21c728))
+* feat(voice): add MediaStreamParser interface and types ([2c1c6f0](https://github.com/framersai/agentos/commit/2c1c6f0))
+* feat(voice): add NormalizedDtmfReceived event type and CallManager DTMF handling ([3bd70c2](https://github.com/framersai/agentos/commit/3bd70c2))
+* feat(voice): add PlivoMediaStreamParser ([d0573b1](https://github.com/framersai/agentos/commit/d0573b1))
+* feat(voice): add PlivoVoiceProvider with REST API and HMAC-SHA256 webhook verification ([62ba185](https://github.com/framersai/agentos/commit/62ba185))
+* feat(voice): add TelephonyStreamTransport bridging phone audio to streaming pipeline ([71b36c2](https://github.com/framersai/agentos/commit/71b36c2))
+* feat(voice): add TelnyxMediaStreamParser ([a7c8519](https://github.com/framersai/agentos/commit/a7c8519))
+* feat(voice): add TelnyxVoiceProvider with REST API and Ed25519 webhook verification ([1cfe26c](https://github.com/framersai/agentos/commit/1cfe26c))
+* feat(voice): add TwilioMediaStreamParser ([9593ce2](https://github.com/framersai/agentos/commit/9593ce2))
+* feat(voice): add TwilioVoiceProvider with REST API and webhook verification ([ff455d7](https://github.com/framersai/agentos/commit/ff455d7))
+* feat(voice): add TwiML/XML generation helpers for Twilio, Telnyx, Plivo ([bd8cc87](https://github.com/framersai/agentos/commit/bd8cc87))
+* feat(voice): export all telephony providers, parsers, and transport ([b8db4bc](https://github.com/framersai/agentos/commit/b8db4bc))
+* feat(voice): update HeuristicEndpointDetector and voice pipeline types ([dbcdf52](https://github.com/framersai/agentos/commit/dbcdf52))
+
+## <small>0.1.75 (2026-03-24)</small>
+
+* feat(orchestration): add judgeNode builder for LLM-as-judge evaluation ([3e176cc](https://github.com/framersai/agentos/commit/3e176cc))
+* test(voice-pipeline): add full conversational loop integration test ([6c79487](https://github.com/framersai/agentos/commit/6c79487))
+
+## <small>0.1.74 (2026-03-24)</small>
+
+* docs: add voice pipeline architecture and configuration guide ([99dfabd](https://github.com/framersai/agentos/commit/99dfabd))
+* feat(voice-pipeline): add barrel exports and update provider catalog with streaming flags ([56806ae](https://github.com/framersai/agentos/commit/56806ae))
+* feat(voice-pipeline): add VoicePipelineOrchestrator state machine ([f37a25b](https://github.com/framersai/agentos/commit/f37a25b))
+* feat(voice-pipeline): add WebSocketStreamTransport implementing IStreamTransport ([f05469e](https://github.com/framersai/agentos/commit/f05469e))
+
+## <small>0.1.73 (2026-03-24)</small>
+
+* feat(voice-pipeline): add AcousticEndpointDetector wrapping silence detection ([c683997](https://github.com/framersai/agentos/commit/c683997))
+* feat(voice-pipeline): add core interfaces and types for streaming voice pipeline ([25d2dc6](https://github.com/framersai/agentos/commit/25d2dc6))
+* feat(voice-pipeline): add HardCut and SoftFade barge-in handlers ([e6cde06](https://github.com/framersai/agentos/commit/e6cde06))
+* feat(voice-pipeline): add HeuristicEndpointDetector with punctuation and silence detection ([1d820bc](https://github.com/framersai/agentos/commit/1d820bc))
+* docs: add unified orchestration layer section to README ([1214ebd](https://github.com/framersai/agentos/commit/1214ebd))
+
+## <small>0.1.72 (2026-03-24)</small>
+
+* chore: update package.json with image provider dependencies ([96a58d3](https://github.com/framersai/agentos/commit/96a58d3))
+* feat(api): expose generateImage and image provider config on AgentOS ([74fde7d](https://github.com/framersai/agentos/commit/74fde7d))
+* feat(images): add image generation provider abstraction (OpenAI, Stability, Replicate, OpenRouter) ([dd6df60](https://github.com/framersai/agentos/commit/dd6df60))
+* feat(providers): add Ollama image generation and provider tests ([9f6b6f8](https://github.com/framersai/agentos/commit/9f6b6f8))
+* refactor(gmi): update GMI interfaces for image generation support ([d817ec0](https://github.com/framersai/agentos/commit/d817ec0))
+* refactor(memory): update memory exports and store interfaces ([1cca340](https://github.com/framersai/agentos/commit/1cca340))
+* docs: add high-level API guide and runnable examples ([a66861a](https://github.com/framersai/agentos/commit/a66861a)), closes [hi#level](https://github.com/hi/issues/level)
+* docs: update README and ecosystem docs for high-level API and image generation ([12a60ab](https://github.com/framersai/agentos/commit/12a60ab)), closes [hi#level](https://github.com/hi/issues/level)
+* test(api): add agent, streamText, generateImage, and docs-alignment tests ([f1b29ef](https://github.com/framersai/agentos/commit/f1b29ef))
+* fix(api): restore generateImage imports now that core/images exists ([1efde67](https://github.com/framersai/agentos/commit/1efde67))
+
+## <small>0.1.71 (2026-03-24)</small>
+
+* fix(lint): const instead of let, remove unused eslint-disable directives ([a827082](https://github.com/framersai/agentos/commit/a827082))
+
+## <small>0.1.70 (2026-03-24)</small>
+
+* fix(build): add orchestration directory to tsconfig.build.json include ([25bcdcb](https://github.com/framersai/agentos/commit/25bcdcb))
+* fix(build): resolve CI errors — stub generateImage, rename GraphMemoryScope, fix EventEmitter type n ([89266b6](https://github.com/framersai/agentos/commit/89266b6))
+* docs: add unified orchestration layer guides (AgentGraph, workflow, mission, checkpointing) ([96437bf](https://github.com/framersai/agentos/commit/96437bf))
+* docs(api): add comprehensive JSDoc to high-level API functions and rename tool-adapter to toolAdapte ([029d4a8](https://github.com/framersai/agentos/commit/029d4a8)), closes [hi#level](https://github.com/hi/issues/level)
+* test(orchestration): add integration tests, compiler tests, and node builder tests ([c4a7eac](https://github.com/framersai/agentos/commit/c4a7eac))
+* feat(orchestration): add AgentGraph builder with all edge types and compilation ([e56bdbb](https://github.com/framersai/agentos/commit/e56bdbb))
+* feat(orchestration): add mission() API with goal interpolation, anchors, and PlanningEngine bridge ([769b5be](https://github.com/framersai/agentos/commit/769b5be))
+* feat(orchestration): add SchemaLowering and GraphValidator ([e2695a9](https://github.com/framersai/agentos/commit/e2695a9))
+* feat(orchestration): add typed node builder factories ([bb2762e](https://github.com/framersai/agentos/commit/bb2762e))
+* feat(orchestration): add workflow() DSL with step, branch, parallel, and DAG enforcement ([76f3eb0](https://github.com/framersai/agentos/commit/76f3eb0))
+* feat(orchestration): complete unified orchestration layer — all 4 phases ([cef73ce](https://github.com/framersai/agentos/commit/cef73ce))
+
+## <small>0.1.69 (2026-03-23)</small>
+
+* feat(orchestration): add GraphRuntime with execute, stream, resume, and conditional edges ([00a51e6](https://github.com/framersai/agentos/commit/00a51e6))
+
+## <small>0.1.68 (2026-03-23)</small>
+
+* feat(orchestration): add LoopController with configurable ReAct loop ([db43313](https://github.com/framersai/agentos/commit/db43313))
+* feat(orchestration): add NodeExecutor with type-based dispatch and timeout ([7a9b6f7](https://github.com/framersai/agentos/commit/7a9b6f7))
+
+## <small>0.1.67 (2026-03-23)</small>
+
+* feat(orchestration): add NodeScheduler with topological sort and cycle detection ([90fffbf](https://github.com/framersai/agentos/commit/90fffbf))
+* feat(orchestration): add StateManager with partition management and reducers ([08db90e](https://github.com/framersai/agentos/commit/08db90e))
+
+## <small>0.1.66 (2026-03-23)</small>
+
+* feat(orchestration): add ICheckpointStore interface and InMemoryCheckpointStore ([8a64e8f](https://github.com/framersai/agentos/commit/8a64e8f))
+
+## <small>0.1.65 (2026-03-23)</small>
+
+* feat(orchestration): add GraphEvent types and EventEmitter ([f948644](https://github.com/framersai/agentos/commit/f948644))
+
+## <small>0.1.64 (2026-03-23)</small>
+
+* feat(orchestration): add CompiledExecutionGraph IR types ([0e13ac6](https://github.com/framersai/agentos/commit/0e13ac6))
+* docs: update README tagline and overview for AgentOS rebrand ([bf24204](https://github.com/framersai/agentos/commit/bf24204))
+* ci: trigger docs rebuild after release ([e890865](https://github.com/framersai/agentos/commit/e890865))
+
+## <small>0.1.63 (2026-03-23)</small>
+
+* fix(api): cast finishReason to union type ([de7cf97](https://github.com/framersai/agentos/commit/de7cf97))
+* fix(api): use camelCase ModelCompletionResponse fields (finishReason, promptTokens) ([7479f34](https://github.com/framersai/agentos/commit/7479f34))
+* fix(api): use correct IProvider method signatures (generateCompletion/generateCompletionStream) ([6d63c7d](https://github.com/framersai/agentos/commit/6d63c7d))
+* feat(api): add agent() factory with sessions and multi-turn memory ([69dc854](https://github.com/framersai/agentos/commit/69dc854))
+* feat(api): add generateText — stateless text generation with tool support ([7d4d708](https://github.com/framersai/agentos/commit/7d4d708))
+* feat(api): add model string parser with env key resolution ([75b2810](https://github.com/framersai/agentos/commit/75b2810))
+* feat(api): add streamText — stateless streaming with async iterables ([6347aa6](https://github.com/framersai/agentos/commit/6347aa6))
+* feat(api): add tool adapter for Zod/JSON Schema/ITool normalization ([eb4c324](https://github.com/framersai/agentos/commit/eb4c324))
+* feat(api): export generateText, streamText, agent from package root ([8898a9e](https://github.com/framersai/agentos/commit/8898a9e))
+* feat(guardrails): add sentence boundary buffering for streaming evaluation ([5a92dd3](https://github.com/framersai/agentos/commit/5a92dd3))
+
+## <small>0.1.62 (2026-03-23)</small>
+
+* feat: add multi-agent workflow example with parallel + sequential DAG execution ([348570a](https://github.com/framersai/agentos/commit/348570a))
+
+## <small>0.1.61 (2026-03-23)</small>
+
+* fix(test): correct import path in MarkdownWorkingMemory.spec.ts ([53bb6ac](https://github.com/framersai/agentos/commit/53bb6ac))
+* docs: add memory auto-ingest pipeline guide ([0644faf](https://github.com/framersai/agentos/commit/0644faf))
+* docs: add persistent markdown working memory guide ([a41447f](https://github.com/framersai/agentos/commit/a41447f))
+* docs: add persistent working memory cross-reference to cognitive memory guide ([4520ee1](https://github.com/framersai/agentos/commit/4520ee1))
+* test(memory): add unit tests for working memory tools ([c9f670c](https://github.com/framersai/agentos/commit/c9f670c))
+
+## <small>0.1.60 (2026-03-22)</small>
+
+* feat(memory): add MarkdownWorkingMemory — persistent .md file for agent context ([0ed30c4](https://github.com/framersai/agentos/commit/0ed30c4))
+* feat(memory): add update_working_memory and read_working_memory tools ([3fe1840](https://github.com/framersai/agentos/commit/3fe1840))
+* feat(memory): export MarkdownWorkingMemory and tools from barrel ([1117e23](https://github.com/framersai/agentos/commit/1117e23))
+* feat(memory): inject persistent markdown memory into prompt assembler ([4ed34d1](https://github.com/framersai/agentos/commit/4ed34d1))
+* docs: add sql-storage-adapter as persistence layer in README ([71fbfa8](https://github.com/framersai/agentos/commit/71fbfa8))
+* docs: convert all remaining ASCII diagrams to Mermaid ([c95afb1](https://github.com/framersai/agentos/commit/c95afb1))
+* docs: replace ASCII architecture diagrams with Mermaid ([d5f9937](https://github.com/framersai/agentos/commit/d5f9937))
+
+## <small>0.1.59 (2026-03-22)</small>
+
+* refactor: rename @framers/agentos-ext-skills to @framers/agentos-skills ([7ae18a7](https://github.com/framersai/agentos/commit/7ae18a7))
+* docs: add comprehensive Creating Custom Guardrails authoring guide ([0ee68e5](https://github.com/framersai/agentos/commit/0ee68e5))
+* docs: add ecosystem table with all packages and links ([9464cb8](https://github.com/framersai/agentos/commit/9464cb8))
+* docs: agentos-extensions is "Extension source" not "Extensions Catalog" ([bdec7af](https://github.com/framersai/agentos/commit/bdec7af))
+* docs: clarify agentos-ext-skills description in ecosystem table ([4401372](https://github.com/framersai/agentos/commit/4401372))
+* docs: move ecosystem after overview, remove external apps ([a2f06c1](https://github.com/framersai/agentos/commit/a2f06c1))
+* docs: simplify guardrails table to 3 columns to fix overflow on docs site ([f25178e](https://github.com/framersai/agentos/commit/f25178e))
+* docs: update factory function names from create*Pack to create*Guardrail ([2bb37f8](https://github.com/framersai/agentos/commit/2bb37f8))
+
+## <small>0.1.58 (2026-03-21)</small>
+
+* fix(lint): resolve 2 prefer-const errors in ParallelGuardrailDispatcher ([56468b0](https://github.com/framersai/agentos/commit/56468b0))
+* docs: update import paths to @framers/agentos-ext-* packages, promote PII extension as primary examp ([95d6ede](https://github.com/framersai/agentos/commit/95d6ede))
+
+## <small>0.1.57 (2026-03-21)</small>
+
+* refactor: move 5 guardrail extension packs to agentos-extensions/registry/curated/safety/ ([7599983](https://github.com/framersai/agentos/commit/7599983))
+* refactor(guardrails): export helper functions for reuse by ParallelGuardrailDispatcher ([04a57b5](https://github.com/framersai/agentos/commit/04a57b5))
+* docs: add createPiiRedactionGuardrail callout after custom guardrail regex example ([4f125c1](https://github.com/framersai/agentos/commit/4f125c1))
+* docs: update core AgentOS docs to match shipped guardrail runtime ([acd09d5](https://github.com/framersai/agentos/commit/acd09d5))
+* fix(topicality): clear guardrail-owned drift tracker on deactivation ([d509dda](https://github.com/framersai/agentos/commit/d509dda))
+* feat: add cosineSimilarity to shared text-utils ([9241c26](https://github.com/framersai/agentos/commit/9241c26))
+* feat: add shared text-utils module (clamp, parseJsonResponse, tokenize, normalizeText, estimateToken ([5ba9940](https://github.com/framersai/agentos/commit/5ba9940))
+* feat(code-safety): add ~25 default rules covering OWASP Top 10 ([4dabccb](https://github.com/framersai/agentos/commit/4dabccb))
+* feat(code-safety): add barrel export + package.json exports path ([4c78266](https://github.com/framersai/agentos/commit/4c78266))
+* feat(code-safety): add CodeSafetyGuardrail with fence-boundary buffering + tool call scanning ([eadcfc2](https://github.com/framersai/agentos/commit/eadcfc2))
+* feat(code-safety): add CodeSafetyScanner with language-aware pattern matching ([a72e7cf](https://github.com/framersai/agentos/commit/a72e7cf))
+* feat(code-safety): add createCodeSafetyGuardrail factory ([f07b636](https://github.com/framersai/agentos/commit/f07b636))
+* feat(code-safety): add ScanCodeTool for on-demand scanning ([7873a29](https://github.com/framersai/agentos/commit/7873a29))
+* feat(code-safety): add types, CodeFenceExtractor with language detection ([ddbe847](https://github.com/framersai/agentos/commit/ddbe847))
+* feat(grounding): add barrel export + package.json exports path ([702cbcf](https://github.com/framersai/agentos/commit/702cbcf))
+* feat(grounding): add CheckGroundingTool for on-demand verification ([9e468fa](https://github.com/framersai/agentos/commit/9e468fa))
+* feat(grounding): add createGroundingGuardrail factory ([4df52f5](https://github.com/framersai/agentos/commit/4df52f5))
+* feat(grounding): add GroundingGuardrail with streaming + final verification ([9659e41](https://github.com/framersai/agentos/commit/9659e41))
+* feat(grounding): add types, ClaimExtractor with heuristic split + LLM decomposition ([9247445](https://github.com/framersai/agentos/commit/9247445))
+* feat(guardrails): add canSanitize and timeoutMs to GuardrailConfig ([934228c](https://github.com/framersai/agentos/commit/934228c))
+* feat(guardrails): add ParallelGuardrailDispatcher with two-phase execution ([1ed3ed4](https://github.com/framersai/agentos/commit/1ed3ed4))
+* feat(guardrails): add ragSources plumbing from response chunks to guardrail payloads ([cf26569](https://github.com/framersai/agentos/commit/cf26569))
+* feat(guardrails): delegate to ParallelGuardrailDispatcher, extract normalizeServices ([bfc22a0](https://github.com/framersai/agentos/commit/bfc22a0))
+* feat(ml-classifiers): add barrel export + package.json exports path ([267219d](https://github.com/framersai/agentos/commit/267219d))
+* feat(ml-classifiers): add ClassifierOrchestrator with parallel execution and worst-wins ([69efbd3](https://github.com/framersai/agentos/commit/69efbd3))
+* feat(ml-classifiers): add ClassifyContentTool for on-demand classification ([69e5df6](https://github.com/framersai/agentos/commit/69e5df6))
+* feat(ml-classifiers): add core types, config interfaces, and IContentClassifier ([931e60e](https://github.com/framersai/agentos/commit/931e60e))
+* feat(ml-classifiers): add createMLClassifierGuardrail factory with guardrail + tool ([ae999fe](https://github.com/framersai/agentos/commit/ae999fe))
+* feat(ml-classifiers): add MLClassifierGuardrail with sliding window + 3 streaming modes ([31fb998](https://github.com/framersai/agentos/commit/31fb998))
+* feat(ml-classifiers): add SlidingWindowBuffer with context carry-forward ([68e0aee](https://github.com/framersai/agentos/commit/68e0aee))
+* feat(ml-classifiers): add Toxicity, Injection, and Jailbreak classifiers ([4e96f92](https://github.com/framersai/agentos/commit/4e96f92))
+* feat(ml-classifiers): add WorkerClassifierProxy for browser Web Worker support ([2dc4417](https://github.com/framersai/agentos/commit/2dc4417))
+* feat(pii): add canSanitize: true to PiiRedactionGuardrail config ([4894e0a](https://github.com/framersai/agentos/commit/4894e0a))
+* feat(topicality): add barrel export + package.json exports path ([f575358](https://github.com/framersai/agentos/commit/f575358))
+* feat(topicality): add CheckTopicTool and createTopicalityGuardrail factory ([95da69d](https://github.com/framersai/agentos/commit/95da69d))
+* feat(topicality): add core types, TopicDescriptor, DriftConfig, and TOPIC_PRESETS ([341db10](https://github.com/framersai/agentos/commit/341db10))
+* feat(topicality): add TopicalityGuardrail with forbidden/allowed/drift detection ([4a030db](https://github.com/framersai/agentos/commit/4a030db))
+* feat(topicality): add TopicDriftTracker with EMA drift detection ([fbbeca7](https://github.com/framersai/agentos/commit/fbbeca7))
+* feat(topicality): add TopicEmbeddingIndex with centroid embedding and matchByVector ([c6fb1db](https://github.com/framersai/agentos/commit/c6fb1db))
+
+## <small>0.1.56 (2026-03-20)</small>
+
+* feat: add ISharedServiceRegistry + wire into ExtensionManager ([e9ff33c](https://github.com/framersai/agentos/commit/e9ff33c))
+* feat(pii): add barrel export + package.json exports path for PII pack ([1cd9b51](https://github.com/framersai/agentos/commit/1cd9b51))
+* feat(pii): add core PII types, entity types, and config interfaces ([7b740f0](https://github.com/framersai/agentos/commit/7b740f0))
+* feat(pii): add createPiiRedactionGuardrail factory with guardrail + tools ([bba05f1](https://github.com/framersai/agentos/commit/bba05f1))
+* feat(pii): add EntityMerger with overlap resolution and allow/denylist ([0daf331](https://github.com/framersai/agentos/commit/0daf331))
+* feat(pii): add IEntityRecognizer internal interface ([ea6116e](https://github.com/framersai/agentos/commit/ea6116e))
+* feat(pii): add LlmJudgeRecognizer (Tier 4) with CoT prompt and LRU cache ([58050d0](https://github.com/framersai/agentos/commit/58050d0))
+* feat(pii): add NerModelRecognizer (Tier 3) with HuggingFace transformers ([d1d8d64](https://github.com/framersai/agentos/commit/d1d8d64))
+* feat(pii): add NlpPrefilterRecognizer (Tier 2) with compromise ([c7ecc9b](https://github.com/framersai/agentos/commit/c7ecc9b))
+* feat(pii): add PiiDetectionPipeline with 4-tier gating and context enhancement ([fba6878](https://github.com/framersai/agentos/commit/fba6878))
+* feat(pii): add PiiRedactionGuardrail with streaming sentence-boundary buffer ([56bd1e1](https://github.com/framersai/agentos/commit/56bd1e1))
+* feat(pii): add PiiScanTool and PiiRedactTool ([21a4fd4](https://github.com/framersai/agentos/commit/21a4fd4))
+* feat(pii): add RedactionEngine with 4 redaction styles ([a99de2a](https://github.com/framersai/agentos/commit/a99de2a))
+* feat(pii): add RegexRecognizer (Tier 1) with openredaction ([e8ade47](https://github.com/framersai/agentos/commit/e8ade47))
+* docs: update guardrails with PII redaction extension example + shared services ([a4d6ace](https://github.com/framersai/agentos/commit/a4d6ace))
+* chore: add openredaction + optional NLP deps for PII extension ([d3ca7f5](https://github.com/framersai/agentos/commit/d3ca7f5))
+
+## <small>0.1.55 (2026-03-18)</small>
+
+* fix: quote mermaid labels with parentheses (Docusaurus parse error) ([b11a0ff](https://github.com/framersai/agentos/commit/b11a0ff))
+
+## <small>0.1.54 (2026-03-17)</small>
+
+* fix: update SkillRegistry emoji encoding + add ecosystem doc ([9f30ce2](https://github.com/framersai/agentos/commit/9f30ce2))
+* docs(skills): clarify skills barrel export + relationship to @framers/agentos-skills ([fa0a66b](https://github.com/framersai/agentos/commit/fa0a66b))
+
+## <small>0.1.53 (2026-03-17)</small>
+
+* fix: codex audit — barrel exports, type fixes, AgentOS cleanup ([fc1918f](https://github.com/framersai/agentos/commit/fc1918f))
+* docs: add all guide links to TypeDoc sidebar ([bacb388](https://github.com/framersai/agentos/commit/bacb388))
+* docs: add observational memory section to RAG guide ([80a47e3](https://github.com/framersai/agentos/commit/80a47e3))
+* docs: update RAG guide — document AgentMemory facade, HydeRetriever ([bad35ab](https://github.com/framersai/agentos/commit/bad35ab))
+
+## <small>0.1.52 (2026-03-16)</small>
+
+* feat(memory): add AgentMemory high-level facade ([9eae701](https://github.com/framersai/agentos/commit/9eae701)), closes [hi#level](https://github.com/hi/issues/level)
+
+## <small>0.1.51 (2026-03-16)</small>
+
+* fix(telegram): resolve 409 Conflict from stale polling sessions ([ec30f23](https://github.com/framersai/agentos/commit/ec30f23))
+
+## <small>0.1.50 (2026-03-16)</small>
+
+* feat: add barrel exports for 6 core subsystems ([6075721](https://github.com/framersai/agentos/commit/6075721))
+* feat: add core/tools barrel export (fixes published path) ([6ca59dd](https://github.com/framersai/agentos/commit/6ca59dd))
+* feat: add domain-organized barrel for core subsystems ([42b819c](https://github.com/framersai/agentos/commit/42b819c))
+* feat: extract TaskOutcomeTelemetryManager delegate class ([7dee359](https://github.com/framersai/agentos/commit/7dee359))
+* feat: implement HybridUtilityAI (was empty placeholder) ([189f090](https://github.com/framersai/agentos/commit/189f090))
+* fix: correct test type mismatches against actual interfaces ([9e038bc](https://github.com/framersai/agentos/commit/9e038bc))
+* refactor: extract 4 turn-phase helpers + wire StreamChunkEmitter ([006934c](https://github.com/framersai/agentos/commit/006934c))
+* refactor: extract AgentOSServiceError and AsyncStreamClientBridge ([8764f53](https://github.com/framersai/agentos/commit/8764f53))
+* refactor: extract orchestrator config types to OrchestratorConfig.ts ([c3ad19e](https://github.com/framersai/agentos/commit/c3ad19e))
+* refactor: extract StreamChunkEmitter delegate from orchestrator ([a9b6444](https://github.com/framersai/agentos/commit/a9b6444))
+* refactor: remove dead code from AgentOSOrchestrator ([f966c76](https://github.com/framersai/agentos/commit/f966c76))
+* refactor: wire TaskOutcomeTelemetryManager into orchestrator ([d80bd95](https://github.com/framersai/agentos/commit/d80bd95))
+* test: add 122 tests for extracted modules ([0023ce0](https://github.com/framersai/agentos/commit/0023ce0))
+* chore(release): v0.1.50 — HyDE retriever, quiet EmbeddingManager ([68eea3c](https://github.com/framersai/agentos/commit/68eea3c))
+
+## <small>0.1.49 (2026-03-16)</small>
+
+* fix(hyde): adaptive threshold counting, config validation, quiet logs ([7dae907](https://github.com/framersai/agentos/commit/7dae907))
+* test: add HyDE retriever unit tests (409 lines) ([dc72810](https://github.com/framersai/agentos/commit/dc72810))
+
+## <small>0.1.48 (2026-03-15)</small>
+
+* feat: add HyDE (Hypothetical Document Embedding) retriever ([bf621b4](https://github.com/framersai/agentos/commit/bf621b4))
+* chore: linter fixes — OllamaProvider, CapabilityIndex, SpeechRuntime ([15cc6f0](https://github.com/framersai/agentos/commit/15cc6f0))
+
+## <small>0.1.47 (2026-03-15)</small>
+
+* fix: downgrade embedding batch errors to console.debug ([197f21e](https://github.com/framersai/agentos/commit/197f21e))
+* chore(release): v0.1.47 — add speech + memory subpath exports ([8a8b441](https://github.com/framersai/agentos/commit/8a8b441))
+
+## <small>0.1.46 (2026-03-14)</small>
+
+* fix: add logo assets and fix README image URLs ([3609985](https://github.com/framersai/agentos/commit/3609985))
+* docs: fix README logos, remove stale file counts, add speech module ([1eec2cf](https://github.com/framersai/agentos/commit/1eec2cf))
+
+## <small>0.1.45 (2026-03-14)</small>
+
+* feat(memory): add infinite context window system (Batch 3) ([f12587b](https://github.com/framersai/agentos/commit/f12587b))
+* docs: add document tools to guardrails usage overview ([ba43843](https://github.com/framersai/agentos/commit/ba43843))
+
+## <small>0.1.44 (2026-03-13)</small>
+
+* feat(memory): enhance cognitive memory — typed taxonomy, scope hydration, prospective API ([833adb0](https://github.com/framersai/agentos/commit/833adb0))
+
+## <small>0.1.43 (2026-03-13)</small>
+
+* fix(memory): resolve lint errors — prefer-const and no-misleading-character-class ([e7e93a9](https://github.com/framersai/agentos/commit/e7e93a9))
+* fix(memory): revert semanticBudget to let — it is reassigned downstream ([10931e8](https://github.com/framersai/agentos/commit/10931e8))
+
+## <small>0.1.42 (2026-03-13)</small>
+
+* fix(build): add src/memory/**/*.ts to tsconfig.build.json include list ([a5c61d2](https://github.com/framersai/agentos/commit/a5c61d2))
+* feat(memory): add cognitive memory system — episodic, semantic, procedural, prospective traces ([d4c6ba7](https://github.com/framersai/agentos/commit/d4c6ba7))
+* chore(deps): bump sql-storage-adapter peer dep to >=0.5.0 ([911bc3e](https://github.com/framersai/agentos/commit/911bc3e))
+
+## <small>0.1.41 (2026-03-08)</small>
+
+* feat(auth): browser-based PKCE OAuth for OpenAI + API key exchange ([a9177ea](https://github.com/framersai/agentos/commit/a9177ea))
+* Add social abstract service, OAuth flows, and expanded secret catalog ([bad9841](https://github.com/framersai/agentos/commit/bad9841))
+
+## <small>0.1.40 (2026-03-05)</small>
+
+* feat(social-posting): add SocialPostManager, ContentAdaptationEngine, and new ChannelPlatform types ([c26feb6](https://github.com/framersai/agentos/commit/c26feb6))
+
+## <small>0.1.39 (2026-03-04)</small>
+
+* feat(auth): add browser-based OAuth 2.0 flows for Twitter/X and Instagram ([75af64d](https://github.com/framersai/agentos/commit/75af64d))
+* feat(config): add Twitter OAuth and Meta OAuth extension secrets ([6036de2](https://github.com/framersai/agentos/commit/6036de2))
+
+## <small>0.1.38 (2026-03-04)</small>
+
+* feat(config): add github.token to extension secrets ([d505070](https://github.com/framersai/agentos/commit/d505070))
+
+## <small>0.1.37 (2026-03-04)</small>
+
+* fix: resolve CapabilityGraph test failures and lint warnings ([f9e6c08](https://github.com/framersai/agentos/commit/f9e6c08))
+
+## <small>0.1.36 (2026-03-04)</small>
+
+* fix(config): add Twitter/X env var aliases to extension-secrets.json ([8ac68ef](https://github.com/framersai/agentos/commit/8ac68ef))
+
+## <small>0.1.35 (2026-03-02)</small>
+
+* fix: lint errors + bump to 0.1.34 ([67d55a6](https://github.com/framersai/agentos/commit/67d55a6))
+
+## <small>0.1.34 (2026-03-02)</small>
+
+* fix: lazy-load graphology to prevent crash when optional peer dep missing ([9ab5e61](https://github.com/framersai/agentos/commit/9ab5e61))
+
+## <small>0.1.33 (2026-03-01)</small>
+
+* fix(build): avoid unused ts-expect-error in optional neo4j import ([f9cc8b1](https://github.com/framersai/agentos/commit/f9cc8b1))
+* docs(rag): document neo4j memory providers and unreleased notes ([214bc0d](https://github.com/framersai/agentos/commit/214bc0d))
+* feat(memory): add neo4j stores and adaptive task-outcome telemetry ([536c249](https://github.com/framersai/agentos/commit/536c249))
+
+## [Unreleased]
+
+### Added
+- feat(memory): Neo4j-backed memory providers for RAG (`Neo4jVectorStore`, `Neo4jGraphRAGEngine`) plus adaptive task-outcome telemetry hooks.
+
+## <small>0.1.32 (2026-02-24)</small>
+
+* feat(auth): add OAuth authentication module for LLM providers ([b72a33f](https://github.com/framersai/agentos/commit/b72a33f))
+
+## <small>0.1.31 (2026-02-23)</small>
+
+* fix(lint): merge duplicate 'embed' case labels in channel adapters ([047b33a](https://github.com/framersai/agentos/commit/047b33a))
+
+## <small>0.1.30 (2026-02-23)</small>
+
+* fix: include discovery/ in tsconfig.build.json and fix type errors ([3ddf297](https://github.com/framersai/agentos/commit/3ddf297))
+* docs(discovery): add CAPABILITY_DISCOVERY.md architecture documentation ([3550f33](https://github.com/framersai/agentos/commit/3550f33))
+* docs(rag): document combined vector+GraphRAG search, debug tracing, HNSW config ([1f3e2ea](https://github.com/framersai/agentos/commit/1f3e2ea))
+* feat(discovery): add Capability Discovery Engine — semantic, tiered capability discovery ([790364c](https://github.com/framersai/agentos/commit/790364c))
+* feat(discovery): integrate with ToolOrchestrator, update CHANGELOG and exports ([dff5cb0](https://github.com/framersai/agentos/commit/dff5cb0))
+* test(discovery): add unit tests for all discovery module components ([c69962e](https://github.com/framersai/agentos/commit/c69962e))
+
+## [0.1.30] - 2026-02-21
+
+### Added
+- **Capability Discovery Engine** — Semantic, tiered capability discovery system that reduces context tokens by ~90% (from ~20,000 to ~1,850 tokens)
+  - `CapabilityDiscoveryEngine`: Main orchestrator coordinating index, graph, and assembler
+  - `CapabilityIndex`: Vector index over tools, skills, extensions, and channels using IEmbeddingManager + IVectorStore
+  - `CapabilityGraph`: Graphology-based relationship graph with DEPENDS_ON, COMPOSED_WITH, SAME_CATEGORY, TAGGED_WITH edges
+  - `CapabilityContextAssembler`: Token-budgeted three-tier context builder (Tier 0: always, Tier 1: retrieved, Tier 2: full)
+  - `CapabilityEmbeddingStrategy`: Intent-oriented embedding text construction
+  - `CapabilityManifestScanner`: File-based CAPABILITY.yaml discovery with hot-reload
+  - `createDiscoverCapabilitiesTool()`: Meta-tool factory for agent self-discovery (~80 tokens)
+- `IToolOrchestrator.listDiscoveredTools()` — Filter tool list to only discovery-relevant tools
+- `PromptBuilder.buildCapabilitiesSection()` — Render tiered discovery context in system prompts
+
+## <small>0.1.29 (2026-02-21)</small>
+
+* fix: remove userApiKeys from conversation metadata ([f774f4b](https://github.com/framersai/agentos/commit/f774f4b))
+
+## <small>0.1.28 (2026-02-20)</small>
+
+* fix: resolve CI build errors in channel adapters ([144bd14](https://github.com/framersai/agentos/commit/144bd14))
+* feat: P0+P1 channel adapters for 13 messaging platforms ([5e546df](https://github.com/framersai/agentos/commit/5e546df))
+
+## <small>0.1.27 (2026-02-19)</small>
+
+* fix: resolve all lint errors and warnings from CI #186 ([9a5ba08](https://github.com/framersai/agentos/commit/9a5ba08)), closes [#186](https://github.com/framersai/agentos/issues/186)
+
+## <small>0.1.26 (2026-02-19)</small>
+
+* feat: 28-channel parity — add IRC + Zalo Personal types, Telegram forum-topic routing ([ff33916](https://github.com/framersai/agentos/commit/ff33916)), closes [chatId#topicId](https://github.com/chatId/issues/topicId)
+
+## <small>0.1.25 (2026-02-18)</small>
+
+* feat(channels): expand platform types and secrets schema ([badf375](https://github.com/framersai/agentos/commit/badf375))
+
+## <small>0.1.24 (2026-02-16)</small>
+
+* feat: RAG audit trail — types, collector, pipeline instrumentation, tests ([e40fe00](https://github.com/framersai/agentos/commit/e40fe00))
+
+## <small>0.1.23 (2026-02-12)</small>
+
+* feat: add per-agent workspace directory helpers ([f4f8617](https://github.com/framersai/agentos/commit/f4f8617))
+* chore: bump version to 0.1.23 (workspace exports in dist) ([d9d342c](https://github.com/framersai/agentos/commit/d9d342c))
+
+## <small>0.1.22 (2026-02-10)</small>
+
+* feat: expand README, fix schema-on-demand pack, update ecosystem docs ([d2d6b26](https://github.com/framersai/agentos/commit/d2d6b26))
+* docs: add folder-level permissions & safe guardrails to docs ([97ec2f0](https://github.com/framersai/agentos/commit/97ec2f0))
+* docs(releasing): align docs with conservative 0.x rules ([ebeb8e6](https://github.com/framersai/agentos/commit/ebeb8e6))
+
+## <small>0.1.21 (2026-02-09)</small>
+
+* feat(rag): add HNSW persistence + multimodal guide ([9a45d84](https://github.com/framersai/agentos/commit/9a45d84))
+* docs: document GraphRAG updates + deletions ([a9b7f56](https://github.com/framersai/agentos/commit/a9b7f56))
+* docs: update skills references to consolidated registry package ([7d344f3](https://github.com/framersai/agentos/commit/7d344f3))
+* test: relax fetch mock typing ([b8647a2](https://github.com/framersai/agentos/commit/b8647a2))
+
+## <small>0.1.20 (2026-02-08)</small>
+
+* fix: add explicit exports for rag/reranking, rag/graphrag, core/hitl ([d90340d](https://github.com/framersai/agentos/commit/d90340d))
+* feat(graphrag): support document removal ([cca2f52](https://github.com/framersai/agentos/commit/cca2f52))
+
+## <small>0.1.19 (2026-02-08)</small>
+
+* fix: add ./rag and ./config/* exports to package.json ([27dba19](https://github.com/framersai/agentos/commit/27dba19))
+
+## <small>0.1.18 (2026-02-08)</small>
+
+* feat(graphrag): re-ingest updates ([13700b8](https://github.com/framersai/agentos/commit/13700b8))
+* docs: update README with safety primitives details ([496b172](https://github.com/framersai/agentos/commit/496b172))
+* agentos: tool calling + safety + observability ([00b9187](https://github.com/framersai/agentos/commit/00b9187))
+
+## <small>0.1.17 (2026-02-08)</small>
+
+* feat: safety primitives — GuardedToolResult rename, tests & docs ([3ca722d](https://github.com/framersai/agentos/commit/3ca722d))
+
+## <small>0.1.16 (2026-02-08)</small>
+
+* fix: remove all 47 stale .d.ts files from src/ that duplicate .ts sources ([bdf3a56](https://github.com/framersai/agentos/commit/bdf3a56))
+* fix: remove stale .d.ts files from src/core/tools/ ([6c9e307](https://github.com/framersai/agentos/commit/6c9e307))
+* fix: use explicit type exports for ITool to avoid TS2308 ambiguity ([e506d79](https://github.com/framersai/agentos/commit/e506d79))
+* docs: rewrite README with accurate API examples and streamlined structure ([d7e5157](https://github.com/framersai/agentos/commit/d7e5157))
+* feat: Qdrant vector store, content safety service, otel improvements ([dbd7cb2](https://github.com/framersai/agentos/commit/dbd7cb2))
+
+## <small>0.1.15 (2026-02-08)</small>
+
+* fix: update skills count from 16+ to 18 ([a50185e](https://github.com/framersai/agentos/commit/a50185e))
+
+## <small>0.1.14 (2026-02-08)</small>
+
+* fix: provide fallback for optional personaId in pushErrorChunk call ([d779a7e](https://github.com/framersai/agentos/commit/d779a7e))
+* feat: enhanced RAG pipeline, observability, schema-on-demand extension ([b6e98e4](https://github.com/framersai/agentos/commit/b6e98e4))
+
+## <small>0.1.13 (2026-02-07)</small>
+
+* feat: add AutonomyGuard + PolicyProfiles tests, skills ecosystem improvements ([36a99eb](https://github.com/framersai/agentos/commit/36a99eb))
+
+## <small>0.1.12 (2026-02-07)</small>
+
+* feat: add 7 P3 channel platforms for OpenClaw parity ([5a988ce](https://github.com/framersai/agentos/commit/5a988ce))
+
+## <small>0.1.11 (2026-02-07)</small>
+
+* feat: append-only persistence, skills system, provenance hooks ([73f9afb](https://github.com/framersai/agentos/commit/73f9afb))
+
+## <small>0.1.10 (2026-02-07)</small>
+
+* fix: remove marketing copy from architecture docs ([6feb377](https://github.com/framersai/agentos/commit/6feb377))
+
+## <small>0.1.9 (2026-02-07)</small>
+
+* fix: make ExtensionPackContext fields optional, add logger/getSecret ([991ca25](https://github.com/framersai/agentos/commit/991ca25))
+
+## <small>0.1.8 (2026-02-07)</small>
+
+* fix: add ExtensionPack onActivate/onDeactivate union type for backwards compat ([c8c64e9](https://github.com/framersai/agentos/commit/c8c64e9))
+* docs: add extensions-registry package to ecosystem guide ([eeb0b6a](https://github.com/framersai/agentos/commit/eeb0b6a))
+
+## <small>0.1.7 (2026-02-07)</small>
+
+* feat: channel system, extension secrets, messaging types, docs ([63487ed](https://github.com/framersai/agentos/commit/63487ed))
+
+## <small>0.1.6 (2026-02-06)</small>
+
+* refactor: rename extension packages to @framers/agentos-ext-* convention ([233e9a4](https://github.com/framersai/agentos/commit/233e9a4))
+* refactor: rename extension packages to @framers/agentos-ext-* convention ([a6e40ac](https://github.com/framersai/agentos/commit/a6e40ac))
+* refactor: rename extension packages to @framers/agentos-ext-* convention ([64b03b7](https://github.com/framersai/agentos/commit/64b03b7))
+
+## <small>0.1.5 (2026-02-05)</small>
+
+* fix(tests): resolve test failures with proper mocks ([ce8e2bf](https://github.com/framersai/agentos/commit/ce8e2bf))
+* docs: fix sidebar links for markdown pages ([451ab8c](https://github.com/framersai/agentos/commit/451ab8c))
+* docs: update sidebar links to point to .html instead of .md ([d11c2ce](https://github.com/framersai/agentos/commit/d11c2ce))
+* ci(docs): ship changelog + markdown pages ([be2a7bd](https://github.com/framersai/agentos/commit/be2a7bd))
+
+## <small>0.1.4 (2026-01-25)</small>
+
+* test(api): cover generator return final response ([758df4b](https://github.com/framersai/agentos/commit/758df4b))
+* fix(api): use generator return value for final response ([0f46ab8](https://github.com/framersai/agentos/commit/0f46ab8))
+* chore: add docs/api and coverage to .gitignore, fix path reference ([ef94f7a](https://github.com/framersai/agentos/commit/ef94f7a))
+
+## <small>0.1.2 (2025-12-17)</small>
+
+* docs: add comprehensive GUARDRAILS_USAGE.md ([a42d91d](https://github.com/framersai/agentos/commit/a42d91d))
+* docs: add guardrail examples and link to usage guide ([b955fd1](https://github.com/framersai/agentos/commit/b955fd1))
+* docs: add TypeDoc API documentation for v0.1.3 ([74cdb3c](https://github.com/framersai/agentos/commit/74cdb3c))
+* docs: cleanup docs/README.md links ([a4e90fc](https://github.com/framersai/agentos/commit/a4e90fc))
+* docs: expand AGENT_COMMUNICATION.md with implementation details [skip release] ([6033bdd](https://github.com/framersai/agentos/commit/6033bdd))
+* docs: expand PLANNING_ENGINE.md with implementation details ([ee98839](https://github.com/framersai/agentos/commit/ee98839))
+* docs: remove MIGRATION_TO_STORAGE_ADAPTER.md ([430c92a](https://github.com/framersai/agentos/commit/430c92a))
+* docs: remove redundant AGENTOS_ARCHITECTURE_DEEP_DIVE.md ([b4e0fe2](https://github.com/framersai/agentos/commit/b4e0fe2))
+* docs: update README with guardrails link and cleanup ([a322f4b](https://github.com/framersai/agentos/commit/a322f4b))
+* docs(guardrails): add TSDoc to guardrailDispatcher ([de0557d](https://github.com/framersai/agentos/commit/de0557d))
+* docs(guardrails): add TSDoc to IGuardrailService ([e973302](https://github.com/framersai/agentos/commit/e973302))
+* fix: add EXTENSION_SECRET_DEFINITIONS export and fix atlas persona ([692e596](https://github.com/framersai/agentos/commit/692e596))
+* fix: add NODE_AUTH_TOKEN for npm auth compatibility ([afe7b96](https://github.com/framersai/agentos/commit/afe7b96))
+* fix: atlas persona schema and add orchestrator tests ([10533e0](https://github.com/framersai/agentos/commit/10533e0))
+* fix: enable automatic semantic-release and expand docs links ([86e204d](https://github.com/framersai/agentos/commit/86e204d))
+* fix: improve test coverage for model selection options propagation ([1d86154](https://github.com/framersai/agentos/commit/1d86154))
+* fix: reset version to 0.1.3 from incorrect 1.0.3 [skip ci] ([62697cc](https://github.com/framersai/agentos/commit/62697cc))
+* fix: trigger release with improved model options test coverage ([18820fc](https://github.com/framersai/agentos/commit/18820fc)), closes [#1](https://github.com/framersai/agentos/issues/1)
+* fix: trigger release with updated npm token ([332395f](https://github.com/framersai/agentos/commit/332395f))
+* fix: trigger semantic-release with v0.1.1 tag baseline ([0a5733f](https://github.com/framersai/agentos/commit/0a5733f))
+* fix(orchestration): Correctly propagate model selection options to GMI ([4342283](https://github.com/framersai/agentos/commit/4342283))
+* chore: trigger CI/CD for test coverage ([dae6b3f](https://github.com/framersai/agentos/commit/dae6b3f))
+* chore: trigger docs rebuild ([0e5655f](https://github.com/framersai/agentos/commit/0e5655f))
+* chore(release): 1.0.0 [skip ci] ([14ea3c3](https://github.com/framersai/agentos/commit/14ea3c3))
+* chore(release): 1.0.1 [skip ci] ([4daf1ff](https://github.com/framersai/agentos/commit/4daf1ff))
+* chore(release): 1.0.2 [skip ci] ([3054903](https://github.com/framersai/agentos/commit/3054903))
+* chore(release): 1.0.3 [skip ci] ([5cd684c](https://github.com/framersai/agentos/commit/5cd684c))
+* ci: disable semantic-release workflow ([4c44a1b](https://github.com/framersai/agentos/commit/4c44a1b))
+* ci: re-enable semantic-release workflow ([3dac31a](https://github.com/framersai/agentos/commit/3dac31a))
+* test: add AgentOrchestrator unit tests ([77fb28d](https://github.com/framersai/agentos/commit/77fb28d))
+* test: add cross-agent guardrails tests ([2a93c7f](https://github.com/framersai/agentos/commit/2a93c7f))
+* test: add tests for model selection options propagation in API AgentOSOrchestrator [skip release] ([5960167](https://github.com/framersai/agentos/commit/5960167))
+* Merge pull request #1 from Victor-Evogor/master ([99eeafa](https://github.com/framersai/agentos/commit/99eeafa)), closes [#1](https://github.com/framersai/agentos/issues/1)
+* feat(guardrails): add crossAgentGuardrailDispatcher ([20fdf57](https://github.com/framersai/agentos/commit/20fdf57))
+* feat(guardrails): add guardrails module exports ([83480a6](https://github.com/framersai/agentos/commit/83480a6))
+* feat(guardrails): add ICrossAgentGuardrailService interface ([f4a19c0](https://github.com/framersai/agentos/commit/f4a19c0))
+* revert: set version back to 0.1.1 (1.0.1 was premature) ([e5af05f](https://github.com/framersai/agentos/commit/e5af05f))
+
+## <small>0.1.3 (2025-12-15)</small>
+
+* fix: atlas persona schema and add orchestrator tests ([10533e0](https://github.com/framersai/agentos/commit/10533e0))
+* fix: improve test coverage for model selection options propagation ([1d86154](https://github.com/framersai/agentos/commit/1d86154))
+* fix: trigger release with improved model options test coverage ([18820fc](https://github.com/framersai/agentos/commit/18820fc)), closes [#1](https://github.com/framersai/agentos/issues/1)
+* fix(orchestration): Correctly propagate model selection options to GMI ([4342283](https://github.com/framersai/agentos/commit/4342283))
+* ci: disable semantic-release workflow ([4c44a1b](https://github.com/framersai/agentos/commit/4c44a1b))
+* ci: re-enable semantic-release workflow ([3dac31a](https://github.com/framersai/agentos/commit/3dac31a))
+* chore: trigger CI/CD for test coverage ([dae6b3f](https://github.com/framersai/agentos/commit/dae6b3f))
+* test: add cross-agent guardrails tests ([2a93c7f](https://github.com/framersai/agentos/commit/2a93c7f))
+* test: add tests for model selection options propagation in API AgentOSOrchestrator [skip release] ([5960167](https://github.com/framersai/agentos/commit/5960167))
+* Merge pull request #1 from Victor-Evogor/master ([99eeafa](https://github.com/framersai/agentos/commit/99eeafa)), closes [#1](https://github.com/framersai/agentos/issues/1)
+* docs: add comprehensive GUARDRAILS_USAGE.md ([a42d91d](https://github.com/framersai/agentos/commit/a42d91d))
+* docs: add guardrail examples and link to usage guide ([b955fd1](https://github.com/framersai/agentos/commit/b955fd1))
+* docs: cleanup docs/README.md links ([a4e90fc](https://github.com/framersai/agentos/commit/a4e90fc))
+* docs: expand AGENT_COMMUNICATION.md with implementation details [skip release] ([6033bdd](https://github.com/framersai/agentos/commit/6033bdd))
+* docs: expand PLANNING_ENGINE.md with implementation details ([ee98839](https://github.com/framersai/agentos/commit/ee98839))
+* docs: remove MIGRATION_TO_STORAGE_ADAPTER.md ([430c92a](https://github.com/framersai/agentos/commit/430c92a))
+* docs: remove redundant AGENTOS_ARCHITECTURE_DEEP_DIVE.md ([b4e0fe2](https://github.com/framersai/agentos/commit/b4e0fe2))
+* docs: update README with guardrails link and cleanup ([a322f4b](https://github.com/framersai/agentos/commit/a322f4b))
+* docs(guardrails): add TSDoc to guardrailDispatcher ([de0557d](https://github.com/framersai/agentos/commit/de0557d))
+* docs(guardrails): add TSDoc to IGuardrailService ([e973302](https://github.com/framersai/agentos/commit/e973302))
+* feat(guardrails): add crossAgentGuardrailDispatcher ([20fdf57](https://github.com/framersai/agentos/commit/20fdf57))
+* feat(guardrails): add guardrails module exports ([83480a6](https://github.com/framersai/agentos/commit/83480a6))
+* feat(guardrails): add ICrossAgentGuardrailService interface ([f4a19c0](https://github.com/framersai/agentos/commit/f4a19c0))
+
+## <small>0.1.2 (2025-12-13)</small>
+
+* fix: add EXTENSION_SECRET_DEFINITIONS export and fix atlas persona ([692e596](https://github.com/framersai/agentos/commit/692e596))
+* fix: add missing pino dependency ([0f4afdc](https://github.com/framersai/agentos/commit/0f4afdc))
+* fix: add NODE_AUTH_TOKEN for npm auth compatibility ([afe7b96](https://github.com/framersai/agentos/commit/afe7b96))
+* fix: align AgencyMemoryManager with IVectorStore interface ([3ea6131](https://github.com/framersai/agentos/commit/3ea6131))
+* fix: clean up CodeSandbox lint issues ([76ff4c3](https://github.com/framersai/agentos/commit/76ff4c3))
+* fix: clean up unused imports and params in AgentOrchestrator ([ac32855](https://github.com/framersai/agentos/commit/ac32855))
+* fix: clean up unused variables in extension loaders ([d660b03](https://github.com/framersai/agentos/commit/d660b03))
+* fix: correct IVectorStoreManager import path and add type annotation ([487f5b5](https://github.com/framersai/agentos/commit/487f5b5))
+* fix: enable automatic semantic-release and expand docs links ([86e204d](https://github.com/framersai/agentos/commit/86e204d))
+* fix: guard stream responses to satisfy ts ([1d2e4f7](https://github.com/framersai/agentos/commit/1d2e4f7))
+* fix: ignore pushes to closed streams ([3c70fa2](https://github.com/framersai/agentos/commit/3c70fa2))
+* fix: import MetadataValue from IVectorStore to resolve type conflict ([2f90071](https://github.com/framersai/agentos/commit/2f90071))
+* fix: make sql-storage-adapter optional peer dep for standalone repo ([4be6628](https://github.com/framersai/agentos/commit/4be6628))
+* fix: remove unused imports and variables from LLM providers ([f21759d](https://github.com/framersai/agentos/commit/f21759d))
+* fix: remove unused imports from ModelRouter ([ea2baa5](https://github.com/framersai/agentos/commit/ea2baa5))
+* fix: remove unused imports from PlanningEngine ([283c42f](https://github.com/framersai/agentos/commit/283c42f))
+* fix: remove unused imports from storage and RAG modules ([36c2b3f](https://github.com/framersai/agentos/commit/36c2b3f))
+* fix: rename unused options param in Marketplace ([2071869](https://github.com/framersai/agentos/commit/2071869))
+* fix: resolve all ESLint errors and warnings ([093ab03](https://github.com/framersai/agentos/commit/093ab03))
+* fix: resolve all TypeScript build errors and update tests for new API patterns ([6b34237](https://github.com/framersai/agentos/commit/6b34237))
+* fix: resolve critical parsing error in MemoryLifecycleManager ([c5c1fb6](https://github.com/framersai/agentos/commit/c5c1fb6))
+* fix: resolve iterator type errors in streaming batcher ([1048fd1](https://github.com/framersai/agentos/commit/1048fd1))
+* fix: resolve TypeScript errors in tests and config ([f34ea5e](https://github.com/framersai/agentos/commit/f34ea5e))
+* fix: restore RetrievalAugmentor and ToolPermissionManager formatting ([f4e881a](https://github.com/framersai/agentos/commit/f4e881a))
+* fix: restore variables that were incorrectly marked as unused ([5282d39](https://github.com/framersai/agentos/commit/5282d39))
+* fix: set version to 0.1.0 for initial release ([e980895](https://github.com/framersai/agentos/commit/e980895))
+* fix: trigger release with updated npm token ([332395f](https://github.com/framersai/agentos/commit/332395f))
+* fix: type cast checkHealth to avoid TS error ([8683217](https://github.com/framersai/agentos/commit/8683217))
+* fix: unignore eslint.config.js in gitignore ([9c82ab1](https://github.com/framersai/agentos/commit/9c82ab1))
+* fix: update AgencyMemoryManager tests to match implementation ([853d16f](https://github.com/framersai/agentos/commit/853d16f))
+* fix: update Frame.dev logo to use SVG version ([128001f](https://github.com/framersai/agentos/commit/128001f))
+* fix: use workspace:* for sql-storage-adapter dependency ([2d3a88a](https://github.com/framersai/agentos/commit/2d3a88a))
+* fix(agentos): use import attributes with { type: 'json' } for Node 20+ ([9e95660](https://github.com/framersai/agentos/commit/9e95660))
+* fix(build): decouple tsconfig from root to fix CI path resolution ([dd14c6a](https://github.com/framersai/agentos/commit/dd14c6a))
+* fix(build): include JSON; exclude tests; add getConversation/listContexts; safe casts ([86e4610](https://github.com/framersai/agentos/commit/86e4610))
+* fix(build): inline tsconfig base to support standalone build ([161f5a0](https://github.com/framersai/agentos/commit/161f5a0))
+* fix(build): resolve tsconfig inheritance paths ([c2bd9e7](https://github.com/framersai/agentos/commit/c2bd9e7))
+* fix(ci): add pnpm version to release workflow ([9b64eca](https://github.com/framersai/agentos/commit/9b64eca))
+* fix(ci): include docs workflow in path triggers ([d67005f](https://github.com/framersai/agentos/commit/d67005f))
+* fix(ci): remove frozen-lockfile from docs workflow ([fbb33b0](https://github.com/framersai/agentos/commit/fbb33b0))
+* fix(ci): remove pnpm cache requirement from release workflow ([d1c90ef](https://github.com/framersai/agentos/commit/d1c90ef))
+* fix(esm): make AgentOS dist Node ESM compatible ([783b0e9](https://github.com/framersai/agentos/commit/783b0e9))
+* fix(guardrails): add type guard for evaluateOutput to satisfy TS ([0381ca6](https://github.com/framersai/agentos/commit/0381ca6))
+* fix(guardrails): avoid undefined in streaming eval; add loadPackFromFactory ([e2c4d6d](https://github.com/framersai/agentos/commit/e2c4d6d))
+* fix(hitl): remove unused imports in HITL module ([3d5e67f](https://github.com/framersai/agentos/commit/3d5e67f))
+* test: add AgentOrchestrator unit tests ([77fb28d](https://github.com/framersai/agentos/commit/77fb28d))
+* test: add comprehensive tests for workflows, extensions, and config - coverage ~67% ([672ac31](https://github.com/framersai/agentos/commit/672ac31))
+* test: add logging tests and configure coverage thresholds ([511237e](https://github.com/framersai/agentos/commit/511237e))
+* test: add tests for EmbeddingManager, uuid and error utilities ([979b3e2](https://github.com/framersai/agentos/commit/979b3e2))
+* test: add ToolExecutor coverage ([6cb2b8c](https://github.com/framersai/agentos/commit/6cb2b8c))
+* test: fix flaky timestamp ordering test in Evaluator ([56b560d](https://github.com/framersai/agentos/commit/56b560d))
+* test(integration): add marketplace-evaluation integration tests ([035c646](https://github.com/framersai/agentos/commit/035c646))
+* ci: add CI, release, and typedoc Pages workflows ([f3abfea](https://github.com/framersai/agentos/commit/f3abfea))
+* ci: add CNAME for docs.agentos.sh custom domain ([11229ce](https://github.com/framersai/agentos/commit/11229ce))
+* ci: add codecov coverage reporting and badge ([18b8224](https://github.com/framersai/agentos/commit/18b8224))
+* ci: add coverage badge and CI workflow, update README ([3824c78](https://github.com/framersai/agentos/commit/3824c78))
+* ci: add docs auto-deployment to agentos-live-docs branch ([e445b15](https://github.com/framersai/agentos/commit/e445b15))
+* ci: add NODE_AUTH_TOKEN for npm publish ([4dec42f](https://github.com/framersai/agentos/commit/4dec42f))
+* ci: add npm token debug step ([32a65c3](https://github.com/framersai/agentos/commit/32a65c3))
+* ci: coverage badge ([12ce466](https://github.com/framersai/agentos/commit/12ce466))
+* ci: enforce lint and typecheck quality gates ([8d51aff](https://github.com/framersai/agentos/commit/8d51aff))
+* ci: manual releases, pnpm CI, add RELEASING.md ([0ee6fb6](https://github.com/framersai/agentos/commit/0ee6fb6))
+* ci: replace semantic-release with direct npm publish ([b3a7072](https://github.com/framersai/agentos/commit/b3a7072))
+* chore: add ESLint v9 flat config dependencies ([75556b7](https://github.com/framersai/agentos/commit/75556b7))
+* chore: add release workflow (semantic-release) on master ([811a718](https://github.com/framersai/agentos/commit/811a718))
+* chore: bootstrap repo (license, CI, docs templates) ([5965a4e](https://github.com/framersai/agentos/commit/5965a4e))
+* chore: exclude config files from codecov coverage ([8dae2e3](https://github.com/framersai/agentos/commit/8dae2e3))
+* chore: fix lint findings ([a60b3dd](https://github.com/framersai/agentos/commit/a60b3dd))
+* chore: fix lint findings ([f55c22b](https://github.com/framersai/agentos/commit/f55c22b))
+* chore: fix negotiation test types ([4f6da15](https://github.com/framersai/agentos/commit/4f6da15))
+* chore: include release config and dev deps ([7b8e6c1](https://github.com/framersai/agentos/commit/7b8e6c1))
+* chore: initial import from monorepo ([b75cd7a](https://github.com/framersai/agentos/commit/b75cd7a))
+* chore: normalize file endings ([9e9a534](https://github.com/framersai/agentos/commit/9e9a534))
+* chore: pin sql-storage-adapter to ^0.4.0 ([cec73d8](https://github.com/framersai/agentos/commit/cec73d8))
+* chore: remove internal investigation docs ([12f7725](https://github.com/framersai/agentos/commit/12f7725))
+* chore: silence unused vars in negotiation test ([16ec2bf](https://github.com/framersai/agentos/commit/16ec2bf))
+* chore: sync agentos ([08a25e1](https://github.com/framersai/agentos/commit/08a25e1))
+* chore: sync agentos configs ([18c46b6](https://github.com/framersai/agentos/commit/18c46b6))
+* chore: sync changes ([0f67907](https://github.com/framersai/agentos/commit/0f67907))
+* chore: trigger ci ([8abf707](https://github.com/framersai/agentos/commit/8abf707))
+* chore: trigger release ([c0c7a1e](https://github.com/framersai/agentos/commit/c0c7a1e))
+* chore: trigger release ([189e9ba](https://github.com/framersai/agentos/commit/189e9ba))
+* chore: trigger release build ([9b1b59e](https://github.com/framersai/agentos/commit/9b1b59e))
+* chore: trigger release build with codecov fix ([174bec9](https://github.com/framersai/agentos/commit/174bec9))
+* chore: trigger v0.1.0 release ([990efbb](https://github.com/framersai/agentos/commit/990efbb))
+* chore: type mock negotiation test ([230b6e7](https://github.com/framersai/agentos/commit/230b6e7))
+* chore: use latest @framers/sql-storage-adapter ([e9fb6a9](https://github.com/framersai/agentos/commit/e9fb6a9))
+* chore(build): fail agentos dist on TS errors ([f7670f0](https://github.com/framersai/agentos/commit/f7670f0))
+* chore(extensions): export multi-registry types and loaders ([8ddc2d7](https://github.com/framersai/agentos/commit/8ddc2d7))
+* chore(npm): rename package to @framers/agentos; add alias; update config ([f4875b1](https://github.com/framersai/agentos/commit/f4875b1))
+* chore(release): 1.0.0 [skip ci] ([a2d74f2](https://github.com/framersai/agentos/commit/a2d74f2))
+* docs: add architecture deep dive and recursive self-building analysis ([ce2982b](https://github.com/framersai/agentos/commit/ce2982b))
+* docs: add changelog, typedoc config, docs index, semantic-release ([1df5e43](https://github.com/framersai/agentos/commit/1df5e43))
+* docs: add ecosystem page with related repos ([f6ebb02](https://github.com/framersai/agentos/commit/f6ebb02))
+* docs: add mood evolution and contextual prompt adaptation examples ([964aa72](https://github.com/framersai/agentos/commit/964aa72))
+* docs: add multi-agent and non-streaming examples to README ([b570322](https://github.com/framersai/agentos/commit/b570322))
+* docs: add Planning Engine and Agent Communication Bus documentation ([8264310](https://github.com/framersai/agentos/commit/8264310))
+* docs: add Planning, HITL, Communication Bus documentation and update ARCHITECTURE.md ([9f25592](https://github.com/framersai/agentos/commit/9f25592))
+* docs: add STRUCTURED_OUTPUT.md documentation ([7bd271d](https://github.com/framersai/agentos/commit/7bd271d))
+* docs: fix empty RAG config, add eslint.config.js, improve README examples ([0e595d9](https://github.com/framersai/agentos/commit/0e595d9))
+* docs: header/footer with AgentOS + Frame logos ([7ca834b](https://github.com/framersai/agentos/commit/7ca834b))
+* docs: professional open-source README with architecture, roadmap ([7e91dc3](https://github.com/framersai/agentos/commit/7e91dc3))
+* docs: remove emojis, add standalone CI workflows, fix workspace dep ([9584cee](https://github.com/framersai/agentos/commit/9584cee))
+* docs: trigger docs workflow test ([279cb2d](https://github.com/framersai/agentos/commit/279cb2d))
+* docs: unify Frame.dev header logo (consistent with sql-storage-adapter) ([1cc314b](https://github.com/framersai/agentos/commit/1cc314b))
+* docs: update cost optimization guide ([718370c](https://github.com/framersai/agentos/commit/718370c))
+* docs: update README examples with structured output, HITL, and planning ([05a8af2](https://github.com/framersai/agentos/commit/05a8af2)), closes [hi#risk](https://github.com/hi/issues/risk)
+* docs(agentos): add LLM cost optimization guide ([13acef0](https://github.com/framersai/agentos/commit/13acef0))
+* docs(architecture): add production emergent agency system section ([0f4ed92](https://github.com/framersai/agentos/commit/0f4ed92))
+* docs(branding): use frame-logo-green-transparent-4x.png in header/footer ([43b655b](https://github.com/framersai/agentos/commit/43b655b))
+* docs(evaluation): add LLM-as-Judge documentation ([4df4181](https://github.com/framersai/agentos/commit/4df4181))
+* feat: automate releases with semantic-release ([cced945](https://github.com/framersai/agentos/commit/cced945))
+* feat: export AgencyMemoryManager from public API ([207d22b](https://github.com/framersai/agentos/commit/207d22b))
+* feat: export RAG module from public API ([43385cf](https://github.com/framersai/agentos/commit/43385cf))
+* feat(agency): add cross-GMI context sharing methods ([23e8b0b](https://github.com/framersai/agentos/commit/23e8b0b))
+* feat(agency): add shared RAG memory for multi-GMI collectives ([a62e3ae](https://github.com/framersai/agentos/commit/a62e3ae))
+* feat(config): allow custom registry configuration ([1f93932](https://github.com/framersai/agentos/commit/1f93932))
+* feat(evaluation): add agent evaluation framework with built-in scorers ([a3891ff](https://github.com/framersai/agentos/commit/a3891ff))
+* feat(evaluation): add LLM-as-Judge scorer with criteria presets ([885a6b4](https://github.com/framersai/agentos/commit/885a6b4))
+* feat(extensions): add multi-registry loader (npm/github/git/file/url) ([7109b1e](https://github.com/framersai/agentos/commit/7109b1e))
+* feat(extensions): add persona extension kind support ([96001b4](https://github.com/framersai/agentos/commit/96001b4))
+* feat(hitl): add Human-in-the-Loop manager interface and implementation ([f12a2d0](https://github.com/framersai/agentos/commit/f12a2d0))
+* feat(knowledge): add knowledge graph for entity-relationship and episodic memory ([7d199d4](https://github.com/framersai/agentos/commit/7d199d4))
+* feat(marketplace): add agent marketplace for publishing and discovering agents ([3fdcf3f](https://github.com/framersai/agentos/commit/3fdcf3f))
+* feat(observability): add distributed tracing with span exporter ([cb81b29](https://github.com/framersai/agentos/commit/cb81b29))
+* feat(permissions): default allow when subscription service missing ([18f8373](https://github.com/framersai/agentos/commit/18f8373))
+* feat(personas): allow access when subscription service missing ([f5eb9cd](https://github.com/framersai/agentos/commit/f5eb9cd))
+* feat(planning): add IPlanningEngine with ReAct pattern and goal decomposition ([493752d](https://github.com/framersai/agentos/commit/493752d))
+* feat(rag): Add RAG memory documentation and unit tests ([c12d9fa](https://github.com/framersai/agentos/commit/c12d9fa))
+* feat(rag): add SqlVectorStore using sql-storage-adapter ([b32f424](https://github.com/framersai/agentos/commit/b32f424))
+* feat(sandbox): add code execution sandbox with security controls ([2f4ce03](https://github.com/framersai/agentos/commit/2f4ce03))
+* feat(structured): add StructuredOutputManager for JSON schema validation and function calling ([ca6f7e8](https://github.com/framersai/agentos/commit/ca6f7e8))
+* expand extension workflow runtime ([88fdb87](https://github.com/framersai/agentos/commit/88fdb87))
+* Fix lint warnings for AgentOS types ([4c6b5cf](https://github.com/framersai/agentos/commit/4c6b5cf))
+* Stabilize AgentOS tests and streaming ([98d33cb](https://github.com/framersai/agentos/commit/98d33cb))
+
+## 0.1.0 (2025-12-11)
+
+* docs: add architecture deep dive and recursive self-building analysis ([ce2982b](https://github.com/framersai/agentos/commit/ce2982b))
+* docs: add changelog, typedoc config, docs index, semantic-release ([1df5e43](https://github.com/framersai/agentos/commit/1df5e43))
+* docs: add ecosystem page with related repos ([f6ebb02](https://github.com/framersai/agentos/commit/f6ebb02))
+* docs: add mood evolution and contextual prompt adaptation examples ([964aa72](https://github.com/framersai/agentos/commit/964aa72))
+* docs: add multi-agent and non-streaming examples to README ([b570322](https://github.com/framersai/agentos/commit/b570322))
+* docs: add Planning Engine and Agent Communication Bus documentation ([8264310](https://github.com/framersai/agentos/commit/8264310))
+* docs: add Planning, HITL, Communication Bus documentation and update ARCHITECTURE.md ([9f25592](https://github.com/framersai/agentos/commit/9f25592))
+* docs: add STRUCTURED_OUTPUT.md documentation ([7bd271d](https://github.com/framersai/agentos/commit/7bd271d))
+* docs: fix empty RAG config, add eslint.config.js, improve README examples ([0e595d9](https://github.com/framersai/agentos/commit/0e595d9))
+* docs: header/footer with AgentOS + Frame logos ([7ca834b](https://github.com/framersai/agentos/commit/7ca834b))
+* docs: professional open-source README with architecture, roadmap ([7e91dc3](https://github.com/framersai/agentos/commit/7e91dc3))
+* docs: remove emojis, add standalone CI workflows, fix workspace dep ([9584cee](https://github.com/framersai/agentos/commit/9584cee))
+* docs: trigger docs workflow test ([279cb2d](https://github.com/framersai/agentos/commit/279cb2d))
+* docs: unify Frame.dev header logo (consistent with sql-storage-adapter) ([1cc314b](https://github.com/framersai/agentos/commit/1cc314b))
+* docs: update cost optimization guide ([718370c](https://github.com/framersai/agentos/commit/718370c))
+* docs: update README examples with structured output, HITL, and planning ([05a8af2](https://github.com/framersai/agentos/commit/05a8af2)), closes [hi#risk](https://github.com/hi/issues/risk)
+* docs(agentos): add LLM cost optimization guide ([13acef0](https://github.com/framersai/agentos/commit/13acef0))
+* docs(architecture): add production emergent agency system section ([0f4ed92](https://github.com/framersai/agentos/commit/0f4ed92))
+* docs(branding): use frame-logo-green-transparent-4x.png in header/footer ([43b655b](https://github.com/framersai/agentos/commit/43b655b))
+* docs(evaluation): add LLM-as-Judge documentation ([4df4181](https://github.com/framersai/agentos/commit/4df4181))
+* ci: add CI, release, and typedoc Pages workflows ([f3abfea](https://github.com/framersai/agentos/commit/f3abfea))
+* ci: add CNAME for docs.agentos.sh custom domain ([11229ce](https://github.com/framersai/agentos/commit/11229ce))
+* ci: add codecov coverage reporting and badge ([18b8224](https://github.com/framersai/agentos/commit/18b8224))
+* ci: add coverage badge and CI workflow, update README ([3824c78](https://github.com/framersai/agentos/commit/3824c78))
+* ci: add docs auto-deployment to agentos-live-docs branch ([e445b15](https://github.com/framersai/agentos/commit/e445b15))
+* ci: add NODE_AUTH_TOKEN for npm publish ([4dec42f](https://github.com/framersai/agentos/commit/4dec42f))
+* ci: add npm token debug step ([32a65c3](https://github.com/framersai/agentos/commit/32a65c3))
+* ci: coverage badge ([12ce466](https://github.com/framersai/agentos/commit/12ce466))
+* ci: enforce lint and typecheck quality gates ([8d51aff](https://github.com/framersai/agentos/commit/8d51aff))
+* ci: manual releases, pnpm CI, add RELEASING.md ([0ee6fb6](https://github.com/framersai/agentos/commit/0ee6fb6))
+* chore: add ESLint v9 flat config dependencies ([75556b7](https://github.com/framersai/agentos/commit/75556b7))
+* chore: add release workflow (semantic-release) on master ([811a718](https://github.com/framersai/agentos/commit/811a718))
+* chore: bootstrap repo (license, CI, docs templates) ([5965a4e](https://github.com/framersai/agentos/commit/5965a4e))
+* chore: exclude config files from codecov coverage ([8dae2e3](https://github.com/framersai/agentos/commit/8dae2e3))
+* chore: fix lint findings ([a60b3dd](https://github.com/framersai/agentos/commit/a60b3dd))
+* chore: fix lint findings ([f55c22b](https://github.com/framersai/agentos/commit/f55c22b))
+* chore: fix negotiation test types ([4f6da15](https://github.com/framersai/agentos/commit/4f6da15))
+* chore: include release config and dev deps ([7b8e6c1](https://github.com/framersai/agentos/commit/7b8e6c1))
+* chore: initial import from monorepo ([b75cd7a](https://github.com/framersai/agentos/commit/b75cd7a))
+* chore: normalize file endings ([9e9a534](https://github.com/framersai/agentos/commit/9e9a534))
+* chore: pin sql-storage-adapter to ^0.4.0 ([cec73d8](https://github.com/framersai/agentos/commit/cec73d8))
+* chore: remove internal investigation docs ([12f7725](https://github.com/framersai/agentos/commit/12f7725))
+* chore: silence unused vars in negotiation test ([16ec2bf](https://github.com/framersai/agentos/commit/16ec2bf))
+* chore: sync agentos ([08a25e1](https://github.com/framersai/agentos/commit/08a25e1))
+* chore: sync agentos configs ([18c46b6](https://github.com/framersai/agentos/commit/18c46b6))
+* chore: sync changes ([0f67907](https://github.com/framersai/agentos/commit/0f67907))
+* chore: trigger ci ([8abf707](https://github.com/framersai/agentos/commit/8abf707))
+* chore: trigger release ([c0c7a1e](https://github.com/framersai/agentos/commit/c0c7a1e))
+* chore: trigger release ([189e9ba](https://github.com/framersai/agentos/commit/189e9ba))
+* chore: trigger release build ([9b1b59e](https://github.com/framersai/agentos/commit/9b1b59e))
+* chore: trigger release build with codecov fix ([174bec9](https://github.com/framersai/agentos/commit/174bec9))
+* chore: type mock negotiation test ([230b6e7](https://github.com/framersai/agentos/commit/230b6e7))
+* chore: use latest @framers/sql-storage-adapter ([e9fb6a9](https://github.com/framersai/agentos/commit/e9fb6a9))
+* chore(build): fail agentos dist on TS errors ([f7670f0](https://github.com/framersai/agentos/commit/f7670f0))
+* chore(extensions): export multi-registry types and loaders ([8ddc2d7](https://github.com/framersai/agentos/commit/8ddc2d7))
+* chore(npm): rename package to @framers/agentos; add alias; update config ([f4875b1](https://github.com/framersai/agentos/commit/f4875b1))
+* feat: automate releases with semantic-release ([cced945](https://github.com/framersai/agentos/commit/cced945))
+* feat: export AgencyMemoryManager from public API ([207d22b](https://github.com/framersai/agentos/commit/207d22b))
+* feat: export RAG module from public API ([43385cf](https://github.com/framersai/agentos/commit/43385cf))
+* feat(agency): add cross-GMI context sharing methods ([23e8b0b](https://github.com/framersai/agentos/commit/23e8b0b))
+* feat(agency): add shared RAG memory for multi-GMI collectives ([a62e3ae](https://github.com/framersai/agentos/commit/a62e3ae))
+* feat(config): allow custom registry configuration ([1f93932](https://github.com/framersai/agentos/commit/1f93932))
+* feat(evaluation): add agent evaluation framework with built-in scorers ([a3891ff](https://github.com/framersai/agentos/commit/a3891ff))
+* feat(evaluation): add LLM-as-Judge scorer with criteria presets ([885a6b4](https://github.com/framersai/agentos/commit/885a6b4))
+* feat(extensions): add multi-registry loader (npm/github/git/file/url) ([7109b1e](https://github.com/framersai/agentos/commit/7109b1e))
+* feat(extensions): add persona extension kind support ([96001b4](https://github.com/framersai/agentos/commit/96001b4))
+* feat(hitl): add Human-in-the-Loop manager interface and implementation ([f12a2d0](https://github.com/framersai/agentos/commit/f12a2d0))
+* feat(knowledge): add knowledge graph for entity-relationship and episodic memory ([7d199d4](https://github.com/framersai/agentos/commit/7d199d4))
+* feat(marketplace): add agent marketplace for publishing and discovering agents ([3fdcf3f](https://github.com/framersai/agentos/commit/3fdcf3f))
+* feat(observability): add distributed tracing with span exporter ([cb81b29](https://github.com/framersai/agentos/commit/cb81b29))
+* feat(permissions): default allow when subscription service missing ([18f8373](https://github.com/framersai/agentos/commit/18f8373))
+* feat(personas): allow access when subscription service missing ([f5eb9cd](https://github.com/framersai/agentos/commit/f5eb9cd))
+* feat(planning): add IPlanningEngine with ReAct pattern and goal decomposition ([493752d](https://github.com/framersai/agentos/commit/493752d))
+* feat(rag): Add RAG memory documentation and unit tests ([c12d9fa](https://github.com/framersai/agentos/commit/c12d9fa))
+* feat(rag): add SqlVectorStore using sql-storage-adapter ([b32f424](https://github.com/framersai/agentos/commit/b32f424))
+* feat(sandbox): add code execution sandbox with security controls ([2f4ce03](https://github.com/framersai/agentos/commit/2f4ce03))
+* feat(structured): add StructuredOutputManager for JSON schema validation and function calling ([ca6f7e8](https://github.com/framersai/agentos/commit/ca6f7e8))
+* fix: add missing pino dependency ([0f4afdc](https://github.com/framersai/agentos/commit/0f4afdc))
+* fix: align AgencyMemoryManager with IVectorStore interface ([3ea6131](https://github.com/framersai/agentos/commit/3ea6131))
+* fix: clean up CodeSandbox lint issues ([76ff4c3](https://github.com/framersai/agentos/commit/76ff4c3))
+* fix: clean up unused imports and params in AgentOrchestrator ([ac32855](https://github.com/framersai/agentos/commit/ac32855))
+* fix: clean up unused variables in extension loaders ([d660b03](https://github.com/framersai/agentos/commit/d660b03))
+* fix: correct IVectorStoreManager import path and add type annotation ([487f5b5](https://github.com/framersai/agentos/commit/487f5b5))
+* fix: guard stream responses to satisfy ts ([1d2e4f7](https://github.com/framersai/agentos/commit/1d2e4f7))
+* fix: ignore pushes to closed streams ([3c70fa2](https://github.com/framersai/agentos/commit/3c70fa2))
+* fix: import MetadataValue from IVectorStore to resolve type conflict ([2f90071](https://github.com/framersai/agentos/commit/2f90071))
+* fix: make sql-storage-adapter optional peer dep for standalone repo ([4be6628](https://github.com/framersai/agentos/commit/4be6628))
+* fix: remove unused imports and variables from LLM providers ([f21759d](https://github.com/framersai/agentos/commit/f21759d))
+* fix: remove unused imports from ModelRouter ([ea2baa5](https://github.com/framersai/agentos/commit/ea2baa5))
+* fix: remove unused imports from PlanningEngine ([283c42f](https://github.com/framersai/agentos/commit/283c42f))
+* fix: remove unused imports from storage and RAG modules ([36c2b3f](https://github.com/framersai/agentos/commit/36c2b3f))
+* fix: rename unused options param in Marketplace ([2071869](https://github.com/framersai/agentos/commit/2071869))
+* fix: resolve all ESLint errors and warnings ([093ab03](https://github.com/framersai/agentos/commit/093ab03))
+* fix: resolve all TypeScript build errors and update tests for new API patterns ([6b34237](https://github.com/framersai/agentos/commit/6b34237))
+* fix: resolve critical parsing error in MemoryLifecycleManager ([c5c1fb6](https://github.com/framersai/agentos/commit/c5c1fb6))
+* fix: resolve iterator type errors in streaming batcher ([1048fd1](https://github.com/framersai/agentos/commit/1048fd1))
+* fix: resolve TypeScript errors in tests and config ([f34ea5e](https://github.com/framersai/agentos/commit/f34ea5e))
+* fix: restore RetrievalAugmentor and ToolPermissionManager formatting ([f4e881a](https://github.com/framersai/agentos/commit/f4e881a))
+* fix: restore variables that were incorrectly marked as unused ([5282d39](https://github.com/framersai/agentos/commit/5282d39))
+* fix: type cast checkHealth to avoid TS error ([8683217](https://github.com/framersai/agentos/commit/8683217))
+* fix: unignore eslint.config.js in gitignore ([9c82ab1](https://github.com/framersai/agentos/commit/9c82ab1))
+* fix: update AgencyMemoryManager tests to match implementation ([853d16f](https://github.com/framersai/agentos/commit/853d16f))
+* fix: update Frame.dev logo to use SVG version ([128001f](https://github.com/framersai/agentos/commit/128001f))
+* fix: use workspace:* for sql-storage-adapter dependency ([2d3a88a](https://github.com/framersai/agentos/commit/2d3a88a))
+* fix(agentos): use import attributes with { type: 'json' } for Node 20+ ([9e95660](https://github.com/framersai/agentos/commit/9e95660))
+* fix(build): decouple tsconfig from root to fix CI path resolution ([dd14c6a](https://github.com/framersai/agentos/commit/dd14c6a))
+* fix(build): include JSON; exclude tests; add getConversation/listContexts; safe casts ([86e4610](https://github.com/framersai/agentos/commit/86e4610))
+* fix(build): inline tsconfig base to support standalone build ([161f5a0](https://github.com/framersai/agentos/commit/161f5a0))
+* fix(build): resolve tsconfig inheritance paths ([c2bd9e7](https://github.com/framersai/agentos/commit/c2bd9e7))
+* fix(ci): add pnpm version to release workflow ([9b64eca](https://github.com/framersai/agentos/commit/9b64eca))
+* fix(ci): include docs workflow in path triggers ([d67005f](https://github.com/framersai/agentos/commit/d67005f))
+* fix(ci): remove frozen-lockfile from docs workflow ([fbb33b0](https://github.com/framersai/agentos/commit/fbb33b0))
+* fix(ci): remove pnpm cache requirement from release workflow ([d1c90ef](https://github.com/framersai/agentos/commit/d1c90ef))
+* fix(esm): make AgentOS dist Node ESM compatible ([783b0e9](https://github.com/framersai/agentos/commit/783b0e9))
+* fix(guardrails): add type guard for evaluateOutput to satisfy TS ([0381ca6](https://github.com/framersai/agentos/commit/0381ca6))
+* fix(guardrails): avoid undefined in streaming eval; add loadPackFromFactory ([e2c4d6d](https://github.com/framersai/agentos/commit/e2c4d6d))
+* fix(hitl): remove unused imports in HITL module ([3d5e67f](https://github.com/framersai/agentos/commit/3d5e67f))
+* expand extension workflow runtime ([88fdb87](https://github.com/framersai/agentos/commit/88fdb87))
+* Fix lint warnings for AgentOS types ([4c6b5cf](https://github.com/framersai/agentos/commit/4c6b5cf))
+* Stabilize AgentOS tests and streaming ([98d33cb](https://github.com/framersai/agentos/commit/98d33cb))
+* test: add comprehensive tests for workflows, extensions, and config - coverage ~67% ([672ac31](https://github.com/framersai/agentos/commit/672ac31))
+* test: add logging tests and configure coverage thresholds ([511237e](https://github.com/framersai/agentos/commit/511237e))
+* test: add tests for EmbeddingManager, uuid and error utilities ([979b3e2](https://github.com/framersai/agentos/commit/979b3e2))
+* test: add ToolExecutor coverage ([6cb2b8c](https://github.com/framersai/agentos/commit/6cb2b8c))
+* test: fix flaky timestamp ordering test in Evaluator ([56b560d](https://github.com/framersai/agentos/commit/56b560d))
+* test(integration): add marketplace-evaluation integration tests ([035c646](https://github.com/framersai/agentos/commit/035c646))
+
+# Changelog
+
+All notable changes to **@framers/agentos** are documented in this file.
+
+This changelog is automatically generated by [semantic-release](https://semantic-release.gitbook.io) based on [Conventional Commits](https://www.conventionalcommits.org).
+
+---
+
+## [0.1.0] - 2024-12-10
+
+### Fixes (Pre-release)
+- Resolved all ESLint errors and 100+ warnings across codebase
+- Fixed TypeScript strict mode violations in test files
+- Corrected MemoryLifecycleManager configuration interface
+- Fixed ExtensionLoader test API compatibility
+- Updated eslint.config.js with proper ignore patterns for underscore-prefixed variables
+- Added automated docs deployment to `agentos-live-docs` branch
+
+### Features
+
+#### Core Runtime
+- **AgentOS Orchestrator** — Unified entry point for AI agent operations
+- **GMI Manager** — Generalized Mind Instance lifecycle management
+- **Streaming Manager** — Real-time token-level response streaming
+- **Conversation Manager** — Multi-turn context handling with history
+
+#### Planning Engine
+- **Multi-step execution plans** — Generate structured plans from high-level goals
+- **Task decomposition** — Break complex tasks into manageable subtasks
+- **Plan refinement** — Adapt plans based on execution feedback
+- **Autonomous loops** — Continuous plan-execute-reflect cycles (ReAct pattern)
+- **Confidence scoring** — Track plan reliability metrics
+
+#### Human-in-the-Loop (HITL)
+- **Approval system** — Request human approval for high-risk actions
+- **Clarification requests** — Resolve ambiguous situations
+- **Output review** — Submit drafts for human editing
+- **Escalation handling** — Transfer control to humans when uncertain
+- **Workflow checkpoints** — Progress reviews during long-running tasks
+
+#### Agent Communication Bus
+- **Direct messaging** — Point-to-point communication between agents
+- **Broadcasting** — Send messages to all agents in an agency
+- **Topic pub/sub** — Subscribe to channels for specific message types
+- **Request/response** — Query agents and await responses with timeouts
+- **Structured handoffs** — Transfer context between agents
+
+#### RAG & Memory
+- **Vector storage** — Embed and retrieve semantic memories
+- **SQL storage adapter** — Persistent storage with SQLite/PostgreSQL
+- **Context management** — Automatic context window optimization
+- **Knowledge graph** — Entity-relationship storage and traversal
+
+#### Extensions System
+- **Tool extensions** — Custom capabilities with permission management
+- **Guardrail extensions** — Safety and validation rules
+- **Workflow extensions** — Multi-step process definitions
+- **Planning strategies** — Customizable planning behaviors
+- **Memory providers** — Pluggable vector/SQL backends
+
+#### Evaluation Framework
+- **Test case management** — Define expected behaviors
+- **Scoring functions** — Exact match, semantic similarity, BLEU, ROUGE
+- **LLM-as-Judge** — AI-powered evaluation scoring
+- **Report generation** — JSON, Markdown, HTML outputs
+
+### Documentation
+- `ARCHITECTURE.md` — System architecture overview
+- `PLANNING_ENGINE.md` — Planning and task decomposition guide
+- `HUMAN_IN_THE_LOOP.md` — HITL integration guide
+- `AGENT_COMMUNICATION.md` — Inter-agent messaging guide
+- `EVALUATION_FRAMEWORK.md` — Testing and evaluation guide
+- `STRUCTURED_OUTPUT.md` — JSON schema validation guide
+- `RAG_MEMORY_CONFIGURATION.md` — Memory system setup
+- `SQL_STORAGE_QUICKSTART.md` — Database integration guide
+
+### Infrastructure
+- TypeScript 5.4+ with full ESM support
+- Vitest testing with 67%+ coverage
+- TypeDoc API documentation generation
+- Semantic-release for automated versioning
+- GitHub Actions CI/CD pipeline
+
+---
+
+## Previous Development
+
+For changes prior to the public release, see the [voice-chat-assistant repository](https://github.com/manicinc/voice-chat-assistant) commit history.
+
+---
+
+<p align="center">
+  <a href="https://agentos.sh">agentos.sh</a> •
+  <a href="https://github.com/framersai/agentos">GitHub</a> •
+  <a href="https://www.npmjs.com/package/@framers/agentos">npm</a>
+</p>
