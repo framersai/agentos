@@ -67,8 +67,9 @@ import type { MemoryQueryCategory } from './routing-tables.js';
 
 /**
  * Reader tier the router can dispatch to. Restricted to OpenAI models
- * the shipped presets were calibrated against. Future presets (e.g.
- * `claude-opus-4-7` + `gpt-5-mini`) would extend this union.
+ * the shipped presets were calibrated against. The bench is single-
+ * provider OpenAI for reader/classifier/judge by design; Cohere is
+ * allowed only at the rerank stage.
  */
 export type ReaderTier = 'gpt-4o' | 'gpt-5' | 'gpt-5-mini';
 
