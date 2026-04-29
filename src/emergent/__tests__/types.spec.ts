@@ -335,7 +335,7 @@ describe('emergent/types', () => {
       expect(DEFAULT_EMERGENT_CONFIG.persistSandboxSource).toBe(false);
     });
 
-    it('has correct sandbox memory limit', () => {
+    it('has correct sandbox memory budget', () => {
       expect(DEFAULT_EMERGENT_CONFIG.sandboxMemoryMB).toBe(128);
     });
 

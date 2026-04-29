@@ -23,7 +23,7 @@ import type { SandboxExecutionRequest, SandboxAPI } from '../types.js';
 
 /**
  * Build a minimal {@link SandboxExecutionRequest} from just code and input.
- * Defaults: empty allowlist, 128 MB memory, 5000 ms timeout.
+ * Defaults: empty allowlist, 128 MB nominal memory budget, 5000 ms timeout.
  */
 function makeRequest(
   code: string,

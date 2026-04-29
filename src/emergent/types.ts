@@ -185,8 +185,9 @@ export interface SandboxExecutionRequest {
   allowlist: SandboxAPI[];
 
   /**
-   * Maximum heap memory in megabytes the sandbox process may consume.
-   * The executor terminates the process if this limit is exceeded.
+   * Nominal heap budget in megabytes for the sandbox execution.
+   * The current node:vm-backed JavaScript executor reports heap deltas but does
+   * not preemptively enforce this limit.
    * @default 128
    */
   memoryMB: number;
@@ -215,7 +216,8 @@ export interface SandboxExecutionResult {
 
   /**
    * Human-readable error description, present when `success` is `false`.
-   * Includes timeout, memory-exceeded, and thrown-exception cases.
+   * Includes timeout and thrown-exception cases. A future isolate-backed
+   * runtime may also report memory-exceeded cases.
    */
   error?: string;
 
@@ -226,7 +228,7 @@ export interface SandboxExecutionResult {
   executionTimeMs: number;
 
   /**
-   * Peak heap memory used by the sandbox process in bytes.
+   * Observed heap delta for the sandbox execution in bytes.
    * Populated when the runtime can measure it; otherwise `0`.
    */
   memoryUsedBytes: number;
@@ -688,7 +690,9 @@ export interface EmergentConfig {
   persistSandboxSource: boolean;
 
   /**
-   * Memory limit in megabytes for each sandboxed tool execution.
+   * Nominal memory budget in megabytes for each sandboxed tool execution.
+   * The current node:vm-backed executor reports heap deltas but does not
+   * preemptively enforce this limit.
    * Passed as `SandboxExecutionRequest.memoryMB`.
    * @default 128
    */

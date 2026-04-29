@@ -39,7 +39,7 @@ import {
 
 const DEFAULT_CONFIG: SandboxConfig = {
   timeoutMs: 30000, // 30 seconds
-  maxMemoryBytes: 128 * 1024 * 1024, // 128MB
+  maxMemoryBytes: 128 * 1024 * 1024, // Nominal budget; JS node:vm reports heap delta only.
   maxOutputBytes: 1024 * 1024, // 1MB
   allowNetwork: false,
   allowFilesystem: false,
@@ -748,4 +748,3 @@ export class CodeSandbox implements ICodeSandbox {
     return 'low';
   }
 }
-
