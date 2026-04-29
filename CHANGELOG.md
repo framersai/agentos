@@ -1,3 +1,7 @@
+## <small>0.5.7 (2026-04-29)</small>
+
+* feat(memory-router): productionize ReaderRouter primitive ([162d7ab](https://github.com/framersai/agentos/commit/162d7ab))
+
 ## <small>0.5.6 (2026-04-29)</small>
 
 * feat(memory-router): add topk50-mult5-on-MS S-tuned preset (follow-up to refuted HyDE preset) ([fb79c65](https://github.com/framersai/agentos/commit/fb79c65))
