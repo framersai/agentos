@@ -1,3 +1,9 @@
+## <small>0.5.9 (2026-04-29)</small>
+
+* feat(docs): register /benchmarks page in publication manifest ([b3dc29b](https://github.com/framersai/agentos/commit/b3dc29b))
+* docs(readme): add quantitative SOTA benchmark tables (matched gpt-4o reader) ([79da2ce](https://github.com/framersai/agentos/commit/79da2ce))
+* docs(emergent,sandbox): clarify sandbox memory-limit enforcement is nominal not preemptive ([ed2839a](https://github.com/framersai/agentos/commit/ed2839a))
+
 ## <small>0.5.8 (2026-04-29)</small>
 
 * feat(memory): inject persistent markdown into prompt assembly + normalize Postgres DDL ([0d27268](https://github.com/framersai/agentos/commit/0d27268))
