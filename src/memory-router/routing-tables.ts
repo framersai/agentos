@@ -256,6 +256,18 @@ export const SAFE_FALLBACK_DISPATCH_KEY: MemoryDispatchKey = Object.freeze({
  *   queries benefit from hypothetical-document expansion. Calibration
  *   anchors against the 2026-04-28 canonical+RR Phase B headline (85.6%
  *   aggregate, MS at 76.9% — the only weak category at S scale).
+ *   **REFUTED at Phase A 2026-04-29** — MS dropped to 22.2% (vs Phase B
+ *   baseline 74.4%, a -52.2 pp catastrophic regression). The dispatch
+ *   primitive itself ships; this specific preset value is documented
+ *   as a refuted hypothesis in the bench LEADERBOARD.
+ * - `s-best-cat-topk50-mult5-ms-2026-04-29` — surgical-MS-only S-tuned
+ *   preset using a wider rerank candidate pool (rerank-candidate-
+ *   multiplier 5) + larger reader-top-K (50) on MS only, on the bet
+ *   that S-scale MS bridge queries are pool-size-bound rather than
+ *   paraphrase-bound. The M Phase A ablation matrix supports this
+ *   direction: `topk50-mult5` lifts M's MS from 18.0% canonical to
+ *   44.4%, while HyDE alone hurts (11.1%). This preset replaces the
+ *   HyDE pick with topk50-mult5; SSA/SSU/KU/SSP/TR keep canonical.
  *
  * Reserved for v3 calibration alongside Stage E:
  *
@@ -265,6 +277,7 @@ export const SAFE_FALLBACK_DISPATCH_KEY: MemoryDispatchKey = Object.freeze({
 export type AugmentedMemoryRouterPreset =
   | 'minimize-cost-augmented'
   | 's-best-cat-hyde-ms-2026-04-28'
+  | 's-best-cat-topk50-mult5-ms-2026-04-29'
   | 'balanced-augmented'
   | 'maximize-accuracy-augmented';
 
@@ -401,17 +414,79 @@ export const S_BEST_CAT_HYDE_MS_2026_04_28_TABLE: AugmentedRoutingTable = Object
 }) as AugmentedRoutingTable;
 
 /**
+ * Preset: s-best-cat-topk50-mult5-ms-2026-04-29.
+ *
+ * Surgical-MS-only S-tuned preset that follows on from the refuted
+ * `s-best-cat-hyde-ms-2026-04-28` HyDE-on-MS hypothesis. Switches
+ * multi-session to `topk50-mult5` (rerank candidate multiplier 5 +
+ * reader-top-K 50, no HyDE) and keeps every other category on
+ * canonical. Anchors against the 2026-04-28 canonical+RR Phase B
+ * headline (85.6% aggregate, MS at 76.9%).
+ *
+ * **Why this design:** The 2026-04-26 LongMemEval-M Phase A ablation
+ * matrix showed `topk50-mult5` lifts M's MS from canonical 18.0% to
+ * 44.4%, the second-best lift after the combined `hyde-topk50-mult5`
+ * config (66.7%). The HyDE-only variant HURT MS at every scale tested
+ * (M canonical 18% → HyDE 11.1%; S Phase B 74.4% → Phase A HyDE 22.2%).
+ * The reading: MS bridge queries are pool-size-bound, not paraphrase-
+ * bound. A wider Cohere rerank candidate pool gives the cross-encoder
+ * more candidate sessions to disambiguate among, without adding the
+ * hallucinated-document noise HyDE introduces. This preset isolates
+ * that variable on MS only.
+ *
+ * Backend axis: every category routes to canonical-hybrid (the 85.6%
+ * headline runs canonical end-to-end).
+ *
+ * **Calibration validity:** PRE-VALIDATION HYPOTHESIS. Anchored on
+ * the M Phase A ablation matrix's MS column. The transfer to S scale
+ * is the hypothesis to validate. Phase A probe at LongMemEval-S N=54
+ * is the next gate; Phase B at N=500 is the publication gate.
+ */
+export const S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE: AugmentedRoutingTable = Object.freeze({
+  preset: 's-best-cat-topk50-mult5-ms-2026-04-29' as const,
+  defaultMapping: Object.freeze({
+    'single-session-assistant': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'single-session-user': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'single-session-preference': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'knowledge-update': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'multi-session': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'topk50-mult5' as const,
+    }),
+    'temporal-reasoning': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+  }),
+}) as AugmentedRoutingTable;
+
+/**
  * Convenience registry of augmented preset tables, keyed by preset
- * name. Two presets ship: `minimize-cost-augmented` (v2 calibration)
- * and `s-best-cat-hyde-ms-2026-04-28` (S Pareto-win pre-validation
- * hypothesis). The `balanced-augmented` and `maximize-accuracy-
- * augmented` slots are reserved for v3 calibration alongside Stage E.
+ * name. Three presets ship: `minimize-cost-augmented` (v2 calibration),
+ * `s-best-cat-hyde-ms-2026-04-28` (S Pareto-win HyDE-on-MS — refuted
+ * at Phase A), and `s-best-cat-topk50-mult5-ms-2026-04-29` (the
+ * follow-up topk50-mult5-on-MS hypothesis). The `balanced-augmented`
+ * and `maximize-accuracy-augmented` slots are reserved for v3
+ * calibration alongside Stage E.
  */
 export const AUGMENTED_PRESET_TABLES: Readonly<
   Partial<Record<AugmentedMemoryRouterPreset, AugmentedRoutingTable>>
 > = Object.freeze({
   'minimize-cost-augmented': MINIMIZE_COST_AUGMENTED_TABLE,
   's-best-cat-hyde-ms-2026-04-28': S_BEST_CAT_HYDE_MS_2026_04_28_TABLE,
+  's-best-cat-topk50-mult5-ms-2026-04-29': S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE,
 });
 
 /**

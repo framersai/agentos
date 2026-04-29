@@ -33,6 +33,7 @@ import {
   MEMORY_QUERY_CATEGORIES,
   MINIMIZE_COST_AUGMENTED_TABLE,
   S_BEST_CAT_HYDE_MS_2026_04_28_TABLE,
+  S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE,
   AUGMENTED_PRESET_TABLES,
   SAFE_FALLBACK_BACKEND,
   SAFE_FALLBACK_DISPATCH_KEY,
@@ -313,6 +314,134 @@ describe('selectAugmentedDispatch: S-tuned table behavior', () => {
     const nonMs = MEMORY_QUERY_CATEGORIES.filter((c) => c !== 'multi-session');
     for (const category of nonMs) {
       const key = selectAugmentedDispatch(category, S_BEST_CAT_HYDE_MS_2026_04_28_TABLE);
+      expect(key.backend).toBe('canonical-hybrid');
+      expect(key.retrievalConfig).toBe('canonical');
+    }
+  });
+});
+
+describe('S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE: structural completeness', () => {
+  it('preset name matches the calibration date', () => {
+    expect(S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.preset).toBe(
+      's-best-cat-topk50-mult5-ms-2026-04-29',
+    );
+  });
+
+  it('has a dispatch key for every known MemoryQueryCategory', () => {
+    for (const category of MEMORY_QUERY_CATEGORIES) {
+      expect(
+        S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping[category],
+      ).toBeDefined();
+    }
+  });
+
+  it('every backend is canonical-hybrid (S Phase B 85.6% headline runs canonical end-to-end)', () => {
+    for (const category of MEMORY_QUERY_CATEGORIES) {
+      const key = S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping[category];
+      expect(key.backend).toBe('canonical-hybrid');
+    }
+  });
+
+  it('every retrievalConfig is a valid RetrievalConfigId', () => {
+    for (const category of MEMORY_QUERY_CATEGORIES) {
+      const key = S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping[category];
+      expect(RETRIEVAL_CONFIG_IDS).toContain<RetrievalConfigId>(
+        key.retrievalConfig as RetrievalConfigId,
+      );
+    }
+  });
+
+  it('frozen at module load (table + mapping + entries)', () => {
+    expect(Object.isFrozen(S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE)).toBe(true);
+    expect(Object.isFrozen(S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping)).toBe(true);
+    for (const category of MEMORY_QUERY_CATEGORIES) {
+      const key = S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping[category];
+      expect(Object.isFrozen(key)).toBe(true);
+    }
+  });
+});
+
+describe('S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE: load-bearing calibration choices', () => {
+  // Follows on from the refuted s-best-cat-hyde-ms-2026-04-28 HyDE
+  // hypothesis (Phase A regressed MS to 22.2%). The new hypothesis:
+  // S-scale MS bridge queries are pool-size-bound, not paraphrase-
+  // bound. Anchored on the M Phase A ablation matrix: topk50-mult5
+  // lifts M's MS canonical 18.0% → 44.4% without the hallucinated-
+  // document noise that HyDE introduces.
+
+  it('MS routes to retrievalConfig=topk50-mult5 (the wider rerank pool)', () => {
+    expect(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping['multi-session'].retrievalConfig,
+    ).toBe('topk50-mult5');
+  });
+
+  it('SSA routes to retrievalConfig=canonical (already 98.2% at canonical+RR)', () => {
+    expect(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping['single-session-assistant']
+        .retrievalConfig,
+    ).toBe('canonical');
+  });
+
+  it('SSU routes to retrievalConfig=canonical (already 94.3% at canonical+RR)', () => {
+    expect(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping['single-session-user']
+        .retrievalConfig,
+    ).toBe('canonical');
+  });
+
+  it('SSP routes to retrievalConfig=canonical (already 86.7% at canonical+RR)', () => {
+    expect(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping['single-session-preference']
+        .retrievalConfig,
+    ).toBe('canonical');
+  });
+
+  it('KU routes to retrievalConfig=canonical (already 91.0% at canonical+RR)', () => {
+    expect(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping['knowledge-update']
+        .retrievalConfig,
+    ).toBe('canonical');
+  });
+
+  it('TR routes to retrievalConfig=canonical (already 84.2% at canonical+RR)', () => {
+    expect(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping['temporal-reasoning']
+        .retrievalConfig,
+    ).toBe('canonical');
+  });
+
+  it('exactly one category deviates from canonical (the surgical-MS-only design)', () => {
+    const deviations = MEMORY_QUERY_CATEGORIES.filter(
+      (cat) =>
+        S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE.defaultMapping[cat].retrievalConfig !==
+        'canonical',
+    );
+    expect(deviations).toEqual(['multi-session']);
+  });
+});
+
+describe('AUGMENTED_PRESET_TABLES: topk50-mult5 S-tuned preset registration', () => {
+  it('exposes s-best-cat-topk50-mult5-ms-2026-04-29 keyed by preset name', () => {
+    expect(AUGMENTED_PRESET_TABLES['s-best-cat-topk50-mult5-ms-2026-04-29']).toBe(
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE,
+    );
+  });
+});
+
+describe('selectAugmentedDispatch: topk50-mult5 S-tuned table behavior', () => {
+  it('returns topk50-mult5 retrieval config for MS through the topk50-mult5 S-tuned table', () => {
+    const key = selectAugmentedDispatch(
+      'multi-session',
+      S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE,
+    );
+    expect(key.backend).toBe('canonical-hybrid');
+    expect(key.retrievalConfig).toBe('topk50-mult5');
+  });
+
+  it('returns canonical for every non-MS category through the topk50-mult5 S-tuned table', () => {
+    const nonMs = MEMORY_QUERY_CATEGORIES.filter((c) => c !== 'multi-session');
+    for (const category of nonMs) {
+      const key = selectAugmentedDispatch(category, S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE);
       expect(key.backend).toBe('canonical-hybrid');
       expect(key.retrievalConfig).toBe('canonical');
     }
