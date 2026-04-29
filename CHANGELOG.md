@@ -1,3 +1,11 @@
+## <small>0.5.5 (2026-04-29)</small>
+
+* feat(memory-router): add S-tuned per-category retrieval router preset ([9690d0f](https://github.com/framersai/agentos/commit/9690d0f))
+* docs: surface 3-stage classifier-driven memory pipeline + add READER_ROUTER source doc ([99ac99a](https://github.com/framersai/agentos/commit/99ac99a))
+* docs(READER_ROUTER): add 'Why the default classifier is gpt-5-mini and not gpt-4o' subsection ([ff1e26b](https://github.com/framersai/agentos/commit/ff1e26b))
+* docs(README): surface the classifier-driven memory pipeline as a top-level section ([1aa864c](https://github.com/framersai/agentos/commit/1aa864c))
+* chore: stop tracking tmp-parity.sqlite + ignore local sqlite test artifacts ([6bc1dc7](https://github.com/framersai/agentos/commit/6bc1dc7))
+
 ## <small>0.5.4 (2026-04-27)</small>
 
 * Merge pull request #3 from framersai/docs/auto-fallback-default ([b872c85](https://github.com/framersai/agentos/commit/b872c85)), closes [#3](https://github.com/framersai/agentos/issues/3)
