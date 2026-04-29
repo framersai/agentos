@@ -201,6 +201,33 @@ describe('CognitiveMemoryManager (integration)', () => {
       expect(assembled.contextText.length).toBeGreaterThan(0);
       expect(assembled.includedMemoryIds.length).toBeGreaterThan(0);
     });
+
+    it('injects configured persistent markdown memory into prompt context', async () => {
+      const managerWithPersistentMemory = new CognitiveMemoryManager();
+      await managerWithPersistentMemory.initialize({
+        vectorStore: createMockVectorStore(),
+        embeddingManager: createMockEmbeddingManager(),
+        knowledgeGraph: createMockKnowledgeGraph(),
+        workingMemory: createMockWorkingMemory(),
+        agentId: 'test-agent-persistent',
+        traits: { openness: 0.7, conscientiousness: 0.6, emotionality: 0.5 },
+        moodProvider: () => neutralMood,
+        featureDetectionStrategy: 'keyword',
+        collectionPrefix: 'test-persistent',
+        persistentMemory: {
+          read: () => '# Persistent Self\n- User prefers compact, direct answers.',
+        },
+      });
+
+      const assembled = await managerWithPersistentMemory.assembleForPrompt(
+        'answer style',
+        1000,
+        neutralMood,
+      );
+
+      expect(assembled.contextText).toContain('## Persistent Memory');
+      expect(assembled.contextText).toContain('User prefers compact, direct answers.');
+    });
   });
 
   describe('getMemoryHealth', () => {

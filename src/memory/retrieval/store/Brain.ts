@@ -706,7 +706,7 @@ export class Brain {
     ];
 
     for (const statement of ddlStatements) {
-      await this._adapter.exec(statement);
+      await this._adapter.exec(this._normalizeDdlForDialect(statement));
     }
 
     // FTS index via feature abstraction (FTS5 on SQLite, tsvector/GIN on Postgres).
@@ -725,6 +725,16 @@ export class Brain {
         throw error;
       }
     }
+  }
+
+  private _normalizeDdlForDialect(statement: string): string {
+    if (this._features.dialect.name !== 'postgres') {
+      return statement;
+    }
+
+    return statement
+      .replace(/\bINTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b/g, this._features.dialect.autoIncrementPrimaryKey())
+      .replace(/\bBLOB\b/g, 'BYTEA');
   }
 
   /**

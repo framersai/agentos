@@ -78,6 +78,15 @@ export interface ReflectorConfig {
   llmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
 }
 
+export interface PersistentMemorySource {
+  /**
+   * Read markdown memory that should be injected into every assembled prompt.
+   * Implementations are expected to handle missing/unreadable backing stores
+   * and return an empty string when no persistent memory is available.
+   */
+  read: () => string | Promise<string>;
+}
+
 /**
  * Configuration for the memory graph subsystem.
  *
@@ -252,6 +261,15 @@ export interface CognitiveMemoryConfig {
   reflector?: Partial<ReflectorConfig>;
   graph?: Partial<MemoryGraphConfig>;
   consolidation?: Partial<ConsolidationConfig>;
+
+  /**
+   * Optional persistent markdown memory source injected into every prompt.
+   *
+   * This is separate from active working memory: working memory is the
+   * bounded cognitive focus, while persistent memory is durable agent/user
+   * state such as profile notes, preferences, and identity anchors.
+   */
+  persistentMemory?: PersistentMemorySource;
 
   // --- Cognitive Mechanisms (optional, no-op when absent) ---
   /** Optional per-mechanism cognitive science extensions (reconsolidation, RIF, FOK, etc.). */

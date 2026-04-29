@@ -892,6 +892,17 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
     // Get working memory state
     const wmText = this.workingMemory.formatForPrompt();
 
+    let persistentMemoryText: string | undefined;
+    if (this.config.persistentMemory) {
+      try {
+        const text = await this.config.persistentMemory.read();
+        const trimmed = typeof text === 'string' ? text.trim() : '';
+        persistentMemoryText = trimmed.length > 0 ? trimmed : undefined;
+      } catch {
+        /* non-critical */
+      }
+    }
+
     // --- Batch 2: Check prospective memory ---
     const prospectiveAlerts: string[] = [];
     if (this.prospective) {
@@ -936,6 +947,7 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       allocation: this.config.tokenBudget,
       traits: this.config.traits,
       workingMemoryText: wmText,
+      persistentMemoryText,
       retrievedTraces: result.retrieved,
       prospectiveAlerts,
       graphContext,
