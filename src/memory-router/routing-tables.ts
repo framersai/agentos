@@ -243,12 +243,28 @@ export const SAFE_FALLBACK_DISPATCH_KEY: MemoryDispatchKey = Object.freeze({
 });
 
 /**
- * The augmented preset names. v2 (2026-04-26) ships only the
- * `minimize-cost-augmented` preset; the other two preset names are
- * reserved for v3 calibration alongside Stage E.
+ * The augmented preset names.
+ *
+ * Shipping presets:
+ *
+ * - `minimize-cost-augmented` (2026-04-26 v2) — composite per-category
+ *   dispatch derived from the LongMemEval-S Phase B backend choices and
+ *   the LongMemEval-M Phase A retrieval-config ablation matrix.
+ * - `s-best-cat-hyde-ms-2026-04-28` — surgical-MS-only S-tuned preset.
+ *   Holds canonical retrieval everywhere except multi-session, which
+ *   switches to HyDE on the bet that paraphrase-rich multi-hop bridge
+ *   queries benefit from hypothetical-document expansion. Calibration
+ *   anchors against the 2026-04-28 canonical+RR Phase B headline (85.6%
+ *   aggregate, MS at 76.9% — the only weak category at S scale).
+ *
+ * Reserved for v3 calibration alongside Stage E:
+ *
+ * - `balanced-augmented`, `maximize-accuracy-augmented` — table values
+ *   and selector wiring will land when the calibration data exists.
  */
 export type AugmentedMemoryRouterPreset =
   | 'minimize-cost-augmented'
+  | 's-best-cat-hyde-ms-2026-04-28'
   | 'balanced-augmented'
   | 'maximize-accuracy-augmented';
 
@@ -324,14 +340,78 @@ export const MINIMIZE_COST_AUGMENTED_TABLE: AugmentedRoutingTable = Object.freez
 }) as AugmentedRoutingTable;
 
 /**
+ * Preset: s-best-cat-hyde-ms-2026-04-28.
+ *
+ * Surgical-MS-only S-tuned preset. Anchors against the 2026-04-28
+ * canonical+RR Phase B headline on LongMemEval-S (85.6% aggregate,
+ * MS at 76.9% [69.2%, 84.6%] — the only category with double-digit
+ * headroom in the run). Holds the canonical retrieval-config for every
+ * other category and switches multi-session alone to HyDE.
+ *
+ * **Why this design:** the M Phase A ablation matrix (Phase A N=54)
+ * showed HyDE alone _hurts_ MS at M scale (multi-session canonical
+ * 0.180 → hyde 0.111), but at S scale the haystack is 50 sessions
+ * versus 500. The hypothesis is that S-scale multi-session bridge
+ * queries are paraphrase-bound, not pool-size-bound — exactly the
+ * regime where HyDE expansion lifts retrieval. Phase A probe at
+ * S N=54 is the validation gate.
+ *
+ * Backend axis: every category routes to canonical-hybrid (the
+ * 85.6% headline runs canonical end-to-end; the OM-v11 dispatches
+ * from MINIMIZE_COST_AUGMENTED_TABLE were calibrated against the
+ * stale CharHash-era backend matrix and regressed on the sem-embed
+ * + reader-router stack).
+ *
+ * **Calibration validity:** PRE-VALIDATION HYPOTHESIS. The MS → HyDE
+ * pick is data-driven against the M Phase A intuition (HyDE expands
+ * bridge-query coverage) but has not been measured at S scale. Phase
+ * A probe at LongMemEval-S N=54 stratified is the next gate; Phase B
+ * at N=500 is the publication gate. Update this table from any future
+ * S Phase B per-category ablation rather than trusting the pre-
+ * validation hypothesis once data lands.
+ */
+export const S_BEST_CAT_HYDE_MS_2026_04_28_TABLE: AugmentedRoutingTable = Object.freeze({
+  preset: 's-best-cat-hyde-ms-2026-04-28' as const,
+  defaultMapping: Object.freeze({
+    'single-session-assistant': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'single-session-user': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'single-session-preference': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'knowledge-update': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+    'multi-session': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'hyde' as const,
+    }),
+    'temporal-reasoning': Object.freeze({
+      backend: 'canonical-hybrid' as const,
+      retrievalConfig: 'canonical' as const,
+    }),
+  }),
+}) as AugmentedRoutingTable;
+
+/**
  * Convenience registry of augmented preset tables, keyed by preset
- * name. v2 ships only `minimize-cost-augmented`; the other two
- * preset names will be wired in v3 alongside Stage E.
+ * name. Two presets ship: `minimize-cost-augmented` (v2 calibration)
+ * and `s-best-cat-hyde-ms-2026-04-28` (S Pareto-win pre-validation
+ * hypothesis). The `balanced-augmented` and `maximize-accuracy-
+ * augmented` slots are reserved for v3 calibration alongside Stage E.
  */
 export const AUGMENTED_PRESET_TABLES: Readonly<
   Partial<Record<AugmentedMemoryRouterPreset, AugmentedRoutingTable>>
 > = Object.freeze({
   'minimize-cost-augmented': MINIMIZE_COST_AUGMENTED_TABLE,
+  's-best-cat-hyde-ms-2026-04-28': S_BEST_CAT_HYDE_MS_2026_04_28_TABLE,
 });
 
 /**
