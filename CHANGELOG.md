@@ -1,3 +1,7 @@
+## <small>0.5.6 (2026-04-29)</small>
+
+* feat(memory-router): add topk50-mult5-on-MS S-tuned preset (follow-up to refuted HyDE preset) ([fb79c65](https://github.com/framersai/agentos/commit/fb79c65))
+
 ## <small>0.5.5 (2026-04-29)</small>
 
 * feat(memory-router): add S-tuned per-category retrieval router preset ([9690d0f](https://github.com/framersai/agentos/commit/9690d0f))
