@@ -1,3 +1,7 @@
+## <small>0.5.8 (2026-04-29)</small>
+
+* feat(memory): inject persistent markdown into prompt assembly + normalize Postgres DDL ([0d27268](https://github.com/framersai/agentos/commit/0d27268))
+
 ## <small>0.5.7 (2026-04-29)</small>
 
 * feat(memory-router): productionize ReaderRouter primitive ([162d7ab](https://github.com/framersai/agentos/commit/162d7ab))
