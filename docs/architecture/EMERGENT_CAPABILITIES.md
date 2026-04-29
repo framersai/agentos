@@ -556,9 +556,9 @@ await importEmergentTool('./slugify.emergent-tool.yaml', { seedId: agentSeedId }
     maxSessionTools: 10,           // Max tools per session
     maxAgentTools: 50,             // Max persisted per agent
 
-    // Sandbox resource limits
+    // Sandbox resource limits and telemetry
     sandboxTimeoutMs: 5000,        // VM execution timeout
-    sandboxMemoryMB: 128,          // VM memory cap
+    sandboxMemoryMB: 128,          // Nominal budget; node:vm reports heap delta only
 
     // Judge configuration
     judgeModel: 'gpt-4o-mini',    // Model for creation reviews
