@@ -87,6 +87,57 @@ The pipeline is novel because the **T0 / no-memory gate** removes retrieval enti
 
 ---
 
+## Memory Benchmarks at Matched Reader
+
+Honest, apples-to-apples comparison: same reader (`gpt-4o`), same dataset, same N=500 Phase B methodology, same `gpt-4o-2024-08-06` judge with `rubric 2026-04-18.1` (FPR 1% [0%, 3%] at n=100). Cross-provider configurations (e.g. Gemini observers) are not included because their results cannot be reproduced from public methodology disclosures.
+
+### LongMemEval-S Phase B (115K tokens, 50 sessions per haystack)
+
+| System (gpt-4o reader, Phase B N=500) | Accuracy | 95% CI | $/correct | p50 latency | Source |
+|---|---:|---|---:|---:|---|
+| EmergenceMem Internal | 86.0% | not published | not published | 5,650 ms | [emergence.ai](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
+| **🚀 AgentOS canonical-hybrid + reader-router** | **85.6%** | **[82.4%, 88.6%]** | **$0.0090** | **3,558 ms** | [85.6% post](https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win) |
+| Mastra OM gpt-4o (gemini-flash observer) | 84.23% | not published | not published | not published | [mastra.ai](https://mastra.ai/research/observational-memory) |
+| Supermemory gpt-4o | 81.6% | not published | not published | not published | [supermemory.ai](https://supermemory.ai/research/) |
+| EmergenceMem Simple Fast (apples-to-apples in our harness) | 80.6% | measured | $0.0586 | not published | v2 vendor reproduction |
+| Zep self-reported / independently reproduced | 71.2% / 63.8% | not published | not published | 632 ms p95 search | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv:2512.13564](https://arxiv.org/abs/2512.13564) |
+
+**+1.4 pp accuracy over Mastra OM gpt-4o at the same reader.** Statistically tied with EmergenceMem Internal (86.0% point estimate sits inside our 95% CI [82.4%, 88.6%]). Median latency vs EmergenceMem is **1.6× faster** (3.558 s vs 5.650 s).
+
+### LongMemEval-M Phase B (1.5M tokens, 500 sessions per haystack)
+
+The harder variant. M's haystacks exceed every production context window (GPT-4o 128K, Claude Opus 200K, Gemini 3 Pro 1M). Most memory vendors stop at S because raw long-context fits there.
+
+| System | Accuracy | 95% CI | License | Source |
+|---|---:|---|---|---|
+| AgentBrain | 71.7% (Test 0) | not published | closed-source SaaS | [github.com/AgentBrainHQ](https://github.com/AgentBrainHQ) |
+| **🚀 AgentOS (sem-embed + reader-router + top-K=5)** | **70.2%** | **[66.0%, 74.0%]** | **MIT** | [70.2% post](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5) |
+| LongMemEval paper academic baseline | 65.7% | not published | open repo | [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813) |
+| Mem0 v3, Mastra OM, Hindsight, Zep, EmergenceMem, Supermemory, MemMachine, Memoria, agentmemory, Backboard, ByteRover, Letta | not published | — | various | reports S only |
+
+**Statistically tied with AgentBrain's closed-source SaaS** (their 71.7% sits inside our CI [66.0%, 74.0%]). **+4.5 pp above the LongMemEval paper's published academic ceiling.** **First open-source memory library on the public record above 65% on M with full methodology disclosure** (bootstrap CIs, per-case run JSONs, reproducible CLI, MIT-licensed).
+
+### Methodology disclosure (12 axes most vendors omit)
+
+| Axis | AgentOS | Most vendors |
+|---|:-:|:-:|
+| Aggregate accuracy | yes | yes |
+| 95% bootstrap CI on headline | yes | no |
+| Per-category 95% CI | yes | no |
+| Reader model disclosed | yes | mostly |
+| Observer / ingest model disclosed | yes | mostly |
+| USD cost per correct | yes | no |
+| Latency avg / p50 / p95 | yes | rarely |
+| Per-category breakdown | yes | sometimes |
+| Open-source benchmark runner | yes | rarely |
+| Per-case run JSONs at fixed seed | yes | no |
+| Judge-adversarial FPR probe | yes (1% S, 2% M, 0% LOCOMO) | no |
+| Matched-reader cross-vendor table | yes | partial |
+
+The full audit framework is at [Memory Benchmark Transparency Audit](https://docs.agentos.sh/blog/2026/04/24/memory-benchmark-transparency-audit). Every run referenced above ships with a per-case run JSON at `seed=42`.
+
+---
+
 ## See It In Action
 
 ### 🌀 Paracosm — AI Agent Swarm Simulation
