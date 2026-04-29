@@ -267,3 +267,24 @@ export type {
   RetrievalConfigId,
   RetrievalConfigSpec,
 } from './retrieval-config.js';
+
+// ============================================================================
+// ReaderRouter (per-query reader-tier dispatch, calibrated from
+// 2026-04-28 LongMemEval-S Phase B N=500 per-category gpt-4o vs
+// gpt-5-mini split)
+// ============================================================================
+
+export {
+  MIN_COST_BEST_CAT_2026_04_28_TABLE as READER_MIN_COST_BEST_CAT_2026_04_28_TABLE,
+  MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE as READER_MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE,
+  READER_ROUTER_PRESET_TABLES,
+  ReaderRouterUnknownCategoryError,
+  ReaderRouterUnknownPresetError,
+  selectReader,
+} from './reader-router.js';
+
+export type {
+  ReaderTier,
+  ReaderRouterPreset,
+  ReaderRouterTable,
+} from './reader-router.js';
