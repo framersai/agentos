@@ -1,6 +1,12 @@
 # Agent Config Export & Import
 
-> Round-trip agent configurations between environments with secret redaction, schema validation, and CLI support.
+> Round-trip agent configurations between environments via the
+> programmatic API — secret redaction and schema validation included.
+
+> **CLI coming soon.** A first-party `agentos` command-line wrapper for
+> these APIs is planned alongside the [Wunderland](https://wunderland.sh)
+> control plane. Until it ships, every operation below is available as a
+> TypeScript import from `@framers/agentos`.
 
 ---
 
@@ -8,15 +14,14 @@
 
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
-3. [CLI Commands](#cli-commands)
-4. [Programmatic API](#programmatic-api)
-5. [Export Formats](#export-formats)
-6. [Secret Redaction](#secret-redaction)
-7. [Schema Validation](#schema-validation)
-8. [Round-Trip Workflow](#round-trip-workflow)
-9. [Portable Agent Bundles](#portable-agent-bundles)
-10. [Examples](#examples)
-11. [Related Documentation](#related-documentation)
+3. [Programmatic API](#programmatic-api)
+4. [Export Formats](#export-formats)
+5. [Secret Redaction](#secret-redaction)
+6. [Schema Validation](#schema-validation)
+7. [Round-Trip Workflow](#round-trip-workflow)
+8. [Portable Agent Bundles](#portable-agent-bundles)
+9. [Examples](#examples)
+10. [Related Documentation](#related-documentation)
 
 ---
 
@@ -41,65 +46,32 @@ re-supplied on import.
 
 ### Export an Agent
 
-```bash
-# Export to YAML (default)
-agentos-cli export --output my-agent.yaml
+```typescript
+import { exportAgentConfig } from '@framers/agentos';
+import { writeFileSync } from 'node:fs';
 
-# Export to JSON
-agentos-cli export --format json --output my-agent.json
+const exported = await exportAgentConfig({
+  configDir: '~/.agentos',   // Config directory to read
+  format: 'yaml',            // 'yaml' | 'json' (yaml is default)
+  redactSecrets: true,       // Replace secrets with <<REDACTED>> placeholders
+});
 
-# Export from a specific config directory
-agentos-cli export --config ~/.agentos/agents/research-bot --output research-bot.yaml
+writeFileSync('./my-agent.yaml', exported.content);
 ```
 
 ### Import an Agent
 
-```bash
-# Import from file
-agentos-cli import my-agent.yaml
+```typescript
+import { importAgent } from '@framers/agentos';
 
-# Import to a specific directory
-agentos-cli import my-agent.yaml --target ~/.agentos/agents/new-agent
-
-# Import with automatic secret prompting
-agentos-cli import my-agent.yaml --prompt-secrets
-```
-
----
-
-## CLI Commands
-
-### `agentos-cli export`
-
-Export the current agent configuration to a portable file.
-
-```
-Usage: agentos-cli export [options]
-
-Options:
-  --output, -o <path>      Output file path (default: stdout)
-  --format <yaml|json>     Output format (default: yaml)
-  --config <path>          Config directory to export from
-  --include-skills         Include resolved skill content (default: false)
-  --include-workflows      Include workflow definitions (default: false)
-  --no-redact              Skip secret redaction (DANGEROUS — includes raw API keys)
-  --pretty                 Pretty-print JSON output (default: true)
-```
-
-### `agentos-cli import`
-
-Import an agent configuration from a file.
-
-```
-Usage: agentos-cli import <file> [options]
-
-Options:
-  --target <path>          Target config directory (default: current)
-  --prompt-secrets         Interactively prompt for redacted secrets
-  --merge                  Merge with existing config instead of replacing
-  --dry-run                Show what would change without writing
-  --validate-only          Validate the file without importing
-  --yes, -y                Skip confirmation prompts
+await importAgent({
+  source: './my-agent.yaml',     // File path or string content
+  targetDir: '~/.agentos',       // Where to write the config
+  secrets: {                     // Re-supply redacted secrets
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
+  },
+});
 ```
 
 ---
@@ -304,29 +276,37 @@ export. The list of redacted keys includes:
 
 ### Exporting Without Redaction
 
-Use `--no-redact` for trusted environments (e.g., encrypted backup):
+Pass `redactSecrets: false` for trusted environments (e.g. an encrypted
+backup pipeline). The output will contain raw API keys — handle the
+return value as a secret.
 
-```bash
-# WARNING: Output will contain raw API keys
-agentos-cli export --no-redact --output backup.yaml
+```typescript
+const exported = await exportAgentConfig({
+  configDir: '~/.agentos',
+  format: 'yaml',
+  redactSecrets: false,   // WARNING: raw API keys in exported.content
+});
 ```
 
 ### Supplying Secrets on Import
 
-```bash
-# Interactive prompting for each redacted secret
-agentos-cli import my-agent.yaml --prompt-secrets
-
-# Supply secrets via environment variables (they're matched by name)
-OPENAI_API_KEY=sk-... agentos-cli import my-agent.yaml
-
-# Supply secrets programmatically
+```typescript
+// Supply secrets programmatically (typical CI / server case)
 await importAgent({
   source: './my-agent.yaml',
   secrets: {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
   },
+});
+
+// Or read from a `.env` file before importing
+import 'dotenv/config';
+await importAgent({
+  source: './my-agent.yaml',
+  secrets: Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k.endsWith('_API_KEY')),
+  ),
 });
 ```
 
@@ -337,25 +317,13 @@ await importAgent({
 Exported configurations are validated against a JSON Schema on both export
 and import:
 
-```bash
-# Validate without importing
-agentos-cli import my-agent.yaml --validate-only
-
-# Output:
-# ✓ Schema version: 1.0.0
-# ✓ Required fields: present
-# ✓ LLM provider: valid (anthropic)
-# ✓ Security tier: valid (balanced)
-# ✓ Skills: 3 referenced, all resolvable
-# ⚠ Secrets: 3 redacted keys (supply on import)
-```
-
-### Programmatic Validation
-
 ```typescript
-import { validateAgentConfig } from '@framers/agentos';
+import { validateAgentExport } from '@framers/agentos';
+import { readFileSync } from 'node:fs';
+import yaml from 'yaml';
 
-const result = validateAgentConfig('./my-agent.yaml');
+const config = yaml.parse(readFileSync('./my-agent.yaml', 'utf8'));
+const result = validateAgentExport(config);
 
 if (result.valid) {
   console.log('Config is valid');
@@ -366,40 +334,76 @@ if (result.valid) {
 }
 ```
 
+A successful validation surfaces the same shape the importer would log:
+
+```
+✓ Schema version: 1.0.0
+✓ Required fields: present
+✓ LLM provider: valid (anthropic)
+✓ Security tier: valid (balanced)
+✓ Skills: 3 referenced, all resolvable
+⚠ Secrets: 3 redacted keys (supply on import)
+```
+
 ---
 
 ## Round-Trip Workflow
 
-A typical workflow for migrating an agent between environments:
+A typical workflow for migrating an agent between environments — the
+script lives wherever your deployment automation already runs (CI job,
+deploy step, post-merge hook):
+
+```typescript
+// 1. Export from development (run once locally or in CI)
+import { exportAgentConfig } from '@framers/agentos';
+import { writeFileSync } from 'node:fs';
+
+const exported = await exportAgentConfig({
+  configDir: '~/.agentos/dev-agent',
+  format: 'yaml',
+});
+writeFileSync('./agent-config.yaml', exported.content);
+```
 
 ```bash
-# 1. Export from development
-cd ~/dev-agent
-agentos-cli export --output agent-config.yaml
-
 # 2. Commit to version control
 git add agent-config.yaml
 git commit -m "Export research-assistant config"
+git push
+```
 
-# 3. Import on production server
-ssh prod-server
-git pull
-agentos-cli import agent-config.yaml --prompt-secrets --target /opt/agents/research-bot
+```typescript
+// 3. Import on the production server (run from your deploy script)
+import { importAgent } from '@framers/agentos';
 
-# 4. Verify
-agentos-cli doctor --config /opt/agents/research-bot
+await importAgent({
+  source: './agent-config.yaml',
+  targetDir: '/opt/agents/research-bot',
+  secrets: {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
+  },
+});
 ```
 
 ### Team Sharing
 
-```bash
-# Developer A: Export and share
-agentos-cli export --output team-agent.yaml --include-skills
-# Commit to shared repo
+```typescript
+// Developer A: export with skills bundled in, then commit team-agent.yaml
+const exported = await exportAgentConfig({
+  configDir: '~/.agentos/team-agent',
+  format: 'yaml',
+  includeSkills: true,
+});
+writeFileSync('./team-agent.yaml', exported.content);
 
-# Developer B: Import and customize
-agentos-cli import team-agent.yaml --merge --prompt-secrets
-# The --merge flag preserves local settings while applying shared ones
+// Developer B: merge into local config, supplying their own secrets
+await importAgent({
+  source: './team-agent.yaml',
+  targetDir: '~/.agentos',
+  merge: true,                          // Preserve local overrides
+  secrets: { /* developer B's keys */ },
+});
 ```
 
 ---
@@ -407,24 +411,39 @@ agentos-cli import team-agent.yaml --merge --prompt-secrets
 ## Portable Agent Bundles
 
 For sharing agents with all dependencies (skills, workflows, custom tools),
-use the bundle format:
+pass `format: 'bundle'` to produce a single `.tar.gz`:
 
-```bash
-# Create a self-contained bundle (.tar.gz)
-agentos-cli export --bundle --output my-agent-bundle.tar.gz --include-skills --include-workflows
+```typescript
+import { exportAgentConfig } from '@framers/agentos';
+import { writeFileSync } from 'node:fs';
 
-# The bundle contains:
-#   agent-config.yaml        — Main configuration
-#   skills/                  — Resolved SKILL.md files
-#   workflows/               — Workflow definitions
-#   tools/                   — Custom tool definitions
-#   MANIFEST.json            — Bundle metadata and checksums
+const exported = await exportAgentConfig({
+  configDir: '~/.agentos/research-agent',
+  format: 'bundle',
+  includeSkills: true,
+  includeWorkflows: true,
+});
+
+writeFileSync('./my-agent-bundle.tar.gz', exported.buffer);
+```
+
+The bundle contains:
+
+```
+agent-config.yaml        — Main configuration
+skills/                  — Resolved SKILL.md files
+workflows/               — Workflow definitions
+tools/                   — Custom tool definitions
+MANIFEST.json            — Bundle metadata and checksums
 ```
 
 ### Import a Bundle
 
-```bash
-agentos-cli import my-agent-bundle.tar.gz --target ~/.agentos/agents/imported
+```typescript
+await importAgent({
+  source: './my-agent-bundle.tar.gz',
+  targetDir: '~/.agentos/agents/imported',
+});
 ```
 
 ---
@@ -446,8 +465,9 @@ const exported = await exportAgentConfig({
 
 writeFileSync('./deploy/agent-config.json', exported.content);
 
-// In CI, secrets come from environment
-// OPENAI_API_KEY, ANTHROPIC_API_KEY, etc. are set as CI secrets
+// In CI, secrets come from environment variables — set OPENAI_API_KEY,
+// ANTHROPIC_API_KEY, etc. as CI secrets and pass them to importAgent on
+// the deploy step.
 ```
 
 ### Clone an Agent
@@ -475,11 +495,19 @@ await importAgent({
 
 ### Diff Two Configs
 
-```bash
-# Export both configs and diff
-agentos-cli export --config ./agent-a --format json --output /tmp/a.json
-agentos-cli export --config ./agent-b --format json --output /tmp/b.json
-diff /tmp/a.json /tmp/b.json
+```typescript
+import { exportAgentConfig } from '@framers/agentos';
+import { writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+
+// Export both configs as JSON
+for (const dir of ['./agent-a', './agent-b']) {
+  const exported = await exportAgentConfig({ configDir: dir, format: 'json' });
+  writeFileSync(`/tmp/${dir.replace(/\W/g, '_')}.json`, exported.content);
+}
+
+// Diff with whatever you already use
+console.log(execSync('diff /tmp/_agent_a.json /tmp/_agent_b.json').toString());
 ```
 
 ---
@@ -490,3 +518,4 @@ diff /tmp/a.json /tmp/b.json
 - [Architecture](./ARCHITECTURE.md) — System architecture overview
 - [Skills](./SKILLS.md) — Skill format and discovery
 - [Ecosystem](./ECOSYSTEM.md) — AgentOS ecosystem overview
+- [Wunderland](https://wunderland.sh) — Companion control plane (CLI ships from here)
