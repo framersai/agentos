@@ -59,13 +59,13 @@ Two pieces matter. Memory survives across turns. The agent's tool surface can gr
 
 ### Runtime Tool Forging
 
-An agent, mid-decision, decides it needs a function it doesn't have. It writes the function in TypeScript with a Zod-described input and output. A separate LLM call reads the forged function alongside the agent's stated intent and either approves or rejects. Approved functions run in a [V8 isolate](https://github.com/laverdet/isolated-vm) sandbox: 128 MB heap, 10-second wall clock, no filesystem, no network, no `eval`, no dynamic import. Approved tools land in a discoverable index. Future turns invoke them via `call_forged_tool(name, args)`. A forge costs full LLM tokens; reuse costs tens. Cost flattens after the first few turns.
+When an agent encounters a sub-task that no available tool covers, it generates a TypeScript function with a Zod-described input and output schema. A separate LLM call evaluates the forged function against the agent's stated intent and either approves or rejects it. Approved functions execute in a [V8 isolate](https://github.com/laverdet/isolated-vm) with a 128 MB heap and a 10-second wall clock; the sandbox forbids filesystem access, network access, `eval`, and dynamic import. Approved tools are added to a discoverable index keyed by name and signature, and subsequent turns invoke them via `call_forged_tool(name, args)`. A first-time forge costs full LLM tokens; reuse costs tens of tokens. Total cost per turn flattens once a session has accumulated a handful of approved tools.
 
-The first time I saw a security-officer agent in a Mars Genesis run forge `compute_resource_allocation_under_drought_constraint(state) → priorityList`, I assumed the function was hallucinated and would not run. It ran. The judge approved it. The next turn used it. Three turns later, the science officer was calling the same tool because the colony state had become the kind that needed it. Nothing about that path was scripted.
+A representative example, observed in a Mars Genesis run: a security-officer agent forged `compute_resource_allocation_under_drought_constraint(state) → priorityList` mid-decision. The judge approved it, the next turn invoked it, and three turns later the science-officer agent invoked the same tool because the colony state had progressed into a configuration the function applied to. Neither side of that path is scripted; the runtime made the tool discoverable and the agents found it on their own.
 
 ### HEXACO Personality (optional)
 
-Most agents you build with AgentOS never touch personality. The runtime works the same with or without a trait vector.
+Personality is opt-in. The runtime behaves identically with or without a trait vector, and most production deployments do not pass one.
 
 ```ts
 // Personality-neutral (most production agents)
@@ -84,13 +84,13 @@ const visionary = agent({
 });
 ```
 
-When you pass a vector, the kernel uses it. Retrieval is biased toward memories the trait vector resonates with, decision routing weights specialists differently, tool selection picks differently among legitimate options. Same agent, same prompt, same tools: a high-Openness leader and a high-Conscientiousness leader make measurably different decisions because the kernel weighted different evidence. The bias lives in the kernel, not in a prompt; prompt-only personality dissolves under pressure. The vector is editable, inspectable, and removable on consent.
+When a vector is supplied, the kernel applies it as a structured signal. Retrieval ranking is biased toward memories whose surface features align with the trait values, decision routing weights specialist agents according to the same trait values, and tool selection chooses differently among multiple legitimate options. Holding agent, prompt, and tool set constant, a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences because the kernel weights different evidence at each step. The bias is encoded in the kernel rather than in a system prompt; prompt-only personality has been shown to dissolve under context pressure, while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.
 
-### Why this composes into emergence
+### Why these compose into emergence
 
-Mars Genesis: two leaders, same starting state, same agent roster, same seed. By turn six they have diverged. Not because the prompt diverged. Because the personality vector biased one leader's specialists toward memories the other's didn't surface, and because a tool one specialist forged on turn two became the obvious next move on turn five for one side and not the other. Same world, two histories.
+In a Mars Genesis run with two leaders sharing identical starting state, agent roster, and seed, the two colonies diverge by turn six. The divergence is not driven by prompt differences. It comes from two compounding effects: the personality vector biases each leader's specialists toward different evidence in retrieval, and a tool forged by one specialist on turn two becomes the obvious next move on turn five for that side only. The other side never forged the tool and never had it indexed for reuse.
 
-Durable memory plus a tool surface that can grow plus optional personality biasing the choices among them. Each capability is configurable. The surprises are in how they compose, not in the components.
+Durable memory, a tool surface that grows within a session, and optional personality bias compose into behavior that is not specified by the prompt or the developer. Each capability is documented and configurable; the divergence is a property of the composition, not of any individual component.
 
 ---
 
