@@ -297,6 +297,11 @@ export class OpenRouterProvider implements IProvider {
       model: modelId,
       messages: openRouterMessages,
       stream: true,
+      // OpenRouter follows the OpenAI streaming convention: usage is omitted
+      // unless stream_options.include_usage is set, in which case a trailing
+      // usage-only chunk arrives before [DONE]. Without this flag,
+      // streamText({...}).usage resolves to all zeros even on success.
+      stream_options: { include_usage: true },
       ...(options.temperature !== undefined && { temperature: options.temperature }),
       ...(options.topP !== undefined && { top_p: options.topP }),
       ...(options.maxTokens !== undefined && { max_tokens: options.maxTokens }),
@@ -503,6 +508,29 @@ export class OpenRouterProvider implements IProvider {
       accumulatedToolCalls: Map<number, { id?: string; type?: 'function'; function?: { name?: string; arguments?: string; } }>
   ): ModelCompletionResponse {
       const choice = apiChunk.choices[0];
+
+      // With stream_options.include_usage, OpenRouter (like OpenAI) emits a
+      // trailing chunk with an empty choices array and a populated usage
+      // object. Recognize it as a final usage-only chunk so callers see real
+      // token totals after the stream resolves. Without this, the empty-choices
+      // path below would mark it as a malformed-response error.
+      if ((!apiChunk.choices || apiChunk.choices.length === 0) && apiChunk.usage) {
+        return {
+          id: apiChunk.id,
+          object: apiChunk.object,
+          created: apiChunk.created,
+          modelId: apiChunk.model || requestedModelId,
+          choices: [],
+          isFinal: true,
+          usage: {
+            promptTokens: apiChunk.usage.prompt_tokens,
+            completionTokens: apiChunk.usage.completion_tokens,
+            totalTokens: apiChunk.usage.total_tokens,
+            costUSD: apiChunk.usage.cost,
+          },
+        };
+      }
+
       if (!choice) {
         return {
           id: apiChunk.id, object: apiChunk.object, created: apiChunk.created,
