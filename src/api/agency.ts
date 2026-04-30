@@ -234,14 +234,12 @@ export function agency(opts: AgencyOptions): Agent {
       const hasValidation = !!opts.output;
 
       let currentPrompt = preparedPrompt;
-      let lastResult: Record<string, unknown> | null = null;
       let lastFinalized: FinalizedExecutionResult | null = null;
 
       const maxAttempts = hasValidation ? maxValidationRetries + 1 : 1;
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const result = (await strategy.execute(currentPrompt, execOpts)) as Record<string, unknown>;
-        lastResult = result;
         const finalized = await finalizeExecutionResult(result, start, sessionId);
         lastFinalized = finalized;
 

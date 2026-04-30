@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   StorageAdapter,
+  StorageCapability,
   StorageParameters,
   StorageRunResult,
 } from '@framers/sql-storage-adapter';
@@ -8,6 +9,15 @@ import { Brain } from '../Brain.js';
 
 class RecordingPostgresAdapter implements StorageAdapter {
   readonly kind = 'postgres' as const;
+  readonly capabilities: ReadonlySet<StorageCapability> = new Set<StorageCapability>([
+    'transactions',
+    'locks',
+    'persistence',
+    'concurrent',
+    'json',
+    'arrays',
+    'prepared',
+  ]);
   readonly execStatements: string[] = [];
 
   async open(): Promise<void> {}
