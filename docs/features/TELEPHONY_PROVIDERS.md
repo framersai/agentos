@@ -370,9 +370,12 @@ These flags configure the telephony HTTP webhook listener:
 
 **Example**
 
+These flags are implemented on the [`wunderland`](https://wunderland.sh)
+CLI (`npm install -g @framers/wunderland`):
+
 ```sh
 # Start a chat session with the Twilio webhook server on port 3001
-agentos-cli chat \
+wunderland chat \
   --telephony-provider=twilio \
   --telephony-webhook-port=3001 \
   --telephony-webhook-host=0.0.0.0 \

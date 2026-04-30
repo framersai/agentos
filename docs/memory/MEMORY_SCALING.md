@@ -4,6 +4,8 @@
 
 `Memory.create()` currently opens the SQLite-backed standalone memory facade. The Postgres, Qdrant, and Pinecone material below applies to the lower-level RAG/vector-store layer and migration tooling while the high-level memory facade remains SQLite-backed.
 
+> **CLI coming soon.** Migrations today run through the `MigrationEngine` programmatic API shown below. A first-party `agentos` migration CLI is planned alongside the [Wunderland](https://wunderland.sh) control plane.
+
 ---
 
 ## The Four-Tier Scaling Path
@@ -16,18 +18,18 @@ SQLite brute-force (0 → 1K vectors)
 SQLite + HNSW sidecar (1K → 500K vectors)
   │  Still zero infra — brain.sqlite + brain.hnsw
   │  O(log n) ANN search via hnswlib
-  │  $ agentos-cli memory migrate --to postgres
+  │  MigrationEngine.migrate({ from: sqlite, to: postgres })
   ▼
 Postgres + pgvector (500K → 10M vectors)
   │  Multi-tenant, managed DB, native HNSW indexes
   │  RRF hybrid search in single SQL query
-  │  $ agentos-cli memory migrate --to qdrant
+  │  MigrationEngine.migrate({ from: postgres, to: qdrant })
   ▼
 Qdrant (10M → 1B+ vectors)
      Dedicated vector infra, sharding, quantization
 ```
 
-The first transition (brute-force → HNSW sidecar) is **automatic** — no user action needed. Each subsequent step is a **one-command migration**.
+The first transition (brute-force → HNSW sidecar) is **automatic** — no user action needed. Each subsequent step is a single `MigrationEngine.migrate()` call.
 
 ---
 
@@ -38,7 +40,7 @@ Every agent starts here. Zero infrastructure, zero configuration.
 ```typescript
 const mem = await Memory.create(); // Defaults to SQLite at tmpdir
 // or
-const mem = await Memory.create({
+const mem = await Memory.createSqlite({
   path: './brain.sqlite',
   embed: async (text) => yourEmbeddingFunction(text),
 });
@@ -80,9 +82,14 @@ The standalone `Memory` facade does not yet open a Postgres brain directly.
 
 ### Auto-Setup
 
-```bash
-# Auto-provisions Docker Postgres + pgvector
-agentos-cli memory migrate --to postgres --auto-setup
+```typescript
+import { MigrationEngine } from '@framers/agentos';
+
+// Auto-provisions Docker Postgres + pgvector, then migrates SQLite → Postgres.
+await MigrationEngine.migrate({
+  from: { type: 'sqlite', path: './brain.sqlite' },
+  to:   { type: 'postgres', autoSetup: true },
+});
 ```
 
 This will:
@@ -95,9 +102,12 @@ This will:
 
 ### Manual Setup
 
-```bash
-# If you already have Postgres running:
-agentos-cli memory migrate --to postgres --connection "postgresql://user:pass@host:5432/db"
+```typescript
+// If you already have Postgres running:
+await MigrationEngine.migrate({
+  from: { type: 'sqlite', path: './brain.sqlite' },
+  to:   { type: 'postgres', connectionString: 'postgresql://user:pass@host:5432/db' },
+});
 ```
 
 ### What you get:
@@ -114,17 +124,28 @@ agentos-cli memory migrate --to postgres --connection "postgresql://user:pass@ho
 
 Purpose-built for extreme vector scale.
 
-```bash
-# Auto-provisions Docker Qdrant
-agentos-cli memory migrate --to qdrant --auto-setup
+```typescript
+import { MigrationEngine } from '@framers/agentos';
 
-# Or connect to existing Qdrant
-agentos-cli memory migrate --to qdrant --url http://localhost:6333
+// Auto-provisions Docker Qdrant
+await MigrationEngine.migrate({
+  from: { type: 'sqlite', path: './brain.sqlite' },
+  to:   { type: 'qdrant', autoSetup: true },
+});
 
-# Or Qdrant Cloud
-export QDRANT_URL=https://abc123.us-east4-0.gcp.cloud.qdrant.io:6333
-export QDRANT_API_KEY=your-api-key
-agentos-cli memory migrate --to qdrant
+// Or connect to existing Qdrant
+await MigrationEngine.migrate({
+  from: { type: 'sqlite', path: './brain.sqlite' },
+  to:   { type: 'qdrant', url: 'http://localhost:6333' },
+});
+
+// Or Qdrant Cloud — picked up from env when url/apiKey are not passed
+// QDRANT_URL=https://abc123.us-east4-0.gcp.cloud.qdrant.io:6333
+// QDRANT_API_KEY=your-api-key
+await MigrationEngine.migrate({
+  from: { type: 'sqlite', path: './brain.sqlite' },
+  to:   { type: 'qdrant' },
+});
 ```
 
 ### What you get:
@@ -138,7 +159,7 @@ agentos-cli memory migrate --to qdrant
 
 ## Tier 4: Pinecone (Cloud)
 
-For teams that want fully managed infrastructure.
+Optional managed-cloud backend for teams that do not want to run Qdrant or Postgres themselves.
 
 ```typescript
 import { PineconeVectorStore } from '@framers/agentos';
@@ -155,35 +176,56 @@ const store = new PineconeVectorStore({
 **Pros:** Zero ops, SSO + SOC 2, scales to billions, generous free tier.
 **Cons:** Not open source, not self-hostable, data leaves your infra.
 
+Use Pinecone when managed-cloud convenience matters more than self-hosting. For the default production OSS path, use Qdrant.
+
 Migration from Pinecone to self-hosted:
-```bash
-agentos-cli memory migrate --from pinecone --to qdrant
+```typescript
+await MigrationEngine.migrate({
+  from: { type: 'pinecone', apiKey: process.env.PINECONE_API_KEY!, indexHost: '...' },
+  to:   { type: 'qdrant',  url: 'http://localhost:6333' },
+});
 ```
 
 ---
 
 ## Migration
 
-### CLI
+```typescript
+import { MigrationEngine } from '@framers/agentos';
 
-```bash
-# SQLite → Postgres (most common)
-agentos-cli memory migrate --to postgres
+// SQLite → Postgres (most common)
+await MigrationEngine.migrate({
+  from: { type: 'sqlite',   path: './brain.sqlite' },
+  to:   { type: 'postgres', connectionString: process.env.DATABASE_URL! },
+});
 
-# SQLite → Qdrant
-agentos-cli memory migrate --to qdrant --auto-setup
+// SQLite → Qdrant
+await MigrationEngine.migrate({
+  from: { type: 'sqlite', path: './brain.sqlite' },
+  to:   { type: 'qdrant', autoSetup: true },
+});
 
-# Postgres → Qdrant (scale-up)
-agentos-cli memory migrate --from postgres --to qdrant
+// Postgres → Qdrant (scale-up)
+await MigrationEngine.migrate({
+  from: { type: 'postgres', connectionString: process.env.DATABASE_URL! },
+  to:   { type: 'qdrant',   url: process.env.QDRANT_URL! },
+});
 
-# Pinecone → SQLite (bring data home)
-agentos-cli memory migrate --from pinecone --to sqlite --path ./brain.sqlite
+// Pinecone → SQLite (bring data home)
+await MigrationEngine.migrate({
+  from: { type: 'pinecone', apiKey: process.env.PINECONE_API_KEY!, indexHost: '...' },
+  to:   { type: 'sqlite',   path: './brain.sqlite' },
+});
 
-# Dry run (count rows, don't write)
-agentos-cli memory migrate --to postgres --dry-run
+// Dry run (count rows, don't write)
+await MigrationEngine.migrate({
+  from:    { type: 'sqlite',   path: './brain.sqlite' },
+  to:      { type: 'postgres', connectionString: process.env.DATABASE_URL! },
+  dryRun:  true,
+});
 ```
 
-### Programmatic
+### Full programmatic example with progress
 
 ```typescript
 import { MigrationEngine } from '@framers/agentos';
