@@ -24,6 +24,14 @@
 
 ---
 
+AgentOS is an open-source TypeScript runtime for AI agents that adapt, remember, and collaborate. The runtime carries the parts of an agent that should outlive a single chat completion: persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory) grounded in published cognitive-science literature, optional [HEXACO personality](https://docs.agentos.sh/features/cognitive-memory-guide) modeling, runtime tool forging in a V8 isolate sandbox, [six multi-agent orchestration strategies](https://docs.agentos.sh/features/multi-agent-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), and one dispatch interface across 21 LLM providers. Apache-2.0.
+
+The intent is to keep the application code small. Most agent frameworks treat each agent call as a fresh function and push everything else (memory, personality, tool registration, multi-agent coordination, safety) into the application layer. AgentOS handles those concerns inside the runtime, so the application stays focused on its own logic and the agent stays the same agent across turns, sessions, and restarts.
+
+On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (matched gpt-4o reader, +1.4 points above Mastra's published 84.23%); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
+
+---
+
 ## Install
 
 ```bash
@@ -57,11 +65,13 @@ await session.send('Can you expand on that?'); // remembers context
 
 Two pieces matter. Memory survives across turns. The agent's tool surface can grow within a session. Pass an optional personality vector and the runtime composes the three into behavior the prompt did not specify.
 
+What that means in practice: the agent's behavior in turn six depends on what it accumulated in turns one through five. Which memories were reinforced. Which tools its specialists forged. Which trait values weighted which evidence at each decision. The runtime keeps each of those configurable and observable. None of the individual capabilities crosses into "emergent agent" by itself; the composition is the interesting part.
+
 ### Runtime Tool Forging
 
 When an agent encounters a sub-task that no available tool covers, it generates a TypeScript function with a Zod-described input and output schema. A separate LLM call evaluates the forged function against the agent's stated intent and either approves or rejects it. Approved functions execute in a [V8 isolate](https://github.com/laverdet/isolated-vm) with a 128 MB heap and a 10-second wall clock; the sandbox forbids filesystem access, network access, `eval`, and dynamic import. Approved tools are added to a discoverable index keyed by name and signature, and subsequent turns invoke them via `call_forged_tool(name, args)`. A first-time forge costs full LLM tokens; reuse costs tens of tokens. Total cost per turn flattens once a session has accumulated a handful of approved tools.
 
-A representative example, observed in a Mars Genesis run: a security-officer agent forged `compute_resource_allocation_under_drought_constraint(state) → priorityList` mid-decision. The judge approved it, the next turn invoked it, and three turns later the science-officer agent invoked the same tool because the colony state had progressed into a configuration the function applied to. Neither side of that path is scripted; the runtime made the tool discoverable and the agents found it on their own.
+The path the runtime supports: an agent forges a tool mid-decision, the judge approves it, that turn invokes it, and a few turns later a different specialist agent in the same session invokes the same tool because the index made it findable. Neither side is scripted; the runtime makes the tool discoverable and the agents find it on their own.
 
 ### HEXACO Personality (optional)
 
@@ -84,13 +94,7 @@ const visionary = agent({
 });
 ```
 
-When a vector is supplied, the kernel applies it as a structured signal. Retrieval ranking is biased toward memories whose surface features align with the trait values, decision routing weights specialist agents according to the same trait values, and tool selection chooses differently among multiple legitimate options. Holding agent, prompt, and tool set constant, a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences because the kernel weights different evidence at each step. The bias is encoded in the kernel rather than in a system prompt; prompt-only personality has been shown to dissolve under context pressure, while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.
-
-### Why these compose into emergence
-
-In a Mars Genesis run with two leaders sharing identical starting state, agent roster, and seed, the two colonies diverge by turn six. The divergence is not driven by prompt differences. It comes from two compounding effects: the personality vector biases each leader's specialists toward different evidence in retrieval, and a tool forged by one specialist on turn two becomes the obvious next move on turn five for that side only. The other side never forged the tool and never had it indexed for reuse.
-
-Durable memory, a tool surface that grows within a session, and optional personality bias compose into behavior that is not specified by the prompt or the developer. Each capability is documented and configurable; the divergence is a property of the composition, not of any individual component.
+When a vector is supplied, the kernel weights retrieval, specialist routing, and tool selection by the trait values. Same agent, same prompt, same tools: a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences. The bias lives in the kernel, not in the prompt; prompt-only personality dissolves under context pressure while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.
 
 ---
 
