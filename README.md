@@ -64,7 +64,7 @@ Honest, apples-to-apples comparison: same `gpt-4o` reader, same dataset, same Ph
 | EmergenceMem Simple Fast (in our harness) | 80.6% | [77.0%, 84.0%] | $0.0586 | 3,703 ms | [adapter](https://github.com/framersai/agentos-bench/blob/master/vendors/emergence-simple-fast/) |
 | Zep self / independent reproduction | 71.2% / 63.8% | not published | not published | — | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv](https://arxiv.org/abs/2512.13564) |
 
-**+1.4 pp over Mastra OM gpt-4o at the matched reader.** Statistically tied with EmergenceMem Internal (their 86.0% point estimate sits inside our 95% CI). **1.6× faster median latency** (3,558 ms vs 5,650 ms).
+**+1.4 pp at point estimate over Mastra OM gpt-4o at the matched reader.** Mastra publishes no CI; their 84.23% sits inside our 95% CI [82.4%, 88.6%], so the gap is at the threshold of statistical significance. EmergenceMem Internal's 86.0% (no CI) also sits inside our CI; we are statistically tied with both. **1.6× faster median latency** vs EmergenceMem (3,558 ms vs 5,650 ms; the only vendor that publishes a comparable latency number).
 
 ### LongMemEval-M Phase B (1.5M tokens, 500 sessions)
 
@@ -117,7 +117,7 @@ Stages 2 and 3 reuse the Stage 1 classification, so the full pipeline costs **on
 |---|---|
 | **LangChain / LangGraph** | Cognitive memory ([8 neuroscience-backed mechanisms](https://docs.agentos.sh/features/cognitive-memory)), HEXACO personality, runtime tool forging |
 | **Vercel AI SDK** | Multi-agent teams (6 strategies), 7 vector backends, [guardrails](https://docs.agentos.sh/features/guardrails-architecture), voice/telephony |
-| **CrewAI / Mastra** | Unified orchestration (DAGs + graphs + missions), personality-driven routing, **published SOTA on LongMemEval-S/M** |
+| **CrewAI / Mastra** | Unified orchestration (DAGs + graphs + missions), personality-driven routing, **published reproducible numbers on LongMemEval-S (85.6%) and LongMemEval-M (70.2%) with full methodology disclosure** |
 
 [Full framework comparison →](https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai)
 
