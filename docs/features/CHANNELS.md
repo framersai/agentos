@@ -143,8 +143,9 @@ await discord.initialize({ credential: process.env.DISCORD_BOT_TOKEN! });
 
 router.registerAdapter(discord);
 
-// Listen for incoming messages via ChannelRouter's onInbound handler
-router.onInbound(async (message) => {
+// Listen for incoming messages via ChannelRouter's onMessage handler.
+// Handler receives the parsed message + the resolved binding + session.
+router.onMessage(async (message, binding, session) => {
   const response = await agent.reply(message.text);
   await discord.sendMessage(message.conversationId, {
     blocks: [{ type: 'text', text: response }],
@@ -189,7 +190,7 @@ await service.initialize();
 const slack = new SlackChannelAdapter(service);
 await slack.initialize({ credential: process.env.SLACK_BOT_TOKEN! });
 
-router.register(slack);
+router.registerAdapter(slack);
 ```
 
 ---
@@ -259,6 +260,8 @@ await twitter.initialize({
     accessSecret:  process.env.TWITTER_ACCESS_SECRET,
   }),
 });
+
+router.registerAdapter(twitter);
 ```
 
 ---
@@ -289,6 +292,8 @@ await service.initialize();
 
 const whatsapp = new WhatsAppChannelAdapter(service);
 await whatsapp.initialize({ credential: process.env.WHATSAPP_ACCESS_TOKEN! });
+
+router.registerAdapter(whatsapp);
 ```
 
 ---
@@ -374,7 +379,7 @@ Register and use:
 ```typescript
 const myAdapter = new MyPlatformAdapter();
 await myAdapter.initialize({ credential: 'my-api-key' });
-router.register(myAdapter);
+router.registerAdapter(myAdapter);
 ```
 
 ---
@@ -389,9 +394,9 @@ import { ChannelRouter } from '@framers/agentos/channels';
 const router = new ChannelRouter();
 
 // Register all desired adapters
-router.register(discordAdapter);
-router.register(slackAdapter);
-router.register(telegramAdapter);
+router.registerAdapter(discordAdapter);
+router.registerAdapter(slackAdapter);
+router.registerAdapter(telegramAdapter);
 
 // Route a message to a specific platform
 await router.send('discord', channelId, {
