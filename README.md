@@ -225,9 +225,11 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 | [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime |
 | [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | 100+ extensions and templates |
 | [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated SKILL.md definitions |
-| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness with 95% confidence intervals, judge-FPR probes, per-case run JSONs |
+| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness with 95% confidence intervals, judge-FPR probes, per-case run JSONs (MIT-licensed; agentos itself is Apache 2.0) |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | SQL persistence (SQLite, Postgres, IndexedDB) |
 | [paracosm](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine |
+
+**Extensions auto-pickup at startup.** The runtime walks the curated registry plus user-supplied extension paths, resolves each pack's `createExtensionPack(context)` factory, and registers tools, guardrails, and channels without manual wiring. The same model applies to skills: SKILL.md files are auto-discovered from the curated registry and any local `skills/` directory, with capability gating and HITL approval for side-effecting installs. See [extensions architecture](https://docs.agentos.sh/architecture/extension-loading) for the full loading model.
 
 ---
 
