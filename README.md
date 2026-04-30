@@ -85,7 +85,7 @@ The harder variant. M's haystacks exceed every production context window. Most v
 
 **Competitive with the strongest published M results in the LongMemEval paper.** At matched Top-5 retrieval, AgentOS at 70.2% is +4.5 points above the round-level configuration (65.7%) and 1.2 points below the session-level configuration (71.4%); the paper's strongest GPT-4o result overall is 72.0% at round-level Top-10. Among open-source memory libraries with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS is the only one on the public record above 65% on M.
 
-> **[Full benchmarks page →](https://docs.agentos.sh/benchmarks)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://docs.agentos.sh/blog/2026/04/24/memory-benchmark-transparency-audit)**
+> **[Full benchmarks page →](https://docs.agentos.sh/benchmarks)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)**
 
 ---
 
@@ -239,7 +239,7 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 
 ## Documentation & Community
 
-- **[Benchmarks](https://docs.agentos.sh/benchmarks)**: matched-reader SOTA tables, 95% confidence intervals, methodology audit
+- **[Benchmarks](https://docs.agentos.sh/benchmarks)**: matched-reader benchmark tables, 95% confidence intervals, methodology audit
 - **[Architecture](https://docs.agentos.sh/architecture/system-architecture)**: system design, layer breakdown
 - **[Cognitive Memory](https://docs.agentos.sh/features/cognitive-memory)**: 8 mechanisms with 30+ APA citations
 - **[RAG Configuration](https://docs.agentos.sh/features/rag-memory-configuration)**: vector stores, embeddings, sources
