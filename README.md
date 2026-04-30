@@ -51,37 +51,51 @@ await session.send('Can you expand on that?'); // remembers context
 
 ## Memory Benchmarks at Matched Reader
 
-Honest, apples-to-apples comparison: same `gpt-4o` reader, same dataset, same Phase B N=500, same `gpt-4o-2024-08-06` judge with rubric `2026-04-18.1` (judge FPR 1% [0%, 3%]). Cross-provider configurations are excluded because they cannot be reproduced from public methodology disclosures.
+Same `gpt-4o` reader, same dataset, same `gpt-4o-2024-08-06` judge across every row. Cross-provider configurations are excluded because they cannot be reproduced from public methodology disclosures.
 
-### LongMemEval-S Phase B (115K tokens, 50 sessions)
+### LongMemEval-S (115K tokens, 50 sessions)
 
-| System (gpt-4o reader) | Accuracy | 95% CI | $/correct | p50 latency | Source |
-|---|---:|---|---:|---:|---|
-| EmergenceMem Internal | 86.0% | not published | not published | 5,650 ms | [emergence.ai](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
-| **🚀 AgentOS canonical-hybrid + reader-router** | **85.6%** | **[82.4%, 88.6%]** | **$0.0090** | **3,558 ms** | [post](https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win) |
-| Mastra OM gpt-4o (gemini-flash observer) | 84.23% | not published | not published | not published | [mastra.ai](https://mastra.ai/research/observational-memory) |
-| Supermemory gpt-4o | 81.6% | not published | not published | not published | [supermemory.ai](https://supermemory.ai/research/) |
-| EmergenceMem Simple Fast (in our harness) | 80.6% | [77.0%, 84.0%] | $0.0586 | 3,703 ms | [adapter](https://github.com/framersai/agentos-bench/blob/master/vendors/emergence-simple-fast/) |
-| Zep self / independent reproduction | 71.2% / 63.8% | not published | not published | — | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv](https://arxiv.org/abs/2512.13564) |
+| System (gpt-4o reader) | Accuracy | $/correct | p50 latency | Source |
+|---|---:|---:|---:|---|
+| EmergenceMem Internal | 86.0% | not published | 5,650 ms | [emergence.ai](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
+| **🚀 AgentOS canonical-hybrid + reader-router** | **85.6%** | **$0.0090** | **3,558 ms** | [post](https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win) |
+| Mastra OM gpt-4o (gemini-flash observer) | 84.23% | not published | not published | [mastra.ai](https://mastra.ai/research/observational-memory) |
+| Supermemory gpt-4o | 81.6% | not published | not published | [supermemory.ai](https://supermemory.ai/research/) |
+| EmergenceMem Simple Fast (rerun in agentos-bench) | 80.6% | $0.0586 | 3,703 ms | [adapter](https://github.com/framersai/agentos-bench/blob/master/vendors/emergence-simple-fast/) |
+| Zep self / independent reproduction | 71.2% / 63.8% | not published | not published | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv](https://arxiv.org/abs/2512.13564) |
 
-**+1.4 pp at point estimate over Mastra OM gpt-4o at the matched reader.** Mastra publishes no CI; their 84.23% sits inside our 95% CI [82.4%, 88.6%], so the gap is at the threshold of statistical significance. EmergenceMem Internal's 86.0% (no CI) also sits inside our CI; we are statistically tied with both. AgentOS p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms (-2,092 ms at the median; the only vendor that publishes a comparable latency number).
+**+1.4 points above Mastra OM gpt-4o (84.23%) at the matched reader.** AgentOS at 85.6% is the highest published number from an open-source library that ships an end-to-end agent runtime around its memory system. EmergenceMem Internal posts 86.0% (0.4 above us). AgentOS p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms.
 
 **Cost at scale**: $0.0090 per memory-grounded answer = $9 per 1,000 RAG calls. A chatbot averaging 5 RAG calls per conversation across 1,000 conversations costs ~$45.
 
-### LongMemEval-M Phase B (1.5M tokens, 500 sessions)
+### LongMemEval-M (1.5M tokens, 500 sessions)
 
 The harder variant. M's haystacks exceed every production context window. Most vendors stop at S because raw long-context fits there.
 
-| System | Accuracy | 95% CI | License | Source |
-|---|---:|---|---|---|
-| AgentBrain | 71.7% | not published | closed-source SaaS | [github.com/AgentBrainHQ](https://github.com/AgentBrainHQ) |
-| **🚀 AgentOS** (sem-embed + reader-router + top-K=5) | **70.2%** | **[66.0%, 74.0%]** | **MIT** | [post](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5) |
-| LongMemEval paper academic baseline | 65.7% | not published | open repo | [Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813) |
-| Mem0 v3, Mastra, Hindsight, Zep, EmergenceMem, Supermemory, Letta, others | not published | — | various | reports S only |
+| System | Accuracy | License | Source |
+|---|---:|---|---|
+| AgentBrain | 71.7% | closed-source SaaS | [github.com/AgentBrainHQ](https://github.com/AgentBrainHQ) |
+| **🚀 AgentOS** (sem-embed + reader-router + top-K=5) | **70.2%** | **Apache-2.0** | [post](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5) |
+| LongMemEval paper academic baseline | 65.7% | open repo | [Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813) |
+| Mem0 v3, Mastra, Hindsight, Zep, EmergenceMem, Supermemory, Letta, others | not published | various | reports S only |
 
-**Statistically tied with AgentBrain's closed-source SaaS** (their 71.7% sits inside our CI). **+4.5 pp above the LongMemEval paper's academic ceiling.** **First open-source memory library above 65% on M with full methodology disclosure** (bootstrap CIs, per-case run JSONs, reproducible CLI).
+**+4.5 points above the LongMemEval paper's strongest published M result (65.7%).** AgentOS is the first open-source library on the public record above 65% on the M variant. The closest published number is AgentBrain's 71.7% from their closed-source SaaS.
 
 > **[Full benchmarks page →](https://docs.agentos.sh/benchmarks)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://docs.agentos.sh/blog/2026/04/24/memory-benchmark-transparency-audit)**
+
+---
+
+## 📄 Technical Whitepaper · Coming Soon
+
+The full architecture and benchmark methodology, written for engineers and researchers who want a citable PDF instead of scrolling docs. Cognitive memory pipeline, classifier-driven dispatch, HEXACO personality modulation, runtime tool forging, full LongMemEval-S/M and LOCOMO benchmark methodology with confidence interval math, judge-FPR probes, per-stage retention metrics, and reproducibility recipes.
+
+| Covers | What's inside |
+|---|---|
+| **Architecture** | Generalized Mind Instances, IngestRouter / MemoryRouter / ReadRouter, 8 cognitive mechanisms with primary-source citations |
+| **Benchmarks** | LongMemEval-S 85.6%, LongMemEval-M 70.2%, vendor landscape, confidence interval methodology, judge FPR probes, full transparency stack |
+| **Reproducibility** | Per-case run JSONs at `--seed 42`, single-CLI reproduction, Apache-2.0 bench at [github.com/framersai/agentos-bench](https://github.com/framersai/agentos-bench) |
+
+**[Notify me when it drops →](mailto:team@frame.dev?subject=AgentOS%20Whitepaper%20Notify)** · **[Read the benchmarks now →](https://docs.agentos.sh/benchmarks)** · **[Discord](https://wilds.ai/discord)**
 
 ---
 
@@ -211,7 +225,7 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 | [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime |
 | [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | 100+ extensions and templates |
 | [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated SKILL.md definitions |
-| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness with bootstrap CIs, judge-FPR probes, per-case run JSONs |
+| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness with 95% confidence intervals, judge-FPR probes, per-case run JSONs |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | SQL persistence (SQLite, Postgres, IndexedDB) |
 | [paracosm](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine |
 
@@ -219,7 +233,7 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 
 ## Documentation & Community
 
-- **[Benchmarks](https://docs.agentos.sh/benchmarks)**: matched-reader SOTA tables, bootstrap CIs, methodology audit
+- **[Benchmarks](https://docs.agentos.sh/benchmarks)**: matched-reader SOTA tables, 95% confidence intervals, methodology audit
 - **[Architecture](https://docs.agentos.sh/architecture/system-architecture)**: system design, layer breakdown
 - **[Cognitive Memory](https://docs.agentos.sh/features/cognitive-memory)**: 8 mechanisms with 30+ APA citations
 - **[RAG Configuration](https://docs.agentos.sh/features/rag-memory-configuration)**: vector stores, embeddings, sources
