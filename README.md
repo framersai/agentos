@@ -134,7 +134,9 @@ M's haystacks exceed every production context window; most vendors only publish 
 
 At matched Top-5 retrieval, +4.5 above the round-level paper baseline (65.7%) and 1.2 below the session-level (71.4%); the paper's overall strongest GPT-4o result is 72.0% at Top-10. Of open-source libraries with publicly reproducible runs, AgentOS is the only one above 65% on M.
 
-> **[Full leaderboard →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** · **[Run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)** · **[LongMemEval paper](https://arxiv.org/abs/2410.10813)** (Wu et al., ICLR 2025, Table 3)
+> **[Full leaderboard →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** · **[Run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Transparency audit →](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/)** · **[LongMemEval paper](https://arxiv.org/abs/2410.10813)** (Wu et al., ICLR 2025, Table 3)
+
+The transparency audit covers what the headline numbers above don't. LOCOMO's answer key has a [6.4% ground-truth error rate per Penfield Labs](https://dev.to/penfieldlabs/we-audited-locomo-64-of-the-answer-key-is-wrong-and-the-judge-accepts-up-to-63-of-intentionally-33lg) (capping any system's possible score at ~93.6%) and LOCOMO's default LLM judge accepts 62.81% of intentionally wrong answers — so any LOCOMO score gap below ~6 pp is inside the judge's noise floor. LongMemEval-S is partly a context-window test because 115K tokens fits in every modern reader. The audit post documents the Mem0-vs-Zep gaming case study, lists which vendors disclose which methodology dimensions (judge model, dataset version, per-case results, single-CLI reproduction), and explains the agentos-bench transparency stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-benchmark judge-FPR probes (LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%]), per-case run JSONs, single-CLI reproduction.
 
 ---
 
