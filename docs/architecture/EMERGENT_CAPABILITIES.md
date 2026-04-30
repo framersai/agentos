@@ -317,7 +317,7 @@ session ──(5+ uses, >0.8 confidence, panel approved)──→ agent ──(h
 
 ## Forge Observability
 
-The forge pipeline ships with a five-utility observability layer under [`@framers/agentos/emergent`](/api/modules#emergent) so any consumer can see live forge health without re-implementing the instrumentation. Each utility is standalone, pure, and composes with whatever telemetry the host already has.
+The forge pipeline ships with a five-utility observability layer under `@framers/agentos/emergent` so any consumer can see live forge health without re-implementing the instrumentation. Each utility is standalone, pure, and composes with whatever telemetry the host already has.
 
 ```
  forge_tool invocation
