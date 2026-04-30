@@ -369,7 +369,7 @@ const storage = new IndexedDbAdapter({
 
 ## Next Steps
 
-1. **Try the demo:** See `apps/agentos-client` for a working example
+1. **Try the demo:** See `apps/agentos-workbench` for a working browser-side example
 2. **Read the Platform Strategy:** [PLATFORM_STRATEGY.md](../../sql-storage-adapter/PLATFORM_STRATEGY.md)
 3. **Contribute:** Submit issues/PRs for improvements
 

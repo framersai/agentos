@@ -119,21 +119,22 @@ console.log(result.warnings);          // Any import warnings
 
 ### agent.export() / agent.exportJSON()
 
-Export from an instantiated agent:
+Export from an instantiated agent. The factory is the lowercase `agent`
+export (synchronous):
 
 ```typescript
-import { createAgent } from '@framers/agentos';
+import { agent } from '@framers/agentos';
 
-const agent = await createAgent({ /* ... */ });
+const myAgent = agent({ /* AgentOptions */ });
 
 // Export as YAML string
-const yaml = await agent.export();
+const yaml = await myAgent.export();
 
 // Export as parsed JSON object
-const json = await agent.exportJSON();
+const json = await myAgent.exportJSON();
 console.log(json.personality);          // { hexaco: { ... } }
-console.log(json.llmProvider);         // "openai"
-console.log(json.skills);              // ["research-assistant", "web-search"]
+console.log(json.llmProvider);          // "openai"
+console.log(json.skills);               // ["research-assistant", "web-search"]
 ```
 
 ---
