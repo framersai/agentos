@@ -1,12 +1,14 @@
 <div align="center">
 
 <a href="https://agentos.sh">
-  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-no-tagline-transparent-2x.png" alt="AgentOS — TypeScript AI Agent Framework" height="100" />
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-no-tagline-transparent-2x.png" alt="AgentOS — TypeScript AI Agent Framework with Cognitive Memory" height="100" />
 </a>
 
 <br />
 
-**Open-source TypeScript runtime for autonomous AI agents with cognitive memory, HEXACO personality, and emergent tool forging.**
+# **AgentOS** — Open-Source TypeScript AI Agent Runtime with Cognitive Memory, HEXACO Personality, and Runtime Tool Forging
+
+**85.6% on LongMemEval-S** at $0.0090/correct · **70.2% on LongMemEval-M** (first open-source library above 65% on the 1.5M-token variant) · 16 LLM providers · 8 neuroscience-backed memory mechanisms · MIT-friendly Apache 2.0
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -16,125 +18,147 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord)](https://wilds.ai/discord)
 
-[Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [GitHub](https://github.com/framersai/agentos) · [Discord](https://wilds.ai/discord) · [Blog](https://docs.agentos.sh/blog)
+[**Benchmarks**](https://docs.agentos.sh/benchmarks) · [Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [Discord](https://wilds.ai/discord) · [Blog](https://docs.agentos.sh/blog)
 
 </div>
 
 ---
 
-## What is AgentOS?
+## Install
 
-AgentOS is a TypeScript runtime for building AI agents that remember, adapt, and create new tools at runtime. Each agent is a **Generalized Mind Instance** (GMI) with its own personality, memory lifecycle, and behavioral adaptation loop.
-
-### Why AgentOS over alternatives?
-
-| vs. | AgentOS differentiator |
-|-----|------------------------|
-| **LangChain / LangGraph** | Cognitive memory (8 neuroscience-backed mechanisms), HEXACO personality, runtime tool forging |
-| **Vercel AI SDK** | Multi-agent teams (6 strategies), full RAG pipeline (7 vector backends), guardrails, voice/telephony |
-| **CrewAI / Mastra** | Unified orchestration (workflow DAGs + agent graphs + goal-driven missions), personality-driven routing |
-
-> **Full comparison:** [AgentOS vs LangGraph vs CrewAI vs Mastra](https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai)
-
----
-
-## Classifier-Driven Memory Pipeline
-
-Most memory libraries retrieve on every query. AgentOS gates memory through three independent LLM-as-judge classifiers, so trivial queries skip retrieval entirely, queries that need memory get the right architecture, and the right reader handles each category.
-
-```
-            User query
-                │
-                ▼
-┌──────────────────────────────────┐
-│  Stage 1: QueryClassifier        │   gpt-5-mini few-shot, ~$0.0001 / query
-│  Memory needed at all?           │
-│  T0 = none ────────────────► answer from context, skip retrieval
-│  T1+ = simple/moderate/complex   │
-└──────────────────────────────────┘
-                │ (T1+ only)
-                ▼
-┌──────────────────────────────────┐
-│  Stage 2: MemoryRouter           │   reuses Stage 1 classification
-│  Which retrieval architecture?   │
-│  canonical-hybrid · OM-v10 · OM-v11
-└──────────────────────────────────┘
-                │
-                ▼
-┌──────────────────────────────────┐
-│  Stage 3: ReaderRouter           │   reuses Stage 1 classification
-│  Which reader tier?              │
-│  gpt-4o (TR/SSU)  ·  gpt-5-mini (SSA/SSP/KU/MS)
-└──────────────────────────────────┘
-                │
-                ▼
-        Grounded answer
+```bash
+npm install @framers/agentos
 ```
 
-Each stage is a small LLM-as-judge classifier (gpt-5-mini, ~$0.0001-0.0014 per call). Each stage is independent and shippable on its own. Stages 2 and 3 reuse the Stage 1 classification output, so the full pipeline costs **one classifier call per query**, not three.
+```typescript
+import { agent } from '@framers/agentos';
 
-**Validated on LongMemEval-S Phase B at N=500, gpt-4o judge, bootstrap CI 10k resamples**: 85.6% [82.4%, 88.6%] accuracy at $0.0090 per correct, 4-second average latency. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp on accuracy at 6.5× lower cost-per-correct.
+const tutor = agent({
+  provider: 'anthropic',
+  instructions: 'You are a patient CS tutor.',
+  personality: { openness: 0.9, conscientiousness: 0.95 },
+  memory: { types: ['episodic', 'semantic'], working: { enabled: true } },
+});
 
-| Primitive | Source | Decision per query | Cost per call |
-|---|---|---|---:|
-| `QueryClassifier` | `@framers/agentos/query-router` | T0/none vs T1/simple vs T2/moderate vs T3/complex | ~$0.0001 |
-| `MemoryRouter` | `@framers/agentos/memory-router` | canonical-hybrid vs observational-memory-v10 vs observational-memory-v11 | reuses Stage 1 output |
-| `ReaderRouter` | `@framers/agentos/memory-router` (v0.5.5) | gpt-4o vs gpt-5-mini per category | reuses Stage 1 output |
+const session = tutor.session('student-1');
+await session.send('Explain recursion with an analogy.');
+await session.send('Can you expand on that?'); // remembers context
+```
 
-The pipeline is novel because the **T0 / no-memory gate** removes retrieval entirely for queries that don't need it (greetings, small talk, general knowledge), saving the embedding+rerank+reader cost on a substantial fraction of typical agent traffic. The per-category dispatch then routes the remaining queries to the architecture and reader best-suited for the question type, calibrated from per-category Phase B accuracy data on LongMemEval-S.
-
-**[Full benchmark suite + reproducible run JSONs →](https://github.com/framersai/agentos-bench)** · **[Cognitive Pipeline docs →](https://docs.agentos.sh/features/cognitive-pipeline)** · **[Query Router docs →](https://docs.agentos.sh/features/query-routing)** · **[Memory Router docs →](https://docs.agentos.sh/features/memory-router)**
+[Full quickstart](https://docs.agentos.sh/getting-started) · [Examples cookbook](https://docs.agentos.sh/getting-started/examples) · [API reference](https://docs.agentos.sh/api)
 
 ---
 
 ## Memory Benchmarks at Matched Reader
 
-Honest, apples-to-apples comparison: same reader (`gpt-4o`), same dataset, same N=500 Phase B methodology, same `gpt-4o-2024-08-06` judge with `rubric 2026-04-18.1` (FPR 1% [0%, 3%] at n=100). Cross-provider configurations (e.g. Gemini observers) are not included because their results cannot be reproduced from public methodology disclosures.
+Honest, apples-to-apples comparison: same `gpt-4o` reader, same dataset, same Phase B N=500, same `gpt-4o-2024-08-06` judge with rubric `2026-04-18.1` (judge FPR 1% [0%, 3%]). Cross-provider configurations are excluded because they cannot be reproduced from public methodology disclosures.
 
-### LongMemEval-S Phase B (115K tokens, 50 sessions per haystack)
+### LongMemEval-S Phase B (115K tokens, 50 sessions)
 
-| System (gpt-4o reader, Phase B N=500) | Accuracy | 95% CI | $/correct | p50 latency | Source |
+| System (gpt-4o reader) | Accuracy | 95% CI | $/correct | p50 latency | Source |
 |---|---:|---|---:|---:|---|
 | EmergenceMem Internal | 86.0% | not published | not published | 5,650 ms | [emergence.ai](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
-| **🚀 AgentOS canonical-hybrid + reader-router** | **85.6%** | **[82.4%, 88.6%]** | **$0.0090** | **3,558 ms** | [85.6% post](https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win) |
+| **🚀 AgentOS canonical-hybrid + reader-router** | **85.6%** | **[82.4%, 88.6%]** | **$0.0090** | **3,558 ms** | [post](https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win) |
 | Mastra OM gpt-4o (gemini-flash observer) | 84.23% | not published | not published | not published | [mastra.ai](https://mastra.ai/research/observational-memory) |
 | Supermemory gpt-4o | 81.6% | not published | not published | not published | [supermemory.ai](https://supermemory.ai/research/) |
-| EmergenceMem Simple Fast (apples-to-apples in our harness) | 80.6% | measured | $0.0586 | not published | v2 vendor reproduction |
-| Zep self-reported / independently reproduced | 71.2% / 63.8% | not published | not published | 632 ms p95 search | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv:2512.13564](https://arxiv.org/abs/2512.13564) |
+| EmergenceMem Simple Fast (in our harness) | 80.6% | [77.0%, 84.0%] | $0.0586 | 3,703 ms | [adapter](https://github.com/framersai/agentos-bench/blob/master/vendors/emergence-simple-fast/) |
+| Zep self / independent reproduction | 71.2% / 63.8% | not published | not published | — | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv](https://arxiv.org/abs/2512.13564) |
 
-**+1.4 pp accuracy over Mastra OM gpt-4o at the same reader.** Statistically tied with EmergenceMem Internal (86.0% point estimate sits inside our 95% CI [82.4%, 88.6%]). Median latency vs EmergenceMem is **1.6× faster** (3.558 s vs 5.650 s).
+**+1.4 pp over Mastra OM gpt-4o at the matched reader.** Statistically tied with EmergenceMem Internal (their 86.0% point estimate sits inside our 95% CI). **1.6× faster median latency** (3,558 ms vs 5,650 ms).
 
-### LongMemEval-M Phase B (1.5M tokens, 500 sessions per haystack)
+### LongMemEval-M Phase B (1.5M tokens, 500 sessions)
 
-The harder variant. M's haystacks exceed every production context window (GPT-4o 128K, Claude Opus 200K, Gemini 3 Pro 1M). Most memory vendors stop at S because raw long-context fits there.
+The harder variant. M's haystacks exceed every production context window. Most vendors stop at S because raw long-context fits there.
 
 | System | Accuracy | 95% CI | License | Source |
 |---|---:|---|---|---|
-| AgentBrain | 71.7% (Test 0) | not published | closed-source SaaS | [github.com/AgentBrainHQ](https://github.com/AgentBrainHQ) |
-| **🚀 AgentOS (sem-embed + reader-router + top-K=5)** | **70.2%** | **[66.0%, 74.0%]** | **MIT** | [70.2% post](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5) |
-| LongMemEval paper academic baseline | 65.7% | not published | open repo | [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813) |
-| Mem0 v3, Mastra OM, Hindsight, Zep, EmergenceMem, Supermemory, MemMachine, Memoria, agentmemory, Backboard, ByteRover, Letta | not published | — | various | reports S only |
+| AgentBrain | 71.7% | not published | closed-source SaaS | [github.com/AgentBrainHQ](https://github.com/AgentBrainHQ) |
+| **🚀 AgentOS** (sem-embed + reader-router + top-K=5) | **70.2%** | **[66.0%, 74.0%]** | **MIT** | [post](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5) |
+| LongMemEval paper academic baseline | 65.7% | not published | open repo | [Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813) |
+| Mem0 v3, Mastra, Hindsight, Zep, EmergenceMem, Supermemory, Letta, others | not published | — | various | reports S only |
 
-**Statistically tied with AgentBrain's closed-source SaaS** (their 71.7% sits inside our CI [66.0%, 74.0%]). **+4.5 pp above the LongMemEval paper's published academic ceiling.** **First open-source memory library on the public record above 65% on M with full methodology disclosure** (bootstrap CIs, per-case run JSONs, reproducible CLI, MIT-licensed).
+**Statistically tied with AgentBrain's closed-source SaaS** (their 71.7% sits inside our CI). **+4.5 pp above the LongMemEval paper's academic ceiling.** **First open-source memory library above 65% on M with full methodology disclosure** (bootstrap CIs, per-case run JSONs, reproducible CLI).
 
-### Methodology disclosure (12 axes most vendors omit)
+> **[Full benchmarks page →](https://docs.agentos.sh/benchmarks)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://docs.agentos.sh/blog/2026/04/24/memory-benchmark-transparency-audit)**
 
-| Axis | AgentOS | Most vendors |
-|---|:-:|:-:|
-| Aggregate accuracy | yes | yes |
-| 95% bootstrap CI on headline | yes | no |
-| Per-category 95% CI | yes | no |
-| Reader model disclosed | yes | mostly |
-| Observer / ingest model disclosed | yes | mostly |
-| USD cost per correct | yes | no |
-| Latency avg / p50 / p95 | yes | rarely |
-| Per-category breakdown | yes | sometimes |
-| Open-source benchmark runner | yes | rarely |
-| Per-case run JSONs at fixed seed | yes | no |
-| Judge-adversarial FPR probe | yes (1% S, 2% M, 0% LOCOMO) | no |
-| Matched-reader cross-vendor table | yes | partial |
+---
 
-The full audit framework is at [Memory Benchmark Transparency Audit](https://docs.agentos.sh/blog/2026/04/24/memory-benchmark-transparency-audit). Every run referenced above ships with a per-case run JSON at `seed=42`.
+## Classifier-Driven Memory Pipeline
+
+Most memory libraries retrieve on every query. AgentOS gates memory through three LLM-as-judge classifiers in a single shared pass, so trivial queries skip retrieval entirely and the rest get the right architecture and reader per category.
+
+```
+User query
+    │
+    ▼ Stage 1: QueryClassifier (gpt-5-mini, ~$0.0001/query)
+    │    T0=none ─────► answer from context, skip retrieval
+    │    T1+=needs memory
+    ▼ Stage 2: MemoryRouter      → canonical-hybrid · OM-v10 · OM-v11
+    ▼ Stage 3: ReaderRouter      → gpt-4o (TR/SSU) · gpt-5-mini (SSA/SSP/KU/MS)
+    ▼
+Grounded answer
+```
+
+Stages 2 and 3 reuse the Stage 1 classification, so the full pipeline costs **one classifier call per query**, not three. **The T0 / no-memory gate is the novel piece**: removing retrieval entirely for greetings and small talk saves the embedding + rerank + reader cost on a substantial fraction of typical agent traffic.
+
+| Primitive | Source | Decision |
+|---|---|---|
+| `QueryClassifier` | [`@framers/agentos/query-router`](https://docs.agentos.sh/features/query-routing) | T0/none vs T1/simple vs T2/moderate vs T3/complex |
+| `MemoryRouter` | [`@framers/agentos/memory-router`](https://docs.agentos.sh/features/memory-router) | canonical-hybrid vs observational-memory-v10 vs v11 |
+| `ReaderRouter` | [`@framers/agentos/memory-router`](https://docs.agentos.sh/features/memory-router) | gpt-4o vs gpt-5-mini per category |
+
+[Cognitive Pipeline docs →](https://docs.agentos.sh/features/cognitive-pipeline) · [Architecture deep dive →](https://docs.agentos.sh/blog/2026/04/10/cognitive-memory-architecture-deep-dive) · [Beyond RAG →](https://docs.agentos.sh/blog/2026/03/31/cognitive-memory-beyond-rag)
+
+---
+
+## Why AgentOS
+
+| vs. | AgentOS differentiator |
+|---|---|
+| **LangChain / LangGraph** | Cognitive memory ([8 neuroscience-backed mechanisms](https://docs.agentos.sh/features/cognitive-memory)), HEXACO personality, runtime tool forging |
+| **Vercel AI SDK** | Multi-agent teams (6 strategies), 7 vector backends, [guardrails](https://docs.agentos.sh/features/guardrails-architecture), voice/telephony |
+| **CrewAI / Mastra** | Unified orchestration (DAGs + graphs + missions), personality-driven routing, **published SOTA on LongMemEval-S/M** |
+
+[Full framework comparison →](https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai)
+
+---
+
+## Key Features
+
+| Category | Highlights |
+|---|---|
+| **LLM Providers** | 16: OpenAI, Anthropic, Gemini, Groq, Ollama, OpenRouter, Together, Mistral, xAI, Claude/Gemini CLI, + 5 image/video |
+| **Cognitive Memory** | 8 mechanisms: reconsolidation, retrieval-induced forgetting, involuntary recall, FOK, gist extraction, schema encoding, source decay, emotion regulation |
+| **HEXACO Personality** | 6 traits modulate memory, retrieval bias, response style |
+| **RAG Pipeline** | 7 vector backends · 4 retrieval strategies · GraphRAG · HyDE · Cohere rerank-v3.5 |
+| **Multi-Agent Teams** | 6 coordination strategies · shared memory · inter-agent messaging · HITL gates |
+| **Orchestration** | `workflow()` DAGs · `AgentGraph` cycles · `mission()` goal-driven planning · checkpointing |
+| **Guardrails** | 5 security tiers · 6 packs (PII, ML classifiers, topicality, code safety, grounding, content policy) |
+| **Emergent Capabilities** | Runtime tool forging · 4 self-improvement tools · tiered promotion · skill export |
+| **Voice & Telephony** | ElevenLabs, Deepgram, Whisper · Twilio, Telnyx, Plivo |
+| **Channels** | 37 platform adapters (Telegram, Discord, Slack, WhatsApp, webchat, ...) |
+| **Observability** | OpenTelemetry · usage ledger · cost guard · circuit breaker |
+
+---
+
+## Multi-Agent in 6 Lines
+
+```typescript
+import { agency } from '@framers/agentos';
+
+const team = agency({
+  strategy: 'graph',
+  agents: {
+    researcher: { provider: 'anthropic', instructions: 'Find relevant facts.' },
+    writer:     { provider: 'openai',    instructions: 'Summarize clearly.',  dependsOn: ['researcher'] },
+    reviewer:   { provider: 'gemini',    instructions: 'Check accuracy.',     dependsOn: ['writer'] },
+  },
+});
+
+const result = await team.generate('Compare TCP vs UDP for game networking.');
+```
+
+Strategies: `sequential` · `parallel` · `debate` · `review-loop` · `hierarchical` · `graph`. [Multi-agent docs →](https://docs.agentos.sh/features/multi-agent)
 
 ---
 
@@ -148,366 +172,59 @@ Define any scenario as JSON. Run it with AI commanders that have different HEXAC
 npm install paracosm
 ```
 
-**[Live Demo](https://paracosm.agentos.sh/sim)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[Landing Page](https://paracosm.agentos.sh)**
+[Live Demo](https://paracosm.agentos.sh/sim) · [GitHub](https://github.com/framersai/paracosm) · [npm](https://www.npmjs.com/package/paracosm)
 
 ---
 
-## Install
+## Configure API Keys
 
 ```bash
-npm install @framers/agentos
-```
-
-### Configure API Keys
-
-```bash
-# Environment variables (recommended for production)
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 export GEMINI_API_KEY=AIza...
 
-# Key rotation — comma-separated keys auto-rotate with quota detection
+# Comma-separated keys auto-rotate with quota detection
 export OPENAI_API_KEY=sk-key1,sk-key2,sk-key3
 ```
 
-```typescript
-// Or pass apiKey inline (multi-tenant apps, tests, dynamic config)
-await generateText({ provider: 'openai', apiKey: 'sk-...', prompt: '...' });
-```
-
-All high-level functions accept `apiKey` and `baseUrl` parameters.
+Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic → OpenRouter → Gemini → Groq → Together → Mistral → xAI → CLI → Ollama. [Default models per provider →](https://docs.agentos.sh/architecture/llm-providers)
 
 ---
-
-## Quick Start
-
-### Generate Text
-
-```typescript
-import { generateText } from '@framers/agentos';
-
-// Auto-detect provider from env vars
-const { text } = await generateText({
-  prompt: 'Explain TCP handshakes in 3 bullets.',
-});
-
-// Pin a provider
-const { text: claude } = await generateText({
-  provider: 'anthropic',
-  prompt: 'Compare TCP and UDP.',
-});
-```
-
-16 providers, automatic fallback. When the primary provider returns a retryable error (HTTP 402/429/5xx, network failures, auth issues), `generateText` walks the canonical fallback chain for that provider using whichever API keys are present in the environment — no extra imports, no chain construction needed:
-
-```typescript
-import { generateText } from '@framers/agentos';
-
-const { text } = await generateText({
-  provider: 'anthropic',
-  prompt: 'Compare TCP and UDP.',
-});
-// Anthropic primary, falls through to OpenAI / Gemini / OpenRouter / etc. on retryable errors
-```
-
-Want strict single-provider routing (e.g. for billing isolation, capability auditing, or provider-pinned tests)? Pass an empty array to opt out:
-
-```typescript
-const { text } = await generateText({
-  provider: 'anthropic',
-  prompt: 'Compare TCP and UDP.',
-  fallbackProviders: [], // strict mode — fail if Anthropic is unavailable
-});
-```
-
-Or supply your own chain (and import `buildFallbackChain` only if you want to derive a default chain to splice from):
-
-```typescript
-import { generateText, buildFallbackChain } from '@framers/agentos';
-
-const { text } = await generateText({
-  provider: 'anthropic',
-  prompt: 'Compare TCP and UDP.',
-  fallbackProviders: [
-    { provider: 'openai', model: 'gpt-4o-mini' },
-    { provider: 'openrouter' },
-  ],
-});
-```
-
-### Streaming
-
-```typescript
-import { streamText } from '@framers/agentos';
-
-const stream = streamText({ provider: 'openai', prompt: 'Write a haiku.' });
-for await (const chunk of stream.textStream) process.stdout.write(chunk);
-```
-
-### Structured Output
-
-```typescript
-import { generateObject } from '@framers/agentos';
-import { z } from 'zod';
-
-const { object } = await generateObject({
-  provider: 'gemini',
-  schema: z.object({
-    sentiment: z.enum(['positive', 'negative', 'neutral']),
-    topics: z.array(z.string()),
-  }),
-  prompt: 'Analyze: "Great camera but disappointing battery."',
-});
-```
-
-### Create an Agent
-
-```typescript
-import { agent } from '@framers/agentos';
-
-const bot = agent({ provider: 'anthropic', instructions: 'You are a helpful assistant.' });
-const reply = await bot.session('demo').send('What is 2+2?');
-console.log(reply.text);
-```
-
-### Agent with Personality & Memory
-
-```typescript
-const tutor = agent({
-  provider: 'anthropic',
-  instructions: 'You are a patient CS tutor.',
-  personality: {
-    openness: 0.9,
-    conscientiousness: 0.95,
-    agreeableness: 0.85,
-  },
-  memory: {
-    types: ['episodic', 'semantic'],
-    working: { enabled: true, maxTokens: 1200 },
-  },
-});
-
-const session = tutor.session('student-1');
-await session.send('Explain recursion with an analogy.');
-await session.send('Can you expand on that?'); // remembers context
-```
-
-#### Memory on direct calls
-
-Memory auto-wires on `agent.stream()` / `agent.generate()` as well — sessions are not required to get memory integration. As of AgentOS 0.2.0, any call path invokes `memoryProvider.getContext` before the LLM call and `memoryProvider.observe` after.
-
-```typescript
-import type { AgentMemoryProvider } from '@framers/agentos';
-
-const myProvider: AgentMemoryProvider = {
-  async getContext(text, opts) {
-    return { contextText: await recallRelevant(text, opts?.tokenBudget) };
-  },
-  async observe(role, text) {
-    await persist(role, text);
-  },
-};
-
-const tutor = agent({
-  provider: 'anthropic',
-  instructions: 'You are a patient CS tutor.',
-  memoryProvider: myProvider,
-});
-
-// Direct stream — memory context injected before the call, observations
-// recorded after. No session required.
-const stream = tutor.stream('Explain recursion.');
-
-// Session — same memory wiring, plus per-session conversation history.
-const session = tutor.session('student-1');
-await session.send('Continue where we left off.');
-```
-
-Both `getContext` and `observe` hooks are optional; implementations may provide read-only or write-only memory behavior.
-
-### Multi-Agent Teams
-
-```typescript
-import { agency } from '@framers/agentos';
-
-const team = agency({
-  strategy: 'graph',
-  agents: {
-    researcher: { provider: 'anthropic', instructions: 'Find relevant facts.' },
-    writer:     { provider: 'openai', instructions: 'Write a clear summary.', dependsOn: ['researcher'] },
-    reviewer:   { provider: 'gemini', instructions: 'Check accuracy.', dependsOn: ['writer'] },
-  },
-});
-
-const result = await team.generate('Compare TCP vs UDP for game networking.');
-```
-
-6 strategies: `sequential` · `parallel` · `debate` · `review-loop` · `hierarchical` · `graph`
-
-### Multimodal
-
-```typescript
-import { generateImage, generateVideo, generateMusic, performOCR, embedText } from '@framers/agentos';
-
-const image = await generateImage({ provider: 'openai', prompt: 'Neon cityscape at sunset' });
-const video = await generateVideo({ prompt: 'Drone over misty forest' });
-const music = await generateMusic({ prompt: 'Lo-fi hip hop beat' });
-const ocr   = await performOCR({ image: './receipt.png', strategy: 'progressive' });
-const embed = await embedText({ provider: 'openai', input: ['hello', 'world'] });
-```
-
-### Orchestration
-
-Three authoring APIs, one graph runtime:
-
-```typescript
-import { workflow, AgentGraph, mission } from '@framers/agentos/orchestration';
-
-// 1. workflow() — deterministic DAG
-const pipe = workflow('content').step('research', { tool: 'web_search' }).then('draft', { gmi: { instructions: '...' } }).compile();
-
-// 2. AgentGraph — cycles, subgraphs
-const graph = new AgentGraph('review').addNode('draft', gmiNode({...})).addNode('review', judgeNode({...})).addEdge('draft','review').compile();
-
-// 3. mission() — goal-driven, planner decides steps
-const m = mission('research').goal('Research {topic}').planner({ strategy: 'adaptive' }).compile();
-```
 
 ## API Surfaces
 
-AgentOS exposes related entry points at different depths. The shared config surface does not imply identical enforcement across them.
+- **`agent()`**: lightweight stateful agent. Prompts, sessions, personality, hooks, tools, memory.
+- **`agency()`**: multi-agent teams + full runtime. Emergent tooling, guardrails, RAG, voice, channels, HITL.
+- **`generateText()` / `streamText()` / `generateObject()` / `generateImage()` / `generateVideo()` / `generateMusic()` / `performOCR()` / `embedText()`**: low-level multi-modal helpers with native tool calling.
+- **`workflow()` / `AgentGraph` / `mission()`**: three orchestration authoring APIs over one graph runtime.
 
-- The lightweight `agent()` facade owns prompt assembly, sessions, personality shaping, hooks, tools, and usage-ledger forwarding.
-- `generateText()` and `streamText()` are the low-level generation helpers for provider control, native tool calling, and text-fallback tool loops.
-- The full `AgentOS` runtime and `agency()` own emergent tooling, guardrails, discovery, RAG initialization, permissions/security tiers, HITL, channels/voice, and provenance-aware orchestration.
-
----
-
-## Key Features
-
-| Category | Highlights |
-|----------|-----------|
-| **LLM Providers** | 16 providers: OpenAI, Anthropic, Gemini, Groq, Ollama, OpenRouter, Together, Mistral, xAI, Claude CLI, Gemini CLI, + 5 image/video |
-| **Cognitive Memory** | 8 neuroscience-backed mechanisms (reconsolidation, RIF, involuntary recall, FOK, gist extraction, schema encoding, source decay, emotion regulation) |
-| **HEXACO Personality** | 6 traits modulate memory, retrieval bias, response style — agents have consistent identity |
-| **RAG Pipeline** | 7 vector backends (InMemory, SQL, HNSW, Qdrant, Neo4j, pgvector, Pinecone) · 4 retrieval strategies · GraphRAG |
-| **Multi-Agent Teams** | 6 coordination strategies · shared memory · inter-agent messaging · HITL approval gates |
-| **Orchestration** | `workflow()` DAGs · `AgentGraph` cycles/subgraphs · `mission()` goal-driven planning · persistent checkpointing |
-| **Guardrails** | 5 security tiers · 6 packs (PII redaction, ML classifiers, topicality, code safety, grounding, content policy) |
-| **Emergent Capabilities** | Runtime tool forging · 4 self-improvement tools · tiered promotion (session → agent → shared) · skill export |
-| **Capability Discovery** | Semantic per-turn tool selection · ~90% token reduction · 3-tier context model · Neo4j graph backend |
-| **Skills** | 88 curated skills · 3-tier architecture (engine, content, catalog SDK) · auto-update on install |
-| **Voice & Telephony** | ElevenLabs, Deepgram, OpenAI Whisper · Twilio, Telnyx, Plivo |
-| **Channels** | 37 platform adapters (Telegram, Discord, Slack, WhatsApp, webchat, and more) |
-| **Structured Output** | Zod-validated JSON extraction with retry · provider-native structured output |
-| **Observability** | OpenTelemetry traces/metrics · usage ledger · cost guard · circuit breaker |
-
----
-
-## Default Models Per Provider
-
-| Provider | Text Model | Image Model | Env Var |
-|---|---|---|---|
-| `openai` | gpt-4o | gpt-image-1 | `OPENAI_API_KEY` |
-| `anthropic` | claude-sonnet-4 | — | `ANTHROPIC_API_KEY` |
-| `gemini` | gemini-2.5-flash | — | `GEMINI_API_KEY` |
-| `groq` | llama-3.3-70b | — | `GROQ_API_KEY` |
-| `ollama` | llama3.2 | stable-diffusion | `OLLAMA_BASE_URL` |
-| `openrouter` | openai/gpt-4o | — | `OPENROUTER_API_KEY` |
-| `together` | Llama-3.1-70B | — | `TOGETHER_API_KEY` |
-| `mistral` | mistral-large | — | `MISTRAL_API_KEY` |
-| `xai` | grok-2 | — | `XAI_API_KEY` |
-| `stability` | — | stable-diffusion-xl | `STABILITY_API_KEY` |
-| `replicate` | — | flux-1.1-pro | `REPLICATE_API_TOKEN` |
-| `bfl` | — | flux-pro-1.1 | `BFL_API_KEY` |
-| `fal` | — | fal-ai/flux/dev | `FAL_API_KEY` |
-| `claude-code-cli` | claude-sonnet-4 | — | `claude` on PATH |
-| `gemini-cli` | gemini-2.5-flash | — | `gemini` on PATH |
-
-Auto-detection: OpenAI → Anthropic → OpenRouter → Gemini → Groq → Together → Mistral → xAI → CLI → Ollama
-
-### Model String Formats
-
-Three ways to specify a model:
-
-```ts
-// 1. Separate fields (recommended)
-generateText({ provider: 'anthropic', model: 'claude-sonnet-4-20250514', prompt: '...' });
-
-// 2. Colon format (canonical combined string)
-generateText({ model: 'anthropic:claude-sonnet-4-20250514', prompt: '...' });
-
-// 3. Slash format (also supported for known providers)
-generateText({ model: 'anthropic/claude-sonnet-4-20250514', prompt: '...' });
-
-// Auto-detect (omit both provider and model)
-generateText({ prompt: '...' }); // uses first available provider
-```
-
-The slash format only splits on known provider prefixes (`openai`, `anthropic`, `openrouter`, etc.). Unknown prefixes like `meta-llama/llama-3.1-8b` pass through as a plain model name to the auto-detected provider.
-
----
-
-## API Reference
-
-### High-Level Functions
-
-| Function | Description |
-|----------|-------------|
-| `generateText()` | Text generation with multi-step tool calling |
-| `streamText()` | Streaming text with async iterables |
-| `generateObject()` | Zod-validated structured output |
-| `streamObject()` | Streaming structured output |
-| `generateImage()` | Image generation (7 providers, character consistency) |
-| `generateVideo()` | Video generation |
-| `generateMusic()` / `generateSFX()` | Audio generation |
-| `performOCR()` | Text extraction from images |
-| `embedText()` | Embedding generation |
-| `agent()` | Lightweight stateful agent for prompts, tools, memory, and sessions |
-| `agency()` | Multi-agent teams plus full runtime-owned orchestration features |
-
-### Orchestration
-
-| Builder | Description |
-|---------|-------------|
-| `workflow(name)` | Deterministic DAG with typed steps |
-| `AgentGraph` | Explicit graph with cycles, subgraphs |
-| `mission(name)` | Goal-driven, planner decides steps |
-
-Full API reference: [docs.agentos.sh/api](https://docs.agentos.sh/api)
+[Full API reference →](https://docs.agentos.sh/api) · [High-Level API guide →](https://docs.agentos.sh/getting-started/high-level-api)
 
 ---
 
 ## Ecosystem
 
 | Package | Description |
-|---------|-------------|
-| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime — agents, providers, memory, RAG, orchestration, guardrails |
+|---|---|
+| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime |
 | [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | 100+ extensions and templates |
-| [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | Curated manifest builder |
 | [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated SKILL.md definitions |
-| [`@framers/agentos-skills-registry`](https://www.npmjs.com/package/@framers/agentos-skills-registry) | Skills catalog SDK |
+| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness with bootstrap CIs, judge-FPR probes, per-case run JSONs |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | SQL persistence (SQLite, Postgres, IndexedDB) |
+| [paracosm](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine |
 
 ---
 
-## Documentation
+## Documentation & Community
 
-| Guide | Topic |
-|-------|-------|
-| [Architecture](./docs/architecture/ARCHITECTURE.md) | System design, data flow, layer breakdown |
-| [High-Level API](./docs/getting-started/HIGH_LEVEL_API.md) | `generateText`, `agent`, `agency` reference |
-| [Orchestration](./docs/orchestration/UNIFIED_ORCHESTRATION.md) | Workflows, graphs, missions |
-| [Cognitive Memory](./docs/memory/COGNITIVE_MECHANISMS.md) | 8 mechanisms, 30+ APA citations |
-| [RAG Configuration](./docs/memory/RAG_MEMORY_CONFIGURATION.md) | Vector stores, embeddings, data sources |
-| [Guardrails](./docs/safety/GUARDRAILS_USAGE.md) | 5 tiers, 6 packs |
-| [Human-in-the-Loop](./docs/safety/HUMAN_IN_THE_LOOP.md) | Approval workflows, escalation |
-| [Emergent Capabilities](./docs/architecture/EMERGENT_CAPABILITIES.md) | Runtime tool forging |
-| [Channels & Platforms](./docs/architecture/PLATFORM_SUPPORT.md) | 37 platform adapters |
-| [Voice Pipeline](./docs/features/VOICE_PIPELINE.md) | TTS, STT, telephony |
-| [Uncensored Content](./docs/features/UNCENSORED_CONTENT.md) | `policyTier`-driven routing for mature text + image generation |
-
-Full documentation: [docs.agentos.sh](https://docs.agentos.sh)
+- **[Benchmarks](https://docs.agentos.sh/benchmarks)**: matched-reader SOTA tables, bootstrap CIs, methodology audit
+- **[Architecture](https://docs.agentos.sh/architecture/system-architecture)**: system design, layer breakdown
+- **[Cognitive Memory](https://docs.agentos.sh/features/cognitive-memory)**: 8 mechanisms with 30+ APA citations
+- **[RAG Configuration](https://docs.agentos.sh/features/rag-memory-configuration)**: vector stores, embeddings, sources
+- **[Guardrails](https://docs.agentos.sh/features/guardrails-architecture)**: 5 tiers, 6 packs
+- **[Voice Pipeline](https://docs.agentos.sh/features/voice-pipeline)**: TTS, STT, telephony
+- **[Blog](https://docs.agentos.sh/blog)**: engineering posts, benchmark publications, transparency audits
+- **[Discord](https://wilds.ai/discord)** · **[GitHub Issues](https://github.com/framersai/agentos/issues)** · **[Wilds.ai](https://wilds.ai)** (AI game worlds powered by AgentOS)
 
 ---
 
@@ -518,17 +235,7 @@ git clone https://github.com/framersai/agentos.git && cd agentos
 pnpm install && pnpm build && pnpm test
 ```
 
-We use [Conventional Commits](https://www.conventionalcommits.org/). See the [Contributing Guide](https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md).
-
----
-
-## Community
-
-- **Discord:** [wilds.ai/discord](https://wilds.ai/discord)
-- **GitHub Issues:** [github.com/framersai/agentos/issues](https://github.com/framersai/agentos/issues)
-- **Blog:** [docs.agentos.sh/blog](https://docs.agentos.sh/blog)
-- **Paracosm:** [paracosm.agentos.sh](https://paracosm.agentos.sh) — AI agent swarm simulation engine built on AgentOS
-- **Wilds.ai:** [wilds.ai](https://wilds.ai) — AI game worlds powered by AgentOS
+[Contributing Guide](https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md) · We use [Conventional Commits](https://www.conventionalcommits.org/).
 
 ---
 
