@@ -34,7 +34,30 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
+import {
+  resolveAgent,
+  checkBeforeAgent,
+  accumulateExtraUsage,
+  buildAgentCallUsage,
+} from './shared.js';
+
+type StrategyTotalUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
+
+type ResultUsageSnapshot = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
 
 /**
  * Compiles a debate execution strategy.
@@ -78,7 +101,7 @@ export function compileDebate(
     async execute(prompt, opts) {
       const agentCalls: AgentCallRecord[] = [];
       const entries = Object.entries(agents);
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       const collectedArguments: string[] = [];
 
       for (let round = 0; round < maxRounds; round++) {
@@ -92,22 +115,45 @@ export function compileDebate(
 
           const a = resolveAgent(agentOrConfig, agencyConfig);
 
-          // Build the debate context: original task + all prior arguments.
-          // The first agent in the first round sees "You are the first to argue."
-          // which prevents confusion about missing prior context.
-          const debateContext =
-            `Task: ${prompt}\n\n` +
-            (collectedArguments.length > 0
-              ? `Previous arguments:\n${collectedArguments.join('\n---\n')}`
-              : 'You are the first to argue.') +
-            `\n\nPresent your perspective as ${name} (round ${round + 1}/${maxRounds}).`;
+          // Build the debate context: original task + transcript of prior
+          // arguments. The framing is intentionally adversarial — agents are
+          // told to take a side and rebut, not to "present a perspective" or
+          // produce a balanced summary. The synthesis step is what unifies
+          // the back-and-forth; the per-agent turns must stay sharp.
+          const isOpening = collectedArguments.length === 0;
+          const turnLabel = `Round ${round + 1} of ${maxRounds}`;
+          const debateContext = isOpening
+            ? [
+                `Debate motion: ${prompt}`,
+                ``,
+                `You are "${name}". This is the OPENING statement (${turnLabel}).`,
+                `Take a clear, defensible side on the motion above. Do NOT hedge,`,
+                `do NOT produce a balanced summary, and do NOT acknowledge counterpoints`,
+                `that have not yet been raised. State your position in one sentence,`,
+                `then back it with your strongest 2–4 reasons. Speak in the first person.`,
+              ].join('\n')
+            : [
+                `Debate motion: ${prompt}`,
+                ``,
+                `Transcript of arguments so far:`,
+                collectedArguments.join('\n---\n'),
+                ``,
+                `You are "${name}" (${turnLabel}). This is a REBUTTAL turn.`,
+                `1. Quote or paraphrase the SINGLE strongest opposing claim made above.`,
+                `2. Attack it directly — name the flaw, the missing evidence, or the`,
+                `   counter-example. Be specific; do not restate generalities.`,
+                `3. Advance ONE new point of your own that the other side has not`,
+                `   addressed. Do not repeat earlier rounds.`,
+                `Stay in character as "${name}". Speak in the first person. Be terse:`,
+                `at most ~150 words. Do not produce a neutral summary.`,
+              ].join('\n');
 
           const start = Date.now();
           const result = (await a.generate(debateContext, opts)) as Record<string, unknown>;
           const durationMs = Date.now() - start;
 
           const resultText = (result.text as string) ?? '';
-          const resultUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+          const resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
           const resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
           // Label each argument with the agent name and round for traceability
@@ -119,30 +165,48 @@ export function compileDebate(
             input: debateContext,
             output: resultText,
             toolCalls: resultToolCalls,
-            usage: {
-              promptTokens: resultUsage.promptTokens ?? 0,
-              completionTokens: resultUsage.completionTokens ?? 0,
-              totalTokens: resultUsage.totalTokens ?? 0,
-            },
+            usage: buildAgentCallUsage(resultUsage),
             durationMs,
           });
 
           totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
           totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
           totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
-          accumulateCacheTokens(totalUsage, resultUsage);
+          accumulateExtraUsage(totalUsage, resultUsage);
         }
       }
 
-      // Synthesize all arguments into a final answer using the agency-level model.
+      // Synthesize all arguments into a JUDGE'S VERDICT, not a balanced
+      // essay. The synthesis is framed as adjudication: render a verdict,
+      // explain which side carried the debate, and quote the decisive
+      // arguments. Caller-supplied `instructions` are appended verbatim so
+      // they can override or extend the verdict format.
       const synthInstructions = agencyConfig.instructions
-        ? `\n\n${agencyConfig.instructions}`
+        ? `\n\nAdditional instructions from the operator:\n${agencyConfig.instructions}`
         : '';
 
-      const synthPrompt =
-        `A debate was held on the following task:\n"${prompt}"\n\n` +
-        `All arguments:\n${collectedArguments.join('\n---\n')}\n\n` +
-        `Synthesize these perspectives into a single coherent answer.${synthInstructions}`;
+      const synthPrompt = [
+        `You are the JUDGE of the following debate.`,
+        ``,
+        `Motion:`,
+        prompt,
+        ``,
+        `Full transcript of the debate (each entry is one turn by one agent):`,
+        collectedArguments.join('\n---\n'),
+        ``,
+        `Render a verdict using exactly this structure:`,
+        ``,
+        `**Verdict:** <one sentence: which side prevailed, or "split" if neither did>`,
+        `**Why:** <2–4 sentences explaining which arguments were decisive and why>`,
+        `**Strongest point for each side:**`,
+        `- <agent name>: "<short quote or paraphrase of their best argument>"`,
+        `- <agent name>: "<short quote or paraphrase of their best argument>"`,
+        `**What was conceded or left unanswered:** <1–2 sentences>`,
+        ``,
+        `Do NOT produce a balanced essay or "on the other hand" summary.`,
+        `Do NOT introduce new arguments the agents did not make.`,
+        `Be direct. Pick a winner unless the transcript is genuinely tied.${synthInstructions}`,
+      ].join('\n');
 
       const synthesizer = createAgent({
         model: agencyConfig.model,
@@ -153,12 +217,12 @@ export function compileDebate(
       });
 
       const synthesis = (await synthesizer.generate(synthPrompt, opts)) as unknown as Record<string, unknown>;
-      const synthUsage = (synthesis.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+      const synthUsage = (synthesis.usage as ResultUsageSnapshot) ?? {};
 
       totalUsage.promptTokens += synthUsage.promptTokens ?? 0;
       totalUsage.completionTokens += synthUsage.completionTokens ?? 0;
       totalUsage.totalTokens += synthUsage.totalTokens ?? 0;
-      accumulateCacheTokens(totalUsage, synthUsage);
+      accumulateExtraUsage(totalUsage, synthUsage);
 
       return { ...synthesis, agentCalls, usage: totalUsage };
     },
@@ -181,12 +245,7 @@ export function compileDebate(
           yield { type: 'text' as const, text };
         })(),
         text: textPromise,
-        usage: resultPromise.then((r) => r.usage as {
-          promptTokens: number;
-          completionTokens: number;
-          totalTokens: number;
-          costUSD?: number;
-        }),
+        usage: resultPromise.then((r) => r.usage as StrategyTotalUsage),
         agentCalls: resultPromise.then((r) => (r.agentCalls as AgentCallRecord[] | undefined) ?? []),
       };
     },

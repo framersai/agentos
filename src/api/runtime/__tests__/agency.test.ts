@@ -690,16 +690,18 @@ describe('Debate Strategy', () => {
     const strategy = compileDebate({ a: agentA, b: agentB }, agencyConfig);
     await strategy.execute('topic');
 
-    /* First agent in round 1 sees "You are the first to argue." */
+    /* First agent in round 1 sees the OPENING-statement framing. */
     const aInput = (agentA.generate as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-    expect(aInput).toContain('You are the first to argue.');
-    expect(aInput).toContain('Present your perspective as a');
+    expect(aInput).toContain('Debate motion: topic');
+    expect(aInput).toContain('OPENING statement');
+    expect(aInput).toContain('You are "a"');
 
-    /* Second agent in round 1 sees agent A's argument. */
+    /* Second agent in round 1 sees agent A's argument under the rebuttal framing. */
     const bInput = (agentB.generate as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-    expect(bInput).toContain('Previous arguments:');
+    expect(bInput).toContain('Transcript of arguments so far');
     expect(bInput).toContain('[a, round 1]: A perspective');
-    expect(bInput).toContain('Present your perspective as b');
+    expect(bInput).toContain('You are "b"');
+    expect(bInput).toContain('REBUTTAL turn');
   });
 
   it('respects maxRounds configuration', async () => {
@@ -764,11 +766,14 @@ describe('Debate Strategy', () => {
     const strategy = compileDebate({ a: agentA, b: agentB }, agencyConfig);
     const result = (await strategy.execute('topic')) as { text: string };
 
-    /* The synthesis prompt includes all collected arguments. */
+    /* The synthesis prompt includes all collected arguments and is framed
+       as a JUDGE rendering a verdict (not a balanced summary). */
     const synthInput = hoisted.agentGenerate.mock.calls[0][0] as string;
     expect(synthInput).toContain('[a, round 1]: thesis');
     expect(synthInput).toContain('[b, round 1]: antithesis');
-    expect(synthInput).toContain('Synthesize these perspectives');
+    expect(synthInput).toContain('You are the JUDGE');
+    expect(synthInput).toContain('**Verdict:**');
+    expect(synthInput).toContain('Pick a winner');
 
     expect(result.text).toBe('synthesis of debate');
   });

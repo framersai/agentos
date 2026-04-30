@@ -23,7 +23,6 @@
  * @see {@link compileStrategy} -- the dispatcher that selects this compiler.
  * @see {@link compileDebate} -- an alternative iterative strategy for adversarial discourse.
  */
-import { agent as createAgent } from '../agent.js';
 import type {
   AgencyOptions,
   CompiledStrategy,
@@ -32,7 +31,30 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
+import {
+  resolveAgent,
+  checkBeforeAgent,
+  accumulateExtraUsage,
+  buildAgentCallUsage,
+} from './shared.js';
+
+type StrategyTotalUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
+
+type ResultUsageSnapshot = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
 
 /**
  * Attempts to parse a reviewer response as JSON with an `approved` field.
@@ -114,7 +136,7 @@ export function compileReviewLoop(
   return {
     async execute(prompt, opts) {
       const agentCalls: AgentCallRecord[] = [];
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       const producer = resolveAgent(producerConfig, agencyConfig);
       const reviewer = resolveAgent(reviewerConfig, agencyConfig);
@@ -144,7 +166,7 @@ export function compileReviewLoop(
         const prodDuration = Date.now() - prodStart;
 
         const prodText = (prodResult.text as string) ?? '';
-        const prodUsage = (prodResult.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+        const prodUsage = (prodResult.usage as ResultUsageSnapshot) ?? {};
         const prodToolCalls = (prodResult.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
         draft = prodText;
@@ -154,18 +176,14 @@ export function compileReviewLoop(
           input: prodPrompt,
           output: prodText,
           toolCalls: prodToolCalls,
-          usage: {
-            promptTokens: prodUsage.promptTokens ?? 0,
-            completionTokens: prodUsage.completionTokens ?? 0,
-            totalTokens: prodUsage.totalTokens ?? 0,
-          },
+          usage: buildAgentCallUsage(prodUsage),
           durationMs: prodDuration,
         });
 
         totalUsage.promptTokens += prodUsage.promptTokens ?? 0;
         totalUsage.completionTokens += prodUsage.completionTokens ?? 0;
         totalUsage.totalTokens += prodUsage.totalTokens ?? 0;
-        accumulateCacheTokens(totalUsage, prodUsage);
+        accumulateExtraUsage(totalUsage, prodUsage);
 
         // ---- HITL: check beforeAgent gate for the reviewer ----
         const revDecision = await checkBeforeAgent(reviewerName, prompt, agentCalls, agencyConfig);
@@ -185,7 +203,7 @@ export function compileReviewLoop(
         const revDuration = Date.now() - revStart;
 
         const revText = (revResult.text as string) ?? '';
-        const revUsage = (revResult.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+        const revUsage = (revResult.usage as ResultUsageSnapshot) ?? {};
         const revToolCalls = (revResult.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
         agentCalls.push({
@@ -193,18 +211,14 @@ export function compileReviewLoop(
           input: revPrompt,
           output: revText,
           toolCalls: revToolCalls,
-          usage: {
-            promptTokens: revUsage.promptTokens ?? 0,
-            completionTokens: revUsage.completionTokens ?? 0,
-            totalTokens: revUsage.totalTokens ?? 0,
-          },
+          usage: buildAgentCallUsage(revUsage),
           durationMs: revDuration,
         });
 
         totalUsage.promptTokens += revUsage.promptTokens ?? 0;
         totalUsage.completionTokens += revUsage.completionTokens ?? 0;
         totalUsage.totalTokens += revUsage.totalTokens ?? 0;
-        accumulateCacheTokens(totalUsage, revUsage);
+        accumulateExtraUsage(totalUsage, revUsage);
 
         // Parse the review decision. If approved, exit the loop early.
         // If not, capture feedback for the next producer revision.
@@ -234,12 +248,7 @@ export function compileReviewLoop(
           yield { type: 'text' as const, text };
         })(),
         text: textPromise,
-        usage: resultPromise.then((r) => r.usage as {
-          promptTokens: number;
-          completionTokens: number;
-          totalTokens: number;
-          costUSD?: number;
-        }),
+        usage: resultPromise.then((r) => r.usage as StrategyTotalUsage),
         agentCalls: resultPromise.then((r) => (r.agentCalls as AgentCallRecord[] | undefined) ?? []),
       };
     },

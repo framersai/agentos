@@ -28,11 +28,25 @@ import type {
   Agent,
   BaseAgentConfig,
   AgentCallRecord,
-  ApprovalRequest,
   AgencyStreamPart,
 } from '../types.js';
 import { createBufferedAsyncReplay } from '../streamBuffer.js';
-import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
+import {
+  isAgent,
+  mergeDefaults,
+  checkBeforeAgent,
+  accumulateExtraUsage,
+  buildAgentCallUsage,
+} from './shared.js';
+
+type StrategyTotalUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
 
 /**
  * Compiles a sequential execution strategy.
@@ -65,7 +79,7 @@ export function compileSequential(
       const agentCalls: AgentCallRecord[] = [];
       let context = prompt;
       let lastResult: Record<string, unknown> | null = null;
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       for (const [name, agentOrConfig] of Object.entries(agents)) {
         // HITL: check beforeAgent gate before invoking this agent.
@@ -94,7 +108,14 @@ export function compileSequential(
         const durationMs = Date.now() - start;
 
         const resultText = (result.text as string) ?? '';
-        const resultUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+        const resultUsage = (result.usage as {
+          promptTokens?: number;
+          completionTokens?: number;
+          totalTokens?: number;
+          costUSD?: number;
+          cacheReadTokens?: number;
+          cacheCreationTokens?: number;
+        }) ?? {};
         const resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
         agentCalls.push({
@@ -102,18 +123,14 @@ export function compileSequential(
           input: context,
           output: resultText,
           toolCalls: resultToolCalls,
-          usage: {
-            promptTokens: resultUsage.promptTokens ?? 0,
-            completionTokens: resultUsage.completionTokens ?? 0,
-            totalTokens: resultUsage.totalTokens ?? 0,
-          },
+          usage: buildAgentCallUsage(resultUsage),
           durationMs,
         });
 
         totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
         totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
         totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
-        accumulateCacheTokens(totalUsage, resultUsage);
+        accumulateExtraUsage(totalUsage, resultUsage);
 
         // Chain: subsequent agents see the original task plus previous output.
         // This ensures each agent has full context without losing the original prompt.
@@ -138,7 +155,7 @@ export function compileSequential(
        * All promises resolve once the generator has been fully consumed.
        */
       const startMs = Date.now();
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       const agentCalls: AgentCallRecord[] = [];
 
       /**
@@ -171,13 +188,27 @@ export function compileSequential(
 
           // Delegate to the agent's stream if available, otherwise use generate().
           let agentText = '';
-          let resultUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+          let resultUsage: {
+            promptTokens?: number;
+            completionTokens?: number;
+            totalTokens?: number;
+            costUSD?: number;
+            cacheReadTokens?: number;
+            cacheCreationTokens?: number;
+          } = {};
           let resultToolCalls: Array<{ name: string; args: unknown; result?: unknown; error?: string }> = [];
           try {
             const agentStream = a.stream(effectivePrompt, opts) as {
               textStream?: AsyncIterable<string>;
               text?: Promise<string>;
-              usage?: Promise<{ promptTokens?: number; completionTokens?: number; totalTokens?: number }>;
+              usage?: Promise<{
+                promptTokens?: number;
+                completionTokens?: number;
+                totalTokens?: number;
+                costUSD?: number;
+                cacheReadTokens?: number;
+                cacheCreationTokens?: number;
+              }>;
               toolCalls?: Promise<Array<{ name: string; args: unknown; result?: unknown; error?: string }>>;
             } | null;
 
@@ -193,12 +224,7 @@ export function compileSequential(
                   yield { type: 'text' as const, text: agentText, agent: name };
                 }
               }
-              const streamedUsage = (await Promise.resolve(agentStream.usage)) ?? {};
-              resultUsage = {
-                promptTokens: streamedUsage.promptTokens ?? 0,
-                completionTokens: streamedUsage.completionTokens ?? 0,
-                totalTokens: streamedUsage.totalTokens ?? 0,
-              };
+              resultUsage = (await Promise.resolve(agentStream.usage)) ?? {};
               resultToolCalls = (await Promise.resolve(agentStream.toolCalls)) ?? [];
             } else {
               // Fallback: non-streaming generate() call.
@@ -207,12 +233,7 @@ export function compileSequential(
               if (agentText) {
                 yield { type: 'text' as const, text: agentText, agent: name };
               }
-              const generatedUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
-              resultUsage = {
-                promptTokens: generatedUsage.promptTokens ?? 0,
-                completionTokens: generatedUsage.completionTokens ?? 0,
-                totalTokens: generatedUsage.totalTokens ?? 0,
-              };
+              resultUsage = (result.usage as typeof resultUsage) ?? {};
               resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
             }
 
@@ -221,14 +242,14 @@ export function compileSequential(
               input: currentPrompt,
               output: agentText,
               toolCalls: resultToolCalls,
-              usage: resultUsage,
+              usage: buildAgentCallUsage(resultUsage),
               durationMs: Date.now() - agentStart,
             });
 
-            totalUsage.promptTokens += resultUsage.promptTokens;
-            totalUsage.completionTokens += resultUsage.completionTokens;
-            totalUsage.totalTokens += resultUsage.totalTokens;
-            accumulateCacheTokens(totalUsage, resultUsage);
+            totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
+            totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
+            totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+            accumulateExtraUsage(totalUsage, resultUsage);
           } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));
             yield { type: 'error' as const, error, agent: name };
@@ -266,7 +287,7 @@ export function compileSequential(
           .join(''),
       );
 
-      const usagePromise: Promise<{ promptTokens: number; completionTokens: number; totalTokens: number }> =
+      const usagePromise: Promise<StrategyTotalUsage> =
         replay.ensureDraining().then(() => ({ ...totalUsage }));
 
       const agentCallsPromise: Promise<AgentCallRecord[]> =

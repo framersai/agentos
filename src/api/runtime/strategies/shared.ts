@@ -48,26 +48,29 @@ export function isAgent(value: BaseAgentConfig | Agent): value is Agent {
 }
 
 /**
- * Accumulate Anthropic prompt-cache tokens from a per-call usage snapshot
- * onto a running strategy-level totalUsage. Fills in the fields the
- * existing accumulators (promptTokens / completionTokens / totalTokens)
- * already handle — keeping cache metrics undefined on the accumulator
- * until at least one call reports a value, so callers can distinguish
- * "provider does not report cache" (undefined) from "zero hits" (0).
+ * Accumulate the optional usage fields (cost + Anthropic prompt-cache
+ * tokens) from a per-call usage snapshot onto a running strategy-level
+ * totalUsage. Fills in the fields the existing accumulators
+ * (promptTokens / completionTokens / totalTokens) already handle — keeping
+ * cost and cache metrics undefined on the accumulator until at least one
+ * call reports a value, so callers can distinguish "provider does not
+ * report cost/cache" (undefined) from "zero" (0).
  *
  * Safe to call against any usage shape: missing fields are skipped
  * without throwing, and numeric zero values are still counted.
  *
  * @param totalUsage - The strategy's running usage accumulator. Mutated
- *   in place to add cacheReadTokens / cacheCreationTokens.
+ *   in place to add costUSD / cacheReadTokens / cacheCreationTokens when
+ *   the per-call snapshot reports them.
  * @param call - The per-call usage snapshot (typically from an Agent
  *   result or generateText-style TokenUsage). May be undefined.
  */
-export function accumulateCacheTokens(
+export function accumulateExtraUsage(
   totalUsage: {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    costUSD?: number;
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
   },
@@ -76,18 +79,81 @@ export function accumulateCacheTokens(
         promptTokens?: number;
         completionTokens?: number;
         totalTokens?: number;
+        costUSD?: number;
         cacheReadTokens?: number;
         cacheCreationTokens?: number;
       }
     | undefined,
 ): void {
   if (!call) return;
+  if (typeof call.costUSD === 'number') {
+    totalUsage.costUSD = (totalUsage.costUSD ?? 0) + call.costUSD;
+  }
   if (typeof call.cacheReadTokens === 'number') {
     totalUsage.cacheReadTokens = (totalUsage.cacheReadTokens ?? 0) + call.cacheReadTokens;
   }
   if (typeof call.cacheCreationTokens === 'number') {
     totalUsage.cacheCreationTokens = (totalUsage.cacheCreationTokens ?? 0) + call.cacheCreationTokens;
   }
+}
+
+/**
+ * Back-compat alias for {@link accumulateExtraUsage}.
+ *
+ * @deprecated Use {@link accumulateExtraUsage}, which also forwards the
+ *   per-call `costUSD` field.
+ */
+export const accumulateCacheTokens = accumulateExtraUsage;
+
+/**
+ * Build the per-call usage record stored on `AgentCallRecord.usage`,
+ * forwarding the optional `costUSD` and prompt-cache token fields when
+ * the per-call usage reports them. Mirrors how providers expose extra
+ * usage metadata so multi-agent runs preserve cost + cache visibility
+ * down to the individual agent invocation.
+ *
+ * @param resultUsage - Per-call usage snapshot from an Agent result.
+ *   May be undefined.
+ * @returns A normalised usage record suitable for {@link AgentCallRecord}.
+ */
+export function buildAgentCallUsage(
+  resultUsage:
+    | {
+        promptTokens?: number;
+        completionTokens?: number;
+        totalTokens?: number;
+        costUSD?: number;
+        cacheReadTokens?: number;
+        cacheCreationTokens?: number;
+      }
+    | undefined,
+): {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+} {
+  const usage = resultUsage ?? {};
+  const out: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    costUSD?: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
+  } = {
+    promptTokens: usage.promptTokens ?? 0,
+    completionTokens: usage.completionTokens ?? 0,
+    totalTokens: usage.totalTokens ?? 0,
+  };
+  if (typeof usage.costUSD === 'number') out.costUSD = usage.costUSD;
+  if (typeof usage.cacheReadTokens === 'number') out.cacheReadTokens = usage.cacheReadTokens;
+  if (typeof usage.cacheCreationTokens === 'number') {
+    out.cacheCreationTokens = usage.cacheCreationTokens;
+  }
+  return out;
 }
 
 /**

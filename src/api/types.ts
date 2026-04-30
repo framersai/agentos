@@ -675,6 +675,16 @@ export interface AgentCallRecord {
     totalTokens: number;
     /** Cost in USD for this call, when available. */
     costUSD?: number;
+    /**
+     * Tokens served from the provider's prompt-prefix cache for this call.
+     * Undefined when the provider does not report cache usage.
+     */
+    cacheReadTokens?: number;
+    /**
+     * Tokens written as a new prompt-prefix cache entry for this call.
+     * Undefined when the provider does not report cache usage.
+     */
+    cacheCreationTokens?: number;
   };
   /** Wall-clock milliseconds for this agent call. */
   durationMs: number;
@@ -887,6 +897,8 @@ export type AgencyStreamPart =
         completionTokens: number;
         totalTokens: number;
         costUSD?: number;
+        cacheReadTokens?: number;
+        cacheCreationTokens?: number;
       };
       agentCalls: AgentCallRecord[];
       parsed?: unknown;
@@ -917,6 +929,8 @@ export interface CompiledStrategyStreamResult {
     completionTokens: number;
     totalTokens: number;
     costUSD?: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
   }>;
   /** Final per-agent ledger for the strategy run, when available. */
   agentCalls?: Promise<AgentCallRecord[]>;
@@ -971,6 +985,8 @@ export interface AgencyStreamResult {
     completionTokens: number;
     totalTokens: number;
     costUSD?: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
   }>;
   /** Final per-agent execution ledger for the streamed run. */
   agentCalls: Promise<AgentCallRecord[]>;
