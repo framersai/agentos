@@ -8,7 +8,7 @@
 
 # **AgentOS** — Open-Source TypeScript AI Agent Runtime with Cognitive Memory, HEXACO Personality, and Runtime Tool Forging
 
-**85.6% on LongMemEval-S** at $0.0090/correct, +1.4 above Mastra OM gpt-4o (84.23%) at the matched reader · **70.2% on LongMemEval-M** (1.5M-token variant), the only open-source library on the public record above 65% on M with publicly reproducible methodology · 16 LLM providers · 8 neuroscience-backed memory mechanisms · Apache-2.0
+**85.6% on LongMemEval-S** at $0.0090/correct, +1.4 above Mastra OM gpt-4o (84.23%) · **70.2% on LongMemEval-M** (1.5M-token variant), the only open-source library on the public record above 65% on M with publicly reproducible methodology · 16 LLM providers · 8 neuroscience-backed memory mechanisms · Apache-2.0
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -26,7 +26,7 @@
 
 AgentOS is an open-source TypeScript runtime for AI agents that adapt, remember, and collaborate. The runtime carries the parts of an agent that should outlive a single chat completion: persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory) grounded in published cognitive-science literature, optional [HEXACO personality](https://docs.agentos.sh/features/cognitive-memory-guide) modeling, runtime tool forging in a V8 isolate sandbox, [six multi-agent orchestration strategies](https://docs.agentos.sh/features/multi-agent-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), and one dispatch interface across 21 LLM providers. Apache-2.0.
 
-On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (matched gpt-4o reader, +1.4 points above Mastra's published 84.23%); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
+On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (gpt-4o reader, +1.4 points above Mastra's published 84.23%); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
 
 ---
 
@@ -100,7 +100,7 @@ When a vector is supplied, the kernel weights retrieval, specialist routing, and
 
 ---
 
-## Memory Benchmarks (matched reader)
+## Memory Benchmarks
 
 `gpt-4o` reader, `gpt-4o-2024-08-06` judge, full N=500 across every row. Cross-provider numbers are excluded from the tables because their public methodology disclosures don't admit reproduction.
 
@@ -115,7 +115,7 @@ When a vector is supplied, the kernel weights retrieval, specialist routing, and
 | EmergenceMem Simple Fast (rerun in agentos-bench) | 80.6% | $0.0586 | 3,703 ms |
 | Zep (self / independent reproduction) | 71.2% / 63.8% | not published | not published |
 
-+1.4 points above Mastra OM at matched reader. EmergenceMem Internal posts 86.0% (0.4 above) but doesn't publish per-case results or a reproducible CLI; among open-source libraries with single-CLI reproduction at `gpt-4o`, 85.6% is the highest publicly reproducible number located. p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms.
++1.4 points above Mastra OM. EmergenceMem Internal posts 86.0% (0.4 above) but doesn't publish per-case results or a reproducible CLI; among open-source libraries with single-CLI reproduction at `gpt-4o`, 85.6% is the highest publicly reproducible number located. p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms.
 
 Cross-provider numbers omitted from the table (different reader and/or undisclosed judge): Mastra OM 94.87% (gpt-5-mini + gemini-2.5-flash observer), agentmemory 96.2% (Claude Opus 4.6), MemMachine 93.0% (GPT-5-mini), Hindsight 91.4% (unspecified backbone).
 
@@ -292,7 +292,7 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 
 ## Documentation & Community
 
-- **[Benchmarks](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)**: matched-reader benchmark tables, 95% confidence intervals, methodology audit
+- **[Benchmarks](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)**: benchmark tables, 95% confidence intervals, methodology audit
 - **[Architecture](https://docs.agentos.sh/architecture/system-architecture)**: system design, layer breakdown
 - **[Cognitive Memory](https://docs.agentos.sh/features/cognitive-memory)**: 8 mechanisms with 30+ APA citations
 - **[RAG Configuration](https://docs.agentos.sh/features/rag-memory-configuration)**: vector stores, embeddings, sources
