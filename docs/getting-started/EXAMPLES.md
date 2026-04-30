@@ -122,24 +122,77 @@ console.log(report.text);
 
 ## 3. Content Pipeline
 
-Review loop with social posting on approval.
+Review loop with social posting on approval. The `workflow()` DSL is a
+typed graph that compiles into a runtime. Two things are easy to get wrong
+the first time, both shown explicitly below:
+
+1. **Pass `deps` into `compile({ deps })`.** The runtime needs an executor
+   for every node type you use — `toolOrchestrator` for `tool` nodes,
+   `loopController` + `providerCall` for `gmi` nodes, etc. Without these,
+   the matching nodes resolve `success: false` and `invoke()` returns `{}`.
+   See [`WorkflowRuntimeDeps`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts).
+2. **Use `outputAs` to map the final step's output to your `.returns()`
+   schema key.** By default each step's `output` lands in
+   `state.artifacts[<stepId>]`, so without `outputAs: 'publishedTo'` your
+   `result` would have `result.publish` (the step id) rather than
+   `result.publishedTo`.
 
 ```typescript
 import { workflow } from '@framers/agentos/orchestration';
-import { SocialPostManager, ContentAdaptationEngine } from '@framers/agentos/social-posting';
+import { agent } from '@framers/agentos';
 import { z } from 'zod';
 
+// 1. Wire up a stateful agent that the GMI nodes will delegate to. Any
+//    real-world workflow runs LLM calls through your own provider config;
+//    the workflow runtime only orchestrates — it does NOT pick a provider
+//    for you.
+const writer = agent({
+  provider: 'openai',
+  model: 'gpt-4o-mini',
+  instructions: 'You are a senior content marketer.',
+});
+
+// 2. Implement the deps the runtime expects. `toolOrchestrator` is the
+//    minimal hook for `step({ tool: '...' })` — register the tools your
+//    workflow names and `processToolCall` returns their output.
+const toolOrchestrator = {
+  async processToolCall({ toolCallRequest }: {
+    toolCallRequest: { toolName: string; arguments: Record<string, unknown> };
+  }) {
+    switch (toolCallRequest.toolName) {
+      case 'web_search':
+        return { success: true, output: await searchTheWeb(toolCallRequest.arguments) };
+      case 'multi_channel_post':
+        return { success: true, output: await postToTwitterAndLinkedIn(toolCallRequest.arguments) };
+      default:
+        return { success: false, error: `Unknown tool: ${toolCallRequest.toolName}` };
+    }
+  },
+};
+
+// 3. `providerCall` is the GMI-node hook. It receives the step's
+//    instructions string and the current graph state, and yields LoopChunks
+//    on the way to a final LoopOutput. The simplest possible implementation
+//    just delegates to the agent above.
+async function* providerCall(instructions: string) {
+  const reply = await writer.generate(instructions);
+  yield { type: 'text' as const, text: reply.text };
+  return { success: true, output: reply.text };
+}
+
+// 4. Build the pipeline. Each step's output is auto-promoted to
+//    `state.artifacts[<stepId>]` unless you set `outputAs`.
 const contentPipeline = workflow('content-pipeline')
   .input(z.object({ topic: z.string(), audience: z.string() }))
   .returns(z.object({ publishedTo: z.array(z.string()) }))
 
-  // Step 1: Research the topic
+  // Step 1: Research the topic — output lands in `result.research`.
   .step('research', {
     tool: 'web_search',
     effectClass: 'external',
   })
 
-  // Step 2: Draft the blog post
+  // Step 2: Draft the blog post — output lands in `result.draft`.
   .step('draft', {
     gmi: {
       instructions: `
@@ -149,33 +202,52 @@ const contentPipeline = workflow('content-pipeline')
     },
   })
 
-  // Step 3: Human approval
+  // Step 3: Human approval — uses autoAccept here so the example runs
+  // without an interactive terminal. In production, omit autoAccept and
+  // wire up `hitl.cli()` or `hitl.llmJudge()` from `@framers/agentos`.
   .step('review', {
-    human: { prompt: 'Review the draft. Approve or request changes.' },
+    human: { prompt: 'Review the draft. Approve or request changes.', autoAccept: true } as any,
   })
 
-  // Step 4: Generate a social post variant
+  // Step 4: Generate a social variant — output in `result['social-draft']`.
   .step('social-draft', {
     gmi: {
       instructions: 'Create a Twitter/LinkedIn-optimized 280-char teaser for the blog post.',
     },
   })
 
-  // Step 5: Publish to social platforms
+  // Step 5: Publish — `outputAs` renames the artifact key to match the
+  // `.returns()` schema, so callers get `result.publishedTo` directly.
   .step('publish', {
     tool: 'multi_channel_post',
     effectClass: 'external',
+    outputAs: 'publishedTo',
   })
 
-  .compile();
+  .compile({
+    // Wire the deps you need. Missing deps → matching node types fail.
+    deps: {
+      toolOrchestrator,
+      providerCall, // consumed by GMI nodes
+    },
+  });
 
 const result = await contentPipeline.invoke({
   topic: 'How AI agents will change software development in 2026',
   audience: 'senior software engineers',
-});
+}) as { publishedTo: string[]; research?: unknown; draft?: string };
 
-console.log('Published to:', result.publishedTo);
+console.log('Published to:', result.publishedTo); // ['twitter', 'linkedin']
+console.log('Draft preview:', String(result.draft).slice(0, 200));
 ```
+
+> **Prefer the `agency()` API for multi-step LLM pipelines.** When every
+> step is a GMI/agent and you don't need explicit graph control,
+> [`agency({ strategy: 'sequential', agents: { ... } })`](./HIGH_LEVEL_API.md)
+> is the higher-level path — it auto-wires the providers, memory, and
+> guardrails so you don't manage `toolOrchestrator` / `providerCall`
+> yourself. Reach for `workflow()` when you need a typed DAG, branches,
+> or human-in-the-loop gates.
 
 ---
 

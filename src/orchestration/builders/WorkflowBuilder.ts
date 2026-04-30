@@ -48,8 +48,21 @@ import { InMemoryCheckpointStore } from '../checkpoint/InMemoryCheckpointStore.j
 import { GraphCompiler } from '../compiler/GraphCompiler.js';
 import { GraphValidator } from '../compiler/Validator.js';
 import { GraphRuntime } from '../runtime/GraphRuntime.js';
-import { NodeExecutor } from '../runtime/NodeExecutor.js';
+import { NodeExecutor, type NodeExecutorDeps } from '../runtime/NodeExecutor.js';
 import type { GraphEvent } from '../events/GraphEvent.js';
+
+/**
+ * Public alias for the dependency-injection surface accepted by every
+ * compiled-workflow runtime.
+ *
+ * Mirrors the internal `NodeExecutorDeps` interface from `NodeExecutor`. All
+ * fields are optional: callers wire in only the executors their nodes
+ * actually need (`toolOrchestrator` for tool nodes, `loopController` +
+ * `providerCall` for GMI nodes, etc.). Missing executors cause the
+ * corresponding node type to fail with `success: false` rather than a hard
+ * throw, matching the runtime's graceful-degradation contract.
+ */
+export type WorkflowRuntimeDeps = NodeExecutorDeps;
 
 // ---------------------------------------------------------------------------
 // Public config types
@@ -101,6 +114,16 @@ export interface StepConfig {
   timeout?: number;
   /** Side-effect classification used by the runtime for scheduling decisions. */
   effectClass?: 'pure' | 'read' | 'write' | 'external' | 'human';
+  /**
+   * Optional artifact key name. When set, this step's successful `output`
+   * is promoted into `state.artifacts[outputAs]` (the value returned from
+   * `invoke()`). When omitted, the step's output is promoted into
+   * `state.artifacts[<stepId>]` by default. Use this to make your final
+   * step populate a key that matches the shape of your `.returns()`
+   * schema — e.g. `step('publish', { tool: '...', outputAs: 'publishedTo' })`
+   * when `.returns(z.object({ publishedTo: z.array(z.string()) }))`.
+   */
+  outputAs?: string;
   /**
    * Voice pipeline node configuration.
    * When provided alongside `executorConfig.type: 'voice'`, these settings are
@@ -341,7 +364,20 @@ export class WorkflowBuilder {
    * @throws {Error} When `.input()` or `.returns()` was not called.
    * @throws {Error} When the compiled graph contains a cycle (should never happen via this API).
    */
-  compile(options?: { checkpointStore?: ICheckpointStore }): CompiledWorkflow {
+  compile(options?: {
+    /** Custom checkpoint persistence backend; defaults to `InMemoryCheckpointStore`. */
+    checkpointStore?: ICheckpointStore;
+    /**
+     * Runtime-execution dependencies forwarded to the underlying
+     * `NodeExecutor`. Wire in `toolOrchestrator` for `tool` nodes,
+     * `loopController` + `providerCall` for `gmi` nodes,
+     * `extensionExecutor` for `extension` nodes, etc. Without these, the
+     * matching node types fail with `success: false`.
+     *
+     * @see {@link WorkflowRuntimeDeps}
+     */
+    deps?: WorkflowRuntimeDeps;
+  }): CompiledWorkflow {
     if (!this.inputSchema) {
       throw new Error('workflow() requires .input() schema — input is required');
     }
@@ -502,7 +538,7 @@ export class WorkflowBuilder {
     }
 
     const store = options?.checkpointStore ?? new InMemoryCheckpointStore();
-    return new CompiledWorkflow(ir, store);
+    return new CompiledWorkflow(ir, store, options?.deps);
   }
 
   // -------------------------------------------------------------------------
@@ -523,6 +559,12 @@ export class WorkflowBuilder {
    * @returns A fully constructed `GraphNode` ready for the IR.
    */
   private configToNode(id: string, config: StepConfig): GraphNode {
+    // Attach `outputAs` to the node's metadata so the runtime knows which
+    // artifact key to populate after a successful execution. The runtime
+    // falls back to using `id` when `outputAs` is missing, which is what
+    // gives `state.artifacts[stepId] = output` as the default behavior.
+    const metadata = config.outputAs ? { outputAs: config.outputAs } : undefined;
+
     if (config.tool) {
       return {
         ...toolNode(
@@ -539,6 +581,7 @@ export class WorkflowBuilder {
           }
         ),
         id,
+        ...(metadata ? { metadata } : {}),
       };
     }
 
@@ -556,6 +599,7 @@ export class WorkflowBuilder {
           }
         ),
         id,
+        ...(metadata ? { metadata } : {}),
       };
     }
 
@@ -563,6 +607,7 @@ export class WorkflowBuilder {
       return {
         ...humanNode({ prompt: config.human.prompt, timeout: config.timeout }),
         id,
+        ...(metadata ? { metadata } : {}),
       };
     }
 
@@ -582,6 +627,7 @@ export class WorkflowBuilder {
         checkpoint: 'none',
         memoryPolicy: config.memory,
         guardrailPolicy: config.guardrails,
+        ...(metadata ? { metadata } : {}),
       };
     }
 
@@ -596,6 +642,7 @@ export class WorkflowBuilder {
         executionMode: 'single_turn',
         effectClass: config.effectClass ?? 'read',
         checkpoint: 'none',
+        ...(metadata ? { metadata } : {}),
       };
     }
 
@@ -616,6 +663,7 @@ export class WorkflowBuilder {
         checkpoint: 'before',
         memoryPolicy: config.memory,
         guardrailPolicy: config.guardrails,
+        ...(metadata ? { metadata } : {}),
       };
     }
 
@@ -648,14 +696,19 @@ export class CompiledWorkflow {
   /**
    * @param ir              - The compiled execution graph (produced by `GraphCompiler`).
    * @param checkpointStore - Checkpoint persistence backend.
+   * @param deps            - Optional runtime executors forwarded to `NodeExecutor`.
+   *                          Defaults to an empty object (no executors), in which
+   *                          case `tool` / `gmi` / `extension` nodes degrade to
+   *                          `success: false`. See {@link WorkflowRuntimeDeps}.
    */
   constructor(
     private readonly ir: CompiledExecutionGraph,
-    checkpointStore: ICheckpointStore
+    checkpointStore: ICheckpointStore,
+    deps: WorkflowRuntimeDeps = {},
   ) {
     this.runtime = new GraphRuntime({
       checkpointStore,
-      nodeExecutor: new NodeExecutor({}),
+      nodeExecutor: new NodeExecutor(deps),
     });
   }
 

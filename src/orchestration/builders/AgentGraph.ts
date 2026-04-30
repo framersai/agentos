@@ -41,6 +41,7 @@ import { GraphCompiler } from '../compiler/GraphCompiler.js';
 import { GraphValidator } from '../compiler/Validator.js';
 import { GraphRuntime } from '../runtime/GraphRuntime.js';
 import { NodeExecutor } from '../runtime/NodeExecutor.js';
+import type { WorkflowRuntimeDeps } from './WorkflowBuilder.js';
 import type { GraphEvent } from '../events/GraphEvent.js';
 
 // Re-export sentinels so callers can import them from this module without reaching into ir/.
@@ -286,6 +287,15 @@ export class AgentGraph<TState extends GraphState = GraphState> {
      * Defaults to `true`. Set to `false` for cyclic or incomplete graphs under construction.
      */
     validate?: boolean;
+    /**
+     * Runtime-execution dependencies forwarded to the underlying
+     * `NodeExecutor`. Wire in `toolOrchestrator` for `tool` nodes,
+     * `loopController` + `providerCall` for `gmi` nodes, etc. Without these,
+     * the matching node types fail with `success: false`.
+     *
+     * @see {@link WorkflowRuntimeDeps}
+     */
+    deps?: WorkflowRuntimeDeps;
   }): CompiledAgentGraph<TState> {
     // Step 1 — Compile builder state to IR.
     const ir = GraphCompiler.compile({
@@ -318,7 +328,7 @@ export class AgentGraph<TState extends GraphState = GraphState> {
 
     // Step 3 — Wrap in an executable CompiledAgentGraph.
     const store = options?.checkpointStore ?? new InMemoryCheckpointStore();
-    return new CompiledAgentGraph<TState>(ir, store);
+    return new CompiledAgentGraph<TState>(ir, store, options?.deps);
   }
 }
 
@@ -344,14 +354,17 @@ export class CompiledAgentGraph<TState extends GraphState = GraphState> {
   /**
    * @param ir              - Compiled execution graph IR produced by `GraphCompiler`.
    * @param checkpointStore - Persistence backend for checkpoint snapshots.
+   * @param deps            - Optional runtime executors forwarded to `NodeExecutor`.
+   *                          See {@link WorkflowRuntimeDeps}.
    */
   constructor(
     private readonly ir: CompiledExecutionGraph,
-    checkpointStore: ICheckpointStore
+    checkpointStore: ICheckpointStore,
+    deps: WorkflowRuntimeDeps = {},
   ) {
     this.runtime = new GraphRuntime({
       checkpointStore,
-      nodeExecutor: new NodeExecutor({}),
+      nodeExecutor: new NodeExecutor(deps),
     });
   }
 

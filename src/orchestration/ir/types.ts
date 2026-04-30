@@ -473,6 +473,19 @@ export interface GraphNode {
   personaPolicy?: PersonaPolicy;
   /** Declarative guardrails evaluated on input and/or output payloads. */
   guardrailPolicy?: GuardrailPolicy;
+  /**
+   * Optional builder-supplied metadata.
+   *
+   * The runtime currently consumes one well-known key:
+   * - `outputAs: string` — when present, the node's successful `output` is
+   *   promoted into `state.artifacts[outputAs]` after execution. When
+   *   absent, the node's output is promoted into `state.artifacts[id]` by
+   *   default. Any executor that explicitly sets `result.artifactsUpdate`
+   *   takes precedence over either default.
+   *
+   * Builders are free to attach additional opaque keys for tooling.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**

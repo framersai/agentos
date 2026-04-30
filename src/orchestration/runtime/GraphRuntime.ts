@@ -304,6 +304,14 @@ export class GraphRuntime {
             }
             if (result.artifactsUpdate) {
               branchState = stateManager.updateArtifacts(branchState, result.artifactsUpdate);
+            } else if (result.success && result.output !== undefined && !result.routeTarget) {
+              // Same default artifact promotion as the sequential path —
+              // see the comment at the matching block below for context.
+              const artifactKey =
+                typeof node.metadata?.outputAs === 'string' && node.metadata.outputAs.length > 0
+                  ? node.metadata.outputAs
+                  : nodeId;
+              branchState = stateManager.updateArtifacts(branchState, { [artifactKey]: result.output });
             }
             events.push(...getResultEvents(result));
 
@@ -552,6 +560,23 @@ export class GraphRuntime {
         }
         if (result.artifactsUpdate) {
           state = stateManager.updateArtifacts(state, result.artifactsUpdate);
+        } else if (result.success && result.output !== undefined && !result.routeTarget) {
+          // Default artifact promotion: when the node ran successfully and the
+          // executor did not produce its own `artifactsUpdate`, promote
+          // `result.output` into `state.artifacts` under the key declared on
+          // `node.metadata.outputAs` (set by builders like workflow()'s
+          // `step('id', { outputAs: 'foo' })`), or fall back to `node.id`.
+          // This is what makes `await workflow.invoke(...)` actually return
+          // the per-step outputs that authors `.returns()`-typed against,
+          // instead of an empty object.
+          //
+          // Router nodes (which return `routeTarget` instead of a payload)
+          // are excluded — they're control-flow, not value producers.
+          const artifactKey =
+            typeof node.metadata?.outputAs === 'string' && node.metadata.outputAs.length > 0
+              ? node.metadata.outputAs
+              : nodeId;
+          state = stateManager.updateArtifacts(state, { [artifactKey]: result.output });
         }
         for (const event of getResultEvents(result)) {
           yield event;
@@ -868,7 +893,16 @@ export class GraphRuntime {
         nodeResults[nodeId] = { effectClass: node.effectClass, output: result.output, durationMs };
 
         if (result.scratchUpdate) state = stateManager.updateScratch(state, result.scratchUpdate);
-        if (result.artifactsUpdate) state = stateManager.updateArtifacts(state, result.artifactsUpdate);
+        if (result.artifactsUpdate) {
+          state = stateManager.updateArtifacts(state, result.artifactsUpdate);
+        } else if (result.success && result.output !== undefined && !result.routeTarget) {
+          // Same default artifact promotion as the primary path.
+          const artifactKey =
+            typeof node.metadata?.outputAs === 'string' && node.metadata.outputAs.length > 0
+              ? node.metadata.outputAs
+              : nodeId;
+          state = stateManager.updateArtifacts(state, { [artifactKey]: result.output });
+        }
         for (const event of getResultEvents(result)) {
           yield event;
         }

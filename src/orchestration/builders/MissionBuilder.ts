@@ -27,6 +27,7 @@ import { InMemoryCheckpointStore } from '../checkpoint/InMemoryCheckpointStore.j
 import { MissionCompiler, type MissionConfig } from '../compiler/MissionCompiler.js';
 import { GraphRuntime } from '../runtime/GraphRuntime.js';
 import { NodeExecutor } from '../runtime/NodeExecutor.js';
+import type { WorkflowRuntimeDeps } from './WorkflowBuilder.js';
 import type { GraphEvent } from '../events/GraphEvent.js';
 
 // ---------------------------------------------------------------------------
@@ -306,7 +307,16 @@ export class MissionBuilder {
    * @returns A `CompiledMission` ready to `invoke()`, `stream()`, or `explain()`.
    * @throws {Error} When required builder fields are missing.
    */
-  compile(options?: { checkpointStore?: ICheckpointStore }): CompiledMission {
+  compile(options?: {
+    /** Custom checkpoint store; defaults to `InMemoryCheckpointStore`. */
+    checkpointStore?: ICheckpointStore;
+    /**
+     * Runtime-execution dependencies forwarded to the underlying
+     * `NodeExecutor`. Without these, the matching node types fail with
+     * `success: false`. See {@link WorkflowRuntimeDeps}.
+     */
+    deps?: WorkflowRuntimeDeps;
+  }): CompiledMission {
     if (!this._inputSchema) {
       throw new Error('mission() requires .input() — input schema is required');
     }
@@ -339,7 +349,7 @@ export class MissionBuilder {
     };
 
     const store = options?.checkpointStore ?? new InMemoryCheckpointStore();
-    return new CompiledMission(config, store);
+    return new CompiledMission(config, store, options?.deps);
   }
 }
 
@@ -359,10 +369,13 @@ export class CompiledMission {
   /**
    * @param config          - Frozen mission configuration snapshot.
    * @param checkpointStore - Checkpoint persistence backend.
+   * @param deps            - Optional runtime executors forwarded to `NodeExecutor`.
+   *                          See {@link WorkflowRuntimeDeps}.
    */
   constructor(
     private readonly config: MissionConfig,
     private readonly checkpointStore: ICheckpointStore,
+    private readonly deps: WorkflowRuntimeDeps = {},
   ) {}
 
   // -------------------------------------------------------------------------
@@ -384,7 +397,7 @@ export class CompiledMission {
   private createRuntime(): GraphRuntime {
     return new GraphRuntime({
       checkpointStore: this.checkpointStore,
-      nodeExecutor: new NodeExecutor({}),
+      nodeExecutor: new NodeExecutor(this.deps),
     });
   }
 
