@@ -1,5 +1,7 @@
 # Multimodal RAG (Image + Audio + Documents)
 
+> **Memory benchmarks (full N=500, matched gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)** at the matched reader. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. The same text-first retrieval pipeline that produced these numbers is what the multimodal pattern below indexes against (derived captions, transcripts, OCR, document text) once you have a text representation. [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
+
 AgentOS’ core RAG APIs are **text-first** (`EmbeddingManager` + `VectorStoreManager` + `RetrievalAugmentor`). Multimodal support (image/audio) is implemented as a composable pattern on top:
 
 1. Store the **binary asset** (optional) + metadata.
@@ -10,6 +12,8 @@ AgentOS’ core RAG APIs are **text-first** (`EmbeddingManager` + `VectorStoreMa
 This guide documents the reference implementation used by the AgentOS HTTP API router (`@framers/agentos-ext-http-api`) and the `voice-chat-assistant` backend.
 
 This is a strong **production baseline**, not a claim that AgentOS already ships the full current frontier of multimodal retrieval research. Today the canonical retrieval surface is still derived text. Direct visual late-interaction retrievers and page-native document retrieval remain follow-up work.
+
+Current implementation detail: PDF/document ingestion now indexes extracted text into standard RAG collections through `MultimodalIndexer.indexText(...)`, so derived document text is retrievable through the normal text pipeline rather than only being stored as memory traces.
 
 ## Why This Design
 
@@ -32,6 +36,8 @@ flowchart LR
 ```
 
 Key idea: the **derived text** is the canonical retrieval surface. Modality embeddings (when enabled) are an acceleration path, not a requirement. Documents are first-class assets in the same model, but stay text-first for now.
+
+That text-first design has one important boundary today: `UnifiedRetriever` still treats its multimodal source as non-text-only. Document/PDF text retrieval therefore works through the standard text RAG collections rather than through the multimodal source branch in `UnifiedRetriever`.
 
 ### Query
 

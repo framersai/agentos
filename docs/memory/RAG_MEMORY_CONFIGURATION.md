@@ -1,19 +1,23 @@
 # RAG and Memory Configuration
 
+> **Memory benchmarks (full N=500, matched gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)** at the matched reader. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. Competitive with the strongest published M results in the LongMemEval paper (Wu et al., ICLR 2025: round Top-5 65.7%, session Top-5 71.4%, round Top-10 72.0%). [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
+
 AgentOS provides three levels of memory API:
 
 1. **`Memory`** — Primary SQLite-first facade for persistent local memory, ingestion, import/export, graph memory, and self-improving consolidation.
 2. **`AgentMemory`** — Compatibility facade that can wrap either `CognitiveMemoryManager` or the standalone `Memory` engine.
-3. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `GraphRAGEngine` for custom pipelines.
+3. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `UnifiedRetriever`, `GraphRAGEngine` for custom pipelines.
 
 `Memory.create()` currently supports the SQLite-backed standalone memory facade at runtime. Postgres, Qdrant, Pinecone, and other backends are available through the lower-level RAG/vector-store layer.
+
+Runtime truth: `ragConfig` and the standard AgentOS bootstrap still create the classic `RetrievalAugmentor` path. `UnifiedRetriever` exists as an opt-in orchestration layer for hosts that explicitly wire it in.
 
 ## Standalone Memory Facade
 
 ```ts
 import { Memory } from '@framers/agentos';
 
-const mem = await Memory.create({
+const mem = await Memory.createSqlite({
   path: './brain.sqlite',
   graph: true,
   selfImprove: true,
@@ -34,7 +38,7 @@ tools directly or load them through the extension system:
 ```ts
 import { createMemoryToolsPack, Memory } from '@framers/agentos';
 
-const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.createSqlite({ path: './brain.sqlite', selfImprove: true });
 
 // Direct registration
 for (const tool of memory.createTools()) {
@@ -54,7 +58,7 @@ from `AgentOS.initialize()`:
 ```ts
 import { AgentOS, Memory } from '@framers/agentos';
 
-const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.createSqlite({ path: './brain.sqlite', selfImprove: true });
 const agentos = new AgentOS();
 
 await agentos.initialize({
@@ -81,7 +85,7 @@ unified `standaloneMemory` config bridge:
 ```ts
 import { AgentOS, Memory } from '@framers/agentos';
 
-const memory = await Memory.create({ path: './brain.sqlite', selfImprove: true });
+const memory = await Memory.createSqlite({ path: './brain.sqlite', selfImprove: true });
 const agentos = new AgentOS();
 
 await agentos.initialize({
@@ -209,7 +213,8 @@ The concrete RAG APIs live under `@framers/agentos/rag`:
 
 - **`EmbeddingManager`** — Text → vector embeddings (OpenAI, Ollama, custom providers)
 - **`VectorStoreManager`** — HNSW/InMemory vector storage with similarity search
-- **`RetrievalAugmentor`** — Orchestrates embedding + search + context assembly
+- **`RetrievalAugmentor`** — Default runtime RAG pipeline for embedding + search + context assembly
+- **`UnifiedRetriever`** — Opt-in plan-aware orchestration across multiple retrieval sources
 - **`HydeRetriever`** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
 - **`GraphRAGEngine`** — TypeScript-native graph-based RAG with knowledge graph traversal
 
@@ -348,6 +353,7 @@ Notes:
 - If `retrievalAugmentor` is provided, it takes precedence over `ragConfig`.
 - `ragConfig.manageLifecycle` defaults to `true`.
 - `ragConfig.bindToStorageAdapter` defaults to `true` and will inject AgentOS’ `storageAdapter` into **SQL vector store providers that did not specify `adapter` or `storage`**.
+- `ragConfig` does not instantiate `UnifiedRetriever`. If you want QueryRouter plan execution through `UnifiedRetriever`, wire that separately with `router.setUnifiedRetriever(...)`.
 
 ## Long-Term Memory Recall (Aggressive Default)
 
