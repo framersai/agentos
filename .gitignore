@@ -31,3 +31,6 @@ coverage/
 # Superpowers
 .superpowers/
 docs/superpowers/
+
+# Internal planning docs (superpowers workflow)
+docs/mars-genesis-v*-plan*.md

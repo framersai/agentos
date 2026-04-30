@@ -477,8 +477,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -955,8 +953,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -1431,8 +1427,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -1905,8 +1899,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -2377,8 +2369,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -2845,8 +2835,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -3310,8 +3298,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -3772,8 +3758,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -4231,8 +4215,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -4688,8 +4670,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -5143,8 +5123,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -5596,8 +5574,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -6047,8 +6023,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.2.0 (2026-04-30)
 
@@ -6496,8 +6470,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## <small>0.5.10 (2026-04-30)</small>
 
@@ -6681,8 +6653,6 @@ Brain.open(path), Brain.create(path), Memory.create({path}) all removed.
 Postgres deployments require brainId on every brain operation. Existing
 SQLite files auto-migrate on first open.
 
-Spec: docs/superpowers/specs/2026-04-26-brain-storage-abstraction-design.md
-Plan: docs/superpowers/plans/2026-04-26-brain-storage-abstraction-plan.md
 
 ## 0.3.0 (2026-04-26)
 
