@@ -639,6 +639,16 @@ export class OpenAIProvider implements IProvider {
       stream: stream,
     };
 
+    // OpenAI's streaming API omits the usage object by default. Without
+    // stream_options.include_usage, the final SSE chunk carries finish_reason
+    // but no token counts, so downstream `streamText({...}).usage` resolves
+    // to zeros. Opting in here gives every streaming caller real usage data
+    // (and surfaces a final usage chunk after the [DONE] marker per
+    // https://platform.openai.com/docs/api-reference/chat/create#chat-create-stream_options).
+    if (stream) {
+      payload.stream_options = { include_usage: true };
+    }
+
     if (options.temperature !== undefined) payload.temperature = options.temperature;
     if (options.topP !== undefined) payload.top_p = options.topP;
     if (options.maxTokens !== undefined) {
@@ -709,6 +719,24 @@ export class OpenAIProvider implements IProvider {
         let responseTextDelta: string | undefined;
         let toolCallsDeltas: ModelCompletionResponse['toolCallsDeltas'];
         let finalUsage: ModelUsage | undefined;
+
+        // With stream_options.include_usage, OpenAI emits a trailing chunk with
+        // an empty `choices` array and a populated `usage` object. That chunk
+        // carries no content / no finish_reason — its only job is to deliver
+        // token totals. Treat it as a final usage-only chunk so callers see
+        // accurate token counts after the stream resolves.
+        if ((!apiChunk.choices || apiChunk.choices.length === 0) && apiChunk.usage) {
+            const usageOnlyUsage = this.calculateUsage(apiChunk.usage, apiChunk.model);
+            return {
+                id: apiChunk.id,
+                object: apiChunk.object,
+                created: apiChunk.created,
+                modelId: apiChunk.model,
+                choices: [],
+                isFinal: true,
+                usage: usageOnlyUsage,
+            };
+        }
 
         if (choice?.delta?.content) {
             responseTextDelta = choice.delta.content;
