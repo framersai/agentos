@@ -15,7 +15,6 @@ import {
   resolveTaskOutcomeTelemetryConfig,
   resolveAdaptiveExecutionConfig,
   type TaskOutcomeAssessment,
-  type AdaptiveExecutionDecision,
   type ResolvedTaskOutcomeTelemetryConfig,
   type ResolvedAdaptiveExecutionConfig,
 } from './TaskOutcomeTelemetryManager';
@@ -31,13 +30,11 @@ import type {
 } from '../types/AgentOSExternalToolRequest';
 // AGENTOS_PENDING_EXTERNAL_TOOL_REQUEST_METADATA_KEY now used only by ExternalToolResultHandler
 import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
-import { GMIManager } from '../../cognitive_substrate/GMIManager';
 import {
   IGMI,
   GMIOutput,
   GMIOutputChunkType,
 } from '../../cognitive_substrate/IGMI';
-import { ConversationManager } from '../../core/conversation/ConversationManager';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 import { MessageRole } from '../../core/conversation/ConversationMessage';
 // IToolOrchestrator — referenced via AgentOSOrchestratorDependencies
@@ -55,9 +52,7 @@ import {
 } from '../../core/conversation/RollingSummaryCompactor';
 // IRollingSummaryMemorySink, RollingSummaryMemoryUpdate — now used by TurnExecutionPipeline
 // ILongTermMemoryRetriever — referenced via AgentOSOrchestratorDependencies
-import {
-  type ResolvedLongTermMemoryPolicy,
-} from '../../core/conversation/LongTermMemoryPolicy';
+// ResolvedLongTermMemoryPolicy — referenced via TurnExecutionPipeline
 import {
   recordAgentOSTurnMetrics,
   recordExceptionOnActiveSpan,
@@ -69,7 +64,7 @@ import {
 // CapabilityContextAssembler, filterCapabilityDiscoveryResultByDisabledSkills — now used by GMIChunkTransformer
 import { ExternalToolResultHandler } from './ExternalToolResultHandler';
 import { GMIChunkTransformer } from './GMIChunkTransformer';
-import { TurnExecutionPipeline, type PreparedTurnContext } from './TurnExecutionPipeline';
+import { TurnExecutionPipeline } from './TurnExecutionPipeline';
 
 // Public config types extracted to types/OrchestratorConfig.ts
 export type {
@@ -114,8 +109,6 @@ type ResolvedTenantRoutingConfig = {
 // ResolvedTaskOutcomeTelemetryConfig, ResolvedAdaptiveExecutionConfig,
 // TaskOutcomeAssessment, TaskOutcomeKpiSummary, TaskOutcomeKpiAlert,
 // AdaptiveExecutionDecision — imported from TaskOutcomeTelemetryManager
-
-type TaskOutcomeStatus = 'success' | 'partial' | 'failed';
 
 // TaskOutcomeKpiWindowEntry imported from types/OrchestratorConfig.ts
 
@@ -272,19 +265,6 @@ function buildToolCallChunkMetadata(
 
   return metadata;
 }
-
-type LongTermMemoryRetrievalState = {
-  lastReviewedUserTurn: number;
-  lastReviewedAt?: number;
-};
-
-type TurnExecutionLifecyclePhase =
-  | 'planned'
-  | 'executing'
-  | 'degraded'
-  | 'recovered'
-  | 'completed'
-  | 'errored';
 
 type ResolvedAgentOSOrchestratorConfig = Required<
   Omit<
@@ -703,7 +683,6 @@ export class AgentOSOrchestrator {
     let currentPersonaId = input.selectedPersonaId;
     let gmiInstanceIdForChunks = 'gmi_pending_init';
     let organizationIdForMemory: string | undefined;
-    let longTermMemoryPolicy: ResolvedLongTermMemoryPolicy | null = null;
     let didForceTerminate = false;
     let lifecycleDegraded = false;
     let keepStreamContextActive = false;
@@ -718,13 +697,11 @@ export class AgentOSOrchestrator {
       currentPersonaId = prepared.currentPersonaId;
       gmiInstanceIdForChunks = prepared.gmiInstanceIdForChunks;
       organizationIdForMemory = prepared.organizationIdForMemory;
-      longTermMemoryPolicy = prepared.longTermMemoryPolicy;
       lifecycleDegraded = prepared.lifecycleDegraded;
       turnMetricsPersonaId = currentPersonaId;
 
       const { gmiInput, streamContext } = prepared;
       const longTermMemoryFeedbackPayload = prepared.longTermMemoryFeedbackPayload;
-      const longTermMemoryRetrievalDiagnostics = prepared.longTermMemoryRetrievalDiagnostics;
 
       let currentToolCallIteration = 0;
       let continueProcessing = true;
