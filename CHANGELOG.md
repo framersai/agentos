@@ -1,3 +1,11 @@
+## <small>0.5.10 (2026-04-30)</small>
+
+* feat(strategies): accumulate costUSD/cache tokens, render debate as judge verdict ([494fbe4](https://github.com/framersai/agentos/commit/494fbe4))
+* fix(ci): postgres adapter capabilities + drop unused vars ([404e328](https://github.com/framersai/agentos/commit/404e328))
+* docs(readme): replace ratio with absolute cost-at-scale framing ([01ea3ff](https://github.com/framersai/agentos/commit/01ea3ff))
+* docs(readme): streamline from 551 to 258 lines, lead with SOTA numbers + CTAs ([9b12b6a](https://github.com/framersai/agentos/commit/9b12b6a))
+* docs(readme): tighten Mastra comparison framing ([bd44032](https://github.com/framersai/agentos/commit/bd44032))
+
 ## <small>0.5.9 (2026-04-29)</small>
 
 * feat(docs): register /benchmarks page in publication manifest ([b3dc29b](https://github.com/framersai/agentos/commit/b3dc29b))
