@@ -61,9 +61,13 @@ await session.send('Can you expand on that?'); // remembers context
 >
 > — Philip K. Dick, *The Android and the Human*, 1972
 
-Two pieces matter. Memory survives across turns. The agent's tool surface can grow within a session. Pass an optional personality vector and the runtime composes the three into behavior the prompt did not specify.
+Three things accumulate inside an AgentOS session:
 
-What that means in practice: the agent's behavior in turn six depends on what it accumulated in turns one through five. Which memories were reinforced. Which tools its specialists forged. Which trait values weighted which evidence at each decision. The runtime keeps each of those configurable and observable. None of the individual capabilities crosses into "emergent agent" by itself; the composition is the interesting part.
+1. **Memory.** What was said, what was decided, what was retrieved.
+2. **Tool surface.** Starts at whatever was registered. Can grow mid-decision when an agent forges a new function and the judge approves it.
+3. **Personality** (optional). A HEXACO trait vector that biases retrieval, specialist routing, and decision-making.
+
+Behavior in turn six is a function of all three carried forward from turns one through five: which memories got reinforced, which forged tools entered the catalog, which trait values weighted which evidence. Each of those is configurable and observable. None of the three crosses into "emergent agent" on its own; the composition is the interesting part.
 
 ### Runtime Tool Forging
 
