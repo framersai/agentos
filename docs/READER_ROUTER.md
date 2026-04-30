@@ -43,19 +43,20 @@ At a fixed reader, aggregate accuracy is the same. The two readers tie at 83.2% 
 The shipped table is `MIN_COST_BEST_CAT_2026_04_28`, derived from the Phase B per-category data above. For each category, the table picks the reader that produces higher accuracy. When accuracies are within statistical noise (single-session-assistant, knowledge-update), the table picks the cheaper reader (gpt-5-mini at ~12× lower per-token cost than gpt-4o).
 
 ```ts
-import { ReaderRouter } from '@framers/agentos/memory-router';
+import { selectReader } from '@framers/agentos/memory-router';
 
-const router = new ReaderRouter({
-  preset: 'min-cost-best-cat-2026-04-28',
-  classifier: gpt5miniClassifier,  // reuses MemoryRouter's classifier output when available
-  readers: {
-    'gpt-4o': gpt4oReader,
-    'gpt-5-mini': gpt5miniReader,
-  },
-});
-
-const reader = router.dispatch(predictedCategory);
+// `selectReader(category, preset)` looks up the right reader tier in the
+// shipped calibration table and returns the model identifier ('gpt-4o' or
+// 'gpt-5-mini'). The caller dispatches to the configured reader for that
+// tier — typically the same reader instance the rest of the pipeline uses.
+const tier = selectReader(predictedCategory, 'min-cost-best-cat-2026-04-28');
+const reader = tier === 'gpt-4o' ? gpt4oReader : gpt5miniReader;
 ```
+
+When the predicted category is missing or the preset name is unknown, the
+function throws `ReaderRouterUnknownCategoryError` /
+`ReaderRouterUnknownPresetError` (both exported from the same module).
+Use them to surface clear diagnostics in the calling pipeline.
 
 ## Standalone-classifier mode
 

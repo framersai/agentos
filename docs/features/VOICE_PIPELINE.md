@@ -43,21 +43,30 @@ stateDiagram-v2
 
 ## Quick Start
 
-### CLI
+### Programmatic
+
+The `agent({ voice })` field is typed against [`VoiceConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts#L289). The factory is **synchronous** — it does not return a Promise.
 
 ```typescript
-import { createAgent } from '@framers/agentos';
+import { agent } from '@framers/agentos';
 
 // Basic voice mode (Whisper STT + OpenAI TTS)
-const agent = await createAgent({ voice: true });
+const basic = agent({
+  voice: { enabled: true },
+});
 
-// Deepgram + ElevenLabs
-const agent = await createAgent({
+// Deepgram STT + ElevenLabs TTS with diarization
+const advanced = agent({
+  provider: 'openai',                           // LLM provider
   voice: {
     enabled: true,
     stt: 'deepgram',
     tts: 'elevenlabs',
-    diarization: { enabled: true },
+    ttsVoice: 'nova',
+    endpointing: 'heuristic',
+    diarization: true,                          // boolean, not an object
+    bargeIn: 'hard-cut',
+    language: 'en-US',
   },
 });
 ```
@@ -74,34 +83,22 @@ enabling voice:
 pipeline; when that callback is absent, the runtime falls back to heuristic
 endpointing.
 
-### Configuration
+### Wunderland CLI
 
-In `agent.config.json`:
+The same shape is consumed by the [Wunderland](https://wunderland.sh) CLI's
+`chat` command via `--voice` flags ([documented in TELEPHONY_PROVIDERS.md](./TELEPHONY_PROVIDERS.md#cli-flags)). For example:
 
-```json
-{
-  "voice": {
-    "enabled": true,
-    "pipeline": "streaming",
-    "stt": "deepgram",
-    "tts": "elevenlabs",
-    "ttsVoice": "nova",
-    "endpointing": "heuristic",
-    "diarization": {
-      "enabled": true,
-      "expectedSpeakers": 2
-    },
-    "bargeIn": "hard-cut",
-    "language": "en-US",
-    "server": {
-      "port": 8765,
-      "host": "127.0.0.1"
-    }
-  }
-}
+```sh
+wunderland chat \
+  --voice \
+  --voice-stt=deepgram \
+  --voice-tts=elevenlabs \
+  --voice-endpointing=heuristic \
+  --voice-barge-in=hard-cut \
+  --voice-port=8765
 ```
 
-CLI flags override config file values.
+CLI flags override values configured in code.
 
 ## Core Interfaces
 

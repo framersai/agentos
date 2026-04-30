@@ -270,8 +270,14 @@ console.log(result.embedding);     // Float32Array(512)
 console.log(result.model);         // 'clip-vit-base-patch32'
 
 // Use with vector stores for image search
-import { createVectorStore } from '@framers/agentos';
-const store = await createVectorStore({ type: 'hnsw' });
+import { HnswlibVectorStore } from '@framers/agentos';
+
+const store = new HnswlibVectorStore({
+  id: 'image-index',
+  type: 'hnsw',
+  dimension: 512,
+});
+await store.initialize();
 await store.upsert({ id: 'img-1', vector: result.embedding, metadata: { path: './photo.jpg' } });
 
 // Search by text
@@ -284,26 +290,30 @@ const matches = await store.query(textEmbedding, { topK: 5 });
 ## Integration with Multimodal RAG
 
 The vision pipeline integrates directly with the [Multimodal RAG](./MULTIMODAL_RAG.md)
-system for indexing and retrieving image content:
+system for indexing and retrieving image content. Configure RAG via the
+`rag` field on `agent({ ... })` — its shape is the [`RagConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts#L97) interface, with `multimodal.images` toggling image indexing.
 
 ```typescript
-import { createAgent } from '@framers/agentos';
+import { agent } from '@framers/agentos';
 
-const agent = await createAgent({
-  ragMemory: {
-    enabled: true,
-    multimodal: true,
-    vision: {
-      strategy: 'progressive',
-      indexImages: true,         // Auto-index images encountered in conversations
-      generateDescriptions: true, // Store natural-language descriptions alongside embeddings
-    },
+const myAgent = agent({
+  provider: 'openai',
+  rag: {
+    multimodal: { images: true, audio: false },
+    vectorStore: { provider: 'hnswlib', embeddingModel: 'clip-vit-base-patch32' },
+    topK: 5,
   },
 });
 
-// The agent can now answer questions about images in its memory
-const response = await agent.chat('What did the receipt from yesterday say?');
+// The agent can now answer questions about images in its indexed corpus
+const result = await myAgent.generate('What did the receipt from yesterday say?');
+console.log(result.text);
 ```
+
+For richer indexing pipelines (auto-describe on ingest, multi-modal embedding fusion),
+see the lower-level [Multimodal RAG guide](./MULTIMODAL_RAG.md) — it shows the
+`VisionPipeline` + `IngestRouter` wiring directly, without going through the
+high-level `agent()` helper.
 
 ---
 
@@ -498,14 +508,19 @@ await vision.dispose();
 ### Image Search Index
 
 ```typescript
-import { createVisionPipeline, createVectorStore } from '@framers/agentos';
+import { createVisionPipeline, HnswlibVectorStore } from '@framers/agentos';
 import { readFile } from 'node:fs/promises';
 
 const vision = await createVisionPipeline({
   strategy: 'local-only',
   tier1: { enableCLIP: true },
 });
-const store = await createVectorStore({ type: 'hnsw', dimensions: 512 });
+const store = new HnswlibVectorStore({
+  id: 'image-index',
+  type: 'hnsw',
+  dimension: 512,
+});
+await store.initialize();
 
 // Index images
 const images = ['photo1.jpg', 'photo2.jpg', 'photo3.jpg'];

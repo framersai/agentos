@@ -170,20 +170,18 @@ POST https://<your-domain>/api/voice/webhook/telnyx
 POST https://<your-domain>/api/voice/webhook/plivo
 ```
 
-Use `startTelephonyWebhookServer` from `@framers/agentos/voice` to start a standalone
-HTTP listener (useful for local development via ngrok or a tunnel):
+For local development, start the listener via the [Wunderland](https://wunderland.sh)
+CLI's `chat --telephony-webhook-port=...` flags ([documented below](#cli-flags))
+and expose it with a tunnel (`ngrok http 3001`).
 
-```typescript
-import { startTelephonyWebhookServer } from '@framers/agentos/voice';
-
-const { url, close } = await startTelephonyWebhookServer(
-  callManager,
-  new Map([['twilio', twilioProvider]]),
-  pipeline,
-  { port: 3001 },
-);
-console.log(`Webhook server listening at ${url}`);
-```
+Programmatically, wire the webhook routes onto your own HTTP server using the
+exports from `@framers/agentos/channels/telephony` — `CallManager`,
+`TelephonyStreamTransport`, and the per-provider media-stream parsers
+(`TwilioMediaStreamParser`, `TelnyxMediaStreamParser`, `PlivoMediaStreamParser`)
+— mounted under whatever framework you already run. A drop-in
+`startTelephonyWebhookServer` factory is on the roadmap but has not shipped
+yet; until then, the CLI is the no-code path and the manager + transport are
+the manual path.
 
 ### Signature verification
 

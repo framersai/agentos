@@ -192,9 +192,9 @@ export TELEGRAM_BOT_TOKEN=123456789:ABC-...
 **2. Register the adapter**
 
 ```typescript
-import { TelegramAdapter } from '@framers/agentos-extensions/channels/telegram';
+import { TelegramChannelAdapter } from '@framers/agentos-extensions/channels/telegram';
 
-const telegram = new TelegramAdapter();
+const telegram = new TelegramChannelAdapter();
 await telegram.initialize({
   credential: process.env.TELEGRAM_BOT_TOKEN!,
 });
