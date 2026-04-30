@@ -83,11 +83,11 @@ const support = agent({
   memory: { types: ['episodic', 'semantic'] },
 });
 
-// Opt-in HEXACO (companion products, multi-agent simulations)
-const visionary = agent({
+// Opt-in HEXACO (companion / persona-driven products, multi-agent simulations)
+const companion = agent({
   provider: 'openai',
-  instructions: 'Lead a Mars colony.',
-  personality: { openness: 0.95, honestyHumility: 0.4 },
+  instructions: 'You are a steady, curious companion who remembers our shared history.',
+  personality: { openness: 0.85, honestyHumility: 0.7 },
   memory: { types: ['episodic', 'semantic'] },
 });
 ```
