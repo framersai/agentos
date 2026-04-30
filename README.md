@@ -26,8 +26,6 @@
 
 AgentOS is an open-source TypeScript runtime for AI agents that adapt, remember, and collaborate. The runtime carries the parts of an agent that should outlive a single chat completion: persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory) grounded in published cognitive-science literature, optional [HEXACO personality](https://docs.agentos.sh/features/cognitive-memory-guide) modeling, runtime tool forging in a V8 isolate sandbox, [six multi-agent orchestration strategies](https://docs.agentos.sh/features/multi-agent-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), and one dispatch interface across 21 LLM providers. Apache-2.0.
 
-The intent is to keep the application code small. Most agent frameworks treat each agent call as a fresh function and push everything else (memory, personality, tool registration, multi-agent coordination, safety) into the application layer. AgentOS handles those concerns inside the runtime, so the application stays focused on its own logic and the agent stays the same agent across turns, sessions, and restarts.
-
 On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (matched gpt-4o reader, +1.4 points above Mastra's published 84.23%); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
 
 ---
