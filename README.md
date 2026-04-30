@@ -83,11 +83,15 @@ const support = agent({
   memory: { types: ['episodic', 'semantic'] },
 });
 
-// Opt-in HEXACO (companion / persona-driven products, multi-agent simulations)
-const companion = agent({
+// Opt-in HEXACO (when persona consistency across sessions matters)
+const coach = agent({
   provider: 'openai',
-  instructions: 'You are a steady, curious companion who remembers our shared history.',
-  personality: { openness: 0.85, honestyHumility: 0.7 },
+  instructions: "Long-running career coach. Hold the user accountable to their stated goals across weekly check-ins; flag drift, push back on excuses, escalate when goals shift.",
+  personality: {
+    conscientiousness: 0.9,    // won't let goals drift between sessions
+    honestyHumility: 0.85,     // won't tell the user what they want to hear
+    emotionality: 0.3,         // stays steady when the user is reactive
+  },
   memory: { types: ['episodic', 'semantic'] },
 });
 ```
