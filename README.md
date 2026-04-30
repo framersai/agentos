@@ -18,7 +18,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord)](https://wilds.ai/discord)
 
-[**Benchmarks**](https://docs.agentos.sh/benchmarks) · [Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [Discord](https://wilds.ai/discord) · [Blog](https://docs.agentos.sh/blog)
+[**Benchmarks**](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md) · [Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [Discord](https://wilds.ai/discord) · [Blog](https://docs.agentos.sh/blog)
 
 </div>
 
@@ -85,7 +85,7 @@ The harder variant. M's haystacks exceed every production context window. Most v
 
 **Competitive with the strongest published M results in the LongMemEval paper.** At matched Top-5 retrieval, AgentOS at 70.2% is +4.5 points above the round-level configuration (65.7%) and 1.2 points below the session-level configuration (71.4%); the paper's strongest GPT-4o result overall is 72.0% at round-level Top-10. Among open-source memory libraries with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS is the only one on the public record above 65% on M.
 
-> **[Full benchmarks page →](https://docs.agentos.sh/benchmarks)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)**
+> **[Full benchmarks page →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)**
 
 ---
 
@@ -99,7 +99,7 @@ The full architecture and benchmark methodology, written for engineers and resea
 | **Benchmarks** | LongMemEval-S 85.6%, LongMemEval-M 70.2%, vendor landscape, confidence interval methodology, judge FPR probes, full transparency stack |
 | **Reproducibility** | Per-case run JSONs at `--seed 42`, single-CLI reproduction, Apache-2.0 bench at [github.com/framersai/agentos-bench](https://github.com/framersai/agentos-bench) |
 
-**[Notify me when it drops →](mailto:team@frame.dev?subject=AgentOS%20Whitepaper%20Notify)** · **[Read the benchmarks now →](https://docs.agentos.sh/benchmarks)** · **[Discord](https://wilds.ai/discord)**
+**[Notify me when it drops →](mailto:team@frame.dev?subject=AgentOS%20Whitepaper%20Notify)** · **[Read the benchmarks now →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** · **[Discord](https://wilds.ai/discord)**
 
 ---
 
@@ -239,7 +239,7 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 
 ## Documentation & Community
 
-- **[Benchmarks](https://docs.agentos.sh/benchmarks)**: matched-reader benchmark tables, 95% confidence intervals, methodology audit
+- **[Benchmarks](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)**: matched-reader benchmark tables, 95% confidence intervals, methodology audit
 - **[Architecture](https://docs.agentos.sh/architecture/system-architecture)**: system design, layer breakdown
 - **[Cognitive Memory](https://docs.agentos.sh/features/cognitive-memory)**: 8 mechanisms with 30+ APA citations
 - **[RAG Configuration](https://docs.agentos.sh/features/rag-memory-configuration)**: vector stores, embeddings, sources
