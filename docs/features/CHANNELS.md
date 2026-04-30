@@ -121,28 +121,42 @@ export DISCORD_GUILD_ID=your-server-id   # optional: restrict to one guild
 
 **3. Register the adapter**
 
+Each channel ships its own `<Channel>Service` (transport client) and
+`<Channel>ChannelAdapter` (the `IChannelAdapter` implementation). The
+adapter takes the service in its constructor:
+
 ```typescript
 import { ChannelRouter } from '@framers/agentos/channels';
-import { DiscordAdapter } from '@framers/agentos-extensions/channels/discord';
+import { DiscordService, DiscordChannelAdapter } from '@framers/agentos-ext-channel-discord';
 
 const router = new ChannelRouter();
-const discord = new DiscordAdapter();
 
-await discord.initialize({
-  credential: process.env.DISCORD_BOT_TOKEN!,
-  metadata: { applicationId: process.env.DISCORD_APPLICATION_ID },
+const service = new DiscordService({
+  botToken: process.env.DISCORD_BOT_TOKEN!,
+  applicationId: process.env.DISCORD_APPLICATION_ID,
+  // guildId: process.env.DISCORD_GUILD_ID, // optional
 });
+await service.initialize();
 
-router.register(discord);
+const discord = new DiscordChannelAdapter(service);
+await discord.initialize({ credential: process.env.DISCORD_BOT_TOKEN! });
 
-// Listen for incoming messages
-discord.on('message', async (message) => {
+router.registerAdapter(discord);
+
+// Listen for incoming messages via ChannelRouter's onInbound handler
+router.onInbound(async (message) => {
   const response = await agent.reply(message.text);
   await discord.sendMessage(message.conversationId, {
     blocks: [{ type: 'text', text: response }],
   });
 });
 ```
+
+> **Recommended: registry pattern.** For multi-channel apps, use
+> [`createCuratedManifest`](https://github.com/framersai/agentos-extensions-registry)
+> from `@framers/agentos-extensions-registry` — it instantiates each
+> channel's `Service` + `ChannelAdapter` from your env vars and registers
+> them with the router automatically.
 
 ---
 
@@ -164,13 +178,16 @@ export SLACK_SIGNING_SECRET=your-signing-secret
 **2. Register the adapter**
 
 ```typescript
-import { SlackAdapter } from '@framers/agentos-extensions/channels/slack';
+import { SlackService, SlackChannelAdapter } from '@framers/agentos-ext-channel-slack';
 
-const slack = new SlackAdapter();
-await slack.initialize({
-  credential: process.env.SLACK_BOT_TOKEN!,
-  metadata: { signingSecret: process.env.SLACK_SIGNING_SECRET },
+const service = new SlackService({
+  botToken: process.env.SLACK_BOT_TOKEN!,
+  signingSecret: process.env.SLACK_SIGNING_SECRET!,
 });
+await service.initialize();
+
+const slack = new SlackChannelAdapter(service);
+await slack.initialize({ credential: process.env.SLACK_BOT_TOKEN! });
 
 router.register(slack);
 ```
@@ -192,14 +209,15 @@ export TELEGRAM_BOT_TOKEN=123456789:ABC-...
 **2. Register the adapter**
 
 ```typescript
-import { TelegramChannelAdapter } from '@framers/agentos-extensions/channels/telegram';
+import { TelegramService, TelegramChannelAdapter } from '@framers/agentos-ext-channel-telegram';
 
-const telegram = new TelegramChannelAdapter();
-await telegram.initialize({
-  credential: process.env.TELEGRAM_BOT_TOKEN!,
-});
+const service = new TelegramService({ botToken: process.env.TELEGRAM_BOT_TOKEN! });
+await service.initialize();
 
-router.register(telegram);
+const telegram = new TelegramChannelAdapter(service);
+await telegram.initialize({ credential: process.env.TELEGRAM_BOT_TOKEN! });
+
+router.registerAdapter(telegram);
 ```
 
 ---
@@ -222,9 +240,17 @@ export TWITTER_ACCESS_SECRET=your-access-secret
 **2. Register the adapter**
 
 ```typescript
-import { TwitterAdapter } from '@framers/agentos-extensions/channels/twitter';
+import { TwitterService, TwitterChannelAdapter } from '@framers/agentos-ext-channel-twitter';
 
-const twitter = new TwitterAdapter();
+const service = new TwitterService({
+  apiKey:        process.env.TWITTER_API_KEY!,
+  apiSecret:     process.env.TWITTER_API_SECRET!,
+  accessToken:   process.env.TWITTER_ACCESS_TOKEN!,
+  accessSecret:  process.env.TWITTER_ACCESS_SECRET!,
+});
+await service.initialize();
+
+const twitter = new TwitterChannelAdapter(service);
 await twitter.initialize({
   credential: JSON.stringify({
     apiKey:        process.env.TWITTER_API_KEY,
@@ -253,13 +279,16 @@ export WHATSAPP_PHONE_NUMBER_ID=your-phone-number-id
 **2. Register the adapter**
 
 ```typescript
-import { WhatsAppAdapter } from '@framers/agentos-extensions/channels/whatsapp';
+import { WhatsAppService, WhatsAppChannelAdapter } from '@framers/agentos-ext-channel-whatsapp';
 
-const whatsapp = new WhatsAppAdapter();
-await whatsapp.initialize({
-  credential: process.env.WHATSAPP_ACCESS_TOKEN!,
-  metadata: { phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID },
+const service = new WhatsAppService({
+  accessToken: process.env.WHATSAPP_ACCESS_TOKEN!,
+  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!,
 });
+await service.initialize();
+
+const whatsapp = new WhatsAppChannelAdapter(service);
+await whatsapp.initialize({ credential: process.env.WHATSAPP_ACCESS_TOKEN! });
 ```
 
 ---

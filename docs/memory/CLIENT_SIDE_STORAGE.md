@@ -277,8 +277,15 @@ await agentos.initialize({
 
 ```typescript
 import { resolveStorageAdapter } from '@framers/sql-storage-adapter';
+import type { PrismaClient } from '@prisma/client';
 
 const storage = await resolveStorageAdapter();
+
+// Minimal stub: AgentOS.initialize still validates that `prisma` is set, but
+// when `storageAdapter` is provided it does not actually call into Prisma for
+// conversation/event/session storage. An empty object cast through unknown is
+// enough to satisfy the type at compile time.
+const mockPrisma = {} as unknown as PrismaClient;
 
 const agentos = new AgentOS();
 await agentos.initialize({
