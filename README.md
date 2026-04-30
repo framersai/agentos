@@ -64,7 +64,9 @@ Honest, apples-to-apples comparison: same `gpt-4o` reader, same dataset, same Ph
 | EmergenceMem Simple Fast (in our harness) | 80.6% | [77.0%, 84.0%] | $0.0586 | 3,703 ms | [adapter](https://github.com/framersai/agentos-bench/blob/master/vendors/emergence-simple-fast/) |
 | Zep self / independent reproduction | 71.2% / 63.8% | not published | not published | — | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv](https://arxiv.org/abs/2512.13564) |
 
-**+1.4 pp at point estimate over Mastra OM gpt-4o at the matched reader.** Mastra publishes no CI; their 84.23% sits inside our 95% CI [82.4%, 88.6%], so the gap is at the threshold of statistical significance. EmergenceMem Internal's 86.0% (no CI) also sits inside our CI; we are statistically tied with both. **1.6× faster median latency** vs EmergenceMem (3,558 ms vs 5,650 ms; the only vendor that publishes a comparable latency number).
+**+1.4 pp at point estimate over Mastra OM gpt-4o at the matched reader.** Mastra publishes no CI; their 84.23% sits inside our 95% CI [82.4%, 88.6%], so the gap is at the threshold of statistical significance. EmergenceMem Internal's 86.0% (no CI) also sits inside our CI; we are statistically tied with both. AgentOS p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms (-2,092 ms at the median; the only vendor that publishes a comparable latency number).
+
+**Cost at scale**: $0.0090 per memory-grounded answer = $9 per 1,000 RAG calls. A chatbot averaging 5 RAG calls per conversation across 1,000 conversations costs ~$45.
 
 ### LongMemEval-M Phase B (1.5M tokens, 500 sessions)
 
