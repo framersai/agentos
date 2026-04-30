@@ -8,7 +8,7 @@
 
 # **AgentOS** — Open-Source TypeScript AI Agent Runtime with Cognitive Memory, HEXACO Personality, and Runtime Tool Forging
 
-**85.6% on LongMemEval-S** at $0.0090/correct · **70.2% on LongMemEval-M** (first open-source library above 65% on the 1.5M-token variant) · 16 LLM providers · 8 neuroscience-backed memory mechanisms · MIT-friendly Apache 2.0
+**85.6% on LongMemEval-S** at $0.0090/correct, +1.4 above Mastra OM gpt-4o (84.23%) at the matched reader · **70.2% on LongMemEval-M** (1.5M-token variant), the only open-source library on the public record above 65% on M with publicly reproducible methodology · 16 LLM providers · 8 neuroscience-backed memory mechanisms · Apache-2.0
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -64,7 +64,9 @@ Same `gpt-4o` reader, same dataset, same `gpt-4o-2024-08-06` judge across every 
 | EmergenceMem Simple Fast (rerun in agentos-bench) | 80.6% | $0.0586 | 3,703 ms | [adapter](https://github.com/framersai/agentos-bench/blob/master/vendors/emergence-simple-fast/) |
 | Zep self / independent reproduction | 71.2% / 63.8% | not published | not published | [self](https://blog.getzep.com/state-of-the-art-agent-memory/) / [arXiv](https://arxiv.org/abs/2512.13564) |
 
-**+1.4 points above Mastra OM gpt-4o (84.23%) at the matched reader.** AgentOS at 85.6% is the highest published number from an open-source library that ships an end-to-end agent runtime around its memory system. EmergenceMem Internal posts 86.0% (0.4 above us). AgentOS p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms.
+**+1.4 points above Mastra OM gpt-4o (84.23%) at the matched reader.** Among open-source memory libraries that publish at gpt-4o with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS at 85.6% is the highest published number. EmergenceMem Internal posts 86.0% (0.4 above us) but does not publish per-case results or a reproducible CLI. AgentOS p50 latency 3,558 ms vs EmergenceMem's published median 5,650 ms.
+
+Notes on cross-provider numbers excluded from this table: Mastra also publishes 94.87% with a gpt-5-mini reader plus gemini-2.5-flash observer (cross-provider); agentmemory publishes 96.2% with a Claude Opus 4.6 reader; MemMachine publishes 93.0% with a GPT-5-mini reader; Hindsight publishes 91.4% with an unspecified stronger backbone. None of these are at the matched gpt-4o reader, and most do not publish full methodology details (judge model, dataset version, per-case results, single-CLI reproduction).
 
 **Cost at scale**: $0.0090 per memory-grounded answer = $9 per 1,000 RAG calls. A chatbot averaging 5 RAG calls per conversation across 1,000 conversations costs ~$45.
 
@@ -74,12 +76,14 @@ The harder variant. M's haystacks exceed every production context window. Most v
 
 | System | Accuracy | License | Source |
 |---|---:|---|---|
+| LongMemEval paper, strongest GPT-4o (round, Top-10) | 72.0% | open repo | [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813) |
 | AgentBrain | 71.7% | closed-source SaaS | [github.com/AgentBrainHQ](https://github.com/AgentBrainHQ) |
+| LongMemEval paper, strongest GPT-4o at Top-5 (session) | 71.4% | open repo | [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813) |
 | **🚀 AgentOS** (sem-embed + reader-router + top-K=5) | **70.2%** | **Apache-2.0** | [post](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5) |
-| LongMemEval paper academic baseline | 65.7% | open repo | [Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813) |
+| LongMemEval paper, GPT-4o at Top-5 (round) | 65.7% | open repo | [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813) |
 | Mem0 v3, Mastra, Hindsight, Zep, EmergenceMem, Supermemory, Letta, others | not published | various | reports S only |
 
-**+4.5 points above the LongMemEval paper's strongest published M result (65.7%).** AgentOS is the first open-source library on the public record above 65% on the M variant. The closest published number is AgentBrain's 71.7% from their closed-source SaaS.
+**Competitive with the strongest published M results in the LongMemEval paper.** At matched Top-5 retrieval, AgentOS at 70.2% is +4.5 points above the round-level configuration (65.7%) and 1.2 points below the session-level configuration (71.4%); the paper's strongest GPT-4o result overall is 72.0% at round-level Top-10. Among open-source memory libraries with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS is the only one on the public record above 65% on M.
 
 > **[Full benchmarks page →](https://docs.agentos.sh/benchmarks)** · **[Reproducible run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Methodology audit →](https://docs.agentos.sh/blog/2026/04/24/memory-benchmark-transparency-audit)**
 
