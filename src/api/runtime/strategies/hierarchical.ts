@@ -38,7 +38,31 @@ import type {
 } from '../types.js';
 import type { ToolDefinitionMap } from '../toolAdapter.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, resolveAgent, checkBeforeAgent } from './shared.js';
+import {
+  isAgent,
+  resolveAgent,
+  checkBeforeAgent,
+  accumulateExtraUsage,
+  buildAgentCallUsage,
+} from './shared.js';
+
+type StrategyTotalUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
+
+type ResultUsageSnapshot = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
 
 /**
  * Extracts a human-readable description from an agent config or instance.
@@ -100,6 +124,14 @@ export function compileHierarchical(
   return {
     async execute(prompt, opts) {
       const agentCalls: AgentCallRecord[] = [];
+      // Sub-agents called via delegation tools have their own LLM usage.
+      // We accumulate it here so the strategy-level usage reflects the
+      // FULL cost of the run — manager turns plus every sub-agent turn.
+      const subAgentUsage: StrategyTotalUsage = {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      };
 
       // Build one tool per sub-agent for the manager to delegate to.
       // The tool name follows the `delegate_to_<name>` convention so the
@@ -136,12 +168,7 @@ export function compileHierarchical(
             const durationMs = Date.now() - start;
 
             const resultText = (result.text as string) ?? '';
-            const resultUsage =
-              (result.usage as {
-                promptTokens?: number;
-                completionTokens?: number;
-                totalTokens?: number;
-              }) ?? {};
+            const resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
             const resultToolCalls =
               (result.toolCalls as Array<{
                 name: string;
@@ -156,13 +183,16 @@ export function compileHierarchical(
               input: args.task,
               output: resultText,
               toolCalls: resultToolCalls,
-              usage: {
-                promptTokens: resultUsage.promptTokens ?? 0,
-                completionTokens: resultUsage.completionTokens ?? 0,
-                totalTokens: resultUsage.totalTokens ?? 0,
-              },
+              usage: buildAgentCallUsage(resultUsage),
               durationMs,
             });
+
+            // Accumulate sub-agent usage so the strategy-level total
+            // includes every delegated turn, not just the manager's.
+            subAgentUsage.promptTokens += resultUsage.promptTokens ?? 0;
+            subAgentUsage.completionTokens += resultUsage.completionTokens ?? 0;
+            subAgentUsage.totalTokens += resultUsage.totalTokens ?? 0;
+            accumulateExtraUsage(subAgentUsage, resultUsage);
 
             return { success: true, data: resultText };
           },
@@ -198,7 +228,19 @@ export function compileHierarchical(
       });
 
       const result = (await manager.generate(prompt, opts)) as unknown as Record<string, unknown>;
-      return { ...result, agentCalls };
+
+      // Merge manager usage with the accumulated sub-agent usage so the
+      // returned `usage` reflects the entire run (manager + delegates).
+      const managerUsage = (result.usage as ResultUsageSnapshot) ?? {};
+      const totalUsage: StrategyTotalUsage = {
+        promptTokens: (managerUsage.promptTokens ?? 0) + subAgentUsage.promptTokens,
+        completionTokens: (managerUsage.completionTokens ?? 0) + subAgentUsage.completionTokens,
+        totalTokens: (managerUsage.totalTokens ?? 0) + subAgentUsage.totalTokens,
+      };
+      accumulateExtraUsage(totalUsage, managerUsage);
+      accumulateExtraUsage(totalUsage, subAgentUsage);
+
+      return { ...result, agentCalls, usage: totalUsage };
     },
 
     stream(prompt, opts) {
@@ -219,12 +261,7 @@ export function compileHierarchical(
           yield { type: 'text' as const, text };
         })(),
         text: textPromise,
-        usage: resultPromise.then((r) => r.usage as {
-          promptTokens: number;
-          completionTokens: number;
-          totalTokens: number;
-          costUSD?: number;
-        }),
+        usage: resultPromise.then((r) => r.usage as StrategyTotalUsage),
         agentCalls: resultPromise.then((r) => (r.agentCalls as AgentCallRecord[] | undefined) ?? []),
       };
     },

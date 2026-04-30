@@ -35,7 +35,31 @@ import type {
 } from '../types.js';
 import { createBufferedAsyncReplay } from '../streamBuffer.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
+import {
+  isAgent,
+  mergeDefaults,
+  checkBeforeAgent,
+  accumulateExtraUsage,
+  buildAgentCallUsage,
+} from './shared.js';
+
+type StrategyTotalUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
+
+type ResultUsageSnapshot = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
 
 // ---------------------------------------------------------------------------
 // Topological sort
@@ -116,7 +140,7 @@ export function compileGraph(
     async execute(prompt, opts) {
       const agentCalls: AgentCallRecord[] = [];
       const outputs = new Map<string, string>();
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       let lastResult: Record<string, unknown> | null = null;
 
       for (const tier of tiers) {
@@ -152,7 +176,7 @@ export function compileGraph(
             const durationMs = Date.now() - start;
 
             const resultText = (result.text as string) ?? '';
-            const resultUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+            const resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
             const resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
             outputs.set(name, resultText);
@@ -162,18 +186,14 @@ export function compileGraph(
               input: context,
               output: resultText,
               toolCalls: resultToolCalls,
-              usage: {
-                promptTokens: resultUsage.promptTokens ?? 0,
-                completionTokens: resultUsage.completionTokens ?? 0,
-                totalTokens: resultUsage.totalTokens ?? 0,
-              },
+              usage: buildAgentCallUsage(resultUsage),
               durationMs,
             });
 
             totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
             totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
             totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
-            accumulateCacheTokens(totalUsage, resultUsage);
+            accumulateExtraUsage(totalUsage, resultUsage);
 
             return result;
           }),
@@ -190,7 +210,7 @@ export function compileGraph(
     stream(prompt, opts) {
       const startMs = Date.now();
       const agentCalls: AgentCallRecord[] = [];
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       async function* streamGenerator(): AsyncGenerator<AgencyStreamPart> {
         const outputs = new Map<string, string>();
@@ -227,13 +247,13 @@ export function compileGraph(
               : createAgent({ ...mergeDefaults(config, agencyConfig) });
 
             let agentText = '';
-            let resultUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+            let resultUsage: ResultUsageSnapshot = {};
             let resultToolCalls: Array<{ name: string; args: unknown; result?: unknown; error?: string }> = [];
             const agentStart = Date.now();
             const agentStream = a.stream(context, opts) as {
               textStream?: AsyncIterable<string>;
               text?: Promise<string>;
-              usage?: Promise<{ promptTokens?: number; completionTokens?: number; totalTokens?: number }>;
+              usage?: Promise<ResultUsageSnapshot>;
               toolCalls?: Promise<Array<{ name: string; args: unknown; result?: unknown; error?: string }>>;
             } | null;
 
@@ -248,12 +268,7 @@ export function compileGraph(
                   yield { type: 'text' as const, text: agentText, agent: name };
                 }
               }
-              const streamedUsage = (await Promise.resolve(agentStream.usage)) ?? {};
-              resultUsage = {
-                promptTokens: streamedUsage.promptTokens ?? 0,
-                completionTokens: streamedUsage.completionTokens ?? 0,
-                totalTokens: streamedUsage.totalTokens ?? 0,
-              };
+              resultUsage = (await Promise.resolve(agentStream.usage)) ?? {};
               resultToolCalls = (await Promise.resolve(agentStream.toolCalls)) ?? [];
             } else {
               const result = (await a.generate(context, opts)) as Record<string, unknown>;
@@ -261,12 +276,7 @@ export function compileGraph(
               if (agentText) {
                 yield { type: 'text' as const, text: agentText, agent: name };
               }
-              const generatedUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
-              resultUsage = {
-                promptTokens: generatedUsage.promptTokens ?? 0,
-                completionTokens: generatedUsage.completionTokens ?? 0,
-                totalTokens: generatedUsage.totalTokens ?? 0,
-              };
+              resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
               resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
             }
 
@@ -276,14 +286,14 @@ export function compileGraph(
               input: context,
               output: agentText,
               toolCalls: resultToolCalls,
-              usage: resultUsage,
+              usage: buildAgentCallUsage(resultUsage),
               durationMs: Date.now() - agentStart,
             });
 
-            totalUsage.promptTokens += resultUsage.promptTokens;
-            totalUsage.completionTokens += resultUsage.completionTokens;
-            totalUsage.totalTokens += resultUsage.totalTokens;
-            accumulateCacheTokens(totalUsage, resultUsage);
+            totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
+            totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
+            totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
+            accumulateExtraUsage(totalUsage, resultUsage);
 
             yield {
               type: 'agent-end' as const,

@@ -33,7 +33,31 @@ import type {
   AgentCallRecord,
 } from '../types.js';
 import { AgencyConfigError } from '../types.js';
-import { isAgent, mergeDefaults, checkBeforeAgent, accumulateCacheTokens } from './shared.js';
+import {
+  isAgent,
+  mergeDefaults,
+  checkBeforeAgent,
+  accumulateExtraUsage,
+  buildAgentCallUsage,
+} from './shared.js';
+
+type StrategyTotalUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
+
+type ResultUsageSnapshot = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUSD?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
 
 /**
  * Compiles a parallel execution strategy.
@@ -126,10 +150,10 @@ export function compileParallel(
 
       // Collect agent call records and aggregate usage.
       const agentCalls: AgentCallRecord[] = [];
-      const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const totalUsage: StrategyTotalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
       for (const { name, result, durationMs } of settled) {
-        const resultUsage = (result.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+        const resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
         const resultToolCalls = (result.toolCalls as Array<{ name: string; args: unknown; result?: unknown; error?: string }>) ?? [];
 
         agentCalls.push({
@@ -137,18 +161,14 @@ export function compileParallel(
           input: prompt,
           output: (result.text as string) ?? '',
           toolCalls: resultToolCalls,
-          usage: {
-            promptTokens: resultUsage.promptTokens ?? 0,
-            completionTokens: resultUsage.completionTokens ?? 0,
-            totalTokens: resultUsage.totalTokens ?? 0,
-          },
+          usage: buildAgentCallUsage(resultUsage),
           durationMs,
         });
 
         totalUsage.promptTokens += resultUsage.promptTokens ?? 0;
         totalUsage.completionTokens += resultUsage.completionTokens ?? 0;
         totalUsage.totalTokens += resultUsage.totalTokens ?? 0;
-        accumulateCacheTokens(totalUsage, resultUsage);
+        accumulateExtraUsage(totalUsage, resultUsage);
       }
 
       // Synthesize outputs using the agency-level model.
@@ -178,12 +198,12 @@ export function compileParallel(
       });
 
       const synthesis = (await synthesizer.generate(synthPrompt, opts)) as unknown as Record<string, unknown>;
-      const synthUsage = (synthesis.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number }) ?? {};
+      const synthUsage = (synthesis.usage as ResultUsageSnapshot) ?? {};
 
       totalUsage.promptTokens += synthUsage.promptTokens ?? 0;
       totalUsage.completionTokens += synthUsage.completionTokens ?? 0;
       totalUsage.totalTokens += synthUsage.totalTokens ?? 0;
-      accumulateCacheTokens(totalUsage, synthUsage);
+      accumulateExtraUsage(totalUsage, synthUsage);
 
       return { ...synthesis, agentCalls, usage: totalUsage };
     },
@@ -206,12 +226,7 @@ export function compileParallel(
           yield { type: 'text' as const, text };
         })(),
         text: textPromise,
-        usage: resultPromise.then((r) => r.usage as {
-          promptTokens: number;
-          completionTokens: number;
-          totalTokens: number;
-          costUSD?: number;
-        }),
+        usage: resultPromise.then((r) => r.usage as StrategyTotalUsage),
         agentCalls: resultPromise.then((r) => (r.agentCalls as AgentCallRecord[] | undefined) ?? []),
       };
     },
