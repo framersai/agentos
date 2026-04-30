@@ -1,3 +1,8 @@
+## <small>0.5.12 (2026-04-30)</small>
+
+* fix(release): anchor next release after orphaned-tag recovery ([a73dc2b](https://github.com/framersai/agentos/commit/a73dc2b))
+* chore(release): 0.2.0 [skip ci] ([107749f](https://github.com/framersai/agentos/commit/107749f))
+
 ## 0.2.0 (2026-04-30)
 
 * docs(emergent,sandbox): clarify sandbox memory-limit enforcement is nominal not preemptive ([2ccdacc](https://github.com/framersai/agentos/commit/2ccdacc))
