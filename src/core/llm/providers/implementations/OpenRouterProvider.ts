@@ -351,9 +351,11 @@ export class OpenRouterProvider implements IProvider {
         try {
           const apiChunk = JSON.parse(jsonData) as OpenRouterChatCompletionAPIResponse;
           yield this.mapApiToStreamChunkResponse(apiChunk, modelId, accumulatedToolCalls);
-          if (apiChunk.choices[0]?.finish_reason) {
-            break;
-          }
+          // Don't break on finish_reason: with stream_options.include_usage,
+          // OpenRouter (like OpenAI) emits a trailing usage-only chunk AFTER
+          // the finish_reason chunk and BEFORE [DONE]. Breaking here would
+          // skip the usage chunk and zero out the caller's token totals. The
+          // [DONE] marker check above is the right termination signal.
         } catch (error: unknown) {
           console.warn('OpenRouterProvider: Failed to parse stream chunk JSON, skipping chunk. Data:', jsonData, 'Error:', error);
         }
