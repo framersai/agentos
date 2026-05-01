@@ -1,7 +1,10 @@
 # AgentOS Observability (OpenTelemetry)
 
-> AgentOS provides **opt-in** OpenTelemetry (OTEL) spans, metrics, and log correlation/export hooks.
-> AgentOS itself does **not** start an OTEL SDK. Your host application owns exporters, sampling, and context propagation.
+You can't operate an agent runtime in production without observability, and the cost of bolting it on after the fact is paid in incidents you can't reproduce. AgentOS treats spans, metrics, and log correlation as first-class concerns — but it does not own the OpenTelemetry SDK lifecycle. The SDK is an application-level concern: your host owns exporters, sampling, and context propagation, because the right answer for a CLI process is different from the right answer for a long-running server is different from the right answer for an edge worker.
+
+What AgentOS owns is the *emit side*: opt-in spans around turns and tool-result handling, opt-in counters and histograms for the operations worth measuring, optional trace-correlation in logs and streamed response metadata, and an optional path to export application logs as OTEL `LogRecord`s. All defaults are off. Turning them on is a single config change, and the runtime will surface to whatever exporter your host has wired (OTLP to Honeycomb, Tempo, Jaeger, Grafana Cloud — the runtime doesn't care, because your host SDK is what does the export).
+
+The implementation lives in [`src/evaluation/observability/`](https://github.com/framersai/agentos/tree/master/src/evaluation/observability) and uses [`@opentelemetry/api`](https://www.npmjs.com/package/@opentelemetry/api) directly — never bundled, always peer-dep-style imported, so your host SDK is the one and only OTEL provider in the process.
 
 ---
 

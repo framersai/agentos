@@ -1,10 +1,10 @@
 # mission() API
 
-`mission()` is the goal-first authoring API in the Unified Orchestration Layer. Instead of declaring nodes and edges directly, you describe the mission intent and let the compiler build the execution graph.
+`workflow()` and `AgentGraph` ask you to think in terms of nodes and edges before you've thought in terms of intent. `mission()` lets you state the intent first and shape the graph later. You declare what the mission is supposed to accomplish — the goal template, the input schema, the return schema, the planner hints — and the compiler emits a working execution graph from those declarations. When the shape stabilises through use, you export it via `.toWorkflow()` and pin it as a deterministic [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
 
-Current status: `mission()` compiles to a fixed phase-ordered stub graph (`gather` → `process` → `deliver`) with anchors and mission-level policies applied on top. Planner config is accepted and preserved, but it does not yet change graph shape at runtime.
+**Honest status today.** `mission()` is partly the API you'd expect from the description above and partly a forward-compatible shape for what it will be. The compiler currently emits a fixed phase-ordered stub graph (`gather` → `process` → `deliver`) with the anchors and mission-level policies you declared applied on top. The planner config is accepted and preserved, but does not yet change graph shape at runtime. The exported [`CompiledExecutionGraph`](./workflow-dsl.md) is real and runs through the same orchestration runtime as everything else; it's just not dynamically planned yet. See [`/architecture/runtime-status-matrix`](../architecture/runtime-status-matrix) for the shipped-vs-partial map across the orchestration surface.
 
-Use `mission()` when you want a goal-centric builder API today, when you're prototyping around anchors and policies, or when you want a forward-compatible path to richer planner-backed compilation later. When the steps stabilise, call `.toWorkflow()` to export a fixed `CompiledExecutionGraph` and switch to [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
+Use `mission()` today when you want a goal-centric authoring API, when you're prototyping around anchors and policies, or when you want a forward-compatible authoring path that will pick up dynamic planning when it lands. Use `workflow()` or `AgentGraph` when you need the graph shape pinned and reviewable.
 
 ## Quick Start
 

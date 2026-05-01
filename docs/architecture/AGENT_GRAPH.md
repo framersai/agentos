@@ -1,14 +1,10 @@
 # AgentGraph
 
-`AgentGraph` is the lowest-level authoring API in the Unified Orchestration Layer. It exposes explicit node and edge management, supports cycles, subgraph composition, and four edge types including the AgentOS-exclusive discovery and personality edges.
+When `workflow()` is too rigid and `mission()` is too far ahead of where the runtime currently plans, the answer is `AgentGraph` — explicit node and edge construction with cycles, conditional routing, subgraph composition, and the discovery and personality edges that don't exist in any other open agent framework. It compiles to the same [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) IR as the higher-level builders, but it gets you full control over the topology before compilation.
 
-> Current runtime note:
-> `AgentGraph` compilation is complete, but some advanced execution paths are still bridge-dependent today.
-> The base runtime executes `tool`, `router`, `guardrail`, and `human` nodes directly.
-> `gmi`, `extension`, and `subgraph` execution require a higher-level runtime bridge,
-> and discovery/personality edges are still partial unless those integrations are wired.
+**Honest runtime status.** Compilation is complete. Execution is partial: the base runtime executes `tool`, `router`, `guardrail`, and `human` nodes directly. `gmi`, `extension`, and `subgraph` execution still requires a higher-level runtime bridge today, and the discovery and personality edges activate fully only when those integrations are wired. If your graph uses only the four direct-execution node kinds, you're in production-ready territory; if it relies heavily on `gmi` nodes inside cycles, expect to wire the bridge.
 
-Use `AgentGraph` when you need full control: complex conditional routing, agent loops that cycle back, memory-driven state machines, or subgraph composition. For linear pipelines, see [workflow()](./workflow-dsl.md). For goal-driven orchestration, see [mission()](./mission-api.md).
+Use `AgentGraph` when you need cycles, conditional fan-out, memory-driven state machines, or subgraph composition. Use [`workflow()`](./workflow-dsl.md) for linear pipelines. Use [`mission()`](./mission-api.md) when you'd rather declare intent than topology.
 
 ## Quick Start
 

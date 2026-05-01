@@ -1,8 +1,8 @@
 # Telephony Providers
 
-AgentOS supports three telephony providers for outbound and inbound voice calls:
-**Twilio**, **Telnyx**, and **Plivo**. All three implement the same
-`IVoiceCallProvider` interface and are wired through the central `CallManager`.
+A real phone call has stricter latency budgets than any chat surface. Twilio's docs say "audio gaps over 200ms feel unnatural"; in practice anything over 400ms gets users hanging up. The voice path through AgentOS is built around that constraint: the [voice pipeline](./VOICE_PIPELINE.md) runs end-to-end at low enough latency to feel like a conversation, and the telephony layer extends that into the PSTN by speaking the same streaming protocol — incoming caller audio is decoded to Float32 frames for VAD/STT, outbound TTS audio is re-encoded to mu-law on the way back to the phone, all through a full-duplex WebSocket. The provider is interchangeable.
+
+Three providers ship in-tree at [`src/channels/telephony/providers/`](https://github.com/framersai/agentos/tree/master/src/channels/telephony/providers): **Twilio**, **Telnyx**, and **Plivo**. All three implement [`IVoiceCallProvider`](https://github.com/framersai/agentos/blob/master/src/channels/telephony/IVoiceCallProvider.ts) and are wired through the central [`CallManager`](https://github.com/framersai/agentos/blob/master/src/channels/telephony/CallManager.ts) state machine. There's also a mock provider for testing.
 
 ---
 

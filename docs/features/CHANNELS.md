@@ -1,31 +1,19 @@
-# Channels — 37-Platform Deployment Guide
+# Channels — multi-platform deployment guide
 
-> Connect your agent to any messaging platform with a unified adapter interface.
+The agents people actually use don't live in one window. A useful research assistant gets pinged on Slack during the workday, on Telegram on the weekend, and over email when someone forwards a thread for it to summarise. Each platform has its own ergonomics, its own rate limits, its own message-shape quirks, its own auth model. The work of integrating each one is real, and writing it once per agent is the thing that stops most projects at "demo on Discord."
 
----
+The channel layer is the boundary that makes this someone else's problem. Every external platform sits behind a single [`IChannelAdapter`](https://github.com/framersai/agentos/blob/master/src/channels/IChannelAdapter.ts) interface; your agent code emits and receives `ChannelMessage` objects, and the adapter handles serialization, auth, reconnection, and platform-specific edge cases. Twelve adapters ship in-tree (`src/channels/adapters/`); 37 curated extension packs cover the rest of the messaging, social, and publishing surface. Same shape on either side of the boundary — same `ChannelMessage` envelope, same `ChannelRouter` for routing inbound traffic to the right agent, same code path for sending replies back out.
 
-## Table of Contents
+```
+User (Discord / Telegram / etc.)
+  ↕  platform SDK
+IChannelAdapter
+  ↕  ChannelRouter
+Your Agent (AgentOS)
+```
 
-1. [Overview](#overview)
-2. [All 37 Channels](#all-37-channels)
-3. [Setup Guides](#setup-guides)
-   - [Discord](#discord)
-   - [Slack](#slack)
-   - [Telegram](#telegram)
-   - [Twitter / X](#twitter--x)
-   - [WhatsApp](#whatsapp)
-4. [Custom Channel Adapter](#custom-channel-adapter)
-5. [Message Routing](#message-routing)
-6. [Broadcast to Multiple Channels](#broadcast-to-multiple-channels)
-
----
-
-## Overview
-
-The AgentOS Channel System normalizes every external messaging platform behind
-a single `IChannelAdapter` interface. Your agent code never speaks platform
-APIs directly — it emits and receives `ChannelMessage` objects, and the adapter
-handles all platform-specific serialization, authentication, and reconnection.
+Channels are registered as `messaging-channel` extensions and managed by the
+`ChannelRouter`, which handles load balancing, health checks, and fallback.
 
 ```
 User (Discord / Telegram / etc.)
