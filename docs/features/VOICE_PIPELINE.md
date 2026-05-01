@@ -3,13 +3,15 @@ title: "Voice Pipeline"
 sidebar_position: 8
 ---
 
-# Streaming Voice Pipeline
+# Streaming voice pipeline
 
-AgentOS provides a real-time streaming voice pipeline for building conversational voice agents. The pipeline handles bidirectional audio streaming, speech-to-text, turn-taking, text-to-speech, speaker diarization, and barge-in detection.
+A voice agent that talks back is straightforward to build if you don't care that it interrupts the user, never knows when they've stopped speaking, can't recover when the network blips for half a second, and will keep happily generating into a phone that the user already hung up. A voice agent you actually want to use has to handle all of those, which is why the voice path through AgentOS is its own subsystem rather than a thin wrapper over text generation. Turn-taking is a first-class concern. Barge-in is a first-class concern. The fact that audio chunks arrive on a different schedule than text tokens is a first-class concern. The state machine has six states because conversation has at least six distinct things going on at any moment.
+
+This page is the architectural map. The configuration surface is at the bottom; the conceptual model and the wiring sit on top.
 
 ## Architecture
 
-The pipeline consists of 6 core interfaces wired together by the `VoicePipelineOrchestrator`:
+The pipeline is six interfaces wired together by the [`VoicePipelineOrchestrator`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/VoicePipelineOrchestrator.ts):
 
 ```mermaid
 graph LR

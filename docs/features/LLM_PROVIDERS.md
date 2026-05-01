@@ -1,6 +1,10 @@
-# LLM Providers — Multi-Provider Configuration & Routing
+# LLM Providers — multi-provider configuration & routing
 
-> Configure and switch between 11 LLM providers (including 2 CLI-based) with automatic detection, fallback, and cost-aware routing.
+The cost of a model going down today does not save you when it goes down tomorrow. The right question for any production agent runtime is not *which provider* — it is *what happens when this provider isn't available*. Provider outages happen. Rate limits hit at the worst moment. A model deprecates. A region throttles. A subscription lapses. None of these stop being true because the agent is mid-conversation.
+
+AgentOS abstracts every LLM behind a single `IProvider` interface. Eleven providers are wired in directly — nine via API key, two via local CLI bridges that ride your existing Claude Max or Google account subscription. OpenRouter, included in the eleven, fans out to 200+ additional models from the same set of vendors. Every provider speaks the same streaming protocol, supports the same tool-call shape (with the documented exceptions below), and participates in the same cost ledger. Failover is automatic by default. The fallback chain is auto-built from whichever keys you've set, and is overridable per agent.
+
+The point isn't that AgentOS hides the provider. It's that it stops being a load-bearing decision. Pick a primary, set one fallback key, the runtime handles the rest.
 
 ---
 
