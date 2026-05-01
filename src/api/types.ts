@@ -280,6 +280,40 @@ export interface EmergentConfig {
   tier?: 'session' | 'agent' | 'shared';
   /** When `true`, a separate judge agent evaluates emergent agents before use. */
   judge?: boolean;
+  /**
+   * Planner-side configuration for hierarchical strategies that may spawn
+   * specialists at runtime. Only consumed when `enabled` is `true` AND the
+   * agency strategy is `'hierarchical'`. See {@link EmergentPlannerConfig}.
+   */
+  planner?: EmergentPlannerConfig;
+}
+
+/**
+ * Configuration for the `spawn_specialist` tool exposed to hierarchical
+ * managers when emergent agent synthesis is enabled. Lets the host bound
+ * the manager's freedom to grow the roster mid-run.
+ */
+export interface EmergentPlannerConfig {
+  /**
+   * Maximum number of specialists the manager may synthesise per single
+   * agency run. Hard cap — `spawn_specialist` calls past this return an
+   * error to the manager. Defaults to `5`.
+   */
+  maxSpecialists?: number;
+  /**
+   * When `true`, the `spawn_specialist` tool requires a `justification`
+   * argument explaining why an existing roster agent cannot handle the
+   * task. Surfaced on the `emergentForge` callback's `ForgeEvent` for
+   * audit trails. Defaults to `false`.
+   */
+  requireJustification?: boolean;
+  /**
+   * Cost ceiling for the entire emergent path of one agency run.
+   * Counts manager turns + every synthesised-agent turn against this cap.
+   * When exceeded, further `spawn_specialist` calls are rejected.
+   * Defaults to undefined (relies on agency-level `controls.maxCostUSD`).
+   */
+  maxSynthesisCostUSD?: number;
 }
 
 /**
