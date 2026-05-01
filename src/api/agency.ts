@@ -10,6 +10,38 @@
  * `close` — identical surface to a single `agent()` instance — so callers can
  * swap between them transparently.
  *
+ * # Scope: single-request multi-agent coordination
+ *
+ * `agency()` is for the pattern where one external request produces one
+ * coordinated multi-agent response. Examples that fit:
+ *
+ * - Research workflow: user asks a question, an agency of researcher +
+ *   writer + reviewer collaborates to produce one answer.
+ * - Customer support escalation: one user message, an agency of triage +
+ *   specialist + supervisor handles it.
+ * - Code review pipeline: one PR, an agency of style + security + tests
+ *   reviewers produces one review.
+ *
+ * Examples that do NOT fit and should use their own orchestration:
+ *
+ * - Long-running world simulations where multiple agents run every turn
+ *   in parallel against an evolving world state (e.g. paracosm). Each
+ *   simulation turn is much closer to N independent
+ *   `agent().session()` calls coordinated by a custom loop than to one
+ *   `agency().generate()` call. Use `agent()` + `EmergentAgentForge` /
+ *   `EmergentAgentJudge` directly if you need runtime agent synthesis
+ *   inside a custom orchestrator.
+ * - Multi-turn conversational simulations where a fixed roster all
+ *   speak each turn. The agency strategies pick WHICH agent runs next;
+ *   they do not run all of them in parallel per turn.
+ *
+ * `agency().session()` exists but is shallow: it persists per-session
+ * message history and usage totals only. The agent roster, the
+ * `AgencyMemoryManager`, and any `tier: 'session'` synthesised
+ * specialists from `spawn_specialist` are reset between `.send()` calls.
+ * If you need multi-call agency state to persist, build your own
+ * orchestration layer over agentos primitives.
+ *
  * @example
  * ```ts
  * import { agency, hitl } from '@framers/agentos';

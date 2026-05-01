@@ -1,6 +1,6 @@
 # Agency API
 
-`agency()` is the high-level multi-agent factory in AgentOS.  It coordinates a
+`agency()` is the high-level multi-agent factory in AgentOS. It coordinates a
 named roster of sub-agents under a chosen orchestration strategy and returns a
 single `Agent`-compatible interface so callers can swap a single agent for an
 entire team without changing call sites.
@@ -11,15 +11,41 @@ Zod output, RAG context injection (v1 placeholder), `listen()` for voice
 WebSocket transport, `connect()` for channel adapters, and real per-agent
 streaming events on the sequential strategy.
 
+## Scope: when to reach for `agency()`
+
+`agency()` is for **single-request multi-agent coordination** — patterns where
+one external request produces one coordinated multi-agent response. It is
+deliberately *not* a general "all multi-agent patterns" abstraction; some
+multi-agent patterns belong in your own orchestrator with `agent()` plus
+agentos's lower-level primitives.
+
+| Pattern | Use `agency()`? | Why |
+|---|---|---|
+| Research workflow: user asks a question, a researcher → writer → reviewer team produces one answer | Yes | Single request → coordinated response is the canonical fit |
+| Customer support escalation: one user message routed through triage → specialist → supervisor | Yes | Same shape — one in, one coordinated out |
+| Code review pipeline: one PR, parallel reviewers (style + security + tests) produce one review | Yes (use `parallel` or `graph`) | Fan-out / fan-in over a single input |
+| Multi-agent debate to consensus on a single question | Yes (use `debate`) | The strategy is built for it |
+| Long-running world simulation where a fixed roster of agents all run in parallel every turn against an evolving world state (e.g. paracosm) | **No** | Each simulation turn is closer to N independent `agent().session()` calls coordinated by your loop than to one `agency().generate()` call. Build your own turn loop; use `agent()` + (optionally) `EmergentAgentForge` / `EmergentAgentJudge` for runtime synthesis |
+| Multi-turn conversation with persistent agent roster, shared `AgencyMemoryManager`, and persistent specialists from `spawn_specialist` across turns | **Not yet** | `agency().session()` exists but only persists message history + usage. Roster, shared memory, and `tier: 'session'` synthesised specialists reset between `.send()` calls. Build your own multi-call coordination on top, or [open an issue](https://github.com/framersai/agentos/issues) describing the use case |
+| Companion app where a single agent has a persistent identity across many user turns | **No** — use `agent()` directly | `agent().session()` already covers this. agency() is overkill for single-agent stateful chat |
+
+The shared rule: if your problem decomposes into "one external request →
+one coordinated response", `agency()` is the right primitive. If your problem
+is fundamentally multi-turn with state evolving between turns, build your
+own orchestrator and reach into agentos for the lower-level primitives
+(`agent()`, `AgencyMemoryManager`, `AgentCommunicationBus`, `EmergentAgentForge`,
+`EmergentAgentJudge`, the cognitive memory layer) directly.
+
 ---
 
 ## Table of Contents
 
-1. [API Hierarchy](#api-hierarchy)
-2. [Minimal Example](#minimal-example)
-3. [Orchestration Strategies](#orchestration-strategies)
-4. [Adaptive Mode](#adaptive-mode)
-5. [Emergent Agent Creation](#emergent-agent-creation)
+1. [Scope: when to reach for agency()](#scope-when-to-reach-for-agency)
+2. [API Hierarchy](#api-hierarchy)
+3. [Minimal Example](#minimal-example)
+4. [Orchestration Strategies](#orchestration-strategies)
+5. [Adaptive Mode](#adaptive-mode)
+6. [Emergent Agent Creation](#emergent-agent-creation)
 6. [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
 7. [Memory and RAG](#memory-and-rag)
 8. [Voice and Channels](#voice-and-channels)
