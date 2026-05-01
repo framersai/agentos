@@ -1,3 +1,11 @@
+## <small>0.6.1 (2026-05-01)</small>
+
+* fix(docs): remove accidentally-created top-level reference stubs ([c2a1e03](https://github.com/framersai/agentos/commit/c2a1e03))
+* docs: add References sections to 3 flagship docs (cognitive-memory, gmi, multimodal-rag) ([3cc60da](https://github.com/framersai/agentos/commit/3cc60da))
+* docs: add References sections to 8 more research-grounded docs ([5de9ad9](https://github.com/framersai/agentos/commit/5de9ad9))
+* docs: cross-reference spawn_specialist in README + ARCHITECTURE ([124fe0f](https://github.com/framersai/agentos/commit/124fe0f))
+* docs(agency): set explicit scope — single-request multi-agent only ([068a5af](https://github.com/framersai/agentos/commit/068a5af))
+
 ## 0.6.0 (2026-05-01)
 
 * fix(tests): unblock CI — soften docs-alignment + update vision/image test expectations ([2d20da0](https://github.com/framersai/agentos/commit/2d20da0))
