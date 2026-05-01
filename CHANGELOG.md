@@ -1,3 +1,7 @@
+## <small>0.6.2 (2026-05-01)</small>
+
+* feat(api): add setDefaultProvider() module-level default + AgentOSConfig integration ([c7ef009](https://github.com/framersai/agentos/commit/c7ef009))
+
 ## <small>0.6.1 (2026-05-01)</small>
 
 * fix(docs): remove accidentally-created top-level reference stubs ([c2a1e03](https://github.com/framersai/agentos/commit/c2a1e03))
