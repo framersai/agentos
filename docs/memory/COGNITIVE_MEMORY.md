@@ -1,47 +1,62 @@
 # Cognitive Memory System
 
-> **Memory benchmarks (full N=500, gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)**. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. Competitive with the strongest published M results in the LongMemEval paper (Wu et al., ICLR 2025: round Top-5 65.7%, session Top-5 71.4%, round Top-10 72.0%). [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
+> **Memory benchmarks (full N=500, gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)**. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. Competitive with the strongest published M results in the LongMemEval paper ([Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813): round Top-5 65.7%, session Top-5 71.4%, round Top-10 72.0%). [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
 
 :::tip See also
 For the practical guide with usage examples and configuration, see [Cognitive Memory Guide](./COGNITIVE_MEMORY_GUIDE.md).
 :::
 
-> Personality-modulated, decay-aware memory grounded in cognitive science — replacing flat key-value memory with Ebbinghaus forgetting curves, Baddeley's working memory, spreading activation, and HEXACO-driven encoding biases.
-
-:::tip Cognitive Mechanisms
-The memory system now includes 8 optional neuroscience-grounded cognitive mechanisms (reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive FOK, temporal gist, schema encoding, source confidence decay, emotion regulation). All are HEXACO personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing.
-:::
-
 ---
+
+## Why memory should forget
+
+> "It's a poor sort of memory that only works backwards."
+>
+> — *Through the Looking-Glass*, Lewis Carroll, 1871
+
+Most agent memory systems forget nothing. They embed every message, store the vectors, and at retrieval time return whatever is closest in cosine space. This works for a few thousand turns. Past that, the system is doing something a human mind explicitly evolved *not* to do: treating every recorded experience as equally available, equally trustworthy, and equally relevant. The literature on biological memory is a long argument that forgetting is not a bug. It is the mechanism by which what mattered yesterday continues to matter today.
+
+The cognitive memory system in AgentOS is built on that argument. Encoding strength is set per-trace, modulated by the personality traits of the agent doing the encoding and by the emotional intensity of the moment ([Brown & Kulik, 1977](https://psycnet.apa.org/record/1977-29748-001) on flashbulb memories; [Yerkes & Dodson, 1908](https://onlinelibrary.wiley.com/doi/abs/10.1002/cne.920180503) on the inverted-U arousal curve). Strength then decays exponentially with time on Hermann Ebbinghaus's 1885 forgetting curve `S(t) = S₀ · e^(-Δt / stability)`, accelerated by interference from new similar memories and slowed by successful retrieval (the desirable-difficulty effect — harder retrievals grow stability more). Working memory is bounded by [Baddeley's slot model](https://www.sciencedirect.com/science/article/pii/S1364661303002479) of seven-plus-or-minus-two, modulated by traits. Retrieval composites six signals — vector similarity, current strength, recency, emotional congruence with the agent's mood, graph spreading-activation in the [ACT-R](https://act-r.psy.cmu.edu/) tradition (Anderson, 1983), and importance. The graph itself learns: co-retrieval of two traces tightens the edge between them via Hebbian weight updates ("neurons that fire together wire together").
+
+The result is a memory that behaves more like a person remembering. The agent forgets the irrelevant. It holds onto what hit it hard. It pulls the thing that's adjacent in concept-space, not just the thing that's adjacent in vector-space. And — because every mechanism is HEXACO-modulated — the same input encodes differently depending on who is doing the remembering.
+
+:::tip Eight cognitive mechanisms layered on top
+On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms — reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive feeling-of-knowing, temporal gist, schema encoding, source-confidence decay, and emotion regulation. All HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See the [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing.
+:::
 
 ## Overview
 
-Traditional agent memory systems treat memory as a flat store: ingest text, embed it, retrieve by similarity. This ignores decades of cognitive science on how biological memory actually works — encoding strength varies with arousal and personality, memories decay over time, retrieval is biased by mood, and working memory has a finite capacity.
+The Cognitive Memory System models memory as a dynamic, personality-modulated process rather than a flat key-value store:
 
-The **Cognitive Memory System** models memory as a dynamic, personality-modulated process:
+- **Encoding** is shaped by the agent's HEXACO personality traits and current emotional state (PAD model: valence, arousal, dominance)
+- **Forgetting** follows the Ebbinghaus exponential decay curve, with retrieval-induced reinforcement via spaced repetition
+- **Retrieval** combines six weighted signals (strength, embedding similarity, recency, emotional congruence, graph activation, importance) into a composite score
+- **Working memory** enforces Baddeley's slot-based capacity limits (7±2), modulated by traits
+- **Consolidation** runs periodically to prune weak traces, merge clusters into schemas, resolve contradictions, and feed observations back into long-term storage
 
-- **Encoding** is shaped by the agent's HEXACO personality traits and current emotional state (PAD model)
-- **Forgetting** follows the Ebbinghaus exponential decay curve with spaced repetition reinforcement
-- **Retrieval** combines six signals (strength, similarity, recency, emotional congruence, graph activation, importance)
-- **Working memory** enforces Baddeley's slot-based capacity limits (7 plus/minus 2, personality-modulated)
-- **Consolidation** runs periodically to prune weak traces, merge clusters into schemas, and resolve conflicts
+The system is composable. Core encoding/decay/retrieval (Batch 1) runs without any LLM calls. Advanced features (Batch 2 — observer, reflector, graph, consolidation) activate automatically when their config is provided and degrade gracefully when absent. You can run the entire stack against a local SQLite + HNSW backend, or scale it to Postgres + Neo4j without changing any callsite.
 
-The system is implemented as a composable module within AgentOS. Core features (Batch 1) work with zero LLM calls. Advanced features (Batch 2 — observer, reflector, graph, consolidation) activate automatically when their config is provided and degrade gracefully when absent.
+### Cognitive science foundations
 
-### Cognitive Science Foundations
+Each model below has a one-to-one analogue in the source. The point of the table is not to claim the runtime "uses" these papers in the loose sense — the point is that the constants, formulas, and weights you'll see in the code lines below come straight from this literature.
 
-| Model | Application in AgentOS |
-|-------|----------------------|
-| Atkinson-Shiffrin | Sensory input -> working memory -> long-term memory pipeline |
-| Baddeley's working memory | Slot-based capacity limits with activation levels |
-| Tulving's LTM taxonomy | Episodic, semantic, procedural, prospective memory types |
-| Ebbinghaus forgetting curve | Exponential strength decay over time |
-| Yerkes-Dodson law | Encoding quality peaks at moderate arousal (inverted U) |
-| Brown & Kulik flashbulb memories | High-emotion events create vivid, persistent traces |
-| Mood-congruent encoding | Content matching current mood valence is encoded more strongly |
-| Anderson's ACT-R | Spreading activation through associative memory graph |
-| Hebbian learning | "Neurons that fire together wire together" — co-retrieval strengthens edges |
-| HEXACO personality model | Trait-driven attention weights and memory capacity modulation |
+| Model | Reference | Application in AgentOS |
+|-------|-----------|----------------------|
+| Multi-store memory | [Atkinson & Shiffrin, 1968](https://en.wikipedia.org/wiki/Atkinson%E2%80%93Shiffrin_memory_model) | Sensory input → working memory → long-term memory pipeline |
+| Working memory model | [Baddeley & Hitch, 1974](https://www.sciencedirect.com/science/article/pii/S0079742108604521); Baddeley 2003 | Slot-based capacity limits (7±2) with activation levels |
+| LTM taxonomy | [Tulving, 1972](https://psycnet.apa.org/record/1973-08477-001) | Episodic / semantic / procedural / prospective memory types |
+| Forgetting curve | [Ebbinghaus, 1885](https://www.gutenberg.org/files/55518/55518-h/55518-h.htm) | `S(t) = S₀ · e^(-Δt / stability)` exponential decay |
+| Arousal curve | [Yerkes & Dodson, 1908](https://onlinelibrary.wiley.com/doi/abs/10.1002/cne.920180503) | Encoding quality peaks at moderate arousal (inverted-U) |
+| Flashbulb memories | [Brown & Kulik, 1977](https://psycnet.apa.org/record/1977-29748-001) | High-emotion events create vivid, persistent traces |
+| Mood-congruent encoding | [Bower, 1981](https://psycnet.apa.org/doi/10.1037/0003-066X.36.2.129) | Content matching current mood valence encodes more strongly |
+| Spreading activation | [Anderson, 1983](https://psycnet.apa.org/record/1984-00248-001) (ACT-R) | BFS through associative graph with activation decay |
+| Hebbian learning | [Hebb, 1949](https://en.wikipedia.org/wiki/Organization_of_Behavior) | Co-retrieval strengthens graph edges |
+| HEXACO personality | [Ashton & Lee, 2007](https://journals.sagepub.com/doi/10.1207/S15327957PSPR0701_2) | Trait-driven encoding weights and memory capacity modulation |
+| Source-monitoring framework | [Johnson, Hashtroudi & Lindsay, 1993](https://psycnet.apa.org/record/1993-18254-001) | Different memory sources decay at different rates (provenance-aware) |
+| HyDE retrieval | [Gao et al., 2022](https://arxiv.org/abs/2212.10496) | Generate hypothetical answer, embed *that*, search for matches |
+| GraphRAG | [Microsoft Research, 2024](https://arxiv.org/abs/2404.16130) | Entity-graph + community summaries for multi-hop retrieval |
+| Generative agents | [Park et al., 2023](https://arxiv.org/abs/2304.03442) | Persona + memory + reflection as the long-running agent pattern |
+| CoALA framework | [Sumers et al., 2023](https://arxiv.org/abs/2309.02427) | Cognitive architectures for language agents — episodic / semantic / procedural memory typology |
 
 ---
 

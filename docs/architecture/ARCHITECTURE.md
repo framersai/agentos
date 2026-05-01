@@ -1,6 +1,10 @@
 # System Architecture
 
-AgentOS is organized into 26 domain-specific modules. This page covers the high-level layout, request lifecycle, and how the major subsystems connect.
+The shape of an agent runtime tells you what its authors thought the hard problems were. Most agent SDKs are organized around a turn loop: take a prompt, call a model, parse for tool calls, execute, loop. The hard problems they expect you to have are about retries, structured output, and connector configuration. Their internal modules are named accordingly.
+
+AgentOS is organized differently. The hard problems it expects you to have are about state — about what an agent knows across hours and conversations, about which version of itself is talking to which user, about whether a tool call should run, about what the agent should remember tomorrow that it learned today. The 26 top-level modules below are mostly subsystems for managing that state. The turn loop is in there, but it's a small piece in the middle.
+
+This page is the map. For the *what* of any subsystem — what each piece is, who owns its lifecycle, where the source lives — read on. For deep-dives into individual concerns, jump out from the table of contents below.
 
 For specific subsystem deep-dives, see:
 - [Sandbox & Security](./sandbox-security.md)
@@ -165,13 +169,14 @@ src/
 │  4-tier memory · 8 core cognitive mechanisms + optional drift │
 │  7 vector backends · HyDE · GraphRAG · hybrid retrieval     │
 ├─────────────────────────────────────────────────────────────┤
-│  LLM Providers (21)                                         │
-│  OpenAI · Anthropic · Gemini · Ollama · Groq · OpenRouter   │
+│  LLM Providers (11 direct + OpenRouter fan-out)             │
+│  OpenAI · Anthropic · Gemini · Ollama · Groq · Mistral      │
+│  Together · xAI · OpenRouter · Claude Code CLI · Gemini CLI │
 │  + automatic fallback chains                                │
 ├─────────────────────────────────────────────────────────────┤
 │  Perception                                                 │
 │  Vision (OCR) · Hearing (STT/VAD) · Speech (TTS)           │
-│  37 channel adapters · telephony (Twilio/Telnyx/Plivo)     │
+│  12 messaging adapters · telephony (Twilio/Telnyx/Plivo)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -472,13 +477,14 @@ Each guardrail service can also configure timeouts via `config.timeoutMs`. If a 
 
 ### Built-in Guardrail Packs
 
-Five built-in packs ship directly from `@framers/agentos/extensions/packs/*`:
+Six built-in packs ship from `packages/agentos-extensions/registry/curated/safety/`:
 
-- `pii-redaction`
-- `ml-classifiers`
-- `topicality`
-- `code-safety`
-- `grounding-guard`
+- `pii-redaction` — sanitizer; redacts personally identifiable information before tokens leave the runtime
+- `ml-classifiers` — toxicity / hate-speech / harm classification via on-device ONNX models
+- `topicality` — LLM-as-judge classifier that rejects off-topic / out-of-scope prompts
+- `code-safety` — static + heuristic detection of dangerous code patterns in agent-emitted snippets
+- `grounding-guard` — verifies output claims against retrieved RAG sources (citation faithfulness)
+- `content-policy-rewriter` — sanitizer; rewrites policy-violating output in-place rather than blocking
 
 For details on writing custom guardrails, see [Creating Guardrails](../safety/CREATING_GUARDRAILS.md) and [Guardrails Usage](../safety/GUARDRAILS_USAGE.md).
 
@@ -856,14 +862,22 @@ For configuration details, see [RAG Memory Configuration](../memory/RAG_MEMORY_C
 
 ### Agency System
 
-The agency system enables multi-agent coordination through two strategies:
+The agency system enables multi-agent coordination across six strategies (defined in `AgencyStrategy` in `src/api/types.ts`):
 
-| Strategy | Description | Coordinator | Use Case |
-|----------|-------------|-------------|----------|
-| **Emergent** | LLM-backed planner decomposes goals, assigns roles, spawns as needed | `EmergentAgencyCoordinator` | Open-ended tasks, creative collaboration |
-| **Static** | Predefined roles and tasks execute in topological order | `StaticAgencyCoordinator` | Deterministic pipelines, compliance workflows |
+| Strategy | Behavior |
+|---|---|
+| `sequential` | Each agent runs after the previous one completes; output of one feeds the next |
+| `parallel` | All agents run concurrently against the same input; results are aggregated |
+| `debate` | Agents critique and refine each other's outputs across multiple rounds |
+| `review-loop` | One agent produces, another reviews; loop continues until reviewer accepts or `maxRounds` |
+| `hierarchical` | A coordinator agent delegates to sub-agents and synthesizes their results |
+| `graph` | Explicit DAG via `dependsOn` on each sub-agent; runs roots first, then dependents |
 
-`MultiGMIAgencyExecutor` orchestrates parallel GMI instance spawning (one per role), handles retry logic with exponential backoff, and aggregates costs across seats.
+Coordination state lives in three classes under `src/agents/agency/`:
+
+- [`AgencyRegistry`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyRegistry.ts) — tracks active agencies and the GMIs they contain
+- [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts) — shared memory across the agency's GMIs (separate from each GMI's private cognitive memory)
+- [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts) — the message channel GMIs use to coordinate
 
 ### Workflow DAG
 
@@ -1144,27 +1158,27 @@ For details, see [Voice Pipeline](../features/VOICE_PIPELINE.md) and [Speech Pro
 
 ## Channels
 
-37 channel adapters provide platform connectivity. Each adapter implements the `IChannelAdapter` interface and is typically packaged as an `ExtensionPack`.
+Twelve messaging adapters live in `src/channels/adapters/`, plus four telephony providers in `src/channels/telephony/providers/` (Twilio, Telnyx, Plivo, plus a mock for tests). Additional social-platform adapters ship as separate extension packs in [`packages/agentos-extensions/registry/curated/channels/`](https://github.com/framersai/agentos-extensions/tree/master/registry/curated/channels). Each adapter implements the `IChannelAdapter` interface and is loaded as an `ExtensionPack`.
 
 ### Platform Table
 
-| Platform | Adapter | Tools | Category |
-|----------|---------|-------|----------|
-| Discord | `DiscordChannelAdapter` | 8 slash commands | Messaging |
-| Slack | `SlackChannelAdapter` | 8 | Messaging |
-| Telegram | `TelegramChannelAdapter` | 8 | Messaging |
-| WhatsApp | `WhatsAppChannelAdapter` | 4 | Messaging |
-| Twitter/X | `TwitterChannelAdapter` | 6 | Social |
-| LinkedIn | LinkedIn adapter | 8 | Social |
-| Facebook | Facebook adapter | 8 | Social |
-| Threads | Threads adapter | 6 | Social |
-| Bluesky | Bluesky adapter | 8 | Social |
-| Mastodon | Mastodon adapter | 8 | Social |
-| WebChat | `WebChatChannelAdapter` | - | Web |
-| Teams | `TeamsChannelAdapter` | - | Enterprise |
-| Google Chat | `GoogleChatChannelAdapter` | - | Enterprise |
+In-tree messaging adapters (`src/channels/adapters/`):
 
-Additional adapters: Signal, IRC, Reddit, Instagram, Pinterest, TikTok, YouTube, Farcaster, Lemmy, Google Business, Dev.to, Hashnode, Medium, WordPress, and telephony providers (Twilio, Telnyx, Plivo, Vonage).
+| Platform | Adapter | Category |
+|----------|---------|----------|
+| Discord | `DiscordChannelAdapter` | Messaging |
+| Slack | `SlackChannelAdapter` | Messaging |
+| Telegram | `TelegramChannelAdapter` | Messaging |
+| WhatsApp | `WhatsAppChannelAdapter` | Messaging |
+| Twitter/X | `TwitterChannelAdapter` | Social |
+| Reddit | `RedditChannelAdapter` | Social |
+| Signal | `SignalChannelAdapter` | Messaging |
+| IRC | `IRCChannelAdapter` | Messaging |
+| WebChat | `WebChatChannelAdapter` | Web |
+| Teams | `TeamsChannelAdapter` | Enterprise |
+| Google Chat | `GoogleChatChannelAdapter` | Enterprise |
+
+Telephony (`src/channels/telephony/providers/`): Twilio, Telnyx, Plivo. Additional social-platform adapters (LinkedIn, Bluesky, Mastodon, Threads, etc.) ship as extension packs in [`packages/agentos-extensions/registry/curated/channels/`](https://github.com/framersai/agentos-extensions/tree/master/registry/curated/channels) rather than in-tree.
 
 ### Channel Routing
 
