@@ -284,9 +284,37 @@ export function buildHierarchicalTools(
           return { success: false, data: `Forge rejected: ${result.reason}` };
         }
 
-        // Judge gating wires in Task 5 — for now we accept whatever
-        // forge produces. The roster + tool table mutations below are
-        // the spawn's irreversible side effects.
+        // Judge gating: when emergent.judge is true, run the synthesised
+        // spec through EmergentAgentJudge before activation. Rejection
+        // short-circuits and the roster is not mutated.
+        if (agencyConfig.emergent?.judge === true) {
+          const { EmergentAgentJudge } = await import('../../../emergent/EmergentAgentJudge.js');
+          const { generateText } = await import('../../generateText.js');
+          const judge = new EmergentAgentJudge({
+            judgeModel: agencyConfig.model ?? 'gpt-4o',
+            generateText: async (model, prompt) => {
+              const r = await generateText({
+                model,
+                provider: agencyConfig.provider,
+                prompt,
+              });
+              return r.text ?? '';
+            },
+          });
+
+          const verdict = await judge.reviewAgent({
+            role: args.role,
+            instructions: args.instructions,
+            justification: args.justification,
+          });
+
+          if (!verdict.approved) {
+            return {
+              success: false,
+              data: `Judge rejected synthesised agent "${args.role}": ${verdict.reason}`,
+            };
+          }
+        }
 
         roster[args.role] = result.config;
         tools[`delegate_to_${args.role}`] = buildDelegateTool(args.role, result.config);

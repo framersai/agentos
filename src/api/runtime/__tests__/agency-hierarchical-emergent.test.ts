@@ -9,7 +9,7 @@
  * This keeps assertions deterministic and fast.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildHierarchicalTools } from '../strategies/hierarchical.js';
 import type { AgencyOptions, BaseAgentConfig, ForgeEvent } from '../types.js';
 
@@ -193,5 +193,81 @@ describe('hierarchical strategy with emergent.enabled', () => {
     });
 
     expect(events).toHaveLength(0);
+  });
+
+});
+
+// ----------------------------------------------------------------------------
+// Judge gating tests live in a separate describe block so the vi.mock for
+// generateText doesn't bleed into the no-judge tests above. vi.hoisted is
+// used so the per-test response variable is in scope when the hoisted
+// vi.mock factory runs.
+// ----------------------------------------------------------------------------
+
+const judgeMocks = vi.hoisted(() => ({
+  response: { current: JSON.stringify({ approved: true, reasoning: 'OK' }) },
+}));
+
+vi.mock('../../generateText.js', () => ({
+  generateText: vi.fn(async () => ({ text: judgeMocks.response.current })),
+}));
+
+describe('hierarchical strategy with emergent.enabled — judge gating', () => {
+  beforeEach(() => {
+    judgeMocks.response.current = JSON.stringify({ approved: true, reasoning: 'OK' });
+  });
+
+  it('blocks spawn when emergent.judge=true and the judge returns reject', async () => {
+    judgeMocks.response.current = JSON.stringify({
+      approved: false,
+      reasoning: 'mocked judge rejection — unsafe scope',
+    });
+
+    const events: ForgeEvent[] = [];
+    const { tools, roster, spawnedCount } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: true },
+        on: { emergentForge: (e) => events.push(e) },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'rejected_specialist',
+      instructions: 'Do something the judge will block.',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data).toMatch(/judge rejected|unsafe scope/i);
+    expect(roster.rejected_specialist).toBeUndefined();
+    expect(Object.keys(tools)).not.toContain('delegate_to_rejected_specialist');
+    expect(spawnedCount.value).toBe(0);
+    expect(events).toHaveLength(0);
+  });
+
+  it('allows spawn when emergent.judge=true and the judge returns approve', async () => {
+    judgeMocks.response.current = JSON.stringify({
+      approved: true,
+      reasoning: 'mocked judge approval — well-scoped',
+    });
+
+    const { tools, roster, spawnedCount } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: true },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'approved_specialist',
+      instructions: 'Do something the judge will allow.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(roster.approved_specialist).toBeDefined();
+    expect(Object.keys(tools)).toContain('delegate_to_approved_specialist');
+    expect(spawnedCount.value).toBe(1);
   });
 });
