@@ -1,3 +1,16 @@
+## <small>0.5.14 (2026-05-01)</small>
+
+* feat(emergent): add EmergentAgentForge for runtime agent synthesis ([5f9bc28](https://github.com/framersai/agentos/commit/5f9bc28))
+* feat(emergent): add EmergentAgentJudge for spec-level safety review ([db0e499](https://github.com/framersai/agentos/commit/db0e499))
+* feat(strategies): hierarchical agency can spawn specialists when emergent ([b061fb8](https://github.com/framersai/agentos/commit/b061fb8))
+* feat(strategies): wire EmergentAgentJudge gate into spawn_specialist ([5e97f05](https://github.com/framersai/agentos/commit/5e97f05))
+* feat(types): add EmergentPlannerConfig to EmergentConfig ([6f33705](https://github.com/framersai/agentos/commit/6f33705))
+* docs: add GMI architecture overview page ([68dac3c](https://github.com/framersai/agentos/commit/68dac3c))
+* docs: narrative voice + accuracy pass on architecture + cognitive memory ([37a600e](https://github.com/framersai/agentos/commit/37a600e))
+* docs: narrative voice intro for LLM Providers and Voice Pipeline ([280f471](https://github.com/framersai/agentos/commit/280f471))
+* docs: narrative-voice intros across orchestration + channels + observability ([bbb8289](https://github.com/framersai/agentos/commit/bbb8289))
+* docs: rewrite GMI page line-by-line against actual source ([1059cf5](https://github.com/framersai/agentos/commit/1059cf5))
+
 ## <small>0.5.13 (2026-05-01)</small>
 
 * fix(README): correct V8 isolate / 10-second / no-network overclaims to actual node:vm specs ([98bcfb9](https://github.com/framersai/agentos/commit/98bcfb9))
