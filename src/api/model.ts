@@ -9,6 +9,7 @@
  */
 import { AIModelProviderManager } from '../core/llm/providers/AIModelProviderManager.js';
 import { PROVIDER_DEFAULTS, autoDetectProvider } from './runtime/provider-defaults.js';
+import { getDefaultProvider } from './runtime/global-default.js';
 
 /**
  * The result of splitting a `provider:model` string at the first colon.
@@ -107,11 +108,22 @@ export function resolveProvider(
   modelId: string,
   overrides?: { apiKey?: string; baseUrl?: string }
 ): ResolvedProvider {
+  // Global-default credentials apply when their `provider` matches the
+  // provider being resolved (or when no provider was pinned in the
+  // default — in which case the default's apiKey is treated as
+  // applicable to whichever provider the auto-detect chain picked).
+  const def = getDefaultProvider();
+  const defAppliesToThisProvider = def && (!def.provider || def.provider === providerId);
+  const defApiKey = defAppliesToThisProvider ? def?.apiKey : undefined;
+  const defBaseUrl = defAppliesToThisProvider ? def?.baseUrl : undefined;
+
   const apiKey =
     overrides?.apiKey ??
+    defApiKey ??
     (ENV_KEY_MAP[providerId] ? process.env[ENV_KEY_MAP[providerId]] : undefined);
   const baseUrl =
     overrides?.baseUrl ??
+    defBaseUrl ??
     (ENV_URL_MAP[providerId] ? process.env[ENV_URL_MAP[providerId]] : undefined);
 
   if (providerId === 'ollama') {
@@ -256,6 +268,17 @@ export interface ModelOption {
  *   or the provider has no default model for the requested task.
  */
 export function resolveModelOption(opts: ModelOption, task: TaskType = 'text'): ParsedModel {
+  // Apply global default for `provider` / `model` when neither is inlined.
+  // Inline opts always win; the default kicks in only when the caller
+  // supplied nothing. Env-var auto-detect happens later as a final
+  // fallback if the default also doesn't pin a provider.
+  if (!opts.provider && !opts.model) {
+    const def = getDefaultProvider();
+    if (def?.provider) {
+      opts = { ...opts, provider: def.provider, model: opts.model ?? def.model };
+    }
+  }
+
   // 1. Explicit model string (backwards compat and direct override)
   if (opts.model) {
     // Canonical "provider:model" format

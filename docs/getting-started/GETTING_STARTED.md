@@ -40,7 +40,48 @@ TypeScript is strongly recommended. AgentOS ships full `.d.ts` types and expects
 
 ## Environment Setup
 
-Set at least one provider API key. AgentOS auto-detects the first key it finds:
+AgentOS resolves credentials in three layers, highest priority first:
+
+1. **Inline `apiKey` / `provider` / `baseUrl`** on the call.
+2. **Module-level default** set via `setDefaultProvider()` (see below).
+3. **Environment variable auto-detect chain**: `OPENROUTER_API_KEY` → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GEMINI_API_KEY` → `GROQ_API_KEY` → `TOGETHER_API_KEY` → `MISTRAL_API_KEY` → `XAI_API_KEY` → `which claude` → `which gemini` → `OLLAMA_BASE_URL` → `STABILITY_API_KEY` → `REPLICATE_API_TOKEN` → `STABLE_DIFFUSION_LOCAL_BASE_URL` → `BFL_API_KEY` → `FAL_API_KEY`.
+
+You only need one of these — pick whichever fits your deployment.
+
+### Module-level default (no `.env` required)
+
+Configure once at app boot, every subsequent call inherits:
+
+```typescript
+import { setDefaultProvider, generateText, agent } from '@framers/agentos';
+
+setDefaultProvider({
+  provider: 'openai',
+  apiKey: process.env.MY_OWN_KEY,    // any source — Vault, KMS, hard-coded, etc.
+  // optional:
+  // model: 'gpt-4o-mini',
+  // baseUrl: 'https://my-proxy.example.com/v1',
+});
+
+// No env vars needed, no inline opts — just works:
+const { text } = await generateText({ prompt: 'hello' });
+const bot = agent({ instructions: 'You are a coding tutor.' });
+
+// Inline opts always win over the default (per-tenant keys, fallback providers, etc.):
+const { text: tenantReply } = await generateText({
+  apiKey: 'sk-customer-scoped-key',
+  prompt: 'tenant-isolated call',
+});
+
+// Reset the default:
+setDefaultProvider(undefined);
+```
+
+`setDefaultProvider` is the recommended path for apps that hold their keys somewhere other than environment variables (secrets manager, runtime config service, etc.). It also works inside the `AgentOS` class — pass `defaultProvider` in your `AgentOSConfig` and the runtime will install it during `initialize()`.
+
+### Environment variables
+
+For zero-code setup, set any one of the supported env vars:
 
 ```bash
 # Cloud providers (pick one or more)
@@ -57,12 +98,9 @@ export OLLAMA_BASE_URL=http://localhost:11434
 export STABLE_DIFFUSION_LOCAL_BASE_URL=http://localhost:7860
 ```
 
-Provider resolution order when no `provider` or `model` is specified:
-`OPENROUTER_API_KEY` → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GEMINI_API_KEY` → `which claude` → `which gemini` → `OLLAMA_BASE_URL`
-
 ### Inline API Keys
 
-Every function also accepts `apiKey` and `baseUrl` directly, which override the corresponding environment variable. This is useful for multi-tenant apps, test suites, or dynamic key management:
+Every function also accepts `apiKey` and `baseUrl` directly, which override both the module-level default and any environment variable. This is useful for multi-tenant apps, test suites, or dynamic key management:
 
 ```typescript
 import { generateText, agent } from '@framers/agentos';
