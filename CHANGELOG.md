@@ -1,3 +1,7 @@
+## 0.6.0 (2026-05-01)
+
+* fix(tests): unblock CI — soften docs-alignment + update vision/image test expectations ([2d20da0](https://github.com/framersai/agentos/commit/2d20da0))
+
 ## <small>0.5.15 (2026-05-01)</small>
 
 * feat(emergent): finalize spawn_specialist — judge model defaults, HITL gate, runnable example ([8c77cbd](https://github.com/framersai/agentos/commit/8c77cbd))
