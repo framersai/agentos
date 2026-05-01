@@ -1,0 +1,197 @@
+/**
+ * @fileoverview Integration tests for the emergent extension to the
+ * hierarchical strategy: when `agencyConfig.emergent.enabled === true`,
+ * the manager gets a `spawn_specialist` tool that mints new sub-agents
+ * at runtime via EmergentAgentForge.
+ *
+ * Tests drive the spawned `spawn_specialist` tool directly through the
+ * `buildHierarchicalTools` helper rather than spinning up a manager LLM.
+ * This keeps assertions deterministic and fast.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { buildHierarchicalTools } from '../strategies/hierarchical.js';
+import type { AgencyOptions, BaseAgentConfig, ForgeEvent } from '../types.js';
+
+function buildAgencyConfig(overrides: Partial<AgencyOptions> = {}): AgencyOptions {
+  return {
+    model: 'gpt-4o',
+    provider: 'openai',
+    agents: {},
+    ...overrides,
+  } as AgencyOptions;
+}
+
+interface SpawnTool {
+  execute: (args: {
+    role: string;
+    instructions: string;
+    justification?: string;
+  }) => Promise<{ success: boolean; data?: string }>;
+}
+
+describe('hierarchical strategy with emergent.enabled', () => {
+  it('does NOT inject spawn_specialist when emergent is disabled', () => {
+    const { tools } = buildHierarchicalTools(
+      { researcher: { instructions: 'Find sources.' } as BaseAgentConfig },
+      buildAgencyConfig({ emergent: { enabled: false } }),
+    );
+
+    expect(Object.keys(tools)).toContain('delegate_to_researcher');
+    expect(Object.keys(tools)).not.toContain('spawn_specialist');
+  });
+
+  it('injects spawn_specialist when emergent.enabled is true', () => {
+    const { tools } = buildHierarchicalTools(
+      { researcher: { instructions: 'Find sources.' } as BaseAgentConfig },
+      buildAgencyConfig({ emergent: { enabled: true } }),
+    );
+
+    expect(Object.keys(tools)).toContain('spawn_specialist');
+    expect(Object.keys(tools)).toContain('delegate_to_researcher');
+  });
+
+  it('spawn_specialist synthesizes a new agent and adds delegate_to_<role>', async () => {
+    const { tools, roster, spawnedCount } = buildHierarchicalTools(
+      { researcher: { instructions: 'Find sources.' } as BaseAgentConfig },
+      buildAgencyConfig({ emergent: { enabled: true, judge: false } }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'fact_checker',
+      instructions: 'Verify claims against cited sources.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(roster.fact_checker).toBeDefined();
+    expect(Object.keys(tools)).toContain('delegate_to_fact_checker');
+    expect(spawnedCount.value).toBe(1);
+  });
+
+  it('respects maxSpecialists cap', async () => {
+    const { tools } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: {
+          enabled: true,
+          judge: false,
+          planner: { maxSpecialists: 1 },
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const first = await spawnTool.execute({ role: 'a', instructions: 'X.' });
+    const second = await spawnTool.execute({ role: 'b', instructions: 'Y.' });
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(false);
+    expect(second.data).toMatch(/maxSpecialists|cap/i);
+  });
+
+  it('rejects spawn when requireJustification=true and justification missing', async () => {
+    const { tools } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: {
+          enabled: true,
+          judge: false,
+          planner: { requireJustification: true },
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'fact_checker',
+      instructions: 'Verify.',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data).toMatch(/justification/i);
+  });
+
+  it('rejects spawn when role collides with existing roster entry', async () => {
+    const { tools } = buildHierarchicalTools(
+      { researcher: { instructions: 'Find sources.' } as BaseAgentConfig },
+      buildAgencyConfig({ emergent: { enabled: true, judge: false } }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'researcher',
+      instructions: 'A duplicate.',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data).toMatch(/already exists|delegate_to_researcher/i);
+  });
+
+  it('rejects spawn when forge validation fails (reserved role name)', async () => {
+    const { tools } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({ emergent: { enabled: true, judge: false } }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'spawn_specialist', // reserved
+      instructions: 'Try to overwrite the spawner.',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data).toMatch(/reserved|forge rejected/i);
+  });
+
+  it('emits a ForgeEvent through the emergentForge callback on successful spawn', async () => {
+    const events: ForgeEvent[] = [];
+
+    const { tools } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: false },
+        on: {
+          emergentForge: (e) => {
+            events.push(e);
+          },
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    await spawnTool.execute({
+      role: 'event_test',
+      instructions: 'Test agent.',
+      justification: 'For the test.',
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      agentName: 'event_test',
+      instructions: 'Test agent.',
+      approved: true,
+    });
+    expect(typeof events[0]!.timestamp).toBe('number');
+  });
+
+  it('does NOT emit ForgeEvent when forge rejects the spec', async () => {
+    const events: ForgeEvent[] = [];
+
+    const { tools } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: false },
+        on: { emergentForge: (e) => events.push(e) },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    await spawnTool.execute({
+      role: 'spawn_specialist',
+      instructions: 'Reserved name should reject.',
+    });
+
+    expect(events).toHaveLength(0);
+  });
+});

@@ -81,6 +81,239 @@ function getAgentDescription(agentOrConfig: BaseAgentConfig | Agent): string {
 }
 
 /**
+ * Mutable state shared across one hierarchical strategy execution.
+ * Returned by {@link buildHierarchicalTools} so callers (production:
+ * `compileHierarchical().execute()`; tests: direct invocation) can
+ * inspect the live tool table, agent-call records, accumulated usage,
+ * mutable roster, and spawned-counter without poking the
+ * `CompiledStrategy` interface.
+ */
+export interface HierarchicalToolBundle {
+  /** Tool table the manager sees — grows when spawn_specialist is invoked. */
+  tools: ToolDefinitionMap;
+  /** Per-sub-agent call records for the result envelope. */
+  agentCalls: AgentCallRecord[];
+  /** Accumulated usage across every sub-agent (manager usage merged later). */
+  subAgentUsage: StrategyTotalUsage;
+  /** Live roster — initial agents plus any spawned specialists. */
+  roster: Record<string, BaseAgentConfig | Agent>;
+  /** Single-field object (counter ref) so spawn_specialist can mutate it. */
+  spawnedCount: { value: number };
+}
+
+/**
+ * Build the delegation tool table for a hierarchical strategy run.
+ *
+ * Every static agent in `initialRoster` becomes a `delegate_to_<name>`
+ * tool. When `agencyConfig.emergent?.enabled === true`, an additional
+ * `spawn_specialist` tool is injected that lets the manager synthesise
+ * new sub-agents at runtime via {@link EmergentAgentForge}. Spawned
+ * agents are added to the live roster and exposed as new
+ * `delegate_to_<spawned-role>` tools on the manager's next turn.
+ *
+ * The returned bundle is shared mutable state for the duration of one
+ * `compileHierarchical().execute()` invocation; it is NOT thread-safe
+ * across concurrent strategy executions.
+ *
+ * @internal Exported so tests can drive the spawn_specialist tool directly
+ *   without spinning up a manager LLM.
+ */
+export function buildHierarchicalTools(
+  initialRoster: Record<string, BaseAgentConfig | Agent>,
+  agencyConfig: AgencyOptions,
+  opts: Record<string, unknown> | undefined = {},
+): HierarchicalToolBundle {
+  const roster: Record<string, BaseAgentConfig | Agent> = { ...initialRoster };
+  const tools: ToolDefinitionMap = {};
+  const agentCalls: AgentCallRecord[] = [];
+  const subAgentUsage: StrategyTotalUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+  };
+  const spawnedCount = { value: 0 };
+
+  // Builds a delegate_to_<name> tool whose closure captures the current
+  // agentCalls/subAgentUsage so mutations from any sub-agent flow back
+  // into the bundle. Used both for static-roster wiring (below) and for
+  // spawn_specialist's mid-run roster growth.
+  function buildDelegateTool(name: string, agentOrConfig: BaseAgentConfig | Agent) {
+    const description = getAgentDescription(agentOrConfig);
+    return {
+      description: `Delegate a subtask to the ${name} agent. ${description}`,
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          task: { type: 'string', description: 'The subtask to delegate' },
+        },
+        required: ['task' as const],
+      },
+      execute: async (args: { task: string }) => {
+        const decision = await checkBeforeAgent(name, args.task, agentCalls, agencyConfig);
+        if (decision && !decision.approved) {
+          return { success: false, data: `Agent "${name}" execution was rejected by HITL.` };
+        }
+
+        const a = resolveAgent(agentOrConfig, agencyConfig);
+
+        const effectiveTask = decision?.modifications?.instructions
+          ? `${args.task}\n\n[Additional instructions]: ${decision.modifications.instructions}`
+          : args.task;
+
+        const start = Date.now();
+        const result = (await a.generate(effectiveTask, opts)) as Record<string, unknown>;
+        const durationMs = Date.now() - start;
+
+        const resultText = (result.text as string) ?? '';
+        const resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
+        const resultToolCalls =
+          (result.toolCalls as Array<{
+            name: string;
+            args: unknown;
+            result?: unknown;
+            error?: string;
+          }>) ?? [];
+
+        agentCalls.push({
+          agent: name,
+          input: args.task,
+          output: resultText,
+          toolCalls: resultToolCalls,
+          usage: buildAgentCallUsage(resultUsage),
+          durationMs,
+        });
+
+        subAgentUsage.promptTokens += resultUsage.promptTokens ?? 0;
+        subAgentUsage.completionTokens += resultUsage.completionTokens ?? 0;
+        subAgentUsage.totalTokens += resultUsage.totalTokens ?? 0;
+        accumulateExtraUsage(subAgentUsage, resultUsage);
+
+        return { success: true, data: resultText };
+      },
+    };
+  }
+
+  // Seed the static roster as delegate_to_<name> tools.
+  for (const [name, agentOrConfig] of Object.entries(roster)) {
+    tools[`delegate_to_${name}`] = buildDelegateTool(name, agentOrConfig);
+  }
+
+  // Conditionally inject spawn_specialist when emergent agent synthesis
+  // is enabled. This is the new emergent-hierarchical execution path —
+  // the manager gets a way to grow its team mid-run.
+  if (agencyConfig.emergent?.enabled === true) {
+    const planner = agencyConfig.emergent?.planner ?? {};
+    const maxSpecialists = planner.maxSpecialists ?? 5;
+    const requireJustification = planner.requireJustification === true;
+
+    tools.spawn_specialist = {
+      description:
+        'Synthesise a new specialist sub-agent at runtime when no existing roster agent ' +
+        'covers the required capability. After spawning, a new delegate_to_<role> tool ' +
+        'becomes available on the next turn. Use sparingly — every spawn adds a new agent ' +
+        'to the roster for the rest of the run.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          role: {
+            type: 'string',
+            description: 'Identifier for the new agent (must match /^[a-zA-Z][a-zA-Z0-9_-]*$/)',
+          },
+          instructions: {
+            type: 'string',
+            description: 'System instructions for the new agent',
+          },
+          justification: {
+            type: 'string',
+            description: requireJustification
+              ? 'REQUIRED: Why no existing roster agent can handle this task.'
+              : 'Optional: Why this specialist is needed.',
+          },
+        },
+        required: requireJustification
+          ? (['role', 'instructions', 'justification'] as const)
+          : (['role', 'instructions'] as const),
+      },
+      execute: async (args: { role: string; instructions: string; justification?: string }) => {
+        if (spawnedCount.value >= maxSpecialists) {
+          return {
+            success: false,
+            data: `Cannot spawn: maxSpecialists cap (${maxSpecialists}) reached for this run.`,
+          };
+        }
+
+        if (requireJustification && (!args.justification || args.justification.trim().length === 0)) {
+          return {
+            success: false,
+            data: 'spawn_specialist requires a non-empty justification when requireJustification is enabled.',
+          };
+        }
+
+        if (roster[args.role]) {
+          return {
+            success: false,
+            data: `Cannot spawn: role "${args.role}" already exists in roster — call delegate_to_${args.role} instead.`,
+          };
+        }
+
+        // Lazy import to avoid pulling EmergentAgentForge into hot path
+        // when emergent is disabled.
+        const { EmergentAgentForge } = await import('../../../emergent/EmergentAgentForge.js');
+        const forge = new EmergentAgentForge({
+          defaultModel: agencyConfig.model ?? 'gpt-4o',
+          defaultProvider: agencyConfig.provider ?? 'openai',
+        });
+
+        const result = await forge.forge(
+          {
+            role: args.role,
+            instructions: args.instructions,
+            justification: args.justification,
+          },
+          {
+            // Inherit agency-level memory and guardrails so synthesised
+            // agents operate under the same constraints as static roster
+            // agents.
+            memory: agencyConfig.memory,
+            guardrails: agencyConfig.guardrails,
+            security: agencyConfig.security,
+          },
+        );
+
+        if (!result.ok) {
+          return { success: false, data: `Forge rejected: ${result.reason}` };
+        }
+
+        // Judge gating wires in Task 5 — for now we accept whatever
+        // forge produces. The roster + tool table mutations below are
+        // the spawn's irreversible side effects.
+
+        roster[args.role] = result.config;
+        tools[`delegate_to_${args.role}`] = buildDelegateTool(args.role, result.config);
+        spawnedCount.value += 1;
+
+        // Surface a ForgeEvent so observability/audit can capture every
+        // synthesis. Reuses the existing emergentForge callback shape on
+        // AgencyCallbacks — no new event type.
+        agencyConfig.on?.emergentForge?.({
+          agentName: args.role,
+          instructions: result.config.instructions ?? '',
+          approved: true,
+          timestamp: Date.now(),
+        });
+
+        return {
+          success: true,
+          data: `Spawned ${args.role}. Call delegate_to_${args.role}({ task: '...' }) on the next turn to invoke them.`,
+        };
+      },
+    };
+  }
+
+  return { tools, agentCalls, subAgentUsage, roster, spawnedCount };
+}
+
+/**
  * Compiles a hierarchical execution strategy.
  *
  * A manager agent is instantiated from the agency-level model/provider/instructions.
@@ -123,81 +356,11 @@ export function compileHierarchical(
 
   return {
     async execute(prompt, opts) {
-      const agentCalls: AgentCallRecord[] = [];
-      // Sub-agents called via delegation tools have their own LLM usage.
-      // We accumulate it here so the strategy-level usage reflects the
-      // FULL cost of the run — manager turns plus every sub-agent turn.
-      const subAgentUsage: StrategyTotalUsage = {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-      };
-
-      // Build one tool per sub-agent for the manager to delegate to.
-      // The tool name follows the `delegate_to_<name>` convention so the
-      // manager can infer the agent's role from the tool name alone.
-      const agentTools: ToolDefinitionMap = {};
-      for (const [name, agentOrConfig] of Object.entries(agents)) {
-        const description = getAgentDescription(agentOrConfig);
-
-        agentTools[`delegate_to_${name}`] = {
-          description: `Delegate a subtask to the ${name} agent. ${description}`,
-          parameters: {
-            type: 'object',
-            properties: {
-              task: { type: 'string', description: 'The subtask to delegate' },
-            },
-            required: ['task'],
-          },
-          execute: async (args: { task: string }) => {
-            // HITL: check beforeAgent gate before delegating to this sub-agent.
-            const decision = await checkBeforeAgent(name, args.task, agentCalls, agencyConfig);
-            if (decision && !decision.approved) {
-              return { success: false, data: `Agent "${name}" execution was rejected by HITL.` };
-            }
-
-            const a = resolveAgent(agentOrConfig, agencyConfig);
-
-            // Apply instruction modifications from the approval decision if any.
-            const effectiveTask = decision?.modifications?.instructions
-              ? `${args.task}\n\n[Additional instructions]: ${decision.modifications.instructions}`
-              : args.task;
-
-            const start = Date.now();
-            const result = (await a.generate(effectiveTask, opts)) as Record<string, unknown>;
-            const durationMs = Date.now() - start;
-
-            const resultText = (result.text as string) ?? '';
-            const resultUsage = (result.usage as ResultUsageSnapshot) ?? {};
-            const resultToolCalls =
-              (result.toolCalls as Array<{
-                name: string;
-                args: unknown;
-                result?: unknown;
-                error?: string;
-              }>) ?? [];
-
-            // Record the sub-agent call for the final result's agentCalls array.
-            agentCalls.push({
-              agent: name,
-              input: args.task,
-              output: resultText,
-              toolCalls: resultToolCalls,
-              usage: buildAgentCallUsage(resultUsage),
-              durationMs,
-            });
-
-            // Accumulate sub-agent usage so the strategy-level total
-            // includes every delegated turn, not just the manager's.
-            subAgentUsage.promptTokens += resultUsage.promptTokens ?? 0;
-            subAgentUsage.completionTokens += resultUsage.completionTokens ?? 0;
-            subAgentUsage.totalTokens += resultUsage.totalTokens ?? 0;
-            accumulateExtraUsage(subAgentUsage, resultUsage);
-
-            return { success: true, data: resultText };
-          },
-        };
-      }
+      // Build the delegation tool table (and sub-agent call accumulators)
+      // through the shared helper so the spawn_specialist path — which
+      // mutates the same tool table at runtime — sees the same state.
+      const { tools: agentTools, agentCalls, subAgentUsage } =
+        buildHierarchicalTools(agents, agencyConfig, opts);
 
       // Build the team roster description for the manager's system prompt.
       // This tells the manager who is on the team and what each member does.
