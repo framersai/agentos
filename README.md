@@ -253,6 +253,21 @@ npm install paracosm
 
 ## Configure API Keys
 
+Three layers, highest priority first:
+
+```typescript
+// 1. Inline on the call (per-tenant, per-test, per-customer)
+generateText({ apiKey: 'sk-customer', prompt: '...' });
+
+// 2. Module-level default — set once at boot, no .env needed
+import { setDefaultProvider } from '@framers/agentos';
+setDefaultProvider({ provider: 'openai', apiKey: process.env.MY_OWN_KEY });
+
+// 3. Environment variable auto-detect chain
+//    OpenRouter → OpenAI → Anthropic → Gemini → Groq → Together → Mistral
+//    → xAI → claude CLI → gemini CLI → Ollama → image providers
+```
+
 ```bash
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -262,7 +277,7 @@ export GEMINI_API_KEY=AIza...
 export OPENAI_API_KEY=sk-key1,sk-key2,sk-key3
 ```
 
-Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic → OpenRouter → Gemini → Groq → Together → Mistral → xAI → CLI → Ollama. [Default models per provider →](https://docs.agentos.sh/architecture/llm-providers)
+[Full credential resolution + default models per provider →](https://docs.agentos.sh/architecture/llm-providers)
 
 ---
 

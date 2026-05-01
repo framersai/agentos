@@ -125,7 +125,28 @@ order and uses the first one found:
 10. `which gemini` → Gemini CLI (PATH detection — no API key, uses Google account)
 11. `OLLAMA_BASE_URL` → Ollama
 
-You can override auto-detection by setting `provider` explicitly in your `agent({ provider: '...' })` call, or — for the [Wunderland](https://wunderland.sh) CLI — by passing `--provider <name>`.
+You can override auto-detection in three ways, highest priority first:
+
+1. **Inline** — `agent({ provider: '...', apiKey: '...' })` on a single call.
+2. **Module-level default** — `setDefaultProvider({ provider, apiKey })` once at boot. Every subsequent call inherits it; inline opts still win when supplied. Useful when credentials live in a secrets manager rather than `.env`.
+3. **CLI flag** — for the [Wunderland](https://wunderland.sh) CLI, pass `--provider <name>`.
+
+```typescript
+import { setDefaultProvider, generateText, agent } from '@framers/agentos';
+
+setDefaultProvider({
+  provider: 'openai',
+  apiKey: process.env.MY_OWN_KEY,
+  // optional: model: 'gpt-4o-mini', baseUrl: '...'
+});
+
+// No env vars, no inline opts — just works:
+const { text } = await generateText({ prompt: 'hello' });
+const bot = agent({ instructions: '...' });
+
+// Inline still wins:
+generateText({ apiKey: 'sk-tenant-scoped', prompt: 'isolated call' });
+```
 
 ---
 
