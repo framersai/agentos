@@ -504,3 +504,35 @@ const orchestrator = new VoicePipelineOrchestrator({
   ttsOptions: expressiveness,
 });
 ```
+
+---
+
+## References
+
+### Voice activity detection + endpoint detection
+
+- Tan, Z.-H., Sarkar, A. K., & Dehak, N. (2020). *rVAD: An unsupervised segment-based robust voice activity detection method.* *Computer Speech & Language*, 59, 1–21. — Robust VAD baseline informing the heuristic endpoint detector's silence-vs-speech discrimination. [arXiv:1906.03588](https://arxiv.org/abs/1906.03588)
+- Silero Team. (2024). *Silero VAD: Pre-trained enterprise-grade voice activity detector.* — Production-grade VAD model widely used in real-time pipelines; reference for the acoustic endpoint detector design. [GitHub](https://github.com/snakers4/silero-vad)
+- Skerry-Ryan, R. J., Battenberg, E., Xiao, Y., Wang, Y., Stanton, D., Shor, J., Weiss, R., Clark, R., & Saurous, R. A. (2018). *Towards end-to-end prosody transfer for expressive speech synthesis with Tacotron.* ICML 2018. — Prosody-aware synthesis foundations behind the TTS provider abstraction. [arXiv:1803.09047](https://arxiv.org/abs/1803.09047)
+
+### Streaming ASR
+
+- Graves, A., Fernández, S., Gomez, F., & Schmidhuber, J. (2006). *Connectionist temporal classification: Labelling unsegmented sequence data with recurrent neural networks.* ICML 2006. — CTC foundations behind streaming ASR — informs how partial-transcript timing flows through the endpoint detector. [ACM DL](https://dl.acm.org/doi/10.1145/1143844.1143891)
+- Chiu, C.-C., Sainath, T. N., Wu, Y., Prabhavalkar, R., Nguyen, P., Chen, Z., Kannan, A., Weiss, R. J., Rao, K., Gonina, E., Jaitly, N., Li, B., Chorowski, J., & Bacchiani, M. (2018). *State-of-the-art speech recognition with sequence-to-sequence models.* ICASSP 2018. — Reference architecture for the streaming-STT provider interface. [arXiv:1712.01769](https://arxiv.org/abs/1712.01769)
+- Radford, A., Kim, J. W., Xu, T., Brockman, G., McLeavey, C., & Sutskever, I. (2023). *Robust speech recognition via large-scale weak supervision.* ICML 2023. — Whisper, the default fallback STT in the pipeline. [arXiv:2212.04356](https://arxiv.org/abs/2212.04356)
+
+### Barge-in / interruption handling
+
+- Edlund, J., Heldner, M., & Hirschberg, J. (2009). *Pause and gap length in face-to-face interaction.* Interspeech 2009. — Pause statistics informing the heuristic endpoint detector's silence thresholds. [ISCA Archive](https://www.isca-speech.org/archive/interspeech_2009/edlund09_interspeech.html)
+- Skantze, G. (2021). *Turn-taking in conversational systems and human-robot interaction: A review.* *Computer Speech & Language*, 67, 101178. — Survey of turn-taking strategies; the barge-in handler implements the "hard cut on speech-detected during TTS" pattern from this taxonomy. [DOI](https://doi.org/10.1016/j.csl.2020.101178)
+
+### Real-time voice agents
+
+- Anastassiou, P., Chen, J., Chen, J., Chen, Y., Chen, Z., Chen, Z., Cong, J., Deng, L., Ding, C., Gao, L., Gong, M., Huang, P., Huang, Q., Huang, Z., Huo, Y., Jia, D., Li, C., Li, F., Li, H., ... Wei, X. (2024). *Seed-TTS: A family of high-quality versatile speech generation models.* arXiv preprint. — Reference for low-latency, prosody-controllable TTS — informs the SPEAKING-state design where TTS is allowed to overlap with EOL planning. [arXiv:2406.02430](https://arxiv.org/abs/2406.02430)
+
+### Implementation references
+
+- `packages/agentos/src/voice-pipeline/VoicePipelineOrchestrator.ts` — the state machine
+- `packages/agentos/src/voice-pipeline/HeuristicEndpointDetector.ts` + `AcousticEndpointDetector.ts` — endpoint detection strategies
+- `packages/agentos/src/voice-pipeline/HardCutBargeinHandler.ts` + `SoftFadeBargeinHandler.ts` — barge-in handlers
+- `packages/agentos/src/voice-pipeline/types.ts` — `IStreamTransport`, `IStreamingSTT`, `IStreamingTTS`, `IBargeinHandler` interfaces

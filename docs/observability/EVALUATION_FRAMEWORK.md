@@ -296,3 +296,29 @@ evaluator.registerScorer('llm_judge', judge.createScorer());
 - **Regression Detection**: Automatic alerting on performance drops
 - **A/B Testing**: Compare agent variants statistically
 
+
+---
+
+## References
+
+### LLM-as-judge methodology
+
+- Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin, Z., Li, Z., Li, D., Xing, E. P., Zhang, H., Gonzalez, J. E., & Stoica, I. (2023). *Judging LLM-as-a-judge with MT-Bench and chatbot arena.* NeurIPS 2023. — The canonical reference for LLM-as-judge reliability, position bias, and self-enhancement bias. The `LLMJudge` design accounts for all three. [arXiv:2306.05685](https://arxiv.org/abs/2306.05685)
+- Liu, Y., Iter, D., Xu, Y., Wang, S., Xu, R., & Zhu, C. (2023). *G-Eval: NLG evaluation using GPT-4 with better human alignment.* EMNLP 2023. — Chain-of-thought-based evaluator scoring methodology used by the per-criteria grading mode. [arXiv:2303.16634](https://arxiv.org/abs/2303.16634)
+- Chen, Y., Wang, R., Jiang, H., Shi, S., & Xu, R.-M. (2023). *Exploring the use of large language models for reference-free text quality evaluation: An empirical study.* AACL 2023. — Reference-free evaluation methodology when ground-truth is unavailable. [arXiv:2304.00723](https://arxiv.org/abs/2304.00723)
+
+### Human-LLM agreement + evaluator calibration
+
+- Wang, Y., Yu, Z., Zeng, Z., Yang, L., Wang, C., Chen, H., Jiang, C., Xie, R., Wang, J., Xie, X., Ye, W., Zhang, S., & Zhang, Y. (2023). *PandaLM: An automatic evaluation benchmark for LLM instruction tuning optimization.* arXiv preprint. — Benchmark for evaluator-vs-human agreement informing the confidence-threshold defaults. [arXiv:2306.05087](https://arxiv.org/abs/2306.05087)
+- Bai, Y., Ying, J., Cao, Y., Lv, X., He, Y., Wang, X., Yu, J., Zeng, K., Xiao, Y., Lyu, H., Zhang, J., Li, J., & Hou, L. (2024). *Benchmarking foundation models with language-model-as-an-examiner.* NeurIPS 2024. — Methodology for scaling LLM-judge evaluations across many tasks; informs the per-task-type evaluator-config switching. [arXiv:2306.04181](https://arxiv.org/abs/2306.04181)
+
+### Bias + reliability concerns
+
+- Wang, P., Li, L., Chen, L., Cai, Z., Zhu, D., Lin, B., Cao, Y., Liu, Q., Liu, T., & Sui, Z. (2023). *Large language models are not fair evaluators.* arXiv preprint. — Documents position bias in pairwise LLM judges; the framework swaps positions and averages to mitigate. [arXiv:2305.17926](https://arxiv.org/abs/2305.17926)
+- Penfield Labs. (2024). *LongMemEval audit: Wrong-answer rate in the public answer key.* — Independent audit of LongMemEval; informs the framework's "judge agreement is necessary but not sufficient" stance — wrong-answer rates above 5% warrant skeptical review of any judge-only metric. [Audit summary in agentos.sh blog](https://agentos.sh/blog/memory-benchmark-transparency-audit/)
+
+### Implementation references
+
+- `packages/agentos/src/evaluation/Evaluator.ts` — the evaluation harness
+- `packages/agentos/src/evaluation/LLMJudge.ts` — judge implementation with position-bias mitigation
+- `packages/agentos/src/evaluation/SqlTaskOutcomeTelemetryStore.ts` — persistent outcome KPIs across runs

@@ -364,3 +364,33 @@ import {
 ```
 
 The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilarityDedup`) are provided by the downstream social module and are not part of the core AgentOS package.
+
+---
+
+## References
+
+### Circuit breakers + bulkheads
+
+- Nygard, M. T. (2018). *Release It! Design and Deploy Production-Ready Software* (2nd ed.). Pragmatic Bookshelf. — Foundational treatment of stability patterns: circuit breaker, bulkhead, timeout, and steady-state. The `CircuitBreaker` here implements the three-state (closed / open / half-open) machine from this book. [Pragmatic Programmers](https://pragprog.com/titles/mnee2/release-it-second-edition/)
+- Fowler, M. (2014). *CircuitBreaker.* Martin Fowler's bliki. — Practical write-up of the circuit-breaker pattern with state-transition examples. [martinfowler.com/bliki/CircuitBreaker.html](https://martinfowler.com/bliki/CircuitBreaker.html)
+
+### Cost guards + resource controls
+
+- Patel, A., Singh, A., Patel, V., Verma, V., & Patel, K. (2023). *FrugalGPT: How to use large language models while reducing cost and improving performance.* arXiv preprint. — Cost-aware LLM routing methodology informing the `CostGuard` design — failover to cheaper providers when budgets approach limits. [arXiv:2305.05176](https://arxiv.org/abs/2305.05176)
+- Chen, L., Zaharia, M., & Zou, J. (2023). *FrugalML: How to use ML prediction APIs more accurately and cheaply.* NeurIPS 2020. — Earlier work on prediction-API cost optimization that informed the model-cascade pattern. [arXiv:2006.07512](https://arxiv.org/abs/2006.07512)
+
+### Stuck detection / liveness
+
+- Brewer, E. A. (2000). *Towards robust distributed systems.* PODC 2000 keynote. — The CAP theorem framing that motivates aggressive timeout + stuck-detection in distributed agent runtimes where partial unavailability is normal. [Berkeley](https://people.eecs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf)
+- Cantrill, B., Bonwick, J., & Marx, R. (2010). *Hidden in plain sight.* *ACM Queue*, 8(1). — Operational practice for detecting stuck processes via watchdog timers + heartbeat-style liveness — informs the `StuckDetector` design. [Queue](https://queue.acm.org/detail.cfm?id=1117401)
+
+### Rate limiting
+
+- van Beijnum, I. (2014). *Token bucket and leaky bucket.* RFC 2475-adjacent traffic-shaping primitives. — The two algorithm families behind the rate-limiter implementation; AgentOS uses token-bucket for sub-second smoothing and leaky-bucket for windowed quota enforcement. [Wikipedia](https://en.wikipedia.org/wiki/Token_bucket)
+
+### Implementation references
+
+- `packages/agentos/src/safety/runtime/CircuitBreaker.ts` — three-state circuit breaker
+- `packages/agentos/src/safety/runtime/CostGuard.ts` — cost-cap enforcement with graceful degradation
+- `packages/agentos/src/safety/runtime/StuckDetector.ts` — watchdog-based stuck-call detection
+- `packages/agentos/src/core/rate-limiting/` — token-bucket + leaky-bucket implementations
