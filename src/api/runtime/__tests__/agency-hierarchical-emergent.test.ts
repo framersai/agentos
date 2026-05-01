@@ -270,4 +270,110 @@ describe('hierarchical strategy with emergent.enabled — judge gating', () => {
     expect(Object.keys(tools)).toContain('delegate_to_approved_specialist');
     expect(spawnedCount.value).toBe(1);
   });
+
+  it('blocks spawn when hitl.approvals.beforeEmergent rejects', async () => {
+    const { tools, roster, spawnedCount } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: false },
+        hitl: {
+          approvals: { beforeEmergent: true },
+          handler: async () => ({ approved: false, reason: 'manual reject for test' }),
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'hitl_blocked',
+      instructions: 'Should be HITL-rejected.',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.data).toMatch(/HITL rejected|manual reject/i);
+    expect(roster.hitl_blocked).toBeUndefined();
+    expect(spawnedCount.value).toBe(0);
+  });
+
+  it('allows spawn when hitl.approvals.beforeEmergent approves', async () => {
+    const { tools, roster, spawnedCount } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: false },
+        hitl: {
+          approvals: { beforeEmergent: true },
+          handler: async () => ({ approved: true }),
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    const result = await spawnTool.execute({
+      role: 'hitl_approved',
+      instructions: 'Should pass HITL.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(roster.hitl_approved).toBeDefined();
+    expect(spawnedCount.value).toBe(1);
+  });
+
+  it('does not invoke HITL handler when beforeEmergent is not set', async () => {
+    const handler = vi.fn(async () => ({ approved: false, reason: 'should not fire' }));
+
+    const { tools } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: { enabled: true, judge: false },
+        hitl: {
+          // beforeEmergent omitted — handler should never be called
+          // even though a handler is configured for other approvals
+          approvals: { beforeAgent: ['some_other_agent'] },
+          handler,
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+    await spawnTool.execute({
+      role: 'no_hitl',
+      instructions: 'Spawn freely.',
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('respects maxJudgeCalls cap independently of maxSpecialists', async () => {
+    judgeMocks.response.current = JSON.stringify({
+      approved: false,
+      reasoning: 'mocked rejection so spawnedCount stays 0',
+    });
+
+    const { tools, spawnedCount } = buildHierarchicalTools(
+      {},
+      buildAgencyConfig({
+        emergent: {
+          enabled: true,
+          judge: true,
+          planner: { maxSpecialists: 5, maxJudgeCalls: 2 },
+        },
+      }),
+    );
+
+    const spawnTool = tools.spawn_specialist as unknown as SpawnTool;
+
+    const first = await spawnTool.execute({ role: 'a', instructions: 'X.' });
+    const second = await spawnTool.execute({ role: 'b', instructions: 'Y.' });
+    const third = await spawnTool.execute({ role: 'c', instructions: 'Z.' });
+
+    // First two get rejected by the judge (judge ran, judgeCallsUsed reached 2)
+    expect(first.success).toBe(false);
+    expect(first.data).toMatch(/judge rejected/i);
+    expect(second.success).toBe(false);
+    expect(second.data).toMatch(/judge rejected/i);
+    // Third hits maxJudgeCalls cap before the judge runs
+    expect(third.success).toBe(false);
+    expect(third.data).toMatch(/maxJudgeCalls|cap/i);
+    expect(spawnedCount.value).toBe(0);
+  });
 });

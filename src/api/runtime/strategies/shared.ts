@@ -329,3 +329,59 @@ export async function checkBeforeAgent(
 
   return decision;
 }
+
+/**
+ * HITL approval gate for the hierarchical strategy's `spawn_specialist` tool.
+ *
+ * Mirrors `checkBeforeAgent` but uses `ApprovalRequest.type === 'emergent'`
+ * and is keyed off `hitl.approvals.beforeEmergent` (a boolean, not a list,
+ * since the manager picks the role at runtime).
+ *
+ * Returns:
+ * - `null` when no gate is configured (no handler / `beforeEmergent !== true`)
+ * - The approval `decision` from the handler otherwise
+ *
+ * Callers should treat `decision.approved === false` as a structured
+ * rejection (no roster mutation, no event emission).
+ *
+ * @see {@link checkBeforeAgent} -- the parallel gate for `delegate_to_<name>` calls.
+ */
+export async function checkBeforeEmergentSpawn(
+  role: string,
+  instructions: string,
+  justification: string | undefined,
+  agentCalls: AgentCallRecord[],
+  agencyConfig: AgencyOptions,
+): Promise<ApprovalDecision | null> {
+  const beforeEmergent = agencyConfig.hitl?.approvals?.beforeEmergent;
+  const handler = agencyConfig.hitl?.handler;
+
+  if (beforeEmergent !== true || !handler) {
+    return null;
+  }
+
+  const request: ApprovalRequest = {
+    id: crypto.randomUUID(),
+    type: 'emergent',
+    agent: 'manager',
+    action: `spawn_specialist:${role}`,
+    description: `Manager wants to spawn a new specialist agent "${role}"`,
+    details: {
+      role,
+      instructions,
+      justification: justification ?? null,
+    },
+    context: {
+      agentCalls,
+      totalTokens: 0,
+      totalCostUSD: 0,
+      elapsedMs: 0,
+    },
+  };
+
+  agencyConfig.on?.approvalRequested?.(request);
+  const decision = await handler(request);
+  agencyConfig.on?.approvalDecided?.(decision);
+
+  return decision;
+}

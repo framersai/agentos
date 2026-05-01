@@ -295,9 +295,9 @@ export interface EmergentConfig {
  */
 export interface EmergentPlannerConfig {
   /**
-   * Maximum number of specialists the manager may synthesise per single
-   * agency run. Hard cap — `spawn_specialist` calls past this return an
-   * error to the manager. Defaults to `5`.
+   * Maximum number of specialists the manager may successfully synthesise
+   * per single agency run. Hard cap — `spawn_specialist` calls past this
+   * return an error to the manager. Defaults to `5`.
    */
   maxSpecialists?: number;
   /**
@@ -308,12 +308,34 @@ export interface EmergentPlannerConfig {
    */
   requireJustification?: boolean;
   /**
-   * Cost ceiling for the entire emergent path of one agency run.
-   * Counts manager turns + every synthesised-agent turn against this cap.
-   * When exceeded, further `spawn_specialist` calls are rejected.
-   * Defaults to undefined (relies on agency-level `controls.maxCostUSD`).
+   * Maximum number of judge LLM calls the spawn pipeline may issue per
+   * single agency run. When `judge: true` is set on `EmergentConfig`, every
+   * `spawn_specialist` invocation that survives forge validation pays for
+   * one judge call; this cap bounds that overhead independently of
+   * `maxSpecialists` (rejected spawns also count, since the judge ran).
+   *
+   * Defaults to `maxSpecialists * 2` when omitted, so a roster of 3
+   * synthesised specialists tolerates up to 6 judge calls (3 successful
+   * spawns + 3 rejected ones). Set this lower to bound costs more strictly
+   * when the manager is suspected of probing the spawn surface.
+   *
+   * Has no effect when `judge: false`.
    */
-  maxSynthesisCostUSD?: number;
+  maxJudgeCalls?: number;
+  /**
+   * Model identifier the judge calls when `EmergentConfig.judge` is `true`.
+   * Defaults to a small, cheap model appropriate for the agency's
+   * provider:
+   * - `openai`     → `gpt-4o-mini`
+   * - `anthropic`  → `claude-haiku-4-5-20251001`
+   * - `gemini`     → `gemini-2.5-flash`
+   * - `groq`       → `llama-3.3-70b-versatile`
+   * - other        → falls back to the agency-level model
+   *
+   * Override when you want a more capable judge or the small-model
+   * default does not exist for your provider.
+   */
+  judgeModel?: string;
 }
 
 /**

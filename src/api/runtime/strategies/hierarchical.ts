@@ -42,6 +42,7 @@ import {
   isAgent,
   resolveAgent,
   checkBeforeAgent,
+  checkBeforeEmergentSpawn,
   accumulateExtraUsage,
   buildAgentCallUsage,
 } from './shared.js';
@@ -78,6 +79,47 @@ function getAgentDescription(agentOrConfig: BaseAgentConfig | Agent): string {
     return (agentOrConfig as BaseAgentConfig).instructions!;
   }
   return 'General purpose';
+}
+
+/**
+ * Smart default for the EmergentAgentJudge model based on the agency
+ * provider. Picks a small/cheap model when one exists for that provider
+ * so emergent.judge=true does not silently route every spawn through the
+ * full agency model. Returns undefined when no good small-model default
+ * is known — the caller falls back to the agency-level model.
+ */
+function defaultJudgeModelFor(provider: string | undefined): string | undefined {
+  switch (provider) {
+    case 'openai':
+      return 'gpt-4o-mini';
+    case 'anthropic':
+      return 'claude-haiku-4-5-20251001';
+    case 'gemini':
+      return 'gemini-2.5-flash';
+    case 'groq':
+      return 'llama-3.3-70b-versatile';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Provider lookup from a judge model identifier. Handles the small-model
+ * defaults above so the generateText call routes to the right provider
+ * even when the agency provider does not match (e.g. a Claude-based agency
+ * routing the judge call to OpenAI's gpt-4o-mini would need provider
+ * 'openai', not 'anthropic').
+ *
+ * Returns undefined when the model is not one of the small-model defaults,
+ * so the caller falls back to the agency provider.
+ */
+function judgeProviderFor(judgeModel: string | undefined): string | undefined {
+  if (!judgeModel) return undefined;
+  if (judgeModel === 'gpt-4o-mini') return 'openai';
+  if (judgeModel === 'claude-haiku-4-5-20251001') return 'anthropic';
+  if (judgeModel === 'gemini-2.5-flash') return 'gemini';
+  if (judgeModel === 'llama-3.3-70b-versatile') return 'groq';
+  return undefined;
 }
 
 /**
@@ -205,6 +247,10 @@ export function buildHierarchicalTools(
     const planner = agencyConfig.emergent?.planner ?? {};
     const maxSpecialists = planner.maxSpecialists ?? 5;
     const requireJustification = planner.requireJustification === true;
+    const judgeEnabled = agencyConfig.emergent?.judge === true;
+    const maxJudgeCalls = planner.maxJudgeCalls ?? maxSpecialists * 2;
+    const judgeModel = planner.judgeModel ?? defaultJudgeModelFor(agencyConfig.provider) ?? agencyConfig.model ?? 'gpt-4o-mini';
+    let judgeCallsUsed = 0;
 
     tools.spawn_specialist = {
       description:
@@ -256,6 +302,24 @@ export function buildHierarchicalTools(
           };
         }
 
+        // HITL gate (when hitl.approvals.beforeEmergent is true) — fires
+        // BEFORE the forge runs so a rejected spawn doesn't waste any
+        // validation work. Mirrors the checkBeforeAgent pattern used by
+        // delegate_to_<name>.
+        const hitlDecision = await checkBeforeEmergentSpawn(
+          args.role,
+          args.instructions,
+          args.justification,
+          agentCalls,
+          agencyConfig,
+        );
+        if (hitlDecision && !hitlDecision.approved) {
+          return {
+            success: false,
+            data: `HITL rejected spawn of "${args.role}"${hitlDecision.reason ? `: ${hitlDecision.reason}` : ''}`,
+          };
+        }
+
         // Lazy import to avoid pulling EmergentAgentForge into hot path
         // when emergent is disabled.
         const { EmergentAgentForge } = await import('../../../emergent/EmergentAgentForge.js');
@@ -287,20 +351,29 @@ export function buildHierarchicalTools(
         // Judge gating: when emergent.judge is true, run the synthesised
         // spec through EmergentAgentJudge before activation. Rejection
         // short-circuits and the roster is not mutated.
-        if (agencyConfig.emergent?.judge === true) {
+        if (judgeEnabled) {
+          if (judgeCallsUsed >= maxJudgeCalls) {
+            return {
+              success: false,
+              data: `Cannot spawn: maxJudgeCalls cap (${maxJudgeCalls}) reached for this run.`,
+            };
+          }
+
           const { EmergentAgentJudge } = await import('../../../emergent/EmergentAgentJudge.js');
           const { generateText } = await import('../../generateText.js');
           const judge = new EmergentAgentJudge({
-            judgeModel: agencyConfig.model ?? 'gpt-4o',
+            judgeModel,
             generateText: async (model, prompt) => {
               const r = await generateText({
                 model,
-                provider: agencyConfig.provider,
+                provider: judgeProviderFor(judgeModel) ?? agencyConfig.provider,
                 prompt,
               });
               return r.text ?? '';
             },
           });
+
+          judgeCallsUsed += 1;
 
           const verdict = await judge.reviewAgent({
             role: args.role,
