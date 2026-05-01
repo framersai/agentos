@@ -1,3 +1,24 @@
+## <small>0.5.13 (2026-05-01)</small>
+
+* fix(README): correct V8 isolate / 10-second / no-network overclaims to actual node:vm specs ([98bcfb9](https://github.com/framersai/agentos/commit/98bcfb9))
+* docs: add Emergent Design section explaining Runtime Tool Forging + optional HEXACO ([e586adc](https://github.com/framersai/agentos/commit/e586adc))
+* docs: add intro section, generalize Emergent Design, drop Mars Genesis specifics ([a813fbf](https://github.com/framersai/agentos/commit/a813fbf))
+* docs: drop application-layer comparison paragraph from intro ([a0ccb05](https://github.com/framersai/agentos/commit/a0ccb05))
+* docs: drop broken /api/modules#emergent typedoc anchor link ([4f87578](https://github.com/framersai/agentos/commit/4f87578)), closes [api/modules#emergent](https://github.com/api/modules/issues/emergent)
+* docs: HEXACO example now a long-running career coach with annotated traits ([8558b3a](https://github.com/framersai/agentos/commit/8558b3a))
+* docs: link transparency audit post + add brief summary of what it covers ([9904e3c](https://github.com/framersai/agentos/commit/9904e3c))
+* docs: memory benchmark callout on RAG / cognitive / multimodal pages ([5731fe0](https://github.com/framersai/agentos/commit/5731fe0))
+* docs: rename to UPPER_SNAKE convention + drop superseded mars-genesis v2 ([70fddc2](https://github.com/framersai/agentos/commit/70fddc2))
+* docs: replace Mars-colony HEXACO example with a parallel companion example ([baca085](https://github.com/framersai/agentos/commit/baca085))
+* docs: rewrite Emergent Design + Ecosystem table in calmer voice ([011beea](https://github.com/framersai/agentos/commit/011beea))
+* docs: rewrite Emergent Design intro for clarity ([8546bb7](https://github.com/framersai/agentos/commit/8546bb7))
+* docs: rewrite Emergent Design subsections in third-person declarative voice ([d537242](https://github.com/framersai/agentos/commit/d537242))
+* docs: route the AgentOS-side paracosm page to paracosm.agentos.sh/docs ([feaeee6](https://github.com/framersai/agentos/commit/feaeee6))
+* docs: streamline Memory Benchmarks section, keep every metric ([05abd08](https://github.com/framersai/agentos/commit/05abd08))
+* drop redundant 'matched reader' qualifier — reader model already specified ([7609e16](https://github.com/framersai/agentos/commit/7609e16))
+* Merge branch 'master' of https://github.com/framersai/agentos ([b44ccb6](https://github.com/framersai/agentos/commit/b44ccb6))
+* chore: gitignore + untrack mars-genesis planning docs, scrub CHANGELOG ([e49e1fb](https://github.com/framersai/agentos/commit/e49e1fb))
+
 ## <small>0.5.12 (2026-04-30)</small>
 
 * fix(release): anchor next release after orphaned-tag recovery ([a73dc2b](https://github.com/framersai/agentos/commit/a73dc2b))
