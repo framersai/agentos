@@ -147,7 +147,7 @@ const router = new ReadRouter({
 
 Picks the best answer reader per query, dispatched per category, on top of whatever retrieval architecture [MemoryRouter](./MEMORY_ROUTER.md) chose.
 
-Validated on LongMemEval-S Phase B N=500 alongside MemoryRouter: **85.6% [82.4%, 88.6%] at $0.0090/correct, 4 second avg latency**. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp at 6.5× lower cost-per-correct.
+Validated on LongMemEval-S Phase B N=500 alongside MemoryRouter: **85.6% [82.4%, 88.6%] at $0.0090/correct, 4 second avg latency**. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness — public reference repo ships with no LICENSE; not legally redistributable) by +5.0 pp at 6.5× lower cost-per-correct. Statistically tied with EmergenceMem **Internal** (their 86.0% point estimate sits inside our [82.4%, 88.6%] CI), but Emergence's 86.0% comes from **closed-source SaaS at [emergence.ai/web-automation-api](https://www.emergence.ai/web-automation-api) — not a library you can install**. AgentOS ships under [Apache-2.0](https://github.com/framersai/agentos/blob/master/LICENSE).
 
 ### What it actually does
 
