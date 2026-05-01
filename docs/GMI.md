@@ -193,3 +193,32 @@ Quick map for navigating the source:
 - [Emergent Agency System](/architecture/emergent-agency-system) — multi-GMI coordination and goal decomposition
 - [Sandbox & Security](/architecture/sandbox-security) — how guardrails actually intercept tool calls and generation
 - [LLM Providers](/architecture/llm-providers) — the eleven provider implementations and the OpenRouter fan-out
+
+---
+
+## References
+
+### Cognitive architectures for language agents
+
+- Sumers, T. R., Yao, S., Narasimhan, K., & Griffiths, T. L. (2023). *Cognitive architectures for language agents.* arXiv preprint. — The CoALA framework AgentOS's memory taxonomy follows; episodic / semantic / procedural distinction at the language-agent layer. [arXiv:2309.02427](https://arxiv.org/abs/2309.02427)
+- Park, J. S., O'Brien, J. C., Cai, C. J., Morris, M. R., Liang, P., & Bernstein, M. S. (2023). *Generative agents: Interactive simulacra of human behavior.* arXiv preprint. — Persona + memory + reflection at small scale; the "agent-of-mind" pattern that GMI productionizes. [arXiv:2304.03442](https://arxiv.org/abs/2304.03442)
+
+### Personality structure
+
+- Ashton, M. C., & Lee, K. (2007). *Empirical, theoretical, and practical advantages of the HEXACO model of personality structure.* *Personality and Social Psychology Review*, 11(2), 150–166. — The six-factor HEXACO model the runtime applies. [SAGE Journals](https://journals.sagepub.com/doi/10.1207/S15327957PSPR0701_2)
+
+### Memory mechanics referenced inline
+
+The eight cognitive memory mechanisms enumerated in this page draw on classical cognitive-science papers documented in detail at [Cognitive Memory](/features/cognitive-memory#references). The most directly relevant for GMIs:
+
+- Ebbinghaus, H. (1885). *Memory: A Contribution to Experimental Psychology.* — The decay curve `S(t) = S₀ · e^(-Δt / stability)` underpinning every trace's lifetime.
+- Anderson, J. R. (1983). *A spreading activation theory of memory.* — ACT-R model behind the graph activation pass in retrieval.
+- Hebb, D. O. (1949). *The Organization of Behavior: A Neuropsychological Theory.* — Co-retrieval edge strengthening.
+
+### Implementation references
+
+- [`src/cognitive_substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMI.ts) — the class itself
+- [`src/cognitive_substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMIManager.ts) — lifecycle
+- [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) — `AgencyOptions`, `AgencyStrategy`, `EmergentConfig`, `EmergentPlannerConfig`
+- [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination classes
+- [`src/emergent/`](https://github.com/framersai/agentos/tree/master/src/emergent) — emergent tool and agent forge primitives
