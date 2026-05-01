@@ -1,3 +1,8 @@
+## <small>0.5.15 (2026-05-01)</small>
+
+* feat(emergent): finalize spawn_specialist — judge model defaults, HITL gate, runnable example ([8c77cbd](https://github.com/framersai/agentos/commit/8c77cbd))
+* docs: cross-reference spawn_specialist in AGENCY_API + GMI ([2a71c15](https://github.com/framersai/agentos/commit/2a71c15))
+
 ## <small>0.5.14 (2026-05-01)</small>
 
 * feat(emergent): add EmergentAgentForge for runtime agent synthesis ([5f9bc28](https://github.com/framersai/agentos/commit/5f9bc28))
