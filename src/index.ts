@@ -300,6 +300,11 @@ export type { EmbedTextOptions, EmbedTextResult } from './api/embedText.js';
 export { parseModelString, resolveProvider, resolveModelOption } from './api/model.js';
 export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/runtime/provider-defaults.js';
 export type { ProviderDefaults } from './api/runtime/provider-defaults.js';
+export {
+  setProviderPriority,
+  getProviderPriority,
+  clearProviderPriority,
+} from './api/runtime/provider-priority.js';
 export type { TaskType, ModelOption } from './api/model.js';
 export { adaptTools, adaptToolsToMap, mergeAdaptableTools } from './api/runtime/toolAdapter.js';
 export type { AdaptableToolInput, ToolDefinitionMap } from './api/runtime/toolAdapter.js';

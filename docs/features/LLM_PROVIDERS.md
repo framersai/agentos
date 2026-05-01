@@ -125,11 +125,12 @@ order and uses the first one found:
 10. `which gemini` → Gemini CLI (PATH detection — no API key, uses Google account)
 11. `OLLAMA_BASE_URL` → Ollama
 
-You can override auto-detection in three ways, highest priority first:
+You can override auto-detection in four ways, highest priority first:
 
 1. **Inline** — `agent({ provider: '...', apiKey: '...' })` on a single call.
 2. **Module-level default** — `setDefaultProvider({ provider, apiKey })` once at boot. Every subsequent call inherits it; inline opts still win when supplied. Useful when credentials live in a secrets manager rather than `.env`.
-3. **CLI flag** — for the [Wunderland](https://wunderland.sh) CLI, pass `--provider <name>`.
+3. **Reorder the auto-detect chain** — `setProviderPriority(['anthropic', 'openai', ...])` to change which env-var keys are preferred when multiple are set, without forcing a single provider. Empty array disables auto-detect entirely.
+4. **CLI flag** — for the [Wunderland](https://wunderland.sh) CLI, pass `--provider <name>`.
 
 ```typescript
 import { setDefaultProvider, generateText, agent } from '@framers/agentos';

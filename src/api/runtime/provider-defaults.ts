@@ -7,6 +7,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { getProviderPriority } from './provider-priority.js';
 
 /**
  * Default model identifiers for a given provider, keyed by task type.
@@ -146,6 +147,13 @@ function isBinaryOnPath(binaryName: string): boolean {
   return result.status === 0;
 }
 
+// Provider-id → probe lookup so a custom priority list (just provider
+// ids) can be resolved back to its env-var or CLI-binary probe. Stays
+// in sync automatically with `AUTO_DETECT_ORDER`.
+const PROBE_BY_PROVIDER: Record<string, AutoDetectProbe> = Object.fromEntries(
+  AUTO_DETECT_ORDER.map((probe) => [probe.provider, probe])
+);
+
 /**
  * Auto-detects the active provider by scanning well-known environment variables
  * and CLI binaries in priority order.
@@ -153,10 +161,22 @@ function isBinaryOnPath(binaryName: string): boolean {
  * Returns the identifier of the first provider whose key/URL env var is non-empty
  * or whose CLI binary is on PATH, or `undefined` when no recognisable runtime is present.
  *
- * Priority: openrouter → openai → anthropic → gemini → claude-code-cli → gemini-cli → ollama → …
+ * Default priority: openrouter → openai → anthropic → gemini → claude-code-cli → gemini-cli → ollama → …
+ *
+ * The order can be overridden process-wide via `setProviderPriority(['anthropic', 'openai', ...])`.
+ * When a custom list is installed, only the providers in that list are
+ * considered (in the order given); pass the full set you want detection
+ * to consider.
  */
 export function autoDetectProvider(task?: ProviderDefaultTask): string | undefined {
-  for (const probe of AUTO_DETECT_ORDER) {
+  const customOrder = getProviderPriority();
+  const order: AutoDetectProbe[] = customOrder
+    ? customOrder
+        .map((p) => PROBE_BY_PROVIDER[p])
+        .filter((probe): probe is AutoDetectProbe => Boolean(probe))
+    : AUTO_DETECT_ORDER;
+
+  for (const probe of order) {
     const available = 'envKey' in probe
       ? Boolean(process.env[probe.envKey])
       : isBinaryOnPath(probe.binaryName);

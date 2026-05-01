@@ -263,7 +263,11 @@ generateText({ apiKey: 'sk-customer', prompt: '...' });
 import { setDefaultProvider } from '@framers/agentos';
 setDefaultProvider({ provider: 'openai', apiKey: process.env.MY_OWN_KEY });
 
-// 3. Environment variable auto-detect chain
+// 2b. Reorder the env-var auto-detect chain instead (when you keep multiple keys)
+import { setProviderPriority } from '@framers/agentos';
+setProviderPriority(['anthropic', 'openai', 'ollama']);
+
+// 3. Environment variable auto-detect chain (default order)
 //    OpenRouter → OpenAI → Anthropic → Gemini → Groq → Together → Mistral
 //    → xAI → claude CLI → gemini CLI → Ollama → image providers
 ```

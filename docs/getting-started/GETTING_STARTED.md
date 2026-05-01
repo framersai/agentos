@@ -79,6 +79,23 @@ setDefaultProvider(undefined);
 
 `setDefaultProvider` is the recommended path for apps that hold their keys somewhere other than environment variables (secrets manager, runtime config service, etc.). It also works inside the `AgentOS` class — pass `defaultProvider` in your `AgentOSConfig` and the runtime will install it during `initialize()`.
 
+### Reordering the auto-detect chain
+
+If you have multiple env-var keys configured but want a different one preferred, install a custom priority list once at boot:
+
+```typescript
+import { setProviderPriority, generateText } from '@framers/agentos';
+
+// Even if OPENAI_API_KEY is set, prefer Anthropic when its key is also present:
+setProviderPriority(['anthropic', 'openai', 'ollama']);
+
+const { text } = await generateText({ prompt: 'hello' });
+// Picks anthropic if ANTHROPIC_API_KEY is set; falls through to openai;
+// then to a local ollama server. Providers not in the list are skipped.
+```
+
+Throws if you list an unknown provider id (typo guard). Pass an empty array to disable auto-detection entirely (callers must then supply a provider inline or via `setDefaultProvider`). Call `clearProviderPriority()` (or `setProviderPriority(undefined)`) to revert to the default order.
+
 ### Environment variables
 
 For zero-code setup, set any one of the supported env vars:
