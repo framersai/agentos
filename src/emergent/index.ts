@@ -91,3 +91,9 @@ export type {
   ForgeDefaults,
   ForgeResult,
 } from './EmergentAgentForge.js';
+export { EmergentAgentJudge } from './EmergentAgentJudge.js';
+export type {
+  EmergentAgentJudgeConfig,
+  AgentVerdict,
+  JudgeGenerateText,
+} from './EmergentAgentJudge.js';
