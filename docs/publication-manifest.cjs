@@ -124,6 +124,7 @@ const publicationManifest = [
   }),
 
   agentosDoc('ARCHITECTURE.md', 'architecture/system-architecture.md', 'System Architecture', 'Architecture', 1),
+  agentosDoc('GMI.md', 'architecture/gmi.md', 'Generalized Mind Instances (GMIs)', 'Architecture', 1.5),
   agentosDoc('PLATFORM_SUPPORT.md', 'architecture/platform-support.md', 'Platform Support', 'Architecture', 2),
   extraDoc('docs/architecture/runtime-status-matrix.md', 'architecture/runtime-status-matrix.md', 'Runtime Status Matrix', 'Architecture', 3),
   extraDoc('docs/architecture/sandbox-security.md', 'architecture/sandbox-security.md', 'Sandbox Security', 'Architecture', 4),
