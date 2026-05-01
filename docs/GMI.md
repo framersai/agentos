@@ -144,6 +144,8 @@ A single GMI is a mind. An **agency** is a set of GMIs collaborating on a goal. 
 
 Each GMI in an agency keeps its own persona, traits, and cognitive memory. The agency adds a coordination layer on top. When you write `agency({...agents})`, the runtime spins up the registry, wires up the communication bus, and lets the orchestration strategy (sequential, parallel, debate, hierarchical, review-loop, graph) decide who runs when.
 
+When the strategy is `'hierarchical'` and `emergent.enabled` is true, the manager GMI also gets a [`spawn_specialist`](/architecture/emergent-agency-system#hierarchical--emergent-agent-spawning) tool — synthesise a new specialist GMI mid-run when the static roster doesn't cover a sub-task. The synthesised GMI joins the live roster and becomes invokable as `delegate_to_<role>` on the manager's next turn. See [Emergent Agency System](/architecture/emergent-agency-system) for the spec, runtime sequence, and tested rejection paths.
+
 ## Streaming output
 
 `session.send()` returns a final reply. `session.stream()` returns an async iterable of typed chunks. The chunk types from [`IGMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/IGMI.ts):

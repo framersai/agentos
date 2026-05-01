@@ -309,22 +309,32 @@ first is `strategy: 'hierarchical'`).
 ## Emergent Agent Creation
 
 When enabled, the orchestrator may synthesise new specialist agents at runtime
-to handle tasks not covered by the statically defined roster.  Emergent agents
-are subject to HITL approval when `hitl.approvals.beforeEmergent` is set.
+to handle tasks not covered by the statically defined roster. Mechanically, the
+hierarchical manager gets one extra tool — `spawn_specialist({ role,
+instructions, justification? })` — alongside its `delegate_to_<name>` tools.
+Calling it forges a new sub-agent via [`EmergentAgentForge`](https://github.com/framersai/agentos/blob/master/src/emergent/EmergentAgentForge.ts)
+and (when `judge: true`) gates it through [`EmergentAgentJudge`](https://github.com/framersai/agentos/blob/master/src/emergent/EmergentAgentJudge.ts)
+before it joins the live roster. Emergent agents are also subject to HITL
+approval when `hitl.approvals.beforeEmergent` is set.
 
 Emergent requires either `strategy: 'hierarchical'` or `adaptive: true`.
 
 ```typescript
-const adaptive = agency({
+const research = agency({
   model: 'openai:gpt-4o',
   agents: {
-    generalist: { instructions: 'Handle most tasks.' },
+    researcher: { instructions: 'Find sources and pull verbatim quotes.' },
+    writer: { instructions: 'Write clear, well-cited prose.' },
   },
   strategy: 'hierarchical',
   emergent: {
     enabled: true,
-    tier: 'session',   // 'session' | 'agent' | 'shared'
-    judge: true,       // a separate judge agent evaluates emergent agents before use
+    tier: 'session',          // 'session' | 'agent' | 'shared'
+    judge: true,              // EmergentAgentJudge gates each spawn
+    planner: {
+      maxSpecialists: 3,      // hard cap per run; default 5
+      requireJustification: true,  // manager must explain each spawn
+    },
   },
 });
 ```
@@ -334,6 +344,14 @@ const adaptive = agency({
 | `"session"` | Discarded when the `generate()` call ends |
 | `"agent"` | Persist for the lifetime of the agency instance |
 | `"shared"` | Persist globally across all agency instances |
+
+| `planner` field | Default | Effect |
+|---|---|---|
+| `maxSpecialists` | `5` | Hard cap on synthesis count per run. Past the cap, `spawn_specialist` returns an error to the manager. |
+| `requireJustification` | `false` | Forces the manager to supply a `justification` string explaining why no static agent fits. Surfaces on the `emergentForge` callback's `ForgeEvent`. |
+| `maxSynthesisCostUSD` | `undefined` | Per-run cost ceiling for the emergent path; relies on `controls.maxCostUSD` when omitted. |
+
+Tested rejection paths (each surfaces a structured tool-result error the manager can recover from): empty instructions, reserved role name (e.g. `spawn_specialist`, `final_answer`), invalid identifier (spaces / leading digit), missing justification when required, `maxSpecialists` cap reached, role collision with existing roster entry, judge rejection, judge LLM error / malformed JSON.
 
 ---
 
@@ -803,33 +821,33 @@ console.log(result.text);
 
 ### Adding Emergent Agent Creation
 
-Enable `emergent` so the manager can spawn ad-hoc specialists when the
-predefined roster does not cover a sub-task. A judge agent evaluates the
-synthesised agent before it runs.
+Enable `emergent` so the manager can spawn ad-hoc specialists via the
+`spawn_specialist` tool when the predefined roster does not cover a sub-task.
+With `judge: true`, [`EmergentAgentJudge`](https://github.com/framersai/agentos/blob/master/src/emergent/EmergentAgentJudge.ts)
+runs one LLM-as-judge call evaluating the spec on safety / scope / risk
+before it joins the roster.
 
 ```typescript
 const emergentTeam = agency({
+  model: 'openai:gpt-4o',
   agents: {
-    manager: {
-      model: 'openai:gpt-4o',
-      instructions:
-        'Coordinate the team. If a task requires a specialist not in the roster, request one.',
-    },
     researcher: {
-      model: 'openai:gpt-4o',
       instructions: 'Research topics using web and academic sources.',
       tools: [webSearchTool, arxivTool],
     },
     writer: {
-      model: 'openai:gpt-4o',
       instructions: 'Produce polished, well-structured content.',
     },
   },
   strategy: 'hierarchical',
   emergent: {
     enabled: true,
-    tier: 'session', // synthesised agents discarded after generate() returns
-    judge: true,     // a judge agent evaluates emergent agents before use
+    tier: 'session',           // synthesised agents discarded after generate() returns
+    judge: true,               // EmergentAgentJudge gates each spawn
+    planner: {
+      maxSpecialists: 3,       // hard cap per run
+      requireJustification: true,  // manager must explain each spawn
+    },
   },
   hitl: {
     approvals: { beforeEmergent: true },
@@ -837,9 +855,6 @@ const emergentTeam = agency({
       console.log(`Emergent agent requested: ${request.description}`);
       return { approved: true };
     },
-  },
-  controls: {
-    maxEmergentAgents: 3, // cap the number of runtime-synthesised agents
   },
   on: {
     emergentForge: (e) =>
