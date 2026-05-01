@@ -273,6 +273,8 @@ Or pass `apiKey` inline on any call. Auto-detection order: OpenAI → Anthropic 
 - **`generateText()` / `streamText()` / `generateObject()` / `generateImage()` / `generateVideo()` / `generateMusic()` / `performOCR()` / `embedText()`**: low-level multi-modal helpers with native tool calling.
 - **`workflow()` / `AgentGraph` / `mission()`**: three orchestration authoring APIs over one graph runtime.
 
+Provider fallback is an explicit opt-in via `agent({ fallbackProviders: [...] })` (or `buildFallbackChain()` for programmatic chains). Defaults to off — the runtime never silently retries against a different provider unless you configured a chain.
+
 [Full API reference →](https://docs.agentos.sh/api) · [High-Level API guide →](https://docs.agentos.sh/getting-started/high-level-api)
 
 ---

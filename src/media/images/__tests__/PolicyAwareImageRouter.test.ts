@@ -68,12 +68,12 @@ describe('PolicyAwareImageRouter', () => {
   describe('getProviderChain', () => {
     it('returns default chain for safe tier', () => {
       const chain = router.getProviderChain('safe');
-      expect(chain).toEqual(['openai', 'stability', 'fal', 'replicate']);
+      expect(chain).toEqual(['replicate', 'fal', 'openai', 'stability']);
     });
 
     it('returns default chain for standard tier', () => {
       const chain = router.getProviderChain('standard');
-      expect(chain).toEqual(['openai', 'stability', 'fal', 'replicate']);
+      expect(chain).toEqual(['replicate', 'fal', 'openai', 'stability']);
     });
 
     it('returns uncensored chain for private-adult tier', () => {

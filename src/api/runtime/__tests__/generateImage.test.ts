@@ -197,10 +197,13 @@ describe('generateImage', () => {
       },
     });
 
-    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    const [requestUrl, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
     const body = JSON.parse(String(requestInit?.body));
 
-    expect(body.version).toBe('black-forest-labs/flux-schnell');
+    // Without an inline version hash, the request routes through the
+    // modern /models/{owner}/{name}/predictions endpoint — model name
+    // appears in the URL, not in body.version.
+    expect(String(requestUrl)).toContain('black-forest-labs/flux-schnell');
     expect(body.input.prompt).toBe('A minimalist product photo of a watch');
     expect(body.input.aspect_ratio).toBe('16:9');
     expect(body.input.output_format).toBe('webp');

@@ -195,6 +195,9 @@ describe('ReplicateImageProvider', () => {
   });
 
   describe('editImage', () => {
+    // Edit calls without an inline version hash route through the modern
+    // /models/{owner}/{name}/predictions endpoint, which does NOT carry
+    // `version` in the body. Assert against the request URL instead.
     it('uses flux-fill-pro for inpainting when mask provided', async () => {
       mockFetch.mockResolvedValueOnce(
         mockPredictionResponse(['https://example.com/edited.png'])
@@ -207,8 +210,8 @@ describe('ReplicateImageProvider', () => {
         mask: Buffer.from('fake-mask'),
       });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.version).toContain('flux-fill-pro');
+      const requestUrl = mockFetch.mock.calls[0][0] as string;
+      expect(requestUrl).toContain('flux-fill-pro');
     });
 
     it('uses stability-ai/sdxl for img2img without mask', async () => {
@@ -222,8 +225,8 @@ describe('ReplicateImageProvider', () => {
         prompt: 'transform style',
       });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.version).toContain('stability-ai/sdxl');
+      const requestUrl = mockFetch.mock.calls[0][0] as string;
+      expect(requestUrl).toContain('stability-ai/sdxl');
     });
   });
 

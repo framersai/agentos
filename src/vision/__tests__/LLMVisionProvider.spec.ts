@@ -91,8 +91,10 @@ describe('LLMVisionProvider', () => {
       expect(callArgs.messages).toHaveLength(1);
       expect(callArgs.messages[0].role).toBe('user');
 
-      // The content should be a JSON-serialized array with text + image parts
-      const contentParts = JSON.parse(callArgs.messages[0].content);
+      // Message.content is the structured MessageContentPart[] array directly —
+      // no JSON.stringify wrapping (LLMVisionProvider passes the array as-is
+      // because the underlying message type natively accepts the structured form).
+      const contentParts = callArgs.messages[0].content;
       expect(contentParts).toHaveLength(2);
       expect(contentParts[0].type).toBe('text');
       expect(contentParts[1].type).toBe('image_url');
@@ -105,9 +107,7 @@ describe('LLMVisionProvider', () => {
       const provider = new LLMVisionProvider({ provider: 'openai' });
       await provider.describeImage('https://example.com/photo.jpg');
 
-      const contentParts = JSON.parse(
-        mockGenerateText.mock.calls[0][0].messages[0].content,
-      );
+      const contentParts = mockGenerateText.mock.calls[0][0].messages[0].content;
       expect(contentParts[1].image_url.url).toBe(
         'https://example.com/photo.jpg',
       );
@@ -167,9 +167,7 @@ describe('LLMVisionProvider', () => {
       });
       await provider.describeImage('https://example.com/img.png');
 
-      const contentParts = JSON.parse(
-        mockGenerateText.mock.calls[0][0].messages[0].content,
-      );
+      const contentParts = mockGenerateText.mock.calls[0][0].messages[0].content;
       expect(contentParts[0].text).toBe(customPrompt);
     });
 
@@ -177,9 +175,7 @@ describe('LLMVisionProvider', () => {
       const provider = new LLMVisionProvider({ provider: 'openai' });
       await provider.describeImage('https://example.com/img.png');
 
-      const contentParts = JSON.parse(
-        mockGenerateText.mock.calls[0][0].messages[0].content,
-      );
+      const contentParts = mockGenerateText.mock.calls[0][0].messages[0].content;
       expect(contentParts[0].text).toContain('Describe this image');
       expect(contentParts[0].text).toContain('search index');
     });

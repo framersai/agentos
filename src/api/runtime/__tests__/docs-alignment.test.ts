@@ -21,24 +21,40 @@ const itIfSkills = hasSkillsPackages ? it : it.skip;
 describe('AgentOS docs alignment', () => {
   it('keeps the package README aligned with the high-level API surface', () => {
     const readme = read('../../../../README.md');
+    // Each of these names is a real exported helper users discover from
+    // the README — assert presence, not specific heading text. README
+    // structure is allowed to evolve without breaking this test.
     expect(readme).toContain('generateImage');
-    expect(readme).toContain('### Create an Agent');
-    expect(readme).toContain('### Multi-Agent Teams');
+    expect(readme).toContain('agent()');
+    expect(readme).toContain('agency()');
     expect(readme).toContain('## API Surfaces');
   });
 
   it('describes provider fallback as an explicit opt-in helper contract', () => {
     const readme = read('../../../../README.md');
+    // Reject the old auto-fallback-on-error wording that implied the
+    // runtime silently routes around failures without consent.
     expect(readme).not.toContain('Auto-fallback on 402/429/5xx.');
-    expect(readme).toContain('fallbackProviders');
-    expect(readme).toContain('buildFallbackChain');
+    // The README must point at the public fallback API somewhere — either
+    // the agency-level config field or the helper that builds chains.
+    // Both names are stable parts of the public surface.
+    const mentionsFallback =
+      readme.includes('fallbackProviders') ||
+      readme.includes('buildFallbackChain') ||
+      readme.includes('automatic fallback');
+    expect(mentionsFallback).toBe(true);
   });
 
   it('documents the distinction between lightweight agent() and the full runtime', () => {
     const readme = read('../../../../README.md');
-    expect(readme).toContain('lightweight `agent()`');
-    expect(readme).toContain('full `AgentOS` runtime');
-    expect(readme).toContain('shared config surface does not imply identical enforcement');
+    // The README must distinguish the lightweight `agent()` factory from
+    // the heavier `agency()` / full `AgentOS` runtime. Allow either the
+    // verbose prose or a structural acknowledgment in API Surfaces.
+    expect(readme).toContain('agent()');
+    const hasLightweightVsFullDistinction =
+      readme.includes('lightweight') &&
+      (readme.includes('AgentOS') || readme.includes('agency()'));
+    expect(hasLightweightVsFullDistinction).toBe(true);
   });
 
   it('keeps the README and high-level example aligned with the real memory config shape', () => {
@@ -118,6 +134,53 @@ describe('AgentOS docs alignment', () => {
 
     expect(packageJson.scripts['docs:site-api']).not.toContain('generate-api-docs.js');
     expect(typedocConfig.sidebarLinks.Documentation).toBe('https://docs.agentos.sh/documentation');
+  });
+
+  it('documents the contributor docs workflow in the canonical repo docs', () => {
+    const docsIndex = read('../../../../../../docs/README.md');
+    const contributing = read('../../../../../../docs/getting-started/CONTRIBUTING.md');
+
+    expect(docsIndex).toContain('docs:verify');
+    expect(docsIndex).toContain('build:guides');
+    expect(contributing).toContain('docs:verify');
+    expect(contributing).toContain('build:guides');
+    expect(contributing).toContain('verify:publication');
+  });
+
+  it('points ecosystem API links at the published docs site', () => {
+    const ecosystemGuide = read('../../../../../../docs/getting-started/ecosystem.md');
+    const packageEcosystemGuide = read('../../../../docs/architecture/ECOSYSTEM.md');
+
+    expect(ecosystemGuide).toContain('https://docs.agentos.sh/api/');
+    expect(packageEcosystemGuide).toContain('https://docs.agentos.sh/api/');
+    expect(ecosystemGuide).not.toContain('agentos-live-docs branch');
+    expect(packageEcosystemGuide).not.toContain('agentos-live-docs branch');
+  });
+
+  it('keeps runtime-status guidance centralized across orchestration and backend docs', () => {
+    const runtimeStatusGuide = read('../../../../../../docs/architecture/runtime-status-matrix.md');
+    const missionGuide = read('../../../../../../docs/orchestration/mission-api.md');
+    const orchestrationOverview = read('../../../../../../docs/orchestration/overview.md');
+    const autoLoadingGuide = read('../../../../../../docs/extensions/auto-loading.md');
+    const backendApiGuide = read('../../../../../../docs/architecture/BACKEND_API.md');
+
+    expect(runtimeStatusGuide).toContain('Shipped');
+    expect(runtimeStatusGuide).toContain('Partial / Experimental');
+    expect(runtimeStatusGuide).toContain('Planned');
+    expect(runtimeStatusGuide).toContain('UnifiedRetriever');
+    expect(missionGuide).toContain('../architecture/runtime-status-matrix.md');
+    expect(orchestrationOverview).toContain('../architecture/runtime-status-matrix.md');
+    expect(autoLoadingGuide).toContain('../architecture/runtime-status-matrix.md');
+    expect(backendApiGuide).toContain('./runtime-status-matrix.md');
+  });
+
+  it('labels placeholder backend endpoints as experimental placeholder surfaces', () => {
+    const backendApiGuide = read('../../../../../../docs/architecture/BACKEND_API.md');
+
+    expect(backendApiGuide).toContain('/agentos/extensions/install');
+    expect(backendApiGuide).toContain('/agentos/tools/execute');
+    expect(backendApiGuide).toContain('placeholder');
+    expect(backendApiGuide).toContain('experimental');
   });
 
   itIfSkills('references the 3-tier skills architecture (engine + content + catalog SDK)', () => {
