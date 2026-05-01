@@ -82,3 +82,12 @@ export {
   emptyForgeStats,
   type ForgeStats,
 } from './ForgeStatsAggregator.js';
+
+// Emergent agent synthesis — used by the hierarchical strategy when
+// emergent.enabled is true to spawn new specialist sub-agents at runtime.
+export { EmergentAgentForge } from './EmergentAgentForge.js';
+export type {
+  AgentSpec,
+  ForgeDefaults,
+  ForgeResult,
+} from './EmergentAgentForge.js';
