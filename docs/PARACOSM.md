@@ -3,6 +3,10 @@ title: "Paracosm: Structured World Model for AI Agents"
 sidebar_position: 1
 ---
 
+:::tip Full API reference lives at [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
+This page is the AgentOS-side overview. For the complete paracosm API reference, scenario authoring guide, and dashboard docs, go to **[paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)**.
+:::
+
 Paracosm is a **structured world model for AI agents**, built on AgentOS. Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their decisions diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
 ## Where paracosm sits in the world-model landscape
@@ -11,9 +15,9 @@ Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.o
 
 The important boundary: JSON is the canonical contract, not the product boundary. Today `compileScenario()` takes a scenario JSON draft plus optional `seedText` or `seedUrl` grounding. The next wrapper should take one prompt or document, ask an LLM to propose the same scenario contract, validate it, then compile and run it.
 
-Full taxonomy mapping lives at [docs/positioning/world-model-mapping.md](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md).
+The full structured-world-model framing is in the [Structured World Models for AI Agents](https://agentos.sh/blog/paracosm-2026-overview) blog post. Full taxonomy mapping lives at [docs/positioning/world-model-mapping.md](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md).
 
-**[Live demo](https://paracosm.agentos.sh/sim)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[API reference](/paracosm)** · **[Positioning map](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md)** · **[Case study blog post](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation)**
+**[Live demo](https://paracosm.agentos.sh/sim)** · **[paracosm docs](https://paracosm.agentos.sh/docs)** · **[GitHub](https://github.com/framersai/paracosm)** · **[npm](https://www.npmjs.com/package/paracosm)** · **[Positioning map](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md)** · **[Case study blog post](https://agentos.sh/blog/inside-mars-genesis-ai-colony-simulation)**
 
 ## Quick Start
 
