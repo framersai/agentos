@@ -233,7 +233,7 @@ const team = agency({
 const result = await team.generate('Compare TCP vs UDP for game networking.');
 ```
 
-Strategies: `sequential` · `parallel` · `debate` · `review-loop` · `hierarchical` · `graph`. [Multi-agent docs →](https://docs.agentos.sh/features/multi-agent)
+Strategies: `sequential` · `parallel` · `debate` · `review-loop` · `hierarchical` · `graph`. With `strategy: 'hierarchical'` + `emergent: { enabled: true }`, the manager LLM gets a `spawn_specialist` tool that mints new sub-agents at runtime when the static roster doesn't cover a sub-task. [Multi-agent docs →](https://docs.agentos.sh/features/multi-agent) · [Hierarchical + emergent →](https://docs.agentos.sh/architecture/emergent-agency-system)
 
 ---
 

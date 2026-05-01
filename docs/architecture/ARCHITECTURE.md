@@ -930,17 +930,31 @@ The `ToolOrchestrator` integrates HITL directly: tools declaring side effects ca
 ```typescript
 import { agency } from '@framers/agentos';
 
-// Emergent multi-agent coordination
-const result = await agency({
-  goal: 'Research and summarize recent advances in retrieval-augmented generation',
-  strategy: 'emergent',
-  roles: [
-    { name: 'Researcher', persona: 'research-assistant' },
-    { name: 'Writer', persona: 'technical-writer' },
-  ],
-  maxConcurrency: 3,
+// Hierarchical agency with runtime agent synthesis. The manager LLM gets
+// delegate_to_<name> tools for each static agent plus a spawn_specialist
+// tool that lets it mint new specialists for sub-tasks the static roster
+// doesn't cover. EmergentAgentForge validates each spec; EmergentAgentJudge
+// gates it on safety/scope/risk before activation.
+const research = agency({
+  model: 'openai:gpt-4o',
+  agents: {
+    researcher: { instructions: 'Find authoritative sources and pull verbatim quotes.' },
+    writer: { instructions: 'Write clear, well-cited prose.' },
+  },
+  strategy: 'hierarchical',
+  emergent: {
+    enabled: true,
+    judge: true,
+    planner: { maxSpecialists: 3, requireJustification: true },
+  },
 });
+
+const result = await research.generate(
+  'Research and summarize recent advances in retrieval-augmented generation.',
+);
 ```
+
+See [Multi-GMI Agency & Emergent Agent Synthesis](./emergent-agency-system.md) for the full worked example, runtime sequence, and tested rejection paths.
 
 ### Checkpoint/Restore
 
