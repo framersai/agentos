@@ -1,3 +1,9 @@
+## <small>0.6.3 (2026-05-01)</small>
+
+* feat(api): add setProviderPriority() to reorder the auto-detect chain ([786c565](https://github.com/framersai/agentos/commit/786c565))
+* docs: clarify Emergence licensing in router docs ([8c1f632](https://github.com/framersai/agentos/commit/8c1f632))
+* docs: surface setDefaultProvider() across README/LLM_PROVIDERS/HIGH_LEVEL_API; consolidate READ/READ ([fd54a29](https://github.com/framersai/agentos/commit/fd54a29))
+
 ## <small>0.6.2 (2026-05-01)</small>
 
 * feat(api): add setDefaultProvider() module-level default + AgentOSConfig integration ([c7ef009](https://github.com/framersai/agentos/commit/c7ef009))
