@@ -1,3 +1,8 @@
+## <small>0.6.6 (2026-05-02)</small>
+
+* feat(api): AgentOS.create() factory + z re-export + doc rewrites ([f7aea7a](https://github.com/framersai/agentos/commit/f7aea7a))
+* fix(exports,docs): expose subpath modules + names referenced by docs ([17685ee](https://github.com/framersai/agentos/commit/17685ee))
+
 ## <small>0.6.5 (2026-05-02)</small>
 
 * fix(generateObject): use OpenAI strict json_schema mode + extract helpers ([6680847](https://github.com/framersai/agentos/commit/6680847))
