@@ -31,6 +31,11 @@ import type {
   AgentOSUsageAggregate,
   AgentOSUsageLedgerOptions,
 } from './runtime/usageLedger.js';
+import {
+  createEmptyUsageAggregate,
+  accumulateUsage,
+  mergeAggregates,
+} from './runtime/usageAccumulator.js';
 import { warnOnDeferredLightweightAgentCapabilities } from './runtime/lightweightAgentDiagnostics.js';
 import type { BaseAgentConfig } from './types.js';
 import { exportAgentConfig, exportAgentConfigJSON, type AgentExportConfig } from './agentExportCore.js';
@@ -370,59 +375,6 @@ async function loadRecordedAgentOSUsage(
   return getRecordedAgentOSUsage(options);
 }
 
-/**
- * Build a zeroed usage aggregate. Used to seed the per-agent and per-session
- * in-memory tallies so callers see real numbers from `agent.usage()` /
- * `session.usage()` without having to enable the persisted ledger.
- */
-function createEmptyUsageAggregate(sessionId?: string): AgentOSUsageAggregate {
-  return {
-    sessionId,
-    personaId: undefined,
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    costUSD: 0,
-    calls: 0,
-  };
-}
-
-/**
- * Fold a single generation's `TokenUsage` into a running `AgentOSUsageAggregate`.
- * Mutates the target. Cost is accumulated when present on the source.
- */
-function accumulateUsage(
-  target: AgentOSUsageAggregate,
-  usage: { promptTokens?: number; completionTokens?: number; totalTokens?: number; costUSD?: number } | undefined,
-): void {
-  if (!usage) return;
-  if (typeof usage.promptTokens === 'number') target.promptTokens += usage.promptTokens;
-  if (typeof usage.completionTokens === 'number') target.completionTokens += usage.completionTokens;
-  if (typeof usage.totalTokens === 'number') {
-    target.totalTokens += usage.totalTokens;
-  } else {
-    target.totalTokens += (usage.promptTokens ?? 0) + (usage.completionTokens ?? 0);
-  }
-  if (typeof usage.costUSD === 'number') target.costUSD = (target.costUSD ?? 0) + usage.costUSD;
-  target.calls += 1;
-}
-
-/**
- * Merge two aggregates field-wise. Used to combine the in-memory tally with
- * the persisted ledger total so cross-process history rolls up alongside the
- * current process's tally.
- */
-function mergeAggregates(a: AgentOSUsageAggregate, b: AgentOSUsageAggregate): AgentOSUsageAggregate {
-  return {
-    sessionId: a.sessionId ?? b.sessionId,
-    personaId: a.personaId ?? b.personaId,
-    promptTokens: a.promptTokens + b.promptTokens,
-    completionTokens: a.completionTokens + b.completionTokens,
-    totalTokens: a.totalTokens + b.totalTokens,
-    costUSD: (a.costUSD ?? 0) + (b.costUSD ?? 0),
-    calls: a.calls + b.calls,
-  };
-}
 
 /**
  * Convert HEXACO trait values (0-1) into behavioral descriptions the LLM can act on.

@@ -17,6 +17,8 @@ import { generateText } from './generateText.js';
 import type { Message, SystemContentBlock, TokenUsage } from './generateText.js';
 import { resolveModelOption } from './model.js';
 import { lowerZodToJsonSchema } from '../orchestration/compiler/SchemaLowering.js';
+import { estimateMaxTokensForZodSchema } from './runtime/schemaTokenEstimate.js';
+import { canUseStrictJsonSchema, buildOpenAIJsonSchemaResponseFormat } from './runtime/openaiResponseFormat.js';
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -209,94 +211,6 @@ export interface GenerateObjectResult<T> {
 const JSON_MODE_PROVIDERS = new Set(['openai', 'openrouter']);
 
 /**
- * Estimate the output-token budget needed to produce a complete JSON object
- * matching the given Zod schema. The estimate scales with field count and
- * nested-array shape so simple schemas use a small budget while nested-array
- * schemas (the historical truncation hot spot) get enough room to finish.
- *
- * Walks the Zod schema directly (handles both v3 internals via `_def.typeName`
- * and v4 internals via `_def.type`) so it works regardless of which Zod
- * version the consumer has installed.
- *
- * Returns a value clamped to [512, 8192]. Callers can override entirely by
- * passing `opts.maxTokens` to {@link generateObject}.
- */
-function estimateMaxTokensForZodSchema(schema: any): number {
-  const TOKENS_PER_LEAF = 30;       // average tokens per primitive field
-  const TOKENS_PER_ARRAY_ITEM = 60; // assumed per-element budget for typical strings
-  const MIN_BUDGET = 512;
-  const MAX_BUDGET = 8192;
-
-  function walk(node: any, depth: number): number {
-    if (!node || depth > 8) return TOKENS_PER_LEAF;
-    const def = (node as any)?._def;
-    if (!def) return TOKENS_PER_LEAF;
-
-    // Zod v3 uses `_def.typeName` ("ZodObject", "ZodArray", ...).
-    // Zod v4 uses `_def.type` ("object", "array", ...).
-    const typeNameV3 = def.typeName as string | undefined;
-    const typeV4 = def.type as string | undefined;
-    const kind: string = typeNameV3 ?? (typeV4 ? `Zod${typeV4[0].toUpperCase()}${typeV4.slice(1)}` : '');
-
-    switch (kind) {
-      case 'ZodOptional':
-      case 'ZodNullable':
-      case 'ZodDefault':
-      case 'ZodReadonly':
-      case 'ZodEffects':
-        return walk(def.innerType ?? def.schema, depth + 1);
-
-      case 'ZodObject': {
-        // Zod v3: shape is a function returning the shape object.
-        // Zod v4: shape is the shape object directly.
-        const shapeRaw = def.shape;
-        const shape: Record<string, any> = typeof shapeRaw === 'function' ? shapeRaw() : shapeRaw ?? {};
-        let sum = 64; // braces, commas, base structure overhead
-        for (const key of Object.keys(shape)) {
-          sum += key.length + 8;        // field name + JSON syntax
-          sum += walk(shape[key], depth + 1);
-        }
-        return sum;
-      }
-
-      case 'ZodArray': {
-        // v3 stores element on def.type (a Zod schema), v4 on def.element.
-        const inner = def.element ?? def.type;
-        const itemBudget = walk(inner, depth + 1);
-        const innerKind = inner?._def?.typeName ?? inner?._def?.type;
-        const isObjectItem = innerKind === 'ZodObject' || innerKind === 'object';
-        const assumedCount = isObjectItem ? 6 : 8;
-        return 24 + assumedCount * Math.max(itemBudget, TOKENS_PER_ARRAY_ITEM);
-      }
-
-      case 'ZodEnum':
-      case 'ZodNativeEnum': {
-        const values = def.values ?? Object.values(def.entries ?? {});
-        const arr = Array.isArray(values) ? values : Object.values(values);
-        return arr.length > 0 ? Math.max(...arr.map((v: unknown) => String(v).length)) + 4 : TOKENS_PER_LEAF;
-      }
-
-      case 'ZodLiteral':
-        return String(def.value ?? '').length + 4;
-
-      case 'ZodUnion':
-      case 'ZodDiscriminatedUnion': {
-        const opts = (def.options ?? []) as any[];
-        return opts.length > 0 ? Math.max(...opts.map((o) => walk(o, depth + 1))) : TOKENS_PER_LEAF;
-      }
-
-      default:
-        return TOKENS_PER_LEAF;
-    }
-  }
-
-  const estimate = Math.ceil(walk(schema, 0) * 1.5); // 50% headroom for prose-heavy fields
-  if (estimate < MIN_BUDGET) return MIN_BUDGET;
-  if (estimate > MAX_BUDGET) return MAX_BUDGET;
-  return estimate;
-}
-
-/**
  * Builds the schema-specific instruction text appended to every
  * generateObject call. Kept free of caller context so it can be composed
  * with either a plain string system prompt or a structured block array.
@@ -472,10 +386,20 @@ export async function generateObject<T extends ZodType>(
     opts.schemaDescription,
   );
 
-  // Detect whether the target provider supports native JSON mode.
-  // This prevents the model from wrapping JSON in markdown fences.
+  // Detect provider-native JSON output paths. OpenAI gets the strongest
+  // guarantee via `response_format: json_schema` (strict mode, supported on
+  // gpt-4o-2024-08-06 and later) when the schema lowers cleanly. Other
+  // OpenAI-compatible providers fall back to the looser `json_object` mode,
+  // which still suppresses markdown fences but doesn't enforce the schema.
+  // Anthropic / Gemini / etc. fall through to prompt-only enforcement.
   const { providerId } = resolveModelOption(opts, 'text');
-  const supportsJsonMode = JSON_MODE_PROVIDERS.has(providerId);
+  const useStrictJsonSchema = providerId === 'openai' && canUseStrictJsonSchema(jsonSchema);
+  const supportsJsonObjectMode = JSON_MODE_PROVIDERS.has(providerId);
+  const responseFormat = useStrictJsonSchema
+    ? buildOpenAIJsonSchemaResponseFormat(jsonSchema, opts.schemaName)
+    : supportsJsonObjectMode
+      ? { type: 'json_object' as const }
+      : undefined;
 
   // Build the messages array, accumulating retry feedback as needed.
   const messages: Message[] = [];
@@ -511,7 +435,7 @@ export async function generateObject<T extends ZodType>(
       baseUrl: opts.baseUrl,
       fallbackProviders: opts.fallbackProviders,
       onFallback: opts.onFallback,
-      _responseFormat: supportsJsonMode ? { type: 'json_object' } : undefined,
+      _responseFormat: responseFormat,
     });
 
     // Accumulate token usage across attempts
