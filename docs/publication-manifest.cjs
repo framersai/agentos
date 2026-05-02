@@ -252,7 +252,7 @@ const publicationManifest = [
 
   agentosDoc('CAPABILITY_DISCOVERY.md', 'features/capability-discovery.md', 'Capability Discovery', 'Advanced', 1),
   agentosDoc('EMERGENT_CAPABILITIES.md', 'features/emergent-capabilities.md', 'Emergent Capabilities', 'Advanced', 2),
-  agentosDoc('PARACOSM.md', 'features/paracosm.md', 'Paracosm — AI Simulation Engine', 'Advanced', 3),
+  agentosDoc('PARACOSM.md', 'features/paracosm.md', 'Paracosm — Agent Swarm Simulation for Structured World Modeling with LLMs', 'Advanced', 3),
   extensionDoc('AGENCY_COLLABORATION_EXAMPLE.md', 'features/agency-collaboration.md', 'Agency Collaboration', 3, {
     section: 'Advanced',
   }),

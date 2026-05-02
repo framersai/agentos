@@ -1,5 +1,5 @@
 ---
-title: "Paracosm: Structured World Model for AI Agents"
+title: "Paracosm: Agent Swarm Simulation for Structured World Modeling with LLMs"
 sidebar_position: 1
 ---
 
@@ -7,11 +7,11 @@ sidebar_position: 1
 This page is the AgentOS-side overview. For the complete paracosm API reference, scenario authoring guide, and dashboard docs, go to **[paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)**.
 :::
 
-Paracosm is a **structured world model for AI agents**, built on AgentOS. Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their decisions diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
+Paracosm is an **agent swarm simulation framework for structured world modeling with LLMs**, built on AgentOS. Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their swarms — leader plus five specialist departments plus ~100 personality-typed cells — diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
 ## Where paracosm sits in the world-model landscape
 
-Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449), and a counterfactual world simulation model in the sense of [Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4). It is **not** a generative visual or spatial world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model (LeCun's AMI Labs), **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up swarm intelligence simulator (MiroFish, OASIS), and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a prompt/document/URL-grounded, JSON-contract-backed state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449), and a top-down agent swarm in the sense distinguished from bottom-up emergent swarms (OASIS, MiroFish) by direction of control. It is **not** a generative visual or spatial world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model (LeCun's AMI Labs), **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up emergent-crowd simulator, and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a prompt/document/URL-grounded, JSON-contract-backed state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders directing a swarm of ~100 personality-typed cells + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
 
 The important boundary: JSON is the canonical contract, not the product boundary. Today `compileScenario()` takes a scenario JSON draft plus optional `seedText` or `seedUrl` grounding. The next wrapper should take one prompt or document, ask an LLM to propose the same scenario contract, validate it, then compile and run it.
 
@@ -79,7 +79,7 @@ artifact.trajectory?.timepoints?.forEach((tp) => {
 });
 ```
 
-The schema exposes 11 content primitives (`RunMetadata`, `WorldSnapshot`, `Score`, `HighlightMetric`, `Timepoint`, `TrajectoryPoint`, `Trajectory`, `Citation`, `SpecialistDetail`, `SpecialistNote`, `RiskFlag`, `Decision`) plus operational types (`Cost`, `ProviderError`). Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch for domain-specific fields that must not pollute the universal shape.
+The schema exposes 13 content primitives (`RunMetadata`, `WorldSnapshot`, `SwarmAgent`, `SwarmSnapshot`, `Score`, `HighlightMetric`, `Timepoint`, `TrajectoryPoint`, `Trajectory`, `Citation`, `SpecialistDetail`, `SpecialistNote`, `RiskFlag`, `Decision`) plus operational types (`Cost`, `ProviderError`). Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch for domain-specific fields that must not pollute the universal shape.
 
 Non-TypeScript consumers generate equivalent types from JSON Schema: `npm run export:json-schema` emits `schema/run-artifact.schema.json` and `schema/stream-event.schema.json`. Python projects use `datamodel-codegen`; any ecosystem with a JSON-Schema code generator adopts cleanly.
 
@@ -110,6 +110,44 @@ const artifact = await runSimulation(leader, [], { scenario, subject, interventi
 ```
 
 Turn-loop mode stashes both verbatim without semantic consumption; external batch-trajectory executors populate them from their own flow.
+
+### Inspecting the agent swarm
+
+Every turn-loop run produces a swarm: ~100 named agents with departments, roles, family edges, mood, and short-term memory. Read it from `RunArtifact.finalSwarm`, or import focused helpers from the dedicated `paracosm/swarm` subpath:
+
+```typescript
+import {
+  getSwarm,
+  swarmByDepartment,
+  swarmFamilyTree,
+  moodHistogram,
+  departmentHeadcount,
+  aliveCount,
+  deathCount,
+} from 'paracosm/swarm';
+import type { SwarmAgent, SwarmSnapshot } from 'paracosm/schema';
+
+const swarm = getSwarm(artifact);
+if (swarm) {
+  console.log(`T${swarm.turn} · ${aliveCount(swarm)} alive · ${deathCount(swarm)} dead`);
+  console.log(moodHistogram(swarm));        // { focused: 12, anxious: 5, ... }
+  console.log(departmentHeadcount(swarm));  // { engineering: 18, agriculture: 22, ... }
+
+  for (const [dept, agents] of Object.entries(swarmByDepartment(artifact))) {
+    console.log(dept, agents.length);
+  }
+
+  const family = swarmFamilyTree(artifact);  // parent agentId -> [child agentIds]
+}
+```
+
+Or hit the lightweight HTTP endpoint when you only need the roster, not the full artifact:
+
+```bash
+curl https://paracosm.agentos.sh/api/v1/runs/$RUN_ID/swarm
+```
+
+The dashboard's living-swarm grid streams the same shape every turn via the SSE `systems_snapshot` event, so visualization, analytics, and replay all share one swarm contract.
 
 ## What it does
 
