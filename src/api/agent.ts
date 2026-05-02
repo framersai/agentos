@@ -371,6 +371,60 @@ async function loadRecordedAgentOSUsage(
 }
 
 /**
+ * Build a zeroed usage aggregate. Used to seed the per-agent and per-session
+ * in-memory tallies so callers see real numbers from `agent.usage()` /
+ * `session.usage()` without having to enable the persisted ledger.
+ */
+function createEmptyUsageAggregate(sessionId?: string): AgentOSUsageAggregate {
+  return {
+    sessionId,
+    personaId: undefined,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    costUSD: 0,
+    calls: 0,
+  };
+}
+
+/**
+ * Fold a single generation's `TokenUsage` into a running `AgentOSUsageAggregate`.
+ * Mutates the target. Cost is accumulated when present on the source.
+ */
+function accumulateUsage(
+  target: AgentOSUsageAggregate,
+  usage: { promptTokens?: number; completionTokens?: number; totalTokens?: number; costUSD?: number } | undefined,
+): void {
+  if (!usage) return;
+  if (typeof usage.promptTokens === 'number') target.promptTokens += usage.promptTokens;
+  if (typeof usage.completionTokens === 'number') target.completionTokens += usage.completionTokens;
+  if (typeof usage.totalTokens === 'number') {
+    target.totalTokens += usage.totalTokens;
+  } else {
+    target.totalTokens += (usage.promptTokens ?? 0) + (usage.completionTokens ?? 0);
+  }
+  if (typeof usage.costUSD === 'number') target.costUSD = (target.costUSD ?? 0) + usage.costUSD;
+  target.calls += 1;
+}
+
+/**
+ * Merge two aggregates field-wise. Used to combine the in-memory tally with
+ * the persisted ledger total so cross-process history rolls up alongside the
+ * current process's tally.
+ */
+function mergeAggregates(a: AgentOSUsageAggregate, b: AgentOSUsageAggregate): AgentOSUsageAggregate {
+  return {
+    sessionId: a.sessionId ?? b.sessionId,
+    personaId: a.personaId ?? b.personaId,
+    promptTokens: a.promptTokens + b.promptTokens,
+    completionTokens: a.completionTokens + b.completionTokens,
+    totalTokens: a.totalTokens + b.totalTokens,
+    costUSD: (a.costUSD ?? 0) + (b.costUSD ?? 0),
+    calls: a.calls + b.calls,
+  };
+}
+
+/**
  * Convert HEXACO trait values (0-1) into behavioral descriptions the LLM can act on.
  *
  * Each trait produces a directive when it deviates from the neutral midpoint (0.5).
@@ -472,6 +526,13 @@ function buildSystemPrompt(opts: AgentOptions): string | undefined {
  */
 export function agent(opts: AgentOptions): Agent {
   const sessions = new Map<string, Message[]>();
+  // In-memory usage tally per session and per agent. Populated synchronously
+  // after every generate/send/stream call so `agent.usage()` and
+  // `session.usage()` work even when the persisted ledger is disabled (the
+  // common case). The persisted ledger is still merged in at read time so
+  // cross-process / historical totals continue to roll up correctly.
+  const sessionUsageTallies = new Map<string, AgentOSUsageAggregate>();
+  const agentUsageTally: AgentOSUsageAggregate = createEmptyUsageAggregate();
   let avatarBindingOverrides: Record<string, unknown> = {};
   const useMemory = opts.memory !== false;
 
@@ -546,7 +607,9 @@ export function agent(opts: AgentOptions): Agent {
       } else {
         genOpts.messages = [...(genOpts.messages ?? []), { role: 'user', content: prompt }];
       }
-      return generateText(genOpts as GenerateTextOptions);
+      const result = await generateText(genOpts as GenerateTextOptions);
+      accumulateUsage(agentUsageTally, result.usage);
+      return result;
     },
 
     stream(prompt: MessageContent, extra?: Partial<GenerateTextOptions>): StreamTextResult {
@@ -567,13 +630,21 @@ export function agent(opts: AgentOptions): Agent {
       } else {
         streamOpts.messages = [...(streamOpts.messages ?? []), { role: 'user', content: prompt }];
       }
-      return streamText(streamOpts as GenerateTextOptions);
+      const result = streamText(streamOpts as GenerateTextOptions);
+      void result.usage
+        .then((usage) => accumulateUsage(agentUsageTally, usage))
+        .catch(() => { /* stream errored; usage tally unchanged */ });
+      return result;
     },
 
     session(id?: string): AgentSession {
       const sessionId = id ?? crypto.randomUUID();
       if (!sessions.has(sessionId)) sessions.set(sessionId, []);
+      if (!sessionUsageTallies.has(sessionId)) {
+        sessionUsageTallies.set(sessionId, createEmptyUsageAggregate(sessionId));
+      }
       const history = sessions.get(sessionId)!;
+      const sessionUsageTally = sessionUsageTallies.get(sessionId)!;
 
       const session = {
         id: sessionId,
@@ -640,6 +711,8 @@ export function agent(opts: AgentOptions): Agent {
           );
 
           const result = await generateText(wrappedOpts as GenerateTextOptions);
+          accumulateUsage(sessionUsageTally, result.usage);
+          accumulateUsage(agentUsageTally, result.usage);
 
           // Validate + parse when a schema was supplied. Native enforcement
           // guarantees a valid shape on every successful response, so a
@@ -701,6 +774,12 @@ export function agent(opts: AgentOptions): Agent {
           );
 
           const result = streamText(wrappedOpts as GenerateTextOptions);
+          void result.usage
+            .then((usage) => {
+              accumulateUsage(sessionUsageTally, usage);
+              accumulateUsage(agentUsageTally, usage);
+            })
+            .catch(() => { /* stream errored; usage tally unchanged */ });
 
           // Capture text for history when done. Memory observe runs inside
           // applyMemoryProvider's onAfterGeneration wrapper so it's not
@@ -723,11 +802,12 @@ export function agent(opts: AgentOptions): Agent {
         },
 
         async usage(): Promise<AgentOSUsageAggregate> {
-          return loadRecordedAgentOSUsage({
+          const persisted = await loadRecordedAgentOSUsage({
             enabled: baseOpts.usageLedger?.enabled,
             path: baseOpts.usageLedger?.path,
             sessionId,
           });
+          return mergeAggregates(sessionUsageTally, persisted);
         },
 
         clear() {
@@ -742,11 +822,17 @@ export function agent(opts: AgentOptions): Agent {
     },
 
     async usage(sessionId?: string): Promise<AgentOSUsageAggregate> {
-      return loadRecordedAgentOSUsage({
+      const persisted = await loadRecordedAgentOSUsage({
         enabled: baseOpts.usageLedger?.enabled,
         path: baseOpts.usageLedger?.path,
         sessionId,
       });
+      // When a sessionId is requested, only that session's tally is in scope.
+      // When none is requested, return the agent-wide tally.
+      const inMemory = sessionId
+        ? sessionUsageTallies.get(sessionId) ?? createEmptyUsageAggregate(sessionId)
+        : agentUsageTally;
+      return mergeAggregates(inMemory, persisted);
     },
 
     async close() {
