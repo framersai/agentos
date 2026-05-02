@@ -29,7 +29,9 @@
 
 AgentOS is an open-source TypeScript runtime for AI agents that adapt, remember, and collaborate. The runtime carries the parts of an agent that should outlive a single chat completion: persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory) grounded in published cognitive-science literature, optional [HEXACO personality](https://docs.agentos.sh/features/cognitive-memory-guide) modeling, runtime tool forging in a hardened sandbox, [six multi-agent orchestration strategies](https://docs.agentos.sh/features/multi-agent-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), and one dispatch interface across 21 LLM providers. Apache-2.0.
 
-On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (gpt-4o reader, +1.4 points above Mastra's published 84.23%); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
+[100+ first-party extensions](https://www.npmjs.com/package/@framers/agentos-extensions) (channel adapters, tool packs, guardrail packs) and [88 curated `SKILL.md` skills](https://www.npmjs.com/package/@framers/agentos-skills) auto-discover at startup through their respective registries: a host pulls a curated index and the runtime wires every tool, guardrail, channel, and skill without manual registration. The auto-loader is the same surface that runtime-forged tools join: an agent that invents a function in session N can promote it (with judge approval and `SkillExporter`) into a `SKILL.md` that the registry picks up on the next process start. Forging is how the surface grows mid-run; auto-discovery is how it ships as a first-class capability afterward.
+
+On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (gpt-4o reader, +1.4 points above Mastra's published 84.23%, 0.4 points behind Emergence.ai's 86% closed-source SaaS SOTA); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
 
 ---
 
@@ -64,19 +66,19 @@ await session.send('Can you expand on that?'); // remembers context
 >
 > — Philip K. Dick, *The Android and the Human*, 1972
 
-Three things accumulate inside an AgentOS session:
+Three things accumulate inside an AgentOS session and compound into behavior by turn six:
 
 1. **Memory.** What was said, what was decided, what was retrieved.
 2. **Tool surface.** Starts at whatever was registered. Can grow mid-decision when an agent forges a new function and the judge approves it.
 3. **Personality** (optional). A HEXACO trait vector that biases retrieval, specialist routing, and decision-making.
 
-Behavior in turn six is a function of all three carried forward from turns one through five: which memories got reinforced, which forged tools entered the catalog, which trait values weighted which evidence. Each of those is configurable and observable. None of the three crosses into "emergent agent" on its own; the composition is the interesting part.
+Each is configurable and observable; none crosses into "emergent agent" on its own. The composition is the interesting part.
 
 ### Runtime Tool Forging
 
-When an agent encounters a sub-task that no available tool covers, it generates a TypeScript function with a Zod-described input and output schema. A separate LLM call evaluates the forged function against the agent's stated intent and either approves or rejects it. Approved functions execute in a hardened `node:vm` sandbox (default 5-second wall clock, 128 MB nominal memory budget reported as a heap-delta heuristic, not preemptively enforced — preemptive memory limits via [`isolated-vm`](https://github.com/laverdet/isolated-vm) are queued for the hosted multi-tenant tier). The sandbox always bans `eval`, `Function`, `require`, dynamic `import`, `process`, `child_process`, and destructive `fs.*`. `fetch`, `fs.readFile`, and `crypto` are allowlist-only opt-ins; the default allowlist is empty, so the default execution environment has no network, no filesystem, and no crypto unless the host explicitly grants them per-tool. Approved tools are added to a discoverable index keyed by name and signature, and subsequent turns invoke them via `call_forged_tool(name, args)`. A first-time forge costs full LLM tokens; reuse costs tens of tokens. Total cost per turn flattens once a session has accumulated a handful of approved tools.
+When an agent encounters a sub-task that no available tool covers, it generates a TypeScript function with a Zod-described input and output schema. A separate LLM call evaluates the forged function against the agent's stated intent and either approves or rejects it. Approved functions execute in a hardened `node:vm` sandbox with strict defaults (5-second wall clock, 128 MB heap-delta budget, `eval` / `require` / `process` banned, `fetch` / `fs` / `crypto` allowlist-empty by default). Approved tools join a discoverable index keyed by name and signature; subsequent turns invoke them via `call_forged_tool(name, args)`. First forge costs full LLM tokens; reuse costs tens of tokens. Sandbox internals, isolation tradeoffs (`node:vm` vs queued `isolated-vm` for the hosted multi-tenant tier), and the full safety policy are in the [emergent capabilities docs](https://docs.agentos.sh/features/emergent-capabilities).
 
-The path the runtime supports: an agent forges a tool mid-decision, the judge approves it, that turn invokes it, and a few turns later a different specialist agent in the same session invokes the same tool because the index made it findable. Neither side is scripted; the runtime makes the tool discoverable and the agents find it on their own.
+The pattern the runtime supports: an agent forges a tool mid-decision, the judge approves it, that turn invokes it, and a few turns later a different specialist agent in the same session invokes the same tool because the index made it findable. Promoted tools can be exported as `SKILL.md` skills via `SkillExporter` and join the auto-discovery surface on the next process start.
 
 ### HEXACO Personality (optional)
 
@@ -103,7 +105,7 @@ const coach = agent({
 });
 ```
 
-When a vector is supplied, the kernel weights retrieval, specialist routing, and tool selection by the trait values. Same agent, same prompt, same tools: a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences. The bias lives in the kernel, not in the prompt; prompt-only personality dissolves under context pressure while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.
+When a vector is supplied, the kernel weights retrieval, specialist routing, and tool selection by the trait values. Same agent, same prompt, same tools: a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences. Personality lives in the kernel, not in the prompt — prompt-only personality dissolves under context pressure while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.
 
 ---
 
@@ -143,7 +145,24 @@ At matched Top-5 retrieval, +4.5 above the round-level paper baseline (65.7%) an
 
 > **[Full leaderboard →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** · **[Run JSONs →](https://github.com/framersai/agentos-bench/tree/master/results/runs)** · **[Transparency audit →](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/)** · **[LongMemEval paper](https://arxiv.org/abs/2410.10813)** (Wu et al., ICLR 2025, Table 3)
 
-The transparency audit covers what the headline numbers above don't. LOCOMO's answer key has a [6.4% ground-truth error rate per Penfield Labs](https://dev.to/penfieldlabs/we-audited-locomo-64-of-the-answer-key-is-wrong-and-the-judge-accepts-up-to-63-of-intentionally-33lg) (capping any system's possible score at ~93.6%) and LOCOMO's default LLM judge accepts 62.81% of intentionally wrong answers — so any LOCOMO score gap below ~6 pp is inside the judge's noise floor. LongMemEval-S is partly a context-window test because 115K tokens fits in every modern reader. The audit post documents the Mem0-vs-Zep gaming case study, lists which vendors disclose which methodology dimensions (judge model, dataset version, per-case results, single-CLI reproduction), and explains the agentos-bench transparency stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-benchmark judge-FPR probes (LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%]), per-case run JSONs, single-CLI reproduction.
+Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-benchmark judge-FPR probes (S 1%, M 2%, LOCOMO 0%), per-case run JSONs, single-CLI reproduction. The [transparency audit](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/) covers what the headline numbers don't: LOCOMO's ~6.4% answer-key error rate, the LongMemEval-S context-window confound, and the Mem0-vs-Zep comparison gaming case study, alongside which vendors disclose which methodology dimensions.
+
+---
+
+## Ecosystem
+
+| Package | Role |
+|---|---|
+| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime: GMI agents, cognitive memory, multi-agent orchestration, guardrails, voice, 21 LLM providers. Apache 2.0. |
+| [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | 100+ first-party extensions and templates: channel adapters, tool packs, integrations, guardrail packs. |
+| [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | Discovery + auto-loader layer for the extensions catalog. Hosts pull the index without pulling every implementation; the runtime resolves and registers packs at startup. |
+| [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated `SKILL.md` skills covering common tasks. |
+| [`@framers/agentos-skills-registry`](https://www.npmjs.com/package/@framers/agentos-skills-registry) | Discovery + auto-loader layer for the skills catalog. Also the surface where promoted forged tools land after `SkillExporter`. |
+| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes, per-case run JSONs at fixed seed. MIT (the rest of AgentOS is Apache 2.0). |
+| [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence: SQLite, Postgres, IndexedDB, Capacitor SQLite. |
+| [`paracosm`](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine that uses AgentOS as its substrate. |
+
+**Extensions and skills auto-load at startup.** The runtime walks each registry plus any user-supplied paths, resolves each pack's `createExtensionPack(context)` factory or `SKILL.md` frontmatter, and registers tools, guardrails, channels, and skills without manual wiring. Capability gating and HITL approval gates apply to side-effecting installs. See [extensions architecture](https://docs.agentos.sh/architecture/extension-loading) for the full loading model.
 
 ---
 
@@ -157,7 +176,7 @@ The full architecture and benchmark methodology, written for engineers and resea
 | **Benchmarks** | LongMemEval-S 85.6%, LongMemEval-M 70.2%, vendor landscape, confidence interval methodology, judge FPR probes, full transparency stack |
 | **Reproducibility** | Per-case run JSONs at `--seed 42`, single-CLI reproduction, Apache-2.0 bench at [github.com/framersai/agentos-bench](https://github.com/framersai/agentos-bench) |
 
-**[Notify me when it drops →](mailto:team@frame.dev?subject=AgentOS%20Whitepaper%20Notify)** · **[Read the benchmarks now →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** · **[Discord](https://wilds.ai/discord)**
+**[Join Discord for the announcement →](https://wilds.ai/discord)** · **[Read the benchmarks now →](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)**
 
 ---
 
@@ -298,23 +317,6 @@ export OPENAI_API_KEY=sk-key1,sk-key2,sk-key3
 Provider fallback is an explicit opt-in via `agent({ fallbackProviders: [...] })` (or `buildFallbackChain()` for programmatic chains). Defaults to off — the runtime never silently retries against a different provider unless you configured a chain.
 
 [Full API reference →](https://docs.agentos.sh/api) · [High-Level API guide →](https://docs.agentos.sh/getting-started/high-level-api)
-
----
-
-## Ecosystem
-
-| Package | Role |
-|---|---|
-| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime: GMI agents, cognitive memory, multi-agent orchestration, guardrails, voice, 21 LLM providers. Apache 2.0. |
-| [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | 100+ first-party extensions and templates: channel adapters, tool packs, integrations, guardrail packs. |
-| [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | The discovery + auto-loader layer for the extensions catalog. Consumers wire this in to make curated extension packs available without packaging the entire extensions tree as a dependency. Separating the registry layer from the content layer lets a host pull the index without pulling the implementations. |
-| [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated SKILL.md skills covering common tasks. |
-| [`@framers/agentos-skills-registry`](https://www.npmjs.com/package/@framers/agentos-skills-registry) | The discovery + auto-loader layer for the skills catalog. Same split as the extensions registry: a host imports this when it wants the curated skill index without bundling the full skills tree. Registries also serve community-contributed packs once they're vetted. |
-| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes per benchmark, per-case run JSONs at fixed seed. MIT-licensed (the rest of AgentOS is Apache 2.0). |
-| [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence: SQLite (better-sqlite3 + sql.js for browsers), Postgres, IndexedDB, Capacitor SQLite. |
-| [`paracosm`](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine that uses AgentOS as its substrate. |
-
-**Extensions and skills auto-load at startup.** The runtime walks each registry plus any user-supplied paths, resolves each pack's `createExtensionPack(context)` factory or SKILL.md frontmatter, and registers tools, guardrails, channels, and skills without manual wiring. Capability gating and HITL approval gates apply to side-effecting installs. See [extensions architecture](https://docs.agentos.sh/architecture/extension-loading) for the full loading model.
 
 ---
 
