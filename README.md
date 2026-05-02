@@ -16,6 +16,9 @@
 [![codecov](https://codecov.io/gh/framersai/agentos/graph/badge.svg)](https://codecov.io/gh/framersai/agentos)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
+[![LongMemEval-S](https://img.shields.io/badge/LongMemEval--S-85.6%25-2ea043?style=flat-square)](https://docs.agentos.sh/blog/2026/04/27/longmemeval-s-83-with-semantic-embedder)
+[![LongMemEval-M](https://img.shields.io/badge/LongMemEval--M-70.2%25-2ea043?style=flat-square)](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5)
+[![agentos-bench](https://img.shields.io/badge/bench-public-blue?style=flat-square)](https://github.com/framersai/agentos-bench)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord)](https://wilds.ai/discord)
 
 [**Benchmarks**](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md) · [Website](https://agentos.sh) · [Docs](https://docs.agentos.sh) · [npm](https://www.npmjs.com/package/@framers/agentos) · [Discord](https://wilds.ai/discord) · [Blog](https://docs.agentos.sh/blog)
