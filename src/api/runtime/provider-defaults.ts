@@ -42,7 +42,7 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
     cheap: 'gpt-4o-mini',
   },
   anthropic: {
-    text: 'claude-sonnet-4-20250514',
+    text: 'claude-sonnet-4-5-20250929',
     cheap: 'claude-haiku-4-5-20251001',
   },
   ollama: {
@@ -60,7 +60,7 @@ export const PROVIDER_DEFAULTS: Record<string, ProviderDefaults> = {
     cheap: 'gemini-2.0-flash',
   },
   'claude-code-cli': {
-    text: 'claude-sonnet-4-20250514',
+    text: 'claude-sonnet-4-5-20250929',
     cheap: 'claude-haiku-4-5-20251001',
   },
   'gemini-cli': {
