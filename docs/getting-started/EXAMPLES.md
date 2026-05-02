@@ -258,18 +258,25 @@ console.log('Draft preview:', String(result.draft).slice(0, 200));
 
 ## 4. Voice Call Center
 
-Hierarchical agency with voice transport and telephony.
+Hierarchical agency with voice transport. The `voice.enabled: true` flag attaches a `listen()` method to the returned agency that starts a local WebSocket server; STT, TTS, and telephony bridge to that transport.
 
 ```typescript
 import { agency } from '@framers/agentos';
 
 const callCenter = agency({
   provider: 'openai',
+  model: 'gpt-4o',
   strategy: 'hierarchical',
   voice: {
-    sttProvider: 'deepgram',
-    ttsProvider: 'elevenlabs',
-    voiceId: 'professional-en-us',
+    enabled: true,
+    transport: 'telephony',
+    stt: 'deepgram',
+    tts: 'elevenlabs',
+    ttsVoice: 'professional-en-us',
+    telephony: {
+      provider: 'twilio',
+      inboundNumber: process.env.TWILIO_PHONE_NUMBER,
+    },
   },
   agents: {
     receptionist: {
@@ -296,26 +303,29 @@ const callCenter = agency({
       tools: ['product_catalog', 'crm_create_lead'],
     },
   },
-  telephony: {
-    provider: 'twilio',
-    inboundNumber: process.env.TWILIO_PHONE_NUMBER,
-  },
 });
 
-// Answer an inbound call
-callCenter.listen({
-  transport: 'twilio',
-  onCallEnd: (summary) => console.log('Call summary:', summary),
-});
+// listen() is attached when voice.enabled is set. It starts a local WebSocket
+// server that accepts JSON text frames and routes them through the agency's
+// generate(). STT, TTS, and Twilio bridge the WebSocket to live audio via the
+// channels system and the telephony adapter — see
+// docs.agentos.sh/features/telephony-providers.
+const { port, url, close } = await callCenter.listen({ port: 8080 });
 
-console.log('Call center ready. Listening for calls...');
+console.log(`Call center ready. WebSocket transport listening at ${url}`);
+
+// Optional: graceful shutdown
+process.on('SIGINT', async () => {
+  await close();
+  process.exit(0);
+});
 ```
 
 ---
 
 ## 5. Code Review Bot
 
-Debate strategy where two agents argue before a final decision.
+Debate strategy: two agents argue across N rounds, then the agency-level model synthesises a final verdict.
 
 ```typescript
 import { agency } from '@framers/agentos';
@@ -323,31 +333,36 @@ import { readFileSync } from 'fs';
 
 const codeReviewer = agency({
   provider: 'anthropic',
+  // Always pin a model explicitly. Package versions before 0.6.0 defaulted to
+  // a Sonnet snapshot Anthropic later retired, which now returns 404.
+  model: 'claude-sonnet-4-6',
   strategy: 'debate',
-  rounds: 2,
+  maxRounds: 2,
   agents: {
     critic: {
       instructions: `
-        You are a strict code reviewer. Find bugs, security issues, performance problems,
-        and violations of best practices. Be thorough — your job is to find everything wrong.
+        You are a strict code reviewer. Find bugs, security issues, performance
+        problems, and violations of best practices. Your job is to find
+        everything wrong.
       `,
     },
     advocate: {
       instructions: `
         You are a code quality advocate. Identify the strengths of the code:
-        good patterns, clear naming, testability, and solid architecture choices.
+        good patterns, clear naming, testability, solid architecture choices.
         Push back on overly pedantic criticism.
       `,
     },
-  },
-  judge: {
-    instructions: `
-      You are a senior engineer making the final call on a code review.
-      Weigh the critic and advocate's arguments. Output:
-      - APPROVE: if the code is production-ready
-      - REQUEST_CHANGES: if fixes are needed (list them)
-      - REJECT: if the approach is fundamentally flawed
-    `,
+    synthesizer: {
+      instructions: `
+        You are a senior engineer making the final call on a code review.
+        Weigh the critic and advocate's arguments and output one of:
+        - APPROVE: code is production-ready
+        - REQUEST_CHANGES: fixes are needed (list them)
+        - REJECT: the approach is fundamentally flawed
+      `,
+      role: 'orchestrator',
+    },
   },
 });
 
@@ -368,52 +383,51 @@ console.log(review.text);
 
 ## 6. Knowledge Base Q&A
 
-RAG-powered Q&A with cognitive memory for returning users.
+RAG-powered Q&A with cognitive memory across sessions. RAG configuration is enforced by the full runtime — use `new AgentOS()` or `agency()`. The lightweight `agent()` helper preserves the `rag` field for forward compatibility but does not actively dispatch to a vector store, so a kb-aware agent built on `agent()` alone will produce ungrounded answers.
 
 ```typescript
-import { agent } from '@framers/agentos';
-import { CognitiveMemoryManager } from '@framers/agentos/memory';
+import { AgentOS } from '@framers/agentos';
 
-const memory = new CognitiveMemoryManager({
-  decay: { enabled: true },
-  workingMemory: { capacity: 7 },
-  vectorStore: { type: 'hnsw', dimensions: 1536 },
-});
-
-const kbAgent = agent({
+const kb = new AgentOS();
+await kb.initialize({
   provider: 'openai',
+  model: 'gpt-4o',
   instructions: `
     You are a helpful documentation assistant.
     Search the knowledge base to answer questions accurately.
     If you don't find a relevant answer, say so clearly.
   `,
-  tools: ['knowledge_base_search'],
+  memory: {
+    enabled: true,
+    decay: 'ebbinghaus',
+    workingMemory: { capacity: 7 },
+  },
   rag: {
     enabled: true,
-    vectorStore: 'hnsw',
+    vectorStore: { type: 'hnsw', dimensions: 1536 },
     collections: ['product-docs', 'api-reference', 'tutorials'],
     topK: 5,
     minSimilarity: 0.7,
   },
-  memory: memory,
 });
 
-const session = kbAgent.session('user-alice');
+// Per-user session keeps cognitive memory scoped per actor.
+const session = kb.session('user-alice');
 
-// User returns — memory provides context from previous sessions
+// First turn — answered from RAG hits
 const { text: answer } = await session.send(
-  'How do I configure rate limiting in the AgentOS middleware?'
+  'How do I configure rate limiting in the AgentOS middleware?',
 );
-
 console.log(answer);
-// "Based on the docs, you can configure rate limiting via the `rateLimiting`
-//  option in your AgentOSConfig..."
 
-// Follow-up benefits from both RAG and memory
-const { text: followUp } = await session.send('What about for the voice pipeline specifically?');
-
+// Follow-up benefits from both RAG and the prior turn's session memory
+const { text: followUp } = await session.send(
+  'What about for the voice pipeline specifically?',
+);
 console.log(followUp);
 ```
+
+> **Note on RAG corpus.** This example assumes `product-docs`, `api-reference`, and `tutorials` collections are already populated in the configured vector store. If you run it against an empty store, the agent will correctly report it does not have grounded information instead of hallucinating. See [Multimodal RAG](/features/multimodal-rag) for the ingestion pipeline.
 
 ---
 
