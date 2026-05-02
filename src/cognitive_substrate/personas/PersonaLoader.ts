@@ -76,15 +76,22 @@ export class PersonaLoader implements IPersonaLoader {
         console.warn(`PersonaLoader (ID: ${this.loaderId}) already initialized. Re-initializing will refresh personas.`);
     }
 
-    const fsConfig = config as FileSystemPersonaLoaderConfig;
-    if (!fsConfig || !fsConfig.personaDefinitionPath) {
+    // Accept either `personaDefinitionPath` (specific FileSystemPersonaLoader
+    // field) OR the generic `personaSource` from `PersonaLoaderConfig` so the
+    // auto-generated config from `createAgentOSConfig()` can drive this loader
+    // without callers having to know about the field-name asymmetry. Prefer
+    // the specific field when both are set.
+    const fsConfig = config as FileSystemPersonaLoaderConfig & { personaSource?: string };
+    const resolvedPath = fsConfig?.personaDefinitionPath ?? fsConfig?.personaSource;
+    if (!fsConfig || !resolvedPath) {
       throw new GMIError(
-        'Invalid configuration for FileSystemPersonaLoader: personaDefinitionPath is required.',
+        'Invalid configuration for FileSystemPersonaLoader: personaDefinitionPath (or personaSource) is required.',
         GMIErrorCode.CONFIGURATION_ERROR, { providedConfig: config, loaderId: this.loaderId }
       );
     }
     this.config = {
       ...fsConfig,
+      personaDefinitionPath: resolvedPath,
       loaderType: 'file_system',
       recursiveSearch: fsConfig.recursiveSearch ?? false,
       fileExtension: fsConfig.fileExtension && fsConfig.fileExtension.startsWith('.')
@@ -98,9 +105,21 @@ export class PersonaLoader implements IPersonaLoader {
         throw new GMIError(`Persona definition path '${this.config.personaDefinitionPath}' is not a directory.`, GMIErrorCode.CONFIGURATION_ERROR, { path: this.config.personaDefinitionPath });
       }
     } catch (error: any) {
+      // ENOENT is downgraded to a warning so the zero-config `AgentOS.create()`
+      // path doesn't crash when the consumer hasn't created a personas
+      // directory yet. The loader will simply find zero personas at refresh
+      // time and the runtime falls back to built-in personas / persona-less
+      // operation. Other I/O errors (permission, malformed path) still throw.
+      if (error?.code === 'ENOENT') {
+        console.warn(
+          `PersonaLoader (ID: ${this.loaderId}): persona directory '${this.config.personaDefinitionPath}' not found. Skipping file-system persona discovery; built-in personas remain available.`,
+        );
+        this.isInitialized = true;
+        return;
+      }
       throw new GMIError(
-        `Persona definition path '${this.config.personaDefinitionPath}' is not accessible or does not exist: ${error.message}`,
-        GMIErrorCode.CONFIGURATION_ERROR, // Corrected: Use CONFIGURATION_ERROR
+        `Persona definition path '${this.config.personaDefinitionPath}' is not accessible: ${error.message}`,
+        GMIErrorCode.CONFIGURATION_ERROR,
         { path: this.config.personaDefinitionPath, underlyingError: error }
       );
     }

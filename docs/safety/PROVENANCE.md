@@ -48,9 +48,7 @@ and agents that users are expected to edit freely.
 ```typescript
 import { AgentOS } from '@framers/agentos';
 
-const agent = new AgentOS();
-await agent.initialize({
-  // ... other config ...
+const agent = await AgentOS.create({
   provenance: { policy: 'mutable' },
 });
 ```
@@ -351,8 +349,7 @@ Full provenance configuration object:
 ```typescript
 import { AgentOS } from '@framers/agentos';
 
-const agent = new AgentOS();
-await agent.initialize({
+const agent = await AgentOS.create({
   provenance: {
     // Storage policy
     policy: 'sealed',   // 'mutable' | 'revisioned' | 'sealed'
