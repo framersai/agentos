@@ -585,6 +585,8 @@ import {
   processRequestWithRegisteredTools,
 } from '@framers/agentos';
 
+const agent = await AgentOS.create();
+
 for await (const chunk of processRequestWithRegisteredTools(agent, {
   userId: 'user-1',
   sessionId: 'session-1',
@@ -635,8 +637,13 @@ tools with the correct resume-time `ToolExecutionContext` and then resumes the
 stream for you.
 
 ```ts
-import { resumeExternalToolRequestWithRegisteredTools } from '@framers/agentos';
+import {
+  AgentOS,
+  AgentOSResponseChunkType,
+  resumeExternalToolRequestWithRegisteredTools,
+} from '@framers/agentos';
 
+const agent = await AgentOS.create();
 const pending = await agent.getPendingExternalToolRequest('conv-1', 'user-1');
 
 if (pending) {

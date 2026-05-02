@@ -794,6 +794,58 @@ export class AgentOS implements IAgentOS {
   constructor(private readonly logger: ILogger = createLogger('AgentOS')) {}
 
   /**
+   * Convenience factory: build an `AgentOS` instance with a fully-populated
+   * default configuration in a single call.
+   *
+   * The factory uses {@link createAgentOSConfig} under the hood, which reads
+   * from the standard environment (`DATABASE_URL`, provider API keys, etc.)
+   * and wires up sane defaults for every sub-system. Any fields passed in
+   * `overrides` are deep-merged onto the generated config so callers can
+   * tweak observability, provenance, memoryTools, etc. without rebuilding
+   * the whole config object themselves.
+   *
+   * For fine-grained control, fall back to `new AgentOS()` +
+   * `initialize(yourConfig)`.
+   *
+   * @param overrides - Optional partial `AgentOSConfig` whose fields are
+   *   shallow-merged onto the auto-generated config. Pass `tools` /
+   *   `externalTools` here to register them at construction time. Pass
+   *   `observability`, `provenance`, `memoryTools`, etc. to opt into
+   *   subsystems without touching the rest of the defaults.
+   * @param logger - Optional logger override.
+   * @returns A fully-initialised `AgentOS` instance.
+   * @throws {AgentOSServiceError} If env config is invalid or initialisation fails.
+   *
+   * @example
+   * ```ts
+   * import { AgentOS } from '@framers/agentos';
+   *
+   * // Defaults — reads DATABASE_URL + provider keys from env.
+   * const os = await AgentOS.create();
+   *
+   * // With observability + provenance turned on.
+   * const observed = await AgentOS.create({
+   *   observability: { tracing: { enabled: true } },
+   *   provenance:    { policy: 'sealed', keyPath: '~/.framers/key.pem' },
+   * });
+   * ```
+   */
+  public static async create(
+    overrides: Partial<AgentOSConfig> & { tools?: unknown; externalTools?: unknown } = {},
+    logger?: ILogger,
+  ): Promise<AgentOS> {
+    // Lazy-import to avoid a circular dependency between AgentOS.ts and
+    // core/config/AgentOSConfig.ts (which transitively pulls AgentOS types).
+    const { createAgentOSConfig } = await import('../core/config/AgentOSConfig.js');
+    const { tools, externalTools, ...configOverrides } = overrides;
+    const baseConfig = await createAgentOSConfig({ tools, externalTools } as Parameters<typeof createAgentOSConfig>[0]);
+    const mergedConfig = { ...baseConfig, ...configOverrides } as AgentOSConfig;
+    const instance = new AgentOS(logger);
+    await instance.initialize(mergedConfig);
+    return instance;
+  }
+
+  /**
    * Initializes the `AgentOS` service and all its core dependencies.
    * This method must be called and successfully awaited before any other operations
    * can be performed on the `AgentOS` instance. It sets up configurations,

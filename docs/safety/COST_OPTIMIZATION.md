@@ -253,31 +253,26 @@ const TIER_DEFAULTS = {
 import { AgentOS } from '@framers/agentos';
 
 // Economy tier: Minimize costs
-const economyAgent = new AgentOS();
-await economyAgent.initialize({
+const economyAgent = await AgentOS.create({
   performanceTier: 'economy',
 });
 
 // Balanced tier: Default, good for most use cases
-const balancedAgent = new AgentOS();
-await balancedAgent.initialize({
+const balancedAgent = await AgentOS.create({
   performanceTier: 'balanced',
 });
 
 // Performance tier: Maximum capability
-const performanceAgent = new AgentOS();
-await performanceAgent.initialize({
+const performanceAgent = await AgentOS.create({
   performanceTier: 'performance',
 });
 
 // Custom tier: Full control
-const customAgent = new AgentOS();
-await customAgent.initialize({
+const customAgent = await AgentOS.create({
   performanceTier: 'custom',
   defaultModel: 'claude-3-haiku',
   maxTokensPerTurn: 2000,
   cachingEnabled: true,
-  // ... other options
 });
 ```
 
@@ -623,8 +618,7 @@ const config: AgentOSConfig = {
 
 ```typescript
 // Development and testing
-const dev = new AgentOS();
-await dev.initialize({ performanceTier: 'economy' });
+const dev = await AgentOS.create({ performanceTier: 'economy' });
 ```
 
 ### 2. Use Model Tiering in Production
@@ -645,8 +639,7 @@ await prod.initialize({
 
 ```typescript
 // Cache everything possible
-const cached = new AgentOS();
-await cached.initialize({
+const cached = await AgentOS.create({
   caching: {
     promptCache: true,
     semanticCache: true,
@@ -660,8 +653,7 @@ await cached.initialize({
 
 ```typescript
 // Always set limits in production
-const safe = new AgentOS();
-await safe.initialize({
+const safe = await AgentOS.create({
   budgets: {
     hardLimits: { perDay: 50.00 },
     limitActions: { hardLimit: 'reject' },

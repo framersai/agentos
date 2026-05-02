@@ -264,8 +264,8 @@ capabilities during a conversation — useful when Tier 0/1 passive context
 isn't enough.
 
 ```typescript
-import { createDiscoverCapabilitiesTool } from '@framers/agentos/discovery';
-import { CapabilityDiscoveryEngine } from '@framers/agentos/discovery';
+import { agent } from '@framers/agentos';
+import { createDiscoverCapabilitiesTool, CapabilityDiscoveryEngine } from '@framers/agentos/discovery';
 
 const engine = new CapabilityDiscoveryEngine({ /* config */ });
 const discoverTool = createDiscoverCapabilitiesTool(engine);

@@ -17,9 +17,7 @@ When enabled, AgentOS adds `trace_id` and `span_id` fields to log metadata **whe
 ```ts
 import { AgentOS } from '@framers/agentos';
 
-const agentos = new AgentOS();
-await agentos.initialize({
-  // ...your normal config...
+const agentos = await AgentOS.create({
   observability: {
     tracing: { enabled: true },
     logging: { includeTraceIds: true },

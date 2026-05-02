@@ -351,6 +351,7 @@ Full provenance configuration object:
 ```typescript
 import { AgentOS } from '@framers/agentos';
 
+const agent = new AgentOS();
 await agent.initialize({
   provenance: {
     // Storage policy

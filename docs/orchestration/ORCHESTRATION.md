@@ -423,6 +423,7 @@ Embed full voice pipeline turns directly inside any graph — STT, LLM reasoning
 
 ```typescript
 import { AgentGraph, START, END, voiceNode, gmiNode } from '@framers/agentos/orchestration';
+import { z } from 'zod';
 
 const callGraph = new AgentGraph({
   input:     z.object({ callerId: z.string() }),

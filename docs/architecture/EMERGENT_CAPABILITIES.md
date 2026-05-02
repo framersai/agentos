@@ -9,8 +9,7 @@ Important: emergent tooling is a full runtime capability. Use `new AgentOS()` or
 ```typescript
 import { AgentOS } from '@framers/agentos';
 
-const agent = new AgentOS();
-await agent.initialize({
+const agent = await AgentOS.create({
   provider: 'openai',
   emergent: true,
 });
@@ -456,8 +455,7 @@ Agent: [Calling validate_and_extract_json...]
 ```typescript
 import { AgentOS } from '@framers/agentos';
 
-const agent = new AgentOS();
-await agent.initialize({
+const agent = await AgentOS.create({
   provider: 'openai',
   emergent: true,
   emergentConfig: {

@@ -298,6 +298,11 @@ export type { StreamObjectOptions, StreamObjectResult, DeepPartial } from './api
 export { embedText } from './api/embedText.js';
 export type { EmbedTextOptions, EmbedTextResult } from './api/embedText.js';
 export { transferStyle } from './api/transferStyle.js';
+// Convenience re-export: every meaningful generateObject / structured-output
+// example uses Zod schemas, so consumers can `import { z } from '@framers/agentos'`
+// without adding zod as a separate direct dependency. The pinned version
+// matches the one agentos itself depends on.
+export { z } from 'zod';
 export { createTestAgentOSConfig } from './core/config/AgentOSConfig.js';
 export {
   setDefaultProvider,

@@ -66,9 +66,7 @@ Precedence:
 ```ts
 import { AgentOS } from '@framers/agentos';
 
-const agentos = new AgentOS();
-await agentos.initialize({
-  // ...your normal config...
+const agentos = await AgentOS.create({
   observability: {
     // Master switch: when true, defaults to enabling tracing/metrics + log correlation.
     // Keep explicit per-signal toggles if you want a tighter blast radius.

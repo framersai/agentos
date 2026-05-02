@@ -59,10 +59,7 @@ from `AgentOS.initialize()`:
 import { AgentOS, Memory } from '@framers/agentos';
 
 const memory = await Memory.createSqlite({ path: './brain.sqlite', selfImprove: true });
-const agentos = new AgentOS();
-
-await agentos.initialize({
-  // ...standard AgentOS config...
+const agentos = await AgentOS.create({
   memoryTools: {
     memory,
     includeReflect: true,
@@ -86,10 +83,7 @@ unified `standaloneMemory` config bridge:
 import { AgentOS, Memory } from '@framers/agentos';
 
 const memory = await Memory.createSqlite({ path: './brain.sqlite', selfImprove: true });
-const agentos = new AgentOS();
-
-await agentos.initialize({
-  // ...standard AgentOS config...
+const agentos = await AgentOS.create({
   standaloneMemory: {
     memory,
     manageLifecycle: true,
@@ -297,9 +291,7 @@ await rag.initialize(
 );
 
 // 5) Pass into AgentOS
-const agentos = new AgentOS();
-await agentos.initialize({
-  // ...your normal AgentOSConfig...
+const agentos = await AgentOS.create({
   retrievalAugmentor: rag,
   manageRetrievalAugmentorLifecycle: true,
 });
@@ -313,9 +305,7 @@ If you don’t want to manage instantiation, use `AgentOSConfig.ragConfig`. Agen
 ```ts
 import { AgentOS } from '@framers/agentos';
 
-const agentos = new AgentOS();
-await agentos.initialize({
-  // ...your normal AgentOSConfig...
+const agentos = await AgentOS.create({
   ragConfig: {
     embeddingManagerConfig: {
       embeddingModels: [
