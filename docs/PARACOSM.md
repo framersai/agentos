@@ -223,7 +223,8 @@ Users who want more runs paste their own OpenAI or Anthropic key. The dashboard'
 ## API surface
 
 ```typescript
-import type { ScenarioPackage, Agent, LeaderConfig, HexacoProfile } from 'paracosm';
+import type { ScenarioPackage, Agent, HexacoProfile } from 'paracosm';
+import type { ActorConfig } from 'paracosm/runtime';
 import { SimulationKernel, SeededRng } from 'paracosm';
 import { marsScenario } from 'paracosm/mars';
 import { lunarScenario } from 'paracosm/lunar';
@@ -244,7 +245,7 @@ import {
 Full type reference is auto-generated from source at [/paracosm](/paracosm). The core types:
 
 - [`ScenarioPackage`](/paracosm/engine/interfaces/ScenarioPackage): domain-agnostic scenario bundle
-- [`LeaderConfig`](/paracosm/engine/interfaces/LeaderConfig): commander identity plus HEXACO profile
+- [`ActorConfig`](/paracosm/runtime/interfaces/ActorConfig): commander identity plus HEXACO profile (or pluggable `traitProfile`)
 - [`HexacoProfile`](/paracosm/engine/interfaces/HexacoProfile): six-axis personality vector
 - [`SimulationKernel`](/paracosm/engine/classes/SimulationKernel): deterministic state machine
 - [`runSimulation`](/paracosm/runtime/functions/runSimulation): single-leader turn loop, returns `Promise<RunArtifact>`
