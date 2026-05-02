@@ -81,6 +81,13 @@ its config types are exported from `@framers/agentos/rag`.
 ```typescript
 import { RetrievalAugmentor } from '@framers/agentos/rag';
 
+// Stand-ins. Replace with your real EmbeddingManager / VectorStoreManager
+// instances and a RetrievalAugmentorConfig your runtime provides.
+declare const config: any;
+declare const embeddingManager: any;
+declare const vectorStoreManager: any;
+declare const openai: any;
+
 const augmentor = new RetrievalAugmentor();
 await augmentor.initialize(config, embeddingManager, vectorStoreManager);
 
@@ -124,6 +131,12 @@ console.log(result.diagnostics?.hyde);
 ```typescript
 import { MultimodalIndexer, HydeRetriever } from '@framers/agentos/rag';
 
+// Stand-ins for the host-supplied dependencies.
+declare const embeddingManager: any;
+declare const vectorStore: any;
+declare const visionProvider: any;
+declare const myLlmCaller: any;
+
 const indexer = new MultimodalIndexer({
   embeddingManager,
   vectorStore,
@@ -148,6 +161,12 @@ const results = await indexer.search('architecture diagram', {
 
 ```typescript
 import { CognitiveMemoryManager, HydeRetriever } from '@framers/agentos';
+
+// Stand-ins for the host-supplied dependencies.
+declare const config: any;
+declare const myLlmCaller: any;
+declare const embeddingManager: any;
+declare const currentMood: any;
 
 const memoryManager = new CognitiveMemoryManager();
 await memoryManager.initialize(config);

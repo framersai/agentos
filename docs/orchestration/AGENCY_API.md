@@ -812,7 +812,22 @@ in what order, and how to merge their outputs -- all at runtime. Combine with
 when the static roster is insufficient.
 
 ```typescript
-import { agency } from '@framers/agentos';
+import { agency, type ITool } from '@framers/agentos';
+
+// Stand-ins for the host-supplied tools the researcher delegates to.
+// Replace with real implementations (Tavily, arxiv-api, etc.).
+const webSearchTool: ITool = {
+  name: 'web_search',
+  description: 'Search the web.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) ${query}` }),
+};
+const arxivTool: ITool = {
+  name: 'arxiv_search',
+  description: 'Search arXiv for papers.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) arxiv: ${query}` }),
+};
 
 // Hierarchical agency where manager delegates dynamically
 const dynamicTeam = agency({

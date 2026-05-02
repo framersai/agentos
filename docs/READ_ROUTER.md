@@ -79,6 +79,18 @@ import {
 
 type Answer = { text: string; citations: string[] };
 
+// Stand-ins. Replace `openaiAdapter` with whatever LLM adapter your runtime
+// exposes; replace each `myXxxReader` with the real reader strategy
+// implementation, and `query` / `evidenceChunks` with the per-request inputs.
+declare const openaiAdapter: any;
+declare const query: string;
+declare const evidenceChunks: any[];
+async function mySingleCallReader(_q: string, _e: any): Promise<Answer>      { return { text: '', citations: [] }; }
+async function myTwoCallReader(_q: string, _e: any): Promise<Answer>         { return { text: '', citations: [] }; }
+async function myCommitOrAbstainReader(_q: string, _e: any): Promise<Answer> { return { text: '', citations: [] }; }
+async function myVerbatimReader(_q: string, _e: any): Promise<Answer>        { return { text: '', citations: [] }; }
+async function myScratchpadReader(_q: string, _e: any): Promise<Answer>      { return { text: '', citations: [] }; }
+
 const router = new ReadRouter({
   classifier: new LLMReadIntentClassifier({ llm: openaiAdapter }),
   preset: 'precise-fact',

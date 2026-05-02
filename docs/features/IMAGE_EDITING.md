@@ -52,6 +52,11 @@ existing character's identity matters. See
 ```typescript
 import { editImage } from '@framers/agentos';
 
+// Stand-ins. Replace `imageBuffer` and `maskBuffer` with the actual image
+// bytes (e.g. `await fs.readFile('./photo.png')`) you want to edit.
+declare const imageBuffer: Buffer;
+declare const maskBuffer: Buffer;
+
 const result = await editImage({
   // Required
   image: imageBuffer,        // Buffer | Uint8Array | string (file path)
@@ -96,6 +101,9 @@ prompt. It is supported by all providers, though the exact behavior varies:
 ```typescript
 import { upscaleImage } from '@framers/agentos';
 
+// Stand-in for the bytes you want to upscale.
+declare const imageBuffer: Buffer;
+
 const result = await upscaleImage({
   // Required
   image: imageBuffer,
@@ -127,6 +135,9 @@ console.log(`Upscaled to ${upscaled.width}x${upscaled.height}`);
 
 ```typescript
 import { variateImage } from '@framers/agentos';
+
+// Stand-in for the seed bytes whose variations you want to generate.
+declare const imageBuffer: Buffer;
 
 const result = await variateImage({
   // Required

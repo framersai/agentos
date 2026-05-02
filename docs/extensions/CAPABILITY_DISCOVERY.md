@@ -434,6 +434,16 @@ import {
   createDiscoverCapabilitiesTool,
 } from '@framers/agentos/discovery';
 
+// Stand-ins. Replace each with the runtime-supplied instance you already
+// have (embeddingManager / vectorStore from your memory wiring; the four
+// catalog managers from your AgentOS instance).
+declare const embeddingManager: any;
+declare const vectorStore: any;
+declare const toolOrchestrator: any;
+declare const skillRegistry: any;
+declare const extensionCatalog: any;
+declare const channelRouter: any;
+
 // --- Initialization (once at startup) ---
 
 const engine = new CapabilityDiscoveryEngine(embeddingManager, vectorStore);

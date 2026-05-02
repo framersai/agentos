@@ -58,6 +58,13 @@ const samples = [
   // ... ~50-200 per (category, backend) cell
 ];
 
+// Stand-ins. Replace `openaiAdapter` with whatever LLM adapter your runtime
+// exposes; replace each `myXxx` with the real per-backend retrieval impl.
+declare const openaiAdapter: any;
+async function myHybridRetrieve(_q: string, _p: any) { return [] as any[]; }
+async function myOmV10Recall(_q: string, _p: any)    { return [] as any[]; }
+async function myOmV11Recall(_q: string, _p: any)    { return [] as any[]; }
+
 const router = new AdaptiveMemoryRouter({
   classifier: new LLMMemoryClassifier({ llm: openaiAdapter }),
   calibrationSamples: samples,

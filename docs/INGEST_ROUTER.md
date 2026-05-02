@@ -54,6 +54,18 @@ import {
   FunctionIngestDispatcher,
 } from '@framers/agentos/ingest-router';
 
+// Stand-ins for the host-side dispatchers and the LLM adapter the
+// classifier delegates to. Replace `openaiAdapter` with whatever LLM
+// adapter your runtime exposes (`OpenAIProviderAdapter`, etc.) and
+// implement each dispatch fn against your real ingest pipelines.
+declare const openaiAdapter: any;
+declare const content: string;
+async function rawIngest(_c: string)        { return 0; }
+async function summarizedIngest(_c: string) { return 0; }
+async function omIngest(_c: string)         { return 0; }
+async function factGraphIngest(_c: string)  { return 0; }
+async function hybridIngest(_c: string)     { return 0; }
+
 const router = new IngestRouter({
   classifier: new LLMIngestClassifier({ llm: openaiAdapter }),
   preset: 'summarized',
