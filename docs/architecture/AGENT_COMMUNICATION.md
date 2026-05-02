@@ -1,5 +1,7 @@
 # AgentOS Agent Communication Bus
 
+> **Live run**: side-by-side code + captured bus traffic (delegation + handoff between two GMIs) on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/agent-communication-bus.mjs`](https://github.com/framersai/agentos/blob/master/examples/agent-communication-bus.mjs).
+
 The Agent Communication Bus enables structured messaging between GMIs within an agency, supporting various communication patterns for multi-agent collaboration.
 
 ## Overview

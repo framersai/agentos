@@ -1,5 +1,7 @@
 # Agency API
 
+> **Live runs**: side-by-side code + captured output for both the `graph` strategy (research → writer ‖ illustrator → reviewer DAG) and the `sequential` strategy with streaming + HITL approval are on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/agency-graph.mjs`](https://github.com/framersai/agentos/blob/master/examples/agency-graph.mjs), [`examples/agency-streaming.mjs`](https://github.com/framersai/agentos/blob/master/examples/agency-streaming.mjs).
+
 `agency()` is the high-level multi-agent factory in AgentOS. It coordinates a
 named roster of sub-agents under a chosen orchestration strategy and returns a
 single `Agent`-compatible interface so callers can swap a single agent for an
