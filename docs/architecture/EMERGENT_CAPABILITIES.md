@@ -4,6 +4,20 @@ Agents with `emergent: true` can forge new tools at runtime when no existing cap
 
 Important: emergent tooling is a full runtime capability. Use `new AgentOS()` or another full runtime entry point that initializes `ToolOrchestrator` with emergent support. The lightweight `agent()` helper accepts `emergent` config for compatibility, but it does not activate `forge_tool` by itself.
 
+## Live run: a manager spawns a specialist mid-task
+
+![AgentOS spawning a security_audit_specialist agent at runtime, side-by-side with the source code](/img/demos/agentos-emergent-demo.png)
+
+The image above is captured from a real run of [`examples/emergent-hierarchical-spawning.mjs`](https://github.com/framersai/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs). The team starts with `researcher` + `writer`; the prompt asks for a security audit of sandbox isolation primitives, which neither static agent covers. The manager calls `spawn_specialist`, [`EmergentAgentJudge`](/api/classes/EmergentAgentJudge) approves the synthesised config, and `security_audit_specialist` joins the live roster. The `[FORGE]` line in the right panel is the moment that happens.
+
+Reproduce locally:
+
+```bash
+npm install @framers/agentos
+export OPENAI_API_KEY="sk-..."
+node examples/emergent-hierarchical-spawning.mjs
+```
+
 ## Quick Start
 
 ```typescript
