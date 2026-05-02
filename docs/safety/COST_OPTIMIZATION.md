@@ -105,8 +105,7 @@ const config: AgentOSConfig = {
   },
 };
 
-const agentos = new AgentOS();
-await agentos.initialize(config);
+const agentos = await AgentOS.create(config);
 ```
 
 ### 2. Context Window Management
@@ -552,7 +551,9 @@ interface AgentOSCostConfig {
 ### Cost Tracking
 
 ```typescript
-const agentos = new AgentOS();
+import { AgentOS } from '@framers/agentos';
+
+const agentos = await AgentOS.create();
 
 // Subscribe to cost events
 agentos.on('cost:turn', (event) => {
@@ -624,9 +625,10 @@ const dev = await AgentOS.create({ performanceTier: 'economy' });
 ### 2. Use Model Tiering in Production
 
 ```typescript
+import { AgentOS } from '@framers/agentos';
+
 // Route simple queries to cheap models
-const prod = new AgentOS();
-await prod.initialize({
+const prod = await AgentOS.create({
   modelRouting: {
     simple: { model: 'gpt-4o-mini' },
     complex: { model: 'gpt-4o' },

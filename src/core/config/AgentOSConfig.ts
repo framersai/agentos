@@ -141,6 +141,16 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     MAX_TOOL_CALL_ITERATIONS: process.env.MAX_TOOL_CALL_ITERATIONS || '5',
   };
 
+  // If DATABASE_URL isn't set, fall back to a local SQLite file so the
+  // out-of-the-box `AgentOS.create()` factory works in scratch / scripting
+  // contexts without forcing the user to wire a database first. Production
+  // deployments should still set DATABASE_URL explicitly; this default only
+  // kicks in when nothing else has been configured.
+  if (!env.DATABASE_URL) {
+    env.DATABASE_URL = 'file:./agentos.sqlite';
+    process.env.DATABASE_URL = env.DATABASE_URL;
+  }
+
   const validation = validateEnvironmentConfig(env);
 
   // Log warnings
