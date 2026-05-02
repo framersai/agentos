@@ -1,3 +1,8 @@
+## <small>0.6.5 (2026-05-02)</small>
+
+* fix(generateObject): use OpenAI strict json_schema mode + extract helpers ([6680847](https://github.com/framersai/agentos/commit/6680847))
+* fix(usage,generateObject): in-memory usage tally + auto-sized output budget ([e166147](https://github.com/framersai/agentos/commit/e166147))
+
 ## <small>0.6.4 (2026-05-02)</small>
 
 * fix(provider-defaults): bump default Anthropic model to claude-sonnet-4-5-20250929 ([16ca82c](https://github.com/framersai/agentos/commit/16ca82c))
