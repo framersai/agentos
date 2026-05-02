@@ -84,7 +84,7 @@ const result = await generateObject({
 
   // Optional
   provider: 'anthropic',             // Override default provider
-  model: 'claude-sonnet-4-20250514',           // Override default model
+  model: 'claude-sonnet-4-5-20250929',           // Override default model
   systemPrompt: 'You are an expert analyst', // System message
   temperature: 0.3,                   // Lower = more deterministic
   maxRetries: 5,                      // Validation retry limit (default: 3)

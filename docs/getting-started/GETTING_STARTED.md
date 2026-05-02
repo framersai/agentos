@@ -57,7 +57,7 @@ import { setDefaultProvider, generateText, agent } from '@framers/agentos';
 
 setDefaultProvider({
   provider: 'openai',
-  apiKey: process.env.MY_OWN_KEY,    // any source — Vault, KMS, hard-coded, etc.
+  apiKey: process.env.MY_OWN_KEY ?? process.env.OPENAI_API_KEY,  // any source — Vault, KMS, hard-coded, etc.
   // optional:
   // model: 'gpt-4o-mini',
   // baseUrl: 'https://my-proxy.example.com/v1',
@@ -69,7 +69,7 @@ const bot = agent({ instructions: 'You are a coding tutor.' });
 
 // Inline opts always win over the default (per-tenant keys, fallback providers, etc.):
 const { text: tenantReply } = await generateText({
-  apiKey: 'sk-customer-scoped-key',
+  apiKey: process.env.SCOPED_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY,
   prompt: 'tenant-isolated call',
 });
 
@@ -170,7 +170,7 @@ import { streamText } from '@framers/agentos';
 
 const stream = streamText({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5-20250929',
   prompt: 'Write a haiku about distributed systems.',
 });
 
@@ -290,7 +290,7 @@ console.log('Summary:', summary);
 // ── Step 2: Stateful session with tool-enabled agent ───────────────────────
 const coder = agent({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5-20250929',
   instructions: 'You are an expert TypeScript developer.',
   maxSteps: 4,
 });

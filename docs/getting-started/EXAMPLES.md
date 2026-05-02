@@ -142,6 +142,11 @@ import { workflow } from '@framers/agentos/orchestration';
 import { agent } from '@framers/agentos';
 import { z } from 'zod';
 
+// Stand-ins for the host-side helpers the workflow's tools delegate to.
+// Replace with your real implementations (HTTP calls, SDKs, etc.).
+async function searchTheWeb(args: Record<string, unknown>) { return { results: [] }; }
+async function postToTwitterAndLinkedIn(args: Record<string, unknown>) { return { posted: true }; }
+
 // 1. Wire up a stateful agent that the GMI nodes will delegate to. Any
 //    real-world workflow runs LLM calls through your own provider config;
 //    the workflow runtime only orchestrates — it does NOT pick a provider
@@ -759,7 +764,16 @@ Runnable source: `packages/agentos/examples/query-router-host-hooks.mjs`
 The simplest entry point: one agent, one tool, one call.
 
 ```typescript
-import { agent } from '@framers/agentos';
+import { agent, type ITool } from '@framers/agentos';
+
+// Stand-in for a real web-search tool (Tavily, Serper, Firecrawl, etc.).
+// Replace with your real implementation.
+const webSearchTool: ITool = {
+  name: 'web_search',
+  description: 'Search the web for recent information.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) results for "${query}"` }),
+};
 
 const researcher = agent({
   model: 'openai:gpt-4o',
@@ -781,7 +795,22 @@ automatically. Agents with no dependencies run first; downstream agents receive
 their predecessors' outputs as context.
 
 ```typescript
-import { agency } from '@framers/agentos';
+import { agency, type ITool } from '@framers/agentos';
+
+// Stand-ins for the host-supplied tools each agent uses. Replace with real
+// implementations (Tavily, arxiv-api, etc.).
+const webSearchTool: ITool = {
+  name: 'web_search',
+  description: 'Search the web.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) ${query}` }),
+};
+const arxivTool: ITool = {
+  name: 'arxiv_search',
+  description: 'Search arXiv for papers.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) arxiv: ${query}` }),
+};
 
 const team = agency({
   agents: {
@@ -819,11 +848,20 @@ with `maxDeltaPerSession` and skill allowlists.
 
 ```typescript
 import { agent } from '@framers/agentos';
+import { ForgeToolMetaTool, AdaptPersonalityTool } from '@framers/agentos/emergent';
+
+// The emergent toolkit ships these built-in meta-tools. Wire them into the
+// agent's tools list so the runtime exposes forge_tool / adapt_personality
+// when emergent.enabled is true.
+const forgeTool = ForgeToolMetaTool;
+const adaptPersonalityTool = AdaptPersonalityTool;
+// manageSkillsTool / selfEvaluateTool are illustrative — substitute your own
+// skills-management / self-evaluation tool implementations as needed.
 
 const adaptiveAgent = agent({
   model: 'openai:gpt-4o',
   instructions: 'You are a helpful assistant that learns and adapts.',
-  tools: [forgeTool, adaptPersonalityTool, manageSkillsTool, selfEvaluateTool],
+  tools: [forgeTool, adaptPersonalityTool],
   emergent: {
     enabled: true,
     selfImprovement: {

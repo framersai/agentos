@@ -45,7 +45,7 @@ AgentOS supports three styles for specifying provider and model. **Provider-firs
 await generateText({ provider: 'openai', prompt: '...' });
 
 // 2. Provider + explicit model — full control
-await generateText({ provider: 'anthropic', model: 'claude-sonnet-4-20250514', prompt: '...' });
+await generateText({ provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', prompt: '...' });
 
 // 3. Legacy colon format — backwards compatible, still works
 await generateText({ model: 'openai:gpt-4o', prompt: '...' });
@@ -59,10 +59,10 @@ for the requested task automatically:
 | Provider                 | Type  | Text default               | Image default                    | Embedding default        | Env var                           |
 | ------------------------ | ----- | -------------------------- | -------------------------------- | ------------------------ | --------------------------------- |
 | `openai`                 | Cloud | `gpt-4o`                   | `gpt-image-1`                    | `text-embedding-3-small` | `OPENAI_API_KEY`                  |
-| `anthropic`              | Cloud | `claude-sonnet-4-20250514` | —                                | —                        | `ANTHROPIC_API_KEY`               |
+| `anthropic`              | Cloud | `claude-sonnet-4-5-20250929` | —                                | —                        | `ANTHROPIC_API_KEY`               |
 | `gemini`                 | Cloud | `gemini-2.5-flash`         | —                                | —                        | `GEMINI_API_KEY`                  |
 | `openrouter`             | Cloud | `openai/gpt-4o`            | —                                | —                        | `OPENROUTER_API_KEY`              |
-| `claude-code-cli`        | Local | `claude-sonnet-4-20250514` | —                                | —                        | `which claude`                    |
+| `claude-code-cli`        | Local | `claude-sonnet-4-5-20250929` | —                                | —                        | `which claude`                    |
 | `gemini-cli`             | Local | `gemini-2.5-flash`         | —                                | —                        | `which gemini`                    |
 | `stability`              | Cloud | —                          | `stable-diffusion-xl-1024-v1-0`  | —                        | `STABILITY_API_KEY`               |
 | `replicate`              | Cloud | —                          | `black-forest-labs/flux-1.1-pro` | —                        | `REPLICATE_API_TOKEN`             |

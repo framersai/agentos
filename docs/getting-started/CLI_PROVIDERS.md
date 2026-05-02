@@ -34,7 +34,7 @@ The generalized subprocess bridge lives at `packages/agentos/src/sandbox/subproc
 
 | Provider ID | Binary | Auth | Default Model | Status |
 |---|---|---|---|---|
-| `claude-code-cli` | `claude` | Anthropic Max subscription | `claude-sonnet-4-20250514` | **Confirmed — officially supported by Anthropic** |
+| `claude-code-cli` | `claude` | Anthropic Max subscription | `claude-sonnet-4-5-20250929` | **Confirmed — officially supported by Anthropic** |
 | `gemini-cli` | `gemini` | Google account login | `gemini-2.5-flash` | **Use at your own risk — see ToS warning below** |
 
 ## Terms of Service Compliance

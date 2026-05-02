@@ -55,7 +55,7 @@ AgentOS abstracts LLM access behind a unified `IProvider` interface. You configu
 | Provider | Env Var | Default Model | Streaming | Tool Calling | Vision | Embedding | Cost Tier |
 |----------|---------|---------------|-----------|--------------|--------|-----------|-----------|
 | **OpenAI** | `OPENAI_API_KEY` | `gpt-4o` | Yes | Yes | Yes | Yes | $$$ |
-| **Anthropic** | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` | Yes | Yes | Yes | No | $$$ |
+| **Anthropic** | `ANTHROPIC_API_KEY` | `claude-sonnet-4-5-20250929` | Yes | Yes | Yes | No | $$$ |
 | **Gemini** | `GEMINI_API_KEY` | `gemini-2.5-flash` | Yes | Yes | Yes | Yes | $$ |
 | **Groq** | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Yes | Yes | No | No | $ |
 | **Together** | `TOGETHER_API_KEY` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | Yes | Yes | No | Yes | $ |
@@ -63,7 +63,7 @@ AgentOS abstracts LLM access behind a unified `IProvider` interface. You configu
 | **xAI** | `XAI_API_KEY` | `grok-2` | Yes | Yes | Yes | No | $$ |
 | **OpenRouter** | `OPENROUTER_API_KEY` | `openai/gpt-4o` | Yes | Yes | Yes* | Yes* | Varies |
 | **Ollama** | `OLLAMA_BASE_URL` | `llama3.2` | Yes | Partial | Model-dep. | Yes | Free |
-| **Claude Code CLI** | _(PATH detection)_ | `claude-sonnet-4-20250514` | Yes | Yes | Yes | No | Free* |
+| **Claude Code CLI** | _(PATH detection)_ | `claude-sonnet-4-5-20250929` | Yes | Yes | Yes | No | Free* |
 | **Gemini CLI** | _(PATH detection)_ | `gemini-2.5-flash` | Yes | Partial** | Yes | No | Free* |
 
 *CLI providers use your existing subscription — $0 per token.
@@ -100,7 +100,7 @@ import { agent } from '@framers/agentos';
 
 const myAgent = agent({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5-20250929',
 });
 ```
 
@@ -178,7 +178,7 @@ import { agent } from '@framers/agentos';
 
 const writer = agent({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5-20250929',
   apiKey: process.env.ANTHROPIC_API_KEY, // optional override
 });
 ```
@@ -208,10 +208,10 @@ import { agent } from '@framers/agentos';
 
 const myAgent = agent({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5-20250929',
   // Ordered fallback chain — each entry can override the model.
   fallbackProviders: [
-    { provider: 'openrouter', model: 'anthropic/claude-sonnet-4-20250514' },
+    { provider: 'openrouter', model: 'anthropic/claude-sonnet-4-5-20250929' },
     { provider: 'ollama',     model: 'llama3.2' },
   ],
   onFallback: (err, next) => {
@@ -298,7 +298,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 | Model | Context | Vision | Tool Calling | Notes |
 |-------|---------|--------|-------------|-------|
 | `claude-opus-4-20250514` | 200K | Yes | Yes | Most capable |
-| `claude-sonnet-4-20250514` | 200K | Yes | Yes | Best value |
+| `claude-sonnet-4-5-20250929` | 200K | Yes | Yes | Best value |
 | `claude-haiku-3-5-20241022` | 200K | Yes | Yes | Fastest |
 
 ### Google Gemini
@@ -376,13 +376,13 @@ import { agent } from '@framers/agentos';
 
 const myAgent = agent({
   provider: 'openrouter',
-  model: 'anthropic/claude-sonnet-4-20250514',
+  model: 'anthropic/claude-sonnet-4-5-20250929',
 });
 ```
 
 Popular OpenRouter models:
 - `openai/gpt-4o`
-- `anthropic/claude-sonnet-4-20250514`
+- `anthropic/claude-sonnet-4-5-20250929`
 - `google/gemini-2.5-flash`
 - `meta-llama/llama-3.3-70b-instruct`
 
@@ -425,7 +425,7 @@ import { agent } from '@framers/agentos';
 
 const myAgent = agent({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-5-20250929',
   apiKey: process.env.ANTHROPIC_API_KEY,        // optional override
   baseUrl: undefined,                           // optional custom base URL
 });
