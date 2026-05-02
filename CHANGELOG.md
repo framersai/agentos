@@ -1,3 +1,7 @@
+## <small>0.6.4 (2026-05-02)</small>
+
+* fix(provider-defaults): bump default Anthropic model to claude-sonnet-4-5-20250929 ([16ca82c](https://github.com/framersai/agentos/commit/16ca82c))
+
 ## <small>0.6.3 (2026-05-01)</small>
 
 * feat(api): add setProviderPriority() to reorder the auto-detect chain ([786c565](https://github.com/framersai/agentos/commit/786c565))
