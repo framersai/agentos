@@ -483,9 +483,9 @@ graph TD
 Any compiled graph supports durable checkpoints. Swap in a persistent store for production — the interface is the same.
 
 ```typescript
-import { SqliteCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
+import { InMemoryCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
 
-const store = new SqliteCheckpointStore('./runs.db');
+const store = new InMemoryCheckpointStore('./runs.db');
 
 const graph = new AgentGraph({ /* ... */ })
   .compile({ checkpointStore: store, checkpointPolicy: 'every_node' });

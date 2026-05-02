@@ -166,7 +166,7 @@ GMI steps inside `workflow()` always run in `single_turn` mode — the `executio
 
 ```typescript
 const compiled = wf.compile({
-  checkpointStore: new SqliteCheckpointStore('./runs.db'), // optional
+  checkpointStore: new InMemoryCheckpointStore('./runs.db'), // optional
 });
 ```
 
@@ -194,7 +194,7 @@ const ir = compiled.toIR();
 
 ```typescript
 import { workflow } from '@framers/agentos/orchestration';
-import { SqliteCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
+import { InMemoryCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
 import { z } from 'zod';
 
 const onboarding = workflow('user-onboarding')
@@ -258,7 +258,7 @@ const onboarding = workflow('user-onboarding')
   })
 
   .compile({
-    checkpointStore: new SqliteCheckpointStore('./onboarding.db'),
+    checkpointStore: new InMemoryCheckpointStore('./onboarding.db'),
   });
 
 // Run

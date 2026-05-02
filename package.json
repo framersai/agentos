@@ -73,6 +73,41 @@
       "types": "./dist/core/llm/routing/UncensoredModelCatalog.d.ts"
     },
     "./config/extension-secrets.json": "./dist/config/extension-secrets.json",
+    "./provenance": {
+      "import": "./dist/provenance/index.js",
+      "default": "./dist/provenance/index.js",
+      "types": "./dist/provenance/index.d.ts"
+    },
+    "./channels": {
+      "import": "./dist/channels/index.js",
+      "default": "./dist/channels/index.js",
+      "types": "./dist/channels/index.d.ts"
+    },
+    "./channels/social-posting": {
+      "import": "./dist/channels/social-posting/index.js",
+      "default": "./dist/channels/social-posting/index.js",
+      "types": "./dist/channels/social-posting/index.d.ts"
+    },
+    "./social-posting": {
+      "import": "./dist/channels/social-posting/index.js",
+      "default": "./dist/channels/social-posting/index.js",
+      "types": "./dist/channels/social-posting/index.d.ts"
+    },
+    "./emergent": {
+      "import": "./dist/emergent/index.js",
+      "default": "./dist/emergent/index.js",
+      "types": "./dist/emergent/index.d.ts"
+    },
+    "./sandbox/subprocess": {
+      "import": "./dist/sandbox/subprocess/index.js",
+      "default": "./dist/sandbox/subprocess/index.js",
+      "types": "./dist/sandbox/subprocess/index.d.ts"
+    },
+    "./orchestration/checkpoint": {
+      "import": "./dist/orchestration/checkpoint/index.js",
+      "default": "./dist/orchestration/checkpoint/index.js",
+      "types": "./dist/orchestration/checkpoint/index.d.ts"
+    },
     "./skills": {
       "import": "./dist/skills.js",
       "default": "./dist/skills.js",

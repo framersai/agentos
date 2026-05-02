@@ -40,7 +40,7 @@ AgentOS ships five official guardrail extension packs as standalone packages:
 
 ```typescript
 import { AgentOS } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+import { createTestAgentOSConfig } from '@framers/agentos';
 import {
   IGuardrailService,
   GuardrailAction,

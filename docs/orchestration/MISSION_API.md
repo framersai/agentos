@@ -144,7 +144,7 @@ All constraint fields are optional — an anchor with no constraints is appended
 
 ```typescript
 const compiled = mission(...).compile({
-  checkpointStore: new SqliteCheckpointStore('./missions.db'), // optional
+  checkpointStore: new InMemoryCheckpointStore('./missions.db'), // optional
 });
 ```
 
@@ -199,7 +199,7 @@ const outerGraph = new AgentGraph(outerState)
 
 ```typescript
 import { mission, toolNode, humanNode } from '@framers/agentos/orchestration';
-import { SqliteCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
+import { InMemoryCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
 import { z } from 'zod';
 
 const deepResearch = mission('deep-research')
@@ -241,7 +241,7 @@ const deepResearch = mission('deep-research')
   )
 
   .compile({
-    checkpointStore: new SqliteCheckpointStore('./research.db'),
+    checkpointStore: new InMemoryCheckpointStore('./research.db'),
   });
 
 // Inspect the plan before running

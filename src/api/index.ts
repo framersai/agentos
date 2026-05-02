@@ -36,6 +36,14 @@ export { embedText } from './embedText.js';
 export { generateImage } from './generateImage.js';
 export { transferStyle } from './transferStyle.js';
 
+// --- Global default provider config ---
+export {
+  setDefaultProvider,
+  getDefaultProvider,
+  clearDefaultProvider,
+  type GlobalDefaultProvider,
+} from './runtime/global-default.js';
+
 // --- Agent & Agency ---
 export { agent } from './agent.js';
 export { agency } from './agency.js';

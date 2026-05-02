@@ -297,6 +297,14 @@ export { streamObject } from './api/streamObject.js';
 export type { StreamObjectOptions, StreamObjectResult, DeepPartial } from './api/streamObject.js';
 export { embedText } from './api/embedText.js';
 export type { EmbedTextOptions, EmbedTextResult } from './api/embedText.js';
+export { transferStyle } from './api/transferStyle.js';
+export { createTestAgentOSConfig } from './core/config/AgentOSConfig.js';
+export {
+  setDefaultProvider,
+  getDefaultProvider,
+  clearDefaultProvider,
+  type GlobalDefaultProvider,
+} from './api/runtime/global-default.js';
 export { parseModelString, resolveProvider, resolveModelOption } from './api/model.js';
 export { PROVIDER_DEFAULTS, autoDetectProvider } from './api/runtime/provider-defaults.js';
 export type { ProviderDefaults } from './api/runtime/provider-defaults.js';

@@ -593,7 +593,7 @@ Runnable source: `packages/agentos/examples/agentos-config-tools.mjs`
 
 ```typescript
 import { AgentOS } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+import { createTestAgentOSConfig } from '@framers/agentos';
 
 const agent = new AgentOS();
 

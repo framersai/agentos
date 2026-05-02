@@ -4,7 +4,7 @@ The AgentOS Unified Orchestration Layer has built-in support for checkpoints, re
 
 > Status note:
 > `InMemoryCheckpointStore` is implemented and used by default.
-> `SqliteCheckpointStore` is still planned, not shipped in this package yet.
+> `InMemoryCheckpointStore` is still planned, not shipped in this package yet.
 
 ## ICheckpointStore
 

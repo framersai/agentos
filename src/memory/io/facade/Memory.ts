@@ -312,6 +312,25 @@ export class Memory {
    * await Memory.createSqlite({ path: './brain.sqlite', graph: true });
    * ```
    */
+  /**
+   * Backwards-compatible alias for {@link Memory.createSqlite}. The earlier
+   * surface accepted `Memory.create(config)` and several published docs and
+   * blog posts still reference it; rather than break those examples we
+   * forward to `createSqlite` (the modern, more explicit factory).
+   *
+   * For non-SQLite backends call {@link Memory.createPostgres} or
+   * {@link Memory.createWithAdapter} directly.
+   */
+  static async create(
+    pathOrConfig?: string | MemoryConfig,
+    opts: Omit<MemoryConfig, 'store' | 'path'> & {
+      brainId?: string;
+      priority?: ('better-sqlite3' | 'sqljs' | 'indexeddb')[];
+    } = {},
+  ): Promise<Memory> {
+    return Memory.createSqlite(pathOrConfig, opts);
+  }
+
   static async createSqlite(
     pathOrConfig?: string | MemoryConfig,
     opts: Omit<MemoryConfig, 'store' | 'path'> & {

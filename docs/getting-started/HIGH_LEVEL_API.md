@@ -533,7 +533,7 @@ Runnable examples in the package source:
 
 ```ts
 import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
-import { createTestAgentOSConfig } from '@framers/agentos/config/AgentOSConfig';
+import { createTestAgentOSConfig } from '@framers/agentos';
 
 const agent = new AgentOS();
 await agent.initialize(

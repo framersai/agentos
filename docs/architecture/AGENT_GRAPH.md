@@ -261,7 +261,7 @@ const graph = new AgentGraph(stateSchema, {
 
 ```typescript
 const compiled = graph.compile({
-  checkpointStore: new SqliteCheckpointStore('./runs.db'),
+  checkpointStore: new InMemoryCheckpointStore('./runs.db'),
   validate: true, // default — throws on unreachable nodes or structural errors
 });
 ```
@@ -321,7 +321,7 @@ import {
   AgentGraph, START, END,
   gmiNode, toolNode, humanNode,
 } from '@framers/agentos/orchestration';
-import { SqliteCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
+import { InMemoryCheckpointStore } from '@framers/agentos/orchestration/checkpoint';
 import { z } from 'zod';
 
 const ResearchState = {
@@ -405,7 +405,7 @@ const graph = new AgentGraph(ResearchState, {
   .addEdge('review', END)
 
   .compile({
-    checkpointStore: new SqliteCheckpointStore('./research-checkpoints.db'),
+    checkpointStore: new InMemoryCheckpointStore('./research-checkpoints.db'),
   });
 
 // Run
