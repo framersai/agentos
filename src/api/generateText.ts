@@ -649,13 +649,27 @@ function formatPlanForPrompt(plan: Plan): string {
  *
  * @internal
  */
+const RETRYABLE_HTTP_STATUSES = new Set([401, 402, 403, 429, 500, 502, 503, 504]);
+
 export function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
+
+  // Typed provider errors carry the HTTP status as a numeric field. Prefer that
+  // over message-grepping, since providers often substitute the body description
+  // (e.g. "This request requires more credits...") for the status code.
+  const status = (error as { httpStatus?: unknown }).httpStatus;
+  if (typeof status === 'number' && RETRYABLE_HTTP_STATUSES.has(status)) return true;
+
   const msg = error.message;
-  // HTTP status codes that warrant a provider switch
+  // HTTP status codes that warrant a provider switch (string-grepped fallback
+  // when the error type is not a typed provider error).
   if (/\b(402|429|500|502|503|504|401|403)\b/.test(msg)) return true;
   // Network-level failures
   if (/fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) return true;
+  // Provider-specific phrases that always imply a retryable condition.
+  if (/requires more credits|insufficient credits|rate limit|quota|exceeded your current quota/i.test(msg)) {
+    return true;
+  }
   return false;
 }
 
