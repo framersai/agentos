@@ -9,11 +9,12 @@
 1. [Installation](#installation)
 2. [Environment Setup](#environment-setup)
 3. [Core Concepts](#core-concepts)
-4. [Level 1 — Single Text Generation](#level-1--single-text-generation)
-5. [Level 2 — Stateful Agent Session](#level-2--stateful-agent-session)
-6. [Level 3 — Multi-Agent Agency](#level-3--multi-agent-agency)
-7. [First End-to-End Example](#first-end-to-end-example)
-8. [What's Next](#whats-next)
+4. [Provider Configuration](#provider-configuration)
+5. [Level 1 — Single Text Generation](#level-1--single-text-generation)
+6. [Level 2 — Stateful Agent Session](#level-2--stateful-agent-session)
+7. [Level 3 — Multi-Agent Agency](#level-3--multi-agent-agency)
+8. [First End-to-End Example](#first-end-to-end-example)
+9. [What's Next](#whats-next)
 
 ---
 
@@ -196,15 +197,31 @@ Personality vectors, multimodal RAG, streaming guardrails, channel adapters, and
 
 ---
 
+## Provider Configuration
+
+Every entry point (`generateText`, `streamText`, `generateObject`, `agent`, `agency`, etc.) accepts the same three provider fields:
+
+| Field | Required? | Default | Notes |
+|---|---|---|---|
+| `provider` | yes | none | One of `openai`, `anthropic`, `gemini`, `ollama`, `groq`, `together`, `fireworks`, `perplexity`, `mistral`, `cohere`, `deepseek`, `xai`, `bedrock`, `qwen`, `moonshot`, `openrouter`, plus the CLI bridges. |
+| `model` | no | provider-specific (`gpt-4o`, `claude-sonnet-4-6`, `gemini-2.5-pro`, `llama3.3` for Ollama, etc.) | Pin explicitly for stability across package upgrades. Use a current model id; retired snapshots return 404. |
+| `apiKey` | no | env auto-detect (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.; full chain in [Environment Setup](#environment-setup)) | Pass explicitly for multi-tenant apps and to avoid coupling code to env var names. |
+
+The examples below use the same explicit shape across all three levels. If you would rather rely on the auto-detect chain plus the provider's default model, omit `model` and `apiKey` — the calls still work as long as the env var is set.
+
+---
+
 ## Level 1 — Single Text Generation
 
-One call, no state, no setup:
+One call, no state, no agent loop:
 
 ```typescript
 import { generateText } from '@framers/agentos';
 
 const { text } = await generateText({
   provider: 'openai',
+  model: 'gpt-4o',
+  apiKey: process.env.OPENAI_API_KEY,
   prompt: 'Explain the TCP three-way handshake in three bullet points.',
 });
 
@@ -218,7 +235,8 @@ import { streamText } from '@framers/agentos';
 
 const stream = streamText({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-5-20250929',
+  model: 'claude-sonnet-4-6',
+  apiKey: process.env.ANTHROPIC_API_KEY,
   prompt: 'Write a haiku about distributed systems.',
 });
 
@@ -231,15 +249,18 @@ for await (const chunk of stream.textStream) {
 
 ## Level 2 — Stateful Agent Session
 
-Three lines to create a multi-turn assistant that remembers context:
+`agent()` adds the loop, sessions, working memory, and tool calling on top of a Level 1 call:
 
 ```typescript
 import { agent } from '@framers/agentos';
 
 const assistant = agent({
   provider: 'openai',
+  model: 'gpt-4o',
+  apiKey: process.env.OPENAI_API_KEY,
   instructions: 'You are a helpful coding assistant.',
 });
+
 const session = assistant.session('my-session');
 const reply = await session.send('What is a closure in JavaScript?');
 
@@ -254,24 +275,28 @@ console.log(followUp.text);
 
 ## Level 3 — Multi-Agent Agency
 
-Five lines to orchestrate a team of specialized agents:
+`agency()` coordinates a team of agents under a chosen strategy:
 
 ```typescript
 import { agency } from '@framers/agentos';
 
 const team = agency({
   provider: 'openai',
+  model: 'gpt-4o',
+  apiKey: process.env.OPENAI_API_KEY,
   strategy: 'sequential',
   agents: {
     researcher: { instructions: 'Find key facts about the topic.' },
-    writer: { instructions: 'Synthesize the facts into a clear summary.' },
-    reviewer: { instructions: 'Check for accuracy and suggest improvements.' },
+    writer:     { instructions: 'Synthesize the facts into a clear summary.' },
+    reviewer:   { instructions: 'Check for accuracy and suggest improvements.' },
   },
 });
 
 const result = await team.generate('Explain how large language models work.');
 console.log(result.text);
 ```
+
+Per-agent overrides: any sub-agent in the `agents` map can declare its own `provider`, `model`, and `apiKey` to route specific roles to specific models (for example, a `gpt-5-mini` reviewer with a `claude-sonnet-4-6` researcher).
 
 ---
 
