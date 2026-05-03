@@ -1,3 +1,7 @@
+## <small>0.6.10 (2026-05-03)</small>
+
+* fix(openrouter): default max_tokens to 4096 to avoid OR credit-reservation 402 on short prompts ([0a139a9](https://github.com/framersai/agentos/commit/0a139a9))
+
 ## <small>0.6.9 (2026-05-03)</small>
 
 * fix(api): strip date suffix when remapping anthropic models to OpenRouter fallback ([6512a50](https://github.com/framersai/agentos/commit/6512a50))
