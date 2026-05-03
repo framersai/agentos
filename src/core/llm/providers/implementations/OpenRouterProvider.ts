@@ -685,8 +685,12 @@ export class OpenRouterProvider implements IProvider {
         errorMessage = error.message;
       }
 
+      // Prefix the status code into the message so downstream retry/fallback
+      // logic (e.g. isRetryableError, which greps for \b402\b) can route on it
+      // even when the OR API body provides a friendlier description.
+      const decoratedMessage = statusCode ? `[${statusCode}] ${errorMessage}` : errorMessage;
       throw new OpenRouterProviderError(
-        errorMessage,
+        decoratedMessage,
         'API_REQUEST_FAILED',
         statusCode,
         errorType,
