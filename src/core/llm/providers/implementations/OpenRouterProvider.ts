@@ -265,7 +265,12 @@ export class OpenRouterProvider implements IProvider {
       stream: false,
       ...(options.temperature !== undefined && { temperature: options.temperature }),
       ...(options.topP !== undefined && { top_p: options.topP }),
-      ...(options.maxTokens !== undefined && { max_tokens: options.maxTokens }),
+      // OpenRouter reserves credits up to max_tokens at request time. When the
+      // caller doesn't specify a limit, OR falls back to the model's full output
+      // capacity (e.g. 64000 for claude-haiku-4-5), which causes 402 credit-required
+      // errors on accounts without enough buffer. Default to 4096 — the same value
+      // AnthropicProvider uses — so short prompts succeed without explicit tuning.
+      max_tokens: options.maxTokens ?? 4096,
       ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
       ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
       ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
@@ -304,7 +309,12 @@ export class OpenRouterProvider implements IProvider {
       stream_options: { include_usage: true },
       ...(options.temperature !== undefined && { temperature: options.temperature }),
       ...(options.topP !== undefined && { top_p: options.topP }),
-      ...(options.maxTokens !== undefined && { max_tokens: options.maxTokens }),
+      // OpenRouter reserves credits up to max_tokens at request time. When the
+      // caller doesn't specify a limit, OR falls back to the model's full output
+      // capacity (e.g. 64000 for claude-haiku-4-5), which causes 402 credit-required
+      // errors on accounts without enough buffer. Default to 4096 — the same value
+      // AnthropicProvider uses — so short prompts succeed without explicit tuning.
+      max_tokens: options.maxTokens ?? 4096,
       ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
       ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
       ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
