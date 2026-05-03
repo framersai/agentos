@@ -1,3 +1,7 @@
+## <small>0.6.11 (2026-05-03)</small>
+
+* fix(openrouter): prefix HTTP status in error message so isRetryableError catches 402/429 ([3271ba5](https://github.com/framersai/agentos/commit/3271ba5))
+
 ## <small>0.6.10 (2026-05-03)</small>
 
 * fix(openrouter): default max_tokens to 4096 to avoid OR credit-reservation 402 on short prompts ([0a139a9](https://github.com/framersai/agentos/commit/0a139a9))
