@@ -1,3 +1,7 @@
+## <small>0.6.8 (2026-05-03)</small>
+
+* fix: route /extensions and /skills to canonical section pages ([369f418](https://github.com/framersai/agentos/commit/369f418))
+
 ## <small>0.6.7 (2026-05-03)</small>
 
 * feat(seo): expand npm metadata — homepage, repository, bugs, richer description and keywords ([860e69a](https://github.com/framersai/agentos/commit/860e69a))
