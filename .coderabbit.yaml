@@ -1,0 +1,39 @@
+# CodeRabbit configuration.
+#
+# Skips internal-planning docs that are intentionally untracked from
+# the public repos (per the project-wide rule that `docs/superpowers/`,
+# `docs/specs/`, `docs/plans/`, etc. stay local-only). Without this
+# config, any review window that spans an "untrack internal docs"
+# commit pulls hundreds of historical deletions into the diff and
+# trips CodeRabbit's 300-file PR cap with `Review failed: Too many
+# files!`.
+#
+# Reference: https://docs.coderabbit.ai/reference/yaml-template
+language: en-US
+reviews:
+  path_filters:
+    # Internal planning + workflow content — kept local, never published.
+    - "!docs/superpowers/**"
+    - "!docs/specs/**"
+    - "!docs/plans/**"
+    - "!docs/decisions/**"
+    - "!.superpowers/**"
+    # Same-pattern legacy session/phase planning files at the docs root.
+    - "!docs/STEP_*_FINDINGS_*.md"
+    - "!docs/PHASE_*.md"
+    - "!docs/STAGE_*.md"
+    - "!docs/SESSION_*.md"
+    - "!docs/NEXT-SESSION*"
+    - "!docs/*handoff*.md"
+    - "!docs/*-v*-plan*.md"
+    # Build / dependency / vendor noise — coderabbit usually filters
+    # these by default, but reasserting them keeps the cap-prevention
+    # contract explicit and survives upstream default changes.
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/.next/**"
+    - "!**/coverage/**"
+    - "!**/*.lock"
+    - "!**/pnpm-lock.yaml"
+    - "!**/package-lock.json"
+    - "!**/yarn.lock"
