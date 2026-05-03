@@ -1,3 +1,7 @@
+## <small>0.6.12 (2026-05-03)</small>
+
+* fix(api): isRetryableError reads httpStatus + matches credit/quota phrases ([52ddad7](https://github.com/framersai/agentos/commit/52ddad7))
+
 ## <small>0.6.11 (2026-05-03)</small>
 
 * fix(openrouter): prefix HTTP status in error message so isRetryableError catches 402/429 ([3271ba5](https://github.com/framersai/agentos/commit/3271ba5))
