@@ -142,11 +142,15 @@ export function resolveProvider(
   if (providerId === 'anthropic' && !apiKey) {
     const orKey = process.env['OPENROUTER_API_KEY'];
     if (orKey) {
+      // Anthropic's native API takes dated model IDs (e.g. "claude-haiku-4-5-20251001").
+      // OpenRouter exposes Anthropic models under dateless slugs (e.g. "anthropic/claude-haiku-4-5").
+      // Strip a trailing -YYYYMMDD release-date suffix when remapping so the OR call resolves.
+      const orModelId = modelId.replace(/-\d{8}$/, '');
       console.warn(
-        `[AgentOS] ANTHROPIC_API_KEY not set — falling back to OpenRouter for model "${modelId}". ` +
-        `Set ANTHROPIC_API_KEY for direct access.`
+        `[AgentOS] ANTHROPIC_API_KEY not set — falling back to OpenRouter for model "${modelId}" ` +
+        `(routed as "anthropic/${orModelId}"). Set ANTHROPIC_API_KEY for direct access.`
       );
-      return { providerId: 'openrouter', modelId: `anthropic/${modelId}`, apiKey: orKey };
+      return { providerId: 'openrouter', modelId: `anthropic/${orModelId}`, apiKey: orKey };
     }
     throw new Error(`No API key for anthropic. Set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.`);
   }
