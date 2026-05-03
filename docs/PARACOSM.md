@@ -245,7 +245,7 @@ import {
 Full type reference is auto-generated from source at [/paracosm](/paracosm). The core types:
 
 - [`ScenarioPackage`](/paracosm/engine/interfaces/ScenarioPackage): domain-agnostic scenario bundle
-- [`ActorConfig`](/paracosm/runtime/interfaces/ActorConfig): commander identity plus HEXACO profile (or pluggable `traitProfile`)
+- `ActorConfig`: commander identity plus HEXACO profile (or pluggable `traitProfile`); imported via `paracosm/runtime`
 - [`HexacoProfile`](/paracosm/engine/interfaces/HexacoProfile): six-axis personality vector
 - [`SimulationKernel`](/paracosm/engine/classes/SimulationKernel): deterministic state machine
 - [`runSimulation`](/paracosm/runtime/functions/runSimulation): single-leader turn loop, returns `Promise<RunArtifact>`
