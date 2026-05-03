@@ -31,7 +31,7 @@
     "High-Level API": "https://docs.agentos.sh/getting-started/high-level-api",
     "Unified Orchestration": "https://docs.agentos.sh/features/unified-orchestration",
     "Guardrails": "https://docs.agentos.sh/features/guardrails",
-    "Skills": "https://docs.agentos.sh/skills/overview"
+    "Skills": "https://docs.agentos.sh/skills"
   },
   "plugin": [],
   "theme": "default",

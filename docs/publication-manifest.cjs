@@ -283,7 +283,7 @@ const publicationManifest = [
   entry({
     sourceType: 'canonical-guide',
     sourcePath: 'packages/agentos/docs/SKILLS_OVERVIEW.md',
-    dest: 'skills/overview.md',
+    dest: 'skills/index.md',
     title: 'Skills Overview',
     section: 'Skills',
     position: 1,
@@ -314,7 +314,7 @@ const publicationManifest = [
     position: 4,
   }),
 
-  extensionDoc('README.md', 'extensions/overview.md', 'Extensions Overview', 1, {
+  extensionDoc('README.md', 'extensions/index.md', 'Extensions Overview', 1, {
     categoryIndex: true,
   }),
   extensionDoc('HOW_EXTENSIONS_WORK.md', 'extensions/how-extensions-work.md', 'How Extensions Work', 2),
