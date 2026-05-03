@@ -1,3 +1,7 @@
+## <small>0.6.9 (2026-05-03)</small>
+
+* fix(api): strip date suffix when remapping anthropic models to OpenRouter fallback ([6512a50](https://github.com/framersai/agentos/commit/6512a50))
+
 ## <small>0.6.8 (2026-05-03)</small>
 
 * fix: route /extensions and /skills to canonical section pages ([369f418](https://github.com/framersai/agentos/commit/369f418))
