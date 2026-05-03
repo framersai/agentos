@@ -8,11 +8,12 @@
 
 1. [Installation](#installation)
 2. [Environment Setup](#environment-setup)
-3. [Level 1 — Single Text Generation](#level-1--single-text-generation)
-4. [Level 2 — Stateful Agent Session](#level-2--stateful-agent-session)
-5. [Level 3 — Multi-Agent Agency](#level-3--multi-agent-agency)
-6. [First End-to-End Example](#first-end-to-end-example)
-7. [What's Next](#whats-next)
+3. [Core Concepts](#core-concepts)
+4. [Level 1 — Single Text Generation](#level-1--single-text-generation)
+5. [Level 2 — Stateful Agent Session](#level-2--stateful-agent-session)
+6. [Level 3 — Multi-Agent Agency](#level-3--multi-agent-agency)
+7. [First End-to-End Example](#first-end-to-end-example)
+8. [What's Next](#whats-next)
 
 ---
 
@@ -145,6 +146,53 @@ const { text: local } = await generateText({
 ```
 
 All high-level functions support `apiKey`: `generateText`, `streamText`, `generateObject`, `streamObject`, `generateImage`, `generateVideo`, `generateMusic`, `generateSFX`, `embedText`, `performOCR`, `agent`, and `agency`.
+
+---
+
+## Core Concepts
+
+Before the code, four parts and how they fit together.
+
+```mermaid
+flowchart LR
+    User([user input]) --> Agent
+
+    subgraph Agent["Agent"]
+        direction TB
+        Loop[the loop + decision logic]
+    end
+
+    Agent --> LLM[/"LLM<br/>(provider of choice)"/]
+    Agent <--> Memory[("Memory<br/>working + cognitive store")]
+    Agent --> Tools[/"Tools<br/>functions the agent can call"/]
+
+    LLM --> Agent
+    Tools --> Agent
+
+    Agent --> Output([response])
+
+    classDef accent fill:#0041ff,stroke:#0041ff,color:#fff,rx:6
+    classDef store fill:#1e293b,stroke:#475569,color:#e2e8f0,rx:6
+    classDef io fill:none,stroke:#94a3b8,color:#475569,rx:6
+    class Agent accent
+    class Memory store
+    class LLM,Tools io
+```
+
+- **Agent** — the runtime loop. Receives input, calls the LLM, executes tool calls, retrieves memory, returns a response. `agent()` and `agency()` are the two factories that build one.
+- **LLM** — the language model. AgentOS routes through 21 provider adapters; the agent does not care which one you pick.
+- **Memory** — what survives across turns and sessions. Working memory (short-term scratchpad) plus cognitive memory (episodic, semantic, procedural traces with Ebbinghaus decay, retrieval-induced forgetting, and reconsolidation).
+- **Tools** — functions the agent can invoke when the LLM decides it needs one. Pre-registered tools work the same way runtime-generated tools do once approved by the LLM judge.
+
+The three levels below build on this picture:
+
+| Level | API | What it adds |
+|---|---|---|
+| 1 | `generateText()` / `streamText()` | one LLM call, no agent loop, no memory, no tools |
+| 2 | `agent()` | the loop, sessions, working memory, tool calling |
+| 3 | `agency()` | multiple agents under a coordination strategy; optional runtime tool generation and specialist spawning |
+
+Personality vectors, multimodal RAG, streaming guardrails, channel adapters, and the voice pipeline layer on top of any level.
 
 ---
 
