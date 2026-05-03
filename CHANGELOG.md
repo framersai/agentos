@@ -1,3 +1,24 @@
+## <small>0.6.7 (2026-05-03)</small>
+
+* feat(seo): expand npm metadata — homepage, repository, bugs, richer description and keywords ([860e69a](https://github.com/framersai/agentos/commit/860e69a))
+* chore(coderabbit): skip internal planning docs to prevent 300-file cap ([739ee50](https://github.com/framersai/agentos/commit/739ee50))
+* chore(deps): bump @framers/* to latest npm versions ([1c682f0](https://github.com/framersai/agentos/commit/1c682f0))
+* add core concepts overview before level-based examples ([c28f15b](https://github.com/framersai/agentos/commit/c28f15b))
+* add live run screenshot to emergent capabilities doc ([b6a6853](https://github.com/framersai/agentos/commit/b6a6853))
+* add live-run gallery references to feature docs ([c3fe2f5](https://github.com/framersai/agentos/commit/c3fe2f5))
+* drop broken actorconfig link to unblock live-docs build ([59485d8](https://github.com/framersai/agentos/commit/59485d8))
+* fix three broken examples and drop dead blog links ([b4d9109](https://github.com/framersai/agentos/commit/b4d9109))
+* fix(config,docs): default DATABASE_URL + finish COST_OPTIMIZATION rewrite ([39dfc23](https://github.com/framersai/agentos/commit/39dfc23))
+* fix(personas,docs): tolerate missing personas dir + accept personaSource alias ([07bbc8b](https://github.com/framersai/agentos/commit/07bbc8b))
+* lead readme with tool generation and specialist spawning ([b27495b](https://github.com/framersai/agentos/commit/b27495b))
+* standardize provider config across getting-started examples ([5185216](https://github.com/framersai/agentos/commit/5185216))
+* streamline readme: hoist ecosystem, compress emergent and benchmarks ([734aeba](https://github.com/framersai/agentos/commit/734aeba))
+* docs: add LongMemEval-S 85.6% + LongMemEval-M 70.2% + agentos-bench badges ([c522da7](https://github.com/framersai/agentos/commit/c522da7))
+* docs: bump stale model id + add helper stubs for tutorial-style snippets ([17119b6](https://github.com/framersai/agentos/commit/17119b6))
+* docs: stub host-side dependencies in router/RAG/discovery snippets ([9b7892d](https://github.com/framersai/agentos/commit/9b7892d))
+* docs(paracosm): align tagline with agent-swarm + world-modeling positioning + swarm API surface ([9110b36](https://github.com/framersai/agentos/commit/9110b36))
+* docs(paracosm): fix LeaderConfig→ActorConfig stale type reference ([17b590f](https://github.com/framersai/agentos/commit/17b590f))
+
 ## <small>0.6.6 (2026-05-02)</small>
 
 * feat(api): AgentOS.create() factory + z re-export + doc rewrites ([f7aea7a](https://github.com/framersai/agentos/commit/f7aea7a))
