@@ -1,3 +1,7 @@
+## <small>0.6.13 (2026-05-05)</small>
+
+* perf(routing): prefer Hermes 70B over 405B for mature tier + expose stream provider/model ([adda611](https://github.com/framersai/agentos/commit/adda611))
+
 ## <small>0.6.12 (2026-05-03)</small>
 
 * fix(api): isRetryableError reads httpStatus + matches credit/quota phrases ([52ddad7](https://github.com/framersai/agentos/commit/52ddad7))
