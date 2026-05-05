@@ -7,13 +7,27 @@ sidebar_position: 1
 This page is the AgentOS-side overview. For the complete paracosm API reference, scenario authoring guide, and dashboard docs, go to **[paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)**.
 :::
 
-Paracosm is an **agent swarm simulation framework for structured world modeling with LLMs**, built on AgentOS. Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their swarms — leader plus five specialist departments plus ~100 personality-typed cells — diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
+Paracosm is an **open-source structured world-model engine for LLM agent swarms**, built on AgentOS. Type a scenario in natural language; Paracosm compiles it into a typed world; runs multiple AI decision-makers through the same deterministic kernel; lets you replay, fork, and compare how the futures diverge.
 
-## Where paracosm sits in the world-model landscape
+**Same world. Same crises. Different agents. Different future.**
 
-Paracosm is a structured world model in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449), and a top-down agent swarm in the sense distinguished from bottom-up emergent swarms (OASIS, MiroFish) by direction of control. It is **not** a generative visual or spatial world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model (LeCun's AMI Labs), **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up emergent-crowd simulator, and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a prompt/document/URL-grounded, JSON-contract-backed state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders directing a swarm of ~100 personality-typed cells + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their swarms — leader plus five specialist departments plus ~100 personality-typed cells — diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
-The important boundary: JSON is the canonical contract, not the product boundary. Today `compileScenario()` takes a scenario JSON draft plus optional `seedText` or `seedUrl` grounding. The next wrapper should take one prompt or document, ask an LLM to propose the same scenario contract, validate it, then compile and run it.
+## Two world-model paths: the visual one and the structured one
+
+The world-model literature ([Xing 2025](https://arxiv.org/abs/2507.05169), [ACM CSUR 2025 survey](https://dl.acm.org/doi/full/10.1145/3746449), [Yang et al 2026](https://openreview.net/forum?id=XmYCERErcD)) has converged on a clean split between two ways AI systems represent how a slice of reality changes over time:
+
+**1. Native / visual world models.** Output is pixels or spatial latents the system generates from scratch. The model learns a compressed predictive representation of the physical world directly from video, sensor data, or simulator output, and rolls it forward by predicting the next frame or scene. Sora, Genie 3, and World Labs Marble are the visual cohort; LeCun's JEPA / AMI Labs work is the predictive-representation cohort. Output you can watch on a screen. Cost is in compute, training data, and the model never having a typed handle on "what just happened."
+
+**2. Structured / LLM-based world models.** Output is typed JSON state plus structured deltas. The model — usually an LLM — reasons about a scenario contract (departments, agents, events, metrics) and emits the next state symbolically. Yang et al 2026 evaluates this class on policy verification, action proposal, and policy planning. Output you can query, fork, replay, and feed into another agent's tool. Cost is in prompt cycles, schema validation, and the model never having a way to "see" the world.
+
+Pixels are what humans watch. State is what agents reason inside.
+
+**Paracosm is in the second class — and is among the first open-source production-grade implementations of it.** It is a prompt/document/URL-grounded, JSON-contract-backed state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders directing a swarm of ~100 personality-typed cells + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+
+It is **not** a visual / native world model (Sora, Genie 3, World Labs Marble), **not** a JEPA-style predictive-representation model, **not** a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), **not** a bottom-up emergent-crowd simulator (OASIS, MiroFish), and **not** a generative-agents library (Stanford Generative Agents, Google DeepMind Concordia). It is a structured world model: typed contract first, LLM second, deterministic kernel underneath.
+
+JSON is the canonical contract, not the product boundary. `compileScenario()` takes a scenario JSON draft plus optional `seedText` or `seedUrl` grounding. The Quickstart wrapper takes one prompt or document, asks an LLM to propose the same scenario contract, validates it, then compiles and runs it.
 
 The full structured-world-model framing is in the [Structured World Models for AI Agents](https://agentos.sh/blog/paracosm-2026-overview) blog post. Full taxonomy mapping lives at [docs/positioning/world-model-mapping.md](https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md).
 
