@@ -74,6 +74,19 @@ export interface StreamTextResult {
   usage: Promise<TokenUsage>;
   /** Resolves to the ordered list of {@link ToolCallRecord}s when the stream completes. */
   toolCalls: Promise<ToolCallRecord[]>;
+  /**
+   * Resolves to the resolved provider id (e.g. `openrouter`, `anthropic`)
+   * once the stream has started. Available eagerly because routing happens
+   * before the first chunk; exposed as a Promise so the type lines up with
+   * the rest of this contract and so callers don't see undefined while the
+   * stream is still spinning up. Used by wilds-ai's `[llm-call]` telemetry
+   * line for per-step latency attribution (production fix 2026-05-05 —
+   * narrator-stream rows were logging `provider=unknown model=unknown`,
+   * which made model-routing audits significantly harder).
+   */
+  provider: Promise<string>;
+  /** Resolves to the resolved model id once the stream has started. */
+  model: Promise<string>;
 }
 
 function buildHelperToolExecutionContext(
@@ -128,6 +141,8 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
   let resolveText: (v: string) => void;
   let resolveUsage: (v: TokenUsage) => void;
   let resolveToolCalls: (v: ToolCallRecord[]) => void;
+  let resolveProviderId: (v: string) => void;
+  let resolveModelId: (v: string) => void;
 
   const textPromise = new Promise<string>((r) => {
     resolveText = r;
@@ -137,6 +152,17 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
   });
   const toolCallsPromise = new Promise<ToolCallRecord[]>((r) => {
     resolveToolCalls = r;
+  });
+  // Provider + model resolution lives inside the lazy async generator,
+  // so we expose them as Deferred Promises that the generator resolves
+  // once routing completes (well before the first text chunk lands).
+  // Allows wilds-ai's [llm-call] telemetry to log accurate per-call
+  // attribution for streaming paths instead of `unknown/unknown`.
+  const providerPromise = new Promise<string>((r) => {
+    resolveProviderId = r;
+  });
+  const modelPromise = new Promise<string>((r) => {
+    resolveModelId = r;
   });
 
   const parts: StreamPart[] = [];
@@ -212,6 +238,10 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       const manager = await createProviderManager(resolved);
       recordedProviderId = resolved.providerId;
       recordedModelId = resolved.modelId;
+      // Resolve the eagerly-exposed routing Promises so callers
+      // logging telemetry don't have to wait for the stream to drain.
+      resolveProviderId!(resolved.providerId);
+      resolveModelId!(resolved.modelId);
       const provider = manager.getProvider(resolved.providerId);
       if (!provider) throw new Error(`Provider ${resolved.providerId} not available.`);
 
@@ -725,6 +755,13 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         resolveToolCalls!(allToolCalls);
       }
     } finally {
+      // Belt-and-suspenders for the routing Promises: if the stream
+      // errored before routing completed (e.g. resolveProvider option
+      // threw), settle the Promises with whatever recorded ids exist
+      // so awaiters don't hang forever. Empty strings keep the type
+      // consistent with successful resolution.
+      resolveProviderId!(recordedProviderId ?? '');
+      resolveModelId!(recordedModelId ?? '');
       rootSpan?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
       if (metricStatus === 'error') {
         rootSpan?.setAttribute('agentos.api.finish_reason', 'error');
@@ -777,5 +814,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
     text: textPromise,
     usage: usagePromise,
     toolCalls: toolCallsPromise,
+    provider: providerPromise,
+    model: modelPromise,
   };
 }

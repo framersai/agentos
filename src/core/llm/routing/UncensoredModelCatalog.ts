@@ -275,7 +275,32 @@ export function createUncensoredModelCatalog(): UncensoredModelCatalog {
         return candidates[0] ?? null;
       }
 
-      // For mature tier, prefer higher quality (Hermes works for non-explicit content)
+      // For `mature` tier, prefer Hermes 70B over 405B. Both are
+      // quality=high but on OpenRouter the 405B streams at ~30 tok/s
+      // vs 70B at ~50-80 tok/s — a 1000-token narrator turn is the
+      // difference between ~28s (production report 2026-05-05:
+      // "resolving turn seems to take way too long") and ~14s. The
+      // quality delta on prose-style narration is below the noise
+      // floor for most readers; the latency delta dominates UX.
+      // private-adult users above explicitly opt into 405B quality;
+      // mature users — the broad consumer case — get the fast path.
+      if (tier === 'mature') {
+        const matureRanking = [
+          'nousresearch/hermes-3-llama-3.1-70b',
+          'nousresearch/hermes-3-llama-3.1-405b',
+        ];
+        candidates.sort((a, b) => {
+          const aIdx = matureRanking.indexOf(a.modelId);
+          const bIdx = matureRanking.indexOf(b.modelId);
+          if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+          if (aIdx !== -1) return -1;
+          if (bIdx !== -1) return 1;
+          return 0;
+        });
+        return candidates[0] ?? null;
+      }
+
+      // Other tiers: stable-sort by quality high → medium → low.
       const qualityOrder: Record<string, number> = {
         high: 0,
         medium: 1,
