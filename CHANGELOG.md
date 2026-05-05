@@ -1,3 +1,9 @@
+## <small>0.6.14 (2026-05-05)</small>
+
+* fix: stop saying 'same crises' for paracosm — Event Director is LLM-driven, events diverge per leade ([9fe4930](https://github.com/framersai/agentos/commit/9fe4930))
+* docs(paracosm): two-world-model framing — visual vs structured + open-source-first positioning ([379c013](https://github.com/framersai/agentos/commit/379c013))
+* docs(readme): drop Paracosm-flavored 'turn six' phrasing ([514c48a](https://github.com/framersai/agentos/commit/514c48a))
+
 ## <small>0.6.13 (2026-05-05)</small>
 
 * perf(routing): prefer Hermes 70B over 405B for mature tier + expose stream provider/model ([adda611](https://github.com/framersai/agentos/commit/adda611))
