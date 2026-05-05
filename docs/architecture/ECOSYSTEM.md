@@ -135,7 +135,7 @@ npm install paracosm
 **Features:**
 - Universal `RunArtifact` schema at `paracosm/schema` covering turn-loop civilization sims, batch-trajectory digital twins, and batch-point forecasts
 - HEXACO personality-driven commander decisions with runtime tool forging through AgentOS's `EmergentCapabilityEngine`
-- Deterministic kernel: same seed plus same crises equals replayable, diff-able runs
+- Deterministic kernel + LLM Event Director: same leader on the same seed replays byte-for-byte; two different leaders on the same seed get divergent events from turn 1 (the director reads each leader's HEXACO + accumulated state)
 - `SubjectConfig` and `InterventionConfig` input primitives for digital-twin adoption
 
 🌐 **Live demo:** [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/sim) · **Docs:** [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
