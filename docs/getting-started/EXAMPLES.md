@@ -437,10 +437,12 @@ Agency connected to Discord + Slack + Telegram simultaneously.
 
 ```typescript
 import { agency } from '@framers/agentos';
-import { ChannelRouter } from '@framers/agentos/channels';
-import { DiscordAdapter } from '@framers/agentos-extensions/channels/discord';
-import { SlackAdapter } from '@framers/agentos-extensions/channels/slack';
-import { TelegramAdapter } from '@framers/agentos-extensions/channels/telegram';
+import {
+  ChannelRouter,
+  DiscordChannelAdapter,
+  SlackChannelAdapter,
+  TelegramChannelAdapter,
+} from '@framers/agentos/channels';
 
 // 1. Create the agency
 const supportBot = agency({
@@ -461,31 +463,46 @@ const supportBot = agency({
 // 2. Connect to channels
 const router = new ChannelRouter();
 
-const discord = new DiscordAdapter();
-const slack = new SlackAdapter();
-const telegram = new TelegramAdapter();
+const discord = new DiscordChannelAdapter();
+const slack = new SlackChannelAdapter();
+const telegram = new TelegramChannelAdapter();
 
-await discord.initialize({ credential: process.env.DISCORD_BOT_TOKEN! });
-await slack.initialize({ credential: process.env.SLACK_BOT_TOKEN! });
-await telegram.initialize({ credential: process.env.TELEGRAM_BOT_TOKEN! });
+await discord.initialize({
+  platform: 'discord',
+  credential: process.env.DISCORD_BOT_TOKEN!,
+  params: { botToken: process.env.DISCORD_BOT_TOKEN! },
+});
+await slack.initialize({
+  platform: 'slack',
+  credential: process.env.SLACK_BOT_TOKEN!,
+  params: { botToken: process.env.SLACK_BOT_TOKEN! },
+});
+await telegram.initialize({
+  platform: 'telegram',
+  credential: process.env.TELEGRAM_BOT_TOKEN!,
+  params: { botToken: process.env.TELEGRAM_BOT_TOKEN! },
+});
 
-router.register(discord);
-router.register(slack);
-router.register(telegram);
+router.registerAdapter(discord);
+router.registerAdapter(slack);
+router.registerAdapter(telegram);
 
 // 3. Handle messages from any platform
-router.onMessage(async (message, platform) => {
-  // Each user gets their own conversation session
-  const sessionId = `${platform}:${message.senderId}`;
+router.onMessage(async (message, binding, session) => {
+  const platform = binding.platform;
+  const sessionId = `${platform}:${session.remoteUser ?? message.sender ?? 'anon'}`;
 
-  const response = await supportBot.generate(message.text, {
+  const response = await supportBot.generate(message.text ?? '', {
     sessionId,
-    context: { platform, userId: message.senderId },
+    context: { platform, userId: session.remoteUser },
   });
 
-  await router.send(platform, message.conversationId, {
-    blocks: [{ type: 'text', text: response.text }],
-  });
+  await router.sendMessage(
+    binding.cipherId,
+    platform,
+    message.conversationId,
+    { blocks: [{ type: 'text', text: response.text }] },
+  );
 });
 
 console.log('Support bot listening on Discord, Slack, and Telegram...');
