@@ -70,10 +70,10 @@ await session.send('Can you expand on that?'); // remembers context
 >
 > — Philip K. Dick, *The Android and the Human*, 1972
 
-Three things accumulate inside an AgentOS session and compound into behavior by turn six:
+Three things accumulate across an AgentOS session and compose into behavior:
 
 1. **Memory.** What was said, what was decided, what was retrieved.
-2. **Tool surface.** Starts at whatever was registered. Can grow mid-decision when an agent forges a new function and the judge approves it.
+2. **Tool surface.** Starts at whatever was registered. Can grow when an agent forges a new function mid-decision and the judge approves it.
 3. **Personality** (optional). A HEXACO trait vector that biases retrieval, specialist routing, and decision-making.
 
 Each is configurable and observable; none crosses into "emergent agent" on its own. The composition is the interesting part.
