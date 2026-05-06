@@ -173,6 +173,7 @@ const publicationManifest = [
   agentosDoc('HUMAN_IN_THE_LOOP.md', 'features/human-in-the-loop.md', 'Human-in-the-Loop', 'Orchestration', 8),
   agentosDoc('COGNITIVE_PIPELINE.md', 'features/cognitive-pipeline.md', 'Cognitive Pipeline (Smart Per-Message Orchestration)', 'Orchestration', 9),
 
+  agentosDoc('MEMORY_SYSTEM_OVERVIEW.md', 'features/memory-system-overview.md', 'Memory System Overview', 'Memory', 0),
   agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 1),
   agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 2),
   agentosDoc('WORKING_MEMORY.md', 'features/working-memory.md', 'Working Memory', 'Memory', 3),
