@@ -1,0 +1,375 @@
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@framers/agentos - v0.6.17</title><meta name="description" content="Documentation for @framers/agentos"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-search"></use></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div><div class="field"><div id="tsd-toolbar-links"><a href="https://agentos.sh">Website</a><a href="https://github.com/framersai/agentos">GitHub</a><a href="https://www.npmjs.com/package/@framers/agentos">npm</a></div></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">@framers/agentos - v0.6.17</a></div><div class="table-cell" id="tsd-widgets"><a href="#" class="tsd-widget tsd-toolbar-icon menu no-caption" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h2>@framers/agentos - v0.6.17</h2></div><div class="tsd-panel tsd-typography"><div align="center">
+
+<a href="https://agentos.sh">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-no-tagline-transparent-2x.png" alt="AgentOS — TypeScript AI Agent Framework with Cognitive Memory" height="100" />
+</a>
+
+<br />
+
+<a id="md:agentos--open-source-typescript-ai-agent-runtime-with-cognitive-memory-hexaco-personality-and-runtime-tool-forging" class="tsd-anchor"></a><h1><a href="#md:agentos--open-source-typescript-ai-agent-runtime-with-cognitive-memory-hexaco-personality-and-runtime-tool-forging"><strong>AgentOS</strong> — Open-Source TypeScript AI Agent Runtime with Cognitive Memory, HEXACO Personality, and Runtime Tool Forging</a></h1><p><strong>85.6% on LongMemEval-S</strong> at $0.0090/correct, +1.4 above Mastra OM gpt-4o (84.23%) · <strong>70.2% on LongMemEval-M</strong> (1.5M-token variant), the only open-source library on the public record above 65% on M with publicly reproducible methodology · 16 LLM providers · 8 neuroscience-backed memory mechanisms · Apache-2.0</p>
+<p><a href="https://www.npmjs.com/package/@framers/agentos"><img src="https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837" alt="npm"></a>
+<a href="https://github.com/framersai/agentos/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI" alt="CI"></a>
+<a href="https://github.com/framersai/agentos/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-3%2C866%2B_passed-2ea043?style=flat-square&logo=vitest&logoColor=white" alt="tests"></a>
+<a href="https://codecov.io/gh/framersai/agentos"><img src="https://codecov.io/gh/framersai/agentos/graph/badge.svg" alt="codecov"></a>
+<a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
+<a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square" alt="License"></a>
+<a href="https://docs.agentos.sh/blog/2026/04/27/longmemeval-s-83-with-semantic-embedder"><img src="https://img.shields.io/badge/LongMemEval--S-85.6%25-2ea043?style=flat-square" alt="LongMemEval-S"></a>
+<a href="https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5"><img src="https://img.shields.io/badge/LongMemEval--M-70.2%25-2ea043?style=flat-square" alt="LongMemEval-M"></a>
+<a href="https://github.com/framersai/agentos-bench"><img src="https://img.shields.io/badge/bench-public-blue?style=flat-square" alt="agentos-bench"></a>
+<a href="https://wilds.ai/discord"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord" alt="Discord"></a></p>
+<p><a href="https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md"><strong>Benchmarks</strong></a> · <a href="https://agentos.sh">Website</a> · <a href="https://docs.agentos.sh">Docs</a> · <a href="https://www.npmjs.com/package/@framers/agentos">npm</a> · <a href="https://wilds.ai/discord">Discord</a> · <a href="https://docs.agentos.sh/blog">Blog</a></p>
+</div>
+
+<hr>
+<p>AgentOS is an open-source TypeScript runtime for AI agents that <strong>remember, adapt, and write their own tools</strong>.</p>
+<p>When an agent encounters a sub-task no existing tool covers, it generates a TypeScript function with a Zod-described schema, sends it through an LLM judge, and on approval runs it in a hardened <code>node:vm</code> sandbox. The new tool joins the catalog for the rest of the session. When a multi-agent team hits a capability gap, the manager calls <code>spawn_specialist</code> and the LLM judge reviews the synthesized agent spec before it joins the live roster.</p>
+<p>The runtime carries the parts of an agent that should outlive a single chat completion: persistent <a href="https://docs.agentos.sh/features/cognitive-memory">cognitive memory</a> (Ebbinghaus decay, retrieval-induced forgetting, reconsolidation, source-confidence decay) grounded in published cognitive-science literature, optional <a href="https://docs.agentos.sh/features/cognitive-memory-guide">HEXACO personality</a> vectors that bias retrieval and routing, <a href="https://docs.agentos.sh/features/multi-agent-collaboration">six multi-agent orchestration strategies</a>, <a href="https://docs.agentos.sh/features/guardrails-architecture">streaming guardrails</a>, a <a href="https://docs.agentos.sh/features/voice-pipeline">voice pipeline</a>, and one dispatch interface across 21 LLM providers. Apache-2.0.</p>
+<p><a href="https://www.npmjs.com/package/@framers/agentos-extensions">100+ first-party extensions</a> (channel adapters, tool packs, guardrail packs) and <a href="https://www.npmjs.com/package/@framers/agentos-skills">88 curated <code>SKILL.md</code> skills</a> auto-discover at startup through their respective registries: a host pulls a curated index and the runtime wires every tool, guardrail, channel, and skill without manual registration. The auto-loader is the same surface that runtime-forged tools join: an agent that invents a function in session N can promote it (with judge approval and <code>SkillExporter</code>) into a <code>SKILL.md</code> that the registry picks up on the next process start. Forging is how the surface grows mid-run; auto-discovery is how it ships as a first-class capability afterward.</p>
+<p>On benchmarks: <strong>85.6% on LongMemEval-S</strong> at $0.0090 per correct answer (gpt-4o reader, +1.4 points above Mastra&#39;s published 84.23%, 0.4 points behind Emergence.ai&#39;s 86% closed-source SaaS SOTA); <strong>70.2% on LongMemEval-M</strong> (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in <a href="https://github.com/framersai/agentos-bench">agentos-bench</a>.</p>
+<hr>
+<a id="md:install" class="tsd-anchor"></a><h2><a href="#md:install">Install</a></h2><pre><code class="language-bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@framers/agentos</span>
+</code><button>Copy</button></pre>
+<pre><code class="language-typescript"><span class="hl-3">import</span><span class="hl-1"> { agent } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@framers/agentos&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">tutor</span><span class="hl-1"> </span><span class="hl-3">=</span><span class="hl-1"> </span><span class="hl-0">agent</span><span class="hl-1">({</span><br/><span class="hl-1">  provider: </span><span class="hl-2">&#39;anthropic&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  instructions: </span><span class="hl-2">&#39;You are a patient CS tutor.&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  personality: { openness: </span><span class="hl-4">0.9</span><span class="hl-1">, conscientiousness: </span><span class="hl-4">0.95</span><span class="hl-1"> },</span><br/><span class="hl-1">  memory: { types: [</span><span class="hl-2">&#39;episodic&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;semantic&#39;</span><span class="hl-1">], working: { enabled: </span><span class="hl-4">true</span><span class="hl-1"> } },</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">session</span><span class="hl-1"> </span><span class="hl-3">=</span><span class="hl-1"> tutor.</span><span class="hl-0">session</span><span class="hl-1">(</span><span class="hl-2">&#39;student-1&#39;</span><span class="hl-1">);</span><br/><span class="hl-3">await</span><span class="hl-1"> session.</span><span class="hl-0">send</span><span class="hl-1">(</span><span class="hl-2">&#39;Explain recursion with an analogy.&#39;</span><span class="hl-1">);</span><br/><span class="hl-3">await</span><span class="hl-1"> session.</span><span class="hl-0">send</span><span class="hl-1">(</span><span class="hl-2">&#39;Can you expand on that?&#39;</span><span class="hl-1">); </span><span class="hl-5">// remembers context</span>
+</code><button>Copy</button></pre>
+<p><a href="https://docs.agentos.sh/getting-started">Full quickstart</a> · <a href="https://docs.agentos.sh/getting-started/examples">Examples cookbook</a> · <a href="https://docs.agentos.sh/api">API reference</a></p>
+<hr>
+<a id="md:emergent-design" class="tsd-anchor"></a><h2><a href="#md:emergent-design">Emergent Design</a></h2><blockquote>
+<p>&quot;So we and our elaborately evolving computers may meet each other halfway.&quot;</p>
+<p>— Philip K. Dick, <em>The Android and the Human</em>, 1972</p>
+</blockquote>
+<p>Three things accumulate across an AgentOS session and compose into behavior:</p>
+<ol>
+<li><strong>Memory.</strong> What was said, what was decided, what was retrieved.</li>
+<li><strong>Tool surface.</strong> Starts at whatever was registered. Can grow when an agent forges a new function mid-decision and the judge approves it.</li>
+<li><strong>Personality</strong> (optional). A HEXACO trait vector that biases retrieval, specialist routing, and decision-making.</li>
+</ol>
+<p>Each is configurable and observable; none crosses into &quot;emergent agent&quot; on its own. The composition is the interesting part.</p>
+<a id="md:runtime-tool-forging" class="tsd-anchor"></a><h3><a href="#md:runtime-tool-forging">Runtime Tool Forging</a></h3><p>When an agent encounters a sub-task that no available tool covers, it generates a TypeScript function with a Zod-described input and output schema. A separate LLM call evaluates the forged function against the agent&#39;s stated intent and either approves or rejects it. Approved functions execute in a hardened <code>node:vm</code> sandbox with strict defaults (5-second wall clock, 128 MB heap-delta budget, <code>eval</code> / <code>require</code> / <code>process</code> banned, <code>fetch</code> / <code>fs</code> / <code>crypto</code> allowlist-empty by default). Approved tools join a discoverable index keyed by name and signature; subsequent turns invoke them via <code>call_forged_tool(name, args)</code>. First forge costs full LLM tokens; reuse costs tens of tokens. Sandbox internals, isolation tradeoffs (<code>node:vm</code> vs queued <code>isolated-vm</code> for the hosted multi-tenant tier), and the full safety policy are in the <a href="https://docs.agentos.sh/features/emergent-capabilities">emergent capabilities docs</a>.</p>
+<p>The pattern the runtime supports: an agent forges a tool mid-decision, the judge approves it, that turn invokes it, and a few turns later a different specialist agent in the same session invokes the same tool because the index made it findable. Promoted tools can be exported as <code>SKILL.md</code> skills via <code>SkillExporter</code> and join the auto-discovery surface on the next process start.</p>
+<a id="md:hexaco-personality-optional" class="tsd-anchor"></a><h3><a href="#md:hexaco-personality-optional">HEXACO Personality (optional)</a></h3><p>Personality is opt-in. The runtime behaves identically with or without a trait vector, and most production deployments do not pass one.</p>
+<pre><code class="language-ts"><span class="hl-5">// Personality-neutral (most production agents)</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">support</span><span class="hl-1"> </span><span class="hl-3">=</span><span class="hl-1"> </span><span class="hl-0">agent</span><span class="hl-1">({</span><br/><span class="hl-1">  provider: </span><span class="hl-2">&#39;openai&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  instructions: </span><span class="hl-2">&#39;Resolve customer tickets.&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  memory: { types: [</span><span class="hl-2">&#39;episodic&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;semantic&#39;</span><span class="hl-1">] },</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// Opt-in HEXACO (when persona consistency across sessions matters)</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">coach</span><span class="hl-1"> </span><span class="hl-3">=</span><span class="hl-1"> </span><span class="hl-0">agent</span><span class="hl-1">({</span><br/><span class="hl-1">  provider: </span><span class="hl-2">&#39;openai&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  instructions: </span><span class="hl-2">&quot;Long-running career coach. Hold the user accountable to their stated goals across weekly check-ins; flag drift, push back on excuses, escalate when goals shift.&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  personality: {</span><br/><span class="hl-1">    conscientiousness: </span><span class="hl-4">0.9</span><span class="hl-1">,    </span><span class="hl-5">// won&#39;t let goals drift between sessions</span><br/><span class="hl-1">    honestyHumility: </span><span class="hl-4">0.85</span><span class="hl-1">,     </span><span class="hl-5">// won&#39;t tell the user what they want to hear</span><br/><span class="hl-1">    emotionality: </span><span class="hl-4">0.3</span><span class="hl-1">,         </span><span class="hl-5">// stays steady when the user is reactive</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  memory: { types: [</span><span class="hl-2">&#39;episodic&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;semantic&#39;</span><span class="hl-1">] },</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+<p>When a vector is supplied, the kernel weights retrieval, specialist routing, and tool selection by the trait values. Same agent, same prompt, same tools: a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences. Personality lives in the kernel, not in the prompt — prompt-only personality dissolves under context pressure while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.</p>
+<hr>
+<a id="md:memory-benchmarks" class="tsd-anchor"></a><h2><a href="#md:memory-benchmarks">Memory Benchmarks</a></h2><p><code>gpt-4o</code> reader, <code>gpt-4o-2024-08-06</code> judge, full N=500 across every row. Cross-provider numbers are excluded from the tables because their public methodology disclosures don&#39;t admit reproduction.</p>
+<a id="md:longmemeval-s-115k-tokens-50-sessions" class="tsd-anchor"></a><h3><a href="#md:longmemeval-s-115k-tokens-50-sessions">LongMemEval-S (115K tokens, 50 sessions)</a></h3><table>
+<thead>
+<tr>
+<th>System</th>
+<th align="right">Accuracy</th>
+<th align="right">$/correct</th>
+<th align="right">p50 latency</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>EmergenceMem Internal</td>
+<td align="right">86.0%</td>
+<td align="right">not published</td>
+<td align="right">5,650 ms</td>
+</tr>
+<tr>
+<td><strong>AgentOS</strong> (canonical-hybrid + reader-router)</td>
+<td align="right"><strong>85.6%</strong></td>
+<td align="right"><strong>$0.0090</strong></td>
+<td align="right"><strong>3,558 ms</strong></td>
+</tr>
+<tr>
+<td>Mastra OM gpt-4o (gemini-flash observer)</td>
+<td align="right">84.23%</td>
+<td align="right">not published</td>
+<td align="right">not published</td>
+</tr>
+<tr>
+<td>Supermemory gpt-4o</td>
+<td align="right">81.6%</td>
+<td align="right">not published</td>
+<td align="right">not published</td>
+</tr>
+<tr>
+<td>EmergenceMem Simple Fast (rerun in agentos-bench)</td>
+<td align="right">80.6%</td>
+<td align="right">$0.0586</td>
+<td align="right">3,703 ms</td>
+</tr>
+<tr>
+<td>Zep (self / independent reproduction)</td>
+<td align="right">71.2% / 63.8%</td>
+<td align="right">not published</td>
+<td align="right">not published</td>
+</tr>
+</tbody></table>
+<p>+1.4 points above Mastra OM. EmergenceMem Internal posts 86.0% (0.4 above) but doesn&#39;t publish per-case results or a reproducible CLI; among open-source libraries with single-CLI reproduction at <code>gpt-4o</code>, 85.6% is the highest publicly reproducible number located. p50 latency 3,558 ms vs EmergenceMem&#39;s published median 5,650 ms.</p>
+<p>Cross-provider numbers omitted from the table (different reader and/or undisclosed judge): Mastra OM 94.87% (gpt-5-mini + gemini-2.5-flash observer), agentmemory 96.2% (Claude Opus 4.6), MemMachine 93.0% (GPT-5-mini), Hindsight 91.4% (unspecified backbone).</p>
+<a id="md:longmemeval-m-15m-tokens-500-sessions" class="tsd-anchor"></a><h3><a href="#md:longmemeval-m-15m-tokens-500-sessions">LongMemEval-M (1.5M tokens, 500 sessions)</a></h3><p>M&#39;s haystacks exceed every production context window; most vendors only publish on S.</p>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th align="right">Accuracy</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LongMemEval paper, GPT-4o round Top-10 (paper&#39;s best)</td>
+<td align="right">72.0%</td>
+<td>open repo</td>
+</tr>
+<tr>
+<td>AgentBrain</td>
+<td align="right">71.7%</td>
+<td>closed-source SaaS</td>
+</tr>
+<tr>
+<td>LongMemEval paper, GPT-4o session Top-5</td>
+<td align="right">71.4%</td>
+<td>open repo</td>
+</tr>
+<tr>
+<td><strong>AgentOS</strong> (sem-embed + reader-router + Top-5)</td>
+<td align="right"><strong>70.2%</strong></td>
+<td><strong>Apache-2.0</strong></td>
+</tr>
+<tr>
+<td>LongMemEval paper, GPT-4o round Top-5</td>
+<td align="right">65.7%</td>
+<td>open repo</td>
+</tr>
+<tr>
+<td>Mem0 v3, Mastra, Hindsight, Zep, EmergenceMem, Supermemory, Letta</td>
+<td align="right">not published</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>At matched Top-5 retrieval, +4.5 above the round-level paper baseline (65.7%) and 1.2 below the session-level (71.4%); the paper&#39;s overall strongest GPT-4o result is 72.0% at Top-10. Of open-source libraries with publicly reproducible runs, AgentOS is the only one above 65% on M.</p>
+<blockquote>
+<p><strong><a href="https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md">Full leaderboard →</a></strong> · <strong><a href="https://github.com/framersai/agentos-bench/tree/master/results/runs">Run JSONs →</a></strong> · <strong><a href="https://agentos.sh/en/blog/memory-benchmark-transparency-audit/">Transparency audit →</a></strong> · <strong><a href="https://arxiv.org/abs/2410.10813">LongMemEval paper</a></strong> (Wu et al., ICLR 2025, Table 3)</p>
+</blockquote>
+<p>Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-benchmark judge-FPR probes (S 1%, M 2%, LOCOMO 0%), per-case run JSONs, single-CLI reproduction. The <a href="https://agentos.sh/en/blog/memory-benchmark-transparency-audit/">transparency audit</a> covers what the headline numbers don&#39;t: LOCOMO&#39;s ~6.4% answer-key error rate, the LongMemEval-S context-window confound, and the Mem0-vs-Zep comparison gaming case study, alongside which vendors disclose which methodology dimensions.</p>
+<hr>
+<a id="md:ecosystem" class="tsd-anchor"></a><h2><a href="#md:ecosystem">Ecosystem</a></h2><table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos"><code>@framers/agentos</code></a></td>
+<td>Core runtime: GMI agents, cognitive memory, multi-agent orchestration, guardrails, voice, 21 LLM providers. Apache 2.0.</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-extensions"><code>@framers/agentos-extensions</code></a></td>
+<td>100+ first-party extensions and templates: channel adapters, tool packs, integrations, guardrail packs.</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-extensions-registry"><code>@framers/agentos-extensions-registry</code></a></td>
+<td>Discovery + auto-loader layer for the extensions catalog. Hosts pull the index without pulling every implementation; the runtime resolves and registers packs at startup.</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-skills"><code>@framers/agentos-skills</code></a></td>
+<td>88 curated <code>SKILL.md</code> skills covering common tasks.</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/agentos-skills-registry"><code>@framers/agentos-skills-registry</code></a></td>
+<td>Discovery + auto-loader layer for the skills catalog. Also the surface where promoted forged tools land after <code>SkillExporter</code>.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/framersai/agentos-bench"><code>@framers/agentos-bench</code></a></td>
+<td>Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes, per-case run JSONs at fixed seed. MIT (the rest of AgentOS is Apache 2.0).</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/@framers/sql-storage-adapter"><code>@framers/sql-storage-adapter</code></a></td>
+<td>Cross-platform SQL persistence: SQLite, Postgres, IndexedDB, Capacitor SQLite.</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/paracosm"><code>paracosm</code></a></td>
+<td>AI agent swarm simulation engine that uses AgentOS as its substrate.</td>
+</tr>
+<tr>
+<td><a href="https://www.npmjs.com/package/wunderland"><code>wunderland</code></a></td>
+<td>Sister project (preview) — batteries-included CLI plus daemon over the AgentOS extension and skill registries. 28-command CLI, 5-tier security, 8 agent presets, step-up HITL. <a href="https://github.com/jddunn/wunderland">github.com/jddunn/wunderland</a>. MIT.</td>
+</tr>
+</tbody></table>
+<p><strong>Extensions and skills auto-load at startup.</strong> The runtime walks each registry plus any user-supplied paths, resolves each pack&#39;s <code>createExtensionPack(context)</code> factory or <code>SKILL.md</code> frontmatter, and registers tools, guardrails, channels, and skills without manual wiring. Capability gating and HITL approval gates apply to side-effecting installs. See <a href="https://docs.agentos.sh/architecture/extension-loading">extensions architecture</a> for the full loading model.</p>
+<hr>
+<a id="md:📄-technical-whitepaper-·-coming-soon" class="tsd-anchor"></a><h2><a href="#md:📄-technical-whitepaper-·-coming-soon">📄 Technical Whitepaper · Coming Soon</a></h2><p>The full architecture and benchmark methodology, written for engineers and researchers who want a citable PDF instead of scrolling docs. Cognitive memory pipeline, classifier-driven dispatch, HEXACO personality modulation, runtime tool forging, full LongMemEval-S/M and LOCOMO benchmark methodology with confidence interval math, judge-FPR probes, per-stage retention metrics, and reproducibility recipes.</p>
+<table>
+<thead>
+<tr>
+<th>Covers</th>
+<th>What&#39;s inside</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Architecture</strong></td>
+<td>Generalized Mind Instances, IngestRouter / MemoryRouter / ReadRouter, 8 cognitive mechanisms with primary-source citations</td>
+</tr>
+<tr>
+<td><strong>Benchmarks</strong></td>
+<td>LongMemEval-S 85.6%, LongMemEval-M 70.2%, vendor landscape, confidence interval methodology, judge FPR probes, full transparency stack</td>
+</tr>
+<tr>
+<td><strong>Reproducibility</strong></td>
+<td>Per-case run JSONs at <code>--seed 42</code>, single-CLI reproduction, Apache-2.0 bench at <a href="https://github.com/framersai/agentos-bench">github.com/framersai/agentos-bench</a></td>
+</tr>
+</tbody></table>
+<p><strong><a href="https://wilds.ai/discord">Join Discord for the announcement →</a></strong> · <strong><a href="https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md">Read the benchmarks now →</a></strong></p>
+<hr>
+<a id="md:classifier-driven-memory-pipeline" class="tsd-anchor"></a><h2><a href="#md:classifier-driven-memory-pipeline">Classifier-Driven Memory Pipeline</a></h2><p>Most memory libraries retrieve on every query. AgentOS gates memory through three LLM-as-judge classifiers in a single shared pass, so trivial queries skip retrieval entirely and the rest get the right architecture and reader per category.</p>
+<pre><code><span class="hl-1">User query</span><br/><span class="hl-1">    │</span><br/><span class="hl-1">    ▼ Stage </span><span class="hl-4">1</span><span class="hl-1">: </span><span class="hl-0">QueryClassifier</span><span class="hl-1"> (gpt</span><span class="hl-3">-</span><span class="hl-4">5</span><span class="hl-3">-</span><span class="hl-1">mini, </span><span class="hl-3">~</span><span class="hl-1">$0.</span><span class="hl-4">0001</span><span class="hl-3">/</span><span class="hl-1">query)</span><br/><span class="hl-1">    │    </span><span class="hl-4">T0</span><span class="hl-3">=</span><span class="hl-1">none ─────► answer from context, skip retrieval</span><br/><span class="hl-1">    │    </span><span class="hl-4">T1</span><span class="hl-3">+=</span><span class="hl-1">needs memory</span><br/><span class="hl-1">    ▼ Stage </span><span class="hl-4">2</span><span class="hl-1">: MemoryRouter      → canonical</span><span class="hl-3">-</span><span class="hl-1">hybrid · </span><span class="hl-4">OM</span><span class="hl-3">-</span><span class="hl-1">v10 · </span><span class="hl-4">OM</span><span class="hl-3">-</span><span class="hl-1">v11</span><br/><span class="hl-1">    ▼ Stage </span><span class="hl-4">3</span><span class="hl-1">: ReaderRouter      → gpt</span><span class="hl-3">-</span><span class="hl-1">4</span><span class="hl-0">o</span><span class="hl-1"> (</span><span class="hl-4">TR</span><span class="hl-3">/</span><span class="hl-4">SSU</span><span class="hl-1">) · gpt</span><span class="hl-3">-</span><span class="hl-4">5</span><span class="hl-3">-</span><span class="hl-0">mini</span><span class="hl-1"> (</span><span class="hl-4">SSA</span><span class="hl-3">/</span><span class="hl-4">SSP</span><span class="hl-3">/</span><span class="hl-4">KU</span><span class="hl-3">/</span><span class="hl-4">MS</span><span class="hl-1">)</span><br/><span class="hl-1">    ▼</span><br/><span class="hl-1">Grounded answer</span>
+</code><button>Copy</button></pre>
+<p>Stages 2 and 3 reuse the Stage 1 classification, so the full pipeline costs <strong>one classifier call per query</strong>, not three. <strong>The T0 / no-memory gate is the novel piece</strong>: removing retrieval entirely for greetings and small talk saves the embedding + rerank + reader cost on a substantial fraction of typical agent traffic.</p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Source</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>QueryClassifier</code></td>
+<td><a href="https://docs.agentos.sh/features/query-routing"><code>@framers/agentos/query-router</code></a></td>
+<td>T0/none vs T1/simple vs T2/moderate vs T3/complex</td>
+</tr>
+<tr>
+<td><code>MemoryRouter</code></td>
+<td><a href="https://docs.agentos.sh/features/memory-router"><code>@framers/agentos/memory-router</code></a></td>
+<td>canonical-hybrid vs observational-memory-v10 vs v11</td>
+</tr>
+<tr>
+<td><code>ReaderRouter</code></td>
+<td><a href="https://docs.agentos.sh/features/memory-router"><code>@framers/agentos/memory-router</code></a></td>
+<td>gpt-4o vs gpt-5-mini per category</td>
+</tr>
+</tbody></table>
+<p><a href="https://docs.agentos.sh/features/cognitive-pipeline">Cognitive Pipeline docs →</a> · <a href="https://docs.agentos.sh/blog/2026/04/10/cognitive-memory-architecture-deep-dive">Architecture deep dive →</a> · <a href="https://docs.agentos.sh/blog/2026/03/31/cognitive-memory-beyond-rag">Beyond RAG →</a></p>
+<hr>
+<a id="md:why-agentos" class="tsd-anchor"></a><h2><a href="#md:why-agentos">Why AgentOS</a></h2><table>
+<thead>
+<tr>
+<th>vs.</th>
+<th>AgentOS differentiator</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LangChain / LangGraph</strong></td>
+<td>Cognitive memory (<a href="https://docs.agentos.sh/features/cognitive-memory">8 neuroscience-backed mechanisms</a>), HEXACO personality, runtime tool forging</td>
+</tr>
+<tr>
+<td><strong>Vercel AI SDK</strong></td>
+<td>Multi-agent teams (6 strategies), 7 vector backends, <a href="https://docs.agentos.sh/features/guardrails-architecture">guardrails</a>, voice/telephony</td>
+</tr>
+<tr>
+<td><strong>CrewAI / Mastra</strong></td>
+<td>Unified orchestration (DAGs + graphs + missions), personality-driven routing, <strong>published reproducible numbers on LongMemEval-S (85.6%) and LongMemEval-M (70.2%) with full methodology disclosure</strong></td>
+</tr>
+</tbody></table>
+<p><a href="https://docs.agentos.sh/blog/2026/02/20/agentos-vs-langgraph-vs-crewai">Full framework comparison →</a></p>
+<hr>
+<a id="md:key-features" class="tsd-anchor"></a><h2><a href="#md:key-features">Key Features</a></h2><table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Highlights</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LLM Providers</strong></td>
+<td>16: OpenAI, Anthropic, Gemini, Groq, Ollama, OpenRouter, Together, Mistral, xAI, Claude/Gemini CLI, + 5 image/video</td>
+</tr>
+<tr>
+<td><strong>Cognitive Memory</strong></td>
+<td>8 mechanisms: reconsolidation, retrieval-induced forgetting, involuntary recall, FOK, gist extraction, schema encoding, source decay, emotion regulation</td>
+</tr>
+<tr>
+<td><strong>HEXACO Personality</strong></td>
+<td>6 traits modulate memory, retrieval bias, response style</td>
+</tr>
+<tr>
+<td><strong>RAG Pipeline</strong></td>
+<td>7 vector backends · 4 retrieval strategies · GraphRAG · HyDE · Cohere rerank-v3.5</td>
+</tr>
+<tr>
+<td><strong>Multi-Agent Teams</strong></td>
+<td>6 coordination strategies · shared memory · inter-agent messaging · HITL gates</td>
+</tr>
+<tr>
+<td><strong>Orchestration</strong></td>
+<td><code>workflow()</code> DAGs · <code>AgentGraph</code> cycles · <code>mission()</code> goal-driven planning · checkpointing</td>
+</tr>
+<tr>
+<td><strong>Guardrails</strong></td>
+<td>5 security tiers · 6 packs (PII, ML classifiers, topicality, code safety, grounding, content policy)</td>
+</tr>
+<tr>
+<td><strong>Emergent Capabilities</strong></td>
+<td>Runtime tool forging · 4 self-improvement tools · tiered promotion · skill export</td>
+</tr>
+<tr>
+<td><strong>Voice &amp; Telephony</strong></td>
+<td>ElevenLabs, Deepgram, Whisper · Twilio, Telnyx, Plivo</td>
+</tr>
+<tr>
+<td><strong>Channels</strong></td>
+<td>37 platform adapters (Telegram, Discord, Slack, WhatsApp, webchat, ...)</td>
+</tr>
+<tr>
+<td><strong>Observability</strong></td>
+<td>OpenTelemetry · usage ledger · cost guard · circuit breaker</td>
+</tr>
+</tbody></table>
+<hr>
+<a id="md:multi-agent-in-6-lines" class="tsd-anchor"></a><h2><a href="#md:multi-agent-in-6-lines">Multi-Agent in 6 Lines</a></h2><pre><code class="language-typescript"><span class="hl-3">import</span><span class="hl-1"> { agency } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@framers/agentos&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">team</span><span class="hl-1"> </span><span class="hl-3">=</span><span class="hl-1"> </span><span class="hl-0">agency</span><span class="hl-1">({</span><br/><span class="hl-1">  strategy: </span><span class="hl-2">&#39;graph&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  agents: {</span><br/><span class="hl-1">    researcher: { provider: </span><span class="hl-2">&#39;anthropic&#39;</span><span class="hl-1">, instructions: </span><span class="hl-2">&#39;Find relevant facts.&#39;</span><span class="hl-1"> },</span><br/><span class="hl-1">    writer:     { provider: </span><span class="hl-2">&#39;openai&#39;</span><span class="hl-1">,    instructions: </span><span class="hl-2">&#39;Summarize clearly.&#39;</span><span class="hl-1">,  dependsOn: [</span><span class="hl-2">&#39;researcher&#39;</span><span class="hl-1">] },</span><br/><span class="hl-1">    reviewer:   { provider: </span><span class="hl-2">&#39;gemini&#39;</span><span class="hl-1">,    instructions: </span><span class="hl-2">&#39;Check accuracy.&#39;</span><span class="hl-1">,     dependsOn: [</span><span class="hl-2">&#39;writer&#39;</span><span class="hl-1">] },</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">result</span><span class="hl-1"> </span><span class="hl-3">=</span><span class="hl-1"> </span><span class="hl-3">await</span><span class="hl-1"> team.</span><span class="hl-0">generate</span><span class="hl-1">(</span><span class="hl-2">&#39;Compare TCP vs UDP for game networking.&#39;</span><span class="hl-1">);</span>
+</code><button>Copy</button></pre>
+<p>Strategies: <code>sequential</code> · <code>parallel</code> · <code>debate</code> · <code>review-loop</code> · <code>hierarchical</code> · <code>graph</code>. With <code>strategy: &#39;hierarchical&#39;</code> + <code>emergent: { enabled: true }</code>, the manager LLM gets a <code>spawn_specialist</code> tool that mints new sub-agents at runtime when the static roster doesn&#39;t cover a sub-task. <code>agency()</code> is for single-request multi-agent coordination — for long-running world simulations or per-turn parallel agent loops, build your own orchestration with <code>agent()</code> + the lower-level primitives. <a href="https://docs.agentos.sh/features/multi-agent">Multi-agent docs →</a> · <a href="https://docs.agentos.sh/architecture/emergent-agency-system">Hierarchical + emergent →</a> · <a href="https://docs.agentos.sh/orchestration/agency-api#scope-when-to-reach-for-agency">Scope guide →</a></p>
+<hr>
+<a id="md:see-it-in-action" class="tsd-anchor"></a><h2><a href="#md:see-it-in-action">See It In Action</a></h2><a id="md:🌀-paracosm--ai-agent-swarm-simulation" class="tsd-anchor"></a><h3><a href="#md:🌀-paracosm--ai-agent-swarm-simulation">🌀 Paracosm — AI Agent Swarm Simulation</a></h3><p>Define any scenario as JSON. Run it with AI commanders that have different HEXACO personalities. Same starting conditions, different decisions, divergent civilizations. Built on AgentOS.</p>
+<pre><code class="language-bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">paracosm</span>
+</code><button>Copy</button></pre>
+<p><a href="https://paracosm.agentos.sh/sim">Live Demo</a> · <a href="https://github.com/framersai/paracosm">GitHub</a> · <a href="https://www.npmjs.com/package/paracosm">npm</a></p>
+<hr>
+<a id="md:configure-api-keys" class="tsd-anchor"></a><h2><a href="#md:configure-api-keys">Configure API Keys</a></h2><p>Three layers, highest priority first:</p>
+<pre><code class="language-typescript"><span class="hl-5">// 1. Inline on the call (per-tenant, per-test, per-customer)</span><br/><span class="hl-0">generateText</span><span class="hl-1">({ apiKey: </span><span class="hl-2">&#39;sk-customer&#39;</span><span class="hl-1">, prompt: </span><span class="hl-2">&#39;...&#39;</span><span class="hl-1"> });</span><br/><br/><span class="hl-5">// 2. Module-level default — set once at boot, no .env needed</span><br/><span class="hl-3">import</span><span class="hl-1"> { setDefaultProvider } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@framers/agentos&#39;</span><span class="hl-1">;</span><br/><span class="hl-0">setDefaultProvider</span><span class="hl-1">({ provider: </span><span class="hl-2">&#39;openai&#39;</span><span class="hl-1">, apiKey: process.env.</span><span class="hl-4">MY_OWN_KEY</span><span class="hl-1"> });</span><br/><br/><span class="hl-5">// 2b. Reorder the env-var auto-detect chain instead (when you keep multiple keys)</span><br/><span class="hl-3">import</span><span class="hl-1"> { setProviderPriority } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@framers/agentos&#39;</span><span class="hl-1">;</span><br/><span class="hl-0">setProviderPriority</span><span class="hl-1">([</span><span class="hl-2">&#39;anthropic&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;openai&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;ollama&#39;</span><span class="hl-1">]);</span><br/><br/><span class="hl-5">// 3. Environment variable auto-detect chain (default order)</span><br/><span class="hl-5">//    OpenRouter → OpenAI → Anthropic → Gemini → Groq → Together → Mistral</span><br/><span class="hl-5">//    → xAI → claude CLI → gemini CLI → Ollama → image providers</span>
+</code><button>Copy</button></pre>
+<pre><code class="language-bash"><span class="hl-3">export</span><span class="hl-1"> OPENAI_API_KEY</span><span class="hl-3">=</span><span class="hl-2">sk-...</span><br/><span class="hl-3">export</span><span class="hl-1"> ANTHROPIC_API_KEY</span><span class="hl-3">=</span><span class="hl-2">sk-ant-...</span><br/><span class="hl-3">export</span><span class="hl-1"> GEMINI_API_KEY</span><span class="hl-3">=</span><span class="hl-2">AIza...</span><br/><br/><span class="hl-5"># Comma-separated keys auto-rotate with quota detection</span><br/><span class="hl-3">export</span><span class="hl-1"> OPENAI_API_KEY</span><span class="hl-3">=</span><span class="hl-2">sk-key1,sk-key2,sk-key3</span>
+</code><button>Copy</button></pre>
+<p><a href="https://docs.agentos.sh/architecture/llm-providers">Full credential resolution + default models per provider →</a></p>
+<hr>
+<a id="md:api-surfaces" class="tsd-anchor"></a><h2><a href="#md:api-surfaces">API Surfaces</a></h2><ul>
+<li><strong><code>agent()</code></strong>: lightweight stateful agent. Prompts, sessions, personality, hooks, tools, memory.</li>
+<li><strong><code>agency()</code></strong>: multi-agent teams + full runtime. Emergent tooling, guardrails, RAG, voice, channels, HITL.</li>
+<li><strong><code>generateText()</code> / <code>streamText()</code> / <code>generateObject()</code> / <code>generateImage()</code> / <code>generateVideo()</code> / <code>generateMusic()</code> / <code>performOCR()</code> / <code>embedText()</code></strong>: low-level multi-modal helpers with native tool calling.</li>
+<li><strong><code>workflow()</code> / <code>AgentGraph</code> / <code>mission()</code></strong>: three orchestration authoring APIs over one graph runtime.</li>
+</ul>
+<p>Provider fallback is an explicit opt-in via <code>agent({ fallbackProviders: [...] })</code> (or <code>buildFallbackChain()</code> for programmatic chains). Defaults to off — the runtime never silently retries against a different provider unless you configured a chain.</p>
+<p><a href="https://docs.agentos.sh/api">Full API reference →</a> · <a href="https://docs.agentos.sh/getting-started/high-level-api">High-Level API guide →</a></p>
+<hr>
+<a id="md:documentation-amp-community" class="tsd-anchor"></a><h2><a href="#md:documentation-amp-community">Documentation &amp; Community</a></h2><ul>
+<li><strong><a href="https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md">Benchmarks</a></strong>: benchmark tables, 95% confidence intervals, methodology audit</li>
+<li><strong><a href="https://docs.agentos.sh/architecture/system-architecture">Architecture</a></strong>: system design, layer breakdown</li>
+<li><strong><a href="https://docs.agentos.sh/features/cognitive-memory">Cognitive Memory</a></strong>: 8 mechanisms with 30+ APA citations</li>
+<li><strong><a href="https://docs.agentos.sh/features/rag-memory-configuration">RAG Configuration</a></strong>: vector stores, embeddings, sources</li>
+<li><strong><a href="https://docs.agentos.sh/features/guardrails-architecture">Guardrails</a></strong>: 5 tiers, 6 packs</li>
+<li><strong><a href="https://docs.agentos.sh/features/voice-pipeline">Voice Pipeline</a></strong>: TTS, STT, telephony</li>
+<li><strong><a href="https://docs.agentos.sh/blog">Blog</a></strong>: engineering posts, benchmark publications, transparency audits</li>
+<li><strong><a href="https://wilds.ai/discord">Discord</a></strong> · <strong><a href="https://github.com/framersai/agentos/issues">GitHub Issues</a></strong> · <strong><a href="https://wilds.ai">Wilds.ai</a></strong> (AI game worlds powered by AgentOS)</li>
+</ul>
+<hr>
+<a id="md:contributing" class="tsd-anchor"></a><h2><a href="#md:contributing">Contributing</a></h2><pre><code class="language-bash"><span class="hl-0">git</span><span class="hl-1"> </span><span class="hl-2">clone</span><span class="hl-1"> </span><span class="hl-2">https://github.com/framersai/agentos.git</span><span class="hl-1"> &amp;&amp; </span><span class="hl-4">cd</span><span class="hl-1"> </span><span class="hl-2">agentos</span><br/><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> &amp;&amp; </span><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">build</span><span class="hl-1"> &amp;&amp; </span><span class="hl-0">pnpm</span><span class="hl-1"> </span><span class="hl-2">test</span>
+</code><button>Copy</button></pre>
+<p><a href="https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md">Contributing Guide</a> · We use <a href="https://www.conventionalcommits.org/">Conventional Commits</a>.</p>
+<hr>
+<a id="md:license" class="tsd-anchor"></a><h2><a href="#md:license">License</a></h2><p><a href="./LICENSE">Apache 2.0</a></p>
+<div align="center">
+
+<a href="https://agentos.sh">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/agentos-primary-transparent-2x.png" alt="AgentOS" height="40" />
+</a>
+&nbsp;&nbsp;&nbsp;
+<a href="https://frame.dev">
+  <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
+</a>
+
+<p><strong>Built by <a href="https://manic.agency">Manic Agency LLC</a> · <a href="https://frame.dev">Frame.dev</a> · <a href="https://wilds.ai">Wilds.ai</a></strong></p>
+</div></div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-index-accordion"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><h4 class="uppercase">Member Visibility</h4><form><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-alpha" name="alpha"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Alpha</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-beta" name="beta"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Beta</span></label></li></ul></form></div><div class="tsd-theme-toggle"><h4 class="uppercase">Theme</h4><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-index-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#md:agentos--open-source-typescript-ai-agent-runtime-with-cognitive-memory-hexaco-personality-and-runtime-tool-forging"><span>AgentOS — <wbr/>Open-<wbr/>Source <wbr/>Type<wbr/>Script AI <wbr/>Agent <wbr/>Runtime with <wbr/>Cognitive <wbr/>Memory, HEXACO <wbr/>Personality, and <wbr/>Runtime <wbr/>Tool <wbr/>Forging</span></a><ul><li><a href="#md:install"><span>Install</span></a></li><li><a href="#md:emergent-design"><span>Emergent <wbr/>Design</span></a></li><li><ul><li><a href="#md:runtime-tool-forging"><span>Runtime <wbr/>Tool <wbr/>Forging</span></a></li><li><a href="#md:hexaco-personality-optional"><span>HEXACO <wbr/>Personality (optional)</span></a></li></ul></li><li><a href="#md:memory-benchmarks"><span>Memory <wbr/>Benchmarks</span></a></li><li><ul><li><a href="#md:longmemeval-s-115k-tokens-50-sessions"><span>Long<wbr/>Mem<wbr/>Eval-<wbr/>S (115<wbr/>K tokens, 50 sessions)</span></a></li><li><a href="#md:longmemeval-m-15m-tokens-500-sessions"><span>Long<wbr/>Mem<wbr/>Eval-<wbr/>M (1.5<wbr/>M tokens, 500 sessions)</span></a></li></ul></li><li><a href="#md:ecosystem"><span>Ecosystem</span></a></li><li><a href="#md:📄-technical-whitepaper-·-coming-soon"><span>📄 <wbr/>Technical <wbr/>Whitepaper · <wbr/>Coming <wbr/>Soon</span></a></li><li><a href="#md:classifier-driven-memory-pipeline"><span>Classifier-<wbr/>Driven <wbr/>Memory <wbr/>Pipeline</span></a></li><li><a href="#md:why-agentos"><span>Why <wbr/>AgentOS</span></a></li><li><a href="#md:key-features"><span>Key <wbr/>Features</span></a></li><li><a href="#md:multi-agent-in-6-lines"><span>Multi-<wbr/>Agent in 6 <wbr/>Lines</span></a></li><li><a href="#md:see-it-in-action"><span>See <wbr/>It <wbr/>In <wbr/>Action</span></a></li><li><ul><li><a href="#md:🌀-paracosm--ai-agent-swarm-simulation"><span>🌀 <wbr/>Paracosm — AI <wbr/>Agent <wbr/>Swarm <wbr/>Simulation</span></a></li></ul></li><li><a href="#md:configure-api-keys"><span>Configure API <wbr/>Keys</span></a></li><li><a href="#md:api-surfaces"><span>API <wbr/>Surfaces</span></a></li><li><a href="#md:documentation-amp-community"><span>Documentation &amp; <wbr/>Community</span></a></li><li><a href="#md:contributing"><span>Contributing</span></a></li><li><a href="#md:license"><span>License</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://docs.agentos.sh/documentation">Documentation</a><a href="https://docs.agentos.sh/getting-started/high-level-api">High-Level API</a><a href="https://docs.agentos.sh/features/unified-orchestration">Unified Orchestration</a><a href="https://docs.agentos.sh/features/guardrails">Guardrails</a><a href="https://docs.agentos.sh/skills">Skills</a></nav><nav class="tsd-navigation"><a href="modules.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="assets/icons.svg#icon-1"></use></svg><span>@framers/agentos - v0.6.17</span></a><ul class="tsd-small-nested-navigation" id="tsd-nav-container" data-base="."><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
