@@ -40,8 +40,7 @@ npm install paracosm
 ```
 
 ```typescript
-import { marsScenario } from 'paracosm/mars';
-import { runSimulation } from 'paracosm/runtime';
+import { WorldModel, marsScenario } from 'paracosm';
 
 const aria = {
   name: 'Aria Chen',
@@ -54,8 +53,9 @@ const aria = {
   instructions: '',
 };
 
-const result = await runSimulation(aria, [], {
-  scenario: marsScenario,
+const result = await WorldModel.fromScenario(marsScenario).simulate({
+  actor: aria,
+  keyPersonnel: [],
   maxTurns: 6,
   seed: 950,
   onEvent: e => console.log(e.type, e.data?.title),
@@ -69,7 +69,7 @@ Or run the hosted demo at [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/
 
 ## The universal result contract
 
-Every `runSimulation()` call returns a Zod-validated `RunArtifact` exported from the `paracosm/schema` subpath. One shape covers three simulation modes, discriminated on `metadata.mode`:
+Every `WorldModel.simulate()` call returns a Zod-validated `RunArtifact` exported from the `paracosm/schema` subpath. One shape covers three simulation modes, discriminated on `metadata.mode`:
 
 - `turn-loop`: civilization sims (paracosm's built-in mode). Populates `trajectory.timepoints[]` and `decisions[]` with per-turn specialist notes.
 - `batch-trajectory`: digital-twin simulations. Labeled timepoints over a horizon, populated by external LangGraph-style executors.
@@ -77,9 +77,13 @@ Every `runSimulation()` call returns a Zod-validated `RunArtifact` exported from
 
 ```typescript
 import { RunArtifactSchema, type RunArtifact } from 'paracosm/schema';
-import { runSimulation } from 'paracosm/runtime';
+import { WorldModel } from 'paracosm';
 
-const artifact: RunArtifact = await runSimulation(leader, [], opts);
+const artifact: RunArtifact = await WorldModel.fromScenario(scenario).simulate({
+  actor: leader,
+  keyPersonnel: [],
+  ...opts,
+});
 const parsed = RunArtifactSchema.parse(artifact); // optional runtime validation
 
 switch (artifact.metadata.mode) {
@@ -120,7 +124,11 @@ const intervention = InterventionConfigSchema.parse({
   adherenceProfile: { expected: 0.7 },
 });
 
-const artifact = await runSimulation(leader, [], { scenario, subject, intervention });
+const artifact = await WorldModel.fromScenario(scenario).intervene({
+  actor: leader,
+  subject,
+  intervention,
+});
 ```
 
 Turn-loop mode stashes both verbatim without semantic consumption; external batch-trajectory executors populate them from their own flow.
@@ -238,11 +246,15 @@ Users who want more runs paste their own OpenAI or Anthropic key. The dashboard'
 
 ```typescript
 import type { ScenarioPackage, Agent, HexacoProfile } from 'paracosm';
-import type { ActorConfig } from 'paracosm/runtime';
-import { SimulationKernel, SeededRng } from 'paracosm';
-import { marsScenario } from 'paracosm/mars';
-import { lunarScenario } from 'paracosm/lunar';
-import { runSimulation, runBatch } from 'paracosm/runtime';
+import type { ActorConfig } from 'paracosm';
+import {
+  WorldModel,
+  run,
+  runMany,
+  marsScenario,
+  lunarScenario,
+} from 'paracosm';
+import { SimulationKernel, SeededRng } from 'paracosm/core';
 import { compileScenario } from 'paracosm/compiler';
 import {
   RunArtifactSchema,
@@ -258,13 +270,13 @@ import {
 
 Full type reference is auto-generated from source at [/paracosm](/paracosm). The core types:
 
-- [`ScenarioPackage`](/paracosm/engine/interfaces/ScenarioPackage): domain-agnostic scenario bundle
-- `ActorConfig`: commander identity plus HEXACO profile (or pluggable `traitProfile`); imported via `paracosm/runtime`
-- [`HexacoProfile`](/paracosm/engine/interfaces/HexacoProfile): six-axis personality vector
-- [`SimulationKernel`](/paracosm/engine/classes/SimulationKernel): deterministic state machine
-- [`runSimulation`](/paracosm/runtime/functions/runSimulation): single-leader turn loop, returns `Promise<RunArtifact>`
-- [`runBatch`](/paracosm/runtime/functions/runBatch): parallel multi-scenario runner
-- [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario): turns a scenario draft plus optional source grounding into a runnable `ScenarioPackage`
+- [`ScenarioPackage`](/paracosm/paracosm/interfaces/ScenarioPackage): domain-agnostic scenario bundle
+- `ActorConfig`: commander identity plus HEXACO profile (or pluggable `traitProfile`); imported from `paracosm`
+- [`HexacoProfile`](/paracosm/paracosm/core/interfaces/HexacoProfile): six-axis personality vector
+- [`SimulationKernel`](/paracosm/paracosm/core/classes/SimulationKernel): deterministic state machine
+- `WorldModel.simulate`: single-actor turn loop, returns `Promise<RunArtifact>`
+- `run` / `runMany`: prompt, URL, or precompiled scenario quickstarts from the root export
+- [`compileScenario`](/paracosm/paracosm/compiler/functions/compileScenario): turns a scenario draft plus optional source grounding into a runnable `ScenarioPackage`
 
 ## HTTP + SSE server
 
