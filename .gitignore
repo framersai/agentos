@@ -28,9 +28,22 @@ coverage/
 *.sqlite-wal
 *.sqlite-shm
 
-# Superpowers
+# Internal planning content — never publish
 .superpowers/
 docs/superpowers/
+docs/specs/
+docs/plans/
+docs/internal/
+docs/audits/
+docs/STEP_*.md
+docs/PHASE_*.md
+docs/STAGE_*.md
+docs/SESSION_*.md
+docs/HANDOFF*.md
+docs/FINDINGS*.md
+docs/*-v[0-9]*-plan*.md
+docs/*-v[0-9]*-design*.md
+docs/*-plan-phase*.md
 
-# Internal planning docs (superpowers workflow)
-docs/mars-genesis-v*-plan*.md
+# Example run output — large LLM artifacts, not part of the published surface
+examples/*/output/*.json
