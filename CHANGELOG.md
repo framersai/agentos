@@ -1,3 +1,10 @@
+## <small>0.6.16 (2026-05-06)</small>
+
+* fix(docs): update compileScenario typedoc link path after paracosm regen ([914d202](https://github.com/framersai/agentos/commit/914d202))
+* chore: untrack 25 mars-genesis output fixtures + generalize internal-doc gitignore ([ecba5c3](https://github.com/framersai/agentos/commit/ecba5c3))
+* docs: update paracosm integration surface ([63bb531](https://github.com/framersai/agentos/commit/63bb531))
+* docs(memory): add MEMORY_SYSTEM_OVERVIEW.md study writeup ([3d2a51f](https://github.com/framersai/agentos/commit/3d2a51f))
+
 ## <small>0.6.15 (2026-05-06)</small>
 
 * fix(docs): correct multi-channel cookbook imports + adapter API ([0434dd3](https://github.com/framersai/agentos/commit/0434dd3))
