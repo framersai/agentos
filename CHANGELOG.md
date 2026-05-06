@@ -1,3 +1,8 @@
+## <small>0.6.17 (2026-05-06)</small>
+
+* fix(docs): register MEMORY_SYSTEM_OVERVIEW.md in publication manifest ([5bdc01f](https://github.com/framersai/agentos/commit/5bdc01f))
+* docs: register Wunderland sidebar section + add Wunderland row to README ecosystem ([705ef1a](https://github.com/framersai/agentos/commit/705ef1a))
+
 ## <small>0.6.16 (2026-05-06)</small>
 
 * fix(docs): update compileScenario typedoc link path after paracosm regen ([914d202](https://github.com/framersai/agentos/commit/914d202))
