@@ -27,6 +27,7 @@ const SECTION_ORDER = [
   'Advanced',
   'Skills',
   'Extensions',
+  'Wunderland',
 ];
 
 function entry(config) {
@@ -372,6 +373,10 @@ const publicationManifest = [
     group: 'Provenance Extensions',
   }),
   extraDoc('packages/agentos/CHANGELOG.md', 'getting-started/changelog.md', 'Changelog', 'Getting Started', 7),
+
+  siteDoc('wunderland/index.md', 'wunderland/index.md', 'Wunderland — Getting Started', 'Wunderland', 1, {
+    categoryIndex: true,
+  }),
 ];
 
 function resolvePublicationSourcePath(monoRoot, entryConfig) {

@@ -165,6 +165,7 @@ Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-
 | [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes, per-case run JSONs at fixed seed. MIT (the rest of AgentOS is Apache 2.0). |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence: SQLite, Postgres, IndexedDB, Capacitor SQLite. |
 | [`paracosm`](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine that uses AgentOS as its substrate. |
+| [`wunderland`](https://www.npmjs.com/package/wunderland) | Sister project (preview) — batteries-included CLI plus daemon over the AgentOS extension and skill registries. 28-command CLI, 5-tier security, 8 agent presets, step-up HITL. [github.com/jddunn/wunderland](https://github.com/jddunn/wunderland). MIT. |
 
 **Extensions and skills auto-load at startup.** The runtime walks each registry plus any user-supplied paths, resolves each pack's `createExtensionPack(context)` factory or `SKILL.md` frontmatter, and registers tools, guardrails, channels, and skills without manual wiring. Capability gating and HITL approval gates apply to side-effecting installs. See [extensions architecture](https://docs.agentos.sh/architecture/extension-loading) for the full loading model.
 
