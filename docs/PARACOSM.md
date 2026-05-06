@@ -230,7 +230,7 @@ Any domain works. Mars colonies, submarine habitats, space stations, medieval ki
 }
 ```
 
-`compileScenario()` turns a scenario JSON draft plus optional `seedText` / `seedUrl` grounding into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls. Compilation costs about $0.10 per scenario and caches to disk. See [`compileScenario`](/paracosm/engine/compiler/functions/compileScenario) for the full hook contract.
+`compileScenario()` turns a scenario JSON draft plus optional `seedText` / `seedUrl` grounding into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls. Compilation costs about $0.10 per scenario and caches to disk. See [`compileScenario`](/paracosm/paracosm/compiler/functions/compileScenario) for the full hook contract.
 
 ## Cost safety
 
