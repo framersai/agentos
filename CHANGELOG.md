@@ -1,3 +1,7 @@
+## <small>0.6.15 (2026-05-06)</small>
+
+* fix(docs): correct multi-channel cookbook imports + adapter API ([0434dd3](https://github.com/framersai/agentos/commit/0434dd3))
+
 ## <small>0.6.14 (2026-05-05)</small>
 
 * fix: stop saying 'same crises' for paracosm — Event Director is LLM-driven, events diverge per leade ([9fe4930](https://github.com/framersai/agentos/commit/9fe4930))
