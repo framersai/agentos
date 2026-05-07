@@ -1,3 +1,8 @@
+## <small>0.6.24 (2026-05-07)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([0e93a58](https://github.com/framersai/agentos/commit/0e93a58))
+* feat(orchestration): plannerConfig.style routes YAML missions to plan templates ([49720d0](https://github.com/framersai/agentos/commit/49720d0))
+
 ## <small>0.6.23 (2026-05-07)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([7d3e86d](https://github.com/framersai/agentos/commit/7d3e86d))
