@@ -289,4 +289,63 @@ describe('MissionCompiler.compile()', () => {
       expect(process.maxInternalIterations).toBe(2);
     });
   });
+
+  describe('plannerConfig.style — goal-style routing to different stub templates', () => {
+    function nodeIdsOf(ir: ReturnType<typeof MissionCompiler.compile>): string[] {
+      return ir.nodes.map((n) => n.id);
+    }
+
+    it('defaults to the research template (gather/process/deliver/refine) when no style is given', () => {
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 8 },
+      }));
+      const ids = nodeIdsOf(ir);
+      expect(ids).toContain('gather-info');
+      expect(ids).toContain('process-info');
+      expect(ids).toContain('deliver-result');
+      expect(ids).toContain('refine-output');
+    });
+
+    it("style: 'research' is explicit and produces the same template as the default", () => {
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 8, style: 'research' },
+      }));
+      const ids = nodeIdsOf(ir);
+      expect(ids).toContain('gather-info');
+      expect(ids).toContain('process-info');
+      expect(ids).toContain('deliver-result');
+      expect(ids).toContain('refine-output');
+    });
+
+    it("style: 'qa' produces a 2-step quick-answer plan (research-quick + answer)", () => {
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 4, style: 'qa' },
+      }));
+      const ids = nodeIdsOf(ir);
+      expect(ids).toContain('research-quick');
+      expect(ids).toContain('answer');
+      // QA template is intentionally short — should NOT have the research phases.
+      expect(ids).not.toContain('process-info');
+      expect(ids).not.toContain('refine-output');
+    });
+
+    it("style: 'creative' produces a brainstorm/develop/produce/polish plan", () => {
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 8, style: 'creative' },
+      }));
+      const ids = nodeIdsOf(ir);
+      expect(ids).toContain('brainstorm');
+      expect(ids).toContain('develop-concept');
+      expect(ids).toContain('produce-artifact');
+      expect(ids).toContain('polish');
+    });
+
+    it('rejects an unknown style with a clear error mentioning supported values', () => {
+      expect(() => {
+        MissionCompiler.compile(makeBaseConfig({
+          plannerConfig: { strategy: 'linear', maxSteps: 4, style: 'wat' as any },
+        }));
+      }).toThrow(/style/i);
+    });
+  });
 });
