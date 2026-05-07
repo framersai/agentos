@@ -1,3 +1,8 @@
+## <small>0.6.18 (2026-05-07)</small>
+
+* fix(orchestration): goal-aware, phase-distinct stub mission planner ([b6f4007](https://github.com/framersai/agentos/commit/b6f4007))
+* docs(memory): add high-level 'how it connects' summary near top of overview ([92b80b3](https://github.com/framersai/agentos/commit/92b80b3)), closes [hi#level](https://github.com/hi/issues/level)
+
 ## <small>0.6.17 (2026-05-06)</small>
 
 * fix(docs): register MEMORY_SYSTEM_OVERVIEW.md in publication manifest ([5bdc01f](https://github.com/framersai/agentos/commit/5bdc01f))
