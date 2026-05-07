@@ -1,3 +1,10 @@
+## <small>0.6.26 (2026-05-07)</small>
+
+* feat(orchestration): plannerConfig.plan accepts pre-generated SimplePlan ([0723be6](https://github.com/framersai/agentos/commit/0723be6))
+* docs(memory): add HEXACO personality guide and surface cognitive memory guide in sidebar ([e81a05e](https://github.com/framersai/agentos/commit/e81a05e))
+* Merge branch 'master' of https://github.com/framersai/agentos ([addb645](https://github.com/framersai/agentos/commit/addb645))
+* test(orchestration): pin parallel-branch telemetry forwarding + compound-goal classifier behaviour ([b3f94dd](https://github.com/framersai/agentos/commit/b3f94dd))
+
 ## <small>0.6.25 (2026-05-07)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([860467b](https://github.com/framersai/agentos/commit/860467b))
