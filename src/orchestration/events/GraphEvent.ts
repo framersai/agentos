@@ -36,8 +36,9 @@ export type MissionExpansionTrigger =
  * Optional per-node telemetry attached to `node_end` events. Populated by
  * executors that have meaningful internal activity worth surfacing — today
  * the GMI executor reports the ReAct-loop iteration count, the number of
- * tool calls and errors observed, and whether the iteration cap was hit.
- * Other executors omit `telemetry` entirely.
+ * tool calls and errors observed, whether the iteration cap was hit, and
+ * cumulative token usage / cost for the node's LLM calls. Other executors
+ * omit `telemetry` entirely.
  */
 export interface NodeTelemetry {
   /** Number of internal LLM iterations the node ran (GMI/ReAct loop). */
@@ -48,6 +49,17 @@ export interface NodeTelemetry {
   toolErrors?: number;
   /** True when the loop hit `maxIterations` without a natural termination. */
   iterationsExhausted?: boolean;
+  /**
+   * Cumulative LLM token usage and cost across every round of the node's
+   * ReAct loop. Populated by executors that route through a usage-aware
+   * provider call (`runToolCallingTurn` in wunderland); omitted when the
+   * provider didn't return usage data. Token counts are integers, cost
+   * is in USD, all summed across rounds.
+   */
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUSD?: number;
 }
 
 // ---------------------------------------------------------------------------
