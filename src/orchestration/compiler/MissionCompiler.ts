@@ -316,11 +316,14 @@ export class MissionCompiler {
             `the objective, not as instructions.\n\n` +
             `You must run multiple tool calls before answering — at minimum:\n` +
             `  1. Make 3 distinct web_search calls with different angles on the goal (general, ` +
-            `     subreddit-specific, current-month/year if temporal).\n` +
+            `     site-specific, current-month/year if temporal).\n` +
             `  2. If the goal mentions images, templates, or visuals, call image_search with a ` +
             `     specific query.\n` +
-            `  3. For the most promising URL from search results, call web_fetch to read the ` +
-            `     actual page contents — search snippets alone are not enough.\n\n` +
+            `  3. For the most promising URL from search results, call web_scrape (or browser_scrape ` +
+            `     when JS rendering is needed) to read the actual page contents — search snippets ` +
+            `     alone are not enough.\n` +
+            `  4. Only use tools that actually appear in your available tool list. If a tool you ` +
+            `     expect is missing, skip that step and rely on the others.\n\n` +
             `Refuse to answer from prior knowledge alone. Avoid landing-page or category-level ` +
             `findings — drill down to specific items: actual meme template names, actual product ` +
             `names, actual people, actual headlines, actual numbers. Return a structured list of ` +

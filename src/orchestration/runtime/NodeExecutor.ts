@@ -625,7 +625,22 @@ export class NodeExecutor {
         },
       };
 
+      // Bounds for the empty-output fallback. Per-item caps keep any single
+      // tool from dominating; the total cap keeps the synthesised string from
+      // blowing up downstream prompts.
+      const PER_RESULT_CAP = 4000;
+      const PER_ERROR_CAP = 1000;
+      const TOTAL_FALLBACK_CAP = 16000;
+
       let accumulatedText = '';
+      // Capture tool activity so we can fall back to it if the LLM never emits
+      // a final text response — e.g. max_iterations exhausted mid-research, or
+      // tool-call iterations with no narration (some providers omit content on
+      // tool_calls).
+      const toolResults: Array<{ name: string; content: string }> = [];
+      const toolErrors: Array<{ name: string; error: string }> = [];
+      let iterationsExhausted = false;
+
       for await (const event of this.deps.loopController.execute(
         {
           maxIterations: config.maxInternalIterations ?? 10,
@@ -636,7 +651,63 @@ export class NodeExecutor {
       )) {
         if (event.type === 'text_delta') {
           accumulatedText += event.content;
+        } else if (event.type === 'tool_result' && event.result?.success) {
+          const out = event.result.output;
+          const content: string = typeof out === 'string'
+            ? out
+            : (() => {
+                try {
+                  // JSON.stringify returns undefined for top-level undefined or
+                  // a function — coerce those to a fallback string.
+                  return JSON.stringify(out) ?? String(out ?? '');
+                } catch {
+                  return String(out ?? '');
+                }
+              })();
+          toolResults.push({ name: event.toolName, content: content.slice(0, PER_RESULT_CAP) });
+        } else if (event.type === 'tool_error') {
+          toolErrors.push({ name: event.toolName, error: String(event.error).slice(0, PER_ERROR_CAP) });
+        } else if (event.type === 'max_iterations_reached') {
+          iterationsExhausted = true;
         }
+      }
+
+      // Fallback: if the LLM never produced text, surface whatever tool activity
+      // happened so subsequent graph nodes have something to work with instead
+      // of an empty string. Successful results take priority; if there are only
+      // errors, surface those so the user can see what went wrong.
+      if (!accumulatedText.trim() && (toolResults.length > 0 || toolErrors.length > 0)) {
+        const header = iterationsExhausted
+          ? '[max_iterations_reached before final summary; surfacing raw tool activity]'
+          : '[no text response from model; surfacing raw tool activity]';
+        const lines: string[] = [header, ''];
+        // Track running length manually so each chunk insertion is O(chunk),
+        // and so partial chunks are never appended (a chunk is all-or-nothing
+        // to avoid orphaned "Tool: X" headers without their content).
+        let currentLength = lines.join('\n').length;
+        let truncated = false;
+        const pushChunk = (chunk: string[]): boolean => {
+          // chunkLength includes the leading '\n' separator before the chunk
+          // plus '\n' between each chunk line.
+          const chunkLength = chunk.reduce((sum, line) => sum + line.length + 1, 0);
+          if (currentLength + chunkLength > TOTAL_FALLBACK_CAP) {
+            truncated = true;
+            return false;
+          }
+          lines.push(...chunk);
+          currentLength += chunkLength;
+          return true;
+        };
+        for (const r of toolResults) {
+          if (!pushChunk([`Tool: ${r.name}`, 'Result:', r.content, ''])) break;
+        }
+        if (!truncated) {
+          for (const e of toolErrors) {
+            if (!pushChunk([`Tool: ${e.name}`, `Error: ${e.error}`, ''])) break;
+          }
+        }
+        if (truncated) lines.push('[fallback truncated]');
+        accumulatedText = lines.join('\n').trimEnd();
       }
 
       return { success: true, output: accumulatedText };

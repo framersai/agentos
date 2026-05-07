@@ -371,4 +371,160 @@ describe('NodeExecutor', () => {
     expect(result.success).toBe(true);
     expect(result.routeTarget).toBe('false');
   });
+
+  // -------------------------------------------------------------------------
+  // Test 12 — GMI node: max_iterations_reached with tool results but no
+  // text_delta events should fall back to formatted tool results, not return
+  // an empty string.
+  //
+  // Repro for the regression observed when a low maxIterationsPerNode (e.g. 4)
+  // exhausts before the LLM emits its final summary. With OpenAI tool calling,
+  // an iteration can be 100% tool_calls with empty content, so accumulatedText
+  // remains '' across the whole loop. Returning '' propagates an empty output
+  // to downstream nodes, breaking the mission.
+  // -------------------------------------------------------------------------
+  it('falls back to formatted tool results when iterations exhaust without text_delta', async () => {
+    const mockLoopController = {
+      // Yields two successful tool_results then max_iterations_reached, never
+      // a text_delta.
+      async *execute(_config: unknown, _context: unknown) {
+        yield {
+          type: 'tool_result' as const,
+          toolName: 'web_search',
+          result: { id: 'tc1', name: 'web_search', success: true, output: 'Two relevant URLs found about meme research.' },
+        };
+        yield {
+          type: 'tool_result' as const,
+          toolName: 'web_fetch',
+          result: { id: 'tc2', name: 'web_fetch', success: true, output: { title: 'Trending memes 2026', url: 'https://example.com/memes' } },
+        };
+        yield { type: 'max_iterations_reached' as const, iteration: 4 };
+      },
+    };
+
+    async function* mockProviderCall() {
+      // Provider isn't actually consulted by this mock loop, so an empty stream
+      // is fine.
+      return { responseText: '', toolCalls: [], finishReason: 'stop' };
+    }
+
+    const executor = new NodeExecutor({
+      loopController: mockLoopController as any,
+      providerCall: () => mockProviderCall(),
+    });
+
+    const node: GraphNode = {
+      id: 'gather-info',
+      type: 'gmi',
+      executorConfig: { type: 'gmi', instructions: 'Research memes', maxInternalIterations: 4 },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const result = await executor.execute(node, {} as Partial<GraphState>);
+
+    expect(result.success).toBe(true);
+    // Output must NOT be empty when tool results were produced.
+    expect(typeof result.output).toBe('string');
+    const output = String(result.output ?? '');
+    expect(output.length).toBeGreaterThan(0);
+    // Should reference the tool names so subsequent nodes can use the data.
+    expect(output).toContain('web_search');
+    expect(output).toContain('web_fetch');
+    // Should contain content from the tool outputs.
+    expect(output).toContain('Two relevant URLs');
+    expect(output).toContain('Trending memes 2026');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 13 — GMI node: when only tool errors fired (no text, no successful
+  // results), the fallback still surfaces the error info so subsequent nodes
+  // and the user can see what went wrong, instead of an empty string.
+  // -------------------------------------------------------------------------
+  it('surfaces tool errors as fallback when no text and no successful results', async () => {
+    const mockLoopController = {
+      async *execute(_config: unknown, _context: unknown) {
+        yield { type: 'tool_error' as const, toolName: 'web_search', error: 'rate limit exceeded' };
+        yield { type: 'tool_error' as const, toolName: 'image_search', error: 'auth failed' };
+        yield { type: 'max_iterations_reached' as const, iteration: 4 };
+      },
+    };
+
+    async function* mockProviderCall() {
+      return { responseText: '', toolCalls: [], finishReason: 'stop' };
+    }
+
+    const executor = new NodeExecutor({
+      loopController: mockLoopController as any,
+      providerCall: () => mockProviderCall(),
+    });
+
+    const node: GraphNode = {
+      id: 'gather-info',
+      type: 'gmi',
+      executorConfig: { type: 'gmi', instructions: 'Search', maxInternalIterations: 4 },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const result = await executor.execute(node, {} as Partial<GraphState>);
+
+    expect(result.success).toBe(true);
+    const output = String(result.output ?? '');
+    expect(output.length).toBeGreaterThan(0);
+    expect(output).toContain('web_search');
+    expect(output).toContain('rate limit exceeded');
+    expect(output).toContain('image_search');
+    expect(output).toContain('auth failed');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 14 — GMI fallback truncates total output when many large tool
+  // results exceed the safety cap (16000 chars). Prevents a single empty-
+  // response node from blowing up downstream prompts.
+  // -------------------------------------------------------------------------
+  it('caps the empty-output fallback at the total size limit', async () => {
+    const bigResult = 'x'.repeat(4000);
+    const mockLoopController = {
+      async *execute(_config: unknown, _context: unknown) {
+        // 10 results × ~4000 chars each = ~40KB raw, well past the 16KB cap.
+        for (let i = 0; i < 10; i++) {
+          yield {
+            type: 'tool_result' as const,
+            toolName: `tool_${i}`,
+            result: { id: `tc${i}`, name: `tool_${i}`, success: true, output: bigResult },
+          };
+        }
+        yield { type: 'max_iterations_reached' as const, iteration: 10 };
+      },
+    };
+
+    async function* mockProviderCall() {
+      return { responseText: '', toolCalls: [], finishReason: 'stop' };
+    }
+
+    const executor = new NodeExecutor({
+      loopController: mockLoopController as any,
+      providerCall: () => mockProviderCall(),
+    });
+
+    const node: GraphNode = {
+      id: 'gather-info',
+      type: 'gmi',
+      executorConfig: { type: 'gmi', instructions: 'Search', maxInternalIterations: 10 },
+      executionMode: 'single_turn',
+      effectClass: 'pure',
+      checkpoint: 'none',
+    };
+
+    const result = await executor.execute(node, {} as Partial<GraphState>);
+
+    expect(result.success).toBe(true);
+    const output = String(result.output ?? '');
+    // Generous slack so we don't depend on exact join overhead.
+    expect(output.length).toBeLessThan(20000);
+    expect(output).toContain('[fallback truncated]');
+  });
 });
