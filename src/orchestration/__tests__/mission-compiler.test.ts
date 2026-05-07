@@ -63,14 +63,15 @@ describe('MissionCompiler.compile()', () => {
     expect(nodeIds).toContain('deliver-result');
   });
 
-  it('produces a linear edge chain: START → gather → process → deliver → END', () => {
+  it('produces a linear edge chain: START → gather → process → deliver → refine → END', () => {
     const ir = MissionCompiler.compile(makeBaseConfig());
 
     const edgePairs = ir.edges.map(e => `${e.source}->${e.target}`);
     expect(edgePairs).toContain(`${START}->gather-info`);
     expect(edgePairs).toContain('gather-info->process-info');
     expect(edgePairs).toContain('process-info->deliver-result');
-    expect(edgePairs).toContain(`deliver-result->${END}`);
+    expect(edgePairs).toContain('deliver-result->refine-output');
+    expect(edgePairs).toContain(`refine-output->${END}`);
   });
 
   it('all edges are static', () => {
