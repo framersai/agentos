@@ -242,4 +242,51 @@ describe('MissionCompiler.compile()', () => {
     const anchorInEdges = edgePairs.some(p => p.includes('anchor-1') || p.includes('anchor-2'));
     expect(anchorInEdges).toBe(true);
   });
+
+  describe('per-step maxIterations precedence', () => {
+    function getGmiNode(ir: ReturnType<typeof MissionCompiler.compile>, nodeId: string) {
+      const node = ir.nodes.find((n) => n.id === nodeId);
+      expect(node).toBeDefined();
+      return node!;
+    }
+
+    it('stub planner emits gather-info with a higher iteration budget than reasoning-only phases', () => {
+      // No global cap — planner's per-step values should pass through verbatim.
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 5 },
+      }));
+
+      const gather = getGmiNode(ir, 'gather-info').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+      const process = getGmiNode(ir, 'process-info').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+      const deliver = getGmiNode(ir, 'deliver-result').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+
+      expect(gather.maxInternalIterations).toBe(8);
+      expect(process.maxInternalIterations).toBe(2);
+      expect(deliver.maxInternalIterations).toBe(2);
+    });
+
+    it('plannerConfig.maxIterationsPerNode acts as a HARD CEILING — a global cap of 3 caps gather-info at 3', () => {
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 5, maxIterationsPerNode: 3 },
+      }));
+
+      const gather = getGmiNode(ir, 'gather-info').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+      const refine = getGmiNode(ir, 'refine-output').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+
+      expect(gather.maxInternalIterations).toBe(3); // capped by global
+      expect(refine.maxInternalIterations).toBe(2); // already below cap, unchanged
+    });
+
+    it('plannerConfig.maxIterationsPerNode of 20 does not lower gather; it stays at the planner-suggested 8', () => {
+      const ir = MissionCompiler.compile(makeBaseConfig({
+        plannerConfig: { strategy: 'linear', maxSteps: 5, maxIterationsPerNode: 20 },
+      }));
+
+      const gather = getGmiNode(ir, 'gather-info').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+      const process = getGmiNode(ir, 'process-info').executorConfig as { type: 'gmi'; maxInternalIterations?: number };
+
+      expect(gather.maxInternalIterations).toBe(8); // step value wins (lower)
+      expect(process.maxInternalIterations).toBe(2);
+    });
+  });
 });
