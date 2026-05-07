@@ -317,8 +317,10 @@ export class MissionCompiler {
             `You must run multiple tool calls before answering — at minimum:\n` +
             `  1. Make 3 distinct web_search calls with different angles on the goal (general, ` +
             `     site-specific, current-month/year if temporal).\n` +
-            `  2. If the goal mentions images, templates, or visuals, call image_search with a ` +
-            `     specific query.\n` +
+            `  2. Call image_search at least once whenever the goal involves anything visual — ` +
+            `     memes, templates, formats, photos, gifs, screenshots, products, designs, or ` +
+            `     anything users might want to *see*. Use a concrete query that matches the goal ` +
+            `     domain, and include the returned URLs in your raw findings.\n` +
             `  3. For the most promising URL from search results, call web_scrape (or browser_scrape ` +
             `     when JS rendering is needed) to read the actual page contents — search snippets ` +
             `     alone are not enough.\n` +
