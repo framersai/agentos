@@ -106,22 +106,76 @@ function copyIfPresent(sourcePath, targetPath) {
   return true;
 }
 
-if (!fs.existsSync(distDir)) {
-  console.log('[agentos fix-esm-imports] dist directory missing; nothing to do.');
-  process.exit(0);
+/**
+ * Walk the dist tree after rewriting and verify every static/dynamic relative
+ * import has a resolvable extension. Catches the case where a previous build
+ * left partial dist state (e.g. rimraf failed because another process held
+ * files open) and the rewriter's regex didn't reach a stale file.
+ *
+ * Returns an array of {file, specifier, line} for each unfixed import.
+ */
+export function findUnfixedRelativeImports(distDir) {
+  const issues = [];
+  const jsFiles = collectJsFiles(distDir);
+  const patterns = [
+    /(^\s*(?:import|export)\s[\s\S]*?from\s+['"])([^'"]+)(['"])/gm,
+    /(import\(\s*['"])([^'"]+)(['"]\s*\))/g,
+  ];
+  for (const file of jsFiles) {
+    const contents = fs.readFileSync(file, 'utf8');
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0;
+      let m;
+      while ((m = pattern.exec(contents)) !== null) {
+        const specifier = m[2];
+        if (!specifier.startsWith('.')) continue;
+        if (/\.(?:[cm]?js|json|node)$/i.test(specifier)) continue;
+        // Look up the file's line number for a useful error message.
+        const lineNumber = contents.slice(0, m.index).split('\n').length;
+        issues.push({ file, specifier, line: lineNumber });
+      }
+    }
+  }
+  return issues;
 }
 
-const jsFiles = collectJsFiles(distDir);
-for (const file of jsFiles) {
-  rewriteSpecifiers(file);
-}
+// Only run the main pipeline when invoked directly, not when this module is
+// imported from a test or another script.
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  if (!fs.existsSync(distDir)) {
+    console.log('[agentos fix-esm-imports] dist directory missing; nothing to do.');
+    process.exit(0);
+  }
 
-const copiedExtensionSecrets = copyIfPresent(
-  path.resolve(distDir, 'core', 'config', 'extension-secrets.json'),
-  path.resolve(distDir, 'config', 'extension-secrets.json'),
-);
+  const jsFiles = collectJsFiles(distDir);
+  for (const file of jsFiles) {
+    rewriteSpecifiers(file);
+  }
 
-console.log(`[agentos fix-esm-imports] Processed ${jsFiles.length} files under ${distDir}.`);
-if (copiedExtensionSecrets) {
-  console.log('[agentos fix-esm-imports] Mirrored extension-secrets.json into dist/config for public package exports.');
+  const copiedExtensionSecrets = copyIfPresent(
+    path.resolve(distDir, 'core', 'config', 'extension-secrets.json'),
+    path.resolve(distDir, 'config', 'extension-secrets.json'),
+  );
+
+  console.log(`[agentos fix-esm-imports] Processed ${jsFiles.length} files under ${distDir}.`);
+  if (copiedExtensionSecrets) {
+    console.log('[agentos fix-esm-imports] Mirrored extension-secrets.json into dist/config for public package exports.');
+  }
+
+  const unfixed = findUnfixedRelativeImports(distDir);
+  if (unfixed.length > 0) {
+    console.error(
+      `[agentos fix-esm-imports] FAIL: ${unfixed.length} relative import${unfixed.length === 1 ? '' : 's'} ` +
+      `in dist still missing a file extension. This usually means a previous build ` +
+      `left partial state — try \`rm -rf dist && pnpm build\`.`,
+    );
+    for (const issue of unfixed.slice(0, 20)) {
+      const rel = path.relative(distDir, issue.file);
+      console.error(`  ${rel}:${issue.line}  ->  ${issue.specifier}`);
+    }
+    if (unfixed.length > 20) {
+      console.error(`  …and ${unfixed.length - 20} more.`);
+    }
+    process.exit(1);
+  }
 }
