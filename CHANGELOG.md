@@ -1,3 +1,9 @@
+## <small>0.6.22 (2026-05-07)</small>
+
+* feat(orchestration): per-node telemetry on node_end events ([67a5aa9](https://github.com/framersai/agentos/commit/67a5aa9))
+* Merge branch 'master' of https://github.com/framersai/agentos ([3a1df1c](https://github.com/framersai/agentos/commit/3a1df1c))
+* build: validate dist imports + fail loudly on partial-build state ([1242012](https://github.com/framersai/agentos/commit/1242012))
+
 ## <small>0.6.21 (2026-05-07)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([5c2e0bb](https://github.com/framersai/agentos/commit/5c2e0bb))
