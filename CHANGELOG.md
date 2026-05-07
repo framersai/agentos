@@ -1,3 +1,8 @@
+## <small>0.6.23 (2026-05-07)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([7d3e86d](https://github.com/framersai/agentos/commit/7d3e86d))
+* feat(orchestration): per-step maxIterations on stub planner with global ceiling ([b369cd7](https://github.com/framersai/agentos/commit/b369cd7))
+
 ## <small>0.6.22 (2026-05-07)</small>
 
 * feat(orchestration): per-node telemetry on node_end events ([67a5aa9](https://github.com/framersai/agentos/commit/67a5aa9))
