@@ -175,6 +175,7 @@ const publicationManifest = [
 
   agentosDoc('MEMORY_SYSTEM_OVERVIEW.md', 'features/memory-system-overview.md', 'Memory System Overview', 'Memory', 0),
   agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 1),
+  agentosDoc('HEXACO_PERSONALITY.md', 'features/hexaco-personality.md', 'HEXACO Personality', 'Memory', 1.5),
   agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 2),
   agentosDoc('WORKING_MEMORY.md', 'features/working-memory.md', 'Working Memory', 'Memory', 3),
   agentosDoc('MEMORY_ARCHITECTURE.md', 'features/memory-architecture.md', 'Memory Architecture Overview', 'Memory', 4),
@@ -183,9 +184,7 @@ const publicationManifest = [
   agentosDoc('MEMORY_IMPORT_EXPORT.md', 'features/memory-import-export.md', 'Memory Import/Export', 'Memory', 7),
   agentosDoc('MEMORY_SCALING.md', 'features/memory-scaling.md', 'Memory Scaling (4-Tier Vector Storage)', 'Memory', 8),
   agentosDoc('SQL_STORAGE_QUICKSTART.md', 'features/sql-storage.md', 'SQL Storage Quickstart', 'Memory', 9),
-  agentosDoc('COGNITIVE_MEMORY_GUIDE.md', 'features/cognitive-memory-guide.md', 'Cognitive Memory Guide', 'Memory', 10, {
-    sidebar: false,
-  }),
+  agentosDoc('COGNITIVE_MEMORY_GUIDE.md', 'features/cognitive-memory-guide.md', 'Cognitive Memory Guide', 'Memory', 10),
   agentosDoc('CLIENT_SIDE_STORAGE.md', 'features/client-side-storage.md', 'Client-Side Storage', 'Memory', 11, {
     sidebar: false,
   }),
