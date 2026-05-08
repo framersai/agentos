@@ -173,34 +173,42 @@ const publicationManifest = [
   agentosDoc('HUMAN_IN_THE_LOOP.md', 'features/human-in-the-loop.md', 'Human-in-the-Loop', 'Orchestration', 8),
   agentosDoc('COGNITIVE_PIPELINE.md', 'features/cognitive-pipeline.md', 'Cognitive Pipeline (Smart Per-Message Orchestration)', 'Orchestration', 9),
 
-  agentosDoc('MEMORY_SYSTEM_OVERVIEW.md', 'features/memory-system-overview.md', 'Memory System Overview', 'Memory', 0),
-  agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 1),
-  agentosDoc('HEXACO_PERSONALITY.md', 'features/hexaco-personality.md', 'HEXACO Personality', 'Memory', 1.5),
-  agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 2),
-  agentosDoc('WORKING_MEMORY.md', 'features/working-memory.md', 'Working Memory', 'Memory', 3),
-  agentosDoc('MEMORY_ARCHITECTURE.md', 'features/memory-architecture.md', 'Memory Architecture Overview', 'Memory', 4),
-  agentosDoc('MEMORY_AUTO_INGEST.md', 'features/memory-auto-ingest.md', 'Memory Auto-Ingest', 'Memory', 5),
-  agentosDoc('MEMORY_TOOLS.md', 'features/memory-tools.md', 'Agent Memory Tools', 'Memory', 6),
-  agentosDoc('MEMORY_IMPORT_EXPORT.md', 'features/memory-import-export.md', 'Memory Import/Export', 'Memory', 7),
-  agentosDoc('MEMORY_SCALING.md', 'features/memory-scaling.md', 'Memory Scaling (4-Tier Vector Storage)', 'Memory', 8),
-  agentosDoc('SQL_STORAGE_QUICKSTART.md', 'features/sql-storage.md', 'SQL Storage Quickstart', 'Memory', 9),
-  agentosDoc('COGNITIVE_MEMORY_GUIDE.md', 'features/cognitive-memory-guide.md', 'Cognitive Memory Guide', 'Memory', 10),
-  agentosDoc('CLIENT_SIDE_STORAGE.md', 'features/client-side-storage.md', 'Client-Side Storage', 'Memory', 11, {
+  // Overview (start here)
+  agentosDoc('MEMORY_SYSTEM_OVERVIEW.md', 'features/memory-system-overview.md', 'Memory System Overview', 'Memory', 1),
+  agentosDoc('MEMORY_ARCHITECTURE.md', 'features/memory-architecture.md', 'Memory Architecture Overview', 'Memory', 2),
+
+  // Cognitive deep-dive
+  agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 3),
+  agentosDoc('HEXACO_PERSONALITY.md', 'features/hexaco-personality.md', 'HEXACO Personality', 'Memory', 4),
+  agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 5),
+  agentosDoc('WORKING_MEMORY.md', 'features/working-memory.md', 'Working Memory', 'Memory', 6),
+
+  // How to use it
+  agentosDoc('COGNITIVE_MEMORY_GUIDE.md', 'features/cognitive-memory-guide.md', 'Cognitive Memory Guide', 'Memory', 7),
+  agentosDoc('MEMORY_AUTO_INGEST.md', 'features/memory-auto-ingest.md', 'Memory Auto-Ingest', 'Memory', 8),
+  agentosDoc('MEMORY_TOOLS.md', 'features/memory-tools.md', 'Agent Memory Tools', 'Memory', 9),
+  agentosDoc('MEMORY_IMPORT_EXPORT.md', 'features/memory-import-export.md', 'Memory Import/Export', 'Memory', 10),
+
+  // Scale & storage
+  agentosDoc('MEMORY_SCALING.md', 'features/memory-scaling.md', 'Memory Scaling (4-Tier Vector Storage)', 'Memory', 11),
+  agentosDoc('SQL_STORAGE_QUICKSTART.md', 'features/sql-storage.md', 'SQL Storage Quickstart', 'Memory', 12),
+  // Hidden backend reference pages (linked from Scaling, not in nav)
+  agentosDoc('CLIENT_SIDE_STORAGE.md', 'features/client-side-storage.md', 'Client-Side Storage', 'Memory', 13, {
     sidebar: false,
   }),
-  agentosDoc('MEMORY_STORAGE.md', 'features/memory-storage.md', 'SQLite Brain Storage', 'Memory', 12, {
+  agentosDoc('MEMORY_STORAGE.md', 'features/memory-storage.md', 'SQLite Brain Storage', 'Memory', 14, {
     sidebar: false,
   }),
-  agentosDoc('POSTGRES_BACKEND.md', 'features/postgres-backend.md', 'Postgres + pgvector Backend', 'Memory', 13, {
+  agentosDoc('POSTGRES_BACKEND.md', 'features/postgres-backend.md', 'Postgres + pgvector Backend', 'Memory', 15, {
     sidebar: false,
   }),
-  agentosDoc('QDRANT_BACKEND.md', 'features/qdrant-backend.md', 'Qdrant Backend', 'Memory', 14, {
+  agentosDoc('QDRANT_BACKEND.md', 'features/qdrant-backend.md', 'Qdrant Backend', 'Memory', 16, {
     sidebar: false,
   }),
-  agentosDoc('PINECONE_BACKEND.md', 'features/pinecone-backend.md', 'Pinecone Backend', 'Memory', 15, {
+  agentosDoc('PINECONE_BACKEND.md', 'features/pinecone-backend.md', 'Pinecone Backend', 'Memory', 17, {
     sidebar: false,
   }),
-  extraDoc('packages/sql-storage-adapter/PLATFORM_STRATEGY.md', 'features/platform-strategy.md', 'Platform Strategy', 'Memory', 16, {
+  extraDoc('packages/sql-storage-adapter/PLATFORM_STRATEGY.md', 'features/platform-strategy.md', 'Platform Strategy', 'Memory', 18, {
     sidebar: false,
   }),
 

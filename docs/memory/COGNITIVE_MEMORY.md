@@ -63,27 +63,7 @@ Each model below has a one-to-one analogue in the source. The point of the table
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    CognitiveMemoryManager                          │
-│                      (top-level orchestrator)                       │
-└──┬──────┬──────┬──────┬──────┬──────┬──────┬──────┬───────────────┘
-   │      │      │      │      │      │      │      │
-   ▼      ▼      ▼      ▼      ▼      ▼      ▼      ▼
-┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────────┐
-│Encod-││Decay ││Work- ││Memory││Prompt││Memory││Obser-││Consolida-│
-│ ing  ││Model ││ ing  ││Store ││Assem-││Graph ││ver / ││tion Pipe-│
-│Model ││      ││Memory││      ││bler  ││      ││Reflec││line      │
-│      ││      ││      ││      ││      ││      ││tor   ││          │
-└──┬───┘└──┬───┘└──┬───┘└──┬───┘└──┬───┘└──┬───┘└──┬───┘└──┬───────┘
-   │       │       │       │       │       │       │       │
-   ▼       ▼       ▼       ▼       ▼       ▼       ▼       ▼
-┌──────┐┌──────┐┌──────┐┌──────────────┐┌──────┐┌──────┐┌──────────┐
-│HEXACO││Ebbng-││Badde-││  IVectorStore││Spread││LLM   ││Prospec-  │
-│Traits││haus  ││ley   ││  + IKnowledge││ing   ││Invok-││tive Mem- │
-│+ PAD ││Curve ││Slots ││    Graph     ││Activ.││er    ││ory Mgr   │
-└──────┘└──────┘└──────┘└──────────────┘└──────┘└──────┘└──────────┘
-```
+![CognitiveMemoryManager architecture: orchestrator dispatches to 8 subsystems, each backed by its substrate](/img/diagrams/cognitive-memory-architecture.svg)
 
 **Per-turn data flow (GMI integration):**
 

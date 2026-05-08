@@ -29,6 +29,10 @@ The six dimensions:
 
 Each value defaults to neutral (0.5). Values between 0.35 and 0.65 are treated as "moderate" and produce no explicit behavioral directives — the runtime only emits trait-specific instructions when a value crosses 0.65 or 0.35 in either direction. This avoids over-constraining the model on mid-range values.
 
+![HEXACO trait radar showing three sample personas](/img/diagrams/hexaco-radar.svg)
+
+The radar shows three example trait vectors. Trait *combinations* matter more than individual extremes — the same `openness: 0.9` reads differently when paired with high conscientiousness (rigorous explorer) vs low conscientiousness (creative provocateur).
+
 ---
 
 ## Quickstart
@@ -63,24 +67,7 @@ That single `personality` object propagates through five system surfaces simulta
 
 ## How traits propagate
 
-```dot
-digraph hexaco_flow {
-  rankdir=LR;
-  "personality: { ... }" [shape=box, style=filled, fillcolor="#e8f4f8"];
-
-  "personality: { ... }" -> "System Prompt";
-  "personality: { ... }" -> "Encoding Strength";
-  "personality: { ... }" -> "Working Memory Capacity";
-  "personality: { ... }" -> "Memory Prompt Format";
-  "personality: { ... }" -> "Observer / Reflector";
-
-  "System Prompt" [shape=box];
-  "Encoding Strength" [shape=box];
-  "Working Memory Capacity" [shape=box];
-  "Memory Prompt Format" [shape=box];
-  "Observer / Reflector" [shape=box];
-}
-```
+![Personality vector propagating through five system surfaces](/img/diagrams/hexaco-propagation.svg)
 
 ### 1. System prompt directives
 
@@ -122,7 +109,11 @@ export function computeEncodingWeights(traits: HexacoTraits): EncodingWeights {
 }
 ```
 
-Each weight scales how a detected content feature contributes to encoding strength. `computeAttentionMultiplier()` blends them with detected features (novelty, procedure, emotion, social, cooperation, ethical, contradiction, topic-relevance) into a final 0-1 multiplier:
+Each weight scales how a detected content feature contributes to encoding strength. The two formula families have different baselines and slopes:
+
+![Encoding-weight ramps for the two HEXACO formula families](/img/diagrams/hexaco-encoding-weights.svg)
+
+`computeAttentionMultiplier()` blends them with detected features (novelty, procedure, emotion, social, cooperation, ethical, contradiction, topic-relevance) into a final 0-1 multiplier:
 
 ```
 strength = base × arousalBoost × emotionalBoost × attentionMultiplier × congruenceBoost × flashbulbBoost
