@@ -212,9 +212,11 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
         // default NSFW filter vetoes them otherwise. Caller's existing
         // explicit setting wins (allows opt-out for test surfaces).
         const existingReplicate =
-          (effectiveProviderOptions as Record<string, unknown> | undefined)?.replicate as
+          ((effectiveProviderOptions as Record<string, unknown> | undefined)?.replicate as
             | Record<string, unknown>
-            | undefined;
+            | null
+            | undefined)
+          ?? undefined;
         if (
           existingReplicate === undefined
           || typeof existingReplicate.disableSafetyChecker === 'undefined'
