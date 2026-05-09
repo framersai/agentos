@@ -1,3 +1,23 @@
+## 0.7.0 (2026-05-09)
+
+* fix(kernel): apply codemod-driven import path fixes to 32 previously skip-worktree files ([5b019b0](https://github.com/framersai/agentos/commit/5b019b0))
+* merge: integrate origin/master 0.6.30 release ([55206de](https://github.com/framersai/agentos/commit/55206de))
+* feat!: kernel restructure into 7 parent dirs (api, core, orchestration, cognition, io, extensions, s ([ecd868f](https://github.com/framersai/agentos/commit/ecd868f))
+* docs: remove dead links to nonexistent extension-loading.md and skills-engine.md ([e11d2c2](https://github.com/framersai/agentos/commit/e11d2c2))
+* kernel: add 16 deprecation aliases + barrel index.ts files + new exports map ([07d4dd0](https://github.com/framersai/agentos/commit/07d4dd0))
+* kernel: add seven parent-dir READMEs as new layout scaffolding ([62e8f40](https://github.com/framersai/agentos/commit/62e8f40))
+* kernel: regroup src/ into 7 parent dirs (api, core, orchestration, cognition, io, extensions, safety ([a361b68](https://github.com/framersai/agentos/commit/a361b68))
+* scripts: add codemod-restructure for kernel reorg import rewrites ([9ce2160](https://github.com/framersai/agentos/commit/9ce2160))
+
+### BREAKING CHANGE
+
+* subpath imports under @framers/agentos/<old-name>
+have been moved to new locations under api/, core/, orchestration/,
+cognition/, io/, extensions/, or safety/. Sixteen specific legacy
+subpaths continue to work in 0.7.x via deprecation aliases that emit
+a one-shot dev-mode console warning. Migrate to the new canonical
+paths before 0.8.0 (where the aliases will be removed).
+
 ## <small>0.6.30 (2026-05-09)</small>
 
 * fix(image): normalize null replicate option to undefined in editImage ([f52ebb4](https://github.com/framersai/agentos/commit/f52ebb4))
