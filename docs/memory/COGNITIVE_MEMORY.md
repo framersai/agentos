@@ -7,6 +7,8 @@
 - [Cognitive Memory Guide](./COGNITIVE_MEMORY_GUIDE.md) for the practical guide with usage examples and configuration.
 :::
 
+![CognitiveMemoryManager architecture: orchestrator dispatches to 8 subsystems, each backed by its substrate](/img/diagrams/cognitive-memory-architecture.svg)
+
 ---
 
 ## Why memory should forget
@@ -62,8 +64,6 @@ Each model below has a one-to-one analogue in the source. The point of the table
 ---
 
 ## Architecture
-
-![CognitiveMemoryManager architecture: orchestrator dispatches to 8 subsystems, each backed by its substrate](/img/diagrams/cognitive-memory-architecture.svg)
 
 **Per-turn data flow (GMI integration):**
 

@@ -13,9 +13,13 @@ Paracosm is an **open-source structured world-model engine for LLM agent swarms*
 
 Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their swarms — leader plus five specialist departments plus ~100 personality-typed cells — diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
-## Two world-model paths: the visual one and the structured one
-
 ![Two world-model paths: native/visual outputs pixels; structured/LLM-based outputs typed JSON state](/img/diagrams/paracosm-world-model-split.svg)
+
+![Per-turn 9-stage flow with LLM and deterministic lanes](/img/diagrams/paracosm-turn-flow.svg)
+
+![Same Mars Genesis seed, Visionary vs Engineer leader, divergent trajectories and metrics](/img/diagrams/paracosm-divergence.svg)
+
+## Two world-model paths: the visual one and the structured one
 
 The world-model literature ([Xing 2025](https://arxiv.org/abs/2507.05169), [ACM CSUR 2025 survey](https://dl.acm.org/doi/full/10.1145/3746449), [Yang et al 2026](https://openreview.net/forum?id=XmYCERErcD)) has converged on a clean split between two ways AI systems represent how a slice of reality changes over time:
 
@@ -175,9 +179,7 @@ The dashboard's living-swarm grid streams the same shape every turn via the SSE 
 
 ## What it does
 
-Paracosm runs two leaders through the same scenario in parallel and makes their divergence measurable. Each turn has nine stages, alternating between LLM reasoning (HEXACO-prompted, divergent) and a deterministic kernel (seeded, replayable):
-
-![Per-turn 9-stage flow with LLM and deterministic lanes](/img/diagrams/paracosm-turn-flow.svg)
+Paracosm runs two leaders through the same scenario in parallel and makes their divergence measurable. Each turn has nine stages (the per-turn flow diagram at the top of this page shows the two lanes), alternating between LLM reasoning (HEXACO-prompted, divergent) and a deterministic kernel (seeded, replayable):
 
 | Stage | Kind | Responsibility |
 |-------|------|----------------|
@@ -191,9 +193,7 @@ Paracosm runs two leaders through the same scenario in parallel and makes their 
 | Memory | det. | Short-term consolidates, stances drift |
 | Personality drift | det. | HEXACO traits shift under three forces |
 
-Two runs on the same seed produce identical deterministic stages. The LLM stages diverge because every prompt carries the leader's HEXACO profile and the accumulated state it shaped. The asymmetry is the entire point — and it shows up in the final-state metrics:
-
-![Same Mars Genesis seed, Visionary vs Engineer leader, divergent trajectories and metrics](/img/diagrams/paracosm-divergence.svg)
+Two runs on the same seed produce identical deterministic stages. The LLM stages diverge because every prompt carries the leader's HEXACO profile and the accumulated state it shaped. The asymmetry is the entire point, and the divergence diagram at the top of this page shows it on Mars Genesis: the same seed under a Visionary vs Engineer leader produces different final-state metrics.
 
 ## How HEXACO drives decisions
 
