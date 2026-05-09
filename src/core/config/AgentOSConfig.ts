@@ -13,7 +13,7 @@ import { PrismaClient } from '../storage/prismaClient.js';
 import type { AgentOSConfig } from '../../api/AgentOS.js';
 import type { ExternalToolRegistry } from '../../api/runtime/externalToolRegistry.js';
 import type { AdaptableToolInput } from '../../api/runtime/toolAdapter.js';
-import type { GMIManagerConfig } from '../../cognitive_substrate/GMIManager.js';
+import type { GMIManagerConfig } from '../../cognition/substrate/GMIManager.js';
 import type { AgentOSOrchestratorConfig } from '../../api/types/OrchestratorConfig.js';
 import type { PromptEngineConfig } from '../llm/IPromptEngine.js';
 import { ToolOrchestratorConfig } from './ToolOrchestratorConfig';
@@ -24,9 +24,9 @@ import type {
   AIModelProviderManagerConfig,
   ProviderConfigEntry,
 } from '../llm/providers/AIModelProviderManager.js';
-import type { PersonaLoaderConfig } from '../../cognitive_substrate/personas/IPersonaLoader.js';
+import type { PersonaLoaderConfig } from '../../cognition/substrate/personas/IPersonaLoader.js';
 
-import type { IUtilityAI } from '../../nlp/ai_utilities/IUtilityAI.js';
+import type { IUtilityAI } from '../../cognition/nlp/ai_utilities/IUtilityAI.js';
 import type { IPromptEngineUtilityAI } from '../llm/IPromptEngine.js';
 
 // Utility for error handling
@@ -281,7 +281,7 @@ async function createUtilityAIService(
 ): Promise<(IUtilityAI & IPromptEngineUtilityAI) | undefined> {
   if (env.ENABLE_UTILITY_AI === 'true') {
     try {
-      const { StatisticalUtilityAI } = await import('../../nlp/ai_utilities/StatisticalUtilityAI.js');
+      const { StatisticalUtilityAI } = await import('../../cognition/nlp/ai_utilities/StatisticalUtilityAI.js');
       const utilityAI = new StatisticalUtilityAI();
       return utilityAI as unknown as IUtilityAI & IPromptEngineUtilityAI;
     } catch {

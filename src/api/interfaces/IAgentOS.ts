@@ -15,7 +15,7 @@ import type {
   AgentOSResumeExternalToolRequestOptions,
 } from '../types/AgentOSExternalToolRequest';
 import type { AgentOSToolResultInput } from '../types/AgentOSToolResult';
-import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
+import { IPersonaDefinition } from '../../cognition/substrate/personas/IPersonaDefinition';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 import type { AgentOSConfig, AgentOSRuntimeSnapshot } from '../AgentOS';
 import type {
@@ -29,7 +29,7 @@ import type {
   WorkflowTaskUpdate,
 } from '../../orchestration/workflows/storage/IWorkflowStore';
 import type { ConversationManager } from '../../core/conversation/ConversationManager';
-import type { GMIManager } from '../../cognitive_substrate/GMIManager';
+import type { GMIManager } from '../../cognition/substrate/GMIManager';
 import type { ExtensionManager } from '../../extensions';
 import type { IToolOrchestrator, ToolDefinitionForLLM } from '../../core/tools/IToolOrchestrator';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';

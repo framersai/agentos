@@ -26,7 +26,7 @@ import { ObjectGenerationError } from './generateObject.js';
 import { streamText, type StreamTextResult } from './streamText.js';
 import type { HostLLMPolicy } from './runtime/hostPolicy.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
-import type { SkillEntry } from '../skills/types.js';
+import type { SkillEntry } from '../cognition/skills/types.js';
 import type {
   AgentOSUsageAggregate,
   AgentOSUsageLedgerOptions,

@@ -13,9 +13,9 @@ import {
   UICommand,
   ReasoningTraceEntry as ReasoningTrace, // Assuming ReasoningTrace in IGMI is ReasoningTraceEntry[]
   CostAggregator,
-} from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
-import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
+import { IPersonaDefinition } from '../../cognition/substrate/personas/IPersonaDefinition';
 import type { WorkflowProgressUpdate } from '../../orchestration/workflows/WorkflowTypes';
 
 /**
@@ -146,7 +146,7 @@ export interface AgentOSFinalResponseChunk extends AgentOSResponseChunk {
    * Used by grounding guardrails to verify response faithfulness.
    * Undefined when no RAG retrieval was performed.
    */
-  ragSources?: import('../../rag').RagRetrievedChunk[];
+  ragSources?: import('../../cognition/rag').RagRetrievedChunk[];
 }
 
 /**

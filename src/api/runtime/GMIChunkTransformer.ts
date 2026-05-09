@@ -27,17 +27,17 @@ import type {
   GMIOutput,
   ToolCallRequest,
   UICommand,
-} from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
 import {
   GMIInteractionType,
   GMIOutputChunkType,
-} from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers';
-import { withAgentOSSpan } from '../../evaluation/observability/otel';
+import { withAgentOSSpan } from '../../safety/evaluation/observability/otel';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import type { ITurnPlanner, TurnPlan } from '../../orchestration/turn-planner/TurnPlanner';
-import { CapabilityContextAssembler } from '../../discovery/CapabilityContextAssembler.js';
+import { CapabilityContextAssembler } from '../../cognition/discovery/CapabilityContextAssembler.js';
 import { filterCapabilityDiscoveryResultByDisabledSkills } from './selfImprovementRuntime.js';
 
 /**

@@ -1,1 +1,1 @@
-export * from '../../../media/audio/index.js';
+export * from '../../../io/media/audio/index.js';

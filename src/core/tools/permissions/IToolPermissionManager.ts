@@ -11,8 +11,8 @@
  */
 
 import { ITool } from '../ITool';
-import { UserContext } from '../../../cognitive_substrate/IGMI'; // Path from core/tools/ to cognitive_substrate/
-import type { IAuthService, ISubscriptionService } from '../../../types/auth';
+import { UserContext } from '../../../cognition/substrate/IGMI'; // Path from core/tools/ to cognitive_substrate/
+import type { IAuthService, ISubscriptionService } from '../../types/auth';
 
 /**
  * @interface FeatureFlag

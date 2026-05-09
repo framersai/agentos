@@ -1,4 +1,4 @@
-import type { UserContext } from '../../cognitive_substrate/IGMI';
+import type { UserContext } from '../../cognition/substrate/IGMI';
 import type { ToolExecutionContext } from '../../core/tools/ITool';
 import type { IAgentOS } from '../interfaces/IAgentOS';
 import type { AgentOSInput } from '../types/AgentOSInput';

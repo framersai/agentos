@@ -10,8 +10,8 @@ export * from './api/types/AgentOSInput';
 export * from './api/types/AgentOSResponse';
 export * from './api/types/AgentOSExternalToolRequest';
 export * from './api/types/AgentOSToolResult';
-export * from './cognitive_substrate/IGMI';
-export * from './cognitive_substrate/GMIManager';
+export * from './cognition/substrate/IGMI';
+export * from './cognition/substrate/GMIManager';
 export type {
   ITool,
   ToolExecutionResult,
@@ -35,16 +35,16 @@ export * from './orchestration/workflows/storage/IWorkflowStore';
 export { WorkflowEngine } from './orchestration/workflows/WorkflowEngine';
 export { InMemoryWorkflowStore } from './orchestration/workflows/storage/InMemoryWorkflowStore';
 // Agency (Multi-Agent Collectives)
-export * from './agents/agency/AgencyTypes';
-export { AgencyRegistry } from './agents/agency/AgencyRegistry';
-export { AgencyMemoryManager } from './agents/agency/AgencyMemoryManager';
+export * from './orchestration/agents/agency/AgencyTypes';
+export { AgencyRegistry } from './orchestration/agents/agency/AgencyRegistry';
+export { AgencyMemoryManager } from './orchestration/agents/agency/AgencyMemoryManager';
 export type {
   AgencyMemoryIngestInput,
   AgencyMemoryChunk,
   AgencyMemoryQueryResult,
   AgencyMemoryStats,
-} from './agents/agency/AgencyMemoryManager';
-export { AgentCommunicationBus } from './agents/agency/AgentCommunicationBus';
+} from './orchestration/agents/agency/AgencyMemoryManager';
+export { AgentCommunicationBus } from './orchestration/agents/agency/AgentCommunicationBus';
 export type {
   IAgentCommunicationBus,
   AgentMessage,
@@ -53,50 +53,50 @@ export type {
   AgentResponse,
   HandoffContext,
   HandoffResult,
-} from './agents/agency/IAgentCommunicationBus';
+} from './orchestration/agents/agency/IAgentCommunicationBus';
 // Planning Engine
 export * from './orchestration/planner';
 // Human-in-the-Loop (HITL)
 export * from './orchestration/hitl';
 // Structured Outputs (JSON Schema, Function Calling)
-export * from './structured/output';
+export * from './api/structured/output';
 // Code Execution Sandbox
-export * from './sandbox/executor';
+export * from './safety/sandbox/executor';
 // Observability & Tracing
-export * from './evaluation/observability';
+export * from './safety/evaluation/observability';
 // Evaluation Framework
-export * from './evaluation';
+export * from './safety/evaluation';
 // Knowledge Graph
-export * from './memory/retrieval/graph/index';
+export * from './cognition/memory/retrieval/graph/index';
 // Agent Marketplace
-export * from './marketplace/store';
+export * from './cognition/marketplace/store';
 // Per-agent workspace helpers
-export * from './marketplace/workspace';
-export * from './cognitive_substrate/personas/definitions';
-export * from './cognitive_substrate/personas/IPersonaDefinition';
-export * from './cognitive_substrate/persona_overlays/PersonaOverlayTypes';
-export { PersonaOverlayManager } from './cognitive_substrate/persona_overlays/PersonaOverlayManager';
+export * from './cognition/marketplace/workspace';
+export * from './cognition/substrate/personas/definitions';
+export * from './cognition/substrate/personas/IPersonaDefinition';
+export * from './cognition/substrate/persona_overlays/PersonaOverlayTypes';
+export { PersonaOverlayManager } from './cognition/substrate/persona_overlays/PersonaOverlayManager';
 // Guardrails
 export * from './safety/guardrails';
 export * from './extensions';
 // Messaging Channels (external platform adapters)
-export * from './channels';
+export * from './io/channels';
 // Voice Calls (telephony providers)
-export * from './channels/telephony';
+export * from './io/channels/telephony';
 // Unified speech runtime (STT/TTS/VAD/wake-word)
-export * from './speech';
+export * from './io/speech';
 // Unified image generation providers
-export * from './media/images';
+export * from './io/media/images';
 // Unified video generation, analysis, and scene detection
-export * from './media/video/index.js';
+export * from './io/media/video/index.js';
 // Unified audio generation (music + SFX) and provider registry
-export * from './media/audio/index.js';
+export * from './io/media/audio/index.js';
 // Hearing module (audio processing + STT/VAD providers)
-export * from './hearing';
+export * from './io/hearing';
 // Media provider preference resolver (shared across image/video/audio)
-export * from './media/ProviderPreferences.js';
+export * from './io/media/ProviderPreferences.js';
 // Unified vision pipeline (OCR + handwriting + document AI + CLIP + cloud)
-export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './vision/index.js';
+export { VisionPipeline, createVisionPipeline, LLMVisionProvider, PipelineVisionProvider } from './io/vision/index.js';
 export type {
   VisionPipelineConfig,
   VisionResult,
@@ -109,18 +109,18 @@ export type {
   DocumentPage,
   LayoutBlock,
   VisionPreprocessingConfig,
-} from './vision/types.js';
-export type { LLMVisionProviderConfig } from './vision/providers/LLMVisionProvider.js';
+} from './io/vision/types.js';
+export type { LLMVisionProviderConfig } from './io/vision/providers/LLMVisionProvider.js';
 // Skills (SKILL.md prompt modules)
-export * from './skills';
+export * from './cognition/skills';
 // Multilingual exports
-export * from './nlp/language/interfaces';
-export * from './nlp/language/LanguageService';
+export * from './cognition/nlp/language/interfaces';
+export * from './cognition/nlp/language/LanguageService';
 // NLP AI Utilities (classification, sentiment, similarity, keyword extraction, etc.)
-export * from './nlp/ai_utilities/IUtilityAI';
-export * from './nlp/ai_utilities/LLMUtilityAI';
-export * from './nlp/ai_utilities/StatisticalUtilityAI';
-export * from './nlp/ai_utilities/HybridUtilityAI';
+export * from './cognition/nlp/ai_utilities/IUtilityAI';
+export * from './cognition/nlp/ai_utilities/LLMUtilityAI';
+export * from './cognition/nlp/ai_utilities/StatisticalUtilityAI';
+export * from './cognition/nlp/ai_utilities/HybridUtilityAI';
 export type { ILogger } from './core/logging/ILogger';
 export { createLogger, setLoggerFactory, resetLoggerFactory } from './core/logging/loggerFactory';
 // Rate limit types
@@ -130,20 +130,20 @@ export * from './core/storage';
 // Usage & cost accounting
 export * from './core/utils/usage/UsageLedger';
 // RAG (Retrieval Augmented Generation)
-export * from './rag';
+export * from './cognition/rag';
 export type {
   MemoryRetrievalPolicy,
   MemoryRetrievalProfile,
   ResolvedMemoryRetrievalPolicy,
-} from './rag/unified/policy.js';
+} from './cognition/rag/unified/policy.js';
 export {
   DEFAULT_MEMORY_RETRIEVAL_POLICY,
   buildRetrievalPlanFromPolicy,
   getCandidateLimit,
   resolveMemoryRetrievalPolicy,
-} from './rag/unified/policy.js';
+} from './cognition/rag/unified/policy.js';
 // Cognitive Memory System
-export * from './memory';
+export * from './cognition/memory';
 // Query Router (classification, retrieval dispatch, grounded answer generation)
 export {
   QueryClassifier,
@@ -152,7 +152,7 @@ export {
   QueryRouter,
   TopicExtractor,
   KeywordFallback,
-} from './query-router/index.js';
+} from './orchestration/pipeline/query/index.js';
 export type {
   QueryTier,
   ClassificationResult,
@@ -185,15 +185,15 @@ export type {
   QueryRouterRuntimeMode,
   QueryRouterToggleableRuntimeMode,
   QueryRouterCorpusStats,
-} from './query-router/types.js';
+} from './orchestration/pipeline/query/types.js';
 // Orchestration Layer (IR, Events, Checkpoint, Runtime)
 export * from './orchestration/index.js';
 // Provenance, Audit & Immutability
-export * from './provenance';
+export * from './safety/provenance';
 // Safety Primitives (circuit breaker, dedup, cost guard, stuck detection)
 export * from './safety/runtime';
 // Emergent Capability Engine (runtime tool creation)
-export * from './emergent/index.js';
+export * from './cognition/emergent/index.js';
 // Extension Secrets Catalog
 export {
   EXTENSION_SECRET_DEFINITIONS,
@@ -336,5 +336,5 @@ export type {
   AgentOSUsageAggregate,
 } from './api/runtime/usageLedger.js';
 // JSON extraction (centralized LLM output parsing)
-export { extractJson } from './core/validation/extractJson.js';
+export { extractJson } from './safety/validation/extractJson.js';
 // CI retrigger

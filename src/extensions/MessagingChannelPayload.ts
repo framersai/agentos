@@ -18,7 +18,7 @@ import type {
   ChannelPlatform,
   ChannelSendResult,
   MessageContent,
-} from '../channels/types.js';
+} from '../io/channels/types.js';
 
 /**
  * Payload shape for `messaging-channel` extension descriptors.

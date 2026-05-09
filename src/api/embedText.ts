@@ -13,7 +13,7 @@
 import { resolveModelOption, resolveProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Public types

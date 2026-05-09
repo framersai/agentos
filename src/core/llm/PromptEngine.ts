@@ -34,7 +34,7 @@ import {
 import {
   ContextualPromptElement,
   ContextualPromptElementCriteria,
-} from '../../cognitive_substrate/personas/IPersonaDefinition';
+} from '../../cognition/substrate/personas/IPersonaDefinition';
 import { ConversationMessage as Message, MessageRole, ConversationToolCallRequest } from '../conversation/ConversationMessage'; // Corrected import: Used alias and added MessageRole
 import { ChatMessage, MessageContentPart } from './providers/IProvider'; // Added MessageContentPart
 import { ITool, JSONSchemaObject } from '../tools/ITool'; // Corrected import path

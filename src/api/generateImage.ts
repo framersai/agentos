@@ -11,8 +11,8 @@
  * transient failure automatically retries on the next available provider.
  */
 import { EventEmitter } from 'events';
-import { createImageProvider, hasImageProviderFactory } from '../media/images/index.js';
-import { FallbackImageProxy } from '../media/images/FallbackImageProxy.js';
+import { createImageProvider, hasImageProviderFactory } from '../io/media/images/index.js';
+import { FallbackImageProxy } from '../io/media/images/FallbackImageProxy.js';
 import type {
   IImageProvider,
   GeneratedImage,
@@ -22,16 +22,16 @@ import type {
   ImageBackground,
   ImageModality,
   ImageOutputFormat,
-} from '../media/images/IImageProvider.js';
+} from '../io/media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import {
   resolveProviderChain,
   resolveProviderOrder,
   type MediaProviderPreference,
-} from '../media/ProviderPreferences.js';
+} from '../io/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Image provider fallback chain builder
@@ -334,7 +334,7 @@ export async function generateImage(opts: GenerateImageOptions): Promise<Generat
         }
 
         if (!callerPinnedModel) {
-          const { PolicyAwareImageRouter } = await import('../media/images/PolicyAwareImageRouter.js');
+          const { PolicyAwareImageRouter } = await import('../io/media/images/PolicyAwareImageRouter.js');
           const { createUncensoredModelCatalog } = await import('../core/llm/routing/UncensoredModelCatalog.js');
           const imageRouter = new PolicyAwareImageRouter(createUncensoredModelCatalog());
           const inferredCaps =

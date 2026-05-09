@@ -36,8 +36,8 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { createVisionPipeline } from '../vision/index.js';
-import type { VisionResult, VisionTier } from '../vision/types.js';
+import { createVisionPipeline } from '../io/vision/index.js';
+import type { VisionResult, VisionTier } from '../io/vision/types.js';
 
 // ---------------------------------------------------------------------------
 // Public types

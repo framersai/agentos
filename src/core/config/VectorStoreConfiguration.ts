@@ -13,10 +13,10 @@
 // It will be defined in `../rag/IVectorStore.ts`.
 import type { VectorStoreProviderConfig } from '../vector-store/IVectorStore.js';
 import type { StorageAdapter, StorageResolutionOptions } from '@framers/sql-storage-adapter';
-import type { HnswlibVectorStoreConfig } from '../../rag/vector_stores/HnswlibVectorStore.js';
-import type { PineconeVectorStoreConfig as AdapterPineconeVectorStoreConfig } from '../../rag/vector_stores/PineconeVectorStore.js';
-import type { QdrantVectorStoreConfig } from '../../rag/vector_stores/QdrantVectorStore.js';
-import type { Neo4jVectorStoreConfig } from '../../rag/vector_stores/Neo4jVectorStore.js';
+import type { HnswlibVectorStoreConfig } from '../../cognition/rag/vector_stores/HnswlibVectorStore.js';
+import type { PineconeVectorStoreConfig as AdapterPineconeVectorStoreConfig } from '../../cognition/rag/vector_stores/PineconeVectorStore.js';
+import type { QdrantVectorStoreConfig } from '../../cognition/rag/vector_stores/QdrantVectorStore.js';
+import type { Neo4jVectorStoreConfig } from '../../cognition/rag/vector_stores/Neo4jVectorStore.js';
 
 /**
  * Specific configuration for an InMemoryVectorStore.

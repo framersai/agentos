@@ -5,7 +5,7 @@ describe('Provider key rotation integration', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
   it('ElevenLabsBatchTTS rotates keys on quota error', async () => {
-    const { ElevenLabsBatchTTS } = await import('../../../voice-pipeline/providers/ElevenLabsBatchTTS.js');
+    const { ElevenLabsBatchTTS } = await import('../../../io/voice-pipeline/providers/ElevenLabsBatchTTS.js');
 
     const tts = new ElevenLabsBatchTTS({ apiKey: 'sk_a,sk_b' });
 
@@ -31,7 +31,7 @@ describe('Provider key rotation integration', () => {
   });
 
   it('OpenAIBatchTTS rotates keys on 429', async () => {
-    const { OpenAIBatchTTS } = await import('../../../voice-pipeline/providers/OpenAIBatchTTS.js');
+    const { OpenAIBatchTTS } = await import('../../../io/voice-pipeline/providers/OpenAIBatchTTS.js');
 
     const tts = new OpenAIBatchTTS({ apiKey: 'sk_a,sk_b' });
 
@@ -53,7 +53,7 @@ describe('Provider key rotation integration', () => {
   });
 
   it('single key still works without pool overhead', async () => {
-    const { ElevenLabsBatchTTS } = await import('../../../voice-pipeline/providers/ElevenLabsBatchTTS.js');
+    const { ElevenLabsBatchTTS } = await import('../../../io/voice-pipeline/providers/ElevenLabsBatchTTS.js');
 
     const tts = new ElevenLabsBatchTTS({ apiKey: 'sk_single' });
 
@@ -69,7 +69,7 @@ describe('Provider key rotation integration', () => {
   });
 
   it('single key does not retry on quota error (no fallback available)', async () => {
-    const { ElevenLabsBatchTTS } = await import('../../../voice-pipeline/providers/ElevenLabsBatchTTS.js');
+    const { ElevenLabsBatchTTS } = await import('../../../io/voice-pipeline/providers/ElevenLabsBatchTTS.js');
 
     const tts = new ElevenLabsBatchTTS({ apiKey: 'sk_only' });
 

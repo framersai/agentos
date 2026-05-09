@@ -11,7 +11,7 @@
  */
 
 import { ConversationMessage, MessageRole, createConversationMessage, MessageMetadata } from './ConversationMessage';
-import { IUtilityAI, SummarizationOptions } from '../../nlp/ai_utilities/IUtilityAI';
+import { IUtilityAI, SummarizationOptions } from '../../cognition/nlp/ai_utilities/IUtilityAI';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected path
 

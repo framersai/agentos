@@ -322,7 +322,7 @@ export function buildHierarchicalTools(
 
         // Lazy import to avoid pulling EmergentAgentForge into hot path
         // when emergent is disabled.
-        const { EmergentAgentForge } = await import('../../../emergent/EmergentAgentForge.js');
+        const { EmergentAgentForge } = await import('../../../cognition/emergent/EmergentAgentForge.js');
         const forge = new EmergentAgentForge({
           defaultModel: agencyConfig.model ?? 'gpt-4o',
           defaultProvider: agencyConfig.provider ?? 'openai',
@@ -359,7 +359,7 @@ export function buildHierarchicalTools(
             };
           }
 
-          const { EmergentAgentJudge } = await import('../../../emergent/EmergentAgentJudge.js');
+          const { EmergentAgentJudge } = await import('../../../cognition/emergent/EmergentAgentJudge.js');
           const { generateText } = await import('../../generateText.js');
           const judge = new EmergentAgentJudge({
             judgeModel,

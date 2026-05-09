@@ -16,8 +16,8 @@ import addFormats from 'ajv-formats';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 
 import { ITool, JSONSchemaObject, ToolExecutionResult, ToolExecutionContext } from './ITool';
-import { ToolCallRequest, UserContext } from '../../cognitive_substrate/IGMI';
-import type { IAuthService, ISubscriptionService } from '../../types/auth';
+import { ToolCallRequest, UserContext } from '../../cognition/substrate/IGMI';
+import type { IAuthService, ISubscriptionService } from '../types/auth';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import { ExtensionRegistry, EXTENSION_KIND_TOOL, ToolDescriptor } from '../../extensions';
 

@@ -22,7 +22,7 @@ import { normalizeUsage } from '../../orchestration/turn-planner/helpers';
 import {
   getActiveTraceMetadata,
   shouldIncludeTraceInAgentOSResponses,
-} from '../../evaluation/observability/otel';
+} from '../../safety/evaluation/observability/otel';
 
 type TurnExecutionLifecyclePhase =
   | 'planned'

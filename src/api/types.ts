@@ -1345,7 +1345,7 @@ export interface BaseAgentConfig {
    *
    * @see {@link https://docs.agentos.sh/memory/cognitive-mechanisms | Cognitive Mechanisms Docs}
    */
-  cognitiveMechanisms?: import('../memory/mechanisms/types.js').CognitiveMechanismsConfig;
+  cognitiveMechanisms?: import('../cognition/memory/mechanisms/types.js').CognitiveMechanismsConfig;
 }
 
 // ---------------------------------------------------------------------------

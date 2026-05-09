@@ -23,7 +23,7 @@
 
 import type { ILogger } from '../../logging/ILogger';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
-import type { IRetrievalAugmentor } from '../../rag/IRetrievalAugmentor';
+import type { IRetrievalAugmentor } from '../../cognition/rag/IRetrievalAugmentor';
 import type { IVectorStoreManager } from '../../core/vector-store/IVectorStoreManager';
 import type { VectorStoreManagerConfig } from '../../config/VectorStoreConfiguration';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
@@ -31,16 +31,16 @@ import type {
   ExtensionManager,
   ExtensionLifecycleContext,
 } from '../extensions';
-import { createMemoryToolsPack } from '../../memory/io/extension/MemoryToolsExtension.js';
-import type { Memory } from '../../memory/io/facade/Memory.js';
+import { createMemoryToolsPack } from '../../cognition/memory/io/extension/MemoryToolsExtension.js';
+import type { Memory } from '../../cognition/memory/io/facade/Memory.js';
 import {
   createStandaloneMemoryLongTermRetriever,
   createStandaloneMemoryRollingSummarySink,
-} from '../../memory/io/integration/StandaloneMemoryBridge.js';
+} from '../../cognition/memory/io/integration/StandaloneMemoryBridge.js';
 import type {
   StandaloneMemoryLongTermRetrieverOptions,
   StandaloneMemoryRollingSummarySinkOptions,
-} from '../../memory/io/integration/StandaloneMemoryBridge.js';
+} from '../../cognition/memory/io/integration/StandaloneMemoryBridge.js';
 
 import type {
   AgentOSConfig,

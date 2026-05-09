@@ -12,19 +12,19 @@
  * Routing and credential resolution follow the same `provider:model` pattern
  * established by {@link generateImage}.
  */
-import { createImageProvider } from '../media/images/index.js';
-import { ImageEditNotSupportedError } from '../media/images/ImageOperationError.js';
-import { imageToBuffer } from '../media/images/imageToBuffer.js';
+import { createImageProvider } from '../io/media/images/index.js';
+import { ImageEditNotSupportedError } from '../io/media/images/ImageOperationError.js';
+import { imageToBuffer } from '../io/media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageEditMode,
   ImageGenerationResult,
   ImageProviderOptionBag,
-} from '../media/images/IImageProvider.js';
+} from '../io/media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -232,7 +232,7 @@ export async function editImage(opts: EditImageOptions): Promise<EditImageResult
 
         if (!callerPinnedModel) {
           const { PolicyAwareImageRouter } = await import(
-            '../media/images/PolicyAwareImageRouter.js'
+            '../io/media/images/PolicyAwareImageRouter.js'
           );
           const { createUncensoredModelCatalog } = await import(
             '../core/llm/routing/UncensoredModelCatalog.js'

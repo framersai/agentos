@@ -38,24 +38,24 @@ import {
 } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
-import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
+import { ToolCallResult, UserContext } from '../../cognition/substrate/IGMI';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import type {
   ActionSeverity,
   IHumanInteractionManager,
   PendingAction,
 } from '../../orchestration/hitl/IHumanInteractionManager';
-import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
-import { DEFAULT_EMERGENT_CONFIG } from '../../emergent/types.js';
-import { DEFAULT_SELF_IMPROVEMENT_CONFIG } from '../../emergent/SelfImprovementConfig.js';
-import { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
-import { ComposableToolBuilder } from '../../emergent/ComposableToolBuilder.js';
-import { SandboxedToolForge } from '../../emergent/SandboxedToolForge.js';
-import { EmergentJudge } from '../../emergent/EmergentJudge.js';
-import { EmergentToolRegistry } from '../../emergent/EmergentToolRegistry.js';
-import type { IStorageAdapter as EmergentStorageAdapter } from '../../emergent/EmergentToolRegistry.js';
-import { ForgeToolMetaTool } from '../../emergent/ForgeToolMetaTool.js';
-import type { SelfImprovementToolDeps } from '../../emergent/EmergentCapabilityEngine.js';
+import type { EmergentConfig, EmergentTool } from '../../cognition/emergent/types.js';
+import { DEFAULT_EMERGENT_CONFIG } from '../../cognition/emergent/types.js';
+import { DEFAULT_SELF_IMPROVEMENT_CONFIG } from '../../cognition/emergent/SelfImprovementConfig.js';
+import { EmergentCapabilityEngine } from '../../cognition/emergent/EmergentCapabilityEngine.js';
+import { ComposableToolBuilder } from '../../cognition/emergent/ComposableToolBuilder.js';
+import { SandboxedToolForge } from '../../cognition/emergent/SandboxedToolForge.js';
+import { EmergentJudge } from '../../cognition/emergent/EmergentJudge.js';
+import { EmergentToolRegistry } from '../../cognition/emergent/EmergentToolRegistry.js';
+import type { IStorageAdapter as EmergentStorageAdapter } from '../../cognition/emergent/EmergentToolRegistry.js';
+import { ForgeToolMetaTool } from '../../cognition/emergent/ForgeToolMetaTool.js';
+import type { SelfImprovementToolDeps } from '../../cognition/emergent/EmergentCapabilityEngine.js';
 
 /**
  * @class ToolOrchestrator
@@ -593,7 +593,7 @@ export class ToolOrchestrator implements IToolOrchestrator {
    * preventing context rot from unused tool schemas.
    */
   public async listDiscoveredTools(
-    discoveryResult: import('../../discovery/types').CapabilityDiscoveryResult,
+    discoveryResult: import('../../cognition/discovery/types').CapabilityDiscoveryResult,
     context?: {
       personaId?: string;
       personaCapabilities?: string[];

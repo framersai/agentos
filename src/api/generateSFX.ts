@@ -15,22 +15,22 @@
  * the fallback chain at the caller's discretion.
  */
 import { EventEmitter } from 'events';
-import { createAudioProvider, hasAudioProviderFactory } from '../media/audio/index.js';
-import { FallbackAudioProxy } from '../media/audio/FallbackAudioProxy.js';
-import type { IAudioGenerator } from '../media/audio/IAudioGenerator.js';
+import { createAudioProvider, hasAudioProviderFactory } from '../io/media/audio/index.js';
+import { FallbackAudioProxy } from '../io/media/audio/FallbackAudioProxy.js';
+import type { IAudioGenerator } from '../io/media/audio/IAudioGenerator.js';
 import type {
   AudioResult,
   AudioOutputFormat,
   AudioProgressEvent,
-} from '../media/audio/types.js';
+} from '../io/media/audio/types.js';
 import {
   resolveProviderChain,
   resolveProviderOrder,
   type MediaProviderPreference,
-} from '../media/ProviderPreferences.js';
+} from '../io/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // SFX provider fallback chain builder

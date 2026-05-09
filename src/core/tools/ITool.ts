@@ -8,7 +8,7 @@
  * @module backend/agentos/core/tools/ITool
  */
 
-import { UserContext } from '../../cognitive_substrate/IGMI';
+import { UserContext } from '../../cognition/substrate/IGMI';
 
 /**
  * Represents a JSON schema definition.

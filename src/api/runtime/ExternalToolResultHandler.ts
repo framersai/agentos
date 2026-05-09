@@ -30,7 +30,7 @@ import type {
   GMIOutput,
   ToolCallRequest,
   ToolResultPayload,
-} from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import { normalizeUsage, snapshotPersonaDetails } from '../../orchestration/turn-planner/helpers';
 import {
@@ -38,7 +38,7 @@ import {
   recordAgentOSToolResultMetrics,
   startAgentOSSpan,
   runWithSpanContext,
-} from '../../evaluation/observability/otel';
+} from '../../safety/evaluation/observability/otel';
 import { ORGANIZATION_ID_METADATA_KEY } from '../../core/conversation/LongTermMemoryPolicy';
 
 /**

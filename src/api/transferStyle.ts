@@ -27,15 +27,15 @@
  * ```
  */
 
-import { createImageProvider, hasImageProviderFactory } from '../media/images/index.js';
-import { imageToBuffer } from '../media/images/imageToBuffer.js';
+import { createImageProvider, hasImageProviderFactory } from '../io/media/images/index.js';
+import { imageToBuffer } from '../io/media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageGenerationResult,
-} from '../media/images/IImageProvider.js';
+} from '../io/media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Provider detection — ordered by style transfer capability

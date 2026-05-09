@@ -37,7 +37,7 @@ import type { GraphNode, GraphState, VoiceNodeConfig } from '../ir/types.js';
 import type { GraphEvent } from '../events/GraphEvent.js';
 import type { NodeExecutionResult } from './NodeExecutor.js';
 import { VoiceTurnCollector } from './VoiceTurnCollector.js';
-import { VoiceInterruptError } from '../../voice-pipeline/VoiceInterruptError.js';
+import { VoiceInterruptError } from '../../io/voice-pipeline/VoiceInterruptError.js';
 
 // ---------------------------------------------------------------------------
 // Checkpoint type

@@ -85,14 +85,14 @@ describe('analyzeVideo', () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
 
-    const analyzerMod = await import('../../../media/video/VideoAnalyzer.js') as any;
+    const analyzerMod = await import('../../../io/media/video/VideoAnalyzer.js') as any;
     analyzerMod.__holder.constructorArgs.length = 0;
     analyzerMod.__holder.analyze.mockReset();
 
-    const visionMod = await import('../../../vision/index.js') as any;
+    const visionMod = await import('../../../io/vision/index.js') as any;
     visionMod.__holder.createVisionPipeline.mockClear();
 
-    const sttMod = await import('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
+    const sttMod = await import('../../../io/hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
     sttMod.__holder.constructorArgs.length = 0;
   });
 
@@ -102,8 +102,8 @@ describe('analyzeVideo', () => {
   });
 
   it('wires the real analyzer with a vision pipeline and passes options through', async () => {
-    const visionMod = await import('../../../vision/index.js') as any;
-    const analyzerMod = await import('../../../media/video/VideoAnalyzer.js') as any;
+    const visionMod = await import('../../../io/vision/index.js') as any;
+    const analyzerMod = await import('../../../io/media/video/VideoAnalyzer.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({
       durationSec: 12,
@@ -167,8 +167,8 @@ describe('analyzeVideo', () => {
   it('auto-wires OpenAI Whisper when transcription is enabled and OPENAI_API_KEY is set', async () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
 
-    const analyzerMod = await import('../../../media/video/VideoAnalyzer.js') as any;
-    const sttMod = await import('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
+    const analyzerMod = await import('../../../io/media/video/VideoAnalyzer.js') as any;
+    const sttMod = await import('../../../io/hearing/providers/OpenAIWhisperSpeechToTextProvider.js') as any;
 
     analyzerMod.__holder.analyze.mockResolvedValue({
       durationSec: 5,

@@ -1,8 +1,8 @@
 import type {
   MemoryRetrievalPolicy,
   ResolvedMemoryRetrievalPolicy,
-} from '../../rag/unified/policy.js';
-import { resolveMemoryRetrievalPolicy } from '../../rag/unified/policy.js';
+} from '../../cognition/rag/unified/policy.js';
+import { resolveMemoryRetrievalPolicy } from '../../cognition/rag/unified/policy.js';
 
 export type LongTermMemoryScope = 'conversation' | 'user' | 'persona' | 'organization';
 

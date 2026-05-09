@@ -12,18 +12,18 @@
  * - **Replicate** — `nightmareai/real-esrgan` (or caller-specified model)
  * - **OpenAI** — not supported (throws {@link ImageUpscaleNotSupportedError})
  */
-import { createImageProvider } from '../media/images/index.js';
-import { ImageUpscaleNotSupportedError } from '../media/images/ImageOperationError.js';
-import { imageToBuffer } from '../media/images/imageToBuffer.js';
+import { createImageProvider } from '../io/media/images/index.js';
+import { ImageUpscaleNotSupportedError } from '../io/media/images/ImageOperationError.js';
+import { imageToBuffer } from '../io/media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageGenerationResult,
   ImageProviderOptionBag,
-} from '../media/images/IImageProvider.js';
+} from '../io/media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Public types

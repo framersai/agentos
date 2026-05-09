@@ -28,7 +28,7 @@ import type {
 import { EXTENSION_KIND_WORKFLOW } from '../extensions';
 import type { WorkflowDescriptor } from '../../extensions/types';
 import type { AgentOSOrchestrator } from './AgentOSOrchestrator';
-import type { GMIManager } from '../../cognitive_substrate/GMIManager';
+import type { GMIManager } from '../../cognition/substrate/GMIManager';
 import type { StreamingManager } from '../../core/streaming/StreamingManager';
 
 import { WorkflowEngine } from '../../orchestration/workflows/WorkflowEngine';
@@ -51,7 +51,7 @@ import type {
 } from '../../orchestration/workflows/storage/IWorkflowStore';
 import { InMemoryWorkflowStore } from '../../orchestration/workflows/storage/InMemoryWorkflowStore';
 import { WorkflowRuntime } from '../../orchestration/workflows/runtime/WorkflowRuntime';
-import { AgencyRegistry } from '../../agents/agency/AgencyRegistry';
+import { AgencyRegistry } from '../../orchestration/agents/agency/AgencyRegistry';
 
 import type { AgentOSInput } from '../types/AgentOSInput';
 import { AgentOSServiceError } from '../errors';

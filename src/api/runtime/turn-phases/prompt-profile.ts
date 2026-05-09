@@ -8,8 +8,8 @@ import {
   selectPromptProfile,
   type PromptProfileConfig,
   type PromptProfileConversationState,
-} from '../../../structured/prompting/PromptProfileRouter.js';
-import { GMIInteractionType, type GMITurnInput } from '../../../cognitive_substrate/IGMI';
+} from '../../structured/prompting/PromptProfileRouter.js';
+import { GMIInteractionType, type GMITurnInput } from '../../../cognition/substrate/IGMI';
 
 export interface PromptProfilePhaseInput {
   conversationContext: ConversationContext | undefined;

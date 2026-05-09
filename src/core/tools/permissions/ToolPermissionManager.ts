@@ -54,7 +54,7 @@ import type {
   IAuthService,
   ISubscriptionService,
   ISubscriptionTier,
-} from '../../../types/auth';
+} from '../../types/auth';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '@framers/agentos/core/utils/errors';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 

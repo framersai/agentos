@@ -10,8 +10,8 @@
  * @see ../ai_utilities/IUtilityAI.ts for SentimentResult.
  */
 
-import { ToolCallRequest as GMIToolCallRequest } from '../../cognitive_substrate/IGMI'; // Use the one from IGMI
-import { SentimentResult } from '../../nlp/ai_utilities/IUtilityAI';
+import { ToolCallRequest as GMIToolCallRequest } from '../../cognition/substrate/IGMI'; // Use the one from IGMI
+import { SentimentResult } from '../../cognition/nlp/ai_utilities/IUtilityAI';
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 
 /**

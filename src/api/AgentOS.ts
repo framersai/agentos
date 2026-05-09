@@ -59,7 +59,7 @@ import {
   type AgentOSOrchestratorConfig,
   type ITaskOutcomeTelemetryStore,
 } from './runtime/AgentOSOrchestrator';
-import { GMIManager, GMIManagerConfig } from '../cognitive_substrate/GMIManager';
+import { GMIManager, GMIManagerConfig } from '../cognition/substrate/GMIManager';
 import {
   AIModelProviderManager,
   AIModelProviderManagerConfig,
@@ -76,10 +76,10 @@ import {
   ToolPermissionManagerConfig,
 } from '../core/tools/permissions/IToolPermissionManager';
 import { ToolPermissionManager } from '../core/tools/permissions/ToolPermissionManager';
-import type { IAuthService, ISubscriptionService } from '../types/auth';
+import type { IAuthService, ISubscriptionService } from '../core/types/auth';
 import type { IHumanInteractionManager } from '../orchestration/hitl/IHumanInteractionManager';
-import { IUtilityAI } from '../nlp/ai_utilities/IUtilityAI';
-import { LLMUtilityAI } from '../nlp/ai_utilities/LLMUtilityAI';
+import { IUtilityAI } from '../cognition/nlp/ai_utilities/IUtilityAI';
+import { LLMUtilityAI } from '../cognition/nlp/ai_utilities/LLMUtilityAI';
 import {
   ConversationManager,
   ConversationManagerConfig,
@@ -87,7 +87,7 @@ import {
 import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
-import type { IRetrievalAugmentor } from '../rag/IRetrievalAugmentor';
+import type { IRetrievalAugmentor } from '../cognition/rag/IRetrievalAugmentor';
 import type { EmbeddingManagerConfig } from '../config/EmbeddingManagerConfiguration';
 import type { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
 import type {
@@ -96,7 +96,7 @@ import type {
 } from '../config/VectorStoreConfiguration';
 import type { PrismaClient } from '../core/storage/prismaClient.js';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
-import { IPersonaDefinition } from '../cognitive_substrate/personas/IPersonaDefinition';
+import { IPersonaDefinition } from '../cognition/substrate/personas/IPersonaDefinition';
 import {
   StreamingManager,
   StreamingManagerConfig,
@@ -110,9 +110,9 @@ import { createLogger } from '../logging/loggerFactory';
 import {
   configureAgentOSObservability,
   type AgentOSObservabilityConfig,
-} from '../evaluation/observability/otel';
+} from '../safety/evaluation/observability/otel';
 import type { IGuardrailService, GuardrailContext } from '../safety/guardrails/IGuardrailService';
-import type { EmergentConfig } from '../emergent/types.js';
+import type { EmergentConfig } from '../cognition/emergent/types.js';
 // SelfImprovementToolDeps reserved for emergent capability integration
 import { GuardrailAction } from '../safety/guardrails/IGuardrailService';
 import {
@@ -120,7 +120,7 @@ import {
   createGuardrailBlockedStream,
   wrapOutputGuardrails,
 } from '../safety/guardrails/guardrailDispatcher';
-import type { IPersonaLoader } from '../cognitive_substrate/personas/IPersonaLoader';
+import type { IPersonaLoader } from '../cognition/substrate/personas/IPersonaLoader';
 import {
   ExtensionManager,
   EXTENSION_KIND_GUARDRAIL,
@@ -131,12 +131,12 @@ import {
   type ExtensionManifest,
   type ExtensionOverrides,
 } from '../extensions';
-import type { MemoryToolsExtensionOptions } from '../memory/io/extension/MemoryToolsExtension.js';
-import type { Memory } from '../memory/io/facade/Memory.js';
+import type { MemoryToolsExtensionOptions } from '../cognition/memory/io/extension/MemoryToolsExtension.js';
+import type { Memory } from '../cognition/memory/io/facade/Memory.js';
 import type {
   StandaloneMemoryLongTermRetrieverOptions,
   StandaloneMemoryRollingSummarySinkOptions,
-} from '../memory/io/integration/StandaloneMemoryBridge.js';
+} from '../cognition/memory/io/integration/StandaloneMemoryBridge.js';
 import {
   listExternalToolDefinitionsForLLM,
   normalizeExternalToolRegistry,
@@ -155,7 +155,7 @@ import type {
   CapabilityIndexSources,
   ICapabilityDiscoveryEngine,
   PresetCoOccurrence,
-} from '../discovery/types';
+} from '../cognition/discovery/types';
 import type { WorkflowEngineConfig } from '../orchestration/workflows/IWorkflowEngine';
 import type {
   WorkflowDefinition,
@@ -640,7 +640,7 @@ export interface AgentOSConfig {
   /** Optional workflow store implementation. Defaults to the in-memory store if omitted. */
   workflowStore?: IWorkflowStore;
   /** Optional multilingual configuration enabling detection, negotiation, translation. */
-  languageConfig?: import('../nlp/language').AgentOSLanguageConfig;
+  languageConfig?: import('../cognition/nlp/language').AgentOSLanguageConfig;
   /** Optional custom persona loader (useful for browser/local runtimes). */
   personaLoader?: IPersonaLoader;
   /**
@@ -775,7 +775,7 @@ export class AgentOS implements IAgentOS {
   private streamingManager!: StreamingManager;
   private gmiManager!: GMIManager;
   private agentOSOrchestrator!: AgentOSOrchestrator;
-  private languageService?: import('../nlp/language').LanguageService;
+  private languageService?: import('../cognition/nlp/language').LanguageService;
   private guardrailService?: IGuardrailService;
   private workflowFacade?: WorkflowFacade;
   private discoveryInitializer?: CapabilityDiscoveryInitializer;
@@ -904,7 +904,7 @@ export class AgentOS implements IAgentOS {
     if (config.languageConfig) {
       try {
         // Dynamic import may fail under certain bundler path resolutions; using explicit relative path.
-        const { LanguageService } = await import('../nlp/language');
+        const { LanguageService } = await import('../cognition/nlp/language');
         this.languageService = new LanguageService(config.languageConfig);
         await this.languageService.initialize();
         this.logger.info('AgentOS LanguageService initialized');

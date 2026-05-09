@@ -107,7 +107,7 @@ export interface GuardrailOutputOptions {
   inputEvaluations?: GuardrailEvaluationResult[] | null;
 
   /** RAG sources to thread through to output guardrails for grounding verification */
-  ragSources?: import('../../rag').RagRetrievedChunk[];
+  ragSources?: import('../../cognition/rag').RagRetrievedChunk[];
 }
 
 /**

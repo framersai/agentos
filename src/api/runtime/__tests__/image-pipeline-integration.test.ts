@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
-import { FallbackImageProxy, type ImageFallbackEvent } from '../../../media/images/FallbackImageProxy.js';
-import type { IImageProvider, ImageGenerationRequest, ImageGenerationResult } from '../../../media/images/IImageProvider.js';
+import { FallbackImageProxy, type ImageFallbackEvent } from '../../../io/media/images/FallbackImageProxy.js';
+import type { IImageProvider, ImageGenerationRequest, ImageGenerationResult } from '../../../io/media/images/IImageProvider.js';
 
 function createMockProvider(id: string, shouldFail = false): IImageProvider {
   return {

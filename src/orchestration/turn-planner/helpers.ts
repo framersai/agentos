@@ -1,5 +1,5 @@
-import { CostAggregator } from '../../cognitive_substrate/IGMI';
-import type { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
+import { CostAggregator } from '../../cognition/substrate/IGMI';
+import type { IPersonaDefinition } from '../../cognition/substrate/personas/IPersonaDefinition';
 
 /**
  * Normalises undefined cost fields so downstream consumers always receive a fully shaped usage object.

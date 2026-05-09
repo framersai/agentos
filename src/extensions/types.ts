@@ -15,7 +15,7 @@ import type {
   SpeechVadProvider,
   TextToSpeechProvider,
   WakeWordProvider,
-} from '../speech/types';
+} from '../io/speech/types';
 
 /**
  * Represents the broad category an extension descriptor belongs to.

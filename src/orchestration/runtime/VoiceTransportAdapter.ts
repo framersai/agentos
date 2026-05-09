@@ -156,7 +156,7 @@ export class VoiceTransportAdapter {
     // Lazily import to avoid hard dependency cycle with the voice subsystem
     try {
       const { VoicePipelineOrchestrator } = await import(
-        '../../voice-pipeline/VoicePipelineOrchestrator.js'
+        '../../io/voice-pipeline/VoicePipelineOrchestrator.js'
       );
       this.pipeline = new VoicePipelineOrchestrator({
         stt: this.config.stt ?? 'deepgram',

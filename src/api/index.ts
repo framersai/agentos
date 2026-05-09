@@ -62,16 +62,16 @@ export {
 } from '../core/llm/routing/UncensoredModelCatalog.js';
 
 // --- Image routing ---
-export { PolicyAwareImageRouter, type ImageProviderPreference } from '../media/images/PolicyAwareImageRouter.js';
+export { PolicyAwareImageRouter, type ImageProviderPreference } from '../io/media/images/PolicyAwareImageRouter.js';
 
 // --- Generation hooks ---
 export type { GenerationHookContext, GenerationHookResult, ToolCallHookInfo } from './generateText.js';
 
 // --- Memory, PromptEngine, Skills (for agent() integration) ---
-export { AgentMemory } from '../memory/AgentMemory.js';
+export { AgentMemory } from '../cognition/memory/AgentMemory.js';
 export type { IPromptEngine } from '../core/llm/IPromptEngine.js';
-export type { SkillEntry } from '../skills/types.js';
-export { SkillRegistry } from '../skills/SkillRegistry.js';
+export type { SkillEntry } from '../cognition/skills/types.js';
+export { SkillRegistry } from '../cognition/skills/SkillRegistry.js';
 
 // --- Avatar types ---
 export type {

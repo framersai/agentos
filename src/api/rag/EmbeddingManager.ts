@@ -1,1 +1,1 @@
-export * from '../../rag/EmbeddingManager.js';
+export * from '../../cognition/rag/EmbeddingManager.js';

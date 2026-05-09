@@ -1,4 +1,4 @@
-import type { UserContext, ToolCallRequest } from '../../cognitive_substrate/IGMI';
+import type { UserContext, ToolCallRequest } from '../../cognition/substrate/IGMI';
 import type { ToolExecutionContext } from '../../core/tools/ITool';
 import type { IAgentOS } from '../interfaces/IAgentOS';
 import { AgentOSServiceError } from '../errors';

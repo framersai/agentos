@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CapabilityDiscoveryResult } from '../../../discovery/types.js';
+import type { CapabilityDiscoveryResult } from '../../../cognition/discovery/types.js';
 import type { AgentOSInput } from '../../types/AgentOSInput.js';
 import {
   applySelfImprovementSessionOverrides,

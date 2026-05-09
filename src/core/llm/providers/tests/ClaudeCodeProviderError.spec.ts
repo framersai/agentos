@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ClaudeCodeProviderError } from '../errors/ClaudeCodeProviderError';
-import { CLISubprocessError } from '../../../../sandbox/subprocess/errors';
+import { CLISubprocessError } from '../../../../safety/sandbox/subprocess/errors';
 
 describe('ClaudeCodeProviderError', () => {
   it('extends CLISubprocessError with guidance and recoverable fields', () => {

@@ -34,7 +34,7 @@ import {
   IGMI,
   GMIOutput,
   GMIOutputChunkType,
-} from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 import { MessageRole } from '../../core/conversation/ConversationMessage';
 // IToolOrchestrator — referenced via AgentOSOrchestratorDependencies
@@ -46,7 +46,7 @@ import type { WorkflowProgressUpdate } from '../../orchestration/workflows/Workf
 // AIModelProviderManager — referenced via AgentOSOrchestratorDependencies
 import {
   DEFAULT_PROMPT_PROFILE_CONFIG,
-} from '../../structured/prompting/PromptProfileRouter';
+} from '../structured/prompting/PromptProfileRouter';
 import {
   DEFAULT_ROLLING_SUMMARY_COMPACTION_CONFIG,
 } from '../../core/conversation/RollingSummaryCompactor';
@@ -59,7 +59,7 @@ import {
   runWithSpanContext,
   startAgentOSSpan,
   withAgentOSSpan,
-} from '../../evaluation/observability/otel';
+} from '../../safety/evaluation/observability/otel';
 // ITurnPlanner, TurnPlan — now used by TurnExecutionPipeline
 // CapabilityContextAssembler, filterCapabilityDiscoveryResultByDisabledSkills — now used by GMIChunkTransformer
 import { ExternalToolResultHandler } from './ExternalToolResultHandler';

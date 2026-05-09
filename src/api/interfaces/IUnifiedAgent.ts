@@ -2,8 +2,8 @@
 
 import { ConversationContext } from '../../core/conversation/ConversationContext';
 // import { AgentOSResponseChunkType, AgentOSResponse } from '../types/AgentOSResponse'; // Not used in this file
-import { ToolCallRequest, UICommand } from '../../cognitive_substrate/IGMI'; // Corrected import
-import { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition'; // To reflect persona's definition
+import { ToolCallRequest, UICommand } from '../../cognition/substrate/IGMI'; // Corrected import
+import { IPersonaDefinition } from '../../cognition/substrate/personas/IPersonaDefinition'; // To reflect persona's definition
 
 /**
  * @fileoverview Defines the interface for a Unified Agent within the AgentOS framework.

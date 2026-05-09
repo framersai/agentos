@@ -12,18 +12,18 @@
  * - **Stable Diffusion Local** — Implemented via img2img with low `denoising_strength`.
  * - **Replicate** — Model-specific (img2img with low strength).
  */
-import { createImageProvider } from '../media/images/index.js';
-import { ImageVariationNotSupportedError } from '../media/images/ImageOperationError.js';
-import { imageToBuffer } from '../media/images/imageToBuffer.js';
+import { createImageProvider } from '../io/media/images/index.js';
+import { ImageVariationNotSupportedError } from '../io/media/images/ImageOperationError.js';
+import { imageToBuffer } from '../io/media/images/imageToBuffer.js';
 import type {
   GeneratedImage,
   ImageGenerationResult,
   ImageProviderOptionBag,
-} from '../media/images/IImageProvider.js';
+} from '../io/media/images/IImageProvider.js';
 import { resolveModelOption, resolveMediaProvider } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Public types

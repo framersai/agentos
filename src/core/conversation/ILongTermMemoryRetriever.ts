@@ -1,5 +1,5 @@
 import type { ResolvedLongTermMemoryPolicy } from './LongTermMemoryPolicy';
-import type { MemoryRetrievalPolicy } from '../../rag/unified/policy.js';
+import type { MemoryRetrievalPolicy } from '../../cognition/rag/unified/policy.js';
 
 export interface LongTermMemoryRetrievalInput {
   userId: string;

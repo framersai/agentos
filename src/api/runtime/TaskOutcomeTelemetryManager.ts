@@ -3,7 +3,7 @@
  * and alert generation. Extracted from AgentOSOrchestrator for readability.
  */
 
-import type { GMIOutput } from '../../cognitive_substrate/IGMI';
+import type { GMIOutput } from '../../cognition/substrate/IGMI';
 import type {
   TaskOutcomeTelemetryScope,
   AgentOSTaskOutcomeTelemetryConfig,

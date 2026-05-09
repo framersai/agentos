@@ -16,7 +16,7 @@ import { AgentOSResponseChunkType } from '../../types/AgentOSResponse';
 import {
   shouldIncludeTraceInAgentOSResponses,
   getActiveTraceMetadata,
-} from '../../../evaluation/observability/otel';
+} from '../../../safety/evaluation/observability/otel';
 import type { StreamingManager } from '../../../core/streaming/StreamingManager';
 
 function createMockStreamingManager(): StreamingManager {

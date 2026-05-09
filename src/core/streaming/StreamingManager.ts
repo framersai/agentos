@@ -10,7 +10,7 @@
  * @see ../../api/types/AgentOSResponse.ts For the data chunk structure.
  */
 
-import { uuidv4 } from '../../core/utils/uuid';
+import { uuidv4 } from '../utils/uuid';
 import { AgentOSResponse, AgentOSErrorChunk, AgentOSResponseChunkType } from '../../api/types/AgentOSResponse';
 import { IStreamClient, StreamClientId } from './IStreamClient';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors'; // Corrected path

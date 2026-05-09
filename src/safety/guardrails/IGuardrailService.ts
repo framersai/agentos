@@ -193,7 +193,7 @@ export interface GuardrailOutputPayload {
    * Persists across all chunks in a stream (not just the final chunk).
    * Undefined when no RAG retrieval was performed.
    */
-  ragSources?: import('../../rag').RagRetrievedChunk[];
+  ragSources?: import('../../cognition/rag').RagRetrievedChunk[];
 }
 
 /**

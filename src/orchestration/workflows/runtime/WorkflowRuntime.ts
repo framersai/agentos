@@ -8,12 +8,12 @@ import type {
   WorkflowTaskDefinition,
 } from '../WorkflowTypes';
 import { WorkflowTaskStatus } from '../WorkflowTypes';
-import type { GMIManager, GMIAgencyContextOptions } from '../../../cognitive_substrate/GMIManager';
+import type { GMIManager, GMIAgencyContextOptions } from '../../../cognition/substrate/GMIManager';
 import type { StreamingManager } from '../../../core/streaming/StreamingManager';
 import type { IToolOrchestrator } from '../../../core/tools/IToolOrchestrator';
 import type { ILogger } from '../../../logging/ILogger';
-import { AgencyRegistry } from '../../../agents/agency/AgencyRegistry';
-import type { AgencySeatState, AgencySession } from '../../../agents/agency/AgencyTypes';
+import { AgencyRegistry } from '../../agents/agency/AgencyRegistry';
+import type { AgencySeatState, AgencySession } from '../../agents/agency/AgencyTypes';
 import {
   AgentOSResponseChunkType,
   type AgentOSAgencyUpdateChunk,
@@ -24,11 +24,11 @@ import {
   GMIOutputChunkType,
   type GMITurnInput,
   type CostAggregator,
-} from '../../../cognitive_substrate/IGMI';
-import type { PersonaEvolutionContext } from '../../../cognitive_substrate/persona_overlays/PersonaOverlayTypes';
+} from '../../../cognition/substrate/IGMI';
+import type { PersonaEvolutionContext } from '../../../cognition/substrate/persona_overlays/PersonaOverlayTypes';
 import type { ToolExecutionRequestDetails } from '../../../core/tools/ToolExecutor';
-import type { UserContext } from '../../../cognitive_substrate/IGMI';
-import type { ToolCallResult } from '../../../cognitive_substrate/IGMI';
+import type { UserContext } from '../../../cognition/substrate/IGMI';
+import type { ToolCallResult } from '../../../cognition/substrate/IGMI';
 import {
   EXTENSION_KIND_WORKFLOW_EXECUTOR,
   type WorkflowExtensionExecutor,

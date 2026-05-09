@@ -6,7 +6,7 @@ import {
   type AgentOSResponse,
 } from '../types/AgentOSResponse';
 import type { IAgentOS } from '../interfaces/IAgentOS';
-import type { ToolCallRequest } from '../../cognitive_substrate/IGMI';
+import type { ToolCallRequest } from '../../cognition/substrate/IGMI';
 import { AgentOSServiceError } from '../errors';
 import { GMIErrorCode } from '@framers/agentos/core/utils/errors';
 

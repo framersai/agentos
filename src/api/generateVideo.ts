@@ -15,22 +15,22 @@
  * otherwise {@link IVideoGenerator.generateVideo} is used.
  */
 import { EventEmitter } from 'events';
-import { createVideoProvider, hasVideoProviderFactory } from '../media/video/index.js';
-import { FallbackVideoProxy } from '../media/video/FallbackVideoProxy.js';
+import { createVideoProvider, hasVideoProviderFactory } from '../io/media/video/index.js';
+import { FallbackVideoProxy } from '../io/media/video/FallbackVideoProxy.js';
 import type {
   IVideoGenerator,
   VideoResult,
   VideoProgressEvent,
   VideoAspectRatio,
-} from '../media/video/index.js';
+} from '../io/media/video/index.js';
 import {
   resolveProviderChain,
   resolveProviderOrder,
   type MediaProviderPreference,
-} from '../media/ProviderPreferences.js';
+} from '../io/media/ProviderPreferences.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { recordAgentOSUsage, type AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
-import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../evaluation/observability/otel.js';
+import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 
 // ---------------------------------------------------------------------------
 // Video provider fallback chain builder

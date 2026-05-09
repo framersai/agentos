@@ -10,7 +10,7 @@ import {
   type ResolvedLongTermMemoryPolicy,
 } from '../../../core/conversation/LongTermMemoryPolicy';
 import { MessageRole } from '../../../core/conversation/ConversationMessage';
-import { GMIInteractionType, type GMITurnInput } from '../../../cognitive_substrate/IGMI';
+import { GMIInteractionType, type GMITurnInput } from '../../../cognition/substrate/IGMI';
 
 type LongTermMemoryRetrievalState = {
   lastReviewedUserTurn: number;

@@ -31,10 +31,10 @@ import { MessageRole } from '../../core/conversation/ConversationMessage';
 import type {
   IGMI,
   GMITurnInput,
-} from '../../cognitive_substrate/IGMI';
-import { GMIInteractionType } from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
+import { GMIInteractionType } from '../../cognition/substrate/IGMI';
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
-import { withAgentOSSpan } from '../../evaluation/observability/otel';
+import { withAgentOSSpan } from '../../safety/evaluation/observability/otel';
 import type { TurnPlan } from '../../orchestration/turn-planner/TurnPlanner';
 import {
   executeRollingSummaryPhase,

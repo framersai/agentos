@@ -9,17 +9,17 @@
  */
 
 import type { ExtensionPack } from '../manifest.js';
-import type { ProvenanceSystemConfig } from '../../provenance/types.js';
+import type { ProvenanceSystemConfig } from '../../safety/provenance/types.js';
 import { EXTENSION_KIND_PROVENANCE } from '../types.js';
-import { AgentKeyManager } from '../../provenance/crypto/AgentKeyManager.js';
-import { SignedEventLedger } from '../../provenance/ledger/SignedEventLedger.js';
-import { RevisionManager } from '../../provenance/enforcement/RevisionManager.js';
-import { TombstoneManager } from '../../provenance/enforcement/TombstoneManager.js';
-import { AutonomyGuard } from '../../provenance/enforcement/AutonomyGuard.js';
-import { AnchorManager } from '../../provenance/anchoring/AnchorManager.js';
-import { createAnchorProvider } from '../../provenance/anchoring/providers/createAnchorProvider.js';
-import { createProvenanceHooks } from '../../provenance/enforcement/ProvenanceStorageHooks.js';
-import { getProvenanceSchema } from '../../provenance/schema/provenance-schema.js';
+import { AgentKeyManager } from '../../safety/provenance/crypto/AgentKeyManager.js';
+import { SignedEventLedger } from '../../safety/provenance/ledger/SignedEventLedger.js';
+import { RevisionManager } from '../../safety/provenance/enforcement/RevisionManager.js';
+import { TombstoneManager } from '../../safety/provenance/enforcement/TombstoneManager.js';
+import { AutonomyGuard } from '../../safety/provenance/enforcement/AutonomyGuard.js';
+import { AnchorManager } from '../../safety/provenance/anchoring/AnchorManager.js';
+import { createAnchorProvider } from '../../safety/provenance/anchoring/providers/createAnchorProvider.js';
+import { createProvenanceHooks } from '../../safety/provenance/enforcement/ProvenanceStorageHooks.js';
+import { getProvenanceSchema } from '../../safety/provenance/schema/provenance-schema.js';
 
 // =============================================================================
 // Storage Adapter Interface (subset needed for setup)

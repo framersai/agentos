@@ -1,1 +1,1 @@
-export * from '../../rag/VectorStoreManager.js';
+export * from '../../cognition/rag/VectorStoreManager.js';

@@ -14,7 +14,7 @@ import {
   VisionInputData,
   AudioInputData,
   type UserContext,
-} from '../../cognitive_substrate/IGMI';
+} from '../../cognition/substrate/IGMI';
 import type { AgentOSMemoryControl } from '../../core/conversation/LongTermMemoryPolicy';
 
 /**

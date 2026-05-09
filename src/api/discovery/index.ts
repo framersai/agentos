@@ -1,1 +1,1 @@
-export * from '../../discovery/index.js';
+export * from '../../cognition/discovery/index.js';

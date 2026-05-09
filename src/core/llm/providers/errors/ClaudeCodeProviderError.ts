@@ -6,7 +6,7 @@
  * @see {@link CLISubprocessError}
  */
 
-import { CLISubprocessError } from '../../../../sandbox/subprocess/errors';
+import { CLISubprocessError } from '../../../../safety/sandbox/subprocess/errors';
 
 /**
  * All recognized error codes for the Claude Code CLI provider.

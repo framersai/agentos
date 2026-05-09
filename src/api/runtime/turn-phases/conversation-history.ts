@@ -5,7 +5,7 @@
 
 import type { ConversationContext } from '../../../core/conversation/ConversationContext';
 import { MessageRole } from '../../../core/conversation/ConversationMessage';
-import { GMIInteractionType, type GMITurnInput } from '../../../cognitive_substrate/IGMI';
+import { GMIInteractionType, type GMITurnInput } from '../../../cognition/substrate/IGMI';
 import type { RollingSummaryCompactionConfig, RollingSummaryCompactionResult } from '../../../core/conversation/RollingSummaryCompactor';
 
 export interface ConversationHistoryPhaseInput {

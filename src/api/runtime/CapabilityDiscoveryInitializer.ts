@@ -44,9 +44,9 @@ import type {
   CapabilityDescriptor,
   CapabilityIndexSources,
   ICapabilityDiscoveryEngine,
-} from '../../discovery/types';
-import { EmbeddingManager } from '../../rag/EmbeddingManager';
-import { InMemoryVectorStore } from '../../rag/vector_stores/InMemoryVectorStore';
+} from '../../cognition/discovery/types';
+import { EmbeddingManager } from '../../cognition/rag/EmbeddingManager';
+import { InMemoryVectorStore } from '../../cognition/rag/vector_stores/InMemoryVectorStore';
 import type { WorkflowDescriptorPayload } from '../../orchestration/workflows/WorkflowTypes';
 
 import type {

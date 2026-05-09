@@ -9,13 +9,13 @@
 
 import { GMIError, GMIErrorCode } from '@framers/agentos/core/utils/errors';
 import type { ProcessingOptions } from '../../api/types/AgentOSInput';
-import type { IPersonaDefinition } from '../../cognitive_substrate/personas/IPersonaDefinition';
+import type { IPersonaDefinition } from '../../cognition/substrate/personas/IPersonaDefinition';
 import type {
   CapabilityDiscoveryResult,
   CapabilityKind,
   DiscoveryQueryOptions,
   ICapabilityDiscoveryEngine,
-} from '../../discovery/types';
+} from '../../cognition/discovery/types';
 import type { ILogger } from '../../logging/ILogger';
 
 export type ToolFailureMode = 'fail_open' | 'fail_closed';

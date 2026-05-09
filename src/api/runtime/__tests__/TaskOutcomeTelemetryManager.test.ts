@@ -9,7 +9,7 @@ import {
   type ResolvedTaskOutcomeTelemetryConfig,
   type ResolvedAdaptiveExecutionConfig,
 } from '../TaskOutcomeTelemetryManager';
-import type { GMIOutput } from '../../../cognitive_substrate/IGMI';
+import type { GMIOutput } from '../../../cognition/substrate/IGMI';
 import type { TurnPlan } from '../../../orchestration/turn-planner/TurnPlanner';
 
 // ---------------------------------------------------------------------------

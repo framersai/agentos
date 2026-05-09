@@ -15,12 +15,12 @@ import { ITool, JSONSchemaObject } from './ITool';
 import { IToolPermissionManager } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
 import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
-import { ToolCallResult, UserContext } from '../../cognitive_substrate/IGMI';
+import { ToolCallResult, UserContext } from '../../cognition/substrate/IGMI';
 import type { IHumanInteractionManager } from '../../orchestration/hitl/IHumanInteractionManager';
-import type { CapabilityDiscoveryResult } from '../../discovery/types';
-import type { EmergentConfig, EmergentTool } from '../../emergent/types.js';
-import type { EmergentCapabilityEngine } from '../../emergent/EmergentCapabilityEngine.js';
-import type { SelfImprovementToolDeps } from '../../emergent/EmergentCapabilityEngine.js';
+import type { CapabilityDiscoveryResult } from '../../cognition/discovery/types';
+import type { EmergentConfig, EmergentTool } from '../../cognition/emergent/types.js';
+import type { EmergentCapabilityEngine } from '../../cognition/emergent/EmergentCapabilityEngine.js';
+import type { SelfImprovementToolDeps } from '../../cognition/emergent/EmergentCapabilityEngine.js';
 
 /**
  * Represents the information about a tool that is suitable for an LLM

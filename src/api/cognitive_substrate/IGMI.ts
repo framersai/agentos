@@ -1,1 +1,1 @@
-export * from '../../cognitive_substrate/IGMI.js';
+export * from '../../cognition/substrate/IGMI.js';
