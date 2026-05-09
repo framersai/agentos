@@ -1,3 +1,7 @@
+## <small>0.6.30 (2026-05-09)</small>
+
+* fix(image): normalize null replicate option to undefined in editImage ([f52ebb4](https://github.com/framersai/agentos/commit/f52ebb4))
+
 ## <small>0.6.29 (2026-05-09)</small>
 
 * fix(image): respect caller-pinned model on mature/private-adult routing ([00baef3](https://github.com/framersai/agentos/commit/00baef3))
