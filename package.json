@@ -469,6 +469,7 @@
     "prettier": "^3.3.2",
     "rimraf": "^5.0.7",
     "semantic-release": "^24.1.0",
+    "ts-morph": "^28.0.0",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.10",
     "tsconfig-paths": "^4.2.0",
