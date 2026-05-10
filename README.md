@@ -284,6 +284,33 @@ Strategies: `sequential` · `parallel` · `debate` · `review-loop` · `hierarch
 
 ---
 
+## Grounded Q&A in 8 Lines
+
+`QueryRouter` is the one-call grounded answer pipeline. Point it at markdown directories, ask a question, get back the answer plus the sources it pulled from, the tier path it took, and any fallback strategies it activated. Use it instead of hand-wiring chunker + vector store + classifier + retriever + LLM call + citation collection for every Q&A surface in your app.
+
+```typescript
+import { QueryRouter } from '@framers/agentos';
+
+const router = new QueryRouter({
+  knowledgeCorpus: ['./docs', './packages/agentos/docs'],
+  availableTools: ['web_search', 'deep_research'],
+  verifyCitations: true,
+});
+
+await router.init();
+
+const result = await router.route('how do I configure a guardrail?');
+console.log(result.answer);          // grounded answer text
+console.log(result.sources);         // citations with title + URI + snippet
+console.log(result.classification);  // { tier: 0|1|2|3, strategy, confidence, reasoning }
+console.log(result.tiersUsed);       // which tiers actually fired
+console.log(result.grounding);       // per-claim verdicts when verifyCitations is on
+```
+
+The router classifies each query into a tier (T0 trivial → T3 deep research), retrieves only as much context as that tier needs, and degrades gracefully to keyword search if no embedding key is configured. 260 platform-knowledge entries (tools, skills, FAQ, API, troubleshooting) are bundled with `@framers/agentos` and merged into your corpus automatically. [Query Router docs →](https://docs.agentos.sh/features/query-routing)
+
+---
+
 ## See It In Action
 
 ### 🌀 Paracosm — AI Agent Swarm Simulation

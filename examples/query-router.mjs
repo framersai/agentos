@@ -1,5 +1,15 @@
 #!/usr/bin/env node
-// Example: QueryRouter classification, retrieval routing, and fallback metadata
+// Example: QueryRouter — one-call grounded Q&A over a markdown corpus.
+//
+// Point the router at your docs directory, call route(), and get back a
+// fully-attributed answer (text + sources + classification metadata).
+//
+// This script demonstrates:
+//   - Initializing a corpus from local markdown directories
+//   - The three-stage pipeline (classify -> retrieve -> generate)
+//   - Lifecycle hooks for observability (onClassification, onRetrieval)
+//   - Inspecting the result shape: answer, classification, sources,
+//     tiersUsed, fallbacksUsed
 //
 // Usage:
 //   export OPENAI_API_KEY="sk-..."   # Required (used for embeddings + LLM)

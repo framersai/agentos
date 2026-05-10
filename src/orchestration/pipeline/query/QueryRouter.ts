@@ -1,32 +1,51 @@
 /**
- * @fileoverview QueryRouter — main orchestrator that wires together the
- * QueryClassifier, QueryDispatcher, and QueryGenerator into a complete
- * classify -> dispatch -> generate pipeline.
+ * @fileoverview QueryRouter — one-call grounded Q&A pipeline.
  *
  * @module @framers/agentos/query-router/QueryRouter
  *
- * The QueryRouter is the top-level entry point for the intelligent query
- * routing system. Given a user query and optional conversation history, it:
+ * Point a `QueryRouter` at one or more markdown directories, call
+ * `route(question)`, and get back a fully-attributed answer:
  *
- * 1. **Classifies** the query into a complexity tier (T0-T3) using the
- *    {@link QueryClassifier}.
- * 2. **Dispatches** the classified query to the tier-appropriate retrieval
- *    pipeline via the {@link QueryDispatcher}, which orchestrates vector
- *    search, graph expansion, reranking, and deep research.
- * 3. **Generates** a grounded answer with citations via the
- *    {@link QueryGenerator}, using the retrieved context chunks.
+ * ```ts
+ * const router = new QueryRouter({ knowledgeCorpus: ['./docs'] });
+ * await router.init();
+ * const result = await router.route('how do I configure a guardrail?');
+ * //   result.answer          — grounded answer text
+ * //   result.sources         — citations with title, URI, and snippet
+ * //   result.classification  — { tier, strategy, confidence, reasoning }
+ * //   result.tiersUsed       — which tiers actually fired
+ * //   result.grounding       — per-claim verdicts when verifyCitations is on
+ * ```
  *
- * The router also handles:
- * - Corpus loading from markdown files on disk
- * - Real vector embedding via EmbeddingManager + VectorStoreManager (in-memory)
- * - Keyword fallback retrieval when embeddings are unavailable
+ * Use it when you're building an in-product "ask the docs" feature, a support
+ * copilot that answers from internal runbooks, an agent tool that needs to
+ * ground responses in a specific corpus, or any other surface where you'd
+ * otherwise hand-wire chunker + vector store + classifier + retriever + LLM
+ * call + citation collector.
+ *
+ * Each `route()` call runs three stages in sequence:
+ *
+ * 1. **Classify** — {@link QueryClassifier} assigns a complexity tier
+ *    (T0 trivial → T3 deep research) using an LLM prompt that sees the corpus
+ *    topics, recent conversation history, and any registered tool names.
+ * 2. **Dispatch** — {@link QueryDispatcher} retrieves only as much context as
+ *    the tier requires: nothing for T0, vector search for T1, HyDE for T2,
+ *    multi-source decomposition + reranking for T3.
+ * 3. **Generate** — {@link QueryGenerator} produces a grounded answer from
+ *    the retrieved chunks, attaching `SourceCitation[]` entries that point
+ *    back at the source documents.
+ *
+ * Operational behaviour:
+ * - Corpus loading from markdown files on disk (with the bundled 260-entry
+ *   platform knowledge corpus merged in automatically)
+ * - Vector embedding via EmbeddingManager + VectorStoreManager (in-memory by
+ *   default; swap for Postgres pgvector or Qdrant in production)
+ * - Graceful degradation to {@link KeywordFallback} when no embedding API key
+ *   is configured — the router never fails for missing keys, it just labels
+ *   the fallback in `result.fallbacksUsed`
  * - Event emission for full pipeline observability
- * - Lifecycle hooks (onClassification, onRetrieval) for consumer integration
- *
- * Embedding pipeline: The `init()` method attempts to initialize an
- * AIModelProviderManager, EmbeddingManager, and VectorStoreManager to enable
- * real vector search. If any step fails (e.g., no API key configured), the
- * router falls back gracefully to {@link KeywordFallback} for all retrieval.
+ * - Lifecycle hooks (`onClassification`, `onRetrieval`) for consumer integration
+ * - Optional post-generation citation verification via `verifyCitations: true`
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

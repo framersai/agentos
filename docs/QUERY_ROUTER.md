@@ -1,18 +1,53 @@
 > **Live run**: see the QueryRouter initialize a 1,720-chunk corpus across 50 topics and 333 sources on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/query-router.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router.mjs).
 
-AgentOS includes a `QueryRouter` that turns one user question into a three-stage pipeline:
+`QueryRouter` is the one-call grounded Q&A pipeline. Point it at your markdown directories, ask a question, get back a fully-attributed answer:
 
-1. classify the query into tier `0` through `3`
-2. retrieve the right amount of context
-3. generate a grounded answer from that context
+```ts
+import { QueryRouter } from '@framers/agentos';
+
+const router = new QueryRouter({
+  knowledgeCorpus: ['./docs'],
+  verifyCitations: true,
+});
+await router.init();
+
+const result = await router.route('how do I configure a guardrail?');
+//   result.answer          → grounded answer text
+//   result.sources         → citations with title, URI, snippet
+//   result.classification  → { tier, strategy, confidence, reasoning }
+//   result.tiersUsed       → which tiers actually fired
+//   result.fallbacksUsed   → e.g. ['keyword-fallback']
+//   result.grounding       → per-claim verdicts when verifyCitations is on
+```
+
+## When To Use It
+
+Reach for `QueryRouter` when you're building any of these on top of a documentation corpus or knowledge base:
+
+- An in-product help / "ask the docs" feature
+- A support copilot that answers from internal runbooks
+- An agent tool that needs to ground responses in a specific corpus before answering
+- A test harness that needs reproducible classify-retrieve-answer triples for evals
+
+It replaces the boilerplate of chunker + vector store + tier classifier + retriever + LLM call + citation collector with a single object whose `route()` returns a result you can hand straight to a UI. The result is intentionally provenance-oriented — the answer always comes with the sources it was drawn from, the tier path it took, and any fallback strategies that activated.
+
+## How It Works
+
+Each call to `route()` runs three stages in sequence:
+
+1. **Classify** the query into one of four tiers (T0 trivial → T3 deep research) using an LLM prompt that sees the corpus topics, recent conversation history, and any registered tool names.
+2. **Retrieve** the right amount of context for that tier — vector search for T1, HyDE for T2, multi-source decomposition for T3, nothing at all for T0.
+3. **Generate** a grounded answer from the retrieved context, attaching `SourceCitation[]` entries that point back at the chunks the answer was drawn from.
+
+If no embedding provider is configured, the router degrades cleanly to keyword search instead of failing. 260 platform-knowledge entries (tools, skills, FAQ, API, troubleshooting) ship with `@framers/agentos` and are merged into your corpus automatically — no extra configuration.
 
 ## What Is Live Today
 
 - Tier classification uses an LLM prompt with corpus topics, recent conversation history, and optional tool names.
 - The router embeds local markdown docs into an in-memory vector store when an embedding provider is available.
 - If embeddings are unavailable or vector search fails, the router falls back to keyword search automatically.
-- `cacheResults` now backs an in-memory `route()` result cache and is enabled by default.
-- `verifyCitations: true` now runs post-generation citation verification when retrieved chunks and embeddings are available.
+- `cacheResults` backs an in-memory `route()` result cache and is enabled by default.
+- `verifyCitations: true` runs post-generation citation verification when retrieved chunks and embeddings are available; the verdicts land on `result.grounding`.
 - Result metadata includes `tiersUsed` and `fallbacksUsed`.
 - Lifecycle events cover classification, retrieval, research, generation, and route completion.
 
