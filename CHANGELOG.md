@@ -1,3 +1,9 @@
+## <small>0.7.5 (2026-05-10)</small>
+
+* feat(personas): wire SoulLoader into agent() factory — `soul: 'path' | { content } | { path }` short ([159efe7](https://github.com/framersai/agentos/commit/159efe7))
+* docs: replace deleted blog references with docs links ([46842c1](https://github.com/framersai/agentos/commit/46842c1))
+* docs(memory): memory-system-overview hero SVG; replace 80-line ASCII flow chart ([868344f](https://github.com/framersai/agentos/commit/868344f))
+
 ## <small>0.7.4 (2026-05-10)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([0800773](https://github.com/framersai/agentos/commit/0800773))
