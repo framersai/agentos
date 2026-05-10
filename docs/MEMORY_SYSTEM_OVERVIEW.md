@@ -170,41 +170,49 @@ For the full adapter architecture, capability matrix, and lifecycle hooks, see [
 
 ## The End-to-End Flow
 
-```
-INGEST                                RECALL                           READ
-                                                                           
-new content                          user query                       query + retrieved evidence
-   │                                     │                                 │
-   ▼                                     ▼                                 ▼
-┌────────────────┐                ┌──────────────────┐              ┌──────────────────┐
-│ IngestRouter   │                │ QueryClassifier  │              │ ReaderRouter     │
-│ classifier     │                │ T0/T1/T2/T3      │──── T0 ────▶ context-only
-│ → kind         │                │  (memory-or-not) │              │ (skips memory)   │
-└─────┬──────────┘                └─────────┬────────┘              └──────┬───────────┘
-      │                                     │ T1+                         │
-      │  raw / summarized /                 ▼                             │  picks reader model
-      │  observational / fact-graph /  ┌──────────────────┐               │  per category
-      │  hybrid / skip                 │ MemoryRouter     │               │  (gpt-4o vs gpt-5-mini)
-      │                                │ category → backend│               │
-      ▼                                │ canonical-hybrid /│               │
-┌────────────────┐                     │ OM-v10 / OM-v11   │               ▼
-│ writes to      │                     └─────────┬────────┘        ┌──────────────────┐
-│ Memory store   │                               │                 │ ReadRouter       │
-│ + archive      │                               ▼                 │ intent → strategy│
-│ + graph        │                     ┌──────────────────┐        │ single-call /    │
-└────────────────┘                     │ canonical-hybrid │        │ two-call /       │
-      │                                │ BM25 + dense +   │        │ scratchpad /     │
-      ▼ background                     │ Cohere rerank    │        │ commit-vs-abstain│
-┌────────────────┐                     └─────────┬────────┘        └──────┬───────────┘
-│ Consolidation │                                │                        │
-│ Loop (6 steps)│                                ▼                        ▼
-│ + 8 mechanisms │                     scored evidence chunks ─────▶ grounded answer
-└────────────────┘                                                        │
-                                                                          ▼
-                                                                  ┌──────────────────┐
-                                                                  │ Output guardrails│
-                                                                  │ (separate)       │
-                                                                  └──────────────────┘
+```mermaid
+flowchart TB
+    subgraph ingest["INGEST"]
+        direction TB
+        I1["new content"]:::input
+        I2["IngestRouter<br/><i>kind classifier</i>"]:::process
+        I3["Memory store + archive + graph"]:::data
+        I4["Consolidation Loop<br/><i>6 steps + 8 cognitive mechanisms</i>"]:::process
+        I1 --> I2 --> I3
+        I3 -. background .-> I4
+    end
+
+    subgraph recall["RECALL"]
+        direction TB
+        R1["user query"]:::input
+        R2["QueryClassifier<br/><i>T0 / T1 / T2 / T3</i>"]:::process
+        R3["context-only<br/><i>skips memory</i>"]:::output
+        R4["MemoryRouter<br/><i>category → backend</i>"]:::process
+        R5["canonical-hybrid retrieval<br/><i>BM25 + dense + Cohere rerank</i>"]:::process
+        R6["scored evidence chunks"]:::data
+        R1 --> R2
+        R2 -- T0 --> R3
+        R2 -- T1+ --> R4
+        R4 --> R5 --> R6
+    end
+
+    subgraph read["READ"]
+        direction TB
+        D1["query + evidence"]:::input
+        D2["ReaderRouter<br/><i>gpt-4o (TR/SSU) vs gpt-5-mini</i>"]:::process
+        D3["ReadRouter<br/><i>intent → strategy</i>"]:::process
+        D4["grounded answer"]:::output
+        D5["Output guardrails<br/><i>(separate)</i>"]:::external
+        D1 --> D2 --> D3 --> D4 --> D5
+    end
+
+    R6 --> D1
+
+    classDef input fill:#cffafe,stroke:#0891b2,color:#0e7490
+    classDef process fill:#eef2ff,stroke:#6366f1,color:#3730a3
+    classDef data fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    classDef output fill:#dcfce7,stroke:#10b981,color:#047857
+    classDef external fill:#f3e8ff,stroke:#8b5cf6,color:#5b21b6
 ```
 
 Three classifier calls happen during a query (one in QueryClassifier, one in MemoryRouter, one in ReadRouter), but Stages 2 and 3 reuse Stage 1's classification, so the realized cost is **one classifier call per query** plus the retrieval and reader calls. Trivial queries (greetings, small talk, questions answerable from context alone) terminate at Stage 1 with no retrieval.
