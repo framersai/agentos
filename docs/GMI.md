@@ -187,12 +187,18 @@ Quick map for navigating the source:
 - [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination
 - [`src/api/`](https://github.com/framersai/agentos/tree/master/src/api) — the public `agent()`, `agency()`, `generateText()`, `streamText()` helpers
 
+## What this means in practice
+
+You can build perfectly functional agents on AgentOS without thinking about any of this. The `agent({...})` factory hides the GMI. `session.send(...)` hides the per-turn collaboration. The persona overlay system hides the trait propagation. The runtime works.
+
+The moment a real production deployment surfaces a hard question — *why does my customer-support agent forget what the user said three turns ago? why does my high-extraversion persona give curt one-line replies under pressure? why is the memory layer pulling traces from a session that ended two days ago?* — the abstraction stops being an answer and starts being a question. That's when this page becomes useful. A GMI is a delegation hub. The collaborators are where the behavior actually lives. The seven-ring marketing diagram is a story; the source-tree map above is the source of truth. When you debug, you debug the collaborators.
+
 ## Further reading
 
 - [System Architecture](/architecture/system-architecture) — full module layout and request lifecycle
 - [Cognitive Memory](/features/cognitive-memory) — encoding, decay, and retrieval mechanics in depth
 - [Skills vs Tools vs Extensions](/architecture/skills-vs-tools-vs-extensions) — when each capability system applies
-- [Emergent Agency System](/architecture/emergent-agency-system) — multi-GMI coordination and goal decomposition
+- [Emergent Capabilities](/features/emergent-capabilities) — runtime tool forging and `spawn_specialist` for multi-agent gap-filling
 - [Sandbox & Security](/architecture/sandbox-security) — how guardrails actually intercept tool calls and generation
 - [LLM Providers](/architecture/llm-providers) — the eleven provider implementations and the OpenRouter fan-out
 
