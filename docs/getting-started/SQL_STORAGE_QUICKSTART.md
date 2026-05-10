@@ -1,285 +1,170 @@
-# AgentOS + SQL Storage Adapter Integration - Quick Start Guide
-
-## 🎯 TL;DR
-
-**Should we integrate?** ✅ **YES - High Value**
-
-**When?** **Phase 1 (Memory) now**, Phase 2 (App DB) later, Phase 3 (Core) optional
-
-**Effort?** 2-3 weeks for Phase 1, 6-8 weeks total for Phases 1-2
-
+---
+title: SQL Storage Quickstart
+description: One storage adapter for AgentOS that runs on better-sqlite3, sql.js, Postgres, Supabase, Capacitor SQLite, and IndexedDB — automatic backend detection, schema parity, cloud backups
+keywords:
+  - agentos sql storage
+  - sql-storage-adapter
+  - better-sqlite3
+  - postgres adapter
+  - supabase agent storage
+  - capacitor sqlite
+  - sql.js indexeddb
+  - cross platform agent storage
+  - cloud backup s3
+  - schema migrations
 ---
 
-## 💡 Why This Matters
+# SQL Storage Quickstart
 
-### Current Problems
+> *"Premature standardization is the root of all integration pain. Late standardization is the root of all migration pain. Pick one."* — adapted from Knuth (probably not what he meant)
 
-1. ❌ **SQLite-only** - Can't run on mobile (Capacitor), edge (Supabase), or production PostgreSQL
-2. ❌ **No backups** - Critical conversation data not backed up to cloud
-3. ❌ **Multiple storage systems** - better-sqlite3, Prisma, LocalForage all doing the same thing differently
-4. ❌ **Hard to scale** - Migrating dev → production requires rewriting storage layer
+I shipped four versions of the same agent before I admitted what was wrong. Dev ran on `better-sqlite3`. Production ran on Postgres because the dev SQLite file kept getting wiped by a watch loop nobody could find. The mobile build ran on Capacitor SQLite because the iOS sandbox rejected node bindings. And the browser playground ran on `sql.js` over IndexedDB because Safari extension contexts don't ship a filesystem. Four codepaths, four ways to fail, one shared schema none of them agreed on.
 
-### What sql-storage-adapter Solves
+`@framers/sql-storage-adapter` is the answer to "what if your storage code didn't care which of those four was underneath it." One `createDatabase()` call, six concrete backends, identical `.run() / .get() / .all() / .exec()` semantics. The same agent code drives every one of them. The runtime picks the right adapter based on what's available in the environment.
 
-1. ✅ **One API, many backends** - SQLite (dev), PostgreSQL (prod), Supabase (edge), Capacitor (mobile)
-2. ✅ **Cloud backups** - Automatic S3/R2 backups with compression and retention
-3. ✅ **Unified codebase** - Same code works everywhere
-4. ✅ **Easy migrations** - Built-in tools to export/import data between systems
+This page is the integration guide.
 
----
+## What you get
 
-## 📋 Integration Plan (Recommended)
+| Backend | When it runs | Bundle / install cost |
+|---|---|---|
+| `better-sqlite3` | Node, when the native binding installs cleanly | Native build (~5 MB) — fastest in-process SQLite available |
+| `sql.js` | Node fallback when `better-sqlite3` won't build; also runs in workers | ~1 MB WASM, pure-JS — slower than `better-sqlite3` but boring to deploy |
+| `indexeddb` | Browser, when `sql.js` isn't loaded | Built into every browser; persistent across reloads |
+| `capacitor-sqlite` | iOS / Android via Capacitor | Native plugin; uses the OS SQLite |
+| `postgres` | Server-side production | `pg` driver; full PG capabilities (FTS, JSONB, GIN indexes) |
+| `supabase` | Edge / Postgres-via-REST | Supabase's Postgres + Auth + row-level security; no direct TCP needed |
 
-### Phase 1: Conversation Memory (HIGH PRIORITY)
+All six speak the same [`StorageAdapter`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/adapters/baseStorageAdapter.ts) interface. The application code is unchanged.
 
-**Goal**: Replace `SqliteMemoryAdapter` with sql-storage-adapter
+## Three-line quickstart
 
-**Scope**:
-- `backend/src/core/memory/SqliteMemoryAdapter.ts` → new `StorageAdapterMemory.ts`
-- Keep same `IMemoryAdapter` interface (no breaking changes)
-- Add cloud backup to S3/R2
-
-**Timeline**: 2-3 weeks
-
-**Benefits**:
-- ✅ Conversations backed up to cloud
-- ✅ Works on mobile apps (Capacitor SQLite plugin)
-- ✅ Easy PostgreSQL migration for production
-- ✅ Supabase support for edge deployments
-
-**Code Change**:
-```typescript
-// OLD:
-import Database from 'better-sqlite3';
-const db = new Database('./memory.db');
-
-// NEW:
+```ts
 import { createDatabase } from '@framers/sql-storage-adapter';
-const db = await createDatabase({ type: 'sqlite', path: './memory.db' });
-// Same code works with postgres: type: 'postgres', connection: 'postgresql://...'
+
+const db = await createDatabase({
+  type: 'sqlite',          // or 'postgres', 'supabase', 'capacitor', 'sqljs', 'indexeddb'
+  connection: './agentos.db',
+});
+
+await db.exec('CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, body TEXT)');
+await db.run('INSERT INTO notes (id, body) VALUES (?, ?)', ['n1', 'hello']);
+const rows = await db.all('SELECT * FROM notes');
 ```
 
----
+Swap `type: 'sqlite'` for `type: 'postgres'` with a Postgres URL, redeploy, the rest of the code is the same.
 
-### Phase 2: App Database (MEDIUM PRIORITY)
+## Picking the right backend
 
-**Goal**: Replace `appDatabase.ts` with sql-storage-adapter
+The mistake I see most often is shipping `better-sqlite3` to production for "simplicity" and watching it lose data on the first multi-process deploy. Here's the actual decision tree:
 
-**Scope**:
-- `backend/src/core/database/appDatabase.ts` → new `StorageAdapterDatabase.ts`
-- Update all repositories (users, organizations, billing)
-- Add cloud backup for user data
+- **Single-process Node service on a single machine** → `better-sqlite3`. Microsecond reads, WAL mode handles concurrent connections inside the process. Avoid for any setup where two processes ever write to the same file simultaneously.
+- **Multi-instance Node service, real users** → `postgres`. The driver pools connections, schema migrations cross instances cleanly, and Postgres FTS via [`PostgresFts`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/fts/PostgresFts.ts) outranks SQLite FTS5 on anything past a few hundred MB.
+- **Mobile (iOS/Android via Capacitor)** → `capacitor-sqlite`. Native bindings, hits the OS SQLite, encrypted-at-rest support via SQLCipher if you need it.
+- **Browser playground / extension** → `sqljs` + `indexeddb`. The runtime auto-falls back here when no native binding is available. Loads ~1 MB of WASM lazily.
+- **Edge / Cloudflare Workers / Supabase project** → `supabase`. Uses the REST data layer + row-level security; no TCP needed, works on Workers.
+- **Electron app with both renderer + main process** → `electron` subpath. Routes queries through IPC so the renderer doesn't open a duplicate handle.
 
-**Timeline**: 2-3 weeks
+`createDatabase()` with `type: 'auto'` (the default if you omit `type`) walks this list and picks the first backend whose runtime check passes. For most apps you should pass the type explicitly so the deployment doesn't silently drift between dev and prod.
 
-**Benefits**:
-- ✅ Organizations work in PostgreSQL
-- ✅ User data backed up to cloud
-- ✅ Multi-tenant production deployments
+## The contract
 
----
+Every adapter implements the same [`StorageAdapter`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/adapters/baseStorageAdapter.ts) interface:
 
-### Phase 3: AgentOS Core (OPTIONAL)
-
-**Goal**: Use sql-storage-adapter for GMI state, RAG metadata, lifecycle events
-
-**Scope**:
-- New `AgentOSStorageManager` class
-- Schema for `gmi_instances`, `rag_data_sources`, `memory_lifecycle_events`
-- Integration with GMI for persistence
-
-**Timeline**: 2-4 weeks
-
-**Benefits**:
-- ✅ GMI state survives restarts
-- ✅ Cross-session memory
-- ✅ Consistent with rest of system
-
----
-
-## 🚀 Quick Start (Phase 1 Only)
-
-### 1. Install Package
-
-```bash
-cd packages/sql-storage-adapter
-pnpm add @framers/sql-storage-adapter
-```
-
-### 2. Create New Adapter
-
-**File**: `backend/src/core/memory/StorageAdapterMemory.ts`
-
-```typescript
-import { createDatabase, StorageAdapter } from '@framers/sql-storage-adapter';
-import { IMemoryAdapter } from './IMemoryAdapter';
-
-export class StorageAdapterMemory implements IMemoryAdapter {
-  private db: StorageAdapter | null = null;
-  
-  async initialize(): Promise<void> {
-    this.db = await createDatabase({
-      type: process.env.DATABASE_URL ? 'postgres' : 'sqlite',
-      connection: process.env.DATABASE_URL || './db_data/memory.db',
-    });
-    
-    // Create schema (same as before)
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS conversations (...);
-      CREATE TABLE IF NOT EXISTS conversation_turns (...);
-    `);
-  }
-  
-  async storeConversationTurn(...) {
-    // Use this.db.run() instead of direct DB access
-  }
-  
-  async retrieveConversationTurns(...) {
-    // Use this.db.all() instead of direct DB access
-  }
-  
-  // Implement other IMemoryAdapter methods
+```ts
+interface StorageAdapter {
+  exec(sql: string): Promise<void>;
+  run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number | bigint }>;
+  get<T = unknown>(sql: string, params?: unknown[]): Promise<T | undefined>;
+  all<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  transaction<T>(fn: (tx: StorageAdapter) => Promise<T>): Promise<T>;
+  close(): Promise<void>;
 }
 ```
 
-### 3. Enable Cloud Backups
+That's it. No ORM, no query builder, no proprietary dialect. The SQL you write is the SQL the underlying engine sees, with one caveat: parameter placeholders are normalized to `?` on the way in and rewritten to `$1, $2…` for Postgres / Supabase by [`parameterUtils`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/shared/parameterUtils.ts). Always use `?`; never hardcode `$1` or the Postgres dialect-specific form.
 
-```typescript
+For dialect-specific bits (FTS5 vs `tsvector`, JSON vs JSONB, AUTOINCREMENT vs SERIAL), the package ships [`SqliteDialect`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/dialects/SqliteDialect.ts) and [`PostgresDialect`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/dialects/PostgresDialect.ts) — abstractions over the differences that matter (FTS, blob encoding, identifier quoting). Most application code never touches them.
+
+## Cloud backups
+
+Postgres has its own backup story (managed-service snapshots, `pg_dump`, WAL archiving). For the SQLite-family backends, this package ships an opinionated backup manager that pushes compressed snapshots to S3, R2, or any S3-compatible store:
+
+```ts
 import { createCloudBackupManager } from '@framers/sql-storage-adapter';
 import { S3Client } from '@aws-sdk/client-s3';
 
-const s3 = new S3Client({ region: 'us-east-1' });
-const backup = createCloudBackupManager(this.db, s3, 'agentos-memory', {
-  interval: 3600000,  // 1 hour
-  maxBackups: 168,    // 1 week
-  options: { compression: 'gzip' }
+const s3 = new S3Client({ region: 'auto', endpoint: process.env.R2_ENDPOINT });
+const backup = createCloudBackupManager(db, s3, process.env.BACKUP_BUCKET!, {
+  interval: 60 * 60 * 1000,   // hourly
+  maxBackups: 168,            // keep one week
+  options: { compression: 'gzip' },
 });
 
 backup.start();
 ```
 
-### 4. Environment Variables
+The backup runs at the cadence you set, compresses with gzip (usually 40–60% smaller), and prunes anything past `maxBackups` so you don't accumulate forever. Restores go through `backup.restore(timestamp)`. The source lives in [`features/backup/cloudBackup.ts`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/features/backup/cloudBackup.ts).
 
-```bash
-# Development (SQLite)
-DATABASE_TYPE=sqlite
+R2 is the right default if you're price-sensitive — same API as S3, no egress fees, runs in Cloudflare's global mesh.
 
-# Production (PostgreSQL)
-DATABASE_TYPE=postgres
-DATABASE_URL=postgresql://user:pass@localhost:5432/agentos
+## Migrating between backends
 
-# Cloud Backups
-ENABLE_CLOUD_BACKUPS=true
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-S3_BACKUP_BUCKET=agentos-backups
+The migration story is also boring on purpose. Export from one adapter, import into another:
+
+```ts
+import { exportToJson, importFromJson } from '@framers/sql-storage-adapter';
+
+const sqliteDb = await createDatabase({ type: 'sqlite', connection: './dev.db' });
+const dump = await exportToJson(sqliteDb, { tables: ['conversations', 'memory_traces'] });
+
+const pgDb = await createDatabase({
+  type: 'postgres',
+  connection: process.env.DATABASE_URL!,
+});
+await importFromJson(pgDb, dump);
 ```
 
-### 5. Migration Script
+The exporter walks each table, paginates by primary key, serializes blobs through the [`NodeBlobCodec`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/codecs/NodeBlobCodec.ts) (or the browser codec when running there), and writes a streaming JSON file. The importer replays it inside one transaction per table, so a failed migration leaves the destination in a clean state.
 
-```bash
-npm run migrate:memory-to-storage-adapter
+For zero-downtime migrations on a running production cluster, mirror writes to both databases for a window, run the export against the old one at a quiescent point, then cut traffic over and roll the old one offline.
+
+## Wiring into AgentOS
+
+The AgentOS [`Brain`](https://github.com/framersai/agentos/blob/master/src/memory/Brain.ts) and [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/memory/CognitiveMemoryManager.ts) both accept a `StorageAdapter` directly:
+
+```ts
+import { createDatabase } from '@framers/sql-storage-adapter';
+import { CognitiveMemoryManager } from '@framers/agentos';
+
+const storage = await createDatabase({
+  type: process.env.DATABASE_URL ? 'postgres' : 'sqlite',
+  connection: process.env.DATABASE_URL || './db_data/memory.db',
+});
+
+const memory = new CognitiveMemoryManager({ storage });
+await memory.initialize();
 ```
 
----
+Same pattern wires the [`SqlStorageMemoryArchive`](https://github.com/framersai/agentos/blob/master/src/memory/archive/SqlStorageMemoryArchive.ts) (the gist/rehydrate store) and the [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/memory/AgencyMemoryManager.ts) (shared memory across multi-agent agencies). One adapter, one connection pool, every memory subsystem shares it.
 
-## ✅ Success Checklist
+## Troubleshooting
 
-### Before Production
+**`Error: better-sqlite3 native binding not found`** — Node can't load the native binding. Either install the build toolchain (`xcode-select --install` on macOS, `build-essential` on Debian) and re-run `pnpm install --force`, or let the resolver fall back to `sql.js` by removing the explicit `type: 'sqlite-native'`. The pure-JS path is slower but works everywhere.
 
-- [ ] All unit tests passing
-- [ ] Integration tests with SQLite
-- [ ] Integration tests with PostgreSQL
-- [ ] Migration script tested with production data copy
-- [ ] Cloud backups working (test restore)
-- [ ] Performance tests (query speed, backup speed)
-- [ ] Documentation updated
-- [ ] Team trained on new system
+**`SQLITE_BUSY: database is locked`** — Two writers fighting for the same file. WAL mode is already on by default; the actual cause is usually a forgotten `await` on a transaction. Audit transaction lifecycles before tuning `PRAGMA busy_timeout`. If you're running multi-process under SQLite, that's the bug — move to Postgres.
 
-### After Production
+**`relation "X" does not exist` on Postgres after Suite migrated** — Identifier case. SQLite is case-insensitive on table names, Postgres folds unquoted identifiers to lowercase. Either keep all identifiers lowercase, or quote everything consistently in both dialects.
 
-- [ ] Monitor backup success rate (should be >99.9%)
-- [ ] Monitor query performance (should be within 10% of baseline)
-- [ ] Monitor S3 costs
-- [ ] No data loss incidents
-- [ ] Zero user-reported issues
+**Capacitor SQLite fails on first iOS launch** — The plugin needs the `CapacitorSQLite.initializeSQLCipher()` call before the first `createDatabase()`. Wrap your AgentOS initialization in `Capacitor.isNativePlatform() ? await initSQLCipher() : null` to gate it.
 
----
+**Supabase queries hang on edge runtime** — You're hitting the connection pool, not the data API. Use the REST data path that the `supabase` adapter ships, not the pooled `pg` driver. The package's adapter handles this; if you've manually constructed a `pg.Client`, swap to the Supabase JS client.
 
-## 🔧 Troubleshooting
+## See also
 
-### "Module not found: @framers/sql-storage-adapter"
-
-```bash
-cd packages/sql-storage-adapter
-pnpm install
-pnpm build
-```
-
-### "Database locked" errors
-
-sql-storage-adapter uses WAL mode by default, which prevents locking. If you still see errors:
-
-```typescript
-await db.exec('PRAGMA busy_timeout = 5000;');
-```
-
-### Cloud backup failures
-
-Check S3 credentials and permissions:
-```bash
-aws s3 ls s3://agentos-backups/  # Should list backups
-```
-
-### Performance slower than expected
-
-Enable indexes:
-```sql
-CREATE INDEX idx_conversation_turns_conv ON conversation_turns(conversationId, timestamp);
-CREATE INDEX idx_conversations_user ON conversations(userId, lastActivity DESC);
-```
-
----
-
-## 📊 Expected Results
-
-### Performance
-
-- **SQLite queries**: Same speed on native Node when the resolver selects `better-sqlite3`; browser-style environments fall back to `sql.js`/IndexedDB
-- **PostgreSQL queries**: Similar to direct pg usage
-- **Backup creation**: ~5-10 seconds for 10k conversations
-- **Backup restore**: ~10-20 seconds for 10k conversations
-
-### Storage
-
-- **Gzip compression**: 40-60% reduction in backup size
-- **S3 costs**: ~$0.023/GB/month (standard), ~$0.015/GB/month (R2)
-- **Example**: 1GB of conversations = ~$0.02/month with R2
-
-### Reliability
-
-- **Backup success rate**: >99.9%
-- **Data loss incidents**: 0
-- **Migration success rate**: 100%
-
----
-
-## 📞 Support
-
-### Questions?
-
-- **Full Analysis**: See `SQL_STORAGE_INTEGRATION_ANALYSIS.md`
-- **sql-storage-adapter Docs**: `packages/sql-storage-adapter/README.md`
-- **Examples**: `packages/sql-storage-adapter/examples/`
-
-### Need Help?
-
-1. Check existing `IMemoryAdapter` interface - new adapter must match it exactly
-2. Look at `SqliteMemoryAdapter` implementation - copy the same logic, just use `db.run()` instead of `prepare().run()`
-3. Test with SQLite first, then try PostgreSQL
-4. Start without cloud backups, add them once basic storage works
-
----
-
-**Ready to start?** Begin with Phase 1 - conversation memory integration. It's the highest-value, lowest-risk starting point.
+- [Memory System Overview](/features/memory-system-overview) — how the storage layer plugs into the cognitive memory pipeline
+- [Cognitive Memory](/features/cognitive-memory) — what runs on top of the adapter (encoding, decay, retrieval)
+- [Postgres Backend](/features/postgres-backend) — Postgres-specific tuning (FTS, JSONB, GIN indexes)
+- [Client-Side Storage](/features/client-side-storage) — browser deployment with `sql.js` + IndexedDB
+- [`@framers/sql-storage-adapter` README](https://github.com/framersai/agentos/tree/master/packages/sql-storage-adapter) — full API reference + per-adapter notes
+- [`baseStorageAdapter.ts`](https://github.com/framersai/agentos/blob/master/packages/sql-storage-adapter/src/adapters/baseStorageAdapter.ts) — the `StorageAdapter` contract
