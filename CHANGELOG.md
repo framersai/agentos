@@ -1,3 +1,23 @@
+## 0.9.0 (2026-05-10)
+
+* fix(docs-sidebar): generate category-index links for sections without an index doc — makes breadcrumbs clickable ([80681ae4f856a3b20fac220cdc32a85eed25f42c](https://github.com/framersai/agentos/commit/80681ae4f856a3b20fac220cdc32a85eed25f42c))
+* fix(generateObject): auto-wrap top-level z.array() schemas ([79cc05bc3b0da863f3da851332e014ff193903f5](https://github.com/framersai/agentos/commit/79cc05bc3b0da863f3da851332e014ff193903f5))
+* fix(release): return new commit object in transform; conventional-changelog-writer@8 froze inputs ([a9dac91bca99f82564a4fd6abf8dbe9e988c9b1d](https://github.com/framersai/agentos/commit/a9dac91bca99f82564a4fd6abf8dbe9e988c9b1d))
+* docs: consolidate memory section 10→05 — merge architecture→overview, mechanisms→memory, ops→new memory-operations, scaling→sql-storage (renamed Storage & Scaling); update cross-links; manifest updated ([3c71885294dc905aa7c8343038cf7c8e356f6e05](https://github.com/framersai/agentos/commit/3c71885294dc905aa7c8343038cf7c8e356f6e05))
+* docs: hyperlink citation titles + convert file refs to GitHub links across cognitive-memory, planning-engine, safety-primitives, voice-pipeline, evaluation, gmi, mission, workflow, agent-graph; add Lei 2025 Adaptive HyDE citation ([4ca6c3ef42eb9e5977b6c1fd5c0ce3e9b61b95ff](https://github.com/framersai/agentos/commit/4ca6c3ef42eb9e5977b6c1fd5c0ce3e9b61b95ff))
+* docs: rewrite sql-storage quickstart in human voice — drop emoji integration-plan framing; add SEO frontmatter, real backend matrix, GitHub-linked APIs, troubleshooting ([63073a302fb472b92c0488081ddb19981aec30f1](https://github.com/framersai/agentos/commit/63073a302fb472b92c0488081ddb19981aec30f1))
+* docs: strip fabricated first-person anecdotes + epigraphs from technical reference docs — factual third-person voice only ([05ee64e436a675bc3696d87ef566757d52ad5920](https://github.com/framersai/agentos/commit/05ee64e436a675bc3696d87ef566757d52ad5920))
+* docs(query-router): explain what it is and when to use it ([d5ebcfe52063077fda4d56254573be506bb6e620](https://github.com/framersai/agentos/commit/d5ebcfe52063077fda4d56254573be506bb6e620))
+* docs+release: hyperlinked citations + GitHub file refs in multimodal-rag/hyde; honest HyDE benchmark context; tighten release.config to prevent header truncation and bad auto-link regressions; scrub historical CHANGELOG artifacts ([835efe8a8129cfbf1f4781228f1cee76af8bf412](https://github.com/framersai/agentos/commit/835efe8a8129cfbf1f4781228f1cee76af8bf412))
+* refactor!: lift agents/ out of orchestration to top-level src/agents/ ([46a2f004034166d1edc2458c1028217f3e9ae8ae](https://github.com/framersai/agentos/commit/46a2f004034166d1edc2458c1028217f3e9ae8ae))
+
+### BREAKING CHANGE
+
+* anything importing @framers/agentos/orchestration/agents/*
+must update to @framers/agentos/agents/*. The main @framers/agentos
+barrel re-exports the same surface so consumers using the package root
+are unaffected.
+
 ## 0.8.0 (2026-05-10)
 
 * feat!: drop VerifiedResponse.summary, expose formatVerifiedResponse helper ([ca9f5d1](https://github.com/framersai/agentos/commit/ca9f5d1))
