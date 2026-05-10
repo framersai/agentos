@@ -34,34 +34,7 @@ const agent = await AgentOS.create({
 
 ## How It Works
 
-```
- Agent calls forge_tool
-        │
-        ▼
- ┌─── Build ───┐
- │ compose? → ComposableToolBuilder (chains existing tools)
- │ sandbox? → SandboxedToolForge (hardened node:vm context via CodeSandbox)
- └──────┬──────┘
-        │
-        ▼
- ┌─── Test ────┐
- │ Run test cases against the built tool
- │ Validate output matches declared schema
- └──────┬──────┘
-        │
-        ▼
- ┌─── Judge ───┐
- │ LLM-as-judge reviews code safety,
- │ test correctness, and determinism
- └──────┬──────┘
-        │
-   approved? ──No──→ Rejected (reason returned to agent)
-        │
-       Yes
-        │
-        ▼
- Registered at session tier → ready to use
-```
+![forge_tool runtime forging loop: agent calls forge_tool, the Build stage offers two creation modes (compose chains existing tools via ComposableToolBuilder; sandbox runs new code in a hardened node:vm via SandboxedToolForge), the Test stage runs declared test cases and validates output against the tool's schema, the Judge stage runs an LLM-as-judge over code safety, test correctness, and determinism, and on approval the tool is registered at the session tier — otherwise the rejection reason is returned to the agent.](/img/diagrams/emergent-capabilities-forge-loop.svg)
 
 ## Two Creation Modes
 
