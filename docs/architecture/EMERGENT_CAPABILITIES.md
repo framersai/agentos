@@ -305,50 +305,23 @@ session ──(5+ uses, >0.8 confidence, panel approved)──→ agent ──(h
 
 The forge pipeline ships with a five-utility observability layer under `@framers/agentos/emergent` so any consumer can see live forge health without re-implementing the instrumentation. Each utility is standalone, pure, and composes with whatever telemetry the host already has.
 
-```
- forge_tool invocation
-        │
-        ▼
- ┌────────────────────────────────────────┐
- │  wrapForgeTool                         │
- │  · JSON-parse stringified schemas      │
- │  · normalize mode synonyms             │
- │  · backstop required fields            │
- │  · scope-tag every attempt             │
- └────────────┬───────────────────────────┘
-              │
-              ▼
- ┌────────────────────────────────────────┐
- │  inferSchemaFromTestCases              │
- │  · synthesize inputSchema.properties   │
- │    from testCase inputs when missing   │
- │  · same for outputSchema               │
- └────────────┬───────────────────────────┘
-              │
-              ▼
- ┌────────────────────────────────────────┐
- │  validateForgeShape (pre-judge)        │
- │  · empty schema properties → reject    │
- │  · <2 testCases → reject               │
- │  · empty-input testCases → reject      │
- │  rejection short-circuits the judge    │
- └────────────┬───────────────────────────┘
-              │
-              ▼
-     EmergentJudge (unchanged)
-              │
-              ▼
- ┌────────────────────────────────────────┐
- │  capture callback (one per attempt)    │
- │    ForgeStatsAggregator.recordAttempt  │
- │      · uniqueNames / uniqueApproved    │
- │      · uniqueTerminalRejections        │
- │      · classifyForgeRejection          │
- │        → rejectionReasons histogram    │
- └────────────┬───────────────────────────┘
-              │
-              ▼
-      snapshot()  →  host telemetry
+```mermaid
+flowchart TD
+    Inv["forge_tool invocation"]:::input
+    Wrap["wrapForgeTool<br/><i>JSON-parse · normalize modes · backstop fields · scope-tag</i>"]:::process
+    Infer["inferSchemaFromTestCases<br/><i>synthesize inputSchema/outputSchema from test inputs</i>"]:::process
+    Shape["validateForgeShape (pre-judge)<br/><i>empty props · &lt; 2 testCases · empty-input → reject</i>"]:::warning
+    Judge["EmergentJudge"]:::process
+    Capture["capture callback<br/><i>ForgeStatsAggregator · classifyForgeRejection</i>"]:::data
+    Snap["snapshot() → host telemetry"]:::output
+
+    Inv --> Wrap --> Infer --> Shape --> Judge --> Capture --> Snap
+
+    classDef input fill:#cffafe,stroke:#0891b2,color:#0e7490
+    classDef process fill:#eef2ff,stroke:#6366f1,color:#3730a3
+    classDef warning fill:#fee2e2,stroke:#f43f5e,color:#9f1239
+    classDef data fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    classDef output fill:#dcfce7,stroke:#10b981,color:#047857
 ```
 
 ### API surface

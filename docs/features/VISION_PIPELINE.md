@@ -84,24 +84,19 @@ const embedResult = await vision.embed(imageBuffer);
 The pipeline uses a 3-tier progressive enhancement model. Each tier represents
 a different level of capability and cost:
 
-```
-┌─────────────────────────────────────────────┐
-│            VisionPipeline                    │
-│                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Tier 0  │→ │  Tier 1  │→ │  Tier 2  │  │
-│  │  Local   │  │ Enhanced │  │  Cloud   │  │
-│  │  OCR     │  │  Local   │  │  Vision  │  │
-│  └──────────┘  └──────────┘  └──────────┘  │
-│       │              │             │         │
-│  PaddleOCR      TrOCR/        Google Cloud   │
-│  Tesseract      Florence-2    Vision / GPT   │
-│                 CLIP          Vision          │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    T0["Tier 0 · Local OCR<br/><i>PaddleOCR · Tesseract</i>"]:::process
+    T1["Tier 1 · Enhanced Local<br/><i>TrOCR · Florence-2 · CLIP</i>"]:::process
+    T2["Tier 2 · Cloud Vision<br/><i>Google Cloud Vision · GPT Vision</i>"]:::external
+
+    T0 -- escalate --> T1 -- escalate --> T2
+
+    classDef process fill:#eef2ff,stroke:#6366f1,color:#3730a3
+    classDef external fill:#f3e8ff,stroke:#8b5cf6,color:#5b21b6
 ```
 
-The pipeline dispatches to available tiers based on the chosen strategy,
-falling back gracefully when a tier is unavailable or fails.
+The pipeline dispatches to available tiers based on the chosen strategy, falling back gracefully when a tier is unavailable or fails.
 
 ---
 

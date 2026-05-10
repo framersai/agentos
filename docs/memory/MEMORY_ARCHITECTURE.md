@@ -72,41 +72,33 @@ When `selfImprove` is `false`, steps 7 and 8 are skipped and the feedback/consol
 
 ### Data Flow
 
-```
-Input (text / file / URL / folder)
-  │
-  ▼
-┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│  LoaderRegistry  │───▶│  ChunkingEngine  │───▶│  Brain     │
-│  (parse to text) │    │  (split chunks)  │    │  (store traces)  │
-└──────────────────┘    └──────────────────┘    └────────┬─────────┘
-                                                         │
-  ┌──────────────────────────────────────────────────────┘
-  │
-  ▼                         ▼                         ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  FTS5 Index      │  │  KnowledgeGraph  │  │  MemoryGraph     │
-│  (BM25 search)   │  │  (entities/edges)│  │  (associations)  │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-  │                         │                         │
-  └────────────────┬────────┘─────────────────────────┘
-                   ▼
-             ┌──────────────────┐
-             │  recall() result │
-             │  (scored traces) │
-             └──────────────────┘
-                   │
-                   ▼
-             ┌──────────────────┐
-             │  Feedback Signal │
-             │  (used/ignored)  │
-             └──────────────────┘
-                   │
-                   ▼
-             ┌──────────────────┐
-             │ ConsolidationLoop│
-             │ (prune/merge/...) │
-             └──────────────────┘
+```mermaid
+flowchart TD
+    Input["Input<br/><i>text · file · URL · folder</i>"]:::input
+    Loader["LoaderRegistry<br/><i>parse to text</i>"]:::process
+    Chunker["ChunkingEngine<br/><i>split chunks</i>"]:::process
+    Brain["Brain<br/><i>store traces</i>"]:::data
+    FTS["FTS5 Index<br/><i>BM25 search</i>"]:::data
+    KG["KnowledgeGraph<br/><i>entities · edges</i>"]:::data
+    MG["MemoryGraph<br/><i>associations</i>"]:::data
+    Recall["recall() result<br/><i>scored traces</i>"]:::output
+    Feedback["Feedback Signal<br/><i>used / ignored</i>"]:::process
+    Consol["ConsolidationLoop<br/><i>prune · merge · derive</i>"]:::process
+
+    Input --> Loader --> Chunker --> Brain
+    Brain --> FTS
+    Brain --> KG
+    Brain --> MG
+    FTS --> Recall
+    KG --> Recall
+    MG --> Recall
+    Recall --> Feedback --> Consol
+    Consol -. background .-> Brain
+
+    classDef input fill:#cffafe,stroke:#0891b2,color:#0e7490
+    classDef process fill:#eef2ff,stroke:#6366f1,color:#3730a3
+    classDef data fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    classDef output fill:#dcfce7,stroke:#10b981,color:#047857
 ```
 
 ---
