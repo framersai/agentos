@@ -5,7 +5,7 @@ AgentOS provides automatic round-robin API key rotation for every provider. Set 
 ## Usage
 
 ```bash
-# Single key (backward compatible):
+# Single key:
 ELEVENLABS_API_KEY=sk_primary
 
 # Multiple keys with automatic rotation:

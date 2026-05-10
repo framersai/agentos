@@ -19,7 +19,7 @@
  * - `complex`:  Decompose the query into sub-queries, run HyDE per
  *               sub-query, merge/dedup/rank the combined results.
  *
- * **Tier behaviour (legacy, still supported):**
+ * **Tier behaviour:**
  * - T0: Trivial — no retrieval, returns empty immediately
  * - T1: Simple lookup — vector search only (topK=5)
  * - T2: Multi-source — vector(15) + graph expand + merge/dedup + rerank(5)

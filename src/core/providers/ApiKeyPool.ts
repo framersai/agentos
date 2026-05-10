@@ -12,7 +12,7 @@
  *
  * @example
  * ```ts
- * // Single key (backward compatible, zero overhead):
+ * // Single key — zero rotation overhead:
  * const pool = new ApiKeyPool('sk_abc');
  * pool.next(); // 'sk_abc'
  *

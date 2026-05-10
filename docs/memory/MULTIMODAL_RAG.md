@@ -144,7 +144,7 @@ Additional compatibility notes:
 - Document parsing in the reference backend currently supports PDF, DOCX, TXT, Markdown, CSV, JSON, and XML.
 - PDFs that contain no embedded text still need a page-image OCR/vision pipeline; the current backend surfaces that as an explicit extraction error instead of silently indexing nothing.
 - Ollama can be used for image captioning when the selected model supports vision input and the caller sends image bytes as an inline `data:` URL. Remote image URLs are not converted automatically for Ollama in the current provider adapter.
-- Audio embedding retrieval is still WAV-only in the Node reference backend. Non-WAV audio still works via transcript-first retrieval.
+- Audio embedding retrieval is WAV-only in the Node reference backend. Non-WAV audio is retrieved via the transcript-first path.
 
 ## Configuration (Reference Backend)
 

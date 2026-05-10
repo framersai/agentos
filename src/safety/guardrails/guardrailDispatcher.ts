@@ -86,10 +86,10 @@ export interface GuardrailInputOutcome {
   /** Input after all sanitization (may be modified from original) */
   sanitizedInput: AgentOSInput;
 
-  /** The last evaluation result (for backwards compatibility) */
+  /** The last evaluation result. Convenience accessor; prefer `evaluations[]` for the full set. */
   evaluation?: GuardrailEvaluationResult | null;
 
-  /** All evaluation results from all guardrails */
+  /** All evaluation results from all guardrails in execution order. */
   evaluations?: GuardrailEvaluationResult[];
 }
 

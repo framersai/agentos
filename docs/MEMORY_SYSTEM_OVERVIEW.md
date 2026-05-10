@@ -364,7 +364,7 @@ The current production-validated config, however, is **canonical-hybrid for ever
 1. Wiring `text-embedding-3-small` instead of the bench's CharHash fallback. CharHash is a lexical-hash stub the bench falls back to when no embedder is configured. It is not the documented production path. Real consumers wire a real embedder; doing so on the same router lifts the same row from 76.6% to 83.2% (an extra +6.6 pp, concentrated on temporal-reasoning +14.5 pp and multi-session +14.5 pp, where semantic retrieval finds paraphrase-rich and multi-hop bridges that lexical hashing missed).
 2. Dropping the `minimize-cost` preset's MS+SSP-to-OM-v11 routing in favor of canonical-hybrid for all categories, paired with Stage 3 ReaderRouter dispatch. At gpt-4o reader, OM-v11 routing produces a mixed per-category effect: it costs SSP 13.4 pp (63.3% on OM-v11 vs 76.7% canonical) and gains MS 4 pp. The case-weighted aggregate favors canonical because SSP's 13.4 pp loss outweighs MS's 4 pp gain, and OM-v11's per-session observer pipeline imposes 60-120 seconds per OM-routed case, producing a 111,535 ms p95 in the prior 84.8% headline. Without OM-v11 routing, p95 drops to 7,264 ms (15.4x faster on the tail).
 
-The preset table for `minimize-cost` was calibrated under CharHash-era retrieval and is documented as **stale for sem-embed deployments**. Consumer recommendation: use canonical-only plus ReaderRouter as the recommended sem-embed config. The preset is preserved in source for backward compatibility.
+For sem-embed deployments, use canonical-only plus ReaderRouter. The `minimize-cost` preset table targets CharHash retrieval and shouldn't be used in sem-embed mode.
 
 ### Self-calibrating variant
 

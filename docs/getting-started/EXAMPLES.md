@@ -333,8 +333,7 @@ import { readFileSync } from 'fs';
 
 const codeReviewer = agency({
   provider: 'anthropic',
-  // Always pin a model explicitly. Package versions before 0.6.0 defaulted to
-  // a Sonnet snapshot Anthropic later retired, which now returns 404.
+  // Pin the model explicitly so production traffic doesn't drift across snapshots.
   model: 'claude-sonnet-4-6',
   strategy: 'debate',
   maxRounds: 2,

@@ -652,10 +652,8 @@ export class MetapromptExecutor {
    * Triggers and processes a full self-reflection cycle using the
    * `gmi_self_trait_adjustment` metaprompt.
    *
-   * This is the legacy public API entry point maintained for backward compatibility.
-   * It performs the same work as `handleTraitAdjustment` but with additional
-   * guard checks (already reflecting, no metaprompt defined) and explicit
-   * state management.
+   * Performs the same work as `handleTraitAdjustment` plus guard checks
+   * (already reflecting, no metaprompt defined) and explicit state management.
    */
   public async triggerAndProcessSelfReflection(): Promise<void> {
     const persona = this.config.getPersona();

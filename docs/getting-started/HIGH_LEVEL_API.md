@@ -32,23 +32,20 @@ import {
 | `agent()` | Multi-turn sessions with memory | `const a = agent({ provider: 'openai' })` |
 | `agency()` | Multi-agent teams | `const team = agency({ agents: {...}, strategy: 'parallel' })` |
 
-All functions accept `provider` as a top-level key — no `'openai:gpt-4o'` colon syntax needed (though it still works for backwards compatibility).
+All functions accept `provider` as a top-level key.
 
 ## Provider Resolution
 
 ### Calling Styles
 
-AgentOS supports three styles for specifying provider and model. **Provider-first is recommended:**
+Two styles for specifying provider and model:
 
 ```ts
-// 1. Provider-first (recommended) — AgentOS picks the best default model
+// 1. Provider-first — AgentOS picks the best default model for the task
 await generateText({ provider: 'openai', prompt: '...' });
 
 // 2. Provider + explicit model — full control
 await generateText({ provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', prompt: '...' });
-
-// 3. Legacy colon format — backwards compatible, still works
-await generateText({ model: 'openai:gpt-4o', prompt: '...' });
 ```
 
 ### Provider Defaults
@@ -114,7 +111,7 @@ await generateText({
 ```ts
 import { generateText } from '@framers/agentos';
 
-// Provider-first (recommended): AgentOS picks the default model for the provider.
+// Provider-first: AgentOS picks the default model for the provider.
 const { text, usage } = await generateText({
   provider: 'openai',
   prompt: 'Summarize the TCP three-way handshake in 3 bullets.',
@@ -122,9 +119,6 @@ const { text, usage } = await generateText({
 
 console.log(text);
 console.log(usage.totalTokens);
-
-// Legacy format — still supported:
-// const { text } = await generateText({ model: 'openai:gpt-4.1-mini', prompt: '...' });
 ```
 
 `generateText({ tools })` and `streamText({ tools })` now accept three useful

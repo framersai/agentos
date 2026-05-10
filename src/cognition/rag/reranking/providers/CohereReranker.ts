@@ -48,7 +48,6 @@ export const COHERE_RERANKER_MODELS = [
   'rerank-v4.0-pro',
   'rerank-v4.0-fast',
   'rerank-v3.5',
-  // Legacy model names (still supported)
   'rerank-english-v3.0',
   'rerank-multilingual-v3.0',
   'rerank-english-v2.0',

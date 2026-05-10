@@ -67,9 +67,10 @@ function computeCapacity(base: number, traits: HexacoTraits): number {
 /**
  * Cognitive working memory with Baddeley-inspired slot management.
  *
- * Also implements IWorkingMemory for backward compatibility —
- * `get/set/delete/clear/has/size/getAll` delegate to the backing store,
- * while slot management is layered on top.
+ * Implements `IWorkingMemory` for the basic key-value surface
+ * (`get/set/delete/clear/has/size/getAll`), with slot management
+ * (phonological loop, visuospatial sketchpad, episodic buffer)
+ * layered on top.
  */
 export class CognitiveWorkingMemory implements IWorkingMemory {
   readonly id: string;

@@ -215,7 +215,7 @@ Use them to surface clear diagnostics in the calling pipeline.
 
 ### Standalone-classifier mode
 
-When ReaderRouter is the only classifier-firing primitive in the pipeline (no [MemoryRouter](./MEMORY_ROUTER.md), no [QueryClassifier T1+](./QUERY_ROUTER.md) producing a category), it fires its own gpt-5-mini few-shot classifier per query (~$0.0001 / query) so the dispatch still works.
+When ReaderRouter is the only classifier-firing primitive in the pipeline (no [MemoryRouter](./MEMORY_ROUTER.md), no [QueryClassifier T1+](./QUERY_ROUTER.md) producing a category), it fires its own gpt-5-mini few-shot classifier per query (~$0.0001 / query) to drive the dispatch.
 
 When ReaderRouter runs alongside MemoryRouter (the typical config), it consumes the MemoryRouter classifier's output and adds zero LLM calls.
 

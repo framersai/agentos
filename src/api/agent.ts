@@ -95,8 +95,8 @@ export interface AgentMemoryProvider {
  */
 export interface AgentOptions extends BaseAgentConfig {
   /**
-   * Top-level usage ledger shorthand for backward compatibility.
-   * When present, forwarded to `observability.usageLedger` internally.
+   * Top-level usage ledger shorthand. When present, forwarded to
+   * `observability.usageLedger` internally.
    */
   usageLedger?: AgentOSUsageLedgerOptions;
   /**
