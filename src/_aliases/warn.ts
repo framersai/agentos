@@ -11,7 +11,6 @@ export function warnDeprecated(oldPath: string, newPath: string): void {
   if (process.env.NODE_ENV === 'production') return;
   if (warned.has(oldPath)) return;
   warned.add(oldPath);
-  // eslint-disable-next-line no-console
   console.warn(
     `[@framers/agentos] Subpath "${oldPath}" is deprecated. ` +
     `Use "${newPath}" instead. The deprecated subpath will be removed in 0.8.0.`

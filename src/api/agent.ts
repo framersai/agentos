@@ -27,6 +27,7 @@ import { streamText, type StreamTextResult } from './streamText.js';
 import type { HostLLMPolicy } from './runtime/hostPolicy.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
 import type { SkillEntry } from '../cognition/skills/types.js';
+import { loadSoulSync, parseSoul } from '../cognition/substrate/personas/SoulLoader.js';
 import type {
   AgentOSUsageAggregate,
   AgentOSUsageLedgerOptions,
@@ -508,25 +509,19 @@ function loadSoulFromOption(
   soul: NonNullable<AgentOptions['soul']>,
 ): import('../cognition/substrate/personas/SoulLoader.js').LoadedSoul | null {
   try {
-    // Lazy require to avoid circular imports at module-eval time.
-    const loader = require('../cognition/substrate/personas/SoulLoader.js') as {
-      loadSoulSync: typeof import('../cognition/substrate/personas/SoulLoader.js').loadSoulSync;
-      parseSoul: typeof import('../cognition/substrate/personas/SoulLoader.js').parseSoul;
-    };
     if (typeof soul === 'string') {
-      return loader.loadSoulSync({ source: soul });
+      return loadSoulSync({ source: soul });
     }
     if ('content' in soul) {
-      return loader.parseSoul(soul.content);
+      return parseSoul(soul.content);
     }
     if ('path' in soul) {
-      return loader.loadSoulSync({ source: soul.path });
+      return loadSoulSync({ source: soul.path });
     }
     return null;
   } catch (err) {
-    // Non-fatal: missing soul file is logged once, agent boots without it.
+    // Non-fatal: missing soul file logs once and the agent boots without it.
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
       console.warn(
         `[@framers/agentos] Failed to load soul: ${(err as Error).message}. Agent will boot without SOUL.md identity.`,
       );
