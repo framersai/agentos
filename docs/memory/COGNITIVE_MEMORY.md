@@ -26,9 +26,7 @@ The result is a memory that behaves more like a person remembering. The agent fo
 On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms — reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive feeling-of-knowing, temporal gist, schema encoding, source-confidence decay, and emotion regulation. All HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See the [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing.
 :::
 
-## Overview
-
-The Cognitive Memory System models memory as a dynamic, personality-modulated process rather than a flat key-value store:
+## What it actually does, in five lines
 
 - **Encoding** is shaped by the agent's HEXACO personality traits and current emotional state (PAD model: valence, arousal, dominance)
 - **Forgetting** follows the Ebbinghaus exponential decay curve, with retrieval-induced reinforcement via spaced repetition
@@ -36,7 +34,7 @@ The Cognitive Memory System models memory as a dynamic, personality-modulated pr
 - **Working memory** enforces Baddeley's slot-based capacity limits (7±2), modulated by traits
 - **Consolidation** runs periodically to prune weak traces, merge clusters into schemas, resolve contradictions, and feed observations back into long-term storage
 
-The system is composable. Core encoding/decay/retrieval (Batch 1) runs without any LLM calls. Advanced features (Batch 2 — observer, reflector, graph, consolidation) activate automatically when their config is provided and degrade gracefully when absent. You can run the entire stack against a local SQLite + HNSW backend, or scale it to Postgres + Neo4j without changing any callsite.
+Core encoding / decay / retrieval runs without any LLM calls. The optional Batch-2 layer (observer, reflector, graph, consolidation) activates when its config is wired in and falls through gracefully when it isn't. Same code runs over local SQLite + HNSW or against Postgres + Neo4j — no callsite changes.
 
 ### Cognitive science foundations
 
@@ -130,7 +128,7 @@ Source types: `user_statement`, `agent_inference`, `tool_result`, `observation`,
 
 Source: `src/memory/core/encoding/EncodingModel.ts`
 
-Encoding determines **how strongly** a new input is committed to memory. The system combines four cognitive mechanisms:
+Encoding decides **how hard a new trace gets stamped in**. Four cognitive mechanisms compose into one strength score:
 
 ### 1. HEXACO Personality -> Encoding Weights
 
@@ -793,9 +791,9 @@ await cognitiveMemory.observe('user', userMessage, mood);
 
 ---
 
-## Comparison with Mastra
+## What's missing from flat-vector memory (vs. Mastra)
 
-The Cognitive Memory System addresses 12 limitations in Mastra's memory architecture:
+Twelve specific gaps in Mastra's memory architecture that the cognitive memory layer fills. Each row maps to a paper, a primitive, and runtime code:
 
 | # | Mastra Limitation | AgentOS Improvement |
 |---|-------------------|-------------------|
