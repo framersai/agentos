@@ -248,36 +248,28 @@ Common DTMF use cases:
 The following diagram shows the path of inbound audio (phone → pipeline) and
 outbound TTS audio (pipeline → phone) for a `conversation` mode call.
 
-```
-  Phone Network
-       |
-       | (mu-law 8 kHz PCM, WebSocket frames)
-       v
-  ┌────────────────────────────────────┐
-  │   Provider WebSocket               │
-  │   (Twilio / Telnyx / Plivo)        │
-  └──────────────┬─────────────────────┘
-                 │  raw Buffer / JSON string
-                 v
-  ┌────────────────────────────────────┐
-  │   MediaStreamParser                │
-  │   (TwilioMediaStreamParser, etc.)  │
-  │                                    │
-  │   parseIncoming() → MediaStreamIncoming
-  │   formatOutgoing() ← mu-law Buffer │
-  └──────────────┬──────────────┬──────┘
-     MediaStreamIncoming        │ formatted outbound
-                 │              │
-                 v              │
-  ┌────────────────────────────────────┐
-  │   TelephonyStreamTransport         │
-  │                                    │
-  │  'audio' event: Float32Array       │──► STT / VAD pipeline
-  │  'dtmf'  event: { digit, ms }      │──► DTMF handler
-  │  'close' event                     │──► cleanup
-  │                                    │
-  │  sendAudio(EncodedAudioChunk)  ◄───│── TTS pipeline output
-  └────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Phone["Phone Network"]:::input
+    Provider["Provider WebSocket<br/><i>Twilio · Telnyx · Plivo</i>"]:::external
+    Parser["MediaStreamParser<br/><i>parseIncoming() · formatOutgoing()</i>"]:::process
+    Transport["TelephonyStreamTransport<br/><i>audio · dtmf · close events</i>"]:::process
+    STT["STT / VAD pipeline"]:::data
+    DTMF["DTMF handler"]:::data
+    TTS["TTS pipeline"]:::data
+
+    Phone -->|mu-law 8kHz PCM, WebSocket frames| Provider
+    Provider -->|raw Buffer / JSON string| Parser
+    Parser -->|MediaStreamIncoming| Transport
+    Transport -->|"'audio' → Float32Array"| STT
+    Transport -->|"'dtmf' → { digit, ms }"| DTMF
+    TTS -->|"sendAudio(EncodedAudioChunk)"| Transport
+    Transport -.->|formatted outbound| Parser
+
+    classDef input fill:#cffafe,stroke:#0891b2,color:#0e7490
+    classDef external fill:#f3e8ff,stroke:#8b5cf6,color:#5b21b6
+    classDef process fill:#eef2ff,stroke:#6366f1,color:#3730a3
+    classDef data fill:#fef3c7,stroke:#f59e0b,color:#92400e
 ```
 
 **Inbound path (phone → pipeline)**
