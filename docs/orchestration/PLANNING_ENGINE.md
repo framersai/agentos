@@ -14,33 +14,7 @@ The Planning Engine provides sophisticated cognitive capabilities for autonomous
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        PlanningEngine                                │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │ Plan Generator  │  │  Task Decomposer │  │  Self-Reflector │     │
-│  │ (ReAct, ToT)    │  │  (Least-to-Most) │  │  (Reflexion)    │     │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘     │
-│           │                    │                    │               │
-│           └────────────────────┼────────────────────┘               │
-│                                │                                    │
-│  ┌─────────────────────────────▼─────────────────────────────────┐ │
-│  │                    Execution Engine                            │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │ │
-│  │  │ Step     │  │ Checkpoint│  │ Rollback │  │ Autonomous│       │ │
-│  │  │ Executor │  │ Manager  │  │ Handler  │  │ Loop     │       │ │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    │            │            │
-            ┌───────▼───────┐ ┌──▼──┐ ┌──────▼──────┐
-            │ LLM Provider  │ │Tools│ │ RAG System  │
-            │ Manager       │ │     │ │             │
-            └───────────────┘ └─────┘ └─────────────┘
-```
+![PlanningEngine architecture: Plan Generator (ReAct, Tree-of-Thoughts), Task Decomposer (Least-to-Most), and Self-Reflector (Reflexion) all feed the Execution Engine, which runs Step Executor, Checkpoint Manager, Rollback Handler, and Autonomous Loop on top of three external systems: LLM Provider Manager, Tools, and the RAG System.](/img/diagrams/planning-engine.svg)
 
 ## Default Behavior
 
