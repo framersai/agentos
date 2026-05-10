@@ -208,12 +208,12 @@ The moment a real production deployment surfaces a hard question — *why does m
 
 ### Cognitive architectures for language agents
 
-- Sumers, T. R., Yao, S., Narasimhan, K., & Griffiths, T. L. (2023). *Cognitive architectures for language agents.* arXiv preprint. — The CoALA framework AgentOS's memory taxonomy follows; episodic / semantic / procedural distinction at the language-agent layer. [arXiv:2309.02427](https://arxiv.org/abs/2309.02427)
-- Park, J. S., O'Brien, J. C., Cai, C. J., Morris, M. R., Liang, P., & Bernstein, M. S. (2023). *Generative agents: Interactive simulacra of human behavior.* arXiv preprint. — Persona + memory + reflection at small scale; the "agent-of-mind" pattern that GMI productionizes. [arXiv:2304.03442](https://arxiv.org/abs/2304.03442)
+- Sumers, T. R., Yao, S., Narasimhan, K., & Griffiths, T. L. (2023). [*Cognitive architectures for language agents.*](https://arxiv.org/abs/2309.02427) arXiv:2309.02427. — The CoALA framework AgentOS's memory taxonomy follows; episodic / semantic / procedural distinction at the language-agent layer.
+- Park, J. S., O'Brien, J. C., Cai, C. J., Morris, M. R., Liang, P., & Bernstein, M. S. (2023). [*Generative agents: Interactive simulacra of human behavior.*](https://arxiv.org/abs/2304.03442) arXiv:2304.03442. — Persona + memory + reflection at small scale; the "agent-of-mind" pattern that GMI productionizes.
 
 ### Personality structure
 
-- Ashton, M. C., & Lee, K. (2007). *Empirical, theoretical, and practical advantages of the HEXACO model of personality structure.* *Personality and Social Psychology Review*, 11(2), 150–166. — The six-factor HEXACO model the runtime applies. [SAGE Journals](https://journals.sagepub.com/doi/10.1207/S15327957PSPR0701_2)
+- Ashton, M. C., & Lee, K. (2007). [*Empirical, theoretical, and practical advantages of the HEXACO model of personality structure.*](https://journals.sagepub.com/doi/10.1207/S15327957PSPR0701_2) *Personality and Social Psychology Review*, 11(2), 150–166. — The six-factor HEXACO model the runtime applies.
 
 ### Memory mechanics referenced inline
 
