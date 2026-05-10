@@ -1,8 +1,13 @@
 # Emergent Capabilities: Runtime Tool Forging
 
-Agents with `emergent: true` can forge new tools at runtime when no existing capability fits the task. The agent calls the [`forge_tool`](/api/classes/ForgeToolMetaTool) meta-tool, which builds, tests, and judge-reviews the tool before making it available. The system is implemented across three core classes: [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine), [`EmergentJudge`](/api/classes/EmergentJudge), and [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry).
+> "We shape our tools, and thereafter our tools shape us."
+> — John Culkin (popularizing McLuhan), 1967
 
-Important: emergent tooling is a full runtime capability. Use `new AgentOS()` or another full runtime entry point that initializes `ToolOrchestrator` with emergent support. The lightweight `agent()` helper accepts `emergent` config for compatibility, but it does not activate `forge_tool` by itself.
+The most useful tools in some of my agent runs weren't ones I shipped. They were tools the agent decided it needed and built itself, mid-decision — sandboxed, judge-approved, then promoted into the catalog so the next turn could call them by name.
+
+Agents with `emergent: true` get the [`forge_tool`](/api/classes/ForgeToolMetaTool) meta-tool. When the agent hits a task no existing capability covers, it composes a candidate (or sandboxes new code), runs declared test cases against it, sends the result through a separate LLM-as-judge that scores code safety / test correctness / determinism, and on approval registers the new tool at session tier. Three classes do the work: [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine), [`EmergentJudge`](/api/classes/EmergentJudge), and [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry).
+
+One footgun before you wire it up: emergent tooling is a full-runtime capability. Use `new AgentOS()` or another full runtime entry point that initializes `ToolOrchestrator` with emergent support. The lightweight `agent()` helper accepts `emergent: true` for config compatibility but won't activate `forge_tool` by itself — that's a quiet failure mode worth knowing.
 
 ## Live run: a manager spawns a specialist mid-task
 
