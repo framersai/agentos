@@ -621,16 +621,111 @@ Notes:
 - If a store does not implement `hybridSearch()`, AgentOS falls back to dense `query()`.
 - For `mmr`, embeddings are used internally even if `includeEmbeddings=false`; embeddings are stripped from the output unless explicitly requested.
 
-## Reranking (Cross-Encoder)
+## Reranking and the Reranker Chain {#reranker-chain}
 
-If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS will:
+If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS initializes `RerankerService` and auto-registers built-in providers declared in config: `cohere` (requires `apiKey`) and `local` (offline cross-encoder, requires Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`). Reranking is opt-in per request via `RagRetrievalOptions.rerankerConfig.enabled=true`.
 
-- Initialize `RerankerService`
-- Auto-register built-in reranker providers declared in config:
-  - `cohere` (requires `apiKey`)
-  - `local` (offline cross-encoder, requires installing Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`)
+AgentOS supports chaining multiple reranking providers into a sequential pipeline. Each stage narrows the result set, producing progressively higher-quality rankings:
 
-Reranking is **still opt-in per request** via `RagRetrievalOptions.rerankerConfig.enabled=true`.
+```
+120 search results
+  → Stage 1: Local Cross-Encoder (120 → 30)    [~300ms, free]
+  → Stage 2: Cohere Rerank (30 → 15)            [~100ms, ~$0.001]
+  → Stage 3: LLM Judge (15 → 5)                 [~2s, ~$0.002]
+  → 5 high-confidence results
+```
+
+### Chain configuration
+
+```json title="agent.config.json"
+{
+  "rag": {
+    "reranking": {
+      "chain": [
+        { "provider": "local", "topK": 30, "model": "cross-encoder/ms-marco-MiniLM-L-6-v2" },
+        { "provider": "cohere", "topK": 15, "model": "rerank-v4.0-fast" },
+        { "provider": "llm-judge", "topK": 5 }
+      ]
+    }
+  }
+}
+```
+
+### Available providers
+
+**Local cross-encoder (free, offline).** ONNX transformer models that auto-download on first use (~80-560 MB).
+
+| Model | Size | Speed (50 docs) | Quality |
+|---|---|---|---|
+| `cross-encoder/ms-marco-MiniLM-L-6-v2` | 80 MB | ~200 ms | Good |
+| `cross-encoder/ms-marco-MiniLM-L-12-v2` | 120 MB | ~400 ms | Better |
+| `BAAI/bge-reranker-base` | 110 MB | ~300 ms | Good |
+| `BAAI/bge-reranker-large` | 560 MB | ~800 ms | Best |
+
+**Cohere Rerank (cloud).** Requires `COHERE_API_KEY`. Models: `rerank-v4.0-pro`, `rerank-v4.0-fast`, `rerank-v3.5`.
+
+**LLM-as-judge (two-phase).** Uses the agent's LLM for relevance scoring. Phase 1 batch-scores documents in groups of 10 with a cheap model (0–10 scale); Phase 2 ranks the top candidates with a stronger model. Cost ~$0.002 per rerank with gpt-4o-mini.
+
+### Default chains by research depth
+
+| Depth | Default chain |
+|---|---|
+| `quick` | `[{ provider: "local", topK: 5 }]` |
+| `moderate` | `[{ provider: "local", topK: 15 }, { provider: "cohere", topK: 5 }]` |
+| `deep` | `[{ provider: "local", topK: 30 }, { provider: "cohere", topK: 15 }, { provider: "llm-judge", topK: 5 }]` |
+
+### Graceful degradation
+
+If a provider is unavailable (missing API key, model not loaded, API error), that stage is silently skipped and the pipeline continues with the next. The chain always produces results.
+
+### Programmatic usage
+
+```typescript
+import { RerankerService, LlmJudgeReranker, CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos';
+
+const service = new RerankerService({ config: { providers: [] } });
+service.registerProvider(new LocalCrossEncoderReranker({ providerId: 'local' }));
+service.registerProvider(new CohereReranker({ providerId: 'cohere', apiKey: '...' }));
+service.registerProvider(new LlmJudgeReranker({ llmCallFn: myLlmCall }));
+
+const results = await service.rerankChain('quantum computing', chunks, [
+  { provider: 'local', topK: 20 },
+  { provider: 'cohere', topK: 10 },
+  { provider: 'llm-judge', topK: 5 },
+]);
+```
+
+### Memory retrieval reranking
+
+The reranker chain integrates with the [Cognitive Memory System](./COGNITIVE_MEMORY.md). When a `RerankerService` is passed to `CognitiveMemoryManager` via the `rerankerService` config field, it runs a neural reranking pass after the cognitive scoring pipeline:
+
+```typescript
+import { CognitiveMemoryManager } from '@framers/agentos/memory';
+import { RerankerService, CohereReranker } from '@framers/agentos/rag/reranking';
+
+const rerankerService = new RerankerService({
+  config: {
+    providers: [
+      { providerId: 'cohere', apiKey: process.env.COHERE_API_KEY!, defaultModelId: 'rerank-v3.5' },
+      { providerId: 'llm-judge' },
+    ],
+    defaultProviderId: 'cohere',
+  },
+});
+
+await manager.initialize({
+  // ... other config ...
+  rerankerService,
+});
+```
+
+Reranker scores blend with the cognitive composite:
+
+```
+finalScore = 0.7 × cognitiveComposite + 0.3 × neuralRerankerScore
+```
+
+The 0.7/0.3 weighting is fixed: the cognitive pipeline already accounts for 6 independent signals (Ebbinghaus decay, mood congruence, spreading activation, similarity, recency, importance) and the reranker adds a 7th dimension of semantic relevance. If the provider is unavailable, retrieval falls back to cognitive-only scoring with no degradation.
 
 ## Multimodal RAG (Image + Audio)
 
@@ -642,3 +737,203 @@ AgentOS’ core RAG APIs are text-first. The recommended multimodal pattern is:
 - Optionally add modality embeddings (image-to-image / audio-to-audio) as an acceleration path.
 
 See [MULTIMODAL_RAG.md](./MULTIMODAL_RAG.md) for the reference implementation and HTTP API.
+
+---
+
+## Query Classification and Deep Research {#query-classification}
+
+
+
+Ask an agent "what's 2+2" and it should answer instantly. Ask it "what are the latest treatment options for drug-resistant tuberculosis" and it should go dig through medical literature, cross-reference sources, identify gaps, and come back with citations.
+
+The problem: most agents treat both queries the same way. Either they web-search everything (slow, wasteful) or they never search at all (hallucinate freely).
+
+AgentOS solves this with an LLM-as-judge classifier that runs _before_ the main LLM turn. A cheap, fast model (gpt-4o-mini, claude-haiku, or qwen2.5:3b) inspects the query and assigns a research depth tier. The agent then behaves accordingly.
+
+### Research Depth Tiers
+
+| Tier       | When it triggers                                               | What happens                                                                       | Budget            |
+| ---------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------- |
+| `none`     | Greetings, simple facts, code help, creative writing           | LLM answers from training data. No tools called.                                   | 0s, 0 searches    |
+| `quick`    | Weather, stock price, "what is X", latest news                 | 1-2 web searches, cite sources                                                     | 30s, 10 searches  |
+| `moderate` | Product comparisons, travel recs, "best X for Y"               | Multi-source research with `researchAggregate` or `researchInvestigate`            | 2min, 20 searches |
+| `deep`     | Medical, legal, scientific, financial planning, learning plans | Full `deep_research` pipeline: decompose, search, extract, gap-analyze, synthesize | 9min, 50 searches |
+
+The classifier defaults to `none` on failure. A broken classifier never blocks the main conversation.
+
+### The Research Tools
+
+Six tools form the research stack, from lightweight to heavy:
+
+| Tool                  | Purpose                                            | Side effects |
+| --------------------- | -------------------------------------------------- | ------------ |
+| `web_search`          | Single web search query                            | None         |
+| `news_search`         | Search recent news articles                        | None         |
+| `researchInvestigate` | Targeted investigation of a specific topic         | None         |
+| `researchAcademic`    | Search academic papers and scholarly sources       | None         |
+| `researchAggregate`   | Aggregate findings across multiple search results  | None         |
+| `deep_research`       | Full 3-phase pipeline with recursive decomposition | None         |
+
+The classifier decides which tools to inject into the prompt based on the depth tier. `quick` gets `web_search` and `news_search`. `moderate` gets `researchAggregate` and `researchInvestigate`. `deep` triggers the full `deep_research` tool.
+
+### The 3-Phase Deep Research Pipeline
+
+When `deep_research` runs, it follows a structured process:
+
+```mermaid
+flowchart TD
+    Q[User Query] --> P1
+
+    P1["Phase 1: DECOMPOSE<br/><i>small model</i><br/>LLM breaks query into sub-questions<br/>Creates a research tree"]
+    P1 --> P2
+
+    P2["Phase 2: SEARCH<br/>web_search → Extract pages →<br/>Analyze gaps → Recurse<br/><i>Repeat until budget exhausted</i>"]
+    P2 --> P3
+
+    P3["Phase 3: SYNTHESIZE<br/><i>primary model</i><br/>Merges all findings into a<br/>structured report with citations"]
+```
+
+Phase 2 iterates. Each iteration searches, extracts, analyzes gaps, and optionally spawns child queries to fill those gaps. The number of iterations depends on depth:
+
+| Depth      | Default iterations | Max searches | Max extractions | Max LLM calls | Time limit |
+| ---------- | ------------------ | ------------ | --------------- | ------------- | ---------- |
+| `quick`    | 1                  | 10           | 5               | 3             | 30s        |
+| `moderate` | 3                  | 20           | 10              | 8             | 2 min      |
+| `deep`     | 6                  | 50           | 25              | 20            | 9 min      |
+
+A `ResearchBudgetTracker` enforces hard caps on all dimensions. When any budget is exhausted, the engine moves to synthesis with whatever findings it has.
+
+### LLM-as-Judge Auto-Classifier
+
+Enabled by default. Before every chat turn, the classifier runs a fast LLM call with a structured prompt:
+
+```
+You are a query complexity classifier. Given a user query, classify it
+into ONE of these research depth tiers: none, quick, moderate, deep.
+
+Respond with ONLY a JSON object:
+{"depth": "none|quick|moderate|deep", "reasoning": "one sentence why"}
+```
+
+The classifier uses the cheapest available model:
+
+- OpenAI: `gpt-4o-mini`
+- Gemini: `gemini-2.0-flash-lite`
+- Ollama: `qwen2.5:3b`
+
+Classification typically adds 200-400ms to the turn. The result is cached per query.
+
+### Override Patterns
+
+Explicit prefixes bypass the classifier entirely:
+
+| Input                                                    | Resolved depth  |
+| -------------------------------------------------------- | --------------- |
+| `/research what are the best hiking trails in Patagonia` | `moderate`      |
+| `/deep explain the neurochemistry of psilocybin`         | `deep`          |
+| Regular message (no prefix)                              | Auto-classified |
+
+### HTTP API
+
+### Body Fields
+
+```json
+{
+  "message": "What are the latest advances in mRNA vaccine technology?",
+  "research": true
+}
+```
+
+| `research` value | Effect                    |
+| ---------------- | ------------------------- |
+| `true`           | Forces `moderate` depth   |
+| `"deep"`         | Forces `deep` depth       |
+| `"quick"`        | Forces `quick` depth      |
+| omitted          | Auto-classified (default) |
+
+You can also disable auto-classification per request:
+
+```json
+{
+  "message": "Hello",
+  "autoClassify": false
+}
+```
+
+### Streaming Research Progress
+
+When `"stream": true` is set, research progress events are pushed as SSE:
+
+```bash
+curl -N -X POST http://localhost:3777/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Explain CRISPR gene editing safety concerns", "research": "deep", "stream": true}'
+```
+
+Progress events arrive as `event: progress` with a `SYSTEM_PROGRESS` payload:
+
+```
+event: progress
+data: {"type":"SYSTEM_PROGRESS","toolName":"deep_research","phase":"decomposing","message":"Decomposing query into sub-questions","progress":0.1}
+
+event: progress
+data: {"type":"SYSTEM_PROGRESS","toolName":"deep_research","phase":"searching","message":"Searching sources \"CRISPR off-target effects\" (iter 1/6, 3 findings)","progress":0.3}
+
+event: reply
+data: {"type":"REPLY","reply":"## CRISPR Gene Editing Safety Concerns\n\n..."}
+```
+
+See the [HTTP Streaming API](./http-streaming-api.md) guide for the full SSE protocol.
+
+### Configuration
+
+### agent.config.json
+
+```json
+{
+  "research": {
+    "autoClassify": true,
+    "minDepthToInject": "quick"
+  }
+}
+```
+
+| Field                       | Type                                        | Default   | Description                                                                                              |
+| --------------------------- | ------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------- |
+| `research.autoClassify`     | `boolean`                                   | `true`    | Enable the LLM-as-judge classifier                                                                       |
+| `research.minDepthToInject` | `"none" \| "quick" \| "moderate" \| "deep"` | `"quick"` | Minimum classified depth before research tools are injected. Set to `"moderate"` to skip quick searches. |
+
+Setting `autoClassify: false` disables all automatic research — the agent only researches when you explicitly use `/research`, `/deep`, or pass the `research` body field.
+
+Setting `minDepthToInject: "moderate"` means queries classified as `quick` are answered from training data. Only `moderate` and `deep` queries trigger tool injection.
+
+### Example Queries
+
+| Query                                                                    | Expected classification | Behavior                                       |
+| ------------------------------------------------------------------------ | ----------------------- | ---------------------------------------------- |
+| "Hello, how are you?"                                                    | `none`                  | Direct LLM response                            |
+| "What's the weather in Tokyo?"                                           | `quick`                 | Single web search                              |
+| "Best laptop for machine learning under $2000"                           | `moderate`              | Multi-source comparison                        |
+| "What are the treatment options for stage 3 non-small cell lung cancer?" | `deep`                  | Full research pipeline with medical literature |
+| "/research top AI startups in 2026"                                      | `moderate` (forced)     | Multi-source research                          |
+| "/deep history of the Byzantine Empire"                                  | `deep` (forced)         | Full pipeline                                  |
+
+### Key Files
+
+| File                                                                                                      | Purpose                      |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `packages/wunderland/src/runtime/research-classifier.ts`                                                  | LLM-as-judge classifier      |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/engine/DeepResearchTool.ts`      | ITool wrapper for the engine |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/engine/DeepResearchEngine.ts`    | Core research pipeline       |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts` | Budget enforcement           |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/engine/types.ts`                 | Type definitions             |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/tools/investigate.ts`            | researchInvestigate tool     |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/tools/academic.ts`               | researchAcademic tool        |
+| `packages/agentos-extensions/registry/curated/research/deep-research/src/tools/aggregate.ts`              | researchAggregate tool       |
+
+### Related
+
+- [HTTP Streaming API](./http-streaming-api.md) -- SSE protocol for progress events
+- [Chat Server](./chat-server.md) -- HTTP API reference
+- [Tools](./tools.md) -- Full tool catalog
+- [Browser Automation](./browser-automation.md) -- Content extraction behind the scenes
