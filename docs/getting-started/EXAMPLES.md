@@ -18,9 +18,10 @@
 10. [Agency Streaming](#10-agency-streaming)
 11. [Query Router](#11-query-router)
 12. [Query Router Host Hooks](#12-query-router-host-hooks)
-13. [Single Agent — Minimal](#13-single-agent--minimal)
-14. [Multi-Agent Team with Dependency Graph](#14-multi-agent-team-with-dependency-graph)
-15. [Emergent Self-Improvement Agent](#15-emergent-self-improvement-agent)
+13. [Per-Agent Identity via SOUL.md](#13-per-agent-identity-via-soulmd)
+14. [Single Agent — Minimal](#14-single-agent--minimal)
+15. [Multi-Agent Team with Dependency Graph](#15-multi-agent-team-with-dependency-graph)
+16. [Emergent Self-Improvement Agent](#16-emergent-self-improvement-agent)
 
 ---
 
@@ -789,7 +790,85 @@ Runnable source: `packages/agentos/examples/query-router-host-hooks.mjs`
 
 ---
 
-## 13. Single Agent — Minimal
+## 13. Per-Agent Identity via SOUL.md
+
+Load identity, voice, hard limits, and HEXACO scores from a markdown workspace. The runtime injects `SOUL.md` body as the first system message and parses YAML frontmatter into `IPersonaDefinition` fields. Compatible with the [aaronjmars/soul.md](https://github.com/aaronjmars/soul.md) and OpenClaw conventions.
+
+Workspace layout (per agent):
+
+```
+~/.agentos/agents/aria/
+├── SOUL.md       # identity, values, tone, hard limits (REQUIRED)
+├── STYLE.md      # voice, syntax, vocabulary patterns (optional)
+├── IDENTITY.md   # display card: name, role, agent-ID (optional)
+├── AGENTS.md     # procedural rules (optional)
+├── MEMORY.md     # long-term facts (auto-managed)
+└── examples/     # good-outputs.md + bad-outputs.md (optional)
+```
+
+Sample `SOUL.md`:
+
+```markdown
+---
+name: Aria
+agentId: support-bot
+role: Customer support for Meridian SaaS
+hexaco:
+  honestyHumility: 0.85
+  emotionality: 0.55
+  extraversion: 0.70
+  agreeableness: 0.85
+  conscientiousness: 0.90
+  openness: 0.65
+voice:
+  provider: elevenlabs
+  voiceId: rachel-warm
+defaultMood: helpful_engaged
+hardLimits:
+  - Never share internal pricing formulas
+  - Always recommend human review for refunds over €100
+---
+
+## Who You Are
+
+You are Aria, the customer support agent for Meridian SaaS.
+
+## Tone
+
+Direct, friendly, patient. Never condescending.
+```
+
+Wire it into `agent()`:
+
+```typescript
+import { agent } from '@framers/agentos';
+
+// Workspace path — loads SOUL.md + companion files
+const aria = agent({
+  provider: 'anthropic',
+  soul: '~/.agentos/agents/aria',
+});
+
+// Direct file path — loads SOUL.md only
+const compact = agent({
+  provider: 'openai',
+  soul: './personas/aria.soul.md',
+});
+
+// Inline content — for tests and ephemeral agents
+const ephemeral = agent({
+  provider: 'openai',
+  soul: { content: '---\nname: Tester\n---\nYou are a test agent.' },
+});
+
+const reply = await aria.generate('I need help with my invoice.');
+```
+
+The HEXACO frontmatter flows into the same `PersonaDriftMechanism` and `PersonaOverlayManager` as inline `personality:` config — both paths produce identical runtime behavior. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
+
+---
+
+## 14. Single Agent — Minimal
 
 The simplest entry point: one agent, one tool, one call.
 
@@ -818,7 +897,7 @@ console.log(result.text);
 
 ---
 
-## 14. Multi-Agent Team with Dependency Graph
+## 15. Multi-Agent Team with Dependency Graph
 
 Declare dependencies between agents and let the orchestrator schedule them
 automatically. Agents with no dependencies run first; downstream agents receive
@@ -870,7 +949,7 @@ console.log(result.text);
 
 ---
 
-## 15. Emergent Self-Improvement Agent
+## 16. Emergent Self-Improvement Agent
 
 Enable the emergent subsystem so the agent can forge new tools, adapt its own
 personality, and manage its skill set at runtime. Guard the mutation surface

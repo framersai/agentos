@@ -24,7 +24,7 @@ The `src/` tree is organized into 26 domain-specific top-level modules. Only fou
 
 **Key architectural patterns:**
 
-- **GMI** (Generalized Mind Instance) delegates to focused collaborators: `ConversationHistoryManager`, `CognitiveMemoryBridge`, `SentimentTracker`, and `MetapromptExecutor`. Persona layering lives in `cognitive_substrate/persona_overlays/`.
+- **GMI** (Generalized Mind Instance) delegates to focused collaborators: `ConversationHistoryManager`, `CognitiveMemoryBridge`, `SentimentTracker`, and `MetapromptExecutor`. Persona layering lives in `cognitive_substrate/persona_overlays/`. Personas can be loaded from JSON (the legacy `IPersonaDefinition` format) or from `SOUL.md` workspace directories via `SoulLoader` (`cognitive_substrate/personas/SoulLoader.ts`) — both produce the same runtime `IPersonaDefinition`. See [SOUL_FILES.md](../SOUL_FILES.md) for the per-agent identity convention.
 
 - **AgentOS** is the public lifecycle facade. Setup and runtime concerns are in `api/runtime/` (`WorkflowFacade`, `CapabilityDiscoveryInitializer`, `RagMemoryInitializer`). High-level helpers (`generateText`, `streamText`, `agent`, `agency`) live under `api/`.
 
@@ -46,7 +46,7 @@ src/
 │   └── social-posting/      # Social media post management
 │
 ├── cognitive_substrate/     # GMI + extracted collaborators
-│   ├── personas/            # Persona definitions + loader
+│   ├── personas/            # Persona definitions + loader (JSON + SOUL.md via SoulLoader)
 │   ├── persona_overlays/    # PersonaOverlayManager
 │   ├── ConversationHistoryManager.ts
 │   ├── CognitiveMemoryBridge.ts

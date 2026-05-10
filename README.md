@@ -111,6 +111,26 @@ const coach = agent({
 
 When a vector is supplied, the kernel weights retrieval, specialist routing, and tool selection by the trait values. Same agent, same prompt, same tools: a high-Openness leader and a high-Conscientiousness leader produce measurably different decision sequences. Personality lives in the kernel, not in the prompt — prompt-only personality dissolves under context pressure while kernel-encoded bias persists. The vector remains editable, inspectable, and removable on consent.
 
+### Soul Files (per-agent identity in markdown)
+
+Identity, voice, hard limits, and HEXACO scores can live in a `SOUL.md` workspace alongside companion files (`STYLE.md`, `IDENTITY.md`, `AGENTS.md`, `MEMORY.md`, `examples/`). The runtime parses YAML frontmatter into structured config and injects the markdown body as the first system message — before instructions, skills, or chain-of-thought. Compatible with the [aaronjmars/soul.md](https://github.com/aaronjmars/soul.md) and OpenClaw conventions.
+
+```ts
+// Workspace path — loads SOUL.md + companion files from the directory
+const aria = agent({
+  provider: 'anthropic',
+  soul: '~/.agentos/agents/aria',
+});
+
+// Inline content — for tests and ephemeral agents
+const ephemeral = agent({
+  provider: 'openai',
+  soul: { content: SOUL_MARKDOWN_STRING },
+});
+```
+
+The HEXACO frontmatter in `SOUL.md` flows into the same `PersonaDriftMechanism` and `PersonaOverlayManager` machinery as the inline `personality:` config above — the two paths produce identical runtime behavior. See [docs/SOUL_FILES.md](./docs/SOUL_FILES.md) for the full 6-file workspace spec.
+
 ---
 
 ## Memory Benchmarks
@@ -165,7 +185,7 @@ Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-
 | [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes, per-case run JSONs at fixed seed. MIT (the rest of AgentOS is Apache 2.0). |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence: SQLite, Postgres, IndexedDB, Capacitor SQLite. |
 | [`paracosm`](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine that uses AgentOS as its substrate. |
-| [`wunderland`](https://www.npmjs.com/package/wunderland) | Sister project (preview) — batteries-included CLI plus daemon over the AgentOS extension and skill registries. 28-command CLI, 5-tier security, 8 agent presets, step-up HITL. [github.com/jddunn/wunderland](https://github.com/jddunn/wunderland). MIT. |
+| [`wunderland`](https://www.npmjs.com/package/wunderland) | Sister project (preview) — batteries-included CLI plus daemon over the AgentOS extension and skill registries. 28-command CLI, 5-tier security, 8 agent presets, step-up HITL. Apache-2.0. |
 
 **Extensions and skills auto-load at startup.** The runtime walks each registry plus any user-supplied paths, resolves each pack's `createExtensionPack(context)` factory or `SKILL.md` frontmatter, and registers tools, guardrails, channels, and skills without manual wiring. Capability gating and HITL approval gates apply to side-effecting installs. See [extensions architecture](https://docs.agentos.sh/architecture/extension-loading) for the full loading model.
 

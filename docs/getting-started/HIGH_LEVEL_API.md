@@ -517,6 +517,23 @@ console.log(await session.usage());
 and `streamText({ tools })`: named tool maps, `ExternalToolRegistry`
 (`Record`, `Map`, or iterable), and prompt-only `ToolDefinitionForLLM[]`.
 
+### Per-agent identity via SOUL.md
+
+Pass a `soul:` option to load identity, voice, hard limits, and HEXACO scores from a markdown workspace. The runtime injects `SOUL.md` body as the FIRST system message (before `instructions`, `chainOfThought`, or skills) and parses YAML frontmatter into structured persona config.
+
+```ts
+// Workspace path — loads SOUL.md + companion files (STYLE.md, IDENTITY.md, AGENTS.md, MEMORY.md)
+agent({ provider: 'anthropic', soul: '~/.agentos/agents/aria' });
+
+// Direct file path — loads only SOUL.md
+agent({ provider: 'openai', soul: './personas/aria.soul.md' });
+
+// Inline content — for tests and ephemeral agents
+agent({ provider: 'openai', soul: { content: SOUL_MARKDOWN_STRING } });
+```
+
+The HEXACO frontmatter (`hexaco: { honestyHumility, emotionality, ... }`) flows into the same `PersonaDriftMechanism` and `PersonaOverlayManager` as inline `personality:` config. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
+
 Runnable examples in the package source:
 
 - `packages/agentos/examples/high-level-api.mjs`
