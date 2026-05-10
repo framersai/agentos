@@ -330,6 +330,85 @@ describe('generateObject', () => {
     expect(systemMsg?.content).toContain('JSON Schema');
   });
 
+  describe('top-level array schema (envelope wrap)', () => {
+    // Regression for the 2026-05-10 user report: passing
+    // `schema: z.array(...)` made gpt-4o consistently return
+    // `{"<schemaName>":[...]}` (because OpenAI structured-output
+    // requires a top-level object) and the bare-array Zod schema
+    // rejected it as "expected array, received object". Repro from
+    // wilds-ai's import/extract route — now generateObject wraps
+    // arrays internally so callers never have to know about the
+    // OpenAI quirk.
+    const characterSchema = z.array(z.object({ name: z.string() }));
+
+    it('accepts a top-level z.array() schema and unwraps the envelope', async () => {
+      hoisted.generateCompletion.mockResolvedValue(
+        mockResponse('{"items": [{"name": "Vegeta"}, {"name": "Goku"}]}'),
+      );
+
+      const result = await generateObject({
+        schema: characterSchema,
+        schemaName: 'Characters',
+        prompt: 'Extract characters',
+      });
+
+      // Caller gets the bare array shape, not the wrapped envelope.
+      expect(result.object).toEqual([{ name: 'Vegeta' }, { name: 'Goku' }]);
+    });
+
+    it('appends "Envelope" to the schemaName so the LLM returns the wrapped shape', async () => {
+      hoisted.generateCompletion.mockResolvedValue(
+        mockResponse('{"items": []}'),
+      );
+
+      await generateObject({
+        schema: characterSchema,
+        schemaName: 'Characters',
+        prompt: 'Extract',
+      });
+
+      const messages = hoisted.generateCompletion.mock.calls[0][1];
+      const systemMsg = messages.find((m: Record<string, unknown>) => m.role === 'system');
+      // The wrapped envelope's name leaks into the schema instruction
+      // so the model knows it's producing an object with `items` not
+      // a bare array.
+      expect(systemMsg?.content).toContain('CharactersEnvelope');
+      expect(systemMsg?.content).toContain('items');
+    });
+
+    it('still validates array contents — rejects items that fail the inner schema', async () => {
+      // age is a number in the schema; LLM returns a string.
+      const peopleSchema = z.array(z.object({ name: z.string(), age: z.number() }));
+      hoisted.generateCompletion.mockResolvedValue(
+        mockResponse('{"items": [{"name": "X", "age": "not-a-number"}]}'),
+      );
+
+      await expect(
+        generateObject({
+          schema: peopleSchema,
+          prompt: 'Extract',
+          maxRetries: 0,
+        }),
+      ).rejects.toThrow(ObjectGenerationError);
+    });
+
+    it('does not wrap when the caller already passes z.object({ items: z.array(...) })', async () => {
+      // User-supplied envelope shape — no double-wrapping; result
+      // surfaces as-is.
+      const wrappedSchema = z.object({ items: z.array(z.string()) });
+      hoisted.generateCompletion.mockResolvedValue(
+        mockResponse('{"items": ["a", "b"]}'),
+      );
+
+      const result = await generateObject({
+        schema: wrappedSchema,
+        prompt: 'Extract',
+      });
+
+      expect(result.object).toEqual({ items: ['a', 'b'] });
+    });
+  });
+
   it('accepts SystemContentBlock[] and preserves caller cache breakpoints', async () => {
     hoisted.generateCompletion.mockResolvedValue(
       mockResponse('{"name": "Iris", "age": 33}'),

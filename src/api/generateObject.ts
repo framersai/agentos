@@ -11,7 +11,7 @@
  * @see {@link generateText} for the underlying text generation primitive.
  * @see {@link streamObject} for the streaming counterpart.
  */
-import type { ZodType, ZodError } from 'zod';
+import { z, type ZodType, type ZodError } from 'zod';
 
 import { generateText } from './generateText.js';
 import type { Message, SystemContentBlock, TokenUsage } from './generateText.js';
@@ -19,6 +19,36 @@ import { resolveModelOption } from './model.js';
 import { lowerZodToJsonSchema } from '../orchestration/compiler/SchemaLowering.js';
 import { estimateMaxTokensForZodSchema } from './runtime/schemaTokenEstimate.js';
 import { canUseStrictJsonSchema, buildOpenAIJsonSchemaResponseFormat } from './runtime/openaiResponseFormat.js';
+
+/**
+ * Detect whether a Zod schema's outer type is `ZodArray`. We support
+ * both the v4 `_def.type === 'array'` shape and the legacy v3
+ * `_def.typeName === 'ZodArray'` shape so callers on either Zod
+ * version get transparent array-envelope handling. Walks through any
+ * `ZodEffects` / `ZodPipeline` wrappers so refined arrays still
+ * trigger the wrap path.
+ */
+function isTopLevelArraySchema(schema: ZodType): boolean {
+  let current: unknown = schema;
+  for (let depth = 0; depth < 8; depth++) {
+    if (!current || typeof current !== 'object') return false;
+    const def = (current as { _def?: { type?: string; typeName?: string; schema?: unknown; innerType?: unknown } })._def;
+    if (!def) return false;
+    if (def.type === 'array' || def.typeName === 'ZodArray') return true;
+    // Unwrap one level of ZodEffects (refinements / transforms) or
+    // ZodPipeline so a `z.array(...).refine(...)` still matches.
+    if (def.schema) {
+      current = def.schema;
+      continue;
+    }
+    if (def.innerType) {
+      current = def.innerType;
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -393,14 +423,34 @@ export async function generateObject<T extends ZodType>(
 ): Promise<GenerateObjectResult<z.infer<T>>> {
   const maxRetries = opts.maxRetries ?? 2;
 
+  // OpenAI's structured-output mode (both `json_schema` strict and
+  // looser `json_object`) REQUIRES the top-level response to be a JSON
+  // object — bare arrays are rejected at the API level. When the
+  // caller passes a `z.array(...)` schema directly, the model wraps
+  // the response in `{ "<schemaName>": [...] }` (using whatever
+  // `schemaName` we sent as the envelope key), Zod then rejects with
+  // "expected array, received object", retries exhaust, and
+  // ObjectGenerationError surfaces. Instead, transparently wrap the
+  // array in `z.object({ items: <ArraySchema> })` for the request +
+  // validation, then unwrap `result.items` before returning so the
+  // caller sees the array shape they asked for. This keeps the
+  // public API a thin abstraction over OpenAI's actual constraint.
+  const wrapArrayEnvelope = isTopLevelArraySchema(opts.schema);
+  const effectiveSchema = wrapArrayEnvelope
+    ? z.object({ items: opts.schema as unknown as z.ZodArray<z.ZodTypeAny> })
+    : opts.schema;
+  const effectiveSchemaName = wrapArrayEnvelope
+    ? `${opts.schemaName ?? 'response'}Envelope`
+    : opts.schemaName;
+
   // Convert the Zod schema to JSON Schema for the system prompt.
   // Uses the hand-rolled SchemaLowering converter to avoid extra dependencies.
-  const jsonSchema = lowerZodToJsonSchema(opts.schema);
+  const jsonSchema = lowerZodToJsonSchema(effectiveSchema);
 
   const systemPrompt = buildSchemaSystemPrompt(
     opts.system,
     jsonSchema,
-    opts.schemaName,
+    effectiveSchemaName,
     opts.schemaDescription,
   );
 
@@ -414,7 +464,7 @@ export async function generateObject<T extends ZodType>(
   const useStrictJsonSchema = providerId === 'openai' && canUseStrictJsonSchema(jsonSchema);
   const supportsJsonObjectMode = JSON_MODE_PROVIDERS.has(providerId);
   const responseFormat = useStrictJsonSchema
-    ? buildOpenAIJsonSchemaResponseFormat(jsonSchema, opts.schemaName)
+    ? buildOpenAIJsonSchemaResponseFormat(jsonSchema, effectiveSchemaName)
     : supportsJsonObjectMode
       ? { type: 'json_object' as const }
       : undefined;
@@ -510,13 +560,20 @@ export async function generateObject<T extends ZodType>(
 
     // Step 2: Validate against the Zod schema
     // Use safeParse to capture structured validation errors for retry feedback
-    const validation = opts.schema.safeParse(parsed) as
-      | { success: true; data: z.infer<T> }
+    const validation = effectiveSchema.safeParse(parsed) as
+      | { success: true; data: { items: z.infer<T> } | z.infer<T> }
       | { success: false; error: ZodError };
 
     if (validation.success) {
+      // Unwrap the synthetic envelope when we wrapped a top-level
+      // array. Caller's contract is `z.infer<T>` so they receive the
+      // raw array, not the `{ items: [...] }` envelope used on the
+      // wire.
+      const object = wrapArrayEnvelope
+        ? (validation.data as { items: z.infer<T> }).items
+        : (validation.data as z.infer<T>);
       return {
-        object: validation.data,
+        object,
         text: result.text,
         usage: totalUsage,
         finishReason: result.finishReason,
@@ -547,6 +604,3 @@ export async function generateObject<T extends ZodType>(
   );
 }
 
-// Re-export the ZodType import so downstream code doesn't need to figure out
-// the exact Zod version path.
-import type { z } from 'zod';
