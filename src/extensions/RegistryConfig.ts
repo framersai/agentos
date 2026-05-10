@@ -90,7 +90,7 @@ export const DEFAULT_REGISTRY_CONFIG: MultiRegistryConfig = {
     },
     'agentos-personas': {
       type: 'npm',
-      location: '@framersai/agentos-personas',
+      location: '@framers/agentos-personas',
       verified: true,
       cacheDuration: 3600000,
       autoInstall: true,
