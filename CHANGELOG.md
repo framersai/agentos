@@ -1,3 +1,21 @@
+## <small>0.7.7 (2026-05-10)</small>
+
+* fix(docs): repair 4 stale links to deleted emergent-agency-system + COGNITIVE_MEMORY_GUIDE pages (Wa ([f49b5c7](https://github.com/framersai/agentos/commit/f49b5c7))
+* docs: convert remaining ASCII flows to themed Mermaid (emergent observability, memory data flow, vis ([fad0f1a](https://github.com/framersai/agentos/commit/fad0f1a))
+* docs: drop multi-gmi-collaboration + emergent-agency-system pages (already sidebar-hidden, content c ([41c2282](https://github.com/framersai/agentos/commit/41c2282))
+* docs: drop redundant cognitive-memory-guide; consolidate into cognitive-memory hero. fix 5 inbound l ([45882d2](https://github.com/framersai/agentos/commit/45882d2))
+* docs: GMI hero SVG embed; convert cognitive-pipeline + capability-discovery ASCII to themed Mermaid ([d12c058](https://github.com/framersai/agentos/commit/d12c058))
+* docs: surface SoulLoader across docs (publication-manifest, ARCHITECTURE, EXAMPLES, HIGH_LEVEL_API,  ([4c2a83a](https://github.com/framersai/agentos/commit/4c2a83a))
+* docs: voice rewrite + SEO frontmatter for memory-system-overview, agent-communication, planning-engi ([358123a](https://github.com/framersai/agentos/commit/358123a))
+* docs(cognitive-memory): voice polish - tighten Overview opener, sharpen Encoding/Mastra section titl ([2d91d83](https://github.com/framersai/agentos/commit/2d91d83))
+* docs(emergent-capabilities): voice rewrite of lead - McLuhan epigraph + first-person hook + footgun  ([b4991c2](https://github.com/framersai/agentos/commit/b4991c2))
+* docs(gmi): add reflective close ('what this means in practice') + fix dead link from emergent-agency ([c236a15](https://github.com/framersai/agentos/commit/c236a15))
+* docs(system-architecture): convert all 5 remaining ASCII diagrams - GMI lifecycle (Mermaid stateDiag ([8c831b7](https://github.com/framersai/agentos/commit/8c831b7))
+* docs(system-architecture): voice rewrite of lead - Maslow epigraph + scar-set narrative; tighten GMI ([451e910](https://github.com/framersai/agentos/commit/451e910))
+* seo: add meta descriptions + keywords frontmatter to system-architecture, cognitive-memory, emergent ([35d0009](https://github.com/framersai/agentos/commit/35d0009))
+* Merge branch 'master' of https://github.com/framersai/agentos ([196d3e2](https://github.com/framersai/agentos/commit/196d3e2))
+* refactor!: remove _aliases deprecation shims, canonical paths only ([f76ad47](https://github.com/framersai/agentos/commit/f76ad47))
+
 ## <small>0.7.6 (2026-05-10)</small>
 
 * fix(lint): replace require() with static import in soul loader; drop unused eslint-disable directive ([3fa2311](https://github.com/framersai/agentos/commit/3fa2311))
