@@ -12,32 +12,7 @@ description: 'How the three memory layers compose — standalone Memory, AgentCo
 
 AgentOS memory ships as three concentric API tiers. Each tier wraps the one below it and adds its own concerns:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       CLI / Host Layer                              │
-│  Programmatic: Memory.export(), Memory.consolidate(), Memory.health│
-│  (agent.config.json auto-wiring, preset skills)                    │
-└──┬──────────────────────────────────────────────────────────────────┘
-   │
-┌──▼──────────────────────────────────────────────────────────────────┐
-│                 AgentCognitiveMemory Layer                          │
-│  CognitiveMemoryManager + AgentMemory facade                       │
-│  (HEXACO encoding, PAD mood, Ebbinghaus decay, observer/reflector, │
-│   Baddeley working memory, spreading activation, prospective mem)  │
-└──┬──────────────────────────────────────────────────────────────────┘
-   │
-┌──▼──────────────────────────────────────────────────────────────────┐
-│                    Memory Facade Layer                              │
-│  await Memory.createSqlite({ path: './brain.sqlite' })                   │
-│  (remember, recall, ingest, export, import, consolidate, tools)    │
-│                                                                     │
-│  Composes:                                                          │
-│    Brain → SqlKnowledgeGraph → SqlMemoryGraph           │
-│    LoaderRegistry → FolderScanner → ChunkingEngine                  │
-│    RetrievalFeedbackSignal → ConsolidationLoop                      │
-│    I/O exporters/importers (JSON, Markdown, Obsidian, SQLite, etc.) │
-└─────────────────────────────────────────────────────────────────────┘
-```
+![AgentOS memory three concentric API tiers: CLI / Host layer (Memory.export, Memory.consolidate, Memory.health, agent.config.json auto-wiring), AgentCognitiveMemory layer (CognitiveMemoryManager, AgentMemory.wrap, HEXACO encoding, PAD mood, Ebbinghaus decay, observer/reflector, Baddeley working memory, spreading activation, prospective memory), Memory Facade layer (await Memory.createSqlite, composing Brain, SqlKnowledgeGraph, SqlMemoryGraph, LoaderRegistry, FolderScanner, ChunkingEngine, RetrievalFeedbackSignal, ConsolidationLoop, I/O exporters)](/img/diagrams/memory-architecture-layers.svg)
 
 ### When to Use Each Layer
 
