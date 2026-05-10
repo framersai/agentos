@@ -145,13 +145,7 @@ const publicationManifest = [
   agentosDoc('LLM_PROVIDERS.md', 'architecture/llm-providers.md', 'LLM Providers', 'Architecture', 12),
   agentosDoc('STREAMING_SEMANTICS.md', 'architecture/streaming-semantics.md', 'Streaming Semantics', 'Architecture', 13),
   agentosDoc('OAUTH_AUTH.md', 'architecture/oauth-auth.md', 'OAuth Auth', 'Architecture', 14),
-  extraDoc('docs/EMERGENT_AGENCY_SYSTEM.md', 'architecture/emergent-agency-system.md', 'Emergent Agency System', 'Architecture', 15, {
-    sidebar: false,
-  }),
   extraDoc('docs/BACKEND_API.md', 'architecture/backend-api.md', 'Backend API', 'Architecture', 16, {
-    sidebar: false,
-  }),
-  extraDoc('docs/MULTI_GMI_COLLABORATION.md', 'architecture/multi-gmi-implementation-plan.md', 'Multi-GMI Collaboration', 'Architecture', 17, {
     sidebar: false,
   }),
   extraDoc('apps/wunderland-sol/docs-site/docs/guides/http-streaming-api.md', 'architecture/http-streaming-api.md', 'HTTP Streaming API', 'Architecture', 18, {
