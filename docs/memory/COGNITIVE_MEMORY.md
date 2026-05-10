@@ -1,3 +1,8 @@
+---
+description: "Cognitive memory for AI agents: Ebbinghaus decay, HEXACO-modulated encoding, Baddeley working memory, ACT-R spreading activation, 8 neuroscience-grounded mechanisms. 85.6% on LongMemEval-S, 70.2% on LongMemEval-M."
+keywords: [cognitive memory ai, llm memory architecture, ebbinghaus decay, hexaco personality, baddeley working memory, longmemeval, agent memory, semantic memory, episodic memory]
+---
+
 # Cognitive Memory System
 
 > **Memory benchmarks (full N=500, gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)**. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. Competitive with the strongest published M results in the LongMemEval paper ([Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813): round Top-5 65.7%, session Top-5 71.4%, round Top-10 72.0%). [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)

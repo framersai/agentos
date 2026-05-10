@@ -1,3 +1,8 @@
+---
+description: "The 26-module AgentOS architecture: API surface, orchestration, GMI cognitive engine, guardrails, tools and extensions, cognitive memory and RAG, LLM providers, perception channels — and how they compose into a runtime that manages state across hours and conversations."
+keywords: [agentos architecture, ai agent runtime architecture, agent framework system design, gmi, cognitive memory architecture, multi-agent orchestration]
+---
+
 # System Architecture
 
 > "I suppose it is tempting, if the only tool you have is a hammer, to treat everything as if it were a nail."

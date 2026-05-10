@@ -1,3 +1,8 @@
+---
+description: "Runtime tool forging for AI agents: AgentOS lets agents generate, sandbox, judge-approve, and register new Zod-typed tools mid-decision in a hardened node:vm. Multi-agent spawn_specialist included."
+keywords: [runtime tool forging, ai agent self-improvement, emergent capabilities llm, sandboxed code generation, node:vm sandbox, llm-as-judge, spawn specialist, multi-agent collaboration]
+---
+
 # Emergent Capabilities: Runtime Tool Forging
 
 > "We shape our tools, and thereafter our tools shape us."

@@ -1,6 +1,8 @@
 ---
 title: "Paracosm: Agent Swarm Simulation for Structured World Modeling with LLMs"
 sidebar_position: 1
+description: "Paracosm — open-source TypeScript agent-swarm simulation engine on AgentOS. JSON-defined worlds, HEXACO-typed leaders, deterministic kernel, divergent futures from one seed. Reproducible, forkable, replayable. Mars Genesis reference scenario ships in the box."
+keywords: [paracosm, agent swarm simulation, structured world model, llm world model, hexaco simulation, deterministic kernel, digital twin, counterfactual simulation, mars genesis, multi-agent simulation, agentos]
 ---
 
 :::tip Full API reference lives at [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
