@@ -1,3 +1,15 @@
+## 0.8.0 (2026-05-10)
+
+* feat!: drop VerifiedResponse.summary, expose formatVerifiedResponse helper ([ca9f5d1](https://github.com/framersai/agentos/commit/ca9f5d1))
+* docs: voice + SEO frontmatter on cognitive-pipeline, cognitive-mechanisms, agency-api ([c12aff6](https://github.com/framersai/agentos/commit/c12aff6))
+* docs: voice rewrite safety-primitives + hexaco SEO keywords ([4b9a980](https://github.com/framersai/agentos/commit/4b9a980))
+
+### BREAKING CHANGE
+
+* VerifiedResponse no longer includes `summary`. Replace
+`result.summary` with `formatVerifiedResponse(result)` from
+`@framers/agentos`.
+
 ## <small>0.7.7 (2026-05-10)</small>
 
 * fix(docs): repair 4 stale links to deleted emergent-agency-system + COGNITIVE_MEMORY_GUIDE pages (Wa ([f49b5c7](https://github.com/framersai/agentos/commit/f49b5c7))
