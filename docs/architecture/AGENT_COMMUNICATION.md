@@ -17,34 +17,7 @@ The Communication Bus provides:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    AgentCommunicationBus                            │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    Message Router                            │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │   │
-│  │  │ Point-to │  │ Role-    │  │ Topic    │  │ Load     │    │   │
-│  │  │ -Point   │  │ Based    │  │ Router   │  │ Balancer │    │   │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                              │                                      │
-│  ┌───────────────────────────▼───────────────────────────────────┐ │
-│  │                 Subscription Manager                           │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │ │
-│  │  │ Agent Subs   │  │ Topic Subs   │  │ Filters      │        │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘        │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                              │                                      │
-│  ┌───────────────────────────▼───────────────────────────────────┐ │
-│  │                 Delivery Manager                               │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │ │
-│  │  │ Queue    │  │ Retry    │  │ ACK      │  │ History  │      │ │
-│  │  │ Manager  │  │ Handler  │  │ Tracker  │  │ Store    │      │ │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘      │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-```
+![AgentCommunicationBus three-layer architecture: Message Router (point-to-point, role-based, topic router, load balancer) feeds Subscription Manager (agent subs, topic subs, filters) feeds Delivery Manager (queue manager, retry handler, ACK tracker, history store).](/img/diagrams/agent-communication-bus.svg)
 
 ## Implementation Details
 
