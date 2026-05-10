@@ -1,8 +1,13 @@
 # System Architecture
 
-The shape of an agent runtime tells you what its authors thought the hard problems were. Most agent SDKs are organized around a turn loop: take a prompt, call a model, parse for tool calls, execute, loop. The hard problems they expect you to have are about retries, structured output, and connector configuration. Their internal modules are named accordingly.
+> "I suppose it is tempting, if the only tool you have is a hammer, to treat everything as if it were a nail."
+> — Abraham Maslow, *The Psychology of Science*, 1966
 
-AgentOS is organized differently. The hard problems it expects you to have are about state — about what an agent knows across hours and conversations, about which version of itself is talking to which user, about whether a tool call should run, about what the agent should remember tomorrow that it learned today. The 26 top-level modules below are mostly subsystems for managing that state. The turn loop is in there, but it's a small piece in the middle.
+The shape of an agent runtime tells you what its authors thought the hard problems were. A turn-loop SDK exposes retries, structured output, and connector configuration as its top-level modules — that's a vote on what its authors kept debugging. Other runtimes lean on evaluation harnesses, on message routing, on context-window plumbing. Pick a runtime by its module names and you're picking by its scar tissue.
+
+The scar set I started with was different. Hours-long conversations across sessions. Two copies of an agent talking to two users at once with personalities and moods that don't bleed between them. Tool calls that should sometimes run, sometimes not, sometimes need a human to nod first. A memory layer that knows the difference between a fact someone told me last Tuesday and a fact I'm pretty sure the model made up in the last ten seconds.
+
+The 26 top-level modules below are mostly subsystems for managing that state. The turn loop is in there — it's a small piece in the middle.
 
 This page is the map. For the *what* of any subsystem — what each piece is, who owns its lifecycle, where the source lives — read on. For deep-dives into individual concerns, jump out from the table of contents below.
 
@@ -193,7 +198,7 @@ graph TB
 
 ## GMI (Generalized Mind Instance)
 
-The GMI is the core cognitive engine of AgentOS. Each GMI instance represents a single "mind" bound to a specific persona, with its own working memory, mood state, reasoning trace, and conversation history.
+GMI is what an agent actually *is* between turns: persona, working memory, mood, reasoning trace, conversation history. Each instance is a single mind bound to one persona. The [dedicated GMI page](./gmi.md) walks the seven-ring concentric model in detail — this section covers how the GMI plugs into the wider runtime.
 
 ### GMI Lifecycle
 
