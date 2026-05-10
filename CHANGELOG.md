@@ -1,3 +1,8 @@
+## <small>0.7.4 (2026-05-10)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([0800773](https://github.com/framersai/agentos/commit/0800773))
+* fix(extensions): point agentos-personas registry at @framers scope ([dad2feb](https://github.com/framersai/agentos/commit/dad2feb))
+
 ## <small>0.7.3 (2026-05-10)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([207253e](https://github.com/framersai/agentos/commit/207253e))
