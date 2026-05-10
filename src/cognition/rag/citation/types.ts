@@ -39,8 +39,6 @@ export interface VerifiedResponse {
   contradictedCount: number;
   unverifiableCount: number;
   weakCount: number;
-  /** Human-readable summary. */
-  summary: string;
 }
 
 /** A source document for verification. */

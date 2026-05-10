@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CitationVerifier } from '../CitationVerifier.js';
+import { formatVerifiedResponse } from '../format.js';
 
 /** Deterministic mock embedding for testing. */
 function mockEmbedFn(texts: string[]): Promise<number[][]> {
@@ -68,11 +69,16 @@ describe('CitationVerifier', () => {
     expect(result.overallGrounded).toBe(false);
   });
 
-  it('generates correct summary string', async () => {
+  it('formatVerifiedResponse renders a one-line summary', async () => {
     const result = await verifier.verify(
       'Cats are mammals. Dogs are reptiles.',
       [{ content: 'Cats are small domesticated mammals.' }],
     );
-    expect(result.summary).toMatch(/\d+\/\d+ claims verified/);
+    expect(formatVerifiedResponse(result)).toMatch(/\d+\/\d+ claims verified \(\d+%\)/);
+  });
+
+  it('formatVerifiedResponse handles empty results', async () => {
+    const result = await verifier.verify('', [{ content: 'source' }]);
+    expect(formatVerifiedResponse(result)).toBe('No verifiable claims found.');
   });
 });

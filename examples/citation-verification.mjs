@@ -8,7 +8,7 @@
  * Requires: OPENAI_API_KEY (for embeddings)
  */
 
-import { CitationVerifier } from '@framers/agentos';
+import { CitationVerifier, formatVerifiedResponse } from '@framers/agentos';
 
 // --- Mock embedding function (replace with real embeddings in production) ---
 function mockEmbed(texts) {
@@ -30,25 +30,29 @@ const verifier = new CitationVerifier({
 });
 
 // --- Verify claims against sources ---
+// Three claims. One source per claim. The third claim has no source — it
+// should come back as "unverifiable" so callers know to stop quoting it.
 const result = await verifier.verify(
-  'Tokyo has a population of approximately 14 million people. It is the capital of Japan. The city was founded in 1457.',
+  'Tokyo is the capital of Japan. ' +
+  'Tokyo proper has roughly 14 million residents. ' +
+  'Tokyo hosted the 2020 Summer Olympics in 1457.',
   [
     {
-      content: 'Tokyo, the capital of Japan, has a population of about 14 million in the city proper.',
-      title: 'Tokyo Demographics',
-      url: 'https://example.com/tokyo',
-    },
-    {
-      content: 'Tokyo is the capital and most populous city of Japan.',
+      content: 'Tokyo is the capital and seat of government of Japan.',
       title: 'Japan Overview',
       url: 'https://example.com/japan',
+    },
+    {
+      content: 'The population of Tokyo proper is approximately 14 million.',
+      title: 'Tokyo Demographics',
+      url: 'https://example.com/tokyo',
     },
   ],
 );
 
 // --- Print results ---
 console.log('=== Citation Verification Results ===\n');
-console.log(`Summary: ${result.summary}`);
+console.log(`Summary: ${formatVerifiedResponse(result)}`);
 console.log(`Overall grounded: ${result.overallGrounded}`);
 console.log(`Supported: ${result.supportedCount}/${result.totalClaims}`);
 console.log(`Weak: ${result.weakCount}/${result.totalClaims}`);

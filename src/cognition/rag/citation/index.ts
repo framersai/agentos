@@ -5,6 +5,7 @@
 
 export { CitationVerifier } from './CitationVerifier.js';
 export { cosineSimilarity } from './cosine.js';
+export { formatVerifiedResponse } from './format.js';
 export type {
   CitationVerifierConfig,
   ClaimVerdict,

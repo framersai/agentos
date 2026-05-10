@@ -124,9 +124,6 @@ export class CitationVerifier {
       contradictedCount: contradicted,
       unverifiableCount: unverifiable,
       weakCount: weak,
-      summary: total > 0
-        ? `${supported}/${total} claims verified (${Math.round((supported / total) * 100)}%)`
-        : 'No verifiable claims found.',
     };
   }
 
@@ -134,7 +131,7 @@ export class CitationVerifier {
     return {
       claims: [], overallGrounded: true, supportedRatio: 1,
       totalClaims: 0, supportedCount: 0, contradictedCount: 0,
-      unverifiableCount: 0, weakCount: 0, summary: 'No verifiable claims found.',
+      unverifiableCount: 0, weakCount: 0,
     };
   }
 }
