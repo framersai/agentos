@@ -47,6 +47,9 @@ jobs:
             exit 1
           fi
 
+      - name: Refresh test-count badge
+        run: node scripts/update-test-badge.mjs
+
       - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
