@@ -29,86 +29,9 @@ The next sections explain each piece, why it earned its place, and which adjacen
 
 The whole stack is three small classifier calls plus a hybrid retriever, on top of a SQL-backed brain with a decay loop running in the background. Every concept that sounds like a separate thing in this doc plugs into one of those four parts.
 
-```
-                User query
-                    │
-                    ▼  (1) one shared classifier call (gpt-5-mini)
-              ┌──────────────────┐
-              │  QueryClassifier │   "Does this need memory at all?"
-              │  T0 / T1+        │   T0 (greetings, small talk) → answer from context, skip everything below.
-              └─────────┬────────┘
-                        │ T1+: needs memory
-                        ▼  (reuses the classification — zero extra LLM calls)
-              ┌──────────────────┐
-              │  MemoryRouter    │   "Which retrieval architecture wins for this category?"
-              │  6 categories →  │   single-session-user → canonical-hybrid
-              │  3 backends      │   multi-session       → canonical-hybrid (sem-embed era; OM-v11 was older choice)
-              └─────────┬────────┘   temporal-reasoning  → canonical-hybrid
-                        │
-                        ▼
-              ┌──────────────────────────────────────────────────┐
-              │ canonical-hybrid retrieval                       │
-              │                                                  │
-              │  BM25 (FTS5)        +    Dense (text-embedding-  │
-              │  catches exact / rare    3-small) catches        │
-              │  terms                   paraphrase + multi-hop  │
-              │                                                  │
-              │  └────── RRF rank fusion ──────┘                 │
-              │              │                                   │
-              │              ▼                                   │
-              │     Cohere rerank-v3.5 cross-encoder             │
-              │     (the load-bearing one — cross-reads          │
-              │      query + candidate jointly, kills the        │
-              │      "topically adjacent but irrelevant"         │
-              │      chunks BM25+dense leave in the pool)        │
-              │                                                  │
-              │              ▼                                   │
-              │     6-signal composite scorer (cognitive layer)  │
-              │     similarity · strength · recency · mood       │
-              │     congruence · graph activation · importance   │
-              │                                                  │
-              │     [optional] HyDE: ask the LLM for a           │
-              │     hypothetical answer first, embed THAT,       │
-              │     then search. Closes the question-vs-answer   │
-              │     embedding-space gap. Wins on temporal-       │
-              │     reasoning at M scale, hurts multi-session    │
-              │     at S scale (negative finding documented).    │
-              └─────────────────────┬────────────────────────────┘
-                                    │ top-K reranked traces
-                                    ▼  (reuses the classification — still zero extra LLM calls)
-              ┌──────────────────┐
-              │  ReaderRouter    │   "Which model answers best for this category?"
-              │  gpt-4o vs       │   temporal-reasoning + single-session-user → gpt-4o
-              │  gpt-5-mini      │   everything else → gpt-5-mini (12× cheaper, +10 pp on SSP)
-              └─────────┬────────┘
-                        │
-                        ▼
-              ┌──────────────────┐
-              │  ReadRouter      │   "Which reader strategy fits this query+evidence?"
-              │  5 intents →     │   precise-fact   → single-call
-              │  5 strategies    │   synthesis      → two-call extract-then-answer
-              │                  │   time-interval  → scratchpad-then-answer
-              │                  │   abstain-y      → commit-vs-abstain
-              └─────────┬────────┘
-                        │
-                        ▼
-                 grounded answer (then output guardrails — separate primitive)
+![AgentOS memory pipeline: user query enters QueryClassifier (T0 short-circuits, T1+ proceeds), MemoryRouter picks retrieval architecture, canonical-hybrid retrieval runs BM25 + dense embeddings, fuses via RRF, then Cohere rerank-v3.5 cross-encoder, then a six-signal cognitive composite scorer (optional HyDE). Reranked traces feed ReaderRouter (gpt-4o vs gpt-5-mini) then ReadRouter (5 intents to 5 strategies) for the grounded answer. A background consolidation loop runs prune-merge-strengthen-derive-compact-reindex on the same brain, plus 8 cognitive mechanisms.](/img/diagrams/memory-system-overview.svg)
 
-
-    Background, on the same brain:
-
-              ┌──────────────────────────────────────────────────────────────┐
-              │  Consolidation loop (analogue of slow-wave sleep)            │
-              │  prune (Ebbinghaus decay) → merge → strengthen (Hebbian)     │
-              │  → derive (LLM cluster summaries) → compact → reindex        │
-              │  → prune archive. Plus 8 cognitive mechanisms                │
-              │  (reconsolidation, RIF, involuntary recall, FOK, gist,       │
-              │  schema encoding, source-confidence decay, emotion reg).     │
-              │                                                              │
-              │  Verbatim archive is write-ahead — destructive ops can't     │
-              │  lose content unless the archive write succeeds first.       │
-              └──────────────────────────────────────────────────────────────┘
-```
+The verbatim archive is write-ahead — destructive consolidation ops cannot lose content unless the archive write succeeds first.
 
 If a term in the doc below sounds new, here's where it plugs in:
 
