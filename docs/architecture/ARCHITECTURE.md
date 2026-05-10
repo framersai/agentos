@@ -693,7 +693,7 @@ Every router has the same internal structure: a classifier (LLM-as-judge that ma
 | Memory Router | `@framers/agentos/memory-router` | 6 query categories | 3 backends (canonical-hybrid, OM-v10, OM-v11) |
 | Ingest Router | `@framers/agentos/ingest-router` | 6 content kinds | 6 strategies (raw / summarized / observational / fact-graph / hybrid / skip) |
 | Read Router | `@framers/agentos/read-router` | 5 read intents | 5 strategies (single-call / two-call extract+answer / commit-vs-abstain / verbatim / scratchpad) |
-| Cognitive Pipeline | `@framers/agentos/cognitive-pipeline` | (composition) | wires all three stages |
+| Cognitive Pipeline | `@framers/agentos/orchestration/pipeline` | (composition) | wires all three stages |
 | Adaptive Memory Router | `@framers/agentos/memory-router` | (self-calibrating) | derives routing tables from your own calibration data |
 
 Each classifier is provider-agnostic — talks to a small `IXClassifierLLM` adapter interface, not an SDK. One OpenAI key reproduces the entire pipeline; no Claude / Gemini accounts required for the shipping configuration.

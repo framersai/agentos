@@ -25,7 +25,7 @@ import type { IVoicePipelineAgentSession, VoiceTurnMetadata } from '../types.js'
  * @example
  * ```typescript
  * import { agent } from '@framers/agentos';
- * import { AgentSessionVoiceAdapter } from '@framers/agentos/voice-pipeline';
+ * import { AgentSessionVoiceAdapter } from '@framers/agentos/io/voice-pipeline';
  *
  * const a = agent({ model: 'gpt-4o' });
  * const session = a.session('voice-session-1');

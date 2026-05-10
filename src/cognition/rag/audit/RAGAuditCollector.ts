@@ -14,7 +14,7 @@
  * const trail = collector.finalize();
  * ```
  *
- * @module @framers/agentos/rag/audit
+ * @module @framers/agentos/cognition/rag/audit
  */
 
 import type {

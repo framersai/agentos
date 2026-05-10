@@ -94,7 +94,7 @@ Each stage is its own shippable primitive with full README + 26-38 contract test
 | Recall | `MemoryRouter` | `@framers/agentos/memory-router` | [Memory Router](./MEMORY_ROUTER.md) |
 | Recall (self-calibrating) | `AdaptiveMemoryRouter` | `@framers/agentos/memory-router` | [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) |
 | Read | `ReadRouter` | `@framers/agentos/read-router` | [Read Router](./READ_ROUTER.md) |
-| Composition | `CognitivePipeline` | `@framers/agentos/cognitive-pipeline` | (this doc) |
+| Composition | `CognitivePipeline` | `@framers/agentos/orchestration/pipeline` | (this doc) |
 
 Each primitive can be used standalone. CognitivePipeline is the convenience wrapper when you want all three stages coordinating.
 
@@ -121,7 +121,7 @@ import {
   ingestRouterAsStage,
   memoryRouterAsStage,
   readRouterAsStage,
-} from '@framers/agentos/cognitive-pipeline';
+} from '@framers/agentos/orchestration/pipeline';
 
 // One adapter that maps any provider's chat-completion API to the
 // shape every classifier expects. Provider-agnostic — wire OpenAI,

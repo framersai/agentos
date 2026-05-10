@@ -25,7 +25,7 @@
  *   Database (SQLite/PostgreSQL/IndexedDB/etc.)
  * ```
  * 
- * @module @framers/agentos/rag/vector_stores/SqlVectorStore
+ * @module @framers/agentos/cognition/rag/vector_stores/SqlVectorStore
  * @see ../../IVectorStore.ts for the interface definition.
  * @see @framers/sql-storage-adapter for storage abstraction.
  */

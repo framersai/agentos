@@ -47,7 +47,7 @@
  * - Custom implementations (rule-based, ML-driven, mock for tests) can
  *   satisfy the same interfaces and slot in.
  *
- * @module @framers/agentos/cognitive-pipeline
+ * @module @framers/agentos/orchestration/pipeline
  */
 
 // ============================================================================
@@ -149,8 +149,8 @@ export class MissingStageError extends Error {
  *
  * @example Full pipeline
  * ```ts
- * import { CognitivePipeline } from '@framers/agentos/cognitive-pipeline';
- * import { ingestRouterAsStage } from '@framers/agentos/cognitive-pipeline';
+ * import { CognitivePipeline } from '@framers/agentos/orchestration/pipeline';
+ * import { ingestRouterAsStage } from '@framers/agentos/orchestration/pipeline';
  *
  * const pipeline = new CognitivePipeline({
  *   ingest: ingestRouterAsStage(myIngestRouter),

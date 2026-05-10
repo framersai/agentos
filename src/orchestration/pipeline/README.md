@@ -1,4 +1,4 @@
-# @framers/agentos/cognitive-pipeline
+# @framers/agentos/orchestration/pipeline
 
 Composition primitive that wires the four LLM-as-judge stages of agentos into a single orchestrator. Each stage is independent and shippable on its own; this module is what you use when you want all four (or any subset) to coordinate as one pipeline.
 
@@ -49,7 +49,7 @@ import {
   ingestRouterAsStage,
   memoryRouterAsStage,
   readRouterAsStage,
-} from '@framers/agentos/cognitive-pipeline';
+} from '@framers/agentos/orchestration/pipeline';
 ```
 
 ## Usage

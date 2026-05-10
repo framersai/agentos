@@ -197,7 +197,7 @@ describe('AgentOS docs alignment', () => {
     expect(catalogSdkPackage.description).toContain('Catalog SDK');
 
     // The skills guide references all three tiers
-    expect(packageSkillsGuide).toContain('@framers/agentos/skills');
+    expect(packageSkillsGuide).toContain('@framers/agentos/cognition/skills');
     expect(packageSkillsGuide).toContain('@framers/agentos-skills');
     expect(packageSkillsGuide).toContain('@framers/agentos-skills-registry');
   });

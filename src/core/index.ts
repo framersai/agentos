@@ -7,7 +7,7 @@
  * For non-core modules, import from their own barrels:
  *   @framers/agentos/orchestration
  *   @framers/agentos/memory
- *   @framers/agentos/rag
+ *   @framers/agentos/cognition/rag
  *   @framers/agentos/knowledge
  *   @framers/agentos/provenance
  *   etc.

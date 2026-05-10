@@ -203,7 +203,7 @@ In persona JSON, the observer/reflector activate automatically when `memoryConfi
 
 ## Low-Level RAG Primitives
 
-The concrete RAG APIs live under `@framers/agentos/rag`:
+The concrete RAG APIs live under `@framers/agentos/cognition/rag`:
 
 - **`EmbeddingManager`** — Text → vector embeddings (OpenAI, Ollama, custom providers)
 - **`VectorStoreManager`** — HNSW/InMemory vector storage with similarity search
@@ -224,7 +224,7 @@ You construct and initialize the augmentor yourself, then pass it into `AgentOS.
 
 ```ts
 import { AgentOS } from '@framers/agentos';
-import { EmbeddingManager, VectorStoreManager, RetrievalAugmentor } from '@framers/agentos/rag';
+import { EmbeddingManager, VectorStoreManager, RetrievalAugmentor } from '@framers/agentos/cognition/rag';
 import { AIModelProviderManager } from '@framers/agentos/core/llm/providers/AIModelProviderManager';
 
 // 1) Provider manager (must support embeddings for your chosen embedding model)
@@ -519,7 +519,7 @@ const vsmConfig: VectorStoreManagerConfig = {
 Minimal lifecycle example:
 
 ```ts
-import { GraphRAGEngine } from '@framers/agentos/rag/graphrag';
+import { GraphRAGEngine } from '@framers/agentos/cognition/rag/graphrag';
 
 const engine = new GraphRAGEngine({
   // Optional:

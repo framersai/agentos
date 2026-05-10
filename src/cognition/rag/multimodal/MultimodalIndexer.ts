@@ -102,7 +102,7 @@ const isNodeBuffer = (value: unknown): value is Buffer =>
  *
  * @example
  * ```typescript
- * import { MultimodalIndexer } from '@framers/agentos/rag/multimodal';
+ * import { MultimodalIndexer } from '@framers/agentos/cognition/rag';
  *
  * const indexer = new MultimodalIndexer({
  *   embeddingManager,

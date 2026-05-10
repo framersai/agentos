@@ -1,12 +1,12 @@
 /**
- * @module @framers/agentos/web-search
+ * @module @framers/agentos/cognition/web-search
  *
  * Multi-provider web search with RRF fusion, semantic dedup, and neural reranking.
  * Supports Firecrawl (primary), Tavily, Serper, and Brave search providers.
  *
  * @example
  * ```typescript
- * import { WebSearchService, FirecrawlProvider, TavilyProvider } from '@framers/agentos/web-search';
+ * import { WebSearchService, FirecrawlProvider, TavilyProvider } from '@framers/agentos/cognition/web-search';
  *
  * const service = new WebSearchService();
  * service.registerProvider(new FirecrawlProvider(process.env.FIRECRAWL_API_KEY!));

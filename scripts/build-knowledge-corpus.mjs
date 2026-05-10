@@ -385,7 +385,7 @@ function getFaqEntries(skillCount = 0) {
       id: 'faq:telephony',
       heading: 'Can AgentOS handle phone calls?',
       content:
-        "Yes. Use the telephony module: import from '@framers/agentos/telephony'. Supports Twilio and VAPI for inbound/outbound voice calls with real-time STT/TTS. The voice-telephony skill provides a guided setup workflow.",
+        "Yes. Use the telephony module: import from '@framers/agentos/io/channels/telephony'. Supports Twilio and VAPI for inbound/outbound voice calls with real-time STT/TTS. The voice-telephony skill provides a guided setup workflow.",
       category: 'faq',
     },
     {

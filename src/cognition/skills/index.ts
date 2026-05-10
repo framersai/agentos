@@ -8,7 +8,7 @@
  *
  * **Ecosystem layout** (mirrors extensions):
  * ```
- * @framers/agentos/skills               ← Engine (this module)
+ * @framers/agentos/cognition/skills               ← Engine (this module)
  * @framers/agentos-skills               ← Content (88 curated SKILL.md files + registry.json)
  * @framers/agentos-skills-registry      ← Catalog SDK (query helpers, factory functions)
  * ```
@@ -17,7 +17,7 @@
  * For the catalog SDK (searchSkills, SKILLS_CATALOG, etc.), depend on
  * `@framers/agentos-skills-registry`.
  *
- * @module @framers/agentos/skills
+ * @module @framers/agentos/cognition/skills
  */
 
 export * from './types.js';

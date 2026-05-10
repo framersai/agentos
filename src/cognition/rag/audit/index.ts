@@ -4,7 +4,7 @@
  * Includes types and collectors for transparent tracking of vector search,
  * graph search, reranking, and embedding operations.
  *
- * @module @framers/agentos/rag/audit
+ * @module @framers/agentos/cognition/rag/audit
  */
 
 export type {

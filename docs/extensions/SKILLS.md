@@ -38,7 +38,7 @@ Use the `gh` CLI to interact with GitHub repositories.
 Load skills from one or more directories:
 
 ```ts
-import { SkillRegistry } from '@framers/agentos/skills';
+import { SkillRegistry } from '@framers/agentos/cognition/skills';
 
 const registry = new SkillRegistry();
 await registry.loadFromDirs(['./skills']);
@@ -57,14 +57,14 @@ The curated content currently includes **88 skills** spanning developer tools, p
 `@framers/agentos-skills-registry` supports two usage modes:
 
 - Lightweight catalog queries (no `@framers/agentos` peer dependency)
-- Factory helpers that **lazy-load** `@framers/agentos/skills` only when called (to build a `SkillRegistry` or snapshot)
+- Factory helpers that **lazy-load** `@framers/agentos/cognition/skills` only when called (to build a `SkillRegistry` or snapshot)
 
-Agents can discover curated skills via the **Capability Discovery Engine** (`@framers/agentos/discovery`), which indexes them as `CapabilityDescriptor` entries with `kind: ‘skill’`. The `SkillRegistry` from `@framers/agentos/skills` (the engine) provides `skills_list`, `skills_read`, `skills_enable`, `skills_status`, and `skills_install` tools directly. Curated skill content (the SKILL.md files) ships in `@framers/agentos-skills`.
+Agents can discover curated skills via the **Capability Discovery Engine** (`@framers/agentos/discovery`), which indexes them as `CapabilityDescriptor` entries with `kind: ‘skill’`. The `SkillRegistry` from `@framers/agentos/cognition/skills` (the engine) provides `skills_list`, `skills_read`, `skills_enable`, `skills_status`, and `skills_install` tools directly. Curated skill content (the SKILL.md files) ships in `@framers/agentos-skills`.
 
 ## Agentic discovery
 
 Skills are discoverable at runtime via:
 
-- `@framers/agentos/skills` — the engine that exposes `skills_list`, `skills_read`, `skills_enable`, `skills_status`, and `skills_install` tools via `SkillRegistry`.
+- `@framers/agentos/cognition/skills` — the engine that exposes `skills_list`, `skills_read`, `skills_enable`, `skills_status`, and `skills_install` tools via `SkillRegistry`.
 - `@framers/agentos-skills` — the content package (88 SKILL.md files + registry.json).
 - `@framers/agentos-skills-registry` — catalog SDK with typed query helpers and snapshot factories.

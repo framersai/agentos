@@ -31,7 +31,7 @@
  *   type MultimodalSearchResult,
  *   type ContentModality,
  *   type IngestResult,
- * } from '@framers/agentos/rag/multimodal';
+ * } from '@framers/agentos/cognition/rag/multimodal';
  * ```
  */
 

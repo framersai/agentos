@@ -5,11 +5,11 @@
  * to improve retrieval relevance. Supports both local models (via transformers.js)
  * and cloud APIs (Cohere).
  *
- * @module @framers/agentos/rag/reranking
+ * @module @framers/agentos/cognition/rag/reranking
  *
  * @example Basic usage with local model
  * ```typescript
- * import { RerankerService, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
+ * import { RerankerService, LocalCrossEncoderReranker } from '@framers/agentos/cognition/rag/reranking';
  *
  * const service = new RerankerService({
  *   config: {
@@ -28,7 +28,7 @@
  *
  * @example Using Cohere API
  * ```typescript
- * import { RerankerService, CohereReranker } from '@framers/agentos/rag/reranking';
+ * import { RerankerService, CohereReranker } from '@framers/agentos/cognition/rag/reranking';
  *
  * const service = new RerankerService({
  *   config: {

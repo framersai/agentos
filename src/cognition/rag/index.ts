@@ -40,7 +40,7 @@
  *                                    (SQLite/Postgres/IndexedDB)
  * ```
  * 
- * @module @framers/agentos/rag
+ * @module @framers/agentos/cognition/rag
  * 
  * @example Basic RAG Setup
  * ```typescript
@@ -48,7 +48,7 @@
  *   VectorStoreManager, 
  *   EmbeddingManager, 
  *   RetrievalAugmentor 
- * } from '@framers/agentos/rag';
+ * } from '@framers/agentos/cognition/rag';
  * 
  * // Initialize vector store manager
  * const vectorStoreManager = new VectorStoreManager();

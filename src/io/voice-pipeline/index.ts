@@ -1,5 +1,5 @@
 /**
- * @module @framers/agentos/voice-pipeline
+ * @module @framers/agentos/io/voice-pipeline
  *
  * Real-time streaming voice pipeline for AgentOS.
  *
@@ -53,7 +53,7 @@
  *   ElevenLabsStreamingSTT,
  *   ElevenLabsStreamingTTS,
  *   AgentSessionVoiceAdapter,
- * } from '@framers/agentos/voice-pipeline';
+ * } from '@framers/agentos/io/voice-pipeline';
  * import { agent } from '@framers/agentos';
  *
  * // Create agent and voice adapter

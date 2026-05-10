@@ -1,6 +1,6 @@
 /**
  * @fileoverview Skill Registry for AgentOS
- * @module @framers/agentos/skills/SkillRegistry
+ * @module @framers/agentos/cognition/skills/SkillRegistry
  *
  * Runtime registry for managing and querying loaded skills.
  * Provides methods for registration, filtering, and building

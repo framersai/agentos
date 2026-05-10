@@ -1,6 +1,6 @@
 /**
  * @fileoverview GMI Event System - Defines event types for triggering metaprompts
- * @module @framers/agentos/cognitive_substrate/GMIEvent
+ * @module @framers/agentos/cognition/substrate/GMIEvent
  *
  * This module provides the event infrastructure for sentiment-aware metaprompt triggering.
  * Events are emitted based on user sentiment analysis, error patterns, and engagement metrics.

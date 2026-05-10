@@ -44,7 +44,7 @@ producing higher cosine similarity scores.
 ### agent.config.json
 
 HyDE is configured per-request, not globally. The `HydeRetriever` class and
-its config types are exported from `@framers/agentos/rag`.
+its config types are exported from `@framers/agentos/cognition/rag`.
 
 ```json
 {
@@ -79,7 +79,7 @@ its config types are exported from `@framers/agentos/rag`.
 ### 1. RetrievalAugmentor (main RAG pipeline)
 
 ```typescript
-import { RetrievalAugmentor } from '@framers/agentos/rag';
+import { RetrievalAugmentor } from '@framers/agentos/cognition/rag';
 
 // Stand-ins. Replace with your real EmbeddingManager / VectorStoreManager
 // instances and a RetrievalAugmentorConfig your runtime provides.
@@ -129,7 +129,7 @@ console.log(result.diagnostics?.hyde);
 ### 2. MultimodalIndexer (cross-modal search)
 
 ```typescript
-import { MultimodalIndexer, HydeRetriever } from '@framers/agentos/rag';
+import { MultimodalIndexer, HydeRetriever } from '@framers/agentos/cognition/rag';
 
 // Stand-ins for the host-supplied dependencies.
 declare const embeddingManager: any;
@@ -189,7 +189,7 @@ const result = await memoryManager.retrieve(
 ### 4. Standalone HydeRetriever
 
 ```typescript
-import { HydeRetriever } from '@framers/agentos/rag';
+import { HydeRetriever } from '@framers/agentos/cognition/rag';
 
 const retriever = new HydeRetriever({
   llmCaller: async (system, user) => {

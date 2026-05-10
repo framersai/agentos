@@ -1,6 +1,6 @@
 /**
  * @fileoverview Skills path helpers for AgentOS
- * @module @framers/agentos/skills/paths
+ * @module @framers/agentos/cognition/skills/paths
  *
  * Provides a canonical resolver for "default" skill directories so runtimes
  * and CLIs don't need to re-implement the same heuristics.

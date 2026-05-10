@@ -219,7 +219,7 @@ export interface WebRTCStreamTransportConfig {
  *
  * @example
  * ```typescript
- * import { WebRTCStreamTransport } from '@framers/agentos/voice-pipeline';
+ * import { WebRTCStreamTransport } from '@framers/agentos/io/voice-pipeline';
  *
  * // Receive RTCPeerConnection from your signaling server
  * const transport = new WebRTCStreamTransport(peerConnection, { sampleRate: 16000 });

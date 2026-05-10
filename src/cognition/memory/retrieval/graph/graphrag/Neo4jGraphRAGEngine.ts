@@ -16,7 +16,7 @@
  * - Global search (community summaries) and local search (entity + 1-hop expansion)
  * - Shared Neo4jConnectionManager for connection pooling
  *
- * @module @framers/agentos/rag/graphrag/Neo4jGraphRAGEngine
+ * @module @framers/agentos/cognition/rag/graphrag/Neo4jGraphRAGEngine
  * @see ./IGraphRAG.ts for the interface definition.
  */
 

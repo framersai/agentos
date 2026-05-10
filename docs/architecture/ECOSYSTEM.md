@@ -110,10 +110,10 @@ const snapshot = await createCuratedSkillSnapshot({ skills: ['github', 'weather'
 npm install @framers/agentos-skills
 ```
 
-This is the content package for skills. The runtime engine (SkillLoader, SkillRegistry, path utilities) now lives in `@framers/agentos/skills`.
+This is the content package for skills. The runtime engine (SkillLoader, SkillRegistry, path utilities) now lives in `@framers/agentos/cognition/skills`.
 
 ```
-@framers/agentos/skills               <- Engine (SkillLoader, SkillRegistry, path utils)
+@framers/agentos/cognition/skills               <- Engine (SkillLoader, SkillRegistry, path utils)
 @framers/agentos-skills               <- Content (88 SKILL.md files + registry.json)
 @framers/agentos-skills-registry      <- Catalog SDK (SKILLS_CATALOG, query helpers, factories)
 ```

@@ -355,85 +355,15 @@
       "default": "./dist/safety/sandbox/subprocess/index.js",
       "types": "./dist/safety/sandbox/subprocess/index.d.ts"
     },
-    "./voice-pipeline": {
-      "import": "./dist/_aliases/voice-pipeline.js",
-      "default": "./dist/_aliases/voice-pipeline.js",
-      "types": "./dist/_aliases/voice-pipeline.d.ts"
-    },
-    "./vision": {
-      "import": "./dist/_aliases/vision.js",
-      "default": "./dist/_aliases/vision.js",
-      "types": "./dist/_aliases/vision.d.ts"
-    },
-    "./web-search": {
-      "import": "./dist/_aliases/web-search.js",
-      "default": "./dist/_aliases/web-search.js",
-      "types": "./dist/_aliases/web-search.d.ts"
-    },
-    "./rag": {
-      "import": "./dist/_aliases/rag.js",
-      "default": "./dist/_aliases/rag.js",
-      "types": "./dist/_aliases/rag.d.ts"
-    },
-    "./rag/reranking": {
-      "import": "./dist/_aliases/rag-reranking.js",
-      "default": "./dist/_aliases/rag-reranking.js",
-      "types": "./dist/_aliases/rag-reranking.d.ts"
-    },
-    "./telephony": {
-      "import": "./dist/_aliases/telephony.js",
-      "default": "./dist/_aliases/telephony.js",
-      "types": "./dist/_aliases/telephony.d.ts"
-    },
-    "./skills": {
-      "import": "./dist/_aliases/skills.js",
-      "default": "./dist/_aliases/skills.js",
-      "types": "./dist/_aliases/skills.d.ts"
-    },
-    "./media/avatar/index": {
-      "import": "./dist/_aliases/media-avatar.js",
-      "default": "./dist/_aliases/media-avatar.js",
-      "types": "./dist/_aliases/media-avatar.d.ts"
-    },
-    "./media/images/face/IFaceEmbeddingService": {
-      "import": "./dist/_aliases/media-images-face-IFaceEmbeddingService.js",
-      "default": "./dist/_aliases/media-images-face-IFaceEmbeddingService.js",
-      "types": "./dist/_aliases/media-images-face-IFaceEmbeddingService.d.ts"
-    },
-    "./media/images/face/ReplicateFaceEmbeddingService": {
-      "import": "./dist/_aliases/media-images-face-ReplicateFaceEmbeddingService.js",
-      "default": "./dist/_aliases/media-images-face-ReplicateFaceEmbeddingService.js",
-      "types": "./dist/_aliases/media-images-face-ReplicateFaceEmbeddingService.d.ts"
-    },
-    "./cognitive_substrate/IGMI": {
-      "import": "./dist/_aliases/cognitive_substrate-IGMI.js",
-      "default": "./dist/_aliases/cognitive_substrate-IGMI.js",
-      "types": "./dist/_aliases/cognitive_substrate-IGMI.d.ts"
-    },
-    "./cognitive_substrate/personas/PersonaLoader": {
-      "import": "./dist/_aliases/cognitive_substrate-personas-PersonaLoader.js",
-      "default": "./dist/_aliases/cognitive_substrate-personas-PersonaLoader.js",
-      "types": "./dist/_aliases/cognitive_substrate-personas-PersonaLoader.d.ts"
-    },
-    "./cognitive_substrate/personas/IPersonaDefinition": {
-      "import": "./dist/_aliases/cognitive_substrate-personas-IPersonaDefinition.js",
-      "default": "./dist/_aliases/cognitive_substrate-personas-IPersonaDefinition.js",
-      "types": "./dist/_aliases/cognitive_substrate-personas-IPersonaDefinition.d.ts"
-    },
-    "./cognitive-pipeline": {
-      "import": "./dist/_aliases/cognitive-pipeline.js",
-      "default": "./dist/_aliases/cognitive-pipeline.js",
-      "types": "./dist/_aliases/cognitive-pipeline.d.ts"
-    },
     "./core/embeddings/IEmbeddingManager": {
-      "import": "./dist/_aliases/core-embeddings-IEmbeddingManager.js",
-      "default": "./dist/_aliases/core-embeddings-IEmbeddingManager.js",
-      "types": "./dist/_aliases/core-embeddings-IEmbeddingManager.d.ts"
+      "import": "./dist/core/embeddings/IEmbeddingManager.js",
+      "default": "./dist/core/embeddings/IEmbeddingManager.js",
+      "types": "./dist/core/embeddings/IEmbeddingManager.d.ts"
     },
     "./core/vector-store/IVectorStore": {
-      "import": "./dist/_aliases/core-vector-store-IVectorStore.js",
-      "default": "./dist/_aliases/core-vector-store-IVectorStore.js",
-      "types": "./dist/_aliases/core-vector-store-IVectorStore.d.ts"
+      "import": "./dist/core/vector-store/IVectorStore.js",
+      "default": "./dist/core/vector-store/IVectorStore.js",
+      "types": "./dist/core/vector-store/IVectorStore.d.ts"
     },
     "./memory": {
       "import": "./dist/cognition/memory/index.js",

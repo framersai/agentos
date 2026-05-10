@@ -1,6 +1,6 @@
 /**
  * @fileoverview Skills Registry Types for AgentOS
- * @module @framers/agentos/skills/types
+ * @module @framers/agentos/cognition/skills/types
  *
  * Skills are modular capabilities defined in SKILL.md files with
  * YAML frontmatter specifying metadata, requirements, and install specs.

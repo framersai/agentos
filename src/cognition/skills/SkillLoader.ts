@@ -1,6 +1,6 @@
 /**
  * @fileoverview Skill Loader for AgentOS
- * @module @framers/agentos/skills/SkillLoader
+ * @module @framers/agentos/cognition/skills/SkillLoader
  *
  * Loads skills from directories by parsing SKILL.md files with YAML frontmatter.
  * Skills are modular capabilities that extend agent functionality.

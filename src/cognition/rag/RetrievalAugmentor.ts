@@ -204,7 +204,7 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
    *
    * @example
    * ```typescript
-   * import { CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos/rag/reranking';
+   * import { CohereReranker, LocalCrossEncoderReranker } from '@framers/agentos/cognition/rag/reranking';
    *
    * // After initialization
    * augmentor.registerRerankerProvider(new CohereReranker({

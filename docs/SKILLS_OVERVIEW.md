@@ -6,7 +6,7 @@ Skills are prompt-level capability modules for AgentOS. They are not runtime ext
 
 AgentOS skills are split into three public layers:
 
-1. `@framers/agentos/skills`
+1. `@framers/agentos/cognition/skills`
    The runtime engine. This is where `SkillLoader`, `SkillRegistry`, snapshots, and path helpers live.
 2. `@framers/agentos-skills`
    The curated content package. It ships `SKILL.md` files plus the generated `registry.json` index.

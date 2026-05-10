@@ -1,7 +1,7 @@
 /**
  * Barrel exports for the AgentOS voice call system.
  *
- * @module @framers/agentos/telephony
+ * @module @framers/agentos/io/channels/telephony
  */
 
 export * from './types.js';

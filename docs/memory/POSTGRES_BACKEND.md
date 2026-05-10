@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS "<prefix>my_collection" (
 ## Configuration
 
 ```typescript
-import { PostgresVectorStore } from '@framers/agentos/rag/implementations/vector_stores/PostgresVectorStore';
+import { PostgresVectorStore } from '@framers/agentos/cognition/rag/implementations/vector_stores/PostgresVectorStore';
 
 const store = new PostgresVectorStore({
   id: 'my-pg-store',

@@ -1,6 +1,6 @@
 /**
  * @fileoverview Metaprompt Presets - Pre-configured metaprompts for common scenarios
- * @module @framers/agentos/cognitive_substrate/personas/metaprompt_presets
+ * @module @framers/agentos/cognition/substrate/personas/metaprompt_presets
  *
  * Provides 5 preset metaprompt configurations that respond to user emotional states:
  * 1. gmi_frustration_recovery - Responds to frustrated users

@@ -96,7 +96,7 @@ The `AvatarPipeline` uses consistency modes per stage:
 | `additional_angles` | `'balanced'` | 3/4 and profile views naturally differ from frontal |
 
 ```typescript
-import { AvatarPipeline } from '@framers/agentos/media/avatar';
+import { AvatarPipeline } from '@framers/agentos/io/media/avatar';
 
 const pipeline = new AvatarPipeline(faceService, imageGenerator);
 const result = await pipeline.generate({

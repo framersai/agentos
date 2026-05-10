@@ -32,7 +32,7 @@ Port 6333 is the HTTP API; 6334 is gRPC (optional).
 3. Configure:
 
 ```typescript
-import { QdrantVectorStore } from '@framers/agentos/rag/implementations/vector_stores/QdrantVectorStore';
+import { QdrantVectorStore } from '@framers/agentos/cognition/rag/implementations/vector_stores/QdrantVectorStore';
 
 const store = new QdrantVectorStore({
   id: 'my-qdrant',
