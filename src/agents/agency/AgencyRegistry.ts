@@ -6,7 +6,7 @@
 
 import { uuidv4 } from '@framers/agentos/core/utils/uuid';
 
-import type { ILogger } from '../../../logging/ILogger';
+import type { ILogger } from '../../logging/ILogger';
 import type {
   AgencySeatHistoryEntry,
   AgencySeatRegistrationArgs,

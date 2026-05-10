@@ -22,13 +22,13 @@
 import { AgentCore, AgentConfig, AgentType, AgentCoreError } from './AgentCore';
 import { IAgent, AgentOutput } from './IAgent';
 import { AgentPoolConfig, AgentPoolStrategy } from './AgentPoolConfig';
-import { ConversationContext } from '../../../core/conversation/ConversationContext';
-import { IProvider, ModelCompletionResponse } from '../../../core/llm/providers/IProvider';
-import { IPromptEngine, PromptComponents } from '../../../core/llm/IPromptEngine';
+import { ConversationContext } from '../../core/conversation/ConversationContext';
+import { IProvider, ModelCompletionResponse } from '../../core/llm/providers/IProvider';
+import { IPromptEngine, PromptComponents } from '../../core/llm/IPromptEngine';
 import { Tool } from './tools/Tool';
-import { IUtilityAI } from '../../../cognition/nlp/ai_utilities/IUtilityAI';
+import { IUtilityAI } from '../../cognition/nlp/ai_utilities/IUtilityAI';
 import { IAgentFactory, AgentDependencies } from './IAgentFactory';
-import { MessageRole } from '../../../core/conversation/ConversationMessage'; // Ensure ConversationMessage is imported if used directly
+import { MessageRole } from '../../core/conversation/ConversationMessage'; // Ensure ConversationMessage is imported if used directly
 
 /**
  * Configuration specific to an `AgentPoolAgent`.

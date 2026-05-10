@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AgencyMemoryManager } from '../AgencyMemoryManager.js';
-import type { IVectorStoreManager } from '../../../../core/vector-store/IVectorStoreManager.js';
+import type { IVectorStoreManager } from '../../../core/vector-store/IVectorStoreManager.js';
 
 describe('AgencyMemoryManager', () => {
   it('aggregates stats using contributorRoleId metadata', async () => {

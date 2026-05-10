@@ -12,8 +12,8 @@ import type { GMIManager, GMIAgencyContextOptions } from '../../../cognition/sub
 import type { StreamingManager } from '../../../core/streaming/StreamingManager';
 import type { IToolOrchestrator } from '../../../core/tools/IToolOrchestrator';
 import type { ILogger } from '../../../logging/ILogger';
-import { AgencyRegistry } from '../../agents/agency/AgencyRegistry';
-import type { AgencySeatState, AgencySession } from '../../agents/agency/AgencyTypes';
+import { AgencyRegistry } from '../../../agents/agency/AgencyRegistry';
+import type { AgencySeatState, AgencySession } from '../../../agents/agency/AgencyTypes';
 import {
   AgentOSResponseChunkType,
   type AgentOSAgencyUpdateChunk,

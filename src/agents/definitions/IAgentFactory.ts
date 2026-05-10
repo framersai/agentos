@@ -12,10 +12,10 @@
 
 import { IAgent } from './IAgent';
 import { AgentConfig } from './AgentCore';
-import { IPromptEngine } from '../../../core/llm/IPromptEngine';
-import { IProvider } from '../../../core/llm/providers/IProvider';
-import { IUtilityAI } from '../../../cognition/nlp/ai_utilities/IUtilityAI';
-import { AIModelProviderManager } from '../../../core/llm/providers/AIModelProviderManager';
+import { IPromptEngine } from '../../core/llm/IPromptEngine';
+import { IProvider } from '../../core/llm/providers/IProvider';
+import { IUtilityAI } from '../../cognition/nlp/ai_utilities/IUtilityAI';
+import { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 
 /**
  * Defines the set of shared dependencies that an agent instance typically requires.

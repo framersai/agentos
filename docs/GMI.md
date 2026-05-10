@@ -10,7 +10,7 @@ A **Generalized Mind Instance** — GMI — is the thing that exists between tho
 
 ![GMI architecture: a thin coordinator class that delegates per-turn work to four close collaborators (ConversationHistoryManager, CognitiveMemoryBridge, SentimentTracker, MetapromptExecutor) and seven injected services (WorkingMemory, PromptEngine, ToolOrchestrator, LLMProviderManager, UtilityAI, CognitiveMemoryManager, optional RetrievalAugmentor). The GMI core itself owns persona, current mood, user context, task context, and reasoning trace, but never does retrieval, generation, or tool dispatch directly.](/img/diagrams/gmi-architecture.svg)
 
-This page is an honest tour of the abstraction. Most descriptions of GMIs you'll see — including the concentric-ring diagram on [agentos.sh](https://agentos.sh) — are presentation. The presentation is useful but it isn't the architecture. The architecture is a delegation pattern: a coordinator class with a dozen specialized collaborators, each owning one concern. Below is what's actually in the source tree at [`packages/agentos/src/cognitive_substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMI.ts).
+This page is an honest tour of the abstraction. Most descriptions of GMIs you'll see — including the concentric-ring diagram on [agentos.sh](https://agentos.sh) — are presentation. The presentation is useful but it isn't the architecture. The architecture is a delegation pattern: a coordinator class with a dozen specialized collaborators, each owning one concern. Below is what's actually in the source tree at [`packages/agentos/src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts).
 
 ## The shortest useful example
 
@@ -44,7 +44,7 @@ Three things to notice:
 
 ## What a GMI is composed of
 
-The class definition tells the cleanest story. From [`GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMI.ts) (trimmed):
+The class definition tells the cleanest story. From [`GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) (trimmed):
 
 ```typescript
 export class GMI implements IGMI {
@@ -91,7 +91,7 @@ Each name is doing one specific thing:
 | `IUtilityAI` | Smaller model jobs that don't need the main provider — JSON parsing, summarization, observations. |
 | `ICognitiveMemoryManager` | The actual memory store with the eight cognitive mechanisms (next section). |
 
-Lifecycle is owned by [`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMIManager.ts) — it constructs GMIs, hands them their persona and config, tracks active instances by ID, and routes session-to-GMI mappings. When you build an agency of multiple GMIs, the manager is the registry that knows which mind owns which session.
+Lifecycle is owned by [`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — it constructs GMIs, hands them their persona and config, tracks active instances by ID, and routes session-to-GMI mappings. When you build an agency of multiple GMIs, the manager is the registry that knows which mind owns which session.
 
 ## The eight cognitive memory mechanisms
 
@@ -150,7 +150,7 @@ When the strategy is `'hierarchical'` and `emergent.enabled` is true, the manage
 
 ## Streaming output
 
-`session.send()` returns a final reply. `session.stream()` returns an async iterable of typed chunks. The chunk types from [`IGMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/IGMI.ts):
+`session.send()` returns a final reply. `session.stream()` returns an async iterable of typed chunks. The chunk types from [`IGMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts):
 
 ```typescript
 export enum GMIOutputChunkType {
@@ -178,10 +178,10 @@ If you came here looking for the seven layers as load-bearing architecture, you 
 
 Quick map for navigating the source:
 
-- [`src/cognitive_substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMI.ts) — the class itself
-- [`src/cognitive_substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMIManager.ts) — lifecycle
-- [`src/cognitive_substrate/personas/`](https://github.com/framersai/agentos/tree/master/src/cognitive_substrate/personas) — persona definitions and loaders
-- [`src/cognitive_substrate/persona_overlays/`](https://github.com/framersai/agentos/tree/master/src/cognitive_substrate/persona_overlays) — per-session persona overlays
+- [`src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
+- [`src/cognition/substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
+- [`src/cognition/substrate/personas/`](https://github.com/framersai/agentos/tree/master/src/cognition/substrate/personas) — persona definitions and loaders
+- [`src/cognition/substrate/persona_overlays/`](https://github.com/framersai/agentos/tree/master/src/cognition/substrate/persona_overlays) — per-session persona overlays
 - [`src/memory/mechanisms/`](https://github.com/framersai/agentos/tree/master/src/memory/mechanisms) — the eight cognitive mechanisms + persona drift
 - [`src/memory/retrieval/`](https://github.com/framersai/agentos/tree/master/src/memory/retrieval) — semantic, HyDE, GraphRAG retrieval
 - [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination
@@ -225,8 +225,8 @@ The eight cognitive memory mechanisms enumerated in this page draw on classical 
 
 ### Implementation references
 
-- [`src/cognitive_substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMI.ts) — the class itself
-- [`src/cognitive_substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognitive_substrate/GMIManager.ts) — lifecycle
+- [`src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
+- [`src/cognition/substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
 - [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) — `AgencyOptions`, `AgencyStrategy`, `EmergentConfig`, `EmergentPlannerConfig`
 - [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination classes
 - [`src/emergent/`](https://github.com/framersai/agentos/tree/master/src/emergent) — emergent tool and agent forge primitives

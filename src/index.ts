@@ -35,16 +35,16 @@ export * from './orchestration/workflows/storage/IWorkflowStore';
 export { WorkflowEngine } from './orchestration/workflows/WorkflowEngine';
 export { InMemoryWorkflowStore } from './orchestration/workflows/storage/InMemoryWorkflowStore';
 // Agency (Multi-Agent Collectives)
-export * from './orchestration/agents/agency/AgencyTypes';
-export { AgencyRegistry } from './orchestration/agents/agency/AgencyRegistry';
-export { AgencyMemoryManager } from './orchestration/agents/agency/AgencyMemoryManager';
+export * from './agents/agency/AgencyTypes';
+export { AgencyRegistry } from './agents/agency/AgencyRegistry';
+export { AgencyMemoryManager } from './agents/agency/AgencyMemoryManager';
 export type {
   AgencyMemoryIngestInput,
   AgencyMemoryChunk,
   AgencyMemoryQueryResult,
   AgencyMemoryStats,
-} from './orchestration/agents/agency/AgencyMemoryManager';
-export { AgentCommunicationBus } from './orchestration/agents/agency/AgentCommunicationBus';
+} from './agents/agency/AgencyMemoryManager';
+export { AgentCommunicationBus } from './agents/agency/AgentCommunicationBus';
 export type {
   IAgentCommunicationBus,
   AgentMessage,
@@ -53,7 +53,7 @@ export type {
   AgentResponse,
   HandoffContext,
   HandoffResult,
-} from './orchestration/agents/agency/IAgentCommunicationBus';
+} from './agents/agency/IAgentCommunicationBus';
 // Planning Engine
 export * from './orchestration/planner';
 // Human-in-the-Loop (HITL)

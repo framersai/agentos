@@ -7,8 +7,8 @@
  * @version 1.0.0
  */
 
-import type { ILogger } from '../../../logging/ILogger';
-import { uuidv4 } from '../../../core/utils/uuid';
+import type { ILogger } from '../../logging/ILogger';
+import { uuidv4 } from '../../core/utils/uuid';
 import type {
   IAgentCommunicationBus,
   AgentMessage,

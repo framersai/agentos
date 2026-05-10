@@ -18,14 +18,14 @@
  */
 
 import { IAgent, AgentOutput, AgentToolCall } from './IAgent';
-import { ConversationContext } from '../../../core/conversation/ConversationContext';
-import { IProvider, ModelCompletionOptions, ModelCompletionResponse, ChatMessage, MessageContent } from '../../../core/llm/providers/IProvider';
-import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult } from '../../../core/llm/IPromptEngine';
+import { ConversationContext } from '../../core/conversation/ConversationContext';
+import { IProvider, ModelCompletionOptions, ModelCompletionResponse, ChatMessage, MessageContent } from '../../core/llm/providers/IProvider';
+import { IPromptEngine, PromptComponents, ModelTargetInfo, PromptEngineResult } from '../../core/llm/IPromptEngine';
 import type { Tool, ToolDefinition } from './tools/Tool';
-import type { ITool } from '../../../core/tools/ITool';
-import type { UIComponentSpecification } from '../../../core/utils/IUIComponent';
-import { IUtilityAI } from '../../../cognition/nlp/ai_utilities/IUtilityAI';
-import { MessageRole } from '../../../core/conversation/ConversationMessage';
+import type { ITool } from '../../core/tools/ITool';
+import type { UIComponentSpecification } from '../../core/utils/IUIComponent';
+import { IUtilityAI } from '../../cognition/nlp/ai_utilities/IUtilityAI';
+import { MessageRole } from '../../core/conversation/ConversationMessage';
 import { AgentPoolConfig } from './AgentPoolConfig';
 import { IAgentFactory } from './IAgentFactory';
 // AIModelProviderManager import moved to IAgentFactory (used for AgentDependencies type)
@@ -133,7 +133,7 @@ export interface AgentConfig {
    * @type {Partial<import('../../core/llm/IPromptEngine').PromptEngineConfig>}
    * @optional
    */
-  promptEngineConfigOverrides?: Partial<import('../../../core/llm/IPromptEngine').PromptEngineConfig>;
+  promptEngineConfigOverrides?: Partial<import('../../core/llm/IPromptEngine').PromptEngineConfig>;
 
   /**
    * Optional: Identifier for a specific `IUtilityAI` service instance that this agent
@@ -169,7 +169,7 @@ export interface AgentConfig {
    * `profiles.sealedAutonomous()` for preset configurations.
    * @optional
    */
-  provenanceConfig?: import('../../../safety/provenance/types.js').ProvenanceSystemConfig;
+  provenanceConfig?: import('../../safety/provenance/types.js').ProvenanceSystemConfig;
 
   /**
    * Allows for adding any other agent-specific custom settings or metadata.

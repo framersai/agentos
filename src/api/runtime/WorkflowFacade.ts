@@ -51,7 +51,7 @@ import type {
 } from '../../orchestration/workflows/storage/IWorkflowStore';
 import { InMemoryWorkflowStore } from '../../orchestration/workflows/storage/InMemoryWorkflowStore';
 import { WorkflowRuntime } from '../../orchestration/workflows/runtime/WorkflowRuntime';
-import { AgencyRegistry } from '../../orchestration/agents/agency/AgencyRegistry';
+import { AgencyRegistry } from '../../agents/agency/AgencyRegistry';
 
 import type { AgentOSInput } from '../types/AgentOSInput';
 import { AgentOSServiceError } from '../errors';

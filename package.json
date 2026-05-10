@@ -160,6 +160,26 @@
       "default": "./dist/orchestration/pipeline/read/index.js",
       "types": "./dist/orchestration/pipeline/read/index.d.ts"
     },
+    "./agents": {
+      "import": "./dist/agents/index.js",
+      "default": "./dist/agents/index.js",
+      "types": "./dist/agents/index.d.ts"
+    },
+    "./agents/agency": {
+      "import": "./dist/agents/agency/index.js",
+      "default": "./dist/agents/agency/index.js",
+      "types": "./dist/agents/agency/index.d.ts"
+    },
+    "./agents/definitions": {
+      "import": "./dist/agents/definitions/index.js",
+      "default": "./dist/agents/definitions/index.js",
+      "types": "./dist/agents/definitions/index.d.ts"
+    },
+    "./agents/*": {
+      "import": "./dist/agents/*.js",
+      "default": "./dist/agents/*.js",
+      "types": "./dist/agents/*.d.ts"
+    },
     "./cognition/memory": {
       "import": "./dist/cognition/memory/index.js",
       "default": "./dist/cognition/memory/index.js",
