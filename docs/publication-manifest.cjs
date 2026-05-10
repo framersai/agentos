@@ -14,19 +14,24 @@ const DOC_SEARCH_SUBDIRS = [
 
 const SECTION_ORDER = [
   'Getting Started',
-  'Benchmarks',
+  'Concepts',
   'Architecture',
-  'Orchestration',
+  'Cognitive Pipeline',
   'Memory',
   'RAG & Retrieval',
-  'Guardrails & Security',
+  'Personas',
+  'Orchestration',
+  'Tools',
+  'Capabilities',
+  'AI & LLM',
   'Voice & Speech',
   'Media Generation',
   'Channels & Social',
-  'AI & LLM',
-  'Advanced',
+  'Guardrails & Safety',
+  'Provenance',
   'Skills',
   'Extensions',
+  'Benchmarks',
   'Wunderland',
 ];
 
@@ -124,19 +129,19 @@ const publicationManifest = [
     categoryIndex: true,
   }),
 
-  agentosDoc('ARCHITECTURE.md', 'architecture/system-architecture.md', 'System Architecture', 'Architecture', 1),
-  agentosDoc('GMI.md', 'architecture/gmi.md', 'Generalized Mind Instances (GMIs)', 'Architecture', 1.5),
-  agentosDoc('PLATFORM_SUPPORT.md', 'architecture/platform-support.md', 'Platform Support', 'Architecture', 2),
+  agentosDoc('ARCHITECTURE.md', 'architecture/system-architecture.md', 'System Architecture', 'Concepts', 1),
+  agentosDoc('GMI.md', 'architecture/gmi.md', 'Generalized Mind Instances (GMIs)', 'Concepts', 1.5),
+  agentosDoc('PLATFORM_SUPPORT.md', 'architecture/platform-support.md', 'Platform Support', 'Concepts', 2),
   extraDoc('docs/architecture/runtime-status-matrix.md', 'architecture/runtime-status-matrix.md', 'Runtime Status Matrix', 'Architecture', 3),
-  extraDoc('docs/architecture/sandbox-security.md', 'architecture/sandbox-security.md', 'Sandbox Security', 'Architecture', 4),
+  extraDoc('docs/architecture/sandbox-security.md', 'architecture/sandbox-security.md', 'Sandbox Security', 'Guardrails & Safety', 4),
   extraDoc('docs/architecture/cli-subprocess.md', 'architecture/cli-subprocess.md', 'CLI Subprocess Bridge', 'Architecture', 5, {
     sidebar: false,
   }),
-  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Architecture', 6),
+  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Tools', 6),
   siteDoc('architecture/skills-vs-tools-vs-extensions.md', 'architecture/skills-vs-tools-vs-extensions.md', 'Skills vs Tools vs Extensions', 'Architecture', 8.5),
   agentosDoc('OBSERVABILITY.md', 'architecture/observability.md', 'Observability (OpenTelemetry)', 'Architecture', 9),
   agentosDoc('LOGGING.md', 'architecture/logging.md', 'Logging (Pino + OpenTelemetry)', 'Architecture', 10),
-  agentosDoc('TOOL_CALLING_AND_LOADING.md', 'architecture/tool-calling-and-loading.md', 'Tool Calling & Lazy Loading', 'Architecture', 11),
+  agentosDoc('TOOL_CALLING_AND_LOADING.md', 'architecture/tool-calling-and-loading.md', 'Tool Calling & Lazy Loading', 'Tools', 11),
   agentosDoc('LLM_PROVIDERS.md', 'architecture/llm-providers.md', 'LLM Providers', 'Architecture', 12),
   agentosDoc('STREAMING_SEMANTICS.md', 'architecture/streaming-semantics.md', 'Streaming Semantics', 'Architecture', 13),
   agentosDoc('OAUTH_AUTH.md', 'architecture/oauth-auth.md', 'OAuth Auth', 'Architecture', 14),
@@ -169,7 +174,7 @@ const publicationManifest = [
   agentosDoc('CHECKPOINTING.md', 'features/checkpointing.md', 'Checkpointing and Time-Travel', 'Orchestration', 6),
   agentosDoc('PLANNING_ENGINE.md', 'features/planning-engine.md', 'Planning Engine', 'Orchestration', 7),
   agentosDoc('HUMAN_IN_THE_LOOP.md', 'features/human-in-the-loop.md', 'Human-in-the-Loop', 'Orchestration', 8),
-  agentosDoc('COGNITIVE_PIPELINE.md', 'features/cognitive-pipeline.md', 'Cognitive Pipeline (Smart Per-Message Orchestration)', 'Orchestration', 9),
+  agentosDoc('COGNITIVE_PIPELINE.md', 'features/cognitive-pipeline.md', 'Cognitive Pipeline (Smart Per-Message Orchestration)', 'Cognitive Pipeline', 9),
 
   // Overview (start here)
   agentosDoc('MEMORY_SYSTEM_OVERVIEW.md', 'features/memory-system-overview.md', 'Memory System Overview', 'Memory', 1),
@@ -177,7 +182,7 @@ const publicationManifest = [
 
   // Cognitive deep-dive
   agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 3),
-  agentosDoc('HEXACO_PERSONALITY.md', 'features/hexaco-personality.md', 'HEXACO Personality', 'Memory', 4),
+  agentosDoc('HEXACO_PERSONALITY.md', 'features/hexaco-personality.md', 'HEXACO Personality', 'Personas', 4),
   agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 5),
   agentosDoc('WORKING_MEMORY.md', 'features/working-memory.md', 'Working Memory', 'Memory', 6),
 
@@ -213,20 +218,20 @@ const publicationManifest = [
   agentosDoc('RAG_MEMORY_CONFIGURATION.md', 'features/rag-memory.md', 'RAG Memory Configuration', 'RAG & Retrieval', 1),
   agentosDoc('HYDE_RETRIEVAL.md', 'features/hyde-retrieval.md', 'HyDE Retrieval', 'RAG & Retrieval', 2),
   agentosDoc('DEEP_RESEARCH.md', 'features/deep-research.md', 'Deep Research & Query Classification', 'RAG & Retrieval', 3),
-  agentosDoc('QUERY_ROUTER.md', 'features/query-routing.md', 'Query Router', 'RAG & Retrieval', 4),
-  agentosDoc('MEMORY_ROUTER.md', 'features/memory-router.md', 'Memory Router (Recall-Stage Smart Orchestration)', 'RAG & Retrieval', 4.1),
-  agentosDoc('INGEST_ROUTER.md', 'features/ingest-router.md', 'Ingest Router (Input-Stage Smart Orchestration)', 'RAG & Retrieval', 4.2),
-  agentosDoc('READ_ROUTER.md', 'features/read-router.md', 'Read Stage Routing (Read Strategy + Reader Model Dispatch)', 'RAG & Retrieval', 4.3),
-  agentosDoc('ADAPTIVE_MEMORY_ROUTER.md', 'features/adaptive-memory-router.md', 'Adaptive Memory Router (Self-Calibrating)', 'RAG & Retrieval', 4.4),
+  agentosDoc('QUERY_ROUTER.md', 'features/query-routing.md', 'Query Router', 'Cognitive Pipeline', 4),
+  agentosDoc('MEMORY_ROUTER.md', 'features/memory-router.md', 'Memory Router (Recall-Stage Smart Orchestration)', 'Cognitive Pipeline', 4.1),
+  agentosDoc('INGEST_ROUTER.md', 'features/ingest-router.md', 'Ingest Router (Input-Stage Smart Orchestration)', 'Cognitive Pipeline', 4.2),
+  agentosDoc('READ_ROUTER.md', 'features/read-router.md', 'Read Stage Routing (Read Strategy + Reader Model Dispatch)', 'Cognitive Pipeline', 4.3),
+  agentosDoc('ADAPTIVE_MEMORY_ROUTER.md', 'features/adaptive-memory-router.md', 'Adaptive Memory Router (Self-Calibrating)', 'Cognitive Pipeline', 4.4),
   siteDoc('features/citation-verification.md', 'features/citation-verification.md', 'Citation Verification', 'RAG & Retrieval', 4.5),
   siteDoc('features/reranker-chain.md', 'features/reranker-chain.md', 'Reranker Chain', 'RAG & Retrieval', 4.6),
   agentosDoc('MULTIMODAL_RAG.md', 'features/multimodal-rag.md', 'Multimodal RAG (Image + Audio)', 'RAG & Retrieval', 5),
   agentosDoc('MEMORY_DOCUMENT_INGESTION.md', 'features/memory-document-ingestion.md', 'Document Ingestion', 'RAG & Retrieval', 6),
 
-  agentosDoc('GUARDRAILS_USAGE.md', 'features/guardrails.md', 'Guardrails', 'Guardrails & Security', 1),
-  staticDoc('features/guardrails-architecture.md', 'features/guardrails-architecture.md', 'Guardrails Architecture', 'Guardrails & Security', 1.5),
-  agentosDoc('CREATING_GUARDRAILS.md', 'features/creating-guardrails.md', 'Creating Custom Guardrails', 'Guardrails & Security', 2),
-  agentosDoc('SAFETY_PRIMITIVES.md', 'features/safety-primitives.md', 'Safety Primitives', 'Guardrails & Security', 3),
+  agentosDoc('GUARDRAILS_USAGE.md', 'features/guardrails.md', 'Guardrails', 'Guardrails & Safety', 1),
+  staticDoc('features/guardrails-architecture.md', 'features/guardrails-architecture.md', 'Guardrails Architecture', 'Guardrails & Safety', 1.5),
+  agentosDoc('CREATING_GUARDRAILS.md', 'features/creating-guardrails.md', 'Creating Custom Guardrails', 'Guardrails & Safety', 2),
+  agentosDoc('SAFETY_PRIMITIVES.md', 'features/safety-primitives.md', 'Safety Primitives', 'Guardrails & Safety', 3),
 
   agentosDoc('VOICE_PIPELINE.md', 'features/voice-pipeline.md', 'Voice Pipeline', 'Voice & Speech', 1),
   agentosDoc('SPEECH_PROVIDERS.md', 'features/speech-providers.md', 'Speech Providers', 'Voice & Speech', 2),
@@ -245,7 +250,7 @@ const publicationManifest = [
   agentosDoc('SOCIAL_POSTING.md', 'features/social-posting.md', 'Social Posting', 'Channels & Social', 2),
   extraDoc('apps/wunderland-sol/docs-site/docs/guides/browser-automation.md', 'features/browser-automation.md', 'Browser Automation', 'Channels & Social', 3),
 
-  agentosDoc('STRUCTURED_OUTPUT.md', 'features/structured-output.md', 'Structured Output', 'AI & LLM', 1),
+  agentosDoc('STRUCTURED_OUTPUT.md', 'features/structured-output.md', 'Structured Output', 'Tools', 1),
   siteDoc('features/llm-output-validation.md', 'features/llm-output-validation.md', 'LLM Output Validation', 'AI & LLM', 1.5),
   agentosDoc('EVALUATION.md', 'features/evaluation-guide.md', 'Evaluation Guide', 'AI & LLM', 2),
   agentosDoc('COST_OPTIMIZATION.md', 'features/cost-optimization.md', 'Cost Optimization', 'AI & LLM', 3),
@@ -253,39 +258,39 @@ const publicationManifest = [
   agentosDoc('EVALUATION_FRAMEWORK.md', 'features/evaluation-framework.md', 'Evaluation Framework', 'AI & LLM', 4, {
     sidebar: false,
   }),
-  agentosDoc('STRUCTURED_OUTPUT_API.md', 'features/structured-output-api.md', 'Structured Output API (generateObject / streamObject)', 'AI & LLM', 5, {
+  agentosDoc('STRUCTURED_OUTPUT_API.md', 'features/structured-output-api.md', 'Structured Output API (generateObject / streamObject)', 'Tools', 5, {
     sidebar: false,
   }),
 
-  agentosDoc('CAPABILITY_DISCOVERY.md', 'features/capability-discovery.md', 'Capability Discovery', 'Advanced', 1),
-  agentosDoc('EMERGENT_CAPABILITIES.md', 'features/emergent-capabilities.md', 'Emergent Capabilities', 'Advanced', 2),
-  agentosDoc('PARACOSM.md', 'features/paracosm.md', 'Paracosm — Agent Swarm Simulation for Structured World Modeling with LLMs', 'Advanced', 3),
+  agentosDoc('CAPABILITY_DISCOVERY.md', 'features/capability-discovery.md', 'Capability Discovery', 'Capabilities', 1),
+  agentosDoc('EMERGENT_CAPABILITIES.md', 'features/emergent-capabilities.md', 'Emergent Capabilities', 'Capabilities', 2),
+  agentosDoc('PARACOSM.md', 'features/paracosm.md', 'Paracosm — Agent Swarm Simulation for Structured World Modeling with LLMs', 'Wunderland', 3),
   extensionDoc('AGENCY_COLLABORATION_EXAMPLE.md', 'features/agency-collaboration.md', 'Agency Collaboration', 3, {
-    section: 'Advanced',
+    section: 'Orchestration',
   }),
-  agentosDoc('AGENT_COMMUNICATION.md', 'features/agent-communication.md', 'Agent Communication', 'Advanced', 4),
-  agentosDoc('RECURSIVE_SELF_BUILDING_AGENTS.md', 'features/recursive-self-building.md', 'Recursive Self-Building Agents', 'Advanced', 5),
-  agentosDoc('MEMORY_CONSOLIDATION.md', 'features/memory-consolidation.md', 'Self-Improving Memory', 'Advanced', 6, {
+  agentosDoc('AGENT_COMMUNICATION.md', 'features/agent-communication.md', 'Agent Communication', 'Orchestration', 4),
+  agentosDoc('RECURSIVE_SELF_BUILDING_AGENTS.md', 'features/recursive-self-building.md', 'Recursive Self-Building Agents', 'Capabilities', 5),
+  agentosDoc('MEMORY_CONSOLIDATION.md', 'features/memory-consolidation.md', 'Self-Improving Memory', 'Memory', 6, {
     sidebar: false,
   }),
-  staticDoc('features/self-improving-agents.md', 'features/self-improving-agents.md', 'Self-Improving Agents', 'Advanced', 6.5),
-  agentosDoc('PROVENANCE_IMMUTABILITY.md', 'features/provenance-immutability.md', 'Provenance & Immutability', 'Advanced', 7),
-  agentosDoc('IMMUTABLE_AGENTS.md', 'features/immutable-agents.md', 'Immutable Agents', 'Advanced', 8),
-  agentosDoc('AGENT_CONFIG_EXPORT.md', 'features/agent-config-export.md', 'Agent Config Export & Import', 'Advanced', 9),
-  agentosDoc('DISCOVERY.md', 'features/discovery-guide.md', 'Capability Discovery Guide', 'Advanced', 10, {
+  staticDoc('features/self-improving-agents.md', 'features/self-improving-agents.md', 'Self-Improving Agents', 'Capabilities', 6.5),
+  agentosDoc('PROVENANCE_IMMUTABILITY.md', 'features/provenance-immutability.md', 'Provenance & Immutability', 'Provenance', 7),
+  agentosDoc('IMMUTABLE_AGENTS.md', 'features/immutable-agents.md', 'Immutable Agents', 'Provenance', 8),
+  agentosDoc('AGENT_CONFIG_EXPORT.md', 'features/agent-config-export.md', 'Agent Config Export & Import', 'Tools', 9),
+  agentosDoc('DISCOVERY.md', 'features/discovery-guide.md', 'Capability Discovery Guide', 'Capabilities', 10, {
     sidebar: false,
   }),
-  agentosDoc('PROVENANCE.md', 'features/provenance-guide.md', 'Provenance Guide', 'Advanced', 11, {
+  agentosDoc('PROVENANCE.md', 'features/provenance-guide.md', 'Provenance Guide', 'Provenance', 11, {
     sidebar: false,
   }),
-  agentosDoc('AGENCY_API.md', 'features/agency-api.md', 'Multi-Agent Agency API', 'Advanced', 12, {
+  agentosDoc('AGENCY_API.md', 'features/agency-api.md', 'Multi-Agent Agency API', 'Orchestration', 12, {
     sidebar: false,
   }),
-  agentosDoc('CLI_PROVIDERS.md', 'features/cli-providers.md', 'CLI Providers', 'Advanced', 13, {
+  agentosDoc('CLI_PROVIDERS.md', 'features/cli-providers.md', 'CLI Providers', 'AI & LLM', 13, {
     sidebar: false,
   }),
-  staticDoc('features/github-integration.md', 'features/github-integration.md', 'GitHub Integration', 'Advanced', 13.5),
-  staticDoc('features/document-export.md', 'features/document-export.md', 'Document Export', 'Advanced', 13.6),
+  staticDoc('features/github-integration.md', 'features/github-integration.md', 'GitHub Integration', 'Channels & Social', 13.5),
+  staticDoc('features/document-export.md', 'features/document-export.md', 'Document Export', 'Extensions', 13.6),
 
   entry({
     sourceType: 'canonical-guide',
