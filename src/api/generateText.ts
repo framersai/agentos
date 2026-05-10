@@ -342,6 +342,30 @@ export interface GenerateTextOptions {
    */
   hostPolicy?: HostLLMPolicy;
   /**
+   * Caller's intended content policy tier. When set to `'mature'` or
+   * `'private-adult'` AND no explicit `fallbackProviders` was supplied,
+   * the auto-built fallback chain is constructed via
+   * {@link buildPolicyAwareFallbackChain} instead of the default
+   * availability chain — prepending an uncensored OpenRouter model
+   * (Hermes 3 405B) so a content-policy refusal from the primary
+   * (gpt-4o, Claude, etc.) re-routes to a model that can complete
+   * the request rather than hard-failing.
+   *
+   * Combined with the {@link isContentPolicyRefusal} branch in
+   * {@link isRetryableError}, this also makes the existing fallback
+   * loop fire on OpenAI's 400 + `code: 'content_policy_violation'`
+   * — which the network-only retryable matrix would otherwise treat
+   * as a hard error.
+   *
+   * Has no effect for `safe`/`standard` tiers (or when omitted) —
+   * those keep the existing availability-only fallback behavior.
+   *
+   * Mirrors the existing `policyTier` parameter on
+   * {@link import('./generateImage.js').GenerateImageOptions} and
+   * {@link import('./editImage.js').EditImageOptions}.
+   */
+  policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
+  /**
    * Called before each LLM generation step.  Can inject memory context
    * into messages, sanitize input via guardrails, or modify the prompt.
    * Return a modified context to transform input, or void to pass through.
@@ -651,6 +675,76 @@ function formatPlanForPrompt(plan: Plan): string {
  */
 const RETRYABLE_HTTP_STATUSES = new Set([401, 402, 403, 429, 500, 502, 503, 504]);
 
+/**
+ * Detect content-policy refusals across providers so the fallback chain
+ * can route them to a more permissive model (typically uncensored
+ * OpenRouter for mature/private-adult callers). The provider matrix:
+ *
+ *   - OpenAI: HTTP 400 with `error.code: 'content_policy_violation'` or
+ *     `error.type: 'content_policy_violation'`. Also surfaces as a
+ *     400 with a `safety_violations` block on the structured-output
+ *     path, which message-greps catch via "content_policy".
+ *   - Anthropic: HTTP 400 with messages like "blocked by Anthropic's
+ *     usage policies" or "violates safety guidelines". Recent SDKs
+ *     also emit `error.type: 'content_filter'`.
+ *   - Gemini: Doesn't error — instead returns `finishReason: 'SAFETY'`
+ *     in the response. Caller-side detection catches that path; this
+ *     helper only matches the error-shaped variants because the
+ *     fallback chain only fires on thrown errors.
+ *   - OpenRouter: forwards the upstream provider's error mostly
+ *     verbatim, so the OpenAI/Anthropic patterns above also catch
+ *     OpenRouter routes against gpt-4o / claude.
+ *
+ * Returns true when the message + typed fields together indicate a
+ * content-policy refusal. The caller (the fallback loop in
+ * generateText) treats this as "retryable in the policy sense" so
+ * a content-policy fallback chain can fire on a 400 even though
+ * the network fallback chain wouldn't.
+ *
+ * @internal
+ */
+export function isContentPolicyRefusal(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as { code?: unknown }).code;
+  const errorType = (error as { type?: unknown }).type;
+  // Typed-field detection runs first — providers with structured error
+  // shapes are the reliable signal. Substring grep is the message-only
+  // fallback for older SDKs / wrapped errors.
+  if (typeof code === 'string') {
+    const c = code.toLowerCase();
+    if (c === 'content_policy_violation' || c === 'content_filter' || c === 'safety_violations') {
+      return true;
+    }
+  }
+  if (typeof errorType === 'string') {
+    const t = errorType.toLowerCase();
+    if (t === 'content_policy_violation' || t === 'content_filter' || t === 'safety_violations') {
+      return true;
+    }
+  }
+  // Nested OpenAI error envelope (httpStatus 400 with a nested
+  // `error.code` from `details`). Some agentos providers re-throw
+  // with the raw upstream JSON in `details.error.code`.
+  const details = (error as { details?: unknown }).details;
+  if (details && typeof details === 'object') {
+    const inner = (details as { error?: unknown }).error;
+    if (inner && typeof inner === 'object') {
+      const innerCode = (inner as { code?: unknown }).code;
+      const innerType = (inner as { type?: unknown }).type;
+      if (typeof innerCode === 'string'
+        && /content_policy|content_filter|safety_violation/i.test(innerCode)) {
+        return true;
+      }
+      if (typeof innerType === 'string'
+        && /content_policy|content_filter|safety_violation/i.test(innerType)) {
+        return true;
+      }
+    }
+  }
+  const msg = error.message ?? '';
+  return /content[_ ]policy|content filter|safety guidelines|safety policy|blocked by .*'s? usage policies|safety_violations|usage policies/i.test(msg);
+}
+
 export function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
 
@@ -670,6 +764,13 @@ export function isRetryableError(error: unknown): boolean {
   if (/requires more credits|insufficient credits|rate limit|quota|exceeded your current quota/i.test(msg)) {
     return true;
   }
+  // Content-policy refusals — the policy-aware fallback chain (see
+  // buildPolicyAwareFallbackChain) should fire on these so callers
+  // who tagged their request with policyTier=mature/private-adult
+  // get re-routed to an uncensored model instead of a hard error.
+  // Without this, OpenAI's 400 on a refusal escapes the fallback
+  // loop and the caller sees a raw provider error.
+  if (isContentPolicyRefusal(error)) return true;
   return false;
 }
 
@@ -715,6 +816,92 @@ export function buildFallbackChain(
     chain.push({ provider: 'gemini' });
   }
 
+  return chain;
+}
+
+/**
+ * Build a policy-tier-aware fallback chain. Used by callers that pass
+ * `policyTier: 'mature' | 'private-adult'` so refusals from the
+ * primary model (typically gpt-4o, Claude, Gemini — all of which
+ * moderate explicit content) re-route to an uncensored OpenRouter
+ * model instead of hard-failing the request.
+ *
+ * Chain order for mature / private-adult:
+ *   1. `nousresearch/hermes-3-llama-3.1-405b` on OpenRouter — leads
+ *      the uncensored leaderboard for instruction-following + long-
+ *      context comprehension. Same model the wilds-ai
+ *      companion-pipeline uses for identity generation on mature+
+ *      companions; battle-tested on real workloads.
+ *   2. `anthropic/claude-sonnet-4` on OpenRouter — Claude refuses
+ *      hard NSFW but is markedly more permissive than gpt-4o for
+ *      narrative analysis of explicit fiction (extracting characters
+ *      from a CAI-export with mild adult content, etc.). Acts as the
+ *      headroom band when Hermes 3 is rate-limited or down.
+ *   3. The standard {@link buildFallbackChain} suffix — keeps
+ *      availability fallback on top of the policy fallback so a
+ *      mature request that hits a Hermes 3 outage AND a Sonnet
+ *      outage still has gpt-4o-mini etc. to fall back to (which
+ *      will refuse on the explicit case but at least surfaces a
+ *      moderation error rather than a network error).
+ *
+ * For `safe` / `standard` tiers, this is identical to
+ * {@link buildFallbackChain} — no uncensored prefix needed. Callers
+ * that don't pass a tier should keep using the original builder.
+ *
+ * Auto-built fallbacks always require their own env keys; missing
+ * keys silently drop the entry rather than throwing, so a partial
+ * deploy still produces a usable (shorter) chain.
+ *
+ * @param tier - Caller's intended content tier. Mature/private-adult
+ *   triggers the uncensored prefix; safe/standard returns the
+ *   availability-only chain.
+ * @param excludeProvider - Provider to omit (typically the primary
+ *   that already failed). Mirrors {@link buildFallbackChain}.
+ * @returns Ordered fallback entries: uncensored prefix (when tier
+ *   warrants it) + availability suffix.
+ */
+export function buildPolicyAwareFallbackChain(
+  tier: 'safe' | 'standard' | 'mature' | 'private-adult' | undefined,
+  excludeProvider?: string,
+): FallbackProviderEntry[] {
+  const isMatureTier = tier === 'mature' || tier === 'private-adult';
+  if (!isMatureTier) {
+    return buildFallbackChain(excludeProvider);
+  }
+
+  const chain: FallbackProviderEntry[] = [];
+
+  // Hermes 3 405B leads — uncensored, large, instruction-following
+  // proven on the wilds-ai identity-generation path. Skipped when
+  // OPENROUTER_API_KEY is absent rather than throwing; the suffix
+  // chain may still produce a usable fallback.
+  if (process.env.OPENROUTER_API_KEY) {
+    chain.push({
+      provider: 'openrouter',
+      model: 'nousresearch/hermes-3-llama-3.1-405b',
+    });
+    // Sonnet via OpenRouter as the second uncensored band. We keep
+    // it on OpenRouter (not direct Anthropic) because the chain's
+    // `excludeProvider` semantics treat each entry as a provider
+    // ID — using `anthropic` here would lock out the suffix's
+    // Anthropic fallback. OpenRouter routes Claude under its own
+    // billing surface, so the slot is independent.
+    chain.push({
+      provider: 'openrouter',
+      model: 'anthropic/claude-sonnet-4',
+    });
+  }
+
+  // Append the standard availability chain. Filter out duplicates
+  // since the uncensored prefix may have already added openrouter.
+  const availability = buildFallbackChain(excludeProvider);
+  for (const entry of availability) {
+    const alreadyInChain = chain.some(
+      (existing) =>
+        existing.provider === entry.provider && existing.model === entry.model,
+    );
+    if (!alreadyInChain) chain.push(entry);
+  }
   return chain;
 }
 
@@ -1201,8 +1388,13 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
     // ── Fallback chain ────────────────────────────────────────────────
     // Resolve fallback chain: caller-supplied wins, undefined triggers
     // auto-build from env keys, empty array explicitly opts out.
+    // When `policyTier` is mature/private-adult, the auto-build picks
+    // the policy-aware chain (Hermes 3 + Sonnet uncensored prefix +
+    // standard availability suffix) instead of the availability-only
+    // chain. Caller-supplied chains are respected verbatim regardless
+    // of tier — explicit beats implicit.
     const effectiveFallbacks = opts.fallbackProviders === undefined
-      ? buildFallbackChain(metricProviderId)
+      ? buildPolicyAwareFallbackChain(opts.policyTier, metricProviderId)
       : opts.fallbackProviders;
 
     if (

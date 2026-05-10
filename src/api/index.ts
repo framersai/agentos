@@ -19,7 +19,9 @@ export type { AgentOSPendingExternalToolRequest } from './types/AgentOSPendingEx
 export {
   generateText,
   isRetryableError,
+  isContentPolicyRefusal,
   buildFallbackChain,
+  buildPolicyAwareFallbackChain,
   type GenerateTextOptions,
   type GenerateTextResult,
   type FallbackProviderEntry,

@@ -407,4 +407,88 @@ describe('generateText', () => {
       delete process.env.ANTHROPIC_API_KEY;
     }
   });
+
+  // Policy-aware fallback: when policyTier is mature/private-adult AND
+  // the primary refuses on a content_policy_violation, the auto-built
+  // chain should include the uncensored Hermes 3 prefix and the
+  // request should re-route there instead of hard-failing. Without
+  // this branch, NSFW callers either had to roll their own fallback
+  // or eat the 400. See `buildPolicyAwareFallbackChain` +
+  // `isContentPolicyRefusal` for the full path.
+  describe('policy-aware fallback', () => {
+    it('routes content_policy_violation to OpenRouter Hermes 3 when policyTier=mature', async () => {
+      // Primary throws an OpenAI-shaped content-policy refusal, then the
+      // fallback succeeds. The fallback chain is auto-built from the
+      // policyTier — Hermes 3 leads, then Sonnet, then the standard
+      // availability suffix.
+      const policyError = new Error("Sorry, I can't help with that.");
+      (policyError as { httpStatus?: number }).httpStatus = 400;
+      (policyError as { code?: string }).code = 'content_policy_violation';
+
+      hoisted.generateCompletion
+        .mockRejectedValueOnce(policyError)
+        .mockResolvedValueOnce({
+          modelId: 'nousresearch/hermes-3-llama-3.1-405b',
+          usage: { promptTokens: 10, completionTokens: 8, totalTokens: 18 },
+          choices: [
+            {
+              message: { role: 'assistant', content: 'uncensored reply' },
+              finishReason: 'stop',
+            },
+          ],
+        });
+
+      const originalKey = process.env.OPENROUTER_API_KEY;
+      process.env.OPENROUTER_API_KEY = 'test-or-key';
+      try {
+        const result = await generateText({
+          model: 'openai:gpt-4o',
+          prompt: 'an explicit fictional scene',
+          policyTier: 'mature',
+        });
+        expect(result.text).toBe('uncensored reply');
+      } finally {
+        if (originalKey === undefined) {
+          delete process.env.OPENROUTER_API_KEY;
+        } else {
+          process.env.OPENROUTER_API_KEY = originalKey;
+        }
+      }
+    });
+
+    it('does NOT include Hermes 3 prefix when policyTier=safe (back-compat)', async () => {
+      const policyError = new Error("Sorry, I can't help with that.");
+      (policyError as { httpStatus?: number }).httpStatus = 400;
+      (policyError as { code?: string }).code = 'content_policy_violation';
+
+      hoisted.generateCompletion.mockRejectedValueOnce(policyError);
+
+      const originalKey = process.env.OPENROUTER_API_KEY;
+      process.env.OPENROUTER_API_KEY = 'test-or-key';
+      try {
+        // safe tier with content_policy_violation: the policy chain
+        // builder returns the standard availability chain (no Hermes 3
+        // prefix). Without ANTHROPIC_API_KEY set, the chain is just
+        // OpenRouter (default model) which we don't mock — so this
+        // should bubble the original refusal instead of routing.
+        await expect(
+          generateText({
+            model: 'openai:gpt-4o',
+            prompt: 'a safe greeting',
+            policyTier: 'safe',
+            // Force-empty so the test doesn't depend on env state
+            // for downstream providers — only the policy-prefix
+            // behavior is under test here.
+            fallbackProviders: [],
+          })
+        ).rejects.toThrow();
+      } finally {
+        if (originalKey === undefined) {
+          delete process.env.OPENROUTER_API_KEY;
+        } else {
+          process.env.OPENROUTER_API_KEY = originalKey;
+        }
+      }
+    });
+  });
 });

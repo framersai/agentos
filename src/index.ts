@@ -203,7 +203,13 @@ export {
 } from './core/config/extensionSecrets.js';
 
 // --- High-Level API (AI SDK style) ---
-export { generateText, isRetryableError, buildFallbackChain } from './api/generateText.js';
+export {
+  generateText,
+  isRetryableError,
+  isContentPolicyRefusal,
+  buildFallbackChain,
+  buildPolicyAwareFallbackChain,
+} from './api/generateText.js';
 export type {
   GenerateTextOptions,
   GenerateTextResult,

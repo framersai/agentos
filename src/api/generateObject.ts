@@ -169,6 +169,24 @@ export interface GenerateObjectOptions<T extends ZodType> {
    * Called when a fallback provider is about to be tried.
    */
   onFallback?: (error: Error, fallbackProvider: string) => void;
+
+  /**
+   * Caller's intended content policy tier. Forwarded to
+   * {@link import('./generateText.js').GenerateTextOptions.policyTier}
+   * so structured-output callers get the same policy-aware fallback
+   * behavior as plain text callers — mature/private-adult requests
+   * auto-route refusals to an uncensored OpenRouter model instead of
+   * hard-failing on a content_policy_violation.
+   *
+   * Particularly relevant here because OpenAI's strict structured-
+   * output mode (`response_format: json_schema`) is the most
+   * aggressively-moderated path on the platform; a NSFW story
+   * extraction tagged with `policyTier: 'mature'` will pre-empt the
+   * 422 by routing to Hermes 3 (which honors the looser
+   * `json_object` mode that {@link generateObject} falls back to for
+   * non-OpenAI providers).
+   */
+  policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
 }
 
 /**
@@ -435,6 +453,12 @@ export async function generateObject<T extends ZodType>(
       baseUrl: opts.baseUrl,
       fallbackProviders: opts.fallbackProviders,
       onFallback: opts.onFallback,
+      // Forward the caller's tier so generateText auto-builds a
+      // policy-aware fallback chain on a content_policy_violation
+      // from the primary (gpt-4o on the strict-JSON path is the
+      // most-moderated route on the platform — single most common
+      // structured-output failure mode for mature callers).
+      policyTier: opts.policyTier,
       _responseFormat: responseFormat,
     });
 
