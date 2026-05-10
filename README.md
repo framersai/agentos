@@ -209,7 +209,7 @@ Stages 2 and 3 reuse the Stage 1 classification, so the full pipeline costs **on
 | `MemoryRouter` | [`@framers/agentos/memory-router`](https://docs.agentos.sh/features/memory-router) | canonical-hybrid vs observational-memory-v10 vs v11 |
 | `ReaderRouter` | [`@framers/agentos/memory-router`](https://docs.agentos.sh/features/memory-router) | gpt-4o vs gpt-5-mini per category |
 
-[Cognitive Pipeline docs →](https://docs.agentos.sh/features/cognitive-pipeline) · [Architecture deep dive →](https://docs.agentos.sh/blog/2026/04/10/cognitive-memory-architecture-deep-dive) · [Beyond RAG →](https://docs.agentos.sh/blog/2026/03/31/cognitive-memory-beyond-rag)
+[Cognitive Memory docs →](https://docs.agentos.sh/features/cognitive-memory) · [Cognitive Pipeline →](https://docs.agentos.sh/features/cognitive-pipeline) · [Memory System Overview →](https://docs.agentos.sh/features/memory-system-overview)
 
 ---
 
