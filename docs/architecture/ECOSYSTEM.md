@@ -197,25 +197,30 @@ We welcome contributions to any repository in the ecosystem:
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Your Application                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    @framers/agentos                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   AgentOS   │  │     GMI     │  │   Tool Orchestrator │  │
-│  │   Runtime   │  │   Manager   │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-          │                   │                    │
-          ▼                   ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ sql-storage-    │  │    agentos-     │  │   LLM Providers │
-│ adapter         │  │    extensions   │  │  (OpenAI, etc.) │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
+```mermaid
+flowchart TD
+    App["Your Application"]:::input
+
+    subgraph core["@framers/agentos"]
+        direction LR
+        Runtime["AgentOS Runtime"]:::process
+        GMI["GMI Manager"]:::process
+        Tools["Tool Orchestrator"]:::process
+    end
+
+    Storage["sql-storage-adapter<br/><i>SQLite · Postgres · IndexedDB</i>"]:::data
+    Ext["agentos-extensions<br/><i>110 extensions, 88 skills</i>"]:::data
+    LLM["LLM providers<br/><i>OpenAI, Anthropic, Gemini, …</i>"]:::external
+
+    App --> core
+    Runtime --> Storage
+    GMI --> Ext
+    Tools --> LLM
+
+    classDef input fill:#cffafe,stroke:#0891b2,color:#0e7490
+    classDef process fill:#eef2ff,stroke:#6366f1,color:#3730a3
+    classDef data fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    classDef external fill:#f3e8ff,stroke:#8b5cf6,color:#5b21b6
 ```
 
 ---
