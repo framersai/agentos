@@ -1,16 +1,19 @@
 ---
 title: 'Memory System Overview'
 sidebar_position: 1
-description: 'How AgentOS memory works end-to-end, how each component earned its place on the 85.6% LongMemEval-S / 70.2% LongMemEval-M result, and what got dropped along the way.'
+description: 'How AgentOS memory works end-to-end — classifier-driven dispatch, BM25 + dense + Cohere rerank, Ebbinghaus decay, consolidation — and how each piece earned its place on the 85.6% LongMemEval-S / 70.2% LongMemEval-M result.'
+keywords: [agentos memory, llm memory architecture, longmemeval, cognitive memory, bm25 dense rerank, cohere rerank, ebbinghaus decay, sql storage adapter, agent memory benchmark, hybrid retrieval]
 ---
 
 > A study-grade walkthrough of the AgentOS memory stack: ingest, recall, read, decay, consolidation, multimodal, the classifier-driven dispatch pipeline, the Cohere neural rerank, the LLM-as-judge orchestration tiers, and the path from "embed everything" to **85.6% on LongMemEval-S at $0.0090 per correct** with full provenance.
 
 ## TL;DR
 
-AgentOS memory is a cognitive architecture backed by [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) that decides per-query whether to touch memory at all, picks the right retrieval architecture, picks the right reader model, and grounds every operation in published cognitive science. Three classifier calls per query, one shared classification, a canonical hybrid retrieval pipeline (BM25 + dense + Cohere rerank-v3.5), and an Ebbinghaus-style decay/consolidation loop running in the background.
+Most agent memory libraries do one thing — embed every message, retrieve by similarity. AgentOS does six things, and the trick is deciding *which* of them runs on which query.
 
-Same memory code runs over SQLite (better-sqlite3), Postgres (pg + pgvector), IndexedDB (sql.js wrapper, browser/PWA), Capacitor SQLite (iOS/Android), Electron IPC, or in-memory via the adapter's auto-detection. The default is SQLite for offline-first deployments; production multi-tenant runs go to Postgres without changing any callsite.
+Three classifier calls per turn (sharing one classification). A canonical hybrid retrieval pipeline: BM25 + dense + Cohere rerank-v3.5. A six-signal cognitive composite scorer on top of the rerank. An Ebbinghaus decay loop running in the background. A consolidation pass that prunes, merges, and re-strengthens traces while the agent is otherwise quiet. And underneath all of it, a portable SQL brain — [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) — that runs on SQLite (better-sqlite3), Postgres (pg + pgvector), IndexedDB (sql.js, browser/PWA), Capacitor SQLite (iOS/Android), Electron IPC, or in-memory, without a callsite change.
+
+Same code, six backends, six judgement points per turn, one set of benchmarks: **85.6% on LongMemEval-S at $0.0090 per correct**, **70.2% on LongMemEval-M**.
 
 | Headline | Number | Compared with |
 |---|---|---|

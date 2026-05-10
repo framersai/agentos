@@ -1,16 +1,16 @@
+---
+description: "PlanningEngine — multi-step task planning for AgentOS agents. ReAct, Tree-of-Thoughts, Least-to-Most decomposition, Reflexion self-correction, autonomous loops, checkpoint/rollback, agency distribution across GMIs."
+keywords: [agent planning engine, react planning, tree of thoughts, llm task decomposition, least to most prompting, reflexion, autonomous agent loop, multi-step ai planning, agentos orchestration]
+---
+
 # AgentOS Planning Engine
 
-The Planning Engine is a core component of AgentOS that enables autonomous goal pursuit, task decomposition, and self-correcting execution plans using cognitive patterns like ReAct (Reasoning + Acting).
+> "Plans are worthless. Planning is everything."
+> — Dwight D. Eisenhower
 
-## Overview
+A single LLM call answers a single question. The moment you want an agent that researches across five sources, drafts a section, critiques its own draft, then revises — you need a thing that holds the goal in working memory across turns, decomposes it, runs steps, watches what came back, decides whether to advance or backtrack. That thing is `PlanningEngine`.
 
-The Planning Engine provides sophisticated cognitive capabilities for autonomous agents:
-
-- **Goal Decomposition**: Break complex goals into manageable subtasks
-- **Plan Generation**: Create multi-step execution plans with various strategies
-- **Self-Correction**: Refine plans based on execution feedback
-- **Autonomous Loops**: Pursue goals with minimal human intervention
-- **Agency Integration**: Distribute parallelizable work across GMIs
+Three collaborators compose into the engine: a **Plan Generator** that turns a goal into a multi-step plan (ReAct or Tree-of-Thoughts), a **Task Decomposer** that breaks each step further when needed (Least-to-Most prompting), and a **Self-Reflector** that critiques the plan after execution and proposes revisions (Reflexion). Underneath sits an **Execution Engine** that runs steps, checkpoints state, rolls back on failure, and ships an autonomous-loop variant that replans and retries until a budget is hit. Below that, three external systems the engine reaches into: LLM Provider Manager, the tool catalog, and the RAG system.
 
 ## Architecture
 

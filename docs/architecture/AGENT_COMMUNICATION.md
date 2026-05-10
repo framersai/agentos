@@ -1,19 +1,24 @@
+---
+description: "AgentCommunicationBus — structured messaging between AgentOS GMIs in a multi-agent agency. Point-to-point, broadcast, request/response, pub/sub, handoff, threading. Three layers: Message Router → Subscription Manager → Delivery Manager with retry, ACK, and audit."
+keywords: [agent communication bus, multi-agent messaging, pub/sub agents, agent handoff, multi-agent collaboration, agent runtime messaging, agentos agency]
+---
+
 # AgentOS Agent Communication Bus
 
 > **Live run**: side-by-side code + captured bus traffic (delegation + handoff between two GMIs) on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/agent-communication-bus.mjs`](https://github.com/framersai/agentos/blob/master/examples/agent-communication-bus.mjs).
 
-The Agent Communication Bus enables structured messaging between GMIs within an agency, supporting various communication patterns for multi-agent collaboration.
+Two agents in the same agency need to talk. They share a memory layer, they share a runtime, they share the same set of tools — but the moment one of them wants to *hand off* a task, or *ask* for a result, or *publish* an event the others might care about, you need a bus. Not a shared mutable object. Not a global emitter that drops messages on a hot path. A real message bus with routing rules, subscription filters, retry on failure, and a replayable history of who said what to whom.
 
-## Overview
+The Agent Communication Bus is that bus. Six message patterns, three internal layers, one API.
 
-The Communication Bus provides:
-
-- **Point-to-Point Messaging**: Direct messages between two agents
-- **Broadcast**: Messages to all agents in an agency
-- **Request-Response**: Synchronous-style communication
-- **Pub/Sub**: Topic-based messaging
-- **Handoff**: Structured task transfer between agents
-- **Threading**: Conversation tracking with threadId/inReplyTo
+| Pattern | Use it for |
+| --- | --- |
+| **Point-to-Point** | Direct message between two agents — *researcher → writer* with findings |
+| **Broadcast** | One message to every agent in the agency — *"world state has changed"* |
+| **Request-Response** | Synchronous-style query with a callback — *manager → specialist asking for a verdict* |
+| **Pub/Sub** | Topic-based — every agent subscribed to `events.tool-result` gets the next one |
+| **Handoff** | Structured task transfer with full context payload — moves ownership |
+| **Threading** | Conversation tracking with `threadId` + `inReplyTo` — multi-turn exchanges |
 
 ## Architecture
 
