@@ -654,6 +654,26 @@ The cross-reader frontier across all reader tiers and judge configurations spans
 
 LOCOMO's answer key has [6.4% ground-truth errors per Penfield Labs](https://dev.to/penfieldlabs/we-audited-locomo-64-of-the-answer-key-is-wrong-and-the-judge-accepts-up-to-63-of-intentionally-33lg) and the default judge accepts 62.81% of intentionally wrong answers. Any LOCOMO score gap below ~6 pp is inside judge noise. AgentOS reports LOCOMO with that caveat or not at all.
 
+### Feature comparison vs. other memory libraries
+
+The vendor table above measures accuracy at a matched reader. The table below measures *feature coverage*: which cognitive and operational concerns each library handles at all.
+
+| Feature | AgentOS Memory | mem0 | Cognee | Letta (MemGPT) | Mastra |
+|---|---|---|---|---|---|
+| **Storage** | SQLite/Postgres/IndexedDB/Capacitor via one adapter | Qdrant/Chroma/Postgres | Neo4j + vector | Postgres + Chroma | Postgres + Pinecone |
+| **Personality modulation** | HEXACO 6-trait encoding bias | — | — | — | — |
+| **Forgetting curve** | Ebbinghaus exponential | — | — | — | — |
+| **Spaced repetition** | Interval doubling, desirable difficulty | — | — | — | — |
+| **Working memory** | Baddeley slots (5-9, trait-modulated) | — | — | FIFO context window | Fixed sliding window |
+| **Mood-aware retrieval** | PAD mood congruence (0.15 weight) | — | — | — | — |
+| **Memory graph** | SQLite-backed with spreading activation | Simple key-value | Neo4j graph | — | — |
+| **Self-improvement** | 6-step consolidation (prune/merge/strengthen/derive/compact/reindex) | Manual CRUD | Batch re-processing | Edit-based | — |
+| **Retrieval signals** | 6-signal composite | Cosine similarity | Cosine + graph | Cosine similarity | Cosine similarity |
+| **Document ingestion** | 3-tier (PDF, DOCX, HTML, Markdown, CSV, JSON, URLs) | Text only | PDF, text | Text only | Text only |
+| **Import/Export** | SQLite, JSON, Markdown, Obsidian, ChatGPT, CSV | JSON | — | JSON | — |
+| **Offline-first** | Zero network required | Requires vector DB | Requires Neo4j | Requires server | Requires cloud |
+| **Provenance tracking** | Full source type, confidence, verification count | — | Basic | — | — |
+
 ---
 
 ## Reproducing the Numbers
@@ -751,13 +771,12 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit`.
 
 ## Further Reading
 
-- [Memory Architecture](./memory/MEMORY_ARCHITECTURE.md) — the three concentric API tiers (Memory Facade · AgentCognitiveMemory · CLI/Host), archive write-ahead model, subsystem wiring, competitor comparison
-- [Cognitive Memory](./memory/COGNITIVE_MEMORY.md) — full primary-source citations for every cognitive-science model used
+- [Cognitive Memory](./memory/COGNITIVE_MEMORY.md) — full primary-source citations for every cognitive-science model used, plus the 8-mechanism implementation reference
+- [Memory Operations](./MEMORY_OPERATIONS.md) — auto-ingest pipeline, agent-facing memory tools, import/export across 6 formats
 - [Cognitive Pipeline](./COGNITIVE_PIPELINE.md) — the classifier-driven dispatch composition
 - [Ingest Router](./INGEST_ROUTER.md), [Memory Router](./MEMORY_ROUTER.md), [Read Router](./READ_ROUTER.md) — per-stage primitives
 - [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) — self-calibration for non-LongMemEval workloads
 - [HyDE Retrieval](./memory/HYDE_RETRIEVAL.md), [Multimodal RAG](./memory/MULTIMODAL_RAG.md), [Memory Consolidation](./memory/MEMORY_CONSOLIDATION.md) — specialty topics
-- [Cognitive Mechanisms](./memory/COGNITIVE_MECHANISMS.md) — implementation guide for the 8 retrieval/consolidation mechanisms
 - [SQLite Brain Storage](./memory/MEMORY_STORAGE.md), [Postgres + pgvector Backend](./memory/POSTGRES_BACKEND.md) — backend-specific schema, WAL/MVCC tradeoffs, multi-tenant patterns
 - [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter) — full storage substrate: adapter matrix, SQL dialect translation, FTS abstraction, BLOB codec, cross-platform sync
 - [Bench Leaderboard](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md) — full benchmark tables with confidence intervals and per-category breakdowns

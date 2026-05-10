@@ -172,23 +172,18 @@ const publicationManifest = [
 
   // Overview (start here)
   agentosDoc('MEMORY_SYSTEM_OVERVIEW.md', 'features/memory-system-overview.md', 'Memory System Overview', 'Memory', 1),
-  agentosDoc('MEMORY_ARCHITECTURE.md', 'features/memory-architecture.md', 'Memory Architecture Overview', 'Memory', 2),
 
   // Cognitive deep-dive
   agentosDoc('COGNITIVE_MEMORY.md', 'features/cognitive-memory.md', 'Cognitive Memory', 'Memory', 3),
   agentosDoc('HEXACO_PERSONALITY.md', 'features/hexaco-personality.md', 'HEXACO Personality', 'Personas', 4),
   agentosDoc('SOUL_FILES.md', 'features/soul-files.md', 'Soul Files (per-agent identity in markdown)', 'Personas', 5),
-  agentosDoc('COGNITIVE_MECHANISMS.md', 'features/cognitive-mechanisms.md', 'Cognitive Mechanisms', 'Memory', 5),
   agentosDoc('WORKING_MEMORY.md', 'features/working-memory.md', 'Working Memory', 'Memory', 6),
 
-  // How to use it
-  agentosDoc('MEMORY_AUTO_INGEST.md', 'features/memory-auto-ingest.md', 'Memory Auto-Ingest', 'Memory', 8),
-  agentosDoc('MEMORY_TOOLS.md', 'features/memory-tools.md', 'Agent Memory Tools', 'Memory', 9),
-  agentosDoc('MEMORY_IMPORT_EXPORT.md', 'features/memory-import-export.md', 'Memory Import/Export', 'Memory', 10),
+  // How to use it — consolidated page (auto-ingest + agent tools + import/export)
+  agentosDoc('MEMORY_OPERATIONS.md', 'features/memory-operations.md', 'Memory Operations', 'Memory', 8),
 
-  // Scale & storage
-  agentosDoc('MEMORY_SCALING.md', 'features/memory-scaling.md', 'Memory Scaling (4-Tier Vector Storage)', 'Memory', 11),
-  agentosDoc('SQL_STORAGE_QUICKSTART.md', 'features/sql-storage.md', 'SQL Storage Quickstart', 'Memory', 12),
+  // Scale & storage (consolidated SQL adapter quickstart + 4-tier scaling path)
+  agentosDoc('SQL_STORAGE_QUICKSTART.md', 'features/sql-storage.md', 'Storage & Scaling', 'Memory', 12),
   // Hidden backend reference pages (linked from Scaling, not in nav)
   agentosDoc('CLIENT_SIDE_STORAGE.md', 'features/client-side-storage.md', 'Client-Side Storage', 'Memory', 13, {
     sidebar: false,

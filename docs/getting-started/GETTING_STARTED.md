@@ -418,7 +418,7 @@ Usage: { inputTokens: 312, outputTokens: 487, totalTokens: 799, estimatedCost: 0
 | Publish to social platforms                       | [SOCIAL_POSTING.md](./SOCIAL_POSTING.md)     |
 | Audit trails and tamper evidence                  | [PROVENANCE.md](./PROVENANCE.md)             |
 | Episodic, semantic, procedural memory             | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md) |
-| 8 core cognitive mechanisms (+ optional persona drift analysis) | [COGNITIVE_MECHANISMS.md](./COGNITIVE_MECHANISMS.md) |
+| 8 core cognitive mechanisms (+ optional persona drift analysis) | [COGNITIVE_MEMORY.md#mechanism-implementation-reference](./COGNITIVE_MEMORY.md#mechanism-implementation-reference) |
 | HEXACO personality traits and on/off configuration | [COGNITIVE_MEMORY.md](./COGNITIVE_MEMORY.md#1-hexaco-personality---encoding-weights) |
 | Testing and benchmarking agents                   | [EVALUATION.md](./EVALUATION.md)             |
 | Token-efficient capability discovery              | [DISCOVERY.md](./DISCOVERY.md)               |

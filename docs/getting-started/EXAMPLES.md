@@ -1026,7 +1026,7 @@ npx tsx examples/<file>.mjs
 - [SOCIAL_POSTING.md](../features/SOCIAL_POSTING.md) — social media publishing
 - [HIGH_LEVEL_API.md](./HIGH_LEVEL_API.md) — `AgentOS`, helper wrappers, and runtime tool registration
 - [COGNITIVE_MEMORY.md](../memory/COGNITIVE_MEMORY.md) — memory system
-- [COGNITIVE_MECHANISMS.md](../memory/COGNITIVE_MECHANISMS.md) — 8 neuroscience-backed mechanisms
+- [COGNITIVE_MEMORY.md#mechanism-implementation-reference](../memory/COGNITIVE_MEMORY.md#mechanism-implementation-reference) — 8 neuroscience-backed mechanisms (implementation reference)
 - [IMAGE_GENERATION.md](../features/IMAGE_GENERATION.md) — image provider setup
 - [EVALUATION.md](../features/EVALUATION.md) — testing and benchmarking
 - [AGENCY_API.md](../features/AGENCY_API.md) — full agency reference

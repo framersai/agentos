@@ -24,7 +24,7 @@ The cognitive memory system in AgentOS is built on that argument. Encoding stren
 The result is a memory that behaves more like a person remembering. The agent forgets the irrelevant. It holds onto what hit it hard. It pulls the thing that's adjacent in concept-space, not just the thing that's adjacent in vector-space. And — because every mechanism is HEXACO-modulated — the same input encodes differently depending on who is doing the remembering.
 
 :::tip Eight cognitive mechanisms layered on top
-On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms — reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive feeling-of-knowing, temporal gist, schema encoding, source-confidence decay, and emotion regulation. All HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See the [Cognitive Mechanisms Implementation Guide](./COGNITIVE_MECHANISMS.md) for hook points, APIs, and testing.
+On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms — reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive feeling-of-knowing, temporal gist, schema encoding, source-confidence decay, and emotion regulation. All HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See the [Mechanism Implementation Reference](#mechanism-implementation-reference) below for hook points, APIs, and testing.
 :::
 
 ## What it actually does, in five lines
@@ -855,6 +855,104 @@ AgentOS provides two complementary working memory systems:
 | Budget | 15% of prompt tokens | 5% of prompt tokens |
 
 Both are injected into the system prompt simultaneously. The persistent memory appears as `## Persistent Memory` before the cognitive slots. See [Persistent Working Memory](./WORKING_MEMORY.md) for details.
+
+---
+
+## Mechanism Implementation Reference {#mechanism-implementation-reference}
+
+The eight cognitive mechanisms live under `packages/agentos/src/memory/mechanisms/`. Each mechanism is a pure function with one mutation responsibility on a `MemoryTrace`. The `CognitiveMechanismsEngine` binds them to lifecycle hooks on `MemoryStore` and `MemoryPromptAssembler`.
+
+### Source-tree layout
+
+```
+packages/agentos/src/memory/mechanisms/
+├── types.ts                          # CognitiveMechanismsConfig + shared types
+├── defaults.ts                       # DEFAULT_MECHANISMS_CONFIG + resolveConfig()
+├── CognitiveMechanismsEngine.ts      # Lifecycle hook orchestrator
+├── retrieval/
+│   ├── Reconsolidation.ts            # Emotional drift on access
+│   ├── RetrievalInducedForgetting.ts # Competitor suppression
+│   ├── InvoluntaryRecall.ts          # Random memory surfacing
+│   └── MetacognitiveFOK.ts           # Feeling-of-knowing scoring
+├── consolidation/
+│   ├── TemporalGist.ts               # Verbatim→gist compression
+│   ├── SchemaEncoding.ts             # Schema-congruent detection
+│   ├── SourceConfidenceDecay.ts      # Source-type decay multipliers
+│   └── EmotionRegulation.ts          # Reappraisal & suppression
+└── index.ts                          # Barrel exports
+```
+
+### Lifecycle hook points
+
+| File | Method | Hook | When |
+|---|---|---|---|
+| `store/MemoryStore.ts` | `recordAccess()` | `engine.onAccess(trace, mood)` | After spaced-repetition update |
+| `store/MemoryStore.ts` | `query()` | `engine.onRetrieval(scored, candidates, cutoff, entities)` | After scoring, before return |
+| `prompt/MemoryPromptAssembler.ts` | `assembleMemoryContext()` | `engine.onPromptAssembly(allTraces, retrievedIds)` | Before final return |
+| `CognitiveMemoryManager.ts` | `initialize()` | Engine construction | Dynamic import when config present |
+
+The consolidation hook (`engine.onConsolidation()`) is wired into `ConsolidationLoop.run()` only when the loop is instantiated with a mechanisms-aware config.
+
+### Per-mechanism API
+
+Retrieval-time (synchronous):
+
+```typescript
+applyReconsolidation(trace: MemoryTrace, currentMood: PADState, config): void
+applyRetrievalInducedForgetting(retrieved, competitors, config): { suppressedIds: string[] }
+selectInvoluntaryMemory(allTraces, alreadyRetrievedIds, config): MemoryTrace | null
+detectFeelingOfKnowing(scoredCandidates, retrievalCutoff, config, queryEntities): MetacognitiveSignal[]
+```
+
+Consolidation-time (async; LLM gist extraction is opt-in):
+
+```typescript
+applyTemporalGist(traces, config, llmFn?): Promise<number>
+applySchemaEncoding(trace, traceEmbedding, clusterCentroids, config): SchemaEncodingResult
+applySourceConfidenceDecay(traces, config): number
+applyEmotionRegulation(traces, config): number
+```
+
+### HEXACO modulation
+
+`CognitiveMechanismsEngine` accepts optional `HexacoTraits` at construction. When provided, mechanism parameters are scaled by personality dimensions before any hook fires:
+
+```typescript
+this.mechanismsEngine = new CognitiveMechanismsEngine(config.cognitiveMechanisms, config.traits);
+```
+
+Modulation runs once via `applyPersonalityModulation()`. Trait-to-parameter scaling formulas live in `CognitiveMechanismsEngine.ts`.
+
+### Guard conditions
+
+- **Flashbulb immunity:** traces with `encodingStrength >= 0.9` are skipped by reconsolidation, RIF, temporal gist, and emotion regulation.
+- **Dead-trace protection:** RIF skips traces with `encodingStrength < 0.1`.
+- **Inactive skip:** all consolidation mechanisms skip `isActive === false` traces.
+- **Disabled bypass:** every mechanism returns immediately when `config.enabled === false`.
+
+### Rehydration
+
+Gisted or archived content can be inflated on demand via `CognitiveMemoryManager.rehydrate(traceId)`. Content does not decay while archived; age-based retention applies. The archive is backed by `IMemoryArchive` (default `SqlStorageMemoryArchive`), which uses the same `StorageAdapter` contract as `Brain`. Archive tables (`archived_traces`, `archive_access_log`) live in the same database when the adapter is shared. The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
+
+### Perspective encoding
+
+Events witnessed by multiple agents are rewritten through each witness's HEXACO personality, current mood, and relationships before encoding. The objective event is archived via `IMemoryArchive`; each witness receives an independent first-person trace. Perspective-encoded traces have their reconsolidation `driftRate` halved so retrieval-time drift does not compound the encoding-time shift. The `maxDriftPerTrace` cap (0.4) still bounds total drift. Gating: only `important`-tier witnesses with `event.importance >= 0.3` and entity overlap receive LLM rewrites; others fall back to objective encoding. Cost: ~$0.025/session on Haiku 4.5 for 5 NPCs.
+
+### Metadata storage
+
+Mechanism metadata is stored in `trace.structuredData.mechanismMetadata` (type `MechanismMetadata`), avoiding changes to the core `MemoryTrace` interface. The metadata persists in the vector store's metadata JSON column.
+
+### Testing
+
+Each mechanism is a pure function testable in isolation:
+
+```bash
+npx vitest run src/memory/mechanisms/
+npx vitest run src/memory/mechanisms/__tests__/retrieval.test.ts
+npx vitest run src/memory/mechanisms/__tests__/consolidation.test.ts
+npx vitest run src/memory/mechanisms/__tests__/engine.test.ts
+npx vitest run src/memory/mechanisms/__tests__/types.test.ts
+```
 
 ---
 

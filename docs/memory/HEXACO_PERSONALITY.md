@@ -401,6 +401,6 @@ Full citations are in the [Cognitive Memory page](./cognitive-memory.md#referenc
 ## See also
 
 - [Cognitive Memory](./cognitive-memory.md) — The full encoding/decay/retrieval architecture HEXACO modulates.
-- [Cognitive Mechanisms](./cognitive-mechanisms.md) — The eight (plus persona drift) optional neuroscience-grounded mechanisms layered on top of the substrate.
+- [Cognitive Memory — Mechanism Implementation Reference](./COGNITIVE_MEMORY.md#mechanism-implementation-reference) — The eight (plus persona drift) optional neuroscience-grounded mechanisms layered on top of the substrate.
 - [Working Memory](./working-memory.md) — Slot-based attention buffer.
 - [Emergent Capabilities](../emergent-capabilities.md) — Self-modification gates including `adapt_personality`.

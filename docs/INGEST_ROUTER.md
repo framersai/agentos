@@ -160,5 +160,5 @@ The shipping cost-points are illustrative averages on a typical OpenAI stack. Fo
 - [Cognitive Pipeline](./COGNITIVE_PIPELINE.md) — composition primitive
 - [Memory Router](./MEMORY_ROUTER.md) — recall stage sibling
 - [Read Router](./READ_ROUTER.md) — read stage sibling
-- [Memory Auto-Ingest](./MEMORY_AUTO_INGEST.md) — the underlying auto-ingest primitives this router orchestrates
+- [Memory Operations](./MEMORY_OPERATIONS.md#auto-ingest-pipeline) — the underlying auto-ingest primitives this router orchestrates
 - [Memory Document Ingestion](./MEMORY_DOCUMENT_INGESTION.md) — document-mode ingest pipeline
