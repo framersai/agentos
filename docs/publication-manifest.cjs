@@ -21,9 +21,8 @@ const SECTION_ORDER = [
   'RAG & Retrieval',
   'Personas',
   'Orchestration',
-  'Tools',
-  'Capabilities',
-  'AI & LLM',
+  'Tools & Capabilities',
+  'Model Quality & Cost',
   'Voice & Speech',
   'Media Generation',
   'Channels & Social',
@@ -32,6 +31,7 @@ const SECTION_ORDER = [
   'Skills',
   'Extensions',
   'Benchmarks',
+  'Paracosm',
   'Wunderland',
 ];
 
@@ -137,11 +137,11 @@ const publicationManifest = [
   extraDoc('docs/architecture/cli-subprocess.md', 'architecture/cli-subprocess.md', 'CLI Subprocess Bridge', 'Architecture', 5, {
     sidebar: false,
   }),
-  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Tools', 6),
+  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Tools & Capabilities', 6),
   siteDoc('architecture/skills-vs-tools-vs-extensions.md', 'architecture/skills-vs-tools-vs-extensions.md', 'Skills vs Tools vs Extensions', 'Architecture', 8.5),
   agentosDoc('OBSERVABILITY.md', 'architecture/observability.md', 'Observability (OpenTelemetry)', 'Architecture', 9),
   agentosDoc('LOGGING.md', 'architecture/logging.md', 'Logging (Pino + OpenTelemetry)', 'Architecture', 10),
-  agentosDoc('TOOL_CALLING_AND_LOADING.md', 'architecture/tool-calling-and-loading.md', 'Tool Calling & Lazy Loading', 'Tools', 11),
+  agentosDoc('TOOL_CALLING_AND_LOADING.md', 'architecture/tool-calling-and-loading.md', 'Tool Calling & Lazy Loading', 'Tools & Capabilities', 11),
   agentosDoc('LLM_PROVIDERS.md', 'architecture/llm-providers.md', 'LLM Providers', 'Architecture', 12),
   agentosDoc('STREAMING_SEMANTICS.md', 'architecture/streaming-semantics.md', 'Streaming Semantics', 'Architecture', 13),
   agentosDoc('OAUTH_AUTH.md', 'architecture/oauth-auth.md', 'OAuth Auth', 'Architecture', 14),
@@ -237,34 +237,34 @@ const publicationManifest = [
   agentosDoc('SOCIAL_POSTING.md', 'features/social-posting.md', 'Social Posting', 'Channels & Social', 2),
   extraDoc('apps/wunderland-sol/docs-site/docs/guides/browser-automation.md', 'features/browser-automation.md', 'Browser Automation', 'Channels & Social', 3),
 
-  agentosDoc('STRUCTURED_OUTPUT.md', 'features/structured-output.md', 'Structured Output', 'Tools', 1),
-  siteDoc('features/llm-output-validation.md', 'features/llm-output-validation.md', 'LLM Output Validation', 'AI & LLM', 1.5),
-  agentosDoc('EVALUATION.md', 'features/evaluation-guide.md', 'Evaluation Guide', 'AI & LLM', 2),
-  agentosDoc('COST_OPTIMIZATION.md', 'features/cost-optimization.md', 'Cost Optimization', 'AI & LLM', 3),
-  agentosDoc('UNCENSORED_CONTENT.md', 'features/uncensored-content.md', 'Uncensored Content & Policy-Tier Routing', 'AI & LLM', 3.5),
-  agentosDoc('EVALUATION_FRAMEWORK.md', 'features/evaluation-framework.md', 'Evaluation Framework', 'AI & LLM', 4, {
+  agentosDoc('STRUCTURED_OUTPUT.md', 'features/structured-output.md', 'Structured Output', 'Tools & Capabilities', 1),
+  siteDoc('features/llm-output-validation.md', 'features/llm-output-validation.md', 'LLM Output Validation', 'Model Quality & Cost', 1.5),
+  agentosDoc('EVALUATION.md', 'features/evaluation-guide.md', 'Evaluation Guide', 'Model Quality & Cost', 2),
+  agentosDoc('COST_OPTIMIZATION.md', 'features/cost-optimization.md', 'Cost Optimization', 'Model Quality & Cost', 3),
+  agentosDoc('UNCENSORED_CONTENT.md', 'features/uncensored-content.md', 'Uncensored Content & Policy-Tier Routing', 'Model Quality & Cost', 3.5),
+  agentosDoc('EVALUATION_FRAMEWORK.md', 'features/evaluation-framework.md', 'Evaluation Framework', 'Model Quality & Cost', 4, {
     sidebar: false,
   }),
-  agentosDoc('STRUCTURED_OUTPUT_API.md', 'features/structured-output-api.md', 'Structured Output API (generateObject / streamObject)', 'Tools', 5, {
+  agentosDoc('STRUCTURED_OUTPUT_API.md', 'features/structured-output-api.md', 'Structured Output API (generateObject / streamObject)', 'Tools & Capabilities', 5, {
     sidebar: false,
   }),
 
-  agentosDoc('CAPABILITY_DISCOVERY.md', 'features/capability-discovery.md', 'Capability Discovery', 'Capabilities', 1),
-  agentosDoc('EMERGENT_CAPABILITIES.md', 'features/emergent-capabilities.md', 'Emergent Capabilities', 'Capabilities', 2),
-  agentosDoc('PARACOSM.md', 'features/paracosm.md', 'Paracosm — Agent Swarm Simulation for Structured World Modeling with LLMs', 'Wunderland', 3),
+  agentosDoc('CAPABILITY_DISCOVERY.md', 'features/capability-discovery.md', 'Capability Discovery', 'Tools & Capabilities', 1),
+  agentosDoc('EMERGENT_CAPABILITIES.md', 'features/emergent-capabilities.md', 'Emergent Capabilities', 'Tools & Capabilities', 2),
+  agentosDoc('PARACOSM.md', 'features/paracosm.md', 'Paracosm — Agent Swarm Simulation for Structured World Modeling with LLMs', 'Paracosm', 1),
   extensionDoc('AGENCY_COLLABORATION_EXAMPLE.md', 'features/agency-collaboration.md', 'Agency Collaboration', 3, {
     section: 'Orchestration',
   }),
   agentosDoc('AGENT_COMMUNICATION.md', 'features/agent-communication.md', 'Agent Communication', 'Orchestration', 4),
-  agentosDoc('RECURSIVE_SELF_BUILDING_AGENTS.md', 'features/recursive-self-building.md', 'Recursive Self-Building Agents', 'Capabilities', 5),
+  agentosDoc('RECURSIVE_SELF_BUILDING_AGENTS.md', 'features/recursive-self-building.md', 'Recursive Self-Building Agents', 'Tools & Capabilities', 5),
   agentosDoc('MEMORY_CONSOLIDATION.md', 'features/memory-consolidation.md', 'Self-Improving Memory', 'Memory', 6, {
     sidebar: false,
   }),
-  staticDoc('features/self-improving-agents.md', 'features/self-improving-agents.md', 'Self-Improving Agents', 'Capabilities', 6.5),
+  staticDoc('features/self-improving-agents.md', 'features/self-improving-agents.md', 'Self-Improving Agents', 'Tools & Capabilities', 6.5),
   agentosDoc('PROVENANCE_IMMUTABILITY.md', 'features/provenance-immutability.md', 'Provenance & Immutability', 'Provenance', 7),
   agentosDoc('IMMUTABLE_AGENTS.md', 'features/immutable-agents.md', 'Immutable Agents', 'Provenance', 8),
-  agentosDoc('AGENT_CONFIG_EXPORT.md', 'features/agent-config-export.md', 'Agent Config Export & Import', 'Tools', 9),
-  agentosDoc('DISCOVERY.md', 'features/discovery-guide.md', 'Capability Discovery Guide', 'Capabilities', 10, {
+  agentosDoc('AGENT_CONFIG_EXPORT.md', 'features/agent-config-export.md', 'Agent Config Export & Import', 'Tools & Capabilities', 9),
+  agentosDoc('DISCOVERY.md', 'features/discovery-guide.md', 'Capability Discovery Guide', 'Tools & Capabilities', 10, {
     sidebar: false,
   }),
   agentosDoc('PROVENANCE.md', 'features/provenance-guide.md', 'Provenance Guide', 'Provenance', 11, {
@@ -273,7 +273,7 @@ const publicationManifest = [
   agentosDoc('AGENCY_API.md', 'features/agency-api.md', 'Multi-Agent Agency API', 'Orchestration', 12, {
     sidebar: false,
   }),
-  agentosDoc('CLI_PROVIDERS.md', 'features/cli-providers.md', 'CLI Providers', 'AI & LLM', 13, {
+  agentosDoc('CLI_PROVIDERS.md', 'features/cli-providers.md', 'CLI Providers', 'Model Quality & Cost', 13, {
     sidebar: false,
   }),
   staticDoc('features/github-integration.md', 'features/github-integration.md', 'GitHub Integration', 'Channels & Social', 13.5),
