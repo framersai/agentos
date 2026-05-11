@@ -18,11 +18,11 @@ keywords:
 
 The Cognitive Pipeline routes each incoming message through a chain of small classifier calls and dispatches to the cheapest retrieval + reader strategy that handles its category. It does not block, refuse, or validate output. Content-level safety is a separate primitive — see [Guardrails Architecture](./GUARDRAILS_ARCHITECTURE.md).
 
-Most memory libraries retrieve on every query. They embed the input, run a vector search, stuff the top-K into context, call the reader. Same path every time, regardless of whether the query is a memory-relevant question or "hey there." That is expensive on easy queries and underpowered on hard ones. The Cognitive Pipeline replaces the single-path retrieval with three sequential routers (ingest, recall, read), each picking a strategy from a registered routing table.
+The pipeline replaces single-path retrieval (embed → vector search → top-K → reader, same path every query) with three sequential routers — ingest, recall, read — each picking a strategy from a registered routing table. The result is per-message-adaptive cost: trivial queries skip retrieval entirely, complex queries get the architecture and reader best suited to their category.
 
 ## What it actually does
 
-Every message goes through a chain of decisions. Each decision is a small `gpt-5-mini`-style classifier call that picks the best strategy for that specific message. The novel piece for query-time is that the **first decision is whether memory should be touched at all**. Most memory libraries skip this step and retrieve on every query, which means they pay full embedding+rerank+reader cost on "hey there."
+Every message goes through a chain of decisions. Each decision is a small `gpt-5-mini`-style classifier call that picks the best strategy for that specific message. The first decision is whether memory should be touched at all — single-path retrieval treats this as implicit ("always retrieve"), which means paying full embedding+rerank+reader cost on greetings, small-talk turns, and general-knowledge questions answerable from context.
 
 For incoming content:
 

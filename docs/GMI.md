@@ -4,9 +4,7 @@ description: "What a Generalized Mind Instance actually is, what it isn't, and h
 
 # Generalized Mind Instances (GMIs)
 
-Most agent SDKs hand you a function call. You pass a system prompt and a list of tools, you get a string back. Close the connection. The agent doesn't exist anymore. The next call starts a new one that happens to share a name.
-
-A **Generalized Mind Instance** — GMI — is the thing that exists between those calls. It owns a persona, a working memory, a cognitive memory layer that decays the way human memory decays, a sentiment tracker that follows the user's mood across turns, a metaprompt executor that assembles the system prompt fresh each turn from the current state, and a reasoning trace that keeps the last several hundred decision steps. When you `agent({...})` you are constructing one of these. When you call `.session(id).send(...)` you are addressing it.
+A **Generalized Mind Instance** — GMI — is the unit of agent state in AgentOS. Each GMI owns a persona, a working memory buffer, a cognitive-memory layer with personality-modulated encoding and Ebbinghaus decay, a sentiment tracker that follows the user's mood across turns, a metaprompt executor that assembles the system prompt fresh each turn from current state, and a reasoning trace covering the last several hundred decision steps. Construct one with `agent({...})`; address it with `.session(id).send(...)`. The GMI persists across calls — `session()` history, memory traces, and trait state all survive between turns.
 
 ![GMI architecture: a thin coordinator class that delegates per-turn work to four close collaborators (ConversationHistoryManager, CognitiveMemoryBridge, SentimentTracker, MetapromptExecutor) and seven injected services (WorkingMemory, PromptEngine, ToolOrchestrator, LLMProviderManager, UtilityAI, CognitiveMemoryManager, optional RetrievalAugmentor). The GMI core itself owns persona, current mood, user context, task context, and reasoning trace, but never does retrieval, generation, or tool dispatch directly.](/img/diagrams/gmi-architecture.svg)
 

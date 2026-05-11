@@ -9,9 +9,9 @@ keywords: [agentos memory, llm memory architecture, longmemeval, cognitive memor
 
 ## TL;DR
 
-Most agent memory libraries do one thing — embed every message, retrieve by similarity. AgentOS does six things, and the trick is deciding *which* of them runs on which query.
+AgentOS memory composes six operations per turn, and the central design decision is *which* of them run on a given query.
 
-Three classifier calls per turn (sharing one classification). A canonical hybrid retrieval pipeline: BM25 + dense + Cohere rerank-v3.5. A six-signal cognitive composite scorer on top of the rerank. An Ebbinghaus decay loop running in the background. A consolidation pass that prunes, merges, and re-strengthens traces while the agent is otherwise quiet. And underneath all of it, a portable SQL brain — [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) — that runs on SQLite (better-sqlite3), Postgres (pg + pgvector), IndexedDB (sql.js, browser/PWA), Capacitor SQLite (iOS/Android), Electron IPC, or in-memory, without a callsite change.
+Three classifier calls per turn (sharing one classification pass). A canonical hybrid retrieval pipeline: BM25 + dense + Cohere rerank-v3.5. A six-signal cognitive composite scorer on top of the rerank. An Ebbinghaus decay loop running in the background. A consolidation pass that prunes, merges, and re-strengthens traces while the agent is otherwise quiet. Underneath, a portable SQL brain — [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) — that runs on SQLite (better-sqlite3), Postgres (pg + pgvector), IndexedDB (sql.js, browser/PWA), Capacitor SQLite (iOS/Android), Electron IPC, or in-memory, without a callsite change.
 
 Same code, six backends, six judgement points per turn, one set of benchmarks: **85.6% on LongMemEval-S at $0.0090 per correct**, **70.2% on LongMemEval-M**.
 
