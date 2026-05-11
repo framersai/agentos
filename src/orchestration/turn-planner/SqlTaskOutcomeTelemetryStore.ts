@@ -1,7 +1,14 @@
-import {
-  resolveStorageAdapter,
-  type StorageAdapter,
-  type StorageResolutionOptions,
+/**
+ * Type-only imports from `@framers/sql-storage-adapter` so this module's
+ * top-level evaluation never fails when the optional peer dependency is not
+ * installed. Runtime helpers (`resolveStorageAdapter`) are loaded lazily
+ * inside {@link SqlTaskOutcomeTelemetryStore.initialize} via a dynamic
+ * `import()` — consumers that never construct this class don't pay any cost
+ * and don't need the peer.
+ */
+import type {
+  StorageAdapter,
+  StorageResolutionOptions,
 } from '@framers/sql-storage-adapter';
 import type { ITaskOutcomeTelemetryStore } from '../../api/AgentOSOrchestrator.js';
 
@@ -61,6 +68,26 @@ export class SqlTaskOutcomeTelemetryStore implements ITaskOutcomeTelemetryStore 
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
+    // Lazy-load the optional peer dependency. Throwing here (rather than at
+    // module load) means consumers that don't construct this class — i.e.
+    // anyone using `agent()` without the SQL telemetry store — never need
+    // `@framers/sql-storage-adapter` installed.
+    let resolveStorageAdapter: (
+      opts: StorageResolutionOptions,
+    ) => Promise<StorageAdapter>;
+    try {
+      ({ resolveStorageAdapter } = (await import(
+        '@framers/sql-storage-adapter'
+      )) as typeof import('@framers/sql-storage-adapter'));
+    } catch (err) {
+      const cause = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        'SqlTaskOutcomeTelemetryStore requires the optional peer dependency ' +
+          '`@framers/sql-storage-adapter`. Install it with ' +
+          '`npm install @framers/sql-storage-adapter`. ' +
+          `Underlying error: ${cause}`,
+      );
+    }
     this.adapter = await resolveStorageAdapter(this.resolutionOptions);
     await this.ensureSchema();
     this.initialized = true;

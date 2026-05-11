@@ -770,11 +770,23 @@ export const DEFAULT_STRATEGY_CONFIG: Required<Omit<QueryRouterStrategyConfig, '
  * Priority: autoDetectProvider() → 'openai' fallback.
  * Supports all 16 AgentOS providers including CLI (claude-code-cli, gemini-cli).
  */
+/**
+ * Resolve the default provider id from environment variables.
+ *
+ * Direct provider keys (OpenAI, Anthropic, Gemini, etc.) take precedence
+ * over the OpenRouter aggregator key, so a host that has both `OPENAI_API_KEY`
+ * and `OPENROUTER_API_KEY` set still gets the native endpoint by default.
+ * This matches the priority order used by {@link QueryRouter.getLlmApiKey},
+ * keeping provider selection and key selection consistent (mixing them was
+ * a real source of 401s — the provider would be `openrouter` while the
+ * resolved api key was the OpenAI one).
+ *
+ * Falls back to `openai` when no provider key is present (CLI providers
+ * still work because they don't require a key).
+ */
 function resolveDefaultProvider(): string {
   try {
-    // Lazy check env vars in priority order (same as autoDetectProvider but synchronous)
     const envMap: ReadonlyArray<readonly [string, string]> = [
-      ['OPENROUTER_API_KEY', 'openrouter'],
       ['OPENAI_API_KEY', 'openai'],
       ['ANTHROPIC_API_KEY', 'anthropic'],
       ['GEMINI_API_KEY', 'gemini'],
@@ -782,6 +794,7 @@ function resolveDefaultProvider(): string {
       ['TOGETHER_API_KEY', 'together'],
       ['MISTRAL_API_KEY', 'mistral'],
       ['XAI_API_KEY', 'xai'],
+      ['OPENROUTER_API_KEY', 'openrouter'],
     ];
     for (const [envKey, id] of envMap) {
       if (process.env[envKey]) return id;

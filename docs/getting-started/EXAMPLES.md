@@ -60,8 +60,12 @@ const supportTeam = agency({
       },
     },
   },
-  guardrails: ['content-safety', 'pii-filter'],
 });
+
+// Guardrails are runtime instances, not string IDs. Pull packs from
+// `@framers/agentos-extensions` (PII redaction, ML toxicity classifiers,
+// topicality, grounding guard, etc.) and pass them via `guardrails: [...]`.
+// See https://docs.agentos.sh/features/guardrails for the full catalog.
 
 const result = await supportTeam.generate(
   'My account was charged twice for the same subscription and I am very upset.'
@@ -78,182 +82,121 @@ Parallel information gathering with RAG and synthesis.
 
 ```typescript
 import { agency } from '@framers/agentos';
+// Bring your own tool implementations. The examples below show ITool-shaped
+// stubs; in production wire these to Tavily / Serper / arxiv-api / etc.
+const webSearchTool = {
+  name: 'web_search',
+  description: 'Search the web.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) ${query}` }),
+};
+const arxivTool = {
+  name: 'arxiv_search',
+  description: 'Search arXiv for papers.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) arxiv: ${query}` }),
+};
+const newsTool = {
+  name: 'news_search',
+  description: 'Search recent news.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  execute: async ({ query }) => ({ success: true, output: `(stub) news: ${query}` }),
+};
 
 const researchTeam = agency({
   provider: 'anthropic',
   strategy: 'parallel',
   agents: {
     webResearcher: {
-      instructions:
-        'Search the web for current information on the topic. Return key facts and sources.',
-      tools: ['web_search', 'web_fetch'],
+      instructions: 'Search the web. Return 5 facts with sources.',
+      tools: [webSearchTool],
     },
     academicResearcher: {
-      instructions: 'Search arXiv and Google Scholar for academic papers. Summarize findings.',
-      tools: ['arxiv_search'],
+      instructions: 'Search arXiv. Summarize 3 papers.',
+      tools: [arxivTool],
     },
     newsAnalyst: {
-      instructions:
-        'Find recent news and trends on the topic. Highlight what changed in the last month.',
-      tools: ['news_search'],
+      instructions: 'Find recent news. Highlight what changed in the last month.',
+      tools: [newsTool],
     },
   },
   synthesizer: {
-    instructions: `
-      You receive research from three specialists. Synthesize their findings into:
-      1. A 3-paragraph executive summary
-      2. Key facts (bullet points, with sources)
-      3. Open questions and limitations
-    `,
-  },
-  memory: {
-    enabled: true,
-    type: 'semantic',
-    scope: 'session',
+    instructions: `Synthesize the three researchers' output into:
+      1. 3-paragraph executive summary
+      2. Key facts (bullets, with sources)
+      3. Open questions and limitations`,
   },
 });
 
 const report = await researchTeam.generate(
-  'Impact of quantum error correction on near-term quantum computing.'
+  'Impact of quantum error correction on near-term quantum computing.',
 );
 console.log(report.text);
 ```
+
+> **Tools must be `ITool` instances, not bare names.** Agencies don't auto-resolve string identifiers like `'web_search'` to registered tools; pass the actual object the agent should call. See [Agent Memory Tools](/features/memory-operations#agent-memory-tools) for the contract.
 
 ---
 
 ## 3. Content Pipeline
 
-Review loop with social posting on approval. The `workflow()` DSL is a
-typed graph that compiles into a runtime. Two things are easy to get wrong
-the first time, both shown explicitly below:
-
-1. **Pass `deps` into `compile({ deps })`.** The runtime needs an executor
-   for every node type you use — `toolOrchestrator` for `tool` nodes,
-   `loopController` + `providerCall` for `gmi` nodes, etc. Without these,
-   the matching nodes resolve `success: false` and `invoke()` returns `{}`.
-   See [`WorkflowRuntimeDeps`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts).
-2. **Use `outputAs` to map the final step's output to your `.returns()`
-   schema key.** By default each step's `output` lands in
-   `state.artifacts[<stepId>]`, so without `outputAs: 'publishedTo'` your
-   `result` would have `result.publish` (the step id) rather than
-   `result.publishedTo`.
+Review loop with social posting on approval. The high-level path is `agency({ strategy: 'sequential' })` — each agent's output feeds the next, with `hitl` gating the human-approval step. Use this when every step is an LLM/GMI call. Reach for the lower-level `workflow()` DSL only when you need explicit graph control, branches, or non-LLM tool steps wired into the same graph (see [workflow() DSL](/features/workflow-dsl) for that path).
 
 ```typescript
-import { workflow } from '@framers/agentos/orchestration';
-import { agent } from '@framers/agentos';
-import { z } from 'zod';
+import { agency } from '@framers/agentos';
 
-// Stand-ins for the host-side helpers the workflow's tools delegate to.
-// Replace with your real implementations (HTTP calls, SDKs, etc.).
-async function searchTheWeb(args: Record<string, unknown>) { return { results: [] }; }
-async function postToTwitterAndLinkedIn(args: Record<string, unknown>) { return { posted: true }; }
-
-// 1. Wire up a stateful agent that the GMI nodes will delegate to. Any
-//    real-world workflow runs LLM calls through your own provider config;
-//    the workflow runtime only orchestrates — it does NOT pick a provider
-//    for you.
-const writer = agent({
-  provider: 'openai',
-  model: 'gpt-4o-mini',
-  instructions: 'You are a senior content marketer.',
-});
-
-// 2. Implement the deps the runtime expects. `toolOrchestrator` is the
-//    minimal hook for `step({ tool: '...' })` — register the tools your
-//    workflow names and `processToolCall` returns their output.
-const toolOrchestrator = {
-  async processToolCall({ toolCallRequest }: {
-    toolCallRequest: { toolName: string; arguments: Record<string, unknown> };
-  }) {
-    switch (toolCallRequest.toolName) {
-      case 'web_search':
-        return { success: true, output: await searchTheWeb(toolCallRequest.arguments) };
-      case 'multi_channel_post':
-        return { success: true, output: await postToTwitterAndLinkedIn(toolCallRequest.arguments) };
-      default:
-        return { success: false, error: `Unknown tool: ${toolCallRequest.toolName}` };
-    }
-  },
-};
-
-// 3. `providerCall` is the GMI-node hook. It receives the step's
-//    instructions string and the current graph state, and yields LoopChunks
-//    on the way to a final LoopOutput. The simplest possible implementation
-//    just delegates to the agent above.
-async function* providerCall(instructions: string) {
-  const reply = await writer.generate(instructions);
-  yield { type: 'text' as const, text: reply.text };
-  return { success: true, output: reply.text };
+// A host-side helper for the final "publish" step — replace with your real
+// social-posting implementation (Twitter / LinkedIn API calls).
+async function postToTwitterAndLinkedIn(text: string) {
+  // ... your network code here
+  return { posted: true, channels: ['twitter', 'linkedin'] };
 }
 
-// 4. Build the pipeline. Each step's output is auto-promoted to
-//    `state.artifacts[<stepId>]` unless you set `outputAs`.
-const contentPipeline = workflow('content-pipeline')
-  .input(z.object({ topic: z.string(), audience: z.string() }))
-  .returns(z.object({ publishedTo: z.array(z.string()) }))
-
-  // Step 1: Research the topic — output lands in `result.research`.
-  .step('research', {
-    tool: 'web_search',
-    effectClass: 'external',
-  })
-
-  // Step 2: Draft the blog post — output lands in `result.draft`.
-  .step('draft', {
-    gmi: {
-      instructions: `
-        Write a 400-word blog post on {{topic}} for {{audience}}.
-        Include 3 key insights and a call to action.
-      `,
+const contentPipeline = agency({
+  provider: 'openai',
+  model: 'gpt-4o-mini',
+  strategy: 'sequential',
+  agents: {
+    researcher: {
+      instructions:
+        'Research {{topic}} for {{audience}}. Output 5 short bullet facts.',
     },
-  })
-
-  // Step 3: Human approval — uses autoAccept here so the example runs
-  // without an interactive terminal. In production, omit autoAccept and
-  // wire up `hitl.cli()` or `hitl.llmJudge()` from `@framers/agentos`.
-  .step('review', {
-    human: { prompt: 'Review the draft. Approve or request changes.', autoAccept: true } as any,
-  })
-
-  // Step 4: Generate a social variant — output in `result['social-draft']`.
-  .step('social-draft', {
-    gmi: {
-      instructions: 'Create a Twitter/LinkedIn-optimized 280-char teaser for the blog post.',
+    writer: {
+      instructions:
+        'Turn the researcher\'s facts into a 400-word blog post with 3 insights and a call to action.',
     },
-  })
-
-  // Step 5: Publish — `outputAs` renames the artifact key to match the
-  // `.returns()` schema, so callers get `result.publishedTo` directly.
-  .step('publish', {
-    tool: 'multi_channel_post',
-    effectClass: 'external',
-    outputAs: 'publishedTo',
-  })
-
-  .compile({
-    // Wire the deps you need. Missing deps → matching node types fail.
-    deps: {
-      toolOrchestrator,
-      providerCall, // consumed by GMI nodes
+    reviewer: {
+      instructions:
+        'Approve the draft as-is, or list specific edits. Reply "APPROVED" if good.',
+      // Optional HITL gate: when the reviewer flags `needs_human_review`, pause
+      // for a real reviewer. Omit `hitl` to run fully autonomous.
+      hitl: {
+        conditions: [{ type: 'agent_flag', flag: 'needs_human_review' }],
+        prompt: 'A human reviewer should approve this draft.',
+      },
     },
-  });
+    socialDraft: {
+      instructions:
+        'Write a 280-char Twitter/LinkedIn teaser of the approved post.',
+    },
+  },
+});
 
-const result = await contentPipeline.invoke({
-  topic: 'How AI agents will change software development in 2026',
-  audience: 'senior software engineers',
-}) as { publishedTo: string[]; research?: unknown; draft?: string };
+const result = await contentPipeline.generate(
+  'Topic: how AI agents will change software development in 2026. Audience: senior software engineers.',
+);
 
-console.log('Published to:', result.publishedTo); // ['twitter', 'linkedin']
-console.log('Draft preview:', String(result.draft).slice(0, 200));
+console.log('Final teaser:', result.text);
+// Each agent's output is in `result.agentCalls[i].output`.
+console.log('Pipeline steps:', result.agentCalls?.map((c) => c.agentName));
+
+// Publish the final teaser. This step is host-driven — agencies are the
+// orchestration layer for LLM-driven steps, not for network side effects.
+const posted = await postToTwitterAndLinkedIn(result.text);
+console.log('Posted:', posted);
 ```
 
-> **Prefer the `agency()` API for multi-step LLM pipelines.** When every
-> step is a GMI/agent and you don't need explicit graph control,
-> [`agency({ strategy: 'sequential', agents: { ... } })`](./HIGH_LEVEL_API.md)
-> is the higher-level path — it auto-wires the providers, memory, and
-> guardrails so you don't manage `toolOrchestrator` / `providerCall`
-> yourself. Reach for `workflow()` when you need a typed DAG, branches,
-> or human-in-the-loop gates.
+> **When to reach for `workflow()` or `AgentGraph` instead.** `agency({ strategy: 'sequential' })` covers LLM-driven content pipelines cleanly. Switch to the lower-level [`workflow()` DSL](/features/workflow-dsl) when you need a typed DAG with non-LLM `tool:` nodes wired into the same graph, branches based on `state.artifacts`, or reusable sub-graphs. Switch to [`AgentGraph`](/features/agent-graph) when you need explicit conditional edges or programmatic graph construction.
 
 ---
 
@@ -383,51 +326,58 @@ console.log(review.text);
 
 ## 6. Knowledge Base Q&A
 
-RAG-powered Q&A with cognitive memory across sessions. RAG configuration is enforced by the full runtime — use `new AgentOS()` or `agency()`. The lightweight `agent()` helper preserves the `rag` field for forward compatibility but does not actively dispatch to a vector store, so a kb-aware agent built on `agent()` alone will produce ungrounded answers.
+RAG-powered Q&A with cognitive memory across sessions. The standalone `Memory` facade owns ingestion, vector storage, and recall; `agent()` wires it in via the `standaloneMemory` config bridge so the same store powers the agent's long-term retrieval AND its session memory.
 
 ```typescript
-import { AgentOS } from '@framers/agentos';
+import { agent, Memory } from '@framers/agentos';
 
-const kb = new AgentOS();
-await kb.initialize({
-  provider: 'openai',
-  model: 'gpt-4o',
-  instructions: `
-    You are a helpful documentation assistant.
-    Search the knowledge base to answer questions accurately.
-    If you don't find a relevant answer, say so clearly.
-  `,
-  memory: {
-    enabled: true,
-    decay: 'ebbinghaus',
-    workingMemory: { capacity: 7 },
-  },
-  rag: {
-    enabled: true,
-    vectorStore: { type: 'hnsw', dimensions: 1536 },
-    collections: ['product-docs', 'api-reference', 'tutorials'],
-    topK: 5,
-    minSimilarity: 0.7,
-  },
+// 1. Build (or open) the persistent brain. SQLite is the default; swap
+//    `createSqlite` for `createPostgres` in production. Requires the peer
+//    `better-sqlite3` for native Node runs (`npm install better-sqlite3`).
+const memory = await Memory.createSqlite({
+  path: './brain.sqlite',
+  graph: true,
+  selfImprove: false,
 });
 
-// Per-user session keeps cognitive memory scoped per actor.
+// 2. Ingest a corpus once. Supports folders, single files, and URLs.
+//    Re-running ingest is idempotent — already-indexed chunks are skipped.
+await memory.ingest('./docs/product');
+await memory.ingest('./docs/api-reference');
+
+// 3. Construct the answering agent. The KB pattern here is explicit
+//    retrieval-then-inject: pull top-K hits via `memory.recall()` and
+//    feed them into `session.send()` as grounding context. This is
+//    the most predictable RAG path — your prompt deterministically
+//    contains the retrieved chunks, so the model can cite them.
+const kb = agent({
+  provider: 'openai',
+  model: 'gpt-4o-mini',
+  instructions: `
+    You are a documentation assistant. Use the provided context to answer.
+    Cite passages by file path. If the context does not answer the question,
+    say so explicitly rather than guessing.
+  `,
+});
 const session = kb.session('user-alice');
 
-// First turn — answered from RAG hits
-const { text: answer } = await session.send(
-  'How do I configure rate limiting in the AgentOS middleware?',
-);
-console.log(answer);
+async function ask(question: string) {
+  // `recall()` returns `{ trace, score }` pairs. `trace.content` is the
+  // raw chunk text; `trace.id` is stable across runs.
+  const hits = await memory.recall(question, { topK: 5 });
+  const context = hits
+    .map(({ trace }, i) => `[${i + 1}] ${trace.id}\n${trace.content}`)
+    .join('\n\n');
+  return session.send(`Context:\n${context}\n\nQuestion: ${question}`);
+}
 
-// Follow-up benefits from both RAG and the prior turn's session memory
-const { text: followUp } = await session.send(
-  'What about for the voice pipeline specifically?',
-);
-console.log(followUp);
+console.log((await ask('How do I configure rate limiting in the AgentOS middleware?')).text);
+console.log((await ask('What about for the voice pipeline specifically?')).text);
+
+await memory.close();
 ```
 
-> **Note on RAG corpus.** This example assumes `product-docs`, `api-reference`, and `tutorials` collections are already populated in the configured vector store. If you run it against an empty store, the agent will correctly report it does not have grounded information instead of hallucinating. See [Multimodal RAG](/features/multimodal-rag) for the ingestion pipeline.
+> **Why not just `standaloneMemory: { memory, longTermRetriever: true }`?** The `agent()` helper accepts that bridge for forward compatibility, but automatic per-turn RAG injection requires the full runtime (`new AgentOS()` or `agency()`). When you want deterministic, debuggable retrieval — show me the chunks the model saw — keep `memory.recall()` explicit in your turn loop. See [Memory Operations](/features/memory-operations) for ingest/export options and [Multimodal RAG](/features/multimodal-rag) for image/audio sources.
 
 ---
 
@@ -955,22 +905,32 @@ Enable the emergent subsystem so the agent can forge new tools, adapt its own
 personality, and manage its skill set at runtime. Guard the mutation surface
 with `maxDeltaPerSession` and skill allowlists.
 
+> **Use `agency()` or `new AgentOS()` — not `agent()`.** Emergent tooling requires the full runtime that initializes `ToolOrchestrator` with emergent support. The lightweight `agent()` helper accepts `emergent: true` for config compatibility but emits a `[AgentOS] agent() accepted config that requires the full AgentOS runtime` warning and does not activate `forge_tool` on its own.
+
 ```typescript
-import { agent } from '@framers/agentos';
+import { agency } from '@framers/agentos';
 import { ForgeToolMetaTool, AdaptPersonalityTool } from '@framers/agentos/emergent';
 
-// The emergent toolkit ships these built-in meta-tools. Wire them into the
-// agent's tools list so the runtime exposes forge_tool / adapt_personality
-// when emergent.enabled is true.
+// The emergent toolkit ships these built-in meta-tools. Register them on the
+// agency so the runtime exposes forge_tool / adapt_personality when
+// emergent.enabled is true.
 const forgeTool = ForgeToolMetaTool;
 const adaptPersonalityTool = AdaptPersonalityTool;
-// manageSkillsTool / selfEvaluateTool are illustrative — substitute your own
-// skills-management / self-evaluation tool implementations as needed.
 
-const adaptiveAgent = agent({
-  model: 'openai:gpt-4o',
-  instructions: 'You are a helpful assistant that learns and adapts.',
-  tools: [forgeTool, adaptPersonalityTool],
+const adaptiveAgent = agency({
+  provider: 'openai',
+  model: 'gpt-4o',
+  agents: {
+    manager: {
+      instructions: 'Coordinate the work. Decide which specialist to spawn when needed.',
+    },
+    primary: {
+      instructions: 'You are a helpful assistant that learns and adapts.',
+      tools: [forgeTool, adaptPersonalityTool],
+    },
+  },
+  // `emergent.enabled` requires `strategy: 'hierarchical'` or `adaptive: true`.
+  strategy: 'hierarchical',
   emergent: {
     enabled: true,
     selfImprovement: {
@@ -981,12 +941,12 @@ const adaptiveAgent = agent({
   },
 });
 
-// The agent can now:
-// - Forge new tools at runtime
-// - Adapt its personality based on task requirements
+// The agency can now:
+// - Forge new tools at runtime via `forge_tool`
+// - Adapt its personality via `adapt_personality`
 // - Enable/disable skills dynamically
 // - Evaluate its own performance and adjust
-const result = await adaptiveAgent.generate('Help me write a creative story');
+const result = await adaptiveAgent.generate('Help me write a creative story.');
 console.log(result.text);
 ```
 

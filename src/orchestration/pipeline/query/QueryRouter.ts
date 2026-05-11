@@ -457,14 +457,19 @@ export class QueryRouter {
     this.initialized = true;
 
     // ----------------------------------------------------------------
-    // Background GitHub repo indexing (non-blocking)
+    // Background GitHub repo indexing (non-blocking, opt-in)
     // ----------------------------------------------------------------
     // Runs after the router is fully initialized so that query routing
     // is available immediately. Indexed chunks are merged into the
     // corpus, then the live retrieval/classification state is refreshed
     // once indexing completes.
+    //
+    // Opt-in: callers must set `githubRepos.includeEcosystem: true` or
+    // provide an explicit `githubRepos.repos` list. The ecosystem index
+    // requires the optional peer dependency `@framers/agentos-ext-github`,
+    // so we no longer auto-fire it on every router init.
     const repoConfig = this.config.githubRepos ?? {};
-    const includeEcosystem = repoConfig.includeEcosystem ?? true;
+    const includeEcosystem = repoConfig.includeEcosystem === true;
 
     if (includeEcosystem || (repoConfig.repos && repoConfig.repos.length > 0)) {
       Promise.resolve().then(async () => {
