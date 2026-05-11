@@ -1,3 +1,7 @@
+## <small>0.9.2 (2026-05-11)</small>
+
+* fix: address CodeRabbit findings on recent agents/ work ([9584a73fa5b3326ecb17c05665eadfa16ad4adae](https://github.com/framersai/agentos/commit/9584a73fa5b3326ecb17c05665eadfa16ad4adae))
+
 ## <small>0.9.1 (2026-05-10)</small>
 
 * feat(badges): auto-update tests badge from a JSON endpoint ([037ffdace138906c58eacf302d48a97f29c5a107](https://github.com/framersai/agentos/commit/037ffdace138906c58eacf302d48a97f29c5a107))
