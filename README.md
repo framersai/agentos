@@ -311,6 +311,33 @@ The router classifies each query into a tier (T0 trivial → T3 deep research), 
 
 ---
 
+## Per-Claim Citation Verification on Any Agent
+
+For agents you build directly with `agent()` (no router), set `verifyCitations` and every generation comes back with per-claim verdicts attached. No second pass, no manual `verifier.verify(text, sources)` plumbing:
+
+```typescript
+import { agent } from '@framers/agentos';
+
+const docsAgent = agent({
+  model: 'openai:gpt-4o',
+  verifyCitations: {
+    embedFn:  (texts) => embeddingManager.embedBatch(texts),
+    retrieve: (query) => retriever.search(query),
+  },
+});
+
+const result = await docsAgent.generate('How do I configure a guardrail?');
+console.log(result.text);
+console.log(result.grounding?.overallGrounded);    // single boolean — safe to ship?
+for (const claim of result.grounding?.claims ?? []) {
+  if (claim.verdict !== 'supported') console.warn(claim);
+}
+```
+
+The agent calls your `retrieve` hook before generation to fetch sources, runs the model, then decomposes the response into atomic claims and scores each against the sources via cosine similarity (with optional NLI for contradiction detection). Verdicts: `supported`, `weak`, `unverifiable`, `contradicted`. Reach for the low-level [`CitationVerifier`](https://docs.agentos.sh/features/citation-verification) directly only when you own both sides of the generate/retrieve pair yourself.
+
+---
+
 ## See It In Action
 
 ### 🌀 Paracosm — AI Agent Swarm Simulation

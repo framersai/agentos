@@ -355,6 +355,56 @@ describe('agent session.send: structured output (responseSchema)', () => {
     ).rejects.toThrow(/Zod validation/);
   });
 
+  it('attaches grounding to generate() result when verifyCitations is configured', async () => {
+    hoisted.generateText.mockResolvedValue({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: 'Tokyo is the capital of Japan. It hosted the 2020 Summer Olympics in 1457.',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+
+    // Deterministic mock embedder.
+    const mockEmbedFn = vi.fn(async (texts: string[]) =>
+      texts.map((t) => {
+        const v = new Array(8).fill(0);
+        for (let i = 0; i < t.length; i++) v[i % 8] += t.charCodeAt(i) / 1000;
+        const mag = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+        return mag > 0 ? v.map((x) => x / mag) : v;
+      }),
+    );
+    const retrieve = vi.fn(async () => [
+      { content: 'Tokyo is the capital and seat of government of Japan.', url: 'https://example.com/japan' },
+    ]);
+
+    const assistant = agent({
+      model: 'openai:gpt-4.1-mini',
+      verifyCitations: { embedFn: mockEmbedFn, retrieve },
+    });
+
+    const result = await assistant.generate('What about Tokyo?');
+
+    expect(retrieve).toHaveBeenCalledWith('What about Tokyo?');
+    expect(result.grounding).toBeDefined();
+    expect(result.grounding!.totalClaims).toBeGreaterThanOrEqual(1);
+    expect(result.grounding!.claims.every((c) => typeof c.verdict === 'string')).toBe(true);
+  });
+
+  it('omits grounding when verifyCitations is not configured', async () => {
+    hoisted.generateText.mockResolvedValueOnce({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      text: 'plain reply',
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    const assistant = agent({ model: 'openai:gpt-4.1-mini' });
+    const result = await assistant.generate('hi');
+    expect(result.grounding).toBeUndefined();
+  });
+
   it('preserves session memory across schema-aware sends', async () => {
     hoisted.generateText.mockResolvedValue({
       provider: 'openai',

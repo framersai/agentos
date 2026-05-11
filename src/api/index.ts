@@ -87,6 +87,7 @@ export type {
   AvatarSpriteProfile,
   AvatarIdentityPackage,
   AvatarIdentityDescriptor,
+  VerifyCitationsConfig,
 } from './types.js';
 
 // --- Errors ---

@@ -438,6 +438,14 @@ export interface GenerateTextResult {
    * `undefined` when planning is disabled or was not requested.
    */
   plan?: Plan;
+  /**
+   * Per-claim citation verdicts attached when `agent({ verifyCitations: … })`
+   * is configured. `undefined` when verification was not requested or could
+   * not run for this turn.
+   *
+   * @see {@link import('./types.js').VerifyCitationsConfig}
+   */
+  grounding?: import('../cognition/rag/citation/types.js').VerifiedResponse;
 }
 
 // ---------------------------------------------------------------------------

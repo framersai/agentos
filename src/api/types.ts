@@ -1346,6 +1346,82 @@ export interface BaseAgentConfig {
    * @see {@link https://docs.agentos.sh/memory/cognitive-mechanisms | Cognitive Mechanisms Docs}
    */
   cognitiveMechanisms?: import('../cognition/memory/mechanisms/types.js').CognitiveMechanismsConfig;
+
+  /**
+   * Auto-verify citations after every generation.
+   *
+   * When set, the agent retrieves sources for each user input, runs
+   * generation, then scores each atomic claim in the response against the
+   * retrieved sources via `CitationVerifier`. The resulting `VerifiedResponse`
+   * is attached to the generation result's `grounding` field — no separate
+   * `verifier.verify(text, sources)` call needed.
+   *
+   * Pass a config object with the embedding function and the source
+   * retriever the verifier should use:
+   *
+   * @example
+   * ```ts
+   * const docsAgent = agent({
+   *   model: 'openai:gpt-4o',
+   *   verifyCitations: {
+   *     embedFn:  (texts) => embeddingManager.embedBatch(texts),
+   *     retrieve: (query) => retriever.search(query),
+   *   },
+   * });
+   *
+   * const result = await docsAgent.generate('How do I configure a guardrail?');
+   * console.log(result.text);
+   * console.log(result.grounding?.overallGrounded);
+   * for (const claim of result.grounding?.claims ?? []) {
+   *   if (claim.verdict !== 'supported') console.warn(claim.text);
+   * }
+   * ```
+   */
+  verifyCitations?: VerifyCitationsConfig;
+}
+
+/**
+ * Configuration for the auto-citation-verification hook on `agent()`.
+ */
+export interface VerifyCitationsConfig {
+  /**
+   * Batch embedding function used by the verifier to score each atomic
+   * claim against each retrieved source via cosine similarity.
+   */
+  embedFn: (texts: string[]) => Promise<number[][]>;
+
+  /**
+   * Function the agent calls before each generation to fetch the sources
+   * the response will be verified against. Typically wraps your vector
+   * store or retrieval pipeline.
+   */
+  retrieve: (
+    query: string,
+  ) => Promise<Array<import('../cognition/rag/citation/types.js').VerificationSource>>;
+
+  /**
+   * Optional cosine similarity threshold above which a claim counts as
+   * `supported`. Defaults to the `CitationVerifier` default (0.6).
+   */
+  supportThreshold?: number;
+
+  /**
+   * Optional cosine similarity threshold below which a claim is
+   * `unverifiable`. Defaults to the `CitationVerifier` default (0.3).
+   */
+  unverifiableThreshold?: number;
+
+  /**
+   * Optional NLI function for contradiction detection on supported claims.
+   * Wire `@framers/agentos-ext-grounding-guard` here when you want stronger
+   * contradiction signals than cosine similarity alone provides.
+   */
+  nliFn?: import('../cognition/rag/citation/types.js').CitationVerifierConfig['nliFn'];
+
+  /**
+   * Optional custom claim extractor. Defaults to sentence splitting.
+   */
+  extractClaims?: import('../cognition/rag/citation/types.js').CitationVerifierConfig['extractClaims'];
 }
 
 // ---------------------------------------------------------------------------

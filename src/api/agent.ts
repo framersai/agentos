@@ -28,6 +28,8 @@ import type { HostLLMPolicy } from './runtime/hostPolicy.js';
 import type { IModelRouter } from '../core/llm/routing/IModelRouter.js';
 import type { SkillEntry } from '../cognition/skills/types.js';
 import { loadSoulSync, parseSoul } from '../cognition/substrate/personas/SoulLoader.js';
+import { CitationVerifier } from '../cognition/rag/citation/CitationVerifier.js';
+import type { VerifyCitationsConfig } from './types.js';
 import type {
   AgentOSUsageAggregate,
   AgentOSUsageLedgerOptions,
@@ -505,6 +507,45 @@ function buildSystemPrompt(opts: AgentOptions): string | undefined {
  * into a `LoadedSoul`. Returns null on failure so the agent can still boot
  * (the soul is additive, not load-blocking).
  */
+/**
+ * Run citation verification on a freshly-generated response. Retrieves
+ * sources via the configured `retrieve` hook, then scores each atomic claim
+ * in the response against those sources with {@link CitationVerifier}.
+ *
+ * Errors are non-fatal: a failed retrieval or verifier crash returns
+ * `undefined` so the agent's response is still delivered to the caller
+ * unchanged. Verification is a *check*, not a gate.
+ *
+ * @param text     - The generated response text to verify.
+ * @param userText - The user's input — passed to the retriever as a query.
+ * @param config   - Verifier wiring (embedder, retriever, thresholds).
+ */
+async function runCitationVerification(
+  text: string,
+  userText: string,
+  config: VerifyCitationsConfig,
+): Promise<import('../cognition/rag/citation/types.js').VerifiedResponse | undefined> {
+  try {
+    const sources = await config.retrieve(userText);
+    if (!sources || sources.length === 0) return undefined;
+    const verifier = new CitationVerifier({
+      embedFn: config.embedFn,
+      supportThreshold: config.supportThreshold,
+      unverifiableThreshold: config.unverifiableThreshold,
+      nliFn: config.nliFn,
+      extractClaims: config.extractClaims,
+    });
+    return await verifier.verify(text, sources);
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `[@framers/agentos] verifyCitations failed: ${(err as Error).message}. Returning response without grounding.`,
+      );
+    }
+    return undefined;
+  }
+}
+
 function loadSoulFromOption(
   soul: NonNullable<AgentOptions['soul']>,
 ): import('../cognition/substrate/personas/SoulLoader.js').LoadedSoul | null {
@@ -636,6 +677,13 @@ export function agent(opts: AgentOptions): Agent {
       }
       const result = await generateText(genOpts as GenerateTextOptions);
       accumulateUsage(agentUsageTally, result.usage);
+      if (opts.verifyCitations) {
+        result.grounding = await runCitationVerification(
+          result.text,
+          userText,
+          opts.verifyCitations,
+        );
+      }
       return result;
     },
 
