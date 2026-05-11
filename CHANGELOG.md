@@ -1,3 +1,12 @@
+## <small>0.9.4 (2026-05-11)</small>
+
+* fix(runtime): make sql-storage-adapter peer truly optional; opt-in github indexing; fix provider/key priority mismatch in QueryRouter ([92543bdceb5836e963f931af97e0716e3a4e290b](https://github.com/framersai/agentos/commit/92543bdceb5836e963f931af97e0716e3a4e290b))
+* docs: linkify verified source-file references across docs (28 refs in 9 files) — paths now resolve to GitHub blobs/trees on the correct repo ([868cbc9a121b2a0153155d0f4a1f0edf3ae2b632](https://github.com/framersai/agentos/commit/868cbc9a121b2a0153155d0f4a1f0edf3ae2b632))
+* docs: strip 'Most agent SDKs/libraries' strawman openers from GMI, memory-system-overview, cognitive-pipeline, cognitive-memory ([b52c85684bd5209f452a680cf0e3bf7bec626d47](https://github.com/framersai/agentos/commit/b52c85684bd5209f452a680cf0e3bf7bec626d47))
+* docs(sidebar): rename 'AI & LLM' → 'Model Quality & Cost'; merge Tools+Capabilities → 'Tools & Capabilities'; pull Paracosm out of Wunderland into its own section ([4e66fd8efb015e4296a45827d024a2146f5c9572](https://github.com/framersai/agentos/commit/4e66fd8efb015e4296a45827d024a2146f5c9572))
+* docs(skills): hyperlink package + file references to actual GitHub URLs ([8d3117b4be2d262fa9afd027bb7d92a16b88f38d](https://github.com/framersai/agentos/commit/8d3117b4be2d262fa9afd027bb7d92a16b88f38d))
+* feat(citation)!: verify() accepts string | string[]; expose extractClaims() ([91c09cf7f3dd62ab51beab6e1b257743db6789c2](https://github.com/framersai/agentos/commit/91c09cf7f3dd62ab51beab6e1b257743db6789c2))
+
 ## <small>0.9.3 (2026-05-11)</small>
 
 * feat(agent): add verifyCitations config + grounding on GenerateTextResult ([c08e89fe4afdb9e8d72b8ac238e32160b3f6f956](https://github.com/framersai/agentos/commit/c08e89fe4afdb9e8d72b8ac238e32160b3f6f956))
