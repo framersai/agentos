@@ -1,16 +1,16 @@
 # Skills Overview
 
-Skills are prompt-level capability modules for AgentOS. They are not runtime extensions; they teach an agent when and how to use tools, workflows, and external systems through `SKILL.md` content.
+Skills are prompt-level capability modules for AgentOS. They are not runtime extensions; they teach an agent when and how to use tools, workflows, and external systems through [`SKILL.md`](https://github.com/framersai/agentos-skills/tree/master/registry/curated) content.
 
 ## The 3-Tier Skills Architecture
 
-AgentOS skills are split into three public layers:
+AgentOS skills are split into three public layers, each in its own GitHub repository:
 
-1. `@framers/agentos/cognition/skills`
-   The runtime engine. This is where `SkillLoader`, `SkillRegistry`, snapshots, and path helpers live.
-2. `@framers/agentos-skills`
-   The curated content package. It ships `SKILL.md` files plus the generated `registry.json` index.
-3. `@framers/agentos-skills-registry`
+1. [`@framers/agentos/cognition/skills`](https://github.com/framersai/agentos/tree/master/src/cognition/skills)
+   The runtime engine. This is where [`SkillLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillLoader.ts), [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts), snapshots, and [path helpers](https://github.com/framersai/agentos/blob/master/src/cognition/skills/paths.ts) live.
+2. [`@framers/agentos-skills`](https://github.com/framersai/agentos-skills)
+   The curated content package. It ships [`SKILL.md` files](https://github.com/framersai/agentos-skills/tree/master/registry/curated) plus the generated [`registry.json`](https://github.com/framersai/agentos-skills/blob/master/registry.json) index.
+3. [`@framers/agentos-skills-registry`](https://github.com/framersai/agentos-skills-registry)
    The catalog SDK. It provides query helpers, lazy loading, and factories over the curated content package.
 
 ## Start Here
