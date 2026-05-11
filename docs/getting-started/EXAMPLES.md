@@ -909,28 +909,24 @@ with `maxDeltaPerSession` and skill allowlists.
 
 ```typescript
 import { agency } from '@framers/agentos';
-import { ForgeToolMetaTool, AdaptPersonalityTool } from '@framers/agentos/emergent';
 
-// The emergent toolkit ships these built-in meta-tools. Register them on the
-// agency so the runtime exposes forge_tool / adapt_personality when
-// emergent.enabled is true.
-const forgeTool = ForgeToolMetaTool;
-const adaptPersonalityTool = AdaptPersonalityTool;
-
+// `emergent.enabled` requires `strategy: 'hierarchical'` or `adaptive: true`.
+// When enabled, the runtime's ToolOrchestrator auto-wires the emergent
+// meta-tools (`forge_tool`, `adapt_personality`) with the live
+// EmergentCapabilityEngine reference — you do NOT pass them in `tools: [...]`
+// (those classes require a constructor arg, not a bare reference).
 const adaptiveAgent = agency({
   provider: 'openai',
   model: 'gpt-4o',
+  strategy: 'hierarchical',
   agents: {
     manager: {
       instructions: 'Coordinate the work. Decide which specialist to spawn when needed.',
     },
     primary: {
       instructions: 'You are a helpful assistant that learns and adapts.',
-      tools: [forgeTool, adaptPersonalityTool],
     },
   },
-  // `emergent.enabled` requires `strategy: 'hierarchical'` or `adaptive: true`.
-  strategy: 'hierarchical',
   emergent: {
     enabled: true,
     selfImprovement: {
@@ -942,9 +938,9 @@ const adaptiveAgent = agency({
 });
 
 // The agency can now:
-// - Forge new tools at runtime via `forge_tool`
-// - Adapt its personality via `adapt_personality`
-// - Enable/disable skills dynamically
+// - Forge new tools at runtime via the auto-injected `forge_tool`
+// - Adapt its personality via the auto-injected `adapt_personality`
+// - Enable/disable skills dynamically through the skills subsystem
 // - Evaluate its own performance and adjust
 const result = await adaptiveAgent.generate('Help me write a creative story.');
 console.log(result.text);
