@@ -1,3 +1,7 @@
+## <small>0.9.3 (2026-05-11)</small>
+
+* feat(agent): add verifyCitations config + grounding on GenerateTextResult ([c08e89fe4afdb9e8d72b8ac238e32160b3f6f956](https://github.com/framersai/agentos/commit/c08e89fe4afdb9e8d72b8ac238e32160b3f6f956))
+
 ## <small>0.9.2 (2026-05-11)</small>
 
 * fix: address CodeRabbit findings on recent agents/ work ([9584a73fa5b3326ecb17c05665eadfa16ad4adae](https://github.com/framersai/agentos/commit/9584a73fa5b3326ecb17c05665eadfa16ad4adae))
