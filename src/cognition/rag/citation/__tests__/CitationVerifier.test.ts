@@ -81,4 +81,43 @@ describe('CitationVerifier', () => {
     const result = await verifier.verify('', [{ content: 'source' }]);
     expect(formatVerifiedResponse(result)).toBe('No verifiable claims found.');
   });
+
+  it('accepts a pre-decomposed string[] of claims and skips internal extraction', async () => {
+    const extractSpy = vi.fn();
+    const v = new CitationVerifier({ embedFn: mockEmbedFn, extractClaims: extractSpy });
+    const result = await v.verify(
+      ['Cats are mammals.', 'Dogs are reptiles.'],
+      [{ content: 'Cats are small domesticated mammals.' }],
+    );
+    expect(extractSpy).not.toHaveBeenCalled();
+    expect(result.totalClaims).toBe(2);
+    expect(result.claims.map((c) => c.text)).toEqual(['Cats are mammals.', 'Dogs are reptiles.']);
+  });
+
+  it('verify(claims[]) keeps caller-provided claim order in result.claims', async () => {
+    const result = await verifier.verify(
+      ['First claim about A.', 'Second claim about B.', 'Third claim about C.'],
+      [{ content: 'Sources about A and B.' }],
+    );
+    expect(result.claims[0].text).toBe('First claim about A.');
+    expect(result.claims[1].text).toBe('Second claim about B.');
+    expect(result.claims[2].text).toBe('Third claim about C.');
+  });
+
+  it('extractClaims() exposes the same decomposition the verify(string) path uses', async () => {
+    const claims = await verifier.extractClaims(
+      'The sky appears blue during daytime. Water molecules are fundamentally wet in nature.',
+    );
+    expect(claims.length).toBe(2);
+    expect(claims[0]).toMatch(/sky/);
+    expect(claims[1]).toMatch(/[Ww]ater/);
+  });
+
+  it('extractClaims() honors a custom extractor when configured', async () => {
+    const customExtract = vi.fn().mockResolvedValue(['One.', 'Two.', 'Three.']);
+    const v = new CitationVerifier({ embedFn: mockEmbedFn, extractClaims: customExtract });
+    const claims = await v.extractClaims('whatever text');
+    expect(customExtract).toHaveBeenCalledWith('whatever text');
+    expect(claims).toEqual(['One.', 'Two.', 'Three.']);
+  });
 });

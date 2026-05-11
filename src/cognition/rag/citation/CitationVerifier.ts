@@ -39,11 +39,37 @@ export class CitationVerifier {
     this.extractClaimsFn = config.extractClaims;
   }
 
-  /** Verify claims in text against provided sources. */
-  async verify(text: string, sources: VerificationSource[]): Promise<VerifiedResponse> {
-    const claims = this.extractClaimsFn
-      ? await this.extractClaimsFn(text)
-      : this.sentenceSplit(text);
+  /**
+   * Verify claims against provided sources.
+   *
+   * Accepts the input in two shapes:
+   *
+   * - **`string`** — the raw text the verifier should decompose into atomic
+   *   claims before scoring. Uses the configured `extractClaims` callback
+   *   (e.g. an LLM-driven decomposer) or the built-in sentence splitter.
+   *   Best when the input is one block of LLM-generated prose and you want
+   *   the verifier to handle decomposition.
+   *
+   * - **`string[]`** — a list of pre-decomposed atomic claims, used as-is
+   *   without any further extraction. Best when you already broke the prose
+   *   into structured claims yourself, when you're verifying claims that
+   *   came from a parser other than English sentence splitting, or when
+   *   you want to scope verification to a specific subset of claims.
+   *
+   * Both paths score each claim against each source via cosine similarity
+   * and (optionally) NLI contradiction detection, then return a single
+   * {@link VerifiedResponse} with per-claim verdicts.
+   *
+   * @param input   - Either the raw text or a pre-decomposed claim list.
+   * @param sources - Sources to score every claim against.
+   */
+  async verify(
+    input: string | string[],
+    sources: VerificationSource[],
+  ): Promise<VerifiedResponse> {
+    const claims = Array.isArray(input)
+      ? input
+      : await this.extractClaims(input);
 
     if (claims.length === 0) return this.emptyResult();
 
@@ -95,6 +121,28 @@ export class CitationVerifier {
     }
 
     return this.aggregate(verdicts);
+  }
+
+  /**
+   * Decompose raw text into atomic claims using the same logic
+   * `verify(text, sources)` uses internally.
+   *
+   * Uses the constructor's `extractClaims` callback when provided,
+   * otherwise falls back to the built-in sentence splitter. Exposed
+   * publicly so callers who want to **inspect or filter** the claim
+   * list before verification can do so, then hand it back to
+   * `verify(claims[], sources)`:
+   *
+   * ```ts
+   * const claims = await verifier.extractClaims(llmText);
+   * const filtered = claims.filter((c) => !c.startsWith('I think'));
+   * const result = await verifier.verify(filtered, sources);
+   * ```
+   */
+  async extractClaims(text: string): Promise<string[]> {
+    return this.extractClaimsFn
+      ? await this.extractClaimsFn(text)
+      : this.sentenceSplit(text);
   }
 
   private sentenceSplit(text: string): string[] {

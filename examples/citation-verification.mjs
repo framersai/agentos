@@ -29,26 +29,50 @@ const verifier = new CitationVerifier({
   unverifiableThreshold: 0.3, // cosine < 0.3 = unverifiable
 });
 
-// --- Verify claims against sources ---
-// Three claims. One source per claim. The third claim has no source — it
-// should come back as "unverifiable" so callers know to stop quoting it.
+const sources = [
+  {
+    content: 'Tokyo is the capital and seat of government of Japan.',
+    title: 'Japan Overview',
+    url: 'https://example.com/japan',
+  },
+  {
+    content: 'The population of Tokyo proper is approximately 14 million.',
+    title: 'Tokyo Demographics',
+    url: 'https://example.com/tokyo',
+  },
+];
+
+// --- Pattern A: pass raw text, let the verifier decompose ---
+// Use this shape when the input is one block of LLM-generated prose.
+// The built-in sentence splitter (or a configured `extractClaims`
+// callback) breaks the text into atomic claims before scoring.
 const result = await verifier.verify(
   'Tokyo is the capital of Japan. ' +
   'Tokyo proper has roughly 14 million residents. ' +
   'Tokyo hosted the 2020 Summer Olympics in 1457.',
-  [
-    {
-      content: 'Tokyo is the capital and seat of government of Japan.',
-      title: 'Japan Overview',
-      url: 'https://example.com/japan',
-    },
-    {
-      content: 'The population of Tokyo proper is approximately 14 million.',
-      title: 'Tokyo Demographics',
-      url: 'https://example.com/tokyo',
-    },
-  ],
+  sources,
 );
+
+// --- Pattern B: pass a pre-decomposed claim array ---
+// Use this shape when you already broke the prose into structured
+// claims yourself — your own parser, an NER step, a curated subset,
+// a user-edited list. The verifier preserves caller-provided order
+// in result.claims.
+//
+// const claims = [
+//   'Tokyo is the capital of Japan.',
+//   'Tokyo proper has roughly 14 million residents.',
+//   'Tokyo hosted the 2020 Summer Olympics in 1457.',
+// ];
+// const result = await verifier.verify(claims, sources);
+
+// --- Or extract first, filter, then verify ---
+// extractClaims() exposes the same decomposition Pattern A uses
+// internally, so you can inspect or filter before scoring:
+//
+// const claims = await verifier.extractClaims(llmText);
+// const filtered = claims.filter((c) => c.length > 20);
+// const result = await verifier.verify(filtered, sources);
 
 // --- Print results ---
 console.log('=== Citation Verification Results ===\n');

@@ -336,6 +336,8 @@ for (const claim of result.grounding?.claims ?? []) {
 
 The agent calls your `retrieve` hook before generation to fetch sources, runs the model, then decomposes the response into atomic claims and scores each against the sources via cosine similarity (with optional NLI for contradiction detection). Verdicts: `supported`, `weak`, `unverifiable`, `contradicted`. Reach for the low-level [`CitationVerifier`](https://docs.agentos.sh/features/citation-verification) directly only when you own both sides of the generate/retrieve pair yourself.
 
+When you do reach for it directly, `verifier.verify(input, sources)` takes two shapes — raw text (lets the verifier decompose into claims itself) or a pre-decomposed `string[]` of claims (skips internal extraction, scores each item as-is). Use the array shape when you've already split the prose with your own parser or want to verify a curated subset; use the string shape when you have one block of LLM output and want the built-in sentence splitter / configured `extractClaims` LLM decomposer to handle it. `verifier.extractClaims(text)` exposes the same decomposition path the string form uses, so you can inspect / filter the claim list before scoring.
+
 ---
 
 ## See It In Action
