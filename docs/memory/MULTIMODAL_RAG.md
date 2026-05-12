@@ -2,24 +2,24 @@
 
 > **Memory benchmarks (full N=500, gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)**. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. The same text-first retrieval pipeline that produced these numbers is what the multimodal pattern below indexes against (derived captions, transcripts, OCR, document text) once you have a text representation. [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
 
-AgentOS’ core RAG APIs are **text-first** (`EmbeddingManager` + `VectorStoreManager` + `RetrievalAugmentor`). Multimodal support (image/audio) is implemented as a composable pattern on top:
+AgentOS’ core RAG APIs are **text-first** ([`EmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts) + [`VectorStoreManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts) + [`RetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts)). Multimodal support (image/audio) is implemented as a composable pattern on top:
 
 1. Store the **binary asset** (optional) + metadata.
 2. Derive a **text representation** (caption/transcript/OCR/document text extraction).
 3. Index that text as a **normal RAG document** so the existing retrieval pipeline (vector, BM25, reranking, GraphRAG, etc.) can operate without any “special” multimodal database.
 4. Optionally add **modality-specific embeddings** (image-to-image / audio-to-audio) as a fast path.
 
-This guide documents the reference implementation used by the AgentOS HTTP API router (`@framers/agentos-ext-http-api`) and the `voice-chat-assistant` backend.
+This guide documents the reference implementation used by the AgentOS HTTP API router ([`@framers/agentos-ext-http-api`](https://github.com/framersai/agentos-ext-http-api)) and the `voice-chat-assistant` backend.
 
 This is a strong **production baseline**, not a claim that AgentOS already ships the full current frontier of multimodal retrieval research. Today the canonical retrieval surface is still derived text. Direct visual late-interaction retrievers and page-native document retrieval remain follow-up work.
 
-Current implementation detail: PDF/document ingestion now indexes extracted text into standard RAG collections through `MultimodalIndexer.indexText(...)`, so derived document text is retrievable through the normal text pipeline rather than only being stored as memory traces.
+Current implementation detail: PDF/document ingestion now indexes extracted text into standard RAG collections through [`MultimodalIndexer.indexText(...)`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/multimodal/MultimodalIndexer.ts), so derived document text is retrievable through the normal text pipeline rather than only being stored as memory traces.
 
 ## Why This Design
 
 - **Works by default**: If you can derive text, you can retrieve multimodal assets immediately using the standard RAG pipeline.
 - **Optional offline**: Image/audio embedding retrieval is install-on-demand and can be enabled per deployment.
-- **No vendor lock-in**: The same abstractions work with `SqlVectorStore`, `HnswlibVectorStore`, or `QdrantVectorStore`.
+- **No vendor lock-in**: The same abstractions work with [`SqlVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/SqlVectorStore.ts), [`HnswlibVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/HnswlibVectorStore.ts), or [`QdrantVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts).
 
 ## Architecture
 
@@ -37,7 +37,7 @@ flowchart LR
 
 Key idea: the **derived text** is the canonical retrieval surface. Modality embeddings (when enabled) are an acceleration path, not a requirement. Documents are first-class assets in the same model, but stay text-first for now.
 
-That text-first design has one important boundary today: `UnifiedRetriever` still treats its multimodal source as non-text-only. Document/PDF text retrieval therefore works through the standard text RAG collections rather than through the multimodal source branch in `UnifiedRetriever`.
+That text-first design has one important boundary today: [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) still treats its multimodal source as non-text-only. Document/PDF text retrieval therefore works through the standard text RAG collections rather than through the multimodal source branch in `UnifiedRetriever`.
 
 ### Query
 
@@ -88,7 +88,7 @@ This keeps modality embeddings separate from text embeddings, while still reusin
 
 ## HTTP API Surface
 
-The host-agnostic Express router lives in `@framers/agentos-ext-http-api`:
+The host-agnostic Express router lives in [`@framers/agentos-ext-http-api`](https://github.com/framersai/agentos-ext-http-api) — specifically [`src/rag/rag.routes.ts`](https://github.com/framersai/agentos-ext-http-api/blob/master/src/rag/rag.routes.ts):
 
 ```ts
 import express from 'express';
@@ -172,6 +172,25 @@ The recommended approach is the same pattern:
 4. (Optional) add a video embedding collection for query-by-video.
 
 This keeps the base retrieval system consistent while still allowing richer modality-specific paths.
+
+## Source Files
+
+| Symbol | Repo | Path |
+|---|---|---|
+| [`MultimodalIndexer`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/multimodal/MultimodalIndexer.ts) | `framersai/agentos` | `src/cognition/rag/multimodal/MultimodalIndexer.ts` |
+| [`MultimodalAggregator`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/MultimodalAggregator.ts) | `framersai/agentos` | `src/cognition/memory/io/ingestion/MultimodalAggregator.ts` |
+| [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) | `framersai/agentos` | `src/cognition/rag/unified/UnifiedRetriever.ts` |
+| [`EmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts) | `framersai/agentos` | `src/cognition/rag/EmbeddingManager.ts` |
+| [`VectorStoreManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts) | `framersai/agentos` | `src/cognition/rag/VectorStoreManager.ts` |
+| [`RetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts) | `framersai/agentos` | `src/cognition/rag/RetrievalAugmentor.ts` |
+| [`SqlVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/SqlVectorStore.ts) | `framersai/agentos` | `src/cognition/rag/vector_stores/SqlVectorStore.ts` |
+| [`HnswlibVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/HnswlibVectorStore.ts) | `framersai/agentos` | `src/cognition/rag/vector_stores/HnswlibVectorStore.ts` |
+| [`QdrantVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts) | `framersai/agentos` | `src/cognition/rag/vector_stores/QdrantVectorStore.ts` |
+| [Vector stores tree](https://github.com/framersai/agentos/tree/master/src/cognition/rag/vector_stores) | `framersai/agentos` | `src/cognition/rag/vector_stores/` |
+| [Multimodal tree (Aggregator + Indexer + types)](https://github.com/framersai/agentos/tree/master/src/cognition/rag/multimodal) | `framersai/agentos` | `src/cognition/rag/multimodal/` |
+| [`createAgentOSRagRouter`](https://github.com/framersai/agentos-ext-http-api/blob/master/src/rag/rag.routes.ts) | `framersai/agentos-ext-http-api` | `src/rag/rag.routes.ts` |
+| [Multimodal route tests](https://github.com/framersai/agentos-ext-http-api/blob/master/src/rag/rag.multimodal.routes.test.ts) | `framersai/agentos-ext-http-api` | `src/rag/rag.multimodal.routes.test.ts` |
+| [HTTP API package root](https://github.com/framersai/agentos-ext-http-api) | `framersai/agentos-ext-http-api` | (root) |
 
 ---
 
