@@ -132,12 +132,6 @@ const publicationManifest = [
   agentosDoc('ARCHITECTURE.md', 'architecture/system-architecture.md', 'System Architecture', 'Concepts', 1),
   agentosDoc('GMI.md', 'architecture/gmi.md', 'Generalized Mind Instances (GMIs)', 'Concepts', 1.5),
   agentosDoc('PLATFORM_SUPPORT.md', 'architecture/platform-support.md', 'Platform Support', 'Concepts', 2),
-  extraDoc('docs/architecture/runtime-status-matrix.md', 'architecture/runtime-status-matrix.md', 'Runtime Status Matrix', 'Architecture', 3),
-  extraDoc('docs/architecture/sandbox-security.md', 'architecture/sandbox-security.md', 'Sandbox Security', 'Guardrails & Safety', 4),
-  extraDoc('docs/architecture/cli-subprocess.md', 'architecture/cli-subprocess.md', 'CLI Subprocess Bridge', 'Architecture', 5, {
-    sidebar: false,
-  }),
-  extraDoc('docs/architecture/tool-permissions.md', 'architecture/tool-permissions.md', 'Tool Permissions & Security Tiers', 'Tools & Capabilities', 6),
   siteDoc('architecture/skills-vs-tools-vs-extensions.md', 'architecture/skills-vs-tools-vs-extensions.md', 'Skills vs Tools vs Extensions', 'Architecture', 8.5),
   agentosDoc('OBSERVABILITY.md', 'architecture/observability.md', 'Observability (OpenTelemetry)', 'Architecture', 9),
   agentosDoc('LOGGING.md', 'architecture/logging.md', 'Logging (Pino + OpenTelemetry)', 'Architecture', 10),
@@ -145,18 +139,6 @@ const publicationManifest = [
   agentosDoc('LLM_PROVIDERS.md', 'architecture/llm-providers.md', 'LLM Providers', 'Architecture', 12),
   agentosDoc('STREAMING_SEMANTICS.md', 'architecture/streaming-semantics.md', 'Streaming Semantics', 'Architecture', 13),
   agentosDoc('OAUTH_AUTH.md', 'architecture/oauth-auth.md', 'OAuth Auth', 'Architecture', 14),
-  extraDoc('docs/BACKEND_API.md', 'architecture/backend-api.md', 'Backend API', 'Architecture', 16, {
-    sidebar: false,
-  }),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/http-streaming-api.md', 'architecture/http-streaming-api.md', 'HTTP Streaming API', 'Architecture', 18, {
-    sidebar: false,
-  }),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/chat-server.md', 'architecture/chat-server.md', 'Chat Server (HTTP API)', 'Architecture', 19, {
-    sidebar: false,
-  }),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/tools.md', 'architecture/tools.md', 'Tools', 'Architecture', 20, {
-    sidebar: false,
-  }),
 
   agentosDoc('ORCHESTRATION.md', 'features/orchestration-guide.md', 'Orchestration Guide', 'Orchestration', 1, {
     sidebar: false,
@@ -237,7 +219,6 @@ const publicationManifest = [
 
   agentosDoc('CHANNELS.md', 'features/channels.md', 'Channels', 'Channels & Social', 1),
   agentosDoc('SOCIAL_POSTING.md', 'features/social-posting.md', 'Social Posting', 'Channels & Social', 2),
-  extraDoc('apps/wunderland-sol/docs-site/docs/guides/browser-automation.md', 'features/browser-automation.md', 'Browser Automation', 'Channels & Social', 3),
 
   agentosDoc('STRUCTURED_OUTPUT.md', 'features/structured-output.md', 'Structured Output', 'Tools & Capabilities', 1),
   siteDoc('features/llm-output-validation.md', 'features/llm-output-validation.md', 'LLM Output Validation', 'Model Quality & Cost', 1.5),
@@ -297,14 +278,6 @@ const publicationManifest = [
     title: 'Skills (SKILL.md)',
     section: 'Skills',
     position: 2,
-  }),
-  entry({
-    sourceType: 'package-readme',
-    sourcePath: 'packages/agentos-skills/README.md',
-    dest: 'skills/agentos-skills.md',
-    title: '@framers/agentos-skills',
-    section: 'Skills',
-    position: 3,
   }),
   entry({
     sourceType: 'package-readme',
