@@ -12,9 +12,6 @@ The 26 top-level modules documented below are predominantly state-management sub
 This page is the system map. For the *what* of each subsystem — components, lifecycle ownership, source-tree location — read on. For deep-dives into individual concerns, follow the table of contents.
 
 For specific subsystem deep-dives, see:
-- [Sandbox & Security](./sandbox-security.md)
-- [CLI Subprocess](./cli-subprocess.md)
-- [Tool Permissions](./tool-permissions.md)
 - [Provenance & Immutability](../features/provenance-immutability.md)
 
 ![AgentOS layered architecture: API surface, orchestration, GMI cognitive engine, safety guardrails alongside tools and extensions, memory and RAG, LLM providers, and perception with channel adapters](/img/diagrams/system-architecture-layers.svg)
