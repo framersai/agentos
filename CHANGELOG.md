@@ -1,3 +1,10 @@
+## <small>0.9.8 (2026-05-12)</small>
+
+* fix(docs): repair dangling markdown links to removed stub pages ([517f63c044c1e54ed933fd83ef34e4c0e31b559e](https://github.com/framersai/agentos/commit/517f63c044c1e54ed933fd83ef34e4c0e31b559e))
+* docs: remove publication-manifest entries that produce monorepo-source stubs ([aaf5ef246fcff0e5e2830ab4d8ada53f9c91791e](https://github.com/framersai/agentos/commit/aaf5ef246fcff0e5e2830ab4d8ada53f9c91791e))
+* docs(platform-support): inline GitHub links for every file/class reference ([549fc4f3bd36393c2e3fe915ef7af35d78d9ca7c](https://github.com/framersai/agentos/commit/549fc4f3bd36393c2e3fe915ef7af35d78d9ca7c))
+* deps: bump @framers/sql-storage-adapter ^0.6.4 → ^0.6.5 ([46b4a88cc1aafc302b99f7d9dcfc3399ad66d186](https://github.com/framersai/agentos/commit/46b4a88cc1aafc302b99f7d9dcfc3399ad66d186))
+
 ## <small>0.9.7 (2026-05-12)</small>
 
 * fix(build): remove broken stub paths for graphology / hnswlib in tsconfig ([ab31bacfbd13a2c228a2f8865f43dd193cf2c1b7](https://github.com/framersai/agentos/commit/ab31bacfbd13a2c228a2f8865f43dd193cf2c1b7))
