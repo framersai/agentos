@@ -1,3 +1,7 @@
+## <small>0.9.9 (2026-05-12)</small>
+
+* fix(docs): repair 4 dangling links + remove WIP-toned status disclaimers ([30dcb95a342c34010001c220706c2a59ff8de091](https://github.com/framersai/agentos/commit/30dcb95a342c34010001c220706c2a59ff8de091))
+
 ## <small>0.9.8 (2026-05-12)</small>
 
 * fix(docs): repair dangling markdown links to removed stub pages ([517f63c044c1e54ed933fd83ef34e4c0e31b559e](https://github.com/framersai/agentos/commit/517f63c044c1e54ed933fd83ef34e4c0e31b559e))
