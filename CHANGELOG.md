@@ -1,3 +1,10 @@
+## <small>0.9.6 (2026-05-12)</small>
+
+* fix(memory): robust graphology import + preserve migration errors ([307822942dbd8dfd52cee231546697a2cccbb7af](https://github.com/framersai/agentos/commit/307822942dbd8dfd52cee231546697a2cccbb7af))
+* docs: inline GitHub source links for every class / type / function name in guides ([195d741768ed7ba0bd163b7229e37b33ba546c3a](https://github.com/framersai/agentos/commit/195d741768ed7ba0bd163b7229e37b33ba546c3a))
+* docs(multimodal-rag): inline GitHub source links + Source Files table ([2a07dd876496282a715437454ec604b8c224d91d](https://github.com/framersai/agentos/commit/2a07dd876496282a715437454ec604b8c224d91d))
+* docs(working-memory): inline GitHub source links + Source Files table ([5019aba0e065916f42a9c6b5dddbd860a60e0d10](https://github.com/framersai/agentos/commit/5019aba0e065916f42a9c6b5dddbd860a60e0d10))
+
 ## <small>0.9.5 (2026-05-12)</small>
 
 * fix(pii-redaction): correct broken link to provenance-immutability page ([ce4611b3f0ef0e914432c9fef512ce59c63aebba](https://github.com/framersai/agentos/commit/ce4611b3f0ef0e914432c9fef512ce59c63aebba))
