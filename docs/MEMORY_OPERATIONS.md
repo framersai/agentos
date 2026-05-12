@@ -143,14 +143,14 @@ Both systems feed the same retrieval pipeline — auto-ingested facts are surfac
 
 | Tool | Name | Description | Side Effects |
 |------|------|-------------|-------------|
-| `MemoryAddTool` | `memory_add` | Store a new memory trace | Write |
-| `MemoryUpdateTool` | `memory_update` | Update content or tags of an existing trace | Write |
-| `MemoryDeleteTool` | `memory_delete` | Soft-delete a trace by ID | Write |
-| `MemoryMergeTool` | `memory_merge` | Merge multiple traces into one | Write |
-| `MemorySearchTool` | `memory_search` | FTS5 full-text search over traces | Read-only |
-| `MemoryReflectTool` | `memory_reflect` | Trigger on-demand consolidation | Write |
+| [`MemoryAddTool`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/tools/MemoryAddTool.ts) | `memory_add` | Store a new memory trace | Write |
+| [`MemoryUpdateTool`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/tools/MemoryUpdateTool.ts) | `memory_update` | Update content or tags of an existing trace | Write |
+| [`MemoryDeleteTool`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/tools/MemoryDeleteTool.ts) | `memory_delete` | Soft-delete a trace by ID | Write |
+| [`MemoryMergeTool`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/tools/MemoryMergeTool.ts) | `memory_merge` | Merge multiple traces into one | Write |
+| [`MemorySearchTool`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/tools/MemorySearchTool.ts) | `memory_search` | FTS5 full-text search over traces | Read-only |
+| [`MemoryReflectTool`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/tools/MemoryReflectTool.ts) | `memory_reflect` | Trigger on-demand consolidation | Write |
 
-All tools implement the `ITool` interface and belong to the `memory` category.
+All tools implement the [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) interface and belong to the `memory` category.
 
 
 ### Registration
@@ -475,7 +475,7 @@ If a consolidation cycle is already in progress (mutex), returns immediately wit
 
 ### rehydrate_memory (opt-in)
 
-Retrieves the original verbatim content of a memory trace whose content has been compressed by temporal gist. Register by passing `{ includeRehydrate: true }` to `MemoryToolsExtension`. Requires an `IMemoryArchive` to be configured.
+Retrieves the original verbatim content of a memory trace whose content has been compressed by temporal gist. Register by passing `{ includeRehydrate: true }` to `MemoryToolsExtension`. Requires an [`IMemoryArchive`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/archive/IMemoryArchive.ts) to be configured.
 
 **Input:** `{ traceId: string }` — the ID of the gisted/archived trace.
 
@@ -647,7 +647,7 @@ console.log(`Imported: ${result.imported}, Skipped: ${result.skipped}`);
 
 ### JSON
 
-Parses a `JsonExporter`-format JSON file and restores traces plus any included graph/document/conversation rows.
+Parses a [`JsonExporter`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/JsonExporter.ts)-format JSON file and restores traces plus any included graph/document/conversation rows.
 
 ```ts
 const result = await mem.importFrom('./memories.json', { format: 'json' });

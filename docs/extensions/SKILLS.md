@@ -4,7 +4,7 @@ AgentOS supports **skills**: modular prompt modules defined by a `SKILL.md` file
 
 Skills are intended to complement tools/extensions:
 
-- **Tools** are atomic operations (`ITool`) that the runtime can execute.
+- **Tools** are atomic operations ([`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts)) that the runtime can execute.
 - **Skills** are higher-level instructions/workflows injected into the agent’s prompt.
 
 ## File format
@@ -59,9 +59,9 @@ The curated content currently includes **88 skills** spanning developer tools, p
 [`@framers/agentos-skills-registry`](https://github.com/framersai/agentos-skills-registry) supports two usage modes:
 
 - Lightweight catalog queries (no `@framers/agentos` peer dependency)
-- Factory helpers that **lazy-load** [`@framers/agentos/cognition/skills`](https://github.com/framersai/agentos/tree/master/src/cognition/skills) only when called (to build a `SkillRegistry` or snapshot)
+- Factory helpers that **lazy-load** [`@framers/agentos/cognition/skills`](https://github.com/framersai/agentos/tree/master/src/cognition/skills) only when called (to build a [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) or snapshot)
 
-Agents can discover curated skills via the **Capability Discovery Engine** (`@framers/agentos/discovery`), which indexes them as `CapabilityDescriptor` entries with `kind: ‘skill’`. The [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) from [`@framers/agentos/cognition/skills`](https://github.com/framersai/agentos/tree/master/src/cognition/skills) (the engine) provides `skills_list`, `skills_read`, `skills_enable`, `skills_status`, and `skills_install` tools directly. Curated skill content (the SKILL.md files) ships in [`@framers/agentos-skills`](https://github.com/framersai/agentos-skills).
+Agents can discover curated skills via the **Capability Discovery Engine** (`@framers/agentos/discovery`), which indexes them as [`CapabilityDescriptor`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/types.ts) entries with `kind: ‘skill’`. The [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) from [`@framers/agentos/cognition/skills`](https://github.com/framersai/agentos/tree/master/src/cognition/skills) (the engine) provides `skills_list`, `skills_read`, `skills_enable`, `skills_status`, and `skills_install` tools directly. Curated skill content (the SKILL.md files) ships in [`@framers/agentos-skills`](https://github.com/framersai/agentos-skills).
 
 ## Agentic discovery
 

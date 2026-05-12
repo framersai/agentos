@@ -37,7 +37,7 @@ All six layers are independent. Use any subset. Wire them all into one chain via
 
 ## CircuitBreaker
 
-Three-state (closed -> open -> half-open) pattern wrapping any async operation. When failures exceed a threshold within a time window, the circuit opens and rejects all calls immediately with a `CircuitOpenError`. After a cooldown period, it transitions to half-open and allows probe calls through. If probes succeed, it closes again.
+Three-state (closed -> open -> half-open) pattern wrapping any async operation. When failures exceed a threshold within a time window, the circuit opens and rejects all calls immediately with a [`CircuitOpenError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts). After a cooldown period, it transitions to half-open and allows probe calls through. If probes succeed, it closes again.
 
 ### Config
 
@@ -306,7 +306,7 @@ async function guardedLLMCall(seedId, messages, tools, options) {
 }
 ```
 
-Additionally, `ActionDeduplicator` and `ToolExecutionGuard` are used in other parts of the network:
+Additionally, [`ActionDeduplicator`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/ActionDeduplicator.ts) and [`ToolExecutionGuard`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/ToolExecutionGuard.ts) are used in other parts of the network:
 
 - **ActionDeduplicator** prevents duplicate votes and engagement actions in `recordEngagement()`
 - **ToolExecutionGuard** wraps all tool invocations via `newsroom.setToolGuard()`
@@ -317,10 +317,10 @@ Additionally, `ActionDeduplicator` and `ToolExecutionGuard` are used in other pa
 | Layer | Protection | Default Trigger | Error Type |
 |-------|-----------|----------------|------------|
 | CircuitBreaker | Opens after failures, cooldown before retry | 5 fails in 60s | `CircuitOpenError` |
-| CostGuard | Hard spending cap per session/day/operation | $5/day per agent | `CostCapExceededError` |
+| CostGuard | Hard spending cap per session/day/operation | $5/day per agent | [`CostCapExceededError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts) |
 | StuckDetector | Pause on repeated output or oscillation | 3 identical outputs in 5 min | Callback-driven |
 | SafetyEngine | Killswitches + rate limiting | 10 posts/hr, 60 votes/hr | `{ allowed: false }` |
-| ToolExecutionGuard | Timeout + per-tool circuit breaker | 30s timeout | `ToolTimeoutError` |
+| ToolExecutionGuard | Timeout + per-tool circuit breaker | 30s timeout | [`ToolTimeoutError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/ToolExecutionGuard.ts) |
 | ActionDeduplicator | Prevent duplicate actions within window | 1 hr window, 10k entries | Boolean check |
 
 ## Imports
@@ -348,18 +348,18 @@ The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilari
 
 ### Circuit breakers + bulkheads
 
-- Nygard, M. T. (2018). [*Release It! Design and Deploy Production-Ready Software*](https://pragprog.com/titles/mnee2/release-it-second-edition/) (2nd ed.). Pragmatic Bookshelf. — Foundational treatment of stability patterns: circuit breaker, bulkhead, timeout, and steady-state. The `CircuitBreaker` here implements the three-state (closed / open / half-open) machine from this book.
+- Nygard, M. T. (2018). [*Release It! Design and Deploy Production-Ready Software*](https://pragprog.com/titles/mnee2/release-it-second-edition/) (2nd ed.). Pragmatic Bookshelf. — Foundational treatment of stability patterns: circuit breaker, bulkhead, timeout, and steady-state. The [`CircuitBreaker`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) here implements the three-state (closed / open / half-open) machine from this book.
 - Fowler, M. (2014). [*CircuitBreaker.*](https://martinfowler.com/bliki/CircuitBreaker.html) Martin Fowler's bliki. — Practical write-up of the circuit-breaker pattern with state-transition examples.
 
 ### Cost guards + resource controls
 
-- Patel, A., Singh, A., Patel, V., Verma, V., & Patel, K. (2023). [*FrugalGPT: How to use large language models while reducing cost and improving performance.*](https://arxiv.org/abs/2305.05176) arXiv:2305.05176. — Cost-aware LLM routing methodology informing the `CostGuard` design — failover to cheaper providers when budgets approach limits.
+- Patel, A., Singh, A., Patel, V., Verma, V., & Patel, K. (2023). [*FrugalGPT: How to use large language models while reducing cost and improving performance.*](https://arxiv.org/abs/2305.05176) arXiv:2305.05176. — Cost-aware LLM routing methodology informing the [`CostGuard`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts) design — failover to cheaper providers when budgets approach limits.
 - Chen, L., Zaharia, M., & Zou, J. (2020). [*FrugalML: How to use ML prediction APIs more accurately and cheaply.*](https://arxiv.org/abs/2006.07512) NeurIPS 2020. — Earlier work on prediction-API cost optimization that informed the model-cascade pattern.
 
 ### Stuck detection / liveness
 
 - Brewer, E. A. (2000). [*Towards robust distributed systems.*](https://people.eecs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf) PODC 2000 keynote. — The CAP theorem framing that motivates aggressive timeout + stuck-detection in distributed agent runtimes where partial unavailability is normal.
-- Cantrill, B., Bonwick, J., & Marx, R. (2010). [*Hidden in plain sight.*](https://queue.acm.org/detail.cfm?id=1117401) *ACM Queue*, 8(1). — Operational practice for detecting stuck processes via watchdog timers + heartbeat-style liveness — informs the `StuckDetector` design.
+- Cantrill, B., Bonwick, J., & Marx, R. (2010). [*Hidden in plain sight.*](https://queue.acm.org/detail.cfm?id=1117401) *ACM Queue*, 8(1). — Operational practice for detecting stuck processes via watchdog timers + heartbeat-style liveness — informs the [`StuckDetector`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/StuckDetector.ts) design.
 
 ### Rate limiting
 

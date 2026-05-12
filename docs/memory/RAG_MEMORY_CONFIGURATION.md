@@ -5,8 +5,8 @@
 AgentOS provides three levels of memory API:
 
 1. **`Memory`** — Primary SQLite-first facade for persistent local memory, ingestion, import/export, graph memory, and self-improving consolidation.
-2. **`AgentMemory`** — Compatibility facade that can wrap either `CognitiveMemoryManager` or the standalone `Memory` engine.
-3. **Low-level RAG primitives** — `EmbeddingManager`, `VectorStoreManager`, `RetrievalAugmentor`, `UnifiedRetriever`, `GraphRAGEngine` for custom pipelines.
+2. **[`AgentMemory`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/AgentMemory.ts)** — Compatibility facade that can wrap either [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) or the standalone `Memory` engine.
+3. **Low-level RAG primitives** — [`EmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts), [`VectorStoreManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts), [`RetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts), [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts), [`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts) for custom pipelines.
 
 `Memory.create()` currently supports the SQLite-backed standalone memory facade at runtime. Postgres, Qdrant, Pinecone, and other backends are available through the lower-level RAG/vector-store layer.
 
@@ -52,7 +52,7 @@ await agentos.getExtensionManager().loadPackFromFactory(
 );
 ```
 
-If you already bootstrap `AgentOS`, you can auto-load the same pack directly
+If you already bootstrap [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), you can auto-load the same pack directly
 from `AgentOS.initialize()`:
 
 ```ts
@@ -159,7 +159,7 @@ Recent Messages (raw conversation turns)
 
 1. **ObservationBuffer** accumulates every message fed via `observe()`. It tracks approximate token count (~4 chars/token).
 2. **MemoryObserver** activates when the buffer reaches **30,000 tokens**. It sends buffered messages to a cheap LLM, which extracts typed observation notes (`factual`, `emotional`, `commitment`, `preference`, `creative`, `correction`). The LLM prompt is biased by the agent's HEXACO personality traits — high Emotionality focuses on tone shifts, high Conscientiousness on deadlines, high Openness on creative tangents.
-3. **MemoryReflector** accumulates observation notes. When they exceed **40,000 tokens**, it consolidates them into long-term `MemoryTrace` objects with 5-40x compression. Conflict resolution is personality-driven: high Honesty prefers newer information and supersedes old traces; high Agreeableness keeps both versions.
+3. **MemoryReflector** accumulates observation notes. When they exceed **40,000 tokens**, it consolidates them into long-term [`MemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) objects with 5-40x compression. Conflict resolution is personality-driven: high Honesty prefers newer information and supersedes old traces; high Agreeableness keeps both versions.
 
 ### Integration with RAG
 
@@ -181,7 +181,7 @@ Internally, `CognitiveMemoryManager.observe()` orchestrates the full pipeline: b
 
 ### Configuration
 
-Enable observational memory in `CognitiveMemoryConfig`:
+Enable observational memory in [`CognitiveMemoryConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts):
 
 ```ts
 await memory.initialize({
@@ -209,7 +209,7 @@ The concrete RAG APIs live under `@framers/agentos/cognition/rag`:
 - **`VectorStoreManager`** — HNSW/InMemory vector storage with similarity search
 - **`RetrievalAugmentor`** — Default runtime RAG pipeline for embedding + search + context assembly
 - **`UnifiedRetriever`** — Opt-in plan-aware orchestration across multiple retrieval sources
-- **`HydeRetriever`** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
+- **[`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts)** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
 - **`GraphRAGEngine`** — TypeScript-native graph-based RAG with knowledge graph traversal
 
 For most standalone and local-first use cases, prefer `Memory`. Use `AgentMemory` when you need the compatibility layer or the cognitive observer/reflector APIs.
@@ -473,10 +473,10 @@ console.log(result.augmentedContext);
 
 AgentOS currently ships these vector-store implementations:
 
-- `InMemoryVectorStore` (ephemeral, dev/testing)
-- `SqlVectorStore` (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
-- `HnswlibVectorStore` (ANN search via `hnswlib-node`, optional peer dependency; optional file persistence via `persistDirectory`)
-- `QdrantVectorStore` (remote/self-hosted Qdrant via HTTP; optional BM25 sparse vectors + hybrid fusion)
+- [`InMemoryVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/InMemoryVectorStore.ts) (ephemeral, dev/testing)
+- [`SqlVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/SqlVectorStore.ts) (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
+- [`HnswlibVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/HnswlibVectorStore.ts) (ANN search via `hnswlib-node`, optional peer dependency; optional file persistence via `persistDirectory`)
+- [`QdrantVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts) (remote/self-hosted Qdrant via HTTP; optional BM25 sparse vectors + hybrid fusion)
 
 If you want “true” large-scale vector DB behavior (tens of millions of vectors, filtered search at scale, etc.), add a provider implementation and wire it into `VectorStoreManager`.
 
@@ -623,7 +623,7 @@ Notes:
 
 ## Reranking and the Reranker Chain {#reranker-chain}
 
-If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS initializes `RerankerService` and auto-registers built-in providers declared in config: `cohere` (requires `apiKey`) and `local` (offline cross-encoder, requires Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`). Reranking is opt-in per request via `RagRetrievalOptions.rerankerConfig.enabled=true`.
+If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS initializes [`RerankerService`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/reranking/RerankerService.ts) and auto-registers built-in providers declared in config: `cohere` (requires `apiKey`) and `local` (offline cross-encoder, requires Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`). Reranking is opt-in per request via `RagRetrievalOptions.rerankerConfig.enabled=true`.
 
 AgentOS supports chaining multiple reranking providers into a sequential pipeline. Each stage narrows the result set, producing progressively higher-quality rankings:
 
@@ -801,7 +801,7 @@ Phase 2 iterates. Each iteration searches, extracts, analyzes gaps, and optional
 | `moderate` | 3                  | 20           | 10              | 8             | 2 min      |
 | `deep`     | 6                  | 50           | 25              | 20            | 9 min      |
 
-A `ResearchBudgetTracker` enforces hard caps on all dimensions. When any budget is exhausted, the engine moves to synthesis with whatever findings it has.
+A [`ResearchBudgetTracker`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts) enforces hard caps on all dimensions. When any budget is exhausted, the engine moves to synthesis with whatever findings it has.
 
 ### LLM-as-Judge Auto-Classifier
 

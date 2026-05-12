@@ -24,7 +24,7 @@ The cognitive memory system in AgentOS is built on that argument. Encoding stren
 The result is a memory that behaves more like a person remembering. The agent forgets the irrelevant. It holds onto what hit it hard. It pulls the thing that's adjacent in concept-space, not just the thing that's adjacent in vector-space. And — because every mechanism is HEXACO-modulated — the same input encodes differently depending on who is doing the remembering.
 
 :::tip Eight cognitive mechanisms layered on top
-On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms — reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive feeling-of-knowing, temporal gist, schema encoding, source-confidence decay, and emotion regulation. All HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on `CognitiveMemoryConfig`. See the [Mechanism Implementation Reference](#mechanism-implementation-reference) below for hook points, APIs, and testing.
+On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms — reconsolidation, retrieval-induced forgetting, involuntary recall, metacognitive feeling-of-knowing, temporal gist, schema encoding, source-confidence decay, and emotion regulation. All HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on [`CognitiveMemoryConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts). See the [Mechanism Implementation Reference](#mechanism-implementation-reference) below for hook points, APIs, and testing.
 :::
 
 ## What it actually does, in five lines
@@ -108,7 +108,7 @@ Collections in the vector store are named `{prefix}_{scope}_{scopeId}` (default 
 
 ## The MemoryTrace Envelope
 
-Every memory is wrapped in a `MemoryTrace` — the universal envelope carrying content, provenance, emotional context, and decay parameters:
+Every memory is wrapped in a [`MemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) — the universal envelope carrying content, provenance, emotional context, and decay parameters:
 
 | Field Group | Key Fields | Purpose |
 |-------------|-----------|---------|
@@ -203,7 +203,7 @@ The encoding model needs to know **what features** the content contains. Three d
 | `llm` | Slow | High | 1 per encode | High-fidelity agents with budget |
 | `hybrid` | Medium | High | Periodic | Best balance; keyword first, LLM re-classification during consolidation |
 
-Detected features (`ContentFeatures`): `hasNovelty`, `hasProcedure`, `hasEmotion`, `hasSocialContent`, `hasCooperation`, `hasEthicalContent`, `hasContradiction`, `topicRelevance`.
+Detected features ([`ContentFeatures`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts)): `hasNovelty`, `hasProcedure`, `hasEmotion`, `hasSocialContent`, `hasCooperation`, `hasEthicalContent`, `hasContradiction`, `topicRelevance`.
 
 Configure via `featureDetectionStrategy` in `CognitiveMemoryConfig`.
 
@@ -286,7 +286,7 @@ Setting `neutralMood: true` in retrieval options disables emotional congruence b
 
 ### Tip-of-the-Tongue Detection
 
-Traces with high vector similarity (>0.6) but low strength (<0.3) or low confidence (<0.4) are returned as `PartiallyRetrievedTrace` — the agent "almost" remembers them. These include `suggestedCues` (tags) to help the user provide more context.
+Traces with high vector similarity (>0.6) but low strength (<0.3) or low confidence (<0.4) are returned as [`PartiallyRetrievedTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts) — the agent "almost" remembers them. These include `suggestedCues` (tags) to help the user provide more context.
 
 ---
 
@@ -306,7 +306,7 @@ Base capacity follows Miller's number (7), modulated by personality:
 
 ### Slot Mechanics
 
-Each `WorkingMemorySlot` tracks:
+Each [`WorkingMemorySlot`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts) tracks:
 
 | Field | Range | Purpose |
 |-------|-------|---------|
@@ -338,9 +338,9 @@ Each `WorkingMemorySlot` tracks:
 
 Source: `src/memory/retrieval/store/MemoryStore.ts`
 
-The `MemoryStore` wraps `IVectorStore` + `IKnowledgeGraph` into a unified persistence layer:
+The [`MemoryStore`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/MemoryStore.ts) wraps [`IVectorStore`](https://github.com/framersai/agentos/blob/master/src/core/vector-store/IVectorStore.ts) + [`IKnowledgeGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/knowledge/IKnowledgeGraph.ts) into a unified persistence layer:
 
-- **Store**: Embeds content via `IEmbeddingManager`, upserts into vector store, records as episodic memory in knowledge graph
+- **Store**: Embeds content via [`IEmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/core/embeddings/IEmbeddingManager.ts), upserts into vector store, records as episodic memory in knowledge graph
 - **Query**: Vector search -> decay-aware scoring -> tip-of-the-tongue detection
 - **Access tracking**: Updates spaced repetition parameters on each retrieval
 - **Soft delete**: Sets `isActive = false` without removing from store
@@ -362,12 +362,12 @@ cogmem_organization_acme-org
 
 Source: `src/memory/retrieval/graph/IMemoryGraph.ts`
 
-The `IMemoryGraph` interface abstracts over two backends:
+The [`IMemoryGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/IMemoryGraph.ts) interface abstracts over two backends:
 
 | Backend | Implementation | Use Case |
 |---------|---------------|----------|
-| `graphology` | `GraphologyMemoryGraph` | Dev/testing, in-memory, fast |
-| `knowledge-graph` | `KnowledgeGraphMemoryGraph` | Production, wraps `IKnowledgeGraph` |
+| `graphology` | [`GraphologyMemoryGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/GraphologyMemoryGraph.ts) | Dev/testing, in-memory, fast |
+| `knowledge-graph` | [`KnowledgeGraphMemoryGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/KnowledgeGraphMemoryGraph.ts) | Production, wraps `IKnowledgeGraph` |
 
 Configure via `graph.backend` (default: `'knowledge-graph'`).
 
@@ -819,26 +819,26 @@ All source lives in `packages/agentos/src/memory/`:
 
 | File | Export |
 |------|--------|
-| `types.ts` | All types: `MemoryTrace`, `MemoryType`, `MemoryScope`, `ScoredMemoryTrace`, etc. |
-| `config.ts` | `CognitiveMemoryConfig`, `EncodingConfig`, `DecayConfig`, defaults |
-| `CognitiveMemoryManager.ts` | `CognitiveMemoryManager`, `ICognitiveMemoryManager` |
-| `encoding/EncodingModel.ts` | `computeEncodingStrength`, `yerksDodson`, `buildEmotionalContext` |
-| `encoding/ContentFeatureDetector.ts` | `createFeatureDetector`, `IContentFeatureDetector` |
-| `decay/DecayModel.ts` | `computeCurrentStrength`, `updateOnRetrieval`, `computeInterference` |
-| `decay/RetrievalPriorityScorer.ts` | `scoreAndRankTraces`, `detectPartiallyRetrieved` |
-| `working/CognitiveWorkingMemory.ts` | `CognitiveWorkingMemory` |
+| `types.ts` | All types: `MemoryTrace`, [`MemoryType`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`MemoryScope`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts), [`ScoredMemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts), etc. |
+| `config.ts` | `CognitiveMemoryConfig`, [`EncodingConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts), [`DecayConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts), defaults |
+| `CognitiveMemoryManager.ts` | [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts), [`ICognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) |
+| `encoding/EncodingModel.ts` | [`computeEncodingStrength`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/encoding/EncodingModel.ts), [`yerksDodson`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/encoding/EncodingModel.ts), [`buildEmotionalContext`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/encoding/EncodingModel.ts) |
+| `encoding/ContentFeatureDetector.ts` | [`createFeatureDetector`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/encoding/ContentFeatureDetector.ts), [`IContentFeatureDetector`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/encoding/ContentFeatureDetector.ts) |
+| `decay/DecayModel.ts` | [`computeCurrentStrength`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/decay/DecayModel.ts), [`updateOnRetrieval`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/decay/DecayModel.ts), [`computeInterference`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/decay/DecayModel.ts) |
+| `decay/RetrievalPriorityScorer.ts` | [`scoreAndRankTraces`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/decay/RetrievalPriorityScorer.ts), [`detectPartiallyRetrieved`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/decay/RetrievalPriorityScorer.ts) |
+| `working/CognitiveWorkingMemory.ts` | [`CognitiveWorkingMemory`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/working/CognitiveWorkingMemory.ts) |
 | `store/MemoryStore.ts` | `MemoryStore` |
-| `prompt/MemoryPromptAssembler.ts` | `assembleMemoryContext` |
-| `prompt/MemoryFormatters.ts` | `formatMemoryTrace`, `FormattingStyle` |
-| `graph/IMemoryGraph.ts` | `IMemoryGraph`, `MemoryEdgeType`, `ActivatedNode` |
+| `prompt/MemoryPromptAssembler.ts` | [`assembleMemoryContext`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/prompt/MemoryPromptAssembler.ts) |
+| `prompt/MemoryFormatters.ts` | [`formatMemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/prompt/MemoryFormatters.ts), [`FormattingStyle`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/prompt/MemoryFormatters.ts) |
+| `graph/IMemoryGraph.ts` | `IMemoryGraph`, [`MemoryEdgeType`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/IMemoryGraph.ts), [`ActivatedNode`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/IMemoryGraph.ts) |
 | `graph/SpreadingActivation.ts` | `spreadActivation` |
 | `graph/GraphologyMemoryGraph.ts` | `GraphologyMemoryGraph` |
 | `graph/KnowledgeGraphMemoryGraph.ts` | `KnowledgeGraphMemoryGraph` |
-| `observation/MemoryObserver.ts` | `MemoryObserver`, `ObservationNote` |
-| `observation/MemoryReflector.ts` | `MemoryReflector`, `MemoryReflectionResult` |
-| `observation/ObservationBuffer.ts` | `ObservationBuffer` |
-| `prospective/ProspectiveMemoryManager.ts` | `ProspectiveMemoryManager`, `ProspectiveMemoryItem` |
-| `consolidation/ConsolidationPipeline.ts` | `ConsolidationPipeline`, `ConsolidationResult` |
+| `observation/MemoryObserver.ts` | [`MemoryObserver`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryObserver.ts), [`ObservationNote`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryObserver.ts) |
+| `observation/MemoryReflector.ts` | [`MemoryReflector`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryReflector.ts), [`MemoryReflectionResult`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryReflector.ts) |
+| `observation/ObservationBuffer.ts` | [`ObservationBuffer`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/ObservationBuffer.ts) |
+| `prospective/ProspectiveMemoryManager.ts` | [`ProspectiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/prospective/ProspectiveMemoryManager.ts), [`ProspectiveMemoryItem`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/prospective/ProspectiveMemoryManager.ts) |
+| `consolidation/ConsolidationPipeline.ts` | [`ConsolidationPipeline`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/consolidation/ConsolidationPipeline.ts), [`ConsolidationResult`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/facade/types.ts) |
 
 ---
 
@@ -860,7 +860,7 @@ Both are injected into the system prompt simultaneously. The persistent memory a
 
 ## Mechanism Implementation Reference {#mechanism-implementation-reference}
 
-The eight cognitive mechanisms live under `packages/agentos/src/memory/mechanisms/`. Each mechanism is a pure function with one mutation responsibility on a `MemoryTrace`. The `CognitiveMechanismsEngine` binds them to lifecycle hooks on `MemoryStore` and `MemoryPromptAssembler`.
+The eight cognitive mechanisms live under `packages/agentos/src/memory/mechanisms/`. Each mechanism is a pure function with one mutation responsibility on a `MemoryTrace`. The [`CognitiveMechanismsEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/mechanisms/CognitiveMechanismsEngine.ts) binds them to lifecycle hooks on `MemoryStore` and `MemoryPromptAssembler`.
 
 ### Source-tree layout
 
@@ -915,7 +915,7 @@ applyEmotionRegulation(traces, config): number
 
 ### HEXACO modulation
 
-`CognitiveMechanismsEngine` accepts optional `HexacoTraits` at construction. When provided, mechanism parameters are scaled by personality dimensions before any hook fires:
+`CognitiveMechanismsEngine` accepts optional [`HexacoTraits`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts) at construction. When provided, mechanism parameters are scaled by personality dimensions before any hook fires:
 
 ```typescript
 this.mechanismsEngine = new CognitiveMechanismsEngine(config.cognitiveMechanisms, config.traits);
@@ -932,7 +932,7 @@ Modulation runs once via `applyPersonalityModulation()`. Trait-to-parameter scal
 
 ### Rehydration
 
-Gisted or archived content can be inflated on demand via `CognitiveMemoryManager.rehydrate(traceId)`. Content does not decay while archived; age-based retention applies. The archive is backed by `IMemoryArchive` (default `SqlStorageMemoryArchive`), which uses the same `StorageAdapter` contract as `Brain`. Archive tables (`archived_traces`, `archive_access_log`) live in the same database when the adapter is shared. The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
+Gisted or archived content can be inflated on demand via `CognitiveMemoryManager.rehydrate(traceId)`. Content does not decay while archived; age-based retention applies. The archive is backed by [`IMemoryArchive`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/archive/IMemoryArchive.ts) (default [`SqlStorageMemoryArchive`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/archive/SqlStorageMemoryArchive.ts)), which uses the same [`StorageAdapter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/index.ts) contract as [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts). Archive tables (`archived_traces`, `archive_access_log`) live in the same database when the adapter is shared. The `rehydrate_memory` LLM tool is opt-in via `MemoryToolsExtension({ includeRehydrate: true })`.
 
 ### Perspective encoding
 
@@ -940,7 +940,7 @@ Events witnessed by multiple agents are rewritten through each witness's HEXACO 
 
 ### Metadata storage
 
-Mechanism metadata is stored in `trace.structuredData.mechanismMetadata` (type `MechanismMetadata`), avoiding changes to the core `MemoryTrace` interface. The metadata persists in the vector store's metadata JSON column.
+Mechanism metadata is stored in `trace.structuredData.mechanismMetadata` (type [`MechanismMetadata`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/mechanisms/types.ts)), avoiding changes to the core `MemoryTrace` interface. The metadata persists in the vector store's metadata JSON column.
 
 ### Testing
 

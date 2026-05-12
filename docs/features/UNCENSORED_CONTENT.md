@@ -8,7 +8,7 @@ wiring bespoke model IDs for every surface.
 
 This document covers:
 
-- Text generation (`generateText`, `generateObject`, `streamText`)
+- Text generation (`generateText`, `generateObject`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts))
 - Image generation (`generateImage`)
 - Image editing (`editImage`)
 - The underlying model catalog and how to extend it
@@ -29,8 +29,8 @@ instructions for weapons, explosives, or poisons.
 
 ## Text — uncensored chat and structured output
 
-Set `policyTier` on any text call. The `PolicyAwareRouter` picks from the
-`UncensoredModelCatalog` (Hermes 3, Dolphin, MythoMax on OpenRouter) and
+Set `policyTier` on any text call. The [`PolicyAwareRouter`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/PolicyAwareRouter.ts) picks from the
+[`UncensoredModelCatalog`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/UncensoredModelCatalog.ts) (Hermes 3, Dolphin, MythoMax on OpenRouter) and
 bypasses the default OpenAI/Anthropic chain.
 
 ```typescript
@@ -108,7 +108,7 @@ const outfit = await editImage({
 
 When `policyTier` is `'mature'` or `'private-adult'`, the API:
 
-1. Routes through `PolicyAwareImageRouter` to pick a model from the
+1. Routes through [`PolicyAwareImageRouter`](https://github.com/framersai/agentos/blob/master/src/io/media/images/PolicyAwareImageRouter.ts) to pick a model from the
    uncensored catalog. `generateImage` infers `'face-consistency'` when
    `referenceImageUrl` is supplied; `editImage` defaults to `'img2img'`
    and honours explicit `capabilities` hints.

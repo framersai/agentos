@@ -119,7 +119,7 @@ console.log(result.warnings);          // Any import warnings
 
 ### agent.export() / agent.exportJSON()
 
-Export from an instantiated agent. The factory is the lowercase `agent`
+Export from an instantiated agent. The factory is the lowercase [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts)
 export (synchronous):
 
 ```typescript

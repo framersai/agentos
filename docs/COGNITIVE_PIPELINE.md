@@ -75,12 +75,12 @@ The cognitive pipeline is the three orchestrator stages on the left. Output guar
 Imagine a user types: *"What's my current job title?"*
 
 1. **Recall stage** receives the query.
-   - The `MemoryRouter`'s classifier (`gpt-5-mini`, ~$0.0002 per call) reads the query and emits `knowledge-update` (because "current X" with a state-evolution implication).
+   - The [`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts)'s classifier (`gpt-5-mini`, ~$0.0002 per call) reads the query and emits `knowledge-update` (because "current X" with a state-evolution implication).
    - The routing table for the `minimize-cost` preset says `knowledge-update → canonical-hybrid` — because Phase B measurements show canonical wins on this category.
    - The dispatcher invokes the canonical-hybrid backend (BM25 + dense + Cohere rerank). Returns top-K retrieved traces.
 
 2. **Read stage** receives the query + traces.
-   - The `ReadRouter`'s classifier reads them and emits `precise-fact` intent.
+   - The [`ReadRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts)'s classifier reads them and emits `precise-fact` intent.
    - The routing table for the `precise-fact` preset says `precise-fact → single-call`.
    - The dispatcher invokes the single-call reader. Returns the final answer.
 
@@ -94,7 +94,7 @@ Total LLM calls: 1 classifier (recall) + 1 classifier (read) + 1 backend retriev
 
 2. **No benchmark gaming**: the routing decisions are made by classifiers that read the actual question, not by static `if/else` heuristics that overfit to one benchmark. Same orchestrator works on LongMemEval, LOCOMO, BEAM, internal workloads.
 
-3. **Single-provider reproducibility**: every classifier talks to a provider-agnostic LLM adapter interface (`IMemoryClassifierLLM`, `IIngestClassifierLLM`, `IReadIntentClassifierLLM`). Wire one OpenAI key and the whole pipeline reproduces. Custom providers, mocks, or local models slot in via the same interface.
+3. **Single-provider reproducibility**: every classifier talks to a provider-agnostic LLM adapter interface ([`IMemoryClassifierLLM`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts), [`IIngestClassifierLLM`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/classifier.ts), [`IReadIntentClassifierLLM`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/classifier.ts)). Wire one OpenAI key and the whole pipeline reproduces. Custom providers, mocks, or local models slot in via the same interface.
 
 4. **Budget-aware dispatch**: every router ships with three budget modes (`hard` / `soft` / `cheapest-fallback`). Set a per-stage USD ceiling and the dispatcher gracefully degrades (or escalates a typed error) instead of running away with cost.
 
@@ -106,11 +106,11 @@ Each stage is its own shippable primitive with full README + 26-38 contract test
 
 | Stage | Primitive | Subpath | Doc |
 |---|---|---|---|
-| Ingest | `IngestRouter` | `@framers/agentos/ingest-router` | [Ingest Router](./INGEST_ROUTER.md) |
+| Ingest | [`IngestRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/IngestRouter.ts) | `@framers/agentos/ingest-router` | [Ingest Router](./INGEST_ROUTER.md) |
 | Recall | `MemoryRouter` | `@framers/agentos/memory-router` | [Memory Router](./MEMORY_ROUTER.md) |
-| Recall (self-calibrating) | `AdaptiveMemoryRouter` | `@framers/agentos/memory-router` | [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) |
+| Recall (self-calibrating) | [`AdaptiveMemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) | `@framers/agentos/memory-router` | [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) |
 | Read | `ReadRouter` | `@framers/agentos/read-router` | [Read Router](./READ_ROUTER.md) |
-| Composition | `CognitivePipeline` | `@framers/agentos/orchestration/pipeline` | (this doc) |
+| Composition | [`CognitivePipeline`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/index.ts) | `@framers/agentos/orchestration/pipeline` | (this doc) |
 
 Each primitive can be used standalone. CognitivePipeline is the convenience wrapper when you want all three stages coordinating.
 
@@ -250,11 +250,11 @@ interface ReadStage<TTrace, TOutcome> {
 
 Stage adapters that wrap the agentos routers:
 
-- `ingestRouterAsStage(IngestRouter)` → `IngestStage`
+- `ingestRouterAsStage(IngestRouter)` → [`IngestStage`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/index.ts)
 - `memoryRouterAsStage(MemoryRouter)` → `RecallStage<TTrace>`
 - `readRouterAsStage(ReadRouter, traceToString?)` → `ReadStage<TTrace, TOutcome>`
 
-Errors: `MissingStageError` (raised when a method is called without its required stage configured).
+Errors: [`MissingStageError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/index.ts) (raised when a method is called without its required stage configured).
 
 ## When to use just one stage instead
 
@@ -277,11 +277,11 @@ const answer = await readRouter.decideAndDispatch(
 ## Design principles
 
 1. **Provider-agnostic.** Every classifier talks to a provider-agnostic adapter interface. No SDK imports inside any module.
-2. **Pure where possible.** `selectIngestStrategy`, `selectBackend`, `selectReadStrategy` are pure functions: deterministic, no I/O. Safe inside cache keys and hot loops.
+2. **Pure where possible.** [`selectIngestStrategy`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/select-strategy.ts), [`selectBackend`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`selectReadStrategy`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts) are pure functions: deterministic, no I/O. Safe inside cache keys and hot loops.
 3. **Dispatch is injected.** Stage routers don't execute backends — they hand a decision to a `FunctionXDispatcher` whose registry of executors the consumer wires. Lets you connect to your standing infrastructure (existing HybridRetriever, OM pipeline, custom retriever) without touching this module.
 4. **Pluggable composition.** `CognitivePipeline` doesn't care if a stage is an agentos router or a custom impl. Anything satisfying the stage interface slots in.
 5. **Frozen defaults.** Preset routing tables and default cost-points are `Object.freeze`d. Consumers cannot mutate the routing surface from outside the modules.
-6. **Typed errors.** Every misuse path raises a specific error class so application-layer fallbacks are easy to write: `MemoryRouterUnknownCategoryError`, `MemoryRouterBudgetExceededError`, `MemoryRouterDispatcherMissingError`, `UnsupportedMemoryBackendError`, plus `IngestRouter*` and `ReadRouter*` siblings.
+6. **Typed errors.** Every misuse path raises a specific error class so application-layer fallbacks are easy to write: [`MemoryRouterUnknownCategoryError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`MemoryRouterBudgetExceededError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`MemoryRouterDispatcherMissingError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`UnsupportedMemoryBackendError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/dispatcher.ts), plus `IngestRouter*` and `ReadRouter*` siblings.
 
 ## Calibration
 

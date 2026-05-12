@@ -303,7 +303,7 @@ evaluator.registerScorer('llm_judge', judge.createScorer());
 
 ### LLM-as-judge methodology
 
-- Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin, Z., Li, Z., Li, D., Xing, E. P., Zhang, H., Gonzalez, J. E., & Stoica, I. (2023). [*Judging LLM-as-a-judge with MT-Bench and chatbot arena.*](https://arxiv.org/abs/2306.05685) NeurIPS 2023. — The canonical reference for LLM-as-judge reliability, position bias, and self-enhancement bias. The `LLMJudge` design accounts for all three.
+- Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin, Z., Li, Z., Li, D., Xing, E. P., Zhang, H., Gonzalez, J. E., & Stoica, I. (2023). [*Judging LLM-as-a-judge with MT-Bench and chatbot arena.*](https://arxiv.org/abs/2306.05685) NeurIPS 2023. — The canonical reference for LLM-as-judge reliability, position bias, and self-enhancement bias. The [`LLMJudge`](https://github.com/framersai/agentos/blob/master/src/safety/evaluation/LLMJudge.ts) design accounts for all three.
 - Liu, Y., Iter, D., Xu, Y., Wang, S., Xu, R., & Zhu, C. (2023). [*G-Eval: NLG evaluation using GPT-4 with better human alignment.*](https://arxiv.org/abs/2303.16634) EMNLP 2023. — Chain-of-thought-based evaluator scoring methodology used by the per-criteria grading mode.
 - Chen, Y., Wang, R., Jiang, H., Shi, S., & Xu, R.-M. (2023). [*Exploring the use of large language models for reference-free text quality evaluation: An empirical study.*](https://arxiv.org/abs/2304.00723) AACL 2023. — Reference-free evaluation methodology when ground-truth is unavailable.
 

@@ -106,12 +106,12 @@ CLI flags override values configured in code.
 
 | Interface | Purpose |
 |-----------|---------|
-| `IStreamTransport` | Bidirectional audio pipe (WebSocket now, WebRTC later) |
-| `IStreamingSTT` | Real-time speech-to-text with interim results |
-| `IEndpointDetector` | Turn-taking: decides when the user is done speaking |
-| `IDiarizationEngine` | Speaker identification and labeling |
-| `IStreamingTTS` | Token-stream to audio synthesis |
-| `IBargeinHandler` | Handles user interruption during agent speech |
+| [`IStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) | Bidirectional audio pipe (WebSocket now, WebRTC later) |
+| [`IStreamingSTT`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) | Real-time speech-to-text with interim results |
+| [`IEndpointDetector`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) | Turn-taking: decides when the user is done speaking |
+| [`IDiarizationEngine`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) | Speaker identification and labeling |
+| [`IStreamingTTS`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) | Token-stream to audio synthesis |
+| [`IBargeinHandler`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) | Handles user interruption during agent speech |
 
 ## Endpointing Modes
 
@@ -190,7 +190,7 @@ The voice pipeline is functional but has these known limitations that will be ad
 The current `chat --voice` implementation gets the full LLM text reply first, then chunks it for TTS. This means:
 - First audio playback is delayed until the LLM finishes generating
 - Barge-in cannot cancel in-flight LLM generation — only TTS playback
-- Future: wire a real streaming text-turn API from the chat runtime into `IVoicePipelineAgentSession`
+- Future: wire a real streaming text-turn API from the chat runtime into [`IVoicePipelineAgentSession`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts)
 
 ### Semantic Endpointing Requires LLM Callback
 
@@ -198,11 +198,11 @@ The semantic endpoint detector (`@framers/agentos-ext-endpoint-semantic`) only i
 
 ### Telephony Media Stream Bridge
 
-The `TelephonyStreamTransport` bridges provider media streams (Twilio, Telnyx, Plivo) into the voice pipeline. Webhook routes handle call lifecycle via `CallManager`, and media stream WebSocket connections feed audio through the same `VoicePipelineOrchestrator` used by browser voice. The `VoiceTransportAdapter` now fully wires `deliverNodeOutput()` to `pushToTTS()` and `getNodeInput()` to `waitForUserTurn()` for IVR graph flows.
+The [`TelephonyStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts) bridges provider media streams (Twilio, Telnyx, Plivo) into the voice pipeline. Webhook routes handle call lifecycle via [`CallManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/CallManager.ts), and media stream WebSocket connections feed audio through the same [`VoicePipelineOrchestrator`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/VoicePipelineOrchestrator.ts) used by browser voice. The [`VoiceTransportAdapter`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceTransportAdapter.ts) now fully wires `deliverNodeOutput()` to `pushToTTS()` and `getNodeInput()` to `waitForUserTurn()` for IVR graph flows.
 
 ### Env-Based Provider Resolution
 
-The `SpeechProviderResolver` and `createStreamingPipeline()` currently resolve voice components based on environment variables and static configuration. Future versions will resolve through a real `ExtensionManager` runtime with dynamic pack loading and hot-swapping.
+The [`SpeechProviderResolver`](https://github.com/framersai/agentos/blob/master/src/io/speech/SpeechProviderResolver.ts) and `createStreamingPipeline()` currently resolve voice components based on environment variables and static configuration. Future versions will resolve through a real [`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts) runtime with dynamic pack loading and hot-swapping.
 
 ### No Call Recording or Transcript Persistence
 
@@ -216,7 +216,7 @@ AgentOS lets you embed voice I/O directly inside an orchestration graph. There a
 
 ### Voice as a Graph Node Type
 
-Use the `voiceNode()` builder to create a `GraphNode` of type `'voice'`. The node manages a full multi-turn STT/TTS session and exits when one of its configured exit conditions fires.
+Use the `voiceNode()` builder to create a [`GraphNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) of type `'voice'`. The node manages a full multi-turn STT/TTS session and exits when one of its configured exit conditions fires.
 
 ```typescript
 import { voiceNode } from '@framers/agentos/orchestration';
@@ -343,7 +343,7 @@ When `transport.type: voice` is present, `compileWorkflowYaml()` attaches the co
 
 ### Barge-in Routing with Exit Conditions
 
-The `VoiceNodeExecutor` races multiple exit conditions simultaneously via a `Promise.race`. The first condition to fire determines the `exitReason` string, which is then looked up in the node's edge map to resolve the `routeTarget`.
+The [`VoiceNodeExecutor`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceNodeExecutor.ts) races multiple exit conditions simultaneously via a `Promise.race`. The first condition to fire determines the `exitReason` string, which is then looked up in the node's edge map to resolve the `routeTarget`.
 
 | `exitReason` | Trigger | Typical edge target |
 |---|---|---|
@@ -351,7 +351,7 @@ The `VoiceNodeExecutor` races multiple exit conditions simultaneously via a `Pro
 | `turns-exhausted` | `turn_complete` fires and `turnCount >= maxTurns` | summarize / fallback node |
 | `keyword:<word>` | `final_transcript` contains a phrase from `exitKeywords` | intent-specific handler |
 | `silence-timeout` | No speech for 30 s when `exitOn: silence-timeout` | timeout handler / retry |
-| `interrupted` | `AbortController` fired with a `VoiceInterruptError` (barge-in) | re-listen / cancel TTS |
+| `interrupted` | `AbortController` fired with a [`VoiceInterruptError`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/VoiceInterruptError.ts) (barge-in) | re-listen / cancel TTS |
 
 When a barge-in occurs, the executor catches the `VoiceInterruptError` and returns `exitReason: 'interrupted'`. Wire a loopback edge `.on('interrupted', 'listen')` to restart the listen cycle:
 
@@ -365,7 +365,7 @@ voiceNode('listen', { mode: 'conversation' })
 
 ### Graph Events for Voice
 
-Voice nodes emit the following `GraphEvent` values in causal order:
+Voice nodes emit the following [`GraphEvent`](https://github.com/framersai/agentos/blob/master/src/orchestration/events/GraphEvent.ts) values in causal order:
 
 | Event type | When |
 |---|---|
@@ -377,7 +377,7 @@ Voice nodes emit the following `GraphEvent` values in causal order:
 | `voice_barge_in` | Each `barge_in` event from the pipeline session |
 | `voice_session` (action: `ended`) | On node exit, with `exitReason` |
 
-Consume events via the `GraphRuntime` stream:
+Consume events via the [`GraphRuntime`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/GraphRuntime.ts) stream:
 
 ```typescript
 for await (const event of runtime.stream(graph, input)) {
@@ -394,7 +394,7 @@ for await (const event of runtime.stream(graph, input)) {
 
 Voice nodes use `checkpoint: 'before'` so the runtime takes a state snapshot before each voice session starts. If the process crashes mid-call, the graph can be resumed from the beginning of that voice node.
 
-In addition, the `VoiceNodeExecutor` writes a `VoiceNodeCheckpoint` to `scratchUpdate[nodeId]` after every execution:
+In addition, the `VoiceNodeExecutor` writes a [`VoiceNodeCheckpoint`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceNodeExecutor.ts) to `scratchUpdate[nodeId]` after every execution:
 
 ```typescript
 interface VoiceNodeCheckpoint {
@@ -406,7 +406,7 @@ interface VoiceNodeCheckpoint {
 }
 ```
 
-Pass `state.scratch[nodeId].turnIndex` back as the `initialTurnCount` when constructing a `VoiceTurnCollector` to resume the turn counter from where the previous run left off — enabling a call that spans multiple graph runs (e.g. after a human-approval pause) to count turns continuously rather than resetting to zero.
+Pass `state.scratch[nodeId].turnIndex` back as the `initialTurnCount` when constructing a [`VoiceTurnCollector`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceTurnCollector.ts) to resume the turn counter from where the previous run left off — enabling a call that spans multiple graph runs (e.g. after a human-approval pause) to count turns continuously rather than resetting to zero.
 
 ---
 
@@ -446,7 +446,7 @@ const orchestrator = new VoicePipelineOrchestrator({
 
 #### Sentiment in TranscriptEvent
 
-When `sentiment: true` is enabled, `TranscriptEvent` includes a `sentiment` field:
+When `sentiment: true` is enabled, [`TranscriptEvent`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) includes a `sentiment` field:
 
 ```typescript
 interface TranscriptEvent {

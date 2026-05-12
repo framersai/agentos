@@ -2,25 +2,25 @@
 
 ## What this is
 
-`HybridRetriever` fuses dense and sparse retrieval signals over memory traces. Dense side uses `MemoryStore.query` (preserving the 6-signal cognitive scoring). Sparse side uses a per-instance `BM25Index`. Reciprocal Rank Fusion merges the two ranked lists. Optional neural rerank (Cohere `rerank-v3.5`) runs over the merged pool before truncation.
+[`HybridRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/hybrid/HybridRetriever.ts) fuses dense and sparse retrieval signals over memory traces. Dense side uses `MemoryStore.query` (preserving the 6-signal cognitive scoring). Sparse side uses a per-instance [`BM25Index`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/search/BM25Index.ts). Reciprocal Rank Fusion merges the two ranked lists. Optional neural rerank (Cohere `rerank-v3.5`) runs over the merged pool before truncation.
 
 The effect: exact-term matches (names, dates, specific numbers) that pure semantic embedding misses are re-surfaced by BM25, then re-ranked by the cross-encoder for final quality.
 
 ## Mental model
 
-Parallel to `SessionRetriever` (Step 2), `HydeRetriever`, and `ProspectiveMemoryManager`. All four are query-time retrieval strategies under `memory/retrieval/`. All are opt-in; callers wire them up when their use case benefits.
+Parallel to [`SessionRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/session/SessionRetriever.ts) (Step 2), [`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts), and [`ProspectiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/prospective/ProspectiveMemoryManager.ts). All four are query-time retrieval strategies under `memory/retrieval/`. All are opt-in; callers wire them up when their use case benefits.
 
-## Relation to `HybridSearcher` in `rag/search/`
+## Relation to [`HybridSearcher`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/search/HybridSearcher.ts) in `rag/search/`
 
 `HybridSearcher` is a generic document-RAG hybrid retriever: it takes a vector store + a BM25 index + an embedding manager and returns document hits. It knows nothing about memory traces, cognitive scoring, or decay.
 
-`HybridRetriever` is a memory-domain retriever: it delegates dense search to `MemoryStore.query` (inheriting cognitive scoring), owns a per-instance `BM25Index` for sparse, and returns `ScoredMemoryTrace` in a `CognitiveRetrievalResult` shape. It is NOT built on top of `HybridSearcher`. They are siblings at different abstraction levels.
+`HybridRetriever` is a memory-domain retriever: it delegates dense search to `MemoryStore.query` (inheriting cognitive scoring), owns a per-instance `BM25Index` for sparse, and returns [`ScoredMemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts) in a [`CognitiveRetrievalResult`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/types.ts) shape. It is NOT built on top of `HybridSearcher`. They are siblings at different abstraction levels.
 
 ## Two stages
 
 1. **Dense** (`MemoryStore.query` with over-fetched topK): returns cognitive-scored traces.
 2. **Sparse** (`this.bm25.search`): returns BM25-scored trace ids.
-3. **RRF merge** via `reciprocalRankFusion` helper. Rank-based, so metric-space mismatch between cognitive composite and BM25 scores is irrelevant.
+3. **RRF merge** via [`reciprocalRankFusion`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/hybrid/reciprocalRankFusion.ts) helper. Rank-based, so metric-space mismatch between cognitive composite and BM25 scores is irrelevant.
 4. **Hydrate**: sparse-only docs skipped in MVP (documented limitation; drop rate expected to be low at the default over-fetch=3).
 5. **Rerank** (optional, mandatory-wired from the bench per Step 2 post-mortem): Cohere rerank over merged pool, 0.7 cognitive + 0.3 neural blend matching baseline semantics.
 6. **Truncate** to `recallTopK`.

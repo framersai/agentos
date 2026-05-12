@@ -37,9 +37,9 @@ Three things change between turns without persona reload, model swap, or operato
 
 | Surface | Where it lives | What edits it |
 |---|---|---|
-| **Per-turn system prompt** | Composed by [`PromptEngine.assemble()`](https://github.com/framersai/agentos/blob/master/src/core/llm/PromptEngine.ts) | `ContextualPromptElement[]` whose [`criteria`](https://github.com/framersai/agentos/blob/master/src/core/llm/PromptEngine.ts) match the current `PromptExecutionContext` |
+| **Per-turn system prompt** | Composed by [`PromptEngine.assemble()`](https://github.com/framersai/agentos/blob/master/src/core/llm/PromptEngine.ts) | `ContextualPromptElement[]` whose [`criteria`](https://github.com/framersai/agentos/blob/master/src/core/llm/PromptEngine.ts) match the current [`PromptExecutionContext`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) |
 | **GMI state** (mood, user context, task context, working memory) | The [`GMI`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) coordinator | [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) callbacks (`onMoodUpdate`, `onUserContextUpdate`, `onTaskContextUpdate`, `onMemoryImprint`) |
-| **HEXACO traits** | `PersonaOverlayManager` | The [`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) (emergent, agent-driven) and the offline [`PersonaDriftMechanism`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/mechanisms/PersonaDriftMechanism.ts) (heuristic, consolidation-cycle) |
+| **HEXACO traits** | [`PersonaOverlayManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) | The [`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) (emergent, agent-driven) and the offline [`PersonaDriftMechanism`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/mechanisms/PersonaDriftMechanism.ts) (heuristic, consolidation-cycle) |
 
 Each surface has its own latency profile and its own gate. The contextual prompt elements run on every turn and cost nothing extra. Metaprompts run when their trigger fires and cost one extra LLM call each. Trait drift requires explicit agent action (the tool) or a consolidation cycle (the mechanism) and is bounded by per-session budgets.
 
@@ -82,7 +82,7 @@ await session.send('I keep getting confused about recursion.');
 
 The persona ships with two adaptive surfaces wired up:
 
-1. **`sentimentTracking.presets`** subscribes the GMI to three of the five event-based preset metaprompts. The `SentimentTracker` analyzes every user message and emits `USER_FRUSTRATED`, `USER_CONFUSED`, or `USER_SATISFIED` events when score patterns cross thresholds. When one fires, the matching preset (`gmi_frustration_recovery`, `gmi_confusion_clarification`, `gmi_satisfaction_reinforcement`) executes and updates the GMI's mood, the inferred user skill level, or the task complexity.
+1. **`sentimentTracking.presets`** subscribes the GMI to three of the five event-based preset metaprompts. The [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts) analyzes every user message and emits `USER_FRUSTRATED`, `USER_CONFUSED`, or `USER_SATISFIED` events when score patterns cross thresholds. When one fires, the matching preset (`gmi_frustration_recovery`, `gmi_confusion_clarification`, `gmi_satisfaction_reinforcement`) executes and updates the GMI's mood, the inferred user skill level, or the task complexity.
 2. **`metaPrompts[].trigger.type === 'turn_interval'`** schedules a periodic self-reflection every five turns. After every five user messages, the GMI calls an internal LLM with the last ten conversation turns, the last twenty reasoning-trace entries, and its current mood and context, then applies any returned changes.
 
 Both happen without the host code doing anything. The GMI integrates the changes into the next turn's prompt.
@@ -321,7 +321,7 @@ onMemoryImprint: (content: string, tags: string[]) => Promise<void>;
 | **User context** | `updatedUserSkillLevel`, `updatedUserSentiment`, `updatedUserPreferences` | The inferred user profile injected into the prompt and consumed by `ContextualPromptElement.criteria.userSkillLevel` matching. |
 | **Task context** | `updatedTaskComplexity`, `updatedTaskPhase`, `updatedActiveGoal` | The task profile injected into the prompt and consumed by `ContextualPromptElement.criteria.taskComplexity` matching. |
 | **Working memory imprints** | `newMemoryImprints: [{ key, value, description? }]` | Set on working memory via `workingMemory.set(key, value)`. Imprints persist across turns within the session and are readable by any subsequent prompt assembly or tool. |
-| **HEXACO traits** | (Not a metaprompt surface — mutated by `AdaptPersonalityTool` and `PersonaDriftMechanism`.) | The trait values modulate three cognitive memory mechanisms (involuntary recall, consolidation, schema encoding) and the trait paragraph appended to the system prompt. |
+| **HEXACO traits** | (Not a metaprompt surface — mutated by [`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) and `PersonaDriftMechanism`.) | The trait values modulate three cognitive memory mechanisms (involuntary recall, consolidation, schema encoding) and the trait paragraph appended to the system prompt. |
 
 A metaprompt that returns `{ updatedGmiMood: 'EMPATHETIC' }` does not edit the persona definition. It edits the GMI's current mood state, which is a separate field on the running coordinator. Persona reload at next session start resets mood to the persona default. Working-memory imprints are scoped to the session and survive across turns; trait drift is scoped to the persona overlay and survives across sessions.
 
@@ -367,7 +367,7 @@ The criteria evaluator at [`PromptEngine.evaluateCriteria()`](https://github.com
 | `language` | `context.language` | Target reply language. |
 | `conversationSignals` (all must match) | `context.conversationSignals[]` | Signals derived from sentiment, error, and conversation analysis. |
 
-The eleven `ContextualElementType` slots (`SYSTEM_INSTRUCTION_ADDON`, `BEHAVIORAL_GUIDANCE`, `TASK_SPECIFIC_INSTRUCTION`, `ERROR_HANDLING_GUIDANCE`, `INTERACTION_STYLE_MODIFIER`, `DOMAIN_CONTEXT`, `ETHICAL_GUIDELINE`, `OUTPUT_FORMAT_SPEC`, `REASONING_PROTOCOL`, `FEW_SHOT_EXAMPLE`, `USER_PROMPT_AUGMENTATION`, `ASSISTANT_PROMPT_AUGMENTATION`) determine where in the assembled prompt the element lands. The combined effect is that contextual elements give you cheap, deterministic per-turn changes, while metaprompts give you expensive, LLM-driven multi-turn changes. The two compose: a metaprompt edits the GMI mood, the contextual element matching that mood is then automatically picked up by the next assembly.
+The eleven [`ContextualElementType`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) slots (`SYSTEM_INSTRUCTION_ADDON`, `BEHAVIORAL_GUIDANCE`, `TASK_SPECIFIC_INSTRUCTION`, `ERROR_HANDLING_GUIDANCE`, `INTERACTION_STYLE_MODIFIER`, `DOMAIN_CONTEXT`, `ETHICAL_GUIDELINE`, `OUTPUT_FORMAT_SPEC`, `REASONING_PROTOCOL`, `FEW_SHOT_EXAMPLE`, `USER_PROMPT_AUGMENTATION`, `ASSISTANT_PROMPT_AUGMENTATION`) determine where in the assembled prompt the element lands. The combined effect is that contextual elements give you cheap, deterministic per-turn changes, while metaprompts give you expensive, LLM-driven multi-turn changes. The two compose: a metaprompt edits the GMI mood, the contextual element matching that mood is then automatically picked up by the next assembly.
 
 ## HEXACO trait drift
 
@@ -375,7 +375,7 @@ HEXACO trait mutation is **not** a metaprompt surface. The metaprompt loop edits
 
 ### `AdaptPersonalityTool` (emergent, agent-driven)
 
-[`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) is an `ITool` the runtime exposes to the LLM when `emergent.enabled` is true on the agency config. The agent calls it like any other tool, with a reasoning argument the runtime persists to the mutation store:
+[`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) is an [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) the runtime exposes to the LLM when `emergent.enabled` is true on the agency config. The agent calls it like any other tool, with a reasoning argument the runtime persists to the mutation store:
 
 ```typescript
 // Tool input shape (from src/cognition/emergent/AdaptPersonalityTool.ts:176)
@@ -389,7 +389,7 @@ HEXACO trait mutation is **not** a metaprompt surface. The metaprompt loop edits
 
 Per-session budgets are enforced in code. The default `maxDeltaPerSession: 0.3` means the sum of `|delta|` values applied to any single trait across one session cannot exceed 0.3. The runtime clamps any delta that would exceed the remaining budget to `remainingBudget * sign(delta)` and sets `clamped: true` on the output. Trait values themselves stay clamped to `[0, 1]`.
 
-This is the emergent self-modification path. The agent decides, with reasoning, that it should be more open or less assertive. The tool is auto-constructed by [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/orchestration/ToolOrchestrator.ts) when `emergent.enabled === true` (no host-side `new AdaptPersonalityTool(...)` needed). Hosts that want the mutation history persisted across sessions inject a `PersonalityMutationStore` into the orchestrator setup.
+This is the emergent self-modification path. The agent decides, with reasoning, that it should be more open or less assertive. The tool is auto-constructed by [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/orchestration/ToolOrchestrator.ts) when `emergent.enabled === true` (no host-side `new AdaptPersonalityTool(...)` needed). Hosts that want the mutation history persisted across sessions inject a [`PersonalityMutationStore`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) into the orchestrator setup.
 
 ### `PersonaDriftMechanism` (heuristic, offline)
 
@@ -552,7 +552,7 @@ Three knobs change the cost curve directly:
 
 Metaprompt execution runs in parallel with the main turn via `Promise.allSettled`, but the parallel block must complete before the next turn's `PromptEngine.assemble()` reads the updated state. In practice, this means a metaprompt firing on turn N influences turn N+1, not turn N. The user-visible latency on turn N is unaffected: the regular completion streams while metaprompts run in the background. Lexicon-based sentiment analysis adds 10-50ms to the per-turn local work; LLM-based adds the full provider round-trip to background work but still does not block the user-visible reply.
 
-**Failure modes.** A failed metaprompt is logged to the reasoning trace as an `ERROR` entry and does not block the user-visible reply. A JSON parsing failure on the metaprompt response is auto-recovered via [`IUtilityAI.parseJsonSafe()`](https://github.com/framersai/agentos/blob/master/src/cognition/nlp/ai_utilities/IUtilityAI.ts), which prompts a cheaper model to fix malformed JSON before giving up. An unknown mood value is dropped silently (validated against the `GMIMood` enum).
+**Failure modes.** A failed metaprompt is logged to the reasoning trace as an `ERROR` entry and does not block the user-visible reply. A JSON parsing failure on the metaprompt response is auto-recovered via [`IUtilityAI.parseJsonSafe()`](https://github.com/framersai/agentos/blob/master/src/cognition/nlp/ai_utilities/IUtilityAI.ts), which prompts a cheaper model to fix malformed JSON before giving up. An unknown mood value is dropped silently (validated against the [`GMIMood`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts) enum).
 
 **State scope.** Mood, user context, task context, and the metaprompt turn counters live in the GMI's working memory and persist across turns within the session. They reset when the session ends and a new session starts on the same agent. HEXACO trait mutations from `AdaptPersonalityTool` and `PersonaDriftMechanism` persist via the persona overlay and survive across sessions.
 
@@ -563,11 +563,11 @@ Metaprompt execution runs in parallel with the main turn via `Promise.allSettled
 | Concern | Source |
 |---|---|
 | Metaprompt executor (3 trigger types, 6 handlers + generic) | [`src/cognition/substrate/MetapromptExecutor.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) |
-| `MetaPromptDefinition` interface | [`src/cognition/substrate/personas/IPersonaDefinition.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) |
+| [`MetaPromptDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) interface | [`src/cognition/substrate/personas/IPersonaDefinition.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) |
 | Five preset metaprompts + merge logic | [`src/cognition/substrate/personas/metaprompt_presets.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/metaprompt_presets.ts) |
 | SentimentTracker | [`src/cognition/substrate/SentimentTracker.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts) |
 | GMI event types | [`src/cognition/substrate/GMIEvent.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIEvent.ts) |
-| Sentiment configuration shape | [`src/cognition/substrate/personas/IPersonaDefinition.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) (`SentimentTrackingConfig`) |
+| Sentiment configuration shape | [`src/cognition/substrate/personas/IPersonaDefinition.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) ([`SentimentTrackingConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts)) |
 | Prompt engine + contextual element evaluator | [`src/core/llm/PromptEngine.ts`](https://github.com/framersai/agentos/blob/master/src/core/llm/PromptEngine.ts) |
 | Contextual element types | [`src/core/llm/IPromptEngine.ts`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) (`ContextualElementType` enum) |
 | Emergent trait mutation tool | [`src/cognition/emergent/AdaptPersonalityTool.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) |

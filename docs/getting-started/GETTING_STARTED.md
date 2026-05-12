@@ -79,7 +79,7 @@ const { text: tenantReply } = await generateText({
 setDefaultProvider(undefined);
 ```
 
-`setDefaultProvider` is the recommended path for apps that hold their keys somewhere other than environment variables (secrets manager, runtime config service, etc.). It also works inside the `AgentOS` class — pass `defaultProvider` in your `AgentOSConfig` and the runtime will install it during `initialize()`.
+[`setDefaultProvider`](https://github.com/framersai/agentos/blob/master/src/api/runtime/global-default.ts) is the recommended path for apps that hold their keys somewhere other than environment variables (secrets manager, runtime config service, etc.). It also works inside the [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) class — pass `defaultProvider` in your [`AgentOSConfig`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) and the runtime will install it during `initialize()`.
 
 ### Reordering the auto-detect chain
 
@@ -146,7 +146,7 @@ const { text: local } = await generateText({
 });
 ```
 
-All high-level functions support `apiKey`: `generateText`, `streamText`, `generateObject`, `streamObject`, `generateImage`, `generateVideo`, `generateMusic`, `generateSFX`, `embedText`, `performOCR`, `agent`, and `agency`.
+All high-level functions support `apiKey`: `generateText`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts), `generateObject`, [`streamObject`](https://github.com/framersai/agentos/blob/master/src/api/streamObject.ts), `generateImage`, `generateVideo`, `generateMusic`, `generateSFX`, `embedText`, `performOCR`, [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts), and [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts).
 
 ---
 

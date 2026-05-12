@@ -78,16 +78,16 @@ Each name is doing one specific thing:
 
 | Collaborator | What it owns |
 |---|---|
-| `ConversationHistoryManager` | The turn buffer for the active session. Compacts old turns when the window fills. |
-| `CognitiveMemoryBridge` | The connection to long-term cognitive memory: encoding new traces, fetching old ones, applying decay. |
-| `SentimentTracker` | Analyzes user sentiment per turn and fires `GMIEvent`s when patterns cross thresholds — those events trigger event-based metaprompt updates. |
-| `MetapromptExecutor` | Assembles the system prompt every turn from persona, traits, mood, retrieved memories, and active skills. |
-| `IPromptEngine` | Interpolates messages and tool schemas into the final wire-format payload for the LLM. |
-| `IToolOrchestrator` | Decides which tools to expose this turn, runs them, returns results. |
-| `IRetrievalAugmentor` | RAG retrieval over corpora that aren't memory (docs, web search, etc.). |
-| `AIModelProviderManager` | Routes the call to the configured provider, with fallback to others on failure. |
-| `IUtilityAI` | Smaller model jobs that don't need the main provider — JSON parsing, summarization, observations. |
-| `ICognitiveMemoryManager` | The actual memory store with the eight cognitive mechanisms (next section). |
+| [`ConversationHistoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts) | The turn buffer for the active session. Compacts old turns when the window fills. |
+| [`CognitiveMemoryBridge`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts) | The connection to long-term cognitive memory: encoding new traces, fetching old ones, applying decay. |
+| [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts) | Analyzes user sentiment per turn and fires [`GMIEvent`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIEvent.ts)s when patterns cross thresholds — those events trigger event-based metaprompt updates. |
+| [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) | Assembles the system prompt every turn from persona, traits, mood, retrieved memories, and active skills. |
+| [`IPromptEngine`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) | Interpolates messages and tool schemas into the final wire-format payload for the LLM. |
+| [`IToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/IToolOrchestrator.ts) | Decides which tools to expose this turn, runs them, returns results. |
+| [`IRetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/IRetrievalAugmentor.ts) | RAG retrieval over corpora that aren't memory (docs, web search, etc.). |
+| [`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) | Routes the call to the configured provider, with fallback to others on failure. |
+| [`IUtilityAI`](https://github.com/framersai/agentos/blob/master/src/cognition/nlp/ai_utilities/IUtilityAI.ts) | Smaller model jobs that don't need the main provider — JSON parsing, summarization, observations. |
+| [`ICognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) | The actual memory store with the eight cognitive mechanisms (next section). |
 
 Lifecycle is owned by [`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — it constructs GMIs, hands them their persona and config, tracks active instances by ID, and routes session-to-GMI mappings. When you build an agency of multiple GMIs, the manager is the registry that knows which mind owns which session.
 
@@ -115,7 +115,7 @@ The Ebbinghaus decay curve sits underneath all of this as the base decay model. 
 When a GMI needs to remember something, it doesn't run a single nearest-neighbor query. From [`CognitiveMemoryManager.retrieve()`](https://github.com/framersai/agentos/blob/master/src/memory/CognitiveMemoryManager.ts):
 
 1. **(Optional) HyDE hypothesis.** When `options.hyde` is on (or the active policy says always), [`MemoryHydeRetriever`](https://github.com/framersai/agentos/blob/master/src/memory/retrieval/hyde/MemoryHydeRetriever.ts) prompts an LLM to generate a plausible memory the GMI *would* have stored about the query. The hypothesis embedding is then used as the search vector, because it sits closer to actual stored traces than a raw query like *"that deployment thing last week"*. The source comments explicitly tie this to the **generation effect** in cognitive science.
-2. **Composite-scored vector query.** Each candidate gets a weighted score combining current strength, embedding similarity, recency, emotional congruence with the user's mood, and importance. The default weights live in `CognitiveMemoryManager` and can be overridden per policy.
+2. **Composite-scored vector query.** Each candidate gets a weighted score combining current strength, embedding similarity, recency, emotional congruence with the user's mood, and importance. The default weights live in [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) and can be overridden per policy.
 3. **Spreading activation over the graph.** When a Neo4j graph backend is configured, the top-5 results seed a spreading-activation pass through [`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/memory/retrieval/graph/graphrag/GraphRAGEngine.ts). Connected memories get a boost; the result set is re-sorted; co-activation is recorded for Hebbian-style learning so frequently-co-recalled memories link tighter over time.
 4. **(Optional) neural reranking.** When a Cohere or LLM-judge reranker is plugged in, the cognitive composite is blended 0.7 cognitive / 0.3 neural — preserving decay, mood, and graph signals while letting a cross-encoder catch what the bi-encoder missed.
 
@@ -164,13 +164,13 @@ export enum GMIOutputChunkType {
 }
 ```
 
-[`GMIChunkTransformer`](https://github.com/framersai/agentos/blob/master/src/api/runtime/GMIChunkTransformer.ts) maps these into the public `AgentOSResponseChunkType`. If you're building a UI on top of a GMI, you wire reactions to these types: stream the text deltas as they arrive, render tool calls as they fire, surface reasoning state if you're showing the GMI's thinking, finalize on the response marker. Memory formation events surface separately through the memory bridge.
+[`GMIChunkTransformer`](https://github.com/framersai/agentos/blob/master/src/api/runtime/GMIChunkTransformer.ts) maps these into the public [`AgentOSResponseChunkType`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts). If you're building a UI on top of a GMI, you wire reactions to these types: stream the text deltas as they arrive, render tool calls as they fire, surface reasoning state if you're showing the GMI's thinking, finalize on the response marker. Memory formation events surface separately through the memory bridge.
 
 ## What the homepage diagram is and isn't
 
 The seven-ring diagram on [agentos.sh](https://agentos.sh) is a visualization of *capabilities*, not architecture. The rings — channels, guardrails, tools, orchestration, memory, personality, LLM core — are useful as a mental model: the outer ones are surface area, the inner ones are cognitive substrate. They map roughly to actual collaborators in the source, but not one-to-one. The diagram exists to make a marketing point that lands in three seconds. The class structure exists to make the runtime maintainable. Both are doing different work.
 
-If you came here looking for the seven layers as load-bearing architecture, you won't find them in the source. What you'll find is a delegation hub (the `GMI` class), a lifecycle manager (`GMIManager`), and the dozen specialized collaborators in the table above. That's the real shape.
+If you came here looking for the seven layers as load-bearing architecture, you won't find them in the source. What you'll find is a delegation hub (the [`GMI`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) class), a lifecycle manager ([`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts)), and the dozen specialized collaborators in the table above. That's the real shape.
 
 ## Where things live
 
@@ -226,6 +226,6 @@ The eight cognitive memory mechanisms enumerated in this page draw on classical 
 
 - [`src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
 - [`src/cognition/substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
-- [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) — `AgencyOptions`, `AgencyStrategy`, `EmergentConfig`, `EmergentPlannerConfig`
+- [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) — [`AgencyOptions`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`AgencyStrategy`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`EmergentConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`EmergentPlannerConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts)
 - [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination classes
 - [`src/emergent/`](https://github.com/framersai/agentos/tree/master/src/emergent) — emergent tool and agent forge primitives

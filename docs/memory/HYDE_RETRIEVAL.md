@@ -60,7 +60,7 @@ producing higher cosine similarity scores.
 
 ### agent.config.json
 
-HyDE is configured per-request, not globally. The `HydeRetriever` class and
+HyDE is configured per-request, not globally. The [`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts) class and
 its config types are exported from `@framers/agentos/cognition/rag`.
 
 ```json

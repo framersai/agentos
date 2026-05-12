@@ -10,8 +10,8 @@ The MemoryRouter primitive itself ships three calibrated presets (`maximize-accu
 
 Every memory-recall query goes through three steps:
 
-1. A `gpt-5-mini`-style classifier reads the query and emits a `MemoryQueryCategory` (one of six: single-session-user, single-session-assistant, single-session-preference, knowledge-update, multi-session, temporal-reasoning).
-2. The pure `selectBackend` function maps that category to a backend choice using the configured routing table (one of three shipping presets, or your own).
+1. A `gpt-5-mini`-style classifier reads the query and emits a [`MemoryQueryCategory`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts) (one of six: single-session-user, single-session-assistant, single-session-preference, knowledge-update, multi-session, temporal-reasoning).
+2. The pure [`selectBackend`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts) function maps that category to a backend choice using the configured routing table (one of three shipping presets, or your own).
 3. An optional dispatcher executes the backend against your `Memory` instance.
 
 The classifier call is ~$0.0002 per query. The routing decision saves dollars by picking canonical-hybrid (cheap, accurate on most categories) instead of paying the OM premium on every query, while still routing multi-session synthesis questions to the OM backends where the architectural lift earns the cost.
@@ -135,7 +135,7 @@ const router = new MemoryRouter({
 
 Three modes:
 
-- **hard**: throw `MemoryRouterBudgetExceededError` when the routing-table pick exceeds the ceiling. Production code catches and escalates.
+- **hard**: throw [`MemoryRouterBudgetExceededError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts) when the routing-table pick exceeds the ceiling. Production code catches and escalates.
 - **soft**: keep the picked backend when it has better $/correct than the cheapest backend that fits, even if it exceeds the budget. Prefers accuracy-economical overruns.
 - **cheapest-fallback** (default): silently downgrade to the cheapest backend that fits. If no backend fits, pick the globally cheapest and flag `budgetExceeded: true` in the decision.
 
@@ -185,17 +185,17 @@ await router.decide(query, { useFewShotPrompt: true });
 
 ## API surface
 
-- `MemoryQueryCategory`, `MemoryBackendId`, `MemoryRouterPreset`, `RoutingTable`
-- `MEMORY_QUERY_CATEGORIES` — the six-category tuple
-- `MINIMIZE_COST_TABLE`, `BALANCED_TABLE`, `MAXIMIZE_ACCURACY_TABLE`, `PRESET_TABLES`
-- `MemoryBackendCostPoint`, `DEFAULT_MEMORY_BACKEND_COSTS`, `TIER_1_CANONICAL_COSTS`, `TIER_2A_V10_COSTS`, `TIER_2B_V11_COSTS`
+- `MemoryQueryCategory`, [`MemoryBackendId`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts), [`MemoryRouterPreset`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts), [`RoutingTable`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts)
+- [`MEMORY_QUERY_CATEGORIES`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts) — the six-category tuple
+- [`MINIMIZE_COST_TABLE`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts), [`BALANCED_TABLE`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts), [`MAXIMIZE_ACCURACY_TABLE`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts), [`PRESET_TABLES`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts)
+- [`MemoryBackendCostPoint`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/backend-costs.ts), [`DEFAULT_MEMORY_BACKEND_COSTS`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/backend-costs.ts), [`TIER_1_CANONICAL_COSTS`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/backend-costs.ts), [`TIER_2A_V10_COSTS`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/backend-costs.ts), [`TIER_2B_V11_COSTS`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/backend-costs.ts)
 - `selectBackend` (pure function)
-- `MemoryRoutingDecision`, `MemoryRouterConfig`, `MemoryBudgetMode`
-- `IMemoryClassifier`, `IMemoryClassifierLLM`, `LLMMemoryClassifier`
-- `CLASSIFIER_SYSTEM_PROMPT`, `CLASSIFIER_SYSTEM_PROMPT_FEWSHOT`, `SAFE_FALLBACK_CATEGORY`
-- `IMemoryDispatcher`, `FunctionMemoryDispatcher`
-- `MemoryRouter`, `MemoryRouterOptions`, `MemoryRouterDecideOptions`, `MemoryRouterDecision`, `MemoryRouterDispatchedDecision`
-- Errors: `MemoryRouterUnknownCategoryError`, `MemoryRouterBudgetExceededError`, `MemoryRouterDispatcherMissingError`, `UnsupportedMemoryBackendError`
+- [`MemoryRoutingDecision`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`MemoryRouterConfig`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`MemoryBudgetMode`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts)
+- [`IMemoryClassifier`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts), [`IMemoryClassifierLLM`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts), [`LLMMemoryClassifier`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts)
+- [`CLASSIFIER_SYSTEM_PROMPT`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts), [`CLASSIFIER_SYSTEM_PROMPT_FEWSHOT`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts), [`SAFE_FALLBACK_CATEGORY`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/classifier.ts)
+- [`IMemoryDispatcher`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/dispatcher.ts), [`FunctionMemoryDispatcher`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/dispatcher.ts)
+- [`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`MemoryRouterOptions`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`MemoryRouterDecideOptions`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`MemoryRouterDecision`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`MemoryRouterDispatchedDecision`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts)
+- Errors: [`MemoryRouterUnknownCategoryError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), `MemoryRouterBudgetExceededError`, [`MemoryRouterDispatcherMissingError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`UnsupportedMemoryBackendError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/dispatcher.ts)
 
 ## Methodology + numbers
 

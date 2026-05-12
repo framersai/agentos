@@ -13,7 +13,7 @@ Paracosm is an **open-source structured world-model engine for LLM agent swarms*
 
 **Same world. Same crises. Different agents. Different future.**
 
-Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed `ScenarioPackage`; pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their swarms — leader plus five specialist departments plus ~100 personality-typed cells — diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
+Start from a prompt, brief, URL, or scenario JSON draft; compile or ground it into a typed [`ScenarioPackage`](https://github.com/framersai/paracosm/blob/master/src/engine/types.ts); pick leaders with different [HEXACO](/features/cognitive-memory) personality profiles; and watch their swarms — leader plus five specialist departments plus ~100 personality-typed cells — diverge into measurably different trajectories from an identical seed. The reference scenario ships as Mars Genesis: a 100-colonist Mars settlement running from 2035 to 2083 across six turns.
 
 ![Two world-model paths: native/visual outputs pixels; structured/LLM-based outputs typed JSON state](/img/diagrams/paracosm-world-model-split.svg)
 
@@ -77,7 +77,7 @@ Or run the hosted demo at [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/
 
 ## The universal result contract
 
-Every `WorldModel.simulate()` call returns a Zod-validated `RunArtifact` exported from the `paracosm/schema` subpath. One shape covers three simulation modes, discriminated on `metadata.mode`:
+Every `WorldModel.simulate()` call returns a Zod-validated [`RunArtifact`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) exported from the `paracosm/schema` subpath. One shape covers three simulation modes, discriminated on `metadata.mode`:
 
 - `turn-loop`: civilization sims (paracosm's built-in mode). Populates `trajectory.timepoints[]` and `decisions[]` with per-turn specialist notes.
 - `batch-trajectory`: digital-twin simulations. Labeled timepoints over a horizon, populated by external LangGraph-style executors.
@@ -105,13 +105,13 @@ artifact.trajectory?.timepoints?.forEach((tp) => {
 });
 ```
 
-The schema exposes 13 content primitives (`RunMetadata`, `WorldSnapshot`, `SwarmAgent`, `SwarmSnapshot`, `Score`, `HighlightMetric`, `Timepoint`, `TrajectoryPoint`, `Trajectory`, `Citation`, `SpecialistDetail`, `SpecialistNote`, `RiskFlag`, `Decision`) plus operational types (`Cost`, `ProviderError`). Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch for domain-specific fields that must not pollute the universal shape.
+The schema exposes 13 content primitives ([`RunMetadata`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`WorldSnapshot`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`SwarmAgent`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`SwarmSnapshot`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`Score`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`HighlightMetric`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`Timepoint`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`TrajectoryPoint`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`Trajectory`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`Citation`](https://github.com/framersai/paracosm/blob/master/src/runtime/contracts.ts), [`SpecialistDetail`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`SpecialistNote`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`RiskFlag`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`Decision`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts)) plus operational types ([`Cost`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts), [`ProviderError`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/errors/ProviderError.ts)). Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch for domain-specific fields that must not pollute the universal shape.
 
 Non-TypeScript consumers generate equivalent types from JSON Schema: `npm run export:json-schema` emits `schema/run-artifact.schema.json` and `schema/stream-event.schema.json`. Python projects use `datamodel-codegen`; any ecosystem with a JSON-Schema code generator adopts cleanly.
 
 ### Subjects and interventions
 
-For simulations built around a single subject (a person, character, organism, vessel) under a counterfactual intervention, `paracosm/schema` exposes `SubjectConfig` and `InterventionConfig` as first-class input primitives. Pass them through `RunOptions` and they carry through to `RunArtifact.subject` and `RunArtifact.intervention` for downstream consumers:
+For simulations built around a single subject (a person, character, organism, vessel) under a counterfactual intervention, `paracosm/schema` exposes [`SubjectConfig`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) and [`InterventionConfig`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) as first-class input primitives. Pass them through [`RunOptions`](https://github.com/framersai/paracosm/blob/master/src/api/types.ts) and they carry through to `RunArtifact.subject` and `RunArtifact.intervention` for downstream consumers:
 
 ```typescript
 import { SubjectConfigSchema, InterventionConfigSchema } from 'paracosm/schema';
@@ -279,7 +279,7 @@ import {
 Full type reference is auto-generated from source at [/paracosm](/paracosm). The core types:
 
 - [`ScenarioPackage`](/paracosm/paracosm/interfaces/ScenarioPackage): domain-agnostic scenario bundle
-- `ActorConfig`: commander identity plus HEXACO profile (or pluggable `traitProfile`); imported from `paracosm`
+- [`ActorConfig`](https://github.com/framersai/paracosm/blob/master/src/cli/types.ts): commander identity plus HEXACO profile (or pluggable `traitProfile`); imported from `paracosm`
 - [`HexacoProfile`](/paracosm/paracosm/core/interfaces/HexacoProfile): six-axis personality vector
 - [`SimulationKernel`](/paracosm/paracosm/core/classes/SimulationKernel): deterministic state machine
 - `WorldModel.simulate`: single-actor turn loop, returns `Promise<RunArtifact>`
@@ -303,7 +303,7 @@ The dashboard server exposes a small HTTP API for driving sims from any client:
 
 `/events` replays a buffered event history on reconnect (persisted to disk so restarts do not evaporate completed runs), closes with a `replay_done` marker so clients can distinguish historical from live events.
 
-The SSE stream emits a 17-variant `StreamEvent` discriminated union (defined in `paracosm/schema`), every event carrying a universal `e.data.summary` one-liner so consumers can render cleanly without narrowing on per-event fields:
+The SSE stream emits a 17-variant [`StreamEvent`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/types.ts) discriminated union (defined in `paracosm/schema`), every event carrying a universal `e.data.summary` one-liner so consumers can render cleanly without narrowing on per-event fields:
 
 ```
 turn_start, event_start, specialist_start, specialist_done, forge_attempt,

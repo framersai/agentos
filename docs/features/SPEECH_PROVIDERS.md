@@ -6,10 +6,10 @@ This document describes the provider resolver system in `packages/agentos/src/sp
 
 ## Overview
 
-`SpeechProviderResolver` is the central registry for speech providers. It:
+[`SpeechProviderResolver`](https://github.com/framersai/agentos/blob/master/src/io/speech/SpeechProviderResolver.ts) is the central registry for speech providers. It:
 
 - Registers **core providers** from a static catalog at startup based on present environment variables.
-- Discovers **extension providers** from an optional `ExtensionManager` (priority 200, lower than core).
+- Discovers **extension providers** from an optional [`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts) (priority 200, lower than core).
 - Resolves the best provider for a given kind, respecting streaming/local/feature requirements.
 - Optionally wraps multiple candidates in a **fallback proxy** that automatically tries the next provider when one fails.
 - Emits events (`provider_registered`, `provider_fallback`) for observability.
@@ -60,9 +60,9 @@ Add a `speech` section to your agent configuration to control provider preferenc
 | Field | Type | Description |
 |---|---|---|
 | `stt.preferred` | `string[]` | Provider ids in priority order. Overrides the default catalog priority. |
-| `stt.fallback` | `boolean` | When `true`, wraps multiple candidates in a `FallbackSTTProxy`. |
+| `stt.fallback` | `boolean` | When `true`, wraps multiple candidates in a [`FallbackSTTProxy`](https://github.com/framersai/agentos/blob/master/src/io/speech/FallbackProxy.ts). |
 | `tts.preferred` | `string[]` | Provider ids in priority order for TTS. |
-| `tts.fallback` | `boolean` | When `true`, wraps multiple candidates in a `FallbackTTSProxy`. |
+| `tts.fallback` | `boolean` | When `true`, wraps multiple candidates in a [`FallbackTTSProxy`](https://github.com/framersai/agentos/blob/master/src/io/speech/FallbackProxy.ts). |
 
 Preferred providers receive priorities 50, 51, 52, … (lower number = higher priority). All other core providers default to priority 100 and extension providers default to 200.
 
@@ -146,7 +146,7 @@ resolver.on('provider_fallback', ({ from, to, error }) => {
 
 ## Resolution Requirements
 
-Both `resolveSTT()` and `resolveTTS()` accept an optional `ProviderRequirements` object:
+Both `resolveSTT()` and `resolveTTS()` accept an optional [`ProviderRequirements`](https://github.com/framersai/agentos/blob/master/src/io/speech/types.ts) object:
 
 ```typescript
 interface ProviderRequirements {
@@ -173,7 +173,7 @@ If no configured provider matches the requirements, `resolveSTT()` / `resolveTTS
 
 ## Installing Extension Providers
 
-Extension providers ship as npm packages under the `@framers/agentos-ext-*` namespace and expose their provider implementation via an `ExtensionPack`. Install the package and pass your `ExtensionManager` to `refresh()`:
+Extension providers ship as npm packages under the `@framers/agentos-ext-*` namespace and expose their provider implementation via an [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts). Install the package and pass your `ExtensionManager` to `refresh()`:
 
 ```bash
 npm install @framers/agentos-ext-voice-synthesis
@@ -216,7 +216,7 @@ export class MyCustomSTT implements SpeechToTextProvider {
 }
 ```
 
-For TTS implement `TextToSpeechProvider`; for VAD implement `SpeechVadProvider`; for wake-word implement `WakeWordProvider`.
+For TTS implement [`TextToSpeechProvider`](https://github.com/framersai/agentos/blob/master/src/io/speech/types.ts); for VAD implement [`SpeechVadProvider`](https://github.com/framersai/agentos/blob/master/src/io/speech/types.ts); for wake-word implement [`WakeWordProvider`](https://github.com/framersai/agentos/blob/master/src/io/speech/types.ts).
 
 ### 2. Register it directly
 

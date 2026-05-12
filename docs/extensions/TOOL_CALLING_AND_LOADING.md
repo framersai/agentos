@@ -35,8 +35,8 @@ sequenceDiagram
 Key implementation points:
 
 - `ToolOrchestrator.listAvailableTools()` returns the tool schemas the model can call this turn.
-- `ToolOrchestrator.processToolCall()` enforces permissions and delegates execution to `ToolExecutor`.
-- `ToolExecutor` resolves tools from the tool `ExtensionRegistry` by tool-call name (`ITool.name`).
+- `ToolOrchestrator.processToolCall()` enforces permissions and delegates execution to [`ToolExecutor`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolExecutor.ts).
+- `ToolExecutor` resolves tools from the tool [`ExtensionRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionRegistry.ts) by tool-call name (`ITool.name`).
 
 ## Extensions: How Tools Load
 
@@ -57,7 +57,7 @@ graph TD
 
 AgentOS supports three ways to resolve a pack entry:
 
-1. `factory`: inline factory returning an `ExtensionPack`
+1. `factory`: inline factory returning an [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts)
 2. `package`: dynamic `import()` of an npm package exporting `createExtensionPack()`
 3. `module`: dynamic `import()` of a local module path exporting `createExtensionPack()`
 
@@ -83,7 +83,7 @@ If a descriptor declares a non-optional secret and it can’t be resolved, it’
 
 Skills are prompt modules loaded from `SKILL.md` files. Hosts can inject skills into a system prompt via `SkillRegistry.buildSnapshot()`.
 
-For “lazy” skills, `SkillRegistry` from `@framers/agentos/cognition/skills` (the engine) exposes tools that let the model fetch `SKILL.md` content on demand (via tool calls) instead of pre-injecting everything. Curated skill content ships in `@framers/agentos-skills`.
+For “lazy” skills, [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) from `@framers/agentos/cognition/skills` (the engine) exposes tools that let the model fetch `SKILL.md` content on demand (via tool calls) instead of pre-injecting everything. Curated skill content ships in `@framers/agentos-skills`.
 
 ## What “Lazy Loading” Means Here
 
@@ -128,7 +128,7 @@ sequenceDiagram
 
 #### How To Enable In AgentOS
 
-In `AgentOSConfig`, set:
+In [`AgentOSConfig`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), set:
 
 ```ts
 schemaOnDemandTools: {

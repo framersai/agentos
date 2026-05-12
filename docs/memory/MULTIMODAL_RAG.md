@@ -37,7 +37,7 @@ flowchart LR
 
 Key idea: the **derived text** is the canonical retrieval surface. Modality embeddings (when enabled) are an acceleration path, not a requirement. Documents are first-class assets in the same model, but stay text-first for now.
 
-That text-first design has one important boundary today: [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) still treats its multimodal source as non-text-only. Document/PDF text retrieval therefore works through the standard text RAG collections rather than through the multimodal source branch in `UnifiedRetriever`.
+That text-first design has one important boundary today: [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) still treats its multimodal source as non-text-only. Document/PDF text retrieval therefore works through the standard text RAG collections rather than through the multimodal source branch in [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts).
 
 ### Query
 
@@ -224,7 +224,7 @@ This keeps the base retrieval system consistent while still allowing richer moda
 
 ### Vector indexing
 
-- Malkov, Y. A., & Yashunin, D. A. (2020). [*Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs.*](https://arxiv.org/abs/1603.09320) *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 42(4), 824–836. — HNSW algorithm behind the `HnswlibVectorStore` backend.
+- Malkov, Y. A., & Yashunin, D. A. (2020). [*Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs.*](https://arxiv.org/abs/1603.09320) *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 42(4), 824–836. — HNSW algorithm behind the [`HnswlibVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/HnswlibVectorStore.ts) backend.
 
 ### Implementation references
 

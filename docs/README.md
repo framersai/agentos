@@ -35,7 +35,7 @@
 #### Planning & Orchestration
 
 - [**Orchestration Guide**](./orchestration/ORCHESTRATION.md) — Graphs, workflows, missions, voice nodes, checkpointing, YAML authoring
-- [**Unified Orchestration Layer**](./orchestration/UNIFIED_ORCHESTRATION.md) — One runtime, three authoring APIs (`AgentGraph`, `workflow()`, `mission()`)
+- [**Unified Orchestration Layer**](./orchestration/UNIFIED_ORCHESTRATION.md) — One runtime, three authoring APIs ([`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, `mission()`)
 - [**AgentGraph**](./architecture/AGENT_GRAPH.md) — Full graph builder with typed nodes, conditional edges, and subgraphs
 - [**workflow() DSL**](./orchestration/WORKFLOW_DSL.md) — Deterministic DAG pipelines with branching and parallel joins
 - [**mission() API**](./orchestration/MISSION_API.md) — Goal-first orchestration driven by the PlanningEngine

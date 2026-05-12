@@ -9,11 +9,11 @@ See `/architecture/runtime-status-matrix` for the canonical shipped vs partial s
 > Some advanced routing/execution paths are still partial in the shared runtime:
 > discovery edges currently fall back when capability discovery is not wired,
 > personality edges still use default branch behavior unless a trait source is injected,
-> and `extension` / `subgraph` execution requires a bridge runtime rather than the bare `NodeExecutor`.
+> and `extension` / `subgraph` execution requires a bridge runtime rather than the bare [`NodeExecutor`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/NodeExecutor.ts).
 
 ## Architecture
 
-Every orchestration surface in AgentOS — `AgentGraph`, `workflow()`, and `mission()` — compiles to the same `CompiledExecutionGraph` IR. The `GraphRuntime` executes that IR regardless of which API produced it.
+Every orchestration surface in AgentOS — [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, and `mission()` — compiles to the same [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) IR. The [`GraphRuntime`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/GraphRuntime.ts) executes that IR regardless of which API produced it.
 
 ```mermaid
 graph TD

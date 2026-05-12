@@ -4,7 +4,7 @@
 **Draft v1.0** - December 2024
 
 ## Summary
-This RFC establishes standards for community-contributed extensions to the AgentOS ecosystem, leveraging the existing `ExtensionManager` and `ExtensionPack` architecture.
+This RFC establishes standards for community-contributed extensions to the AgentOS ecosystem, leveraging the existing [`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts) and [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts) architecture.
 
 ## Terminology
 - **Extension**: A discrete unit of functionality (tool, guardrail, workflow, etc.)

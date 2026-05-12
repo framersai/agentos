@@ -307,7 +307,7 @@ console.log(result.text);
 
 For richer indexing pipelines (auto-describe on ingest, multi-modal embedding fusion),
 see the lower-level [Multimodal RAG guide](./MULTIMODAL_RAG.md) — it shows the
-`VisionPipeline` + `IngestRouter` wiring directly, without going through the
+[`VisionPipeline`](https://github.com/framersai/agentos/blob/master/src/io/vision/VisionPipeline.ts) + [`IngestRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/IngestRouter.ts) wiring directly, without going through the
 high-level `agent()` helper.
 
 ---

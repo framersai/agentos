@@ -157,7 +157,7 @@ The extension provides two agent-callable tools (`pii_scan` and `pii_redact`) an
 
 #### Custom regex-only PII guardrail
 
-If you only need simple regex patterns (no NER, no LLM), you can write a lightweight custom guardrail instead. This demonstrates the `IGuardrailService` interface with `SANITIZE` action:
+If you only need simple regex patterns (no NER, no LLM), you can write a lightweight custom guardrail instead. This demonstrates the [`IGuardrailService`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/IGuardrailService.ts) interface with `SANITIZE` action:
 
 ```typescript
 class SimpleRegexPiiGuardrail implements IGuardrailService {
@@ -329,7 +329,7 @@ class QualityGateGuardrail implements ICrossAgentGuardrailService {
 
 ### Output Payload Extras
 
-`GuardrailOutputPayload` includes `ragSources?: RagRetrievedChunk[]` for output-time grounding checks. This field is populated when the response was generated with RAG retrieval, and is what the grounding guard uses to compare claims against retrieved evidence.
+[`GuardrailOutputPayload`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/IGuardrailService.ts) includes `ragSources?: RagRetrievedChunk[]` for output-time grounding checks. This field is populated when the response was generated with RAG retrieval, and is what the grounding guard uses to compare claims against retrieved evidence.
 
 ### Performance Considerations
 
@@ -438,7 +438,7 @@ interface GuardrailEvaluationResult {
 
 ### Shared Heavyweight Services
 
-Extension packs that need expensive resources (NER models, ONNX classifiers, embedding functions, NLI pipelines) should load them through `ExtensionLifecycleContext.services`, which is an `ISharedServiceRegistry`. The extension manager provides a shared registry instance so one agent can reuse the same heavyweight dependency across multiple packs instead of loading it once per guardrail.
+Extension packs that need expensive resources (NER models, ONNX classifiers, embedding functions, NLI pipelines) should load them through `ExtensionLifecycleContext.services`, which is an [`ISharedServiceRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/ISharedServiceRegistry.ts). The extension manager provides a shared registry instance so one agent can reuse the same heavyweight dependency across multiple packs instead of loading it once per guardrail.
 
 ## Best Practices
 

@@ -174,7 +174,7 @@ Increase `poolSize` in the config, or reduce concurrent usage. The default of 10
 
 ## Postgres for the cognitive Brain (0.3.0+)
 
-Beyond the `PostgresVectorStore`, agentos 0.3.0+ runs the entire cognitive `Brain` on Postgres via three named factories. The `Brain` class is dialect-agnostic; the factory chooses the backend.
+Beyond the [`PostgresVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/PostgresVectorStore.ts), agentos 0.3.0+ runs the entire cognitive [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) on Postgres via three named factories. The `Brain` class is dialect-agnostic; the factory chooses the backend.
 
 ```ts
 import { Brain } from '@framers/agentos/memory';
@@ -203,7 +203,7 @@ await aliceBrain.run(
 
 ### Sharing an adapter pool
 
-When the application already owns a `StorageAdapter` (e.g. wilds-ai's foundation store) and wants the brain to share that connection pool:
+When the application already owns a [`StorageAdapter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/index.ts) (e.g. wilds-ai's foundation store) and wants the brain to share that connection pool:
 
 ```ts
 import { Brain } from '@framers/agentos/memory';

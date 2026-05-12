@@ -59,17 +59,17 @@ await mem.close();
 
 | Format | Extensions | Loader | Notes |
 |--------|-----------|--------|-------|
-| **PDF** | `.pdf` | `PdfLoader` | 3-tier extraction (see below) |
-| **DOCX** | `.docx` | `DocxLoader` | Also supports Docling for high fidelity |
-| **HTML** | `.html`, `.htm` | `HtmlLoader` | Strips scripts/styles, extracts text |
-| **Markdown** | `.md`, `.mdx` | `MarkdownLoader` | Preserves heading structure for hierarchical chunking |
-| **Plain text** | `.txt` | `TextLoader` | Direct pass-through |
+| **PDF** | `.pdf` | [`PdfLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/PdfLoader.ts) | 3-tier extraction (see below) |
+| **DOCX** | `.docx` | [`DocxLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/DocxLoader.ts) | Also supports Docling for high fidelity |
+| **HTML** | `.html`, `.htm` | [`HtmlLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/HtmlLoader.ts) | Strips scripts/styles, extracts text |
+| **Markdown** | `.md`, `.mdx` | [`MarkdownLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/MarkdownLoader.ts) | Preserves heading structure for hierarchical chunking |
+| **Plain text** | `.txt` | [`TextLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/TextLoader.ts) | Direct pass-through |
 | **CSV** | `.csv` | `CsvLoader` | Each row becomes a trace or chunk |
 | **JSON** | `.json` | `JsonLoader` | Extracts string values recursively |
 | **YAML** | `.yaml`, `.yml` | `YamlLoader` | Converted to JSON, then extracted |
-| **URLs** | `http://`, `https://` | `UrlLoader` | Fetches content, then routes to appropriate loader |
+| **URLs** | `http://`, `https://` | [`UrlLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/UrlLoader.ts) | Fetches content, then routes to appropriate loader |
 
-The `LoaderRegistry` auto-detects the correct loader based on file extension. When Docling or OCR loaders are available in the environment, they automatically override the default handlers for PDF and DOCX.
+The [`LoaderRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/LoaderRegistry.ts) auto-detects the correct loader based on file extension. When Docling or OCR loaders are available in the environment, they automatically override the default handlers for PDF and DOCX.
 
 ---
 
@@ -125,7 +125,7 @@ const mem = await Memory.createSqlite({
 
 ## Chunking Strategies
 
-The `ChunkingEngine` splits document text into indexable chunks. Four strategies are available:
+The [`ChunkingEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/ChunkingEngine.ts) splits document text into indexable chunks. Four strategies are available:
 
 | Strategy | Best For | Algorithm |
 |----------|----------|-----------|
@@ -161,7 +161,7 @@ const mem = await Memory.createSqlite({
 
 ## FolderScanner
 
-`FolderScanner` provides recursive directory ingestion with glob-based filtering via `minimatch`:
+[`FolderScanner`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/FolderScanner.ts) provides recursive directory ingestion with glob-based filtering via `minimatch`:
 
 ```ts
 // Ingest an entire documentation folder
@@ -204,7 +204,7 @@ interface IngestResult {
 
 ## MultimodalAggregator
 
-When `extractImages: true` is configured, document loaders (PDF, DOCX) extract embedded images as `ExtractedImage` objects. The `MultimodalAggregator` enriches them with natural-language captions via a vision-capable LLM:
+When `extractImages: true` is configured, document loaders (PDF, DOCX) extract embedded images as [`ExtractedImage`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/facade/types.ts) objects. The [`MultimodalAggregator`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/MultimodalAggregator.ts) enriches them with natural-language captions via a vision-capable LLM:
 
 ```ts
 const mem = await Memory.createSqlite({
@@ -292,4 +292,4 @@ All ingestion options can be set at the `Memory` constructor level (applied to e
 | `memory/ingestion/ChunkingEngine.ts` | 4-strategy chunking |
 | `memory/ingestion/MultimodalAggregator.ts` | Image caption enrichment |
 | `memory/ingestion/UrlLoader.ts` | HTTP/HTTPS URL fetching |
-| `memory/facade/types.ts` | `IngestOptions`, `IngestResult`, `IngestionConfig` |
+| `memory/facade/types.ts` | [`IngestOptions`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/facade/types.ts), [`IngestResult`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/multimodal/MultimodalMemoryBridge.ts), [`IngestionConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/facade/types.ts) |

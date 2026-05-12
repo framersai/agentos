@@ -1,10 +1,10 @@
 # CLI Error Codes
 
-Reference for all error codes defined in `CLISubprocessError` and the `CLI_ERROR` constant object. These codes are used across all CLI subprocess operations -- LLM providers, dev tools, media tools, and any custom bridges.
+Reference for all error codes defined in [`CLISubprocessError`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/errors.ts) and the [`CLI_ERROR`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/errors.ts) constant object. These codes are used across all CLI subprocess operations -- LLM providers, dev tools, media tools, and any custom bridges.
 
 ## CLISubprocessError Class
 
-The base error class for all CLI subprocess operations. Not specific to any single binary -- works for `claude`, `gemini`, `ffmpeg`, `git`, or any binary managed by `CLISubprocessBridge`.
+The base error class for all CLI subprocess operations. Not specific to any single binary -- works for `claude`, `gemini`, `ffmpeg`, `git`, or any binary managed by [`CLISubprocessBridge`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLISubprocessBridge.ts).
 
 ### Class Structure
 

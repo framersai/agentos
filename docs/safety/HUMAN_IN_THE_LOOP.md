@@ -69,7 +69,7 @@ Source: [`HitlConfig.approvals` in `src/api/types.ts`](https://github.com/framer
 
 ## Six handler factories
 
-The `hitl` namespace exports six ready-to-use handler factories. Each returns a `HitlHandler` (an async function taking `ApprovalRequest` and resolving to `ApprovalDecision`), so you compose them by wrapping in your own function when you need logging, fallback chains, or conditional routing.
+The [`hitl`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) namespace exports six ready-to-use handler factories. Each returns a [`HitlHandler`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) (an async function taking [`ApprovalRequest`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) and resolving to [`ApprovalDecision`](https://github.com/framersai/agentos/blob/master/src/api/types.ts)), so you compose them by wrapping in your own function when you need logging, fallback chains, or conditional routing.
 
 Source: [`src/api/hitl.ts`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts).
 
@@ -244,7 +244,7 @@ Resolution modes (mutually exclusive — pick one):
 
 The `effectClass: 'human'` annotation is read by the workflow planner — it pessimistically schedules around human steps so the rest of the graph can advance maximally in parallel before stopping at the gate.
 
-## Runtime `HumanInteractionManager`
+## Runtime [`HumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts)
 
 Source: [`src/orchestration/hitl/HumanInteractionManager.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts) + interface [`IHumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts).
 
@@ -260,7 +260,7 @@ interface IHumanInteractionManager {
 }
 ```
 
-`PendingAction` carries the dimensions a high-stakes approval needs: a severity level, a category, whether the action is reversible, potential consequences, and an estimated cost.
+[`PendingAction`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts) carries the dimensions a high-stakes approval needs: a severity level, a category, whether the action is reversible, potential consequences, and an estimated cost.
 
 ```typescript
 type ActionSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -282,7 +282,7 @@ interface PendingAction {
 }
 ```
 
-Escalation reasons (`EscalationReason`) cover the situations the agent should not decide unilaterally:
+Escalation reasons ([`EscalationReason`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts)) cover the situations the agent should not decide unilaterally:
 
 ```typescript
 type EscalationReason =
@@ -303,7 +303,7 @@ type EscalationDecision =
   | { type: 'delegate'; targetAgentId: string; instructions: string };
 ```
 
-Wire a notification handler (`HITLNotificationHandler`) to surface new pending actions to whatever channel hosts your humans — a UI queue, a Slack channel, a PagerDuty incident, etc.
+Wire a notification handler ([`HITLNotificationHandler`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts)) to surface new pending actions to whatever channel hosts your humans — a UI queue, a Slack channel, a PagerDuty incident, etc.
 
 ## Worked example — CLI handler (local dev)
 
@@ -448,7 +448,7 @@ For agencies that already use the higher-level `agency({ hitl: { approvals: { be
 
 **Can a handler modify the action without rejecting it?** Yes. Return `{ approved: true, modifications: { toolArgs: { ... } } }` and the orchestrator merges those over the original tool arguments before invocation. Same for `output` (overrides the final text) and `instructions` (injected into the system prompt).
 
-**Do agency callbacks (`approvalRequested`, `approvalDecided`) fire for workflow `human` steps?** No — those callbacks are on `AgencyCallbacks` and only fire for `HitlConfig`-driven pauses. Workflow `human` nodes emit graph events instead. Subscribe via `workflow.compile({ on: { ... } })`.
+**Do agency callbacks (`approvalRequested`, `approvalDecided`) fire for workflow `human` steps?** No — those callbacks are on [`AgencyCallbacks`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) and only fire for [`HitlConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts)-driven pauses. Workflow `human` nodes emit graph events instead. Subscribe via `workflow.compile({ on: { ... } })`.
 
 **Can the LLM judge see the full agent call history?** Yes. `ApprovalRequest.context.agentCalls` is the full record so far. The judge prompt receives it as part of the input.
 

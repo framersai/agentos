@@ -28,10 +28,10 @@ The telephony system is made up of three cooperating layers:
 
 | Layer | Purpose |
 |---|---|
-| `IVoiceCallProvider` | Initiates/hangs up calls, verifies webhooks, parses events |
-| `CallManager` | State machine — enforces monotonic call state transitions |
-| `TelephonyStreamTransport` | Bridges a provider WebSocket media stream to the voice pipeline |
-| `MediaStreamParser` (per provider) | Normalises provider-specific WebSocket frames |
+| [`IVoiceCallProvider`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/IVoiceCallProvider.ts) | Initiates/hangs up calls, verifies webhooks, parses events |
+| [`CallManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/CallManager.ts) | State machine — enforces monotonic call state transitions |
+| [`TelephonyStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts) | Bridges a provider WebSocket media stream to the voice pipeline |
+| [`MediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/MediaStreamParser.ts) (per provider) | Normalises provider-specific WebSocket frames |
 
 Agents communicate with callers over a full-duplex WebSocket media stream (mu-law
 8 kHz PCM). The transport decodes incoming audio to Float32 frames for VAD/STT and
@@ -177,7 +177,7 @@ and expose it with a tunnel (`ngrok http 3001`).
 Programmatically, wire the webhook routes onto your own HTTP server using the
 exports from `@framers/agentos/channels/telephony` — `CallManager`,
 `TelephonyStreamTransport`, and the per-provider media-stream parsers
-(`TwilioMediaStreamParser`, `TelnyxMediaStreamParser`, `PlivoMediaStreamParser`)
+([`TwilioMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/TwilioMediaStreamParser.ts), [`TelnyxMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/TelnyxMediaStreamParser.ts), [`PlivoMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/PlivoMediaStreamParser.ts))
 — mounted under whatever framework you already run. A drop-in
 `startTelephonyWebhookServer` factory is on the roadmap but has not shipped
 yet; until then, the CLI is the no-code path and the manager + transport are
@@ -215,7 +215,7 @@ Signature verification is performed automatically by each provider's
 
 All providers deliver DTMF (touch-tone) digits either in-band (as part of the
 media stream) or as separate webhook events. AgentOS normalises both paths into
-the same `NormalizedDtmfReceived` event:
+the same [`NormalizedDtmfReceived`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/types.ts) event:
 
 ```typescript
 manager.on((event) => {
@@ -275,14 +275,14 @@ flowchart TD
 **Inbound path (phone → pipeline)**
 
 1. Provider delivers a WebSocket frame (JSON string or binary Buffer).
-2. `MediaStreamParser.parseIncoming()` normalises it to a `MediaStreamIncoming`
+2. `MediaStreamParser.parseIncoming()` normalises it to a [`MediaStreamIncoming`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/MediaStreamParser.ts)
    discriminated union (`start | audio | dtmf | stop | mark`).
 3. `audio` events: mu-law 8 kHz → Int16 PCM → upsample to pipeline rate → Float32.
-4. The `AudioFrame` is emitted from the transport for VAD / STT consumption.
+4. The [`AudioFrame`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) is emitted from the transport for VAD / STT consumption.
 
 **Outbound path (pipeline → phone)**
 
-1. TTS pipeline produces an `EncodedAudioChunk` (PCM Int16 at pipeline sample rate).
+1. TTS pipeline produces an [`EncodedAudioChunk`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) (PCM Int16 at pipeline sample rate).
 2. `TelephonyStreamTransport.sendAudio()` resamples it to 8 kHz.
 3. PCM is mu-law encoded.
 4. `MediaStreamParser.formatOutgoing()` wraps it in the provider envelope (e.g., Twilio JSON).

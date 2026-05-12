@@ -26,9 +26,9 @@ execa → local CLI binary                   ← user's authenticated CLI (claud
 
 The generalized subprocess bridge lives at `packages/agentos/src/sandbox/subprocess/`:
 
-- **`CLISubprocessBridge`** — abstract base class (template method pattern). Owns process lifecycle: spawn, stdin pipe, NDJSON line splitting, timeout, abort signal. Subclasses implement `buildArgs()`, `classifyError()`, `parseStreamEvent()`.
-- **`CLISubprocessError`** — generic error with open string codes, `guidance` (user-facing fix instructions), and `recoverable` flag. Works for any binary, not just LLM CLIs.
-- **`CLIRegistry`** — PATH scanner that discovers installed CLIs. Ships with 10 well-known defaults (claude, gemini, git, gh, docker, node, python3, ffmpeg, gcloud, aws). Feeds into health checks and capability discovery.
+- **[`CLISubprocessBridge`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLISubprocessBridge.ts)** — abstract base class (template method pattern). Owns process lifecycle: spawn, stdin pipe, NDJSON line splitting, timeout, abort signal. Subclasses implement `buildArgs()`, `classifyError()`, `parseStreamEvent()`.
+- **[`CLISubprocessError`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/errors.ts)** — generic error with open string codes, `guidance` (user-facing fix instructions), and `recoverable` flag. Works for any binary, not just LLM CLIs.
+- **[`CLIRegistry`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts)** — PATH scanner that discovers installed CLIs. Ships with 10 well-known defaults (claude, gemini, git, gh, docker, node, python3, ffmpeg, gcloud, aws). Feeds into health checks and capability discovery.
 
 ## Available CLI Providers
 
@@ -67,7 +67,7 @@ Key points from Anthropic's [legal and compliance page](https://code.claude.com/
 
 OpenAI's approach is the most permissive. The Codex CLI is Apache 2.0 licensed, and an OpenAI maintainer [confirmed](https://github.com/openai/codex/discussions/8338) that the terms are "quite permissive" toward third-party tools doing similar things.
 
-AgentOS includes a complete `OpenAIOAuthFlow` implementation that uses the same public OAuth client ID (`app_EMoamEEZ73f0CkXaXp7hrann`) and PKCE flow as the Codex CLI. This allows users to authenticate with their ChatGPT Plus/Pro subscription and obtain an API key without a separate Console account.
+AgentOS includes a complete [`OpenAIOAuthFlow`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/OpenAIOAuthFlow.ts) implementation that uses the same public OAuth client ID (`app_EMoamEEZ73f0CkXaXp7hrann`) and PKCE flow as the Codex CLI. This allows users to authenticate with their ChatGPT Plus/Pro subscription and obtain an API key without a separate Console account.
 
 **Current status**: The OAuth flow is architecturally complete but disabled in the CLI pending full integration testing. The flow mirrors Codex CLI's `obtain_api_key()` step exactly — browser-based PKCE on `localhost:1455`, id_token exchange for API key.
 
@@ -105,7 +105,7 @@ To add support for a new CLI binary:
 2. Create `{Name}CLIProviderError extends CLISubprocessError` — define CLI-specific error codes
 3. Create `{Name}CLIProvider implements IProvider` — message formatting, tool calling strategy, response mapping
 4. Register in `CLIRegistry.WELL_KNOWN_CLIS` if it should be auto-discovered
-5. Register in `AIModelProviderManager`, `SmallModelResolver`, `LLM_PROVIDERS`, `PROVIDER_CATALOG`, and the provider registry
+5. Register in [`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts), `SmallModelResolver`, `LLM_PROVIDERS`, `PROVIDER_CATALOG`, and the provider registry
 
 The `CLISubprocessBridge` base class handles ~60% of the work (spawn, pipe, NDJSON parse, timeout, health checks). Subclasses only implement what's CLI-specific.
 

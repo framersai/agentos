@@ -2,7 +2,7 @@
 
 The cost of a model going down today does not save you when it goes down tomorrow. The right question for any production agent runtime is not *which provider* — it is *what happens when this provider isn't available*. Provider outages happen. Rate limits hit at the worst moment. A model deprecates. A region throttles. A subscription lapses. None of these stop being true because the agent is mid-conversation.
 
-AgentOS abstracts every LLM behind a single `IProvider` interface. Eleven providers are wired in directly — nine via API key, two via local CLI bridges that ride your existing Claude Max or Google account subscription. OpenRouter, included in the eleven, fans out to 200+ additional models from the same set of vendors. Every provider speaks the same streaming protocol, supports the same tool-call shape (with the documented exceptions below), and participates in the same cost ledger. Failover is automatic by default. The fallback chain is auto-built from whichever keys you've set, and is overridable per agent.
+AgentOS abstracts every LLM behind a single [`IProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface. Eleven providers are wired in directly — nine via API key, two via local CLI bridges that ride your existing Claude Max or Google account subscription. OpenRouter, included in the eleven, fans out to 200+ additional models from the same set of vendors. Every provider speaks the same streaming protocol, supports the same tool-call shape (with the documented exceptions below), and participates in the same cost ledger. Failover is automatic by default. The fallback chain is auto-built from whichever keys you've set, and is overridable per agent.
 
 The point isn't that AgentOS hides the provider. It's that it stops being a load-bearing decision. Pick a primary, set one fallback key, the runtime handles the rest.
 
@@ -265,7 +265,7 @@ const myAgent = agent({
 });
 ```
 
-For cheap-first routing across multiple models, attach a custom `IModelRouter`
+For cheap-first routing across multiple models, attach a custom [`IModelRouter`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/IModelRouter.ts)
 via `agent({ router })` — the router decides which provider/model to call per
 request. See [Cost Optimization](./COST_OPTIMIZATION.md) for the full guide.
 
@@ -417,7 +417,7 @@ ollama pull dolphin-mixtral
 
 The agent factory accepts `provider`, `model`, `apiKey`, and `baseUrl`
 directly. There is no separate `LLMProviderConfig` type — these fields live
-on `AgentOptions` (and on `BaseAgentConfig`, so every sub-agent in an
+on [`AgentOptions`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts) (and on [`BaseAgentConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), so every sub-agent in an
 `agency()` roster takes the same fields).
 
 ```typescript
@@ -453,7 +453,7 @@ const result = await myAgent.generate(
 
 Implement the `IProvider` interface from `@framers/agentos` to add a custom
 LLM provider. Provider registration today is wired up via
-`AIModelProviderManager` — there is no public `registerLLMProvider()`
+[`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) — there is no public `registerLLMProvider()`
 shortcut yet; instead, instantiate your provider and inject it via the
 manager surfaced on `AgentOSConfig.dependencies` when constructing the
 runtime.

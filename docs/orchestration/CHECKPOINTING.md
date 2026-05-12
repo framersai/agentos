@@ -1,9 +1,9 @@
 # Checkpointing and Time-Travel
 
-The AgentOS Unified Orchestration Layer has built-in support for checkpoints, resume after failure, and time-travel debugging via the `ICheckpointStore` interface.
+The AgentOS Unified Orchestration Layer has built-in support for checkpoints, resume after failure, and time-travel debugging via the [`ICheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts) interface.
 
 > Status note:
-> `InMemoryCheckpointStore` is implemented and used by default.
+> [`InMemoryCheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/InMemoryCheckpointStore.ts) is implemented and used by default.
 > `InMemoryCheckpointStore` is still planned, not shipped in this package yet.
 
 ## ICheckpointStore
@@ -91,7 +91,7 @@ Control when checkpoints are persisted:
 |---|---|
 | `every_node` | Persist after every node completes. Maximum durability. Used by `workflow()` by default. |
 | `explicit` | Persist only for nodes with `checkpoint: 'before'`, `'after'`, or `'both'`. |
-| `none` | Never persist. Lowest overhead. Used by `AgentGraph` by default. |
+| `none` | Never persist. Lowest overhead. Used by [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) by default. |
 
 ```typescript
 // Graph-wide policy
@@ -191,7 +191,7 @@ Common uses:
 
 ## Memory Consistency and Checkpointing
 
-The `MemoryConsistencyMode` interacts with checkpointing:
+The [`MemoryConsistencyMode`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) interacts with checkpointing:
 
 | Mode | Memory snapshot saved? | On resume |
 |---|---|---|

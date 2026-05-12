@@ -5,7 +5,7 @@ sidebar_position: 8
 
 # Creating Custom Guardrails
 
-This guide walks you through everything you need to create, package, test, and deploy a custom guardrail for AgentOS. By the end you will understand the full lifecycle -- from implementing the `IGuardrailService` interface to publishing a self-contained extension pack.
+This guide walks you through everything you need to create, package, test, and deploy a custom guardrail for AgentOS. By the end you will understand the full lifecycle -- from implementing the [`IGuardrailService`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/IGuardrailService.ts) interface to publishing a self-contained extension pack.
 
 ## Overview
 
@@ -132,7 +132,7 @@ interface GuardrailOutputPayload {
 
 ### Return values
 
-Return `null` to **allow** content through without action. Otherwise, return a `GuardrailEvaluationResult`:
+Return `null` to **allow** content through without action. Otherwise, return a [`GuardrailEvaluationResult`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/IGuardrailService.ts):
 
 ```typescript
 interface GuardrailEvaluationResult {
@@ -293,7 +293,7 @@ If your guardrail buffers streaming text, use `isFinal: true` as the signal to *
 
 ## Two-Phase Parallel Execution
 
-When multiple guardrails are registered, the `ParallelGuardrailDispatcher` runs them in two phases:
+When multiple guardrails are registered, the [`ParallelGuardrailDispatcher`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/ParallelGuardrailDispatcher.ts) runs them in two phases:
 
 ```
                    Registered Guardrails
@@ -343,7 +343,7 @@ After both phases complete, the dispatcher picks the single worst action:
 
 ### Priority and stacking
 
-The `priority` field on an `ExtensionDescriptor` controls **stacking** (same `id` descriptors), not execution order. A higher-priority descriptor with the same `id` supersedes a lower-priority one. Registration order determines execution order within Phase 1 and Phase 2.
+The `priority` field on an [`ExtensionDescriptor`](https://github.com/framersai/agentos/blob/master/src/extensions/types.ts) controls **stacking** (same `id` descriptors), not execution order. A higher-priority descriptor with the same `id` supersedes a lower-priority one. Registration order determines execution order within Phase 1 and Phase 2.
 
 ---
 
@@ -944,7 +944,7 @@ And add an entry to `packages/agentos-extensions/registry.json`:
 
 ## Using ISharedServiceRegistry
 
-The `ISharedServiceRegistry` is a singleton registry for **lazy-loading heavyweight resources** like ML models, NLP libraries, or large data files. It ensures that if multiple extensions need the same resource, only one instance is created.
+The [`ISharedServiceRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/ISharedServiceRegistry.ts) is a singleton registry for **lazy-loading heavyweight resources** like ML models, NLP libraries, or large data files. It ensures that if multiple extensions need the same resource, only one instance is created.
 
 ```typescript
 import type { ISharedServiceRegistry } from '@framers/agentos';
@@ -1057,7 +1057,7 @@ async evaluateOutput(
 
 - `ragSources` is populated on **every output chunk** in a RAG-enabled conversation (not just the final chunk).
 - It is `undefined` when no RAG retrieval was performed for the current request.
-- Each `RagRetrievedChunk` contains `text`, `score`, `metadata`, and source identifiers.
+- Each [`RagRetrievedChunk`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/IRetrievalAugmentor.ts) contains `text`, `score`, `metadata`, and source identifiers.
 
 ---
 

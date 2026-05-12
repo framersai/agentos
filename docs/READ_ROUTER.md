@@ -141,17 +141,17 @@ const router = new ReadRouter({
 
 ### API surface
 
-- `ReadIntent`, `ReadStrategyId`, `ReadRouterPreset`, `ReadRoutingTable`
-- `READ_INTENTS`
-- `PRECISE_FACT_TABLE`, `SYNTHESIS_TABLE`, `TEMPORAL_TABLE`, `PRESET_READ_TABLES`
-- `ReadStrategyCostPoint`, `DEFAULT_READ_COSTS`, plus per-strategy constants
-- `selectReadStrategy` (pure)
-- `ReadRoutingDecision`, `ReadRouterConfig`, `ReadBudgetMode`
-- `IReadIntentClassifier`, `IReadIntentClassifierLLM`, `LLMReadIntentClassifier`
-- `READ_INTENT_CLASSIFIER_SYSTEM_PROMPT`, `READ_INTENT_CLASSIFIER_SYSTEM_PROMPT_FEWSHOT`
-- `IReadDispatcher`, `FunctionReadDispatcher`
-- `ReadRouter`, `ReadRouterOptions`, `ReadRouterDecideOptions`, `ReadRouterDispatchedResult`
-- Errors: `ReadRouterUnknownIntentError`, `ReadRouterBudgetExceededError`, `UnsupportedReadStrategyError`, `ReadRouterDispatcherMissingError`
+- [`ReadIntent`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts), [`ReadStrategyId`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts), [`ReadRouterPreset`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts), [`ReadRoutingTable`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts)
+- [`READ_INTENTS`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts)
+- [`PRECISE_FACT_TABLE`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts), [`SYNTHESIS_TABLE`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts), [`TEMPORAL_TABLE`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts), [`PRESET_READ_TABLES`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/routing-tables.ts)
+- [`ReadStrategyCostPoint`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/costs.ts), [`DEFAULT_READ_COSTS`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/costs.ts), plus per-strategy constants
+- [`selectReadStrategy`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts) (pure)
+- [`ReadRoutingDecision`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts), [`ReadRouterConfig`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts), [`ReadBudgetMode`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts)
+- [`IReadIntentClassifier`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/classifier.ts), [`IReadIntentClassifierLLM`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/classifier.ts), [`LLMReadIntentClassifier`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/classifier.ts)
+- [`READ_INTENT_CLASSIFIER_SYSTEM_PROMPT`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/classifier.ts), [`READ_INTENT_CLASSIFIER_SYSTEM_PROMPT_FEWSHOT`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/classifier.ts)
+- [`IReadDispatcher`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/dispatcher.ts), [`FunctionReadDispatcher`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/dispatcher.ts)
+- [`ReadRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts), [`ReadRouterOptions`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts), [`ReadRouterDecideOptions`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts), [`ReadRouterDispatchedResult`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts)
+- Errors: [`ReadRouterUnknownIntentError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts), [`ReadRouterBudgetExceededError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts), [`UnsupportedReadStrategyError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/dispatcher.ts), [`ReadRouterDispatcherMissingError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts)
 
 ---
 
@@ -209,8 +209,8 @@ const reader = tier === 'gpt-4o' ? gpt4oReader : gpt5miniReader;
 ```
 
 When the predicted category is missing or the preset name is unknown, the
-function throws `ReaderRouterUnknownCategoryError` /
-`ReaderRouterUnknownPresetError` (both exported from the same module).
+function throws [`ReaderRouterUnknownCategoryError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/reader-router.ts) /
+[`ReaderRouterUnknownPresetError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/reader-router.ts) (both exported from the same module).
 Use them to surface clear diagnostics in the calling pipeline.
 
 ### Standalone-classifier mode

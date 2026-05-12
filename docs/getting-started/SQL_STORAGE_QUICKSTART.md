@@ -22,7 +22,7 @@ keywords:
 
 This page covers two layers:
 
-1. **Storage adapter** — `@framers/sql-storage-adapter`, the uniform `StorageAdapter` interface that every AgentOS persistence path runs on (cognitive memory, agency memory, archive). Covers six concrete backends, the contract, cloud backups, and cross-backend migrations.
+1. **Storage adapter** — `@framers/sql-storage-adapter`, the uniform [`StorageAdapter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/index.ts) interface that every AgentOS persistence path runs on (cognitive memory, agency memory, archive). Covers six concrete backends, the contract, cloud backups, and cross-backend migrations.
 2. **Scaling path** — the four-tier progression from a single SQLite file (1K vectors) through an HNSW sidecar (500K), Postgres + pgvector (10M), to Qdrant (1B+). Each tier transition is a single `MigrationEngine.migrate()` call.
 
 ---
@@ -186,7 +186,7 @@ Same pattern wires the [`SqlStorageMemoryArchive`](https://github.com/framersai/
 
 `Memory.create()` currently opens the SQLite-backed standalone memory facade. The Postgres, Qdrant, and Pinecone material below applies to the lower-level RAG/vector-store layer and migration tooling while the high-level memory facade remains SQLite-backed.
 
-> **CLI coming soon.** Migrations today run through the `MigrationEngine` programmatic API shown below. A first-party `agentos` migration CLI is planned alongside the [Wunderland](https://wunderland.sh) control plane.
+> **CLI coming soon.** Migrations today run through the [`MigrationEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/migration/MigrationEngine.ts) programmatic API shown below. A first-party `agentos` migration CLI is planned alongside the [Wunderland](https://wunderland.sh) control plane.
 
 ---
 

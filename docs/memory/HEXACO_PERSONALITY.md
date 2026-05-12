@@ -254,7 +254,7 @@ Constraints enforced:
 - `reasoning` is mandatory on every mutation.
 - Per-session absolute-delta budget per trait.
 - Final values clamped to [0, 1].
-- Every mutation persisted to a `PersonalityMutationStore` (SQLite, JSON, or in-memory implementations available).
+- Every mutation persisted to a [`PersonalityMutationStore`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) (SQLite, JSON, or in-memory implementations available).
 
 This is how a roleplay agent's persona drifts toward what its interactions actually call for, rather than staying frozen at a static config.
 
@@ -307,7 +307,7 @@ All fields optional. Omitted traits default to 0.5 (neutral) at every consumer s
 
 ### Memory subsystem
 
-If you bypass the high-level `agent()` factory and configure `CognitiveMemoryManager` directly:
+If you bypass the high-level `agent()` factory and configure [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) directly:
 
 ```ts
 import { CognitiveMemoryManager } from '@framers/agentos/memory';

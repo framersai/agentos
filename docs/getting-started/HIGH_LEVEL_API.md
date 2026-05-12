@@ -125,7 +125,7 @@ console.log(usage.totalTokens);
 forms:
 
 - A named high-level tool map
-- An `ExternalToolRegistry` (`Record`, `Map`, or iterable)
+- An [`ExternalToolRegistry`](https://github.com/framersai/agentos/blob/master/src/api/runtime/externalToolRegistry.ts) (`Record`, `Map`, or iterable)
 - A prompt-only `ToolDefinitionForLLM[]`
 
 External registries are exposed to the model and executed when called.
@@ -221,7 +221,7 @@ Use:
 See [Agency API](./AGENCY_API.md) and [Streaming Semantics](./STREAMING_SEMANTICS.md)
 for the full contract.
 
-## `QueryRouter`
+## [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
 
 Use `QueryRouter` when you want grounded answers over a local markdown corpus
 without booting the full AgentOS runtime.
@@ -246,7 +246,7 @@ console.log(result.fallbacksUsed);
 await router.close();
 ```
 
-`router.getCorpusStats()` returns a `QueryRouterCorpusStats` snapshot that tells
+`router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot that tells
 you what is actually live in the current host:
 
 - corpus size: `configuredPathCount`, `chunkCount`, `topicCount`, `sourceCount`
@@ -306,8 +306,8 @@ console.log(result.videos[0]?.url);
 
 ## `analyzeVideo()`
 
-`analyzeVideo()` auto-creates a `VisionPipeline`, uses the structured
-`VideoAnalyzer` pipeline under the hood, and auto-wires STT when a supported
+`analyzeVideo()` auto-creates a [`VisionPipeline`](https://github.com/framersai/agentos/blob/master/src/io/vision/VisionPipeline.ts), uses the structured
+[`VideoAnalyzer`](https://github.com/framersai/agentos/blob/master/src/io/media/video/VideoAnalyzer.ts) pipeline under the hood, and auto-wires STT when a supported
 speech provider credential is available (`OPENAI_API_KEY`, `DEEPGRAM_API_KEY`,
 `ASSEMBLYAI_API_KEY`, or Azure Speech env vars).
 
@@ -532,7 +532,7 @@ agent({ provider: 'openai', soul: './personas/aria.soul.md' });
 agent({ provider: 'openai', soul: { content: SOUL_MARKDOWN_STRING } });
 ```
 
-The HEXACO frontmatter (`hexaco: { honestyHumility, emotionality, ... }`) flows into the same `PersonaDriftMechanism` and `PersonaOverlayManager` as inline `personality:` config. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
+The HEXACO frontmatter (`hexaco: { honestyHumility, emotionality, ... }`) flows into the same `PersonaDriftMechanism` and [`PersonaOverlayManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) as inline `personality:` config. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
 
 Runnable examples in the package source:
 
@@ -540,7 +540,7 @@ Runnable examples in the package source:
 - [`packages/agentos/examples/generate-image.mjs`](https://github.com/framersai/agentos/blob/master/examples/generate-image.mjs)
 - [`packages/agentos/examples/agentos-config-tools.mjs`](https://github.com/framersai/agentos/blob/master/examples/agentos-config-tools.mjs)
 
-## Full runtime: `AgentOS`
+## Full runtime: [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts)
 
 ```ts
 import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
@@ -581,13 +581,13 @@ for await (const chunk of agent.processRequest({
 helpers: named tool maps, `ExternalToolRegistry` (`Record`, `Map`, or
 iterable), and prompt-only `ToolDefinitionForLLM[]`. AgentOS normalizes those
 inputs during `initialize(...)` and registers them into the shared
-`ToolOrchestrator`, so direct `processRequest()` turns can plan against and
+[`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts), so direct `processRequest()` turns can plan against and
 execute them without helper wrappers. If a config-registered tool collides with
 an extension or pack tool name, the config tool wins at registration time.
 
 If those external tool calls are AgentOS-registered tools, prefer
 `processRequestWithRegisteredTools(...)`. It executes the registered tools with
-the correct live-turn `ToolExecutionContext` and resumes the stream for you:
+the correct live-turn [`ToolExecutionContext`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) and resumes the stream for you:
 
 ```ts
 import {

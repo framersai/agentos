@@ -429,7 +429,7 @@ fall back to function calling or prompt engineering.
 
 AgentOS provides two ways to work with structured output:
 
-| | `generateObject()` / `streamObject()` | `StructuredOutputManager` |
+| | `generateObject()` / `streamObject()` | [`StructuredOutputManager`](https://github.com/framersai/agentos/blob/master/src/api/structured/output/StructuredOutputManager.ts) |
 |---|---|---|
 | **Schema format** | Zod | JSON Schema |
 | **Type safety** | Full TypeScript inference | Manual typing |

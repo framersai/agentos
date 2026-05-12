@@ -44,15 +44,15 @@ agentos's lower-level primitives.
 | Customer support escalation: one user message routed through triage → specialist → supervisor | Yes | Same shape — one in, one coordinated out |
 | Code review pipeline: one PR, parallel reviewers (style + security + tests) produce one review | Yes (use `parallel` or `graph`) | Fan-out / fan-in over a single input |
 | Multi-agent debate to consensus on a single question | Yes (use `debate`) | The strategy is built for it |
-| Long-running world simulation where a fixed roster of agents all run in parallel every turn against an evolving world state (e.g. paracosm) | **No** | Each simulation turn is closer to N independent `agent().session()` calls coordinated by your loop than to one `agency().generate()` call. Build your own turn loop; use `agent()` + (optionally) `EmergentAgentForge` / `EmergentAgentJudge` for runtime synthesis |
-| Multi-turn conversation with persistent agent roster, shared `AgencyMemoryManager`, and persistent specialists from `spawn_specialist` across turns | **Not yet** | `agency().session()` exists but only persists message history + usage. Roster, shared memory, and `tier: 'session'` synthesised specialists reset between `.send()` calls. Build your own multi-call coordination on top, or [open an issue](https://github.com/framersai/agentos/issues) describing the use case |
+| Long-running world simulation where a fixed roster of agents all run in parallel every turn against an evolving world state (e.g. paracosm) | **No** | Each simulation turn is closer to N independent `agent().session()` calls coordinated by your loop than to one `agency().generate()` call. Build your own turn loop; use `agent()` + (optionally) [`EmergentAgentForge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentAgentForge.ts) / [`EmergentAgentJudge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentAgentJudge.ts) for runtime synthesis |
+| Multi-turn conversation with persistent agent roster, shared [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts), and persistent specialists from `spawn_specialist` across turns | **Not yet** | `agency().session()` exists but only persists message history + usage. Roster, shared memory, and `tier: 'session'` synthesised specialists reset between `.send()` calls. Build your own multi-call coordination on top, or [open an issue](https://github.com/framersai/agentos/issues) describing the use case |
 | Companion app where a single agent has a persistent identity across many user turns | **No** — use `agent()` directly | `agent().session()` already covers this. agency() is overkill for single-agent stateful chat |
 
 The shared rule: if your problem decomposes into "one external request →
 one coordinated response", `agency()` is the right primitive. If your problem
 is fundamentally multi-turn with state evolving between turns, build your
 own orchestrator and reach into agentos for the lower-level primitives
-(`agent()`, `AgencyMemoryManager`, `AgentCommunicationBus`, `EmergentAgentForge`,
+(`agent()`, `AgencyMemoryManager`, [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts), `EmergentAgentForge`,
 `EmergentAgentJudge`, the cognitive memory layer) directly.
 
 ---
@@ -102,7 +102,7 @@ Use the lowest layer that satisfies your requirements:
 | `agent()` | Session history, tools | Single-agent assistants |
 | `agency()` | Multi-agent orchestration, HITL, guardrails, controls | Research pipelines, content teams, autonomous workflows |
 | `workflow()` | Imperative DAG sequencing of agencies | Multi-stage pipelines with branching logic |
-| `AgentGraph` | Programmatic graph construction + edge callbacks | Custom topologies, dynamic routing |
+| [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) | Programmatic graph construction + edge callbacks | Custom topologies, dynamic routing |
 
 ---
 
@@ -393,7 +393,7 @@ const research = agency({
 | `planner` field | Default | Effect |
 |---|---|---|
 | `maxSpecialists` | `5` | Hard cap on **successful** synthesis count per run. Past the cap, `spawn_specialist` returns an error to the manager. |
-| `requireJustification` | `false` | Forces the manager to supply a `justification` string explaining why no static agent fits. Surfaces on the `emergentForge` callback's `ForgeEvent`. |
+| `requireJustification` | `false` | Forces the manager to supply a `justification` string explaining why no static agent fits. Surfaces on the `emergentForge` callback's [`ForgeEvent`](https://github.com/framersai/agentos/blob/master/src/api/types.ts). |
 | `maxJudgeCalls` | `maxSpecialists * 2` | Bounds the judge LLM cost — counts rejected spawns too (the judge already ran). Has no effect when `judge: false`. |
 | `judgeModel` | small-model default per provider (`gpt-4o-mini`, `claude-haiku-4-5-20251001`, `gemini-2.5-flash`, `llama-3.3-70b-versatile`) → falls back to agency model | Override when you want a more capable judge or the small-model default does not exist for your provider. |
 
@@ -500,7 +500,7 @@ const qualityGated = agency({
 | `provider` | `string` | `'openai'` | LLM provider. |
 | `criteria` | `string` | `'Evaluate whether this action is safe, relevant, and appropriate.'` | Custom rubric the judge evaluates against. |
 | `confidenceThreshold` | `number` | `0.7` | Confidence threshold (0-1). Below this the fallback handler is used. |
-| `fallback` | `HitlHandler` | `hitl.autoReject(...)` | Handler invoked when confidence is below threshold or LLM call fails. |
+| `fallback` | [`HitlHandler`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) | `hitl.autoReject(...)` | Handler invoked when confidence is below threshold or LLM call fails. |
 | `apiKey` | `string` | - | Optional API key override. |
 
 ---

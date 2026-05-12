@@ -59,7 +59,7 @@ Namespaces are created implicitly on first upsert. `createCollection()` is a no-
 
 ## Metadata filtering
 
-Pinecone supports MongoDB-style metadata filter operators. AgentOS translates its unified `MetadataFilter` format to Pinecone's native syntax:
+Pinecone supports MongoDB-style metadata filter operators. AgentOS translates its unified [`MetadataFilter`](https://github.com/framersai/agentos/blob/master/src/core/vector-store/IVectorStore.ts) format to Pinecone's native syntax:
 
 ```typescript
 const results = await store.query('my-namespace', embedding, {
@@ -100,7 +100,7 @@ Pinecone requires a separate sparse encoder (e.g., SPLADE) for hybrid search. Th
 
 ### No knowledge graph
 
-There is no sidecar storage for knowledge graph data. If you enable `graph: true` in `MemoryConfig` with the Pinecone backend, graph data is not persisted.
+There is no sidecar storage for knowledge graph data. If you enable `graph: true` in [`MemoryConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) with the Pinecone backend, graph data is not persisted.
 
 ### Not self-hostable
 

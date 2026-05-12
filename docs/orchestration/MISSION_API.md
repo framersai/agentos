@@ -2,7 +2,7 @@
 
 > **Live run**: see `mission()` generate a step plan (gmi + tool steps) and return final artifacts with confidence in [the agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/mission-api.mjs`](https://github.com/framersai/agentos/blob/master/examples/mission-api.mjs).
 
-`workflow()` and `AgentGraph` ask you to think in terms of nodes and edges before you've thought in terms of intent. `mission()` lets you state the intent first and shape the graph later. You declare what the mission is supposed to accomplish — the goal template, the input schema, the return schema, the planner hints — and the compiler emits a working execution graph from those declarations. When the shape stabilises through use, you export it via `.toWorkflow()` and pin it as a deterministic [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
+`workflow()` and [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) ask you to think in terms of nodes and edges before you've thought in terms of intent. `mission()` lets you state the intent first and shape the graph later. You declare what the mission is supposed to accomplish — the goal template, the input schema, the return schema, the planner hints — and the compiler emits a working execution graph from those declarations. When the shape stabilises through use, you export it via `.toWorkflow()` and pin it as a deterministic [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
 
 **Honest status today.** `mission()` is partly the API you'd expect from the description above and partly a forward-compatible shape for what it will be. The compiler currently emits a fixed phase-ordered stub graph (`gather` → `process` → `deliver`) with the anchors and mission-level policies you declared applied on top. The planner config is accepted and preserved, but does not yet change graph shape at runtime. The exported [`CompiledExecutionGraph`](./workflow-dsl.md) is real and runs through the same orchestration runtime as everything else; it's just not dynamically planned yet. See [`/architecture/runtime-status-matrix`](../architecture/runtime-status-matrix) for the shipped-vs-partial map across the orchestration surface.
 
@@ -30,7 +30,7 @@ const result = await research.invoke({ topic: 'quantum computing' });
 mission(name: string): MissionBuilder
 ```
 
-Returns a new `MissionBuilder`. The name is used as the graph's display name and as a prefix for run ids and checkpoint keys.
+Returns a new [`MissionBuilder`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/MissionBuilder.ts). The name is used as the graph's display name and as a prefix for run ids and checkpoint keys.
 
 ## Builder API
 
@@ -110,7 +110,7 @@ Applies mission-level policy overrides to all compiled nodes. Node-level policie
 
 ### .anchor(id, node, constraints)
 
-Splices a pre-built `GraphNode` into the execution order at a precise position. Anchors let you inject validation steps, human checkpoints, or specialised tool calls without modifying the planner output.
+Splices a pre-built [`GraphNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) into the execution order at a precise position. Anchors let you inject validation steps, human checkpoints, or specialised tool calls without modifying the planner output.
 
 ```typescript
 import { toolNode, humanNode } from '@framers/agentos/orchestration';
@@ -150,7 +150,7 @@ const compiled = mission(...).compile({
 });
 ```
 
-`compile()` validates that all required fields are present and returns a `CompiledMission`. The IR is compiled lazily on each invocation from the current builder config; today that means the same stub graph shape is regenerated each time with anchors and policies applied.
+`compile()` validates that all required fields are present and returns a [`CompiledMission`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/MissionBuilder.ts). The IR is compiled lazily on each invocation from the current builder config; today that means the same stub graph shape is regenerated each time with anchors and policies applied.
 
 ## Execution
 
@@ -186,7 +186,7 @@ console.log(steps);
 
 ### toWorkflow() / toIR()
 
-Exports the compiled mission as a static `CompiledExecutionGraph`. Use this when you want to inspect or reuse the generated IR directly.
+Exports the compiled mission as a static [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts). Use this when you want to inspect or reuse the generated IR directly.
 
 ```typescript
 const ir = compiled.toWorkflow();

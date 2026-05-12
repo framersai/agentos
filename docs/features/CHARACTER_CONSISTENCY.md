@@ -53,7 +53,7 @@ URL or base64 data URI of the reference character image. Each provider maps this
 
 ### `faceEmbedding`
 
-Optional 512-dimensional vector from InsightFace or equivalent. Used by the `AvatarPipeline` for drift detection — after generating each image, the pipeline extracts the face embedding from the output and compares it to this anchor via cosine similarity. Images that drift below the threshold (default 0.6) are regenerated.
+Optional 512-dimensional vector from InsightFace or equivalent. Used by the [`AvatarPipeline`](https://github.com/framersai/agentos/blob/master/src/io/media/avatar/AvatarPipeline.ts) for drift detection — after generating each image, the pipeline extracts the face embedding from the output and compares it to this anchor via cosine similarity. Images that drift below the threshold (default 0.6) are regenerated.
 
 ### `consistencyMode`
 

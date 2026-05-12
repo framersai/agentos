@@ -141,11 +141,11 @@ createPiiRedactionGuardrail({
 });
 ```
 
-The `SentenceBoundaryBuffer` collaborator inside the core runtime ([`packages/agentos/src/safety/guardrails/SentenceBoundaryBuffer.ts`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/SentenceBoundaryBuffer.ts)) coalesces partial tokens into sentence-shaped fragments before the guardrail runs, so the redactor never sees a `j` followed by `ohn` from two separate SSE chunks.
+The [`SentenceBoundaryBuffer`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/SentenceBoundaryBuffer.ts) collaborator inside the core runtime ([`packages/agentos/src/safety/guardrails/SentenceBoundaryBuffer.ts`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/SentenceBoundaryBuffer.ts)) coalesces partial tokens into sentence-shaped fragments before the guardrail runs, so the redactor never sees a `j` followed by `ohn` from two separate SSE chunks.
 
 ## Audit logging
 
-Every redaction event is structured and emitted through the `agentos:pii:audit-logger` service registered in `SharedServiceRegistry`. The default implementation writes to stdout in JSON; production deployments swap in a SIEM sink (Splunk, Datadog, custom Kafka producer).
+Every redaction event is structured and emitted through the `agentos:pii:audit-logger` service registered in [`SharedServiceRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/SharedServiceRegistry.ts). The default implementation writes to stdout in JSON; production deployments swap in a SIEM sink (Splunk, Datadog, custom Kafka producer).
 
 ```typescript
 import { PII_SERVICE_IDS } from '@framers/agentos-ext-pii-redaction';
@@ -235,7 +235,7 @@ This guardrail is a building block. It does not, and cannot, make a deployment H
 | LLM judge recognizer (optional Tier 2) | [`src/recognizers/LlmJudgeRecognizer.ts`](https://github.com/framersai/agentos-ext-pii-redaction/blob/master/src/recognizers/LlmJudgeRecognizer.ts) |
 | Detection pipeline orchestrator | [`src/PiiDetectionPipeline.ts`](https://github.com/framersai/agentos-ext-pii-redaction/blob/master/src/PiiDetectionPipeline.ts) |
 | Redaction engine | [`src/RedactionEngine.ts`](https://github.com/framersai/agentos-ext-pii-redaction/blob/master/src/RedactionEngine.ts) |
-| Service IDs for DI lookup | `PII_SERVICE_IDS` in [`src/types.ts`](https://github.com/framersai/agentos-ext-pii-redaction/blob/master/src/types.ts) |
+| Service IDs for DI lookup | [`PII_SERVICE_IDS`](https://github.com/framersai/agentos-ext-pii-redaction/blob/master/src/types.ts) in [`src/types.ts`](https://github.com/framersai/agentos-ext-pii-redaction/blob/master/src/types.ts) |
 | Streaming sentence buffer (in core) | [`packages/agentos/src/safety/guardrails/SentenceBoundaryBuffer.ts`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/SentenceBoundaryBuffer.ts) |
 
 ## Further reading

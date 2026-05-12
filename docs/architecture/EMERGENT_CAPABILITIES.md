@@ -7,7 +7,7 @@ keywords: [runtime tool forging, ai agent self-improvement, emergent capabilitie
 
 Agents constructed with `emergent: true` receive the [`forge_tool`](/api/classes/ForgeToolMetaTool) meta-tool. When the agent encounters a task no existing capability covers, it composes a candidate implementation (or sandboxes generated code), runs the declared test cases against it, routes the result through an LLM-as-judge that scores code safety, test correctness, and determinism, and on approval registers the new tool at session tier so subsequent turns can call it by name. Three classes do the work: [`EmergentCapabilityEngine`](/api/classes/EmergentCapabilityEngine), [`EmergentJudge`](/api/classes/EmergentJudge), and [`EmergentToolRegistry`](/api/classes/EmergentToolRegistry).
 
-Emergent tooling requires a full runtime entry point. Use `new AgentOS()` or another constructor that initializes `ToolOrchestrator` with emergent support. The lightweight `agent()` helper accepts `emergent: true` for config compatibility but does not activate `forge_tool` on its own.
+Emergent tooling requires a full runtime entry point. Use `new AgentOS()` or another constructor that initializes [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts) with emergent support. The lightweight `agent()` helper accepts `emergent: true` for config compatibility but does not activate `forge_tool` on its own.
 
 ## Live run: a manager spawns a specialist mid-task
 

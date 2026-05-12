@@ -38,7 +38,7 @@ Medium, WordPress, Google Business (18 platforms)
 
 ## SocialPostManager
 
-`SocialPostManager` is the low-level post lifecycle engine. It maintains
+[`SocialPostManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/social-posting/SocialPostManager.ts) is the low-level post lifecycle engine. It maintains
 an in-memory state machine for each post.
 
 ```typescript
@@ -322,7 +322,7 @@ const post = manager.createDraft({
 
 ## MultiChannelPostTool
 
-For agents, use `MultiChannelPostTool` to publish to multiple platforms in
+For agents, use [`MultiChannelPostTool`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/tools/multi-channel-post/src/MultiChannelPostTool.ts) to publish to multiple platforms in
 one tool call:
 
 ```typescript

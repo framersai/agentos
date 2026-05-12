@@ -86,7 +86,7 @@ npm install @framers/agentos-extensions
 ---
 
 ### [@framers/agentos-skills-registry](https://github.com/framersai/agentos-skills-registry)
-**Curated Skills Catalog SDK** — typed catalog (SKILLS_CATALOG), query helpers, and lazy-loading factories for `SkillRegistry` and snapshots.
+**Curated Skills Catalog SDK** — typed catalog (SKILLS_CATALOG), query helpers, and lazy-loading factories for [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) and snapshots.
 
 ```bash
 npm install @framers/agentos-skills-registry
@@ -133,10 +133,10 @@ npm install paracosm
 [![GitHub](https://img.shields.io/github/stars/framersai/paracosm?style=social)](https://github.com/framersai/paracosm)
 
 **Features:**
-- Universal `RunArtifact` schema at `paracosm/schema` covering turn-loop civilization sims, batch-trajectory digital twins, and batch-point forecasts
-- HEXACO personality-driven commander decisions with runtime tool forging through AgentOS's `EmergentCapabilityEngine`
+- Universal [`RunArtifact`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) schema at `paracosm/schema` covering turn-loop civilization sims, batch-trajectory digital twins, and batch-point forecasts
+- HEXACO personality-driven commander decisions with runtime tool forging through AgentOS's [`EmergentCapabilityEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentCapabilityEngine.ts)
 - Deterministic kernel + LLM Event Director: same leader on the same seed replays byte-for-byte; two different leaders on the same seed get divergent events from turn 1 (the director reads each leader's HEXACO + accumulated state)
-- `SubjectConfig` and `InterventionConfig` input primitives for digital-twin adoption
+- [`SubjectConfig`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) and [`InterventionConfig`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) input primitives for digital-twin adoption
 
 🌐 **Live demo:** [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/sim) · **Docs:** [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
 
