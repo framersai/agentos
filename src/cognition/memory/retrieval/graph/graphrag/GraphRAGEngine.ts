@@ -28,12 +28,23 @@ async function resolveGraph(): Promise<GraphConstructor> {
   if (_GraphCtor) return _GraphCtor;
   try {
     const mod = await import('graphology');
-    _GraphCtor = (mod.default ?? mod) as unknown as GraphConstructor;
+    // graphology's CJS bundle exposes the Graph class as a named
+    // export (`Graph`) and leaves `default` undefined; the ESM bundle
+    // does ship a default. Fall through both shapes before failing.
+    const candidate =
+      (mod as any).default ??
+      (mod as any).Graph ??
+      mod;
+    if (typeof candidate !== 'function') {
+      throw new Error('graphology module did not expose a constructor');
+    }
+    _GraphCtor = candidate as GraphConstructor;
     return _GraphCtor;
-  } catch {
+  } catch (e) {
     throw new Error(
-      'graphology is required for GraphRAGEngine but was not found. ' +
-        'Install it: npm install graphology graphology-types',
+      'graphology is required for GraphRAGEngine but was not found or unusable. ' +
+        'Install it: npm install graphology graphology-types' +
+        (e instanceof Error ? ` (${e.message})` : ''),
     );
   }
 }

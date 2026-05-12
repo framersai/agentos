@@ -52,7 +52,16 @@ export class MigrationRunner {
       await adapter.exec('COMMIT');
       return result;
     } catch (err) {
-      await adapter.exec('ROLLBACK');
+      // Best-effort rollback. If BEGIN IMMEDIATE never landed (e.g. the
+      // adapter swallowed it or sql.js didn't actually open a tx), a
+      // bare ROLLBACK throws "no transaction is active" and SHADOWS the
+      // real migration failure. Swallow that rollback-time error so
+      // the original `err` makes it to the caller.
+      try {
+        await adapter.exec('ROLLBACK');
+      } catch {
+        /* preserve the original migration error */
+      }
       throw err;
     }
   }
