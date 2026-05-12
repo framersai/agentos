@@ -244,7 +244,7 @@ This guardrail is a building block. It does not, and cannot, make a deployment H
 - [Creating Custom Guardrails](/features/creating-guardrails) for writing a custom recognizer or sanitizer.
 - [Human-in-the-Loop (HITL)](/features/human-in-the-loop) for gating PHI-touching actions through human approval.
 - [Safety Primitives](/features/safety-primitives) for the broader catalog of safety surfaces (cost guards, circuit breakers, tool execution guards, action deduplicators).
-- [Provenance](/features/provenance) for the immutability surface that records every memory write with cryptographic chaining, useful for audit retention.
+- [Provenance & Immutability](/features/provenance-immutability) for the surface that records every memory write with cryptographic chaining, useful for audit retention.
 
 ---
 
