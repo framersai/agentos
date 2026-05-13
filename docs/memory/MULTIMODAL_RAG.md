@@ -15,6 +15,8 @@ This is a strong **production baseline**, not a claim that AgentOS already ships
 
 Current implementation detail: PDF/document ingestion now indexes extracted text into standard RAG collections through [`MultimodalIndexer.indexText(...)`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/multimodal/MultimodalIndexer.ts), so derived document text is retrievable through the normal text pipeline rather than only being stored as memory traces.
 
+![Multimodal RAG fan-out: four input modalities (text, image, audio, document) flow through derivation (caption + OCR, transcript, parser) into the canonical text-first RAG pipeline; an optional native sidecar provides image-to-image and audio-to-audio vector collections; retrievalMode toggles auto, text, native, or hybrid fusion](/img/diagrams/multimodal-rag-fanout.svg)
+
 ## Why This Design
 
 - **Works by default**: If you can derive text, you can retrieve multimodal assets immediately using the standard RAG pipeline.

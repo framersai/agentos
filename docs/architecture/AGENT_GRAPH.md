@@ -6,6 +6,8 @@ When `workflow()` is too rigid and `mission()` is too far ahead of where the run
 
 Use `AgentGraph` when you need cycles, conditional fan-out, memory-driven state machines, or subgraph composition. Use [`workflow()`](./workflow-dsl.md) for linear pipelines. Use [`mission()`](./mission-api.md) when you'd rather declare intent than topology.
 
+![AgentGraph topology: six node types (gmi, tool, router, guardrail, human, subgraph) connected by directed edges including conditional fan-out and a memory-driven retry cycle; compiles to the same CompiledExecutionGraph IR as workflow() and mission()](/img/diagrams/agent-graph-topology.svg)
+
 ## Quick Start
 
 ```typescript

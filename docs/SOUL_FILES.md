@@ -7,6 +7,8 @@ markdown files inside a per-agent workspace directory. The runtime loads them at
 boot, parses YAML frontmatter into structured [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) fields, and
 injects the prose as system messages.
 
+![Soul file anatomy: six-file workspace (SOUL.md required, STYLE/IDENTITY/AGENTS/MEMORY/examples optional) loads at boot into structured persona fields and a prose system prelude, resolving per-turn to a persona card, behavioral rules, persistent memory, and output calibration](/img/diagrams/soul-files-anatomy.svg)
+
 ## The 6-File Workspace
 
 ```

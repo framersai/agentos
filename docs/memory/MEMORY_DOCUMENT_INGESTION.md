@@ -12,6 +12,8 @@ description: 'Ingest PDFs, DOCX, HTML, Markdown, CSV, JSON, YAML, text, and URLs
 
 The ingestion pipeline transforms files and URLs into chunked, searchable memory traces stored in the agent's `brain.sqlite`:
 
+![Document ingestion pipeline: sources (file, directory with glob filters, URL) feed a LoaderRegistry that dispatches to nine format-specific loaders (PDF with 3-tier extraction, DOCX, HTML, Markdown, text, CSV, JSON, YAML, URL fetcher); chunks pass through one of four chunking strategies and land in Brain SQLite + FTS5 full-text index + knowledge graph](/img/diagrams/document-ingestion-pipeline.svg)
+
 ```mermaid
 flowchart LR
     Source["Source<br/><i>file · directory · URL</i>"]:::input

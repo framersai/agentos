@@ -6,6 +6,8 @@ produce a plausible answer, then embeds *that* answer for vector search. The
 hypothesis is semantically closer to actual stored documents than a question is,
 yielding better recall.
 
+![HyDE retrieval flow: standard retrieval embeds the question directly (large embedding-space gap to answer-style documents); HyDE retrieval embeds an LLM-generated hypothetical answer instead (small gap); benchmark sidebar shows -1.9 points on LongMemEval-S and +1.0 point on LongMemEval-M](/img/diagrams/hyde-retrieval-flow.svg)
+
 **HyDE is opt-in (`enabled: false` by default).** It is not a free win. The
 AgentOS benchmark numbers tell the full story:
 
