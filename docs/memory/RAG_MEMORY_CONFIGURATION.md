@@ -12,6 +12,8 @@ AgentOS provides three levels of memory API:
 
 Runtime truth: `ragConfig` and the standard AgentOS bootstrap still create the classic `RetrievalAugmentor` path. `UnifiedRetriever` exists as an opt-in orchestration layer for hosts that explicitly wire it in.
 
+![AgentOS RAG memory pipeline: ingestion lane feeds five swappable storage backends; retrieval lane runs hybrid dense plus sparse search, RRF fusion, optional Cohere rerank, and Top-K context into prompt assembly](/img/diagrams/rag-memory-pipeline.svg)
+
 ## Standalone Memory Facade
 
 ```ts
