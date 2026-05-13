@@ -188,10 +188,10 @@ const publicationManifest = [
 
   agentosDoc('RAG_MEMORY_CONFIGURATION.md', 'features/rag-memory.md', 'RAG Memory Configuration', 'RAG & Retrieval', 1),
   agentosDoc('HYDE_RETRIEVAL.md', 'features/hyde-retrieval.md', 'HyDE Retrieval', 'RAG & Retrieval', 2),
-  agentosDoc('QUERY_ROUTER.md', 'features/query-routing.md', 'Query Router', 'Cognitive Pipeline', 4),
-  agentosDoc('MEMORY_ROUTER.md', 'features/memory-router.md', 'Memory Router (Recall-Stage Smart Orchestration)', 'Cognitive Pipeline', 4.1),
+  agentosDoc('QUERY_ROUTER.md', 'features/query-routing.md', 'Query Router (Stage 1: Memory-or-Not Gate)', 'Cognitive Pipeline', 4),
+  agentosDoc('MEMORY_ROUTER.md', 'features/memory-router.md', 'Memory Router (Stage 2: Recall-Stage Smart Orchestration)', 'Cognitive Pipeline', 4.1),
   agentosDoc('INGEST_ROUTER.md', 'features/ingest-router.md', 'Ingest Router (Input-Stage Smart Orchestration)', 'Cognitive Pipeline', 4.2),
-  agentosDoc('READ_ROUTER.md', 'features/read-router.md', 'Read Stage Routing (Read Strategy + Reader Model Dispatch)', 'Cognitive Pipeline', 4.3),
+  agentosDoc('READ_ROUTER.md', 'features/read-router.md', 'Read Router (Stage 3: Reader Strategy + Model Dispatch)', 'Cognitive Pipeline', 4.3),
   agentosDoc('ADAPTIVE_MEMORY_ROUTER.md', 'features/adaptive-memory-router.md', 'Adaptive Memory Router (Self-Calibrating)', 'Cognitive Pipeline', 4.4),
   siteDoc('features/citation-verification.md', 'features/citation-verification.md', 'Citation Verification', 'RAG & Retrieval', 4.5),
   agentosDoc('MULTIMODAL_RAG.md', 'features/multimodal-rag.md', 'Multimodal RAG (Image + Audio)', 'RAG & Retrieval', 5),
