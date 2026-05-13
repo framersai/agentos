@@ -744,11 +744,9 @@ See [MULTIMODAL_RAG.md](./MULTIMODAL_RAG.md) for the reference implementation an
 
 
 
-Ask an agent "what's 2+2" and it should answer instantly. Ask it "what are the latest treatment options for drug-resistant tuberculosis" and it should go dig through medical literature, cross-reference sources, identify gaps, and come back with citations.
+A trivial question like "what's 2+2" should answer instantly from the model's own weights. A research-grade question like "what are the latest treatment options for drug-resistant tuberculosis" should drive the agent to decompose the query, search across sources, and assemble cited evidence. Getting this wrong runs both directions: searching every trivial question wastes latency and tokens; never searching the hard ones produces under-grounded answers.
 
-The problem: most agents treat both queries the same way. Either they web-search everything (slow, wasteful) or they never search at all (hallucinate freely).
-
-AgentOS solves this with an LLM-as-judge classifier that runs _before_ the main LLM turn. A cheap, fast model (gpt-4o-mini, claude-haiku, or qwen2.5:3b) inspects the query and assigns a research depth tier. The agent then behaves accordingly.
+AgentOS routes this with a tiered pre-classifier. A cheap model (configurable; `gpt-4o-mini`, `claude-haiku`, or a local `qwen2.5:3b` via Ollama are all viable choices) runs _before_ the main LLM turn, examines the query and any conversation history, and assigns a research depth tier. Subsequent stages of the pipeline — retrieval, tool selection, generation — behave according to that tier.
 
 ### Research Depth Tiers
 
