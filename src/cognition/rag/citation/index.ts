@@ -9,6 +9,7 @@ export { formatVerifiedResponse } from './format.js';
 export type {
   CitationVerifierConfig,
   ClaimVerdict,
+  ClaimVerdictKind,
   VerifiedResponse,
   VerificationSource,
 } from './types.js';

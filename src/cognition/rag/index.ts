@@ -317,4 +317,10 @@ export type {
 
 // Citation verification
 export { CitationVerifier, formatVerifiedResponse } from './citation/index.js';
-export type { CitationVerifierConfig, ClaimVerdict, VerifiedResponse, VerificationSource } from './citation/index.js';
+export type {
+  CitationVerifierConfig,
+  ClaimVerdict,
+  ClaimVerdictKind,
+  VerifiedResponse,
+  VerificationSource,
+} from './citation/index.js';
