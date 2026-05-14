@@ -124,6 +124,7 @@ export type {
   RagIngestionResult,
   RagRetrievalOptions,
   RagRetrievalResult,
+  RagRetrievalScope,
   RagRetrievedChunk,
   RagRetrievalDiagnostics,
   RagMemoryCategory,

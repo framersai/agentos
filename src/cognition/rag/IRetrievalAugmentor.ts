@@ -49,6 +49,37 @@ export interface RagDocumentInput {
   embedding?: number[];
   /** Identifier of the embedding model used when `embedding` is supplied. */
   embeddingModelId?: string;
+
+  // ---------------------------------------------------------------------
+  // Enterprise provenance fields (P2 — added so retrieval can filter at
+  // the source level instead of asking the model to ignore forbidden
+  // context). Stored on every chunk derived from this document so the
+  // augmentor can pre-filter results based on the caller's principal.
+  // ---------------------------------------------------------------------
+
+  /** Tenant the document belongs to. Used for multi-tenant isolation. */
+  tenantId?: string;
+  /**
+   * ACL groups allowed to retrieve this document. Empty/undefined means
+   * the document inherits the data source's default ACL (typically
+   * unrestricted within the tenant).
+   */
+  aclGroups?: string[];
+  /**
+   * Sensitivity classification. Drives default redaction policy and audit
+   * obligations.
+   */
+  classification?: 'public' | 'internal' | 'confidential' | 'restricted';
+  /**
+   * Lifecycle status. `active` chunks are returned by default;
+   * `draft`/`archived`/`deprecated` are excluded unless the retrieval
+   * options opt them in.
+   */
+  status?: 'active' | 'draft' | 'archived' | 'deprecated';
+  /** ISO timestamp: when this document became authoritative. */
+  effectiveDate?: string;
+  /** ISO timestamp: when this document stops being authoritative. */
+  expiresAt?: string;
 }
 
 /**
@@ -110,6 +141,27 @@ export interface RagRetrievedChunk {
   relevanceScore?: number;
   /** Embedding vector if `includeEmbeddings` was requested. */
   embedding?: number[];
+
+  // ---------------------------------------------------------------------
+  // Enterprise provenance (mirror of the fields on RagDocumentInput) —
+  // propagated to every chunk so callers can decide what to do with the
+  // result after retrieval. Pre-retrieval filtering (filter the vector
+  // search, do not ask the model to ignore forbidden context) should be
+  // done via `RagRetrievalOptions.scope` rather than relying on these.
+  // ---------------------------------------------------------------------
+
+  /** Tenant the originating document belongs to. */
+  tenantId?: string;
+  /** ACL groups allowed to retrieve this chunk. */
+  aclGroups?: string[];
+  /** Sensitivity classification of the originating document. */
+  classification?: 'public' | 'internal' | 'confidential' | 'restricted';
+  /** Lifecycle status of the originating document. */
+  status?: 'active' | 'draft' | 'archived' | 'deprecated';
+  /** ISO timestamp: when the originating document became authoritative. */
+  effectiveDate?: string;
+  /** ISO timestamp: when the originating document stops being authoritative. */
+  expiresAt?: string;
 }
 
 /**
@@ -161,6 +213,33 @@ export interface RagRetrievalDiagnostics {
 /**
  * Options controlling retrieval behavior.
  */
+/**
+ * Enterprise access scope applied at retrieval time. The augmentor translates
+ * these into the vector-store layer's metadata filter so forbidden context
+ * is **excluded from results**, not retrieved and then asked-to-be-ignored.
+ *
+ * Empty/undefined fields are treated as "no constraint" (e.g. no `tenantId`
+ * means cross-tenant retrieval is allowed). When set, only chunks whose
+ * matching field matches the scope are eligible:
+ *
+ * - `tenantId`        — exact match
+ * - `aclGroups`       — intersection with chunk's `aclGroups` must be non-empty
+ * - `classification`  — chunk's classification must be <= max sensitivity
+ * - `status`          — chunk must be one of the listed lifecycle states
+ *                       (default: `['active']`)
+ * - `now`             — chunk's `effectiveDate` ≤ now ≤ `expiresAt` window
+ */
+export interface RagRetrievalScope {
+  tenantId?: string;
+  aclGroups?: string[];
+  /** Maximum sensitivity the requesting principal is allowed to see. */
+  maxClassification?: 'public' | 'internal' | 'confidential' | 'restricted';
+  /** Allowed lifecycle states. Defaults to `['active']` when omitted. */
+  status?: Array<'active' | 'draft' | 'archived' | 'deprecated'>;
+  /** ISO timestamp for effective-date / expires-at filtering. Defaults to "now". */
+  now?: string;
+}
+
 export interface RagRetrievalOptions {
   /** Maximum number of chunks per query. */
   topK?: number;
@@ -170,6 +249,12 @@ export interface RagRetrievalOptions {
   targetMemoryCategories?: RagMemoryCategory[];
   /** Metadata filter applied at the vector-store layer. */
   metadataFilter?: MetadataFilter;
+  /**
+   * Enterprise access scope. Filters chunks by tenant, ACL groups,
+   * classification, lifecycle status, and effective/expiry window before
+   * similarity ranking. See {@link RagRetrievalScope}.
+   */
+  scope?: RagRetrievalScope;
   /** Retrieval strategy (defaults to similarity search). */
   strategy?: 'similarity' | 'mmr' | 'hybrid';
   /** Strategy-specific parameters (MMR lambda, hybrid alpha, etc.). */

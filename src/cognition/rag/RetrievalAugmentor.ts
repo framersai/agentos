@@ -29,6 +29,7 @@ import {
   RagRetrievalResult,
   RagRetrievedChunk,
 } from './IRetrievalAugmentor';
+import { scopeToMetadataFilter, mergeMetadataFilters } from './scopeFilter.js';
 import { RetrievalAugmentorServiceConfig } from '../../core/config/RetrievalAugmentorConfiguration';
 import { IEmbeddingManager } from './IEmbeddingManager';
 import { IVectorStoreManager } from './IVectorStoreManager';
@@ -445,6 +446,17 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
           if (doc.language) {
             chunkMetadata.language = doc.language;
           }
+          // Enterprise provenance — copy the top-level RagDocumentInput
+          // fields onto every chunk so `scopeToMetadataFilter` can filter
+          // by them at retrieval time without a separate document table.
+          if (doc.tenantId) chunkMetadata.tenantId = doc.tenantId;
+          if (doc.aclGroups && doc.aclGroups.length > 0) {
+            chunkMetadata.aclGroups = doc.aclGroups;
+          }
+          if (doc.classification) chunkMetadata.classification = doc.classification;
+          if (doc.status) chunkMetadata.status = doc.status;
+          if (doc.effectiveDate) chunkMetadata.effectiveDate = doc.effectiveDate;
+          if (doc.expiresAt) chunkMetadata.expiresAt = doc.expiresAt;
 
           vectorDocumentsToUpsert.push({
             id: chunk.id, // Chunk ID
@@ -992,9 +1004,21 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
           options?.includeEmbeddings ?? retrievalOptsFromCat.includeEmbeddings ?? globalRetrievalOpts.includeEmbeddings;
         const includeEmbeddingsForRetrieval = Boolean(includeEmbeddingsRequested) || effectiveStrategy === 'mmr';
 
+        // Compose the final metadata filter:
+        //   1. Start with whichever caller-supplied filter wins
+        //      (option override > category default > global default).
+        //   2. Merge in the scope-derived filter (tenantId / aclGroups /
+        //      classification / status / effective-date window). Scope
+        //      fields are additive — when both caller and scope set the
+        //      same key, the caller wins (they know their domain).
+        const callerFilter =
+          options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter;
+        const scopeFilter = scopeToMetadataFilter(options?.scope);
+        const mergedFilter = mergeMetadataFilters(callerFilter, scopeFilter);
+
         const finalQueryOptions: VectorStoreQueryOptions = {
           topK: effectiveStrategy === 'mmr' ? Math.max(topKRequested * 5, topKRequested) : topKRequested,
-          filter: options?.metadataFilter ?? retrievalOptsFromCat.metadataFilter ?? globalRetrievalOpts.metadataFilter,
+          filter: mergedFilter,
           includeEmbedding: includeEmbeddingsForRetrieval,
           includeMetadata: true,
           includeTextContent: true,
@@ -1029,15 +1053,40 @@ export class RetrievalAugmentor implements IRetrievalAugmentor {
 
         const dsChunks: RagRetrievedChunk[] = [];
         queryResult.documents.forEach((doc: any) => {
+          const meta = doc.metadata ?? {};
           const chunk: RagRetrievedChunk = {
             id: doc.id,
             content: doc.textContent || "",
-            originalDocumentId: doc.metadata?.originalDocumentId as string || doc.id,
+            originalDocumentId: meta.originalDocumentId as string || doc.id,
             dataSourceId: dsId,
-            source: doc.metadata?.source as string,
+            source: meta.source as string,
             metadata: doc.metadata,
             relevanceScore: doc.similarityScore,
             embedding: includeEmbeddingsForRetrieval ? doc.embedding : undefined,
+            // Surface enterprise provenance fields as typed top-level
+            // properties on the chunk. They were copied onto chunkMetadata
+            // at ingest time; re-projecting them gives callers a typed
+            // surface without forcing them to read raw metadata keys.
+            tenantId: typeof meta.tenantId === 'string' ? meta.tenantId : undefined,
+            aclGroups: Array.isArray(meta.aclGroups)
+              ? (meta.aclGroups as string[])
+              : undefined,
+            classification:
+              meta.classification === 'public' ||
+              meta.classification === 'internal' ||
+              meta.classification === 'confidential' ||
+              meta.classification === 'restricted'
+                ? meta.classification
+                : undefined,
+            status:
+              meta.status === 'active' ||
+              meta.status === 'draft' ||
+              meta.status === 'archived' ||
+              meta.status === 'deprecated'
+                ? meta.status
+                : undefined,
+            effectiveDate: typeof meta.effectiveDate === 'string' ? meta.effectiveDate : undefined,
+            expiresAt: typeof meta.expiresAt === 'string' ? meta.expiresAt : undefined,
           };
           dsChunks.push(chunk);
           allRetrievedChunks.push(chunk);
