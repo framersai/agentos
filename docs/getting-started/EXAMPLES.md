@@ -20,8 +20,9 @@
 12. [Query Router Host Hooks](#12-query-router-host-hooks)
 13. [Per-Agent Identity via SOUL.md](#13-per-agent-identity-via-soulmd)
 14. [Single Agent — Minimal](#14-single-agent--minimal)
-15. [Multi-Agent Team with Dependency Graph](#15-multi-agent-team-with-dependency-graph)
-16. [Emergent Self-Improvement Agent](#16-emergent-self-improvement-agent)
+15. [Agency with Shared Memory + RAG](#15-agency-with-shared-memory--rag)
+16. [Multi-Agent Team with Dependency Graph](#16-multi-agent-team-with-dependency-graph)
+17. [Emergent Self-Improvement Agent](#17-emergent-self-improvement-agent)
 
 ---
 
@@ -847,7 +848,63 @@ console.log(result.text);
 
 ---
 
-## 15. Multi-Agent Team with Dependency Graph
+## 15. Agency with Shared Memory + RAG
+
+Three brains in one agency. `memory: { shared: true }` gives every agent
+read+write access to one cognitive memory store. `rag: { ... }` points the
+whole roster at one retrieval corpus. The strategy picks the order;
+the shared layer means each brain reads what the previous one wrote
+without an explicit handoff payload.
+
+```typescript
+import { agency } from '@framers/agentos';
+
+const team = agency({
+  provider: 'openai',
+  model: 'gpt-4o',
+  strategy: 'sequential',
+  memory: { shared: true },                  // cognitive memory shared across brains
+  rag: {                                     // shared retrieval corpus (RAG)
+    vectorStore: 'in-memory',
+    documents: ['./docs/quic-rfc-9000.md', './docs/tcp-rfc-9293.md'],
+    topK: 5,
+  },
+  agents: {
+    researcher: { instructions: 'Pull factual claims from the RAG corpus.' },
+    writer:     { instructions: "Compose a briefing from the researcher's notes." },
+    reviewer:   { instructions: 'Verify the briefing against the same RAG corpus.' },
+  },
+});
+
+// Same .generate() surface as a single agent. The agency routes outputs
+// between brains; the shared memory + RAG layer means each brain reads
+// what the previous one wrote without an explicit handoff payload.
+const result = await team.generate(
+  'Compare QUIC and TCP for low-latency game networking.',
+);
+console.log(result.text);
+console.log(result.agentCalls);              // who read which chunks, in what order
+```
+
+Scope to keep in mind: `memory: { shared: true }` is scoped to a single
+`generate()` call. Across `session().send()` turns only the message
+history persists; the shared cognitive memory store, the shared RAG
+context, and any runtime-spawned specialists reset on every turn. See
+[Agency API: Memory and RAG](/features/agency-api#memory-and-rag) for
+the full scope rules and the cross-turn workaround using a hand-wired
+`Brain` and `AgencyMemoryManager`.
+
+The companion runnable file
+[`examples/agency-shared-memory.mjs`](https://github.com/framersai/agentos/blob/master/examples/agency-shared-memory.mjs)
+runs this exact agency against the OpenAI API. Diff it against
+[`examples/single-agent-briefing.mjs`](https://github.com/framersai/agentos/blob/master/examples/single-agent-briefing.mjs)
+(the single-`agent()` baseline) and
+[`examples/emergent-hierarchical-spawning.mjs`](https://github.com/framersai/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs)
+(team + runtime synthesis) to see the three rungs of the progression.
+
+---
+
+## 16. Multi-Agent Team with Dependency Graph
 
 Declare dependencies between agents and let the orchestrator schedule them
 automatically. Agents with no dependencies run first; downstream agents receive
@@ -899,7 +956,7 @@ console.log(result.text);
 
 ---
 
-## 16. Emergent Self-Improvement Agent
+## 17. Emergent Self-Improvement Agent
 
 Enable the emergent subsystem so the agent can forge new tools, adapt its own
 personality, and manage its skill set at runtime. Guard the mutation surface
@@ -959,6 +1016,9 @@ npx tsx examples/<file>.mjs
 | File | Description | Key APIs |
 |------|-------------|----------|
 | [`high-level-api.mjs`](../../examples/high-level-api.mjs) | One-shot text, streaming, image generation, agent sessions | `generateText`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts), `generateImage`, [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts) |
+| [`single-agent-briefing.mjs`](../../examples/single-agent-briefing.mjs) | Single-agent baseline before agency. One brain, no team, no shared state. | [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts), `.generate()` |
+| [`agency-shared-memory.mjs`](../../examples/agency-shared-memory.mjs) | Three agents share one cognitive memory store and one RAG corpus across a sequential run | [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), `memory: { shared: true }`, `rag: { ... }` |
+| [`emergent-hierarchical-spawning.mjs`](../../examples/emergent-hierarchical-spawning.mjs) | Hierarchical agency that mints a specialist at runtime when the static roster falls short | `agency`, `emergent`, `spawn_specialist`, `EmergentAgentJudge` |
 | [`agency-graph.mjs`](../../examples/agency-graph.mjs) | Multi-agent agency with graph strategy | [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), graph edges, parallel execution |
 | [`agency-streaming.mjs`](../../examples/agency-streaming.mjs) | Streaming agency output with real-time chunks | `agency`, `onChunk` callbacks |
 | [`agent-graph.mjs`](../../examples/agent-graph.mjs) | AgentGraph runtime with typed nodes and edges | `AgentGraph`, node definitions, edge routing |
