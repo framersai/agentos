@@ -358,8 +358,23 @@ export class ConsolidationLoop {
       survivor.last_accessed ?? survivor.created_at,
       loser.last_accessed ?? loser.created_at,
     );
-    const mergedMetadata = JSON.stringify(
-      withPersistedDecayState(survivorMetadata, {
+    // Provenance audit: merging a near-duplicate is the canonical "external
+    // confirmation" event for the survivor. Bump verificationCount by 1 +
+    // any pre-existing count the loser carried, and stamp lastVerifiedAt so
+    // downstream policy (trust gating, freshness checks) can see when the
+    // survivor was last confirmed against a corroborating memory.
+    const survivorVerificationCount =
+      typeof survivorMetadata.verificationCount === 'number'
+        ? survivorMetadata.verificationCount
+        : 0;
+    const loserVerificationCount =
+      typeof loserMetadata.verificationCount === 'number'
+        ? loserMetadata.verificationCount
+        : 0;
+    const mergedVerificationCount = survivorVerificationCount + loserVerificationCount + 1;
+
+    const mergedMetadata = JSON.stringify({
+      ...withPersistedDecayState(survivorMetadata, {
         stability: Math.max(survivorDecay.stability, loserDecay.stability),
         accessCount: survivorDecay.accessCount + loserDecay.accessCount,
         reinforcementInterval: Math.max(
@@ -376,7 +391,9 @@ export class ConsolidationLoop {
             }
           : {}),
       }),
-    );
+      verificationCount: mergedVerificationCount,
+      lastVerifiedAt: Date.now(),
+    });
 
     // Update survivor.
     await this.brain.run(
@@ -680,7 +697,13 @@ export class ConsolidationLoop {
         sourceType: 'observation',
         sourceTimestamp: row.created_at,
         confidence: 1,
-        verificationCount: 0,
+        verificationCount:
+          typeof metadata.verificationCount === 'number' ? metadata.verificationCount : 0,
+        lastVerifiedAt:
+          typeof metadata.lastVerifiedAt === 'number' ? metadata.lastVerifiedAt : undefined,
+        contradictedBy: Array.isArray(metadata.contradictedBy)
+          ? (metadata.contradictedBy as string[])
+          : undefined,
       },
       emotionalContext: {
         valence: 0,

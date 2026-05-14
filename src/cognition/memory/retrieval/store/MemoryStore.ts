@@ -104,6 +104,12 @@ function traceToMetadata(trace: MemoryTrace): Record<string, any> {
     confidence: trace.provenance.confidence,
     sourceType: trace.provenance.sourceType,
     importance: trace.provenance.confidence, // use confidence as proxy
+    // Provenance audit fields. Persisted into the vector store metadata so
+    // verification events and contradiction records survive process restarts;
+    // without these, every reload of a trace would reset the audit trail.
+    verificationCount: trace.provenance.verificationCount ?? 0,
+    lastVerifiedAt: trace.provenance.lastVerifiedAt,
+    contradictedBy: trace.provenance.contradictedBy,
     createdAt: trace.createdAt,
     isActive: trace.isActive ? 1 : 0,
     tags: trace.tags.join(','),
@@ -131,7 +137,13 @@ function metadataToTracePartial(metadata: Record<string, any>): Partial<MemoryTr
     provenance: {
       sourceType: metadata.sourceType as any,
       confidence: metadata.confidence as number,
-      verificationCount: 0,
+      verificationCount:
+        typeof metadata.verificationCount === 'number' ? metadata.verificationCount : 0,
+      lastVerifiedAt:
+        typeof metadata.lastVerifiedAt === 'number' ? metadata.lastVerifiedAt : undefined,
+      contradictedBy: Array.isArray(metadata.contradictedBy)
+        ? (metadata.contradictedBy as string[])
+        : undefined,
       sourceTimestamp: metadata.createdAt as number,
     },
     createdAt: metadata.createdAt as number,

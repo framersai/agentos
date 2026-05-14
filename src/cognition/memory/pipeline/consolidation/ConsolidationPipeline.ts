@@ -19,6 +19,13 @@ import { computeCurrentStrength, findPrunableTraces } from '../../core/decay/Dec
 import type { IMemoryGraph, MemoryCluster } from '../../retrieval/graph/IMemoryGraph.js';
 import type { MemoryStore } from '../../retrieval/store/MemoryStore.js';
 
+/** Append `value` to `list` (creating it if absent) without producing a duplicate. */
+function uniqueAppend(list: string[] | undefined, value: string): string[] {
+  if (!list) return [value];
+  if (list.includes(value)) return list;
+  return [...list, value];
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -384,6 +391,32 @@ export class ConsolidationPipeline {
     const honesty = clamp(this.config.traits.honesty);
     let resolved = 0;
 
+    /**
+     * Record the contradiction relationship on both sides before discarding the
+     * loser. The winner gains the loser in its `contradictedBy` list so future
+     * readers know which memory tried to dispute it; the loser keeps the symmetric
+     * record so a forensic inspection of an inactive trace explains what won.
+     * Both updates also bump `lastVerifiedAt` because the conflict resolution
+     * pass is itself a verification event for the winner.
+     *
+     * In-memory mutation only for now — the SQL schema does not yet have a
+     * column for `contradictedBy`/`lastVerifiedAt`, so this audit trail is
+     * scoped to the current process. Durable persistence is a follow-up.
+     */
+    const recordContradiction = (winner: MemoryTrace, loser: MemoryTrace): void => {
+      const now = Date.now();
+      winner.provenance.contradictedBy = uniqueAppend(
+        winner.provenance.contradictedBy,
+        loser.id,
+      );
+      winner.provenance.lastVerifiedAt = now;
+      loser.provenance.contradictedBy = uniqueAppend(
+        loser.provenance.contradictedBy,
+        winner.id,
+      );
+      loser.provenance.lastVerifiedAt = now;
+    };
+
     for (const trace of traces) {
       if (!trace.isActive) continue;
       const conflicts = this.config.graph.getConflicts(trace.id);
@@ -397,12 +430,16 @@ export class ConsolidationPipeline {
         if (honesty > 0.6) {
           // High honesty: prefer newer information
           const loser = trace.createdAt > other.createdAt ? other : trace;
+          const winner = loser === trace ? other : trace;
+          recordContradiction(winner, loser);
           await this.config.store.softDelete(loser.id);
           resolved++;
         } else {
           // Default: prefer higher confidence
           if (Math.abs(trace.provenance.confidence - other.provenance.confidence) > 0.2) {
             const loser = trace.provenance.confidence < other.provenance.confidence ? trace : other;
+            const winner = loser === trace ? other : trace;
+            recordContradiction(winner, loser);
             await this.config.store.softDelete(loser.id);
             resolved++;
           }
