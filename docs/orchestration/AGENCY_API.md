@@ -526,6 +526,8 @@ const remembering = agency({
 });
 ```
 
+> ⚠️ **Scope of `memory: { shared: true }` — per-call, not per-session.** The shared memory store is built fresh for each `generate()` or `stream()` call and torn down when that call returns. Inside `agency().session()`, only the user/assistant message history and aggregate usage persist between `.send()` turns — the agency roster, the shared `AgencyMemoryManager`, and `tier: 'session'` emergent specialists all reset on every turn. To carry shared memory across turns, wire a [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) yourself (one `brainId` shared across agents) or run your own multi-call coordinator on top of `agent()` + [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts). Per-agent isolation (each `agent()` keeps its own `brainId`) is unaffected — that boundary still holds across turns.
+
 ### RAG configuration
 
 ```typescript
