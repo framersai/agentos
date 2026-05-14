@@ -111,6 +111,13 @@ export interface ICognitiveMemoryManager {
       contentSentiment?: number;
       tags?: string[];
       entities?: string[];
+      /**
+       * When encoding a subjective trace from {@link PerspectiveObserver},
+       * thread the source-event identifiers through so the resulting
+       * {@link MemoryTrace} carries the `MechanismMetadata` fields that
+       * `applyReconsolidation` reads at retrieval time.
+       */
+      perspectiveSource?: { eventId: string; eventHash: string };
     }
   ): Promise<MemoryTrace>;
 
