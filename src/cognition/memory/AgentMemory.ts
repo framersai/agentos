@@ -190,6 +190,14 @@ export class AgentMemory {
       tags?: string[];
       entities?: string[];
       importance?: number;
+      /**
+       * Set when encoding a subjective trace produced by
+       * {@link PerspectiveObserver}. Threads the source-event identifiers into
+       * the trace's MechanismMetadata so Reconsolidation halves drift on
+       * perspective traces and audit queries can back-reference the
+       * objective source event.
+       */
+      perspectiveSource?: { eventId: string; eventHash: string };
     },
   ): Promise<RememberResult> {
     this.ensureReady();
@@ -211,6 +219,7 @@ export class AgentMemory {
             tags: options?.tags,
             entities: options?.entities,
             contentSentiment: options?.importance,
+            perspectiveSource: options?.perspectiveSource,
           });
       return { trace, success: true };
     } catch {

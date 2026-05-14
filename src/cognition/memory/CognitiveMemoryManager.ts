@@ -548,6 +548,15 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       contentSentiment?: number;
       tags?: string[];
       entities?: string[];
+      /**
+       * When the input is a perspective-encoded subjective trace from
+       * {@link PerspectiveObserver}, pass the source-event identifiers here so
+       * the resulting MemoryTrace carries the `MechanismMetadata` fields that
+       * `applyReconsolidation` uses to halve drift on perspective traces and
+       * that downstream audit queries use to back-reference the objective
+       * source event.
+       */
+      perspectiveSource?: { eventId: string; eventHash: string };
     } = {}
   ): Promise<MemoryTrace> {
     this.ensureInitialized();
@@ -597,6 +606,23 @@ export class CognitiveMemoryManager implements ICognitiveMemoryManager {
       updatedAt: now,
       isActive: true,
     };
+
+    // Stamp PerspectiveObserver provenance into MechanismMetadata when this
+    // trace originated from a subjective rewrite of an objective event. The
+    // ID + content hash give downstream queries a back-reference to the source
+    // event (e.g. for fan-in across multiple witnesses) and the
+    // `perspectiveEncoded` flag tells Reconsolidation to halve drift.
+    if (options.perspectiveSource) {
+      trace.structuredData = {
+        ...(trace.structuredData ?? {}),
+        mechanismMetadata: {
+          ...(((trace.structuredData ?? {}) as Record<string, unknown>).mechanismMetadata ?? {}),
+          perspectiveEncoded: true,
+          perspectiveSourceEventId: options.perspectiveSource.eventId,
+          perspectiveSourceHash: options.perspectiveSource.eventHash,
+        },
+      };
+    }
 
     // Cognitive mechanisms: schema encoding (before store, so adjusted strength persists)
     if (this.mechanismsEngine) {

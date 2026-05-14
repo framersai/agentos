@@ -119,9 +119,17 @@ export interface PerspectiveObserverConfig {
  * });
  * const result = await observer.rewrite(events, witnesses);
  * for (const trace of result.traces) {
+ *   // Threading `perspectiveSource` populates MechanismMetadata fields
+ *   // (perspectiveEncoded, perspectiveSourceEventId, perspectiveSourceHash)
+ *   // on the resulting MemoryTrace. Reconsolidation halves drift on those
+ *   // traces, and audit queries can back-reference the objective event.
  *   await npcBrains.get(trace.witnessId)?.remember(trace.content, {
  *     type: 'episodic',
  *     tags: ['perspective-encoded'],
+ *     perspectiveSource: {
+ *       eventId: trace.sourceEventId,
+ *       eventHash: trace.originalEventHash,
+ *     },
  *   });
  * }
  * ```
