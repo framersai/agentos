@@ -30,6 +30,76 @@ Zod output, RAG context injection (v1 placeholder), `listen()` for voice
 WebSocket transport, `connect()` for channel adapters, and real per-agent
 streaming events on the sequential strategy.
 
+## Mental Model
+
+Agency is the multi-brain primitive. Each `agent()` in the roster carries a full
+[GMI](/architecture/gmi) brain: cognition (PAD mood, HEXACO traits, eight cognitive
+mechanisms), memory (episodic, semantic, procedural, working), persona, and
+tools. The agency layer adds three things on top of those brains.
+
+**1. Orchestration strategy declares how outputs flow between brains.**
+Sequential chains them, parallel fans them out and synthesises, debate has them
+argue and refine, hierarchical lets a coordinator dispatch, graph DAG declares
+explicit dependencies. The strategy is the data-flow shape. Picking the
+strategy picks how brain-to-brain context propagates; the work itself happens
+inside each brain.
+
+**2. Shared coordination primitives connect the brains.** A shared memory store
+(`memory: { shared: true }`), an [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts)
+for structured agent-to-agent messages, RAG with per-agent access controls, and
+runtime synthesis via [`EmergentAgentForge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentAgentForge.ts)
+when the static roster runs out of specialists.
+
+**3. A team-wide coordination shell wraps the whole agency.** HITL approval
+gates, guardrails, resource controls (token, cost, time, call caps), provenance
+and audit logging, structured Zod output. These apply uniformly to the team
+rather than per-agent.
+
+```mermaid
+graph TB
+    Input["Input"]
+    subgraph Agency["Agency · coordination shell · HITL · guardrails · controls · provenance"]
+        Strategy["Orchestration strategy<br/>sequential · parallel · debate<br/>review-loop · hierarchical · graph"]
+        subgraph Brains["GMI brains"]
+            direction LR
+            A["GMI A<br/>cognition · memory<br/>persona · tools"]
+            B["GMI B<br/>cognition · memory<br/>persona · tools"]
+            C["GMI C<br/>cognition · memory<br/>persona · tools"]
+        end
+        SharedMem["Shared memory<br/>memory: shared: true"]
+        Bus["AgentCommunicationBus"]
+        Strategy -->|routes outputs| A
+        Strategy -->|routes outputs| B
+        Strategy -->|routes outputs| C
+        A <--> SharedMem
+        B <--> SharedMem
+        C <--> SharedMem
+        A <--> Bus
+        B <--> Bus
+        C <--> Bus
+    end
+    Input --> Strategy
+    A --> Output["Coordinated output"]
+    B --> Output
+    C --> Output
+```
+
+Three frames worth keeping:
+
+- **Per-agent isolation still holds.** Each GMI has its own `brainId` and scopes
+  its private memory by `thread | user | persona | organization`. The shared
+  layer is additive. Leave it off (the default) and every brain stays isolated.
+- **Strategy is the flow, not the work.** Strategies define how state
+  propagates between brains. The work happens inside each brain; the strategy
+  decides who reads what and when.
+- **Flows compose.** `agency()` returns an `Agent`, so an entire agency can sit
+  inside another agency, or as a step inside `workflow()`, or as a node inside
+  `AgentGraph`. The brain abstraction stacks at every layer.
+
+The `agency()` factory returns an `Agent`-compatible interface, so anywhere you
+called `agent().generate(input)` you can drop in `agency().generate(input)`. The
+team becomes a single composable unit.
+
 ## Scope: when to reach for `agency()`
 
 `agency()` is for **single-request multi-agent coordination** — patterns where
@@ -59,23 +129,24 @@ own orchestrator and reach into agentos for the lower-level primitives
 
 ## Table of Contents
 
-1. [Scope: when to reach for agency()](#scope-when-to-reach-for-agency)
-2. [API Hierarchy](#api-hierarchy)
-3. [Minimal Example](#minimal-example)
-4. [Orchestration Strategies](#orchestration-strategies)
-5. [Adaptive Mode](#adaptive-mode)
-6. [Emergent Agent Creation](#emergent-agent-creation)
-6. [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
-7. [Memory and RAG](#memory-and-rag)
-8. [Voice and Channels](#voice-and-channels)
-9. [Guardrails and Security](#guardrails-and-security)
-10. [Permissions](#permissions)
-11. [Resource Controls](#resource-controls)
-12. [Observability and Callbacks](#observability-and-callbacks)
-13. [Structured Output with Zod](#structured-output-with-zod)
-14. [Nested Agencies](#nested-agencies)
-15. [Hierarchical Delegation — Manager Dispatches Dynamically](#hierarchical-delegation--manager-dispatches-dynamically)
-16. [Full-Featured Example](#full-featured-example)
+1. [Mental Model](#mental-model)
+2. [Scope: when to reach for agency()](#scope-when-to-reach-for-agency)
+3. [API Hierarchy](#api-hierarchy)
+4. [Minimal Example](#minimal-example)
+5. [Orchestration Strategies](#orchestration-strategies)
+6. [Adaptive Mode](#adaptive-mode)
+7. [Emergent Agent Creation](#emergent-agent-creation)
+8. [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
+9. [Memory and RAG](#memory-and-rag)
+10. [Voice and Channels](#voice-and-channels)
+11. [Guardrails and Security](#guardrails-and-security)
+12. [Permissions](#permissions)
+13. [Resource Controls](#resource-controls)
+14. [Observability and Callbacks](#observability-and-callbacks)
+15. [Structured Output with Zod](#structured-output-with-zod)
+16. [Nested Agencies](#nested-agencies)
+17. [Hierarchical Delegation — Manager Dispatches Dynamically](#hierarchical-delegation--manager-dispatches-dynamically)
+18. [Full-Featured Example](#full-featured-example)
 
 ---
 
