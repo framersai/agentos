@@ -54,13 +54,36 @@ export const DEFAULT_MECHANISMS_CONFIG: ResolvedMechanismsConfig = {
   sourceConfidenceDecay: {
     enabled: true,
     decayMultipliers: {
+      // Pre-existing types (do not change values without coordinating with
+      // CognitiveMechanismsEngine.ts trait modulation logic).
       user_statement: 1.0,
       tool_result: 1.0,
       observation: 0.95,
       external: 0.90,
       agent_inference: 0.80,
       reflection: 0.75,
-    } as Record<MemorySourceType, number>,
+      // Derived / structural traces — decay slightly slower than reflection
+      // because they were constructed by deterministic extraction, not LLM
+      // inference, but still less trustworthy than direct sources.
+      fact_graph: 0.85,
+      typed_network: 0.85,
+      // Enterprise types. Trust ordering:
+      //   identity_provider / system_config / human_approval (1.0) — systems
+      //     of record + explicit confirmations decay at the same rate as
+      //     verified tool results.
+      //   retrieved_document (0.95) — RAG fetches are authoritative until the
+      //     underlying doc rotates; treat like observation.
+      //   external_api (0.90) — successful external response; matches
+      //     `external` but more specific.
+      //   memory_summary (0.75) — derived compression; loses fidelity and
+      //     should decay at the same rate as reflection.
+      retrieved_document: 0.95,
+      human_approval: 1.0,
+      identity_provider: 1.0,
+      system_config: 1.0,
+      external_api: 0.90,
+      memory_summary: 0.75,
+    } satisfies Record<MemorySourceType, number>,
   },
   emotionRegulation: {
     enabled: true,

@@ -27,7 +27,15 @@ export type MemoryType = 'episodic' | 'semantic' | 'procedural' | 'prospective' 
 /** Visibility / ownership scope for a memory trace. */
 export type MemoryScope = 'thread' | 'user' | 'persona' | 'organization';
 
-/** How the content of this memory was originally produced. */
+/**
+ * How the content of this memory was originally produced.
+ *
+ * Source type drives trust ranking and confidence-decay multiplier. Higher-
+ * trust sources (`identity_provider`, `system_config`, `tool_result`,
+ * `human_approval`) decay slowest; derived/inferred sources
+ * (`agent_inference`, `memory_summary`, `reflection`) decay fastest. See
+ * `SourceConfidenceDecay` mechanism for the per-type multipliers.
+ */
 export type MemorySourceType =
   | 'user_statement'
   | 'agent_inference'
@@ -36,7 +44,21 @@ export type MemorySourceType =
   | 'reflection'
   | 'external'
   | 'fact_graph'
-  | 'typed_network';
+  | 'typed_network'
+  // Enterprise / production-grade sources added to disambiguate the
+  // `external` catch-all and reflect real-world trust hierarchies.
+  /** Document chunk retrieved via RAG (vector search, knowledge corpus). */
+  | 'retrieved_document'
+  /** Explicit human approval event (HITL gate, manual confirmation). */
+  | 'human_approval'
+  /** System of record for identity (Okta, LDAP, IdP lookup result). */
+  | 'identity_provider'
+  /** Declared application/runtime configuration (env, agency config). */
+  | 'system_config'
+  /** Successful response from an external API/webhook (more specific than `external`). */
+  | 'external_api'
+  /** Derived summary produced by collapsing a cluster of prior memories. */
+  | 'memory_summary';
 
 // ---------------------------------------------------------------------------
 // Provenance (source monitoring — prevents confabulation)
