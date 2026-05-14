@@ -84,6 +84,11 @@ import {
   type AgentExportConfig,
 } from './agentExport.js';
 import { createBufferedAsyncReplay } from './runtime/streamBuffer';
+import {
+  createAgencyProvenanceRecorder,
+  type AgencyProvenanceRecorder,
+  type AgencyProvenanceTrail,
+} from './agency-provenance.js';
 
 // ---------------------------------------------------------------------------
 // Public factory
@@ -136,6 +141,19 @@ export function agency(opts: AgencyOptions): Agent {
   const controls: ResourceControls | undefined = opts.controls;
   const agencyName = opts.name ?? '__agency__';
   const agencyUsage: UsageTotals = emptyUsageTotals();
+
+  // 3b. Provenance recorder (in-memory event trail with optional hash chain).
+  //     Hooks into opts.on so every callback the runtime fires is also written
+  //     to the trail without invasive changes to strategy dispatchers. For
+  //     stronger cryptographic provenance with anchored signed events, use
+  //     `createProvenancePack` at the AgentOS runtime layer instead.
+  const provenanceRecorder: AgencyProvenanceRecorder | undefined =
+    opts.provenance?.enabled === true
+      ? createAgencyProvenanceRecorder(opts.provenance)
+      : undefined;
+  if (provenanceRecorder) {
+    opts = { ...opts, on: provenanceRecorder.wrapCallbacks(opts.on) };
+  }
 
   // 4. In-memory session store keyed by session ID.
   const sessions = new Map<string, AgencySession>();
@@ -228,6 +246,22 @@ export function agency(opts: AgencyOptions): Agent {
       durationMs: elapsedMs,
       timestamp: Date.now(),
     });
+
+    // Seal the provenance trail with the final output and attach to result.
+    // The recorder has already observed every callback that fired during the
+    // run; the final-output event closes the chain.
+    if (provenanceRecorder) {
+      provenanceRecorder.recordFinalOutput({
+        agencyName,
+        text: typeof approvedResult.text === 'string' ? approvedResult.text : '',
+        durationMs: elapsedMs,
+        agentCallCount:
+          Array.isArray(approvedResult.agentCalls) ? approvedResult.agentCalls.length : 0,
+        usage: approvedResult.usage,
+      });
+      (approvedResult as Record<string, unknown>).provenanceTrail =
+        provenanceRecorder.getTrail();
+    }
 
     return approvedResult;
   };

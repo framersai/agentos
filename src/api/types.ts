@@ -550,10 +550,16 @@ export interface AvatarConfig {
 }
 
 /**
- * Provenance and audit-trail configuration.
+ * Provenance and audit-trail configuration for the public {@link agency} API.
  * Records a cryptographic chain of custody for every agent action.
+ *
+ * Note: the internal `SignedEventLedger` config (at
+ * `src/safety/provenance/types.ts`) has a different shape (signature mode,
+ * hash algorithm, key source, anchor target). The agency-level config below
+ * is intentionally narrower; the runtime translates it into the internal
+ * config when it instantiates the ledger.
  */
-export interface ProvenanceConfig {
+export interface AgencyProvenanceConfig {
   /** Whether provenance recording is active. */
   enabled: boolean;
   /** Append each record to a hash chain for tamper detection. */
@@ -568,6 +574,12 @@ export interface ProvenanceConfig {
    */
   export?: 'jsonl' | 'otlp' | 'solana';
 }
+
+/**
+ * @deprecated Use {@link AgencyProvenanceConfig}. Kept as an alias so existing
+ * callers continue to compile; will be removed in a future major version.
+ */
+export type ProvenanceConfig = AgencyProvenanceConfig;
 
 /**
  * Observability and telemetry configuration.
@@ -1316,7 +1328,7 @@ export interface BaseAgentConfig {
    */
   output?: unknown;
   /** Provenance and audit-trail configuration. */
-  provenance?: ProvenanceConfig;
+  provenance?: AgencyProvenanceConfig;
   /** Observability and telemetry configuration. */
   observability?: ObservabilityConfig;
   /** Event callbacks fired at various lifecycle points during the run. */
