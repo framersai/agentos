@@ -11,7 +11,7 @@
  *
  * The tests use the global singleton (and reset it in beforeEach) so
  * the wiring assertion exercises the actual code path the production
- * runtime uses — not a DI-injected double.
+ * runtime uses: not a DI-injected double.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -33,7 +33,7 @@ describe('generateText × globalLLMProviderHealth wiring', () => {
     const { generateText } = await import('../../src/api/generateText.js');
     // Use a provider that resolves but has no API key in the env so
     // the call fails downstream of provider resolution. The test
-    // environment doesn't have OPENAI_API_KEY set — we set a fake one
+    // environment doesn't have OPENAI_API_KEY set: we set a fake one
     // so the resolver succeeds but the upstream call fails.
     const origKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = 'sk-test-deliberately-invalid';
@@ -61,7 +61,7 @@ describe('generateText × globalLLMProviderHealth wiring', () => {
     // chain. With no fallback providers configured, the call must
     // reject with the synthetic circuit-open error (httpStatus=503).
     // A fake API key keeps `resolveProvider` from failing earlier in
-    // the chain — we want the circuit check to be the first thing
+    // the chain: we want the circuit check to be the first thing
     // that throws, not the env-var lookup.
     globalLLMProviderHealth.recordFailure(
       'openai',
@@ -76,7 +76,7 @@ describe('generateText × globalLLMProviderHealth wiring', () => {
         generateText({
           model: 'openai:gpt-4o-mini',
           prompt: 'hi',
-          fallbackProviders: [], // no fallback — bubble the circuit-open error
+          fallbackProviders: [], // no fallback: bubble the circuit-open error
         }),
       ).rejects.toThrow(/circuit open|503/i);
     } finally {

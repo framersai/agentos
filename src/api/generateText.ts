@@ -229,7 +229,7 @@ export interface GenerateTextOptions {
   provider?: string;
   /**
    * Model identifier.  Accepted in two formats:
-   * - `"provider:model"` — legacy format (e.g. `"openai:gpt-4o"`), still fully supported.
+   * - `"provider:model"`: legacy format (e.g. `"openai:gpt-4o"`), still fully supported.
    * - Plain model name (e.g. `"gpt-4o-mini"`) when `provider` is also set.
    *
    * Either `provider` or `model` (or an API key env var for auto-detection) is required.
@@ -258,7 +258,7 @@ export interface GenerateTextOptions {
    * Each tool-call round trip counts as one step. Defaults to `1`.
    */
   maxSteps?: number;
-  /** Sampling temperature forwarded to the provider (0–2 for most providers). */
+  /** Sampling temperature forwarded to the provider (0-2 for most providers). */
   temperature?: number;
   /** Hard cap on output tokens. Provider-dependent default applies when omitted. */
   maxTokens?: number;
@@ -273,9 +273,9 @@ export interface GenerateTextOptions {
    * are available.  Encourages the model to reason explicitly before choosing
    * an action.
    *
-   * - `false` (default) — no CoT injection.
-   * - `true` — inject the default CoT instruction.
-   * - `string` — inject a custom CoT instruction.
+   * - `false` (default): no CoT injection.
+   * - `true`: inject the default CoT instruction.
+   * - `string`: inject a custom CoT instruction.
    */
   chainOfThought?: boolean | string;
   /**
@@ -294,7 +294,7 @@ export interface GenerateTextOptions {
    * **Default behavior (omit / `undefined`):** auto-build the canonical
    * fallback chain for the primary provider via {@link buildFallbackChain},
    * filtered to providers that have API keys present in the environment.
-   * No import needed — fallback is on by default.
+   * No import needed: fallback is on by default.
    *
    * **Strict mode (`[]`):** explicitly opt out of fallback. The primary
    * provider's error is re-thrown after exhausting any provider-internal
@@ -307,16 +307,16 @@ export interface GenerateTextOptions {
    * {@link PROVIDER_DEFAULTS} when omitted. Providers are tried
    * left-to-right; the first successful response wins.
    *
-   * @example Default — auto-fallback through the canonical chain
+   * @example Default: auto-fallback through the canonical chain
    * ```ts
    * const result = await generateText({
    *   provider: 'anthropic',
    *   prompt: 'Hello',
    * });
-   * // On retryable Anthropic failure, walks anthropic → openai → gemini → ...
+   * // On retryable Anthropic failure, walks anthropic -> openai -> gemini -> ...
    * ```
    *
-   * @example Strict mode — fail if the primary is unavailable
+   * @example Strict mode: fail if the primary is unavailable
    * ```ts
    * const result = await generateText({
    *   provider: 'anthropic',
@@ -368,7 +368,7 @@ export interface GenerateTextOptions {
    * `'private-adult'` AND no explicit `fallbackProviders` was supplied,
    * the auto-built fallback chain is constructed via
    * {@link buildPolicyAwareFallbackChain} instead of the default
-   * availability chain — prepending an uncensored OpenRouter model
+   * availability chain: prepending an uncensored OpenRouter model
    * (Hermes 3 405B) so a content-policy refusal from the primary
    * (gpt-4o, Claude, etc.) re-routes to a model that can complete
    * the request rather than hard-failing.
@@ -376,10 +376,10 @@ export interface GenerateTextOptions {
    * Combined with the {@link isContentPolicyRefusal} branch in
    * {@link isRetryableError}, this also makes the existing fallback
    * loop fire on OpenAI's 400 + `code: 'content_policy_violation'`
-   * — which the network-only retryable matrix would otherwise treat
+   *: which the network-only retryable matrix would otherwise treat
    * as a hard error.
    *
-   * Has no effect for `safe`/`standard` tiers (or when omitted) —
+   * Has no effect for `safe`/`standard` tiers (or when omitted):
    * those keep the existing availability-only fallback behavior.
    *
    * Mirrors the existing `policyTier` parameter on
@@ -434,10 +434,10 @@ export interface GenerateTextResult {
   toolCalls: ToolCallRecord[];
   /**
    * Reason the model stopped generating.
-   * - `"stop"` — natural end of response.
-   * - `"length"` — `maxTokens` limit reached.
-   * - `"tool-calls"` — loop exhausted `maxSteps` while still calling tools.
-   * - `"error"` — provider returned an error.
+   * - `"stop"`: natural end of response.
+   * - `"length"`: `maxTokens` limit reached.
+   * - `"tool-calls"`: loop exhausted `maxSteps` while still calling tools.
+   * - `"error"`: provider returned an error.
    */
   finishReason: 'stop' | 'length' | 'tool-calls' | 'error';
   /**
@@ -481,7 +481,7 @@ export interface GenerateTextResult {
 export interface GenerationHookContext {
   /** Current messages array (system + conversation + user). */
   messages: Message[];
-  /** System prompt — plain string or structured blocks with cache breakpoints. */
+  /** System prompt: plain string or structured blocks with cache breakpoints. */
   system: string | SystemContentBlock[] | undefined;
   /** Tool definitions available for this step. */
   tools: ITool[];
@@ -566,7 +566,7 @@ export function resolveChainOfThought(cot: boolean | string | undefined): string
 const DEFAULT_PLANNING_SYSTEM_PROMPT = `You are planning how to accomplish the user's request. Break it into numbered steps.
 Describe what tools you'll need for each step. Output a JSON plan:
 {"steps": [{"description": "...", "tool": "tool_name_or_null", "reasoning": "..."}]}
-Return ONLY the JSON object — no markdown fences, no commentary.`;
+Return ONLY the JSON object: no markdown fences, no commentary.`;
 
 /**
  * Makes a single LLM call to create an execution plan before the tool loop.
@@ -580,7 +580,7 @@ Return ONLY the JSON object — no markdown fences, no commentary.`;
  * @param userMessages - The user-supplied messages that describe the task.
  * @param toolNames - Names of available tools (informational context for the planner).
  * @param config - Optional planning configuration overrides.
- * @param totalUsage - Mutable usage aggregator — the planning call's tokens are added here.
+ * @param totalUsage - Mutable usage aggregator: the planning call's tokens are added here.
  * @returns The parsed {@link Plan}, or `undefined` if parsing fails gracefully.
  *
  * @internal
@@ -642,7 +642,7 @@ export async function createPlan(
   }
 
   const rawContent = response.choices?.[0]?.message?.content;
-  const planText = typeof rawContent === 'string' ? rawContent : '';
+  const planText = typeof rawContent === 'string' ? rawContent: '';
 
   try {
     const parsed = JSON.parse(planText);
@@ -656,7 +656,7 @@ export async function createPlan(
       };
     }
   } catch {
-    // If the model returns malformed JSON, fall through gracefully —
+    // If the model returns malformed JSON, fall through gracefully:
     // the tool loop will still proceed, just without an explicit plan.
   }
   return undefined;
@@ -674,7 +674,7 @@ export async function createPlan(
 function formatPlanForPrompt(plan: Plan): string {
   const lines = plan.steps.map(
     (s, i) =>
-      `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]` : ''}`,
+      `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]`: ''}`,
   );
   return `Follow this plan:\n${lines.join('\n')}`;
 }
@@ -688,14 +688,14 @@ function formatPlanForPrompt(plan: Plan): string {
  * provider-level failure worth retrying with a different provider.
  *
  * Matched status codes:
- * - `401` / `403` — authentication / authorization failure (key expired or wrong provider).
- * - `402` — payment required (quota exhausted).
- * - `429` — rate limit exceeded.
- * - `500` / `502` / `503` / `504` — server-side errors.
+ * - `401` / `403`: authentication / authorization failure (key expired or wrong provider).
+ * - `402`: payment required (quota exhausted).
+ * - `429`: rate limit exceeded.
+ * - `500` / `502` / `503` / `504`: server-side errors.
  *
  * Matched network errors:
- * - `fetch failed` — generic fetch rejection (DNS, TLS, etc.).
- * - `ECONNREFUSED` / `ETIMEDOUT` / `ENOTFOUND` — socket-level failures.
+ * - `fetch failed`: generic fetch rejection (DNS, TLS, etc.).
+ * - `ECONNREFUSED` / `ETIMEDOUT` / `ENOTFOUND`: socket-level failures.
  *
  * @param error - The error to inspect.
  * @returns `true` when the error is likely transient and a different provider
@@ -717,7 +717,7 @@ const RETRYABLE_HTTP_STATUSES = new Set([401, 402, 403, 429, 500, 502, 503, 504]
  *   - Anthropic: HTTP 400 with messages like "blocked by Anthropic's
  *     usage policies" or "violates safety guidelines". Recent SDKs
  *     also emit `error.type: 'content_filter'`.
- *   - Gemini: Doesn't error — instead returns `finishReason: 'SAFETY'`
+ *   - Gemini: Doesn't error: instead returns `finishReason: 'SAFETY'`
  *     in the response. Caller-side detection catches that path; this
  *     helper only matches the error-shaped variants because the
  *     fallback chain only fires on thrown errors.
@@ -737,7 +737,7 @@ export function isContentPolicyRefusal(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const code = (error as { code?: unknown }).code;
   const errorType = (error as { type?: unknown }).type;
-  // Typed-field detection runs first — providers with structured error
+  // Typed-field detection runs first: providers with structured error
   // shapes are the reliable signal. Substring grep is the message-only
   // fallback for older SDKs / wrapped errors.
   if (typeof code === 'string') {
@@ -794,7 +794,7 @@ export function isRetryableError(error: unknown): boolean {
   if (/requires more credits|insufficient credits|rate limit|quota|exceeded your current quota/i.test(msg)) {
     return true;
   }
-  // Content-policy refusals — the policy-aware fallback chain (see
+  // Content-policy refusals: the policy-aware fallback chain (see
   // buildPolicyAwareFallbackChain) should fire on these so callers
   // who tagged their request with policyTier=mature/private-adult
   // get re-routed to an uncensored model instead of a hard error.
@@ -823,7 +823,7 @@ export function isRetryableError(error: unknown): boolean {
  *
  * @example
  * ```ts
- * // Primary is anthropic — build fallback chain from remaining providers
+ * // Primary is anthropic: build fallback chain from remaining providers
  * const chain = buildFallbackChain('anthropic');
  * // => [{ provider: 'openai', model: 'gpt-4o-mini' }, { provider: 'openrouter' }, ...]
  * ```
@@ -852,22 +852,22 @@ export function buildFallbackChain(
 /**
  * Build a policy-tier-aware fallback chain. Used by callers that pass
  * `policyTier: 'mature' | 'private-adult'` so refusals from the
- * primary model (typically gpt-4o, Claude, Gemini — all of which
+ * primary model (typically gpt-4o, Claude, Gemini: all of which
  * moderate explicit content) re-route to an uncensored OpenRouter
  * model instead of hard-failing the request.
  *
  * Chain order for mature / private-adult:
- *   1. `nousresearch/hermes-3-llama-3.1-405b` on OpenRouter — leads
+ *   1. `nousresearch/hermes-3-llama-3.1-405b` on OpenRouter: leads
  *      the uncensored leaderboard for instruction-following + long-
  *      context comprehension. Same model the wilds-ai
  *      companion-pipeline uses for identity generation on mature+
  *      companions; battle-tested on real workloads.
- *   2. `anthropic/claude-sonnet-4` on OpenRouter — Claude refuses
+ *   2. `anthropic/claude-sonnet-4` on OpenRouter: Claude refuses
  *      hard NSFW but is markedly more permissive than gpt-4o for
  *      narrative analysis of explicit fiction (extracting characters
  *      from a CAI-export with mild adult content, etc.). Acts as the
  *      headroom band when Hermes 3 is rate-limited or down.
- *   3. The standard {@link buildFallbackChain} suffix — keeps
+ *   3. The standard {@link buildFallbackChain} suffix: keeps
  *      availability fallback on top of the policy fallback so a
  *      mature request that hits a Hermes 3 outage AND a Sonnet
  *      outage still has gpt-4o-mini etc. to fall back to (which
@@ -875,7 +875,7 @@ export function buildFallbackChain(
  *      moderation error rather than a network error).
  *
  * For `safe` / `standard` tiers, this is identical to
- * {@link buildFallbackChain} — no uncensored prefix needed. Callers
+ * {@link buildFallbackChain}: no uncensored prefix needed. Callers
  * that don't pass a tier should keep using the original builder.
  *
  * Auto-built fallbacks always require their own env keys; missing
@@ -901,7 +901,7 @@ export function buildPolicyAwareFallbackChain(
 
   const chain: FallbackProviderEntry[] = [];
 
-  // Hermes 3 405B leads — uncensored, large, instruction-following
+  // Hermes 3 405B leads: uncensored, large, instruction-following
   // proven on the wilds-ai identity-generation path. Skipped when
   // OPENROUTER_API_KEY is absent rather than throwing; the suffix
   // chain may still produce a usable fallback.
@@ -913,7 +913,7 @@ export function buildPolicyAwareFallbackChain(
     // Sonnet via OpenRouter as the second uncensored band. We keep
     // it on OpenRouter (not direct Anthropic) because the chain's
     // `excludeProvider` semantics treat each entry as a provider
-    // ID — using `anthropic` here would lock out the suffix's
+    // ID: using `anthropic` here would lock out the suffix's
     // Anthropic fallback. OpenRouter routes Claude under its own
     // billing surface, so the slot is independent.
     chain.push({
@@ -988,7 +988,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
   let metricModelId: string | undefined;
 
   try {
-    const successResult = await withAgentOSSpan('agentos.api.generate_text', async (span) => {
+    const successResult: GenerateTextResult = await withAgentOSSpan('agentos.api.generate_text', async (span) => {
       let { providerId, modelId } = resolveModelOption(opts, 'text');
 
       // --- Model routing (optional) ---
@@ -997,20 +997,20 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           const toolNames = opts.tools
             ? (Array.isArray(opts.tools)
                 ? opts.tools
-                : [...((opts.tools as any).values?.() ?? [])]
+               : [...((opts.tools as any).values?.() ?? [])]
               )
                 .map((t: any) => t.name ?? t.function?.name)
                 .filter(Boolean) as string[]
-            : [];
+           : [];
           const hostPolicyRouteParams = hostPolicyToRouteParams(opts.hostPolicy);
           const requiredCapabilities = mergeRequiredCapabilities(
             hostPolicyRouteParams.requiredCapabilities,
             opts.routerParams?.requiredCapabilities,
-            toolNames.length > 0 ? ['function_calling'] : undefined,
+            toolNames.length > 0 ? ['function_calling']: undefined,
           );
           const routeParams: ModelRouteParams = {
             taskHint:
-              opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
+              opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system: undefined) ?? opts.prompt ?? '',
             ...hostPolicyRouteParams,
             ...opts.routerParams,
             optimizationPreference:
@@ -1055,7 +1055,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       // block route us into the fallback chain. The synthetic 503-coded
       // error matches `isRetryableError`'s retryable-status list and
       // flows through `fallback_fired` like any other transient
-      // failure — but with zero network latency. See
+      // failure: but with zero network latency. See
       // {@link LLMProviderHealthRegistry} for the policy that decides
       // when a provider is considered open. This check runs BEFORE
       // `createProviderManager` so we don't spend the SDK init cost
@@ -1095,18 +1095,18 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         if (cotInstruction && hasTools) {
           const systemContent = opts.system
             ? `${cotInstruction}\n\n${opts.system}`
-            : cotInstruction;
+           : cotInstruction;
           messages.push({ role: 'system', content: systemContent });
         } else if (opts.system) {
           messages.push({ role: 'system', content: opts.system });
         }
       } else {
-        // Structured SystemContentBlock[] — convert to content parts with cache_control
+        // Structured SystemContentBlock[]: convert to content parts with cache_control
         const blocks = opts.system as SystemContentBlock[];
         const parts = blocks.map(block => ({
           type: 'text' as const,
           text: block.text,
-          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } } : {}),
+          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } }: {}),
         }));
 
         // Prepend CoT instruction as the first non-cached block if needed
@@ -1130,7 +1130,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
               type: 'function' as const,
               function: { name: t.name, description: t.description, parameters: t.inputSchema },
             }))
-          : undefined;
+         : undefined;
 
       const allToolCalls: ToolCallRecord[] = [];
       const totalUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
@@ -1148,7 +1148,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       span?.setAttribute('agentos.api.planning_enabled', planningEnabled);
 
       if (planningEnabled) {
-        const planConfig = typeof opts.planning === 'object' ? opts.planning : undefined;
+        const planConfig = typeof opts.planning === 'object' ? opts.planning: undefined;
 
         // Collect only user-role messages for the planner
         const userMessages = messages.filter((m) => m.role === 'user');
@@ -1168,7 +1168,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           // system messages so the tool loop executes plan-aware.
           const planPrompt = formatPlanForPrompt(resolvedPlan);
           const firstNonSystem = messages.findIndex((m) => m.role !== 'system');
-          const insertIdx = firstNonSystem === -1 ? messages.length : firstNonSystem;
+          const insertIdx = firstNonSystem === -1 ? messages.length: firstNonSystem;
           messages.splice(insertIdx, 0, { role: 'system', content: planPrompt });
           span?.setAttribute('agentos.api.plan_steps', resolvedPlan.steps.length);
         }
@@ -1212,7 +1212,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 tools: toolSchemas,
                 temperature: opts.temperature,
                 maxTokens: opts.maxTokens,
-                ...(opts._responseFormat ? { responseFormat: opts._responseFormat } : {}),
+                ...(opts._responseFormat ? { responseFormat: opts._responseFormat }: {}),
               } as any
             );
             attachUsageAttributes(stepSpan, {
@@ -1249,7 +1249,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         if (!choice) break;
 
         const content = choice.message?.content;
-        let textContent = typeof content === 'string' ? content : ((content as any)?.text ?? '');
+        let textContent = typeof content === 'string' ? content: ((content as any)?.text ?? '');
         let toolCallsInChoice = resolveDynamicToolCalls(choice.message?.tool_calls, {
           text: textContent,
           step,
@@ -1325,7 +1325,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             let parsedArgs: unknown;
             try {
               parsedArgs =
-                typeof fnArgs === 'string' ? JSON.parse(fnArgs) : fnArgs;
+                typeof fnArgs === 'string' ? JSON.parse(fnArgs): fnArgs;
               record.args = parsedArgs;
             } catch {
               record.error = `Tool "${fnName}" arguments were not valid JSON.`;
@@ -1376,7 +1376,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                   ),
                 );
                 record.result = result.output;
-                record.error = result.success ? undefined : result.error;
+                record.error = result.success ? undefined: result.error;
                 messages.push({
                   role: 'tool',
                   tool_call_id: tcId,
@@ -1433,7 +1433,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         plan: resolvedPlan,
       };
     });
-    // The primary attempt succeeded — let the registry know so its
+    // The primary attempt succeeded: let the registry know so its
     // failure streak resets. Safe to call on a never-failed provider;
     // the registry no-ops in that case.
     if (metricProviderId) {
@@ -1458,10 +1458,10 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
     // the policy-aware chain (Hermes 3 + Sonnet uncensored prefix +
     // standard availability suffix) instead of the availability-only
     // chain. Caller-supplied chains are respected verbatim regardless
-    // of tier — explicit beats implicit.
+    // of tier: explicit beats implicit.
     const effectiveFallbacks = opts.fallbackProviders === undefined
       ? buildPolicyAwareFallbackChain(opts.policyTier, metricProviderId)
-      : opts.fallbackProviders;
+     : opts.fallbackProviders;
 
     if (
       effectiveFallbacks.length &&
@@ -1489,7 +1489,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           continue;
         }
         try {
-          const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
+          const lastErr = lastError instanceof Error ? lastError: new Error(String(lastError));
           fallbackLogger.info('provider fallback triggered', {
             event: 'fallback_fired',
             api: 'generateText',
@@ -1531,8 +1531,8 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           lastError = fbError;
         }
       }
-      // All fallbacks exhausted — fall through to throw
-      const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
+      // All fallbacks exhausted: fall through to throw
+      const lastErr = lastError instanceof Error ? lastError: new Error(String(lastError));
       fallbackLogger.warn('all provider fallbacks exhausted', {
         event: 'fallback_exhausted',
         api: 'generateText',

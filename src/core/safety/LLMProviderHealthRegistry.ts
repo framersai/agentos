@@ -5,7 +5,7 @@
  * Process-lifetime memory of LLM provider health, indexed by `providerId`.
  *
  * **The problem this solves.** The `generateText` / `streamText` fallback
- * chain walks providers correctly inside a single call (try OpenRouter →
+ * chain walks providers correctly inside a single call (try OpenRouter ->
  * on 402, fall back to OpenAI). But each *new* call starts over from
  * scratch. When OpenRouter is in a sustained 402 state (credits
  * exhausted), every subsequent call still tries OpenRouter first, eats
@@ -36,7 +36,7 @@
  *
  * **Design constraints.**
  * - Pure in-process state. No external store, no IPC. The registry is
- *   reset on every server restart by design — provider state is
+ *   reset on every server restart by design: provider state is
  *   ephemeral and rediscovered on the next call.
  * - Time-source via `Date.now()` so vitest's `vi.useFakeTimers()` can
  *   advance the clock deterministically in tests.
@@ -44,7 +44,7 @@
  *   `[NNN]` prefix in the message (the shape `OpenRouterProvider`
  *   already emits), from `error.statusCode`, OR from `error.status`
  *   (the Anthropic SDK shape). An error with no extractable code is
- *   treated as transient — better to under-protect than to lock out a
+ *   treated as transient: better to under-protect than to lock out a
  *   healthy provider on a one-off network blip.
  * - `recordSuccess()` clears the streak counter but does NOT shorten a
  *   currently-open cooldown. The breaker stays open until the cooldown
@@ -54,7 +54,7 @@
  *
  * **Why not reuse the existing `CircuitBreaker`?** That primitive uses
  * a single failure-threshold + cooldown pair per instance. The
- * status-aware policy here needs per-error-class behavior — a single
+ * status-aware policy here needs per-error-class behavior: a single
  * config can't express "open on 1 failure for 402 but 3 for 429" with
  * the same instance. A bespoke registry is shorter and clearer than
  * juggling four breakers per provider.
@@ -125,12 +125,12 @@ const POLICY_TRANSIENT: ErrorPolicy = { threshold: 5, cooldownMs: 60_000 };
 
 /**
  * Extract an HTTP status code from a thrown error. Reads, in order:
- * 1. `[NNN] ...` prefix in `error.message` — matches the shape
+ * 1. `[NNN] ...` prefix in `error.message`: matches the shape
  *    `OpenRouterProvider` decorates its errors with so the existing
  *    `isRetryableError` regex can route on them.
- * 2. `error.statusCode` numeric property — `OpenRouterProviderError`
+ * 2. `error.statusCode` numeric property: `OpenRouterProviderError`
  *    sets this explicitly.
- * 3. `error.status` numeric property — the Anthropic / OpenAI SDK
+ * 3. `error.status` numeric property: the Anthropic / OpenAI SDK
  *    shape.
  *
  * Returns `null` when no status code can be extracted; the caller
@@ -181,7 +181,7 @@ export class LLMProviderHealthRegistry {
 
   /**
    * Returns `true` when the named provider's breaker is open. Callers
-   * should skip the provider entirely while open — going past `isOpen`
+   * should skip the provider entirely while open: going past `isOpen`
    * defeats the whole point of the registry (paying the network
    * round-trip for a known-bad provider).
    */
@@ -190,7 +190,7 @@ export class LLMProviderHealthRegistry {
     if (!record) return false;
     if (record.openUntil === 0) return false;
     if (Date.now() >= record.openUntil) {
-      // Cooldown elapsed — half-close: reset the breaker so the next
+      // Cooldown elapsed: half-close: reset the breaker so the next
       // failure starts a fresh streak count, but allow the call through.
       record.openUntil = 0;
       record.failureCount = 0;
@@ -206,7 +206,7 @@ export class LLMProviderHealthRegistry {
    * increments the streak counter toward the threshold for transient
    * classes (429, 5xx, unclassifiable).
    *
-   * Safe to call regardless of whether the breaker is already open —
+   * Safe to call regardless of whether the breaker is already open:
    * a repeat failure on an open breaker just refreshes the
    * cooldown for the new error class.
    */
@@ -218,7 +218,7 @@ export class LLMProviderHealthRegistry {
     record.lastStatusCode = status;
     record.lastFailureAt = Date.now();
     if (record.failureCount >= policy.threshold) {
-      // Trip — but only count this as a new trip event if the
+      // Trip: but only count this as a new trip event if the
       // breaker was previously closed.
       if (record.openUntil === 0 || Date.now() >= record.openUntil) {
         record.totalTrips += 1;
@@ -243,7 +243,7 @@ export class LLMProviderHealthRegistry {
   /**
    * Clear all state for a single provider, or for every provider
    * when called without an id. Used by tests to isolate state across
-   * cases; production callers generally don't need this — the
+   * cases; production callers generally don't need this: the
    * cooldown logic + success path handles everything.
    */
   reset(providerId?: string): void {
@@ -264,7 +264,7 @@ export class LLMProviderHealthRegistry {
     if (!record) return null;
     const now = Date.now();
     const cooldownRemainingMs = Math.max(0, record.openUntil - now);
-    const state: 'closed' | 'open' = cooldownRemainingMs > 0 ? 'open' : 'closed';
+    const state: 'closed' | 'open' = cooldownRemainingMs > 0 ? 'open': 'closed';
     return {
       providerId,
       state,
@@ -292,7 +292,7 @@ export class LLMProviderHealthRegistry {
  * `streamText` fallback router consults before every primary-provider
  * attempt. Tests should construct their own `LLMProviderHealthRegistry`
  * instance and inject it via the dependency-injected `opts.healthRegistry`
- * field rather than reaching into this singleton — that keeps the
+ * field rather than reaching into this singleton: that keeps the
  * global state stable across the test run.
  */
 export const globalLLMProviderHealth: LLMProviderHealthRegistry = new LLMProviderHealthRegistry();

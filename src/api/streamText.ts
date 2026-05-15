@@ -46,10 +46,10 @@ async function recordAgentOSUsageLazy(
  * A discriminated union representing a single event emitted by the
  * `StreamTextResult.fullStream` iterable.
  *
- * - `"text"` — incremental token delta from the model.
- * - `"tool-call"` — the model requested a tool invocation.
- * - `"tool-result"` — the tool has been executed and the result is available.
- * - `"error"` — an unrecoverable error occurred; the stream ends after this part.
+ * - `"text"`: incremental token delta from the model.
+ * - `"tool-call"`: the model requested a tool invocation.
+ * - `"tool-result"`: the tool has been executed and the result is available.
+ * - `"error"`: an unrecoverable error occurred; the stream ends after this part.
  */
 export type StreamPart =
   | { type: 'text'; text: string }
@@ -81,7 +81,7 @@ export interface StreamTextResult {
    * before the first chunk; exposed as a Promise so the type lines up with
    * the rest of this contract and so callers don't see undefined while the
    * stream is still spinning up. Used by wilds-ai's `[llm-call]` telemetry
-   * line for per-step latency attribution (production fix 2026-05-05 —
+   * line for per-step latency attribution (production fix 2026-05-05:
    * narrator-stream rows were logging `provider=unknown model=unknown`,
    * which made model-routing audits significantly harder).
    */
@@ -115,7 +115,7 @@ function buildHelperToolExecutionContext(
 function formatPlanForPrompt(plan: Plan): string {
   const lines = plan.steps.map(
     (s, i) =>
-      `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]` : ''}`,
+      `${i + 1}. ${s.description}${s.tool ? ` [tool: ${s.tool}]`: ''}`,
   );
   return `Follow this plan:\n${lines.join('\n')}`;
 }
@@ -187,20 +187,20 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           const toolNames = opts.tools
             ? (Array.isArray(opts.tools)
                 ? opts.tools
-                : [...((opts.tools as any).values?.() ?? [])]
+               : [...((opts.tools as any).values?.() ?? [])]
               )
                 .map((t: any) => t.name ?? t.function?.name)
                 .filter(Boolean) as string[]
-            : [];
+           : [];
           const hostPolicyRouteParams = hostPolicyToRouteParams(opts.hostPolicy);
           const requiredCapabilities = mergeRequiredCapabilities(
             hostPolicyRouteParams.requiredCapabilities,
             opts.routerParams?.requiredCapabilities,
-            toolNames.length > 0 ? ['function_calling'] : undefined,
+            toolNames.length > 0 ? ['function_calling']: undefined,
           );
           const routeParams: ModelRouteParams = {
             taskHint:
-              opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system : undefined) ?? opts.prompt ?? '',
+              opts.routerParams?.taskHint ?? (typeof opts.system === 'string' ? opts.system: undefined) ?? opts.prompt ?? '',
             ...hostPolicyRouteParams,
             ...opts.routerParams,
             optimizationPreference:
@@ -278,18 +278,18 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         if (cotInstruction && hasTools) {
           const systemContent = opts.system
             ? `${cotInstruction}\n\n${opts.system}`
-            : cotInstruction;
+           : cotInstruction;
           messages.push({ role: 'system', content: systemContent });
         } else if (opts.system) {
           messages.push({ role: 'system', content: opts.system });
         }
       } else {
-        // Structured SystemContentBlock[] — convert to content parts with cache_control
+        // Structured SystemContentBlock[]: convert to content parts with cache_control
         const blocks = opts.system as import('./generateText.js').SystemContentBlock[];
         const parts = blocks.map(block => ({
           type: 'text' as const,
           text: block.text,
-          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } } : {}),
+          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } }: {}),
         }));
 
         if (cotInstruction && hasTools) {
@@ -315,7 +315,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
                 parameters: tool.inputSchema,
               },
             }))
-          : undefined;
+         : undefined;
 
       const maxSteps = opts.maxSteps ?? 1;
       rootSpan?.setAttribute('agentos.api.max_steps', maxSteps);
@@ -323,7 +323,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       rootSpan?.setAttribute('agentos.api.planning_enabled', planningEnabled);
 
       if (planningEnabled) {
-        const planConfig = typeof opts.planning === 'object' ? opts.planning : undefined;
+        const planConfig = typeof opts.planning === 'object' ? opts.planning: undefined;
         const userMessages = messages.filter((m) => m.role === 'user');
         const toolNames = tools.map((tool) => tool.name);
         const resolvedPlan = await createPlan(
@@ -338,7 +338,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         if (resolvedPlan) {
           const planPrompt = formatPlanForPrompt(resolvedPlan);
           const firstNonSystem = messages.findIndex((m) => m.role !== 'system');
-          const insertIdx = firstNonSystem === -1 ? messages.length : firstNonSystem;
+          const insertIdx = firstNonSystem === -1 ? messages.length: firstNonSystem;
           messages.splice(insertIdx, 0, { role: 'system', content: planPrompt });
           rootSpan?.setAttribute('agentos.api.plan_steps', resolvedPlan.steps.length);
         }
@@ -533,7 +533,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           let parsedArgs: unknown;
 
           try {
-            parsedArgs = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+            parsedArgs = typeof rawArgs === 'string' ? JSON.parse(rawArgs): rawArgs;
             toolCallRecord.args = parsedArgs;
           } catch {
             toolCallRecord.error = `Tool "${fnName}" arguments were not valid JSON.`;
@@ -619,7 +619,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
               ),
             );
             toolCallRecord.result = result.output;
-            toolCallRecord.error = result.success ? undefined : result.error;
+            toolCallRecord.error = result.success ? undefined: result.error;
             const resultPart: StreamPart = {
               type: 'tool-result',
               toolName: fnName,
@@ -657,14 +657,14 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       resolveText!(finalText);
       resolveUsage!(usage);
       resolveToolCalls!(allToolCalls);
-      // Primary streaming attempt succeeded — reset the failure streak
+      // Primary streaming attempt succeeded: reset the failure streak
       // so a future transient error starts fresh. See
       // {@link LLMProviderHealthRegistry}.
       if (recordedProviderId) {
         globalLLMProviderHealth.recordSuccess(recordedProviderId);
       }
     } catch (err: any) {
-      const error = err instanceof Error ? err : new Error(String(err));
+      const error = err instanceof Error ? err: new Error(String(err));
 
       // Record the failure on the provider-health registry. Synthetic
       // circuit-open errors are skipped because they're already a
@@ -682,7 +682,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       // auto-build from env keys, empty array explicitly opts out.
       const effectiveFallbacks = opts.fallbackProviders === undefined
         ? buildFallbackChain(recordedProviderId)
-        : opts.fallbackProviders;
+       : opts.fallbackProviders;
 
       if (effectiveFallbacks.length && isRetryableError(error)) {
         let lastFallbackError: Error = error;
@@ -691,7 +691,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         for (const fb of effectiveFallbacks) {
           attempt += 1;
-          // Skip fallback entries with an open breaker — the recursive
+          // Skip fallback entries with an open breaker: the recursive
           // streamText below would short-circuit at the same isOpen()
           // check, but the outer skip avoids the extra log noise +
           // recursion overhead.
@@ -764,7 +764,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
             fallbackSucceeded = true;
             break;
           } catch (fbErr: any) {
-            lastFallbackError = fbErr instanceof Error ? fbErr : new Error(String(fbErr));
+            lastFallbackError = fbErr instanceof Error ? fbErr: new Error(String(fbErr));
           }
         }
 

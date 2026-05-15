@@ -4,7 +4,7 @@
  * The registry encodes the policy that a payment / auth error from a
  * shared provider (OpenRouter 402, OpenAI 401, etc.) should NOT cost
  * the next caller a full TLS round-trip to rediscover the same dead
- * provider. Status-aware open-immediate behavior is the whole point —
+ * provider. Status-aware open-immediate behavior is the whole point:
  * tests assert that 401 / 402 / 403 open the circuit after the FIRST
  * failure, while transient classes (429, 5xx) require a small streak.
  */
@@ -30,7 +30,7 @@ describe('LLMProviderHealthRegistry', () => {
     expect(registry.isOpen('anything')).toBe(false);
   });
 
-  describe('402 insufficient credits — open after 1 failure, 5 min cooldown', () => {
+  describe('402 insufficient credits: open after 1 failure, 5 min cooldown', () => {
     it('opens immediately on a single 402 error', () => {
       const registry = new LLMProviderHealthRegistry();
       const err = new Error('[402] This request requires more credits');
@@ -49,7 +49,7 @@ describe('LLMProviderHealthRegistry', () => {
     });
   });
 
-  describe('401 / 403 auth — open after 1 failure, 30 min cooldown', () => {
+  describe('401 / 403 auth: open after 1 failure, 30 min cooldown', () => {
     it('401 opens immediately on first failure', () => {
       const registry = new LLMProviderHealthRegistry();
       registry.recordFailure('openrouter', new Error('[401] Invalid API key'));
@@ -72,7 +72,7 @@ describe('LLMProviderHealthRegistry', () => {
     });
   });
 
-  describe('429 rate limit — open after 3 failures, 30s cooldown', () => {
+  describe('429 rate limit: open after 3 failures, 30s cooldown', () => {
     it('stays closed for the first 2 failures', () => {
       const registry = new LLMProviderHealthRegistry();
       registry.recordFailure('openai', new Error('[429] Rate limit exceeded'));
@@ -101,7 +101,7 @@ describe('LLMProviderHealthRegistry', () => {
     });
   });
 
-  describe('5xx server errors — open after 5 failures, 60s cooldown', () => {
+  describe('5xx server errors: open after 5 failures, 60s cooldown', () => {
     it('opens on the 5th 5xx failure', () => {
       const registry = new LLMProviderHealthRegistry();
       for (let i = 0; i < 4; i++) {
@@ -172,7 +172,7 @@ describe('LLMProviderHealthRegistry', () => {
     it('treats unclassifiable errors as transient 5xx-equivalent (5-failure threshold)', () => {
       const registry = new LLMProviderHealthRegistry();
       // An error with no status info should NOT trip on a single
-      // failure — it could just be a network blip.
+      // failure: it could just be a network blip.
       registry.recordFailure('openrouter', new Error('socket hang up'));
       expect(registry.isOpen('openrouter')).toBe(false);
       for (let i = 0; i < 4; i++) {
