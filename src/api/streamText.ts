@@ -29,6 +29,7 @@ import type { ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { StreamingReconstructor } from '../core/llm/streaming/StreamingReconstructor.js';
+import { globalLLMProviderHealth } from '../core/safety/LLMProviderHealthRegistry.js';
 import { recordAgentOSTurnMetrics, startAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 import { createLogger } from '../core/logging/loggerFactory.js';
 
@@ -235,13 +236,28 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
       });
-      const manager = await createProviderManager(resolved);
       recordedProviderId = resolved.providerId;
       recordedModelId = resolved.modelId;
       // Resolve the eagerly-exposed routing Promises so callers
       // logging telemetry don't have to wait for the stream to drain.
       resolveProviderId!(resolved.providerId);
       resolveModelId!(resolved.modelId);
+
+      // Provider-health circuit-breaker check. See
+      // {@link LLMProviderHealthRegistry} for the policy. Mirrors the
+      // generateText path so a 402 on the OpenRouter REST endpoint
+      // short-circuits streaming consumers in the same process too.
+      if (globalLLMProviderHealth.isOpen(resolved.providerId)) {
+        const stats = globalLLMProviderHealth.getStats(resolved.providerId);
+        const err: Error & { httpStatus?: number } = new Error(
+          `[503] Provider '${resolved.providerId}' circuit open; cooldown ${stats?.cooldownRemainingMs ?? 0}ms`,
+        );
+        err.name = 'LLMProviderCircuitOpenError';
+        err.httpStatus = 503;
+        throw err;
+      }
+
+      const manager = await createProviderManager(resolved);
       const provider = manager.getProvider(resolved.providerId);
       if (!provider) throw new Error(`Provider ${resolved.providerId} not available.`);
 
@@ -641,8 +657,21 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       resolveText!(finalText);
       resolveUsage!(usage);
       resolveToolCalls!(allToolCalls);
+      // Primary streaming attempt succeeded — reset the failure streak
+      // so a future transient error starts fresh. See
+      // {@link LLMProviderHealthRegistry}.
+      if (recordedProviderId) {
+        globalLLMProviderHealth.recordSuccess(recordedProviderId);
+      }
     } catch (err: any) {
       const error = err instanceof Error ? err : new Error(String(err));
+
+      // Record the failure on the provider-health registry. Synthetic
+      // circuit-open errors are skipped because they're already a
+      // *consequence* of the registry, not a new failure to record.
+      if (recordedProviderId && error.name !== 'LLMProviderCircuitOpenError') {
+        globalLLMProviderHealth.recordFailure(recordedProviderId, error);
+      }
 
       // ── Fallback chain for streaming ──────────────────────────────
       // When the primary provider fails with a retryable error and
@@ -662,6 +691,21 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
         for (const fb of effectiveFallbacks) {
           attempt += 1;
+          // Skip fallback entries with an open breaker — the recursive
+          // streamText below would short-circuit at the same isOpen()
+          // check, but the outer skip avoids the extra log noise +
+          // recursion overhead.
+          if (globalLLMProviderHealth.isOpen(fb.provider)) {
+            fallbackLogger.info('streaming provider fallback skipped (circuit open)', {
+              event: 'fallback_skipped_circuit_open',
+              api: 'streamText',
+              primaryProvider: recordedProviderId,
+              fallbackProvider: fb.provider,
+              fallbackModel: fb.model,
+              attempt,
+            });
+            continue;
+          }
           try {
             fallbackLogger.info('streaming provider fallback triggered', {
               event: 'fallback_fired',

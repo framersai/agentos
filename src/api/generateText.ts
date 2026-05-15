@@ -26,8 +26,30 @@ import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
 import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/observability/otel.js';
 import { createLogger } from '../core/logging/loggerFactory.js';
 import type { AgentCallRecord, AgencyTraceEvent } from './types.js';
+import { globalLLMProviderHealth } from '../core/safety/LLMProviderHealthRegistry.js';
 
 const fallbackLogger = createLogger('fallback');
+
+/**
+ * Internal error type thrown when the provider-health registry reports
+ * the resolved primary provider as currently open. Carries
+ * `httpStatus: 503` so the existing `isRetryableError` check at
+ * line ~756 routes the failure into the fallback chain without any
+ * special-case handling. The synthetic message contains the
+ * remaining cooldown so the log line tells operators when the
+ * breaker will close on its own.
+ *
+ * @internal
+ */
+class LLMProviderCircuitOpenError extends Error {
+  /** Mirrors the HTTP status field on typed provider errors so
+   *  {@link isRetryableError} recognizes this as retryable. */
+  readonly httpStatus = 503;
+  constructor(providerId: string, cooldownRemainingMs: number) {
+    super(`[503] Provider '${providerId}' circuit open; cooldown ${cooldownRemainingMs}ms`);
+    this.name = 'LLMProviderCircuitOpenError';
+  }
+}
 import type { IModelRouter, ModelRouteParams } from '../core/llm/routing/IModelRouter.js';
 import type {
   MessageContent,
@@ -966,7 +988,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
   let metricModelId: string | undefined;
 
   try {
-    return await withAgentOSSpan('agentos.api.generate_text', async (span) => {
+    const successResult = await withAgentOSSpan('agentos.api.generate_text', async (span) => {
       let { providerId, modelId } = resolveModelOption(opts, 'text');
 
       // --- Model routing (optional) ---
@@ -1024,10 +1046,29 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         apiKey: opts.apiKey,
         baseUrl: opts.baseUrl,
       });
-      const manager = await createProviderManager(resolved);
       metricProviderId = resolved.providerId;
       metricModelId = resolved.modelId;
 
+      // ── Provider health circuit-breaker ──────────────────────────────
+      // If the resolved primary has tripped its breaker (e.g. a recent
+      // 402 / 401), skip the network call entirely and let the catch
+      // block route us into the fallback chain. The synthetic 503-coded
+      // error matches `isRetryableError`'s retryable-status list and
+      // flows through `fallback_fired` like any other transient
+      // failure — but with zero network latency. See
+      // {@link LLMProviderHealthRegistry} for the policy that decides
+      // when a provider is considered open. This check runs BEFORE
+      // `createProviderManager` so we don't spend the SDK init cost
+      // on a known-bad provider either.
+      if (globalLLMProviderHealth.isOpen(resolved.providerId)) {
+        const stats = globalLLMProviderHealth.getStats(resolved.providerId);
+        throw new LLMProviderCircuitOpenError(
+          resolved.providerId,
+          stats?.cooldownRemainingMs ?? 0,
+        );
+      }
+
+      const manager = await createProviderManager(resolved);
       const provider = manager.getProvider(resolved.providerId);
       if (!provider) throw new Error(`Provider ${resolved.providerId} not available.`);
 
@@ -1392,7 +1433,24 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         plan: resolvedPlan,
       };
     });
+    // The primary attempt succeeded — let the registry know so its
+    // failure streak resets. Safe to call on a never-failed provider;
+    // the registry no-ops in that case.
+    if (metricProviderId) {
+      globalLLMProviderHealth.recordSuccess(metricProviderId);
+    }
+    return successResult;
   } catch (error) {
+    // Record the primary attempt as a failure on the health registry
+    // BEFORE walking the fallback chain. Subsequent calls in this
+    // process will now see this provider as open (per the registry's
+    // status-aware policy) and skip the network round-trip entirely.
+    // Note: we record against `metricProviderId` not the inbound
+    // `opts.provider` because the model router may have resolved a
+    // different provider than the caller asked for.
+    if (metricProviderId && !(error instanceof LLMProviderCircuitOpenError)) {
+      globalLLMProviderHealth.recordFailure(metricProviderId, error);
+    }
     // ── Fallback chain ────────────────────────────────────────────────
     // Resolve fallback chain: caller-supplied wins, undefined triggers
     // auto-build from env keys, empty array explicitly opts out.
@@ -1413,6 +1471,23 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       let attempt = 0;
       for (const fb of effectiveFallbacks) {
         attempt += 1;
+        // Skip fallback entries whose breaker is already open. Without
+        // this check, the loop would still spend a full network round-
+        // trip on every dead fallback in the chain before reaching the
+        // next healthy one. The recursive `generateText` call below would
+        // also short-circuit at the same isOpen() check, but the outer
+        // skip avoids the recursion overhead + the extra log line.
+        if (globalLLMProviderHealth.isOpen(fb.provider)) {
+          fallbackLogger.info('provider fallback skipped (circuit open)', {
+            event: 'fallback_skipped_circuit_open',
+            api: 'generateText',
+            primaryProvider: metricProviderId,
+            fallbackProvider: fb.provider,
+            fallbackModel: fb.model,
+            attempt,
+          });
+          continue;
+        }
         try {
           const lastErr = lastError instanceof Error ? lastError : new Error(String(lastError));
           fallbackLogger.info('provider fallback triggered', {
