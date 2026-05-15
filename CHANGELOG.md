@@ -1,3 +1,7 @@
+## <small>0.9.12 (2026-05-15)</small>
+
+* fix(tests): align agentos fixtures with current interfaces ([01c3f8164e9b8529f3b16a89adf77cf7aca6535f](https://github.com/framersai/agentos/commit/01c3f8164e9b8529f3b16a89adf77cf7aca6535f))
+
 ## <small>0.9.11 (2026-05-15)</small>
 
 * docs(api): tag agent, agency, AgentOS with @category Core ([70914f594d391cbc8d31e037095c2353299fcd6c](https://github.com/framersai/agentos/commit/70914f594d391cbc8d31e037095c2353299fcd6c))
