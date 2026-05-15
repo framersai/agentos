@@ -49,15 +49,15 @@ npm install @framers/agentos
 import { agent } from '@framers/agentos';
 
 const tutor = agent({
-  provider: 'anthropic',                          // -> claude-sonnet-4-5-20250929 (provider default)
-  // model: 'claude-opus-4-7',                    // explicit override: accepts "provider:model" or plain id
+  provider: 'anthropic',                          // resolves to claude-sonnet-4-5-20250929 (provider default)
+  // model: 'claude-opus-4-7',                    // pin a specific model to override the default
   instructions: 'You are a patient CS tutor.',
   personality: { openness: 0.9, conscientiousness: 0.95 },
   memory: { types: ['episodic', 'semantic'], working: { enabled: true } },
 });
 
-// Provider auto-detected from env when `provider` is omitted; all 21 providers
-// and their default models: https://docs.agentos.sh/features/llm-providers
+// Provider auto-detected from env when `provider` is omitted. Full default-model
+// table for every supported provider: https://docs.agentos.sh/features/llm-providers
 
 const session = tutor.session('student-1');
 await session.send('Explain recursion with an analogy.');
