@@ -327,6 +327,8 @@ export interface AgentSession {
 
 /**
  * A stateful agent instance returned by {@link agent}.
+ *
+ * @category Core
  */
 export interface Agent {
   /**
@@ -632,6 +634,8 @@ function loadSoulFromOption(
  * const reply = await session.send('Hello!');
  * console.log(reply.text);
  * ```
+ *
+ * @category Core
  */
 export function agent(opts: AgentOptions): Agent {
   const sessions = new Map<string, Message[]>();

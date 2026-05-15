@@ -110,6 +110,8 @@ import {
  *   (e.g. no agents defined, emergent enabled without hierarchical strategy,
  *   HITL approvals configured without a handler, parallel/debate without a
  *   synthesis model).
+ *
+ * @category Core
  */
 export function agency(opts: AgencyOptions): Agent {
   // 1. Validate options — throw early on bad configuration.

@@ -758,6 +758,8 @@ export interface AgentOSRuntimeSnapshot {
  * components, and orchestrating complex AI interactions. This class ensures that all
  * operations adhere to the defined architectural tenets, including robust error handling,
  * comprehensive documentation, and strict type safety.
+ *
+ * @category Core
  */
 export class AgentOS implements IAgentOS {
   private initialized: boolean = false;
