@@ -1,3 +1,11 @@
+## <small>0.9.11 (2026-05-15)</small>
+
+* docs(api): tag agent, agency, AgentOS with @category Core ([70914f594d391cbc8d31e037095c2353299fcd6c](https://github.com/framersai/agentos/commit/70914f594d391cbc8d31e037095c2353299fcd6c))
+* docs(readme): inline default-model comments per provider; fix honesty field name ([88412eec732906e9b695ff60243fabcfb8d9b9fa](https://github.com/framersai/agentos/commit/88412eec732906e9b695ff60243fabcfb8d9b9fa))
+* docs(safety): document LLMProviderHealthRegistry in SAFETY_PRIMITIVES + linter scrub ([c8d152125f2b07291298a03bfe8ff6a01e604094](https://github.com/framersai/agentos/commit/c8d152125f2b07291298a03bfe8ff6a01e604094))
+* Merge branch 'master' of https://github.com/framersai/agentos ([c0b7ab01c5b4a5a80f08c21313a1b88caee753d6](https://github.com/framersai/agentos/commit/c0b7ab01c5b4a5a80f08c21313a1b88caee753d6))
+* feat(safety): LLMProviderHealthRegistry with status-aware circuit breaker for the fallback router ([f3d2f30662fcc9b999dbdd75dc72a0cd654afcac](https://github.com/framersai/agentos/commit/f3d2f30662fcc9b999dbdd75dc72a0cd654afcac))
+
 ## <small>0.9.10 (2026-05-14)</small>
 
 * fix(memory): add perspectiveSource to ICognitiveMemoryManager.encode interface ([4d6c4f0d4c47484ccbeefafc2a757afba2dbbee2](https://github.com/framersai/agentos/commit/4d6c4f0d4c47484ccbeefafc2a757afba2dbbee2))
