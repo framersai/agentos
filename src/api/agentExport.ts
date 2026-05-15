@@ -20,7 +20,7 @@
  * import { agent } from '@framers/agentos';
  * import { exportAgentConfig, importAgent, exportAgentConfigJSON } from '@framers/agentos/api/agentExport';
  *
- * const myAgent = agent({ model: 'openai:gpt-4o', instructions: 'Be helpful.' });
+ * const myAgent = agent({ provider: 'openai', model: 'gpt-4o', instructions: 'Be helpful.' });
  * const json = exportAgentConfigJSON(myAgent);
  *
  * // Later, in another process:

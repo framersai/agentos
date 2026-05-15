@@ -47,7 +47,8 @@
  * import { agency, hitl } from '@framers/agentos';
  *
  * const myAgency = agency({
- *   model: 'openai:gpt-4o',
+ *   provider: 'openai',
+ *   model: 'gpt-4o',
  *   strategy: 'sequential',
  *   agents: {
  *     researcher: { instructions: 'Find relevant information.' },

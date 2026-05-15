@@ -629,7 +629,7 @@ function loadSoulFromOption(
  *
  * @example
  * ```ts
- * const myAgent = agent({ model: 'openai:gpt-4o', instructions: 'You are a helpful assistant.' });
+ * const myAgent = agent({ provider: 'openai', model: 'gpt-4o', instructions: 'You are a helpful assistant.' });
  * const session = myAgent.session('user-123');
  * const reply = await session.send('Hello!');
  * console.log(reply.text);

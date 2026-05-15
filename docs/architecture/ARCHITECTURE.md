@@ -828,7 +828,7 @@ import { agency } from '@framers/agentos';
 // doesn't cover. EmergentAgentForge validates each spec; EmergentAgentJudge
 // gates it on safety/scope/risk before activation.
 const research = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researcher: { instructions: 'Find authoritative sources and pull verbatim quotes.' },
     writer: { instructions: 'Write clear, well-cited prose.' },

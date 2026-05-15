@@ -197,8 +197,8 @@ console.log(result.text);
 ```
 
 Set `OPENAI_API_KEY` (or another provider's key) and the agency auto-detects
-the provider.  Pass `model: 'openai:gpt-4o'` or `provider: 'anthropic'` to
-control the model explicitly.
+the provider.  Pass `provider: 'openai', model: 'gpt-4o'` (or any other
+provider/model pair) to control the model explicitly.
 
 ---
 
@@ -211,7 +211,7 @@ as context, forming a progressive refinement chain.
 
 ```typescript
 const pipeline = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researcher: { instructions: 'Gather facts on the topic.' },
     editor:     { instructions: 'Edit for clarity and concision.' },
@@ -232,7 +232,7 @@ level.
 
 ```typescript
 const panel = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     optimist:  { instructions: 'Argue in favour.' },
     pessimist: { instructions: 'Argue against.' },
@@ -252,7 +252,7 @@ rounds is controlled by `maxRounds` (default: 3).  Requires an agency-level
 
 ```typescript
 const debaters = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     proponent: { instructions: 'Defend your position vigorously.' },
     critic:    { instructions: 'Challenge every claim you hear.' },
@@ -271,7 +271,7 @@ continues until the reviewer is satisfied or `maxRounds` is reached.
 
 ```typescript
 const loop = agency({
-  model: 'openai:gpt-4o-mini',
+  provider: 'openai', model: 'gpt-4o-mini',
   agents: {
     drafter:  { instructions: 'Draft a press release.' },
     reviewer: { instructions: 'Review for brand voice and accuracy. Request changes if needed.' },
@@ -291,7 +291,7 @@ Required for emergent agent synthesis.
 
 ```typescript
 const team = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researcher: { instructions: 'Find factual information.' },
     coder:      { instructions: 'Write and explain code.' },
@@ -339,7 +339,7 @@ simply receives plain text from its predecessors.
 
 ```typescript
 const team = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     // Tier 0 — no dependencies, runs first
     researcher: {
@@ -405,7 +405,7 @@ hint; the coordinator may override it.
 
 ```typescript
 const smart = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     analyst:  { instructions: 'Analyse data and trends.' },
     reporter: { instructions: 'Write clear reports.' },
@@ -437,7 +437,7 @@ Emergent requires either `strategy: 'hierarchical'` or `adaptive: true`.
 
 ```typescript
 const research = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researcher: { instructions: 'Find sources and pull verbatim quotes.' },
     writer: { instructions: 'Write clear, well-cited prose.' },
@@ -498,7 +498,7 @@ hitl.llmJudge({                         // delegate to an LLM judge
 
 ```typescript
 const guarded = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { worker: { instructions: 'Execute tasks.' } },
   hitl: {
     approvals: {
@@ -549,7 +549,7 @@ import { agency, hitl } from '@framers/agentos';
 
 // Automated quality gate — LLM decides, uncertain cases go to a human.
 const qualityGated = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { writer: { instructions: 'Write marketing copy.' } },
   hitl: {
     approvals: { beforeReturn: true },
@@ -582,7 +582,7 @@ const qualityGated = agency({
 
 ```typescript
 const remembering = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     a: { instructions: 'Agent A.' },
     b: { instructions: 'Agent B.' },
@@ -603,7 +603,7 @@ const remembering = agency({
 
 ```typescript
 const withRag = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     retriever: { instructions: 'Find relevant context from the knowledge base.' },
     answerer:  { instructions: 'Answer based on retrieved context.' },
@@ -641,7 +641,7 @@ connect any audio client.  The full STT → LLM → TTS pipeline is provided by
 
 ```typescript
 const voiceAgent = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { assistant: { instructions: 'You are a helpful voice assistant.' } },
   voice: {
     enabled:     true,
@@ -674,7 +674,7 @@ etc.) is handled by the channel adapter infrastructure in
 
 ```typescript
 const social = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { community: { instructions: 'Engage helpfully with community messages.' } },
   channels: {
     discord:  { token: process.env.DISCORD_BOT_TOKEN, guildId: '...' },
@@ -694,7 +694,7 @@ await social.connect(); // logs each channel; real adapter connection is a follo
 
 ```typescript
 const safe = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { assistant: { instructions: 'Be helpful.' } },
   guardrails: ['pii-redaction', 'toxicity-filter', 'grounding-guard'],
 });
@@ -704,7 +704,7 @@ const safe = agency({
 
 ```typescript
 const audited = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { assistant: { instructions: 'Be helpful.' } },
   guardrails: {
     input:  ['injection-shield', 'pii-redaction'],
@@ -731,7 +731,7 @@ const audited = agency({
 
 ```typescript
 const restricted = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { analyst: { instructions: 'Analyse data.' } },
   permissions: {
     tools:          ['read-file', 'query-db'],  // explicit allow-list
@@ -751,7 +751,7 @@ Hard and soft limits on token spend, duration, and call counts.
 
 ```typescript
 const budgeted = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     a: { instructions: 'Step 1.' },
     b: { instructions: 'Step 2.' },
@@ -782,7 +782,7 @@ const budgeted = agency({
 
 ```typescript
 const observed = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researcher: { instructions: 'Research.' },
     writer:     { instructions: 'Write.' },
@@ -811,7 +811,7 @@ const observed = agency({
 
 ```typescript
 const auditable = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: { worker: { instructions: 'Do auditable work.' } },
   provenance: {
     enabled:   true,
@@ -841,7 +841,7 @@ const schema = z.object({
 });
 
 const extractor = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     extractor: { instructions: 'Extract structured information from the text.' },
   },
@@ -866,7 +866,7 @@ import { agency } from '@framers/agentos';
 
 // Inner agency — dedicated research pipeline
 const researchTeam = agency({
-  model: 'openai:gpt-4o-mini',
+  provider: 'openai', model: 'gpt-4o-mini',
   agents: {
     searcher: { instructions: 'Search for sources.' },
     analyst:  { instructions: 'Analyse and rank sources.' },
@@ -876,7 +876,7 @@ const researchTeam = agency({
 
 // Outer agency — uses researchTeam as one of its agents
 const publishingTeam = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researchTeam,                                         // nested agency
     writer:  { instructions: 'Write from research.' },
@@ -925,21 +925,21 @@ const arxivTool: ITool = {
 const dynamicTeam = agency({
   agents: {
     manager: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions:
         'You coordinate the team. Delegate research, analysis, and writing tasks to specialists.',
     },
     researcher: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions: 'Find information from web and academic sources.',
       tools: [webSearchTool, arxivTool],
     },
     analyst: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions: 'Analyze data and extract insights.',
     },
     writer: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions: 'Write polished content based on research and analysis.',
     },
   },
@@ -963,7 +963,7 @@ before it joins the roster.
 
 ```typescript
 const emergentTeam = agency({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   agents: {
     researcher: {
       instructions: 'Research topics using web and academic sources.',
@@ -1015,7 +1015,7 @@ import { agency, hitl } from '@framers/agentos';
 
 // Reusable inner team handling research
 const researchTeam = agency({
-  model: 'openai:gpt-4o-mini',
+  provider: 'openai', model: 'gpt-4o-mini',
   agents: {
     searcher: { instructions: 'Search for authoritative sources on the topic.' },
     fact:     { instructions: 'Verify claims and flag unsupported assertions.' },
@@ -1027,7 +1027,7 @@ const researchTeam = agency({
 // Outer agency orchestrating the full content pipeline
 const contentPipeline = agency({
   name: 'content-pipeline',
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
 
   agents: {
     research: researchTeam,    // nested agency

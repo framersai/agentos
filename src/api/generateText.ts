@@ -229,8 +229,8 @@ export interface GenerateTextOptions {
   provider?: string;
   /**
    * Model identifier.  Accepted in two formats:
-   * - `"provider:model"`: legacy format (e.g. `"openai:gpt-4o"`), still fully supported.
-   * - Plain model name (e.g. `"gpt-4o-mini"`) when `provider` is also set.
+   * - Plain model name (e.g. `"gpt-4o"`) when `provider` is also set. Preferred.
+   * - `"provider:model"` combined string (e.g. `"openai:gpt-4o"`).
    *
    * Either `provider` or `model` (or an API key env var for auto-detection) is required.
    */
@@ -974,7 +974,8 @@ function buildHelperToolExecutionContext(
  * @example
  * ```ts
  * const result = await generateText({
- *   model: 'openai:gpt-4o',
+ *   provider: 'openai',
+ *   model: 'gpt-4o',
  *   prompt: 'Summarise the history of the Roman Empire in two sentences.',
  * });
  * console.log(result.text);

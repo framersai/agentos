@@ -56,9 +56,10 @@ export interface StreamObjectOptions<T extends ZodType> {
   provider?: string;
 
   /**
-   * Model identifier. Accepts `"provider:model"` or plain model name with `provider`.
+   * Model identifier. Prefer the plain model name with `provider` set;
+   * the combined `"provider:model"` string is also accepted.
    *
-   * @example `"openai:gpt-4o"`, `"gpt-4o-mini"`
+   * @example `"gpt-4o"` (with `provider: 'openai'`), `"gpt-4o-mini"`
    */
   model?: string;
 
@@ -325,7 +326,8 @@ function extractJson(text: string): unknown {
  * import { streamObject } from '@framers/agentos';
  *
  * const result = streamObject({
- *   model: 'openai:gpt-4o',
+ *   provider: 'openai',
+ *   model: 'gpt-4o',
  *   schema: z.object({ name: z.string(), hobbies: z.array(z.string()) }),
  *   prompt: 'Create a profile for a fictional character.',
  * });

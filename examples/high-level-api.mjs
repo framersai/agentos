@@ -2,30 +2,30 @@
 
 import { agent, generateImage, generateText, streamText } from '../dist/index.js';
 
-// Provider-first style: set provider and let AgentOS pick the best default model.
-// Requires the matching env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) to be set.
-//
-// Legacy format is still supported:
-//   const model = process.env.AGENTOS_MODEL || 'openai:gpt-4.1-mini';
+// Set a provider and AgentOS picks the best default model. Pin a specific
+// model whenever you need it. Requires the matching env var to be set
+// (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).
 
 const provider = process.env.AGENTOS_PROVIDER || 'openai';
+const model = process.env.AGENTOS_MODEL; // optional override
 
 async function main() {
-  console.log(`Using provider: ${provider}`);
+  console.log(`Using provider: ${provider}${model ? ` model: ${model}` : ' (default model)'}`);
 
-  console.log('\n=== generateText() — provider-first ===');
+  console.log('\n=== generateText() — provider, default model ===');
   const quick = await generateText({
     provider,
     prompt: 'Explain what QUIC is in 3 concise bullet points.',
   });
   console.log(quick.text);
 
-  console.log('\n=== generateText() — legacy model string (still works) ===');
-  const legacy = await generateText({
-    model: 'openai:gpt-4o',  // legacy format, still supported
+  console.log('\n=== generateText() — provider + pinned model ===');
+  const pinned = await generateText({
+    provider: 'openai',
+    model: 'gpt-4o',
     prompt: 'What is TCP in one sentence?',
   });
-  console.log(legacy.text);
+  console.log(pinned.text);
 
   console.log('\n=== streamText() — provider-first ===');
   const live = streamText({

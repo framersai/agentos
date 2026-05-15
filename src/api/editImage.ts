@@ -51,8 +51,9 @@ export interface EditImageOptions {
    */
   provider?: string;
   /**
-   * Model in `provider:model` format (legacy) or plain model name when `provider` is set.
-   * @example `"openai:gpt-image-1"`, `"stability:sd3-medium"`
+   * Model identifier. Prefer the plain model name with `provider` set;
+   * the combined `"provider:model"` string is also accepted.
+   * @example `"gpt-image-1"` (with `provider: 'openai'`), `"sd3-medium"`
    */
   model?: string;
   /**

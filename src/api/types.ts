@@ -1116,12 +1116,13 @@ export interface AgentStreamResult {
  * @example
  * ```ts
  * // Single agent:
- * const solo = agent({ model: 'openai:gpt-4o', instructions: 'Be helpful.' });
+ * const solo = agent({ provider: 'openai', model: 'gpt-4o', instructions: 'Be helpful.' });
  * const result = await solo.generate('Hello!');
  *
  * // Multi-agent agency (same interface):
  * const team = agency({
- *   model: 'openai:gpt-4o',
+ *   provider: 'openai',
+ *   model: 'gpt-4o',
  *   agents: { a: { instructions: 'Research.' }, b: { instructions: 'Write.' } },
  * });
  * const teamResult = await team.generate('Summarise AI research.');
@@ -1235,8 +1236,8 @@ export type Agency = Agent;
 export interface BaseAgentConfig {
   /**
    * Model identifier. Accepted in two formats:
-   * - `"provider:model"` — e.g. `"openai:gpt-4o"`.
-   * - Plain model name when `provider` is also set.
+   * - Plain model name (e.g. `"gpt-4o"`) when `provider` is also set. Preferred.
+   * - `"provider:model"` combined string (e.g. `"openai:gpt-4o"`).
    */
   model?: string;
   /**
@@ -1374,7 +1375,8 @@ export interface BaseAgentConfig {
    * @example
    * ```ts
    * const docsAgent = agent({
-   *   model: 'openai:gpt-4o',
+   *   provider: 'openai',
+   *   model: 'gpt-4o',
    *   verifyCitations: {
    *     embedFn:  (texts) => embeddingManager.embedBatch(texts),
    *     retrieve: (query) => retriever.search(query),
@@ -1482,7 +1484,8 @@ export interface VerifyCitationsConfig {
  * import { agency, hitl } from '@framers/agentos';
  *
  * const myAgency = agency({
- *   model: 'openai:gpt-4o',
+ *   provider: 'openai',
+ *   model: 'gpt-4o',
  *   strategy: 'sequential',
  *   agents: {
  *     researcher: { instructions: 'Find relevant papers.' },

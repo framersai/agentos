@@ -24,12 +24,14 @@ import { recordAgentOSTurnMetrics, withAgentOSSpan } from '../safety/evaluation/
  *
  * At minimum, `input` must be provided. Provider/model resolution follows
  * the same rules as {@link generateText}: supply `provider`, `model`
- * (optionally in `provider:model` format), or rely on env-var auto-detection.
+ * (the combined `provider:model` string is also accepted), or rely on
+ * env-var auto-detection.
  *
  * @example
  * ```ts
  * const opts: EmbedTextOptions = {
- *   model: 'openai:text-embedding-3-small',
+ *   provider: 'openai',
+ *   model: 'text-embedding-3-small',
  *   input: ['Hello world', 'Goodbye world'],
  *   dimensions: 256,
  * };
@@ -45,9 +47,10 @@ export interface EmbedTextOptions {
   provider?: string;
 
   /**
-   * Model identifier. Accepts `"provider:model"` or plain model name with `provider`.
+   * Model identifier. Prefer the plain model name with `provider` set;
+   * the combined `"provider:model"` string is also accepted.
    *
-   * @example `"openai:text-embedding-3-small"`, `"nomic-embed-text"`
+   * @example `"text-embedding-3-small"` (with `provider: 'openai'`), `"nomic-embed-text"`
    */
   model?: string;
 
@@ -88,7 +91,8 @@ export interface EmbedTextOptions {
  * @example
  * ```ts
  * const { embeddings, usage } = await embedText({
- *   model: 'openai:text-embedding-3-small',
+ *   provider: 'openai',
+ *   model: 'text-embedding-3-small',
  *   input: ['Hello', 'World'],
  * });
  * console.log(embeddings.length); // 2
@@ -278,14 +282,16 @@ async function callOllamaEmbed(
  *
  * // Single input
  * const { embeddings } = await embedText({
- *   model: 'openai:text-embedding-3-small',
+ *   provider: 'openai',
+ *   model: 'text-embedding-3-small',
  *   input: 'Hello world',
  * });
  * console.log(embeddings[0].length); // 1536
  *
  * // Batch with reduced dimensions
  * const batch = await embedText({
- *   model: 'openai:text-embedding-3-small',
+ *   provider: 'openai',
+ *   model: 'text-embedding-3-small',
  *   input: ['Hello', 'World'],
  *   dimensions: 256,
  * });

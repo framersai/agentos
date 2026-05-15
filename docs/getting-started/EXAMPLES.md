@@ -836,7 +836,7 @@ const webSearchTool: ITool = {
 };
 
 const researcher = agent({
-  model: 'openai:gpt-4o',
+  provider: 'openai', model: 'gpt-4o',
   instructions: 'You are a research assistant. Search the web and summarize findings.',
   tools: [webSearchTool],
   maxSteps: 5,
@@ -931,16 +931,16 @@ const arxivTool: ITool = {
 const team = agency({
   agents: {
     researcher: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions: 'Find relevant research papers and data.',
       tools: [webSearchTool, arxivTool],
     },
     analyst: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions: 'Analyze the research and extract key insights.',
     },
     writer: {
-      model: 'openai:gpt-4o',
+      provider: 'openai', model: 'gpt-4o',
       instructions: 'Write a clear, well-structured summary.',
       dependsOn: ['researcher', 'analyst'],
     },

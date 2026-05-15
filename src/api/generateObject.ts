@@ -123,9 +123,10 @@ export interface GenerateObjectOptions<T extends ZodType> {
   provider?: string;
 
   /**
-   * Model identifier. Accepts `"provider:model"` or plain model name with `provider`.
+   * Model identifier. Prefer the plain model name with `provider` set;
+   * the combined `"provider:model"` string is also accepted.
    *
-   * @example `"openai:gpt-4o"`, `"gpt-4o-mini"`
+   * @example `"gpt-4o"` (with `provider: 'openai'`), `"gpt-4o-mini"`
    */
   model?: string;
 
@@ -406,7 +407,8 @@ function summarizeZodErrors(error: ZodError): string {
  * import { generateObject } from '@framers/agentos';
  *
  * const { object } = await generateObject({
- *   model: 'openai:gpt-4o',
+ *   provider: 'openai',
+ *   model: 'gpt-4o',
  *   schema: z.object({ name: z.string(), age: z.number() }),
  *   prompt: 'Extract: "John is 30 years old"',
  * });
