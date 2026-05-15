@@ -13,7 +13,9 @@ import {
 } from './types.js';
 
 function traceWith(
-  partial: Partial<MemoryTrace> & { provenance?: Partial<MemoryTrace['provenance']> },
+  partial: Omit<Partial<MemoryTrace>, 'provenance'> & {
+    provenance?: Partial<MemoryTrace['provenance']>;
+  },
 ): Pick<MemoryTrace, 'policy' | 'provenance'> {
   return {
     policy: partial.policy,

@@ -112,6 +112,7 @@ const mockRetrievalAugmentor: IRetrievalAugmentor = {
   initialize: vi.fn().mockResolvedValue(undefined),
   ingestDocuments: vi.fn().mockResolvedValue({ processedCount: 0, failedCount: 0, ingestedIds: [], errors: [] }),
   retrieveContext: vi.fn().mockResolvedValue({ queryText: '', retrievedChunks: [], augmentedContext: 'Mocked RAG context', diagnostics: {} }),
+  embedTexts: vi.fn().mockResolvedValue([]),
   deleteDocuments: vi.fn().mockResolvedValue({ successCount: 0, failureCount: 0, errors: [] }),
   updateDocuments: vi.fn().mockResolvedValue({ processedCount: 0, failedCount: 0, ingestedIds: [], errors: [] }),
   checkHealth: vi.fn().mockResolvedValue({ isHealthy: true }),
