@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { ILogger } from '../../logging/ILogger';
-import { createLogger } from '../../logging/loggerFactory';
+import type { ILogger } from '../../core/logging/ILogger';
+import { createLogger } from '../../core/logging/loggerFactory';
 import {
   WorkflowDefinition,
   WorkflowDescriptorPayload,

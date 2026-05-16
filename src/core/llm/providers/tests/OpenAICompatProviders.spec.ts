@@ -41,7 +41,7 @@ import { GroqProvider } from '../implementations/GroqProvider';
 import { TogetherProvider } from '../implementations/TogetherProvider';
 import { MistralProvider } from '../implementations/MistralProvider';
 import { XAIProvider } from '../implementations/XAIProvider';
-import { PROVIDER_DEFAULTS, autoDetectProvider } from '../../../../api/provider-defaults';
+import { PROVIDER_DEFAULTS, autoDetectProvider } from '../../../../api/runtime/provider-defaults';
 
 // ---------------------------------------------------------------------------
 // Tests

@@ -16,7 +16,7 @@ import type {
   DiscoveryQueryOptions,
   ICapabilityDiscoveryEngine,
 } from '../../cognition/discovery/types';
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 
 export type ToolFailureMode = 'fail_open' | 'fail_closed';
 export type ToolSelectionMode = 'all' | 'discovered';

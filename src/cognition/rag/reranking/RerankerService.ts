@@ -5,7 +5,7 @@
  * @module backend/agentos/rag/reranking/RerankerService
  */
 
-import type { ILogger } from '../../../logging/ILogger';
+import type { ILogger } from '../../../core/logging/ILogger';
 import type { RagRetrievedChunk } from '../IRetrievalAugmentor';
 import type {
   IRerankerProvider,

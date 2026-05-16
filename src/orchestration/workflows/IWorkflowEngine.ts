@@ -8,7 +8,7 @@ import type {
   WorkflowStatus,
 } from './WorkflowTypes';
 import type { WorkflowQueryOptions, IWorkflowStore, WorkflowTaskUpdate } from './storage/IWorkflowStore';
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 
 export interface WorkflowEngineConfig {
   maxConcurrentWorkflows?: number;

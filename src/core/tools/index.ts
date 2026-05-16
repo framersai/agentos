@@ -20,7 +20,7 @@ export { ToolExecutor } from './ToolExecutor.js';
 export type { ToolExecutionRequestDetails } from './ToolExecutor.js';
 
 export { ToolOrchestrator } from './ToolOrchestrator.js';
-export type { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig.js';
+export type { ToolOrchestratorConfig } from '../config/ToolOrchestratorConfig.js';
 
 export {
   type IToolPermissionManager,

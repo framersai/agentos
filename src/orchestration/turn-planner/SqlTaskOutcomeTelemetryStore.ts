@@ -10,7 +10,7 @@ import type {
   StorageAdapter,
   StorageResolutionOptions,
 } from '@framers/sql-storage-adapter';
-import type { ITaskOutcomeTelemetryStore } from '../../api/AgentOSOrchestrator.js';
+import type { ITaskOutcomeTelemetryStore } from '../../api/runtime/AgentOSOrchestrator.js';
 
 type TaskOutcomeKpiWindowEntry = Parameters<ITaskOutcomeTelemetryStore['saveWindow']>[1][number];
 

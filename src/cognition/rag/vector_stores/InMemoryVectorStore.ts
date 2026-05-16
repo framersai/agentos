@@ -38,7 +38,7 @@ import {
   MetadataFieldCondition,
   MetadataScalarValue,
 } from '../IVectorStore';
-import { InMemoryVectorStoreConfig } from '../../../config/VectorStoreConfiguration';
+import { InMemoryVectorStoreConfig } from '../../../core/config/VectorStoreConfiguration';
 import { GMIError } from '../../../core/utils/errors.js'; // Assuming a GMIError utility
 import { uuidv4 } from '../../../core/utils/uuid';
 

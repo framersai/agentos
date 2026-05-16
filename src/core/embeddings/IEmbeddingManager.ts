@@ -20,7 +20,7 @@ import { AIModelProviderManager } from '../llm/providers/AIModelProviderManager'
 import {
   EmbeddingManagerConfig,
   EmbeddingModelConfig,
-} from '../../config/EmbeddingManagerConfiguration.js';
+} from '../config/EmbeddingManagerConfiguration.js';
 
 /**
  * Represents a request to generate embeddings.

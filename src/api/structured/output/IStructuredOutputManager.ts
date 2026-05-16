@@ -46,7 +46,7 @@
  * ```
  */
 
-import type { ILogger } from '../../../logging/ILogger';
+import type { ILogger } from '../../../core/logging/ILogger';
 
 // ============================================================================
 // JSON Schema Types

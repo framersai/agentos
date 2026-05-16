@@ -21,7 +21,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execa } from 'execa';
 import { v4 as uuidv4 } from 'uuid';
-import type { ILogger } from '../../../logging/ILogger';
+import type { ILogger } from '../../../core/logging/ILogger';
 import {
   ICodeSandbox,
   SandboxLanguage,

@@ -20,7 +20,7 @@
  */
 
 import type { AgentOSInput } from '../types/AgentOSInput';
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 import type { SelfImprovementToolDeps } from '../../cognition/emergent/EmergentCapabilityEngine.js';
 import { PersonalityMutationStore } from '../../cognition/emergent/PersonalityMutationStore.js';
 import { resolveSelfImprovementSessionKey } from '../../cognition/emergent/sessionScope.js';

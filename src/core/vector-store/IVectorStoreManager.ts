@@ -11,7 +11,7 @@
  */
 
 import { IVectorStore } from './IVectorStore';
-import { VectorStoreManagerConfig, RagDataSourceConfig } from '../../config/VectorStoreConfiguration';
+import { VectorStoreManagerConfig, RagDataSourceConfig } from '../config/VectorStoreConfiguration';
 
 /**
  * Represents the health status of managed vector store providers.

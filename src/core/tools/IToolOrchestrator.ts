@@ -14,7 +14,7 @@
 import { ITool, JSONSchemaObject } from './ITool';
 import { IToolPermissionManager } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
-import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
+import { ToolOrchestratorConfig } from '../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognition/substrate/IGMI';
 import type { IHumanInteractionManager } from '../../orchestration/hitl/IHumanInteractionManager';
 import type { CapabilityDiscoveryResult } from '../../cognition/discovery/types';

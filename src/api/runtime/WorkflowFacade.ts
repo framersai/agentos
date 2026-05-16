@@ -17,7 +17,7 @@
  * external API surface remains unchanged.
  */
 
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type {
   ExtensionManager,

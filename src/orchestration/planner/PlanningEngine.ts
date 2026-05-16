@@ -23,7 +23,7 @@
  * ```
  */
 
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 import type { ChatMessage } from '../../core/llm/providers/IProvider';
 import { uuidv4 } from '../../core/utils/uuid';

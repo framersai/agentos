@@ -24,7 +24,7 @@ import type {
   RatingSummary,
   PricingInfo,
 } from './IMarketplace';
-import type { ILogger } from '../../../logging/ILogger';
+import type { ILogger } from '../../../core/logging/ILogger';
 
 /**
  * Configuration for Marketplace

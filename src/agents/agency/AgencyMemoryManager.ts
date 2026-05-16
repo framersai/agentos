@@ -30,7 +30,7 @@
  * ```
  */
 
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 import type { IVectorStoreManager } from '../../core/vector-store/IVectorStoreManager';
 import type { VectorDocument, MetadataFilter, RetrievedVectorDocument } from '../../core/vector-store/IVectorStore';
 import type {

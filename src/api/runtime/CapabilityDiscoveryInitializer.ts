@@ -19,7 +19,7 @@
  * through public read-only accessors.
  */
 
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 import { createRequire } from 'node:module';
 import type { IToolOrchestrator } from '../../core/tools/IToolOrchestrator';
 import type { ITool } from '../../core/tools/ITool';

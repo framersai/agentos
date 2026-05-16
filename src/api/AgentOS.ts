@@ -88,12 +88,12 @@ import { ConversationContext } from '../core/conversation/ConversationContext';
 import type { IRollingSummaryMemorySink } from '../core/conversation/IRollingSummaryMemorySink';
 import type { ILongTermMemoryRetriever } from '../core/conversation/ILongTermMemoryRetriever';
 import type { IRetrievalAugmentor } from '../cognition/rag/IRetrievalAugmentor';
-import type { EmbeddingManagerConfig } from '../config/EmbeddingManagerConfiguration';
-import type { RetrievalAugmentorServiceConfig } from '../config/RetrievalAugmentorConfiguration';
+import type { EmbeddingManagerConfig } from '../core/config/EmbeddingManagerConfiguration';
+import type { RetrievalAugmentorServiceConfig } from '../core/config/RetrievalAugmentorConfiguration';
 import type {
   RagDataSourceConfig,
   VectorStoreManagerConfig,
-} from '../config/VectorStoreConfiguration';
+} from '../core/config/VectorStoreConfiguration';
 import type { PrismaClient } from '../core/storage/prismaClient.js';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import { IPersonaDefinition } from '../cognition/substrate/personas/IPersonaDefinition';
@@ -105,8 +105,8 @@ import {
 // IStreamClient and StreamClientId reserved for streaming integration
 import { GMIError, GMIErrorCode } from '../core/utils/errors.js';
 import { uuidv4 } from '../core/utils/uuid.js';
-import { ILogger } from '../logging/ILogger';
-import { createLogger } from '../logging/loggerFactory';
+import { ILogger } from '../core/logging/ILogger';
+import { createLogger } from '../core/logging/loggerFactory';
 import {
   configureAgentOSObservability,
   type AgentOSObservabilityConfig,

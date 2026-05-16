@@ -10,7 +10,7 @@
  * @version 1.0.0
  */
 
-import type { ILogger } from '../../../logging/ILogger';
+import type { ILogger } from '../../../core/logging/ILogger';
 
 // ============================================================================
 // Types

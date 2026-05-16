@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RetrievalAugmentor } from '../RetrievalAugmentor';
 import { VectorStoreManager } from '../VectorStoreManager';
-import type { RetrievalAugmentorServiceConfig } from '../../../config/RetrievalAugmentorConfiguration';
+import type { RetrievalAugmentorServiceConfig } from '../../../core/config/RetrievalAugmentorConfiguration';
 import type { IEmbeddingManager } from '../IEmbeddingManager';
 import type {
   PineconeVectorStoreConfig,

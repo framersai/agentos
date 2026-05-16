@@ -21,11 +21,11 @@
  * read-only accessors.
  */
 
-import type { ILogger } from '../../logging/ILogger';
+import type { ILogger } from '../../core/logging/ILogger';
 import type { AIModelProviderManager } from '../../core/llm/providers/AIModelProviderManager';
 import type { IRetrievalAugmentor } from '../../cognition/rag/IRetrievalAugmentor';
 import type { IVectorStoreManager } from '../../core/vector-store/IVectorStoreManager';
-import type { VectorStoreManagerConfig } from '../../config/VectorStoreConfiguration';
+import type { VectorStoreManagerConfig } from '../../core/config/VectorStoreConfiguration';
 import type { StorageAdapter } from '@framers/sql-storage-adapter';
 import type {
   ExtensionManager,

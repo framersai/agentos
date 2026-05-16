@@ -37,7 +37,7 @@ import {
   PermissionCheckResult,
 } from './permissions/IToolPermissionManager';
 import { ToolExecutor, ToolExecutionRequestDetails } from './ToolExecutor';
-import { ToolOrchestratorConfig } from '../../config/ToolOrchestratorConfig';
+import { ToolOrchestratorConfig } from '../config/ToolOrchestratorConfig';
 import { ToolCallResult, UserContext } from '../../cognition/substrate/IGMI';
 import { GMIError, GMIErrorCode, createGMIErrorFromError } from '../utils/errors.js';
 import type {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RetrievalAugmentor } from '../RetrievalAugmentor';
 import { IRetrievalAugmentor, RagDocumentInput, RagRetrievalOptions } from '../IRetrievalAugmentor';
-import { RetrievalAugmentorServiceConfig } from '../../../config/RetrievalAugmentorConfiguration';
+import { RetrievalAugmentorServiceConfig } from '../../../core/config/RetrievalAugmentorConfiguration';
 // Mock dependencies
 import { IEmbeddingManager } from '../IEmbeddingManager';
 import { IVectorStoreManager } from '../IVectorStoreManager';
