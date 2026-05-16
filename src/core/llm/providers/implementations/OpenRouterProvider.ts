@@ -1,5 +1,4 @@
 // File: backend/agentos/core/llm/providers/implementations/OpenRouterProvider.ts
-// @ts-nocheck
 /**
  * @fileoverview Implements the IProvider interface for OpenRouter, a service that
  * provides access to a wide variety of LLMs from different providers through a unified API.
@@ -485,7 +484,7 @@ export class OpenRouterProvider implements IProvider {
   ): ModelCompletionResponse {
     const choice = apiResponse.choices[0];
     if (!choice) {
-      throw new OpenRouterProviderError("Received empty choices array from OpenRouter.", "API_RESPONSE_MALFORMED", apiResponse.id);
+      throw new OpenRouterProviderError("Received empty choices array from OpenRouter.", "API_RESPONSE_MALFORMED", undefined, undefined, { responseId: apiResponse.id });
     }
 
     const usage: ModelUsage | undefined = apiResponse.usage ? {

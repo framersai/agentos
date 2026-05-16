@@ -1,4 +1,3 @@
-// @ts-nocheck
 // File: backend/agentos/core/llm/providers/implementations/GeminiProvider.ts
 
 /**
@@ -116,6 +115,7 @@ interface GeminiGenerationConfig {
   topK?: number;
   stopSequences?: string[];
   responseMimeType?: string;
+  responseSchema?: Record<string, unknown>;
 }
 
 /** A single function declaration for tool calling. */
