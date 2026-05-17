@@ -1,3 +1,12 @@
+## <small>0.9.13 (2026-05-17)</small>
+
+* fix(providers): lift @ts-nocheck on Gemini + OpenRouter ([1511241dd383f8c6247eca4e5774dbab41270a16](https://github.com/framersai/agentos/commit/1511241dd383f8c6247eca4e5774dbab41270a16))
+* refactor: drop 9 unused re-export shim files ([6924032267e51416c634c5b1d4618faad02e5196](https://github.com/framersai/agentos/commit/6924032267e51416c634c5b1d4618faad02e5196))
+* refactor: route in-package imports through canonical paths ([f87d0e2d11b24026bcc9bb01e3a134594fc9d517](https://github.com/framersai/agentos/commit/f87d0e2d11b24026bcc9bb01e3a134594fc9d517))
+* refactor: use relative paths for in-package utils imports ([cafdf732e4318e67512fb2c2a55579b38b254e02](https://github.com/framersai/agentos/commit/cafdf732e4318e67512fb2c2a55579b38b254e02))
+* docs: lead examples with explicit provider + model, drop legacy framing ([c4bb9ffc654353d57f889b6753029a680e30b0a1](https://github.com/framersai/agentos/commit/c4bb9ffc654353d57f889b6753029a680e30b0a1))
+* docs(readme): clarify provider default vs pin-to-override comment ([4cba6e749e4fb03fbfdc5561a0b0b870c4229ceb](https://github.com/framersai/agentos/commit/4cba6e749e4fb03fbfdc5561a0b0b870c4229ceb))
+
 ## <small>0.9.12 (2026-05-15)</small>
 
 * fix(tests): align agentos fixtures with current interfaces ([01c3f8164e9b8529f3b16a89adf77cf7aca6535f](https://github.com/framersai/agentos/commit/01c3f8164e9b8529f3b16a89adf77cf7aca6535f))
