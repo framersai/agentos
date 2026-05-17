@@ -1,3 +1,9 @@
+## <small>0.9.16 (2026-05-17)</small>
+
+* fix: move @framers/sql-storage-adapter from peer to dependencies ([7fb0c46de25fc9f03e824c9bf6b2662efbc7d4be](https://github.com/framersai/agentos/commit/7fb0c46de25fc9f03e824c9bf6b2662efbc7d4be))
+* fix(lockfile): regen for sql-storage-adapter dep move, drop devDeps duplicate ([94007e752bff55d4841a62323843a9f308603a72](https://github.com/framersai/agentos/commit/94007e752bff55d4841a62323843a9f308603a72))
+* docs(readme): add 'Tuning generation knobs' section to API Surfaces ([5c1e68e6e82e7e2a17c3c19da6f5b21135956354](https://github.com/framersai/agentos/commit/5c1e68e6e82e7e2a17c3c19da6f5b21135956354))
+
 ## <small>0.9.15 (2026-05-17)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([328881df233b7e4fdb33e5d57893efa69fa32d46](https://github.com/framersai/agentos/commit/328881df233b7e4fdb33e5d57893efa69fa32d46))
