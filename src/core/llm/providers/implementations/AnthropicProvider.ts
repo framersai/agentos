@@ -390,7 +390,20 @@ export class AnthropicProvider implements IProvider {
       baseURL: 'https://api.anthropic.com',
       maxRetries: 3,
       requestTimeout: 120000,
-      defaultMaxTokens: 4096,
+      // 4096 was Anthropic's per-call max in the Claude 2 era and
+      // is way too small for modern Claude 4 tool-use traffic — Opus
+      // 4.7 in particular regularly truncates mid-JSON on tool-use
+      // responses when capped here, which surfaces downstream as
+      // "tool_use input parse failed" or silently dropped output.
+      // Bumped to 16000 — well under Opus 4.7's 32k output ceiling
+      // and Sonnet 4.6's 16k ceiling; consumers that need more pass
+      // `options.maxTokens` per call. The 2026-05-17 wilds-ai
+      // ai-codegen orchestrator hang traced back to this exact
+      // default: Opus's tool-use response truncated to 4096 tokens,
+      // the model saw the truncated JSON in its history, complained
+      // "intent too long. Let me condense", and burned hours in a
+      // shorten-retry loop.
+      defaultMaxTokens: 16000,
       ...config,
     };
     this.keyPool = new ApiKeyPool(config.apiKey);
