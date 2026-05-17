@@ -1,3 +1,9 @@
+## <small>0.9.15 (2026-05-17)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([328881df233b7e4fdb33e5d57893efa69fa32d46](https://github.com/framersai/agentos/commit/328881df233b7e4fdb33e5d57893efa69fa32d46))
+* docs(agent-options): expand maxTokens TSDoc with provider defaults + examples ([24bb87fd198f7be605b74c8a0731aa420c67ae97](https://github.com/framersai/agentos/commit/24bb87fd198f7be605b74c8a0731aa420c67ae97))
+* fix(anthropic-provider): bump defaultMaxTokens 4096 -> 16000 ([184c471b8e56fa4a4a9fb6e7992d34654eba637a](https://github.com/framersai/agentos/commit/184c471b8e56fa4a4a9fb6e7992d34654eba637a))
+
 ## <small>0.9.14 (2026-05-17)</small>
 
 * fix(imports): add .js extension to 2 CodeRabbit-flagged ESM imports ([baf933a01ed7807db132cc3c1ed19bb857f52b68](https://github.com/framersai/agentos/commit/baf933a01ed7807db132cc3c1ed19bb857f52b68))
