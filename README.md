@@ -404,6 +404,38 @@ Provider fallback is an explicit opt-in via `agent({ fallbackProviders: [...] })
 
 [Full API reference ->](https://docs.agentos.sh/api) * [High-Level API guide ->](https://docs.agentos.sh/getting-started/high-level-api)
 
+### Tuning generation knobs
+
+Per-LLM-call knobs live on a flat namespace. Override chain runs **per-call → per-agent → provider default**.
+
+| Knob | Where you set it | What it does |
+|---|---|---|
+| `maxTokens` | `agent({ maxTokens })` / `generate(prompt, { maxTokens })` / `generateText({ maxTokens })` / `generateObject({ maxTokens })` | Caps completion tokens per call. Provider defaults: Anthropic **16000** (was 4096 pre-`0.9.13`; raised so Claude 4 tool-use responses don't truncate mid-JSON), OpenAI 4096, Gemini 8192. |
+| `temperature` | Same surfaces | 0-2; lower = deterministic, higher = creative. Opus 4.7 ignores this — extended-thinking models use their own sampler. |
+| `maxSteps` | `agent({ maxSteps })` | Caps the inner tool-use loop per `.generate()`. Default `5`. Keep low (3-5) when an outer scheduler also iterates; tool latency multiplies by steps. |
+| `controls.maxTotalTokens` | `agent({ controls: { maxTotalTokens } })` | Hard ceiling on input + output combined per turn; full-runtime `agency()` enforces it. |
+| `controls.maxDurationMs` | Same | Hard wall-clock cap per turn; surfaces as a thrown error rather than letting the API hang. |
+| `fallbackProviders` | `agent({ fallbackProviders })` | Ordered chain of `{ provider, model? }` entries the runtime walks on retryable errors. |
+| `provider` / `model` | `agent({ provider, model })` or pass `"provider/model"` to any generate helper | Routing. Slash form auto-detects when prefix matches a known provider id. |
+
+```ts
+// Pin defaults at agent construction:
+const writer = agent({
+  provider: 'anthropic',
+  model: 'claude-opus-4-7',
+  instructions: 'Write punchy product copy.',
+  maxTokens: 2000,
+  temperature: 0.7,
+});
+
+// Override on a specific call when one response needs more room:
+const longform = await writer.generate('Draft a 4-page whitepaper.', {
+  maxTokens: 16000,
+});
+```
+
+Caveat: `generateObject()` auto-derives a sane default for `maxTokens` from the Zod schema shape when omitted — Boolean schemas land ~50 tokens, large array-of-object schemas land ~8k. Explicit `maxTokens` overrides the estimate.
+
 ---
 
 ## Documentation & Community
