@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@framers/sql-storage-adapter':
-        specifier: ^0.6.5
-        version: 0.6.5(better-sqlite3@12.9.0)(pg@8.20.0)
+        specifier: ^0.6.6
+        version: 0.6.6(better-sqlite3@12.9.0)(pg@8.20.0)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1
@@ -94,8 +94,8 @@ importers:
         specifier: ^9.11.0
         version: 9.39.4
       '@framers/agentos-extensions-registry':
-        specifier: ^0.18.0
-        version: 0.18.0(@aws-sdk/client-polly@3.1045.0)(@google-cloud/speech@6.7.1)(@google-cloud/text-to-speech@5.8.1)(@picovoice/porcupine-node@3.0.6)(@whiskeysockets/baileys@6.7.21(sharp@0.34.5))(mammoth@1.12.0)(onnxruntime-node@1.21.0)(pdf-parse@1.1.4)(request@2.88.2)(tesseract.js@7.0.0)(typescript@5.9.3)(vosk@0.3.39)
+        specifier: ^0.18.2
+        version: 0.18.2(@aws-sdk/client-polly@3.1045.0)(@google-cloud/speech@6.7.1)(@google-cloud/text-to-speech@5.8.1)(@picovoice/porcupine-node@3.0.6)(@whiskeysockets/baileys@6.7.21(sharp@0.34.5))(mammoth@1.12.0)(onnxruntime-node@1.21.0)(pdf-parse@1.1.4)(request@2.88.2)(tesseract.js@7.0.0)(typescript@5.9.3)(vosk@0.3.39)
       '@opentelemetry/context-async-hooks':
         specifier: ^2.0.1
         version: 2.7.1(@opentelemetry/api@1.9.1)
@@ -1395,10 +1395,10 @@ packages:
     peerDependencies:
       '@framers/agentos': ^0.1.0
 
-  '@framers/agentos-extensions-registry@0.18.0':
-    resolution: {integrity: sha512-7KBfJXlp62MsPuaMLg1kh/k2d0dKX0AXkit85jpiIWezAdIjKYG0VrszxeD8eeyApF07Mshm+x4oUWGKqcPQFA==}
+  '@framers/agentos-extensions-registry@0.18.2':
+    resolution: {integrity: sha512-RILN8GjNFPSFCScaMEAuoTgwvmLdL87tPDyxF5f3JHerWfH1c1p4Wki2jAojF0MswiZNoo0dKsZCgulmFGgy9Q==}
     peerDependencies:
-      '@framers/agentos': ^0.1.199
+      '@framers/agentos': '>=0.7.0'
     peerDependenciesMeta:
       '@framers/agentos':
         optional: true
@@ -1406,8 +1406,8 @@ packages:
   '@framers/agentos-skills@1.0.0':
     resolution: {integrity: sha512-vMcMjizMmrWWGWJ4S61ymNoRTkisZRhVUpHt0RD0yeA720hhhbQrYAY2GOE31M/w8EGxYeAB/ELxwyeRMpcpKw==}
 
-  '@framers/sql-storage-adapter@0.6.5':
-    resolution: {integrity: sha512-cMcvL3xEELyP+OxcRE1PjqHjYfa6e5ntX66ZRgQUW7A/XlU/UvYxW02pByZ6vpnv+kCCfr+Z+WORUTZFIjw3Ng==}
+  '@framers/sql-storage-adapter@0.6.6':
+    resolution: {integrity: sha512-ZY64jZ4GrS9b8AQLcPDdsQ+p3FdFn+l3XUrvCiAeXTAU7HCaYiMcoNvB7O++l7SjHNe9xc/NQufm7su24lXflA==}
     peerDependencies:
       '@aws-sdk/client-s3': ^3.0.0
       '@capacitor-community/sqlite': ^6.0.0
@@ -9285,7 +9285,7 @@ snapshots:
   '@framers/agentos-ext-widget-generator@1.0.0':
     optional: true
 
-  '@framers/agentos-extensions-registry@0.18.0(@aws-sdk/client-polly@3.1045.0)(@google-cloud/speech@6.7.1)(@google-cloud/text-to-speech@5.8.1)(@picovoice/porcupine-node@3.0.6)(@whiskeysockets/baileys@6.7.21(sharp@0.34.5))(mammoth@1.12.0)(onnxruntime-node@1.21.0)(pdf-parse@1.1.4)(request@2.88.2)(tesseract.js@7.0.0)(typescript@5.9.3)(vosk@0.3.39)':
+  '@framers/agentos-extensions-registry@0.18.2(@aws-sdk/client-polly@3.1045.0)(@google-cloud/speech@6.7.1)(@google-cloud/text-to-speech@5.8.1)(@picovoice/porcupine-node@3.0.6)(@whiskeysockets/baileys@6.7.21(sharp@0.34.5))(mammoth@1.12.0)(onnxruntime-node@1.21.0)(pdf-parse@1.1.4)(request@2.88.2)(tesseract.js@7.0.0)(typescript@5.9.3)(vosk@0.3.39)':
     optionalDependencies:
       '@framers/agentos-ext-agent-delegation': 0.1.0
       '@framers/agentos-ext-amazon-polly': 0.2.0(@aws-sdk/client-polly@3.1045.0)
@@ -9421,7 +9421,7 @@ snapshots:
   '@framers/agentos-skills@1.0.0':
     optional: true
 
-  '@framers/sql-storage-adapter@0.6.5(better-sqlite3@12.9.0)(pg@8.20.0)':
+  '@framers/sql-storage-adapter@0.6.6(better-sqlite3@12.9.0)(pg@8.20.0)':
     dependencies:
       sql.js: 1.14.1
     optionalDependencies:
