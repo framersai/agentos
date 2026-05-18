@@ -47,6 +47,15 @@ export interface ElevenLabsBatchTTSConfig {
 const BYTES_PER_SEC_MP3 = 16_000;
 
 /**
+ * Per-request synthesize timeout. Caps how long a single ElevenLabs call
+ * can hang before the fallback chain takes over. Without it a slow /
+ * unhealthy ElevenLabs response wedges the surrounding TTS manager
+ * (and any caller awaiting `flush()`) for the full TCP socket idle
+ * timeout — observed at ~5 minutes in production 2026-05-18.
+ */
+const SYNTHESIZE_TIMEOUT_MS = 60_000;
+
+/**
  * Batch (one-shot) TTS provider using ElevenLabs' REST text-to-speech endpoint.
  *
  * Accepts complete text and returns finished MP3 audio with voice settings
@@ -147,6 +156,7 @@ export class ElevenLabsBatchTTS implements IBatchTTS, HealthyProvider {
             use_speaker_boost: (opts.useSpeakerBoost as boolean) ?? true,
           },
         }),
+        signal: AbortSignal.timeout(SYNTHESIZE_TIMEOUT_MS),
       });
 
     const key = this.keyPool.next();

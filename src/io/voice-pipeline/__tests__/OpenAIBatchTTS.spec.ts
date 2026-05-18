@@ -67,4 +67,20 @@ describe('OpenAIBatchTTS', () => {
 
     await expect(tts.synthesize('Test')).rejects.toThrow('OpenAI TTS failed: 429');
   });
+
+  it('passes an AbortSignal to fetch so hung calls cannot block forever', async () => {
+    // Regression for 2026-05-18: a slow / unhealthy upstream wedged
+    // the SentenceChunkedTTSManager's flush for minutes, blocking the
+    // narrator turn pipeline. The fix attaches AbortSignal.timeout
+    // so a single hung call aborts in bounded time.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(Buffer.from('a').buffer),
+    });
+
+    await tts.synthesize('Hi');
+
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(opts.signal).toBeInstanceOf(AbortSignal);
+  });
 });

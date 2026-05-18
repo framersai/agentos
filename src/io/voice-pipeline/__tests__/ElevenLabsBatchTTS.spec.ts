@@ -73,4 +73,23 @@ describe('ElevenLabsBatchTTS', () => {
 
     await expect(tts.synthesize('Test')).rejects.toThrow('ElevenLabs TTS failed: 401');
   });
+
+  it('passes an AbortSignal to fetch so hung calls cannot block forever', async () => {
+    // Regression for 2026-05-18: a slow / unhealthy ElevenLabs response
+    // wedged the SentenceChunkedTTSManager's flush for ~5 minutes,
+    // which in turn blocked the narrator turn pipeline (every
+    // generation took 5+ minutes for affected sessions). The fix
+    // attaches an AbortSignal.timeout(...) to the synthesize fetch
+    // so a single hung call aborts in bounded time and the fallback
+    // chain can take over.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(Buffer.from('a').buffer),
+    });
+
+    await tts.synthesize('Hi');
+
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(opts.signal).toBeInstanceOf(AbortSignal);
+  });
 });

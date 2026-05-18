@@ -45,6 +45,15 @@ export interface OpenAIBatchTTSConfig {
 const BYTES_PER_SEC_MP3 = 16_000;
 
 /**
+ * Per-request synthesize timeout. Caps how long a single OpenAI call
+ * can hang before the fallback chain takes over. Without it a slow /
+ * unhealthy OpenAI response wedges the surrounding TTS manager (and
+ * any caller awaiting `flush()`) for the full TCP socket idle timeout.
+ * Mirrors the ElevenLabs sibling — see that file for the prod incident.
+ */
+const SYNTHESIZE_TIMEOUT_MS = 60_000;
+
+/**
  * One-shot TTS provider backed by the OpenAI `/audio/speech` endpoint.
  * Accepts complete text and returns a finished audio buffer.
  */
@@ -137,6 +146,7 @@ export class OpenAIBatchTTS implements IBatchTTS, HealthyProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(SYNTHESIZE_TIMEOUT_MS),
       });
 
     const key = this.keyPool.next();
