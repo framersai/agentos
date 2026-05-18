@@ -1,3 +1,7 @@
+## <small>0.9.18 (2026-05-18)</small>
+
+* fix(voice): bound batch TTS synthesize fetches with AbortSignal ([80b51fb4cbba7e39fb07c415488688fd2d193cac](https://github.com/framersai/agentos/commit/80b51fb4cbba7e39fb07c415488688fd2d193cac))
+
 ## <small>0.9.17 (2026-05-18)</small>
 
 * fix(lock): refresh pnpm-lock for sql-storage-adapter@0.6.6 + extensions-registry@0.18.2 ([a0ef7b20841889351ac688a3e97cb6168fd2096d](https://github.com/framersai/agentos/commit/a0ef7b20841889351ac688a3e97cb6168fd2096d))
