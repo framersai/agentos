@@ -78,4 +78,45 @@ describe('provider HealthyProvider implementations', () => {
     expect(result.ok).toBe(false);
     expect(result.error?.class).toBe('network');
   });
+
+  it('ElevenLabs chunked STT POST body uses multipart name="file" (not "audio")', async () => {
+    // Regression for the 2026-05-20 voice failure: the previous body used
+    // name="audio" and every chunk got HTTP 400 from `/v1/speech-to-text`
+    // with `{ param: 'file' }`. Asserting on the wire shape so a rename
+    // would surface here before reaching production.
+    const originalFetch = globalThis.fetch;
+    let capturedBody = '';
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      const buf = Buffer.isBuffer(init.body)
+        ? (init.body as Buffer)
+        : Buffer.from(init.body as ArrayBuffer);
+      capturedBody = buf.toString('binary');
+      return new Response(
+        JSON.stringify({ text: 'hello', words: [], language_code: 'en' }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+    }) as typeof fetch;
+
+    try {
+      const stt = new ElevenLabsStreamingSTT({ apiKey: 'test' });
+      const session = await stt.startSession({ language: 'en' });
+      const samples = new Float32Array(16000);
+      for (let i = 0; i < samples.length; i++) {
+        samples[i] = i % 2 === 0 ? 0.5 : -0.5;
+      }
+      session.pushAudio({
+        samples,
+        sampleRate: 16000,
+        timestampMs: 0,
+      });
+      await session.flush();
+
+      expect(capturedBody).toContain('name="file"');
+      expect(capturedBody).toContain('filename="audio.wav"');
+      expect(capturedBody).not.toContain('name="audio"');
+      session.close();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

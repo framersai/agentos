@@ -223,12 +223,27 @@ class ElevenLabsChunkedSTTSession extends EventEmitter implements StreamingSTTSe
       const boundary = '----ElevenLabsSTTBoundary' + Date.now();
       const languageCode = this.sessionConfig.language ?? 'en';
 
-      // Build multipart body manually (Node.js Buffer-based)
+      // Build multipart body manually (Node.js Buffer-based).
+      //
+      // The form field is `file` (NOT `audio`). ElevenLabs' batch STT
+      // endpoint rejects `name="audio"` with HTTP 400:
+      //   { detail: { code: 'invalid_parameters',
+      //               message: 'Must provide either file or a URL parameter.',
+      //               param: 'file' } }
+      // Verified live against the prod ELEVENLABS_API_KEY 2026-05-20:
+      //   `-F 'audio=@...'` → HTTP 400
+      //   `-F 'file=@...'`  → HTTP 200 { text, words, ... }
+      // The previous `name="audio"` here made every chunked STT chunk
+      // silently 400 and the voice pipeline drained the endpoint-detector
+      // timeout with zero transcripts — i.e. the "Voice ended before
+      // transcribing — your mic may be muted or the voice service is
+      // unreachable" symptom on every deploy where DEEPGRAM_API_KEY was
+      // not set.
       const parts: Buffer[] = [];
       parts.push(Buffer.from(`--${boundary}\r\n`));
       parts.push(
         Buffer.from(
-          `Content-Disposition: form-data; name="audio"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n`
+          `Content-Disposition: form-data; name="file"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n`
         )
       );
       parts.push(Buffer.from(wavBuffer));
