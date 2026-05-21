@@ -1,3 +1,8 @@
+## <small>0.9.19 (2026-05-21)</small>
+
+* test(voice): use AudioFrame.timestamp (not timestampMs) in STT regression test ([dd7752f35df767d3f7287f46b941cda7d4c8d0b5](https://github.com/framersai/agentos/commit/dd7752f35df767d3f7287f46b941cda7d4c8d0b5))
+* fix(voice): elevenlabs chunked STT multipart field name=audio → name=file ([4061bfb53c4b06e48a2887acea6e044e8a25f6a2](https://github.com/framersai/agentos/commit/4061bfb53c4b06e48a2887acea6e044e8a25f6a2))
+
 ## <small>0.9.18 (2026-05-18)</small>
 
 * fix(voice): bound batch TTS synthesize fetches with AbortSignal ([80b51fb4cbba7e39fb07c415488688fd2d193cac](https://github.com/framersai/agentos/commit/80b51fb4cbba7e39fb07c415488688fd2d193cac))
