@@ -107,7 +107,7 @@ describe('provider HealthyProvider implementations', () => {
       session.pushAudio({
         samples,
         sampleRate: 16000,
-        timestampMs: 0,
+        timestamp: 0,
       });
       await session.flush();
 
