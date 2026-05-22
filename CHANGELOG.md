@@ -1,3 +1,7 @@
+## <small>0.9.20 (2026-05-22)</small>
+
+* fix(generateText): match 'credit balance' billing message in isRetryableError ([6060864a393103bf4d6709ab5a0df9467b3bb293](https://github.com/framersai/agentos/commit/6060864a393103bf4d6709ab5a0df9467b3bb293))
+
 ## <small>0.9.19 (2026-05-21)</small>
 
 * test(voice): use AudioFrame.timestamp (not timestampMs) in STT regression test ([dd7752f35df767d3f7287f46b941cda7d4c8d0b5](https://github.com/framersai/agentos/commit/dd7752f35df767d3f7287f46b941cda7d4c8d0b5))
