@@ -791,7 +791,16 @@ export function isRetryableError(error: unknown): boolean {
   // Network-level failures
   if (/fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) return true;
   // Provider-specific phrases that always imply a retryable condition.
-  if (/requires more credits|insufficient credits|rate limit|quota|exceeded your current quota/i.test(msg)) {
+  // `credit balance` covers Anthropic's billing message ("Your credit
+  // balance is too low to access the Anthropic API") which carries
+  // none of the other phrases and is only otherwise caught by the
+  // numeric httpStatus 402 branch — a wrapped / re-thrown error that
+  // loses the typed `httpStatus` field would slip through without it.
+  if (
+    /requires more credits|insufficient credits|credit balance|rate limit|quota|exceeded your current quota/i.test(
+      msg,
+    )
+  ) {
     return true;
   }
   // Content-policy refusals: the policy-aware fallback chain (see
