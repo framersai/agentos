@@ -1,3 +1,12 @@
+## <small>0.9.21 (2026-05-27)</small>
+
+* feat(rag): export PostgresVectorStore from cognition/rag public surface ([f55db21ccb2fc05134c086d12b15af8de4f7ae24](https://github.com/framersai/agentos/commit/f55db21ccb2fc05134c086d12b15af8de4f7ae24))
+* docs(readme): add forge demo hero (gif + webp fallback) ([2146cfe985426cfb1997b8b47707109422527c1c](https://github.com/framersai/agentos/commit/2146cfe985426cfb1997b8b47707109422527c1c))
+* docs(readme): trim filler tail on forge demo caption ([7273b59cde46a46d66151ea840fbf3c5aee1b1c0](https://github.com/framersai/agentos/commit/7273b59cde46a46d66151ea840fbf3c5aee1b1c0))
+* rag: add fetchByIds to IVectorStore + PostgresVectorStore; hydrate sparse-only HybridSearcher winners ([1ab0da74bfd3c71b3763b41615e394dd10af9adb](https://github.com/framersai/agentos/commit/1ab0da74bfd3c71b3763b41615e394dd10af9adb))
+* Merge branch 'master' of https://github.com/framersai/agentos ([775e73921dfe04efbbbd8601c04d3ac70d542edd](https://github.com/framersai/agentos/commit/775e73921dfe04efbbbd8601c04d3ac70d542edd))
+* rotate Discord invite and route hardcoded URLs through wilds.ai/discord ([7b13f2b1cb235f76c991e04b4fa593ea71acd331](https://github.com/framersai/agentos/commit/7b13f2b1cb235f76c991e04b4fa593ea71acd331))
+
 ## <small>0.9.20 (2026-05-22)</small>
 
 * fix(generateText): match 'credit balance' billing message in isRetryableError ([6060864a393103bf4d6709ab5a0df9467b3bb293](https://github.com/framersai/agentos/commit/6060864a393103bf4d6709ab5a0df9467b3bb293))
