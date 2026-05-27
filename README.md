@@ -48,7 +48,7 @@ On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (gpt-4o 
        width="900" />
 </picture>
 
-<sub>Runtime tool forging + multi-agent collaboration. Reproduce with <code>node <a href="https://github.com/framersai/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs">examples/emergent-hierarchical-spawning.mjs</a></code> — three commands, no API mocks.</sub>
+<sub>Runtime tool forging + multi-agent collaboration. Reproduce with <code>node <a href="https://github.com/framersai/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs">examples/emergent-hierarchical-spawning.mjs</a></code>.</sub>
 
 </div>
 
