@@ -19,6 +19,7 @@ import { resolveModelOption } from './model.js';
 import { lowerZodToJsonSchema } from '../orchestration/compiler/SchemaLowering.js';
 import { estimateMaxTokensForZodSchema } from './runtime/schemaTokenEstimate.js';
 import { canUseStrictJsonSchema, buildOpenAIJsonSchemaResponseFormat } from './runtime/openaiResponseFormat.js';
+import { buildResponseFormat } from '../core/llm/providers/structuredOutputFormat.js';
 
 /**
  * Detect whether a Zod schema's outer type is `ZodArray`. We support
@@ -458,18 +459,35 @@ export async function generateObject<T extends ZodType>(
 
   // Detect provider-native JSON output paths. OpenAI gets the strongest
   // guarantee via `response_format: json_schema` (strict mode, supported on
-  // gpt-4o-2024-08-06 and later) when the schema lowers cleanly. Other
-  // OpenAI-compatible providers fall back to the looser `json_object` mode,
-  // which still suppresses markdown fences but doesn't enforce the schema.
-  // Anthropic / Gemini / etc. fall through to prompt-only enforcement.
+  // gpt-4o-2024-08-06 and later) when the schema lowers cleanly.
+  // Anthropic routes through forced `tool_use` with the schema as
+  // `input_schema` — same gold-standard reliability tier as OpenAI strict
+  // mode. Gemini uses `responseSchema`. OpenAI-compatible providers that
+  // lack native structured output (OpenRouter, etc.) fall back to the
+  // looser `json_object` mode, which suppresses markdown fences but
+  // doesn't enforce the schema.
   const { providerId } = resolveModelOption(opts, 'text');
   const useStrictJsonSchema = providerId === 'openai' && canUseStrictJsonSchema(jsonSchema);
   const supportsJsonObjectMode = JSON_MODE_PROVIDERS.has(providerId);
-  const responseFormat = useStrictJsonSchema
-    ? buildOpenAIJsonSchemaResponseFormat(jsonSchema, effectiveSchemaName)
-    : supportsJsonObjectMode
-      ? { type: 'json_object' as const }
-      : undefined;
+  let responseFormat: Record<string, unknown> | undefined;
+  if (useStrictJsonSchema) {
+    responseFormat = buildOpenAIJsonSchemaResponseFormat(jsonSchema, effectiveSchemaName);
+  } else if (providerId === 'anthropic' || providerId === 'gemini' || providerId === 'gemini-cli') {
+    // Route through the provider-specific structured-output helper.
+    // Anthropic gets forced tool_use (single tool with input_schema +
+    // tool_choice: { type: 'tool', name }), Gemini gets responseSchema.
+    // Pre-2026-05-28 these providers fell through to prompt-only
+    // enforcement; complex Zod schemas with .refine() invariants failed
+    // structured output ~100% of the time even with retries because the
+    // model wasn't actually constrained.
+    responseFormat = buildResponseFormat({
+      provider: providerId,
+      schema: effectiveSchema,
+      schemaName: effectiveSchemaName ?? 'response',
+    });
+  } else if (supportsJsonObjectMode) {
+    responseFormat = { type: 'json_object' as const };
+  }
 
   // Build the messages array, accumulating retry feedback as needed.
   const messages: Message[] = [];

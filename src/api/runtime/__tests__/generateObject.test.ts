@@ -443,4 +443,111 @@ describe('generateObject', () => {
     expect(last.text).toContain('JSON Schema');
     expect(last).toMatchObject({ cache_control: { type: 'ephemeral' } });
   });
+
+  describe('provider-specific structured-output routing (2026-05-28)', () => {
+    // Before this slice, only openai got native structured-output via the
+    // strict `json_schema` response_format. Anthropic / Gemini fell through
+    // to prompt-only enforcement — strict Zod schemas with .refine()
+    // invariants reliably failed structured output even with retries
+    // because the model was not actually constrained. generateObject now
+    // routes through buildResponseFormat() for anthropic + gemini so the
+    // provider implementation receives the native structured-output payload
+    // (anthropic forced tool_use, gemini responseSchema).
+
+    it('forwards anthropic forced tool_use payload to provider for anthropic models', async () => {
+      const { resolveModelOption } = await import('../../model.js');
+      vi.mocked(resolveModelOption).mockReturnValueOnce({
+        providerId: 'anthropic',
+        modelId: 'claude-sonnet-4-6',
+      });
+      hoisted.generateCompletion.mockResolvedValueOnce(
+        mockResponse('{"name": "Z", "age": 1}'),
+      );
+
+      await generateObject({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-6',
+        schema: personSchema,
+        schemaName: 'PersonInfo',
+        prompt: 'Extract',
+      });
+
+      const args = hoisted.generateCompletion.mock.calls[0][2];
+      expect(args.responseFormat).toMatchObject({
+        _agentosUseToolForStructuredOutput: true,
+        tool: {
+          name: 'PersonInfo',
+          input_schema: expect.objectContaining({ type: 'object' }),
+        },
+      });
+    });
+
+    it('forwards Gemini responseSchema payload to provider for gemini models', async () => {
+      const { resolveModelOption } = await import('../../model.js');
+      vi.mocked(resolveModelOption).mockReturnValueOnce({
+        providerId: 'gemini',
+        modelId: 'gemini-2.5-pro',
+      });
+      hoisted.generateCompletion.mockResolvedValueOnce(
+        mockResponse('{"name": "Y", "age": 2}'),
+      );
+
+      await generateObject({
+        provider: 'gemini',
+        model: 'gemini-2.5-pro',
+        schema: personSchema,
+        prompt: 'Extract',
+      });
+
+      const args = hoisted.generateCompletion.mock.calls[0][2];
+      expect(args.responseFormat).toMatchObject({
+        type: 'json_object',
+        _gemini: { responseSchema: expect.objectContaining({ type: 'object' }) },
+      });
+    });
+
+    it('keeps OpenAI strict json_schema payload for openai models (regression check)', async () => {
+      const { resolveModelOption } = await import('../../model.js');
+      vi.mocked(resolveModelOption).mockReturnValueOnce({
+        providerId: 'openai',
+        modelId: 'gpt-4o',
+      });
+      hoisted.generateCompletion.mockResolvedValueOnce(
+        mockResponse('{"name": "X", "age": 3}'),
+      );
+
+      await generateObject({
+        schema: personSchema,
+        schemaName: 'PersonInfo',
+        prompt: 'Extract',
+      });
+
+      const args = hoisted.generateCompletion.mock.calls[0][2];
+      expect(args.responseFormat).toMatchObject({
+        type: 'json_schema',
+        json_schema: { name: 'PersonInfo', strict: true },
+      });
+    });
+
+    it('keeps json_object payload for openrouter (regression check)', async () => {
+      const { resolveModelOption } = await import('../../model.js');
+      vi.mocked(resolveModelOption).mockReturnValueOnce({
+        providerId: 'openrouter',
+        modelId: 'anthropic/claude-sonnet-4-6',
+      });
+      hoisted.generateCompletion.mockResolvedValueOnce(
+        mockResponse('{"name": "W", "age": 4}'),
+      );
+
+      await generateObject({
+        provider: 'openrouter',
+        model: 'anthropic/claude-sonnet-4-6',
+        schema: personSchema,
+        prompt: 'Extract',
+      });
+
+      const args = hoisted.generateCompletion.mock.calls[0][2];
+      expect(args.responseFormat).toEqual({ type: 'json_object' });
+    });
+  });
 });
