@@ -1,3 +1,7 @@
+## <small>0.9.23 (2026-05-28)</small>
+
+* fix(generateObject): route through buildResponseFormat for anthropic + gemini ([143d5117cc550c058eef4244b8e8c077c771a52c](https://github.com/framersai/agentos/commit/143d5117cc550c058eef4244b8e8c077c771a52c))
+
 ## <small>0.9.22 (2026-05-28)</small>
 
 * fix(graphrag): use ON CONFLICT instead of INSERT OR REPLACE so Postgres adapters can persist ([4bb7186dc385fcd9671769ef4e0e7a2be1a060ee](https://github.com/framersai/agentos/commit/4bb7186dc385fcd9671769ef4e0e7a2be1a060ee))
