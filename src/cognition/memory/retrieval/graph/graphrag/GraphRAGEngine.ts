@@ -1804,12 +1804,32 @@ Provide a comprehensive answer based on the information above.`,
       );
     }
 
-    // Persist entities
+    // Persist entities.
+    //
+    // `INSERT OR REPLACE` is SQLite-only; Postgres chokes with
+    // "syntax error at or near OR" at position 8 (right after
+    // "INSERT "). Previously every wilds-ai compile against the
+    // production Postgres adapter logged `graphrag_seed_failed`,
+    // silently dropping GraphRAG seeds for every new blueprint.
+    // The `INSERT ... ON CONFLICT (id) DO UPDATE SET ...` form is
+    // portable across Postgres + SQLite >= 3.24 (default since 2018),
+    // and the `EXCLUDED.<col>` reference pulls the proposed insert
+    // value without re-binding parameters.
     for (const entity of this.entities.values()) {
       await this.persistenceAdapter.run(
-        `INSERT OR REPLACE INTO ${this.tablePrefix}entities
+        `INSERT INTO ${this.tablePrefix}entities
          (id, name, type, description, properties_json, embedding_json, source_document_ids_json, frequency, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           type = EXCLUDED.type,
+           description = EXCLUDED.description,
+           properties_json = EXCLUDED.properties_json,
+           embedding_json = EXCLUDED.embedding_json,
+           source_document_ids_json = EXCLUDED.source_document_ids_json,
+           frequency = EXCLUDED.frequency,
+           created_at = EXCLUDED.created_at,
+           updated_at = EXCLUDED.updated_at`,
         [
           entity.id,
           entity.name,
@@ -1825,12 +1845,22 @@ Provide a comprehensive answer based on the information above.`,
       );
     }
 
-    // Persist relationships
+    // Persist relationships (see entity comment above for the
+    // INSERT OR REPLACE → ON CONFLICT migration rationale).
     for (const rel of this.relationships.values()) {
       await this.persistenceAdapter.run(
-        `INSERT OR REPLACE INTO ${this.tablePrefix}relationships
+        `INSERT INTO ${this.tablePrefix}relationships
          (id, source_entity_id, target_entity_id, type, description, weight, properties_json, source_document_ids_json, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           source_entity_id = EXCLUDED.source_entity_id,
+           target_entity_id = EXCLUDED.target_entity_id,
+           type = EXCLUDED.type,
+           description = EXCLUDED.description,
+           weight = EXCLUDED.weight,
+           properties_json = EXCLUDED.properties_json,
+           source_document_ids_json = EXCLUDED.source_document_ids_json,
+           created_at = EXCLUDED.created_at`,
         [
           rel.id,
           rel.sourceEntityId,
@@ -1845,12 +1875,23 @@ Provide a comprehensive answer based on the information above.`,
       );
     }
 
-    // Persist communities
+    // Persist communities (see entity comment above).
     for (const community of this.communities.values()) {
       await this.persistenceAdapter.run(
-        `INSERT OR REPLACE INTO ${this.tablePrefix}communities
+        `INSERT INTO ${this.tablePrefix}communities
          (id, level, parent_community_id, child_community_ids_json, entity_ids_json, relationship_ids_json, summary, findings_json, importance, title, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           level = EXCLUDED.level,
+           parent_community_id = EXCLUDED.parent_community_id,
+           child_community_ids_json = EXCLUDED.child_community_ids_json,
+           entity_ids_json = EXCLUDED.entity_ids_json,
+           relationship_ids_json = EXCLUDED.relationship_ids_json,
+           summary = EXCLUDED.summary,
+           findings_json = EXCLUDED.findings_json,
+           importance = EXCLUDED.importance,
+           title = EXCLUDED.title,
+           created_at = EXCLUDED.created_at`,
         [
           community.id,
           community.level,
