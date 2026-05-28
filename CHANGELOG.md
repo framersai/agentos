@@ -1,3 +1,8 @@
+## <small>0.9.22 (2026-05-28)</small>
+
+* fix(graphrag): use ON CONFLICT instead of INSERT OR REPLACE so Postgres adapters can persist ([4bb7186dc385fcd9671769ef4e0e7a2be1a060ee](https://github.com/framersai/agentos/commit/4bb7186dc385fcd9671769ef4e0e7a2be1a060ee))
+* docs(memory): sync multimodal-rag + working-memory updates ([b847096d91ff28d174bbf4c172fe565834257236](https://github.com/framersai/agentos/commit/b847096d91ff28d174bbf4c172fe565834257236))
+
 ## <small>0.9.21 (2026-05-27)</small>
 
 * feat(rag): export PostgresVectorStore from cognition/rag public surface ([f55db21ccb2fc05134c086d12b15af8de4f7ae24](https://github.com/framersai/agentos/commit/f55db21ccb2fc05134c086d12b15af8de4f7ae24))
