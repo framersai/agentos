@@ -144,6 +144,13 @@ export interface VoiceNodeConfig {
   exitOn?: 'hangup' | 'silence-timeout' | 'keyword' | 'turns-exhausted' | 'manual';
   /** Keywords that trigger completion (when exitOn: 'keyword') */
   exitKeywords?: string[];
+  /**
+   * Line a `speak-only` node delivers to TTS before completing. When set, a
+   * `speak-only` node pushes this text via the transport adapter's
+   * `deliverNodeOutput` (→ `pipeline.pushToTTS`) then routes its `completed`
+   * edge. No effect on `conversation` / `listen-only` modes.
+   */
+  speakText?: string;
 }
 
 /**

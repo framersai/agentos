@@ -191,6 +191,35 @@ export class VoiceNodeExecutor {
       return { success: false, error: 'Voice node requires voiceTransport in state.scratch' };
     }
 
+    // speak-only nodes (e.g. greet / farewell bookends) deliver a single line
+    // to TTS via the transport adapter, then complete. They do NOT race exit
+    // conditions — there is no user turn to wait on. The adapter is placed in
+    // scratch by `VoiceTransportAdapter.init()`.
+    if (voiceConfig.mode === 'speak-only') {
+      const adapter = (state as any)?.scratch?.voiceAdapter as
+        | { deliverNodeOutput?: (nodeId: string, out: string) => Promise<void> }
+        | undefined;
+      if (voiceConfig.speakText && adapter?.deliverNodeOutput) {
+        try {
+          await adapter.deliverNodeOutput(node.id, voiceConfig.speakText);
+        } catch {
+          // Best-effort: a TTS delivery failure must not strand the graph.
+        }
+      }
+      const speakEdges = (node as any).edges ?? {};
+      this.eventSink({
+        type: 'voice_session',
+        nodeId: node.id,
+        action: 'ended',
+        exitReason: 'completed',
+      });
+      return {
+        success: true,
+        output: { transcript: [], turns: 0, exitReason: 'completed' },
+        routeTarget: typeof speakEdges === 'object' ? speakEdges['completed'] : undefined,
+      };
+    }
+
     // Check for checkpoint restore -- if the node was previously executed and the
     // graph was suspended/restored, the prior turn count is in the checkpoint.
     // This lets the turn counter continue from where it left off rather than

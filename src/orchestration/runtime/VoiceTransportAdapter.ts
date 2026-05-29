@@ -135,7 +135,17 @@ export class VoiceTransportAdapter {
   constructor(
     private readonly config: VoiceTransportConfig,
     private readonly transport: any, // IStreamTransport
-    private readonly eventSink: (event: GraphEvent) => void
+    private readonly eventSink: (event: GraphEvent) => void,
+    /**
+     * Optional injection of a fully-wired, already-started pipeline + its
+     * session. When provided, `init()` uses this pipeline instead of building
+     * a bare `VoicePipelineOrchestrator` from `config`, and sets
+     * `transport._voiceSession` to `session` so `VoiceNodeExecutor` can read
+     * turn/transcript events. Lets consumers (e.g. wilds companion voice) pass
+     * an orchestrator carrying memory + custom STT/TTS provider chains rather
+     * than the bare config-built one.
+     */
+    private readonly injected: { pipeline?: any; session?: any } = {}
   ) {}
 
   // -------------------------------------------------------------------------
@@ -152,23 +162,36 @@ export class VoiceTransportAdapter {
   async init(state: Partial<GraphState>): Promise<void> {
     const scratch = ((state as any).scratch ??= {});
     scratch.voiceTransport = this.transport;
+    // Expose the adapter so node executors (e.g. speak-only delivery in
+    // VoiceNodeExecutor) can reach `deliverNodeOutput` without re-plumbing.
+    scratch.voiceAdapter = this;
 
-    // Lazily import to avoid hard dependency cycle with the voice subsystem
-    try {
-      const { VoicePipelineOrchestrator } = await import(
-        '../../io/voice-pipeline/VoicePipelineOrchestrator.js'
-      );
-      this.pipeline = new VoicePipelineOrchestrator({
-        stt: this.config.stt ?? 'deepgram',
-        tts: this.config.tts ?? 'elevenlabs',
-        endpointing: this.config.endpointing as any,
-        bargeIn: this.config.bargeIn as any,
-        voice: this.config.voice,
-        language: this.config.language,
-      });
-    } catch {
-      // Pipeline unavailable — fall back to transport-only mode
-      this.pipeline = null;
+    if (this.injected.pipeline) {
+      // Consumer-provided, already-started pipeline. Use it directly and wire
+      // its session onto the transport so the executor's VoiceTurnCollector
+      // reads real turn/transcript events.
+      this.pipeline = this.injected.pipeline;
+      if (this.injected.session) {
+        (this.transport as any)._voiceSession = this.injected.session;
+      }
+    } else {
+      // Lazily import to avoid hard dependency cycle with the voice subsystem
+      try {
+        const { VoicePipelineOrchestrator } = await import(
+          '../../io/voice-pipeline/VoicePipelineOrchestrator.js'
+        );
+        this.pipeline = new VoicePipelineOrchestrator({
+          stt: this.config.stt ?? 'deepgram',
+          tts: this.config.tts ?? 'elevenlabs',
+          endpointing: this.config.endpointing as any,
+          bargeIn: this.config.bargeIn as any,
+          voice: this.config.voice,
+          language: this.config.language,
+        });
+      } catch {
+        // Pipeline unavailable — fall back to transport-only mode
+        this.pipeline = null;
+      }
     }
 
     this.initialized = true;
