@@ -38,6 +38,13 @@ export { embedText } from './embedText.js';
 export { generateImage } from './generateImage.js';
 export { transferStyle } from './transferStyle.js';
 
+// --- LLM usage observer (global cost / telemetry hook) ---
+export {
+  setGlobalLlmObserver,
+  type LlmUsageEvent,
+  type LlmUsageObserver,
+} from './observers.js';
+
 // --- Global default provider config ---
 export {
   setDefaultProvider,

@@ -10,6 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import { fireLlmUsageObserver } from './observers.js';
 import { hostPolicyToRouteParams, mergeRequiredCapabilities } from './runtime/hostPolicy.js';
 import { adaptTools } from './runtime/toolAdapter.js';
 import {
@@ -832,6 +833,22 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         status: metricStatus,
         usage: toTurnMetricUsage(usage),
       });
+      // 2026-05-29 — fire the global LLM usage observer with the
+      // finalized stream usage. Same hook generateText fires; hosts
+      // (wilds-ai foundation_usage_events, billing dashboards) get
+      // one consistent stream of events whether the caller used
+      // generateText or streamText. No-op when no observer is
+      // registered.
+      if (metricStatus !== 'error') {
+        fireLlmUsageObserver({
+          provider: recordedProviderId ?? '',
+          model: recordedModelId ?? '',
+          usage,
+          source: opts.source,
+          finishReason: allToolCalls.length > 0 && !finalText ? 'tool-calls' : 'stop',
+          surface: 'streamText',
+        });
+      }
     }
   }
 

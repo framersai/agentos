@@ -14,6 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolveModelOption, resolveProvider, createProviderManager } from './model.js';
 import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
+import { fireLlmUsageObserver } from './observers.js';
 import {
   hostPolicyToRouteParams,
   mergeRequiredCapabilities,
@@ -346,6 +347,15 @@ export interface GenerateTextOptions {
    * @param fallbackProvider - The provider identifier being tried next.
    */
   onFallback?: (error: Error, fallbackProvider: string) => void;
+  /**
+   * Optional source label forwarded to the global LLM usage observer
+   * registered via {@link setGlobalLlmObserver}. Hosts use this to
+   * tag the emitted telemetry row with a caller-defined meter key
+   * (e.g. 'narrator_turn', 'companion_reply', 'world_compile_job').
+   *
+   * Has no effect when no observer is registered.
+   */
+  source?: string;
   /**
    * Optional model router for intelligent provider/model selection.
    * When provided, the router's `selectModel()` is called before provider
@@ -1304,6 +1314,18 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           span?.setAttribute('agentos.api.finish_reason', choice.finishReason ?? 'stop');
           span?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
           attachUsageAttributes(span, totalUsage);
+          // 2026-05-29 — fire the global LLM usage observer so hosts
+          // (wilds-ai foundation_usage_events, billing dashboards) get
+          // the resolved provider + model + cost without wrapping every
+          // callsite. No-op when no observer is registered.
+          fireLlmUsageObserver({
+            provider: resolved.providerId,
+            model: resolved.modelId,
+            usage: totalUsage,
+            source: opts.source,
+            finishReason: choice.finishReason ?? 'stop',
+            surface: 'generateText',
+          });
           return {
             provider: resolved.providerId,
             model: resolved.modelId,
@@ -1417,6 +1439,14 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         span?.setAttribute('agentos.api.finish_reason', choice.finishReason ?? 'stop');
         span?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
         attachUsageAttributes(span, totalUsage);
+        fireLlmUsageObserver({
+          provider: resolved.providerId,
+          model: resolved.modelId,
+          usage: totalUsage,
+          source: opts.source,
+          finishReason: choice.finishReason ?? 'stop',
+          surface: 'generateText',
+        });
         return {
           provider: resolved.providerId,
           model: resolved.modelId,
@@ -1433,6 +1463,14 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
       span?.setAttribute('agentos.api.finish_reason', 'tool-calls');
       span?.setAttribute('agentos.api.tool_calls', allToolCalls.length);
       attachUsageAttributes(span, totalUsage);
+      fireLlmUsageObserver({
+        provider: resolved.providerId,
+        model: resolved.modelId,
+        usage: totalUsage,
+        source: opts.source,
+        finishReason: 'tool-calls',
+        surface: 'generateText',
+      });
       return {
         provider: resolved.providerId,
         model: resolved.modelId,
