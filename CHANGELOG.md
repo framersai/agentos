@@ -1,3 +1,10 @@
+## <small>0.9.24 (2026-05-29)</small>
+
+* feat(voice-graph): speak-only TTS delivery + injectable orchestrator/session ([3bf2831854ecbffb6c15aade115965501520e6bb](https://github.com/framersai/agentos/commit/3bf2831854ecbffb6c15aade115965501520e6bb))
+* Correct LLM provider count to 11 across README, docs, corpus, and tests ([1e0c2f82cd2e479972444ecd39ca68e8f482ad91](https://github.com/framersai/agentos/commit/1e0c2f82cd2e479972444ecd39ca68e8f482ad91))
+* Correct LLM provider count to 11 in architecture alt text ([63ed327fe991cbf5fe1e01bca76416a3aaa76167](https://github.com/framersai/agentos/commit/63ed327fe991cbf5fe1e01bca76416a3aaa76167))
+* Rewrite README hero and fix LLM provider count to 11 ([5024065f1be17885edd02d2003cff15d51485535](https://github.com/framersai/agentos/commit/5024065f1be17885edd02d2003cff15d51485535))
+
 ## <small>0.9.23 (2026-05-28)</small>
 
 * fix(generateObject): route through buildResponseFormat for anthropic + gemini ([143d5117cc550c058eef4244b8e8c077c771a52c](https://github.com/framersai/agentos/commit/143d5117cc550c058eef4244b8e8c077c771a52c))
