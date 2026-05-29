@@ -1,3 +1,7 @@
+## <small>0.9.25 (2026-05-29)</small>
+
+* feat(api): global LLM usage observer hook ([53fe0fcfdcdbc4fb9d424a805db86ffaba602115](https://github.com/framersai/agentos/commit/53fe0fcfdcdbc4fb9d424a805db86ffaba602115))
+
 ## <small>0.9.24 (2026-05-29)</small>
 
 * feat(voice-graph): speak-only TTS delivery + injectable orchestrator/session ([3bf2831854ecbffb6c15aade115965501520e6bb](https://github.com/framersai/agentos/commit/3bf2831854ecbffb6c15aade115965501520e6bb))
