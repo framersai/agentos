@@ -6,9 +6,9 @@
 
 <br />
 
-# **AgentOS**: Open-Source TypeScript AI Agent Runtime with Cognitive Memory, HEXACO Personality, and Runtime Tool Forging
+# **AgentOS** · TypeScript AI Agent Runtime
 
-**85.6% on LongMemEval-S** at $0.0090/correct, +1.4 above Mastra OM gpt-4o (84.23%) * **70.2% on LongMemEval-M** (1.5M-token variant), the only open-source library on the public record above 65% on M with publicly reproducible methodology * 16 LLM providers * 8 neuroscience-backed memory mechanisms * Apache-2.0
+**Agents that remember, forge their own tools, and survive long-running sessions.** Persistent cognitive memory, optional HEXACO personality, multi-agent orchestration, and one dispatch interface across 11 LLM providers. Apache-2.0.
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
 [![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
@@ -29,13 +29,12 @@
 
 AgentOS is an open-source TypeScript runtime for AI agents that **remember, adapt, and write their own tools**.
 
-When an agent encounters a sub-task no existing tool covers, it generates a TypeScript function with a Zod-described schema, sends it through an LLM judge, and on approval runs it in a hardened `node:vm` sandbox. The new tool joins the catalog for the rest of the session. When a multi-agent team hits a capability gap, the manager calls `spawn_specialist` and the LLM judge reviews the synthesized agent spec before it joins the live roster.
-
-The runtime carries the parts of an agent that should outlive a single chat completion: persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory) (Ebbinghaus decay, retrieval-induced forgetting, reconsolidation, source-confidence decay) grounded in published cognitive-science literature, optional [HEXACO personality](https://docs.agentos.sh/features/hexaco-personality) vectors that bias encoding, working-memory capacity, and prompt formatting, [six multi-agent orchestration strategies](https://docs.agentos.sh/features/multi-agent-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), and one dispatch interface across 21 LLM providers. Apache-2.0.
-
-[100+ first-party extensions](https://www.npmjs.com/package/@framers/agentos-extensions) (channel adapters, tool packs, guardrail packs) and [88 curated `SKILL.md` skills](https://www.npmjs.com/package/@framers/agentos-skills) auto-discover at startup through their respective registries: a host pulls a curated index and the runtime wires every tool, guardrail, channel, and skill without manual registration. The auto-loader is the same surface that runtime-forged tools join: an agent that invents a function in session N can promote it (with judge approval and `SkillExporter`) into a `SKILL.md` that the registry picks up on the next process start. Forging is how the surface grows mid-run; auto-discovery is how it ships as a first-class capability afterward.
-
-On benchmarks: **85.6% on LongMemEval-S** at $0.0090 per correct answer (gpt-4o reader, +1.4 points above Mastra's published 84.23%, 0.4 points behind Emergence.ai's 86% closed-source SaaS SOTA); **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question), the only open-source library on the public record above 65% on M with publicly reproducible methodology. Per-case run JSONs and single-CLI reproduction ship in [agentos-bench](https://github.com/framersai/agentos-bench).
+- **85.6% on [LongMemEval-S](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** at $0.0090 per correct answer (gpt-4o reader): +1.4 points over Mastra OM gpt-4o (84.23%), 0.4 behind Emergence.ai's 86% closed-source SOTA.
+- **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question): the only open-source library on the public record above 65% on M with publicly reproducible methodology.
+- **Runtime tool forging.** An agent writes a TypeScript function with a Zod schema, an LLM judge approves it, and it runs in a hardened `node:vm` sandbox before joining the catalog for the rest of the session. Multi-agent teams spawn judge-reviewed specialists the same way.
+- **Persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory)** with 8 neuroscience-backed mechanisms: Ebbinghaus decay, retrieval-induced forgetting, reconsolidation, and source-confidence decay, grounded in published cognitive-science literature.
+- **Optional [HEXACO personality](https://docs.agentos.sh/features/hexaco-personality)**, [six multi-agent orchestration strategies](https://docs.agentos.sh/features/multi-agent-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), and a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), all on one dispatch interface across **11 LLM providers** (9 API-key + 2 local CLI; OpenRouter fans out to 200+ models).
+- **[100+ first-party extensions](https://www.npmjs.com/package/@framers/agentos-extensions)** and **[88 curated `SKILL.md` skills](https://www.npmjs.com/package/@framers/agentos-skills)** auto-discover at startup; forged tools promote into skills via `SkillExporter`. **Apache-2.0.**
 
 ---
 
@@ -196,7 +195,7 @@ Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-
 
 | Package | Role |
 |---|---|
-| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime: GMI agents, cognitive memory, multi-agent orchestration, guardrails, voice, 21 LLM providers. Apache 2.0. |
+| [`@framers/agentos`](https://www.npmjs.com/package/@framers/agentos) | Core runtime: GMI agents, cognitive memory, multi-agent orchestration, guardrails, voice, 11 LLM providers. Apache 2.0. |
 | [`@framers/agentos-extensions`](https://www.npmjs.com/package/@framers/agentos-extensions) | 100+ first-party extensions and templates: channel adapters, tool packs, integrations, guardrail packs. |
 | [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | Discovery + auto-loader layer for the extensions catalog. Hosts pull the index without pulling every implementation; the runtime resolves and registers packs at startup. |
 | [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated `SKILL.md` skills covering common tasks. |
