@@ -2,9 +2,10 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => {
   const generateCompletion = vi.fn();
-  const getProvider = vi.fn(() => ({ generateCompletion }));
+  const generateCompletionStream = vi.fn();
+  const getProvider = vi.fn(() => ({ generateCompletion, generateCompletionStream }));
   const createProviderManager = vi.fn(async () => ({ getProvider }));
-  return { generateCompletion, getProvider, createProviderManager };
+  return { generateCompletion, generateCompletionStream, getProvider, createProviderManager };
 });
 vi.mock('../../model.js', () => ({
   resolveModelOption: vi.fn(() => ({ providerId: 'openai', modelId: 'uncensored-x' })),
@@ -25,7 +26,11 @@ const okStep = (content: string) => ({
   choices: [{ message: { role: 'assistant', content }, finishReason: 'stop' }],
 });
 
-beforeEach(() => { hoisted.generateCompletion.mockReset(); recall.execute.mockClear(); });
+beforeEach(() => {
+  hoisted.generateCompletion.mockReset();
+  hoisted.generateCompletionStream.mockReset();
+  recall.execute.mockClear();
+});
 
 it('toolMode:prompt streams the final answer after buffered tool hops', async () => {
   hoisted.generateCompletion
@@ -44,4 +49,26 @@ it('toolMode:prompt streams the final answer after buffered tool hops', async ()
   expect(streamed).toBe('You went to the beach.');
   await expect(result.text).resolves.toBe('You went to the beach.');
   await expect(result.toolCalls).resolves.toEqual([{ name: 'recall', args: {} }]);
+});
+
+it('toolMode:auto falls back to the shim when native streaming rejects tool use', async () => {
+  // native streaming attempt (with tools) rejects tool use → reactive fallback
+  hoisted.generateCompletionStream.mockImplementation(() => {
+    throw new Error('No endpoints found that support tool use. Try disabling tools.');
+  });
+  hoisted.generateCompletion
+    .mockResolvedValueOnce(okStep('<tool_call>{"name":"recall","arguments":{}}</tool_call>'))
+    .mockResolvedValueOnce(okStep('You went to the beach.'));
+
+  const result = streamText({
+    model: 'openai:uncensored-x', prompt: 'where did I go?',
+    tools: [recall] as any, toolMode: 'auto', maxSteps: 5,
+  } as any);
+
+  let streamed = '';
+  for await (const chunk of result.textStream) streamed += chunk;
+
+  expect(recall.execute).toHaveBeenCalledTimes(1);
+  expect(streamed).toBe('You went to the beach.');
+  await expect(result.text).resolves.toBe('You went to the beach.');
 });

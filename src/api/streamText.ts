@@ -347,13 +347,16 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
       }
 
       // --- Prompt-based tool-calling shim (toolMode) ---
-      // 'prompt' forces the shim: buffer the tool roundtrips and emit the final
-      // answer as a single text part through the stream contract (spec decision
-      // #1 — replay from buffer, no extra model call). 'auto' streaming
-      // reactive-fallback is a documented follow-up; for streaming, callers that
-      // know the model lacks native tool-use pass toolMode:'prompt'.
+      // For models without native tool-use, buffer the tool roundtrips and emit
+      // the final answer as a single text part through the stream contract (spec
+      // decision #1 — replay from buffer, no extra model call). 'prompt' forces
+      // it up front; 'auto' tries native streaming first and falls back here on
+      // the provider's tool-unsupported error (see the catch around the loop).
       const toolMode: ToolMode = opts.toolMode ?? 'auto';
-      if (tools.length > 0 && toolMode === 'prompt') {
+      const toolUnsupportedErr = (e: unknown): boolean =>
+        e instanceof Error &&
+        /support tool use|does not support (tools|function)|no endpoints found that support/i.test(e.message);
+      async function* runShimStream(): AsyncGenerator<StreamPart> {
         const loopResult = await runEmulatedToolLoop({
           tools: Array.from(toolMap.values()),
           messages: messages.map((m) => ({
@@ -388,9 +391,14 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         resolveText!(finalText);
         resolveUsage!(usage);
         resolveToolCalls!(shimToolCalls);
+      }
+      if (tools.length > 0 && toolMode === 'prompt') {
+        yield* runShimStream();
         return;
       }
 
+      let streamedAnyText = false;
+      try {
       for (let step = 0; step < maxSteps; step++) {
         // --- onBeforeGeneration hook ---
         let effectiveMessages = messages;
@@ -443,6 +451,7 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
               const part: StreamPart = { type: 'text', text: textDelta };
               parts.push(part);
               yield part;
+              streamedAnyText = true;
             }
 
             if (chunk.error) {
@@ -699,6 +708,20 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
 
           allToolCalls.push(toolCallRecord);
         }
+      }
+      } catch (loopErr) {
+        // 'auto' reactive fallback: if the provider rejected native tool-use
+        // before any text streamed, re-run the turn through the prompt shim.
+        if (
+          !streamedAnyText &&
+          tools.length > 0 &&
+          toolMode === 'auto' &&
+          toolUnsupportedErr(loopErr)
+        ) {
+          yield* runShimStream();
+          return;
+        }
+        throw loopErr;
       }
 
       resolveText!(finalText);
