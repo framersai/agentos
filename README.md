@@ -490,6 +490,6 @@ pnpm install && pnpm build && pnpm test
   <img src="https://raw.githubusercontent.com/framersai/agentos/master/assets/frame-logo-green-no-tagline.svg" alt="Frame.dev" height="40" />
 </a>
 
-**Built by [Manic Agency LLC](https://manic.agency) * [Frame.dev](https://frame.dev) * [Wilds.ai](https://wilds.ai)**
+**Built by [Frame](https://frame.dev) * [Wilds.ai](https://wilds.ai)**
 
 </div>
