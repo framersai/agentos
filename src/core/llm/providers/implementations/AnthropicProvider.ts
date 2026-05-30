@@ -388,8 +388,8 @@ export class AnthropicProvider implements IProvider {
 
     this.config = {
       baseURL: 'https://api.anthropic.com',
-      maxRetries: 3,
-      requestTimeout: 120000,
+      maxRetries: 1,
+      requestTimeout: 90000,
       // 4096 was Anthropic's per-call max in the Claude 2 era and
       // is way too small for modern Claude 4 tool-use traffic — Opus
       // 4.7 in particular regularly truncates mid-JSON on tool-use
@@ -1294,12 +1294,30 @@ export class AnthropicProvider implements IProvider {
       const timeoutId = setTimeout(() => controller.abort(), this.config.requestTimeout);
 
       try {
-        const response = await fetch(url, {
+        // Hard JS timeout race over the abort-signal fetch: undici can leave a
+        // keep-alive "zombie" socket where the AbortController fires but the
+        // promise never settles. `connection: close` discourages reuse; the
+        // race guarantees the await resolves within requestTimeout + 500ms.
+        const fetchPromise = fetch(url, {
           method,
-          headers: { ...headers, 'Content-Type': 'application/json' },
+          headers: { ...headers, 'Content-Type': 'application/json', connection: 'close' },
           body: JSON.stringify(body),
           signal: controller.signal,
         });
+        let hardTimeoutId: ReturnType<typeof setTimeout> | null = null;
+        const hardTimeoutPromise = new Promise<never>((_, rej) => {
+          hardTimeoutId = setTimeout(() => {
+            controller.abort();
+            rej(
+              new AnthropicProviderError(
+                `Hard JS timeout after ${this.config.requestTimeout! + 500}ms (includes 500ms buffer over abort-signal timeout — undici keep-alive zombie).`,
+                'REQUEST_HARD_TIMEOUT',
+              ),
+            );
+          }, this.config.requestTimeout! + 500);
+        });
+        const response = await Promise.race([fetchPromise, hardTimeoutPromise]);
+        if (hardTimeoutId) clearTimeout(hardTimeoutId);
         clearTimeout(timeoutId);
 
         if (!response.ok) {

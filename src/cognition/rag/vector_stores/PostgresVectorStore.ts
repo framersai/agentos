@@ -182,12 +182,12 @@ export class PostgresVectorStore implements IVectorStore {
       : metric === 'euclidean' ? 'vector_l2_ops'
       : 'vector_ip_ops';
     await this.pool.query(
-      `CREATE INDEX IF NOT EXISTS ${table}_hnsw ON ${table} USING hnsw (embedding ${opsClass})`,
+      `CREATE INDEX IF NOT EXISTS ${name}_hnsw ON ${table} USING hnsw (embedding ${opsClass})`,
     );
 
     // Create GIN index for JSONB metadata filtering.
     await this.pool.query(
-      `CREATE INDEX IF NOT EXISTS ${table}_metadata ON ${table} USING gin (metadata_json)`,
+      `CREATE INDEX IF NOT EXISTS ${name}_metadata ON ${table} USING gin (metadata_json)`,
     );
 
     // Create tsvector column + GIN index for full-text search.
@@ -197,7 +197,7 @@ export class PostgresVectorStore implements IVectorStore {
         `ALTER TABLE ${table} ADD COLUMN tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', COALESCE(text_content, ''))) STORED`,
       );
       await this.pool.query(
-        `CREATE INDEX IF NOT EXISTS ${table}_fts ON ${table} USING gin (tsv)`,
+        `CREATE INDEX IF NOT EXISTS ${name}_fts ON ${table} USING gin (tsv)`,
       );
     } catch {
       // Column already exists — fine.

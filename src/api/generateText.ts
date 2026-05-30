@@ -256,6 +256,13 @@ export interface GenerateTextOptions {
    */
   tools?: AdaptableToolInput;
   /**
+   * Provider `tool_choice` passthrough. Forwarded verbatim to the provider so
+   * callers can force a specific tool, force tool use, or set `'auto'`. Provider
+   * support varies; Anthropic + OpenAI honor it. Native path only (ignored on
+   * the prompt-emulation shim).
+   */
+  toolChoice?: string | Record<string, unknown>;
+  /**
    * Maximum number of agentic steps (LLM calls) to execute before returning.
    * Each tool-call round trip counts as one step. Defaults to `1`.
    */
@@ -1305,6 +1312,9 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 tools: toolSchemas,
                 temperature: opts.temperature,
                 maxTokens: opts.maxTokens,
+                // Forward caller toolChoice so orchestrators can force tool_use
+                // (e.g. ai-codegen); models narrate under tool_choice: 'auto'.
+                ...(opts.toolChoice !== undefined ? { toolChoice: opts.toolChoice } : {}),
                 ...(opts._responseFormat ? { responseFormat: opts._responseFormat }: {}),
               } as any
             );
