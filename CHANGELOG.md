@@ -1,3 +1,8 @@
+## <small>0.9.26 (2026-05-30)</small>
+
+* fix(api): re-export setGlobalLlmObserver from package main ([9036539f19dffa37154cb71cf91acd91b8ced3ad](https://github.com/framersai/agentos/commit/9036539f19dffa37154cb71cf91acd91b8ced3ad))
+* test: repair relative imports for relocated colocated tests; drop dead tsconfig test globs ([01b4e276e7b3668feec10e5c2cb564b44fb94e19](https://github.com/framersai/agentos/commit/01b4e276e7b3668feec10e5c2cb564b44fb94e19))
+
 ## <small>0.9.25 (2026-05-29)</small>
 
 * feat(api): global LLM usage observer hook ([53fe0fcfdcdbc4fb9d424a805db86ffaba602115](https://github.com/framersai/agentos/commit/53fe0fcfdcdbc4fb9d424a805db86ffaba602115))
